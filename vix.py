@@ -4,8 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Download historical data for VIX and SPY
-vix = yf.download("^VIX", start="2010-01-01", end="2023-06-04")
-spy = yf.download("SPY", start="2010-01-01", end="2023-06-04")
+vix = yf.download("^VIX", start="1995-01-01", end="2023-06-04")
+spy = yf.download("SPY", start="1995-01-01", end="2023-06-04")
 
 # Extract the 'Close' prices
 vix_close = vix['Close']
@@ -31,6 +31,9 @@ trade_return = 0.0
 benchmark_returns = 0.0
 days_in_market = 0
 
+past_vix_values = []
+past_days = 5
+
 for i in range(len(data)):
     vix_close_value = data['VIX_Close'].iloc[i]
     spy_close_value = data['SPY_Close'].iloc[i]
@@ -42,16 +45,22 @@ for i in range(len(data)):
 
     # Buy condition
     if not holding_spy:
-        if vix_close_value > 25 and rolling_corr_value < -0.75:
+        if all(value > 30 for value in past_vix_values) and vix_close_value < 30 and rolling_corr_value < -0.75:
             trades.append(('Buy', data.index[i], spy_close_value, trade_size))
             holding_spy = True
             total_trades += 1
 
     # Sell condition
-    elif vix_close_value < 15:
+    elif all(value < 20 for value in past_vix_values) and vix_close_value > 20:
         trades.append(('Sell', data.index[i], spy_close_value, trade_size))
         holding_spy = False
         total_trades += 1
+
+    # Update past VIX values
+    past_vix_values.append(vix_close_value)
+    if len(past_vix_values) > past_days:
+        past_vix_values.pop(0)
+
 
 # Count total days in the backtest
 total_days = len(data)
@@ -118,9 +127,9 @@ print("Sharpe ratio (benchmark):", f"{benchmark_sharpe:.2f}")
 print("Final equity:", f"${final_equity_benchmark:.0f}")
 print()
 
-# Create subplots with different heights for SPY and VIX
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 9),
-                               sharex=True, gridspec_kw={'height_ratios': [2, 1]})
+# Create subplots with different heights for SPY, VIX, and Correlation
+fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(16, 9),
+                                    sharex=True, gridspec_kw={'height_ratios': [2, 1, 1]})
 
 # Plot SPY close price
 ax1.set_ylabel('SPY Close Price', color='tab:blue')
@@ -142,10 +151,27 @@ for trade in trades:
                      bbox=dict(facecolor='white', edgecolor='none', boxstyle='round,pad=0.2'))
 
 # Plot VIX close price
-ax2.set_xlabel('Date')
 ax2.set_ylabel('VIX Close Price', color='tab:red')
 ax2.plot(data.index, data['VIX_Close'], color='tab:red')
+ax2.axhline(y=15, color='r', linestyle='--', alpha=0.5)
+ax2.axhline(y=30, color='g', linestyle='--', alpha=0.5)
+ax2.fill_between(data.index, vix_close, 15,
+                 where=(vix_close < 15), color='r', alpha=0.1)
+ax2.fill_between(data.index, vix_close, 30, where=(
+    vix_close > 30), color='g', alpha=0.1)
 ax2.tick_params(axis='y', labelcolor='tab:red')
+
+# Plot rolling correlation
+ax3.set_xlabel('Date')
+ax3.set_ylabel('Rolling Correlation', color='tab:orange')
+ax3.plot(data.index, rolling_corr, color='tab:orange')
+ax3.axhline(y=-0.75, color='r', linestyle='--', alpha=0.5)
+ax3.axhline(y=-0.25, color='g', linestyle='--', alpha=0.5)
+ax3.fill_between(data.index, rolling_corr, -0.75,
+                 where=(rolling_corr < -0.75), color='r', alpha=0.1)
+ax3.fill_between(data.index, rolling_corr, -0.25, where=(
+    rolling_corr > -0.25), color='g', alpha=0.1)
+ax3.tick_params(axis='y', labelcolor='tab:orange')
 
 # Set the plot title
 fig.suptitle('Trading SPY using VIX signals', fontsize=16, fontweight='bold')
