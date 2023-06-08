@@ -6,7 +6,7 @@ from ta import momentum
 
 # Set the ticker symbol and timeframe
 ticker_symbol = 'SPY'
-start_date = '2010-01-01'
+start_date = '1995-01-01'
 end_date = '2023-06-03'
 
 # Fetch historical stock data
