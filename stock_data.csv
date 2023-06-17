@@ -1,51 +1,11 @@
-Symbol,Date,DCF Price,Stock Price,Price Difference,Percent Difference,Rating,Rating Score,Rating Recommendation,DCF Score,DCF Recommendation,ROE Score,ROE Recommendation,ROA Score,ROA Recommendation,DE Score,DE Recommendation,PE Score,PE Recommendation,PB Score,PB Recommendation
-JPM,2023-06-17,383.21,143.26,239.95,167.49,S-,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,5,Strong Buy,5,Strong Buy,5,Strong Buy
-BAC,2023-06-17,69.59,29.19,40.4,138.4,A+,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,5,Strong Buy,5,Strong Buy,4,Buy
-WFC,2023-06-17,98.84,42.18,56.66,134.33,A+,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,5,Strong Buy,5,Strong Buy,4,Buy
-MS,2023-06-17,144.28,88.09,56.19,63.79,S-,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,5,Strong Buy,5,Strong Buy,5,Strong Buy
-AMZN,2023-06-17,196.51,125.49,71.02,56.59,S-,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,5,Strong Buy,5,Strong Buy,5,Strong Buy
-GOOG,2023-06-17,155.02,124.06,30.96,24.96,A+,4,Buy,5,Strong Buy,3,Neutral,3,Neutral,3,Neutral,5,Strong Buy,5,Strong Buy
-BRK-B,2023-06-17,375.18,338.31,36.87,10.9,A+,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,4,Buy,5,Strong Buy,5,Strong Buy
-DIS,2023-06-17,100.05,91.32,8.73,9.56,A+,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,4,Buy,5,Strong Buy,5,Strong Buy
-BMY,2023-06-17,72.35,66.16,6.19,9.36,S-,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,5,Strong Buy,5,Strong Buy,5,Strong Buy
-ORCL,2023-06-17,135.42,125.46,9.96,7.94,B-,3,Neutral,5,Strong Buy,1,Strong Sell,3,Neutral,1,Strong Sell,5,Strong Buy,1,Strong Sell
-UPS,2023-06-17,190.35,178.58,11.77,6.59,S-,5,Strong Buy,5,Strong Buy,4,Buy,3,Neutral,5,Strong Buy,5,Strong Buy,5,Strong Buy
-NKE,2023-06-17,119.73,113.59,6.14,5.41,A+,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,4,Buy,5,Strong Buy,5,Strong Buy
-RTX,2023-06-17,102.96,97.74,5.22,5.34,A+,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,4,Buy,5,Strong Buy,5,Strong Buy
-TSLA,2023-06-17,274.3,260.54,13.76,5.28,A+,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,4,Buy,5,Strong Buy,5,Strong Buy
-ABT,2023-06-17,111.69,106.2,5.49,5.17,A+,4,Buy,5,Strong Buy,3,Neutral,3,Neutral,3,Neutral,5,Strong Buy,5,Strong Buy
-UNH,2023-06-17,480.73,458.49,22.24,4.85,A+,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,4,Buy,5,Strong Buy,5,Strong Buy
-COST,2023-06-17,548.99,523.65,25.34,4.84,S-,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,5,Strong Buy,5,Strong Buy,5,Strong Buy
-CMCSA,2023-06-17,43.07,41.2,1.87,4.54,S-,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,5,Strong Buy,5,Strong Buy,5,Strong Buy
-TMUS,2023-06-17,136.67,130.93,5.74,4.38,S-,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,5,Strong Buy,5,Strong Buy,5,Strong Buy
-CSCO,2023-06-17,54.24,52.07,2.17,4.17,A+,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,4,Buy,5,Strong Buy,5,Strong Buy
-ABBV,2023-06-17,144.16,138.64,5.52,3.98,S-,5,Strong Buy,5,Strong Buy,4,Buy,3,Neutral,5,Strong Buy,5,Strong Buy,5,Strong Buy
-KO,2023-06-17,63.91,61.67,2.24,3.63,S-,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,5,Strong Buy,5,Strong Buy,5,Strong Buy
-WMT,2023-06-17,160.79,155.53,5.26,3.38,S-,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,5,Strong Buy,5,Strong Buy,5,Strong Buy
-JNJ,2023-06-17,169.65,164.23,5.42,3.3,A+,5,Strong Buy,5,Strong Buy,4,Buy,3,Neutral,4,Buy,4,Buy,5,Strong Buy
-V,2023-06-17,236.45,228.91,7.54,3.29,S-,5,Strong Buy,5,Strong Buy,4,Buy,3,Neutral,4,Buy,5,Strong Buy,5,Strong Buy
-AVGO,2023-06-17,896.46,868.11,28.35,3.27,S-,5,Strong Buy,5,Strong Buy,4,Buy,3,Neutral,5,Strong Buy,5,Strong Buy,5,Strong Buy
-NFLX,2023-06-17,445.23,431.96,13.27,3.07,A+,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,4,Buy,5,Strong Buy,5,Strong Buy
-PM,2023-06-17,97.78,94.89,2.89,3.05,B,3,Neutral,5,Strong Buy,2,Sell,3,Neutral,1,Strong Sell,5,Strong Buy,1,Strong Sell
-MRK,2023-06-17,112.52,109.32,3.2,2.93,A+,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,4,Buy,5,Strong Buy,5,Strong Buy
-TXN,2023-06-17,181.72,176.76,4.96,2.81,S-,5,Strong Buy,5,Strong Buy,4,Buy,3,Neutral,4,Buy,5,Strong Buy,5,Strong Buy
-PG,2023-06-17,153.5,149.54,3.96,2.65,A+,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,4,Buy,5,Strong Buy,5,Strong Buy
-CRM,2023-06-17,217.37,211.76,5.61,2.65,A-,4,Buy,5,Strong Buy,3,Neutral,3,Neutral,4,Buy,1,Strong Sell,5,Strong Buy
-PEP,2023-06-17,190.07,186.04,4.03,2.17,S-,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,5,Strong Buy,5,Strong Buy,5,Strong Buy
-MCD,2023-06-17,299.97,293.7,6.27,2.13,B-,3,Neutral,5,Strong Buy,1,Strong Sell,3,Neutral,1,Strong Sell,5,Strong Buy,1,Strong Sell
-TMO,2023-06-17,548.52,537.3,11.22,2.09,A+,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,4,Buy,5,Strong Buy,5,Strong Buy
-META,2023-06-17,286.81,281,5.81,2.07,A+,4,Buy,5,Strong Buy,3,Neutral,3,Neutral,3,Neutral,5,Strong Buy,5,Strong Buy
-MA,2023-06-17,383.91,376.53,7.38,1.96,S,5,Strong Buy,5,Strong Buy,5,Strong Buy,3,Neutral,5,Strong Buy,5,Strong Buy,5,Strong Buy
-VZ,2023-06-17,37.17,36.46,0.71,1.95,A+,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,5,Strong Buy,4,Buy,5,Strong Buy
-CVX,2023-06-17,160.28,157.26,3.02,1.92,A+,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,4,Buy,5,Strong Buy,5,Strong Buy
-AMD,2023-06-17,122.18,120.08,2.1,1.75,A+,4,Buy,5,Strong Buy,3,Neutral,3,Neutral,3,Neutral,5,Strong Buy,5,Strong Buy
-ADBE,2023-06-17,503.17,495.18,7.99,1.61,A+,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,4,Buy,5,Strong Buy,5,Strong Buy
-XOM,2023-06-17,106.72,105.13,1.59,1.51,A+,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,4,Buy,5,Strong Buy,5,Strong Buy
-DHR,2023-06-17,245.31,241.8,3.51,1.45,A+,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,4,Buy,5,Strong Buy,5,Strong Buy
-AAPL,2023-06-17,186.99,184.92,2.07,1.12,S,5,Strong Buy,5,Strong Buy,5,Strong Buy,3,Neutral,5,Strong Buy,5,Strong Buy,5,Strong Buy
-LLY,2023-06-17,451.9,447.71,4.19,0.94,S-,5,Strong Buy,5,Strong Buy,4,Buy,3,Neutral,5,Strong Buy,5,Strong Buy,5,Strong Buy
-PFE,2023-06-17,40.4,40.06,0.34,0.85,A+,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,4,Buy,5,Strong Buy,5,Strong Buy
-HD,2023-06-17,302.55,300.38,2.17,0.72,S,5,Strong Buy,5,Strong Buy,5,Strong Buy,3,Neutral,5,Strong Buy,5,Strong Buy,5,Strong Buy
-MSFT,2023-06-17,343.87,342.33,1.54,0.45,A+,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,4,Buy,5,Strong Buy,5,Strong Buy
-NEE,2023-06-17,75.91,75.59,0.32,0.42,S-,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,5,Strong Buy,5,Strong Buy,5,Strong Buy
-NVDA,2023-06-17,427.7,426.92,0.78,0.18,A+,5,Strong Buy,5,Strong Buy,3,Neutral,3,Neutral,4,Buy,5,Strong Buy,5,Strong Buy
+Symbol,Date,DCF Price,Stock Price,Price Difference,Percent Difference,Rating,Rating Score,Rating Recommendation
+AMZN,2023-06-17,196.51,125.49,71.02,56.59,S-,5,Strong Buy
+GOOG,2023-06-17,155.02,124.06,30.96,24.96,A+,4,Buy
+BRK-B,2023-06-17,375.18,338.31,36.87,10.9,A+,5,Strong Buy
+TSLA,2023-06-17,274.3,260.54,13.76,5.28,A+,5,Strong Buy
+UNH,2023-06-17,480.73,458.49,22.24,4.85,A+,5,Strong Buy
+V,2023-06-17,236.45,228.91,7.54,3.29,S-,5,Strong Buy
+META,2023-06-17,286.81,281,5.81,2.07,A+,4,Buy
+AAPL,2023-06-17,186.99,184.92,2.07,1.12,S,5,Strong Buy
+MSFT,2023-06-17,343.87,342.33,1.54,0.45,A+,5,Strong Buy
+NVDA,2023-06-17,427.7,426.92,0.78,0.18,A+,5,Strong Buy

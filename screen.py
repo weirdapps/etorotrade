@@ -24,7 +24,7 @@ with open("marketcap.csv", newline="") as file:
         tickers.append(row["Symbol"])
 
 # Take only the top X tickers
-top_tickers = tickers[:50]
+top_tickers = tickers[:100]
 
 # Create a list to store the stock data
 stock_data = []
@@ -64,23 +64,11 @@ for ticker in top_tickers:
                 # Convert the response to JSON
                 ratings_data = response_ratings.json()
 
-                # Get the rating details as shown here: https://site.financialmodelingprep.com/developer/docs/recommendations-formula/
+                # Get the rating details
                 rating = ratings_data[0].get("rating")
                 rating_score = ratings_data[0].get("ratingScore")
                 rating_recommendation = ratings_data[0].get(
                     "ratingRecommendation")
-                rating_dcf_score = ratings_data[0]["ratingDetailsDCFScore"]
-                rating_dcf_recommendation = ratings_data[0]["ratingDetailsDCFRecommendation"]
-                rating_roe_score = ratings_data[0]["ratingDetailsROEScore"]
-                rating_roe_recommendation = ratings_data[0]["ratingDetailsROERecommendation"]
-                rating_roa_score = ratings_data[0]["ratingDetailsROAScore"]
-                rating_roa_recommendation = ratings_data[0]["ratingDetailsROARecommendation"]
-                rating_de_score = ratings_data[0]["ratingDetailsDEScore"]
-                rating_de_recommendation = ratings_data[0]["ratingDetailsDERecommendation"]
-                rating_pe_score = ratings_data[0]["ratingDetailsPEScore"]
-                rating_pe_recommendation = ratings_data[0]["ratingDetailsPERecommendation"]
-                rating_pb_score = ratings_data[0]["ratingDetailsPBScore"]
-                rating_pb_recommendation = ratings_data[0]["ratingDetailsPBRecommendation"]
 
                 # Append the data to the stock_data list
                 stock_data.append([
@@ -92,19 +80,7 @@ for ticker in top_tickers:
                     percent_diff,
                     rating,
                     rating_score,
-                    rating_recommendation,
-                    rating_dcf_score,
-                    rating_dcf_recommendation,
-                    rating_roe_score,
-                    rating_roe_recommendation,
-                    rating_roa_score,
-                    rating_roa_recommendation,
-                    rating_de_score,
-                    rating_de_recommendation,
-                    rating_pe_score,
-                    rating_pe_recommendation,
-                    rating_pb_score,
-                    rating_pb_recommendation
+                    rating_recommendation
                 ])
             else:
                 print(
@@ -129,26 +105,13 @@ headers = [
     "Percent Difference",
     "Rating",
     "Rating Score",
-    "Rating Recommendation",
-    "DCF Score",
-    "DCF Recommendation",
-    "ROE Score",
-    "ROE Recommendation",
-    "ROA Score",
-    "ROA Recommendation",
-    "DE Score",
-    "DE Recommendation",
-    "PE Score",
-    "PE Recommendation",
-    "PB Score",
-    "PB Recommendation"
+    "Rating Recommendation"
 ]
+
+print(tabulate(sorted_stock_data, headers=headers, tablefmt='fancy_grid'))
 
 # Save sorted_stock_data to a CSV file
 with open("stock_data.csv", "w", newline="") as file:
     writer = csv.writer(file)
     writer.writerow(headers)
     writer.writerows(sorted_stock_data)
-
-# Print the table of stock data
-print(tabulate(sorted_stock_data, headers=headers, tablefmt='fancy_grid'))
