@@ -34,7 +34,7 @@ except csv.Error as e:
     exit(1)
 
 # Take only the top X tickers
-top_tickers = tickers[:500]
+top_tickers = tickers[:1000]
 
 # Create a list to store the stock data
 stock_data = []
@@ -103,7 +103,7 @@ for ticker in top_tickers:
                                 if price_target_data:
                                     # Get the price target consensus
                                     target_consensus = price_target_data[0].get(
-                                        "targetConsensus")
+                                        "targetMedian")
 
                                     # Check if the target consensus is available
                                     if target_consensus is not None:
@@ -216,6 +216,20 @@ table = tabulate(stock_data, headers=[
 print(table)
 
 # Write the stock_data table to a CSV file
+stock_data.insert(0, [
+    "Ticker",
+    "Date",
+    "Stock Price",
+    "DCF Price",
+    "DCF Pct Dif",
+    "Target Consensus",
+    "Consensus Pct Diff",
+    "Rating",
+    "Rating Score",
+    "Rating Recom",
+    "Senate Sent"
+])
+
 with open("stock_data.csv", "w", newline="") as file:
     writer = csv.writer(file)
     writer.writerows(stock_data)
