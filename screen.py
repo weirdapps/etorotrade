@@ -16,6 +16,7 @@ if api_key is None:
 
 # Define the base URLs for the API
 DCF_BASE_URL = "https://financialmodelingprep.com/api/v3/"
+ADV_DCF_BASE_URL = "https://financialmodelingprep.com/api/v4/"
 RATINGS_BASE_URL = "https://financialmodelingprep.com/api/v3/"
 CONSENSUS_BASE_URL = "https://financialmodelingprep.com/api/v4/"
 
@@ -34,7 +35,7 @@ except csv.Error as e:
     exit(1)
 
 # Take only the top X tickers
-top_tickers = tickers[:1000]
+top_tickers = tickers[:100]
 
 # Create a list to store the stock data
 stock_data = []
@@ -87,7 +88,7 @@ for ticker in top_tickers:
                             "ratingRecommendation")
 
                         # Define the endpoint for price target consensus
-                        price_target_endpoint = f"price-target-consensus/?symbol={ticker}&apikey={api_key}"
+                        price_target_endpoint = f"price-target-summary/?symbol={ticker}&apikey={api_key}"
 
                         try:
                             # Make the API request to get the price target consensus data
@@ -103,7 +104,7 @@ for ticker in top_tickers:
                                 if price_target_data:
                                     # Get the price target consensus
                                     target_consensus = price_target_data[0].get(
-                                        "targetMedian")
+                                        "lastMonthAvgPriceTarget")
 
                                     # Check if the target consensus is available
                                     if target_consensus is not None:
