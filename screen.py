@@ -97,8 +97,10 @@ def calculate_senate_sentiment(data):
 
 
 def display_table(data):
-    print(tabulate(data, headers=[
-        "Ticker", "Date", "Stock Price", "DCF Price", "DCF Pct Diff",
+    # Add a number as the first column in data
+    numbered_data = [[i+1] + row for i, row in enumerate(data)]
+    print(tabulate(numbered_data, headers=[
+        "#", "Ticker", "Date", "Stock Price", "DCF Price", "DCF Pct Diff",
         "Target Cons", "Cons Pct Diff", "Rating", "Rating Score", "Rating Recom", "Senate Sent"
     ], floatfmt=".2f", tablefmt="fancy_grid"))
 
@@ -106,7 +108,11 @@ def display_table(data):
 def save_to_csv(filename, data):
     with open(filename, "w", newline="") as file:
         writer = csv.writer(file)
-        writer.writerows(data)
+        # Add a number as the first column in data
+        numbered_data = [[i+1] + row for i, row in enumerate(data)]
+        writer.writerow(["#", "Ticker", "Date", "Stock Price", "DCF Price", "DCF Pct Diff",
+                         "Target Cons", "Cons Pct Diff", "Rating", "Rating Score", "Rating Recom", "Senate Sent"])
+        writer.writerows(numbered_data)
 
 
 # Main execution
@@ -115,4 +121,4 @@ stock_data = fetch_stock_data(tickers, api_key)
 # Sort by "Consensus Pct Diff"
 stock_data.sort(key=lambda x: x[6], reverse=True)
 display_table(stock_data)
-save_to_csv("stock_data.csv", stock_data)
+save_to_csv("output.csv", stock_data)
