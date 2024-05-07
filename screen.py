@@ -77,7 +77,8 @@ def fetch_ratings_data(ticker, api_key):
 
 
 def fetch_price_target_data(ticker, api_key):
-    url = f"{API_URLS['CONSENSUS']}price-target-summary/?symbol={ticker}&apikey={api_key}"
+    url = f"{API_URLS['CONSENSUS']
+             }price-target-summary/?symbol={ticker}&apikey={api_key}"
     response = api_request(url)
     if response and len(response) > 0:
         # Fallback mechanism for price target
