@@ -1,33 +1,59 @@
-#,Ticker,Date,Stock Price,DCF Price,DCF Pct Diff, Target Cons ,Cons Pct Diff,Rating,Rating Score,Rating Recom,Senate Sent
-1,ADSK,5/5/24,215.19, 200 ,-6.98, 305 ,41.74,S,5,Strong Buy,-121
-2,LULU,5/5/24,355.15, 477 ,34.24, 488 ,37.27,S-,5,Strong Buy,-30
-3,PLD,5/5/24,105.89, 243 ,129.11, 141 ,33.16,A+,5,Strong Buy,-68
-4,NVDA,5/5/24,887.89, 535 ,-39.77," 1,170 ",31.77,S-,5,Strong Buy,-281
-5,ORCL,5/5/24,115.8, 98 ,-15.71, 150 ,29.53,S-,5,Strong Buy,-98
-6,LLY,5/5/24,734.97, 283 ,-61.53, 929 ,26.35,S,5,Strong Buy,-120
-7,NOW,5/5/24,716.65, 682 ,-4.79, 880 ,22.82,S-,5,Strong Buy,-93
-8,AMT,5/5/24,181.74, 309 ,69.83, 222 ,22.29,S,5,Strong Buy,-84
-9,CVX,5/5/24,160.25, 273 ,70.59, 195 ,21.68,A,4,Buy,-140
-10,LIN,5/5/24,423.6, 216 ,-48.9, 511 ,20.63,S,5,Strong Buy,-116
-11,AVGO,5/5/24,1278.11, 908 ,-28.92," 1,540 ",20.49,A+,5,Strong Buy,-81
-12,T,5/5/24,16.85, 37 ,121.7, 20 ,20.18,A,4,Buy,-206
-13,IBM,5/5/24,165.71, 236 ,42.69, 199 ,20.09,S,5,Strong Buy,-103
-14,JNJ,5/5/24,149.27, 148 ,-1.09, 179 ,19.75,S-,5,Strong Buy,-191
-15,META,5/5/24,451.96, 459 ,1.56, 539 ,19.28,S-,5,Strong Buy,-179
-16,DIS,5/5/24,113.66, 14 ,-87.75, 135 ,18.78,A-,4,Buy,-236
-17,V,5/5/24,268.49, 179 ,-33.5, 318 ,18.44,S-,5,Strong Buy,-188
-18,MSFT,5/5/24,406.66, 309 ,-24.08, 478 ,17.54,S-,5,Strong Buy,-584
-19,AMZN,5/5/24,186.21, 49 ,-73.92, 218 ,17.17,S-,5,Strong Buy,-348
-20,CSCO,5/5/24,47.12, 67 ,43.2, 55 ,16.72,A+,5,Strong Buy,-108
-21,MA,5/5/24,443.58, 236 ,-46.89, 515 ,15.99,S,5,Strong Buy,-117
-22,VRTX,5/5/24,401.08, 647 ,61.42, 450 ,12.2,S-,5,Strong Buy,-28
-23,JPM,5/5/24,190.51, 190 ,-0.53, 212 ,11.35,A+,5,Strong Buy,-257
-24,TMO,5/5/24,572.38, 777 ,35.67, 632 ,10.36,S-,5,Strong Buy,-128
-25,QCOM,5/5/24,179.64, 148 ,-17.36, 195 ,8.68,S-,5,Strong Buy,-86
-26,BAC,5/5/24,37.25, 31 ,-15.57, 40 ,7.92,A,4,Buy,-142
-27,SPOT,5/5/24,296.07, 65 ,-78.03, 319 ,7.63,S,5,Strong Buy,-24
-28,AAPL,5/5/24,183.38, 134 ,-27.03, 196 ,6.65,S,5,Strong Buy,-450
-29,LMT,5/5/24,461.91, 589 ,27.46, 484 ,4.78,S-,5,Strong Buy,-80
-30,GOOG,5/5/24,168.99, 144 ,-14.66, 174 ,2.96,A+,5,Strong Buy,-209
-31,AMGN,5/5/24,311.29, 486 ,56.06, 318 ,2.28,A-,4,Buy,-100
-32,TSLA,5/5/24,181.19, 63 ,-65.2, 179 ,-1.21,A-,4,Buy,-256
+#,Ticker,Date,Stock Price,DCF Price,DCF Pct Diff,Target Cons,Target Pct Diff,Rating Score,Rating,Rating Recom,Senate Sent
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
+ticker,date,stock_price,dcf_price,dcf_percent_diff,target_consensus,target_percent_diff,rating_score,rating,rating_recommendation,senate_sentiment
