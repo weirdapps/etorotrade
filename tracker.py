@@ -204,14 +204,30 @@ def save_to_csv(filename, data):
             "Target Cons", "Target Pct Diff", "Rating Score", "Rating", "Rating Recom", "Senate Sent"
         ]
         writer.writerow(headers)
-        writer.writerows(data)
+        for i, row in enumerate(data):
+            row_data = [
+                i + 1,  # Line number
+                row.get('ticker', ''),
+                row.get('date', ''),
+                row.get('stock_price', ''),
+                row.get('dcf_price', ''),
+                row.get('dcf_percent_diff', ''),
+                row.get('target_consensus', ''),
+                row.get('target_percent_diff', ''),
+                row.get('rating_score', ''),
+                row.get('rating', ''),
+                row.get('rating_recommendation', ''),
+                row.get('senate_sentiment', '')
+            ]
+            writer.writerow(row_data)
+
 
 # Main function
 
 
 def main():
     api_key = load_environment()
-    tickers = load_tickers("market.csv")
+    tickers = load_tickers("portfolio.csv")
     stock_data = []
     for ticker in tickers:
         financial_metrics = extract_financial_metrics(
@@ -227,7 +243,7 @@ def main():
                                    x.get('date') is not None, x.get('date')), reverse=True)
 
     display_table(stock_data)
-    save_to_csv("output.csv", stock_data)
+    save_to_csv("tracker.csv", stock_data)
 
 
 if __name__ == "__main__":
