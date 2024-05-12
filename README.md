@@ -1,3 +1,3 @@
 **Stock Screener**
 
-A python implementation of a stock screener based on difference between DCF valuation, analyst target price and current market price, as well as a comprehensive stock rating
+A stock screener and portfolio quality tracker based on DCF valuation, analysts' price targets, analysts' recommendations, senate transactions and a comprehensive rating taking into account company's valuation, Return on Equity (ROE), Return on Assets (ROA), Debt to Equity Ratio (DE), Price to Earnings Ratio (PE) and Price to Book Value Ratio (PB).
