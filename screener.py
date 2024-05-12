@@ -200,7 +200,6 @@ def extract_financial_metrics(ticker, api_key):
         percent_positive, total_recommendations = calculate_analyst_recommendation(
             analyst_recommendations)
         stock_info['analyst_rating'] = percent_positive
-        # Adding the total recommendations
         stock_info['total_recommendations'] = total_recommendations
 
     # Fetch Senate disclosure data and calculate sentiment
@@ -222,7 +221,6 @@ def display_table(data):
          row.get('target_percent_diff'), row.get('rating_score'),
          row.get('rating'), row.get(
              'rating_recommendation'), row.get('analyst_rating'),
-         # Insert ratings column here
          row.get('total_recommendations'), row.get('senate_sentiment')]
         for i, row in enumerate(data)
     ]
@@ -256,7 +254,6 @@ def save_to_csv(filename, data):
                 row.get('rating', ''),
                 row.get('rating_recommendation', ''),
                 row.get('analyst_rating', ''),
-                # This is the new "Ratings" data
                 row.get('total_recommendations', ''),
                 row.get('senate_sentiment', '')
             ]
