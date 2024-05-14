@@ -21,7 +21,7 @@ API_URLS = {
 def api_request(url):
     try:
         # Added a timeout of 10 seconds
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, timeout=30)
         response.raise_for_status()
         return response.json()
     except requests.RequestException as e:
@@ -45,7 +45,7 @@ def load_environment():
 def load_tickers(filename):
     try:
         with open(filename, newline="") as file:
-            return [row["Symbol"] for row in csv.DictReader(file)]
+            return [row["symbol"] for row in csv.DictReader(file)]
     except FileNotFoundError:
         print(f"{filename} file not found.")
         exit(1)
