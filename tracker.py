@@ -13,7 +13,6 @@ API_URLS = {
     'CONSENSUS': "https://financialmodelingprep.com/api/v4/",
     'QUOTE': "https://financialmodelingprep.com/api/v3/",
     'ANALYST': "https://financialmodelingprep.com/api/v4/"
-
 }
 
 # API Request Function
@@ -21,7 +20,8 @@ API_URLS = {
 
 def api_request(url):
     try:
-        response = requests.get(url)
+        # Added a timeout of 10 seconds
+        response = requests.get(url, timeout=10)
         response.raise_for_status()
         return response.json()
     except requests.RequestException as e:
@@ -94,7 +94,7 @@ def fetch_price_target_data(ticker, api_key):
 
 
 def fetch_analyst_recommendations(ticker, api_key):
-    return api_request(f"{API_URLS['ANALYST']}/upgrades-downgrades/?symbol={ticker}&apikey={api_key}")
+    return api_request(f"{API_URLS['ANALYST']}upgrades-downgrades/?symbol={ticker}&apikey={api_key}")
 
 
 def fetch_senate_disclosure_data(ticker, api_key):
@@ -124,7 +124,8 @@ def calculate_analyst_recommendation(data):
                 count_negative += 1
 
     total_recommendations = count_positive + count_negative
-    percent_positive = round((count_positive / total_recommendations)
+    # Adding 1 to numerator and 2 to denominator to weight for quantity
+    percent_positive = round(((count_positive + 1) / (total_recommendations + 2))
                              * 100, 0) if total_recommendations > 0 else "-"
     return percent_positive, total_recommendations
 
@@ -210,7 +211,6 @@ def extract_financial_metrics(ticker, api_key):
 
     return stock_info
 
-
 # Display and save functions
 
 
@@ -277,15 +277,16 @@ def sort_key(x):
     date = x.get('date')
 
     # Create tuple for sorting, using False for None to sort them at the end if reverse is True
-    return (total_recommendations is not None, total_recommendations,
+    return (analyst_rating is not None, analyst_rating,
+            total_recommendations is not None, total_recommendations,
             analyst_rating is not None, analyst_rating,
             target_percent_diff is not None, target_percent_diff,
             dcf_percent_diff is not None, dcf_percent_diff,
             rating_score is not None, rating_score,
             date is not None, date)
 
-
 # Main function
+
 
 def main():
     api_key = load_environment()
