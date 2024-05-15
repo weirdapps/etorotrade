@@ -21,6 +21,7 @@ ipython_config.py
 .venv
 env/
 venv/
+myenv/
 myvenv/
 ENV/
 env.bak/
