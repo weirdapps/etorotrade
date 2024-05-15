@@ -8,7 +8,7 @@ load_dotenv()
 api_key = os.getenv('API_KEY')
 
 # Define the API endpoint
-url = f"https://financialmodelingprep.com/api/v3/stock-screener?marketCapMoreThan=50000000000&isEtf=false&isFund=False&apikey={
+url = f"https://financialmodelingprep.com/api/v3/stock-screener?marketCapMoreThan=5000000000&isEtf=false&isFund=False&apikey={
     api_key}"
 
 # Make a request to the API
