@@ -7,35 +7,25 @@ from dotenv import load_dotenv
 load_dotenv()
 api_key = os.getenv('API_KEY')
 
-# Define the API endpoint
-url = f"https://financialmodelingprep.com/api/v3/stock-screener?marketCapMoreThan=5000000000&isEtf=false&isFund=False&apikey={
-    api_key}"
+marketCapLimit = 50000000000
 
-# Make a request to the API
-response = requests.get(url)
-data = response.json()
+URL = f"https://financialmodelingprep.com/api/v3/stock-screener?marketCapMoreThan={marketCapLimit}&exchange=nyse&exchange=nasdaq&isEtf=false&isFund=false&apikey={api_key}"
+response = requests.get(URL)
 
-# Define the fields to extract
-fields = [
-    "symbol",
-    "companyName",
-    "marketCap",
-    "sector",
-    "industry",
-    "beta",
-    "price",
-    "exchange",
-    "exchangeShortName",
-    "country"
-]
+# Check if the request was successful
+if response.status_code == 200:
+    all_stock_data = response.json()
 
-# Open the CSV file and write the data
-with open('market.csv', mode='w', newline='') as file:
-    writer = csv.DictWriter(file, fieldnames=fields)
-    writer.writeheader()
-    for item in data:
-        # Extract only the fields we need
-        row = {field: item.get(field) for field in fields}
-        writer.writerow(row)
+    # Define the fields we want to extract
+    fields = ['symbol', 'companyName', 'marketCap', 'volume', 'sector', 'industry', 'exchangeShortName', 'exchange']
 
-print("Data has been written to market.csv")
+    # Write the data to a CSV file
+    with open('market.csv', 'w', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=fields)
+        writer.writeheader()
+        for stock in all_stock_data:
+            writer.writerow({field: stock.get(field, '') for field in fields})
+
+    print(f"{len(all_stock_data)} records have been written to market.csv")
+else:
+    print(f"Failed to retrieve data: {response.status_code} - {response.text}")
