@@ -9,15 +9,14 @@ from tabulate import tabulate
 API_URLS = {
     'DCF': "https://financialmodelingprep.com/api/v3/",
     'ADV_DCF': "https://financialmodelingprep.com/api/v4/",
-    'RATINGS': "https://financialmodelingprep.com/api/v3/",
+    'PIOTROSKI': "https://financialmodelingprep.com/api/v4/",
     'CONSENSUS': "https://financialmodelingprep.com/api/v4/",
     'QUOTE': "https://financialmodelingprep.com/api/v3/",
-    'ANALYST': "https://financialmodelingprep.com/api/v4/"
+    'ANALYST': "https://financialmodelingprep.com/api/v4/",
+    'RATING': "https://financialmodelingprep.com/api/v3/"
 }
 
 # API Request Function
-
-
 def api_request(url):
     try:
         # Added a timeout of 10 seconds
@@ -29,8 +28,6 @@ def api_request(url):
         return None
 
 # Load environment variables and validate API key
-
-
 def load_environment():
     load_dotenv()
     api_key = os.getenv("API_KEY")
@@ -40,12 +37,10 @@ def load_environment():
     return api_key
 
 # Load ticker symbols from a CSV file
-
-
 def load_tickers(filename):
     try:
         with open(filename, newline="") as file:
-            return [row["Symbol"] for row in csv.DictReader(file)]
+            return [row["symbol"] for row in csv.DictReader(file)]
     except FileNotFoundError:
         print(f"{filename} file not found.")
         exit(1)
@@ -54,8 +49,6 @@ def load_tickers(filename):
         exit(1)
 
 # Fetch functions for various data types
-
-
 def fetch_current_stock_price(ticker, api_key):
     url = f"{API_URLS['QUOTE']}quote/{ticker}?apikey={api_key}"
     response = api_request(url)
@@ -69,18 +62,14 @@ def fetch_current_stock_price(ticker, api_key):
             return price, date_time
     return None, None
 
-
 def fetch_dcf_data(ticker, api_key):
     return api_request(f"{API_URLS['DCF']}company/discounted-cash-flow/{ticker}?apikey={api_key}")
 
-
-def fetch_ratings_data(ticker, api_key):
-    return api_request(f"{API_URLS['RATINGS']}rating/{ticker}?apikey={api_key}")
-
+def fetch_piotroski_score(ticker, api_key):
+    return api_request(f"{API_URLS['PIOTROSKI']}score?symbol={ticker}&apikey={api_key}")
 
 def fetch_price_target_data(ticker, api_key):
-    url = f"{API_URLS['CONSENSUS']
-             }price-target-summary/?symbol={ticker}&apikey={api_key}"
+    url = f"{API_URLS['CONSENSUS']}price-target-summary/?symbol={ticker}&apikey={api_key}"
     response = api_request(url)
     if response and len(response) > 0:
         # Fallback mechanism for price target
@@ -92,22 +81,20 @@ def fetch_price_target_data(ticker, api_key):
             return {'avgPriceTarget': avg_price_target}
     return None
 
-
 def fetch_analyst_recommendations(ticker, api_key):
     return api_request(f"{API_URLS['ANALYST']}upgrades-downgrades/?symbol={ticker}&apikey={api_key}")
-
 
 def fetch_senate_disclosure_data(ticker, api_key):
     return api_request(f"{API_URLS['CONSENSUS']}senate-disclosure?symbol={ticker}&apikey={api_key}")
 
+def fetch_financial_score(ticker, api_key):
+    return api_request(f"{API_URLS['RATING']}rating/{ticker}?apikey={api_key}")
+
 # Calculate metrics and sentiment
-
-
 def calculate_percent_difference(value1, value2):
     if value1 is None or value2 is None:
         return None
     return round(((float(value1) - float(value2)) / float(value2)) * 100, 2)
-
 
 def calculate_analyst_recommendation(data):
     today = datetime.datetime.now()
@@ -129,7 +116,6 @@ def calculate_analyst_recommendation(data):
                              * 100, 0) if total_recommendations > 0 else "-"
     return percent_positive, total_recommendations
 
-
 def calculate_senate_sentiment(data):
     today = datetime.datetime.now()
     one_month_ago = today - datetime.timedelta(days=30)
@@ -149,7 +135,6 @@ def calculate_senate_sentiment(data):
     else:
         return "-"
 
-
 def extract_financial_metrics(ticker, api_key):
     # Fetch current stock price and date-time
     current_price, date_time = fetch_current_stock_price(ticker, api_key)
@@ -163,9 +148,8 @@ def extract_financial_metrics(ticker, api_key):
         "dcf_percent_diff": None,
         "target_consensus": None,
         "target_percent_diff": None,
-        "rating_score": None,
-        "rating": None,
-        "rating_recommendation": None,
+        "financial_score": None,
+        "piotroski_score": None,
         "analyst_rating": None,
         "senate_sentiment": None
     }
@@ -186,14 +170,15 @@ def extract_financial_metrics(ticker, api_key):
             stock_info['target_percent_diff'] = calculate_percent_difference(
                 stock_info['target_consensus'], stock_info['stock_price'])
 
-    # Fetch ratings data and update the stock information
-    ratings_data = fetch_ratings_data(ticker, api_key)
-    if ratings_data:
-        stock_info.update({
-            "rating": ratings_data[0].get('rating'),
-            "rating_score": ratings_data[0].get('ratingScore'),
-            "rating_recommendation": ratings_data[0].get('ratingRecommendation')
-        })
+    # Fetch financial score data and update the stock information
+    financial_score_data = fetch_financial_score(ticker, api_key)
+    if financial_score_data and len(financial_score_data) > 0:
+        stock_info['financial_score'] = financial_score_data[0].get('ratingScore')
+
+    # Fetch Piotroski score data and update the stock information
+    piotroski_data = fetch_piotroski_score(ticker, api_key)
+    if piotroski_data and len(piotroski_data) > 0:
+        stock_info['piotroski_score'] = piotroski_data[0].get('piotroskiScore')
 
     # Fetch analyst recommendations and calculate sentiment
     analyst_recommendations = fetch_analyst_recommendations(ticker, api_key)
@@ -212,32 +197,28 @@ def extract_financial_metrics(ticker, api_key):
     return stock_info
 
 # Display and save functions
-
-
 def display_table(data):
     numbered_data = [
         [i+1, row['ticker'], row['date'], row['stock_price'], row['dcf_price'],
          row.get('dcf_percent_diff'), row.get('target_consensus'),
-         row.get('target_percent_diff'), row.get('rating_score'),
-         row.get('rating'), row.get(
-             'rating_recommendation'), row.get('analyst_rating'),
-         row.get('total_recommendations'), row.get('senate_sentiment')]
+         row.get('target_percent_diff'), row.get('financial_score'),
+         row.get('piotroski_score'), row.get('analyst_rating'), row.get(
+             'total_recommendations'), row.get('senate_sentiment')]
         for i, row in enumerate(data)
     ]
     headers = [
         "#", "Ticker", "Date", "Price", "DCF Price", "DCF Pct",
-        "Target", "Target Pct", "Score", "Rating", "Recom", "Analyst", "Ratings", "Senate"
+        "Target", "Target Pct", "FinScore", "Piotr", "Analyst", "Ratings", "Senate"
     ]
     print(tabulate(numbered_data, headers=headers,
           floatfmt=".2f", tablefmt="fancy_grid"))
-
 
 def save_to_csv(filename, data):
     with open(filename, "w", newline="") as file:
         writer = csv.writer(file)
         headers = [
             "#", "Ticker", "Date", "Price", "DCF Price", "DCF Pct",
-            "Target", "Target Pct", "Score", "Rating", "Recom", "Analyst", "Ratings", "Senate"
+            "Target", "Target Pct", "FinScore", "Piotroski", "Analyst", "Ratings", "Senate"
         ]
         writer.writerow(headers)
         for i, row in enumerate(data):
@@ -250,15 +231,13 @@ def save_to_csv(filename, data):
                 row.get('dcf_percent_diff', ''),
                 row.get('target_consensus', ''),
                 row.get('target_percent_diff', ''),
-                row.get('rating_score', ''),
-                row.get('rating', ''),
-                row.get('rating_recommendation', ''),
+                row.get('financial_score', ''),
+                row.get('piotroski_score', ''),
                 row.get('analyst_rating', ''),
                 row.get('total_recommendations', ''),
                 row.get('senate_sentiment', '')
             ]
             writer.writerow(row_data)
-
 
 def sort_key(x):
     # Helper function to convert non-None values to float and keep None as is
@@ -273,7 +252,8 @@ def sort_key(x):
     analyst_rating = to_float(x.get('analyst_rating'))
     target_percent_diff = to_float(x.get('target_percent_diff'))
     dcf_percent_diff = to_float(x.get('dcf_percent_diff'))
-    rating_score = to_float(x.get('rating_score'))
+    financial_score = to_float(x.get('financial_score'))
+    piotroski_score = to_float(x.get('piotroski_score'))
     date = x.get('date')
 
     # Create tuple for sorting, using False for None to sort them at the end if reverse is True
@@ -282,12 +262,11 @@ def sort_key(x):
             analyst_rating is not None, analyst_rating,
             target_percent_diff is not None, target_percent_diff,
             dcf_percent_diff is not None, dcf_percent_diff,
-            rating_score is not None, rating_score,
+            financial_score is not None, financial_score,
+            piotroski_score is not None, piotroski_score,
             date is not None, date)
 
 # Main function
-
-
 def main():
     api_key = load_environment()
     tickers = load_tickers("portfolio.csv")
@@ -300,7 +279,6 @@ def main():
 
     display_table(stock_data)
     save_to_csv("tracker.csv", stock_data)
-
 
 if __name__ == "__main__":
     main()
