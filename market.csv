@@ -1,259 +1,561 @@
-symbol,companyName,marketCap,volume,sector,industry,exchangeShortName,exchange
-MSFT,Microsoft Corporation,3123130985100,15106819,Technology,Software - Infrastructure,NASDAQ,NASDAQ Global Select
-AAPL,Apple Inc.,2911485567000,40771639,Technology,Consumer Electronics,NASDAQ,NASDAQ Global Select
-NVDA,NVIDIA Corporation,2311975000000,34573435,Technology,Semiconductors,NASDAQ,NASDAQ Global Select
-GOOGL,Alphabet Inc.,2184605495891,22246267,Communication Services,Internet Content & Information,NASDAQ,NASDAQ Global Select
-GOOG,Alphabet Inc.,2184605495754,16474469,Communication Services,Internet Content & Information,NASDAQ,NASDAQ Global Select
-AMZN,"Amazon.com, Inc.",1922099020000,31631308,Consumer Cyclical,Specialty Retail,NASDAQ,NASDAQ Global Select
-META,"Meta Platforms, Inc.",1197015885468,10090575,Communication Services,Internet Content & Information,NASDAQ,NASDAQ Global Select
-BRK-B,Berkshire Hathaway Inc.,901371076371,2914401,Financial Services,Insurance - Diversified,NYSE,New York Stock Exchange
-BRK-A,Berkshire Hathaway Inc.,901370735000,14377,Financial Services,Insurance - Diversified,NYSE,New York Stock Exchange
-LLY,Eli Lilly and Company,731811850000,1652358,Healthcare,Drug Manufacturers - General,NYSE,New York Stock Exchange
-TSM,Taiwan Semiconductor Manufacturing Company Limited,673255594931,7676852,Technology,Semiconductors,NYSE,New York Stock Exchange
-AVGO,Broadcom Inc.,646606687090,1816329,Technology,Semiconductors,NASDAQ,NASDAQ Global Select
-JPM,JPMorgan Chase & Co.,588089299300,8991128,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
-NVO,Novo Nordisk A/S,582009440035,2585899,Healthcare,Biotechnology,NYSE,New York Stock Exchange
-TSLA,"Tesla, Inc.",565955432000,76514100,Consumer Cyclical,Auto - Manufacturers,NASDAQ,NASDAQ Global Select
-V,Visa Inc.,560479319922,5960721,Financial Services,Financial - Credit Services,NYSE,New York Stock Exchange
-XOM,Exxon Mobil Corporation,536696665200,14951304,Energy,Oil & Gas Integrated,NYSE,New York Stock Exchange
-WMT,Walmart Inc.,521065423500,28734037,Consumer Defensive,Discount Stores,NYSE,New York Stock Exchange
-UNH,UnitedHealth Group Incorporated,482861582550,2641629,Healthcare,Medical - Healthcare Plans,NYSE,New York Stock Exchange
-MA,Mastercard Incorporated,424585266900,1982908,Financial Services,Financial - Credit Services,NYSE,New York Stock Exchange
-PG,The Procter & Gamble Company,395653869600,4671150,Consumer Defensive,Household & Personal Products,NYSE,New York Stock Exchange
-JNJ,Johnson & Johnson,372168995200,6085649,Healthcare,Drug Manufacturers - General,NYSE,New York Stock Exchange
-ASML,ASML Holding N.V.,363903679611,703663,Technology,Semiconductors,NASDAQ,NASDAQ Global Select
-COST,Costco Wholesale Corporation,352944918240,1254429,Consumer Defensive,Discount Stores,NASDAQ,NASDAQ Global Select
-HD,"The Home Depot, Inc.",341122780510,2719053,Consumer Cyclical,Home Improvement,NYSE,New York Stock Exchange
-ORCL,Oracle Corporation,339440985000,6175888,Technology,Software - Infrastructure,NYSE,New York Stock Exchange
-MRK,"Merck & Co., Inc.",332279343900,6956134,Healthcare,Drug Manufacturers - General,NYSE,New York Stock Exchange
-BAC,Bank of America Corporation,307262337300,25016456,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
-CVX,Chevron Corporation,299795929900,5440179,Energy,Oil & Gas Integrated,NYSE,New York Stock Exchange
-ABBV,AbbVie Inc.,293876085400,4951882,Healthcare,Drug Manufacturers - General,NYSE,New York Stock Exchange
-CRM,"Salesforce, Inc.",277122813240,3477909,Technology,Software - Application,NYSE,New York Stock Exchange
-TM,Toyota Motor Corporation,273253639891,263322,Consumer Cyclical,Auto - Manufacturers,NYSE,New York Stock Exchange
-KO,The Coca-Cola Company,271530088500,10151917,Consumer Defensive,Beverages - Non-Alcoholic,NYSE,New York Stock Exchange
-NFLX,"Netflix, Inc.",267672361500,3774881,Communication Services,Entertainment,NASDAQ,NASDAQ Global Select
-AMD,"Advanced Micro Devices, Inc.",265834505700,65677091,Technology,Semiconductors,NASDAQ,NASDAQ Global Select
-PEP,"PepsiCo, Inc.",250472990100,4440602,Consumer Defensive,Beverages - Non-Alcoholic,NASDAQ,NASDAQ Global Select
-AZN,AstraZeneca PLC,238426912000,2751536,Healthcare,Drug Manufacturers - General,NASDAQ,NASDAQ Global Select
-SHEL,Shell plc,230740576400,4526132,Energy,Oil & Gas Integrated,NYSE,New York Stock Exchange
-TMO,Thermo Fisher Scientific Inc.,227235534800,1394081,Healthcare,Medical - Diagnostics & Research,NYSE,New York Stock Exchange
-SAP,SAP SE,225040946067,547923,Technology,Software - Application,NYSE,New York Stock Exchange
-ADBE,Adobe Inc.,216576640000,2152139,Technology,Software - Infrastructure,NASDAQ,NASDAQ Global Select
-QCOM,QUALCOMM Incorporated,216347760000,5795685,Technology,Semiconductors,NASDAQ,NASDAQ Global Select
-WFC,Wells Fargo & Company,212944425600,15795215,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
-LIN,Linde plc,207919284320,1150646,Basic Materials,Chemicals - Specialty,NASDAQ,NASDAQ Global Select
-BABA,Alibaba Group Holding Limited,202296192000,35016105,Consumer Cyclical,Specialty Retail,NYSE,New York Stock Exchange
-NVS,Novartis AG,200676793021,777238,Healthcare,Drug Manufacturers - General,NYSE,New York Stock Exchange
-DHR,Danaher Corporation,196874604600,3167015,Healthcare,Medical - Diagnostics & Research,NYSE,New York Stock Exchange
-MCD,McDonald's Corporation,196387341900,2266924,Consumer Cyclical,Restaurants,NYSE,New York Stock Exchange
-CSCO,"Cisco Systems, Inc.",195049482300,21735024,Technology,Communication Equipment,NASDAQ,NASDAQ Global Select
-PDD,PDD Holdings Inc.,194226148003,16052660,Consumer Cyclical,Specialty Retail,NASDAQ,NASDAQ Global Select
-TMUS,"T-Mobile US, Inc.",192183400000,2893034,Communication Services,Telecommunications Services,NASDAQ,NASDAQ Global Select
-ACN,Accenture plc,190875837110,4213652,Technology,Information Technology Services,NYSE,New York Stock Exchange
-DIS,The Walt Disney Company,189391475000,7169810,Communication Services,Entertainment,NYSE,New York Stock Exchange
-INTU,Intuit Inc.,185116515220,767063,Technology,Software - Application,NASDAQ,NASDAQ Global Select
-ABT,Abbott Laboratories,181078086700,6399778,Healthcare,Medical - Devices,NYSE,New York Stock Exchange
-TXN,Texas Instruments Incorporated,177562199640,4532455,Technology,Semiconductors,NASDAQ,NASDAQ Global Select
-AMAT,"Applied Materials, Inc.",176216635760,7639425,Technology,Semiconductors,NASDAQ,NASDAQ Global Select
-GE,General Electric Company,175017192900,5889128,Industrials,Aerospace & Defense,NYSE,New York Stock Exchange
-AXP,American Express Company,174661154460,1846170,Financial Services,Financial - Credit Services,NYSE,New York Stock Exchange
-CAT,Caterpillar Inc.,174234912310,1992620,Industrials,Agricultural - Machinery,NYSE,New York Stock Exchange
-TTE,TotalEnergies SE,172079579433,943870,Energy,Oil & Gas Integrated,NYSE,New York Stock Exchange
-VZ,Verizon Communications Inc.,168622955600,14633677,Communication Services,Telecommunications Services,NYSE,New York Stock Exchange
-AMGN,Amgen Inc.,167619844138,1971450,Healthcare,Drug Manufacturers - General,NASDAQ,NASDAQ Global Select
-HSBC,HSBC Holdings plc,167523848000,1113079,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
-MS,Morgan Stanley,162873535200,4689785,Financial Services,Financial - Capital Markets,NYSE,New York Stock Exchange
-PFE,Pfizer Inc.,162291137600,25657819,Healthcare,Drug Manufacturers - General,NYSE,New York Stock Exchange
-NOW,"ServiceNow, Inc.",156835250000,873868,Technology,Software - Application,NYSE,New York Stock Exchange
-NEE,"NextEra Energy, Inc.",156329187700,9113692,Utilities,Regulated Electric,NYSE,New York Stock Exchange
-BHP,BHP Group Limited,155744333026,3469399,Basic Materials,Industrial Materials,NYSE,New York Stock Exchange
-IBM,International Business Machines Corporation,155271465090,2951745,Technology,Information Technology Services,NYSE,New York Stock Exchange
-PM,Philip Morris International Inc.,155191724800,5232013,Consumer Defensive,Tobacco,NYSE,New York Stock Exchange
-CMCSA,Comcast Corporation,153709848600,13731975,Communication Services,Telecommunications Services,NASDAQ,NASDAQ Global Select
-BX,Blackstone Inc.,151941202156,3861532,Financial Services,Asset Management,NYSE,New York Stock Exchange
-GS,"The Goldman Sachs Group, Inc.",150822862080,1647151,Financial Services,Financial - Capital Markets,NYSE,New York Stock Exchange
-UNP,Union Pacific Corporation,149461586340,2085358,Industrials,Railroads,NYSE,New York Stock Exchange
-COP,ConocoPhillips,142343496300,4266167,Energy,Oil & Gas Exploration & Production,NYSE,New York Stock Exchange
-ISRG,"Intuitive Surgical, Inc.",141463846920,711759,Healthcare,Medical - Instruments & Supplies,NASDAQ,NASDAQ Global Select
-SCHW,The Charles Schwab Corporation,140014118400,6429451,Financial Services,Financial - Capital Markets,NYSE,New York Stock Exchange
-NKE,"NIKE, Inc.",139142165863,11934933,Consumer Cyclical,Apparel - Footwear & Accessories,NYSE,New York Stock Exchange
-MU,"Micron Technology, Inc.",138742387300,12353226,Technology,Semiconductors,NASDAQ,NASDAQ Global Select
-RTX,Raytheon Technologies Corporation,138508351800,4963855,Industrials,Aerospace & Defense,NYSE,New York Stock Exchange
-SPGI,S&P Global Inc.,138264252000,1236180,Financial Services,Financial - Data & Stock Exchanges,NYSE,New York Stock Exchange
-BUD,Anheuser-Busch InBev SA/NV,137775261439,1588057,Consumer Defensive,Beverages - Alcoholic,NYSE,New York Stock Exchange
-UBER,"Uber Technologies, Inc.",137218778400,15462471,Technology,Software - Application,NYSE,New York Stock Exchange
-UL,Unilever PLC,137009914019,2589352,Consumer Defensive,Household & Personal Products,NYSE,New York Stock Exchange
-INTC,Intel Corporation,135500310000,39527014,Technology,Semiconductors,NASDAQ,NASDAQ Global Select
-HON,Honeywell International Inc.,134124780420,2267194,Industrials,Conglomerates,NASDAQ,NASDAQ Global Select
-HDB,HDFC Bank Limited,133397800318,1690735,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
-LOW,"Lowe's Companies, Inc.",132239293120,1957325,Consumer Cyclical,Home Improvement,NYSE,New York Stock Exchange
-ETN,Eaton Corporation plc,132029952000,1880907,Industrials,Industrial - Machinery,NYSE,New York Stock Exchange
-UPS,"United Parcel Service, Inc.",127683617400,1937557,Industrials,Integrated Freight & Logistics,NYSE,New York Stock Exchange
-SYK,Stryker Corporation,127496346000,937467,Healthcare,Medical - Devices,NYSE,New York Stock Exchange
-ELV,Elevance Health Inc.,127297662780,747870,Healthcare,Medical - Healthcare Plans,NYSE,New York Stock Exchange
-BKNG,Booking Holdings Inc.,125815044625,197781,Consumer Cyclical,Travel Services,NASDAQ,NASDAQ Global Select
-T,AT&T Inc.,124760958000,25117785,Communication Services,Telecommunications Services,NYSE,New York Stock Exchange
-RIO,Rio Tinto Group,124457643225,3379004,Basic Materials,Industrial Materials,NYSE,New York Stock Exchange
-PGR,The Progressive Corporation,122539735560,2003958,Financial Services,Insurance - Property & Casualty,NYSE,New York Stock Exchange
-C,Citigroup Inc.,122209680800,7333296,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
-BLK,"BlackRock, Inc.",120695892000,383819,Financial Services,Asset Management,NYSE,New York Stock Exchange
-LRCX,Lam Research Corporation,119244943870,910123,Technology,Semiconductors,NASDAQ,NASDAQ Global Select
-MUFG,"Mitsubishi UFJ Financial Group, Inc.",117613556173,3205448,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
-VRTX,Vertex Pharmaceuticals Incorporated,114887776130,1345705,Healthcare,Biotechnology,NASDAQ,NASDAQ Global Select
-ARM,Arm Holdings plc American Depositary Shares,114800470234,7425343,Technology,Semiconductors,NASDAQ,NASDAQ
-MDT,Medtronic plc,114086294400,7939215,Healthcare,Medical - Devices,NYSE,New York Stock Exchange
-TJX,"The TJX Companies, Inc.",113625561300,6453778,Consumer Cyclical,Apparel - Retail,NYSE,New York Stock Exchange
-BA,The Boeing Company,113537845800,5508411,Industrials,Aerospace & Defense,NYSE,New York Stock Exchange
-LMT,Lockheed Martin Corporation,111859095600,676880,Industrials,Aerospace & Defense,NYSE,New York Stock Exchange
-CB,Chubb Limited,111374411080,4129095,Financial Services,Insurance - Property & Casualty,NYSE,New York Stock Exchange
-DE,Deere & Company,110513693160,1608960,Industrials,Agricultural - Machinery,NYSE,New York Stock Exchange
-BSX,Boston Scientific Corporation,109748937000,6486184,Healthcare,Medical - Devices,NYSE,New York Stock Exchange
-DELL,Dell Technologies Inc.,106725932085,8803439,Technology,Computer Hardware,NYSE,New York Stock Exchange
-REGN,"Regeneron Pharmaceuticals, Inc.",106447820430,386456,Healthcare,Biotechnology,NASDAQ,NASDAQ Global Select
-ADI,"Analog Devices, Inc.",106163984640,2371666,Technology,Semiconductors,NASDAQ,NASDAQ Global Select
-BP,BP p.l.c.,104541139914,6371677,Energy,Oil & Gas Integrated,NYSE,New York Stock Exchange
-MMC,"Marsh & McLennan Companies, Inc.",103457258280,1119853,Financial Services,Insurance - Brokers,NYSE,New York Stock Exchange
-ADP,"Automatic Data Processing, Inc.",103276398030,1291493,Industrials,Staffing & Employment Services,NASDAQ,NASDAQ Global Select
-PLD,"Prologis, Inc.",103231606000,3249403,Real Estate,REIT - Industrial,NYSE,New York Stock Exchange
-PANW,"Palo Alto Networks, Inc.",102697335000,3408352,Technology,Software - Infrastructure,NASDAQ,NASDAQ Global Select
-TD,The Toronto-Dominion Bank,101435004000,1669389,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
-SONY,Sony Group Corporation,101240098499,761013,Technology,Consumer Electronics,NYSE,New York Stock Exchange
-KLAC,KLA Corporation,100667635200,568643,Technology,Semiconductors,NASDAQ,NASDAQ Global Select
-ANET,"Arista Networks, Inc.",100241690070,1660707,Technology,Computer Hardware,NYSE,New York Stock Exchange
-SCCO,Southern Copper Corporation,97918029950,1259325,Basic Materials,Copper,NYSE,New York Stock Exchange
-UBS,UBS Group AG,97283040326,1076443,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
-CI,Cigna Corporation,96218704540,1996580,Healthcare,Medical - Healthcare Plans,NYSE,New York Stock Exchange
-PBR,Petróleo Brasileiro S.A. - Petrobras,95807421516,26413481,Energy,Oil & Gas Integrated,NYSE,New York Stock Exchange
-IBN,ICICI Bank Limited,95626551900,1619644,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
-MDLZ,"Mondelez International, Inc.",95545072800,5818945,Consumer Defensive,Food Confectioners,NASDAQ,NASDAQ Global Select
-ABNB,"Airbnb, Inc.",93811421219,3270342,Consumer Cyclical,Travel Services,NASDAQ,NASDAQ Global Select
-KKR,KKR & Co. Inc.,92857745280,1796554,Financial Services,Asset Management,NYSE,New York Stock Exchange
-GSK,GSK plc,91714669800,1870660,Healthcare,Drug Manufacturers - General,NYSE,New York Stock Exchange
-AMT,American Tower Corporation,90831307250,2156192,Real Estate,REIT - Specialty,NYSE,New York Stock Exchange
-FI,"Fiserv, Inc.",89350926420,2943347,Technology,Information Technology Services,NYSE,New York Stock Exchange
-BMY,Bristol-Myers Squibb Company,89253213000,14679728,Healthcare,Drug Manufacturers - General,NYSE,New York Stock Exchange
-MELI,"MercadoLibre, Inc.",88678371158,243685,Consumer Cyclical,Specialty Retail,NASDAQ,NASDAQ Global Select
-CMG,"Chipotle Mexican Grill, Inc.",88263281810,263938,Consumer Cyclical,Restaurants,NYSE,New York Stock Exchange
-SBUX,Starbucks Corporation,88180695000,14361184,Consumer Cyclical,Restaurants,NASDAQ,NASDAQ Global Select
-SO,The Southern Company,86971422200,4706993,Utilities,Regulated Electric,NYSE,New York Stock Exchange
-SNPS,"Synopsys, Inc.",86451261120,560459,Technology,Software - Infrastructure,NASDAQ,NASDAQ Global Select
-HCA,"HCA Healthcare, Inc.",84561554040,736881,Healthcare,Medical - Care Facilities,NYSE,New York Stock Exchange
-EQNR,Equinor ASA,84524008399,2020501,Energy,Oil & Gas Integrated,NYSE,New York Stock Exchange
-WM,"Waste Management, Inc.",84403906520,1739272,Industrials,Waste Management,NYSE,New York Stock Exchange
-GILD,"Gilead Sciences, Inc.",84368962000,3571215,Healthcare,Drug Manufacturers - General,NASDAQ,NASDAQ Global Select
-CNQ,Canadian Natural Resources Limited,82530409423,1246144,Energy,Oil & Gas Exploration & Production,NYSE,New York Stock Exchange
-RELX,RELX PLC,82407218877,506255,Communication Services,Publishing,NYSE,New York Stock Exchange
-GD,General Dynamics Corporation,82040323280,891169,Industrials,Aerospace & Defense,NYSE,New York Stock Exchange
-SAN,"Banco Santander, S.A.",81520867717,2824553,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
-SMFG,"Sumitomo Mitsui Financial Group, Inc.",81057330195,1161689,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
-CNI,Canadian National Railway Company,81013708000,608658,Industrials,Railroads,NYSE,New York Stock Exchange
-DUK,Duke Energy Corporation,80179081410,3683003,Utilities,Regulated Electric,NYSE,New York Stock Exchange
-CRWD,"CrowdStrike Holdings, Inc.",79795673100,2005805,Technology,Software - Infrastructure,NASDAQ,NASDAQ Global Select
-ZTS,Zoetis Inc.,79422707700,1994109,Healthcare,Drug Manufacturers - Specialty & Generic,NYSE,New York Stock Exchange
-ICE,"Intercontinental Exchange, Inc.",79384164000,1994355,Financial Services,Financial - Data & Stock Exchanges,NYSE,New York Stock Exchange
-APH,Amphenol Corporation,79225673640,3556656,Technology,"Hardware, Equipment & Parts",NYSE,New York Stock Exchange
-SHW,The Sherwin-Williams Company,79208707600,964997,Basic Materials,Chemicals - Specialty,NYSE,New York Stock Exchange
-MO,"Altria Group, Inc.",79148390400,9230409,Consumer Defensive,Tobacco,NYSE,New York Stock Exchange
-DEO,Diageo plc,79040900000,235710,Consumer Defensive,Beverages - Wineries & Distilleries,NYSE,New York Stock Exchange
-CDNS,"Cadence Design Systems, Inc.",78595020540,889563,Technology,Software - Application,NASDAQ,NASDAQ Global Select
-ENB,Enbridge Inc.,78133807500,7485350,Energy,Oil & Gas Midstream,NYSE,New York Stock Exchange
-FCX,Freeport-McMoRan Inc.,77900852700,17896104,Basic Materials,Copper,NYSE,New York Stock Exchange
-CL,Colgate-Palmolive Company,77228111330,4135149,Consumer Defensive,Household & Personal Products,NYSE,New York Stock Exchange
-TRI,Thomson Reuters Corporation,77185329815,237321,Industrials,Specialty Business Services,NYSE,New York Stock Exchange
-CME,CME Group Inc.,76743614680,1465119,Financial Services,Financial - Data & Stock Exchanges,NASDAQ,NASDAQ Global Select
-CP,Canadian Pacific Railway Limited,76537772300,1294285,Industrials,Railroads,NYSE,New York Stock Exchange
-RACE,Ferrari N.V.,76062829704,181116,Consumer Cyclical,Auto - Manufacturers,NYSE,New York Stock Exchange
-EQIX,"Equinix, Inc.",75908426031,499497,Real Estate,REIT - Specialty,NASDAQ,NASDAQ Global Select
-MCO,Moody's Corporation,75581792000,863111,Financial Services,Financial - Data & Stock Exchanges,NYSE,New York Stock Exchange
-SHOP,Shopify Inc.,75339074249,11768879,Technology,Software - Application,NYSE,New York Stock Exchange
-ITW,Illinois Tool Works Inc.,74779040000,953286,Industrials,Industrial - Machinery,NYSE,New York Stock Exchange
-EOG,"EOG Resources, Inc.",74677947340,2339273,Energy,Oil & Gas Exploration & Production,NYSE,New York Stock Exchange
-TT,Trane Technologies plc,74388321280,872049,Industrials,Construction,NYSE,New York Stock Exchange
-ATVI,"Activision Blizzard, Inc.",74289468671,7127746,Technology,Electronic Gaming & Multimedia,NASDAQ,NASDAQ Global Select
-TGT,Target Corporation,74081262160,3736093,Consumer Defensive,Discount Stores,NYSE,New York Stock Exchange
-MCK,McKesson Corporation,73379696155,574582,Healthcare,Medical - Distribution,NYSE,New York Stock Exchange
-BN,Brookfield Corporation,72994743000,2404868,Financial Services,Asset Management,NYSE,New York Stock Exchange
-CVS,CVS Health Corporation,72409741600,9590731,Healthcare,Medical - Healthcare Plans,NYSE,New York Stock Exchange
-TDG,TransDigm Group Incorporated,72295584075,208515,Industrials,Aerospace & Defense,NYSE,New York Stock Exchange
-INFY,Infosys Limited,71115537600,7893768,Technology,Information Technology Services,NYSE,New York Stock Exchange
-BTI,British American Tobacco p.l.c.,70245672783,2971878,Consumer Defensive,Tobacco,NYSE,New York Stock Exchange
-CTAS,Cintas Corporation,70226600820,301545,Industrials,Specialty Business Services,NASDAQ,NASDAQ Global Select
-PH,Parker-Hannifin Corporation,70068984510,817420,Industrials,Industrial - Machinery,NYSE,New York Stock Exchange
-NOC,Northrop Grumman Corporation,69587857800,957168,Industrials,Aerospace & Defense,NYSE,New York Stock Exchange
-SLB,Schlumberger Limited,69451630600,5533540,Energy,Oil & Gas Equipment & Services,NYSE,New York Stock Exchange
-BMO,Bank of Montreal,69076777680,611293,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
-ABB,ABB Ltd,69020585106,6388230,Industrials,Electrical Equipment & Parts,NYSE,New York Stock Exchange
-WDAY,"Workday, Inc.",68453075452,2005467,Technology,Software - Application,NASDAQ,NASDAQ Global Select
-NXPI,NXP Semiconductors N.V.,68451720480,1344265,Technology,Semiconductors,NASDAQ,NASDAQ Global Select
-BDX,"Becton, Dickinson and Company",68292117800,1784873,Healthcare,Medical - Instruments & Supplies,NYSE,New York Stock Exchange
-STLA,Stellantis N.V.,68099607138,5018910,Consumer Cyclical,Auto - Manufacturers,NYSE,New York Stock Exchange
-MAR,"Marriott International, Inc.",67900918060,1197635,Consumer Cyclical,Travel Lodging,NASDAQ,NASDAQ Global Select
-PYPL,"PayPal Holdings, Inc.",67449304000,8187711,Financial Services,Financial - Credit Services,NASDAQ,NASDAQ Global Select
-CEG,Constellation Energy Corporation,67179701015,3054790,Utilities,Renewable Utilities,NASDAQ,NASDAQ Global Select
-ECL,Ecolab Inc.,66726286200,713395,Basic Materials,Chemicals - Specialty,NYSE,New York Stock Exchange
-CSX,CSX Corporation,65529253600,8061786,Industrials,Railroads,NASDAQ,NASDAQ Global Select
-NTES,"NetEase, Inc.",65354049078,1683046,Technology,Electronic Gaming & Multimedia,NASDAQ,NASDAQ Global Select
-USB,U.S. Bancorp,64649857800,11210803,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
-EMR,Emerson Electric Co.,64578648000,1527491,Industrials,Industrial - Machinery,NYSE,New York Stock Exchange
-APO,"Apollo Global Management, Inc.",64342972320,1742661,Financial Services,Asset Management - Global,NYSE,New York Stock Exchange
-PNC,"The PNC Financial Services Group, Inc.",63804387450,993533,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
-AON,Aon plc,63587695950,1435398,Financial Services,Insurance - Brokers,NYSE,New York Stock Exchange
-BBVA,"Banco Bilbao Vizcaya Argentaria, S.A.",63561005400,1172131,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
-FDX,FedEx Corporation,63304337250,1419021,Industrials,Integrated Freight & Logistics,NYSE,New York Stock Exchange
-MPC,Marathon Petroleum Corporation,63303131100,3011069,Energy,Oil & Gas Refining & Marketing,NYSE,New York Stock Exchange
-PXD,Pioneer Natural Resources Company,63003455657,4426409,Energy,Oil & Gas Exploration & Production,NYSE,New York Stock Exchange
-PSX,Phillips 66,62354860160,1880600,Energy,Oil & Gas Refining & Marketing,NYSE,New York Stock Exchange
-MRVL,"Marvell Technology, Inc.",62244962000,7869524,Technology,Semiconductors,NASDAQ,NASDAQ Global Select
-EPD,Enterprise Products Partners L.P.,62019753600,3447130,Energy,Oil & Gas Midstream,NYSE,New York Stock Exchange
-VMW,"VMware, Inc.",61521441480,1787198,Technology,Software - Infrastructure,NYSE,New York Stock Exchange
-AMX,"América Móvil, S.A.B. de C.V.",61407687500,1532807,Communication Services,Telecommunications Services,NYSE,New York Stock Exchange
-MSI,"Motorola Solutions, Inc.",61344258600,422282,Technology,Communication Equipment,NYSE,New York Stock Exchange
-WELL,Welltower Inc.,60562911640,1913216,Real Estate,REIT - Healthcare Facilities,NYSE,New York Stock Exchange
-ORLY,"O'Reilly Automotive, Inc.",59604362846,401104,Consumer Cyclical,Specialty Retail,NASDAQ,NASDAQ Global Select
-RSG,"Republic Services, Inc.",59257605120,711687,Industrials,Waste Management,NYSE,New York Stock Exchange
-BNS,The Bank of Nova Scotia,59138870700,926752,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
-SPOT,Spotify Technology S.A.,59087698901,870887,Communication Services,Internet Content & Information,NYSE,New York Stock Exchange
-ITUB,Itaú Unibanco Holding S.A.,58831393245,11536328,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
-CARR,Carrier Global Corporation,58773077990,2291213,Industrials,Construction,NYSE,New York Stock Exchange
-ING,ING Groep N.V.,58566123178,2181358,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
-APD,"Air Products and Chemicals, Inc.",58399786200,2327362,Basic Materials,Chemicals - Specialty,NYSE,New York Stock Exchange
-MMM,3M Company,58246778860,4808981,Industrials,Conglomerates,NYSE,New York Stock Exchange
-ROP,"Roper Technologies, Inc.",58006615050,749428,Industrials,Industrial - Machinery,NASDAQ,NASDAQ Global Select
-CRH,CRH plc,56604519629,4113033,Basic Materials,Construction Materials,NYSE,New York Stock Exchange
-MNST,Monster Beverage Corporation,56368010300,3979752,Consumer Defensive,Beverages - Non-Alcoholic,NASDAQ,NASDAQ Global Select
-AJG,Arthur J. Gallagher & Co.,56300895000,645835,Financial Services,Insurance - Brokers,NYSE,New York Stock Exchange
-OXY,Occidental Petroleum Corporation,56221652170,6578446,Energy,Oil & Gas Exploration & Production,NYSE,New York Stock Exchange
-VALE,Vale S.A.,55601533477,26075984,Basic Materials,Industrial Materials,NYSE,New York Stock Exchange
-NU,Nu Holdings Ltd.,55570826341,26889282,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
-PCAR,PACCAR Inc,55559370000,1727070,Industrials,Agricultural - Machinery,NASDAQ,NASDAQ Global Select
-VLO,Valero Energy Corporation,54300955760,4091207,Energy,Oil & Gas Refining & Marketing,NYSE,New York Stock Exchange
-NGG,National Grid plc,54205184100,225261,Utilities,Regulated Electric,NYSE,New York Stock Exchange
-COF,Capital One Financial Corporation,54160358820,1321471,Financial Services,Financial - Credit Services,NYSE,New York Stock Exchange
-SNOW,Snowflake Inc.,54093612000,3592981,Technology,Software - Application,NYSE,New York Stock Exchange
-ET,Energy Transfer LP,53785519200,10589478,Energy,Oil & Gas Midstream,NYSE,New York Stock Exchange
-EW,Edwards Lifesciences Corporation,53715764000,2018624,Healthcare,Medical - Devices,NYSE,New York Stock Exchange
-HMC,"Honda Motor Co., Ltd.",53504293726,606785,Consumer Cyclical,Auto - Manufacturers,NYSE,New York Stock Exchange
-TFC,Truist Financial Corporation,53483857000,5693634,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
-AIG,"American International Group, Inc.",53451820720,5749595,Financial Services,Insurance - Diversified,NYSE,New York Stock Exchange
-CEO,CNOOC Limited,53212528549,96500,Energy,Oil & Gas Exploration & Production,NYSE,New York Stock Exchange
-MET,"MetLife, Inc.",52779549060,2419961,Financial Services,Insurance - Life,NYSE,New York Stock Exchange
-CPRT,"Copart, Inc.",52399679000,6555484,Consumer Cyclical,Auto - Dealerships,NASDAQ,NASDAQ Global Select
-NSC,Norfolk Southern Corporation,52292313580,1308486,Industrials,Railroads,NYSE,New York Stock Exchange
-DXCM,"DexCom, Inc.",52239770240,2293318,Healthcare,Medical - Devices,NASDAQ,NASDAQ Global Select
-GM,General Motors Company,52210329600,11230355,Consumer Cyclical,Auto - Manufacturers,NYSE,New York Stock Exchange
-IBKR,"Interactive Brokers Group, Inc.",52138895389,588220,Financial Services,Financial - Capital Markets,NASDAQ,NASDAQ Global Select
-SMCI,"Super Micro Computer, Inc.",51991730785,5143245,Technology,Computer Hardware,NASDAQ,NASDAQ Global Select
-SU,Suncor Energy Inc.,51596631800,3090624,Energy,Oil & Gas Integrated,NYSE,New York Stock Exchange
-MFG,"Mizuho Financial Group, Inc.",51450556959,1188702,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
-E,Eni S.p.A.,51101302010,246106,Energy,Oil & Gas Integrated,NYSE,New York Stock Exchange
-HLT,Hilton Worldwide Holdings Inc.,51056892740,896364,Consumer Cyclical,Travel Lodging,NYSE,New York Stock Exchange
-COIN,"Coinbase Global, Inc.",50980112567,8601173,Technology,Software - Application,NASDAQ,NASDAQ Global Select
-MCHP,Microchip Technology Incorporated,50974800040,3609592,Technology,Semiconductors,NASDAQ,NASDAQ Global Select
-MRNA,"Moderna, Inc.",50932596000,2703242,Healthcare,Biotechnology,NASDAQ,NASDAQ Global Select
-PSA,Public Storage,50726535750,739378,Real Estate,REIT - Industrial,NYSE,New York Stock Exchange
-AZO,"AutoZone, Inc.",50481210750,166974,Consumer Cyclical,Specialty Retail,NYSE,New York Stock Exchange
-NEM,Newmont Corporation,50438343600,10011914,Basic Materials,Gold,NYSE,New York Stock Exchange
-TRV,"The Travelers Companies, Inc.",50312052030,1348850,Financial Services,Insurance - Property & Casualty,NYSE,New York Stock Exchange
-WMB,"The Williams Companies, Inc.",50297812500,5827453,Energy,Oil & Gas Midstream,NYSE,New York Stock Exchange
-AFL,Aflac Incorporated,50213778140,1999804,Financial Services,Insurance - Life,NYSE,New York Stock Exchange
+﻿rank,name,symbol,marketcap,price (USD),country
+1,Microsoft,MSFT,3188758151168,429.04,United States
+2,Apple,AAPL,2949514264576,192.35,United States
+3,NVIDIA,NVDA,2346333503488,953.86,United States
+4,Alphabet (Google),GOOG,2195020054528,179.54,United States
+6,Amazon,AMZN,1910034661376,183.15,United States
+7,Meta Platforms (Facebook),META,1189229756416,464.63,United States
+8,Berkshire Hathaway,BRK-B,892204875776,414.37,United States
+10,Eli Lilly,LLY,763336785920,803.17,United States
+11,Broadcom,AVGO,655291514880,1399.2,United States
+12,Novo Nordisk,NVO,602091880448,135.16,Denmark
+13,Tesla,TSLA,595104694272,186.6,United States
+14,JPMorgan Chase,JPM,572955623424,199.52,United States
+15,Visa,V,569919537152,275.95,United States
+16,Exxon Mobil,XOM,532344930304,117.85,United States
+17,Walmart,WMT,525095305216,65.15,United States
+18,UnitedHealth,UNH,481867563008,523.55,United States
+20,Mastercard,MA,427306876928,459.1,United States
+21,LVMH,MC.PA,416665668941,834.075,France
+22,Procter & Gamble,PG,397329596416,168.35,United States
+24,ASML,ASML,365781450752,925.27,Netherlands
+25,Johnson & Johnson,JNJ,364058902528,151.24,United States
+26,Costco,COST,355215671296,800.93,United States
+27,Oracle,ORCL,342546776064,124.63,United States
+28,Home Depot,HD,334789935104,336.15,United States
+29,Merck,MRK,331772100608,130.76,United States
+30,Bank of America,BAC,310077685760,39.65,United States
+32,Chevron,CVX,296976318464,159.97,United States
+34,AbbVie,ABBV,290590523392,162.93,United States
+35,Netflix,NFLX,280348491776,650.61,United States
+36,Salesforce,CRM,278816915456,283.76,United States
+37,Nestl√©,NESN.SW,274036938341,104.594,Switzerland
+38,Coca-Cola,KO,271013756928,62.91,United States
+39,AMD,AMD,268842041344,164.66,United States
+40,L'Or√©al,OR.PA,259872034332,485.992,France
+41,Herm√®s,RMS.PA,259415758879,2476.92,France
+43,Pepsico,PEP,248946982912,181.08,United States
+45,AstraZeneca,AZN,245495218176,79.18,United Kingdom
+48,SAP,SAP,227656876032,194.72,Germany
+49,Shell,SHEL,227390455808,71.4,United Kingdom
+50,Thermo Fisher Scientific,TMO,226743566336,590.12,United States
+51,QUALCOMM,QCOM,224148602880,200.85,United States
+52,Adobe,ADBE,217140887552,481.85,United States
+53,Wells Fargo,WFC,214269231104,61.46,United States
+55,Novartis,NVS,209835753472,102.84,Switzerland
+57,Linde,LIN,209130700800,435.04,United Kingdom
+58,Roche,ROG.SW,207541263981,257.26,Switzerland
+61,Danaher,DHR,197844860928,266.55,United States
+62,McDonald,MCD,193049001984,265.87,United States
+63,T-Mobile US,TMUS,192605257728,164.36,United States
+65,Cisco,CSCO,190838325248,46.94,United States
+67,Walt Disney,DIS,187791360000,103.01,United States
+68,Intuit,INTU,187628044288,667.82,United States
+69,Applied Materials,AMAT,182755786752,219.8,United States
+70,Texas Instruments,TXN,181367947264,199.01,United States
+71,Abbott Laboratories,ABT,179547815936,102.96,United States
+72,Caterpillar,CAT,177403920384,359.07,United States
+73,General Electric,GE,176232218624,161,United States
+74,American Express,AXP,174848163840,243.08,United States
+76,Amgen,AMGN,168896561152,314.85,United States
+77,Verizon,VZ,168865185792,39.62,United States
+78,TotalEnergies,TTE,168101707776,71.85,France
+79,HSBC,HSBC,167605207040,44.58,United Kingdom
+80,Prosus,PRX.AS,167087395770,38.2398,Netherlands
+82,Morgan Stanley,MS,165002493952,101.53,United States
+83,Pfizer,PFE,161837809664,28.56,United States
+84,ServiceNow,NOW,159592087552,777.05,United States
+85,IBM,IBM,159350063104,173.47,United States
+86,Nextera Energy,NEE,158096080896,76.95,United States
+88,Philip Morris,PM,155813560320,100.23,United States
+89,Comcast,CMCSA,153845530624,39.21,United States
+90,Goldman Sachs,GS,151689822208,470.41,United States
+92,Siemens,SIE.DE,148943111756,188.555,Germany
+93,Union Pacific Corporation,UNP,148637827072,234.96,United States
+94,Inditex,IDEXY,147003539456,23.54,Spain
+95,Charles Schwab,SCHW,143803940864,78.9,United States
+96,Dior,CDI.PA,143012313693,792.703,France
+97,Micron Technology,MU,142850998272,127.5,United States
+98,Intuitive Surgical,ISRG,142630813696,402.11,United States
+100,ConocoPhillips,COP,141385433088,120.41,United States
+101,Schneider Electric,SU.PA,140484429198,251.113,France
+102,Raytheon Technologies,RTX,140170248192,105.43,United States
+103,Nike,NKE,140098797568,92.82,United States
+104,Airbus,AIR.PA,138568440578,175.198,Netherlands
+105,S&P Global,SPGI,137635315712,439.87,United States
+106,Unilever,UL,137005965312,54.28,United Kingdom
+107,Intel,INTC,136645459968,31.74,United States
+109,Uber,UBER,135087374336,63.97,United States
+111,Honeywell,HON,133245321216,203.51,United States
+113,Lowe's Companies,LOW,131129360384,224.86,United States
+114,Booking Holdings (Booking.com),BKNG,129682440192,3822.34,United States
+115,Elevance Health,ELV,126809579520,545.61,United States
+116,United Parcel Service,UPS,126271971328,145.42,United States
+117,Lam Research,LRCX,126034321408,964,United States
+118,Stryker Corporation,SYK,125907795968,330.51,United States
+119,AT&T,T,125621288960,17.27,United States
+122,Citigroup,C,123487657984,64.74,United States
+123,Progressive,PGR,122631356416,209.38,United States
+125,Sanofi,SNY,122345136128,48.95,France
+126,BlackRock,BLK,119651229696,804.93,United States
+127,Deutsche Telekom,DTE.DE,119640410485,24.0308,Germany
+128,Arm Holdings,ARM,119398670336,114.77,United Kingdom
+129,Rio Tinto,RIO,119316094976,73.48,United Kingdom
+131,Vertex Pharmaceuticals,VRTX,115058343936,442,United States
+132,Boeing,BA,114556952576,184.78,United States
+133,Allianz,ALV.DE,113582200091,290.151,Germany
+135,Lockheed Martin,LMT,112365363200,468.31,United States
+138,Boston Scientific,BSX,111248515072,75.67,United States
+139,TJX Companies,TJX,110747828224,97.7,United States
+141,Deere & Company,DE,108971720704,386.74,United States
+142,Regeneron Pharmaceuticals,REGN,108782862336,993.95,United States
+144,Analog Devices,ADI,107850113024,216.64,United States
+145,Chubb,CB,107606163456,265,Switzerland
+147,Dell,DELL,106425229312,147.24,United States
+148,EssilorLuxottica,EL.PA,105005232134,227.278,France
+149,Air Liquide,AI.PA,104894863859,200.521,France
+150,Palo Alto Networks,PANW,104610242560,311.66,United States
+151,BP,BP,104254603264,37.06,United Kingdom
+152,KLA,KLAC,104049860608,765.14,United States
+153,Prologis,PLD,103740809216,110.6,United States
+154,Marsh & McLennan Companies,MMC,103437549568,209.93,United States
+155,Automatic Data Processing,ADP,103198638080,252.14,United States
+159,Southern Copper,SCCO,100972281856,126.71,United States
+160,Arista Networks,ANET,100085153792,316.99,United States
+161,ABB,ABBN.SW,98346900412,53.2031,Switzerland
+162,UBS,UBS,98129682432,30.4,Switzerland
+165,KKR & Co.,KKR,96696213504,106.49,United States
+168,Cigna,CI,95556804608,336.38,United States
+170,Safran,SAF.PA,95387891741,230.861,France
+171,Mondelez,MDLZ,94780506112,70.66,United States
+172,GlaxoSmithKline,GSK,93220610048,44.46,United Kingdom
+173,Airbnb,ABNB,92922028032,144.1,United States
+174,Compagnie Financi√®re Richemont,CFR.SW,92249618690,157.6,Switzerland
+175,Blackstone Group,BX,92206620000,127.71,United States
+177,American Tower,AMT,90653859840,194.13,United States
+182,Fiserv,FI,89386041344,152.77,United States
+186,Starbucks,SBUX,88033443840,77.72,United States
+188,Synopsys,SNPS,87617839104,571.53,United States
+189,Chipotle Mexican Grill,CMG,87246921728,3172.8,United States
+190,Southern Company,SO,87233847296,79.78,United States
+192,Bristol-Myers Squibb,BMY,85685518336,42.27,United States
+194,HCA Healthcare,HCA,85135335424,321.12,United States
+195,CrowdStrike,CRWD,84808261632,349.32,United States
+197,Iberdrola,IBE.MC,84105544472,13.3674,Spain
+199,BNP Paribas,BNP.PA,83917419359,74.21,France
+200,Equinor,EQNR,83908493312,28.67,Norway
+201,Gilead Sciences,GILD,83833249792,67.29,United States
+202,Waste Management,WM,83613868032,208.33,United States
+204,AXA,CS.PA,82931657292,36.8227,France
+205,RELX,RELX,82601295872,44.23,United Kingdom
+206,Santander,SAN,82481881088,5.2,Spain
+208,General Dynamics,GD,82372362240,297.06,United States
+211,Amphenol,APH,81321779200,135.4,United States
+214,Duke Energy,DUK,80557252608,104.38,United States
+216,Cadence Design Systems,CDNS,79590965248,290.1,United States
+217,Altria Group,MO,79577800704,46.33,United States
+218,Zoetis,ZTS,79573245952,172.79,United States
+219,Intercontinental Exchange,ICE,78736015360,137.27,United States
+220,Porsche,P911.DE,78724486915,86.4155,Germany
+221,Sherwin-Williams,SHW,78590042112,309.96,United States
+222,Diageo,DEO,78429044736,139.73,United Kingdom
+223,Merck KGaA,MRK.DE,78230762289,179.933,Germany
+225,Colgate-Palmolive,CL,78081368064,95.17,United States
+226,Freeport-McMoRan,FCX,78030135296,54.32,United States
+229,Mercedes-Benz,MBG.DE,77615388216,72.5486,Germany
+230,Glencore,GLCNF,77181714432,6.35,Switzerland
+237,CME Group,CME,76070977536,210.35,United States
+240,Equinix,EQIX,75476631552,792.24,United States
+241,Moody's,MCO,75408384000,412.95,United States
+242,DBS Group,D05.SI,75341226315,26.4903,Singapore
+243,TransDigm,TDG,74807558144,1336.84,United States
+244,Illinois Tool Works,ITW,74776051712,248.78,United States
+245,Zurich Insurance Group,ZURN.SW,74741690860,519.076,Switzerland
+246,EOG Resources,EOG,74631929856,128.9,United States
+248,McKesson,MCK,73312100352,552.39,United States
+249,Target,TGT,72499077120,155.78,United States
+252,CVS Health,CVS,72058691584,57.32,United States
+256,Vinci,DG.PA,71324031847,125.529,France
+259,Cintas,CTAS,71019028480,699.95,United States
+260,Volkswagen,VOW3.DE,70977510870,129.384,Germany
+261,Parker-Hannifin,PH,70440681472,546.87,United States
+263,Constellation Energy,CEG,70168158208,222.59,United States
+264,NXP Semiconductors,NXPI,70164807680,274.42,Netherlands
+265,British American Tobacco,BTI,69985501184,31.47,United Kingdom
+266,Northrop Grumman,NOC,69836480512,471.9,United States
+269,Schlumberger,SLB,69022834688,48.29,United States
+270,Workday,WDAY,68843036672,258.86,United States
+271,Marriott International,MAR,68643700736,238.28,United States
+272,Becton Dickinson,BDX,68532146176,234.86,United States
+275,Munich RE (M√ºnchener R√ºck),MUV2.DE,67365772023,500.489,Germany
+277,Ecolab,ECL,67108945920,235,United States
+278,PayPal,PYPL,67051802624,64.1,United States
+281,Stellantis,STLA,66620346368,22.09,Netherlands
+285,BMW,BMW.DE,65436199752,102.964,Germany
+286,CSX Corporation,CSX,65314242560,33.07,United States
+287,Apollo Global Management,APO,65264758784,114.7,United States
+290,Emerson,EMR,65047764992,113.7,United States
+291,Siemens Healthineers,SHL.DE,64725264207,58.0085,Germany
+292,Marvell Technology Group,MRVL,64451956736,73.3,United States
+295,U.S. Bancorp,USB,64259743744,41.18,United States
+298,Aon,AON,63698456576,289.98,United Kingdom
+300,London Stock Exchange,LSEG.L,63123520570,118.815,United Kingdom
+301,PNC Financial Services,PNC,63088156672,158.55,United States
+302,Pioneer Natural Resources,PXD,63003455488,269.62,United States
+305,FedEx,FDX,62679277568,252.33,United States
+306,Banco Bilbao Vizcaya Argentaria,BBVA,62646964224,10.87,Spain
+309,Enterprise Products,EPD,62280339456,28.68,United States
+310,Marathon Petroleum,MPC,62214430720,176.58,United States
+311,Motorola Solutions,MSI,61667827712,369.74,United States
+312,Phillips 66,PSX,61227212800,144.14,United States
+316,Welltower,WELL,60449308672,101.1,United States
+319,Carrier,CARR,59665014784,66.22,United States
+320,Air Products and Chemicals,APD,59180093440,264.66,United States
+321,Heineken,HEIA.AS,58957483297,104.637,Netherlands
+322,ING,ING,58847641600,17.98,Netherlands
+323,Republic Services,RSG,58728517632,186.48,United States
+324,O'Reilly Automotive,ORLY,58634379264,995.59,United States
+325,Roper Technologies,ROP,58485821440,541.4,United States
+330,3M,MMM,57073655808,103.14,United States
+333,Occidental Petroleum,OXY,56363503616,63.35,United States
+334,Arthur J. Gallagher & Co.,AJG,56342163456,257.84,United States
+335,Monster Beverage,MNST,56164302848,53.38,United States
+336,Universal Music Group,UMG.AS,55895513137,30.6874,Netherlands
+339,Paccar,PCAR,55349710848,105.6,United States
+340,Coinbase,COIN,55299620864,225.78,United States
+342,Snowflake,SNOW,55069528064,162.71,United States
+343,Moderna,MRNA,55067754496,143.69,United States
+345,Simon Property Group,SPG,54857658368,147.97,United States
+346,Dassault Syst√®mes,DSY.PA,54842375450,41.8286,France
+348,Edwards Lifesciences,EW,54438883328,90.34,United States
+349,Energy Transfer Partners,ET,54358417408,15.93,United States
+351,National Grid,NGG,54123315200,72.72,United Kingdom
+352,Valero Energy,VLO,53957971968,162.39,United States
+353,Capital One,COF,53705871360,140.42,United States
+355,BAE Systems,BA.L,53505122156,17.6329,United Kingdom
+360,Truist Financial,TFC,52908474368,39.54,United States
+361,Copart,CPRT,52813107200,54.93,United States
+362,Interactive Brokers,IBKR,52766879744,126.6,United States
+363,Supermicro,SMCI,52639367168,898.95,United States
+364,American International Group,AIG,52290412544,78.68,United States
+365,Microchip Technology,MCHP,52125872128,95.78,United States
+366,Norfolk Southern,NSC,52034748416,224.71,United States
+367,DexCom,DXCM,52032974848,130.84,United States
+368,MetLife,MET,51833757696,72.59,United States
+369,Cr√©dit Agricole,ACA.PA,51830870288,17.13,France
+373,Hilton Worldwide,HLT,51459469312,205.8,United States
+374,General Motors,GM,51251920896,44.92,United States
+375,Infineon,IFX.DE,51208139516,39.4723,Germany
+379,Williams Companies,WMB,50919370752,41.78,United States
+380,Newmont,NEM,50784284672,44.04,United States
+382,AutoZone,AZO,50594406400,2820.83,United States
+384,DHL Group (Deutsche Post),DHL.DE,50245190331,42.5453,Germany
+385,Public Storage,PSA,50239807488,283.03,United States
+387,Aflac,AFL,49827405824,87.59,United States
+388,Sika,SIKA.SW,49740041429,310.04,Switzerland
+389,Sempra Energy,SRE,49615130624,78.4,United States
+391,The Travelers Companies,TRV,49519734784,216.25,United States
+392,Pacific Gas and Electric,PCG,49473908736,18.92,United States
+393,D. R. Horton,DHI,49327669248,149.38,United States
+397,American Electric Power,AEP,48822038528,92.62,United States
+399,Oneok,OKE,48448536576,83.01,United States
+400,Holcim Group,HOLN.SW,48296361631,85.9637,Switzerland
+401,Ford,F,48279601152,12.15,United States
+402,Compass Group,CPG.L,48260534188,28.3499,United Kingdom
+403,Palantir,PLTR,48145555456,21.24,United States
+404,OCBC Bank,O39.SI,48043831763,10.6763,Singapore
+405,Hess,HES,48013053952,154.61,United States
+406,Realty Income,O,47962234880,55.08,United States
+408,The Trade Desk,TTD,47689846784,95.65,United States
+409,BASF,BAS.DE,47640260649,53.3771,Germany
+410,Fortinet,FTNT,47623888896,61.31,United States
+411,Digital Realty,DLR,47461683200,144.26,United States
+412,Autodesk,ADSK,47360864256,220.28,United States
+414,United Rentals,URI,47095148544,694.59,United States
+415,Estee Lauder,EL,47022034944,132.72,United States
+416,W. W. Grainger,GWW,46947557376,956.77,United States
+419,DoorDash,DASH,46599852032,112.82,United States
+420,TE Connectivity,TEL,46485409792,151.8,Switzerland
+422,Rolls-Royce Holdings,RR.L,46331441078,5.5047,United Kingdom
+425,Keurig Dr Pepper,KDP,46035156992,33.96,United States
+426,Constellation Brands,STZ,45917540352,250.98,United States
+427,Paychex,PAYX,45319344128,125.9,United States
+428,Agilent Technologies,A,45318049792,153.67,United States
+429,Dominion Energy,D,45213102080,53.94,United States
+430,Lennar,LEN,45134290944,162.71,United States
+431,Kimberly-Clark,KMB,45031460864,133.74,United States
+432,Lloyds Banking Group,LYG,44576178176,2.83,United Kingdom
+433,Ares Management,ARES,44495486976,143.62,United States
+435,Allstate,ALL,44387864576,168.19,United States
+436,Kering,KER.PA,44367735007,361.929,France
+437,Ross Stores,ROST,44361117696,132.3,United States
+439,Adidas,ADS.DE,44205852049,247.584,Germany
+440,Bank of New York Mellon,BK,44180971520,59.08,United States
+442,Block,SQ,44124606464,71.51,United States
+443,Cencora,COR,44078743552,217.08,United States
+444,Compagnie de Saint-Gobain,SGO.PA,44061951639,87.762,France
+445,Kinder Morgan,KMI,44032634880,19.74,United States
+446,Crown Castle,CCI,43778191360,100.75,United States
+447,IDEXX Laboratories,IDXX,43777073152,518.44,United States
+448,Alcon,ALC,43750739968,88.7,Switzerland
+450,Kraft Heinz,KHC,43617656832,35.92,United States
+451,Fidelity National Information Services,FIS,43448766464,78.11,United States
+454,Ameriprise Financial,AMP,43114950656,434.08,United States
+456,Ferguson,FERG,42958819328,211.91,United Kingdom
+457,Humana,HUM,42853769216,355.63,United States
+459,L3Harris Technologies,LHX,42725421056,225.25,United States
+460,Waste Connections,WCN,42722820096,165.15,United States
+462,Grayscale Bitcoin Trust,GBTC,42649989120,61.6,United States
+463,Givaudan,GIVN.SW,42507045507,4606.69,Switzerland
+466,Prudential Financial,PRU,42313515008,117.84,United States
+468,The Hershey Company,HSY,42081894400,207.35,United States
+469,Sea (Garena),SE,42076147712,73.26,Singapore
+472,IQVIA,IQV,41922408448,229.38,United States
+474,Centene,CNC,41838632960,78.4,United States
+475,Danone,BN.PA,41820306778,65.1537,France
+476,MPLX,MPLX,41809616896,40.9,United States
+478,Barclays,BCS,41737039872,11.17,United Kingdom
+479,Dow,DOW,41657913344,58.91,United States
+480,Anglo American,AAL.L,41412796501,34.1597,United Kingdom
+481,Nucor,NUE,41267834880,172.12,United States
+483,ENGIE,ENGI.PA,41148494282,16.9617,France
+486,Adyen,ADYEN.AS,41022242832,1321.32,Netherlands
+490,Reckitt Benckiser,RKT.L,40613428202,57.6913,United Kingdom
+491,MSCI,MSCI,40583389184,505.53,United States
+492,Datadog,DDOG,40571359232,122.33,United States
+495,General Mills,GIS,40325701632,70.63,United States
+496,Lonza,LONN.SW,40205092158,557.501,Switzerland
+497,CaixaBank,CABK.MC,39872289386,5.48594,Spain
+498,Quanta Services,PWR,39824855040,272.05,United States
+499,Pernod Ricard,RI.PA,39689750739,157.292,France
+500,Otis Worldwide,OTIS,39684304896,98.15,United States
+502,Charter Communications,CHTR,39624089600,275.11,United States
+505,Corteva,CTVA,39546404864,56.65,United States
+506,Yum! Brands,YUM,39335534592,139.3,United States
+507,Kroger,KR,39210110976,53.66,United States
+508,Ametek,AME,39148523520,169.13,United States
+509,Cummins,CMI,39113609216,285.96,United States
+513,Capgemini,CAP.PA,38953418126,227.603,France
+514,Haleon,HLN,38903603200,8.52,United Kingdom
+515,Old Dominion Freight Line,ODFL,38887550976,175.46,United States
+516,Royal Caribbean,RCL,38795362304,150.75,United States
+519,Exelon Corporation,EXC,38521155584,38.52,United States
+520,Exor,EXO.AS,38453923179,113.042,Netherlands
+523,Kenvue,KVUE,38238752768,19.97,United States
+525,Fastenal,FAST,38165979136,66.31,United States
+528,Wolters Kluwer,WKL.AS,37981604430,159.789,Netherlands
+533,UOB,U11.SI,37587580747,22.444,Singapore
+534,Sysco,SYY,37508005888,75.32,United States
+536,PSEG,PEG,37430714368,75.15,United States
+537,Thales,HO.PA,37404935311,182.05,France
+538,GE HealthCare Technologies,GEHC,37402742784,81.94,United States
+542,Vertiv Holdings,VRT,37179895808,99.13,United States
+543,Deutsche B√∂rse,DB1.DE,37126926372,200.565,Germany
+546,STMicroelectronics,STM,36854947840,40.96,Switzerland
+547,Monolithic Power Systems,MPWR,36832047104,756.74,United States
+549,Cheniere Energy,LNG,36591583232,159.85,United States
+554,3i Group,III.L,36289505538,37.6303,United Kingdom
+557,Partners Group,PGHN.SW,36038985510,1387.17,Switzerland
+558,Beiersdorf,BEI.DE,36021586813,158.812,Germany
+559,E.ON,EOAN.DE,36017027795,13.7909,Germany
+560,Verisk Analytics,VRSK,36012539904,251.5,United States
+561,Nasdaq,NDAQ,36004466688,62.44,United States
+564,Martin Marietta,MLM,35942395904,581.31,United States
+565,NatWest Group,NWG,35828031488,8.21,United Kingdom
+566,FICO,FICO,35738890240,1374.8,United States
+567,Henkel,HEN3.DE,35727436725,91.5192,Germany
+572,CoStar Group,CSGP,35464503296,86.85,United States
+573,Gartner,IT,35422801920,449.35,United States
+574,Xylem,XYL,35385139200,145.95,United States
+577,Swiss Re,SREN.SW,35166791810,121.096,Switzerland
+580,Diamondback Energy,FANG,35055296512,196.56,United States
+581,ASM International,ASM.AS,35011401750,714.518,Netherlands
+583,Las Vegas Sands,LVS,34883096576,46.21,United States
+586,Vulcan Materials,VMC,34673827840,262.18,United States
+587,Howmet Aerospace,HWM,34609836032,84.79,United States
+588,Cognizant Technology Solutions,CTSH,34595110912,68.79,United States
+589,Electronic Arts,EA,34448048128,128.85,United States
+590,Daimler Truck,DTG.F,34348836278,42.5779,Germany
+591,Coca-Cola European Partners,CCEP,34242209792,74.01,United Kingdom
+592,Delta Air Lines,DAL,34195136512,52.23,United States
+596,Veeva Systems,VEEV,33932451840,209.24,United States
+598,Biogen,BIIB,33717245952,227.69,United States
+600,Halliburton,HAL,33606037504,37.63,United States
+601,Deutsche Bank,DB,33536845824,16.88,Germany
+604,Dupont De Nemours,DD,33394024448,79.52,United States
+605,Consolidated Edison,ED,33376509952,96.34,United States
+606,Baker Hughes,BKR,33259395072,33.02,United States
+607,Extra Space Storage,EXR,33132552192,146.08,United States
+611,Garmin,GRMN,32793477120,170.73,Switzerland
+612,Vistra,VST,32744630272,94.24,United States
+614,LyondellBasell,LYB,32607789056,100.14,United States
+617,Mettler-Toledo,MTD,32490799104,1521.29,United States
+619,ResMed,RMD,32134524928,218.28,United States
+620,Ashtead,AHT.L,32133526163,73.6334,United Kingdom
+623,HP,HPQ,31986542592,32.69,United States
+625,ON Semiconductor,ON,31957639168,72.82,United States
+627,DSV,DSV.VI,31804225744,152.622,Denmark
+628,K√ºhne + Nagel,KNIN.SW,31798333776,268.76,Switzerland
+630,Devon Energy,DVN,31612659712,49.77,United States
+632,HubSpot,HUBS,31596195840,610.95,United States
+633,Xcel Energy,XEL,31526957056,56.74,United States
+634,VICI Properties,VICI,31524798464,30.12,United States
+637,Discover Financial Services,DFS,31369984000,125.18,United States
+638,PPG Industries,PPG,31369046016,133.73,United States
+640,Dollar General,DG,31325087744,142.6,United States
+642,Orange,ORAN,31302199296,11.77,France
+644,Corning,GLW,31249461248,36.48,United States
+645,Amadeus IT Group,AMS.MC,31235938547,71.7125,Spain
+649,Equifax,EFX,31111706624,238.05,United States
+651,CDW Corporation,CDW,30962612224,230.38,United States
+652,Rockwell Automation,ROK,30919989248,270.36,United States
+653,DSM-Firmenich,DSFIR.AS,30823529747,116.191,Switzerland
+654,Tractor Supply,TSCO,30799159296,285.68,United States
+655,Hapag-Lloyd,HLAG.DE,30785198410,175.155,Germany
+657,MicroStrategy,MSTR,30636859392,1655.42,United States
+659,GlobalFoundries,GFS,30462302208,54.84,United States
+662,Archer Daniels Midland (ADM),ADM,30294216704,61.27,United States
+665,Bayer,BAYN.DE,30206685668,30.7471,Germany
+666,Antofagasta,ANTO.L,30204873064,30.6382,United Kingdom
+667,The Hartford,HIG,30202503168,102.12,United States
+668,Ahold Delhaize,AD.AS,30150278380,32.1425,Netherlands
+669,Wabtec,WAB,30100041728,170.05,United States
+674,Hannover R√ºck,HNR1.DE,29753110045,246.715,Germany
+677,Ferrovial,FER.MC,29594049230,39.6569,Spain
+680,Edison International,EIX,29537486848,76.77,United States
+683,Singtel,Z74.SI,29406510226,1.78186,Singapore
+686,Michelin,ML.PA,29263273545,41.0251,France
+687,Aena,AENA.MC,29139971002,194.266,Spain
+690,Legrand,LR.PA,28995668064,110.924,France
+691,Novozymes,NZYM.VI,28980020623,62.6127,Denmark
+693,Rocket Companies,RKT,28895340544,14.54,United States
+694,Publicis Groupe,PUB.PA,28804889825,115.431,France
+696,Ansys,ANSS,28685887488,326.79,United States
+698,Prudential,PUK,28548710400,20.48,United Kingdom
+700,Vestas Wind Systems,VWS.CO,28449500469,28.1904,Denmark
+703,DNB,DNB.OL,28411931069,18.8217,Norway
+704,Swisscom,SCMN.SW,28390523384,548.059,Switzerland
+706,Pinterest,PINS,28358385664,41.51,United States
+710,AvalonBay Communities,AVB,28219656192,198.47,United States
+714,Coloplast,COLO-B.CO,27988794185,124.373,Denmark
+716,Keysight,KEYS,27892410368,146.36,United States
+718,AppLovin,APP,27824664576,84,United States
+719,Chocoladefabriken Lindt &amp; Spr√ºngli,LISP.SW,27814841680,11758.2,Switzerland
+720,RWE,RWE.DE,27802157090,37.3765,Germany
+721,Schindler Group,SCHN.SW,27787588226,255.805,Switzerland
+725,CBRE Group,CBRE,27743025152,90.42,United States
+733,Tesco,TSCDF,27430469632,3.885,United Kingdom
+734,Global Payments,GPN,27408685056,107.36,United States
+737,Fortive,FTV,27155468288,77.1,United States
+738,Zscaler,ZS,27064313856,176.98,United States
+739,Blue Owl Capital,OWL,27032895488,18.92,United States
+741,MongoDB,MDB,26993518592,365.26,United States
+745,WEC Energy Group,WEC,26746986496,84.58,United States
+750,Vodafone,VOD,26452035584,9.54,United Kingdom
+751,Splunk,SPLK,26443769856,156.9,United States
+752,Cellnex Telecom,CLNX.MC,26431331437,37.4634,Spain
+753,eBay,EBAY,26421182464,52.17,United States
+757,Philips,PHG,26350299136,27.31,Netherlands
+759,Naturgy,NTGY.MC,26336995339,27.1691,Spain
+760,HEICO,HEI,26314455040,216.16,United States
+761,T. Rowe Price,TROW,26266777600,117.63,United States
+763,Targa Resources,TRGP,26206947328,118.2,United States
+764,Church & Dwight,CHD,26178631680,107.06,United States
+765,American Water Works,AWK,26176419840,134.36,United States
+768,Fifth Third Bank,FITB,26021072896,38.04,United States
+769,Willis Towers Watson,WTW,25956698112,253.89,United Kingdom
+771,Raymond James,RJF,25936603136,124.79,United States
+772,Take 2 Interactive,TTWO,25862535168,151.42,United States
+773,Maersk,MAERSK-B.CO,25837998763,1673.97,Denmark
+774,Associated British Foods,ABF.L,25828521495,34.3885,United Kingdom
+775,√òrsted,DOGEF,25760100352,61.3,Denmark
+776,Cloudflare,NET,25695164416,74.38,United States
+777,Telef√≥nica,TEF,25667162112,4.54,Spain
+778,First Citizens BancShares,FCNCA,25654603776,1777.41,United States
+779,Snap,SNAP,25649455104,15.63,United States
+782,Brown &amp; Brown,BRO,25632497664,89.85,United States
+784,M&T Bank,MTB,25592068096,153.38,United States
+786,Dover,DOV,25570226176,186.06,United States
+788,Vonovia,VNA.DE,25450468646,31.2412,Germany
+791,Equity Residential,EQR,25315330048,66.8,United States
+795,Standard Chartered,STAN.L,25240009194,9.90084,United Kingdom
+796,Symbotic,SYM,25209133056,43.55,United States
+799,West Pharmaceutical,WST,25091878912,337.01,United States
+800,PulteGroup,PHM,25072732160,117.9,United States
+801,Dollar Tree,DLTR,25029832704,114.7,United States
+802,SSE,SSE.L,25007837437,22.8706,United Kingdom
+804,International Flavors & Fragrances,IFF,24998864896,97.9,United States
+806,Danske Bank,DANS.VI,24922738921,29.2214,Denmark
+808,Rheinmetall,RHM.F,24836375546,570.529,Germany
+812,Zimmer Biomet,ZBH,24491986944,119,United States
+814,Entergy,ETR,24390195200,114.22,United States
+816,Iron Mountain,IRM,24286068736,82.85,United States
+819,Tradeweb,TW,24254208000,111.29,United States
+820,DTE Energy,DTE,24248877056,117.18,United States
+821,Western Digital,WDC,24166115328,74.01,United States
+824,NVR,NVR,24049643520,7620.22,United States
+825,Veolia,VIE.PA,24012890068,33.5433,France
+826,Cardinal Health,CAH,23981570048,96.01,United States
+827,Cheniere Energy,CQP,23945508864,49.47,United States
+828,Soci√©t√© G√©n√©rale,GLE.PA,23816738860,29.8024,France
+829,Uniper,UN0.DE,23797279635,57.1398,Germany
+830,Broadridge Financial Solutions,BR,23682246656,199.97,United States
+831,Live Nation,LYV,23602558976,101.98,United States
+839,NetApp,NTAP,23310280704,112.95,United States
+840,FirstEnergy,FE,23268112384,40.43,United States
+841,State Street Corporation,STT,23242086400,77.08,United States
+843,Deckers Brands,DECK,23174512640,899.74,United States
+845,Hewlett Packard Enterprise,HPE,23136935936,17.78,United States
+855,First Solar,FSLR,22704465920,212.11,United States
+856,Weyerhaeuser,WY,22679719936,31.11,United States
+857,Samsara,IOT,22648502272,40.95,United States
+859,Rollins,ROL,22530877440,46.5,United States
+862,Brown Forman,BF-A,22436044800,48.12,United States
+863,Celsius Holdings,CELH,22396774400,95.96,United States
+866,BioNTech,BNTX,22284345344,92.07,Germany
+871,Freddie Mac,FMCCT,22162612224,6.88,United States
+872,Axon Enterprise,AXON,22038685696,287.95,United States
+873,PTC,PTC,22032924672,182.67,United States
+874,PPL,PPL,22014191616,29.84,United States
+880,Teradyne,TER,21897830400,140.27,United States
+884,Ball Corporation,BALL,21822674944,70.31,United States
+885,Fleetcor,FLT,21790322688,303.26,United States
+887,Invitation Homes,INVH,21702156288,35.18,United States
+890,Hubbell,HUBB,21689143296,404,United States
+891,Argenx,ARGX,21654183936,356.66,Netherlands
+893,Alexandria Real Estate Equities,ARE,21634830336,123.49,United States
+895,Tyson Foods,TSN,21582219264,61.04,United States
+896,Eversource Energy,ES,21565052928,61.22,United States
+903,SBA Communications,SBAC,21317830656,198.37,United States
+904,Markel,MKL,21317619712,1637.21,United States
+906,DraftKings,DKNG,21296717824,43.38,United States
+907,Imperial Brands,IMB.L,21295981937,24.7203,United Kingdom
+908,Kellogg's,K,21282279424,62.25,United States
+911,Genuine Parts Company,GPC,21163671552,151.51,United States
+912,Coterra Energy,CTRA,21158539264,27.84,United States
+914,Steel Dynamics,STLD,21110818816,134.35,United States
+915,Carnival Corporation,CCL,21077821440,16.2,United States
+916,Tyler Technologies,TYL,21056980992,495.98,United States
+917,Waters Corporation,WAT,21000361984,351.65,United States
+918,Endesa,ELE.MC,20972331728,19.8284,Spain
+920,EnBW Energie,EBK.DE,20882512394,77.0985,Germany
+921,Roblox,RBLX,20831283200,32.55,United States
+923,Straumann,STMN.SW,20752010645,130.153,Switzerland
+924,Erie Indemnity,ERIE,20739743744,396.63,United States
+929,Westlake Chemical,WLK,20645771264,160.58,United States
+932,Siemens Energy,ENR.F,20572866092,25.8877,Germany
+934,Huntington Bancshares,HBAN,20506888192,14.15,United States
+936,Builders FirstSource,BLDR,20498253824,167.94,United States
+938,Carvana,CVNA,20429328384,115.03,United States
+939,Geberit,GEBN.SW,20406826468,612.834,Switzerland
+942,Williams-Sonoma,WSM,20340953088,314.38,United States
+944,Leidos,LDOS,20319660032,150.28,United States
+945,Carlisle Companies,CSL,20316446720,426.8,United States
+946,Talanx,TLX.DE,20315657396,78.673,Germany
+948,W. R. Berkley,WRB,20256100352,79.23,United States
+952,LPL Financial,LPLA,20145252352,269.65,United States
+953,Hormel Foods,HRL,20138467328,36.43,United States
+954,Align Technology,ALGN,20133345280,264.02,United States
+955,Commerzbank,CBK.F,20081112581,16.9508,Germany
+956,Molina Healthcare,MOH,20054407168,342.32,United States
+959,Booz Allen Hamilton,BAH,20000346112,154.15,United States
