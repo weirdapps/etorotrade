@@ -184,19 +184,43 @@ def display_table(data):
     numbered_data = []
     for i, row in enumerate(data):
         row_data = [
-            i+1, row['ticker'], row['date'], row['stock_price'], row['dcf_price'],
+            i + 1, row['ticker'], row['date'], row['stock_price'], row['dcf_price'],
             row.get('dcf_percent_diff'), row.get('target_consensus'),
             row.get('target_percent_diff'), row.get('num_targets'),
-            row.get('financial_score'), row.get('piotroski_score'), row.get(
-                'analyst_rating'), row.get('total_recommendations'), row.get('senate_sentiment')
+            row.get('financial_score'), row.get('piotroski_score'), row.get('analyst_rating'),
+            row.get('total_recommendations'), row.get('senate_sentiment')
         ]
         color = None
-        target_percent_diff = row.get('target_percent_diff')
-        if target_percent_diff is not None:
-            if target_percent_diff < 10:
-                color = '\033[91m'  # Red
-            elif target_percent_diff > 20:
-                color = '\033[92m'  # Green
+
+        def safe_float(value):
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return None
+
+        target_percent_diff = safe_float(row.get('target_percent_diff'))
+        num_targets = safe_float(row.get('num_targets'))
+        analyst_rating = safe_float(row.get('analyst_rating'))
+        total_recommendations = safe_float(row.get('total_recommendations'))
+
+        # Conditions for green color
+        is_green = (target_percent_diff is not None and target_percent_diff > 15 and 
+                    num_targets is not None and num_targets > 4 and 
+                    analyst_rating is not None and analyst_rating > 65 and 
+                    total_recommendations is not None and total_recommendations > 4)
+        
+        # Conditions for red color
+        is_red = (target_percent_diff is not None and target_percent_diff < 5 or 
+                  num_targets is not None and num_targets > 0 and num_targets < 2 or 
+                  analyst_rating is not None and analyst_rating < 55 or 
+                  total_recommendations is not None and total_recommendations > 0 and total_recommendations < 2)
+        
+        # Determine the color
+        if is_red:
+            color = '\033[91m'  # Red
+        elif is_green:
+            color = '\033[92m'  # Green
+
         numbered_data.append((row_data, color))
 
     headers = [

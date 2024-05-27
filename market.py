@@ -7,9 +7,9 @@ from dotenv import load_dotenv
 load_dotenv()
 api_key = os.getenv('API_KEY')
 
-marketCapLimit = 500000000000
+marketCapLimit = 25000000000
 
-URL = f"https://financialmodelingprep.com/api/v3/stock-screener?marketCapMoreThan={marketCapLimit}&exchange=nyse&exchange=nasdaq&exchange=xetra&exchange=hkse&exchange=lse&isEtf=false&isFund=false&apikey={api_key}"
+URL = f"https://financialmodelingprep.com/api/v3/stock-screener?marketCapMoreThan={marketCapLimit}&exchange=nyse&exchange=nasdaq&isEtf=false&isFund=false&apikey={api_key}"
 response = requests.get(URL)
 
 # Check if the request was successful
