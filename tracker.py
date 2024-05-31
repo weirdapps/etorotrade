@@ -29,7 +29,7 @@ def load_environment():
 def load_tickers(filename):
     try:
         with open(filename, newline="") as file:
-            return [row["symbol"] for row in csv.DictReader(file)]
+            return [row["ticker"] for row in csv.DictReader(file)]
     except FileNotFoundError:
         raise FileNotFoundError(f"{filename} file not found.")
     except csv.Error as e:
@@ -204,23 +204,32 @@ def display_table(data):
         total_recommendations = safe_float(row.get('total_recommendations'))
 
         # Conditions for green color
-        is_green = (target_percent_diff is not None and target_percent_diff > 15 and 
-                    num_targets is not None and num_targets > 4 and 
-                    analyst_rating is not None and analyst_rating > 65 and 
-                    total_recommendations is not None and total_recommendations > 4)
-        
+        is_green = ((target_percent_diff is not None and target_percent_diff > 15 and 
+                    num_targets is not None and num_targets > 2) and 
+                    (analyst_rating is not None and analyst_rating > 65 and 
+                    total_recommendations is not None and total_recommendations > 2))
+
         # Conditions for red color
-        is_red = (target_percent_diff is not None and target_percent_diff < 5 or 
-                  num_targets is not None and num_targets > 0 and num_targets < 2 or 
-                  analyst_rating is not None and analyst_rating < 55 or 
-                  total_recommendations is not None and total_recommendations > 0 and total_recommendations < 2)
-        
+        is_red = ((target_percent_diff is not None and target_percent_diff < 5 and 
+                num_targets is not None and num_targets > 2) or 
+                (analyst_rating is not None and analyst_rating < 55 and 
+                total_recommendations is not None and total_recommendations > 2))
+
+        # Conditions for yellow color
+        is_yellow = not is_green and not is_red and (
+            (num_targets is not None and num_targets < 3) or 
+            (total_recommendations is not None and total_recommendations < 3))
+
         # Determine the color
         if is_red:
             color = '\033[91m'  # Red
         elif is_green:
             color = '\033[92m'  # Green
-
+        elif is_yellow:
+            color = '\033[93m'  # Yellow
+        else:
+            color = '\033[0m'   # Default (No color)
+            
         numbered_data.append((row_data, color))
 
     headers = [

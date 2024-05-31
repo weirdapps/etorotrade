@@ -14,7 +14,7 @@ api_key = os.getenv('API_KEY')
 portfolio_df = pd.read_csv('portfolio.csv')
 
 # Extract the symbols from the Symbols column
-symbols = portfolio_df['Symbol'].tolist()
+symbols = portfolio_df['ticker'].tolist()
 
 # ANSI escape codes for colors
 RED = '\033[91m'
