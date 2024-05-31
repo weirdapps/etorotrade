@@ -204,16 +204,16 @@ def display_table(data):
         total_recommendations = safe_float(row.get('total_recommendations'))
 
         # Conditions for green color
-        is_green = (target_percent_diff is not None and target_percent_diff > 15 and 
-                    num_targets is not None and num_targets > 4 and 
-                    analyst_rating is not None and analyst_rating > 65 and 
-                    total_recommendations is not None and total_recommendations > 4)
+        is_green = ((target_percent_diff is not None and target_percent_diff > 15 and 
+                    num_targets is not None and num_targets > 2) and 
+                    (analyst_rating is not None and analyst_rating > 65 and 
+                    total_recommendations is not None and total_recommendations > 2))
         
         # Conditions for red color
-        is_red = (target_percent_diff is not None and target_percent_diff < 5 or 
-                  num_targets is not None and num_targets > 0 and num_targets < 2 or 
-                  analyst_rating is not None and analyst_rating < 55 or 
-                  total_recommendations is not None and total_recommendations > 0 and total_recommendations < 2)
+        is_red = ((target_percent_diff is not None and target_percent_diff < 5 and 
+                  num_targets is not None and num_targets > 2) or 
+                  (analyst_rating is not None and analyst_rating < 55 and 
+                  total_recommendations is not None and total_recommendations > 2))
         
         # Determine the color
         if is_red:
@@ -236,6 +236,7 @@ def display_table(data):
         rows.append(row)
 
     print(tabulate(rows, headers=headers, floatfmt=".2f", tablefmt="fancy_grid", colalign=("right", "left", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right")))
+
 
 def save_to_csv(filename, data):
     with open(filename, "w", newline="") as file:
