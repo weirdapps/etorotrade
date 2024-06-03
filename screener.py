@@ -16,7 +16,8 @@ API_URLS = {
     'ANALYST': "https://financialmodelingprep.com/api/v3/",
     'RATING': "https://financialmodelingprep.com/api/v3/",
     'PRICE_TARGET': "https://financialmodelingprep.com/api/v4/",
-    'EARNINGS': "https://financialmodelingprep.com/api/v3/"
+    'EARNINGS': "https://financialmodelingprep.com/api/v3/",
+    'RATIOS_TTM': "https://financialmodelingprep.com/api/v3/"
 }
 
 def load_environment():
@@ -62,6 +63,13 @@ def fetch_current_stock_price(ticker, api_key):
         if timestamp:
             date_time = datetime.datetime.fromtimestamp(int(timestamp)).strftime('%Y-%m-%d %H:%M')
             return price, date_time
+    return None, None
+
+def fetch_ratios_ttm(ticker, api_key):
+    url = f"{API_URLS['RATIOS_TTM']}ratios-ttm/{ticker}?apikey={api_key}"
+    ratios_data = api_request(url)
+    if ratios_data:
+        return ratios_data[0].get('peRatioTTM'), ratios_data[0].get('pegRatioTTM')
     return None, None
 
 def fetch_dcf_data(ticker, api_key):
@@ -141,7 +149,9 @@ def extract_financial_metrics(ticker, api_key, start_date):
         "financial_score": None,
         "piotroski_score": None,
         "analyst_rating": None,
-        "senate_sentiment": None
+        "senate_sentiment": None,
+        "pe_ratio_ttm": None,
+        "peg_ratio_ttm": None
     }
 
     if start_date:
@@ -175,6 +185,10 @@ def extract_financial_metrics(ticker, api_key, start_date):
         senate_disclosure_data = fetch_senate_disclosure_data(ticker, api_key)
         if senate_disclosure_data:
             stock_info['senate_sentiment'] = calculate_senate_sentiment(senate_disclosure_data, start_date)
+
+        pe_ratio_ttm, peg_ratio_ttm = fetch_ratios_ttm(ticker, api_key)
+        stock_info['pe_ratio_ttm'] = pe_ratio_ttm
+        stock_info['peg_ratio_ttm'] = peg_ratio_ttm
     else:
         stock_info['num_targets'] = 0
 
@@ -184,11 +198,11 @@ def display_table(data):
     numbered_data = []
     for i, row in enumerate(data):
         row_data = [
-            i + 1, row['ticker'], row['date'], row['stock_price'], row['dcf_price'],
-            row.get('dcf_percent_diff'), row.get('target_consensus'),
-            row.get('target_percent_diff'), row.get('num_targets'),
-            row.get('financial_score'), row.get('piotroski_score'), row.get('analyst_rating'),
-            row.get('total_recommendations'), row.get('senate_sentiment')
+            i + 1, row['ticker'], row['stock_price'],
+            row.get('target_consensus'), row.get('target_percent_diff'), row.get('num_targets'),
+            row.get('analyst_rating'), row.get('total_recommendations'), row.get('financial_score'),
+            row.get('piotroski_score'), row.get('pe_ratio_ttm'), row.get('peg_ratio_ttm'),
+            row.get('senate_sentiment')
         ]
         color = None
 
@@ -208,24 +222,32 @@ def display_table(data):
                     num_targets is not None and num_targets > 2) and 
                     (analyst_rating is not None and analyst_rating > 65 and 
                     total_recommendations is not None and total_recommendations > 2))
-        
+
         # Conditions for red color
         is_red = ((target_percent_diff is not None and target_percent_diff < 5 and 
-                  num_targets is not None and num_targets > 2) or 
-                  (analyst_rating is not None and analyst_rating < 55 and 
-                  total_recommendations is not None and total_recommendations > 2))
-        
+                num_targets is not None and num_targets > 2) or 
+                (analyst_rating is not None and analyst_rating < 55 and 
+                total_recommendations is not None and total_recommendations > 2))
+
+        # Conditions for yellow color
+        is_yellow = not is_green and not is_red and (
+            (num_targets is not None and num_targets < 3) or 
+            (total_recommendations is not None and total_recommendations < 3))
+
         # Determine the color
         if is_red:
             color = '\033[91m'  # Red
         elif is_green:
             color = '\033[92m'  # Green
-
+        elif is_yellow:
+            color = '\033[93m'  # Yellow
+        else:
+            color = '\033[0m'   # Default (No color)
+            
         numbered_data.append((row_data, color))
 
     headers = [
-        "#", "Ticker", "Date", "Price", "DCF Price", "DCF Pct",
-        "Target", "Target Pct", "Num Targets", "FinScore", "Piotr", "Analyst", "Ratings", "Senate"
+        "#", "Ticker", "Price", "Target", "Target Pct", "Num Targets", "Analyst", "Ratings", "FinScore", "Piotr", "PE Ratio TTM", "PEG Ratio TTM", "Senate"
     ]
     rows = []
     for row_data, color in numbered_data:
@@ -235,32 +257,31 @@ def display_table(data):
             row = row_data
         rows.append(row)
 
-    print(tabulate(rows, headers=headers, floatfmt=".2f", tablefmt="fancy_grid", colalign=("right", "left", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right")))
-
+    print(tabulate(rows, headers=headers, floatfmt=".2f", tablefmt="fancy_grid", colalign=("right", "left", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right")))
 
 def save_to_csv(filename, data):
     with open(filename, "w", newline="") as file:
         writer = csv.writer(file)
         headers = [
-            "#", "Ticker", "Date", "Price", "DCF Price", "DCF Pct",
-            "Target", "Target Pct", "Num Targets", "FinScore", "Piotroski", "Analyst", "Ratings", "Senate"
+            "#", "Ticker", "Price", "DCF Price", "DCF Pct", "Target", "Target Pct", "Num Targets", "Analyst", "Ratings", "FinScore", "Piotroski", "PE Ratio TTM", "PEG Ratio TTM", "Senate"
         ]
         writer.writerow(headers)
         for i, row in enumerate(data):
             row_data = [
                 i + 1,
                 row.get('ticker', ''),
-                row.get('date', ''),
                 row.get('stock_price', ''),
                 row.get('dcf_price', ''),
                 row.get('dcf_percent_diff', ''),
                 row.get('target_consensus', ''),
                 row.get('target_percent_diff', ''),
                 row.get('num_targets', ''),
-                row.get('financial_score', ''),
-                row.get('piotroski_score', ''),
                 row.get('analyst_rating', ''),
                 row.get('total_recommendations', ''),
+                row.get('financial_score', ''),
+                row.get('piotroski_score', ''),
+                row.get('pe_ratio_ttm', ''),
+                row.get('peg_ratio_ttm', ''),
                 row.get('senate_sentiment', '')
             ]
             writer.writerow(row_data)
