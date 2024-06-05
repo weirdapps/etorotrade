@@ -7,7 +7,8 @@ from tabulate import tabulate
 indices = {
     'DJI30': '^DJI',
     'SP500': '^GSPC',
-    'NASDAQ': '^NDX'
+    'NSDQ': '^NDX',
+    'VIX': '^VIX'
 }
 
 # Calculate the date range for the last two Fridays
@@ -55,4 +56,4 @@ alignments = {
 }
 
 # Print DataFrame in a fancy grid table format with custom alignment
-print(tabulate(df, headers='keys', tablefmt='grid', numalign='right', stralign='right'))
+print(tabulate(df, headers='keys', tablefmt='grid', numalign='right', stralign='right', showindex=False))
