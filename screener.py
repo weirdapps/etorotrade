@@ -199,6 +199,7 @@ def display_table(data):
     for i, row in enumerate(data):
         row_data = [
             i + 1, row['ticker'], row['stock_price'],
+            row.get('dcf_price'), row.get('dcf_percent_diff'),
             row.get('target_consensus'), row.get('target_percent_diff'), row.get('num_targets'),
             row.get('analyst_rating'), row.get('total_recommendations'), row.get('financial_score'),
             row.get('piotroski_score'), row.get('pe_ratio_ttm'), row.get('peg_ratio_ttm'),
@@ -247,7 +248,7 @@ def display_table(data):
         numbered_data.append((row_data, color))
 
     headers = [
-        "#", "Ticker", "Price", "Target", "Target Pct", "Num Targets", "Analyst", "Ratings", "FinScore", "Piotr", "PE Ratio TTM", "PEG Ratio TTM", "Senate"
+        "#", "Ticker", "Price", "DCF P", "DCF %", "Target", "Target %", "# T", "Rating", "# R", "Score", "Piotr", "PE", "PEG", "Senate"
     ]
     rows = []
     for row_data, color in numbered_data:
@@ -263,7 +264,7 @@ def save_to_csv(filename, data):
     with open(filename, "w", newline="") as file:
         writer = csv.writer(file)
         headers = [
-            "#", "Ticker", "Price", "DCF Price", "DCF Pct", "Target", "Target Pct", "Num Targets", "Analyst", "Ratings", "FinScore", "Piotroski", "PE Ratio TTM", "PEG Ratio TTM", "Senate"
+            "#", "Ticker", "Price", "DCF P", "DCF %", "Target", "Target %", "# T", "Rating", "# R", "Score", "Piotr", "PE", "PEG", "Senate"
         ]
         writer.writerow(headers)
         for i, row in enumerate(data):
