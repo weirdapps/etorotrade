@@ -8,7 +8,7 @@ from tabulate import tabulate
 indices = {
     'DJI30': '^DJI',
     'SP500': '^GSPC',
-    'NSDQ': '^NDX',
+    'NQ100': '^NDX',
     'VIX': '^VIX'
 }
 
