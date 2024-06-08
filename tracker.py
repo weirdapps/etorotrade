@@ -17,7 +17,8 @@ API_URLS = {
     'RATING': "https://financialmodelingprep.com/api/v3/",
     'PRICE_TARGET': "https://financialmodelingprep.com/api/v4/",
     'EARNINGS': "https://financialmodelingprep.com/api/v3/",
-    'RATIOS_TTM': "https://financialmodelingprep.com/api/v3/"
+    'RATIOS_TTM': "https://financialmodelingprep.com/api/v3/",
+    'INSIDER': "https://financialmodelingprep.com/api/v4/"
 }
 
 def load_environment():
@@ -102,6 +103,13 @@ def fetch_senate_disclosure_data(ticker, api_key):
 def fetch_financial_score(ticker, api_key):
     return api_request(f"{API_URLS['RATING']}rating/{ticker}?apikey={api_key}")
 
+def fetch_insider_buy_sell_ratio(ticker, api_key):
+    url = f"{API_URLS['INSIDER']}insider-roaster-statistic?symbol={ticker}&apikey={api_key}"
+    data = api_request(url)
+    if data and isinstance(data, list) and len(data) > 0:
+        return data[0].get('buySellRatio')
+    return None
+
 def calculate_percent_difference(value1, value2):
     if value1 is None or value2 is None:
         return None
@@ -151,7 +159,8 @@ def extract_financial_metrics(ticker, api_key, start_date):
         "analyst_rating": None,
         "senate_sentiment": None,
         "pe_ratio_ttm": None,
-        "peg_ratio_ttm": None
+        "peg_ratio_ttm": None,
+        "buysell": None
     }
 
     if start_date:
@@ -169,11 +178,13 @@ def extract_financial_metrics(ticker, api_key, start_date):
                 stock_info['target_percent_diff'] = calculate_percent_difference(stock_info['target_consensus'], stock_info['stock_price'])
 
         financial_score_data = fetch_financial_score(ticker, api_key)
-        if financial_score_data and len(financial_score_data) > 0:
+        if financial_score_data and isinstance(financial_score_data, list) and len(financial_score_data) > 0:
             stock_info['financial_score'] = financial_score_data[0].get('ratingScore')
 
         piotroski_data = fetch_piotroski_score(ticker, api_key)
-        if piotroski_data and len(piotroski_data) > 0:
+        if piotroski_data and isinstance(piotroski_data, list):
+            piotroski_data = fetch_piotroski_score(ticker, api_key)
+        if piotroski_data and isinstance(piotroski_data, list) and len(piotroski_data) > 0:
             stock_info['piotroski_score'] = piotroski_data[0].get('piotroskiScore')
 
         analyst_recommendations = fetch_analyst_recommendations(ticker, api_key)
@@ -187,8 +198,12 @@ def extract_financial_metrics(ticker, api_key, start_date):
             stock_info['senate_sentiment'] = calculate_senate_sentiment(senate_disclosure_data, start_date)
 
         pe_ratio_ttm, peg_ratio_ttm = fetch_ratios_ttm(ticker, api_key)
-        stock_info['pe_ratio_ttm'] = pe_ratio_ttm
-        stock_info['peg_ratio_ttm'] = peg_ratio_ttm
+        stock_info['pe_ratio_ttm'] = float(pe_ratio_ttm) if pe_ratio_ttm else None
+        stock_info['peg_ratio_ttm'] = float(peg_ratio_ttm) if peg_ratio_ttm else None
+
+        buysell_ratio = fetch_insider_buy_sell_ratio(ticker, api_key)
+        stock_info['buysell'] = float(buysell_ratio) if buysell_ratio else None
+
     else:
         stock_info['num_targets'] = 0
 
@@ -198,58 +213,34 @@ def display_table(data):
     numbered_data = []
     for i, row in enumerate(data):
         row_data = [
-            i + 1, row['ticker'], row['stock_price'],
-            row.get('dcf_price'), row.get('dcf_percent_diff'),
-            row.get('target_consensus'), row.get('target_percent_diff'), row.get('num_targets'),
-            row.get('analyst_rating'), row.get('total_recommendations'), row.get('financial_score'),
-            row.get('piotroski_score'), row.get('pe_ratio_ttm'), row.get('peg_ratio_ttm'),
-            row.get('senate_sentiment')
+            i + 1,
+            row.get('ticker', ''),
+            f"{float(row['stock_price']):.2f}" if row.get('stock_price') not in [None, '-'] else '-',
+            f"{float(row['dcf_price']):.2f}" if row.get('dcf_price') not in [None, '-'] else '-',
+            f"{float(row['dcf_percent_diff']):.1f}" if row.get('dcf_percent_diff') not in [None, '-'] else '-',
+            f"{float(row['target_consensus']):.2f}" if row.get('target_consensus') not in [None, '-'] else '-',
+            f"{float(row['target_percent_diff']):.1f}" if row.get('target_percent_diff') not in [None, '-'] else '-',
+            row.get('num_targets', ''),
+            f"{int(row['analyst_rating']):.0f}" if row.get('analyst_rating') not in [None, '-'] else '-',
+            row.get('total_recommendations', ''),
+            row.get('financial_score', ''),
+            row.get('piotroski_score', ''),
+            f"{float(row['pe_ratio_ttm']):.1f}" if row.get('pe_ratio_ttm') not in [None, '-'] else '-',
+            f"{float(row['peg_ratio_ttm']):.2f}" if row.get('peg_ratio_ttm') not in [None, '-'] else '-',
+            f"{float(row['buysell']):.2f}" if row.get('buysell') not in [None, '-'] else '-',
+            f"{int(row['senate_sentiment']):.0f}" if row.get('senate_sentiment') not in [None, '-'] else '-'
         ]
-        color = None
-
-        def safe_float(value):
-            try:
-                return float(value)
-            except (TypeError, ValueError):
-                return None
-
-        target_percent_diff = safe_float(row.get('target_percent_diff'))
-        num_targets = safe_float(row.get('num_targets'))
-        analyst_rating = safe_float(row.get('analyst_rating'))
-        total_recommendations = safe_float(row.get('total_recommendations'))
-
-        # Conditions for green color
-        is_green = ((target_percent_diff is not None and target_percent_diff > 15 and 
-                    num_targets is not None and num_targets > 2) and 
-                    (analyst_rating is not None and analyst_rating > 65 and 
-                    total_recommendations is not None and total_recommendations > 2))
-
-        # Conditions for red color
-        is_red = ((target_percent_diff is not None and target_percent_diff < 5 and 
-                num_targets is not None and num_targets > 2) or 
-                (analyst_rating is not None and analyst_rating < 55 and 
-                total_recommendations is not None and total_recommendations > 2))
-
-        # Conditions for yellow color
-        is_yellow = not is_green and not is_red and (
-            (num_targets is not None and num_targets < 3) or 
-            (total_recommendations is not None and total_recommendations < 3))
-
-        # Determine the color
-        if is_red:
-            color = '\033[91m'  # Red
-        elif is_green:
-            color = '\033[92m'  # Green
-        elif is_yellow:
-            color = '\033[93m'  # Yellow
-        else:
-            color = '\033[0m'   # Default (No color)
-            
+        color = determine_color(row)
         numbered_data.append((row_data, color))
 
     headers = [
-        "#", "Ticker", "Price", "DCF P", "DCF %", "Target", "Target %", "# T", "Rating", "# R", "Score", "Piotr", "PE", "PEG", "Senate"
+        "#", "Ticker", "Price", "DCF P", "DCF %", "Target", "Target %", "# T", "Rating", "# R", "Score", "Piotr", "PE", "PEG", "Insiders", "Senate"
     ]
+    rows = format_rows(numbered_data)
+
+    print(tabulate(rows, headers=headers, tablefmt="fancy_grid", colalign=("right", "left", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right")))
+
+def format_rows(numbered_data):
     rows = []
     for row_data, color in numbered_data:
         if color:
@@ -258,35 +249,100 @@ def display_table(data):
             row = row_data
         rows.append(row)
 
-    print(tabulate(rows, headers=headers, floatfmt=".2f", tablefmt="fancy_grid", colalign=("right", "left", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right")))
+    formatted_rows = [
+        [
+            str(item) if item is not None else '-'
+            for item in row
+        ]
+        for row in rows
+    ]
+    return formatted_rows
+
+def determine_color(row):
+    def safe_float(value):
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    target_percent_diff = safe_float(row.get('target_percent_diff'))
+    num_targets = safe_float(row.get('num_targets'))
+    analyst_rating = safe_float(row.get('analyst_rating'))
+    total_recommendations = safe_float(row.get('total_recommendations'))
+
+    # Conditions for green color
+    is_green = ((target_percent_diff is not None and target_percent_diff > 15 and 
+                num_targets is not None and num_targets > 2) and 
+                (analyst_rating is not None and analyst_rating > 65 and 
+                total_recommendations is not None and total_recommendations > 2))
+
+    # Conditions for red color
+    is_red = ((target_percent_diff is not None and target_percent_diff < 5 and 
+            num_targets is not None and num_targets > 2) or 
+            (analyst_rating is not None and analyst_rating < 55 and 
+            total_recommendations is not None and total_recommendations > 2))
+
+    # Conditions for yellow color
+    is_yellow = not is_green and not is_red and (
+        (num_targets is not None and num_targets < 3) or 
+        (total_recommendations is not None and total_recommendations < 3))
+
+    # Determine the color
+    if is_red:
+        return '\033[91m'  # Red
+    elif is_green:
+        return '\033[92m'  # Green
+    elif is_yellow:
+        return '\033[93m'  # Yellow
+    else:
+        return '\033[0m'   # Default (No color)
+
+def format_rows(numbered_data):
+    rows = []
+    for row_data, color in numbered_data:
+        if color:
+            row = [f"{color}{item}\033[0m" if item is not None else item for item in row_data]
+        else:
+            row = row_data
+        rows.append(row)
+
+    formatted_rows = [
+        [
+            str(item) if item is not None else '-'
+            for item in row
+        ]
+        for row in rows
+    ]
+    return formatted_rows
 
 def save_to_csv(filename, data):
     with open(filename, "w", newline="") as file:
         writer = csv.writer(file)
         headers = [
-            "#", "Ticker", "Price", "DCF P", "DCF %", "Target", "Target %", "# T", "Rating", "# R", "Score", "Piotr", "PE", "PEG", "Senate"
+            "#", "Ticker", "Price", "DCF P", "DCF %", "Target", "Target %", "# T", "Rating", "# R", "Score", "Piotr", "PE", "PEG", "Insiders", "Senate"
         ]
         writer.writerow(headers)
         for i, row in enumerate(data):
             row_data = [
                 i + 1,
                 row.get('ticker', ''),
-                row.get('stock_price', ''),
-                row.get('dcf_price', ''),
-                row.get('dcf_percent_diff', ''),
-                row.get('target_consensus', ''),
-                row.get('target_percent_diff', ''),
+                f"{float(row['stock_price']):.2f}" if row.get('stock_price') not in [None, '-'] else '-',
+                f"{float(row['dcf_price']):.2f}" if row.get('dcf_price') not in [None, '-'] else '-',
+                f"{float(row['dcf_percent_diff']):.1f}" if row.get('dcf_percent_diff') not in [None, '-'] else '-',
+                f"{float(row['target_consensus']):.2f}" if row.get('target_consensus') not in [None, '-'] else '-',
+                f"{float(row['target_percent_diff']):.1f}" if row.get('target_percent_diff') not in [None, '-'] else '-',
                 row.get('num_targets', ''),
-                row.get('analyst_rating', ''),
+                f"{int(row['analyst_rating']):.0f}" if row.get('analyst_rating') not in [None, '-'] else '-',
                 row.get('total_recommendations', ''),
                 row.get('financial_score', ''),
                 row.get('piotroski_score', ''),
-                row.get('pe_ratio_ttm', ''),
-                row.get('peg_ratio_ttm', ''),
-                row.get('senate_sentiment', '')
+                f"{float(row['pe_ratio_ttm']):.1f}" if row.get('pe_ratio_ttm') not in [None, '-'] else '-',
+                f"{float(row['peg_ratio_ttm']):.2f}" if row.get('peg_ratio_ttm') not in [None, '-'] else '-',
+                f"{float(row['buysell']):.2f}" if row.get('buysell') not in [None, '-'] else '-',
+                f"{int(row['senate_sentiment']):.0f}" if row.get('senate_sentiment') not in [None, '-'] else '-'
             ]
             writer.writerow(row_data)
-
+            
 def sort_key(x):
     def to_float(value):
         try:
