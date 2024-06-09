@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 api_key = os.getenv('API_KEY')
 
-marketCapLowLimit = 25000000000
+marketCapLowLimit = 10000000000
 marketCapHighLimit = 10000000000000
 
 URL = f"https://financialmodelingprep.com/api/v3/stock-screener?marketCapMoreThan={marketCapLowLimit}&marketCapLowerThan={marketCapHighLimit}&exchange=nyse&exchange=nasdaq&isEtf=false&isFund=false&apikey={api_key}"
