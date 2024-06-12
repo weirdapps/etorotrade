@@ -12,7 +12,7 @@ portfolio_df['ticker'] = portfolio_df['ticker'].replace('LYXGRE.DE', 'GD.AT')
 tickers = portfolio_df['ticker'].unique().tolist()
 
 # Define the period for historical data
-start_date = '2023-01-01'
+start_date = '2020-01-01'
 end_date = '2024-06-01'
 
 # Fetch historical price data
