@@ -10,7 +10,7 @@ load_dotenv()
 # Get the API key from the environment variable
 api_key = os.getenv('API_KEY')
 
-ticker = 'KO'
+ticker = 'MSFT'
 
 # Define the URL with the API key
 url = f"https://financialmodelingprep.com/api/v3/ratios/{ticker}?period=quarter&apikey={api_key}"
