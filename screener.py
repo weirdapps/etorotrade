@@ -120,7 +120,7 @@ def calculate_analyst_recommendation(data, start_date):
     count_positive, count_negative = 0, 0
     for recommendation in data:
         recommendation_date = datetime.datetime.strptime(recommendation['date'], '%Y-%m-%d')
-        if recommendation_date > start_date:
+        if recommendation_date >= start_date:
             if any(pos_term in recommendation['newGrade'].lower() for pos_term in ["buy", "outperform", "market outperform", "overweight", "strong buy", "positive"]):
                 count_positive += 1
             else:
@@ -134,7 +134,7 @@ def calculate_senate_sentiment(data, start_date):
     count_purchase, count_sale = 0, 0
     for transaction in data:
         transaction_date = datetime.datetime.strptime(transaction['transactionDate'], '%Y-%m-%d')
-        if transaction_date > start_date:
+        if transaction_date >= start_date:
             if 'purchase' in transaction['type'].lower():
                 count_purchase += 1
             elif 'sale' in transaction['type'].lower():
