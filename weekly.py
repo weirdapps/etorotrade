@@ -13,7 +13,7 @@ indices = {
 
 # Calculate the date range for the last two Fridays
 today = datetime.today()
-last_friday = today - timedelta(days=(today.weekday() + 3) % 7 + 1)
+last_friday = today - timedelta(days=(today.weekday() + 2) % 7 + 1)
 previous_friday = last_friday - timedelta(days=7)
 
 # Function to get the closest previous trading day close price
@@ -35,23 +35,29 @@ def fetch_weekly_change():
             change = ((end_price - start_price) / start_price) * 100
             results.append({
                 'Index': name,
-                'Previous Week Close': f"${start_price:,.2f}",
-                'This Week Close': f"${end_price:,.2f}",
+                'Previous Week': f"${start_price:,.2f}",
+                'This Week': f"${end_price:,.2f}",
                 'Change Percent': f"{change:.2f}%"
             })
-    return results
+    return results, previous_friday, last_friday
 
 # Fetch weekly changes
-weekly_changes = fetch_weekly_change()
+weekly_changes, previous_friday, last_friday = fetch_weekly_change()
 
 # Create DataFrame
 df = pd.DataFrame(weekly_changes)
 
+# Rename columns to include dates
+df.rename(columns={
+    'Previous Week': f'Previous Week ({previous_friday.strftime("%Y-%m-%d")})',
+    'This Week': f'This Week ({last_friday.strftime("%Y-%m-%d")})'
+}, inplace=True)
+
 # Define custom alignment
 alignments = {
     'Index': 'left',
-    'Previous Week Close': 'right',
-    'This Week Close': 'right',
+    f'Previous Week ({previous_friday.strftime("%Y-%m-%d")})': 'right',
+    f'This Week ({last_friday.strftime("%Y-%m-%d")})': 'right',
     'Change Percent': 'right'
 }
 

@@ -14,13 +14,15 @@ soup = BeautifulSoup(response.content, "html.parser")
 # Function to extract the data
 def extract_data(soup):
     data = {}
-    labels = ["TODAY", "MTD", "YTD", "1YR", "2YR", "5YR"]
+    labels = ["TODAY", "MTD", "YTD", "1YR", "2YR"] # "5YR" excluded
     
     # Extract summary data
     summary_items = soup.select("div.relative div.flex.flex-col.items-center")
     if summary_items:
-        for index, item in enumerate(summary_items):
+        for index, item in enumerate(summary_items[:-1]):  # Exclude the last item
             value_span = item.find("span", class_="font-semibold text-green-600")
+            if value_span is None:  # Handle case where negative values might have a different class
+                value_span = item.find("span", class_="font-semibold text-red-600")
             label_div = item.find("div", class_="text-sm text-slate-400")
             if label_div and value_span:
                 label = labels[index] if index < len(labels) else label_div.text.strip()
@@ -28,7 +30,8 @@ def extract_data(soup):
                 # Convert to float and format to 2 decimal places
                 try:
                     value = float(value.replace('%', ''))
-                    value = f"{value:.2f}%"
+                    sign = "+" if value > 0 else ""
+                    value = f"{sign}{value:.2f}%"
                 except ValueError:
                     value = value_span.text.strip()  # If conversion fails, keep original text
                 data[label] = value
