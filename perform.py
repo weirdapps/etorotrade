@@ -13,7 +13,7 @@ tickers = portfolio_df['ticker'].unique().tolist()
 
 # Define the period for historical data
 start_date = '2020-01-01'
-end_date = '2024-06-01'
+end_date = '2024-06-14'
 
 # Fetch historical price data
 data = yf.download(tickers, start=start_date, end=end_date)['Adj Close']

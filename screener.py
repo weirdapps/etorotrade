@@ -115,13 +115,26 @@ def calculate_percent_difference(value1, value2):
         return None
     return round(((float(value1) - float(value2)) / float(value2)) * 100, 2)
 
+BUY_RATINGS = [    
+    'accumulate',
+    'buy',
+    'conviction buy',
+    'long-term buy',
+    'market outperform',
+    'outperform',
+    'overweight',
+    'positive',
+    'sector outperform',
+    'strong buy'
+    ]
+
 def calculate_analyst_recommendation(data, start_date):
     start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')
     count_positive, count_negative = 0, 0
     for recommendation in data:
         recommendation_date = datetime.datetime.strptime(recommendation['date'], '%Y-%m-%d')
         if recommendation_date >= start_date:
-            if any(pos_term in recommendation['newGrade'].lower() for pos_term in ["buy", "outperform", "market outperform", "overweight", "strong buy", "positive"]):
+            if any(pos_term in recommendation['newGrade'].lower() for pos_term in BUY_RATINGS):
                 count_positive += 1
             else:
                 count_negative += 1
