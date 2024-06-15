@@ -46,23 +46,29 @@ def fetch_monthly_change(start_date, end_date):
             change = ((end_price - start_price) / start_price) * 100
             results.append({
                 'Index': name,
-                'Previous Month Close': f"${start_price:,.2f}",
-                'This Month Close': f"${end_price:,.2f}",
+                'Previous Month': f"${start_price:,.2f}",
+                'This Month': f"${end_price:,.2f}",
                 'Change Percent': f"{change:.2f}%"
             })
-    return results
+    return results, start_date, end_date
 
 # Fetch monthly changes
-monthly_changes = fetch_monthly_change(start_date, end_date)
+monthly_changes, start_date, end_date = fetch_monthly_change(start_date, end_date)
 
 # Create DataFrame
 df = pd.DataFrame(monthly_changes)
 
+# Rename columns to include dates
+df.rename(columns={
+    'Previous Month': f'Previous Month ({start_date.strftime("%Y-%m-%d")})',
+    'This Month': f'This Month ({end_date.strftime("%Y-%m-%d")})'
+}, inplace=True)
+
 # Define custom alignment
 alignments = {
     'Index': 'left',
-    'Previous Month Close': 'right',
-    'This Month Close': 'right',
+    f'Previous Month ({start_date.strftime("%Y-%m-%d")})': 'right',
+    f'This Month ({end_date.strftime("%Y-%m-%d")})': 'right',
     'Change Percent': 'right'
 }
 
