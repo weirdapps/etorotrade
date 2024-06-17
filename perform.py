@@ -1,76 +1,63 @@
 import numpy as np
 import pandas as pd
 import yfinance as yf
+from tabulate import tabulate
 
-# Load portfolio file
-portfolio_df = pd.read_csv('portfolio.csv')  # Adjust the path to your file
+def load_portfolio(file_path):
+    portfolio_df = pd.read_csv(file_path)
+    portfolio_df['ticker'] = portfolio_df['ticker'].replace('LYXGRE.DE', 'GD.AT')
+    return portfolio_df
 
-# Replace LYXGRE.DE with the Athens Stock Exchange FTSE 20 index ticker
-portfolio_df['ticker'] = portfolio_df['ticker'].replace('LYXGRE.DE', 'GD.AT')
+def fetch_data(tickers, start_date, end_date):
+    data = yf.download(tickers, start=start_date, end=end_date)['Adj Close']
+    data = data.ffill()
+    return data
 
-# List of tickers in the portfolio
-tickers = portfolio_df['ticker'].unique().tolist()
+def filter_data(data, portfolio_df, min_data_length):
+    valid_tickers = data.columns[data.count() >= min_data_length].tolist()
+    portfolio_df = portfolio_df[portfolio_df['ticker'].isin(valid_tickers)]
+    data = data[valid_tickers]
+    return data, portfolio_df
 
-# Define the period for historical data
-start_date = '2020-01-01'
-end_date = '2024-06-14'
+def calculate_returns(data):
+    daily_returns = data.pct_change(fill_method=None).dropna()
+    mean_returns = daily_returns.mean()
+    cov_matrix = daily_returns.cov()
+    return mean_returns, cov_matrix
 
-# Fetch historical price data
-data = yf.download(tickers, start=start_date, end=end_date)['Adj Close']
+def adjust_weights(portfolio_df, valid_tickers):
+    weights = portfolio_df.set_index('ticker').loc[valid_tickers, 'positionValue']
+    weights = weights / weights.sum()
+    return weights
 
-# Fill missing values with the previous valid value
-data = data.ffill()
+def calculate_portfolio_performance(weights, mean_returns, cov_matrix, periods):
+    weights = weights.replace([np.inf, -np.inf], np.nan).dropna()
+    expected_portfolio_return = np.dot(weights, mean_returns) * periods
+    portfolio_variance = np.dot(weights.T, np.dot(cov_matrix * periods, weights))
+    portfolio_volatility = np.sqrt(portfolio_variance)
+    confidence_level = 0.95
+    z_score = np.abs(np.percentile(np.random.normal(0, 1, 1000000), 100 * (1 - confidence_level)))
+    portfolio_VaR = z_score * portfolio_volatility
+    sharpe_ratio = expected_portfolio_return / portfolio_volatility
+    return round(expected_portfolio_return, 2), round(portfolio_VaR, 2), round(sharpe_ratio, 2)
 
-# Filter out tickers with insufficient data
-min_data_length = 252  # Minimum number of trading days required (1 year)
-valid_tickers = data.columns[data.count() >= min_data_length].tolist()
+if __name__ == "__main__":
+    portfolio_df = load_portfolio('portfolio.csv')  # Adjust the path to your file
+    tickers = portfolio_df['ticker'].unique().tolist()
+    start_date = '2000-01-01'
+    end_date = '2024-06-14'
+    data = fetch_data(tickers, start_date, end_date)
+    data, portfolio_df = filter_data(data, portfolio_df, 252)  # Minimum number of trading days required (1 year)
+    mean_returns, cov_matrix = calculate_returns(data)
+    weights = adjust_weights(portfolio_df, data.columns.tolist())
 
-# If a ticker doesn't have enough data, remove it from the portfolio
-portfolio_df = portfolio_df[portfolio_df['ticker'].isin(valid_tickers)]
-data = data[valid_tickers]
+    periods = [("Daily", 1), ("Weekly", 5), ("Monthly", 22), ("Annual", 252)]
+    results = {"Expected Return (%)": [], "VaR (%)": [], "Sharpe Ratio": []}
+    for period_name, period_value in periods:
+        expected_portfolio_return_percent, portfolio_VaR_percent, sharpe_ratio = calculate_portfolio_performance(weights, mean_returns, cov_matrix, period_value)
+        results["Expected Return (%)"].append(expected_portfolio_return_percent)
+        results["VaR (%)"].append(portfolio_VaR_percent)
+        results["Sharpe Ratio"].append(sharpe_ratio)
 
-# Calculate daily returns
-daily_returns = data.pct_change(fill_method=None).dropna()
-
-# Calculate mean returns and covariance matrix
-mean_returns = daily_returns.mean()
-cov_matrix = daily_returns.cov()
-
-# Adjust portfolio weights
-weights = portfolio_df.set_index('ticker').loc[valid_tickers, 'positionValue']
-weights = weights / weights.sum()  # Normalize weights to sum to 1
-
-# Ensure the weights align with the valid tickers and mean returns
-weights = weights.loc[mean_returns.index]
-
-# Check for NaN or infinite values in weights
-weights = weights.replace([np.inf, -np.inf], np.nan).dropna()
-
-# Calculate expected portfolio return
-expected_portfolio_return = np.dot(weights, mean_returns) * 252  # Annualize the returns
-
-# Calculate portfolio variance and standard deviation (volatility)
-portfolio_variance = np.dot(weights.T, np.dot(cov_matrix * 252, weights))
-portfolio_volatility = np.sqrt(portfolio_variance)
-
-# Value at Risk (VaR) at 95% confidence level
-confidence_level = 0.95
-z_score = np.abs(np.percentile(np.random.normal(0, 1, 1000000), 100 * (1 - confidence_level)))
-
-portfolio_VaR = z_score * portfolio_volatility
-
-# Convert results to percentage with 2 decimals
-expected_portfolio_return_percent = round(expected_portfolio_return * 100, 2)
-portfolio_VaR_percent = round(portfolio_VaR * 100, 2)
-
-# Display the length of each ticker time series and the length used in the calculation
-ticker_lengths = data.count()
-
-print(f"Expected Portfolio Return: {expected_portfolio_return_percent}%")
-print(f"Portfolio VaR (95% confidence): {portfolio_VaR_percent}%")
-
-# Print the number of tickers used in the calculation
-print(f"\nNumber of valid tickers used in the calculation: {len(valid_tickers)}")
-
-# print("\nLength of each ticker time series and the length used in the calculation:")
-# print(ticker_lengths)
+    results_df = pd.DataFrame(results, index=[period_name for period_name, _ in periods])
+    print(tabulate(results_df, headers='keys', tablefmt='psql', floatfmt=".2f"))

@@ -3,30 +3,39 @@ import requests
 import csv
 from dotenv import load_dotenv
 
-# Load the API key from the .env file
-load_dotenv()
-api_key = os.getenv('API_KEY')
+API_KEY = os.getenv('API_KEY')
+FIELDS = ['symbol', 'companyName', 'marketCap', 'volume', 'sector', 'industry', 'exchangeShortName', 'exchange']
+URL_TEMPLATE = "https://financialmodelingprep.com/api/v3/stock-screener?marketCapMoreThan={}&marketCapLowerThan={}&exchange=nyse&exchange=nasdaq&isEtf=false&isFund=false&apikey={}"
 
-marketCapLowLimit = 50000000000
-marketCapHighLimit = 10000000000000
+lower_limit = 10000000000
+upper_limit = 10000000000000
 
-URL = f"https://financialmodelingprep.com/api/v3/stock-screener?marketCapMoreThan={marketCapLowLimit}&marketCapLowerThan={marketCapHighLimit}&exchange=nyse&exchange=nasdaq&isEtf=false&isFund=false&apikey={api_key}"
-response = requests.get(URL)
+def load_api_key():
+    load_dotenv()
+    api_key = os.getenv('API_KEY')
+    if not api_key:
+        raise ValueError("API key not found in environment variables")
+    return api_key
 
-# Check if the request was successful
-if response.status_code == 200:
-    all_stock_data = response.json()
+def get_stock_data(market_cap_low_limit, market_cap_high_limit, api_key):
+    url = URL_TEMPLATE.format(market_cap_low_limit, market_cap_high_limit, api_key)
+    response = requests.get(url)
+    if response.status_code != 200:
+        raise ValueError(f"Failed to retrieve data: {response.status_code} - {response.text}")
+    return response.json()
 
-    # Define the fields we want to extract
-    fields = ['symbol', 'companyName', 'marketCap', 'volume', 'sector', 'industry', 'exchangeShortName', 'exchange']
-
-    # Write the data to a CSV file
-    with open('market.csv', 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=fields)
+def write_to_csv(stock_data, filename):
+    with open(filename, 'w', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=FIELDS)
         writer.writeheader()
-        for stock in all_stock_data:
-            writer.writerow({field: stock.get(field, '') for field in fields})
+        for stock in stock_data:
+            writer.writerow({field: stock.get(field, '') for field in FIELDS})
 
-    print(f"{len(all_stock_data)} records have been written to market.csv")
-else:
-    print(f"Failed to retrieve data: {response.status_code} - {response.text}")
+def main():
+    api_key = load_api_key()
+    stock_data = get_stock_data(lower_limit, upper_limit, api_key)
+    write_to_csv(stock_data, 'market.csv')
+    print(f"{len(stock_data)} records have been written to market.csv")
+
+if __name__ == "__main__":
+    main()

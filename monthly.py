@@ -73,4 +73,4 @@ alignments = {
 }
 
 # Print DataFrame in a fancy grid table format with custom alignment
-print(tabulate(df, headers='keys', tablefmt='grid', numalign='right', stralign='right', showindex=False))
+print(tabulate(df, headers='keys', tablefmt='grid', colalign=["left", "right", "right", "right"], showindex=False))
