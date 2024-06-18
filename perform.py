@@ -44,20 +44,20 @@ def calculate_portfolio_performance(weights, mean_returns, cov_matrix, periods):
 if __name__ == "__main__":
     portfolio_df = load_portfolio('portfolio.csv')  # Adjust the path to your file
     tickers = portfolio_df['ticker'].unique().tolist()
-    start_date = '2000-01-01'
-    end_date = '2024-06-14'
+    start_date = '2020-01-01'
+    end_date = '2024-06-17'
     data = fetch_data(tickers, start_date, end_date)
     data, portfolio_df = filter_data(data, portfolio_df, 252)  # Minimum number of trading days required (1 year)
     mean_returns, cov_matrix = calculate_returns(data)
     weights = adjust_weights(portfolio_df, data.columns.tolist())
 
     periods = [("Daily", 1), ("Weekly", 5), ("Monthly", 22), ("Annual", 252)]
-    results = {"Expected Return (%)": [], "VaR (%)": [], "Sharpe Ratio": []}
+    results = {"ER (%)": [], "VaR (%)": [], "Sharpe": []}
     for period_name, period_value in periods:
         expected_portfolio_return_percent, portfolio_VaR_percent, sharpe_ratio = calculate_portfolio_performance(weights, mean_returns, cov_matrix, period_value)
-        results["Expected Return (%)"].append(expected_portfolio_return_percent)
+        results["ER (%)"].append(expected_portfolio_return_percent)
         results["VaR (%)"].append(portfolio_VaR_percent)
-        results["Sharpe Ratio"].append(sharpe_ratio)
+        results["Sharpe"].append(sharpe_ratio)
 
     results_df = pd.DataFrame(results, index=[period_name for period_name, _ in periods])
     print(tabulate(results_df, headers='keys', tablefmt='psql', floatfmt=".2f"))
