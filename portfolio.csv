@@ -1,49 +1,50 @@
 BuySell,investmentPctRealized,profitPct,valuePctUnrealized,positionValue,name,ticker,Exchange,Sector,AssetClass
-SELL,0.077841,-2,0.066173,0.07628418,EUR/USD,EURUSD,FX,NA,Forex
-BUY,4.669024,11.545618,4.517758,5.208091675,Apple,AAPL,Nasdaq,Consumer Goods,Stocks
-BUY,6.227317,28.4145,6.936803,7.996777989,Alphabet,GOOG,Nasdaq,Technology,Stocks
-BUY,5.446147,25.32395,5.920628,6.825326543,Meta Platforms Inc,META,Nasdaq,Technology,Stocks
-BUY,11.676219,21.3728,12.293285,14.17175393,Microsoft,MSFT,Nasdaq,Technology,Stocks
-BUY,9.338656,16.665305,9.45084,10.89497151,Amazon.com Inc,AMZN,Nasdaq,Services,Stocks
-BUY,0.778415,3.9,0.70157,0.808773185,General Electric Co,GE,NYSE,Industrial Goods,Stocks
-BUY,1.556829,1.987,1.377305,1.587763192,Coca-Cola,KO,NYSE,Consumer Goods,Stocks
-BUY,1.556829,0.229,1.353564,1.560394138,McDonald's,MCD,NYSE,Services,Stocks
-BUY,0.778415,2.364,0.691198,0.796816731,UnitedHealth,UNH,NYSE,Healthcare,Stocks
-BUY,0.778415,-0.104,0.674533,0.777605448,Walmart Inc.,WMT,NYSE,Services,Stocks
-BUY,0.778415,-3.892,0.648955,0.748119088,Exxon-Mobil,XOM,NYSE,Basic Materials,Stocks
-BUY,1.245463,16.30375,1.256519,1.448520174,Mastercard,MA,NYSE,Financial,Stocks
-BUY,0.778415,0.836,0.680881,0.784922549,Visa,V,NYSE,Financial,Stocks
-BUY,0.778415,0.444,0.678234,0.781871163,"Tesla Motors, Inc.",TSLA,Nasdaq,Consumer Goods,Stocks
-BUY,3.891808,184.333335,9.598947,11.06570748,NVIDIA Corporation,NVDA,Nasdaq,Technology,Stocks
-BUY,0.778415,0.486,0.678517,0.782198097,Uber Technologies Inc.,UBER,NYSE,Services,Stocks
-BUY,0.778415,-1.026,0.668308,0.770428462,Deutsche Telekom AG,DTE.DE,FRA,Technology,Stocks
-BUY,0.539317,164.25726,1.236275,1.425184327,ARM Holdings PLC,ARM,Nasdaq,Technology,Stocks
-BUY,0.778415,0.024,0.675398,0.77860182,Accenture PLC,ACN,NYSE,Services,Stocks
-BUY,0.456509,102.557719,0.802126,0.924694217,Qualcomm Inc,QCOM,Nasdaq,Technology,Stocks
-BUY,0.778415,-1.844,0.662784,0.764061027,Energy Transfer LP,ET,NYSE,Basic Materials,Stocks
-BUY,0.778415,-1,0.668483,0.77063085,Enterprise Products Partners LP,EPD,NYSE,Basic Materials,Stocks
-BUY,0.778415,-6.554,0.630981,0.727397681,United Airlines Holdings Inc,UAL,Nasdaq,Services,Stocks
-BUY,0.778415,1.224,0.6835,0.7879428,Deere & Co,DE,NYSE,Industrial Goods,Stocks
-BUY,0.778415,-2.036,0.661488,0.762566471,Cigna Group,CI,NYSE,Healthcare,Stocks
-BUY,0.778415,-2.334,0.659476,0.760246794,Halliburton Co,HAL,NYSE,Basic Materials,Stocks
-BUY,0.778415,0.34,0.677531,0.781061611,Abbott Laboratories,ABT,NYSE,Healthcare,Stocks
-BUY,0.778415,-1.566,0.664661,0.766225021,Parker-Hannifin Corp,PH,NYSE,Industrial Goods,Stocks
-BUY,0.778415,-0.7,0.670509,0.772966095,BlackRock Inc,BLK,NYSE,Financial,Stocks
-BUY,0.778415,-0.282,0.673331,0.77621987,Stryker Corp,SYK,NYSE,Healthcare,Stocks
-BUY,0.778415,3.236,0.697086,0.803604509,Advanced Micro Devices Inc,AMD,Nasdaq,Technology,Stocks
-BUY,0.778415,3.758,0.700611,0.807667836,Intuit Corp,INTU,Nasdaq,Technology,Stocks
-BUY,0.778415,0.678,0.679814,0.783692654,Barclays,BARC.L,LSE,Financial,Stocks
-BUY,0.778415,-1.88,0.662541,0.763780798,BP,BP.L,LSE,Basic Materials,Stocks
-BUY,1.556829,-6.539,1.262164,1.455027952,The Kraft Heinz Company,KHC,Nasdaq,Consumer Goods,Stocks
-BUY,0.778415,-3.014,0.654884,0.754953572,Schlumberger Ltd,SLB,NYSE,Basic Materials,Stocks
-BUY,0.778415,0.784,0.680529,0.784517774,ServiceNow Inc,NOW,NYSE,Technology,Stocks
-BUY,0.778415,5.884,0.714966,0.824216939,Marvell Technology Group Ltd,MRVL,Nasdaq,Technology,Stocks
-BUY,0.778415,-3.328,0.652764,0.752509349,Vistra Corp,VST,NYSE,Utilities,Stocks
-BUY,0.778415,0.668,0.679746,0.783614812,iShares MSCI India ETF,INDA,Chicago Board Options Exchange,Financial,ETF
-BUY,0.778415,-1.37,0.665985,0.767750715,PDD Holdings Inc-ADR,PDD,Nasdaq,Consumer Goods,Stocks
-BUY,0.778415,-0.68,0.670644,0.773121778,Dynatrace Inc,DT,NYSE,Technology,Stocks
-BUY,0.778415,-3.564,0.65117,0.750672289,Pentair PLC,PNR,NYSE,Industrial Goods,Stocks
-BUY,0.777994,-1.622876,0.663919,0.765368122,Cenovus Energy Inc,CVE,NYSE,Consumer Goods,Stocks
-BUY,1.556829,0.664,1.359438,1.567166345,Banco Santander SA,SAN.MC,Bolsa De Madrid,Financial,Stocks
-BUY,0.778415,-1.374,0.665958,0.767719578,ICON Public Limited Company,ICLR,Nasdaq,Consumer Goods,Stocks
-BUY,18.681951,-5.492833,15.315505,17.65578263,Amundi MSCI Greece UCITS ETF,LYXGRE.DE,Xetra ETFs,Financial,ETF
+SELL,0.077841,-6.16,0.062866,0.073045994,EUR/USD,EURUSD,FX,NA,Forex
+BUY,4.669024,9.758058,4.410402,5.12463007,Apple,AAPL,Nasdaq,Consumer Goods,Stocks
+BUY,6.227317,28.07425,6.864018,7.975589543,Alphabet,GOOG,Nasdaq,Technology,Stocks
+BUY,5.446147,24.499247,5.835414,6.780412006,Meta Platforms Inc,META,Nasdaq,Technology,Stocks
+BUY,11.676219,22.223467,12.282095,14.27107968,Microsoft,MSFT,Nasdaq,Technology,Stocks
+BUY,9.338656,17.108749,9.41216,10.93638322,Amazon.com Inc,AMZN,Nasdaq,Services,Stocks
+BUY,0.778415,5.262,0.705177,0.819375197,General Electric Co,GE,NYSE,Industrial Goods,Stocks
+BUY,1.556829,2.036,1.367131,1.588526038,Coca-Cola,KO,NYSE,Consumer Goods,Stocks
+BUY,1.556829,-1.25,1.323103,1.537368638,McDonald's,MCD,NYSE,Services,Stocks
+BUY,0.778415,1.416,0.679412,0.789437356,UnitedHealth,UNH,NYSE,Healthcare,Stocks
+BUY,0.778415,1.284,0.678527,0.788409849,Walmart Inc.,WMT,NYSE,Services,Stocks
+BUY,0.778415,-4.032,0.642914,0.747029307,Exxon-Mobil,XOM,NYSE,Basic Materials,Stocks
+BUY,1.245463,17.66,1.261175,1.465411766,Mastercard,MA,NYSE,Financial,Stocks
+BUY,0.778415,1.876,0.682493,0.793018065,Visa,V,NYSE,Financial,Stocks
+BUY,0.778415,-0.238,0.668331,0.776562372,"Tesla Motors, Inc.",TSLA,Nasdaq,Consumer Goods,Stocks
+BUY,3.891808,191.651832,9.768588,11.35052933,NVIDIA Corporation,NVDA,Nasdaq,Technology,Stocks
+BUY,0.778415,0.358,0.672324,0.781201726,Uber Technologies Inc.,UBER,NYSE,Services,Stocks
+BUY,0.778415,-0.16,0.668854,0.777169536,Deutsche Telekom AG,DTE.DE,FRA,Technology,Stocks
+BUY,0.539317,182.07667,1.309262,1.521287434,ARM Holdings PLC,ARM,Nasdaq,Technology,Stocks
+BUY,0.778415,0.85,0.67562,0.785031528,Accenture PLC,ACN,NYSE,Services,Stocks
+BUY,0.456509,114.909798,0.844347,0.98108257,Qualcomm Inc,QCOM,Nasdaq,Technology,Stocks
+BUY,0.778415,-0.492,0.66663,0.774585198,Energy Transfer LP,ET,NYSE,Basic Materials,Stocks
+BUY,0.778415,-0.124,0.669095,0.777449765,Enterprise Products Partners LP,EPD,NYSE,Basic Materials,Stocks
+BUY,0.778415,-5.572,0.632597,0.735041716,United Airlines Holdings Inc,UAL,Nasdaq,Services,Stocks
+BUY,0.778415,2.036,0.683565,0.794263529,Deere & Co,DE,NYSE,Industrial Goods,Stocks
+BUY,0.778415,-1.05,0.662891,0.770241643,Cigna Group,CI,NYSE,Healthcare,Stocks
+BUY,0.778415,-1.506,0.659837,0.76669207,Halliburton Co,HAL,NYSE,Basic Materials,Stocks
+BUY,0.778415,0.436,0.672847,0.781808889,Abbott Laboratories,ABT,NYSE,Healthcare,Stocks
+BUY,0.778415,-0.91,0.663829,0.771331424,Parker-Hannifin Corp,PH,NYSE,Industrial Goods,Stocks
+BUY,0.778415,0.548,0.673597,0.782680714,BlackRock Inc,BLK,NYSE,Financial,Stocks
+BUY,0.778415,1.262,0.67838,0.788238597,Stryker Corp,SYK,NYSE,Healthcare,Stocks
+BUY,0.778415,1.42,0.679439,0.789468493,Advanced Micro Devices Inc,AMD,Nasdaq,Technology,Stocks
+BUY,0.778415,5.872,0.709264,0.824123529,Intuit Corp,INTU,Nasdaq,Technology,Stocks
+BUY,0.778415,1.12,0.677429,0.787133248,Barclays,BARC.L,LSE,Financial,Stocks
+BUY,0.778415,-0.074,0.66943,0.777838973,BP,BP.L,LSE,Basic Materials,Stocks
+BUY,1.556829,-6.653,1.250711,1.453253167,The Kraft Heinz Company,KHC,Nasdaq,Consumer Goods,Stocks
+BUY,0.778415,-0.246,0.668278,0.776500099,Schlumberger Ltd,SLB,NYSE,Basic Materials,Stocks
+BUY,0.778415,0.164,0.671024,0.779691601,Occidental Petroleum Corp,OXY,NYSE,Basic Materials,Stocks
+BUY,0.778415,1.856,0.682359,0.792862382,ServiceNow Inc,NOW,NYSE,Technology,Stocks
+BUY,0.778415,7.588,0.72076,0.83748113,Marvell Technology Group Ltd,MRVL,Nasdaq,Technology,Stocks
+BUY,0.778415,-0.338,0.667661,0.775783957,Vistra Corp,VST,NYSE,Utilities,Stocks
+BUY,0.778415,1.234,0.678193,0.788020641,iShares MSCI India ETF,INDA,Chicago Board Options Exchange,Financial,ETF
+BUY,0.778415,-3.154,0.648796,0.753863791,PDD Holdings Inc-ADR,PDD,Nasdaq,Consumer Goods,Stocks
+BUY,0.778415,-2.696,0.651864,0.757428932,Dynatrace Inc,DT,NYSE,Technology,Stocks
+BUY,0.778415,-2.012,0.656447,0.76275329,Pentair PLC,PNR,NYSE,Industrial Goods,Stocks
+BUY,0.777994,1.298701,0.67826,0.788097816,Cenovus Energy Inc,CVE,NYSE,Consumer Goods,Stocks
+BUY,1.556829,1.627,1.361651,1.582158608,Banco Santander SA,SAN.MC,Bolsa De Madrid,Financial,Stocks
+BUY,0.778415,-0.3,0.667916,0.776079755,ICON Public Limited Company,ICLR,Nasdaq,Consumer Goods,Stocks
+BUY,18.681951,-4.025083,15.431054,17.92998697,Amundi MSCI Greece UCITS ETF,LYXGRE.DE,Xetra ETFs,Financial,ETF
