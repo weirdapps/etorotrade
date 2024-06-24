@@ -39,7 +39,7 @@ def calculate_portfolio_performance(weights, mean_returns, cov_matrix, periods):
     z_score = np.abs(np.percentile(np.random.normal(0, 1, 1000000), 100 * (1 - confidence_level)))
     portfolio_VaR = z_score * portfolio_volatility
     sharpe_ratio = expected_portfolio_return / portfolio_volatility
-    return round(expected_portfolio_return, 2), round(portfolio_VaR, 2), round(sharpe_ratio, 2)
+    return round(expected_portfolio_return * 100, 2), round(portfolio_VaR * 100, 2), round(sharpe_ratio, 2)
 
 if __name__ == "__main__":
     portfolio_df = load_portfolio('portfolio.csv')  # Adjust the path to your file
