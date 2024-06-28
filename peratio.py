@@ -44,7 +44,7 @@ def fetch_pe_ratio(ticker, start_date):
 start_date = '2020-01-01'
 
 # List of tickers
-tickers = ['AMD', 'NVDA']
+tickers = ['NVDA', 'MSFT']
 
 # Initialize a dictionary to store data for each ticker
 data_dict = {}
@@ -65,7 +65,7 @@ for ticker, df in data_dict.items():
     ax.plot(df['Date'], df['PriceEarningsRatio'], label=f"{ticker} P/E Ratio", linewidth=2)
 
 # Set the title and labels
-ax.set_title('Quarterly P/E Ratio Comparison: AMD vs NVDA', fontsize=16, weight='bold', pad=20, color='grey')
+ax.set_title('Quarterly P/E Ratio', fontsize=16, weight='bold', pad=20, color='grey')
 ax.set_xlabel('Date', fontsize=14, labelpad=20, color='grey')
 ax.set_ylabel('P/E Ratio', fontsize=14, labelpad=20, color='grey')
 

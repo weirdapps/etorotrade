@@ -44,8 +44,8 @@ def calculate_portfolio_performance(weights, mean_returns, cov_matrix, periods):
 if __name__ == "__main__":
     portfolio_df = load_portfolio('portfolio.csv')  # Adjust the path to your file
     tickers = portfolio_df['ticker'].unique().tolist()
-    start_date = '2020-01-01'
-    end_date = '2024-06-17'
+    start_date = '2000-01-01'
+    end_date = '2024-06-24'
     data = fetch_data(tickers, start_date, end_date)
     data, portfolio_df = filter_data(data, portfolio_df, 252)  # Minimum number of trading days required (1 year)
     mean_returns, cov_matrix = calculate_returns(data)
