@@ -7,7 +7,7 @@ API_KEY = os.getenv('API_KEY')
 FIELDS = ['symbol', 'companyName', 'marketCap', 'volume', 'sector', 'industry', 'exchangeShortName', 'exchange']
 URL_TEMPLATE = "https://financialmodelingprep.com/api/v3/stock-screener?marketCapMoreThan={}&marketCapLowerThan={}&exchange=nyse&exchange=nasdaq&isEtf=false&isFund=false&apikey={}"
 
-lower_limit = 100000000000
+lower_limit = 1000000000000
 upper_limit = 10000000000000
 
 def load_api_key():

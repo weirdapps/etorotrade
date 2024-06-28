@@ -1,6 +1,7 @@
 import os
 import csv
 import requests
+from tqdm import tqdm
 from dotenv import load_dotenv
 import datetime
 from tabulate import tabulate
@@ -397,7 +398,7 @@ def main():
         api_key = load_environment()
         tickers = load_tickers("portfolio.csv")
         stock_data = []
-        for ticker in tickers:
+        for ticker in tqdm(tickers, desc="Processing tickers"):
             start_date = fetch_earliest_valid_date(ticker, api_key)
             financial_metrics = extract_financial_metrics(ticker, api_key, start_date)
             stock_data.append(financial_metrics)

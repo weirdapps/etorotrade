@@ -46,9 +46,9 @@ def fetch_monthly_change(start_date, end_date):
             change = ((end_price - start_price) / start_price) * 100
             results.append({
                 'Index': name,
-                'Previous Month': f"${start_price:,.2f}",
-                'This Month': f"${end_price:,.2f}",
-                'Change Percent': f"{change:.2f}%"
+                'Previous Month': f"{start_price:,.2f}",
+                'This Month': f"{end_price:,.2f}",
+                'Change Percent': f"{change:+.2f}%"
             })
     return results, start_date, end_date
 
