@@ -44,7 +44,7 @@ def fetch_pe_ratio(ticker, start_date):
 start_date = '2020-01-01'
 
 # List of tickers
-tickers = ['NVDA', 'MSFT']
+tickers = ['NVDA']
 
 # Initialize a dictionary to store data for each ticker
 data_dict = {}
