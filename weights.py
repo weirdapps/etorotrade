@@ -6,7 +6,7 @@ from tabulate import tabulate
 from datetime import datetime, timedelta
 
 # Variables for start and end dates
-start_date = '2000-01-01'
+start_date = '2020-01-01'
 end_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
 risk_free_rate = 0.01
 
@@ -56,7 +56,7 @@ def get_optimal_weights(data, min_weights, data_points):
     
     max_data_points = max(data_points.values())
     bounds = tuple(
-        (min_weights[ticker], 1) if min_weights[ticker] > 0 or data_points[ticker] >= 0.8 * max_data_points else (0, 0) 
+        (min_weights[ticker], min(0.125, 1)) if min_weights[ticker] > 0 or data_points[ticker] >= 0.8 * max_data_points else (0, 0) 
         for ticker in data.keys()
     )
     
@@ -73,11 +73,11 @@ def get_optimal_weights(data, min_weights, data_points):
     print(f"Optimization result: {result}")
     return result.x, mean_returns, cov_matrix
 
-# Function to calculate value at risk
-def calculate_var(weights, mean_returns, cov_matrix, alpha=0.05):
-    portfolio_return = np.dot(weights, mean_returns)
-    portfolio_std_dev = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
-    var = -portfolio_return + portfolio_std_dev * np.percentile(np.random.randn(10000), alpha*100)
+# Function to calculate annual value at risk
+def calculate_annual_var(weights, mean_returns, cov_matrix, alpha=0.05):
+    portfolio_return = np.dot(weights, mean_returns) * 252
+    portfolio_std_dev = np.sqrt(np.dot(weights.T, np.dot(cov_matrix * 252, weights)))
+    var = portfolio_return - portfolio_std_dev * np.percentile(np.random.randn(10000), (1 - alpha) * 100)
     return var
 
 # Main function
@@ -89,12 +89,12 @@ def main():
     # Set minimum weights for each ticker
     min_weights = {
         'AAPL': 0.025,
-        'MSFT': 0.10,
+        'MSFT': 0.125,
         'GOOGL': 0.05,
-        'AMZN': 0.05,
+        'AMZN': 0.10,
         'META': 0.025,
         'ARM': 0.025,
-        'GD.AT': 0.10,
+        'GD.AT': 0.125,
         'NVDA': 0.05,
         'QCOM': 0.025,
         'AVGO': 0.025,
@@ -145,16 +145,16 @@ def main():
         
         weight_df = pd.concat([weight_df, summary_row], ignore_index=True)
         
-        print(tabulate(weight_df, headers='keys', tablefmt='fancy_grid', stralign='right'))
+        print(tabulate(weight_df, headers='keys', tablefmt='fancy_grid', colalign=("right", "left", "right", "right")))
         
         # Calculate portfolio metrics
         annual_return, std_dev = portfolio_metrics(optimal_weights, mean_returns, cov_matrix)
         sharpe_ratio = (annual_return - risk_free_rate) / std_dev
-        var = calculate_var(optimal_weights, mean_returns, cov_matrix)
+        var = calculate_annual_var(optimal_weights, mean_returns, cov_matrix)
         
         # Display portfolio metrics
-        print(f"Estimated Annual Return: {annual_return:.2f}")
-        print(f"Value at Risk (VaR): {var:.2f}")
+        print(f"Estimated Annual Return: {100 * annual_return:.2f}%")
+        print(f"Annual Value at Risk (VaR): {100 * var:.2f}%")
         print(f"Sharpe Ratio: {sharpe_ratio:.2f}")
 
 # Run the main function
