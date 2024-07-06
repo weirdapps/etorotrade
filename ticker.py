@@ -19,7 +19,9 @@ API_URLS = {
     'PRICE_TARGET': "https://financialmodelingprep.com/api/v4/",
     'EARNINGS': "https://financialmodelingprep.com/api/v3/",
     'RATIOS_TTM': "https://financialmodelingprep.com/api/v3/",
-    'INSIDER': "https://financialmodelingprep.com/api/v4/"
+    'INSIDER': "https://financialmodelingprep.com/api/v4/",
+    'INSTITUTIONAL': "https://financialmodelingprep.com/api/v3/"
+
 }
 
 def load_environment():
@@ -102,6 +104,31 @@ def fetch_insider_buy_sell_ratio(ticker, api_key):
         return data[0].get('buySellRatio')
     return None
 
+def fetch_institutional_ownership_change(ticker, api_key):
+    url = f"{API_URLS['INSTITUTIONAL']}institutional-holder/{ticker}?apikey={api_key}"
+    data = api_request(url)
+    
+    if data and isinstance(data, list) and len(data) > 0:
+        # Sort data by dateReported in descending order
+        data.sort(key=lambda x: x['dateReported'], reverse=True)
+        
+        for item in data:
+            if item.get('shares', 0) > 0:
+                latest_date = item['dateReported']
+                # Filter the data to include only entries with the latest valid dateReported
+                latest_data = [entry for entry in data if entry['dateReported'] == latest_date]
+                
+                total_shares = sum(entry.get('shares', 0) for entry in latest_data)
+                total_change = sum(entry.get('change', 0) for entry in latest_data)
+                
+                if total_shares > 0:
+                    percent_change = (total_change / total_shares) * 100
+                    return round(percent_change, 2)
+        # If all periods have zero shares
+        return None
+    
+    return None
+
 def calculate_percent_difference(value1, value2):
     if value1 is None or value2 is None:
         return None
@@ -166,7 +193,8 @@ def extract_financial_metrics(ticker, api_key, start_date):
         "pe_ratio_ttm": None,
         "peg_ratio_ttm": None,
         "buysell": None,
-        "expected_return": None  # Add expected_return field
+        "expected_return": None,  # Add expected_return field
+        "institutional_change": None  # Add institutional change field
     }
 
     if start_date:
@@ -208,6 +236,9 @@ def extract_financial_metrics(ticker, api_key, start_date):
         buysell_ratio = fetch_insider_buy_sell_ratio(ticker, api_key)
         stock_info['buysell'] = float(buysell_ratio) if buysell_ratio else None
 
+        institutional_change = fetch_institutional_ownership_change(ticker, api_key)
+        stock_info['institutional_change'] = institutional_change if institutional_change else None
+
         # Calculate expected_return
         try:
             if stock_info['analyst_rating'] is not None and stock_info['target_percent_diff'] is not None:
@@ -242,17 +273,18 @@ def display_table(data):
             f"{float(row['pe_ratio_ttm']):.1f}" if row.get('pe_ratio_ttm') not in [None, '-'] else '-',
             f"{float(row['peg_ratio_ttm']):.2f}" if row.get('peg_ratio_ttm') not in [None, '-'] else '-',
             f"{float(row['buysell']):.2f}" if row.get('buysell') not in [None, '-'] else '-',
+            f"{float(row['institutional_change']):.2f}%" if row.get('institutional_change') not in [None, '-'] else '-',
             f"{int(row['senate_sentiment']):.0f}" if row.get('senate_sentiment') not in [None, '-'] else '-'
         ]
         color = determine_color(row)
         numbered_data.append((row_data, color))
 
     headers = [
-        "#", "Ticker", "Price", "DCF P", "DCF %", "Target", "Target %", "# T", "Rating", "# R", "ER", "Score", "Piotr", "PE", "PEG", "Insiders", "Senate"
+        "#", "Ticker", "Price", "DCF P", "DCF %", "Target", "Target %", "# T", "Rating", "# R", "ER", "Score", "Piotr", "PE", "PEG", "Inside", "Institute", "Senate", 
     ]
     rows = format_rows(numbered_data)
 
-    print(tabulate(rows, headers=headers, tablefmt="fancy_grid", colalign=("right", "left", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right")))
+    print(tabulate(rows, headers=headers, tablefmt="fancy_grid", colalign=("right", "left", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right")))
 
 def format_rows(numbered_data):
     rows = []

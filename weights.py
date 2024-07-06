@@ -6,9 +6,9 @@ from tabulate import tabulate
 from datetime import datetime, timedelta
 
 # Variables for start and end dates
-start_date = '2020-01-01'
+start_date = '2000-01-01'
 end_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-risk_free_rate = 0.01
+risk_free_rate = 0.03
 
 # Function to fetch data
 def fetch_data(tickers, start, end):
@@ -88,17 +88,14 @@ def main():
     
     # Set minimum weights for each ticker
     min_weights = {
-        'AAPL': 0.025,
+        'AAPL': 0.050,
         'MSFT': 0.125,
-        'GOOGL': 0.05,
-        'AMZN': 0.10,
+        'GOOGL': 0.075,
+        'AMZN': 0.100,
         'META': 0.025,
-        'ARM': 0.025,
         'GD.AT': 0.125,
-        'NVDA': 0.05,
-        'QCOM': 0.025,
-        'AVGO': 0.025,
-        'AMD': 0.025
+        'NVDA': 0.100,
+        'QCOM': 0.025
         # Add more tickers and their minimum weights as needed
     }
     
