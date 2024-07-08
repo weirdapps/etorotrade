@@ -62,12 +62,13 @@ fig, ax = plt.subplots(figsize=(14, 8))
 
 # Plot data for each ticker
 for ticker, df in data_dict.items():
-    ax.plot(df['Date'], df['PriceEarningsRatio'], label=f"{ticker} P/E Ratio", linewidth=2)
+    ax.fill_between(df['Date'], df['PriceEarningsRatio'], color='lightblue', alpha=0.4)
+    ax.plot(df['Date'], df['PriceEarningsRatio'], label=f"{ticker} P/E Ratio", linewidth=2, color='blue', alpha=0.6)
 
 # Set the title and labels
-ax.set_title('Quarterly P/E Ratio', fontsize=16, weight='bold', pad=20, color='grey')
+ax.set_title('NVIDIA PE Ratio', fontsize=16, weight='bold', pad=20, color='grey')
 ax.set_xlabel('Date', fontsize=14, labelpad=20, color='grey')
-ax.set_ylabel('P/E Ratio', fontsize=14, labelpad=20, color='grey')
+ax.set_ylabel('PE Ratio', fontsize=14, labelpad=20, color='grey')
 
 # Set the background color of the figure and axes
 fig.patch.set_facecolor('white')

@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 # Variables for start and end dates
 start_date = '2000-01-01'
 end_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-risk_free_rate = 0.03
+risk_free_rate = 0.01
 
 # Function to fetch data
 def fetch_data(tickers, start, end):
@@ -56,7 +56,7 @@ def get_optimal_weights(data, min_weights, data_points):
     
     max_data_points = max(data_points.values())
     bounds = tuple(
-        (min_weights[ticker], min(0.125, 1)) if min_weights[ticker] > 0 or data_points[ticker] >= 0.8 * max_data_points else (0, 0) 
+        (min_weights[ticker], min(0.1, 1)) if min_weights[ticker] > 0 or data_points[ticker] >= 0.8 * max_data_points else (0, 0) 
         for ticker in data.keys()
     )
     
@@ -88,14 +88,14 @@ def main():
     
     # Set minimum weights for each ticker
     min_weights = {
-        'AAPL': 0.050,
-        'MSFT': 0.125,
-        'GOOGL': 0.075,
-        'AMZN': 0.100,
-        'META': 0.025,
-        'GD.AT': 0.125,
-        'NVDA': 0.100,
-        'QCOM': 0.025
+        'GD.AT': 0.000,
+        # 'AAPL': 0.050,
+        # 'MSFT': 0.125,
+        # 'GOOGL': 0.075,
+        # 'AMZN': 0.100,
+        # 'META': 0.025,
+        # 'NVDA': 0.100,
+        # 'QCOM': 0.025
         # Add more tickers and their minimum weights as needed
     }
     
