@@ -1,5 +1,33 @@
 BuySell,investmentPctRealized,profitPct,valuePctUnrealized,positionValue,name,ticker,Exchange,Sector,AssetClass
-BUY,4.453179,27.485662,4.961127,5.677164728,Meta Platforms Inc,META,Nasdaq,Technology,Stocks
-BUY,10.024089,23.462778,10.815081,12.37601875,Microsoft,MSFT,Nasdaq,Technology,Stocks
-BUY,10.022429,20.590187,10.561699,12.08606587,Amazon.com Inc,AMZN,Nasdaq,Services,Stocks
-BUY,4.455151,103.8515,7.936429,9.081892141,NVIDIA Corporation,NVDA,Nasdaq,Technology,Stocks
+BUY,3.312285,16.789261,3.388204,3.868393174,Apple,AAPL,Nasdaq,Consumer Goods,Stocks
+BUY,7.178867,25.676769,7.902234,9.022168096,Alphabet,GOOGL,Nasdaq,Technology,Stocks
+BUY,4.415809,28.788739,4.981122,5.687064728,Meta Platforms Inc,META,Nasdaq,Technology,Stocks
+BUY,9.939969,23.401778,10.743492,12.26609848,Microsoft,MSFT,Nasdaq,Technology,Stocks
+BUY,10.490544,18.949814,10.929512,12.47848258,Amazon.com Inc,AMZN,Nasdaq,Services,Stocks
+BUY,2.761103,2.9564,2.48986,2.842732249,General Electric Co,GE,NYSE,Industrial Goods,Stocks
+BUY,1.656662,1.566667,1.473751,1.682616377,Coca-Cola,KO,NYSE,Consumer Goods,Stocks
+BUY,1.656662,-0.940667,1.437369,1.641078327,McDonald's,MCD,NYSE,Services,Stocks
+BUY,2.761103,-0.614,2.403515,2.744149828,AT&T Inc,T,NYSE,Technology,Stocks
+BUY,4.969985,95.764667,8.521742,9.729474585,NVIDIA Corporation,NVDA,Nasdaq,Technology,Stocks
+BUY,1.980517,19.370075,2.07068,2.364144628,Qualcomm Inc,QCOM,Nasdaq,Technology,Stocks
+BUY,0.552221,-0.806,0.479774,0.547770099,Delta Air Lines Inc (DE),DAL,NYSE,Services,Stocks
+BUY,0.552221,-1.222,0.477762,0.545472859,United Airlines Holdings Inc,UAL,Nasdaq,Services,Stocks
+BUY,1.656662,-0.619333,1.442031,1.646401746,Abbott Laboratories,ABT,NYSE,Healthcare,Stocks
+BUY,1.656662,14.98,1.66838,1.904829968,Advanced Micro Devices Inc,AMD,Nasdaq,Technology,Stocks
+BUY,1.104441,1.968,0.986383,1.126176399,Deutsche Bank Aktiengesellschaft,DBK.DE,FRA,Financial,Stocks
+BUY,1.104441,5.672,1.022213,1.167084894,Barclays,BARC.L,LSE,Financial,Stocks
+BUY,2.208882,1.255,1.958971,2.236603469,Ishares MSCI JAPAN ETF,EWJ,NYSE,Financial,ETF
+BUY,2.208882,0.0215,1.935107,2.20935691,Ishares Russell 2000 ETF,IWM,NYSE,Financial,ETF
+BUY,1.104441,-2.504,0.943123,1.076785797,Energy Select Sector SPDR,XLE,NYSE,Financial,ETF
+BUY,2.208882,9.009,2.108987,2.407880179,Broadcom Inc,AVGO,Nasdaq,Technology,Stocks
+BUY,1.104441,2.916,0.995553,1.1366465,Align Technology Inc,ALGN,Nasdaq,Consumer Goods,Stocks
+BUY,3.313246,7.266503,3.11284,3.55400312,Marvell Technology Group Ltd,MRVL,Nasdaq,Technology,Stocks
+BUY,1.104441,3.775,1.003863,1.146133648,Vistra Corp,VST,NYSE,Utilities,Stocks
+BUY,1.104441,-2.042,0.947592,1.081888315,Coterra EnerCoterra Energy Inc,CTRA,NYSE,Basic Materials,Stocks
+BUY,2.208882,1.2895,1.959638,2.237365533,iShares MSCI India ETF,INDA,Chicago Board Options Exchange,Financial,ETF
+BUY,1.656662,8.939333,1.580729,1.804756533,Taiwan Semiconductor Manufacturing Co Ltd - ADR,TSM,NYSE,Technology,Stocks
+BUY,1.104441,-0.448,0.963012,1.099493104,Matador Resources Co,MTDR,NYSE,Consumer Goods,Stocks
+BUY,1.104441,2.678,0.993251,1.13401793,Banco Santander SA,SAN.MC,Bolsa De Madrid,Financial,Stocks
+BUY,1.104441,-0.54,0.962122,1.098477019, Chord Energy Corporation,CHRD,Nasdaq,Basic Materials,Stocks
+BUY,13.253292,-0.0015,11.60797,13.2530932,Amundi MSCI Greece UCITS ETF,LYXGRE.DE,Xetra ETFs,Financial,ETF
+BUY,0.552044,-5.127641,0.458725,0.523737166,Bitcoin,BTC,Digital Currency,NA,Crypto

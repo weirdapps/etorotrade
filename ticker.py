@@ -254,8 +254,19 @@ def extract_financial_metrics(ticker, api_key, start_date):
     return stock_info
 
 def display_table(data):
+
     numbered_data = []
     for i, row in enumerate(data):
+        institutional_change = row.get('institutional_change')
+        if institutional_change and institutional_change > 1:
+            institutional_change_display = '> +100%'
+        elif institutional_change and institutional_change < -1:
+            institutional_change_display = '< -100%'
+        elif institutional_change is not None:
+            institutional_change_display = f"{float(institutional_change):.2f}%"
+        else:
+            institutional_change_display = '-'
+
         row_data = [
             i + 1,
             row.get('ticker', ''),
@@ -273,7 +284,7 @@ def display_table(data):
             f"{float(row['pe_ratio_ttm']):.1f}" if row.get('pe_ratio_ttm') not in [None, '-'] else '-',
             f"{float(row['peg_ratio_ttm']):.2f}" if row.get('peg_ratio_ttm') not in [None, '-'] else '-',
             f"{float(row['buysell']):.2f}" if row.get('buysell') not in [None, '-'] else '-',
-            f"{float(row['institutional_change']):.2f}%" if row.get('institutional_change') not in [None, '-'] else '-',
+            institutional_change_display,
             f"{int(row['senate_sentiment']):.0f}" if row.get('senate_sentiment') not in [None, '-'] else '-'
         ]
         color = determine_color(row)
