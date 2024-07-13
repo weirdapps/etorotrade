@@ -266,9 +266,9 @@ def display_table(data):
     numbered_data = []
     for i, row in enumerate(data):
         institutional_change = row.get('institutional_change')
-        if institutional_change and institutional_change > 1:
+        if institutional_change and institutional_change > 100:
             institutional_change_display = '> +100%'
-        elif institutional_change and institutional_change < -1:
+        elif institutional_change and institutional_change < -100:
             institutional_change_display = '< -100%'
         elif institutional_change is not None:
             institutional_change_display = f"{float(institutional_change):.2f}%"
@@ -437,7 +437,7 @@ def sort_key(x):
 def main():
     try:
         api_key = load_environment()
-        tickers = load_tickers("portfolio.csv")
+        tickers = load_tickers("output/portfolio.csv")
         stock_data = []
         for ticker in tqdm(tickers, desc="Processing tickers"):
             start_date = fetch_earliest_valid_date(ticker, api_key)
@@ -446,7 +446,7 @@ def main():
         stock_data.sort(key=sort_key, reverse=True)
 
         display_table(stock_data)
-        save_to_csv("tracker.csv", stock_data)
+        save_to_csv("output/tracker.csv", stock_data)
     except Exception as e:
         print(f"An error occurred: {e}")
 

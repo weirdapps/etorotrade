@@ -11,7 +11,7 @@ load_dotenv()
 api_key = os.getenv('API_KEY')
 
 # Load the portfolio CSV file
-portfolio_df = pd.read_csv('portfolio.csv')
+portfolio_df = pd.read_csv('output/portfolio.csv')
 
 # Extract the symbols from the Symbols column
 symbols = portfolio_df['ticker'].tolist()
