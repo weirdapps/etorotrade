@@ -4,4 +4,4 @@ A stock screener and portfolio quality tracker based on DCF valuation, analysts'
 
 Follow or copy @plessas on etoro!
 
-![model screenshot](image.png)
+![model screenshot](assets/sample_output.png)
