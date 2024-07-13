@@ -6,7 +6,7 @@ from tabulate import tabulate
 from datetime import datetime, timedelta
 
 # Variables for start and end dates
-start_date = '2000-01-01'
+start_date = '2020-01-01'
 end_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
 risk_free_rate = 0.01
 
@@ -83,7 +83,7 @@ def calculate_annual_var(weights, mean_returns, cov_matrix, alpha=0.05):
 # Main function
 def main():
     # Read portfolio tickers
-    portfolio = pd.read_csv('portfolio.csv')
+    portfolio = pd.read_csv('output/portfolio.csv')
     tickers = portfolio['ticker'].tolist()
     
     # Set minimum weights for each ticker

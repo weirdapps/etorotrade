@@ -437,7 +437,7 @@ def sort_key(x):
 def main():
     try:
         api_key = load_environment()
-        tickers = load_tickers("market.csv")
+        tickers = load_tickers("output/market.csv")
         stock_data = []
         for ticker in tqdm(tickers, desc="Processing tickers"):
             start_date = fetch_earliest_valid_date(ticker, api_key)
@@ -446,7 +446,7 @@ def main():
         stock_data.sort(key=sort_key, reverse=True)
 
         display_table(stock_data)
-        save_to_csv("screener.csv", stock_data)
+        save_to_csv("output/screener.csv", stock_data)
     except Exception as e:
         print(f"An error occurred: {e}")
 

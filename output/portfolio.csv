@@ -1,0 +1,17 @@
+BuySell,investmentPctRealized,profitPct,valuePctUnrealized,positionValue,name,ticker,Exchange,Sector,AssetClass
+BUY,3.300464,18.577488,3.464456,3.913607304,Apple,AAPL,Nasdaq,Consumer Goods,Stocks
+BUY,7.153246,22.657231,7.767015,8.77397347,Alphabet,GOOGL,Nasdaq,Technology,Stocks
+BUY,4.40005,21.551286,4.734509,5.34831736,Meta Platforms Inc,META,Nasdaq,Technology,Stocks
+BUY,10.454744,18.958421,11.00947,12.43679838,Microsoft,MSFT,Nasdaq,Technology,Stocks
+BUY,10.453104,16.136531,10.746621,12.13987237,Amazon.com Inc,AMZN,Nasdaq,Services,Stocks
+BUY,3.301498,-0.124333,2.918963,3.297393148,General Electric Co,GE,NYSE,Industrial Goods,Stocks
+BUY,1.650749,2.581333,1.499019,1.693360329,Coca-Cola,KO,NYSE,Consumer Goods,Stocks
+BUY,1.650749,1.14,1.477957,1.669567539,McDonald's,MCD,NYSE,Services,Stocks
+BUY,3.301498,-0.325667,2.913079,3.290746111,AT&T Inc,T,NYSE,Technology,Stocks
+BUY,1.100499,1.21,0.985987,1.113815038,Mastercard,MA,NYSE,Financial,Stocks
+BUY,1.100499,1.371,0.987555,1.115586841,Visa,V,NYSE,Financial,Stocks
+BUY,1.100499,1.39,0.98774,1.115795936,"Micron Technology, Inc.",MU,Nasdaq,Technology,Stocks
+BUY,4.952247,95.506444,8.570797,9.681962008,NVIDIA Corporation,NVDA,Nasdaq,Technology,Stocks
+BUY,1.973448,16.305772,2.031818,2.295233931,Qualcomm Inc,QCOM,Nasdaq,Technology,Stocks
+BUY,3.301421,4.970116,3.067781,3.465505453,Marvell Technology Group Ltd,MRVL,Nasdaq,Technology,Stocks
+BUY,2.200999,7.591,2.096301,2.368076834,Taiwan Semiconductor Manufacturing Co Ltd - ADR,TSM,NYSE,Technology,Stocks
