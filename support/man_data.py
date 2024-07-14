@@ -3,8 +3,8 @@
 import datetime
 import statistics
 from support.get_data import (
-    fetch_and_extract_first, process_stock_info, calculate_percent_difference,
-    fetch_earliest_valid_date, fetch_current_stock_price, fetch_dcf_data,
+    calculate_percent_difference,
+    fetch_current_stock_price, fetch_dcf_data,
     fetch_price_target_data, fetch_financial_score, fetch_piotroski_score,
     fetch_analyst_recommendations, fetch_senate_disclosure_data, fetch_ratios_ttm,
     fetch_insider_buy_sell_ratio, fetch_institutional_ownership_change,

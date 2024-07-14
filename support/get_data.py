@@ -1,9 +1,8 @@
 from support.api_request import api_request
 from support.api_urls import API_URLS
-from support.buy_ratings import BUY_RATINGS  # Import the BUY_RATINGS list
+from support.buy_ratings import BUY_RATINGS
 import datetime
-import statistics
-from typing import Any, Dict, List, Optional, Tuple
+
 
 def fetch_earliest_valid_date(ticker, api_key):
     url = f"{API_URLS['EARNINGS']}historical/earning_calendar/{ticker}?apikey={api_key}"
@@ -55,49 +54,6 @@ def fetch_institutional_ownership_change(ticker, api_key):
     data = api_request(url)
     return data
 
-def fetch_and_extract_first(data_fetcher, ticker: str, api_key: str, extract_key: str, default: Any = None) -> Any:
-    try:
-        data = data_fetcher(ticker, api_key)
-        if data and isinstance(data, list) and data:
-            return float(data[0].get(extract_key, default)) if extract_key in data[0] else default
-    except Exception as e:
-        print(f"Error fetching data for {ticker}: {e}")
-    return default
-
-def process_stock_info(ticker: str, api_key: str, start_date: str) -> Dict[str, Any]:
-    stock_info: Dict[str, Any] = {}
-
-    stock_info['financial_score'] = fetch_and_extract_first(fetch_financial_score, ticker, api_key, 'ratingScore')
-    stock_info['piotroski_score'] = fetch_and_extract_first(fetch_piotroski_score, ticker, api_key, 'piotroskiScore')
-    stock_info['pe_ratio_ttm'] = fetch_and_extract_first(fetch_ratios_ttm, ticker, api_key, 'peRatioTTM')
-    stock_info['peg_ratio_ttm'] = fetch_and_extract_first(fetch_ratios_ttm, ticker, api_key, 'pegRatioTTM', None)
-    stock_info['buysell'] = fetch_and_extract_first(fetch_insider_buy_sell_ratio, ticker, api_key, 'buySellRatio', None)
-
-    try:
-        analyst_recommendations = fetch_analyst_recommendations(ticker, api_key)
-        if analyst_recommendations:
-            percent_positive, total_recommendations = calculate_analyst_recommendation(analyst_recommendations, start_date)
-            stock_info['analyst_rating'] = percent_positive
-            stock_info['total_recommendations'] = total_recommendations
-    except Exception as e:
-        print(f"Error processing analyst recommendations for {ticker}: {e}")
-
-    try:
-        senate_disclosure_data = fetch_senate_disclosure_data(ticker, api_key)
-        if senate_disclosure_data:
-            stock_info['senate_sentiment'] = calculate_senate_sentiment(senate_disclosure_data, start_date)
-    except Exception as e:
-        print(f"Error processing Senate disclosure data for {ticker}: {e}")
-
-    try:
-        institutional_change_data = fetch_institutional_ownership_change(ticker, api_key)
-        if institutional_change_data and isinstance(institutional_change_data, list):
-            institutional_change_data.sort(key=lambda x: x['dateReported'], reverse=True)
-    except Exception as e:
-        print(f"Error fetching institutional ownership change data for {ticker}: {e}")
-
-    return stock_info
-
 def calculate_percent_difference(value1, value2):
     if value1 is None or value2 is None:
         return None
@@ -129,4 +85,3 @@ def calculate_senate_sentiment(data, start_date):
                 count_sale += 1
     total_transactions = count_purchase + count_sale
     return round((count_purchase / total_transactions) * 100, 2) if total_transactions > 0 else "-"
-    
