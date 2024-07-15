@@ -1,17 +1,31 @@
 BuySell,investmentPctRealized,profitPct,valuePctUnrealized,positionValue,name,ticker,Exchange,Sector,AssetClass
-BUY,3.300464,18.577488,3.464456,3.913607304,Apple,AAPL,Nasdaq,Consumer Goods,Stocks
-BUY,7.153246,22.657231,7.767015,8.77397347,Alphabet,GOOGL,Nasdaq,Technology,Stocks
-BUY,4.40005,21.551286,4.734509,5.34831736,Meta Platforms Inc,META,Nasdaq,Technology,Stocks
-BUY,10.454744,18.958421,11.00947,12.43679838,Microsoft,MSFT,Nasdaq,Technology,Stocks
-BUY,10.453104,16.136531,10.746621,12.13987237,Amazon.com Inc,AMZN,Nasdaq,Services,Stocks
-BUY,3.301498,-0.124333,2.918963,3.297393148,General Electric Co,GE,NYSE,Industrial Goods,Stocks
-BUY,1.650749,2.581333,1.499019,1.693360329,Coca-Cola,KO,NYSE,Consumer Goods,Stocks
-BUY,1.650749,1.14,1.477957,1.669567539,McDonald's,MCD,NYSE,Services,Stocks
-BUY,3.301498,-0.325667,2.913079,3.290746111,AT&T Inc,T,NYSE,Technology,Stocks
-BUY,1.100499,1.21,0.985987,1.113815038,Mastercard,MA,NYSE,Financial,Stocks
-BUY,1.100499,1.371,0.987555,1.115586841,Visa,V,NYSE,Financial,Stocks
-BUY,1.100499,1.39,0.98774,1.115795936,"Micron Technology, Inc.",MU,Nasdaq,Technology,Stocks
-BUY,4.952247,95.506444,8.570797,9.681962008,NVIDIA Corporation,NVDA,Nasdaq,Technology,Stocks
-BUY,1.973448,16.305772,2.031818,2.295233931,Qualcomm Inc,QCOM,Nasdaq,Technology,Stocks
-BUY,3.301421,4.970116,3.067781,3.465505453,Marvell Technology Group Ltd,MRVL,Nasdaq,Technology,Stocks
-BUY,2.200999,7.591,2.096301,2.368076834,Taiwan Semiconductor Manufacturing Co Ltd - ADR,TSM,NYSE,Technology,Stocks
+BUY,3.299864,18.577488,3.461159,3.912895839,Apple,AAPL,Nasdaq,Consumer Goods,Stocks
+BUY,7.151947,22.657231,7.759624,8.772380153,Alphabet,GOOGL,Nasdaq,Technology,Stocks
+BUY,4.399251,21.551286,4.730004,5.347346165,Meta Platforms Inc,META,Nasdaq,Technology,Stocks
+BUY,10.452846,18.958421,10.998993,12.43454055,Microsoft,MSFT,Nasdaq,Technology,Stocks
+BUY,10.451206,16.136531,10.736395,12.1376681,Amazon.com Inc,AMZN,Nasdaq,Services,Stocks
+BUY,3.300899,-0.124333,2.916185,3.296794893,General Electric Co,GE,NYSE,Industrial Goods,Stocks
+BUY,1.650449,2.581333,1.497593,1.693052585,Coca-Cola,KO,NYSE,Consumer Goods,Stocks
+BUY,1.650449,1.14,1.476551,1.669264119,McDonald's,MCD,NYSE,Services,Stocks
+BUY,3.300899,-0.325667,2.910307,3.290149061,AT&T Inc,T,NYSE,Technology,Stocks
+BUY,1.1003,1.21,0.985048,1.11361363,Mastercard,MA,NYSE,Financial,Stocks
+BUY,1.1003,1.371,0.986615,1.115385113,Visa,V,NYSE,Financial,Stocks
+BUY,1.1003,1.39,0.9868,1.11559417,"Micron Technology, Inc.",MU,Nasdaq,Technology,Stocks
+BUY,4.951348,95.506444,8.562641,9.680204405,NVIDIA Corporation,NVDA,Nasdaq,Technology,Stocks
+BUY,1.97309,16.305772,2.029885,2.294817557,Qualcomm Inc,QCOM,Nasdaq,Technology,Stocks
+BUY,1.650449,0.970667,1.474079,1.666469364,Abbott Laboratories,ABT,NYSE,Healthcare,Stocks
+BUY,1.1003,1.355,0.98646,1.115209065,Deutsche Bank Aktiengesellschaft,DBK.DE,FRA,Financial,Stocks
+BUY,1.1003,7.853,1.049703,1.186706559,Barclays,BARC.L,LSE,Financial,Stocks
+BUY,2.200599,3.621,2.017028,2.28028269,Ishares MSCI JAPAN ETF,EWJ,NYSE,Financial,ETF
+BUY,2.200599,5.292,2.049555,2.317054699,Ishares Russell 2000 ETF,IWM,NYSE,Financial,ETF
+BUY,1.1003,-1.227,0.96133,1.086799319,Energy Select Sector SPDR,XLE,NYSE,Financial,ETF
+BUY,1.1003,2.009,0.992825,1.122405027,Global Payments Inc,GPN,NYSE,Consumer Goods,Stocks
+BUY,3.300822,4.970116,3.064862,3.464876682,Marvell Technology Group Ltd,MRVL,Nasdaq,Technology,Stocks
+BUY,1.1003,0.102,0.974265,1.101422306,Coterra EnerCoterra Energy Inc,CTRA,NYSE,Basic Materials,Stocks
+BUY,2.200599,2.022,1.985903,2.245095112,iShares MSCI India ETF,INDA,Chicago Board Options Exchange,Financial,ETF
+BUY,2.200599,7.591,2.094306,2.36764647,Taiwan Semiconductor Manufacturing Co Ltd - ADR,TSM,NYSE,Technology,Stocks
+BUY,1.1003,5.21,1.023979,1.15762563,Matador Resources Co,MTDR,NYSE,Consumer Goods,Stocks
+BUY,1.1003,3.717,1.009448,1.141198151,Banco Santander SA,SAN.MC,Bolsa De Madrid,Financial,Stocks
+BUY,1.1003,1.257,0.985506,1.114130771, Chord Energy Corporation,CHRD,Nasdaq,Basic Materials,Stocks
+BUY,13.203595,1.444417,11.847959,13.39430997,Amundi MSCI Greece UCITS ETF,LYXGRE.DE,Xetra ETFs,Financial,ETF
+BUY,1.980132,3.004506,1.804154,2.039625185,Bitcoin,BTCUSD,Digital Currency,NA,Crypto
