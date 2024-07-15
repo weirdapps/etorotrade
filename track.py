@@ -1,11 +1,9 @@
 import csv
 from tqdm import tqdm
 from support.load_env import load_environment
-from support.get_data import (
-    fetch_earliest_valid_date
-)
+from support.get_data import fetch_earliest_valid_date
 from support.man_data import extract_financial_metrics
-from support.display import display_table
+from support.display import (display_table, save_to_csv)
 
 def load_tickers(filename):
     try:
@@ -58,19 +56,21 @@ def main():
                             if isinstance(start_date, list):
                                 start_date = start_date[0]  # Take the first element if it's a list
                             break
-                else:
-                    print(f"Unexpected format for start_date_data: {start_date_data}")
+            #     else:
+            #         print(f"Unexpected format for start_date_data: {start_date_data}")
+            # else:
+            #     print(f"No start date data available for ticker {ticker}")
 
-            # Ensure start_date is a string before further processing
-            if not isinstance(start_date, str):
-                raise ValueError(f"Invalid start_date: {start_date}")
+            # If start_date is None, use '-' as the default value
+            if start_date is None:
+                start_date = '-'
 
             financial_metrics = extract_financial_metrics(ticker, api_key, start_date)
             stock_data.append(financial_metrics)
 
         stock_data.sort(key=sort_key, reverse=True)
         display_table(stock_data)
-        # save_to_csv("output/tracker.csv", stock_data)
+        save_to_csv("output/tracker.csv", stock_data)
     except Exception as e:
         print(f"An error occurred: {e}")
 

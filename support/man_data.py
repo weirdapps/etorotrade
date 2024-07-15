@@ -30,7 +30,7 @@ def extract_financial_metrics(ticker, api_key, start_date):
         "dcf_percent_diff": None,
         "target_consensus": None,
         "target_percent_diff": None,
-        "num_targets": None,
+        "num_targets": 0,
         "financial_score": None,
         "piotroski_score": None,
         "analyst_rating": None,
@@ -42,7 +42,7 @@ def extract_financial_metrics(ticker, api_key, start_date):
         "institutional_change": None
     }
 
-    if start_date:
+    if start_date != '-':
         dcf_data = fetch_dcf_data(ticker, api_key)
         if dcf_data:
             stock_info['dcf_price'] = dcf_data.get('dcf')
@@ -110,7 +110,5 @@ def extract_financial_metrics(ticker, api_key, start_date):
                 stock_info['expected_return'] = None
         except (TypeError, ValueError):
             stock_info['expected_return'] = None
-    else:
-        stock_info['num_targets'] = 0
 
     return stock_info

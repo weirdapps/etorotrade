@@ -32,6 +32,9 @@ def main():
         
         financial_metrics = extract_financial_metrics(ticker, api_key, start_date)
         display_table([financial_metrics])
+
+        print(f"Last earnings release date: {start_date}")
+
     except Exception as e:
         print(f"An error occurred: {e}")
 
