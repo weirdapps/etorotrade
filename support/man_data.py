@@ -1,5 +1,3 @@
-# support/man_data.py
-
 import datetime
 import statistics
 from support.get_data import (
@@ -13,14 +11,17 @@ from support.get_data import (
 
 def extract_financial_metrics(ticker, api_key, start_date):
     current_price_data = fetch_current_stock_price(ticker, api_key)
+    current_price, date_time = None, None
+    
     if current_price_data and len(current_price_data) > 0:
         price = current_price_data[0].get('price')
         timestamp = current_price_data[0].get('timestamp')
         if timestamp:
-            date_time = datetime.datetime.fromtimestamp(int(timestamp)).strftime('%Y-%m-%d %H:%M')
+            try:
+                date_time = datetime.datetime.fromtimestamp(int(timestamp)).strftime('%Y-%m-%d %H:%M')
+            except (ValueError, TypeError):
+                date_time = None
         current_price = price
-    else:
-        current_price, date_time = None, None
 
     stock_info = {
         "ticker": ticker,
