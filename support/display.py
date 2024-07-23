@@ -79,7 +79,7 @@ def save_to_csv(filename, data):
     with open(filename, "w", newline="") as file:
         writer = csv.writer(file)
         headers = [
-            "#", "Ticker", "Price", "DCF P", "DCF %", "Target", "Target %", "# T", "Rating", "# R", "ER", "Score", "Piotr", "PE", "PEG", "Inside", "Institute", "Senate", 
+            "#", "Ticker", "Price", "DCF Price", "DCF Diff %", "Target Price", "Target Diff %", "# Targets", "Consensus Rating", "# Ratings", "Expected Return", "Financial Score", "Piotroski Score", "PE ratio", "PEG ratio", "Insiders", "Institutional Change", "Senate Change", 
         ]
         writer.writerow(headers)
         for i, row in enumerate(data):
