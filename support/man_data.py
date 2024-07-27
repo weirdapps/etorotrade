@@ -56,7 +56,7 @@ def extract_financial_metrics(ticker, api_key, start_date):
                 entry['adjPriceTarget'] for entry in price_target_data
                 if 'publishedDate' in entry and 'adjPriceTarget' in entry and
                    entry['adjPriceTarget'] is not None and
-                   datetime.datetime.strptime(entry['publishedDate'], '%Y-%m-%dT%H:%M:%S.%fZ') > datetime.datetime.strptime(start_date, '%Y-%m-%d')
+                   datetime.datetime.strptime(entry['publishedDate'], '%Y-%m-%dT%H:%M:%S.%fZ') >= datetime.datetime.strptime(start_date, '%Y-%m-%d')
             ]
             if valid_targets:
                 median_price_target = statistics.median(valid_targets)

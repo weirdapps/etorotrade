@@ -33,7 +33,7 @@ def fetch_price_target_data(ticker, api_key):
     return response
 
 def fetch_analyst_recommendations(ticker, api_key):
-    url = f"{API_URLS['ANALYST']}grade/{ticker}?apikey={api_key}"
+    url = f"{API_URLS['ANALYST']}upgrades-downgrades?symbol={ticker}&apikey={api_key}"
     return api_request(url)
 
 def fetch_senate_disclosure_data(ticker, api_key):
@@ -63,7 +63,7 @@ def calculate_analyst_recommendation(data, start_date):
     start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')
     count_positive, count_negative = 0, 0
     for recommendation in data:
-        recommendation_date = datetime.datetime.strptime(recommendation['date'], '%Y-%m-%d')
+        recommendation_date = datetime.datetime.strptime(recommendation['publishedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')
         if recommendation_date >= start_date:
             if any(pos_term in recommendation['newGrade'].lower() for pos_term in BUY_RATINGS):
                 count_positive += 1

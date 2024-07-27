@@ -10,7 +10,7 @@ URL_TEMPLATE = ("https://financialmodelingprep.com/api/v3/stock-screener?"
                 "&exchange=nyse&exchange=nasdaq"
                 "&isEtf=false&isFund=false&apikey={}")
 
-LOWER_LIMIT = 10_000_000_000
+LOWER_LIMIT = 8_000_000_000
 UPPER_LIMIT = 10_000_000_000_000
 
 class ConfigLoader:
