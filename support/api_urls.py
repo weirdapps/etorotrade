@@ -4,7 +4,7 @@ API_URLS = {
     'PIOTROSKI': "https://financialmodelingprep.com/api/v4/",
     'CONSENSUS': "https://financialmodelingprep.com/api/v4/",
     'QUOTE': "https://financialmodelingprep.com/api/v3/",
-    'ANALYST': "https://financialmodelingprep.com/api/v3/",
+    'ANALYST': "https://financialmodelingprep.com/api/v4/",
     'RATING': "https://financialmodelingprep.com/api/v3/",
     'PRICE_TARGET': "https://financialmodelingprep.com/api/v4/",
     'EARNINGS': "https://financialmodelingprep.com/api/v3/",
