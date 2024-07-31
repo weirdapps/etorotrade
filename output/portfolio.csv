@@ -1,31 +1,31 @@
 BuySell,investmentPctRealized,profitPct,valuePctUnrealized,positionValue,name,ticker,Exchange,Sector,AssetClass
-SELL,0.272343,-3.084,0.24546,0.263943942,VIX (Aug 24 Future),VIX.AUG24,CFD,NA,Indices
-BUY,6.536238,14.3985,6.953701,7.477358228,Alphabet,GOOGL,Nasdaq,Technology,Stocks
-BUY,5.446865,10.9938,5.622289,6.045682444,Meta Platforms Inc,META,Nasdaq,Technology,Stocks
-BUY,10.349044,11.914316,10.770942,11.58206181,Microsoft,MSFT,Nasdaq,Technology,Stocks
-BUY,10.892075,8.649515,11.00541,11.83418666,Amazon.com Inc,AMZN,Nasdaq,Services,Stocks
-BUY,2.178746,0.507,2.036436,2.189792242,McDonald's,MCD,NYSE,Services,Stocks
-BUY,2.178746,-0.017,2.025819,2.178375613,Exxon-Mobil,XOM,NYSE,Basic Materials,Stocks
-BUY,2.178746,0.964,2.045695,2.199749111,Mastercard,MA,NYSE,Financial,Stocks
-BUY,2.178746,0.433,2.034937,2.18817997,Visa,V,NYSE,Financial,Stocks
-BUY,1.089373,2.785,1.041296,1.119712038,"Micron Technology, Inc.",MU,Nasdaq,Technology,Stocks
-BUY,5.446865,65.2664,8.371418,9.001837698,NVIDIA Corporation,NVDA,Nasdaq,Technology,Stocks
-BUY,1.089373,-0.295,1.010093,1.08615935,Qualcomm Inc,QCOM,Nasdaq,Technology,Stocks
-BUY,1.089373,-0.037,1.012707,1.088969932,Kroger Co,KR,NYSE,Consumer Goods,Stocks
-BUY,2.178746,0.6705,2.039749,2.193354492,ConocoPhillips Co,COP,NYSE,Basic Materials,Stocks
-BUY,1.089362,-0.908009,1.003873,1.079470495,Energy Transfer LP,ET,NYSE,Basic Materials,Stocks
-BUY,1.089373,0.087,1.013963,1.090320755,Halliburton Co,HAL,NYSE,Basic Materials,Stocks
-BUY,1.089373,0,1.013082,1.089373,Advanced Micro Devices Inc,AMD,Nasdaq,Technology,Stocks
-BUY,1.089373,10.397,1.118412,1.202635111,Barclays,BARC.L,LSE,Financial,Stocks
-BUY,2.178746,-0.386,2.018342,2.17033604,Ishares MSCI JAPAN ETF,EWJ,NYSE,Financial,ETF
-BUY,6.536162,4.334717,6.341901,6.819486125,Ishares Russell 2000 ETF,IWM,NYSE,Financial,ETF
-BUY,3.268119,-0.958,3.010129,3.23681042,Broadcom Inc,AVGO,Nasdaq,Technology,Stocks
-BUY,1.089373,0.246,1.015574,1.092052858,Schlumberger Ltd,SLB,NYSE,Basic Materials,Stocks
-BUY,2.178746,-8.339,1.857201,1.997060371,Marvell Technology Group Ltd,MRVL,Nasdaq,Technology,Stocks
-BUY,4.357492,-1.874,3.976386,4.2758326,Exact Sciences Corp,EXAS,Nasdaq,Consumer Goods,Stocks
-BUY,1.63406,-4.714,1.447987,1.557030412,Coterra EnerCoterra Energy Inc,CTRA,NYSE,Basic Materials,Stocks
-BUY,2.178746,1.4855,2.056262,2.211111272,iShares MSCI India ETF,INDA,Chicago Board Options Exchange,Financial,ETF
-BUY,5.446865,-4.0512,4.860198,5.226201605,Taiwan Semiconductor Manufacturing Co Ltd - ADR,TSM,NYSE,Technology,Stocks
-BUY,1.089373,-0.377,1.009262,1.085266064,Natera Inc,NTRA,Nasdaq,Consumer Goods,Stocks
-BUY,1.63406,0.132,1.521628,1.636216959, Chord Energy Corporation,CHRD,Nasdaq,Basic Materials,Stocks
-BUY,10.89373,3.3649,10.471708,11.26029312,Amundi MSCI Greece UCITS ETF,LYXGRE.DE,Xetra ETFs,Financial,ETF
+BUY,0.46836,-3.050061,0.423965,0.454074734,Oil (Non Expiry),OIL,Commodity,NA,Commodity
+SELL,0.468369,8.494,0.474457,0.508152263,VIX (Aug 24 Future),VIX.AUG24,CFD,NA,Indices
+BUY,5.620433,17.880333,6.186055,6.625385136,Alphabet,GOOGL,Nasdaq,Technology,Stocks
+BUY,5.620433,10.757667,5.812276,6.225060466,Meta Platforms Inc,META,Nasdaq,Technology,Stocks
+BUY,12.645974,6.619926,12.58906,13.48312812,Microsoft,MSFT,Nasdaq,Technology,Stocks
+BUY,8.429254,12.40661,8.846747,9.47503867,Amazon.com Inc,AMZN,Nasdaq,Services,Stocks
+BUY,1.873478,1.47,1.774961,1.901018127,Exxon-Mobil,XOM,NYSE,Basic Materials,Stocks
+BUY,4.215325,75.064444,6.890197,7.379535274,NVIDIA Corporation,NVDA,Nasdaq,Technology,Stocks
+BUY,0.936739,1.44,0.887218,0.950228042,Uber Technologies Inc.,UBER,NYSE,Services,Stocks
+BUY,0.936739,-0.04,0.874274,0.936364304,Take Two Interactive Software Inc,TTWO,Nasdaq,Technology,Stocks
+BUY,1.873478,-3.2985,1.691548,1.811681328,Qualcomm Inc,QCOM,Nasdaq,Technology,Stocks
+BUY,0.936739,0.832,0.8819,0.944532668,Kroger Co,KR,NYSE,Consumer Goods,Stocks
+BUY,1.873478,1.251,1.77113,1.89691521,ConocoPhillips Co,COP,NYSE,Basic Materials,Stocks
+BUY,0.936739,1.368,0.886588,0.94955359,Halliburton Co,HAL,NYSE,Basic Materials,Stocks
+BUY,0.936739,0.055,0.875105,0.937254206,PPG Industries Inc,PPG,NYSE,Basic Materials,Stocks
+BUY,0.936739,0.568,0.879591,0.942059678,Wynn Resorts Ltd,WYNN,Nasdaq,Services,Stocks
+BUY,1.873478,2.8955,1.799896,1.927724555,Ishares MSCI JAPAN ETF,EWJ,NYSE,Financial,ETF
+BUY,6.088728,4.09882,5.918,6.338294001,Ishares Russell 2000 ETF,IWM,NYSE,Financial,ETF
+BUY,1.873478,1.6835,1.778696,1.905018002,Broadcom Inc,AVGO,Nasdaq,Technology,Stocks
+BUY,0.936739,-1.249,0.863699,0.92503913,Schlumberger Ltd,SLB,NYSE,Basic Materials,Stocks
+BUY,2.810217,-6.338333,2.457561,2.632096089,Marvell Technology Group Ltd,MRVL,Nasdaq,Technology,Stocks
+BUY,0.936739,-2.558,0.852251,0.912777216,Trade Desk Inc A,TTD,Nasdaq,Services,Stocks
+BUY,0.936739,0.319,0.877414,0.939727197,MongoDB Inc,MDB,Nasdaq,Technology,Stocks
+BUY,1.873478,2.4515,1.79213,1.919406313,iShares MSCI India ETF,INDA,Chicago Board Options Exchange,Financial,ETF
+BUY,2.810217,-5.848333,2.470418,2.645866152,Taiwan Semiconductor Manufacturing Co Ltd - ADR,TSM,NYSE,Technology,Stocks
+BUY,0.936739,-0.919,0.866586,0.928130369,Natera Inc,NTRA,Nasdaq,Consumer Goods,Stocks
+BUY,0.936739,0.095,0.875454,0.937628902,Datadog Inc,DDOG,Nasdaq,Technology,Stocks
+BUY,0.936739,-0.305,0.871956,0.933881946,Corteva Inc,CTVA,NYSE,Consumer Goods,Stocks
+BUY,0.936739,-0.57,0.869638,0.931399588, Chord Energy Corporation,CHRD,Nasdaq,Basic Materials,Stocks
+BUY,9.367388,4.2783,9.120425,9.768152961,Amundi MSCI Greece UCITS ETF,LYXGRE.DE,Xetra ETFs,Financial,ETF

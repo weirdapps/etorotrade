@@ -301,7 +301,7 @@ JCI,Johnson Controls,Industrials,Building Products,"Cork, Ireland",1885
 CB,Chubb Limited,Financials,Property & Casualty Insurance,"Zurich, Switzerland",1985
 KMX,CarMax,Consumer Discretionary,Automotive Retail,"Richmond, Virginia",1993
 OKE,ONEOK,Energy,Oil & Gas Storage & Transportation,"Tulsa, Oklahoma",1906
-BRK.B,Berkshire Hathaway,Financials,Multi-Sector Holdings,"Omaha, Nebraska",1839
+BRK-B,Berkshire Hathaway,Financials,Multi-Sector Holdings,"Omaha, Nebraska",1839
 NRG,NRG Energy,Utilities,Independent Power Producers & Energy Traders,"Houston, Texas",1992
 FMC,FMC Corporation,Materials,Fertilizers & Agricultural Chemicals,"Philadelphia, Pennsylvania",1883
 ES,Eversource,Utilities,Electric Utilities,"Hartford, Connecticut",1966
@@ -450,7 +450,7 @@ LOW,Lowe's,Consumer Discretionary,Home Improvement Retail,"Mooresville, North Ca
 T,AT&T,Communication Services,Integrated Telecommunication Services,"Dallas, Texas",1983
 BBWI,"Bath & Body Works, Inc.",Consumer Discretionary,Other Specialty Retail,"Columbus, Ohio",1963
 CAG,Conagra Brands,Consumer Staples,Packaged Foods & Meats,"Chicago, Illinois",1919
-BF.B,Brown–Forman,Consumer Staples,Distillers & Vintners,"Louisville, Kentucky",1870
+BF-B,Brown–Forman,Consumer Staples,Distillers & Vintners,"Louisville, Kentucky",1870
 SNA,Snap-on,Industrials,Industrial Machinery & Supplies & Components,"Kenosha, Wisconsin",1920
 SWK,Stanley Black & Decker,Industrials,Industrial Machinery & Supplies & Components,"New Britain, Connecticut",1843
 GWW,W. W. Grainger,Industrials,Industrial Machinery & Supplies & Components,"Lake Forest, Illinois",1927

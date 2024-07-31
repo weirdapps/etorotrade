@@ -50,8 +50,8 @@ if response.status_code == 200:
             revenue_estimate_millions = int(report.get('revenueEstimated') / 1_000_000) if report.get('revenueEstimated') is not None else ''
             
             # Ensure EPS values are floats and format them to 2 decimal places explicitly using `format()` method
-            eps_actual = f"{float(report.get('eps', 0.0)):.2f}"
-            eps_estimated = f"{float(report.get('epsEstimated', 0.0)):.2f}"
+            eps_actual = f"{float(report.get('eps', 0.0)):.2f}" if report.get('eps') is not None else ''
+            eps_estimated = f"{float(report.get('epsEstimated', 0.0)):.2f}" if report.get('epsEstimated') is not None else ''
 
             table_data.append([
                 report['date'] if report['date'] else '',
