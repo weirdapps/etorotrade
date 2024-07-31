@@ -1,7 +1,8 @@
-import yfinance as yf
+import pytz
 from datetime import datetime, timedelta
-import pandas as pd
 from pandas.tseries.offsets import BMonthEnd
+import yfinance as yf
+import pandas as pd
 from tabulate import tabulate
 
 # Define the indices
@@ -12,9 +13,19 @@ indices = {
     'VIX': '^VIX'
 }
 
-# Function to get the last business day of the previous month
-def get_last_business_day(date):
-    return (date - BMonthEnd()).date()
+# Timezone for Athens, Greece
+athens_tz = pytz.timezone('Europe/Athens')
+
+# Function to get the last business day of a given month
+def get_last_business_day(year, month):
+    # Create a date for the first day of the next month, then subtract one day
+    if month == 12:
+        first_day_of_next_month = datetime(year + 1, 1, 1)
+    else:
+        first_day_of_next_month = datetime(year, month + 1, 1)
+    last_day_of_month = first_day_of_next_month - timedelta(days=1)
+    # Return the last business day of that month
+    return (last_day_of_month - BMonthEnd(0)).date()
 
 # Function to get the closest previous trading day close price
 def get_previous_trading_day_close(ticker, date):
@@ -25,16 +36,14 @@ def get_previous_trading_day_close(ticker, date):
             return data['Close'].loc[data.index[-1]], last_valid_day
         date -= timedelta(days=1)
 
-# Calculate the date range for the monthly returns
-today = datetime.today().date()
-if today == get_last_business_day(today):
-    # After market close on the last trading day of the current month
-    end_date = get_last_business_day(today)
-    start_date = get_last_business_day(end_date - timedelta(days=1))
-else:
-    # Before market close on the last trading day of the current month
-    end_date = get_last_business_day(today - timedelta(days=1))
-    start_date = get_last_business_day(end_date - timedelta(days=1))
+# Function to calculate the last business day of the previous and previous previous month
+def get_previous_month_ends():
+    today = datetime.now(athens_tz)
+    # Get the last day of the previous month
+    last_month_end = (today - BMonthEnd()).date()
+    # Get the last day of the previous previous month
+    previous_previous_month_end = (last_month_end - BMonthEnd()).date()
+    return previous_previous_month_end, last_month_end
 
 # Function to fetch monthly change
 def fetch_monthly_change(start_date, end_date):
@@ -52,25 +61,24 @@ def fetch_monthly_change(start_date, end_date):
             })
     return results, start_date, end_date
 
-# Fetch monthly changes
-monthly_changes, start_date, end_date = fetch_monthly_change(start_date, end_date)
+# Calculate last business days of previous and previous previous month
+previous_previous_month_end, previous_month_end = get_previous_month_ends()
 
-# Create DataFrame
-df = pd.DataFrame(monthly_changes)
+# Fetch monthly changes
+monthly_changes, start_date, end_date = fetch_monthly_change(previous_previous_month_end, previous_month_end)
+
+# Create DataFrame with correct column order
+df = pd.DataFrame(monthly_changes, columns=['Index', 'Previous Month', 'This Month', 'Change Percent'])
 
 # Rename columns to include dates
 df.rename(columns={
-    'Previous Month': f'Previous Month ({start_date.strftime("%Y-%m-%d")})',
-    'This Month': f'This Month ({end_date.strftime("%Y-%m-%d")})'
+    'Previous Month': f'Previous Month ({previous_previous_month_end.strftime("%Y-%m-%d")})',
+    'This Month': f'This Month ({previous_month_end.strftime("%Y-%m-%d")})'
 }, inplace=True)
 
-# Define custom alignment
-alignments = {
-    'Index': 'left',
-    f'Previous Month ({start_date.strftime("%Y-%m-%d")})': 'right',
-    f'This Month ({end_date.strftime("%Y-%m-%d")})': 'right',
-    'Change Percent': 'right'
-}
-
-# Print DataFrame in a fancy grid table format with custom alignment
+# Print DataFrame in a fancy grid table format
 print(tabulate(df, headers='keys', tablefmt='grid', colalign=["left", "right", "right", "right"], showindex=False))
+
+print(f"Today in Athens: {datetime.now(athens_tz)}")
+print(f"Last day of previous month: {previous_month_end}")
+print(f"Last day of previous previous month: {previous_previous_month_end}")
