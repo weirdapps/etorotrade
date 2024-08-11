@@ -6,12 +6,12 @@ GOOGL,Alphabet Inc.,2024383884126,27955972,Communication Services,Internet Conte
 AMZN,"Amazon.com, Inc.",1752135464000,35534515,Consumer Cyclical,Specialty Retail,NASDAQ,NASDAQ Global Select
 META,"Meta Platforms, Inc.",1309863251267,13605803,Communication Services,Internet Content & Information,NASDAQ,NASDAQ Global Select
 BRK-B,Berkshire Hathaway Inc.,930342460661,2071508,Financial Services,Insurance - Diversified,NYSE,New York Stock Exchange
-LLY,Eli Lilly and Company,847457130400,6477591,Healthcare,Drug Manufacturers - General,NYSE,New York Stock Exchange
-TSM,Taiwan Semiconductor Manufacturing Company Limited,716521739230,19360505,Technology,Semiconductors,NYSE,New York Stock Exchange
+LLY,Eli Lilly and Company,847475855680,6477591,Healthcare,Drug Manufacturers - General,NYSE,New York Stock Exchange
+TSM,Taiwan Semiconductor Manufacturing Company Limited,746909937916,19360505,Technology,Semiconductors,NYSE,New York Stock Exchange
 AVGO,Broadcom Inc.,690132508800,18148571,Technology,Semiconductors,NASDAQ,NASDAQ Global Select
 TSLA,"Tesla, Inc.",638928000000,57915622,Consumer Cyclical,Auto - Manufacturers,NASDAQ,NASDAQ Global Select
+NVO,Novo Nordisk A/S,594311496725,7016889,Healthcare,Biotechnology,NYSE,New York Stock Exchange
 JPM,JPMorgan Chase & Co.,585533928000,4517074,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
-NVO,Novo Nordisk A/S,558986661044,7016889,Healthcare,Biotechnology,NYSE,New York Stock Exchange
 WMT,Walmart Inc.,546558543000,9735001,Consumer Defensive,Discount Stores,NYSE,New York Stock Exchange
 XOM,Exxon Mobil Corporation,528030345500,9150984,Energy,Oil & Gas Integrated,NYSE,New York Stock Exchange
 UNH,UnitedHealth Group Incorporated,514274322600,2494611,Healthcare,Medical - Healthcare Plans,NYSE,New York Stock Exchange
@@ -43,7 +43,7 @@ AMD,"Advanced Micro Devices, Inc.",217313309600,40389800,Technology,Semiconducto
 LIN,Linde plc,213453391060,985669,Basic Materials,Chemicals - Specialty,NASDAQ,NASDAQ Global Select
 ACN,Accenture plc,197830858720,1851150,Technology,Information Technology Services,NYSE,New York Stock Exchange
 DHR,Danaher Corporation,193632527430,1284734,Healthcare,Medical - Diagnostics & Research,NYSE,New York Stock Exchange
-MCD,McDonald's Corporation,193077914620,2011585,Consumer Cyclical,Restaurants,NYSE,New York Stock Exchange
+MCD,McDonald's Corporation,192183363130,2011585,Consumer Cyclical,Restaurants,NYSE,New York Stock Exchange
 ABT,Abbott Laboratories,189144529000,4125777,Healthcare,Medical - Devices,NYSE,New York Stock Exchange
 PDD,PDD Holdings Inc.,183398163146,3771199,Consumer Cyclical,Specialty Retail,NASDAQ,NASDAQ Global Select
 QCOM,QUALCOMM Incorporated,183230720000,4807773,Technology,Semiconductors,NASDAQ,NASDAQ Global Select
@@ -74,7 +74,7 @@ MS,Morgan Stanley,153243699200,3542554,Financial Services,Financial - Capital Ma
 SPGI,S&P Global Inc.,152903630000,485154,Financial Services,Financial - Data & Stock Exchanges,NYSE,New York Stock Exchange
 CMCSA,Comcast Corporation,150968384800,12788597,Communication Services,Telecommunications Services,NASDAQ,NASDAQ Global Select
 UL,Unilever PLC,150554474604,3988594,Consumer Defensive,Household & Personal Products,NYSE,New York Stock Exchange
-HDB,HDFC Bank Limited,148940925863,2399716,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
+HDB,HDFC Bank Limited,149612119167,2399716,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
 UNP,Union Pacific Corporation,144696708960,1264484,Industrials,Railroads,NYSE,New York Stock Exchange
 UBER,"Uber Technologies, Inc.",143998427600,12744640,Technology,Software - Application,NYSE,New York Stock Exchange
 T,AT&T Inc.,139747977600,18042839,Communication Services,Telecommunications Services,NYSE,New York Stock Exchange
@@ -92,13 +92,13 @@ SYK,Stryker Corporation,124927817250,658914,Healthcare,Medical - Devices,NYSE,Ne
 ELV,Elevance Health Inc.,123379584020,550290,Healthcare,Medical - Healthcare Plans,NYSE,New York Stock Exchange
 REGN,"Regeneron Pharmaceuticals, Inc.",122645647080,407641,Healthcare,Biotechnology,NASDAQ,NASDAQ Global Select
 VRTX,Vertex Pharmaceuticals Incorporated,120907881432,782869,Healthcare,Biotechnology,NASDAQ,NASDAQ Global Select
-BUD,Anheuser-Busch InBev SA/NV,120368790454,853027,Consumer Defensive,Beverages - Alcoholic,NYSE,New York Stock Exchange
+BUD,Anheuser-Busch InBev SA/NV,120108902258,853027,Consumer Defensive,Beverages - Alcoholic,NYSE,New York Stock Exchange
 ETN,Eaton Corporation plc,116101884000,2072171,Industrials,Industrial - Machinery,NYSE,New York Stock Exchange
 BKNG,Booking Holdings Inc.,115426185420,247308,Consumer Cyclical,Travel Services,NASDAQ,NASDAQ Global Select
 PLD,"Prologis, Inc.",112868550900,1901811,Real Estate,REIT - Industrial,NYSE,New York Stock Exchange
 BSX,Boston Scientific Corporation,112199679700,2887131,Healthcare,Medical - Devices,NYSE,New York Stock Exchange
 MUFG,"Mitsubishi UFJ Financial Group, Inc.",111909758160,1715003,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
-NKE,"NIKE, Inc.",111469993260,7095471,Consumer Cyclical,Apparel - Footwear & Accessories,NYSE,New York Stock Exchange
+NKE,"NIKE, Inc.",111469984116,7095471,Consumer Cyclical,Apparel - Footwear & Accessories,NYSE,New York Stock Exchange
 SCHW,The Charles Schwab Corporation,110920044800,3508028,Financial Services,Financial - Capital Markets,NYSE,New York Stock Exchange
 C,Citigroup Inc.,110347152000,8311338,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
 CB,Chubb Limited,109167202840,681822,Financial Services,Insurance - Property & Casualty,NYSE,New York Stock Exchange
@@ -130,11 +130,11 @@ HCA,"HCA Healthcare, Inc.",93138906600,624230,Healthcare,Medical - Care Faciliti
 MDLZ,"Mondelez International, Inc.",93131976000,5482214,Consumer Defensive,Food Confectioners,NASDAQ,NASDAQ Global Select
 FI,"Fiserv, Inc.",93031402750,1576017,Technology,Information Technology Services,NYSE,New York Stock Exchange
 UBS,UBS Group AG,91992433321,1125338,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
-GILD,"Gilead Sciences, Inc.",91769311000,8859322,Healthcare,Drug Manufacturers - General,NASDAQ,NASDAQ Global Select
+GILD,"Gilead Sciences, Inc.",91705963400,8859322,Healthcare,Drug Manufacturers - General,NASDAQ,NASDAQ Global Select
 BP,BP p.l.c.,91617131240,5442356,Energy,Oil & Gas Integrated,NYSE,New York Stock Exchange
-PBR-A,Petróleo Brasileiro S.A. - Petrobras,89598805939,6926489,Energy,Oil & Gas Integrated,NYSE,New York Stock Exchange
-PBR,Petróleo Brasileiro S.A. - Petrobras,89395480355,16585722,Energy,Oil & Gas Integrated,NYSE,New York Stock Exchange
-SHOP,Shopify Inc.,89308268419,10043630,Technology,Software - Application,NYSE,New York Stock Exchange
+SHOP,Shopify Inc.,89308264399,10043630,Technology,Software - Application,NYSE,New York Stock Exchange
+PBR-A,Petróleo Brasileiro S.A. - Petrobras,88807400144,6926489,Energy,Oil & Gas Integrated,NYSE,New York Stock Exchange
+PBR,Petróleo Brasileiro S.A. - Petrobras,88605870486,16585722,Energy,Oil & Gas Integrated,NYSE,New York Stock Exchange
 ICE,"Intercontinental Exchange, Inc.",88463799360,2305052,Financial Services,Financial - Data & Stock Exchanges,NYSE,New York Stock Exchange
 INFY,Infosys Limited,88439942979,7794468,Technology,Information Technology Services,NYSE,New York Stock Exchange
 SHW,The Sherwin-Williams Company,87190455120,732923,Basic Materials,Chemicals - Specialty,NYSE,New York Stock Exchange
@@ -152,8 +152,8 @@ GSK,GSK plc,82109464800,5391601,Healthcare,Drug Manufacturers - General,NYSE,New
 GD,General Dynamics Corporation,80507206220,881601,Industrials,Aerospace & Defense,NYSE,New York Stock Exchange
 SNPS,"Synopsys, Inc.",80397031680,851313,Technology,Software - Infrastructure,NASDAQ,NASDAQ Global Select
 SMFG,"Sumitomo Mitsui Financial Group, Inc.",79831306218,1139027,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
-BTI,British American Tobacco p.l.c.,79534099235,5440325,Consumer Defensive,Tobacco,NYSE,New York Stock Exchange
-SCCO,Southern Copper Corporation,77901354617,702790,Basic Materials,Copper,NYSE,New York Stock Exchange
+BTI,British American Tobacco p.l.c.,79521872835,5440325,Consumer Defensive,Tobacco,NYSE,New York Stock Exchange
+SCCO,Southern Copper Corporation,77901406780,702790,Basic Materials,Copper,NYSE,New York Stock Exchange
 EQIX,"Equinix, Inc.",77748561600,365579,Real Estate,REIT - Specialty,NASDAQ,NASDAQ Global Select
 CTAS,Cintas Corporation,76146094850,204370,Industrials,Specialty Business Services,NASDAQ,NASDAQ Global Select
 CMG,"Chipotle Mexican Grill, Inc.",76074614000,10360890,Consumer Cyclical,Restaurants,NYSE,New York Stock Exchange
@@ -189,13 +189,13 @@ FDX,FedEx Corporation,67771817820,1256064,Industrials,Integrated Freight & Logis
 ECL,Ecolab Inc.,67702971720,667098,Basic Materials,Chemicals - Specialty,NYSE,New York Stock Exchange
 PNC,"The PNC Financial Services Group, Inc.",67542520320,553932,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
 SPOT,Spotify Technology S.A.,66486455267,906373,Communication Services,Internet Content & Information,NYSE,New York Stock Exchange
-ORLY,"O'Reilly Automotive, Inc.",66221114981,208686,Consumer Cyclical,Specialty Retail,NASDAQ,NASDAQ Global Select
 PYPL,"PayPal Holdings, Inc.",66165197600,8439010,Financial Services,Financial - Credit Services,NASDAQ,NASDAQ Global Select
 CSX,CSX Corporation,65917160000,7875121,Industrials,Railroads,NASDAQ,NASDAQ Global Select
 USB,U.S. Bancorp,65650655700,5015938,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
 AMOV,"América Móvil, S.A.B. de C.V.",65611497344,1089,Communication Services,Telecommunications Services,NYSE,New York Stock Exchange
-DELL,Dell Technologies Inc.,65461411393,7810177,Technology,Computer Hardware,NYSE,New York Stock Exchange
-PLTR,Palantir Technologies Inc.,63931503400,87324346,Technology,Software - Infrastructure,NYSE,New York Stock Exchange
+DELL,Dell Technologies Inc.,65461414169,7810177,Technology,Computer Hardware,NYSE,New York Stock Exchange
+ORLY,"O'Reilly Automotive, Inc.",65222189137,208686,Consumer Cyclical,Specialty Retail,NASDAQ,NASDAQ Global Select
+PLTR,Palantir Technologies Inc.,64291023200,87324346,Technology,Software - Infrastructure,NYSE,New York Stock Exchange
 RSG,"Republic Services, Inc.",63196762960,771149,Industrials,Waste Management,NYSE,New York Stock Exchange
 PXD,Pioneer Natural Resources Company,63003455657,4426409,Energy,Oil & Gas Exploration & Production,NYSE,New York Stock Exchange
 TGT,Target Corporation,62687313500,2830002,Consumer Defensive,Discount Stores,NYSE,New York Stock Exchange
@@ -208,14 +208,14 @@ NXPI,NXP Semiconductors N.V.,61650480660,1061867,Technology,Semiconductors,NASDA
 VMW,"VMware, Inc.",61521441480,1787198,Technology,Software - Infrastructure,NYSE,New York Stock Exchange
 ITUB,Itaú Unibanco Holding S.A.,61420844892,19494783,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
 MAR,"Marriott International, Inc.",61363568310,1191687,Consumer Cyclical,Travel Lodging,NASDAQ,NASDAQ Global Select
-APO,"Apollo Global Management, Inc.",59574718800,2494420,Financial Services,Asset Management - Global,NYSE,New York Stock Exchange
+APO,"Apollo Global Management, Inc.",59630209800,2494420,Financial Services,Asset Management - Global,NYSE,New York Stock Exchange
 EMR,Emerson Electric Co.,59383263000,3239759,Industrials,Industrial - Machinery,NYSE,New York Stock Exchange
 CEG,Constellation Energy Corporation,59370279417,3074981,Utilities,Renewable Utilities,NASDAQ,NASDAQ Global Select
-NU,Nu Holdings Ltd.,59285499223,36706360,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
+NU,Nu Holdings Ltd.,59285495689,36706360,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
 BMO,Bank of Montreal,59167212640,321200,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
 FCX,Freeport-McMoRan Inc.,58983103000,9180832,Basic Materials,Copper,NYSE,New York Stock Exchange
 MPC,Marathon Petroleum Corporation,58847487720,1914765,Energy,Oil & Gas Refining & Marketing,NYSE,New York Stock Exchange
-CRWD,"CrowdStrike Holdings, Inc.",58625580344,5900817,Technology,Software - Infrastructure,NASDAQ,NASDAQ Global Select
+CRWD,"CrowdStrike Holdings, Inc.",58625577935,5900817,Technology,Software - Infrastructure,NASDAQ,NASDAQ Global Select
 CARR,Carrier Global Corporation,58119173760,2339795,Industrials,Construction,NYSE,New York Stock Exchange
 BNS,The Bank of Nova Scotia,57015160900,916446,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
 AFL,Aflac Incorporated,56680231460,1628596,Financial Services,Insurance - Life,NYSE,New York Stock Exchange
@@ -223,20 +223,20 @@ PSX,Phillips 66,56678428290,2054579,Energy,Oil & Gas Refining & Marketing,NYSE,N
 ROP,"Roper Technologies, Inc.",56470289220,300101,Industrials,Industrial - Machinery,NASDAQ,NASDAQ Global Select
 DHI,"D.R. Horton, Inc.",56395138800,2058454,Consumer Cyclical,Residential Construction,NYSE,New York Stock Exchange
 CRH,CRH plc,56359786227,3513154,Basic Materials,Construction Materials,NYSE,New York Stock Exchange
-WDAY,"Workday, Inc.",56166747881,1988516,Technology,Software - Application,NASDAQ,NASDAQ Global Select
+NTES,"NetEase, Inc.",56257901064,980431,Technology,Electronic Gaming & Multimedia,NASDAQ,NASDAQ Global Select
+WDAY,"Workday, Inc.",56166749152,1988516,Technology,Software - Application,NASDAQ,NASDAQ Global Select
 BBVA,"Banco Bilbao Vizcaya Argentaria, S.A.",56142350400,1289199,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
-TFC,Truist Financial Corporation,55611436000,4020000,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
+TFC,Truist Financial Corporation,55654658400,4020000,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
 PSA,Public Storage,55487706720,428012,Real Estate,REIT - Industrial,NYSE,New York Stock Exchange
 NEM,Newmont Corporation,54784045350,3087901,Basic Materials,Gold,NYSE,New York Stock Exchange
-NTES,"NetEase, Inc.",54484804103,980431,Technology,Electronic Gaming & Multimedia,NASDAQ,NASDAQ Global Select
 NSC,Norfolk Southern Corporation,54177123520,555667,Industrials,Railroads,NYSE,New York Stock Exchange
 ING,ING Groep N.V.,53811084800,1540034,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
+ET,Energy Transfer LP,53592121800,34328768,Energy,Oil & Gas Midstream,NYSE,New York Stock Exchange
 OXY,Occidental Petroleum Corporation,53515066770,6796345,Energy,Oil & Gas Exploration & Production,NYSE,New York Stock Exchange
 AMX,"América Móvil, S.A.B. de C.V.",53416915000,593327,Communication Services,Telecommunications Services,NYSE,New York Stock Exchange
+FTNT,"Fortinet, Inc.",53306438520,6945525,Technology,Software - Infrastructure,NASDAQ,NASDAQ Global Select
 AZO,"AutoZone, Inc.",53302606700,59534,Consumer Cyclical,Specialty Retail,NYSE,New York Stock Exchange
-FTNT,"Fortinet, Inc.",53238839220,6945525,Technology,Software - Infrastructure,NASDAQ,NASDAQ Global Select
 CEO,CNOOC Limited,53212528549,96500,Energy,Oil & Gas Exploration & Production,NYSE,New York Stock Exchange
-ET,Energy Transfer LP,52796280600,34328768,Energy,Oil & Gas Midstream,NYSE,New York Stock Exchange
 O,Realty Income Corporation,52748474760,2643089,Real Estate,REIT - Retail,NYSE,New York Stock Exchange
 WMB,"The Williams Companies, Inc.",52730911800,4549609,Energy,Oil & Gas Midstream,NYSE,New York Stock Exchange
 MRVL,"Marvell Technology, Inc.",52420736000,7690380,Technology,Semiconductors,NASDAQ,NASDAQ Global Select
@@ -256,14 +256,13 @@ DLR,"Digital Realty Trust, Inc.",49150939320,614873,Real Estate,REIT - Office,NY
 MET,"MetLife, Inc.",49113792250,2016909,Financial Services,Insurance - Life,NYSE,New York Stock Exchange
 CPRT,"Copart, Inc.",49067575020,2886353,Consumer Cyclical,Auto - Dealerships,NASDAQ,NASDAQ Global Select
 GM,General Motors Company,48868041600,13897625,Consumer Cyclical,Auto - Manufacturers,NYSE,New York Stock Exchange
+COIN,"Coinbase Global, Inc.",48782717858,5205018,Technology,Software - Application,NASDAQ,NASDAQ Global Select
 PCAR,PACCAR Inc,48679254920,2141173,Industrials,Agricultural - Machinery,NASDAQ,NASDAQ Global Select
 MFG,"Mizuho Financial Group, Inc.",48670398067,1211301,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
-TTD,"The Trade Desk, Inc.",48570322122,13224218,Technology,Software - Application,NASDAQ,NASDAQ Global Market
+TTD,"The Trade Desk, Inc.",48570325399,13224218,Technology,Software - Application,NASDAQ,NASDAQ Global Market
 TRV,"The Travelers Companies, Inc.",48430778880,590013,Financial Services,Insurance - Property & Casualty,NYSE,New York Stock Exchange
 VLO,Valero Energy Corporation,48403161480,1209834,Energy,Oil & Gas Refining & Marketing,NYSE,New York Stock Exchange
-COIN,"Coinbase Global, Inc.",48155732070,5205018,Technology,Software - Application,NASDAQ,NASDAQ Global Select
 CCI,Crown Castle Inc.,48080492880,2017666,Real Estate,REIT - Specialty,NYSE,New York Stock Exchange
-MNST,Monster Beverage Corporation,47982083800,14541337,Consumer Defensive,Beverages - Non-Alcoholic,NASDAQ,NASDAQ Global Select
 GWW,"W.W. Grainger, Inc.",47815496267,130525,Industrials,Industrial - Distribution,NYSE,New York Stock Exchange
 CM,Canadian Imperial Bank of Commerce,47735008310,548830,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
 HMC,"Honda Motor Co., Ltd.",47404490449,909066,Consumer Cyclical,Auto - Manufacturers,NYSE,New York Stock Exchange
@@ -275,12 +274,13 @@ KMI,"Kinder Morgan, Inc.",46722625400,9110084,Energy,Oil & Gas Midstream,NYSE,Ne
 ROST,"Ross Stores, Inc.",46580413000,1020165,Consumer Cyclical,Apparel - Retail,NASDAQ,NASDAQ Global Select
 WCN,"Waste Connections, Inc.",46524070920,655902,Industrials,Waste Management,NYSE,New York Stock Exchange
 AIG,"American International Group, Inc.",46403109060,3541156,Financial Services,Insurance - Diversified,NYSE,New York Stock Exchange
-LEN,Lennar Corporation,46220075628,1257121,Consumer Cyclical,Residential Construction,NYSE,New York Stock Exchange
+LEN,Lennar Corporation,46208484924,1257121,Consumer Cyclical,Residential Construction,NYSE,New York Stock Exchange
 URI,"United Rentals, Inc.",46037199990,288619,Industrials,Rental & Leasing Services,NYSE,New York Stock Exchange
 ALC,Alcon Inc.,45837436000,725635,Healthcare,Medical - Instruments & Supplies,NYSE,New York Stock Exchange
 D,"Dominion Energy, Inc.",45696952860,2899374,Utilities,Regulated Electric,NYSE,New York Stock Exchange
 JCI,Johnson Controls International plc,45191147100,2172254,Industrials,Construction,NYSE,New York Stock Exchange
 ALL,The Allstate Corporation,45158932230,695957,Financial Services,Insurance - Property & Casualty,NYSE,New York Stock Exchange
+MNST,Monster Beverage Corporation,45117796640,14541337,Consumer Defensive,Beverages - Non-Alcoholic,NASDAQ,NASDAQ Global Select
 MFC,Manulife Financial Corporation,45036657600,1402354,Financial Services,Insurance - Life,NYSE,New York Stock Exchange
 TRP,TC Energy Corporation,44923317000,1292894,Energy,Oil & Gas Midstream,NYSE,New York Stock Exchange
 PAYX,"Paychex, Inc.",44821406420,1121552,Industrials,Staffing & Employment Services,NASDAQ,NASDAQ Global Select
@@ -329,7 +329,7 @@ KR,The Kroger Co.,38918970720,2132177,Consumer Defensive,Grocery Stores,NYSE,New
 PCG,PG&E Corporation,38901772000,9847663,Utilities,Regulated Electric,NYSE,New York Stock Exchange
 EA,Electronic Arts Inc.,38731720000,2460753,Technology,Electronic Gaming & Multimedia,NASDAQ,NASDAQ Global Select
 GIS,"General Mills, Inc.",38579051520,1999436,Consumer Defensive,Packaged Foods,NYSE,New York Stock Exchange
-YUM,"Yum! Brands, Inc.",38524441280,1097296,Consumer Cyclical,Restaurants,NYSE,New York Stock Exchange
+YUM,"Yum! Brands, Inc.",38460560350,1097296,Consumer Cyclical,Restaurants,NYSE,New York Stock Exchange
 SQ,"Block, Inc.",38256180424,5495038,Technology,Software - Infrastructure,NYSE,New York Stock Exchange
 PWR,"Quanta Services, Inc.",38249814600,721520,Industrials,Engineering & Construction,NYSE,New York Stock Exchange
 GEHC,GE HealthCare Technologies Inc.,38085632484,1583628,Healthcare,Medical - Healthcare Information Services,NASDAQ,NASDAQ Global Select
@@ -337,7 +337,7 @@ FAST,Fastenal Company,38017967940,1270758,Industrials,Industrial - Distribution,
 HWM,Howmet Aerospace Inc.,37994404230,1960585,Industrials,Industrial - Machinery,NYSE,New York Stock Exchange
 SYY,Sysco Corporation,37662378660,1936345,Consumer Defensive,Food Distribution,NYSE,New York Stock Exchange
 VRSK,"Verisk Analytics, Inc.",37617026880,347524,Industrials,Consulting Services,NASDAQ,NASDAQ Global Select
-DDOG,"Datadog, Inc.",37557525376,4455196,Technology,Software - Application,NASDAQ,NASDAQ Global Select
+DDOG,"Datadog, Inc.",37557525825,4455196,Technology,Software - Application,NASDAQ,NASDAQ Global Select
 EXC,Exelon Corporation,37498740000,6541524,Utilities,Regulated Electric,NASDAQ,NASDAQ Global Select
 OTIS,Otis Worldwide Corporation,37411837000,1273063,Industrials,Industrial - Machinery,NYSE,New York Stock Exchange
 SE,Sea Limited,37251693178,4292754,Consumer Cyclical,Specialty Retail,NYSE,New York Stock Exchange
@@ -348,12 +348,12 @@ AME,"AMETEK, Inc.",36934622720,900350,Industrials,Industrial - Machinery,NYSE,Ne
 DOW,Dow Inc.,36910499860,2592699,Basic Materials,Chemicals,NYSE,New York Stock Exchange
 CTSH,Cognizant Technology Solutions Corporation,36886868360,7282540,Technology,Information Technology Services,NASDAQ,NASDAQ Global Select
 TEAM,Atlassian Corporation,36813966789,1533405,Technology,Software - Application,NASDAQ,NASDAQ Global Select
+JD,"JD.com, Inc.",36429593800,4160160,Consumer Cyclical,Specialty Retail,NASDAQ,NASDAQ Global Select
 IR,Ingersoll Rand Inc.,36099713480,2674850,Industrials,Industrial - Machinery,NYSE,New York Stock Exchange
 NWG,NatWest Group plc,35862943250,1873271,Financial Services,Banks - Diversified,NYSE,New York Stock Exchange
 ABEV,Ambev S.A.,35698531860,11284475,Consumer Defensive,Beverages - Alcoholic,NYSE,New York Stock Exchange
 CTVA,"Corteva, Inc.",35692255320,1182578,Basic Materials,Agricultural Inputs,NYSE,New York Stock Exchange
 FANG,"Diamondback Energy, Inc.",35637769380,1284784,Energy,Oil & Gas Exploration & Production,NASDAQ,NASDAQ Global Select
-JD,"JD.com, Inc.",35419469139,4160160,Consumer Cyclical,Specialty Retail,NASDAQ,NASDAQ Global Select
 ED,"Consolidated Edison, Inc.",34967769940,1512915,Utilities,Regulated Electric,NYSE,New York Stock Exchange
 BKR,Baker Hughes Company,34839379680,6270230,Energy,Oil & Gas Equipment & Services,NASDAQ,NASDAQ Global Select
 EXR,Extra Space Storage Inc.,34839008310,500634,Real Estate,REIT - Industrial,NYSE,New York Stock Exchange
@@ -365,16 +365,16 @@ FLUT,Flutter Entertainment plc,34121088000,1258819,Consumer Cyclical,"Gambling, 
 CCEP,Coca-Cola Europacific Partners PLC,33798596360,991250,Consumer Defensive,Beverages - Non-Alcoholic,NASDAQ,NASDAQ Global Select
 CBRE,"CBRE Group, Inc.",33443879340,858359,Real Estate,Real Estate - Services,NYSE,New York Stock Exchange
 GLW,Corning Incorporated,32901703450,2331421,Technology,"Hardware, Equipment & Parts",NYSE,New York Stock Exchange
-MLM,"Martin Marietta Materials, Inc.",32888128710,666033,Basic Materials,Construction Materials,NYSE,New York Stock Exchange
 HPQ,HP Inc.,32820902400,5556841,Technology,Computer Hardware,NYSE,New York Stock Exchange
 VICI,VICI Properties Inc.,32807836100,3522050,Real Estate,REIT - Diversified,NYSE,New York Stock Exchange
 DD,"DuPont de Nemours, Inc.",32785882350,983308,Basic Materials,Chemicals - Specialty,NYSE,New York Stock Exchange
 MRNA,"Moderna, Inc.",32646752280,2356417,Healthcare,Biotechnology,NASDAQ,NASDAQ Global Select
+MLM,"Martin Marietta Materials, Inc.",32609028705,666033,Basic Materials,Construction Materials,NYSE,New York Stock Exchange
 XEL,Xcel Energy Inc.,32312757960,1687204,Utilities,Regulated Electric,NASDAQ,NASDAQ Global Select
 VMC,Vulcan Materials Company,32267540400,740857,Basic Materials,Construction Materials,NYSE,New York Stock Exchange
 GRMN,Garmin Ltd.,32180467880,416941,Technology,"Hardware, Equipment & Parts",NYSE,New York Stock Exchange
 ARGX,argenx SE,31989824574,457014,Healthcare,Biotechnology,NASDAQ,NASDAQ Global Select
-EL,The Estée Lauder Companies Inc.,31965974181,2951072,Consumer Defensive,Household & Personal Products,NYSE,New York Stock Exchange
+EL,The Estée Lauder Companies Inc.,31965975786,2951072,Consumer Defensive,Household & Personal Products,NYSE,New York Stock Exchange
 BCE,BCE Inc.,31920782170,1258204,Communication Services,Telecommunications Services,NYSE,New York Stock Exchange
 RMD,ResMed Inc.,31818587130,542960,Healthcare,Medical - Instruments & Supplies,NYSE,New York Stock Exchange
 IRM,Iron Mountain Incorporated,31809355840,1212142,Real Estate,REIT - Specialty,NYSE,New York Stock Exchange
@@ -402,13 +402,13 @@ FER,Ferrovial SE,28634829334,21437,Industrials,Industrial - Infrastructure Opera
 LULU,Lululemon Athletica Inc.,28619185920,1288294,Consumer Cyclical,Apparel - Retail,NASDAQ,NASDAQ Global Select
 BRO,"Brown & Brown, Inc.",28617383520,459821,Financial Services,Insurance - Brokers,NYSE,New York Stock Exchange
 CDW,CDW Corporation,28549198480,544217,Technology,Information Technology Services,NASDAQ,NASDAQ Global Select
-FCNCA,"First Citizens BancShares, Inc.",28444623189,67214,Financial Services,Banks - Regional,NASDAQ,NASDAQ Global Select
+FCNCA,"First Citizens BancShares, Inc.",28456541133,67214,Financial Services,Banks - Regional,NASDAQ,NASDAQ Global Select
 HEI,HEICO Corporation,28408831481,275688,Industrials,Aerospace & Defense,NYSE,New York Stock Exchange
 LVS,Las Vegas Sands Corp.,28404182240,5750438,Consumer Cyclical,"Gambling, Resorts & Casinos",NYSE,New York Stock Exchange
 DB,Deutsche Bank Aktiengesellschaft,28300081000,1212924,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
 DVN,Devon Energy Corporation,28128904000,5254393,Energy,Oil & Gas Exploration & Production,NYSE,New York Stock Exchange
 CVNA,Carvana Co.,28127768267,2470972,Consumer Cyclical,Specialty Retail,NYSE,New York Stock Exchange
-TSCO,Tractor Supply Company,28086661200,617804,Consumer Cyclical,Specialty Retail,NASDAQ,NASDAQ Global Select
+TSCO,Tractor Supply Company,28102031880,617804,Consumer Cyclical,Specialty Retail,NASDAQ,NASDAQ Global Select
 DXCM,"DexCom, Inc.",27954715520,3896260,Healthcare,Medical - Devices,NASDAQ,NASDAQ Global Select
 SLF,Sun Life Financial Inc.,27952408680,314095,Financial Services,Insurance - Diversified,NYSE,New York Stock Exchange
 ADM,Archer-Daniels-Midland Company,27942618480,1639949,Consumer Defensive,Agricultural Farm Products,NYSE,New York Stock Exchange
@@ -422,19 +422,19 @@ AXON,"Axon Enterprise, Inc.",27584619500,946873,Industrials,Aerospace & Defense,
 FWONK,Formula One Group,27511790639,1894848,Communication Services,Entertainment,NASDAQ,NASDAQ Global Select
 HAL,Halliburton Company,27367699000,3889778,Energy,Oil & Gas Equipment & Services,NYSE,New York Stock Exchange
 VST,Vistra Corp.,27324254400,5585409,Utilities,Independent Power Producers,NYSE,New York Stock Exchange
-TW,Tradeweb Markets Inc.,27269346928,580388,Financial Services,Financial - Capital Markets,NASDAQ,NASDAQ Global Select
+TW,Tradeweb Markets Inc.,27269347621,580388,Financial Services,Financial - Capital Markets,NASDAQ,NASDAQ Global Select
 ANSS,"ANSYS, Inc.",27190340590,258485,Technology,Software - Application,NASDAQ,NASDAQ Global Select
 WAB,Westinghouse Air Brake Technologies Corporation,27165627810,708833,Industrials,Railroads,NYSE,New York Stock Exchange
+MTB-PJ,M&T Bank Corporation,27094396058,110413,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
 MTB,M&T Bank Corporation,27092572230,355644,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
-MTB-PJ,M&T Bank Corporation,27084375726,110413,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
 EQR,Equity Residential,27051353600,1206076,Real Estate,REIT - Residential,NYSE,New York Stock Exchange
 TCOM,Trip.com Group Limited,26974460387,2120429,Consumer Cyclical,Travel Services,NASDAQ,NASDAQ Global Select
 PHG,Koninklijke Philips N.V.,26874536884,1765092,Healthcare,Medical - Devices,NYSE,New York Stock Exchange
 FITB,Fifth Third Bancorp,26835001050,2900274,Financial Services,Banks - Regional,NASDAQ,NASDAQ Global Select
 VRT,Vertiv Holdings Co,26808076080,5613868,Industrials,Electrical Equipment & Parts,NYSE,New York Stock Exchange
+NET,"Cloudflare, Inc.",26568398101,1914395,Technology,Software - Infrastructure,NYSE,New York Stock Exchange
 SPLK,Splunk Inc.,26443770355,18211874,Technology,Software - Infrastructure,NASDAQ,NASDAQ Global Select
 BBD,Banco Bradesco S.A.,26373919171,36132652,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
-NET,"Cloudflare, Inc.",26367487833,1914395,Technology,Software - Infrastructure,NYSE,New York Stock Exchange
 ZS,"Zscaler, Inc.",26354339640,887872,Technology,Software - Infrastructure,NASDAQ,NASDAQ Global Select
 IX,ORIX Corporation,26336553214,24526,Financial Services,Financial - Credit Services,NYSE,New York Stock Exchange
 STM,STMicroelectronics N.V.,26242128860,2288890,Technology,Semiconductors,NYSE,New York Stock Exchange
@@ -456,16 +456,16 @@ CHD,"Church & Dwight Co., Inc.",25032333750,1451047,Consumer Defensive,Household
 BR,"Broadridge Financial Solutions, Inc.",25030579230,392707,Technology,Information Technology Services,NYSE,New York Stock Exchange
 GFLU,GFL Environmental Inc.,24980306392,1299145,Industrials,Waste Management,NYSE,New York Stock Exchange
 TEF,"Telefónica, S.A.",24917940308,270771,Communication Services,Telecommunications Services,NYSE,New York Stock Exchange
+DTG,DTE Energy Company 2021 Series ,24823778614,16397,Utilities,Regulated Electric,NYSE,New York Stock Exchange
+DTB,DTE Energy Company 2020 Series ,24823778612,2588,Utilities,Regulated Electric,NYSE,New York Stock Exchange
+DTW,DTE Energy Company JR SUB DB 2017 E,24823778610,22748,Utilities,Regulated Electric,NYSE,New York Stock Exchange
 DTE,DTE Energy Company,24823768200,427916,Utilities,Regulated Electric,NYSE,New York Stock Exchange
-DTB,DTE Energy Company 2020 Series ,24819637330,2588,Utilities,Regulated Electric,NYSE,New York Stock Exchange
-DTW,DTE Energy Company JR SUB DB 2017 E,24819637328,22748,Utilities,Regulated Electric,NYSE,New York Stock Exchange
-DTG,DTE Energy Company 2021 Series ,24819637316,16397,Utilities,Regulated Electric,NYSE,New York Stock Exchange
 IFF,International Flavors & Fragrances Inc.,24596952390,1583185,Basic Materials,Chemicals - Specialty,NYSE,New York Stock Exchange
 TYL,"Tyler Technologies, Inc.",24546617221,95036,Technology,Software - Application,NYSE,New York Stock Exchange
 VTR,"Ventas, Inc.",24528952980,2084608,Real Estate,REIT - Healthcare Facilities,NYSE,New York Stock Exchange
 CAH,"Cardinal Health, Inc.",24519889890,943103,Healthcare,Medical - Distribution,NYSE,New York Stock Exchange
 TU,TELUS Corporation,24461340000,859108,Communication Services,Telecommunications Services,NYSE,New York Stock Exchange
-OWL,Blue Owl Capital Inc.,24317253418,3709432,Financial Services,Asset Management,NYSE,New York Stock Exchange
+OWL,Blue Owl Capital Inc.,24317254529,3709432,Financial Services,Asset Management,NYSE,New York Stock Exchange
 GFS,GLOBALFOUNDRIES Inc.,24270024373,1015484,Technology,Semiconductors,NASDAQ,NASDAQ Global Select
 HUBS,"HubSpot, Inc.",24267956368,595648,Technology,Software - Application,NYSE,New York Stock Exchange
 DOV,Dover Corporation,24224223340,519016,Industrials,Industrial - Machinery,NYSE,New York Stock Exchange
@@ -473,18 +473,19 @@ FE,FirstEnergy Corp.,24171446340,2887169,Utilities,Regulated Electric,NYSE,New Y
 FTV,Fortive Corporation,24131556960,1231549,Technology,"Hardware, Equipment & Parts",NYSE,New York Stock Exchange
 FMX,"Fomento Económico Mexicano, S.A.B. de C.V.",24023967900,517670,Consumer Defensive,Beverages - Alcoholic,NYSE,New York Stock Exchange
 RBLX,Roblox Corporation,23959344259,4033808,Technology,Electronic Gaming & Multimedia,NYSE,New York Stock Exchange
-GIB,CGI Inc.,23790587186,184983,Technology,Information Technology Services,NYSE,New York Stock Exchange
+GIB,CGI Inc.,23790584943,184983,Technology,Information Technology Services,NYSE,New York Stock Exchange
 MSTR,MicroStrategy Incorporated,23646431600,7206393,Technology,Software - Application,NASDAQ,NASDAQ Global Select
 TROW,"T. Rowe Price Group, Inc.",23450699300,682633,Financial Services,Asset Management,NASDAQ,NASDAQ Global Select
 STT,State Street Corporation,23355070200,785981,Financial Services,Asset Management,NYSE,New York Stock Exchange
-STE,STERIS plc,23327378136,318761,Healthcare,Medical - Devices,NYSE,New York Stock Exchange
 FNV,Franco-Nevada Corporation,23290300770,283122,Basic Materials,Gold,NYSE,New York Stock Exchange
+STE,STERIS plc,23271568866,318761,Healthcare,Medical - Devices,NYSE,New York Stock Exchange
 TECK,Teck Resources Limited,23249920000,2140474,Basic Materials,Industrial Materials,NYSE,New York Stock Exchange
 ES,Eversource Energy,23197860350,2323567,Utilities,Regulated Electric,NYSE,New York Stock Exchange
 ROL,"Rollins, Inc.",23145366060,1512735,Consumer Cyclical,Personal Products & Services,NYSE,New York Stock Exchange
 KB,KB Financial Group Inc.,23107447769,81970,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
 KSPI,Joint Stock Company Kaspi.kz,23100346060,134044,Technology,Software - Infrastructure,NASDAQ,Nasdaq
 SBAC,SBA Communications Corporation,22881863520,726168,Real Estate,REIT - Specialty,NASDAQ,NASDAQ Global Select
+TME,Tencent Music Entertainment Group,22803374366,9458108,Communication Services,Internet Content & Information,NYSE,New York Stock Exchange
 NTR,Nutrien Ltd.,22723210320,2297194,Basic Materials,Agricultural Inputs,NYSE,New York Stock Exchange
 RJF,"Raymond James Financial, Inc.",22690799740,704702,Financial Services,Financial - Capital Markets,NYSE,New York Stock Exchange
 FSLR,"First Solar, Inc.",22672554600,794660,Energy,Solar,NASDAQ,NASDAQ Global Select
@@ -495,27 +496,26 @@ PBA,Pembina Pipeline Corporation,22422093080,1027006,Energy,Oil & Gas Midstream,
 WY,Weyerhaeuser Company,22314024200,3567461,Real Estate,REIT - Specialty,NYSE,New York Stock Exchange
 QSR,Restaurant Brands International Inc.,22308094820,1343706,Consumer Cyclical,Restaurants,NYSE,New York Stock Exchange
 GDDY,GoDaddy Inc.,22207476690,524392,Technology,Software - Infrastructure,NYSE,New York Stock Exchange
-ERIC,Telefonaktiebolaget LM Ericsson (publ),22161963873,20095147,Technology,Communication Equipment,NASDAQ,NASDAQ Global Select
+ERIC,Telefonaktiebolaget LM Ericsson (publ),22197642285,20095147,Technology,Communication Equipment,NASDAQ,NASDAQ Global Select
 PUK,Prudential plc,22117793750,1041717,Financial Services,Insurance - Life,NYSE,New York Stock Exchange
-TME,Tencent Music Entertainment Group,22102058403,9458108,Communication Services,Internet Content & Information,NYSE,New York Stock Exchange
 ZBH,"Zimmer Biomet Holdings, Inc.",22010708160,1174630,Healthcare,Medical - Devices,NYSE,New York Stock Exchange
 CAJ,Canon Inc.,21965481646,933985,Technology,Computer Hardware,NYSE,New York Stock Exchange
 INVH,Invitation Homes Inc.,21863479860,2214984,Real Estate,REIT - Residential,NYSE,New York Stock Exchange
 FLT,"FLEETCOR Technologies, Inc.",21790322736,334906,Technology,Software - Infrastructure,NYSE,New York Stock Exchange
 WRB,W. R. Berkley Corporation,21740878630,1322401,Financial Services,Insurance - Property & Casualty,NYSE,New York Stock Exchange
 EC,Ecopetrol S.A.,21524592450,1217885,Energy,Oil & Gas Integrated,NYSE,New York Stock Exchange
-TSN,"Tyson Foods, Inc.",21519247993,1391507,Consumer Defensive,Agricultural Farm Products,NYSE,New York Stock Exchange
+TSN,"Tyson Foods, Inc.",21519247130,1391507,Consumer Defensive,Agricultural Farm Products,NYSE,New York Stock Exchange
 KEYS,"Keysight Technologies, Inc.",21445606930,1749342,Technology,"Hardware, Equipment & Parts",NYSE,New York Stock Exchange
 AEE,Ameren Corporation,21428073270,629551,Utilities,Regulated Electric,NYSE,New York Stock Exchange
+RCI,Rogers Communications Inc.,21378222762,512307,Communication Services,Telecommunications Services,NYSE,New York Stock Exchange
 FTS,Fortis Inc.,21273792000,545595,Utilities,Regulated Electric,NYSE,New York Stock Exchange
-RCI,Rogers Communications Inc.,21271539247,512307,Communication Services,Telecommunications Services,NYSE,New York Stock Exchange
 LYV,"Live Nation Entertainment, Inc.",21230805420,1072135,Communication Services,Entertainment,NYSE,New York Stock Exchange
 UMC,United Microelectronics Corporation,21148276800,13739776,Technology,Semiconductors,NYSE,New York Stock Exchange
-BF-B,Brown-Forman Corporation,21144677736,1005897,Consumer Defensive,Beverages - Wineries & Distilleries,NYSE,New York Stock Exchange
+BF-B,Brown-Forman Corporation,21100368006,1005897,Consumer Defensive,Beverages - Wineries & Distilleries,NYSE,New York Stock Exchange
 IOT,Samsara Inc.,21057319115,2225419,Technology,Software - Infrastructure,NYSE,New York Stock Exchange
 NOK,Nokia Oyj,20947336638,7551534,Technology,Communication Equipment,NYSE,New York Stock Exchange
 WST,"West Pharmaceutical Services, Inc.",20881099560,747251,Healthcare,Medical - Instruments & Supplies,NYSE,New York Stock Exchange
-MKC,"McCormick & Company, Incorporated",20844813783,1158554,Consumer Defensive,Packaged Foods,NYSE,New York Stock Exchange
+MKC,"McCormick & Company, Incorporated",20856664158,1158554,Consumer Defensive,Packaged Foods,NYSE,New York Stock Exchange
 PTC,PTC Inc.,20801375250,723355,Technology,Software - Application,NASDAQ,NASDAQ Global Select
 ERIE,Erie Indemnity Company,20782785545,31146,Financial Services,Insurance - Brokers,NASDAQ,NASDAQ Global Select
 CHKP,Check Point Software Technologies Ltd.,20467290000,550160,Technology,Software - Infrastructure,NASDAQ,NASDAQ Global Select
@@ -523,12 +523,13 @@ DLTR,"Dollar Tree, Inc.",20430427200,1647569,Consumer Defensive,Discount Stores,
 SHG,"Shinhan Financial Group Co., Ltd.",20283776323,104990,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
 HUBB,Hubbell Incorporated,20237699300,414486,Industrials,Electrical Equipment & Parts,NYSE,New York Stock Exchange
 STX,Seagate Technology Holdings plc,20237574600,1440251,Technology,Computer Hardware,NASDAQ,NASDAQ Global Select
-SW,Smurfit WestRock plc,20170551468,3057176,,,NYSE,New York Stock Exchange
+SW,Smurfit WestRock plc,20170550299,3057176,,,NYSE,New York Stock Exchange
 ASX,"ASE Technology Holding Co., Ltd.",20096747545,8757107,Technology,Semiconductors,NYSE,New York Stock Exchange
 LII,Lennox International Inc.,20052377093,150119,Industrials,Construction,NYSE,New York Stock Exchange
 CINF,Cincinnati Financial Corporation,20026843200,239198,Financial Services,Insurance - Property & Casualty,NASDAQ,NASDAQ Global Select
+BGNE,"BeiGene, Ltd.",20024911037,314903,Healthcare,Biotechnology,NASDAQ,NASDAQ Global Select
+LI,Li Auto Inc.,19969056604,2514050,Consumer Cyclical,Auto - Manufacturers,NASDAQ,NASDAQ Global Select
 CPAY,"Corpay, Inc.",19959064740,416286,Technology,Software - Infrastructure,NYSE,New York Stock Exchange
-BGNE,"BeiGene, Ltd.",19927978788,314903,Healthcare,Biotechnology,NASDAQ,NASDAQ Global Select
 PINS,"Pinterest, Inc.",19892815285,6692499,Communication Services,Internet Content & Information,NYSE,New York Stock Exchange
 ARE,"Alexandria Real Estate Equities, Inc.",19880339900,442563,Real Estate,REIT - Office,NYSE,New York Stock Exchange
 ATO,Atmos Energy Corporation,19877585650,674460,Utilities,Regulated Gas,NYSE,New York Stock Exchange
@@ -554,17 +555,17 @@ WSO,"Watsco, Inc.",19018186592,158921,Industrials,Industrial - Distribution,NYSE
 LH,Laboratory Corporation of America Holdings,19014328918,515293,Healthcare,Medical - Diagnostics & Research,NYSE,New York Stock Exchange
 RF,Regions Financial Corporation,18970541250,4538598,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
 BAX,Baxter International Inc.,18953112700,3892749,Healthcare,Medical - Instruments & Supplies,NYSE,New York Stock Exchange
-LI,Li Auto Inc.,18937491072,2514050,Consumer Cyclical,Auto - Manufacturers,NASDAQ,NASDAQ Global Select
 BALL,Ball Corporation,18912099500,1605185,Consumer Cyclical,Packaging & Containers,NYSE,New York Stock Exchange
 TPL,Texas Pacific Land Corporation,18903152142,59893,Energy,Oil & Gas Exploration & Production,NYSE,New York Stock Exchange
 WLK,Westlake Corporation,18769934300,260589,Basic Materials,Chemicals - Specialty,NYSE,New York Stock Exchange
-STLD,"Steel Dynamics, Inc.",18766394190,767184,Basic Materials,Steel,NASDAQ,NASDAQ Global Select
 COO,"The Cooper Companies, Inc.",18544045600,508070,Healthcare,Medical - Instruments & Supplies,NASDAQ,NASDAQ Global Select
 CCL,Carnival Corporation & plc,18526540637,20990517,Consumer Cyclical,Travel Services,NYSE,New York Stock Exchange
 RYAAY,Ryanair Holdings plc,18450393356,1081604,Industrials,"Airlines, Airports & Air Services",NASDAQ,NASDAQ Global Select
 PSTG,"Pure Storage, Inc.",18434263120,2247881,Technology,Computer Hardware,NYSE,New York Stock Exchange
+STLD,"Steel Dynamics, Inc.",18428407290,767184,Basic Materials,Steel,NASDAQ,NASDAQ Global Select
 SYF,Synchrony Financial,18405721390,2194637,Financial Services,Financial - Credit Services,NYSE,New York Stock Exchange
 OMC,Omnicom Group Inc.,18257964680,755963,Communication Services,Advertising Agencies,NYSE,New York Stock Exchange
+PKX,POSCO Holdings Inc.,18152616585,70531,Basic Materials,Steel,NYSE,New York Stock Exchange
 ESS,"Essex Property Trust, Inc.",18150547256,270884,Real Estate,REIT - Residential,NYSE,New York Stock Exchange
 WSM,"Williams-Sonoma, Inc.",18133569840,1041749,Consumer Cyclical,Specialty Retail,NYSE,New York Stock Exchange
 BLDR,"Builders FirstSource, Inc.",18109761540,1021927,Industrials,Construction,NYSE,New York Stock Exchange
@@ -574,15 +575,13 @@ CSL,Carlisle Companies Incorporated,17949181635,194162,Industrials,Construction,
 MAA,"Mid-America Apartment Communities, Inc.",17894299980,626240,Real Estate,REIT - Residential,NYSE,New York Stock Exchange
 J,Jacobs Engineering Group Inc.,17829588000,1008812,Industrials,Engineering & Construction,NYSE,New York Stock Exchange
 CTRA,Coterra Energy Inc.,17816527500,5139138,Energy,Oil & Gas Exploration & Production,NYSE,New York Stock Exchange
-CLX,The Clorox Company,17762609640,1100965,Consumer Defensive,Household & Personal Products,NYSE,New York Stock Exchange
 CFG,"Citizens Financial Group, Inc.",17748197000,3250220,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
-FOXA,Fox Corporation,17741199991,2564880,Communication Services,Entertainment,NASDAQ,NASDAQ Global Select
+CLX,The Clorox Company,17715981860,1100965,Consumer Defensive,Household & Personal Products,NYSE,New York Stock Exchange
+FOXA,Fox Corporation,17713400210,2564880,Communication Services,Entertainment,NASDAQ,NASDAQ Global Select
 TLK,Perusahaan Perseroan (Persero) PT Telekomunikasi Indonesia Tbk,17682602700,325551,Communication Services,Telecommunications Services,NYSE,New York Stock Exchange
-BAM,Brookfield Asset Management Inc.,17593997447,450770,Financial Services,Asset Management,NYSE,New York Stock Exchange
 HRL,Hormel Foods Corporation,17562209150,1349895,Consumer Defensive,Packaged Foods,NYSE,New York Stock Exchange
-PKX,POSCO Holdings Inc.,17517823689,70531,Basic Materials,Steel,NYSE,New York Stock Exchange
-ZM,"Zoom Video Communications, Inc.",17435455745,1716134,Technology,Software - Application,NASDAQ,NASDAQ Global Select
-PKG,Packaging Corporation of America,17427097860,300508,Consumer Cyclical,Packaging & Containers,NYSE,New York Stock Exchange
+ZM,"Zoom Video Communications, Inc.",17435456365,1716134,Technology,Software - Application,NASDAQ,NASDAQ Global Select
+PKG,Packaging Corporation of America,17429776026,300508,Consumer Cyclical,Packaging & Containers,NYSE,New York Stock Exchange
 SSNC,"SS&C Technologies Holdings, Inc.",17346285600,882018,Technology,Software - Application,NASDAQ,NASDAQ Global Select
 AQNB,Algonquin Power & Utilities Cor,17342604462,40218,Utilities,Regulated Electric,NYSE,New York Stock Exchange
 PFG,"Principal Financial Group, Inc.",17317851520,828645,Financial Services,Insurance - Diversified,NASDAQ,NASDAQ Global Select
@@ -598,22 +597,23 @@ VRSN,"VeriSign, Inc.",17080976000,453000,Technology,Software - Infrastructure,NA
 CNP,"CenterPoint Energy, Inc.",16992866490,7548503,Utilities,Regulated Electric,NYSE,New York Stock Exchange
 ILMNV,"Illumina, Inc. Common Stock Ex-distribution When-Issued",16989388203,20,,,NASDAQ,Nasdaq
 AVTR,"Avantor, Inc.",16985802400,2887790,Basic Materials,Chemicals - Specialty,NYSE,New York Stock Exchange
-DKS,"DICK'S Sporting Goods, Inc.",16879132443,749660,Consumer Cyclical,Specialty Retail,NYSE,New York Stock Exchange
+DKS,"DICK'S Sporting Goods, Inc.",16879132858,749660,Consumer Cyclical,Specialty Retail,NYSE,New York Stock Exchange
 BMRN,BioMarin Pharmaceutical Inc.,16875549120,1311041,Healthcare,Biotechnology,NASDAQ,NASDAQ Global Select
-EXPD,"Expeditors International of Washington, Inc.",16820288160,966915,Industrials,Integrated Freight & Logistics,NYSE,New York Stock Exchange
+EXPD,"Expeditors International of Washington, Inc.",16805522240,966915,Industrials,Integrated Freight & Logistics,NYSE,New York Stock Exchange
 TPG,TPG Inc.,16803875519,783935,Financial Services,Asset Management,NASDAQ,NASDAQ Global Select
 GMAB,Genmab A/S,16774039749,477953,Healthcare,Biotechnology,NASDAQ,NASDAQ Global Select
-NRG,"NRG Energy, Inc.",16738538040,3383104,Utilities,Independent Power Producers,NYSE,New York Stock Exchange
 AVY,Avery Dennison Corporation,16736679340,186971,Industrials,Business Equipment & Supplies,NYSE,New York Stock Exchange
 EBR,Centrais Elétricas Brasileiras S.A. - Eletrobrás,16719688787,764835,Utilities,Regulated Electric,NYSE,New York Stock Exchange
 EBR-B,Centrais Elétricas Brasileiras S.A. - Eletrobrás,16719688785,15717,Utilities,Regulated Electric,NYSE,New York Stock Exchange
+BAM,Brookfield Asset Management Inc.,16640050263,450770,Financial Services,Asset Management,NYSE,New York Stock Exchange
 JBHT,"J.B. Hunt Transport Services, Inc.",16633059830,660225,Industrials,Integrated Freight & Logistics,NASDAQ,NASDAQ Global Select
 DGX,Quest Diagnostics Incorporated,16620741270,511759,Healthcare,Medical - Diagnostics & Research,NYSE,New York Stock Exchange
 EME,"EMCOR Group, Inc.",16599303198,210095,Industrials,Engineering & Construction,NYSE,New York Stock Exchange
+NRG,"NRG Energy, Inc.",16570250200,3383104,Utilities,Independent Power Producers,NYSE,New York Stock Exchange
 EXPE,"Expedia Group, Inc.",16504379470,5977868,Consumer Cyclical,Travel Services,NASDAQ,NASDAQ Global Select
 ZBRA,Zebra Technologies Corporation,16503148980,262879,Technology,Communication Equipment,NASDAQ,NASDAQ Global Select
+TS,Tenaris S.A.,16418759792,1949089,Energy,Oil & Gas Equipment & Services,NYSE,New York Stock Exchange
 TRU,TransUnion,16418350000,1473646,Industrials,Consulting Services,NYSE,New York Stock Exchange
-TS,Tenaris S.A.,16380097442,1949089,Energy,Oil & Gas Equipment & Services,NYSE,New York Stock Exchange
 BEKE,KE Holdings Inc.,16352283790,6143473,Real Estate,Real Estate - Services,NYSE,New York Stock Exchange
 SWKS,"Skyworks Solutions, Inc.",16295823480,1144476,Technology,Semiconductors,NASDAQ,NASDAQ Global Select
 SUI,"Sun Communities, Inc.",16266941600,604925,Real Estate,REIT - Residential,NYSE,New York Stock Exchange
@@ -622,10 +622,10 @@ BURL,"Burlington Stores, Inc.",16070748540,650803,Consumer Cyclical,Apparel - Re
 ALGN,"Align Technology, Inc.",16053900732,678554,Healthcare,Medical - Devices,NASDAQ,NASDAQ Global Select
 TXT,Textron Inc.,15950212190,554610,Industrials,Aerospace & Defense,NYSE,New York Stock Exchange
 CEA,China Eastern Airlines Corporation Limited,15930426353,17065,Industrials,"Airlines, Airports & Air Services",NYSE,New York Stock Exchange
+ZTO,ZTO Express (Cayman) Inc.,15919941173,1017428,Industrials,Integrated Freight & Logistics,NYSE,New York Stock Exchange
 MAS,Masco Corporation,15809957560,708059,Industrials,Construction,NYSE,New York Stock Exchange
-ZTO,ZTO Express (Cayman) Inc.,15787274699,1017428,Industrials,Integrated Freight & Logistics,NYSE,New York Stock Exchange
 EG,"Everest Group, Ltd.",15773190750,280668,Financial Services,Insurance - Reinsurance,NYSE,New York Stock Exchange
-HOOD,"Robinhood Markets, Inc.",15731099884,17009195,Technology,Software - Infrastructure,NASDAQ,NASDAQ Global Select
+HOOD,"Robinhood Markets, Inc.",15731100367,17009195,Technology,Software - Infrastructure,NASDAQ,NASDAQ Global Select
 ENTG,"Entegris, Inc.",15691143540,1267868,Technology,Semiconductors,NASDAQ,NASDAQ Global Select
 RS,Reliance Steel & Aluminum Co.,15559483710,282346,Basic Materials,Steel,NYSE,New York Stock Exchange
 CRBG,"Corebridge Financial, Inc.",15546274510,2507810,Financial Services,Asset Management,NYSE,New York Stock Exchange
@@ -643,7 +643,7 @@ LUV,Southwest Airlines Co.,15176646810,5854490,Industrials,"Airlines, Airports &
 YNDX,Yandex N.V.,15135950282,1,Communication Services,Internet Content & Information,NASDAQ,NASDAQ Global Select
 VIV,Telefônica Brasil S.A.,15135397384,565365,Communication Services,Telecommunications Services,NYSE,New York Stock Exchange
 DOC,"Healthpeak Properties, Inc.",15125664330,2727920,Real Estate,REIT - Healthcare Facilities,NYSE,New York Stock Exchange
-NWSA,News Corporation,15061400738,5103144,Communication Services,Entertainment,NASDAQ,NASDAQ Global Select
+NWSA,News Corporation,15060568455,5103144,Communication Services,Entertainment,NASDAQ,NASDAQ Global Select
 WES,"Western Midstream Partners, LP",15059873360,1449352,Energy,Oil & Gas Midstream,NYSE,New York Stock Exchange
 FNF,"Fidelity National Financial, Inc.",15023892400,486101,Financial Services,Insurance - Specialty,NYSE,New York Stock Exchange
 IHG,InterContinental Hotels Group PLC,14964467379,321240,Consumer Cyclical,Travel Lodging,NYSE,New York Stock Exchange
@@ -656,20 +656,20 @@ DKNG,DraftKings Inc.,14730980200,8485875,Consumer Cyclical,"Gambling, Resorts & 
 KIM,Kimco Realty Corporation,14722606080,1523528,Real Estate,REIT - Retail,NYSE,New York Stock Exchange
 IEX,IDEX Corporation,14712198756,338170,Industrials,Industrial - Machinery,NYSE,New York Stock Exchange
 UTHR,United Therapeutics Corporation,14693663712,261499,Healthcare,Biotechnology,NASDAQ,NASDAQ Global Select
-WMG,Warner Music Group Corp.,14677674740,1086183,Communication Services,Entertainment,NASDAQ,NASDAQ Global Select
+WMG,Warner Music Group Corp.,14677827237,1086183,Communication Services,Entertainment,NASDAQ,NASDAQ Global Select
 LPLA,LPL Financial Holdings Inc.,14670723867,691630,Financial Services,Financial - Capital Markets,NASDAQ,NASDAQ Global Select
 CPB,Campbell Soup Company,14667958020,1883757,Consumer Defensive,Packaged Foods,NYSE,New York Stock Exchange
 RVTY,"Revvity, Inc.",14646268750,512684,Healthcare,Medical - Diagnostics & Research,NYSE,New York Stock Exchange
+BSY,"Bentley Systems, Incorporated",14618400799,1022688,Technology,Software - Application,NASDAQ,NASDAQ Global Select
 ENPH,"Enphase Energy, Inc.",14606616920,2402797,Energy,Solar,NASDAQ,NASDAQ Global Market
 SWK,"Stanley Black & Decker, Inc.",14589154840,658237,Industrials,Manufacturing - Tools & Accessories,NYSE,New York Stock Exchange
-CF,"CF Industries Holdings, Inc.",14584175780,1554091,Basic Materials,Agricultural Inputs,NYSE,New York Stock Exchange
 RBA,Ritchie Bros. Auctioneers Incorporated,14545010760,632149,Industrials,Specialty Business Services,NYSE,New York Stock Exchange
 OKTA,"Okta, Inc.",14543442000,2034138,Technology,Software - Infrastructure,NASDAQ,NASDAQ Global Select
-BSY,"Bentley Systems, Incorporated",14514010257,1022688,Technology,Software - Application,NASDAQ,NASDAQ Global Select
-VIK,Viking Holdings Ltd,14463033453,978021,Consumer Cyclical,Travel Services,NYSE,New York Stock Exchange
+VIK,Viking Holdings Ltd,14463033251,978021,Consumer Cyclical,Travel Services,NYSE,New York Stock Exchange
+CAG,"Conagra Brands, Inc.",14443357500,2134215,Consumer Defensive,Packaged Foods,NYSE,New York Stock Exchange
 GFL,GFL Environmental Inc.,14432207820,2803047,Industrials,Waste Management,NYSE,New York Stock Exchange
-CAG,"Conagra Brands, Inc.",14418001350,2134215,Consumer Defensive,Packaged Foods,NYSE,New York Stock Exchange
 CNHI,CNH Industrial N.V.,14398145267,6638056,Industrials,Agricultural - Machinery,NYSE,New York Stock Exchange
+CF,"CF Industries Holdings, Inc.",14395073480,1554091,Basic Materials,Agricultural Inputs,NYSE,New York Stock Exchange
 SNA,Snap-on Incorporated,14392386813,133527,Industrials,Manufacturing - Tools & Accessories,NYSE,New York Stock Exchange
 LNT,Alliant Energy Corporation,14381955000,1160917,Utilities,Regulated Electric,NASDAQ,NASDAQ Global Select
 THC,Tenet Healthcare Corporation,14379049320,651947,Healthcare,Medical - Care Facilities,NYSE,New York Stock Exchange
@@ -679,8 +679,8 @@ CG,The Carlyle Group Inc.,14098195000,2031072,Financial Services,Asset Managemen
 JHX,James Hardie Industries plc,14098000605,153644,Basic Materials,Construction Materials,NYSE,New York Stock Exchange
 NTRA,"Natera, Inc.",14069539710,3510767,Healthcare,Medical - Diagnostics & Research,NASDAQ,NASDAQ Global Select
 NI,NiSource Inc.,14060788500,4434601,Utilities,Regulated Gas,NYSE,New York Stock Exchange
+VTRS,Viatris Inc.,14059665600,8004368,Healthcare,Drug Manufacturers - Specialty & Generic,NASDAQ,NASDAQ Global Select
 AMH,American Homes 4 Rent,14027225760,1393263,Real Estate,REIT - Residential,NYSE,New York Stock Exchange
-VTRS,Viatris Inc.,14026210400,8004368,Healthcare,Drug Manufacturers - Specialty & Generic,NASDAQ,NASDAQ Global Select
 RDY,Dr. Reddy's Laboratories Limited,13980378946,108914,Healthcare,Drug Manufacturers - Specialty & Generic,NYSE,New York Stock Exchange
 MMP,"Magellan Midstream Partners, L.P.",13944624000,31030562,Energy,Oil & Gas Midstream,NYSE,New York Stock Exchange
 CASY,"Casey's General Stores, Inc.",13907905740,147339,Consumer Cyclical,Specialty Retail,NASDAQ,NASDAQ Global Select
@@ -707,12 +707,11 @@ POOL,Pool Corporation,13360041259,228958,Industrials,Industrial - Distribution,N
 AQNU,Algonquin Power & Utilities Corp.,13338805059,3046555,Utilities,Renewable Utilities,NYSE,New York Stock Exchange
 CNA,CNA Financial Corporation,13314297760,266283,Financial Services,Insurance - Property & Casualty,NYSE,New York Stock Exchange
 WRK,WestRock Company,13303641818,11862013,Consumer Cyclical,Packaging & Containers,NYSE,New York Stock Exchange
-PR,Permian Resources Corporation,13195999727,7650923,Energy,Oil & Gas Exploration & Production,NYSE,New York Stock Exchange
 LOGI,Logitech International S.A.,13177824040,484527,Technology,Computer Hardware,NASDAQ,NASDAQ Global Select
 BAP,Credicorp Ltd.,13174658015,205561,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
 XPO,"XPO Logistics, Inc.",13167540090,1072025,Industrials,Integrated Freight & Logistics,NYSE,New York Stock Exchange
 YUMC,"Yum China Holdings, Inc.",13124101320,1916773,Consumer Cyclical,Restaurants,NYSE,New York Stock Exchange
-TOST,"Toast, Inc.",13114649764,4623258,Technology,Software - Infrastructure,NYSE,New York Stock Exchange
+TOST,"Toast, Inc.",13114649527,4623258,Technology,Software - Infrastructure,NYSE,New York Stock Exchange
 TOL,"Toll Brothers, Inc.",13096087000,901907,Consumer Cyclical,Residential Construction,NYSE,New York Stock Exchange
 MORN,"Morningstar, Inc.",13085937689,58760,Financial Services,Financial - Data & Stock Exchanges,NASDAQ,NASDAQ Global Select
 SNN,Smith & Nephew plc,13022573250,474048,Healthcare,Medical - Devices,NYSE,New York Stock Exchange
@@ -720,14 +719,14 @@ ACM,AECOM,12948190860,2437311,Industrials,Engineering & Construction,NYSE,New Yo
 ARCC,Ares Capital Corporation,12922933500,2093429,Financial Services,Asset Management,NASDAQ,NASDAQ Global Market
 ONON,On Holding AG,12845472230,5304251,Consumer Cyclical,Apparel - Retail,NYSE,New York Stock Exchange
 UHS,"Universal Health Services, Inc.",12843813072,502459,Healthcare,Medical - Care Facilities,NYSE,New York Stock Exchange
-USFD,US Foods Holding Corp.,12792460010,2465327,Consumer Defensive,Food Distribution,NYSE,New York Stock Exchange
 REG,Regency Centers Corporation,12779203770,762164,Real Estate,REIT - Retail,NASDAQ,NASDAQ Global Select
 PODD,Insulet Corporation,12760496505,2105710,Healthcare,Medical - Devices,NASDAQ,NASDAQ Global Select
 CPT,Camden Property Trust,12724754550,458763,Real Estate,REIT - Residential,NYSE,New York Stock Exchange
+USFD,US Foods Holding Corp.,12724352740,2465327,Consumer Defensive,Food Distribution,NYSE,New York Stock Exchange
 SUZ,Suzano S.A.,12719260074,4583188,Basic Materials,"Paper, Lumber & Forest Products",NYSE,New York Stock Exchange
 JNPR,"Juniper Networks, Inc.",12695816910,1587146,Technology,Communication Equipment,NYSE,New York Stock Exchange
 IBKR,"Interactive Brokers Group, Inc.",12684835800,499695,Financial Services,Financial - Capital Markets,NASDAQ,NASDAQ Global Select
-UHAL,U-Haul Holding Company,12661109958,78158,Industrials,Rental & Leasing Services,NYSE,New York Stock Exchange
+UHAL,U-Haul Holding Company,12650748201,78158,Industrials,Rental & Leasing Services,NYSE,New York Stock Exchange
 TRMB,Trimble Inc.,12613343200,1229718,Technology,"Hardware, Equipment & Parts",NASDAQ,NASDAQ Global Select
 SJM,The J. M. Smucker Company,12608053180,519825,Consumer Defensive,Packaged Foods,NYSE,New York Stock Exchange
 KRTX,"Karuna Therapeutics, Inc.",12599275119,1283005,Healthcare,Biotechnology,NASDAQ,NASDAQ Global Market
@@ -735,7 +734,7 @@ CLH,"Clean Harbors, Inc.",12572377444,277521,Industrials,Waste Management,NYSE,N
 SWAV,"ShockWave Medical, Inc.",12567686625,3947054,Healthcare,Medical - Devices,NASDAQ,NASDAQ Global Select
 AU,AngloGold Ashanti Limited,12506636840,1523117,Basic Materials,Gold,NYSE,New York Stock Exchange
 GRAB,Grab Holdings Limited,12441600000,13113811,Technology,Software - Application,NASDAQ,NASDAQ Global Select
-MBLY,Mobileye Global Inc.,12392815625,4394988,Consumer Cyclical,Auto - Parts,NASDAQ,NASDAQ Global Select
+MBLY,Mobileye Global Inc.,12392815151,4394988,Consumer Cyclical,Auto - Parts,NASDAQ,NASDAQ Global Select
 ALLY,Ally Financial Inc.,12354449600,1041610,Financial Services,Financial - Credit Services,NYSE,New York Stock Exchange
 EQH,"Equitable Holdings, Inc.",12326709450,2132330,Financial Services,Insurance - Diversified,NYSE,New York Stock Exchange
 WPC,W. P. Carey Inc.,12316709160,785934,Real Estate,REIT - Diversified,NYSE,New York Stock Exchange
@@ -743,7 +742,6 @@ RNR,RenaissanceRe Holdings Ltd.,12305094301,239304,Financial Services,Insurance 
 NTNX,"Nutanix, Inc.",12287654620,1648335,Technology,Software - Infrastructure,NASDAQ,NASDAQ Global Select
 SN,"SharkNinja, Inc.",12264012950,3657952,Consumer Cyclical,"Furnishings, Fixtures & Appliances",NYSE,New York Stock Exchange
 TFII,TFI International Inc.,12210121440,138972,Industrials,Trucking,NYSE,New York Stock Exchange
-Z,"Zillow Group, Inc. Class C",12164146669,5743549,Communication Services,Internet Content & Information,NASDAQ,NASDAQ Global Select
 TTEK,"Tetra Tech, Inc.",12145966236,328424,Industrials,Engineering & Construction,NASDAQ,NASDAQ Global Select
 CNH,CNH Industrial NV,12136590400,5314795,Industrials,Agricultural - Machinery,NYSE,New York Stock Exchange
 JKHY,"Jack Henry & Associates, Inc.",12133476000,401359,Technology,Information Technology Services,NASDAQ,NASDAQ Global Select
@@ -754,6 +752,7 @@ SIRI,Sirius XM Holdings Inc.,12090130400,11900158,Communication Services,Enterta
 INSM,Insmed Incorporated,12067543620,1534935,Healthcare,Biotechnology,NASDAQ,NASDAQ Global Select
 MEDP,"Medpace Holdings, Inc.",11986845970,188977,Healthcare,Medical - Diagnostics & Research,NASDAQ,NASDAQ Global Select
 SRPT,"Sarepta Therapeutics, Inc.",11953212042,3276991,Healthcare,Biotechnology,NASDAQ,NASDAQ Global Select
+Z,"Zillow Group, Inc. Class C",11910213581,5743549,Communication Services,Internet Content & Information,NASDAQ,NASDAQ Global Select
 BCH,Banco de Chile,11889700900,180730,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
 BKI,"Black Knight, Inc.",11878564169,6129714,Technology,Software - Application,NYSE,New York Stock Exchange
 RPRX,Royalty Pharma plc,11872408600,3548498,Healthcare,Biotechnology,NASDAQ,NASDAQ Global Select
@@ -763,12 +762,13 @@ CYBR,CyberArk Software Ltd.,11810114724,927760,Technology,Software - Infrastruct
 LAMR,Lamar Advertising Company,11809975068,468503,Real Estate,REIT - Specialty,NASDAQ,NASDAQ Global Select
 DVA,DaVita Inc.,11771170000,581733,Healthcare,Medical - Care Facilities,NYSE,New York Stock Exchange
 INCY,Incyte Corporation,11763885840,1277557,Healthcare,Biotechnology,NASDAQ,NASDAQ Global Select
+PR,Permian Resources Corporation,11725063218,7650923,Energy,Oil & Gas Exploration & Production,NYSE,New York Stock Exchange
 AOS,A. O. Smith Corporation,11707084267,628008,Industrials,Industrial - Machinery,NYSE,New York Stock Exchange
 FLEX,Flex Ltd.,11630209590,1156609,Technology,"Hardware, Equipment & Parts",NASDAQ,NASDAQ Global Select
 RTPY,Reinvent Technology Partners Y,11618780438,1298902,Financial Services,Shell Companies,NASDAQ,NASDAQ Capital Market
 BEN,"Franklin Resources, Inc.",11589635680,2979458,Financial Services,Asset Management,NYSE,New York Stock Exchange
 JBL,Jabil Inc.,11586137850,678549,Technology,"Hardware, Equipment & Parts",NYSE,New York Stock Exchange
-GMED,"Globus Medical, Inc.",11553676159,951046,Healthcare,Medical - Devices,NYSE,New York Stock Exchange
+GMED,"Globus Medical, Inc.",11553675940,951046,Healthcare,Medical - Devices,NYSE,New York Stock Exchange
 CHRW,"C.H. Robinson Worldwide, Inc.",11552961915,733286,Industrials,Integrated Freight & Logistics,NASDAQ,NASDAQ Global Select
 HST,"Host Hotels & Resorts, Inc.",11470845200,10505912,Real Estate,REIT - Hotel & Motel,NASDAQ,NASDAQ Global Select
 RXN,Zurn Water Solutions Corporation,11435746500,1305057,Utilities,Regulated Water,NYSE,New York Stock Exchange
@@ -784,12 +784,11 @@ MMAC,"MMA Capital Holdings, Inc.",11261012700,22665,Financial Services,Financial
 BLD,TopBuild Corp.,11243546064,235300,Industrials,Engineering & Construction,NYSE,New York Stock Exchange
 MNDY,monday.com Ltd.,11234826890,1010149,Technology,Software - Application,NASDAQ,NASDAQ Global Select
 ALLE,Allegion plc,11229940809,537220,Industrials,Security & Protection Services,NYSE,New York Stock Exchange
-EPAM,"EPAM Systems, Inc.",11201233824,801390,Technology,Information Technology Services,NYSE,New York Stock Exchange
 OVV,Ovintiv Inc.,11200703920,1845633,Energy,Oil & Gas Exploration & Production,NYSE,New York Stock Exchange
 FFIV,"F5, Inc.",11190604800,307631,Technology,Software - Infrastructure,NASDAQ,NASDAQ Global Select
 FIX,"Comfort Systems USA, Inc.",11187468228,142370,Industrials,Engineering & Construction,NYSE,New York Stock Exchange
 TXRH,"Texas Roadhouse, Inc.",11172330928,466834,Consumer Cyclical,Restaurants,NASDAQ,NASDAQ Global Select
-CW,Curtiss-Wright Corporation,11157589404,324307,Industrials,Aerospace & Defense,NYSE,New York Stock Exchange
+CW,Curtiss-Wright Corporation,11157735069,324307,Industrials,Aerospace & Defense,NYSE,New York Stock Exchange
 MGA,Magna International Inc.,11148326400,1344799,Consumer Cyclical,Auto - Parts,NYSE,New York Stock Exchange
 EDU,New Oriental Education & Technology Group Inc.,11130682000,1092601,Consumer Defensive,Education & Training Services,NYSE,New York Stock Exchange
 FTI,TechnipFMC plc,11129130540,1146341,Energy,Oil & Gas Equipment & Services,NYSE,New York Stock Exchange
@@ -799,18 +798,19 @@ EMN,Eastman Chemical Company,11108711600,705647,Basic Materials,Chemicals - Spec
 BJ,"BJ's Wholesale Club Holdings, Inc.",11089164040,1294161,Consumer Defensive,Discount Stores,NYSE,New York Stock Exchange
 COKE,"Coca-Cola Consolidated, Inc.",11033286739,27459,Consumer Defensive,Beverages - Non-Alcoholic,NASDAQ,NASDAQ Global Select
 XM,Qualtrics International Inc.,11006014256,1687633,Technology,Software - Application,NASDAQ,NASDAQ Global Select
-TAP,Molson Coors Beverage Company,10998194862,1116275,Consumer Defensive,Beverages - Alcoholic,NYSE,New York Stock Exchange
-WMS,"Advanced Drainage Systems, Inc.",10992988006,715387,Industrials,Construction,NYSE,New York Stock Exchange
+EPAM,"EPAM Systems, Inc.",11000488634,801390,Technology,Information Technology Services,NYSE,New York Stock Exchange
+WMS,"Advanced Drainage Systems, Inc.",10995143822,715387,Industrials,Construction,NYSE,New York Stock Exchange
+TAP,Molson Coors Beverage Company,10994963612,1116275,Consumer Defensive,Beverages - Alcoholic,NYSE,New York Stock Exchange
 BIRK,Birkenstock Holding plc,10982373909,684343,Consumer Cyclical,Apparel - Footwear & Accessories,NYSE,New York Stock Exchange
 ITT,ITT Inc.,10937996000,360462,Industrials,Industrial - Machinery,NYSE,New York Stock Exchange
 REXR,"Rexford Industrial Realty, Inc.",10908752400,773772,Real Estate,REIT - Industrial,NYSE,New York Stock Exchange
 WING,Wingstop Inc.,10885998512,279846,Consumer Cyclical,Restaurants,NASDAQ,NASDAQ Global Select
-EWBC,"East West Bancorp, Inc.",10868459730,322678,Financial Services,Banks - Diversified,NASDAQ,NASDAQ Global Select
 KNSL,"Kinsale Capital Group, Inc.",10866831424,94392,Financial Services,Insurance - Property & Casualty,NYSE,New York Stock Exchange
 CDAY,Dayforce Inc.,10853949596,2683844,Technology,Software - Application,NYSE,New York Stock Exchange
 SCI,Service Corporation International,10846131520,1232018,Consumer Cyclical,Personal Products & Services,NYSE,New York Stock Exchange
 CUBE,CubeSmart,10845583840,681595,Real Estate,REIT - Industrial,NYSE,New York Stock Exchange
 BXP,"Boston Properties, Inc.",10837431080,634972,Real Estate,REIT - Office,NYSE,New York Stock Exchange
+EWBC,"East West Bancorp, Inc.",10826436550,322678,Financial Services,Banks - Diversified,NASDAQ,NASDAQ Global Select
 TFX,Teleflex Incorporated,10817706825,569327,Healthcare,Medical - Instruments & Supplies,NYSE,New York Stock Exchange
 WTRG,"Essential Utilities, Inc.",10812780720,1236873,Utilities,Regulated Water,NYSE,New York Stock Exchange
 PAG,"Penske Automotive Group, Inc.",10801528493,79475,Consumer Cyclical,Auto - Dealerships,NYSE,New York Stock Exchange
@@ -819,9 +819,9 @@ FMS,Fresenius Medical Care AG & Co. KGaA,10785861880,185745,Healthcare,Medical -
 DOCU,"DocuSign, Inc.",10751684320,1033154,Technology,Software - Application,NASDAQ,NASDAQ Global Select
 LECO,"Lincoln Electric Holdings, Inc.",10748470645,199175,Industrials,Manufacturing - Tools & Accessories,NASDAQ,NASDAQ Global Select
 NICE,NICE Ltd.,10686279538,1373631,Technology,Software - Application,NASDAQ,NASDAQ Global Select
+AFG,"American Financial Group, Inc.",10680114702,221544,Financial Services,Insurance - Property & Casualty,NYSE,New York Stock Exchange
 ESTC,Elastic N.V.,10676006400,556532,Technology,Software - Application,NYSE,New York Stock Exchange
 FND,"Floor & Decor Holdings, Inc.",10675578060,1170860,Consumer Cyclical,Home Improvement,NYSE,New York Stock Exchange
-AFG,"American Financial Group, Inc.",10675430430,221544,Financial Services,Insurance - Property & Casualty,NYSE,New York Stock Exchange
 PPC,Pilgrim's Pride Corporation,10592284410,916334,Consumer Defensive,Packaged Foods,NASDAQ,NASDAQ Global Select
 NVT,nVent Electric plc,10591219800,1287307,Industrials,Electrical Equipment & Parts,NYSE,New York Stock Exchange
 EXAS,Exact Sciences Corporation,10533737700,1612507,Healthcare,Medical - Diagnostics & Research,NASDAQ,NASDAQ Capital Market
@@ -832,26 +832,25 @@ MUSA,Murphy USA Inc.,10469464980,114620,Consumer Cyclical,Specialty Retail,NYSE,
 SOLV,Solventum Corporation,10464468605,2082056,Healthcare,Medical - Care Facilities,NYSE,New York Stock Exchange
 HLI,"Houlihan Lokey, Inc.",10427221886,146283,Financial Services,Financial - Capital Markets,NYSE,New York Stock Exchange
 KGC,Kinross Gold Corporation,10421920000,12421349,Basic Materials,Gold,NYSE,New York Stock Exchange
-CHWY,"Chewy, Inc.",10379018933,2898631,Consumer Cyclical,Specialty Retail,NYSE,New York Stock Exchange
+CHWY,"Chewy, Inc.",10379018362,2898631,Consumer Cyclical,Specialty Retail,NYSE,New York Stock Exchange
 CRL,"Charles River Laboratories International, Inc.",10376221779,1060154,Healthcare,Medical - Diagnostics & Research,NYSE,New York Stock Exchange
 CCK,"Crown Holdings, Inc.",10353410620,657206,Consumer Cyclical,Packaging & Containers,NYSE,New York Stock Exchange
 MMYT,MakeMyTrip Limited,10318455859,298257,Consumer Cyclical,Travel Services,NASDAQ,NASDAQ Global Select
-CACI,CACI International Inc,10309409432,100943,Technology,Information Technology Services,NYSE,New York Stock Exchange
+CACI,CACI International Inc,10312507378,100943,Technology,Information Technology Services,NYSE,New York Stock Exchange
 CAVA,"CAVA Group, Inc.",10295609790,4200859,Consumer Cyclical,Restaurants,NYSE,New York Stock Exchange
 LKQ,LKQ Corporation,10293309561,1087280,Consumer Cyclical,Auto - Parts,NASDAQ,NASDAQ Global Select
+LEGN,Legend Biotech Corporation,10239242186,779779,Healthcare,Biotechnology,NASDAQ,NASDAQ Global Select
 SQM,Sociedad Química y Minera de Chile S.A.,10218982106,1047528,Basic Materials,Chemicals - Specialty,NYSE,New York Stock Exchange
 RRX,Regal Rexnord Corporation,10210066384,291315,Industrials,Industrial - Machinery,NYSE,New York Stock Exchange
-LEGN,Legend Biotech Corporation,10189647315,779779,Healthcare,Biotechnology,NASDAQ,NASDAQ Global Select
 HII,"Huntington Ingalls Industries, Inc.",10173599336,184991,Industrials,Aerospace & Defense,NYSE,New York Stock Exchange
 PFGC,Performance Food Group Company,10166001300,513236,Consumer Defensive,Food Distribution,NYSE,New York Stock Exchange
 QGEN,Qiagen N.V.,10076290740,847455,Healthcare,Medical - Diagnostics & Research,NYSE,New York Stock Exchange
 QRVO,"Qorvo, Inc.",10074270060,814275,Technology,Semiconductors,NASDAQ,NASDAQ Global Select
-CHRD,Chord Energy Corporation,10048799364,884123,Energy,Oil & Gas Exploration & Production,NASDAQ,NASDAQ Global Select
 RL,Ralph Lauren Corporation,10047125982,688795,Consumer Cyclical,Apparel - Manufacturers,NYSE,New York Stock Exchange
-ULS,UL Solutions Inc.,10042185024,225668,Industrials,Specialty Business Services,NYSE,New York Stock Exchange
+ULS,UL Solutions Inc.,10042185124,225668,Industrials,Specialty Business Services,NYSE,New York Stock Exchange
 NLY,"Annaly Capital Management, Inc.",10027173845,2399305,Real Estate,REIT - Mortgage,NYSE,New York Stock Exchange
 UNM,Unum Group,9963005990,616002,Financial Services,Insurance - Life,NYSE,New York Stock Exchange
-XP,XP Inc.,9904770450,6489841,Financial Services,Financial - Capital Markets,NASDAQ,NASDAQ Global Select
+XP,XP Inc.,9904769728,6489841,Financial Services,Financial - Capital Markets,NASDAQ,NASDAQ Global Select
 SAIA,"Saia, Inc.",9867777789,387456,Industrials,Trucking,NASDAQ,NASDAQ Global Select
 CREE,"Cree, Inc.",9843873040,1325405,Technology,Semiconductors,NASDAQ,NASDAQ Global Select
 CHDN,Churchill Downs Incorporated,9812862756,241689,Consumer Cyclical,"Gambling, Resorts & Casinos",NASDAQ,NASDAQ Global Select
@@ -869,10 +868,10 @@ PLAN,"Anaplan, Inc.",9593148165,8356048,Technology,Software - Infrastructure,NYS
 SNX,TD SYNNEX Corporation,9570631803,502092,Technology,Technology Distributors,NYSE,New York Stock Exchange
 RXDX,"Prometheus Biosciences, Inc.",9558515064,1787021,Healthcare,Biotechnology,NASDAQ,NASDAQ Global Select
 ATR,"AptarGroup, Inc.",9556610180,197880,Healthcare,Medical - Instruments & Supplies,NYSE,New York Stock Exchange
-SKX,"Skechers U.S.A., Inc.",9522017037,993736,Consumer Cyclical,Apparel - Footwear & Accessories,NYSE,New York Stock Exchange
+SKX,"Skechers U.S.A., Inc.",9531234408,993736,Consumer Cyclical,Apparel - Footwear & Accessories,NYSE,New York Stock Exchange
+ONTO,Onto Innovation Inc.,9528071784,1228264,Technology,Semiconductors,NYSE,New York Stock Exchange
 CHK,Chesapeake Energy Corporation,9520063000,953041,Energy,Oil & Gas Exploration & Production,NASDAQ,NASDAQ Global Select
 OSH,"Oak Street Health, Inc.",9517092000,2860706,Healthcare,Medical - Care Facilities,NYSE,New York Stock Exchange
-ONTO,Onto Innovation Inc.,9507292146,1228264,Technology,Semiconductors,NYSE,New York Stock Exchange
 CNM,"Core & Main, Inc.",9505119130,1397332,Industrials,Industrial - Distribution,NYSE,New York Stock Exchange
 TKO,"TKO Group Holdings, Inc.",9494804067,762072,Communication Services,Entertainment,NYSE,New York Stock Exchange
 HTHT,H World Group Limited,9463643560,822898,Consumer Cyclical,Travel Lodging,NASDAQ,NASDAQ Global Select
@@ -880,15 +879,16 @@ FRT,Federal Realty Investment Trust,9438032400,556679,Real Estate,REIT - Retail,
 APG,APi Group Corporation,9419910604,801465,Industrials,Engineering & Construction,NYSE,New York Stock Exchange
 BRKR,Bruker Corporation,9382832000,1331011,Healthcare,Medical - Devices,NASDAQ,NASDAQ Global Select
 WWD,"Woodward, Inc.",9361721664,306386,Industrials,Aerospace & Defense,NASDAQ,NASDAQ Global Select
+CHRD,Chord Energy Corporation,9353720336,884123,Energy,Oil & Gas Exploration & Production,NASDAQ,NASDAQ Global Select
 GME,GameStop Corp.,9346960740,4737133,Consumer Cyclical,Specialty Retail,NYSE,New York Stock Exchange
 WPP,WPP plc,9320901140,238284,Communication Services,Advertising Agencies,NYSE,New York Stock Exchange
 X,United States Steel Corporation,9306677940,2084965,Basic Materials,Steel,NYSE,New York Stock Exchange
 RGEN,Repligen Corporation,9250033540,436687,Healthcare,Medical - Instruments & Supplies,NASDAQ,NASDAQ Global Select
 MHK,"Mohawk Industries, Inc.",9243499295,445826,Consumer Cyclical,"Furnishings, Fixtures & Appliances",NYSE,New York Stock Exchange
 BSAC,Banco Santander-Chile,9233854000,195316,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
-LBRDA,Liberty Broadband Corporation,9227511393,88544,Communication Services,Telecommunications Services,NASDAQ,NASDAQ Global Select
-AIZ,"Assurant, Inc.",9221761062,330014,Financial Services,Insurance - Specialty,NYSE,New York Stock Exchange
 WBA,"Walgreens Boots Alliance, Inc.",9219777000,9643131,Healthcare,Medical - Pharmaceuticals,NASDAQ,NASDAQ Global Select
+LBRDA,Liberty Broadband Corporation,9219639443,88544,Communication Services,Telecommunications Services,NASDAQ,NASDAQ Global Select
+AIZ,"Assurant, Inc.",9187613487,330014,Financial Services,Insurance - Specialty,NYSE,New York Stock Exchange
 TTC,The Toro Company,9150260660,492939,Industrials,Manufacturing - Tools & Accessories,NYSE,New York Stock Exchange
 KEP,Korea Electric Power Corporation,9115888800,124312,Utilities,Regulated Electric,NYSE,New York Stock Exchange
 STN,Stantec Inc.,9108249950,103205,Industrials,Engineering & Construction,NYSE,New York Stock Exchange
@@ -912,7 +912,6 @@ DINO,HF Sinclair Corporation,8844367950,1597333,Energy,Oil & Gas Refining & Mark
 NYT,The New York Times Company,8825714100,1005870,Communication Services,Publishing,NYSE,New York Stock Exchange
 TPR,"Tapestry, Inc.",8784221790,3299403,Consumer Cyclical,Luxury Goods,NYSE,New York Stock Exchange
 DCI,"Donaldson Company, Inc.",8777524500,327484,Industrials,Industrial - Machinery,NYSE,New York Stock Exchange
-PRI,"Primerica, Inc.",8754553392,97846,Financial Services,Insurance - Life,NYSE,New York Stock Exchange
 ORI,Old Republic International Corporation,8747436960,863287,Financial Services,Insurance - Diversified,NYSE,New York Stock Exchange
 HSIC,"Henry Schein, Inc.",8735249520,2004300,Healthcare,Medical - Distribution,NASDAQ,NASDAQ Global Select
 CHE,Chemed Corporation,8729961006,85088,Healthcare,Medical - Care Facilities,NYSE,New York Stock Exchange
@@ -921,18 +920,19 @@ DCP,"DCP Midstream, LP",8698952020,9521743,Energy,Oil & Gas Midstream,NYSE,New Y
 MOS,The Mosaic Company,8693680650,3794104,Basic Materials,Agricultural Inputs,NYSE,New York Stock Exchange
 PCVX,"Vaxcyte, Inc.",8693302900,734096,Healthcare,Biotechnology,NASDAQ,NASDAQ Global Select
 GNRC,Generac Holdings Inc.,8681839191,804119,Industrials,Industrial - Machinery,NYSE,New York Stock Exchange
-TPX,"Tempur Sealy International, Inc.",8658678750,912223,Consumer Cyclical,"Furnishings, Fixtures & Appliances",NYSE,New York Stock Exchange
+TPX,"Tempur Sealy International, Inc.",8659875630,912223,Consumer Cyclical,"Furnishings, Fixtures & Appliances",NYSE,New York Stock Exchange
 SKM,"SK Telecom Co.,Ltd",8652258502,176854,Communication Services,Telecommunications Services,NYSE,New York Stock Exchange
 LW,"Lamb Weston Holdings, Inc.",8640373940,2365805,Consumer Defensive,Packaged Foods,NYSE,New York Stock Exchange
 EHC,Encompass Health Corporation,8625575000,759309,Healthcare,Medical - Care Facilities,NYSE,New York Stock Exchange
+PRI,"Primerica, Inc.",8606054275,97846,Financial Services,Insurance - Life,NYSE,New York Stock Exchange
 PCTY,Paylocity Holding Corporation,8603469576,364991,Technology,Software - Application,NASDAQ,NASDAQ Global Select
 VFS,VinFast Auto Ltd.,8582949324,636979,Consumer Cyclical,Auto - Manufacturers,NASDAQ,NASDAQ Global Select
 KBR,"KBR, Inc.",8551123500,499455,Industrials,Engineering & Construction,NYSE,New York Stock Exchange
-INGR,Ingredion Incorporated,8545334945,462282,Consumer Defensive,Packaged Foods,NYSE,New York Stock Exchange
 ESLT,Elbit Systems Ltd.,8525313024,17012,Industrials,Aerospace & Defense,NASDAQ,NASDAQ Global Select
-RGLD,"Royal Gold, Inc.",8516380306,293106,Basic Materials,Gold,NASDAQ,NASDAQ Global Select
+RGLD,"Royal Gold, Inc.",8517377918,293106,Basic Materials,Gold,NASDAQ,NASDAQ Global Select
 GPS,"The Gap, Inc.",8495267550,5535238,Consumer Cyclical,Apparel - Retail,NYSE,New York Stock Exchange
 NNN,"National Retail Properties, Inc.",8481418800,935727,Real Estate,REIT - Retail,NYSE,New York Stock Exchange
+INGR,Ingredion Incorporated,8469042438,462282,Consumer Defensive,Packaged Foods,NYSE,New York Stock Exchange
 GPK,Graphic Packaging Holding Company,8457212520,1533409,Consumer Cyclical,Packaging & Containers,NYSE,New York Stock Exchange
 SEIC,SEI Investments Company,8453436440,319956,Financial Services,Asset Management,NASDAQ,NASDAQ Global Select
 EDR,"Endeavor Group Holdings, Inc.",8449951120,5789247,Communication Services,Entertainment,NYSE,New York Stock Exchange
@@ -941,19 +941,20 @@ CART,Instacart (Maplebear Inc.),8443907670,2826938,Consumer Cyclical,Specialty R
 DAY,Dayforce Inc,8388786000,1015142,Technology,Software - Application,NYSE,New York Stock Exchange
 WWE,"World Wrestling Entertainment, Inc.",8370224602,1642069,Communication Services,Entertainment,NYSE,New York Stock Exchange
 SF,Stifel Financial Corp.,8367581520,331297,Financial Services,Financial - Capital Markets,NYSE,New York Stock Exchange
+HESM,Hess Midstream LP,8348831149,699268,Energy,Oil & Gas Midstream,NYSE,New York Stock Exchange
 CR,Crane Company,8342369783,136279,Industrials,Industrial - Machinery,NYSE,New York Stock Exchange
 FLR,Fluor Corporation,8322883920,1106866,Industrials,Engineering & Construction,NYSE,New York Stock Exchange
 AR,Antero Resources Corporation,8306996970,2221822,Energy,Oil & Gas Exploration & Production,NYSE,New York Stock Exchange
-KVYO,"Klaviyo, Inc.",8290888442,3430373,Technology,Software - Infrastructure,NYSE,New York Stock Exchange
+KVYO,"Klaviyo, Inc.",8290888318,3430373,Technology,Software - Infrastructure,NYSE,New York Stock Exchange
 WYNN,"Wynn Resorts, Limited",8283332960,2371206,Consumer Cyclical,"Gambling, Resorts & Casinos",NASDAQ,NASDAQ Global Select
 KNX,Knight-Swift Transportation Holdings Inc.,8277724960,1432367,Industrials,Trucking,NYSE,New York Stock Exchange
 GL,Globe Life Inc.,8265217996,752216,Financial Services,Insurance - Life,NYSE,New York Stock Exchange
-COLD,"Americold Realty Trust, Inc.",8254202400,1751235,Real Estate,REIT - Industrial,NYSE,New York Stock Exchange
+COLD,"Americold Realty Trust, Inc.",8257573360,1751235,Real Estate,REIT - Industrial,NYSE,New York Stock Exchange
 DSGX,The Descartes Systems Group Inc.,8240144650,96532,Technology,Software - Application,NASDAQ,NASDAQ Global Select
 ROIV,Roivant Sciences Ltd.,8219726080,4438205,Healthcare,Biotechnology,NASDAQ,NASDAQ Global Market
 CERE,"Cerevel Therapeutics Holdings, Inc.",8191487560,15033754,Healthcare,Biotechnology,NASDAQ,NASDAQ Capital Market
 WAL,Western Alliance Bancorporation,8160675180,325755,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
-INFA,Informatica Inc.,8157679816,1666834,Technology,Software - Infrastructure,NYSE,New York Stock Exchange
+INFA,Informatica Inc.,8157679887,1666834,Technology,Software - Infrastructure,NYSE,New York Stock Exchange
 EXP,Eagle Materials Inc.,8152607500,193219,Basic Materials,Construction Materials,NYSE,New York Stock Exchange
 ASR,"Grupo Aeroportuario del Sureste, S. A. B. de C. V.",8119725557,35021,Industrials,"Airlines, Airports & Air Services",NYSE,New York Stock Exchange
 RBC,RBC Bearings Incorporated,8108958858,86892,Industrials,Manufacturing - Tools & Accessories,NYSE,New York Stock Exchange
@@ -961,7 +962,7 @@ OTEX,Open Text Corporation,8104701800,489684,Technology,Software - Application,N
 DUOL,"Duolingo, Inc.",8078334243,694539,Technology,Software - Application,NASDAQ,NASDAQ Global Select
 APPF,"AppFolio, Inc.",8070648831,175696,Technology,Software - Application,NASDAQ,NASDAQ Global Market
 ENSG,"The Ensign Group, Inc.",8067310125,234391,Healthcare,Medical - Care Facilities,NASDAQ,NASDAQ Global Select
-VNOM,Viper Energy Partners LP,8033819880,586302,Energy,Oil & Gas Midstream,NASDAQ,NASDAQ Global Select
+VNOM,Viper Energy Partners LP,8033819290,586302,Energy,Oil & Gas Midstream,NASDAQ,NASDAQ Global Select
 GLOB,Globant S.A.,8029125488,357492,Technology,Information Technology Services,NYSE,New York Stock Exchange
 FHN,First Horizon Corporation,8027677140,2407634,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
 WF,Woori Financial Group Inc.,8024890479,27026,Financial Services,Banks - Regional,NYSE,New York Stock Exchange
