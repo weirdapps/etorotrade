@@ -79,6 +79,5 @@ df.rename(columns={
 # Print DataFrame in a fancy grid table format
 print(tabulate(df, headers='keys', tablefmt='grid', colalign=["left", "right", "right", "right"], showindex=False))
 
-print(f"Today in Athens: {datetime.now(athens_tz)}")
-print(f"Last day of previous month: {previous_month_end}")
-print(f"Last day of previous previous month: {previous_previous_month_end}")
+# Print the current date in Athens timezone in a readable format
+print(f"Current date in Athens timezone: {datetime.now(athens_tz).strftime('%Y-%m-%d %H:%M')}")
