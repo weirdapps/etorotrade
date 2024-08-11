@@ -51,16 +51,16 @@ def calculate_daily_pe_ratio(ticker, start_date):
 # Define the start date
 start_date = '2023-01-01'
 
-# List of tickers
-tickers = ['META']
+ticker = input("Enter the ticker symbol: ")
 
 # Initialize a dictionary to store data for each ticker
 data_dict = {}
 
-for ticker in tickers:
-    df = calculate_daily_pe_ratio(ticker, start_date)
-    if df is not None:
-        data_dict[ticker] = df
+
+df = calculate_daily_pe_ratio(ticker, start_date)
+if df is not None:
+    data_dict[ticker] = df
+
 
 # Set the style for the plot
 plt.style.use('ggplot')
