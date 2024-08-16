@@ -1,11 +1,12 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Index Performance</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-    <style>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Index Performance</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<style>
         body {
             background-color: #111827;
             color: white;
@@ -20,12 +21,13 @@
             background-color: #1f2937;
             padding: 20px;
             border-radius: 8px;
+            height: 250px;
             width: 500px; /* Reduced the width to half */
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
             text-align: center;
         }
         .summary-container h2 {
-            margin-top: 0;
+            margin-top: 20;
             font-size: 24px;
             font-weight: normal;
             margin-bottom: 20px;
@@ -66,28 +68,28 @@
     </style>
 </head>
 <body>
-    <div class="summary-container">
-        <h2>Weekly Market Performance</h2>
-        <div class="grid">
-            <div class="flex">
-                <div class="text-3xl font-bold" id="DJI30">-0.60%</div>
-                <div class="text-sm text-slate-400">DJI30</div>
-            </div>
-            <div class="flex">
-                <div class="text-3xl font-bold" id="SP500">-0.04%</div>
-                <div class="text-sm text-slate-400">SP500</div>
-            </div>
-            <div class="flex">
-                <div class="text-3xl font-bold" id="NASDAQ">+0.39%</div>
-                <div class="text-sm text-slate-400">NASDAQ</div>
-            </div>
-            <div class="flex">
-                <div class="text-3xl font-bold text-slate-600" id="VIX">-12.9%</div>
-                <div class="text-sm text-slate-400">VIX</div>
-            </div>
-        </div>
-    </div>
-    <script>
+<div class="summary-container">
+<h2>Weekly Market Performance</h2>
+<div class="grid">
+<div class="flex">
+<div class="text-3xl font-bold" id="DJI30">-0.60%</div>
+<div class="text-sm text-slate-400">DJI30</div>
+</div>
+<div class="flex">
+<div class="text-3xl font-bold" id="SP500">-0.04%</div>
+<div class="text-sm text-slate-400">SP500</div>
+</div>
+<div class="flex">
+<div class="text-3xl font-bold" id="NASDAQ">+0.39%</div>
+<div class="text-sm text-slate-400">NASDAQ</div>
+</div>
+<div class="flex">
+<div class="text-3xl font-bold text-slate-600" id="VIX">-12.91%</div>
+<div class="text-sm text-slate-400">VIX</div>
+</div>
+</div>
+</div>
+<script>
         function updateColors() {
             const elements = [
                 document.getElementById('DJI30'),

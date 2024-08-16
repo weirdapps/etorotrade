@@ -1,5 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
+import os
 from tabulate import tabulate
 
 # URL of the page to scrape
@@ -83,7 +84,26 @@ def extract_data(soup):
 
     return data
 
-# Function to color code the values
+# Function to update the HTML file
+def update_html(data, html_path):
+    # Read the HTML file
+    with open(html_path, 'r') as file:
+        html_content = file.read()
+
+    # Parse the HTML with BeautifulSoup
+    soup = BeautifulSoup(html_content, 'html.parser')
+
+    # Update the values in the HTML
+    for key, value in data.items():
+        element = soup.find(id=key)
+        if element:
+            element.string = value
+
+    # Write the updated HTML back to the file
+    with open(html_path, 'w') as file:
+        file.write(str(soup))
+
+# Function to color code the values for console output
 def color_value(value):
     try:
         num = float(value.replace('%', '').replace('+', ''))
@@ -98,9 +118,22 @@ def color_value(value):
 
 # Main script execution
 if __name__ == "__main__":
+    # Extract data from the webpage
     data = extract_data(soup)
+    
+    # Define the path to the HTML file
+    html_path = os.path.join(os.path.dirname(__file__), '../output/portfolio.html')
+
+    # Update the HTML file with the extracted data
     if data:
+        
+        # Display the data in the console
         table = [[key, color_value(value)] for key, value in data.items()]
         print(tabulate(table, headers=["Metric", "Value"], tablefmt="fancy_grid", colalign=("left", "right")))
+
+        # Update the HTML file   
+        update_html(data, html_path)
+        print("\nHTML file updated successfully.")
+
     else:
-        print("No data found")
+        print("No data found.")
