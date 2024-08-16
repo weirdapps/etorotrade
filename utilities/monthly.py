@@ -80,4 +80,4 @@ df.rename(columns={
 print(tabulate(df, headers='keys', tablefmt='grid', colalign=["left", "right", "right", "right"], showindex=False))
 
 # Print the current date in Athens timezone in a readable format
-print(f"Current date in Athens timezone: {datetime.now(athens_tz).strftime('%Y-%m-%d %H:%M')}")
+print(f"Current time in Athens: {datetime.now(athens_tz).strftime('%Y-%m-%d %H:%M')}")
