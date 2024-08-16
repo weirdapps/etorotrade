@@ -14,7 +14,7 @@ soup = BeautifulSoup(response.content, "html.parser")
 # Function to extract the data
 def extract_data(soup):
     data = {}
-    labels = ["TODAY", "MTD", "YTD", "1YR", "2YR"] # "5YR" excluded
+    labels = ["TODAY", "MTD", "YTD", "1YR", "2YR"]  # "5YR" excluded
     
     # Extract summary data
     summary_items = soup.select("div.relative div.flex.flex-col.items-center")
@@ -36,12 +36,57 @@ def extract_data(soup):
                     value = value_span.text.strip()  # If conversion fails, keep original text
                 data[label] = value
 
+    # Extract beta value
+    beta_label = "Beta"
+    beta_value_container = soup.select_one("h2.font-semibold.text-slate-100:-soup-contains('Beta')")
+    if beta_value_container:
+        beta_value_span = beta_value_container.find_next("span", class_="text-5xl")
+        if beta_value_span:
+            beta_value = beta_value_span.text.strip()
+            data[beta_label] = beta_value
+
+    # Extract Jensen's Alpha
+    alpha_label = "Alpha"
+    alpha_container = soup.select_one("h2.font-semibold.text-slate-100:-soup-contains(\"Jensen's Alpha\")")
+    if alpha_container:
+        alpha_span = alpha_container.find_next("span", class_="text-5xl")
+        if alpha_span:
+            alpha_value = alpha_span.text.strip()
+            data[alpha_label] = alpha_value
+            
+    # Extract Sharpe Ratio
+    sharpe_label = "Sharpe"
+    sharpe_ratio_container = soup.select_one("h2.font-semibold.text-slate-100:-soup-contains('Sharpe Ratio')")
+    if sharpe_ratio_container:
+        sharpe_ratio_span = sharpe_ratio_container.find_next("span", class_="text-5xl")
+        if sharpe_ratio_span:
+            sharpe_ratio = sharpe_ratio_span.text.strip()
+            data[sharpe_label] = sharpe_ratio
+
+    # Extract Sortino Ratio
+    sortino_label = "Sortino"
+    sortino_ratio_container = soup.select_one("h2.font-semibold.text-slate-100:-soup-contains('Sortino Ratio')")
+    if sortino_ratio_container:
+        sortino_ratio_span = sortino_ratio_container.find_next("span", class_="text-5xl")
+        if sortino_ratio_span:
+            sortino_ratio = sortino_ratio_span.text.strip()
+            data[sortino_label] = sortino_ratio
+
+    # Extract Cash percentage
+    cash_label = "Cash"
+    cash_container = soup.select_one("div.relative.flex.justify-between.space-x-2:-soup-contains('Cash')")
+    if cash_container:
+        cash_value_span = cash_container.find("div", class_="font-medium")
+        if cash_value_span:
+            cash_value = cash_value_span.text.strip()
+            data[cash_label] = cash_value
+
     return data
 
 # Function to color code the values
 def color_value(value):
     try:
-        num = float(value.replace('%', ''))
+        num = float(value.replace('%', '').replace('+', ''))
         if num > 0:
             return f"\033[92m{value}\033[0m"  # Green for positive
         elif num < 0:
@@ -56,6 +101,6 @@ if __name__ == "__main__":
     data = extract_data(soup)
     if data:
         table = [[key, color_value(value)] for key, value in data.items()]
-        print(tabulate(table, headers=["Time", "Change"], tablefmt="fancy_grid", colalign=("left", "right")))
+        print(tabulate(table, headers=["Metric", "Value"], tablefmt="fancy_grid", colalign=("left", "right")))
     else:
         print("No data found")
