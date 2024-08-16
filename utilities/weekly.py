@@ -2,6 +2,8 @@ import yfinance as yf
 from datetime import datetime, timedelta
 from tabulate import tabulate
 import pandas as pd
+import os
+from bs4 import BeautifulSoup
 
 INDICES = {
     'DJI30': '^DJI',
@@ -33,28 +35,48 @@ def fetch_weekly_change(last_friday, previous_friday):
             change = ((end_price - start_price) / start_price) * 100
             results.append({
                 'Index': name,
-                f'Previous Week ({previous_friday.strftime("%Y-%m-%d")})': f"{start_price:,.2f}",
-                f'This Week ({last_friday.strftime("%Y-%m-%d")})': f"{end_price:,.2f}",
+                'Previous Week': f"{start_price:,.2f}",
+                'This Week': f"{end_price:,.2f}",
                 'Change Percent': f"{change:+.2f}%"
             })
     return results
+
+def update_html(data, html_path):
+    # Read the HTML file
+    with open(html_path, 'r') as file:
+        html_content = file.read()
+
+    # Parse the HTML with BeautifulSoup
+    soup = BeautifulSoup(html_content, 'html.parser')
+
+    # Update the values in the HTML
+    for item in data:
+        index = item['Index']
+        change_percent = item['Change Percent']
+        
+        # Find the element by its ID
+        element = soup.find(id=index)
+        if element:
+            element.string = change_percent
+
+    # Write the updated HTML back to the file
+    with open(html_path, 'w') as file:
+        file.write(str(soup))
 
 def main():
     last_friday, previous_friday = calculate_dates()
     weekly_change = fetch_weekly_change(last_friday, previous_friday)
     df = pd.DataFrame(weekly_change)
     
-    # Define custom alignment
-    alignments = {
-        'Index': 'left',
-        f'Previous Week ({previous_friday.strftime("%Y-%m-%d")})': 'right',
-        f'This Week ({last_friday.strftime("%Y-%m-%d")})': 'right',
-        'Change Percent': 'right'
-    }
-
-    # Print DataFrame in a fancy grid table format with custom alignment
+    # Print DataFrame in a fancy grid table format
     print(tabulate(df, headers='keys', tablefmt='grid', colalign=["left", "right", "right", "right"], showindex=False))
+
+    # Define the path to the HTML file
+    html_path = os.path.join(os.path.dirname(__file__), '../output/index.html')
+    
+    # Update the HTML file with the extracted data
+    update_html(weekly_change, html_path)
+    print("\nHTML file updated successfully.")
 
 if __name__ == "__main__":
     main()
-    
