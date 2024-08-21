@@ -24,19 +24,20 @@ def determine_color(row):
         except (TypeError, ValueError):
             return None
 
-    target_percent_diff = safe_float(row.get('target_percent_diff'))
+    # target_percent_diff = safe_float(row.get('target_percent_diff'))
+    expected_return = safe_float(row.get('expected_return'))
     num_targets = safe_float(row.get('num_targets'))
     analyst_rating = safe_float(row.get('analyst_rating'))
     total_recommendations = safe_float(row.get('total_recommendations'))
 
     # Conditions for green color
-    is_green = ((target_percent_diff is not None and target_percent_diff > 15 and 
+    is_green = ((expected_return is not None and expected_return > 15 and 
                 num_targets is not None and num_targets > 2) and 
                 (analyst_rating is not None and analyst_rating > 65 and 
                 total_recommendations is not None and total_recommendations > 2))
 
     # Conditions for red color
-    is_red = ((target_percent_diff is not None and target_percent_diff < 5 and 
+    is_red = ((expected_return is not None and expected_return < 5 and 
             num_targets is not None and num_targets > 2) or 
             (analyst_rating is not None and analyst_rating < 55 and 
             total_recommendations is not None and total_recommendations > 2))
