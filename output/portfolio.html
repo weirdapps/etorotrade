@@ -26,7 +26,7 @@
         background-color: #1f2937;
         padding: 20px;
         border-radius: 8px;
-        width: 500px;
+        width: 700px;
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
         text-align: center;
     }
@@ -38,8 +38,13 @@
     }
     .grid {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
         gap: 10px;
+    }
+    .grid-5x1 {
+        grid-template-columns: repeat(5, 1fr);
+    }
+    .grid-4x1 {
+        grid-template-columns: repeat(4, 1fr);
     }
     .flex {
         display: flex;
@@ -75,35 +80,35 @@
 <div class="container">
 <div class="summary-container">
 <h2>Portfolio Returns</h2>
-<div class="grid">
+<div class="grid grid-5x1">
 <div class="flex">
-<div class="text-3xl font-bold" id="TODAY">+0.21%</div>
+<div class="text-3xl font-bold" id="TODAY">-0.40%</div>
 <div class="text-sm text-slate-400">Today</div>
 </div>
 <div class="flex">
-<div class="text-3xl font-bold" id="MTD">+1.16%</div>
+<div class="text-3xl font-bold" id="MTD">+1.64%</div>
 <div class="text-sm text-slate-400">MTD</div>
 </div>
 <div class="flex">
-<div class="text-3xl font-bold" id="YTD">+24.26%</div>
+<div class="text-3xl font-bold" id="YTD">+24.86%</div>
 <div class="text-sm text-slate-400">YTD</div>
 </div>
 <div class="flex">
-<div class="text-3xl font-bold" id="1YR">+33.71%</div>
+<div class="text-3xl font-bold" id="1YR">+34.35%</div>
 <div class="text-sm text-slate-400">1YR</div>
 </div>
 <div class="flex">
-<div class="text-3xl font-bold" id="2YR">+47.11%</div>
+<div class="text-3xl font-bold" id="2YR">+47.82%</div>
 <div class="text-sm text-slate-400">2YR</div>
 </div>
 </div>
 </div>
 <div class="summary-container">
 <h2>Risk Metrics</h2>
-<div class="grid">
+<div class="grid grid-5x1">
 <div class="flex">
 <div class="text-3xl font-bold" id="Beta">0.9</div>
-<div class="text-sm text-slate-400">Beta</div>
+<div class="text-sm text-slate-400">Portfolio Beta</div>
 </div>
 <div class="flex">
 <div class="text-3xl font-bold" id="Alpha">8.14</div>
@@ -118,7 +123,7 @@
 <div class="text-sm text-slate-400">Sortino Ratio</div>
 </div>
 <div class="flex">
-<div class="text-3xl font-bold" id="Cash">38.55%</div>
+<div class="text-3xl font-bold" id="Cash">39.56%</div>
 <div class="text-sm text-slate-400">Cash</div>
 </div>
 </div>
