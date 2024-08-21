@@ -44,10 +44,22 @@ def fetch_financial_score(ticker, api_key):
     url = f"{API_URLS['RATING']}rating/{ticker}?apikey={api_key}"
     return api_request(url)
 
-def fetch_insider_buy_sell_ratio(ticker, api_key):
+def fetch_insider_percent_bought(ticker, api_key):
     url = f"{API_URLS['INSIDER']}insider-roaster-statistic?symbol={ticker}&apikey={api_key}"
     data = api_request(url)
-    return data
+    
+    if not data or len(data) == 0:
+        return None
+
+    # Consider only the first (most recent) instance in the response
+    first_instance = data[0]
+    total_bought = first_instance['totalBought']
+    total_sold = first_instance['totalSold']
+    total_transactions = total_bought + total_sold
+
+    percent_bought = round((total_bought / total_transactions) * 100, 2) if total_transactions > 0 else "-"
+    
+    return percent_bought
 
 def fetch_institutional_ownership_change(ticker, api_key):
     url = f"{API_URLS['INSTITUTIONAL']}institutional-holder/{ticker}?apikey={api_key}"

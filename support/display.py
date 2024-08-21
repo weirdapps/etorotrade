@@ -1,5 +1,3 @@
-# support/display.py
-
 import csv
 from tabulate import tabulate
 from support.row_format import format_rows, determine_color
@@ -58,7 +56,7 @@ def display_table(data):
             row.get('piotroski_score', '-'),
             format_value(row.get('pe_ratio_ttm'), "{:.1f}"),
             format_value(row.get('peg_ratio_ttm'), "{:.2f}"),
-            format_value(row.get('buysell'), "{:.2f}"),
+            format_value(row.get('percent_bought'), "{:.2f}%"),
             institutional_change_display,
             format_value(row.get('senate_sentiment'), "{:.0f}%")
         ]
@@ -67,19 +65,18 @@ def display_table(data):
         numbered_data.append((row_data, color))
 
     headers = [
-        "#", "Ticker", "Price", "P DCF", "% DCF", "Target", "% T", "# T", "Rate", "# R", "ER", "FinS", "Piotr", "PE", "PEG", "Insi", "Inst", "Senate"
+        "#", "Ticker", "Price", "P DCF", "% DCF", "Target", "% T", "# T", "Rate", "# R", "ER", "FinS", "Piotr", "PE", "PEG", "Inside", "Inst", "Senate"
     ]
 
     rows = format_rows(numbered_data)
 
     print(tabulate(rows, headers=headers, tablefmt="fancy_grid", colalign=("right", "left", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right", "right")))
 
-
 def save_to_csv(filename, data):
     with open(filename, "w", newline="") as file:
         writer = csv.writer(file)
         headers = [
-            "#", "Ticker", "Price", "DCF Price", "DCF Diff %", "Target Price", "Target Diff %", "# Targets", "Consensus Rating", "# Ratings", "Expected Return", "Financial Score", "Piotroski Score", "PE ratio", "PEG ratio", "Insiders", "Institutional Change", "Senate Change", 
+            "#", "Ticker", "Price", "DCF Price", "DCF Diff %", "Target Price", "Target Diff %", "# Targets", "Consensus Rating", "# Ratings", "Expected Return", "Financial Score", "Piotroski Score", "PE ratio", "PEG ratio", "Insiders Change", "Institutional Change", "Senate Change"
         ]
         writer.writerow(headers)
         for i, row in enumerate(data):
@@ -99,7 +96,7 @@ def save_to_csv(filename, data):
                 row.get('piotroski_score', ''),
                 f"{float(row['pe_ratio_ttm']):.1f}" if row.get('pe_ratio_ttm') not in [None, '-'] else '-',
                 f"{float(row['peg_ratio_ttm']):.2f}" if row.get('peg_ratio_ttm') not in [None, '-'] else '-',
-                f"{float(row['buysell']):.2f}" if row.get('buysell') not in [None, '-'] else '-',
+                f"{float(row['percent_bought']):.2f}%" if row.get('percent_bought') not in [None, '-'] else '-',
                 f"{float(row['institutional_change']):.2f}%" if row.get('institutional_change') not in [None, '-'] else '-',
                 f"{int(row['senate_sentiment']):.0f}" if row.get('senate_sentiment') not in [None, '-'] else '-'
             ]

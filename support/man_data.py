@@ -5,7 +5,7 @@ from support.get_data import (
     fetch_current_stock_price, fetch_dcf_data,
     fetch_price_target_data, fetch_financial_score, fetch_piotroski_score,
     fetch_analyst_recommendations, fetch_senate_disclosure_data, fetch_ratios_ttm,
-    fetch_insider_buy_sell_ratio, fetch_institutional_ownership_change,
+    fetch_insider_percent_bought, fetch_institutional_ownership_change,
     calculate_analyst_recommendation, calculate_senate_sentiment
 )
 
@@ -88,9 +88,11 @@ def extract_financial_metrics(ticker, api_key, start_date):
             stock_info['pe_ratio_ttm'] = float(ratios_data[0].get('peRatioTTM')) if ratios_data[0].get('peRatioTTM') else None
             stock_info['peg_ratio_ttm'] = float(ratios_data[0].get('pegRatioTTM')) if ratios_data[0].get('pegRatioTTM') else None
 
-        buysell_data = fetch_insider_buy_sell_ratio(ticker, api_key)
-        if buysell_data and isinstance(buysell_data, list) and len(buysell_data) > 0:
-            stock_info['buysell'] = float(buysell_data[0].get('buySellRatio')) if buysell_data[0].get('buySellRatio') else None
+        buysell_data = fetch_insider_percent_bought(ticker, api_key)
+        if buysell_data is not None:
+            stock_info['percent_bought'] = buysell_data
+        else:
+            stock_info['percent_bought'] = None
 
         institutional_change_data = fetch_institutional_ownership_change(ticker, api_key)
         if institutional_change_data and isinstance(institutional_change_data, list) and len(institutional_change_data) > 0:
