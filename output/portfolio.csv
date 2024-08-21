@@ -1,36 +1,38 @@
 BuySell,investmentPctRealized,profitPct,valuePctUnrealized,positionValue,name,ticker,Exchange,Sector,AssetClass
-BUY,0.346254,1.502,0.330813,0.351454735,Oil (Non Expiry),CLUSD,Commodity,NA,Commodity
-BUY,2.077522,4.355333,2.040673,2.168005001,Apple,AAPL,Nasdaq,Consumer Goods,Stocks
-BUY,1.947323,32.228777,2.423691,2.574921387,Meta Platforms Inc,META,Nasdaq,Technology,Stocks
-BUY,8.275427,7.364717,8.363058,8.884888779,Microsoft,MSFT,Nasdaq,Technology,Stocks
-BUY,7.616548,7.831061,7.730635,8.21300452,Amazon.com Inc,AMZN,Nasdaq,Services,Stocks
-BUY,1.385015,1.0355,1.317169,1.39935683,Merck & Co.,MRK,NYSE,Healthcare,Stocks
-BUY,1.385015,-3.0565,1.263823,1.342682017,Exxon-Mobil,XOM,NYSE,Basic Materials,Stocks
-BUY,1.385015,0.4755,1.309868,1.391600746,Las Vegas Sands Corp,LVS,NYSE,Services,Stocks
-BUY,1.385015,-1.372,1.285783,1.366012594,"First Solar, Inc.",FSLR,Nasdaq,Technology,Stocks
-BUY,1.385015,10.3945,1.439179,1.528980384,"Micron Technology, Inc.",MU,Nasdaq,Technology,Stocks
-BUY,3.116283,95.758222,5.74209,6.100380193,NVIDIA Corporation,NVDA,Nasdaq,Technology,Stocks
-BUY,0.692507,2.477,0.667981,0.709660398,Spotify Technologies SA,SPOT,NYSE,Technology,Stocks
-BUY,0.692507,3.47,0.674453,0.716536993,E.ON SE,EOAN.DE,FRA,Utilities,Stocks
-BUY,0.692507,5.444,0.687321,0.730207081,Deutsche Telekom AG,DTE.DE,FRA,Technology,Stocks
-BUY,1.385015,-1.122,1.289042,1.369475132,Kroger Co,KR,NYSE,Consumer Goods,Stocks
-BUY,2.770029,-1.85675,2.558927,2.718596487,Halliburton Co,HAL,NYSE,Basic Materials,Stocks
-BUY,0.692507,1.802,0.663581,0.704985976,PPG Industries Inc,PPG,NYSE,Basic Materials,Stocks
-BUY,0.692507,-1.19,0.644078,0.684266167,Applied Materials Inc,AMAT,Nasdaq,Technology,Stocks
-BUY,1.385015,2.2825,1.333426,1.416627967,Block Inc.,SQ,NYSE,Services,Stocks
-BUY,0.6925,10.478105,0.720127,0.765060877,Deutsche Bank Aktiengesellschaft,DBK.DE,FRA,Financial,Stocks
-BUY,0.692507,14.907,0.749004,0.795739018,Barclays,BARC.L,LSE,Financial,Stocks
-BUY,0.692452,0.680054,0.656215,0.697161048,Shell PLC,SHEL.L,LSE,Consumer Goods,Stocks
-BUY,1.385015,6.585,1.389516,1.476218238,Broadcom Inc,AVGO,Nasdaq,Technology,Stocks
-BUY,0.692507,-0.235,0.650303,0.690879609,Workday Inc A,WDAY,Nasdaq,Technology,Stocks
-BUY,1.731268,-1.5436,1.604432,1.704544147,Marvell Technology Group Ltd,MRVL,Nasdaq,Technology,Stocks
-BUY,1.385015,0.909,1.31552,1.397604786,DexCom Inc,DXCM,Nasdaq,Consumer Goods,Stocks
-BUY,1.385015,2.774,1.339833,1.423435316,Sarepta Therapeutics Inc,SRPT,Nasdaq,Consumer Goods,Stocks
-BUY,1.385015,2.2815,1.333413,1.416614117, Nutanix Inc A,NTNX,Nasdaq,Technology,Stocks
-BUY,7.271326,3.916952,7.11235,7.556140349,Alphabet Inc Class A,GOOGL,Nasdaq,Services,Stocks
-BUY,0.692507,8.332,0.706146,0.750206683,Banco Santander SA,SAN.MC,Bolsa De Madrid,Financial,Stocks
-BUY,1.385015,2.7215,1.339149,1.422708183,Draftkings Inc,DKNG,Nasdaq,Financial,Stocks
-BUY,0.692507,-1.317,0.64325,0.683386683, Chord Energy Corporation,CHRD,Nasdaq,Basic Materials,Stocks
-BUY,1.385015,3.8225,1.353502,1.437957198,Symbotic Inc,SYM,Nasdaq,Industrial Goods,Stocks
-BUY,7.963356,5.396846,7.900177,8.39312606,Amundi MSCI Greece UCITS ETF,LYXGRE.DE,Xetra ETFs,Financial,ETF
-BUY,0.346122,-1.348512,0.3214,0.341454503,Bitcoin,BTCUSD,Digital Currency,NA,Crypto
+BUY,0.857615,-4.197447,0.617573,0.821617065,Oil (Non Expiry),CLUSD,Commodity,NA,Commodity
+BUY,2.077204,3.956,2.03166,2.15937819,Apple,AAPL,Nasdaq,Consumer Goods,Stocks
+BUY,1.947025,31.402317,2.407116,2.558435963,Meta Platforms Inc,META,Nasdaq,Technology,Stocks
+BUY,8.27416,7.256181,8.349658,8.874548026,Microsoft,MSFT,Nasdaq,Technology,Stocks
+BUY,7.615381,7.248345,7.684307,8.167370088,Amazon.com Inc,AMZN,Nasdaq,Services,Stocks
+BUY,1.384802,1.8315,1.32676,1.410164649,Merck & Co.,MRK,NYSE,Healthcare,Stocks
+BUY,1.384802,-3.487,1.257466,1.336513954,Exxon-Mobil,XOM,NYSE,Basic Materials,Stocks
+BUY,1.384802,0.7925,1.313223,1.395776556,Las Vegas Sands Corp,LVS,NYSE,Services,Stocks
+BUY,1.384802,-0.976,1.290181,1.371286332,"First Solar, Inc.",FSLR,Nasdaq,Technology,Stocks
+BUY,1.384802,11.4065,1.451513,1.54275944,"Micron Technology, Inc.",MU,Nasdaq,Technology,Stocks
+BUY,3.115805,96.370222,5.756631,6.118513196,NVIDIA Corporation,NVDA,Nasdaq,Technology,Stocks
+BUY,0.692401,0.123,0.65225,0.693252653,Constellation Brands Inc.,STZ,NYSE,Consumer Goods,Stocks
+BUY,0.692401,2.338,0.66668,0.708589335,Spotify Technologies SA,SPOT,NYSE,Technology,Stocks
+BUY,0.692401,3.947,0.677161,0.719730067,E.ON SE,EOAN.DE,FRA,Utilities,Stocks
+BUY,0.692401,6.014,0.690627,0.734041996,Deutsche Telekom AG,DTE.DE,FRA,Technology,Stocks
+BUY,1.384802,-0.6505,1.294422,1.375793863,Kroger Co,KR,NYSE,Consumer Goods,Stocks
+BUY,2.769605,-2.513,2.540311,2.700004826,Halliburton Co,HAL,NYSE,Basic Materials,Stocks
+BUY,0.692401,-0.681,0.647012,0.687685749,Applied Materials Inc,AMAT,Nasdaq,Technology,Stocks
+BUY,1.384802,3.3415,1.346434,1.431075159,Block Inc.,SQ,NYSE,Services,Stocks
+BUY,0.692394,10.948109,0.722763,0.76819805,Deutsche Bank Aktiengesellschaft,DBK.DE,FRA,Financial,Stocks
+BUY,0.692401,15.071,0.749629,0.796752755,Barclays,BARC.L,LSE,Financial,Stocks
+BUY,0.692346,1.339107,0.66012,0.701617254,Shell PLC,SHEL.L,LSE,Consumer Goods,Stocks
+BUY,1.384802,7.6055,1.401989,1.490123116,Broadcom Inc,AVGO,Nasdaq,Technology,Stocks
+BUY,0.692401,-0.627,0.647364,0.688059646,Workday Inc A,WDAY,Nasdaq,Technology,Stocks
+BUY,1.731003,-0.5208,1.62014,1.721987936,Marvell Technology Group Ltd,MRVL,Nasdaq,Technology,Stocks
+BUY,1.384802,1.1465,1.317835,1.400678755,DexCom Inc,DXCM,Nasdaq,Consumer Goods,Stocks
+BUY,1.384802,2.8245,1.339698,1.423915732,Sarepta Therapeutics Inc,SRPT,Nasdaq,Consumer Goods,Stocks
+BUY,1.384802,2.8475,1.339998,1.424234237, Nutanix Inc A,NTNX,Nasdaq,Technology,Stocks
+BUY,0.692401,0.462,0.654458,0.695599893,Crowdstrike Holdings,CRWD,Nasdaq,Technology,Stocks
+BUY,7.962614,3.173043,7.729375,8.215271166,Alphabet Inc Class A,GOOGL,Nasdaq,Services,Stocks
+BUY,0.692401,8.751,0.708457,0.752993012,Banco Santander SA,SAN.MC,Bolsa De Madrid,Financial,Stocks
+BUY,1.384802,3.7805,1.352154,1.43715444,Draftkings Inc,DKNG,Nasdaq,Financial,Stocks
+BUY,0.692401,0.187,0.652667,0.69369579,Snowflake Inc.,SNOW,NYSE,Services,Stocks
+BUY,0.692401,-1.464,0.641912,0.682264249, Chord Energy Corporation,CHRD,Nasdaq,Basic Materials,Stocks
+BUY,1.384802,7.021,1.394374,1.482028948,Symbotic Inc,SYM,Nasdaq,Industrial Goods,Stocks
+BUY,7.962136,5.741649,7.921331,8.419293902,Amundi MSCI Greece UCITS ETF,LYXGRE.DE,Xetra ETFs,Financial,ETF
+BUY,0.346069,0.600228,0.327555,0.348146203,Bitcoin,BTCUSD,Digital Currency,NA,Crypto
