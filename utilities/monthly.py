@@ -51,12 +51,13 @@ def fetch_monthly_change(start_date, end_date):
     for name, ticker in indices.items():
         start_price, start_date_actual = get_previous_trading_day_close(ticker, start_date)
         end_price, end_date_actual = get_previous_trading_day_close(ticker, end_date)
-        if start_price and end_price:
-            change = ((end_price - start_price) / start_price) * 100
+        # Check if both prices are valid numbers using .iloc[-1] to get the last value
+        if not pd.isna(start_price.iloc[-1]) and not pd.isna(end_price.iloc[-1]):
+            change = ((end_price.iloc[-1] - start_price.iloc[-1]) / start_price.iloc[-1]) * 100
             results.append({
                 'Index': name,
-                'Previous Month': f"{start_price:,.2f}",
-                'This Month': f"{end_price:,.2f}",
+                'Previous Month': f"{start_price.iloc[-1]:,.2f}",
+                'This Month': f"{end_price.iloc[-1]:,.2f}",
                 'Change Percent': f"{change:+.2f}%"
             })
     return results, start_date, end_date
