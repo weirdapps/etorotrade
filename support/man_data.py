@@ -42,7 +42,7 @@ def extract_financial_metrics(ticker, api_key, start_date):
         "expected_return": None,
         "institutional_change": None
     }
-
+    
     if start_date != '-':
         dcf_data = fetch_dcf_data(ticker, api_key)
         if dcf_data:
