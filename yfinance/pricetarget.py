@@ -23,7 +23,8 @@ def get_analyst_price_targets(ticker_symbol):
     df = pd.DataFrame(price_targets)
     return df
 
-# Example Usage
-ticker = "MA"
-df_price_targets = get_analyst_price_targets(ticker)
-print(df_price_targets.to_markdown(index=False))
+if __name__ == "__main__":
+    ticker = input("Enter stock ticker symbol (e.g., AAPL): ").strip().upper()
+    df_price_targets = get_analyst_price_targets(ticker)
+    print(f"\nAnalyst Price Targets for {ticker}:")
+    print(df_price_targets.to_markdown(index=False))
