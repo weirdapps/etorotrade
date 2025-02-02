@@ -79,11 +79,15 @@ def display_report(tickers):
     print(tabulate(df, headers='keys', tablefmt='fancy_grid', showindex=False, colalign=colalign))
 
 if __name__ == "__main__":
-    choice = input("Load tickers from File (F) or Manual input (M)? ").strip().upper()
+    choice = input("Load tickers for Portfolio (P), Market (M) or Manual Input (I)? ").strip().upper()
     if choice == "F":
         file_path = "output/tracker.csv"
         df = pd.read_csv(file_path)
         tickers = df["Ticker"].dropna().unique().tolist()
+    elif choice == "M":
+        file_path = "output/market.csv"
+        df = pd.read_csv(file_path)
+        tickers = df["symbol"].dropna().unique().tolist()
     else:
         tickers = input("Enter tickers (comma-separated): ").strip().upper().split(',')
     
