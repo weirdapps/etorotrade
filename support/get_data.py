@@ -7,7 +7,32 @@ import datetime
 def fetch_earliest_valid_date(ticker, api_key):
     url = f"{API_URLS['EARNINGS']}historical/earning_calendar/{ticker}?apikey={api_key}"
     earnings_data = api_request(url)
-    return earnings_data
+    today = datetime.datetime.today().date()
+    valid_records = []
+
+    if earnings_data:
+        for entry in earnings_data:
+            date_str = entry.get('date')
+            if not date_str:
+                continue
+            try:
+                entry_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+                # Exclude future dates and ensure data has EPS/revenue
+                if entry_date <= today and (entry.get('eps') or entry.get('revenue')):
+                    valid_records.append(entry)
+            except (ValueError, TypeError):
+                continue
+
+    # Sort valid records by date (newest first)
+    valid_records.sort(key=lambda x: datetime.datetime.strptime(x['date'], '%Y-%m-%d'), reverse=True)
+    
+    # Adjust the latest record's date to one day earlier
+    if valid_records:
+        latest_date = datetime.datetime.strptime(valid_records[0]['date'], '%Y-%m-%d')
+        adjusted_date = latest_date - datetime.timedelta(days=1)
+        valid_records[0]['date'] = adjusted_date.strftime('%Y-%m-%d')
+    
+    return valid_records
 
 def fetch_current_stock_price(ticker, api_key):
     url = f"{API_URLS['QUOTE']}quote/{ticker}?apikey={api_key}"
