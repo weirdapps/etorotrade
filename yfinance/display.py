@@ -80,7 +80,7 @@ def display_report(tickers):
 
 if __name__ == "__main__":
     choice = input("Load tickers for Portfolio (P), Market (M) or Manual Input (I)? ").strip().upper()
-    if choice == "F":
+    if choice == "P":
         file_path = "output/tracker.csv"
         df = pd.read_csv(file_path)
         tickers = df["Ticker"].dropna().unique().tolist()
