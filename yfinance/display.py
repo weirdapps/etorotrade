@@ -50,9 +50,9 @@ def get_color_code(num_targets, upside, total_ratings, percent_buy):
     try:
         if num_targets in [None, "N/A", "--", 0, 1, 2, 3, 4] or total_ratings in [None, "N/A", "--", 0, 1, 2, 3, 4]:
             return "\033[93m"  # Yellow (Low Confidence)
-        if num_targets > 4 and upside > 15 and total_ratings > 4 and percent_buy > 65:
+        if (num_targets > 4 and upside > 15) and (total_ratings > 4 and percent_buy > 65):
             return "\033[92m"  # Green (Buy)
-        if num_targets > 4 and upside < 5 and total_ratings > 4 and percent_buy < 50:
+        if (num_targets > 4 and upside < 5) or (total_ratings > 4 and percent_buy < 50):
             return "\033[91m"  # Red (Sell)
         return ""  # White (Hold)
     except ValueError:
