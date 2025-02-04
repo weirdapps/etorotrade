@@ -1,42 +1,27 @@
 import yfinance as yf
 
-def get_stock_info(ticker_symbol):
-    # Create a Ticker object
-    stock = yf.Ticker(ticker_symbol)
-    
-    # Fetch the info dictionary
-    info = stock.info
-    
-    return info
+def get_stock_info(ticker):
+    """Fetch stock info from Yahoo Finance and return a structured dictionary."""
+    stock = yf.Ticker(ticker)
+    info = stock.info or {}
 
-# Example usage
-if __name__ == "__main__":
-    # Prompt user for ticker input
-    ticker = input("Enter a stock ticker symbol (e.g., NVDA, AAPL, TSLA): ").strip().upper()
-    stock_info = get_stock_info(ticker)
-    
-    # Print all keys in the info dictionary
-    print("\nAll available keys in the info dictionary:")
-    print(stock_info.keys())
-    
-    # Print selected metrics
-    print(f"\nSelected metrics for {ticker}")
-    print("----------------------------------")
-    print(f"Company Name: {stock_info.get('longName', 'N/A')}")
-    print(f"Sector: {stock_info.get('sector', 'N/A')}")
-    print(f"Market Cap: {stock_info.get('marketCap', 'N/A'):,}")
-    print(f"Current Price: {stock_info.get('currentPrice', 'N/A')}")
-    print(f"Target Price: {stock_info.get('targetMeanPrice', 'N/A')}")
-    print(f"Recommendation Mean: {stock_info.get('recommendationMean', 'N/A')}")
-    print(f"Recommendation Key: {stock_info.get('recommendationKey', 'N/A')}")
-    print(f"Number of Analysts: {stock_info.get('numberOfAnalystOpinions', 'N/A')}")
-    print(f"PE Ratio (Trailing): {stock_info.get('trailingPE', 'N/A')}")
-    print(f"PE Ratio (Forward): {stock_info.get('forwardPE', 'N/A')}")
-    print(f"PEG Ratio (Trailing): {stock_info.get('trailingPegRatio', 'N/A')}")
-    print(f"Quick Ratio: {stock_info.get('quickRatio', 'N/A')}")
-    print(f"Current Ratio: {stock_info.get('currentRatio', 'N/A')}")
-    print(f"Debt to Equity: {stock_info.get('debtToEquity', 'N/A')}")
-    print(f"Short % of Float: {stock_info.get('shortPercentOfFloat', 'N/A')}")
-    print(f"Short Ratio: {stock_info.get('shortRatio', 'N/A')}")
-    print(f"Stock Beta: {stock_info.get('beta', 'N/A')}")   
-    print(f"Dividend Yield: {stock_info.get('dividendYield', 'N/A')}")
+    return {
+        "Company Name": info.get("longName", "N/A"),
+        "Sector": info.get("sector", "N/A"),
+        "Market Cap": f"{info.get('marketCap', 'N/A'):,}" if info.get("marketCap") else "N/A",
+        "Current Price": info.get("currentPrice", "N/A"),
+        "Target Price": info.get("targetMeanPrice", "N/A"),
+        "Recommendation Mean": info.get("recommendationMean", "N/A"),
+        "Recommendation Key": info.get("recommendationKey", "N/A"),
+        "Number of Analysts": info.get("numberOfAnalystOpinions", "N/A"),
+        "PE Ratio (Trailing)": info.get("trailingPE", "N/A"),
+        "PE Ratio (Forward)": info.get("forwardPE", "N/A"),
+        "PEG Ratio (Trailing)": info.get("trailingPegRatio", "N/A"),
+        "Quick Ratio": info.get("quickRatio", "N/A"),
+        "Current Ratio": info.get("currentRatio", "N/A"),
+        "Debt to Equity": info.get("debtToEquity", "N/A"),
+        "Short % of Float": info.get("shortPercentOfFloat", "N/A"),
+        "Short Ratio": info.get("shortRatio", "N/A"),
+        "Stock Beta": info.get("beta", "N/A"),
+        "Dividend Yield": info.get("dividendYield", "N/A")
+    }

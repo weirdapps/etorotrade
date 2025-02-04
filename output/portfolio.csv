@@ -1,25 +1,48 @@
-BuySell,investmentPctRealized,profitPct,valuePctUnrealized,positionValue,name,ticker,Exchange,Sector,AssetClass
-BUY,1.687778,0.960435,1.575836,1.703988011,Apple,AAPL,Nasdaq,Consumer Goods,Stocks
-BUY,1.834542,8.8704,1.847063,1.997273214,Meta Platforms Inc,META,Nasdaq,Technology,Stocks
-BUY,5.466934,15.306577,5.829648,6.303734462,Microsoft,MSFT,Nasdaq,Technology,Stocks
-BUY,5.00088,51.602154,7.011262,7.581441799,Amazon.com Inc,AMZN,Nasdaq,Services,Stocks
-BUY,0.107937,34.727038,0.134484,0.145420323,"Tesla Motors, Inc.",TSLA,Nasdaq,Consumer Goods,Stocks
-BUY,1.467633,-6.1005,1.274457,1.378100049,"Micron Technology, Inc.",MU,Nasdaq,Technology,Stocks
-BUY,16.143893,16.497439,17.392782,18.8072219,NVIDIA Corporation,NVDA,Nasdaq,Technology,Stocks
-BUY,2.935267,7.9035,2.929055,3.167255827,Uber Technologies Inc.,UBER,NYSE,Services,Stocks
-BUY,2.935267,-0.21325,2.708725,2.929007543,AbbVie Inc,ABBV,NYSE,Healthcare,Stocks
-BUY,0.733817,5.357,0.714982,0.773127577,Tenet Healthcare Corp,THC,NYSE,Healthcare,Stocks
-BUY,0.733817,-0.903,0.6725,0.727190632,MGM Resorts International,MGM,NYSE,Services,Stocks
-BUY,0.733817,-1.26,0.670078,0.724570906,Crown Holdings Inc,CCK,NYSE,Consumer Goods,Stocks
-BUY,3.669083,-8.2726,3.11244,3.36555444,Advanced Micro Devices Inc,AMD,Nasdaq,Technology,Stocks
-BUY,0.733817,1.767,0.69062,0.746783546,Burlington Stores Inc,BURL,NYSE,Services,Stocks
-BUY,0.733817,-2.384,0.66245,0.716322803,NXP Semiconductors,NXPI,Nasdaq,Technology,Stocks
-BUY,1.467633,3.396,1.403349,1.517473817,ASML Holding NV - ADR,ASML,Nasdaq,Technology,Stocks
-BUY,1.467633,-5.77,1.278943,1.382950576,Microchip Technology Inc,MCHP,Nasdaq,Technology,Stocks
-BUY,0.733817,-3.308,0.656179,0.709542334,Diamondback Energy Inc,FANG,Nasdaq,Basic Materials,Stocks
-BUY,0.733817,-8.271,0.622499,0.673122996,Sarepta Therapeutics Inc,SRPT,Nasdaq,Consumer Goods,Stocks
-BUY,6.237442,25.573647,7.243516,7.832583399,Alphabet Inc Class A,GOOGL,Nasdaq,Services,Stocks
-BUY,13.57497,2.398978,12.855202,13.90063054,Amundi MSCI Greece UCITS ETF,LYXGRE.DE,Xetra ETFs,Financial,ETF
-BUY,1.898391,12.892103,1.981954,2.143133523,Bitcoin,BTCUSD,Digital Currency,NA,Crypto
-BUY,0.733369,-3.706261,0.653078,0.706188431,XRP,XRPUSD,Digital Currency,NA,Crypto
-BUY,0.733817,-4.757,0.646346,0.698909325,Solana,SOLUSD,Digital Currency,NA,Crypto
+﻿Ticker
+AAPL
+ABBV
+ADBE
+AES
+AMD
+AMZN
+ASML
+BIIB
+BTCUSD
+BURL
+CCK
+CI
+CNC
+COP
+CZR
+DELL
+DVN
+FANG
+GOOGL
+HAS
+LKQ
+LLY
+LYXGRE.DE
+MCHP
+MDB
+META
+MGM
+MRNA
+MSCI
+MSFT
+MU
+NVDA
+NWSA
+NXPI
+ON
+OXY
+PCG
+REGN
+SLB
+SOLUSD
+SRPT
+THC
+TSLA
+UAL
+UBER
+UNH
+XRPUSD
