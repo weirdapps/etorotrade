@@ -88,9 +88,10 @@ class AnalystData:
             logger.error(f"Error fetching ratings data for {ticker}: {str(e)}")
             raise YFinanceError(f"Failed to fetch ratings data: {str(e)}")
 
-    def get_ratings_summary(self, 
-                           ticker: str, 
-                           start_date: Optional[str] = None) -> Dict[str, Optional[float]]:
+    def get_ratings_summary(self,
+                           ticker: str,
+                           start_date: Optional[str] = None,
+                           use_earnings_date: bool = True) -> Dict[str, Optional[float]]:
         """
         Get summary of analyst ratings including positive percentage and total count.
         
@@ -106,6 +107,17 @@ class AnalystData:
             YFinanceError: When API call fails
         """
         try:
+            if use_earnings_date:
+                # Get last earnings date
+                stock_info = self.client.get_ticker_info(ticker)
+                earnings_date = stock_info.last_earnings
+                if earnings_date:
+                    if isinstance(earnings_date, str):
+                        start_date = pd.to_datetime(earnings_date).strftime('%Y-%m-%d')
+                    else:
+                        start_date = earnings_date.strftime('%Y-%m-%d')
+
+            # Fetch ratings data with appropriate start date
             df = self.fetch_ratings_data(ticker, start_date)
             
             if df is None or df.empty:

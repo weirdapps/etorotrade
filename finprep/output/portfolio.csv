@@ -1,0 +1,43 @@
+BuySell,investmentPctRealized,profitPct,valuePctUnrealized,positionValue,name,ticker,Exchange,Sector,AssetClass
+BUY,1.681823,-1.485652,1.542135,1.656836963,Apple,AAPL,Nasdaq,Consumer Goods,Stocks
+BUY,3.290522,8.272222,3.316076,3.562721285,Meta Platforms Inc,META,Nasdaq,Technology,Stocks
+BUY,9.835006,3.261784,9.452721,10.15580265,Microsoft,MSFT,Nasdaq,Technology,Stocks
+BUY,4.983233,54.706973,7.17569,7.709408932,Amazon.com Inc,AMZN,Nasdaq,Services,Stocks
+BUY,1.462454,-0.2545,1.357745,1.458732055,UnitedHealth,UNH,NYSE,Healthcare,Stocks
+BUY,0.107556,36.55585,0.136706,0.14687401,"Tesla Motors, Inc.",TSLA,Nasdaq,Consumer Goods,Stocks
+BUY,1.462454,1.9315,1.387501,1.490701299,Adobe Systems Inc,ADBE,Nasdaq,Technology,Stocks
+BUY,1.462454,-4.1665,1.304495,1.401520854,"Micron Technology, Inc.",MU,Nasdaq,Technology,Stocks
+BUY,17.54938,12.012592,18.296634,19.65751542,NVIDIA Corporation,NVDA,Nasdaq,Technology,Stocks
+BUY,2.924909,12.99,3.076061,3.304854679,Uber Technologies Inc.,UBER,NYSE,Services,Stocks
+BUY,0.731227,-0.635,0.676283,0.726583709,Biogen Inc,BIIB,Nasdaq,Healthcare,Stocks
+BUY,0.731227,3.222,0.702534,0.754787134,ConocoPhillips Co,COP,NYSE,Basic Materials,Stocks
+BUY,1.462454,-0.0995,1.359855,1.460998858,Cigna Group,CI,NYSE,Healthcare,Stocks
+BUY,1.462454,2.3985,1.393858,1.497530959,Eli Lilly & Co,LLY,NYSE,Healthcare,Stocks
+BUY,0.731227,2.777,0.699505,0.751533174,Devon Energy Corp,DVN,NYSE,Basic Materials,Stocks
+BUY,0.731227,9.352,0.744255,0.799611349,Tenet Healthcare Corp,THC,NYSE,Healthcare,Stocks
+BUY,0.731227,0.856,0.686431,0.737486303,AES Corp,AES,NYSE,Services,Stocks
+BUY,0.731227,-0.066,0.680155,0.73074439,PG&E Corp,PCG,NYSE,Utilities,Stocks
+BUY,0.731227,-5.477,0.643328,0.691177697,Centene Corp,CNC,NYSE,Healthcare,Stocks
+BUY,0.731227,-4.06,0.652972,0.701539184,Crown Holdings Inc,CCK,NYSE,Consumer Goods,Stocks
+BUY,0.731227,1.93,0.69374,0.745339681,News Corp,NWSA,Nasdaq,Services,Stocks
+BUY,0.73122,2.273023,0.696068,0.747840799,LKQ Corp,LKQ,Nasdaq,Consumer Goods,Stocks
+BUY,3.656136,-6.7038,3.174892,3.411035955,Advanced Micro Devices Inc,AMD,Nasdaq,Technology,Stocks
+BUY,0.731227,-5.057,0.646187,0.694248851,Burlington Stores Inc,BURL,NYSE,Services,Stocks
+BUY,0.731227,1.836,0.693101,0.744652328,Hasbro Inc,HAS,Nasdaq,Consumer Goods,Stocks
+BUY,0.731227,4.45,0.710892,0.763766602,Regeneron Pharmaceuticals,REGN,Nasdaq,Healthcare,Stocks
+BUY,0.731227,-7.066,0.632513,0.6795585,NXP Semiconductors,NXPI,Nasdaq,Technology,Stocks
+BUY,1.462454,6.0735,1.443882,1.551276144,ASML Holding NV - ADR,ASML,Nasdaq,Technology,Stocks
+BUY,0.731227,2.871,0.700145,0.752220527,Schlumberger Ltd,SLB,NYSE,Basic Materials,Stocks
+BUY,0.731227,2.628,0.698491,0.750443646,Dell Technologies Inc C,DELL,NYSE,Technology,Stocks
+BUY,1.462454,-10.998,1.211504,1.301613309,Microchip Technology Inc,MCHP,Nasdaq,Technology,Stocks
+BUY,0.731227,-0.921,0.674336,0.724492399,MSCI Inc,MSCI,NYSE,Technology,Stocks
+BUY,0.731227,-5.674,0.641987,0.68973718,Diamondback Energy Inc,FANG,Nasdaq,Basic Materials,Stocks
+BUY,0.731227,0.198,0.681952,0.732674829,ON Semiconductor Corp,ON,Nasdaq,Technology,Stocks
+BUY,0.731227,-9.915,0.613123,0.658725843,Sarepta Therapeutics Inc,SRPT,Nasdaq,Consumer Goods,Stocks
+BUY,0.731227,3.775,0.706298,0.758830819,MongoDB Inc,MDB,Nasdaq,Technology,Stocks
+BUY,0.731227,3.376,0.703582,0.755913224,Caesars Entertainment Inc,CZR,Nasdaq,Consumer Goods,Stocks
+BUY,6.215431,31.822706,7.626128,8.193349334,Alphabet Inc Class A,GOOGL,Nasdaq,Services,Stocks
+BUY,13.527067,0.598515,12.665951,13.60802853,Amundi MSCI Greece UCITS ETF,LYXGRE.DE,Xetra ETFs,Financial,ETF
+BUY,1.891692,7.082307,1.885432,2.025667435,Bitcoin,BTCUSD,Digital Currency,NA,Crypto
+BUY,0.730781,-20.307388,0.542061,0.582378467,XRP,XRPUSD,Digital Currency,NA,Crypto
+BUY,0.731227,-15.478,0.575261,0.618047685,Solana,SOLUSD,Digital Currency,NA,Crypto
