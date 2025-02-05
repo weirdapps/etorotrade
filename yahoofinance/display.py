@@ -35,8 +35,8 @@ class MarketDisplay:
             List of valid ticker symbols
         """
         file_mapping = {
-            "P": ("fmp/output/portfolio.csv", "Ticker"),
-            "M": ("fmp/output/market.csv", "symbol")
+            "P": ("yahoofinance/input/portfolio.csv", "ticker"),
+            "M": ("yahoofinance/input/market.csv", "symbol")
         }
 
         # Handle manual input

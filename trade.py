@@ -5,7 +5,7 @@ Command-line interface for the market analysis tool.
 
 import logging
 import sys
-from yfin2.display import MarketDisplay
+from yahoofinance.display import MarketDisplay
 
 # Set up logging with INFO level
 logging.basicConfig(
