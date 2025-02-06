@@ -1,4 +1,4 @@
-*** FOLLOW OR COPY plessas ON ETORO ***
+### === FOLLOW OR COPY plessas ON ETORO ===
 
 # Stock Market Analysis Tools
 
@@ -86,4 +86,4 @@ This repository contains two independent tools that can be used separately:
 
 Each tool has its own complete implementation and can be used independently of the other.
 
-*** FOLLOW OR COPY plessas ON ETORO ***
+### === FOLLOW OR COPY plessas ON ETORO ===
