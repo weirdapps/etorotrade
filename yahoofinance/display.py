@@ -87,6 +87,8 @@ class MarketDisplay:
                     "peg_ratio": None,
                     "dividend_yield": None,
                     "last_earnings": None,
+                    "insider_buy_pct": None,
+                    "insider_transactions": None,
                     "_not_found": True  # Special flag for sorting
                 }
             
@@ -120,6 +122,8 @@ class MarketDisplay:
                 "peg_ratio": stock_info.peg_ratio,
                 "dividend_yield": stock_info.dividend_yield,
                 "last_earnings": stock_info.last_earnings,
+                "insider_buy_pct": stock_info.insider_buy_pct,
+                "insider_transactions": stock_info.insider_transactions,
                 "_not_found": False  # This is a valid ticker with data
             }
 
