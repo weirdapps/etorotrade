@@ -6,6 +6,9 @@ import time
 import logging
 from datetime import datetime
 import pandas as pd
+import time
+from requests.exceptions import HTTPError
+from .insiders import InsiderAnalyzer
 
 class YFinanceError(Exception):
     """Base exception for YFinance client errors"""
@@ -42,6 +45,8 @@ class StockData:
     dividend_yield: Optional[float]
     last_earnings: Optional[str]
     previous_earnings: Optional[str]  # Second most recent earnings date
+    insider_buy_pct: Optional[float]  # Percentage of insider buy transactions
+    insider_transactions: Optional[int]  # Total number of insider transactions
     ticker_object: Any = field(default=None)  # Store the yfinance Ticker object
 
     @property
@@ -56,6 +61,7 @@ class YFinanceClient:
         self.retry_attempts = retry_attempts
         self.timeout = timeout
         self.logger = logging.getLogger(__name__)
+        self.insider_analyzer = InsiderAnalyzer(self)
 
     def _validate_ticker(self, ticker: str) -> None:
         """Validate ticker format"""
@@ -99,7 +105,7 @@ class YFinanceClient:
         return most_recent, previous
         
     @lru_cache(maxsize=100)
-    def get_ticker_info(self, ticker: str) -> StockData:
+    def get_ticker_info(self, ticker: str, skip_insider_metrics: bool = False) -> StockData:
         """
         Get stock information with retry mechanism and caching.
         
@@ -124,6 +130,13 @@ class YFinanceClient:
                 # Get earnings dates
                 last_earnings, previous_earnings = self.get_earnings_dates(ticker)
                 
+                # Get insider metrics if not skipped
+                insider_metrics = (
+                    {"insider_buy_pct": None, "transaction_count": None}
+                    if skip_insider_metrics
+                    else self.insider_analyzer.get_insider_metrics(ticker)
+                )
+                
                 return StockData(
                     name=info.get("longName", "N/A"),
                     sector=info.get("sector", "N/A"),
@@ -145,6 +158,8 @@ class YFinanceClient:
                     dividend_yield=info.get("dividendYield"),
                     last_earnings=last_earnings,
                     previous_earnings=previous_earnings,
+                    insider_buy_pct=insider_metrics.get("insider_buy_pct"),
+                    insider_transactions=insider_metrics.get("transaction_count"),
                     ticker_object=stock
                 )
                 

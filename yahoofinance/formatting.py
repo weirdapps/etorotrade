@@ -127,6 +127,8 @@ class DisplayFormatter:
                 "PE": self.colorize(self.format_value(data.get("pe_trailing")), color),
                 "PEG": self.colorize(self.format_value(data.get("peg_ratio")), color),
                 "DIV %": self.colorize(self.format_value(data.get("dividend_yield"), 2, True), color),
+                "INS %": self.colorize(self.format_value(data.get("insider_buy_pct"), 1, True), color),
+                "# INS": self.colorize(self.format_value(data.get("insider_transactions"), 0), color),
                 "EARNINGS": self.colorize(self.format_date(data.get("last_earnings")), color),
                 "_sort_exret": ex_ret,  # Raw value for sorting
                 "_sort_earnings": pd.to_datetime(data.get("last_earnings")) if data.get("last_earnings") else pd.NaT
@@ -134,9 +136,9 @@ class DisplayFormatter:
         except Exception as e:
             logger.error(f"Error formatting stock row: {str(e)}")
             return {field: "--" for field in [
-                "TICKER", "PRICE", "TARGET", "UPSIDE", "# T", 
-                "% BUY", "# A", "EXRET", "PE", "PEG", "DIV %", 
-                "EARNINGS", "_sort_exret", "_sort_earnings"
+                "TICKER", "PRICE", "TARGET", "UPSIDE", "# T",
+                "% BUY", "# A", "EXRET", "PE", "PEG", "DIV %",
+                "INS %", "# INS", "EARNINGS", "_sort_exret", "_sort_earnings"
             ]}
 
     def create_sortable_dataframe(self, rows: List[Dict[str, Any]]) -> pd.DataFrame:
