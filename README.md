@@ -48,14 +48,14 @@ You'll be prompted to choose a data source:
   - Higher than PET suggests expected earnings decline
 
 - **PEG**: Price/Earnings to Growth ratio
-  - < 1: Potentially undervalued
-  - > 1: Potentially overvalued
+  - &lt; 1: Potentially undervalued
+  - &gt; 1: Potentially overvalued
   - ~1: Fairly valued
 
 ### Risk Metrics
 - **BETA**: Stock's volatility compared to the market
-  - > 1: More volatile than market (e.g., 1.5 = 50% more volatile)
-  - < 1: Less volatile than market (e.g., 0.5 = 50% less volatile)
+  - &gt; 1: More volatile than market (e.g., 1.5 = 50% more volatile)
+  - &lt; 1: Less volatile than market (e.g., 0.5 = 50% less volatile)
   - = 1: Same volatility as market
 
 ### Income & Ownership
