@@ -1,89 +1,111 @@
-### === FOLLOW OR COPY plessas ON ETORO ===
+=== Follow or Copy PLESSAS on etoro ===
 
-# Stock Market Analysis Tools
+# Market Analysis and Portfolio Management Tool
 
-This repository contains two independent tools for stock market analysis:
+A Python-based tool for analyzing stocks using data from Yahoo Finance. The tool provides a comprehensive market analysis report with various metrics to help in stock selection and portfolio management.
 
-## 1. Market Analysis Tool (trade.py & yahoofinance/)
+## Features
 
-A standalone command-line tool for analyzing stock market data using Yahoo Finance. This component is completely independent and can be used without any other parts of the repository.
+- Real-time stock data from Yahoo Finance
+- Multiple data  options (Portfolio, Market, Manual)
+- Comprehensive analysis with multiple metrics
+- Color-coded output for quick insights
+- Support for multiple stocks analysis
 
-### Features
-- Real-time stock price tracking
-- Analyst ratings and recommendations analysis
-- Price target tracking
-- Key financial metrics (PE ratio, PEG ratio, dividend yield)
-- Comprehensive market reporting with customizable display formats
+## Usage
 
-### Usage
+Run the tool using:
 ```bash
 python trade.py
 ```
 
-You'll be prompted to choose your data source:
-- P: Load from portfolio file (yahoofinance/input/portfolio.csv)
-- M: Load from market watchlist (yahoofinance/input/market.csv)
-- I: Manual ticker input
+You'll be prompted to choose a data source:
+- P: Load tickers from portfolio file (yahoofinance/input/portfolio.csv)
+- M: Load tickers from market file (yahoofinance/input/market.csv)
+- I: Manually input tickers (comma-separated)
 
-### Structure
-```
-.
-├── trade.py                 # Main CLI interface
-└── yahoofinance/           # Self-contained Yahoo Finance analysis module
-    ├── analyst.py          # Analyst ratings handling
-    ├── client.py           # Yahoo Finance API client
-    ├── display.py          # Market data display
-    ├── formatting.py       # Output formatting
-    ├── pricing.py          # Price analysis
-    └── input/              # Input data files
-        ├── market.csv      # Market watchlist
-        └── portfolio.csv   # Portfolio data
-```
+## Metrics Explanation
 
-### Requirements
+### Price and Target
+- **PRICE**: Current stock price
+- **TARGET**: Average analyst price target
+- **UPSIDE**: Percentage difference between target and current price
+- **EXRET**: Expected return (Upside × Buy %) - Used for ranking table
+
+### Analyst Coverage
+- **# T**: Number of analysts providing price targets
+- **% BUY**: Percentage of analysts recommending Buy
+- **# A**: Number of analysts providing ratings
+
+### Valuation Metrics
+- **PET**: Trailing P/E ratio (Price / Last 12 months earnings)
+  - High: Stock might be expensive
+  - Low: Might indicate value or problems
+  - Industry comparison is important
+
+- **PEF**: Forward P/E ratio (Price / Next 12 months expected earnings)
+  - Lower than PET suggests expected earnings growth
+  - Higher than PET suggests expected earnings decline
+
+- **PEG**: Price/Earnings to Growth ratio
+  - < 1: Potentially undervalued
+  - > 1: Potentially overvalued
+  - ~1: Fairly valued
+
+### Risk Metrics
+- **BETA**: Stock's volatility compared to the market
+  - > 1: More volatile than market (e.g., 1.5 = 50% more volatile)
+  - < 1: Less volatile than market (e.g., 0.5 = 50% less volatile)
+  - = 1: Same volatility as market
+
+### Income & Ownership
+- **DIV %**: Dividend yield percentage
+- **SI**: Short Interest - % of float shares sold short
+  - High: Indicates bearish sentiment
+  - Low: Less bearish sentiment
+- **INS %**: Percentage of insider buy transactions
+- **# INS**: Number of insider transactions
+
+### Timing
+- **EARNINGS**: Date of last earnings report
+  - Used to track analyst reports and insider trading since last earnings
+
+## Color Coding
+
+The tool uses color coding for quick visual analysis:
+- 🟢 **Green**: Potential buy signal (examine also other factors)
+  - High upside potential (>15%)
+  - Strong analyst consensus (>65% buy)
+  - Sufficient analyst coverage (>4)
+
+- 🔴 **Red**: Potential Sell signal (examine also other factors)
+  - Low upside potential (<5%) or
+  - Low analyst consensus (<50%)
+  - Sufficient analyst coverage (>4)
+
+- 🟡 **Yellow**: Low confidence
+  - Limited analyst coverage (<4 analysts)
+  - Use additional research
+
+- ⚪ **White**: Hold/Neutral
+  - Moderate metrics (examine also other factors)
+  - Neither strong buy nor sell signals
+
+## Data Sources
+
+All data is sourced from Yahoo Finance API through the yfinance Python package. The data includes:
+- Real-time and historical price data
+- Analyst recommendations and price targets
+- Financial metrics and ratios
+- Insider trading information
+- Company fundamentals
+
+## Dependencies
+
 - Python 3.x
-- pandas
 - yfinance
+- pandas
 - tabulate
 - tqdm
 
-## 2. Financial Preparation System (finprep/)
-
-A separate, comprehensive stock screening and portfolio quality tracking system. See [finprep/README.md](finprep/README.md) for details.
-
-Features include:
-- DCF valuation
-- Analyst price targets and recommendations
-- Institutional ownership changes
-- Insider and senate transactions
-- Piotroski score
-- Comprehensive company ratings
-
-## Error Handling
-
-The Market Analysis Tool includes comprehensive error handling:
-- Validation of input data
-- Graceful handling of API failures
-- Logging of errors and warnings
-- Fallback values for missing data
-
-## Output
-
-The Market Analysis Tool generates detailed reports including:
-- Stock rankings
-- Price metrics
-- Analyst recommendations
-- Key financial ratios
-- Performance indicators
-
-Reports are displayed in a clear, tabulated format with proper alignment and formatting for easy reading.
-
-## Note on Project Structure
-
-This repository contains two independent tools that can be used separately:
-1. The Market Analysis Tool (trade.py & yahoofinance/) is a standalone component
-2. The Financial Preparation System (finprep/) is a separate tool with its own functionality
-
-Each tool has its own complete implementation and can be used independently of the other.
-
-### === FOLLOW OR COPY plessas ON ETORO ===
+=== Follow or Copy PLESSAS on etoro ===
