@@ -152,7 +152,7 @@ class YFinanceClient:
                     quick_ratio=info.get("quickRatio"),
                     current_ratio=info.get("currentRatio"),
                     debt_to_equity=info.get("debtToEquity"),
-                    short_float_pct=info.get("shortPercentOfFloat"),
+                    short_float_pct=info.get("shortPercentOfFloat", 0) * 100 if info.get("shortPercentOfFloat") is not None else None,
                     short_ratio=info.get("shortRatio"),
                     beta=info.get("beta"),
                     dividend_yield=info.get("dividendYield"),
