@@ -57,7 +57,7 @@ class InsiderAnalyzer:
                     "transaction_count": None
                 }
             
-            # Count purchases and sales
+            # Count actual purchases and sales
             purchases = filtered_df[
                 filtered_df["Text"].str.contains("Purchase at price", case=False)
             ].shape[0]

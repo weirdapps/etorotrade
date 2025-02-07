@@ -65,20 +65,23 @@ def debug_insider_transactions(ticker: str):
             print("No purchase/sale transactions found")
     
     # Show alternative data sources
-    print("\n3. Alternative Data Sources:")
-    print("\nInsider Purchases:")
+    print("\n3. Alternative Data Source (get_insider_purchases()):")
     purchases_df = stock.get_insider_purchases()
     if purchases_df is not None and not purchases_df.empty:
+        print("\nRaw DataFrame:")
         print(purchases_df.to_string())
+        print("\nDataFrame Info:")
+        print(purchases_df.info())
+        print("\nDataFrame Index:")
+        print(purchases_df.index.tolist())
+        print("\nDataFrame Columns:")
+        print(purchases_df.columns.tolist())
+        print("\nFirst Row (Purchases):")
+        print(purchases_df.iloc[0].to_dict())
+        print("\nSecond Row (Sales):")
+        print(purchases_df.iloc[1].to_dict())
     else:
-        print("No purchase data available")
-        
-    print("\nInsider Sales:")
-    sales_df = stock.get_insider_sales()
-    if sales_df is not None and not sales_df.empty:
-        print(sales_df.to_string())
-    else:
-        print("No sales data available")
+        print("No insider data available")
 
 def main():
     """Main entry point"""

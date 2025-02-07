@@ -124,9 +124,12 @@ class DisplayFormatter:
                 "% BUY": self.colorize(self.format_value(percent_buy, 1, True), color),
                 "# A": self.colorize(self.format_value(total_ratings, 0), color),
                 "EXRET": self.colorize(self.format_value(ex_ret, 1, True), color),
-                "PE": self.colorize(self.format_value(data.get("pe_trailing")), color),
+                "BETA": self.colorize(self.format_value(data.get("beta"), 1), color),
+                "PET": self.colorize(self.format_value(data.get("pe_trailing")), color),
+                "PEF": self.colorize(self.format_value(data.get("pe_forward")), color),
                 "PEG": self.colorize(self.format_value(data.get("peg_ratio")), color),
                 "DIV %": self.colorize(self.format_value(data.get("dividend_yield"), 2, True), color),
+                "SI": self.colorize(self.format_value(data.get("short_float_pct"), 1, True), color),
                 "INS %": self.colorize(self.format_value(data.get("insider_buy_pct"), 1, True), color),
                 "# INS": self.colorize(self.format_value(data.get("insider_transactions"), 0), color),
                 "EARNINGS": self.colorize(self.format_date(data.get("last_earnings")), color),
@@ -137,7 +140,7 @@ class DisplayFormatter:
             logger.error(f"Error formatting stock row: {str(e)}")
             return {field: "--" for field in [
                 "TICKER", "PRICE", "TARGET", "UPSIDE", "# T",
-                "% BUY", "# A", "EXRET", "PE", "PEG", "DIV %",
+                "% BUY", "# A", "EXRET", "BETA", "PET", "PEF", "PEG", "DIV %", "SI",
                 "INS %", "# INS", "EARNINGS", "_sort_exret", "_sort_earnings"
             ]}
 
