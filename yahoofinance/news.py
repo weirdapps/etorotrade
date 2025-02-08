@@ -1,0 +1,232 @@
+import yfinance as yf
+from datetime import datetime
+import textwrap
+import html
+import pandas as pd
+import os
+import requests
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+GOOGLE_NEWS_API_KEY = os.getenv('GOOGLE_NEWS_API_KEY')
+
+# ANSI color codes
+class Colors:
+    HEADER = '\033[95m'
+    BLUE = '\033[94m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    RED = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+
+def print_section(title):
+    print(f"\n{Colors.HEADER}{Colors.BOLD}" + "="*50)
+    print(f"{title}")
+    print("="*50 + f"{Colors.ENDC}")
+
+def format_timestamp(timestamp, is_google=False):
+    try:
+        if is_google:
+            return datetime.fromisoformat(timestamp.replace('Z', '+00:00')).strftime('%Y-%m-%d %H:%M:%S')
+        return datetime.strptime(timestamp, '%Y-%m-%dT%H:%M:%SZ').strftime('%Y-%m-%d %H:%M:%S')
+    except:
+        return 'N/A'
+
+def wrap_text(text, width=80, indent='   '):
+    if not text:
+        return text
+    # Remove HTML tags and decode HTML entities
+    text = html.unescape(text)
+    # Simple HTML tag removal (for basic tags)
+    while '<' in text and '>' in text:
+        start = text.find('<')
+        end = text.find('>', start)
+        if end == -1:
+            break
+        text = text[:start] + text[end + 1:]
+    wrapped_lines = textwrap.wrap(text, width=width)
+    return f"\n{indent}".join(wrapped_lines)
+
+def get_google_news(ticker, limit=5):
+    """Get news from Google News API"""
+    try:
+        url = f"https://newsapi.org/v2/everything"
+        params = {
+            'q': ticker,
+            'apiKey': GOOGLE_NEWS_API_KEY,
+            'language': 'en',
+            'sortBy': 'publishedAt',
+            'pageSize': limit
+        }
+        response = requests.get(url, params=params)
+        if response.status_code == 200:
+            return response.json().get('articles', [])
+        else:
+            print(f"Error fetching Google News: {response.status_code}")
+            return []
+    except Exception as e:
+        print(f"Error accessing Google News API: {str(e)}")
+        return []
+
+def format_google_news(news, ticker):
+    print_section(f"LATEST NEWS FOR {ticker}")
+    for i, article in enumerate(news, 1):
+        try:
+            print(f"\n{Colors.BOLD}• {article.get('title', 'N/A')}{Colors.ENDC}")
+            timestamp = format_timestamp(article.get('publishedAt', ''), is_google=True)
+            print(f"   {Colors.BLUE}Published:{Colors.ENDC} {timestamp}")
+            print(f"   {Colors.BLUE}Source:{Colors.ENDC} {article.get('source', {}).get('name', 'N/A')}")
+            
+            if article.get('description'):
+                print(f"   {Colors.BLUE}Summary:{Colors.ENDC}")
+                wrapped_summary = wrap_text(article['description'])
+                print(f"   {wrapped_summary}")
+            
+            print(f"   {Colors.BLUE}Link:{Colors.ENDC} {Colors.YELLOW}{article.get('url', 'N/A')}{Colors.ENDC}")
+            print("-" * 50)
+        except Exception as e:
+            print(f"Error processing news item: {str(e)}")
+            continue
+
+def get_url(content):
+    """Safely extract URL from content"""
+    if not content:
+        return 'N/A'
+    
+    url_locations = [
+        ('clickThroughUrl', 'url'),
+        ('canonicalUrl', 'url'),
+        ('link', None)
+    ]
+    
+    for main_key, sub_key in url_locations:
+        if main_key in content:
+            if sub_key:
+                if isinstance(content[main_key], dict):
+                    return content[main_key].get(sub_key, 'N/A')
+            else:
+                return content[main_key]
+    
+    return 'N/A'
+
+def format_yahoo_news(news, ticker, limit=5):
+    print_section(f"LATEST NEWS FOR {ticker}")
+    for i, item in enumerate(news[:limit], 1):
+        try:
+            content = item.get('content', {})
+            if not content:
+                continue
+            
+            title = content.get('title', 'N/A')
+            print(f"\n{Colors.BOLD}• {title}{Colors.ENDC}")
+            
+            timestamp = format_timestamp(content.get('pubDate', ''))
+            print(f"   {Colors.BLUE}Published:{Colors.ENDC} {timestamp}")
+            
+            provider = content.get('provider', {})
+            if isinstance(provider, dict):
+                provider_name = provider.get('displayName', 'N/A')
+            else:
+                provider_name = 'N/A'
+            print(f"   {Colors.BLUE}Publisher:{Colors.ENDC} {provider_name}")
+            
+            summary = content.get('summary', content.get('description', ''))
+            if summary:
+                print(f"   {Colors.BLUE}Summary:{Colors.ENDC}")
+                wrapped_summary = wrap_text(summary)
+                print(f"   {wrapped_summary}")
+            
+            url = get_url(content)
+            print(f"   {Colors.BLUE}Link:{Colors.ENDC} {Colors.YELLOW}{url}{Colors.ENDC}")
+            print("-" * 50)
+            
+        except Exception as e:
+            print(f"Error processing news item: {str(e)}")
+            continue
+
+def get_portfolio_tickers():
+    """Read tickers from portfolio.csv"""
+    try:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        portfolio_path = os.path.join(script_dir, 'input', 'portfolio.csv')
+        df = pd.read_csv(portfolio_path)
+        tickers = df['ticker'].tolist()
+        return [ticker for ticker in tickers if not str(ticker).endswith('USD')]
+    except Exception as e:
+        print(f"Error reading portfolio file: {str(e)}")
+        return []
+
+def get_user_tickers():
+    """Get tickers from user input"""
+    tickers_input = input("Enter comma-separated tickers (e.g., AAPL,MSFT,GOOGL): ").strip()
+    return [ticker.strip().upper() for ticker in tickers_input.split(',') if ticker.strip()]
+
+def main():
+    print(f"{Colors.BOLD}Stock Market News{Colors.ENDC}")
+    
+    # Select news source
+    print("\nSelect news source:")
+    print("G - Google News")
+    print("Y - Yahoo Finance")
+    
+    while True:
+        source = input("\nEnter your choice (G/Y): ").strip().upper()
+        if source in ['G', 'Y']:
+            break
+        print("Invalid choice. Please enter 'G' or 'Y'.")
+    
+    # Select ticker input method
+    print("\nSelect ticker input method:")
+    print("P - Load tickers from portfolio.csv")
+    print("I - Enter tickers manually")
+    
+    while True:
+        choice = input("\nEnter your choice (P/I): ").strip().upper()
+        if choice in ['P', 'I']:
+            break
+        print("Invalid choice. Please enter 'P' or 'I'.")
+    
+    tickers = []
+    if choice == 'P':
+        tickers = get_portfolio_tickers()
+        if not tickers:
+            print("No tickers found in portfolio.csv or file not accessible.")
+            return
+        print(f"\nLoaded {len(tickers)} tickers from portfolio.csv")
+    else:  # choice == 'I'
+        tickers = get_user_tickers()
+        if not tickers:
+            print("No valid tickers provided.")
+            return
+    
+    print(f"\nFetching news for: {', '.join(tickers)}")
+    
+    if source == 'G':
+        if not GOOGLE_NEWS_API_KEY:
+            print("Error: Google News API key not found in .env file")
+            return
+        for ticker in tickers:
+            try:
+                news = get_google_news(ticker, limit=5)
+                if news:
+                    format_google_news(news, ticker)
+                else:
+                    print(f"\nNo news found for {ticker}")
+            except Exception as e:
+                print(f"\nError fetching news for {ticker}: {str(e)}")
+    else:  # source == 'Y'
+        for ticker in tickers:
+            try:
+                stock = yf.Ticker(ticker)
+                news = stock.news
+                if news:
+                    format_yahoo_news(news, ticker, limit=5)
+                else:
+                    print(f"\nNo news found for {ticker}")
+            except Exception as e:
+                print(f"\nError fetching news for {ticker}: {str(e)}")
+
+if __name__ == "__main__":
+    main()

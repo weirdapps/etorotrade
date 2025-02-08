@@ -7,14 +7,15 @@ A Python-based tool for analyzing stocks using data from Yahoo Finance. The tool
 ## Features
 
 - Real-time stock data from Yahoo Finance
-- Multiple data  options (Portfolio, Market, Manual)
+- Multiple data options (Portfolio, Market, Manual)
 - Comprehensive analysis with multiple metrics
 - Color-coded output for quick insights
 - Support for multiple stocks analysis
+- Stock news from multiple sources
 
 ## Usage
 
-Run the tool using:
+Run the analysis tool using:
 ```bash
 python trade.py
 ```
@@ -23,6 +24,38 @@ You'll be prompted to choose a data source:
 - P: Load tickers from portfolio file (yahoofinance/input/portfolio.csv)
 - M: Load tickers from market file (yahoofinance/input/market.csv)
 - I: Manually input tickers (comma-separated)
+
+For stock news, run:
+```bash
+python yahoofinance/news.py
+```
+
+You'll be prompted to:
+1. Choose a news source:
+   - G: Google News API
+   - Y: Yahoo Finance
+2. Select ticker input method:
+   - P: Load tickers from portfolio file
+   - I: Manually input tickers
+
+## News Functionality
+
+The news tool provides:
+- Latest news from either Google News API or Yahoo Finance
+- Up to 5 most recent news items per ticker
+- Comprehensive news details including:
+  - Publication date and time
+  - Source/Publisher
+  - Article summary
+  - Direct link to full article
+- Support for both portfolio and manual ticker input
+- Clean, formatted output with color coding
+- Automatic filtering of crypto tickers when using portfolio input
+
+Note: To use Google News functionality, you need to:
+1. Get an API key from https://newsapi.org/
+2. Create a .env file in the yahoofinance directory
+3. Add your API key: GOOGLE_NEWS_API_KEY=your_api_key
 
 ## Metrics Explanation
 
@@ -48,14 +81,14 @@ You'll be prompted to choose a data source:
   - Higher than PET suggests expected earnings decline
 
 - **PEG**: Price/Earnings to Growth ratio
-  - &lt; 1: Potentially undervalued
-  - &gt; 1: Potentially overvalued
+  - < 1: Potentially undervalued
+  - > 1: Potentially overvalued
   - ~1: Fairly valued
 
 ### Risk Metrics
 - **BETA**: Stock's volatility compared to the market
-  - &gt; 1: More volatile than market (e.g., 1.5 = 50% more volatile)
-  - &lt; 1: Less volatile than market (e.g., 0.5 = 50% less volatile)
+  - > 1: More volatile than market (e.g., 1.5 = 50% more volatile)
+  - < 1: Less volatile than market (e.g., 0.5 = 50% less volatile)
   - = 1: Same volatility as market
 
 ### Income & Ownership
@@ -93,12 +126,13 @@ The tool uses color coding for quick visual analysis:
 
 ## Data Sources
 
-All data is sourced from Yahoo Finance API through the yfinance Python package. The data includes:
+All data is sourced from Yahoo Finance API through the yfinance Python package and Google News API. The data includes:
 - Real-time and historical price data
 - Analyst recommendations and price targets
 - Financial metrics and ratios
 - Insider trading information
 - Company fundamentals
+- Latest news articles and summaries
 
 ## Dependencies
 
@@ -107,5 +141,7 @@ All data is sourced from Yahoo Finance API through the yfinance Python package. 
 - pandas
 - tabulate
 - tqdm
+- python-dotenv (for Google News API)
+- requests (for Google News API)
 
 === Follow or Copy PLESSAS on etoro ===
