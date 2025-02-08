@@ -1,8 +1,9 @@
-import yfinance as yf
-from datetime import datetime, timedelta
-from tabulate import tabulate
-import pandas as pd
 import pytz
+from datetime import datetime, timedelta
+from pandas.tseries.offsets import BMonthEnd
+import yfinance as yf
+import pandas as pd
+from tabulate import tabulate
 import os
 from bs4 import BeautifulSoup
 
@@ -10,7 +11,7 @@ from bs4 import BeautifulSoup
 INDICES = {
     'DJI30': '^DJI',
     'SP500': '^GSPC',
-    'NASDAQ': '^NDX',  # Updated ID to match the HTML element
+    'NQ100': '^NDX',
     'VIX': '^VIX'
 }
 
@@ -31,8 +32,8 @@ def get_previous_trading_day_close(ticker, date):
     while True:
         data = yf.download(ticker, start=date - timedelta(days=7), end=date + timedelta(days=1))
         if not data.empty:
-            last_valid_day = data.index[-1].to_pydatetime()
-            return data['Close'].loc[last_valid_day], last_valid_day
+            last_valid_day = data.index[-1].to_pydatetime().date()
+            return data['Close'].loc[data.index[-1]], last_valid_day
         date -= timedelta(days=1)
 
 # Function to fetch weekly changes
@@ -41,13 +42,13 @@ def fetch_weekly_change(last_friday, previous_friday):
     for name, ticker in INDICES.items():
         start_price, start_date = get_previous_trading_day_close(ticker, previous_friday)
         end_price, end_date = get_previous_trading_day_close(ticker, last_friday)
-        if start_price and end_price:
+        if not start_price.empty and not end_price.empty:
             change = ((end_price - start_price) / start_price) * 100
             results.append({
                 'Index': name,
-                f'Previous Week ({start_date.strftime("%Y-%m-%d")})': f"{start_price:,.2f}",
-                f'This Week ({end_date.strftime("%Y-%m-%d")})': f"{end_price:,.2f}",
-                'Change Percent': f"{change:+.2f}%"
+                f'Previous Week ({start_date.strftime("%Y-%m-%d")})': f"{start_price.iloc[-1]:,.2f}",
+                f'This Week ({end_date.strftime("%Y-%m-%d")})': f"{end_price.iloc[-1]:,.2f}",
+                'Change Percent': f"{change.iloc[-1]:+.2f}%"
             })
     return results
 
