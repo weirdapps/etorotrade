@@ -55,7 +55,7 @@ def get_google_news(ticker, limit=5):
         url = f"https://newsapi.org/v2/everything"
         params = {
             'q': ticker,
-            'apiKey': NEWSAPI_KEY,
+            'apiKey': GOOGLE_NEWS_API_KEY,
             'language': 'en',
             'sortBy': 'publishedAt',
             'pageSize': limit
@@ -203,13 +203,13 @@ def main():
     
     print(f"\nFetching news for: {', '.join(tickers)}")
     
-    if source == 'N':
-        if not NEWSAPI_KEY:
-            print("Error: NewsAPI key not found in .env file")
+    if source == 'G':
+        if not GOOGLE_NEWS_API_KEY:
+            print("Error: Google News API key not found in .env file")
             return
         for ticker in tickers:
             try:
-                news = get_newsapi_news(ticker, limit=5)
+                news = get_google_news(ticker, limit=5)
                 if news:
                     format_google_news(news, ticker)
                 else:
