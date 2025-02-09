@@ -53,7 +53,7 @@ class DisplayFormatter:
             percent_buy = float(percent_buy) if percent_buy not in [None, "N/A", "--"] else 0
 
             # Apply color coding logic matching original implementation
-            if num_targets < self.config.min_analysts or total_ratings < self.config.min_analysts:
+            if num_targets <= self.config.min_analysts or total_ratings <= self.config.min_analysts:
                 return Color.YELLOW  # Low confidence
             if (num_targets > self.config.min_analysts and upside > self.config.high_upside and 
                 total_ratings > self.config.min_analysts and percent_buy > self.config.high_buy_percent):
@@ -103,13 +103,25 @@ class DisplayFormatter:
         """Format a single stock's data row with proper formatting and colors"""
         try:
             # First, extract and convert numeric values (before formatting)
-            price = float(data.get("price", 0) or 0)
-            target = float(data.get("target_price", 0) or 0)
-            upside = ((target / price - 1) * 100) if price and target else 0
-            num_targets = int(float(data.get("analyst_count", 0) or 0))
-            percent_buy = float(data.get("buy_percentage", 0) or 0)
-            total_ratings = int(float(data.get("total_ratings", 0) or 0))
-            ex_ret = (upside * percent_buy / 100) if upside is not None and percent_buy is not None else None
+            price = data.get("price")
+            target = data.get("target_price")
+            
+            # Calculate upside only if both price and target are not None
+            if price is not None and target is not None:
+                upside = 0 if price == 0 else ((target / price - 1) * 100)
+            else:
+                upside = None
+                
+            # Convert other values, defaulting to None for invalid/missing data
+            num_targets = data.get("analyst_count")
+            percent_buy = data.get("buy_percentage")
+            total_ratings = data.get("total_ratings")
+            
+            # Calculate expected return only if both upside and percent_buy are not None
+            if upside is not None and percent_buy is not None:
+                ex_ret = (upside * percent_buy / 100)
+            else:
+                ex_ret = None
 
             # Get color based on raw numeric values
             color = self._get_color_code(num_targets, upside, total_ratings, percent_buy)
@@ -124,7 +136,7 @@ class DisplayFormatter:
                 "% BUY": self.colorize(self.format_value(percent_buy, 1, True), color),
                 "# A": self.colorize(self.format_value(total_ratings, 0), color),
                 "EXRET": self.colorize(self.format_value(ex_ret, 1, True), color),
-                "BETA": self.colorize(self.format_value(data.get("beta"), 1), color),
+                "BETA": self.colorize(self.format_value(data.get("beta")), color),
                 "PET": self.colorize(self.format_value(data.get("pe_trailing")), color),
                 "PEF": self.colorize(self.format_value(data.get("pe_forward")), color),
                 "PEG": self.colorize(self.format_value(data.get("peg_ratio")), color),
