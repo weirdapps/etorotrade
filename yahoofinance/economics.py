@@ -153,6 +153,9 @@ class EconomicCalendar:
             bool: True if valid, False otherwise
         """
         from .utils import DateUtils
+        # Only accept hyphen format
+        if '/' in date_str or '.' in date_str:
+            return False
         return DateUtils.validate_date_format(date_str)
 
     def get_economic_calendar(self, start_date: str, end_date: str) -> Optional[pd.DataFrame]:

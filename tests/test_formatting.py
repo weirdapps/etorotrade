@@ -1,5 +1,5 @@
 import unittest
-from yahoofinance.formatting import DisplayFormatter, DisplayConfig
+from yahoofinance.formatting import DisplayFormatter, DisplayConfig, Color, ColorCode
 
 class TestDisplayFormatter(unittest.TestCase):
     def setUp(self):

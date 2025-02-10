@@ -46,13 +46,17 @@ class EarningsCalendar:
             bool: True if valid, False otherwise
         """
         from .utils import DateUtils
+        # Only accept hyphen format
+        if '/' in date_str or '.' in date_str:
+            return False
         return DateUtils.validate_date_format(date_str)
     
     def _format_market_cap(self, market_cap: Optional[float]) -> str:
         """Format market cap value in billions."""
         from .utils import FormatUtils
         if market_cap and market_cap > 0:
-            return f"${FormatUtils.format_number(market_cap/1e9)}B"
+            # Convert to billions and format with full precision
+            return f"${market_cap/1e9:.1f}B"
         return 'N/A'
         
     def _format_eps(self, eps: Optional[float]) -> str:
