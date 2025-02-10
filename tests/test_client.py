@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import Mock, patch
-from yahoofinance.client import YFinanceClient, YFinanceError
+import pandas as pd
+from yahoofinance.client import YFinanceClient, YFinanceError, StockData
 
 class TestYFinanceClient(unittest.TestCase):
     def setUp(self):
@@ -32,6 +33,7 @@ class TestYFinanceClient(unittest.TestCase):
             'beta': 1.1,
             'dividendYield': 0.025
         }
+        mock_ticker.history.return_value = pd.DataFrame()  # Empty history
         mock_yf_ticker.return_value = mock_ticker
 
         # Mock get_earnings_dates
@@ -72,6 +74,7 @@ class TestYFinanceClient(unittest.TestCase):
         """Test handling of missing data in ticker information."""
         mock_ticker = Mock()
         mock_ticker.info = {}  # Empty info dictionary
+        mock_ticker.history.return_value = pd.DataFrame()  # Empty history
         mock_yf_ticker.return_value = mock_ticker
 
         # Mock get_earnings_dates
@@ -137,7 +140,7 @@ class TestYFinanceClient(unittest.TestCase):
         mock_yf_ticker.side_effect = [
             Exception("First failure"),
             Exception("Second failure"),
-            Mock(info={})  # Success on third try
+            Mock(info={}, history=lambda period: pd.DataFrame())  # Success on third try
         ]
         
         # Mock other dependencies
@@ -163,6 +166,10 @@ class TestYFinanceClient(unittest.TestCase):
             market_cap=None,
             current_price=None,
             target_price=None,
+            price_change_percentage=None,
+            mtd_change=None,
+            ytd_change=None,
+            two_year_change=None,
             recommendation_mean=None,
             recommendation_key="N/A",
             analyst_count=None,
@@ -175,6 +182,10 @@ class TestYFinanceClient(unittest.TestCase):
             short_float_pct=None,
             short_ratio=None,
             beta=None,
+            alpha=None,
+            sharpe_ratio=None,
+            sortino_ratio=None,
+            cash_percentage=None,
             dividend_yield=None,
             last_earnings=None,
             previous_earnings=None,
