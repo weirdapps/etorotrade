@@ -397,6 +397,71 @@ Data structure for stock information
     - ticker: Stock ticker symbol
   - Returns: Dictionary with buy_percentage and total_transactions
 
+### 8. yahoofinance/holders.py
+
+#### Functions
+
+- `format_percentage(value: float) -> str`
+  - Purpose: Format numeric values as percentages or comma-separated numbers
+  - Parameters:
+    - value: Number to format
+  - Returns: Formatted string with % for values ≤ 1, comma-separated for values > 1
+
+- `format_billions(value: float) -> str`
+  - Purpose: Format large numbers in billions with dollar sign
+  - Parameters:
+    - value: Number to format
+  - Returns: Formatted string in $B format
+
+- `analyze_holders(ticker: str) -> None`
+  - Purpose: Analyze and display institutional holders for a ticker
+  - Parameters:
+    - ticker: Stock ticker symbol
+  - Output: Prints detailed analysis of institutional ownership
+
+- `main() -> None`
+  - Purpose: Command line interface for holders analysis
+  - Features:
+    - Handles multiple comma-separated tickers
+    - Interactive input loop
+    - Error handling for invalid tickers
+    - Graceful exit with 'q' command
+
+#### Data Structures
+
+##### Major Holders DataFrame
+- Index: ['insidersPercentHeld', 'institutionsPercentHeld', 'institutionsFloatPercentHeld', 'institutionsCount']
+- Columns: ['Value']
+- Types: float64
+
+##### Institutional Holders DataFrame
+- Columns:
+  * Date Reported (datetime64[ns])
+  * Holder (object)
+  * pctHeld (float64)
+  * Shares (int64)
+  * Value (int64)
+
+###### Methods
+
+- `__init__(client: YFinanceClient)`
+  - Purpose: Initialize with YFinance client
+  - Parameters:
+    - client: YFinanceClient instance
+
+- `get_insider_transactions(ticker: str, days: int = 90) -> List[Dict[str, Any]]`
+  - Purpose: Get insider trading data
+  - Parameters:
+    - ticker: Stock ticker symbol
+    - days: Number of days to look back
+  - Returns: List of insider transactions with date, insider name, role, shares, and value
+
+- `calculate_insider_metrics(ticker: str) -> Dict[str, float]`
+  - Purpose: Calculate insider trading metrics
+  - Parameters:
+    - ticker: Stock ticker symbol
+  - Returns: Dictionary with buy_percentage and total_transactions
+
 ### 8. yahoofinance/economics.py
 
 #### Classes
