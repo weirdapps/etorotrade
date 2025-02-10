@@ -8,12 +8,24 @@ class DateUtils:
     """Utilities for date handling and validation"""
     
     DATE_FORMAT = '%Y-%m-%d'
-    DATE_PATTERN = r'^\d{4}-\d{2}-\d{2}$'
+    # Pattern that enforces YYYY-MM-DD format (year must come first)
+    DATE_PATTERN = r'^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$'
     
     @staticmethod
     def clean_date_string(date_str: str) -> str:
         """Clean date string by removing non-numeric and non-hyphen characters."""
-        return re.sub(r'[^0-9\-]', '', date_str)
+        # First replace forward slashes and dots with hyphens
+        date_str = re.sub(r'[/\.]', '-', date_str)
+        # Replace spaces with hyphens
+        date_str = re.sub(r'\s+', '-', date_str)
+        # Remove any other non-numeric and non-hyphen characters
+        date_str = re.sub(r'[^0-9\-]', '', date_str)
+        
+        # Try to format as YYYY-MM-DD if we have enough digits
+        digits = re.sub(r'[^0-9]', '', date_str)
+        if len(digits) == 8:
+            return f"{digits[:4]}-{digits[4:6]}-{digits[6:]}"
+        return date_str
     
     @classmethod
     def parse_date(cls, date_str: str) -> Optional[datetime]:
@@ -45,7 +57,16 @@ class DateUtils:
         Returns:
             bool: True if valid, False otherwise
         """
-        return cls.parse_date(date_str) is not None
+        cleaned_date = cls.clean_date_string(date_str)
+        try:
+            # First check if it matches YYYY-MM-DD pattern
+            if not re.match(cls.DATE_PATTERN, cleaned_date):
+                return False
+            # Then verify it's a valid date
+            datetime.strptime(cleaned_date, cls.DATE_FORMAT)
+            return True
+        except ValueError:
+            return False
 
     @classmethod
     def get_user_dates(cls) -> Tuple[str, str]:
@@ -89,14 +110,23 @@ class FormatUtils:
     
     @staticmethod
     def format_number(value: float, precision: int = 1) -> str:
-        """Format number with K/M suffixes."""
+        """Format number with K/M/B suffixes."""
         try:
-            if value >= 1000000:
-                return f"{value/1000000:.{precision}f}M"
-            elif value >= 1000:
-                return f"{value/1000:.{precision}f}K"
+            if pd.isna(value) or value is None:
+                return 'N/A'
+            
+            value = float(value)  # Convert to float if string
+            abs_value = abs(value)
+            sign = '-' if value < 0 else ''
+            
+            if abs_value >= 1000000000:
+                return f"{sign}{abs_value/1000000000:.{precision}f}B"
+            elif abs_value >= 1000000:
+                return f"{sign}{abs_value/1000000:.{precision}f}M"
+            elif abs_value >= 1000:
+                return f"{sign}{abs_value/1000:.{precision}f}K"
             else:
-                return f"{value:.{precision}f}"
+                return f"{sign}{abs_value:.{precision}f}"
         except (ValueError, TypeError):
             return 'N/A'
     
@@ -126,8 +156,11 @@ class FormatUtils:
     def format_percentage(value: float, include_sign: bool = True) -> str:
         """Format a value as a percentage string."""
         try:
-            if pd.isna(value):
+            if pd.isna(value) or value is None:
                 return 'N/A'
+            
+            value = float(value)  # Convert to float if string
+            value = value * 100  # Convert decimal to percentage
             formatted = f"{value:.2f}%"
             if include_sign and value > 0:
                 formatted = f"+{formatted}"

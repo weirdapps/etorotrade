@@ -28,14 +28,25 @@ A Python-based tool for analyzing stocks using data from Yahoo Finance. The tool
 - Automatic handling of pre/post-market announcements
 - Coverage of major S&P 500 components across all sectors
 
-### 4. Market Performance (yahoofinance/weekly.py, yahoofinance/monthly.py)
+### 4. Economic Calendar (yahoofinance/economics.py)
+
+- Track major economic indicators using FRED API
+- Coverage of key metrics:
+  * Employment (Nonfarm Payrolls, Unemployment Rate, Initial Claims)
+  * Inflation (CPI, Core CPI, PPI)
+  * Growth (GDP, Retail Sales, Industrial Production)
+- Customizable date range
+- Previous and actual values for each indicator
+- Impact level indicators (High/Medium)
+
+### 5. Market Performance (yahoofinance/weekly.py, yahoofinance/monthly.py)
 
 - Track weekly and monthly performance of major indices (DJI30, SP500, NQ100, VIX)
 - Automatic calculation of last trading day prices
 - Formatted output with change percentages
 - Updates index.html with latest performance data
 
-### 5. Portfolio Tracker (yahoofinance/scrape.py)
+### 6. Portfolio Tracker (yahoofinance/scrape.py)
 
 - Scrapes portfolio performance metrics from etoro
 - Tracks daily, MTD, YTD, and 2YR returns
@@ -96,6 +107,25 @@ Automatically calculates and displays:
 
 - Weekly: Last Friday vs Previous Friday
 - Monthly: Last month-end vs Previous month-end
+
+### Economic Calendar
+
+```bash
+python yahoofinance/economics.py
+```
+
+You'll be prompted to:
+
+1. Enter start date (YYYY-MM-DD format)
+   - Press Enter to use today's date
+2. Enter end date (YYYY-MM-DD format)
+   - Press Enter to use start date + 7 days
+
+The calendar will display:
+- Major economic events in the specified date range
+- Impact level (High/Medium)
+- Previous and actual values (when available)
+- Formatted table with event details
 
 ### Portfolio Tracking
 
@@ -189,7 +219,24 @@ The tool uses color coding for quick visual analysis:
 
 ## Data Sources
 
-All data is sourced from Yahoo Finance API through the yfinance Python package and Google News API. The data includes:
+Data is sourced from multiple APIs:
+
+1. Yahoo Finance API (through yfinance package):
+   - Real-time and historical price data
+   - Analyst recommendations and price targets
+   - Financial metrics and ratios
+   - Insider trading information
+   - Company fundamentals
+   - Earnings announcements and estimates
+
+2. Google News API:
+   - Latest news articles and summaries
+
+3. FRED API (Federal Reserve Economic Data):
+   - Economic indicators and metrics
+   - Employment statistics
+   - Inflation data
+   - Growth indicators
 
 - Real-time and historical price data
 - Analyst recommendations and price targets
@@ -268,13 +315,17 @@ The test suite covers:
 - beautifulsoup4 (for portfolio tracking)
 - pytz (for timezone handling)
 
-### Google News API Setup
+### API Keys Setup
 
-To use Google News functionality:
+To use all features, you'll need the following API keys:
 
-1. Get an API key from <https://newsapi.org/>
-2. Create a .env file in the yahoofinance directory
-3. Add your API key: GOOGLE_NEWS_API_KEY=your_api_key
+1. Google News API (for news functionality):
+   - Get an API key from <https://newsapi.org/>
+   - Add to .env: GOOGLE_NEWS_API_KEY=your_api_key
+
+2. FRED API (for economic calendar):
+   - Get an API key from <https://fred.stlouisfed.org/docs/api/api_key.html>
+   - Add to .env: FRED_API_KEY=your_api_key
 
 ### Input Files
 

@@ -35,6 +35,7 @@ This project is a command-line market analysis tool that fetches and analyzes st
 3. Configure API keys:
    - Create `.env` file in yahoofinance directory
    - Add Google News API key: `GOOGLE_NEWS_API_KEY=your_api_key`
+   - Add FRED API key: `FRED_API_KEY=your_api_key` (get from https://fred.stlouisfed.org/docs/api/api_key.html)
 4. Set up input files in yahoofinance/input/:
    - portfolio.csv: Portfolio tickers
    - market.csv: Market watchlist tickers
@@ -396,6 +397,76 @@ Data structure for stock information
     - ticker: Stock ticker symbol
   - Returns: Dictionary with buy_percentage and total_transactions
 
+### 8. yahoofinance/economics.py
+
+#### Classes
+
+##### EconomicCalendar
+
+###### Methods
+
+- `__init__()`
+  - Purpose: Initialize economic calendar with FRED API key
+  - Environment Variables:
+    - FRED_API_KEY: Required for FRED API access
+
+- `validate_date_format(date_str: str) -> bool`
+  - Purpose: Validate if date string matches YYYY-MM-DD format
+  - Parameters:
+    - date_str: Date string to validate
+  - Returns: True if valid, False otherwise
+
+- `get_economic_calendar(start_date: str, end_date: str) -> Optional[pd.DataFrame]`
+  - Purpose: Get economic calendar for specified date range
+  - Parameters:
+    - start_date: Start date in YYYY-MM-DD format
+    - end_date: End date in YYYY-MM-DD format
+  - Returns: DataFrame with economic calendar information if available, None otherwise
+
+- `_get_releases(start_date: str, end_date: str) -> List[Dict]`
+  - Purpose: Get releases from FRED API
+  - Parameters:
+    - start_date: Start date
+    - end_date: End date
+  - Returns: List of release data
+
+- `_get_release_series(release_id: str) -> List[Dict]`
+  - Purpose: Get series for a specific release
+  - Parameters:
+    - release_id: FRED release ID
+  - Returns: List of series data
+
+- `_get_latest_value(series_id: str) -> str`
+  - Purpose: Get latest value for a series
+  - Parameters:
+    - series_id: FRED series ID
+  - Returns: Latest value formatted as string
+
+#### Functions
+
+- `format_economic_table(df: pd.DataFrame, start_date: str, end_date: str) -> None`
+  - Purpose: Format and display economic calendar table
+  - Parameters:
+    - df: DataFrame with economic calendar data
+    - start_date: Start date in YYYY-MM-DD format
+    - end_date: End date in YYYY-MM-DD format
+
+- `get_user_dates() -> Tuple[str, str]`
+  - Purpose: Get start and end dates from user input
+  - Returns: Tuple of start_date and end_date strings
+
+#### Constants
+
+- `indicators`: Dictionary mapping economic indicators to FRED series IDs
+  - Categories:
+    - Employment (Nonfarm Payrolls, Unemployment Rate, Initial Claims)
+    - Inflation (CPI, Core CPI, PPI)
+    - Growth (GDP, Retail Sales, Industrial Production)
+  - Fields per indicator:
+    - id: FRED series ID
+    - impact: High/Medium importance
+    - description: Human-readable description
+
 ## File Formats
 
 ### Input Files
@@ -451,6 +522,12 @@ GOOGL
 - Free tier: 100 requests per day
 - Paid tier: Based on subscription
 - Error handling for rate limits with 429 status code
+
+### FRED API
+- Default: 120 requests per minute
+- Error handling for rate limits with 429 status code
+- Automatic retry with exponential backoff
+- Cache implementation to minimize API calls
 
 ## Caching Strategy
 
