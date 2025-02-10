@@ -1,13 +1,50 @@
 # Market Analysis Tool Technical Specification
 
 ## Project Overview
+
 This project is a command-line market analysis tool that fetches and analyzes stock market data from Yahoo Finance. It provides comprehensive analysis of stocks including price metrics, analyst ratings, insider trading information, and various financial ratios.
+
+## System Requirements
+
+### Hardware Requirements
+- CPU: 1+ core
+- RAM: 2GB minimum, 4GB recommended
+- Storage: 100MB for installation and cache
+
+### Software Requirements
+- Python 3.x
+- Operating System: Cross-platform (Windows, macOS, Linux)
+- Internet connection for API access
+
+### Dependencies
+- beautifulsoup4 >= 4.12.3: Web scraping functionality
+- pandas >= 2.2.2: Data manipulation and analysis
+- python-dotenv >= 1.0.1: Environment variable management
+- pytz >= 2024.1: Timezone handling
+- requests >= 2.32.3: HTTP requests
+- tabulate >= 0.9.0: Table formatting
+- tqdm >= 4.66.4: Progress bars
+- yfinance >= 0.2.52: Yahoo Finance API client
+- pytest >= 8.0.0: Testing framework
+- pytest-cov >= 4.1.0: Test coverage reporting
+
+## Installation and Setup
+
+1. Clone the repository
+2. Install dependencies: `pip install -r requirements.txt`
+3. Configure API keys:
+   - Create `.env` file in yahoofinance directory
+   - Add Google News API key: `GOOGLE_NEWS_API_KEY=your_api_key`
+4. Set up input files in yahoofinance/input/:
+   - portfolio.csv: Portfolio tickers
+   - market.csv: Market watchlist tickers
 
 ## Module Documentation
 
 ### 1. trade.py (Main Entry Point)
 
 #### Functions
+
 - `main()`: Command line interface entry point
   - Purpose: Handles user input and orchestrates the market analysis process
   - Parameters: None
@@ -15,6 +52,7 @@ This project is a command-line market analysis tool that fetches and analyzes st
   - Error Handling: Catches and logs KeyboardInterrupt and general exceptions
 
 #### Variables
+
 - `logger`: Logging instance for the module
   - Type: logging.Logger
   - Purpose: Handles logging with INFO level configuration
@@ -24,18 +62,23 @@ This project is a command-line market analysis tool that fetches and analyzes st
 #### Classes
 
 ##### YFinanceError (Exception)
+
 Base exception class for YFinance client errors
 
 ##### APIError (YFinanceError)
+
 Exception raised when API calls fail
 
 ##### ValidationError (YFinanceError)
+
 Exception raised when data validation fails
 
 ##### StockData (dataclass)
+
 Data structure for stock information
 
 ###### Fields
+
 - `name`: Company name (str)
 - `sector`: Company sector (str)
 - `market_cap`: Market capitalization (Optional[float])
@@ -63,6 +106,7 @@ Data structure for stock information
 ##### YFinanceClient
 
 ###### Methods
+
 - `__init__(retry_attempts: int = 3, timeout: int = 10, cache_ttl: int = 300)`
   - Purpose: Initialize client with retry and timeout settings
   - Parameters:
@@ -99,6 +143,7 @@ Data structure for stock information
 ### 3. yahoofinance/analyst.py
 
 #### Constants
+
 - `POSITIVE_GRADES`: Set of analyst ratings considered positive
   - Type: Set[str]
   - Values: "Buy", "Overweight", "Outperform", "Strong Buy", "Long-Term Buy", "Positive"
@@ -108,6 +153,7 @@ Data structure for stock information
 ##### AnalystData
 
 ###### Methods
+
 - `__init__(client: YFinanceClient)`
   - Purpose: Initialize with YFinance client
   - Parameters:
@@ -152,14 +198,18 @@ Data structure for stock information
 #### Classes
 
 ##### PriceTarget (NamedTuple)
+
 ###### Fields
+
 - `mean`: Mean target price (Optional[float])
 - `high`: Highest target price (Optional[float])
 - `low`: Lowest target price (Optional[float])
 - `num_analysts`: Number of analysts (int)
 
 ##### PriceData (NamedTuple)
+
 ###### Fields
+
 - `date`: Price date (datetime)
 - `open`: Opening price (float)
 - `high`: High price (float)
@@ -171,6 +221,7 @@ Data structure for stock information
 ##### PricingAnalyzer
 
 ###### Methods
+
 - `__init__(client: YFinanceClient)`
   - Purpose: Initialize with YFinance client
   - Parameters:
@@ -212,7 +263,9 @@ Data structure for stock information
 #### Classes
 
 ##### Color (Enum)
+
 ###### Values
+
 - `GREEN`: ANSI code for buy signal ("\033[92m")
 - `YELLOW`: ANSI code for low confidence ("\033[93m")
 - `RED`: ANSI code for sell signal ("\033[91m")
@@ -220,7 +273,9 @@ Data structure for stock information
 - `DEFAULT`: Empty string for hold signal ("")
 
 ##### DisplayConfig (dataclass)
+
 ###### Fields
+
 - `use_colors`: Enable color output (bool, default=True)
 - `date_format`: Date display format (str, default="%Y-%m-%d")
 - `float_precision`: Decimal places for floats (int, default=2)
@@ -234,6 +289,7 @@ Data structure for stock information
 ##### DisplayFormatter
 
 ###### Methods
+
 - `__init__(config: DisplayConfig = DisplayConfig())`
   - Purpose: Initialize formatter with configuration
   - Parameters:
@@ -286,6 +342,188 @@ Data structure for stock information
   - Parameters:
     - rows: List of stock data dictionaries
   - Returns: Sorted pandas DataFrame
+
+### 6. yahoofinance/news.py
+
+#### Classes
+
+##### NewsAggregator
+
+###### Methods
+
+- `__init__(api_key: Optional[str] = None)`
+  - Purpose: Initialize news aggregator with optional Google News API key
+  - Parameters:
+    - api_key: Google News API key from .env file
+
+- `fetch_google_news(ticker: str, max_articles: int = 5) -> List[Dict[str, str]]`
+  - Purpose: Fetch news from Google News API
+  - Parameters:
+    - ticker: Stock ticker symbol
+    - max_articles: Maximum number of articles to return
+  - Returns: List of news articles with title, description, url, and date
+
+- `fetch_yahoo_news(ticker: str, max_articles: int = 5) -> List[Dict[str, str]]`
+  - Purpose: Fetch news from Yahoo Finance
+  - Parameters:
+    - ticker: Stock ticker symbol
+    - max_articles: Maximum number of articles to return
+  - Returns: List of news articles with title, description, url, and date
+
+### 7. yahoofinance/insiders.py
+
+#### Classes
+
+##### InsiderTrading
+
+###### Methods
+
+- `__init__(client: YFinanceClient)`
+  - Purpose: Initialize with YFinance client
+  - Parameters:
+    - client: YFinanceClient instance
+
+- `get_insider_transactions(ticker: str, days: int = 90) -> List[Dict[str, Any]]`
+  - Purpose: Get insider trading data
+  - Parameters:
+    - ticker: Stock ticker symbol
+    - days: Number of days to look back
+  - Returns: List of insider transactions with date, insider name, role, shares, and value
+
+- `calculate_insider_metrics(ticker: str) -> Dict[str, float]`
+  - Purpose: Calculate insider trading metrics
+  - Parameters:
+    - ticker: Stock ticker symbol
+  - Returns: Dictionary with buy_percentage and total_transactions
+
+## File Formats
+
+### Input Files
+
+#### portfolio.csv
+```csv
+ticker
+AAPL
+MSFT
+GOOGL
+```
+- Required columns: ticker (stock symbol)
+- Optional columns: None
+- Format: UTF-8 encoded CSV
+- Header row required
+
+#### market.csv
+```csv
+symbol
+AAPL
+MSFT
+GOOGL
+```
+- Required columns: symbol (stock symbol)
+- Optional columns: None
+- Format: UTF-8 encoded CSV
+- Header row required
+
+### Output Files
+
+#### index.html
+- Purpose: Market performance dashboard
+- Format: HTML with embedded CSS
+- Updates: Automatic on weekly/monthly script execution
+- Content: Index performance metrics and charts
+
+#### portfolio.html
+- Purpose: Portfolio performance dashboard
+- Format: HTML with embedded CSS
+- Updates: Automatic on portfolio tracking execution
+- Content: Portfolio metrics, returns, and risk measures
+
+## API Rate Limiting
+
+### Yahoo Finance API
+- Default: 2000 requests per hour per IP
+- Implemented backoff strategy:
+  - Initial delay: 1 second
+  - Maximum delay: 60 seconds
+  - Exponential backoff multiplier: 2
+
+### Google News API
+- Free tier: 100 requests per day
+- Paid tier: Based on subscription
+- Error handling for rate limits with 429 status code
+
+## Caching Strategy
+
+1. LRU Cache Implementation
+   - Size: 100 entries
+   - TTL: 300 seconds (5 minutes)
+   - Scope: Per instance
+
+2. Cache Keys
+   - Format: f"{ticker}:{endpoint}:{params_hash}"
+   - Includes timestamp for TTL calculation
+
+3. Cache Invalidation
+   - Automatic on TTL expiration
+   - Manual clearing available
+   - Memory monitoring and cleanup
+
+## Security Considerations
+
+1. API Key Protection
+   - Store in .env file (not in version control)
+   - Use environment variables
+   - Implement key rotation capability
+
+2. Data Validation
+   - Input sanitization for all user inputs
+   - Ticker symbol validation
+   - Date format validation
+
+3. Error Handling
+   - Secure error messages (no sensitive data)
+   - Logging without credentials
+   - Rate limit adherence
+
+## Troubleshooting Guide
+
+1. API Connection Issues
+   - Verify internet connection
+   - Check API key validity
+   - Confirm rate limit status
+   - Review proxy settings if applicable
+
+2. Data Quality Issues
+   - Verify ticker symbols
+   - Check for API service status
+   - Confirm data freshness (cache status)
+   - Review error logs
+
+3. Performance Issues
+   - Monitor memory usage
+   - Check cache effectiveness
+   - Review concurrent requests
+   - Analyze response times
+
+## Configuration Options
+
+1. Display Configuration
+   - Color output toggle
+   - Date format customization
+   - Number precision settings
+   - Table format selection
+
+2. Analysis Parameters
+   - Minimum analyst coverage
+   - Buy/Sell signal thresholds
+   - Lookback periods
+   - Cache TTL settings
+
+3. API Configuration
+   - Retry attempts
+   - Timeout settings
+   - Rate limit adjustments
+   - Cache size control
 
 ## Data Flow
 
