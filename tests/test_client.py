@@ -115,5 +115,76 @@ class TestYFinanceClient(unittest.TestCase):
         with self.assertRaises(YFinanceError):
             self.client.get_ticker_info('AAPL')
 
+    def test_get_backoff_time(self):
+        """Test exponential backoff time calculation."""
+        # Test default parameters
+        self.assertEqual(self.client._get_backoff_time(1), 1.0)  # First attempt
+        self.assertEqual(self.client._get_backoff_time(2), 2.0)  # Second attempt
+        self.assertEqual(self.client._get_backoff_time(3), 4.0)  # Third attempt
+        self.assertEqual(self.client._get_backoff_time(4), 8.0)  # Fourth attempt
+        self.assertEqual(self.client._get_backoff_time(5), 10.0)  # Max time reached
+        
+        # Test custom parameters
+        self.assertEqual(self.client._get_backoff_time(1, base=0.5, max_time=5.0), 0.5)
+        self.assertEqual(self.client._get_backoff_time(2, base=0.5, max_time=5.0), 1.0)
+        self.assertEqual(self.client._get_backoff_time(5, base=0.5, max_time=5.0), 5.0)
+
+    @patch('time.sleep')
+    @patch('yfinance.Ticker')
+    def test_retry_with_backoff(self, mock_yf_ticker, mock_sleep):
+        """Test retry mechanism with exponential backoff."""
+        # Make API call fail twice then succeed
+        mock_yf_ticker.side_effect = [
+            Exception("First failure"),
+            Exception("Second failure"),
+            Mock(info={})  # Success on third try
+        ]
+        
+        # Mock other dependencies
+        self.client.get_earnings_dates = Mock(return_value=(None, None))
+        self.client.insider_analyzer.get_insider_metrics = Mock(
+            return_value={'insider_buy_pct': None, 'transaction_count': None}
+        )
+        
+        # Call method that uses retry mechanism
+        self.client.get_ticker_info('AAPL')
+        
+        # Verify backoff times
+        mock_sleep.assert_has_calls([
+            unittest.mock.call(1.0),  # First retry
+            unittest.mock.call(2.0)   # Second retry
+        ])
+
+    def test_stock_property_error(self):
+        """Test StockData _stock property error handling."""
+        stock_data = StockData(
+            name="Test Stock",
+            sector="Technology",
+            market_cap=None,
+            current_price=None,
+            target_price=None,
+            recommendation_mean=None,
+            recommendation_key="N/A",
+            analyst_count=None,
+            pe_trailing=None,
+            pe_forward=None,
+            peg_ratio=None,
+            quick_ratio=None,
+            current_ratio=None,
+            debt_to_equity=None,
+            short_float_pct=None,
+            short_ratio=None,
+            beta=None,
+            dividend_yield=None,
+            last_earnings=None,
+            previous_earnings=None,
+            insider_buy_pct=None,
+            insider_transactions=None
+        )
+        
+        with self.assertRaises(AttributeError) as context:
+            _ = stock_data._stock
+        self.assertIn("No ticker object available", str(context.exception))
+
 if __name__ == '__main__':
     unittest.main()

@@ -155,5 +155,91 @@ class TestDisplayFormatter(unittest.TestCase):
         self.assertEqual(formatted['BETA'], '0.0')
         self.assertEqual(formatted['SI'], '0.0%')
 
+    def test_convert_numeric(self):
+        """Test numeric value conversion."""
+        self.assertEqual(self.formatter._convert_numeric(10), 10.0)
+        self.assertEqual(self.formatter._convert_numeric("10.5"), 10.5)
+        self.assertEqual(self.formatter._convert_numeric(None), 0.0)
+        self.assertEqual(self.formatter._convert_numeric("N/A"), 0.0)
+        self.assertEqual(self.formatter._convert_numeric("--"), 0.0)
+        self.assertEqual(self.formatter._convert_numeric("invalid"), 0.0)
+        self.assertEqual(self.formatter._convert_numeric(None, default=1.0), 1.0)
+
+    def test_validate_dataframe_input(self):
+        """Test DataFrame input validation."""
+        valid_rows = [{
+            '_sort_exret': 10,
+            '_sort_earnings': '2024-01-01'
+        }]
+        
+        # Should not raise any exception
+        self.formatter._validate_dataframe_input(valid_rows)
+        
+        # Test empty input
+        with self.assertRaises(ValueError) as context:
+            self.formatter._validate_dataframe_input([])
+        self.assertIn("No rows provided", str(context.exception))
+        
+        # Test missing required columns
+        invalid_rows = [{'other_column': 'value'}]
+        with self.assertRaises(ValueError) as context:
+            self.formatter._validate_dataframe_input(invalid_rows)
+        self.assertIn("missing required sort columns", str(context.exception))
+
+    def test_create_sortable_dataframe(self):
+        """Test creating sortable DataFrame."""
+        rows = [
+            {
+                'ticker': 'AAPL',
+                '_sort_exret': 10,
+                '_sort_earnings': '2024-01-01'
+            },
+            {
+                'ticker': 'GOOGL',
+                '_sort_exret': 20,
+                '_sort_earnings': '2024-01-02'
+            }
+        ]
+        
+        df = self.formatter.create_sortable_dataframe(rows)
+        
+        # Check sorting (GOOGL should be first due to higher _sort_exret)
+        self.assertEqual(df.iloc[0]['ticker'], 'GOOGL')
+        self.assertEqual(df.iloc[1]['ticker'], 'AAPL')
+        
+        # Check ranking column
+        self.assertEqual(df.iloc[0]['#'], 1)
+        self.assertEqual(df.iloc[1]['#'], 2)
+        
+        # Check sort columns were removed
+        self.assertNotIn('_sort_exret', df.columns)
+        self.assertNotIn('_sort_earnings', df.columns)
+
+    def test_create_sortable_dataframe_invalid_input(self):
+        """Test creating DataFrame with invalid input."""
+        with self.assertRaises(ValueError):
+            self.formatter.create_sortable_dataframe([])
+            
+        with self.assertRaises(ValueError):
+            self.formatter.create_sortable_dataframe([{'invalid': 'data'}])
+
+    def test_color_enum_values(self):
+        """Test Color enum values and behavior."""
+        # Test color values
+        self.assertEqual(Color.STRONG_BUY.value, ColorCode.GREEN)
+        self.assertEqual(Color.LOW_CONFIDENCE.value, ColorCode.YELLOW)
+        self.assertEqual(Color.STRONG_SELL.value, ColorCode.RED)
+        self.assertEqual(Color.NEUTRAL.value, ColorCode.DEFAULT)
+        
+        # Test color application with config
+        formatter_with_colors = DisplayFormatter(DisplayConfig(use_colors=True))
+        colored_text = formatter_with_colors.colorize("test", Color.STRONG_BUY)
+        self.assertIn(ColorCode.GREEN, colored_text)
+        
+        # Test color disabled
+        formatter_no_colors = DisplayFormatter(DisplayConfig(use_colors=False))
+        plain_text = formatter_no_colors.colorize("test", Color.STRONG_BUY)
+        self.assertEqual(plain_text, "test")
+
 if __name__ == '__main__':
     unittest.main()
