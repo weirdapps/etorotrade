@@ -54,6 +54,20 @@ A Python-based tool for analyzing stocks using data from Yahoo Finance. The tool
 - Updates portfolio.html with latest data
 - Color-coded console output for quick insights
 
+### 7. Institutional Holders Analysis (yahoofinance/holders.py)
+
+- Analyze institutional ownership for any stock
+- View major holders breakdown including:
+  * Insider ownership percentage
+  * Institutional ownership percentage
+  * Float ownership by institutions
+  * Total number of institutional holders
+- Detailed top 10 institutional holders information:
+  * Shares held and percentage ownership
+  * Position value in billions
+  * Last reported date
+- Support for analyzing multiple tickers in one session
+
 ## Usage
 
 ### Market Analysis
