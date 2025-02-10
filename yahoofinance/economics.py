@@ -136,14 +136,8 @@ class EconomicCalendar:
         if observations:
             value = observations[0]['value']
             try:
-                # Format numbers nicely
-                value = float(value)
-                if value >= 1000000:
-                    return f"{value/1000000:.1f}M"
-                elif value >= 1000:
-                    return f"{value/1000:.1f}K"
-                else:
-                    return f"{value:.1f}"
+                from .utils import FormatUtils
+                return FormatUtils.format_number(float(value))
             except ValueError:
                 return value
         return 'N/A'
@@ -158,15 +152,8 @@ class EconomicCalendar:
         Returns:
             bool: True if valid, False otherwise
         """
-        date_str = re.sub(r'[^0-9\-]', '', date_str)
-        
-        try:
-            if not re.match(r'^\d{4}-\d{2}-\d{2}$', date_str):
-                return False
-            datetime.strptime(date_str, '%Y-%m-%d')
-            return True
-        except ValueError:
-            return False
+        from .utils import DateUtils
+        return DateUtils.validate_date_format(date_str)
 
     def get_economic_calendar(self, start_date: str, end_date: str) -> Optional[pd.DataFrame]:
         """
@@ -256,15 +243,8 @@ def format_economic_table(df: pd.DataFrame, start_date: str, end_date: str) -> N
         start_date: Start date in YYYY-MM-DD format
         end_date: End date in YYYY-MM-DD format
     """
-    if df is None or df.empty:
-        return
+    from .utils import FormatUtils
     
-    print(f"\nEconomic Calendar ({start_date} - {end_date})")
-    
-    # Convert DataFrame to list for tabulate
-    table_data = df.values.tolist()
-    
-    # Headers with alignment
     headers = [
         'Event',
         'Impact',
@@ -273,15 +253,16 @@ def format_economic_table(df: pd.DataFrame, start_date: str, end_date: str) -> N
         'Previous'.rjust(10)
     ]
     
-    # Print table using tabulate with fancy_grid format
-    print(tabulate(
-        table_data,
+    alignments = ('left', 'left', 'right', 'right', 'right')
+    
+    FormatUtils.format_table(
+        df=df,
+        title="Economic Calendar",
+        start_date=start_date,
+        end_date=end_date,
         headers=headers,
-        tablefmt='fancy_grid',
-        colalign=('left', 'left', 'right', 'right', 'right'),
-        disable_numparse=True
-    ))
-    print(f"\nTotal events: {len(df)}")
+        alignments=alignments
+    )
 
 def get_user_dates() -> Tuple[str, str]:
     """
@@ -290,56 +271,19 @@ def get_user_dates() -> Tuple[str, str]:
     Returns:
         Tuple of start_date and end_date strings
     """
-    while True:
-        start_date = input("Enter start date (YYYY-MM-DD): ").strip()
-        if not start_date:
-            print("Using today's date as start date")
-            start_date = datetime.now().strftime('%Y-%m-%d')
-            break
-            
-        start_date = re.sub(r'[^0-9\-]', '', start_date)
-        
-        if re.match(r'^\d{4}-\d{2}-\d{2}$', start_date):
-            try:
-                datetime.strptime(start_date, '%Y-%m-%d')
-                break
-            except ValueError:
-                print("Invalid date. Please enter a valid date in YYYY-MM-DD format")
-        else:
-            print("Invalid format. Please use YYYY-MM-DD format (e.g., 2025-02-14)")
-    
-    while True:
-        end_date = input("Enter end date (YYYY-MM-DD): ").strip()
-        if not end_date:
-            print("Using start date + 7 days as end date")
-            end_date = (datetime.strptime(start_date, '%Y-%m-%d') + timedelta(days=7)).strftime('%Y-%m-%d')
-            break
-            
-        end_date = re.sub(r'[^0-9\-]', '', end_date)
-        
-        if re.match(r'^\d{4}-\d{2}-\d{2}$', end_date):
-            try:
-                end_dt = datetime.strptime(end_date, '%Y-%m-%d')
-                start_dt = datetime.strptime(start_date, '%Y-%m-%d')
-                if end_dt < start_dt:
-                    print("End date must be after start date")
-                    continue
-                break
-            except ValueError:
-                print("Invalid date. Please enter a valid date in YYYY-MM-DD format")
-        else:
-            print("Invalid format. Please use YYYY-MM-DD format (e.g., 2025-02-14)")
-    
-    return start_date, end_date
+    from .utils import DateUtils
+    return DateUtils.get_user_dates()
 
 if __name__ == "__main__":
+    from .utils import DateUtils
+    
     print("Economic Calendar Retrieval")
     print("=" * len("Economic Calendar Retrieval"))
     print("Enter dates in YYYY-MM-DD format (press Enter to use defaults)")
     
-    start_date, end_date = get_user_dates()
+    calendar = EconomicCalendar()
+    start_date, end_date = DateUtils.get_user_dates()
     print(f"\nFetching economic calendar for {start_date} to {end_date}...")
     
-    calendar = EconomicCalendar()
     economic_df = calendar.get_economic_calendar(start_date, end_date)
     format_economic_table(economic_df, start_date, end_date)

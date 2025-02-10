@@ -268,6 +268,168 @@ class MarketDisplay:
                 logger.error(f"Error processing {ticker}: {str(e)}")
         return reports
 
+    def _generate_market_metrics(self, tickers: List[str]) -> dict:
+        """Generate market metrics for HTML display."""
+        from .utils import FormatUtils
+        
+        metrics = {}
+        for ticker in tickers:
+            try:
+                data = self.client.get_ticker_info(ticker)
+                if data and data.current_price:
+                    change = data.price_change_percentage
+                    metrics[ticker] = {
+                        'value': change,
+                        'label': ticker,
+                        'is_percentage': True
+                    }
+            except Exception as e:
+                logger.error(f"Error getting metrics for {ticker}: {str(e)}")
+                
+        return metrics
+    
+    def _write_html_file(self, html_content: str, output_file: str) -> None:
+        """Write HTML content to file."""
+        try:
+            output_path = f"{self.input_dir}/../output/{output_file}"
+            with open(output_path, 'w') as f:
+                f.write(html_content)
+            logger.info(f"Generated {output_file}")
+        except Exception as e:
+            logger.error(f"Error writing {output_file}: {str(e)}")
+    
+    def generate_market_html(self, market_file: str = "market.csv") -> None:
+        """Generate market performance HTML."""
+        from .utils import FormatUtils
+        
+        try:
+            # Load market tickers
+            tickers = self._load_tickers_from_file(market_file, "symbol")
+            if not tickers:
+                raise ValueError("No market tickers found")
+                
+            # Get market metrics
+            metrics = self._generate_market_metrics(tickers)
+            formatted_metrics = FormatUtils.format_market_metrics(metrics)
+            
+            # Create sections for HTML
+            sections = [{
+                'title': 'Weekly Market Performance',
+                'metrics': formatted_metrics,
+                'columns': 4,
+                'width': '500px'
+            }]
+            
+            # Generate and write HTML
+            html_content = FormatUtils.generate_market_html(
+                title='Index Performance',
+                sections=sections
+            )
+            self._write_html_file(html_content, 'index.html')
+            
+        except Exception as e:
+            logger.error(f"Error generating market HTML: {str(e)}")
+    
+    def generate_portfolio_html(self, portfolio_file: str = "portfolio.csv") -> None:
+        """Generate portfolio performance HTML."""
+        from .utils import FormatUtils
+        
+        try:
+            # Load portfolio tickers
+            tickers = self._load_tickers_from_file(portfolio_file, "ticker")
+            if not tickers:
+                raise ValueError("No portfolio tickers found")
+                
+            # Get portfolio metrics
+            portfolio_metrics = {}
+            risk_metrics = {}
+            
+            for ticker in tickers:
+                try:
+                    data = self.client.get_ticker_info(ticker)
+                    if data:
+                        # Portfolio returns
+                        if data.current_price:
+                            portfolio_metrics['TODAY'] = {
+                                'value': data.price_change_percentage,
+                                'label': 'Today',
+                                'is_percentage': True
+                            }
+                            portfolio_metrics['MTD'] = {
+                                'value': data.mtd_change,
+                                'label': 'MTD',
+                                'is_percentage': True
+                            }
+                            portfolio_metrics['YTD'] = {
+                                'value': data.ytd_change,
+                                'label': 'YTD',
+                                'is_percentage': True
+                            }
+                            portfolio_metrics['2YR'] = {
+                                'value': data.two_year_change,
+                                'label': '2YR',
+                                'is_percentage': True
+                            }
+                        
+                        # Risk metrics
+                        risk_metrics['Beta'] = {
+                            'value': data.beta,
+                            'label': 'Portfolio Beta',
+                            'is_percentage': False
+                        }
+                        risk_metrics['Alpha'] = {
+                            'value': data.alpha,
+                            'label': "Jensen's Alpha",
+                            'is_percentage': False
+                        }
+                        risk_metrics['Sharpe'] = {
+                            'value': data.sharpe_ratio,
+                            'label': 'Sharpe Ratio',
+                            'is_percentage': False
+                        }
+                        risk_metrics['Sortino'] = {
+                            'value': data.sortino_ratio,
+                            'label': 'Sortino Ratio',
+                            'is_percentage': False
+                        }
+                        risk_metrics['Cash'] = {
+                            'value': data.cash_percentage,
+                            'label': 'Cash',
+                            'is_percentage': True
+                        }
+                except Exception as e:
+                    logger.error(f"Error getting metrics for {ticker}: {str(e)}")
+            
+            # Format metrics
+            formatted_portfolio = FormatUtils.format_market_metrics(portfolio_metrics)
+            formatted_risk = FormatUtils.format_market_metrics(risk_metrics)
+            
+            # Create sections for HTML
+            sections = [
+                {
+                    'title': 'Portfolio Returns',
+                    'metrics': formatted_portfolio,
+                    'columns': 4,
+                    'width': '700px'
+                },
+                {
+                    'title': 'Risk Metrics',
+                    'metrics': formatted_risk,
+                    'columns': 5,
+                    'width': '700px'
+                }
+            ]
+            
+            # Generate and write HTML
+            html_content = FormatUtils.generate_market_html(
+                title='Portfolio Performance',
+                sections=sections
+            )
+            self._write_html_file(html_content, 'portfolio.html')
+            
+        except Exception as e:
+            logger.error(f"Error generating portfolio HTML: {str(e)}")
+    
     def display_report(self, tickers: List[str]) -> None:
         """
         Display formatted market analysis report.

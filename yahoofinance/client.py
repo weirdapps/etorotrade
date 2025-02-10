@@ -39,28 +39,55 @@ class StockData:
     - Events: last_earnings, previous_earnings
     - Insider Activity: insider_buy_pct, insider_transactions
     """
+    # Basic Info
     name: str
     sector: str
     market_cap: Optional[float]
+    
+    # Price Data
     current_price: Optional[float]
     target_price: Optional[float]
+    price_change_percentage: Optional[float]
+    mtd_change: Optional[float]
+    ytd_change: Optional[float]
+    two_year_change: Optional[float]
+    
+    # Analyst Coverage
     recommendation_mean: Optional[float]
     recommendation_key: str
     analyst_count: Optional[int]
+    
+    # Valuation Metrics
     pe_trailing: Optional[float]
     pe_forward: Optional[float]
     peg_ratio: Optional[float]
+    
+    # Financial Health
     quick_ratio: Optional[float]
     current_ratio: Optional[float]
     debt_to_equity: Optional[float]
+    
+    # Risk Metrics
     short_float_pct: Optional[float]
     short_ratio: Optional[float]
     beta: Optional[float]
+    alpha: Optional[float]
+    sharpe_ratio: Optional[float]
+    sortino_ratio: Optional[float]
+    cash_percentage: Optional[float]
+    
+    # Dividends
     dividend_yield: Optional[float]
+    
+    # Events
     last_earnings: Optional[str]
     previous_earnings: Optional[str]
+    
+    # Insider Activity
     insider_buy_pct: Optional[float]
     insider_transactions: Optional[int]
+    
+    # Internal
     ticker_object: Optional[yf.Ticker] = field(default=None)
 
     @property
@@ -226,6 +253,51 @@ class YFinanceClient:
                 stock = yf.Ticker(ticker)
                 info = stock.info or {}
                 
+                # Get historical data for price changes
+                hist = stock.history(period="2y")
+                
+                # Initialize price change metrics
+                price_change = mtd_change = ytd_change = two_year_change = None
+                alpha = sharpe = sortino = None
+                
+                if not hist.empty:
+                    # Calculate price changes
+                    current = hist['Close'].iloc[-1]
+                    if len(hist) > 1:
+                        prev_day = hist['Close'].iloc[-2]
+                        price_change = ((current - prev_day) / prev_day) * 100
+                    
+                    if len(hist) >= 22:  # Approx. one month of trading days
+                        prev_month = hist['Close'].iloc[-22]
+                        mtd_change = ((current - prev_month) / prev_month) * 100
+                    
+                    if len(hist) > 0:
+                        start_year = hist['Close'].iloc[0]
+                        ytd_change = ((current - start_year) / start_year) * 100
+                        two_year_change = ytd_change  # Same as YTD for now since we're using same reference point
+                    
+                    # Calculate risk metrics
+                    returns = hist['Close'].pct_change().dropna()
+                    if len(returns) > 0:
+                        risk_free_rate = 0.05  # 5% annual risk-free rate
+                        daily_rf = risk_free_rate / 252  # Daily risk-free rate
+                        
+                        # Calculate alpha (excess return)
+                        excess_returns = returns - daily_rf
+                        alpha = excess_returns.mean() * 252  # Annualized
+                        
+                        # Calculate Sharpe ratio
+                        returns_std = returns.std() * (252 ** 0.5)  # Annualized
+                        if returns_std > 0:
+                            sharpe = (returns.mean() * 252 - risk_free_rate) / returns_std
+                        
+                        # Calculate Sortino ratio
+                        downside_returns = returns[returns < 0]
+                        if len(downside_returns) > 0:
+                            downside_std = downside_returns.std() * (252 ** 0.5)
+                            if downside_std > 0:
+                                sortino = (returns.mean() * 252 - risk_free_rate) / downside_std
+                
                 # Get earnings dates
                 last_earnings, previous_earnings = self.get_earnings_dates(ticker)
                 
@@ -237,28 +309,55 @@ class YFinanceClient:
                 )
                 
                 return StockData(
+                    # Basic Info
                     name=info.get("longName", "N/A"),
                     sector=info.get("sector", "N/A"),
                     market_cap=info.get("marketCap"),
+                    
+                    # Price Data
                     current_price=info.get("currentPrice"),
                     target_price=info.get("targetMeanPrice"),
+                    price_change_percentage=price_change,
+                    mtd_change=mtd_change,
+                    ytd_change=ytd_change,
+                    two_year_change=two_year_change,
+                    
+                    # Analyst Coverage
                     recommendation_mean=info.get("recommendationMean"),
                     recommendation_key=info.get("recommendationKey", "N/A"),
                     analyst_count=info.get("numberOfAnalystOpinions"),
+                    
+                    # Valuation Metrics
                     pe_trailing=info.get("trailingPE"),
                     pe_forward=info.get("forwardPE"),
                     peg_ratio=info.get("trailingPegRatio"),
+                    
+                    # Financial Health
                     quick_ratio=info.get("quickRatio"),
                     current_ratio=info.get("currentRatio"),
                     debt_to_equity=info.get("debtToEquity"),
+                    
+                    # Risk Metrics
                     short_float_pct=info.get("shortPercentOfFloat", 0) * 100 if info.get("shortPercentOfFloat") is not None else None,
                     short_ratio=info.get("shortRatio"),
                     beta=info.get("beta"),
+                    alpha=alpha,
+                    sharpe_ratio=sharpe,
+                    sortino_ratio=sortino,
+                    cash_percentage=info.get("cashToDebt"),
+                    
+                    # Dividends
                     dividend_yield=info.get("dividendYield"),
+                    
+                    # Events
                     last_earnings=last_earnings,
                     previous_earnings=previous_earnings,
+                    
+                    # Insider Activity
                     insider_buy_pct=insider_metrics.get("insider_buy_pct"),
                     insider_transactions=insider_metrics.get("transaction_count"),
+                    
+                    # Internal
                     ticker_object=stock
                 )
                 
