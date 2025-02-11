@@ -66,7 +66,7 @@ class Cache:
             print(f"Using cached data (expires in {minutes_left:.1f} minutes)")
             return cache_data['value']
             
-        except (json.JSONDecodeError, KeyError, ValueError):
+        except (json.JSONDecodeError, KeyError):
             # Clean up corrupted cache
             if os.path.exists(cache_path):
                 os.remove(cache_path)
