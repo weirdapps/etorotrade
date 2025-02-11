@@ -30,9 +30,9 @@ class Cache:
     
     def _get_cache_path(self, key: str) -> str:
         """Get the file path for a cache key."""
-        # Create a deterministic hash of the key
+        # Create a deterministic hash of the key using SHA-256
         import hashlib
-        safe_key = hashlib.md5(key.encode()).hexdigest()
+        safe_key = hashlib.sha256(key.encode()).hexdigest()
         return os.path.join(self.cache_dir, f"{safe_key}.json")
     
     def get(self, key: str) -> Optional[Any]:
