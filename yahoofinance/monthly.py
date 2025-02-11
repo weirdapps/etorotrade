@@ -33,12 +33,15 @@ def get_last_business_day(year, month):
 
 # Function to get the closest previous trading day close price
 def get_previous_trading_day_close(ticker, date):
-    while True:
+    """Get the closing price for the last trading day before the given date."""
+    try:
         data = yf.download(ticker, start=date - timedelta(days=7), end=date + timedelta(days=1))
         if not data.empty:
             last_valid_day = data.index[-1].to_pydatetime().date()
-            return data['Close'].loc[data.index[-1]], last_valid_day
-        date -= timedelta(days=1)
+            return float(data['Close'].iloc[-1]), last_valid_day
+        return None, None
+    except Exception:
+        return None, None
 
 # Function to calculate the last business day of the previous and previous previous month
 def get_previous_month_ends():
@@ -51,17 +54,18 @@ def get_previous_month_ends():
 
 # Function to fetch monthly change
 def fetch_monthly_change(start_date, end_date):
+    """Fetch monthly price changes for indices."""
     results = []
     for name, ticker in indices.items():
         start_price, _ = get_previous_trading_day_close(ticker, start_date)
         end_price, _ = get_previous_trading_day_close(ticker, end_date)
-        # Check if both prices are valid numbers using .iloc[-1] to get the last value
-        if not pd.isna(start_price.iloc[-1]) and not pd.isna(end_price.iloc[-1]):
-            change = ((end_price.iloc[-1] - start_price.iloc[-1]) / start_price.iloc[-1]) * 100
+        # Check if both prices are valid numbers
+        if start_price is not None and end_price is not None:
+            change = ((end_price - start_price) / start_price) * 100
             results.append({
                 'Index': name,
-                PREV_MONTH_COL: f"{start_price.iloc[-1]:,.2f}",
-                THIS_MONTH_COL: f"{end_price.iloc[-1]:,.2f}",
+                PREV_MONTH_COL: f"{start_price:,.2f}",
+                THIS_MONTH_COL: f"{end_price:,.2f}",
                 'Change Percent': f"{change:+.2f}%"
             })
     return results, start_date, end_date
@@ -71,7 +75,7 @@ def main():
     previous_previous_month_end, previous_month_end = get_previous_month_ends()
 
     # Fetch monthly changes
-    monthly_changes, start_date, end_date = fetch_monthly_change(previous_previous_month_end, previous_month_end)
+    monthly_changes, _, _ = fetch_monthly_change(previous_previous_month_end, previous_month_end)
 
     # Create DataFrame with correct column order
     df = pd.DataFrame(monthly_changes, columns=['Index', PREV_MONTH_COL, THIS_MONTH_COL, 'Change Percent'])
