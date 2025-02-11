@@ -158,6 +158,60 @@ class EconomicCalendar:
             return False
         return DateUtils.validate_date_format(date_str)
 
+    def _clean_dates(self, start_date: str, end_date: str) -> Tuple[str, str]:
+        """Clean and validate date strings."""
+        start_date = re.sub(r'[^0-9\-]', '', start_date)
+        end_date = re.sub(r'[^0-9\-]', '', end_date)
+        return start_date, end_date
+
+    def _process_series(self, series_id: str, event_name: str, info: Dict,
+                       release_date: str, release_dt: datetime.date,
+                       today: datetime.date) -> Dict[str, str]:
+        """Process a single series and return its calendar entry."""
+        previous = self._get_latest_value(series_id)
+        actual = 'N/A' if release_dt > today else previous
+        
+        return {
+            'Event': event_name,
+            'Impact': info['impact'],
+            'Date': release_date,
+            'Actual': actual,
+            'Previous': previous
+        }
+
+    def _process_release(self, release: Dict, processed_series: set,
+                        today: datetime.date) -> List[Dict[str, str]]:
+        """Process a single release and return its calendar entries."""
+        calendar_entries = []
+        release_id = release.get('release_id')
+        release_date = release.get('date')
+        
+        # Convert release_date to datetime.date for comparison
+        release_dt = datetime.strptime(release_date, '%Y-%m-%d').date()
+        
+        # Get series for this release
+        series_list = self._get_release_series(release_id)
+        
+        for series in series_list:
+            series_id = series.get('id')
+            
+            # Skip if we've already processed this series
+            if series_id in processed_series:
+                continue
+            
+            # Check if this series is one we're interested in
+            for event_name, info in self.indicators.items():
+                if info['id'] == series_id:
+                    entry = self._process_series(
+                        series_id, event_name, info,
+                        release_date, release_dt, today
+                    )
+                    calendar_entries.append(entry)
+                    processed_series.add(series_id)
+                    break
+        
+        return calendar_entries
+
     def get_economic_calendar(self, start_date: str, end_date: str) -> Optional[pd.DataFrame]:
         """
         Get economic calendar for a specified date range using FRED API.
@@ -169,59 +223,23 @@ class EconomicCalendar:
         Returns:
             DataFrame with economic calendar information if available, None otherwise
         """
-        start_date = re.sub(r'[^0-9\-]', '', start_date)
-        end_date = re.sub(r'[^0-9\-]', '', end_date)
-        
-        if not (self.validate_date_format(start_date) and self.validate_date_format(end_date)):
-            print("Error: Dates must be in YYYY-MM-DD format")
-            return None
-            
         try:
+            # Clean and validate dates
+            start_date, end_date = self._clean_dates(start_date, end_date)
+            if not (self.validate_date_format(start_date) and self.validate_date_format(end_date)):
+                print("Error: Dates must be in YYYY-MM-DD format")
+                return None
+
+            # Initialize data collection
             calendar_data = []
             today = datetime.now().date()
-            
-            # Get all releases in the date range
-            releases = self._get_releases(start_date, end_date)
-            
-            # Track processed series to avoid duplicates
             processed_series = set()
             
+            # Get and process releases
+            releases = self._get_releases(start_date, end_date)
             for release in releases:
-                release_id = release.get('release_id')
-                release_date = release.get('date')
-                
-                # Convert release_date to datetime.date for comparison
-                release_dt = datetime.strptime(release_date, '%Y-%m-%d').date()
-                
-                # Get series for this release
-                series_list = self._get_release_series(release_id)
-                
-                for series in series_list:
-                    series_id = series.get('id')
-                    
-                    # Skip if we've already processed this series
-                    if series_id in processed_series:
-                        continue
-                    
-                    # Check if this series is one we're interested in
-                    for event_name, info in self.indicators.items():
-                        if info['id'] == series_id:
-                            # Get the previous value
-                            previous = self._get_latest_value(series_id)
-                            
-                            # For future dates, actual should be N/A
-                            actual = 'N/A' if release_dt > today else previous
-                            
-                            calendar_data.append({
-                                'Event': event_name,
-                                'Impact': info['impact'],
-                                'Date': release_date,
-                                'Actual': actual,
-                                'Previous': previous
-                            })
-                            
-                            processed_series.add(series_id)
-                            break
+                entries = self._process_release(release, processed_series, today)
+                calendar_data.extend(entries)
             
             if not calendar_data:
                 print(f"No economic events found between {start_date} and {end_date}")
@@ -229,9 +247,7 @@ class EconomicCalendar:
             
             # Create DataFrame and sort by date
             df = pd.DataFrame(calendar_data)
-            df = df.sort_values('Date')
-            
-            return df
+            return df.sort_values('Date')
             
         except Exception as e:
             print(f"Error fetching economic calendar: {str(e)}")
