@@ -617,19 +617,36 @@ GOOGL
 
 ## Caching Strategy
 
-1. LRU Cache Implementation
-   - Size: 100 entries
-   - TTL: 300 seconds (5 minutes)
-   - Scope: Per instance
+1. File-Based Cache Implementation (cache.py)
+   - JSON-based storage for persistence
+   - Configurable cache directory
+   - Default TTL: 15 minutes for news data
+   - Automatic directory creation
+   - Thread-safe file operations
 
 2. Cache Keys
-   - Format: f"{ticker}:{endpoint}:{params_hash}"
+   - Format for Google News: f"google_news_{ticker}_{limit}"
+   - Format for Yahoo Finance: f"yahoo_news_{ticker}"
+   - Safe key hashing for filesystem compatibility
    - Includes timestamp for TTL calculation
 
 3. Cache Invalidation
    - Automatic on TTL expiration
-   - Manual clearing available
-   - Memory monitoring and cleanup
+   - Manual clearing via clear() method
+   - Automatic cleanup of expired/corrupted entries
+   - Memory-efficient JSON storage
+
+4. Error Handling
+   - Graceful handling of corrupted cache files
+   - Automatic cleanup of invalid entries
+   - Safe concurrent access
+   - Fallback to fresh data on cache miss
+
+5. Implementation Details
+   - Cache class with configurable parameters
+   - Supports any JSON-serializable data
+   - Transparent integration with news fetching
+   - Maintains data freshness with TTL
 
 ## Security Considerations
 

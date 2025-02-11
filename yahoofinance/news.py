@@ -77,7 +77,18 @@ def get_sentiment_color(sentiment):
     return Colors.YELLOW
 
 def get_google_news(ticker, limit=5):
-    """Get news from Google News API"""
+    """Get news from Google News API with caching"""
+    from cache import news_cache
+    
+    # Create cache key
+    cache_key = f"google_news_{ticker}_{limit}"
+    print(f"\nChecking cache for {ticker} news...")
+    
+    # Try to get from cache first
+    cached_news = news_cache.get(cache_key)
+    if cached_news is not None:
+        return cached_news
+    
     try:
         url = f"https://newsapi.org/v2/everything"
         params = {
@@ -89,7 +100,11 @@ def get_google_news(ticker, limit=5):
         }
         response = requests.get(url, params=params)
         if response.status_code == 200:
-            return response.json().get('articles', [])
+            articles = response.json().get('articles', [])
+            print("Fetching fresh data from Google News API...")
+            # Cache the results
+            news_cache.set(cache_key, articles)
+            return articles
         else:
             print(f"Error fetching Google News: {response.status_code}")
             return []
@@ -260,7 +275,21 @@ def main():
         for ticker in tickers:
             try:
                 stock = yf.Ticker(ticker)
-                news = stock.news
+                from cache import news_cache
+                cache_key = f"yahoo_news_{ticker}"
+                print(f"\nChecking cache for {ticker} news...")
+                
+                # Try to get from cache first
+                cached_news = news_cache.get(cache_key)
+                if cached_news is not None:
+                    news = cached_news
+                else:
+                    news = stock.news
+                    if news:
+                        print("Fetching fresh data from Yahoo Finance...")
+                        # Cache the results
+                        news_cache.set(cache_key, news)
+                
                 if news:
                     format_yahoo_news(news, ticker, limit=5)
                 else:
