@@ -19,6 +19,10 @@ A Python-based tool for analyzing stocks using data from Yahoo Finance. The tool
 - Up to 5 most recent news items per ticker
 - Support for both portfolio and manual ticker input
 - Clean, formatted output with color coding
+- Intelligent caching system:
+  * Caches news responses for 15 minutes
+  * Reduces API calls and improves response times
+  * Automatic cache cleanup for expired entries
 - Sentiment analysis for each news article (-1 to +1 scale)
   * Color-coded sentiment scores (red for negative, yellow for neutral, green for positive)
   * Combined analysis of title and summary content
