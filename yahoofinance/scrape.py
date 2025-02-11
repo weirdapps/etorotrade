@@ -13,75 +13,82 @@ response = requests.get(url)
 soup = BeautifulSoup(response.content, "html.parser")
 
 # Function to extract the data
-def extract_data(soup):
+def format_percentage_value(value: str) -> str:
+    """Format a percentage value with proper sign and decimals."""
+    try:
+        # Remove % symbol but keep signs
+        clean_value = value.replace('%', '').strip()
+        value_float = float(clean_value)
+        # Keep original sign for negative values, add + for positive
+        if value_float < 0:
+            return f"{value_float:.2f}%"
+        return f"+{value_float:.2f}%"
+    except ValueError:
+        return value.strip()
+
+def extract_summary_data(soup) -> dict:
+    """Extract summary metrics (TODAY, MTD, YTD, 2YR)."""
     data = {}
-    labels = ["TODAY", "MTD", "YTD", "2YR"]  # Removed "1YR"
-    
-    # Extract summary data
     summary_items = soup.select("div.relative div.flex.flex-col.items-center")
-    if summary_items:
-        for index, item in enumerate(summary_items[:-1]):  # Exclude the last item
-            value_span = item.find("span", class_="font-semibold text-green-600")
-            if value_span is None:  # Handle case where negative values might have a different class
-                value_span = item.find("span", class_="font-semibold text-red-600")
-            label_div = item.find("div", class_="text-sm text-slate-400")
-            if label_div and value_span:
-                label = labels[index] if index < len(labels) else label_div.text.strip()
-                value = value_span.text.strip()
-                # Convert to float and format to 2 decimal places
-                try:
-                    value = float(value.replace('%', ''))
-                    sign = "+" if value > 0 else ""
-                    value = f"{sign}{value:.2f}%"
-                except ValueError:
-                    value = value_span.text.strip()  # If conversion fails, keep original text
-                data[label] = value
-
-    # Extract beta value
-    beta_label = "Beta"
-    beta_value_container = soup.select_one("h2.font-semibold.text-slate-100:-soup-contains('Beta')")
-    if beta_value_container:
-        beta_value_span = beta_value_container.find_next("span", class_="text-5xl")
-        if beta_value_span:
-            beta_value = beta_value_span.text.strip()
-            data[beta_label] = beta_value
-
-    # Extract Jensen's Alpha
-    alpha_label = "Alpha"
-    alpha_container = soup.select_one("h2.font-semibold.text-slate-100:-soup-contains(\"Jensen's Alpha\")")
-    if alpha_container:
-        alpha_span = alpha_container.find_next("span", class_="text-5xl")
-        if alpha_span:
-            alpha_value = alpha_span.text.strip()
-            data[alpha_label] = alpha_value
+    
+    if not summary_items:
+        return data
+        
+    for item in summary_items:
+        value_span = (item.find("span", class_="font-semibold text-green-600") or
+                     item.find("span", class_="font-semibold text-red-600"))
+        label_div = item.find("div", class_="text-sm text-slate-400")
+        
+        if label_div and value_span:
+            label = label_div.text.strip()
+            value = format_percentage_value(value_span.text.strip())
+            data[label] = value
             
-    # Extract Sharpe Ratio
-    sharpe_label = "Sharpe"
-    sharpe_ratio_container = soup.select_one("h2.font-semibold.text-slate-100:-soup-contains('Sharpe Ratio')")
-    if sharpe_ratio_container:
-        sharpe_ratio_span = sharpe_ratio_container.find_next("span", class_="text-5xl")
-        if sharpe_ratio_span:
-            sharpe_ratio = sharpe_ratio_span.text.strip()
-            data[sharpe_label] = sharpe_ratio
+    return data
 
-    # Extract Sortino Ratio
-    sortino_label = "Sortino"
-    sortino_ratio_container = soup.select_one("h2.font-semibold.text-slate-100:-soup-contains('Sortino Ratio')")
-    if sortino_ratio_container:
-        sortino_ratio_span = sortino_ratio_container.find_next("span", class_="text-5xl")
-        if sortino_ratio_span:
-            sortino_ratio = sortino_ratio_span.text.strip()
-            data[sortino_label] = sortino_ratio
+def extract_metric(soup, label: str, contains_text: str) -> tuple:
+    """Extract a metric value given its label and containing text."""
+    # Use find instead of select_one for better handling of special characters
+    container = soup.find('h2',
+                        class_=['font-semibold', 'text-slate-100'],
+                        string=lambda s: contains_text in str(s))
+    if container:
+        value_span = container.find_next("span", class_="text-5xl")
+        if value_span:
+            return label, value_span.text.strip()
+    return None
 
-    # Extract Cash percentage
-    cash_label = "Cash"
+def extract_cash_percentage(soup) -> tuple:
+    """Extract cash percentage value."""
     cash_container = soup.select_one("div.relative.flex.justify-between.space-x-2:-soup-contains('Cash')")
     if cash_container:
         cash_value_span = cash_container.find("div", class_="font-medium")
         if cash_value_span:
-            cash_value = cash_value_span.text.strip()
-            data[cash_label] = cash_value
+            return "Cash", cash_value_span.text.strip()
+    return None
 
+def extract_data(soup):
+    """Extract all metrics from the webpage."""
+    data = extract_summary_data(soup)
+    
+    # Extract other metrics
+    metrics = [
+        ("Beta", "Beta"),
+        ("Alpha", "Jensen's Alpha"),
+        ("Sharpe", "Sharpe Ratio"),
+        ("Sortino", "Sortino Ratio")
+    ]
+    
+    for label, contains_text in metrics:
+        result = extract_metric(soup, label, contains_text)
+        if result:
+            data[result[0]] = result[1]
+    
+    # Extract cash percentage
+    cash_result = extract_cash_percentage(soup)
+    if cash_result:
+        data[cash_result[0]] = cash_result[1]
+    
     return data
 
 # Function to update the HTML file

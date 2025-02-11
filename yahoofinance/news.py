@@ -32,7 +32,7 @@ def format_timestamp(timestamp, is_google=False):
         if is_google:
             return datetime.fromisoformat(timestamp.replace('Z', '+00:00')).strftime('%Y-%m-%d %H:%M:%S')
         return datetime.strptime(timestamp, '%Y-%m-%dT%H:%M:%SZ').strftime('%Y-%m-%d %H:%M:%S')
-    except (ValueError, TypeError) as e:
+    except (ValueError, TypeError):
         return 'N/A'
 
 def wrap_text(text, width=80, indent='   '):

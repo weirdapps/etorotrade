@@ -96,7 +96,7 @@ def test_main_error_handling(mock_input, capsys):
     # Mock user entering invalid input and then quitting
     mock_input.side_effect = ['', 'q']
 
-    with pytest.raises((ValueError, SystemExit)) as exc_info:
+    with pytest.raises((ValueError, SystemExit)):
         holders.main()
     
     captured = capsys.readouterr()

@@ -93,6 +93,47 @@ class EarningsCalendar:
             return next_day.strftime('%Y-%m-%d')
         return date.strftime('%Y-%m-%d')
     
+    def _clean_dates(self, start_date: str, end_date: str) -> Tuple[str, str]:
+        """Clean and validate date strings."""
+        start_date = re.sub(r'[^0-9\-]', '', start_date)
+        end_date = re.sub(r'[^0-9\-]', '', end_date)
+        return start_date, end_date
+
+    def _process_stock(self, ticker: str, start_date: str, end_date: str) -> List[Dict[str, str]]:
+        """Process a single stock's earnings data."""
+        earnings_data = []
+        try:
+            stock = yf.Ticker(ticker)
+            earnings_dates = stock.earnings_dates
+            
+            if earnings_dates is None or earnings_dates.empty:
+                return earnings_data
+                
+            # Filter by trading date range
+            for date, row in earnings_dates.iterrows():
+                trading_date = self.get_trading_date(date)
+                if start_date <= trading_date <= end_date:
+                    info = stock.info or {}
+                    earnings_data.append(self._process_earnings_row(
+                        ticker, date, row, info
+                    ))
+                    
+        except Exception as e:
+            print(f"Error processing {ticker}: {str(e)}")
+            
+        return earnings_data
+
+    def _process_batch(self, batch: List[str], batch_num: int, total_batches: int,
+                      start_date: str, end_date: str) -> List[Dict[str, str]]:
+        """Process a batch of stocks."""
+        print(f"Processing batch {batch_num}/{total_batches}...")
+        earnings_data = []
+        
+        for ticker in batch:
+            earnings_data.extend(self._process_stock(ticker, start_date, end_date))
+            
+        return earnings_data
+
     def get_earnings_calendar(self, start_date: str, end_date: str) -> Optional[pd.DataFrame]:
         """
         Get earnings calendar for a specified date range.
@@ -104,46 +145,27 @@ class EarningsCalendar:
         Returns:
             DataFrame with earnings calendar information if available, None otherwise
         """
-        start_date = re.sub(r'[^0-9\-]', '', start_date)
-        end_date = re.sub(r'[^0-9\-]', '', end_date)
-        
-        if not (self.validate_date_format(start_date) and self.validate_date_format(end_date)):
-            print("Error: Dates must be in YYYY-MM-DD format")
-            return None
-            
         try:
+            # Clean and validate dates
+            start_date, end_date = self._clean_dates(start_date, end_date)
+            if not (self.validate_date_format(start_date) and self.validate_date_format(end_date)):
+                print("Error: Dates must be in YYYY-MM-DD format")
+                return None
+
+            # Initialize batch processing
             earnings_data = []
             total_stocks = len(self.major_stocks)
+            batch_size = 20
+            total_batches = (total_stocks + batch_size - 1) // batch_size
             
             print(f"Checking {total_stocks} major stocks for earnings announcements...")
             
-            batch_size = 20
+            # Process stocks in batches
             for i in range(0, total_stocks, batch_size):
                 batch = self.major_stocks[i:i+batch_size]
                 batch_num = i//batch_size + 1
-                total_batches = (total_stocks + batch_size - 1)//batch_size
-                print(f"Processing batch {batch_num}/{total_batches}...")
-                
-                for ticker in batch:
-                    try:
-                        stock = yf.Ticker(ticker)
-                        earnings_dates = stock.earnings_dates
-                        
-                        if earnings_dates is None or earnings_dates.empty:
-                            continue
-                            
-                        # Filter by trading date range
-                        for date, row in earnings_dates.iterrows():
-                            trading_date = self.get_trading_date(date)
-                            if start_date <= trading_date <= end_date:
-                                info = stock.info or {}
-                                earnings_data.append(self._process_earnings_row(
-                                    ticker, date, row, info
-                                ))
-                            
-                    except Exception as e:
-                        print(f"Error processing {ticker}: {str(e)}")
-                        continue
+                batch_data = self._process_batch(batch, batch_num, total_batches, start_date, end_date)
+                earnings_data.extend(batch_data)
             
             if not earnings_data:
                 print(f"No earnings announcements found between {start_date} and {end_date}")
@@ -151,9 +173,7 @@ class EarningsCalendar:
                 
             # Create DataFrame and sort by date
             df = pd.DataFrame(earnings_data)
-            df = df.sort_values('Date')
-            
-            return df
+            return df.sort_values('Date')
             
         except Exception as e:
             print(f"Error fetching earnings calendar: {str(e)}")
