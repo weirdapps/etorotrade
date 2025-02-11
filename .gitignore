@@ -23,7 +23,6 @@ wheels/
 # Virtual Environment
 myenv/
 venv/
-ENV/
 testenv/
 
 # Environment Variables
