@@ -1,0 +1,70 @@
+2025-02-04 13:36:38,517 - __main__ - DEBUG - Starting trade analysis application
+2025-02-04 13:36:45,159 - __main__ - DEBUG - Processing tickers: ['MSFT']
+2025-02-04 13:36:45,174 - yfinance - DEBUG - get_raw_json(): https://query2.finance.yahoo.com/v10/finance/quoteSummary/MSFT
+2025-02-04 13:36:45,175 - yfinance - DEBUG - Entering get()
+2025-02-04 13:36:45,175 - yfinance - DEBUG -  Entering _make_request()
+2025-02-04 13:36:45,175 - yfinance - DEBUG - url=https://query2.finance.yahoo.com/v10/finance/quoteSummary/MSFT
+2025-02-04 13:36:45,175 - yfinance - DEBUG - params={'modules': 'financialData,quoteType,defaultKeyStatistics,assetProfile,summaryDetail', 'corsDomain': 'finance.yahoo.com', 'formatted': 'false', 'symbol': 'MSFT'}
+2025-02-04 13:36:45,175 - yfinance - DEBUG -   Entering _get_cookie_and_crumb()
+2025-02-04 13:36:45,175 - yfinance - DEBUG - cookie_mode = 'basic'
+2025-02-04 13:36:45,175 - yfinance - DEBUG -    Entering _get_cookie_and_crumb_basic()
+2025-02-04 13:36:45,176 - peewee - DEBUG - ('CREATE TABLE IF NOT EXISTS "_cookieschema" ("strategy" VARCHAR(255) NOT NULL PRIMARY KEY, "fetch_date" DATETIME NOT NULL, "cookie_bytes" BLOB NOT NULL) WITHOUT ROWID', [])
+2025-02-04 13:36:45,177 - peewee - DEBUG - ('SELECT "t1"."strategy", "t1"."fetch_date", "t1"."cookie_bytes" FROM "_cookieschema" AS "t1" WHERE ("t1"."strategy" = ?) LIMIT ? OFFSET ?', ['basic', 1, 0])
+2025-02-04 13:36:45,177 - yfinance - DEBUG - loaded persistent cookie
+2025-02-04 13:36:45,177 - yfinance - DEBUG - reusing cookie
+2025-02-04 13:36:45,182 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): query1.finance.yahoo.com:443
+2025-02-04 13:36:45,432 - urllib3.connectionpool - DEBUG - https://query1.finance.yahoo.com:443 "GET /v1/test/getcrumb HTTP/11" 200 11
+2025-02-04 13:36:45,434 - yfinance - DEBUG - crumb = 'tbhGyJPYodS'
+2025-02-04 13:36:45,435 - yfinance - DEBUG -    Exiting _get_cookie_and_crumb_basic()
+2025-02-04 13:36:45,435 - yfinance - DEBUG -   Exiting _get_cookie_and_crumb()
+2025-02-04 13:36:45,439 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): query2.finance.yahoo.com:443
+2025-02-04 13:36:45,637 - urllib3.connectionpool - DEBUG - https://query2.finance.yahoo.com:443 "GET /v10/finance/quoteSummary/MSFT?modules=financialData%2CquoteType%2CdefaultKeyStatistics%2CassetProfile%2CsummaryDetail&corsDomain=finance.yahoo.com&formatted=false&symbol=MSFT&crumb=tbhGyJPYodS HTTP/11" 200 None
+2025-02-04 13:36:45,640 - yfinance - DEBUG - response code=200
+2025-02-04 13:36:45,640 - yfinance - DEBUG -  Exiting _make_request()
+2025-02-04 13:36:45,640 - yfinance - DEBUG - Exiting get()
+2025-02-04 13:36:45,645 - yfinance - DEBUG - Entering get()
+2025-02-04 13:36:45,645 - yfinance - DEBUG -  Entering _make_request()
+2025-02-04 13:36:45,645 - yfinance - DEBUG - url=https://query1.finance.yahoo.com/ws/fundamentals-timeseries/v1/finance/timeseries/MSFT?symbol=MSFT&type=trailingPegRatio&period1=1722902400&period2=1738713600
+2025-02-04 13:36:45,645 - yfinance - DEBUG - params=None
+2025-02-04 13:36:45,645 - yfinance - DEBUG -   Entering _get_cookie_and_crumb()
+2025-02-04 13:36:45,645 - yfinance - DEBUG - cookie_mode = 'basic'
+2025-02-04 13:36:45,646 - yfinance - DEBUG -    Entering _get_cookie_and_crumb_basic()
+2025-02-04 13:36:45,646 - yfinance - DEBUG - reusing cookie
+2025-02-04 13:36:45,646 - yfinance - DEBUG - reusing crumb
+2025-02-04 13:36:45,646 - yfinance - DEBUG -    Exiting _get_cookie_and_crumb_basic()
+2025-02-04 13:36:45,646 - yfinance - DEBUG -   Exiting _get_cookie_and_crumb()
+2025-02-04 13:36:45,745 - urllib3.connectionpool - DEBUG - https://query1.finance.yahoo.com:443 "GET /ws/fundamentals-timeseries/v1/finance/timeseries/MSFT?symbol=MSFT&type=trailingPegRatio&period1=1722902400&period2=1738713600&crumb=tbhGyJPYodS HTTP/11" 200 362
+2025-02-04 13:36:45,746 - yfinance - DEBUG - response code=200
+2025-02-04 13:36:45,746 - yfinance - DEBUG -  Exiting _make_request()
+2025-02-04 13:36:45,746 - yfinance - DEBUG - Exiting get()
+2025-02-04 13:36:45,747 - yfinance - DEBUG - get_raw_json(): https://query2.finance.yahoo.com/v10/finance/quoteSummary/MSFT
+2025-02-04 13:36:45,747 - yfinance - DEBUG - Entering get()
+2025-02-04 13:36:45,747 - yfinance - DEBUG -  Entering _make_request()
+2025-02-04 13:36:45,747 - yfinance - DEBUG - url=https://query2.finance.yahoo.com/v10/finance/quoteSummary/MSFT
+2025-02-04 13:36:45,747 - yfinance - DEBUG - params={'modules': 'upgradeDowngradeHistory', 'corsDomain': 'finance.yahoo.com', 'formatted': 'false', 'symbol': 'MSFT'}
+2025-02-04 13:36:45,748 - yfinance - DEBUG -   Entering _get_cookie_and_crumb()
+2025-02-04 13:36:45,748 - yfinance - DEBUG - cookie_mode = 'basic'
+2025-02-04 13:36:45,748 - yfinance - DEBUG -    Entering _get_cookie_and_crumb_basic()
+2025-02-04 13:36:45,748 - yfinance - DEBUG - reusing cookie
+2025-02-04 13:36:45,748 - yfinance - DEBUG - reusing crumb
+2025-02-04 13:36:45,748 - yfinance - DEBUG -    Exiting _get_cookie_and_crumb_basic()
+2025-02-04 13:36:45,748 - yfinance - DEBUG -   Exiting _get_cookie_and_crumb()
+2025-02-04 13:36:45,845 - urllib3.connectionpool - DEBUG - https://query2.finance.yahoo.com:443 "GET /v10/finance/quoteSummary/MSFT?modules=upgradeDowngradeHistory&corsDomain=finance.yahoo.com&formatted=false&symbol=MSFT&crumb=tbhGyJPYodS HTTP/11" 200 None
+2025-02-04 13:36:45,847 - yfinance - DEBUG - response code=200
+2025-02-04 13:36:45,847 - yfinance - DEBUG -  Exiting _make_request()
+2025-02-04 13:36:45,848 - yfinance - DEBUG - Exiting get()
+2025-02-04 13:36:45,861 - yfinance2.formatting - DEBUG - Formatting stock row data: {'ticker': 'MSFT', 'price': 410.92, 'target_price': 506.6573, 'upside': 23.298281904020257, 'analyst_count': 48, 'buy_percentage': 95.0, 'total_ratings': 80, 'pe_trailing': 33.435314, 'peg_ratio': 2.1728, 'dividend_yield': 0.0075, 'last_earnings': None}
+2025-02-04 13:36:45,861 - yfinance2.formatting - DEBUG - Calculated upside: 23.298281904020257% (price: 410.92, target: 506.6573)
+2025-02-04 13:36:45,861 - yfinance2.formatting - DEBUG - Formatting value: 410.92 (is_percentage: False)
+2025-02-04 13:36:45,861 - yfinance2.formatting - DEBUG - Formatting value: 506.6573 (is_percentage: False)
+2025-02-04 13:36:45,861 - yfinance2.formatting - DEBUG - Formatting value: 23.298281904020257 (is_percentage: True)
+2025-02-04 13:36:45,861 - yfinance2.formatting - DEBUG - Formatting value: 48 (is_percentage: False)
+2025-02-04 13:36:45,861 - yfinance2.formatting - DEBUG - Formatting value: 95.0 (is_percentage: True)
+2025-02-04 13:36:45,862 - yfinance2.formatting - DEBUG - Formatting value: 80 (is_percentage: False)
+2025-02-04 13:36:45,862 - yfinance2.formatting - DEBUG - Formatting value: 33.435314 (is_percentage: False)
+2025-02-04 13:36:45,862 - yfinance2.formatting - DEBUG - Formatting value: 2.1728 (is_percentage: False)
+2025-02-04 13:36:45,862 - yfinance2.formatting - DEBUG - Formatting value: 0.0075 (is_percentage: True)
+2025-02-04 13:36:45,862 - yfinance2.formatting - DEBUG - Formatted row: {'TICKER': '\x1b[92mMSFT\x1b[0m', 'PRICE': '\x1b[92m410.92\x1b[0m', 'TARGET': '\x1b[92m506.66\x1b[0m', 'UPSIDE': '\x1b[92m23.3%\x1b[0m', '# T': '\x1b[92m48.00\x1b[0m', '% BUY': '\x1b[92m95.0%\x1b[0m', '# A': '\x1b[92m80.00\x1b[0m', 'PE': '\x1b[92m33.44\x1b[0m', 'PEG': '\x1b[92m2.17\x1b[0m', 'DIV %': '\x1b[92m0.0%\x1b[0m', 'EARNINGS': '\x1b[92m--\x1b[0m'}
+2025-02-04 13:36:45,862 - yfinance2.formatting - DEBUG - Creating sorting columns for DataFrame
+2025-02-04 13:36:45,863 - yfinance2.formatting - DEBUG - Converting value '23.3' to float (cleaned: '23.3')
+2025-02-04 13:36:45,863 - yfinance2.formatting - DEBUG - Failed to convert '23.3' to float: could not convert string to float: '\x1b23.3\x1b'
