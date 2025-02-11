@@ -33,7 +33,7 @@ def analyze_single_stock(ticker: str):
     # Get analyst ratings
     analyst = AnalystData(client)
     ratings = analyst.get_ratings_summary(ticker)
-    print(f"\nAnalyst Ratings:")
+    print("\nAnalyst Ratings:")
     print(f"Positive Ratings: {ratings['positive_percentage']:.1f}%")
     print(f"Total Ratings: {ratings['total_ratings']}")
     

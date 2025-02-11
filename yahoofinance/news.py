@@ -32,7 +32,7 @@ def format_timestamp(timestamp, is_google=False):
         if is_google:
             return datetime.fromisoformat(timestamp.replace('Z', '+00:00')).strftime('%Y-%m-%d %H:%M:%S')
         return datetime.strptime(timestamp, '%Y-%m-%dT%H:%M:%SZ').strftime('%Y-%m-%d %H:%M:%S')
-    except:
+    except (ValueError, TypeError) as e:
         return 'N/A'
 
 def wrap_text(text, width=80, indent='   '):
@@ -78,7 +78,7 @@ def get_sentiment_color(sentiment):
 
 def get_google_news(ticker, limit=5):
     """Get news from Google News API with caching"""
-    from cache import news_cache
+    from .cache import news_cache
     
     # Create cache key
     cache_key = f"google_news_{ticker}_{limit}"
@@ -90,7 +90,7 @@ def get_google_news(ticker, limit=5):
         return cached_news
     
     try:
-        url = f"https://newsapi.org/v2/everything"
+        url = "https://newsapi.org/v2/everything"
         params = {
             'q': ticker,
             'apiKey': GOOGLE_NEWS_API_KEY,
@@ -218,10 +218,8 @@ def get_user_tickers():
     tickers_input = input("Enter comma-separated tickers (e.g., AAPL,MSFT,GOOGL): ").strip()
     return [ticker.strip().upper() for ticker in tickers_input.split(',') if ticker.strip()]
 
-def main():
-    print(f"{Colors.BOLD}Stock Market News{Colors.ENDC}")
-    
-    # Select news source
+def get_news_source() -> str:
+    """Get user's choice of news source."""
     print("\nSelect news source:")
     print("G - Google News API")
     print("Y - Yahoo Finance")
@@ -229,10 +227,11 @@ def main():
     while True:
         source = input("\nEnter your choice (G/Y): ").strip().upper()
         if source in ['G', 'Y']:
-            break
+            return source
         print("Invalid choice. Please enter 'G' or 'Y'.")
-    
-    # Select ticker input method
+
+def get_ticker_source() -> str:
+    """Get user's choice of ticker input method."""
     print("\nSelect ticker input method:")
     print("P - Load tickers from portfolio.csv")
     print("I - Enter tickers manually")
@@ -240,21 +239,59 @@ def main():
     while True:
         choice = input("\nEnter your choice (P/I): ").strip().upper()
         if choice in ['P', 'I']:
-            break
+            return choice
         print("Invalid choice. Please enter 'P' or 'I'.")
+
+def fetch_yahoo_news(ticker: str) -> None:
+    """Fetch and display news from Yahoo Finance."""
+    try:
+        stock = yf.Ticker(ticker)
+        from .cache import news_cache
+        cache_key = f"yahoo_news_{ticker}"
+        print(f"\nChecking cache for {ticker} news...")
+        
+        cached_news = news_cache.get(cache_key)
+        if cached_news is not None:
+            news = cached_news
+        else:
+            news = stock.news
+            if news:
+                print("Fetching fresh data from Yahoo Finance...")
+                news_cache.set(cache_key, news)
+        
+        if news:
+            format_yahoo_news(news, ticker, limit=5)
+        else:
+            print(f"\nNo news found for {ticker}")
+    except Exception as e:
+        print(f"\nError fetching news for {ticker}: {str(e)}")
+
+def fetch_google_news(ticker: str) -> None:
+    """Fetch and display news from Google News API."""
+    try:
+        news = get_google_news(ticker, limit=5)
+        if news:
+            format_google_news(news, ticker)
+        else:
+            print(f"\nNo news found for {ticker}")
+    except Exception as e:
+        print(f"\nError fetching news for {ticker}: {str(e)}")
+
+def main():
+    print(f"{Colors.BOLD}Stock Market News{Colors.ENDC}")
     
-    tickers = []
+    source = get_news_source()
+    choice = get_ticker_source()
+    
+    # Get tickers based on user choice
+    tickers = get_portfolio_tickers() if choice == 'P' else get_user_tickers()
+    
+    if not tickers:
+        print("No tickers found or provided.")
+        return
+        
     if choice == 'P':
-        tickers = get_portfolio_tickers()
-        if not tickers:
-            print("No tickers found in portfolio.csv or file not accessible.")
-            return
         print(f"\nLoaded {len(tickers)} tickers from portfolio.csv")
-    else:  # choice == 'I'
-        tickers = get_user_tickers()
-        if not tickers:
-            print("No valid tickers provided.")
-            return
     
     print(f"\nFetching news for: {', '.join(tickers)}")
     
@@ -263,39 +300,10 @@ def main():
             print("Error: Google News API key not found in .env file")
             return
         for ticker in tickers:
-            try:
-                news = get_google_news(ticker, limit=5)
-                if news:
-                    format_google_news(news, ticker)
-                else:
-                    print(f"\nNo news found for {ticker}")
-            except Exception as e:
-                print(f"\nError fetching news for {ticker}: {str(e)}")
+            fetch_google_news(ticker)
     else:  # source == 'Y'
         for ticker in tickers:
-            try:
-                stock = yf.Ticker(ticker)
-                from cache import news_cache
-                cache_key = f"yahoo_news_{ticker}"
-                print(f"\nChecking cache for {ticker} news...")
-                
-                # Try to get from cache first
-                cached_news = news_cache.get(cache_key)
-                if cached_news is not None:
-                    news = cached_news
-                else:
-                    news = stock.news
-                    if news:
-                        print("Fetching fresh data from Yahoo Finance...")
-                        # Cache the results
-                        news_cache.set(cache_key, news)
-                
-                if news:
-                    format_yahoo_news(news, ticker, limit=5)
-                else:
-                    print(f"\nNo news found for {ticker}")
-            except Exception as e:
-                print(f"\nError fetching news for {ticker}: {str(e)}")
+            fetch_yahoo_news(ticker)
 
 if __name__ == "__main__":
     main()

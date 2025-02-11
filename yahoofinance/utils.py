@@ -22,7 +22,7 @@ class DateUtils:
         date_str = re.sub(r'[^0-9\-]', '', date_str)
         
         # Try to format as YYYY-MM-DD if we have enough digits
-        digits = re.sub(r'[^0-9]', '', date_str)
+        digits = re.sub(r'\D', '', date_str)
         if len(digits) == 8:
             return f"{digits[:4]}-{digits[4:6]}-{digits[6:]}"
         return date_str

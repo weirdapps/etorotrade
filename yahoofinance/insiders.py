@@ -5,6 +5,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Constants
+START_DATE_COL = "Start Date"
+
 class InsiderAnalyzer:
     """Analyzes insider transactions data"""
     
@@ -45,9 +48,9 @@ class InsiderAnalyzer:
                 }
             
             # Filter transactions since second-to-last earnings
-            insider_df["Start Date"] = pd.to_datetime(insider_df["Start Date"])
+            insider_df[START_DATE_COL] = pd.to_datetime(insider_df[START_DATE_COL])
             filtered_df = insider_df[
-                insider_df["Start Date"] >= pd.to_datetime(stock_info.previous_earnings)
+                insider_df[START_DATE_COL] >= pd.to_datetime(stock_info.previous_earnings)
             ]
             
             if filtered_df.empty:
