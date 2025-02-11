@@ -39,3 +39,6 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
+
+# Cache files
+yahoofinance/cache/
