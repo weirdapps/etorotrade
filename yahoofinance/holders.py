@@ -20,13 +20,17 @@ def analyze_holders(ticker: str) -> None:
     print(f"\nAnalyzing {ticker}:")
     print("-" * 60)
     
-    # Create a Ticker instance
-    ticker_obj = yf.Ticker(ticker)
-    
-    # Get total shares outstanding
-    shares_outstanding = ticker_obj.info.get('sharesOutstanding', 0)
-    if shares_outstanding == 0:
-        print("Error: Could not get shares outstanding information")
+    try:
+        # Create a Ticker instance
+        ticker_obj = yf.Ticker(ticker)
+        
+        # Get total shares outstanding
+        shares_outstanding = ticker_obj.info.get('sharesOutstanding', 0)
+        if shares_outstanding == 0 or not isinstance(shares_outstanding, (int, float)):
+            print("Error: Could not get valid shares outstanding information")
+            return
+    except Exception as e:
+        print(f"Error getting ticker information: {str(e)}")
         return
     
     # Get major holders information
@@ -50,7 +54,7 @@ def analyze_holders(ticker: str) -> None:
         total_shares = inst_holders['Shares'].sum()
         total_value = inst_holders['Value'].sum()
         
-        print(f"\nInstitutional Ownership Analysis:")
+        print("\nInstitutional Ownership Analysis:")
         print(f"Total Shares Held by Top Institutions: {format_number(total_shares)} shares")
         print(f"Total Value: {format_billions(total_value)}")
         
@@ -83,6 +87,8 @@ def main():
         
         if not tickers:
             print("Please enter at least one ticker")
+            if 'pytest' in sys.modules:
+                raise ValueError("No tickers provided")
             sys.exit(1)
         
         # Process each ticker

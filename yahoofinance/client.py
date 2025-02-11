@@ -219,6 +219,55 @@ class YFinanceClient:
         except Exception as e:
             raise APIError(f"Failed to process earnings dates for {ticker}: {str(e)}")
         
+    def _calculate_price_changes(self, hist: pd.DataFrame) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[float]]:
+        """Calculate various price change metrics from historical data."""
+        price_change = mtd_change = ytd_change = two_year_change = None
+        
+        if not hist.empty:
+            current = hist['Close'].iloc[-1]
+            if len(hist) > 1:
+                prev_day = hist['Close'].iloc[-2]
+                price_change = ((current - prev_day) / prev_day) * 100
+            
+            if len(hist) >= 22:  # Approx. one month of trading days
+                prev_month = hist['Close'].iloc[-22]
+                mtd_change = ((current - prev_month) / prev_month) * 100
+            
+            if len(hist) > 0:
+                start_year = hist['Close'].iloc[0]
+                ytd_change = ((current - start_year) / start_year) * 100
+                two_year_change = ytd_change  # Same as YTD for now
+        
+        return price_change, mtd_change, ytd_change, two_year_change
+
+    def _calculate_risk_metrics(self, hist: pd.DataFrame) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+        """Calculate risk metrics from historical data."""
+        alpha = sharpe = sortino = None
+        
+        if not hist.empty:
+            returns = hist['Close'].pct_change().dropna()
+            if len(returns) > 0:
+                risk_free_rate = 0.05  # 5% annual risk-free rate
+                daily_rf = risk_free_rate / 252  # Daily risk-free rate
+                
+                # Calculate alpha (excess return)
+                excess_returns = returns - daily_rf
+                alpha = excess_returns.mean() * 252  # Annualized
+                
+                # Calculate Sharpe ratio
+                returns_std = returns.std() * (252 ** 0.5)  # Annualized
+                if returns_std > 0:
+                    sharpe = (returns.mean() * 252 - risk_free_rate) / returns_std
+                
+                # Calculate Sortino ratio
+                downside_returns = returns[returns < 0]
+                if len(downside_returns) > 0:
+                    downside_std = downside_returns.std() * (252 ** 0.5)
+                    if downside_std > 0:
+                        sortino = (returns.mean() * 252 - risk_free_rate) / downside_std
+        
+        return alpha, sharpe, sortino
+
     @lru_cache(maxsize=50)  # Limit cache size to prevent memory issues
     def get_ticker_info(self, ticker: str, skip_insider_metrics: bool = False) -> StockData:
         """
@@ -232,14 +281,7 @@ class YFinanceClient:
             skip_insider_metrics: If True, skip fetching insider trading metrics
             
         Returns:
-            StockData: Object containing comprehensive stock information including:
-                - Basic info (name, sector, market cap)
-                - Price data (current, target)
-                - Analyst recommendations
-                - Financial ratios (PE, PEG, etc.)
-                - Risk metrics (beta, short interest)
-                - Earnings dates
-                - Insider trading metrics (unless skipped)
+            StockData: Object containing comprehensive stock information
             
         Raises:
             ValidationError: When ticker validation fails
@@ -256,47 +298,9 @@ class YFinanceClient:
                 # Get historical data for price changes
                 hist = stock.history(period="2y")
                 
-                # Initialize price change metrics
-                price_change = mtd_change = ytd_change = two_year_change = None
-                alpha = sharpe = sortino = None
-                
-                if not hist.empty:
-                    # Calculate price changes
-                    current = hist['Close'].iloc[-1]
-                    if len(hist) > 1:
-                        prev_day = hist['Close'].iloc[-2]
-                        price_change = ((current - prev_day) / prev_day) * 100
-                    
-                    if len(hist) >= 22:  # Approx. one month of trading days
-                        prev_month = hist['Close'].iloc[-22]
-                        mtd_change = ((current - prev_month) / prev_month) * 100
-                    
-                    if len(hist) > 0:
-                        start_year = hist['Close'].iloc[0]
-                        ytd_change = ((current - start_year) / start_year) * 100
-                        two_year_change = ytd_change  # Same as YTD for now since we're using same reference point
-                    
-                    # Calculate risk metrics
-                    returns = hist['Close'].pct_change().dropna()
-                    if len(returns) > 0:
-                        risk_free_rate = 0.05  # 5% annual risk-free rate
-                        daily_rf = risk_free_rate / 252  # Daily risk-free rate
-                        
-                        # Calculate alpha (excess return)
-                        excess_returns = returns - daily_rf
-                        alpha = excess_returns.mean() * 252  # Annualized
-                        
-                        # Calculate Sharpe ratio
-                        returns_std = returns.std() * (252 ** 0.5)  # Annualized
-                        if returns_std > 0:
-                            sharpe = (returns.mean() * 252 - risk_free_rate) / returns_std
-                        
-                        # Calculate Sortino ratio
-                        downside_returns = returns[returns < 0]
-                        if len(downside_returns) > 0:
-                            downside_std = downside_returns.std() * (252 ** 0.5)
-                            if downside_std > 0:
-                                sortino = (returns.mean() * 252 - risk_free_rate) / downside_std
+                # Calculate metrics
+                price_change, mtd_change, ytd_change, two_year_change = self._calculate_price_changes(hist)
+                alpha, sharpe, sortino = self._calculate_risk_metrics(hist)
                 
                 # Get earnings dates
                 last_earnings, previous_earnings = self.get_earnings_dates(ticker)

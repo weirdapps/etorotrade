@@ -5,6 +5,10 @@ import yfinance as yf
 import pandas as pd
 from tabulate import tabulate
 
+# Constants
+PREV_MONTH_COL = 'Previous Month'
+THIS_MONTH_COL = 'This Month'
+
 # Define the indices
 indices = {
     'DJI30': '^DJI',
@@ -49,15 +53,15 @@ def get_previous_month_ends():
 def fetch_monthly_change(start_date, end_date):
     results = []
     for name, ticker in indices.items():
-        start_price, start_date_actual = get_previous_trading_day_close(ticker, start_date)
-        end_price, end_date_actual = get_previous_trading_day_close(ticker, end_date)
+        start_price, _ = get_previous_trading_day_close(ticker, start_date)
+        end_price, _ = get_previous_trading_day_close(ticker, end_date)
         # Check if both prices are valid numbers using .iloc[-1] to get the last value
         if not pd.isna(start_price.iloc[-1]) and not pd.isna(end_price.iloc[-1]):
             change = ((end_price.iloc[-1] - start_price.iloc[-1]) / start_price.iloc[-1]) * 100
             results.append({
                 'Index': name,
-                'Previous Month': f"{start_price.iloc[-1]:,.2f}",
-                'This Month': f"{end_price.iloc[-1]:,.2f}",
+                PREV_MONTH_COL: f"{start_price.iloc[-1]:,.2f}",
+                THIS_MONTH_COL: f"{end_price.iloc[-1]:,.2f}",
                 'Change Percent': f"{change:+.2f}%"
             })
     return results, start_date, end_date
@@ -70,12 +74,12 @@ def main():
     monthly_changes, start_date, end_date = fetch_monthly_change(previous_previous_month_end, previous_month_end)
 
     # Create DataFrame with correct column order
-    df = pd.DataFrame(monthly_changes, columns=['Index', 'Previous Month', 'This Month', 'Change Percent'])
+    df = pd.DataFrame(monthly_changes, columns=['Index', PREV_MONTH_COL, THIS_MONTH_COL, 'Change Percent'])
 
     # Rename columns to include dates
     df.rename(columns={
-        'Previous Month': f'Previous Month ({previous_previous_month_end.strftime("%Y-%m-%d")})',
-        'This Month': f'This Month ({previous_month_end.strftime("%Y-%m-%d")})'
+        PREV_MONTH_COL: f'{PREV_MONTH_COL} ({previous_previous_month_end.strftime("%Y-%m-%d")})',
+        THIS_MONTH_COL: f'{THIS_MONTH_COL} ({previous_month_end.strftime("%Y-%m-%d")})'
     }, inplace=True)
 
     # Print DataFrame in a fancy grid table format
