@@ -24,6 +24,7 @@ wheels/
 myenv/
 venv/
 ENV/
+testenv/
 
 # Environment Variables
 .env
