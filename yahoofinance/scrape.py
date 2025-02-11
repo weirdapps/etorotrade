@@ -3,14 +3,72 @@ from bs4 import BeautifulSoup
 import os
 from tabulate import tabulate
 
-# URL of the page to scrape
-url = "https://bullaware.com/etoro/plessas"
-
-# Send a GET request to the page
-response = requests.get(url)
-
-# Parse the page content with BeautifulSoup
-soup = BeautifulSoup(response.content, "html.parser")
+def get_soup(url: str) -> BeautifulSoup:
+    """
+    Fetch and parse HTML content from a URL.
+    
+    Args:
+        url (str): The URL to fetch data from
+        
+    Returns:
+        BeautifulSoup: Parsed HTML content
+        
+    Raises:
+        requests.exceptions.RequestException: If the request fails
+    """
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        # Don't specify Accept-Encoding to let requests handle it
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Connection': 'keep-alive',
+    }
+    
+    session = requests.Session()
+    try:
+        print("\nAttempting request with following configuration:")
+        print(f"Headers: {headers}")
+        
+        # First attempt with default SSL verification
+        response = session.get(url, headers=headers, verify=True, timeout=30)
+        response.raise_for_status()
+        
+        print("\nResponse Information:")
+        print(f"Status Code: {response.status_code}")
+        print(f"Response Headers: {dict(response.headers)}")
+        print(f"Content Type: {response.headers.get('content-type', 'Not specified')}")
+        print(f"Content Length: {len(response.content)} bytes")
+        
+        # Force response encoding to UTF-8
+        response.encoding = 'utf-8'
+        return BeautifulSoup(response.text, "html.parser")
+        
+    except requests.exceptions.SSLError:
+        print("\nSSL Error occurred, retrying with verification disabled...")
+        try:
+            # Second attempt with SSL verification disabled
+            session.verify = False
+            response = session.get(url, headers=headers, timeout=30)
+            response.raise_for_status()
+            
+            print("\nRetry Response Information:")
+            print(f"Status Code: {response.status_code}")
+            print(f"Response Headers: {dict(response.headers)}")
+            print(f"Content Type: {response.headers.get('content-type', 'Not specified')}")
+            print(f"Content Length: {len(response.content)} bytes")
+            
+            # Force response encoding to UTF-8
+            response.encoding = 'utf-8'
+            return BeautifulSoup(response.text, "html.parser")
+            
+        except requests.exceptions.RequestException as e:
+            raise RuntimeError(f"Failed to fetch data from {url} (SSL retry failed): {str(e)}")
+    except requests.exceptions.RequestException as e:
+        raise RuntimeError(f"Failed to fetch data from {url}: {str(e)}")
+    finally:
+        session.close()
 
 # Function to extract the data
 def format_percentage_value(value: str) -> str:
@@ -127,22 +185,39 @@ def color_value(value):
 
 # Main script execution
 if __name__ == "__main__":
-    # Extract data from the webpage
-    data = extract_data(soup)
-    
-    # Define the path to the HTML file
-    html_path = os.path.join(os.path.dirname(__file__), 'output', 'portfolio.html')
-
-    # Update the HTML file with the extracted data
-    if data:
+    try:
+        # URL of the page to scrape
+        url = "https://bullaware.com/etoro/plessas"
         
-        # Display the data in the console
-        table = [[key, color_value(value)] for key, value in data.items()]
-        print(tabulate(table, headers=["Metric", "Value"], tablefmt="fancy_grid", colalign=("left", "right")))
+        # Get the parsed HTML
+        print(f"\nAttempting to fetch data from: {url}")
+        soup = get_soup(url)
+        
+        # Print diagnostic information
+        print("\nDiagnostic Information:")
+        print(f"Page Encoding: {soup.original_encoding}")
+        print("\nPage Content Preview (first 500 chars):")
+        content_preview = str(soup.prettify())[:500].replace('\n', '\n  ')  # Indent for readability
+        print(f"  {content_preview}")
+        
+        # Extract data from the webpage
+        print("\nAttempting to extract data...")
+        data = extract_data(soup)
+        
+        # Define the path to the HTML file
+        html_path = os.path.join(os.path.dirname(__file__), 'output', 'portfolio.html')
 
-        # Update the HTML file   
-        update_html(data, html_path)
-        print("\nHTML file updated successfully.")
+        # Update the HTML file with the extracted data
+        if data:
+            # Display the data in the console
+            table = [[key, color_value(value)] for key, value in data.items()]
+            print(tabulate(table, headers=["Metric", "Value"], tablefmt="fancy_grid", colalign=("left", "right")))
 
-    else:
-        print("No data found.")
+            # Update the HTML file
+            update_html(data, html_path)
+            print("\nHTML file updated successfully.")
+        else:
+            print("No data found.")
+            
+    except Exception as e:
+        print(f"Error: {str(e)}")

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Index Performance</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<style>
+        body {
+            background-color: #111827;
+            color: white;
+            font-family: 'Roboto', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .summary-container {
+            background-color: #1f2937;
+            padding: 20px;
+            border-radius: 8px;
+            height: 250px;
+            width: 500px; /* Reduced the width to half */
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+        .summary-container h2 {
+            margin-top: 20;
+            font-size: 24px;
+            font-weight: normal;
+            margin-bottom: 20px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); /* Adjusted columns for a more compact layout */
+            gap: 10px; /* Adjusted gap to balance spacing */
+        }
+        .flex {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+        }
+        .text-3xl {
+            font-size: 1.875rem;
+        }
+        .font-bold {
+            font-weight: bold;
+        }
+        .text-green-600 {
+            color: #10b981;
+        }
+        .text-red-600 {
+            color: #ef4444;
+        }
+        .text-gray-600 {
+            color: #4b5563;
+        }
+        .text-slate-400 {
+            color: #94a3b8;
+        }
+        .text-sm {
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+<div class="summary-container">
+<h2>Weekly Market Performance</h2>
+<div class="grid">
+<div class="flex">
+<div class="text-3xl font-bold" id="DJI30">-0.54%</div>
+<div class="text-sm text-slate-400">DJI30</div>
+</div>
+<div class="flex">
+<div class="text-3xl font-bold" id="SP500">-0.24%</div>
+<div class="text-sm text-slate-400">SP500</div>
+</div>
+<div class="flex">
+<div class="text-3xl font-bold" id="NASDAQ">+1.10%</div>
+<div class="text-sm text-slate-400">NASDAQ100</div>
+</div>
+<div class="flex">
+<div class="text-3xl font-bold text-slate-600" id="VIX">+0.67%</div>
+<div class="text-sm text-slate-400">VIX</div>
+</div>
+</div>
+</div>
+<script>
+        function updateColors() {
+            const elements = [
+                document.getElementById('DJI30'),
+                document.getElementById('SP500'),
+                document.getElementById('NQ100')
+            ];
+
+            elements.forEach(el => {
+                const value = parseFloat(el.innerText);
+                if (value > 0) {
+                    el.classList.add('text-green-600');
+                } else if (value < 0) {
+                    el.classList.add('text-red-600');
+                } else {
+                    el.classList.add('text-gray-600');
+                }
+            });
+        }
+
+        updateColors();
+    </script>
+</body>
+</html>
