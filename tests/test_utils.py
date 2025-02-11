@@ -134,7 +134,7 @@ class TestFormatUtils(unittest.TestCase):
         self.assertEqual(formatted[0]['value'], '+12.34%')
         self.assertEqual(formatted[1]['value'], '1.2M')
         self.assertEqual(formatted[2]['value'], 'text')
-        self.assertEqual(formatted[3]['value'], None)
+        self.assertIsNone(formatted[3]['value'])
 
     def test_format_table(self):
         """Test table formatting."""

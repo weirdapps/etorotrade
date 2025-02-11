@@ -93,7 +93,7 @@ You'll be prompted to choose a data source:
 ### Stock News
 
 ```bash
-python yahoofinance/news.py
+python -m yahoofinance.news
 ```
 
 You'll be prompted to:
@@ -115,7 +115,7 @@ Each news article will display:
 ### Earnings Calendar
 
 ```bash
-python yahoofinance/earnings.py
+python -m yahoofinance.earnings
 ```
 
 You'll be prompted to:
@@ -128,8 +128,8 @@ You'll be prompted to:
 ### Market Performance
 
 ```bash
-python yahoofinance/weekly.py  # For weekly performance
-python yahoofinance/monthly.py # For monthly performance
+python -m yahoofinance.weekly  # For weekly performance
+python -m yahoofinance.monthly # For monthly performance
 ```
 
 Automatically calculates and displays:
@@ -140,7 +140,7 @@ Automatically calculates and displays:
 ### Economic Calendar
 
 ```bash
-python yahoofinance/economics.py
+python -m yahoofinance.economics
 ```
 
 You'll be prompted to:
@@ -159,7 +159,7 @@ The calendar will display:
 ### Portfolio Tracking
 
 ```bash
-python yahoofinance/scrape.py
+python -m yahoofinance.scrape
 ```
 
 Automatically fetches and displays:

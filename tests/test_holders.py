@@ -35,6 +35,7 @@ def test_analyze_holders_with_data(mock_ticker, sample_major_holders, sample_ins
     mock_ticker_instance = Mock()
     mock_ticker_instance.major_holders = sample_major_holders
     mock_ticker_instance.institutional_holders = sample_institutional_holders
+    mock_ticker_instance.info = {'sharesOutstanding': 1000000}
     mock_ticker.return_value = mock_ticker_instance
 
     # Test the analyze_holders function
@@ -57,6 +58,7 @@ def test_analyze_holders_no_data(mock_ticker, capsys):
     mock_ticker_instance = Mock()
     mock_ticker_instance.major_holders = None
     mock_ticker_instance.institutional_holders = None
+    mock_ticker_instance.info = {'sharesOutstanding': 1000000}
     mock_ticker.return_value = mock_ticker_instance
 
     # Test the analyze_holders function
@@ -93,7 +95,9 @@ def test_main_multiple_tickers(mock_input, capsys):
 def test_main_error_handling(mock_input, capsys):
     # Mock user entering invalid input and then quitting
     mock_input.side_effect = ['', 'q']
+
+    with pytest.raises((ValueError, SystemExit)) as exc_info:
+        holders.main()
     
-    holders.main()
     captured = capsys.readouterr()
     assert "Please enter at least one ticker" in captured.out
