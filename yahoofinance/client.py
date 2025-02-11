@@ -179,7 +179,7 @@ class YFinanceClient:
                 # Return sorted dates (most recent first)
                 return sorted(past_earnings.index, reverse=True)
             except Exception as e:
-                self.logger.warning(f"Attempt {attempts + 1} failed for {ticker}: {str(e)}")
+                self.logger.debug(f"Attempt {attempts + 1} failed for {ticker}: {str(e)}")
                 attempts += 1
                 if attempts == self.retry_attempts:
                     raise APIError(f"Failed to fetch earnings dates for {ticker} after {self.retry_attempts} attempts: {str(e)}")
@@ -366,7 +366,7 @@ class YFinanceClient:
                 )
                 
             except Exception as e:
-                self.logger.warning(f"Attempt {attempts + 1} failed for {ticker}: {str(e)}")
+                self.logger.debug(f"Attempt {attempts + 1} failed for {ticker}: {str(e)}")
                 attempts += 1
                 if attempts == self.retry_attempts:
                     raise APIError(f"Failed to fetch data for {ticker} after {self.retry_attempts} attempts: {str(e)}")

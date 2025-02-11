@@ -160,7 +160,7 @@ class MarketDisplay:
                 price_metrics.get("current_price") is None and
                 price_metrics.get("target_price") is None
             ):
-                logger.info(f"No price metrics available for {ticker}")
+                logger.debug(f"No price metrics available for {ticker}")
                 return self._create_empty_report(ticker)
             
             # Get analyst ratings with defaults
@@ -194,7 +194,7 @@ class MarketDisplay:
             }
             
         except YFinanceError as e:
-            logger.error(f"YFinance API error for {ticker}: {str(e)}")
+            logger.debug(f"YFinance API error for {ticker}: {str(e)}")
             return self._create_empty_report(ticker)
         except Exception as e:
             logger.error(f"Unexpected error generating report for {ticker}: {str(e)}")
@@ -265,7 +265,7 @@ class MarketDisplay:
                     formatted_row['_ticker'] = ticker
                     reports.append(formatted_row)
             except Exception as e:
-                logger.error(f"Error processing {ticker}: {str(e)}")
+                logger.debug(f"Error processing {ticker}: {str(e)}")
         return reports
 
     def _generate_market_metrics(self, tickers: List[str]) -> dict:
@@ -284,7 +284,7 @@ class MarketDisplay:
                         'is_percentage': True
                     }
             except Exception as e:
-                logger.error(f"Error getting metrics for {ticker}: {str(e)}")
+                logger.debug(f"Error getting metrics for {ticker}: {str(e)}")
                 
         return metrics
     
@@ -398,7 +398,7 @@ class MarketDisplay:
                             'is_percentage': True
                         }
                 except Exception as e:
-                    logger.error(f"Error getting metrics for {ticker}: {str(e)}")
+                    logger.debug(f"Error getting metrics for {ticker}: {str(e)}")
             
             # Format metrics
             formatted_portfolio = FormatUtils.format_market_metrics(portfolio_metrics)
