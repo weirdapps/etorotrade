@@ -46,7 +46,9 @@ def extract_summary_data(soup) -> dict:
             
     return data
 
-def extract_metric(soup, label: str, contains_text: str) -> tuple:
+from typing import Optional, Tuple
+
+def extract_metric(soup, label: str, contains_text: str) -> Optional[Tuple[str, str]]:
     """Extract a metric value given its label and containing text."""
     # Use find instead of select_one for better handling of special characters
     container = soup.find('h2',
@@ -58,7 +60,7 @@ def extract_metric(soup, label: str, contains_text: str) -> tuple:
             return label, value_span.text.strip()
     return None
 
-def extract_cash_percentage(soup) -> tuple:
+def extract_cash_percentage(soup) -> Optional[Tuple[str, str]]:
     """Extract cash percentage value."""
     cash_container = soup.select_one("div.relative.flex.justify-between.space-x-2:-soup-contains('Cash')")
     if cash_container:

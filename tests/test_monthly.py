@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch, Mock, call
 import pandas as pd
 from datetime import datetime, timedelta
-import pytz
+from zoneinfo import ZoneInfo
 from yahoofinance.monthly import (
     get_last_business_day,
     get_previous_trading_day_close,
@@ -33,7 +33,7 @@ def test_get_previous_trading_day_close(mock_yf_download):
     # Test successful case
     test_date = datetime(2024, 1, 4).date()
     price, date = get_previous_trading_day_close('AAPL', test_date)
-    assert price == 102.0
+    assert abs(price - 102.0) < 1e-10  # Using absolute difference for float comparison
     assert date == datetime(2024, 1, 3).date()
 
     # Test empty data case
@@ -45,7 +45,7 @@ def test_get_previous_trading_day_close(mock_yf_download):
 def test_get_previous_month_ends():
     with patch('yahoofinance.monthly.datetime') as mock_datetime:
         # Mock current time to a known date
-        mock_now = datetime(2024, 3, 15, tzinfo=pytz.timezone('Europe/Athens'))
+        mock_now = datetime(2024, 3, 15, tzinfo=ZoneInfo('Europe/Athens'))
         mock_datetime.now.return_value = mock_now
 
         prev_prev, prev = get_previous_month_ends()
@@ -96,7 +96,7 @@ def test_main():
         df = pd.DataFrame(test_data)
         mock_df.return_value = df
         
-        mock_datetime.now.return_value = datetime(2024, 3, 15, tzinfo=pytz.timezone('Europe/Athens'))
+        mock_datetime.now.return_value = datetime(2024, 3, 15, tzinfo=ZoneInfo('Europe/Athens'))
         
         # Run main function
         main()
