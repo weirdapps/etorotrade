@@ -19,6 +19,10 @@ A Python-based tool for analyzing stocks using data from Yahoo Finance. The tool
 - Up to 5 most recent news items per ticker
 - Support for both portfolio and manual ticker input
 - Clean, formatted output with color coding
+- Sentiment analysis for each news article (-1 to +1 scale)
+  * Color-coded sentiment scores (red for negative, yellow for neutral, green for positive)
+  * Combined analysis of title and summary content
+  * Weighted scoring system (60% title, 40% summary)
 
 ### 3. Earnings Calendar (yahoofinance/earnings.py)
 
@@ -96,6 +100,13 @@ You'll be prompted to:
 2. Select ticker input method:
    - P: Load tickers from portfolio file
    - I: Manually input tickers
+
+Each news article will display:
+- Title and source
+- Sentiment score (-1 to +1) with color coding
+- Publication date
+- Summary
+- Link to full article
 
 ### Earnings Calendar
 
@@ -180,15 +191,15 @@ Automatically fetches and displays:
   - Higher than PET suggests expected earnings decline
 
 - **PEG**: Price/Earnings to Growth ratio
-  - &lt; 1: Potentially undervalued
-  - &gt; 1: Potentially overvalued
+  - < 1: Potentially undervalued
+  - > 1: Potentially overvalued
   - ~1: Fairly valued
 
 ### Risk Metrics
 
 - **BETA**: Stock's volatility compared to the market
-  - &gt; 1: More volatile than market (e.g., 1.5 = 50% more volatile)
-  - &lt; 1: Less volatile than market (e.g., 0.5 = 50% less volatile)
+  - > 1: More volatile than market (e.g., 1.5 = 50% more volatile)
+  - < 1: Less volatile than market (e.g., 0.5 = 50% less volatile)
   - = 1: Same volatility as market
 
 ### Income & Ownership
@@ -282,6 +293,11 @@ The project includes a comprehensive test suite that covers the main functionali
   - Percentage handling
   - Edge cases (missing data, zero values, negative values)
 
+- **News Tests**: Tests the news functionality
+  - Sentiment analysis accuracy
+  - Color coding logic
+  - News formatting and display
+
 ### Running Tests
 
 To run the test suite:
@@ -304,6 +320,7 @@ pytest --cov=yahoofinance tests/
 pytest tests/test_market_display.py  # Run MarketDisplay tests
 pytest tests/test_client.py          # Run YFinanceClient tests
 pytest tests/test_formatting.py      # Run DisplayFormatter tests
+pytest tests/test_news.py           # Run News tests
 ```
 
 ### Test Coverage
@@ -314,6 +331,7 @@ The test suite covers:
 - API interaction and error handling
 - Data formatting and display
 - Edge cases and error conditions
+- Sentiment analysis accuracy
 
 ## Setup Requirements
 
@@ -328,6 +346,7 @@ The test suite covers:
 - requests (for Google News API)
 - beautifulsoup4 (for portfolio tracking)
 - pytz (for timezone handling)
+- textblob (for sentiment analysis)
 
 ### API Keys Setup
 

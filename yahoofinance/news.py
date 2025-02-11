@@ -6,6 +6,7 @@ import pandas as pd
 import os
 import requests
 from dotenv import load_dotenv
+from textblob import TextBlob
 
 # Load environment variables
 load_dotenv()
@@ -49,6 +50,32 @@ def wrap_text(text, width=80, indent='   '):
     wrapped_lines = textwrap.wrap(text, width=width)
     return f"\n{indent}".join(wrapped_lines)
 
+def calculate_sentiment(title, summary):
+    """
+    Calculate sentiment score from -1 (most negative) to +1 (most positive)
+    using both title and summary with title having more weight
+    """
+    # Title has 60% weight, summary has 40% weight
+    title_weight = 0.6
+    summary_weight = 0.4
+    
+    title_sentiment = TextBlob(title).sentiment.polarity
+    summary_sentiment = TextBlob(summary or '').sentiment.polarity
+    
+    # Combine weighted sentiments
+    combined_sentiment = (title_weight * title_sentiment + 
+                        summary_weight * summary_sentiment)
+    
+    return combined_sentiment
+
+def get_sentiment_color(sentiment):
+    """Get color code based on sentiment value"""
+    if sentiment < -0.2:
+        return Colors.RED
+    elif sentiment > 0.2:
+        return Colors.GREEN
+    return Colors.YELLOW
+
 def get_google_news(ticker, limit=5):
     """Get news from Google News API"""
     try:
@@ -74,7 +101,15 @@ def format_google_news(news, ticker):
     print_section(f"LATEST NEWS FOR {ticker}")
     for i, article in enumerate(news, 1):
         try:
-            print(f"\n{Colors.BOLD}• {article.get('title', 'N/A')}{Colors.ENDC}")
+            title = article.get('title', 'N/A')
+            description = article.get('description', '')
+            sentiment = calculate_sentiment(title, description)
+            sentiment_color = get_sentiment_color(sentiment)
+            
+            print(f"\n{Colors.BOLD}• {title}{Colors.ENDC}")
+            print(f"   {Colors.BLUE}Sentiment:{Colors.ENDC} "
+                  f"{sentiment_color}{sentiment:.2f}{Colors.ENDC}")
+            
             timestamp = format_timestamp(article.get('publishedAt', ''), is_google=True)
             print(f"   {Colors.BLUE}Published:{Colors.ENDC} {timestamp}")
             print(f"   {Colors.BLUE}Source:{Colors.ENDC} {article.get('source', {}).get('name', 'N/A')}")
@@ -120,7 +155,13 @@ def format_yahoo_news(news, ticker, limit=5):
                 continue
             
             title = content.get('title', 'N/A')
+            summary = content.get('summary', content.get('description', ''))
+            sentiment = calculate_sentiment(title, summary)
+            sentiment_color = get_sentiment_color(sentiment)
+            
             print(f"\n{Colors.BOLD}• {title}{Colors.ENDC}")
+            print(f"   {Colors.BLUE}Sentiment:{Colors.ENDC} "
+                  f"{sentiment_color}{sentiment:.2f}{Colors.ENDC}")
             
             timestamp = format_timestamp(content.get('pubDate', ''))
             print(f"   {Colors.BLUE}Published:{Colors.ENDC} {timestamp}")
@@ -132,7 +173,6 @@ def format_yahoo_news(news, ticker, limit=5):
                 provider_name = 'N/A'
             print(f"   {Colors.BLUE}Publisher:{Colors.ENDC} {provider_name}")
             
-            summary = content.get('summary', content.get('description', ''))
             if summary:
                 print(f"   {Colors.BLUE}Summary:{Colors.ENDC}")
                 wrapped_summary = wrap_text(summary)

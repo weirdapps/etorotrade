@@ -357,19 +357,40 @@ Data structure for stock information
   - Parameters:
     - api_key: Google News API key from .env file
 
+- `calculate_sentiment(title: str, summary: str) -> float`
+  - Purpose: Calculate sentiment score for news article
+  - Parameters:
+    - title: Article title
+    - summary: Article description/summary
+  - Returns: Float between -1 (most negative) and +1 (most positive)
+  - Implementation:
+    - Uses TextBlob for natural language processing
+    - Weights: 60% title, 40% summary
+    - Handles missing summary gracefully
+
+- `get_sentiment_color(sentiment: float) -> str`
+  - Purpose: Get color code based on sentiment value
+  - Parameters:
+    - sentiment: Float value between -1 and +1
+  - Returns: ANSI color code
+  - Thresholds:
+    - Red: sentiment < -0.2 (negative)
+    - Yellow: -0.2 ≤ sentiment ≤ 0.2 (neutral)
+    - Green: sentiment > 0.2 (positive)
+
 - `fetch_google_news(ticker: str, max_articles: int = 5) -> List[Dict[str, str]]`
   - Purpose: Fetch news from Google News API
   - Parameters:
     - ticker: Stock ticker symbol
     - max_articles: Maximum number of articles to return
-  - Returns: List of news articles with title, description, url, and date
+  - Returns: List of news articles with title, description, url, date, and sentiment score
 
 - `fetch_yahoo_news(ticker: str, max_articles: int = 5) -> List[Dict[str, str]]`
   - Purpose: Fetch news from Yahoo Finance
   - Parameters:
     - ticker: Stock ticker symbol
     - max_articles: Maximum number of articles to return
-  - Returns: List of news articles with title, description, url, and date
+  - Returns: List of news articles with title, description, url, date, and sentiment score
 
 ### 7. yahoofinance/insiders.py
 
