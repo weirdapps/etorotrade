@@ -39,16 +39,16 @@ class TestNews(unittest.TestCase):
         """Test URL extraction from content"""
         test_cases = [
             (
-                {'clickThroughUrl': {'url': 'http://test.com'}},
-                'http://test.com'
+                {'clickThroughUrl': {'url': 'https://test.com'}},
+                'https://test.com'
             ),
             (
-                {'canonicalUrl': {'url': 'http://test.com'}},
-                'http://test.com'
+                {'canonicalUrl': {'url': 'https://test.com'}},
+                'https://test.com'
             ),
             (
-                {'link': 'http://test.com'},
-                'http://test.com'
+                {'link': 'https://test.com'},
+                'https://test.com'
             ),
             (
                 {},
@@ -122,7 +122,7 @@ class TestNews(unittest.TestCase):
                     'summary': 'Test Summary',
                     'pubDate': '2024-02-11T00:00:00Z',
                     'provider': {'displayName': 'Test Provider'},
-                    'clickThroughUrl': {'url': 'http://test.com'}
+                    'clickThroughUrl': {'url': 'https://test.com'}
                 }
             }
         ]
