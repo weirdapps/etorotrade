@@ -33,8 +33,8 @@ def test_validate_date_invalid(analyst_data):
         analyst_data._validate_date('invalid-date')
 
 def test_safe_float_conversion(analyst_data):
-    assert analyst_data._safe_float_conversion('123.45') == 123.45
-    assert analyst_data._safe_float_conversion('1,234.56') == 1234.56
+    assert analyst_data._safe_float_conversion('123.45') == pytest.approx(123.45)
+    assert analyst_data._safe_float_conversion('1,234.56') == pytest.approx(1234.56)
     assert analyst_data._safe_float_conversion(None) is None
     assert analyst_data._safe_float_conversion('invalid') is None
 

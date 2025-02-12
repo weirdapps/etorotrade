@@ -101,7 +101,7 @@ def test_get_insider_metrics_success(analyzer, mock_client, sample_insider_df):
     
     result = analyzer.get_insider_metrics('AAPL')
     
-    assert result['insider_buy_pct'] == 50.0  # 2 purchases out of 4 transactions
+    assert result['insider_buy_pct'] == pytest.approx(50.0)  # 2 purchases out of 4 transactions
     assert result['transaction_count'] == 4
 
 def test_get_insider_metrics_only_purchases(analyzer, mock_client):
@@ -122,7 +122,7 @@ def test_get_insider_metrics_only_purchases(analyzer, mock_client):
     
     result = analyzer.get_insider_metrics('AAPL')
     
-    assert result['insider_buy_pct'] == 100.0
+    assert result['insider_buy_pct'] == pytest.approx(100.0)
     assert result['transaction_count'] == 2
 
 def test_get_insider_metrics_only_sales(analyzer, mock_client):
@@ -143,7 +143,7 @@ def test_get_insider_metrics_only_sales(analyzer, mock_client):
     
     result = analyzer.get_insider_metrics('AAPL')
     
-    assert result['insider_buy_pct'] == 0.0
+    assert result['insider_buy_pct'] == pytest.approx(0.0)
     assert result['transaction_count'] == 2
 
 def test_get_insider_metrics_no_valid_transactions(analyzer, mock_client):

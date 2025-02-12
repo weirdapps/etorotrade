@@ -24,7 +24,7 @@ def mock_yf_data():
 def test_get_previous_trading_day_close(mock_yf_data):
     with patch('yfinance.download', return_value=mock_yf_data):
         price, date = get_previous_trading_day_close('^DJI', datetime(2024, 1, 3))
-        assert float(price.iloc[-1]) == 110.0
+        assert float(price.iloc[-1]) == pytest.approx(110.0)
         assert date == datetime(2024, 1, 3).date()
 
 def test_calculate_weekly_dates():
