@@ -47,14 +47,15 @@ A Python-based tool for analyzing stocks using data from Yahoo Finance. The tool
 - Previous and actual values for each indicator
 - Impact level indicators (High/Medium)
 
-### 5. Market Performance (yahoofinance/weekly.py, yahoofinance/monthly.py)
+### 5. Market Performance (yahoofinance/index.py)
 
 - Track weekly and monthly performance of major indices (DJI30, SP500, NQ100, VIX)
+- Interactive prompt to choose between weekly and monthly performance
 - Automatic calculation of last trading day prices
 - Formatted output with change percentages
 - Updates index.html with latest performance data
 
-### 6. Portfolio Tracker (yahoofinance/scrape.py)
+### 6. Portfolio Tracker (yahoofinance/portfolio.py)
 
 - Scrapes portfolio performance metrics from etoro
 - Tracks daily, MTD, YTD, and 2YR returns
@@ -128,14 +129,14 @@ You'll be prompted to:
 ### Market Performance
 
 ```bash
-python -m yahoofinance.weekly  # For weekly performance
-python -m yahoofinance.monthly # For monthly performance
+python -m yahoofinance.index
 ```
 
-Automatically calculates and displays:
+You'll be prompted to:
 
-- Weekly: Last Friday vs Previous Friday
-- Monthly: Last month-end vs Previous month-end
+1. Choose performance period:
+   - W: Weekly performance (Last Friday vs Previous Friday)
+   - M: Monthly performance (Last month-end vs Previous month-end)
 
 ### Economic Calendar
 
@@ -159,7 +160,7 @@ The calendar will display:
 ### Portfolio Tracking
 
 ```bash
-python -m yahoofinance.scrape
+python -m yahoofinance.portfolio
 ```
 
 Automatically fetches and displays:
