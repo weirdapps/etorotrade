@@ -32,17 +32,17 @@ def test_init(mock_client):
     assert analyzer.client == mock_client
 
 def test_safe_float_conversion(analyzer):
-    assert analyzer._safe_float_conversion("123.45") == 123.45
-    assert analyzer._safe_float_conversion("1,234.56") == 1234.56
+    assert analyzer._safe_float_conversion("123.45") == pytest.approx(123.45)
+    assert analyzer._safe_float_conversion("1,234.56") == pytest.approx(1234.56)
     assert analyzer._safe_float_conversion(None) is None
     assert analyzer._safe_float_conversion("invalid") is None
-    assert analyzer._safe_float_conversion(100) == 100.0
+    assert analyzer._safe_float_conversion(100) == pytest.approx(100.0)
 
 def test_get_current_price_success(analyzer, mock_client, mock_stock_info):
     mock_client.get_ticker_info.return_value = mock_stock_info
     
     price = analyzer.get_current_price("AAPL")
-    assert price == 100.0
+    assert price == pytest.approx(100.0)
     mock_client.get_ticker_info.assert_called_once_with("AAPL")
 
 def test_get_current_price_none(analyzer, mock_client):
@@ -80,8 +80,8 @@ def test_get_historical_prices_success(analyzer, mock_client):
     assert len(prices) == 2
     assert isinstance(prices[0], PriceData)
     assert prices[0].date == datetime(2024, 1, 1)
-    assert prices[0].open == 100.0
-    assert prices[0].close == 101.0
+    assert prices[0].open == pytest.approx(100.0)
+    assert prices[0].close == pytest.approx(101.0)
 
 def test_get_historical_prices_empty(analyzer, mock_client):
     mock_stock = Mock()
@@ -109,7 +109,7 @@ def test_get_price_targets_success(analyzer, mock_client, mock_stock_info):
     targets = analyzer.get_price_targets("AAPL")
     
     assert isinstance(targets, PriceTarget)
-    assert targets.mean == 120.0
+    assert targets.mean == pytest.approx(120.0)
     assert targets.num_analysts == 10
     assert targets.high is None  # Not implemented yet
     assert targets.low is None   # Not implemented yet
@@ -137,8 +137,8 @@ def test_calculate_price_metrics_success(analyzer, mock_client, mock_stock_info)
     
     metrics = analyzer.calculate_price_metrics("AAPL")
     
-    assert metrics["current_price"] == 100.0
-    assert metrics["target_price"] == 120.0
+    assert metrics["current_price"] == pytest.approx(100.0)
+    assert metrics["target_price"] == pytest.approx(120.0)
     assert metrics["upside_potential"] == pytest.approx(20.0, rel=1e-9)  # Use approx for floating point comparison
 
 def test_calculate_price_metrics_no_current_price(analyzer, mock_client):
@@ -151,7 +151,7 @@ def test_calculate_price_metrics_no_current_price(analyzer, mock_client):
     metrics = analyzer.calculate_price_metrics("AAPL")
     
     assert metrics["current_price"] is None
-    assert metrics["target_price"] == 120.0
+    assert metrics["target_price"] == pytest.approx(120.0)
     assert metrics["upside_potential"] is None
 
 def test_calculate_price_metrics_no_target(analyzer, mock_client):
@@ -163,7 +163,7 @@ def test_calculate_price_metrics_no_target(analyzer, mock_client):
     
     metrics = analyzer.calculate_price_metrics("AAPL")
     
-    assert metrics["current_price"] == 100.0
+    assert metrics["current_price"] == pytest.approx(100.0)
     assert metrics["target_price"] is None
     assert metrics["upside_potential"] is None
 
@@ -176,7 +176,7 @@ def test_calculate_price_metrics_zero_price(analyzer, mock_client):
     
     metrics = analyzer.calculate_price_metrics("AAPL")
     
-    assert metrics["current_price"] == 0.0
+    assert metrics["current_price"] == pytest.approx(0.0)
     assert metrics["target_price"] == 120.0
     assert metrics["upside_potential"] is None  # Division by zero handled
 
@@ -188,9 +188,9 @@ def test_calculate_price_metrics_error(analyzer, mock_client):
 
 def test_price_target_namedtuple():
     target = PriceTarget(mean=100.0, high=120.0, low=80.0, num_analysts=10)
-    assert target.mean == 100.0
-    assert target.high == 120.0
-    assert target.low == 80.0
+    assert target.mean == pytest.approx(100.0)
+    assert target.high == pytest.approx(120.0)
+    assert target.low == pytest.approx(80.0)
     assert target.num_analysts == 10
 
 def test_price_data_namedtuple():
@@ -204,9 +204,9 @@ def test_price_data_namedtuple():
         adjusted_close=102.0
     )
     assert data.date == datetime(2024, 1, 1)
-    assert data.open == 100.0
-    assert data.high == 105.0
-    assert data.low == 95.0
-    assert data.close == 102.0
-    assert data.volume == 1000000
-    assert data.adjusted_close == 102.0
+    assert data.open == pytest.approx(100.0)
+    assert data.high == pytest.approx(105.0)
+    assert data.low == pytest.approx(95.0)
+    assert data.close == pytest.approx(102.0)
+    assert data.volume == 1000000  # Integer, no need for approx
+    assert data.adjusted_close == pytest.approx(102.0)

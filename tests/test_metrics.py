@@ -133,10 +133,9 @@ def test_main_lowercase_ticker():
 
 def test_metrics_categories_structure():
     """Test that all expected metric categories are present"""
-    with patch('yfinance.Ticker') as mock_ticker:
-        # Capture the categories by calling the function
-        with patch('builtins.print'):  # Suppress output
-            show_available_metrics('AAPL')
+    # Capture the categories by calling the function
+    with patch('builtins.print'):  # Suppress output
+        show_available_metrics('AAPL')
             
         # Get the source code
         import inspect

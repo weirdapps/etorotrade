@@ -96,9 +96,9 @@ def test_generate_stock_report_success(display, mock_client, mock_stock_info):
     report = display.generate_stock_report('AAPL')
     
     assert report['ticker'] == 'AAPL'
-    assert report['price'] == 100.0
-    assert report['target_price'] == 120.0
-    assert report['upside'] == 20.0
+    assert report['price'] == pytest.approx(100.0)
+    assert report['target_price'] == pytest.approx(120.0)
+    assert report['upside'] == pytest.approx(20.0)
     assert report['_not_found'] is False
 
 def test_generate_stock_report_no_price_data(display, mock_client):
@@ -187,7 +187,7 @@ def test_generate_market_metrics(display, mock_client, mock_stock_info):
     
     metrics = display._generate_market_metrics(['AAPL'])
     assert 'AAPL' in metrics
-    assert metrics['AAPL']['value'] == 5.0
+    assert metrics['AAPL']['value'] == pytest.approx(5.0)
     assert metrics['AAPL']['is_percentage'] is True
 
 @patch('yahoofinance.utils.FormatUtils')
