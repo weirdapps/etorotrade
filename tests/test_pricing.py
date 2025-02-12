@@ -177,7 +177,7 @@ def test_calculate_price_metrics_zero_price(analyzer, mock_client):
     metrics = analyzer.calculate_price_metrics("AAPL")
     
     assert metrics["current_price"] == pytest.approx(0.0)
-    assert metrics["target_price"] == 120.0
+    assert metrics["target_price"] == pytest.approx(120.0)
     assert metrics["upside_potential"] is None  # Division by zero handled
 
 def test_calculate_price_metrics_error(analyzer, mock_client):
