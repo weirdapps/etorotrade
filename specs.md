@@ -483,7 +483,60 @@ Data structure for stock information
     - ticker: Stock ticker symbol
   - Returns: Dictionary with buy_percentage and total_transactions
 
-### 8. yahoofinance/economics.py
+### 8. yahoofinance/index.py
+
+#### Classes
+
+##### None (Module Level Functions)
+
+###### Functions
+
+- `get_previous_trading_day_close(ticker: str, date: datetime) -> Tuple[pd.Series, datetime.date]`
+  - Purpose: Get the closing price for the last trading day before the given date
+  - Parameters:
+    - ticker: Stock ticker symbol
+    - date: Target date
+  - Returns: Tuple of (price_series, actual_date)
+
+- `calculate_weekly_dates() -> Tuple[datetime, datetime]`
+  - Purpose: Calculate last Friday and the previous Friday
+  - Returns: Tuple of (previous_friday, last_friday)
+
+- `get_previous_month_ends() -> Tuple[datetime.date, datetime.date]`
+  - Purpose: Calculate last business days of previous and previous previous month
+  - Returns: Tuple of (previous_previous_month_end, previous_month_end)
+
+- `fetch_changes(start_date: datetime.date, end_date: datetime.date) -> List[Dict]`
+  - Purpose: Fetch price changes for indices between two dates
+  - Parameters:
+    - start_date: Start date for comparison
+    - end_date: End date for comparison
+  - Returns: List of dictionaries containing index changes
+
+- `update_html(data: List[Dict], html_path: str) -> None`
+  - Purpose: Update HTML file with the index changes using templates
+  - Parameters:
+    - data: List of dictionaries containing index data
+    - html_path: Path to HTML file
+  - Implementation:
+    - Uses templates.metrics_grid for layout
+    - Uses templates.generate_html for consistent styling
+    - Supports dynamic grid columns and width
+
+- `display_results(data: List[Dict]) -> None`
+  - Purpose: Display results in a formatted table
+  - Parameters:
+    - data: List of dictionaries containing index data
+
+- `main() -> None`
+  - Purpose: Main function that handles user input and orchestrates the workflow
+  - Features:
+    - Interactive prompt for weekly/monthly choice
+    - Automatic date calculation
+    - Data fetching and display
+    - HTML file updates
+
+### 9. yahoofinance/economics.py
 
 #### Classes
 

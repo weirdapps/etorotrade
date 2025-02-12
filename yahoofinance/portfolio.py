@@ -2,6 +2,8 @@ import requests
 from bs4 import BeautifulSoup
 import os
 from tabulate import tabulate
+from . import templates
+from .utils import FormatUtils
 
 def get_soup(url: str) -> BeautifulSoup:
     """
@@ -28,36 +30,21 @@ def get_soup(url: str) -> BeautifulSoup:
     
     session = requests.Session()
     try:
-        print("\nAttempting request with following configuration:")
-        print(f"Headers: {headers}")
-        
         # First attempt with default SSL verification
         response = session.get(url, headers=headers, verify=True, timeout=30)
         response.raise_for_status()
-        
-        print("\nResponse Information:")
-        print(f"Status Code: {response.status_code}")
-        print(f"Response Headers: {dict(response.headers)}")
-        print(f"Content Type: {response.headers.get('content-type', 'Not specified')}")
-        print(f"Content Length: {len(response.content)} bytes")
         
         # Force response encoding to UTF-8
         response.encoding = 'utf-8'
         return BeautifulSoup(response.text, "html.parser")
         
     except requests.exceptions.SSLError:
-        print("\nSSL Error occurred, retrying with verification disabled...")
         try:
             # Second attempt with SSL verification disabled
             session.verify = False
             response = session.get(url, headers=headers, timeout=30)
             response.raise_for_status()
             
-            print("\nRetry Response Information:")
-            print(f"Status Code: {response.status_code}")
-            print(f"Response Headers: {dict(response.headers)}")
-            print(f"Content Type: {response.headers.get('content-type', 'Not specified')}")
-            print(f"Content Length: {len(response.content)} bytes")
             
             # Force response encoding to UTF-8
             response.encoding = 'utf-8'
@@ -70,7 +57,6 @@ def get_soup(url: str) -> BeautifulSoup:
     finally:
         session.close()
 
-# Function to extract the data
 def format_percentage_value(value: str) -> str:
     """Format a percentage value with proper sign and decimals."""
     try:
@@ -108,7 +94,6 @@ from typing import Optional, Tuple
 
 def extract_metric(soup, label: str, contains_text: str) -> Optional[Tuple[str, str]]:
     """Extract a metric value given its label and containing text."""
-    # Use find instead of select_one for better handling of special characters
     container = soup.find('h2',
                         class_=['font-semibold', 'text-slate-100'],
                         string=lambda s: contains_text in str(s))
@@ -150,28 +135,42 @@ def extract_data(soup):
         data[cash_result[0]] = cash_result[1]
     
     return data
-
-# Function to update the HTML file
 def update_html(data, html_path):
-    # Read the HTML file
-    with open(html_path, 'r') as file:
-        html_content = file.read()
-
-    # Parse the HTML with BeautifulSoup
-    soup = BeautifulSoup(html_content, 'html.parser')
-
-    # Update the values in the HTML
+    """Update HTML file with the extracted data."""
+    # Create metrics dictionary for formatting
+    metrics_dict = {}
     for key, value in data.items():
-        element = soup.find(id=key)
-        if element:
-            element.string = value
+        metrics_dict[key] = {
+            'value': value,
+            'label': key,
+            'is_percentage': '%' in str(value)
+        }
+    
+    # Format metrics using FormatUtils instance
+    utils = FormatUtils()
+    formatted_metrics = utils.format_market_metrics(metrics_dict)
+    
+    # Generate the HTML using FormatUtils
+    sections = [{
+        'title': "Portfolio Performance",
+        'metrics': formatted_metrics,
+        'columns': 3,
+        'width': "800px"
+    }]
+    html_content = utils.generate_market_html(
+        title="Portfolio Performance",
+        sections=sections
+    )
 
-    # Write the updated HTML back to the file
-    with open(html_path, 'w') as file:
-        file.write(str(soup))
+    try:
+        with open(html_path, 'w', encoding='utf-8') as file:
+            file.write(html_content)
+        print("\nHTML file updated successfully.")
+    except IOError as e:
+        print(f"\nError: Could not write to file {html_path}. {e}")
 
-# Function to color code the values for console output
 def color_value(value):
+    """Color code the values for console output."""
     try:
         num = float(value.replace('%', '').replace('+', ''))
         if num > 0:
@@ -183,25 +182,15 @@ def color_value(value):
     except ValueError:
         return value  # If conversion fails, return the original value
 
-# Main script execution
 if __name__ == "__main__":
     try:
         # URL of the page to scrape
         url = "https://bullaware.com/etoro/plessas"
         
         # Get the parsed HTML
-        print(f"\nAttempting to fetch data from: {url}")
         soup = get_soup(url)
         
-        # Print diagnostic information
-        print("\nDiagnostic Information:")
-        print(f"Page Encoding: {soup.original_encoding}")
-        print("\nPage Content Preview (first 500 chars):")
-        content_preview = str(soup.prettify())[:500].replace('\n', '\n  ')  # Indent for readability
-        print(f"  {content_preview}")
-        
         # Extract data from the webpage
-        print("\nAttempting to extract data...")
         data = extract_data(soup)
         
         # Define the path to the HTML file
@@ -215,7 +204,6 @@ if __name__ == "__main__":
 
             # Update the HTML file
             update_html(data, html_path)
-            print("\nHTML file updated successfully.")
         else:
             print("No data found.")
             
