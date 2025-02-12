@@ -7,7 +7,6 @@ from yahoofinance.index import (
     calculate_weekly_dates,
     get_previous_month_ends,
     fetch_changes,
-    update_html,
     INDICES
 )
 
@@ -21,17 +20,6 @@ def mock_yf_data():
         datetime(2024, 1, 3)
     ])
     return mock_data
-
-@pytest.fixture
-def mock_html():
-    return """
-    <html>
-        <body>
-            <span id="DJI30">old_value</span>
-            <span id="SP500">old_value</span>
-        </body>
-    </html>
-    """
 
 def test_get_previous_trading_day_close(mock_yf_data):
     with patch('yfinance.download', return_value=mock_yf_data):
@@ -79,58 +67,11 @@ def test_fetch_changes(mock_yf_data):
         assert any('Previous' in key for key in first_change.keys())
         assert any('Current' in key for key in first_change.keys())
 
-def test_update_html(tmp_path):
-    html_file = tmp_path / "test.html"
-    
-    test_data = [
-        {
-            'Index': 'DJI30',
-            'Change Percent': '+1.23%',
-            'Current (2024-01-03)': '15000.00'
-        },
-        {
-            'Index': 'SP500',
-            'Change Percent': '-0.45%',
-            'Current (2024-01-03)': '4000.00'
-        },
-        {
-            'Index': 'NQ100',
-            'Change Percent': '+0.75%',
-            'Current (2024-01-03)': '16000.00'
-        },
-        {
-            'Index': 'VIX',
-            'Change Percent': '-1.20%',
-            'Current (2024-01-03)': '15.50'
-        }
-    ]
-
-    formatted_metrics = [
-        {'id': 'DJI30', 'value': '+1.23%', 'label': 'DJI30 (2024-01-03)'},
-        {'id': 'SP500', 'value': '-0.45%', 'label': 'SP500 (2024-01-03)'},
-        {'id': 'NQ100', 'value': '+0.75%', 'label': 'NQ100 (2024-01-03)'},
-        {'id': 'VIX', 'value': '-1.20%', 'label': 'VIX (2024-01-03)'}
-    ]
-    
-    mock_utils = Mock()
-    mock_utils.format_market_metrics.return_value = formatted_metrics
-    mock_utils.generate_market_html.return_value = "<html>Mocked HTML</html>"
-    
-    with patch('yahoofinance.index.FormatUtils', return_value=mock_utils):
-        update_html(test_data, str(html_file))
-        
-        # Verify format_market_metrics was called
-        assert mock_utils.format_market_metrics.call_count == 1
-        # Verify generate_market_html was called
-        assert mock_utils.generate_market_html.call_count == 1
-        assert "Market Performance" in mock_utils.generate_market_html.call_args[1]['title']
-
 @patch('builtins.input', side_effect=['W'])
 def test_main_weekly(mock_input, mock_yf_data):
     with patch('yfinance.download', return_value=mock_yf_data), \
          patch('yahoofinance.index.datetime') as mock_datetime, \
-         patch('yahoofinance.index.display_results') as mock_display, \
-         patch('yahoofinance.index.update_html') as mock_update:
+         patch('yahoofinance.index.display_results') as mock_display:
         
         mock_datetime.today.return_value = datetime(2024, 1, 10)  # A Wednesday
         from yahoofinance.index import main
@@ -138,15 +79,12 @@ def test_main_weekly(mock_input, mock_yf_data):
         
         # Verify display_results was called
         assert mock_display.call_count == 1
-        # Verify update_html was called
-        assert mock_update.call_count == 1
 
 @patch('builtins.input', side_effect=['M'])
 def test_main_monthly(mock_input, mock_yf_data):
     with patch('yfinance.download', return_value=mock_yf_data), \
          patch('yahoofinance.index.datetime') as mock_datetime, \
-         patch('yahoofinance.index.display_results') as mock_display, \
-         patch('yahoofinance.index.update_html') as mock_update:
+         patch('yahoofinance.index.display_results') as mock_display:
         
         mock_datetime.today.return_value = datetime(2024, 2, 15)
         from yahoofinance.index import main
@@ -154,15 +92,12 @@ def test_main_monthly(mock_input, mock_yf_data):
         
         # Verify display_results was called
         assert mock_display.call_count == 1
-        # Verify update_html was called
-        assert mock_update.call_count == 1
 
 @patch('builtins.input', side_effect=['X', 'W'])
 def test_main_invalid_input(mock_input, mock_yf_data):
     with patch('yfinance.download', return_value=mock_yf_data), \
          patch('yahoofinance.index.datetime') as mock_datetime, \
-         patch('yahoofinance.index.display_results') as mock_display, \
-         patch('yahoofinance.index.update_html') as mock_update:
+         patch('yahoofinance.index.display_results') as mock_display:
         
         mock_datetime.today.return_value = datetime(2024, 1, 10)  # A Wednesday
         from yahoofinance.index import main
@@ -170,5 +105,3 @@ def test_main_invalid_input(mock_input, mock_yf_data):
         
         # Verify it eventually called display_results after invalid input
         assert mock_display.call_count == 1
-        # Verify update_html was called
-        assert mock_update.call_count == 1
