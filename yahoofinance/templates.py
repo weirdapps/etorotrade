@@ -21,33 +21,62 @@ BASE_TEMPLATE = """<!DOCTYPE html>
         .container {{
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 2.5px;
         }}
         .summary-container {{
             background-color: #1f2937;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            padding: 5px 2.5px;
+            border-radius: 4px;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
             text-align: center;
         }}
         .summary-container h2 {{
             margin-top: 0;
             font-size: 24px;
             font-weight: normal;
-            margin-bottom: 20px;
+            margin-bottom: 5px;
         }}
         .grid {{
             display: grid;
-            gap: 10px;
+            gap: 2.5px;
         }}
         .grid-4x1 {{ grid-template-columns: repeat(4, 1fr); }}
         .grid-5x1 {{ grid-template-columns: repeat(5, 1fr); }}
+        .grid-3x2 {{
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 10px;
+            aspect-ratio: 16/9;
+            padding: 2.5px;
+            width: 100%;
+            max-width: 960px;
+            margin: 0 auto;
+        }}
+        .grid-2x2 {{
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 10px;
+            aspect-ratio: 1;
+            padding: 2.5px;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+        }}
+        .grid-2x2 .flex {{
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }}
         .flex {{
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 10px;
+            padding: 2.5px;
         }}
         .text-3xl {{ font-size: 1.875rem; }}
         .font-bold {{ font-weight: bold; }}
@@ -89,9 +118,12 @@ def metric_item(id: str, value: str, label: str) -> str:
         <div class="text-sm text-slate-400">{label}</div>
     </div>"""
 
-def metrics_grid(title: str, metrics: list, columns: int = 4, width: str = "700px") -> str:
+def metrics_grid(title: str, metrics: list, columns: int = 4, rows: int = 1, width: str = "700px") -> str:
     """Generate HTML for a grid of metrics."""
-    grid_class = f"grid-{columns}x1"
+    if rows == 2:
+        grid_class = "grid-2x2" if columns == 2 else "grid-3x2"
+    else:
+        grid_class = f"grid-{columns}x1"
     metrics_html = "\n".join(metric_item(m['id'], m['value'], m['label']) for m in metrics)
     
     return f"""<div class="summary-container" style="width: {width}">

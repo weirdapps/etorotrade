@@ -1,6 +1,7 @@
 import pytest
 from bs4 import BeautifulSoup
-from yahoofinance.scrape import (
+from unittest.mock import patch, Mock
+from yahoofinance.portfolio import (
     format_percentage_value,
     extract_summary_data,
     extract_metric,
@@ -59,6 +60,8 @@ def test_extract_summary_data(soup):
     data = extract_summary_data(soup)
     assert data["TODAY"] == "+5.23%"
     assert data["MTD"] == "-2.15%"
+    assert data["YTD"] == "+8.45%"
+    assert data["2YR"] == "+15.30%"
 
 def test_extract_metric(soup):
     beta_result = extract_metric(soup, "Beta", "Beta")
@@ -102,33 +105,43 @@ def test_color_value():
     assert "invalid" == color_value("invalid")   # No color for invalid
 
 def test_update_html(tmp_path):
-    # Create a temporary HTML file
-    html_content = """
-    <html>
-        <body>
-            <span id="TODAY">old_value</span>
-            <span id="Beta">old_beta</span>
-        </body>
-    </html>
-    """
     html_file = tmp_path / "test.html"
-    html_file.write_text(html_content)
     
     # Test data to update
     data = {
         "TODAY": "+5.23%",
-        "Beta": "1.25"
+        "MTD": "-2.15%",
+        "YTD": "+8.45%",
+        "2YR": "+15.30%",
+        "Beta": "1.25",
+        "Alpha": "0.45",
+        "Sharpe": "1.8",
+        "Sortino": "2.1"
     }
     
-    # Update the HTML file
-    update_html(data, str(html_file))
+    formatted_metrics = [
+        {'id': 'TODAY', 'value': '+5.23%', 'label': 'Today'},
+        {'id': 'MTD', 'value': '-2.15%', 'label': 'MTD'},
+        {'id': 'YTD', 'value': '+8.45%', 'label': 'YTD'},
+        {'id': '2YR', 'value': '+15.30%', 'label': '2YR'},
+        {'id': 'Beta', 'value': '1.25', 'label': 'Beta'},
+        {'id': 'Alpha', 'value': '0.45', 'label': 'Alpha'},
+        {'id': 'Sharpe', 'value': '1.8', 'label': 'Sharpe'},
+        {'id': 'Sortino', 'value': '2.1', 'label': 'Sortino'}
+    ]
     
-    # Read the updated file
-    updated_content = html_file.read_text()
+    mock_utils = Mock()
+    mock_utils.format_market_metrics.return_value = formatted_metrics
+    mock_utils.generate_market_html.return_value = "<html>Mocked HTML</html>"
     
-    # Check if values were updated
-    assert '>+5.23%<' in updated_content
-    assert '>1.25<' in updated_content
+    with patch('yahoofinance.portfolio.FormatUtils', return_value=mock_utils):
+        update_html(data, str(html_file))
+        
+        # Verify format_market_metrics was called
+        assert mock_utils.format_market_metrics.call_count == 1
+        # Verify generate_market_html was called
+        assert mock_utils.generate_market_html.call_count == 1
+        assert "Portfolio Performance" in mock_utils.generate_market_html.call_args[1]['title']
 
 def test_extract_data_empty_soup():
     empty_soup = BeautifulSoup("", 'html.parser')
