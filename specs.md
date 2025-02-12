@@ -513,16 +513,6 @@ Data structure for stock information
     - end_date: End date for comparison
   - Returns: List of dictionaries containing index changes
 
-- `update_html(data: List[Dict], html_path: str) -> None`
-  - Purpose: Update HTML file with the index changes using templates
-  - Parameters:
-    - data: List of dictionaries containing index data
-    - html_path: Path to HTML file
-  - Implementation:
-    - Uses templates.metrics_grid for layout
-    - Uses templates.generate_html for consistent styling
-    - Supports dynamic grid columns and width
-
 - `display_results(data: List[Dict]) -> None`
   - Purpose: Display results in a formatted table
   - Parameters:
@@ -636,13 +626,7 @@ GOOGL
 
 ### Output Files
 
-#### index.html
-- Purpose: Market performance dashboard
-- Format: HTML with embedded CSS
-- Updates: Automatic on weekly/monthly script execution
-- Content: Index performance metrics and charts
-
-#### portfolio.html
+#### performance.html
 - Purpose: Portfolio performance dashboard
 - Format: HTML with embedded CSS
 - Updates: Automatic on portfolio tracking execution

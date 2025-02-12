@@ -5,9 +5,6 @@ import yfinance as yf
 import pandas as pd
 from tabulate import tabulate
 import os
-from bs4 import BeautifulSoup
-from . import templates
-from .utils import FormatUtils
 
 # Define the indices
 INDICES = {
@@ -68,44 +65,6 @@ def fetch_changes(start_date, end_date):
             'Change Percent': f"{change:+.2f}%"
         })
     return results
-def update_html(data, html_path):
-    """Update HTML file with the index changes."""
-    # Create output directory if it doesn't exist
-    os.makedirs(os.path.dirname(html_path), exist_ok=True)
-    
-    # Create metrics dictionary for formatting
-    metrics_dict = {}
-    for item in data:
-        current_date = [k for k in item.keys() if k.startswith('Current')][0].split('(')[1].strip(')')
-        metrics_dict[item['Index']] = {
-            'value': item['Change Percent'],
-            'label': f"{item['Index']} ({current_date})",
-            'is_percentage': True
-        }
-    
-    # Format metrics using FormatUtils instance
-    utils = FormatUtils()
-    formatted_metrics = utils.format_market_metrics(metrics_dict)
-    
-    # Generate the HTML using FormatUtils
-    sections = [{
-        'title': "Market Performance",
-        'metrics': formatted_metrics,
-        'columns': 2,
-        'width': "100%"
-    }]
-    html_content = utils.generate_market_html(
-        title="Market Performance",
-        sections=sections
-    )
-
-    try:
-        with open(html_path, 'w', encoding='utf-8') as file:
-            file.write(html_content)
-        print("\nHTML file updated successfully.")
-    except IOError as e:
-        print(f"\nError: Could not write to file {html_path}. {e}")
-
 def display_results(data):
     """Display results in a formatted table."""
     df = pd.DataFrame(data)
@@ -134,10 +93,6 @@ def main():
     changes = fetch_changes(start_date, end_date)
     print(f"\n{period.capitalize()} Market Performance:")
     display_results(changes)
-
-    # Update HTML file
-    html_path = os.path.join(os.path.dirname(__file__), 'output', 'index.html')
-    update_html(changes, html_path)
 
 if __name__ == "__main__":
     main()
