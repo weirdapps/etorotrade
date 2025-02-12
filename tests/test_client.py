@@ -197,5 +197,121 @@ class TestYFinanceClient(unittest.TestCase):
             _ = stock_data._stock
         self.assertIn("No ticker object available", str(context.exception))
 
+    def test_calculate_price_changes(self):
+        """Test price change calculations with various scenarios"""
+        client = YFinanceClient()
+        
+        # Test with empty DataFrame
+        empty_df = pd.DataFrame()
+        changes = client._calculate_price_changes(empty_df)
+        self.assertEqual(changes, (None, None, None, None))
+        
+        # Test with single day data
+        single_day = pd.DataFrame({
+            'Close': [100.0]
+        })
+        changes = client._calculate_price_changes(single_day)
+        self.assertEqual(changes[0], None)  # price_change
+        self.assertEqual(changes[1], None)  # mtd_change
+        self.assertEqual(changes[2], 0.0)   # ytd_change (first day is reference)
+        self.assertEqual(changes[3], 0.0)   # two_year_change (same as ytd for now)
+        
+        # Test with two days data
+        two_days = pd.DataFrame({
+            'Close': [100.0, 110.0]
+        })
+        price_change, mtd, ytd, two_year = client._calculate_price_changes(two_days)
+        self.assertAlmostEqual(price_change, 10.0)  # (110-100)/100 * 100
+        self.assertIsNone(mtd)  # Not enough data for MTD
+        self.assertAlmostEqual(ytd, 10.0)  # Based on first day
+        self.assertAlmostEqual(two_year, 10.0)  # Same as YTD
+        
+        # Test with full month data
+        month_data = pd.DataFrame({
+            'Close': [100.0] * 20 + [100.0, 110.0]  # 22 trading days
+        })
+        price_change, mtd, ytd, two_year = client._calculate_price_changes(month_data)
+        self.assertAlmostEqual(price_change, 10.0)  # Last two values: 110.0 vs 100.0
+        self.assertAlmostEqual(mtd, 10.0)  # First vs last: 110.0 vs 100.0
+        self.assertAlmostEqual(ytd, 10.0)  # First vs last: 110.0 vs 100.0
+        self.assertAlmostEqual(two_year, 10.0)  # Same as YTD
+
+    def test_calculate_risk_metrics(self):
+        """Test risk metrics calculations with various scenarios"""
+        client = YFinanceClient()
+        
+        # Test with empty DataFrame
+        empty_df = pd.DataFrame()
+        metrics = client._calculate_risk_metrics(empty_df)
+        self.assertEqual(metrics, (None, None, None))
+        
+        # Test with single day data
+        single_day = pd.DataFrame({
+            'Close': [100.0]
+        })
+        metrics = client._calculate_risk_metrics(single_day)
+        self.assertEqual(metrics, (None, None, None))
+        
+        # Test with stable prices (no volatility)
+        stable_prices = pd.DataFrame({
+            'Close': [100.0] * 10
+        })
+        alpha, sharpe, sortino = client._calculate_risk_metrics(stable_prices)
+        self.assertIsNotNone(alpha)
+        self.assertAlmostEqual(alpha, -0.05)  # Annual risk-free rate effect
+        self.assertIsNone(sharpe)  # Division by zero (no volatility)
+        self.assertIsNone(sortino)  # No downside volatility
+        
+        # Test with volatile prices
+        volatile_prices = pd.DataFrame({
+            'Close': [100.0, 110.0, 90.0, 105.0, 95.0]
+        })
+        alpha, sharpe, sortino = client._calculate_risk_metrics(volatile_prices)
+        self.assertIsNotNone(alpha)
+        self.assertIsNotNone(sharpe)
+        self.assertIsNotNone(sortino)
+        
+        # Test with all negative returns
+        negative_returns = pd.DataFrame({
+            'Close': [100.0, 90.0, 80.0, 70.0, 60.0]
+        })
+        alpha, sharpe, sortino = client._calculate_risk_metrics(negative_returns)
+        self.assertLess(alpha, 0)  # Negative excess returns
+        self.assertLess(sharpe, 0)  # Negative Sharpe ratio
+        self.assertLess(sortino, 0)  # Negative Sortino ratio
+
+    def test_cache_management(self):
+        """Test cache management functions"""
+        client = YFinanceClient()
+        
+        # Test initial cache state
+        cache_info = client.get_cache_info()
+        initial_hits = cache_info['hits']
+        initial_misses = cache_info['misses']
+        self.assertEqual(cache_info['maxsize'], 50)
+        self.assertEqual(cache_info['currsize'], 0)
+        
+        # Test cache hit/miss
+        with patch('yfinance.Ticker') as mock_yf_ticker:
+            mock_ticker = Mock()
+            mock_ticker.info = {}
+            mock_ticker.history.return_value = pd.DataFrame()
+            mock_yf_ticker.return_value = mock_ticker
+            
+            # First call - should miss
+            client.get_ticker_info('AAPL')
+            cache_info = client.get_cache_info()
+            self.assertEqual(cache_info['misses'], initial_misses + 2)  # Two misses due to internal calls
+            
+            # Second call - should hit
+            client.get_ticker_info('AAPL')
+            cache_info = client.get_cache_info()
+            self.assertEqual(cache_info['hits'], initial_hits + 1)
+        
+        # Test cache clear
+        client.clear_cache()
+        cache_info = client.get_cache_info()
+        self.assertEqual(cache_info['currsize'], 0)
+
 if __name__ == '__main__':
     unittest.main()
