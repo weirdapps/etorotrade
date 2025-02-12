@@ -5,11 +5,151 @@ from yahoofinance.news import (
     get_sentiment_color,
     Colors,
     get_google_news,
-    get_url
+    get_url,
+    format_timestamp,
+    wrap_text,
+    format_google_news,
+    format_yahoo_news,
+    get_portfolio_tickers,
+    get_user_tickers,
+    get_news_source,
+    get_ticker_source
 )
 import yfinance as yf
+import pandas as pd
+from datetime import datetime
 
 class TestNews(unittest.TestCase):
+    def test_format_timestamp(self):
+        """Test timestamp formatting for different inputs"""
+        # Test Google format
+        self.assertEqual(
+            format_timestamp("2024-02-11T14:30:00Z", is_google=True),
+            "2024-02-11 14:30:00"
+        )
+        
+        # Test Yahoo format
+        self.assertEqual(
+            format_timestamp("2024-02-11T14:30:00Z", is_google=False),
+            "2024-02-11 14:30:00"
+        )
+        
+        # Test invalid format
+        self.assertEqual(format_timestamp("invalid", is_google=True), "N/A")
+        self.assertEqual(format_timestamp(None, is_google=False), "N/A")
+
+    def test_wrap_text(self):
+        """Test text wrapping functionality"""
+        # Test basic wrapping
+        text = "This is a test string that should be wrapped"
+        wrapped = wrap_text(text, width=20)
+        self.assertTrue(all(len(line.strip()) <= 20 for line in wrapped.split('\n')))
+        
+        # Test HTML removal
+        html_text = "This is <b>bold</b> and <i>italic</i> text"
+        wrapped = wrap_text(html_text)
+        self.assertNotIn("<b>", wrapped)
+        self.assertNotIn("</b>", wrapped)
+        self.assertNotIn("<i>", wrapped)
+        self.assertNotIn("</i>", wrapped)
+        
+        # Test empty input
+        self.assertEqual(wrap_text(""), "")
+        self.assertIsNone(wrap_text(None))
+
+    @patch('builtins.print')
+    def test_format_google_news(self, mock_print):
+        """Test Google news formatting"""
+        news = [
+            {
+                'title': 'Test Title',
+                'description': 'Test Description',
+                'publishedAt': '2024-02-11T14:30:00Z',
+                'source': {'name': 'Test Source'},
+                'url': 'https://test.com'
+            }
+        ]
+        
+        format_google_news(news, 'AAPL')
+        
+        # Verify print calls contain expected content
+        print_calls = [call[0][0] for call in mock_print.call_args_list]
+        self.assertTrue(any('Test Title' in str(call) for call in print_calls))
+        self.assertTrue(any('Test Description' in str(call) for call in print_calls))
+        self.assertTrue(any('Test Source' in str(call) for call in print_calls))
+
+    @patch('builtins.print')
+    def test_format_yahoo_news(self, mock_print):
+        """Test Yahoo news formatting"""
+        news = [
+            {
+                'content': {
+                    'title': 'Test Yahoo Title',
+                    'summary': 'Test Yahoo Summary',
+                    'pubDate': '2024-02-11T14:30:00Z',
+                    'provider': {'displayName': 'Test Provider'},
+                    'clickThroughUrl': {'url': 'https://test.com'}
+                }
+            }
+        ]
+        
+        format_yahoo_news(news, 'AAPL')
+        
+        # Verify print calls contain expected content
+        print_calls = [call[0][0] for call in mock_print.call_args_list]
+        self.assertTrue(any('Test Yahoo Title' in str(call) for call in print_calls))
+        self.assertTrue(any('Test Yahoo Summary' in str(call) for call in print_calls))
+        self.assertTrue(any('Test Provider' in str(call) for call in print_calls))
+
+    @patch('pandas.read_csv')
+    def test_get_portfolio_tickers(self, mock_read_csv):
+        """Test portfolio tickers retrieval"""
+        # Mock DataFrame
+        mock_df = pd.DataFrame({'ticker': ['AAPL', 'MSFT', 'BTC-USD']})
+        mock_read_csv.return_value = mock_df
+        
+        tickers = get_portfolio_tickers()
+        self.assertEqual(tickers, ['AAPL', 'MSFT'])  # BTC-USD should be filtered out
+
+    @patch('builtins.input')
+    def test_get_user_tickers(self, mock_input):
+        """Test user ticker input"""
+        mock_input.return_value = "AAPL, MSFT, GOOGL"
+        tickers = get_user_tickers()
+        self.assertEqual(tickers, ['AAPL', 'MSFT', 'GOOGL'])
+        
+        # Test empty input
+        mock_input.return_value = ""
+        tickers = get_user_tickers()
+        self.assertEqual(tickers, [])
+
+    @patch('builtins.input')
+    def test_get_news_source(self, mock_input):
+        """Test news source selection"""
+        # Test valid inputs
+        mock_input.side_effect = ["G"]
+        self.assertEqual(get_news_source(), "G")
+        
+        mock_input.side_effect = ["Y"]
+        self.assertEqual(get_news_source(), "Y")
+        
+        # Test invalid then valid input
+        mock_input.side_effect = ["X", "G"]
+        self.assertEqual(get_news_source(), "G")
+
+    @patch('builtins.input')
+    def test_get_ticker_source(self, mock_input):
+        """Test ticker source selection"""
+        # Test valid inputs
+        mock_input.side_effect = ["P"]
+        self.assertEqual(get_ticker_source(), "P")
+        
+        mock_input.side_effect = ["I"]
+        self.assertEqual(get_ticker_source(), "I")
+        
+        # Test invalid then valid input
+        mock_input.side_effect = ["X", "P"]
+        self.assertEqual(get_ticker_source(), "P")
     @patch('yahoofinance.cache.news_cache')
     @patch('yahoofinance.news.requests.get')
     def test_google_news_caching(self, mock_get, mock_cache):
