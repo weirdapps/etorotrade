@@ -53,7 +53,7 @@ A Python-based tool for analyzing stocks using data from Yahoo Finance. The tool
 - Interactive prompt to choose between weekly and monthly performance
 - Automatic calculation of last trading day prices
 - Formatted output with change percentages
-- Updates index.html with latest performance data
+- Formatted output with change percentages
 
 ### 6. Portfolio Tracker (yahoofinance/portfolio.py)
 
@@ -374,9 +374,8 @@ Create CSV files in yahoofinance/input/:
 
 ### Output Files
 
-The following files are automatically updated:
+The following file is automatically updated:
 
-- yahoofinance/output/index.html: Market performance dashboard
-- yahoofinance/output/portfolio.html: Portfolio performance dashboard
+- yahoofinance/output/performance.html: Portfolio performance dashboard
 
 === Follow or Copy PLESSAS on etoro ===
