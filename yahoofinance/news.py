@@ -6,7 +6,7 @@ import pandas as pd
 import os
 import requests
 from dotenv import load_dotenv
-from textblob import TextBlob
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 # Load environment variables
 load_dotenv()
@@ -55,12 +55,18 @@ def calculate_sentiment(title, summary):
     Calculate sentiment score from -1 (most negative) to +1 (most positive)
     using both title and summary with title having more weight
     """
+    analyzer = SentimentIntensityAnalyzer()
+    
     # Title has 60% weight, summary has 40% weight
     title_weight = 0.6
     summary_weight = 0.4
     
-    title_sentiment = TextBlob(title).sentiment.polarity
-    summary_sentiment = TextBlob(summary or '').sentiment.polarity
+    title_scores = analyzer.polarity_scores(title)
+    summary_scores = analyzer.polarity_scores(summary or '')
+    
+    # Use compound scores which are already normalized between -1 and 1
+    title_sentiment = title_scores['compound']
+    summary_sentiment = summary_scores['compound']
     
     # Combine weighted sentiments
     combined_sentiment = (title_weight * title_sentiment + 
@@ -70,9 +76,9 @@ def calculate_sentiment(title, summary):
 
 def get_sentiment_color(sentiment):
     """Get color code based on sentiment value"""
-    if sentiment < -0.2:
+    if sentiment < -0.05:  # VADER's threshold for negative
         return Colors.RED
-    elif sentiment > 0.2:
+    elif sentiment > 0.05:  # VADER's threshold for positive
         return Colors.GREEN
     return Colors.YELLOW
 

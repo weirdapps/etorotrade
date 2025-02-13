@@ -150,6 +150,7 @@ class TestNews(unittest.TestCase):
         # Test invalid then valid input
         mock_input.side_effect = ["X", "P"]
         self.assertEqual(get_ticker_source(), "P")
+
     @patch('yahoofinance.cache.news_cache')
     @patch('yahoofinance.news.requests.get')
     def test_google_news_caching(self, mock_get, mock_cache):
@@ -199,20 +200,21 @@ class TestNews(unittest.TestCase):
         for content, expected_url in test_cases:
             with self.subTest(content=content):
                 self.assertEqual(get_url(content), expected_url)
+
     def test_calculate_sentiment(self):
-        """Test sentiment calculation with various inputs"""
+        """Test sentiment calculation with VADER"""
         test_cases = (
             # Positive case
             (
                 "Company reports record profits and strong growth",
                 "Excellent performance across all sectors",
-                0.4  # Expected positive but adjusted to be more realistic
+                0.7  # Expected strong positive
             ),
             # Negative case
             (
                 "Company faces significant losses and market decline",
                 "Poor performance leads to layoffs",
-                -0.3  # Expected negative but adjusted to be more realistic
+                -0.7  # Expected strong negative
             ),
             # Neutral case
             (
@@ -224,25 +226,24 @@ class TestNews(unittest.TestCase):
             (
                 "Company announces new product",
                 "",
-                0.2  # Should still work with empty summary
+                0.3  # Should still work with empty summary
             )
         )
         
         for title, summary, expected_sentiment in test_cases:
             with self.subTest(title=title):
                 sentiment = calculate_sentiment(title, summary)
-                # Allow for some variation in sentiment scores since TextBlob's sentiment
-                # analysis might not exactly match our expectations
-                self.assertAlmostEqual(sentiment, expected_sentiment, delta=0.4)
+                # Allow for some variation in sentiment scores
+                self.assertAlmostEqual(sentiment, expected_sentiment, delta=0.3)
     
     def test_get_sentiment_color(self):
-        """Test sentiment color coding"""
+        """Test sentiment color coding with VADER thresholds"""
         test_cases = [
-            (-0.5, Colors.RED),    # Strong negative
-            (-0.2, Colors.YELLOW), # Borderline negative
-            (0.0, Colors.YELLOW),  # Neutral
-            (0.2, Colors.YELLOW),  # Borderline positive
-            (0.5, Colors.GREEN)    # Strong positive
+            (-0.5, Colors.RED),     # Strong negative
+            (-0.05, Colors.YELLOW), # Borderline negative
+            (0.0, Colors.YELLOW),   # Neutral
+            (0.05, Colors.YELLOW),  # Borderline positive
+            (0.5, Colors.GREEN)     # Strong positive
         ]
         
         for sentiment, expected_color in test_cases:
