@@ -43,3 +43,7 @@ Thumbs.db
 
 # Cache files
 yahoofinance/cache/
+
+# Testing
+.cov*
+htmlcov/
