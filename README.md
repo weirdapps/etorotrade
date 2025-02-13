@@ -25,8 +25,9 @@ A Python-based tool for analyzing stocks using data from Yahoo Finance. The tool
   * Automatic cache cleanup for expired entries
 - Sentiment analysis for each news article (-1 to +1 scale)
   * Color-coded sentiment scores (red for negative, yellow for neutral, green for positive)
-  * Combined analysis of title and summary content
+  * Combined analysis of title and summary content using VADER sentiment analysis
   * Weighted scoring system (60% title, 40% summary)
+  * Accurate sentiment detection for financial news context
 
 ### 3. Earnings Calendar (yahoofinance/earnings.py)
 
@@ -299,7 +300,7 @@ The project includes a comprehensive test suite that covers the main functionali
   - Edge cases (missing data, zero values, negative values)
 
 - **News Tests**: Tests the news functionality
-  - Sentiment analysis accuracy
+  - Sentiment analysis accuracy using VADER
   - Color coding logic
   - News formatting and display
 
@@ -351,7 +352,7 @@ The test suite covers:
 - requests (for Google News API)
 - beautifulsoup4 (for portfolio tracking)
 - pytz (for timezone handling)
-- textblob (for sentiment analysis)
+- vaderSentiment (for sentiment analysis)
 
 ### API Keys Setup
 
