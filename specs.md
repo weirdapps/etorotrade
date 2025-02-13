@@ -364,9 +364,11 @@ Data structure for stock information
     - summary: Article description/summary
   - Returns: Float between -1 (most negative) and +1 (most positive)
   - Implementation:
-    - Uses TextBlob for natural language processing
+    - Uses VADER (Valence Aware Dictionary and sEntiment Reasoner) for sentiment analysis
+    - Specifically tuned for social media and short texts
     - Weights: 60% title, 40% summary
     - Handles missing summary gracefully
+    - Returns compound score normalized between -1 and 1
 
 - `get_sentiment_color(sentiment: float) -> str`
   - Purpose: Get color code based on sentiment value
@@ -374,9 +376,9 @@ Data structure for stock information
     - sentiment: Float value between -1 and +1
   - Returns: ANSI color code
   - Thresholds:
-    - Red: sentiment < -0.2 (negative)
-    - Yellow: -0.2 ≤ sentiment ≤ 0.2 (neutral)
-    - Green: sentiment > 0.2 (positive)
+    - Red: sentiment < -0.05 (negative)
+    - Yellow: -0.05 ≤ sentiment ≤ 0.05 (neutral)
+    - Green: sentiment > 0.05 (positive)
 
 - `fetch_google_news(ticker: str, max_articles: int = 5) -> List[Dict[str, str]]`
   - Purpose: Fetch news from Google News API
