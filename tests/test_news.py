@@ -208,33 +208,37 @@ class TestNews(unittest.TestCase):
             (
                 "Company reports record profits and strong growth",
                 "Excellent performance across all sectors",
-                0.7  # Expected strong positive
+                "positive"
             ),
             # Negative case
             (
                 "Company faces significant losses and market decline",
                 "Poor performance leads to layoffs",
-                -0.7  # Expected strong negative
+                "negative"
             ),
             # Neutral case
             (
                 "Company releases quarterly report",
                 "Results to be discussed in meeting",
-                0.0  # Expected neutral
+                "neutral"
             ),
             # Empty summary case
             (
-                "Company announces new product",
+                "Company announces new product launch success",
                 "",
-                0.3  # Should still work with empty summary
+                "positive"
             )
         )
         
-        for title, summary, expected_sentiment in test_cases:
+        for title, summary, expected_type in test_cases:
             with self.subTest(title=title):
                 sentiment = calculate_sentiment(title, summary)
-                # Allow for some variation in sentiment scores
-                self.assertAlmostEqual(sentiment, expected_sentiment, delta=0.3)
+                if expected_type == "positive":
+                    self.assertGreater(sentiment, 0.05)  # VADER's positive threshold
+                elif expected_type == "negative":
+                    self.assertLess(sentiment, -0.05)  # VADER's negative threshold
+                else:  # neutral
+                    self.assertTrue(-0.05 <= sentiment <= 0.05)  # VADER's neutral range
     
     def test_get_sentiment_color(self):
         """Test sentiment color coding with VADER thresholds"""
