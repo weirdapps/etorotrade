@@ -18,8 +18,8 @@ class TestTrade(unittest.TestCase):
     @patch('trade.MarketDisplay')
     def test_portfolio_input_success(self, mock_display_class, mock_input):
         """Test successful portfolio input flow"""
-        # Mock user input
-        mock_input.return_value = "P"
+        # Mock user input sequence
+        mock_input.side_effect = ["P", "E"]
         
         # Mock MarketDisplay
         mock_display = Mock()
@@ -30,7 +30,11 @@ class TestTrade(unittest.TestCase):
         main()
         
         # Verify interactions
-        mock_input.assert_called_once_with("Load tickers for Portfolio (P), Market (M) or Manual Input (I)? ")
+        expected_calls = [
+            call("Load tickers for Portfolio (P), Market (M) or Manual Input (I)? "),
+            call("Use existing portfolio file (E) or download new one (N)? ")
+        ]
+        mock_input.assert_has_calls(expected_calls)
         mock_display.load_tickers.assert_called_once_with("P")
         mock_display.display_report.assert_called_once_with(["AAPL", "MSFT"])
 
@@ -78,8 +82,8 @@ class TestTrade(unittest.TestCase):
     @patch('trade.MarketDisplay')
     def test_no_tickers_found(self, mock_display_class, mock_input):
         """Test handling when no tickers are found"""
-        # Mock user input
-        mock_input.return_value = "P"
+        # Mock user input sequence
+        mock_input.side_effect = ["P", "E"]
         
         # Mock MarketDisplay
         mock_display = Mock()
@@ -90,7 +94,11 @@ class TestTrade(unittest.TestCase):
         main()
         
         # Verify interactions
-        mock_input.assert_called_once()
+        expected_calls = [
+            call("Load tickers for Portfolio (P), Market (M) or Manual Input (I)? "),
+            call("Use existing portfolio file (E) or download new one (N)? ")
+        ]
+        mock_input.assert_has_calls(expected_calls)
         mock_display.load_tickers.assert_called_once()
         mock_display.display_report.assert_not_called()
 

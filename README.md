@@ -88,7 +88,9 @@ python trade.py
 
 You'll be prompted to choose a data source:
 
-- P: Load tickers from portfolio file (yahoofinance/input/portfolio.csv)
+- P: Load tickers from portfolio file
+  * Option to use existing portfolio file (yahoofinance/input/portfolio.csv)
+  * Option to download a new portfolio from pi-screener.com
 - M: Load tickers from market file (yahoofinance/input/market.csv)
 - I: Manually input tickers (comma-separated)
 

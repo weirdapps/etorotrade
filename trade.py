@@ -20,6 +20,15 @@ def main():
     try:
         display = MarketDisplay()
         source = input("Load tickers for Portfolio (P), Market (M) or Manual Input (I)? ").strip().upper()
+        
+        if source == 'P':
+            use_existing = input("Use existing portfolio file (E) or download new one (N)? ").strip().upper()
+            if use_existing == 'N':
+                from yahoofinance.download import download_portfolio
+                if not download_portfolio():
+                    logger.error("Failed to download portfolio")
+                    return
+                
         tickers = display.load_tickers(source)
         
         if not tickers:

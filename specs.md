@@ -58,7 +58,58 @@ This project is a command-line market analysis tool that fetches and analyzes st
   - Type: logging.Logger
   - Purpose: Handles logging with INFO level configuration
 
-### 2. yahoofinance/client.py
+### 2. yahoofinance/download.py
+
+#### Functions
+
+- `setup_driver() -> webdriver.Chrome`
+  - Purpose: Configure and initialize Chrome WebDriver with appropriate options
+  - Returns: Configured Chrome WebDriver instance
+  - Options:
+    * No sandbox
+    * Disabled dev shm usage
+    * Disabled web security
+    * Disabled GPU
+    * Window size 1200x800
+
+- `wait_and_find_element(driver: webdriver.Chrome, by: By, value: str, timeout: int = 10, check_visibility: bool = True) -> Optional[WebElement]`
+  - Purpose: Helper function to wait for and find an element
+  - Parameters:
+    * driver: Chrome WebDriver instance
+    * by: Selenium By locator strategy
+    * value: Element locator value
+    * timeout: Maximum wait time in seconds
+    * check_visibility: Whether to check for visibility or just presence
+  - Returns: Found WebElement or None if not found
+
+- `login(driver: webdriver.Chrome, email: str, password: str) -> None`
+  - Purpose: Handle login process for pi-screener.com
+  - Parameters:
+    * driver: Chrome WebDriver instance
+    * email: Login email
+    * password: Login password
+  - Raises: Exception if login fails
+
+- `process_portfolio() -> None`
+  - Purpose: Process downloaded portfolio CSV file
+  - Features:
+    * Reads most recent CSV from Downloads folder
+    * Updates crypto ticker symbols
+    * Saves to yahoofinance/input/portfolio.csv
+    * Cleans up downloaded file
+
+- `download_portfolio() -> bool`
+  - Purpose: Main function to download and process portfolio
+  - Returns: True if successful, False if failed
+  - Features:
+    * Sets up Chrome WebDriver
+    * Navigates to pi-screener.com
+    * Handles login
+    * Downloads portfolio
+    * Processes downloaded file
+    * Cleans up resources
+
+### 3. yahoofinance/client.py
 
 #### Classes
 
