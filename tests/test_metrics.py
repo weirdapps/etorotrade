@@ -131,25 +131,29 @@ def test_main_lowercase_ticker():
         # Should convert ticker to uppercase
         mock_show.assert_called_once_with('AAPL')
 
-def test_metrics_categories_structure():
+def test_metrics_categories_structure(mock_yf_ticker):
     """Test that all expected metric categories are present"""
-    # Capture the categories by calling the function
-    with patch('builtins.print'):  # Suppress output
-        show_available_metrics('AAPL')
+    # Define expected categories and their required metrics
+    expected_categories = {
+        "Valuation": ["trailingPE", "forwardPE", "priceToBook"],
+        "Growth & Margins": ["revenueGrowth", "profitMargins", "grossMargins"],
+        "Financial Health": ["currentRatio", "debtToEquity", "returnOnEquity"],
+        "Market Data": ["beta", "marketCap", "shortRatio"],
+        "Dividends": ["dividendYield", "payoutRatio"],
+        "Earnings": ["trailingEps", "forwardEps"]
+    }
+    
+    import inspect
+    from yahoofinance._metrics import show_available_metrics
+    source = inspect.getsource(show_available_metrics)
+    
+    # Verify each category and some of its metrics are present
+    for category, metrics in expected_categories.items():
+        assert category in source, f"Missing category: {category}"
+        for metric in metrics:
+            assert metric in source, f"Missing metric: {metric} in category {category}"
             
-        # Get the source code
-        import inspect
-        source = inspect.getsource(show_available_metrics)
-        
-        # Check for expected categories in the source
-        expected_categories = [
-            "Valuation",
-            "Growth & Margins",
-            "Financial Health",
-            "Market Data",
-            "Dividends",
-            "Earnings"
-        ]
-        
-        for category in expected_categories:
-            assert category in source, f"Missing category: {category}"
+    # Verify the function runs without errors when properly mocked
+    with patch('yfinance.Ticker', return_value=mock_yf_ticker), \
+         patch('builtins.print'):  # Suppress output
+        show_available_metrics('AAPL')

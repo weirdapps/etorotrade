@@ -9,7 +9,7 @@ from datetime import datetime
 from .client import YFinanceClient, YFinanceError
 from .analyst import AnalystData
 from .pricing import PricingAnalyzer
-from .formatting import DisplayFormatter, DisplayConfig
+from .formatting import DisplayFormatter, DisplayConfig, Color
 
 logger = logging.getLogger(__name__)
 
@@ -468,3 +468,5 @@ class MarketDisplay:
             showindex=False,
             colalign=colalign
         ))
+        
+        # Display is complete
