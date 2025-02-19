@@ -15,7 +15,7 @@ A Python-based tool for analyzing stocks using data from Yahoo Finance. The tool
 
 ### 2. News Aggregator (yahoofinance/news.py)
 
-- Latest news from Google News API or Yahoo Finance
+- Latest news from NewsAPI or Yahoo Finance
 - Up to 5 most recent news items per ticker
 - Support for both portfolio and manual ticker input
 - Clean, formatted output with color coding
@@ -103,7 +103,7 @@ python -m yahoofinance.news
 You'll be prompted to:
 
 1. Choose a news source:
-   - G: Google News API
+   - N: NewsAPI
    - Y: Yahoo Finance
 2. Select ticker input method:
    - P: Load tickers from portfolio file
@@ -262,7 +262,7 @@ Data is sourced from multiple APIs:
    - Company fundamentals
    - Earnings announcements and estimates
 
-2. Google News API:
+2. NewsAPI:
    - Latest news articles and summaries
 
 3. FRED API (Federal Reserve Economic Data):
@@ -350,8 +350,8 @@ The test suite covers:
 - pandas
 - tabulate
 - tqdm
-- python-dotenv (for Google News API)
-- requests (for Google News API)
+- python-dotenv (for NewsAPI)
+- requests (for NewsAPI)
 - beautifulsoup4 (for portfolio tracking)
 - pytz (for timezone handling)
 - vaderSentiment (for sentiment analysis)
@@ -360,9 +360,9 @@ The test suite covers:
 
 To use all features, you'll need the following API keys:
 
-1. Google News API (for news functionality):
-   - Get an API key from <https://newsapi.org/>
-   - Add to .env: GOOGLE_NEWS_API_KEY=your_api_key
+1. NewsAPI (for news functionality):
+    - Get an API key from <https://newsapi.org/>
+    - Add to .env: NEWS_API_KEY=your_api_key
 
 2. FRED API (for economic calendar):
    - Get an API key from <https://fred.stlouisfed.org/docs/api/api_key.html>

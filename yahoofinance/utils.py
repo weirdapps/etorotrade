@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union, List, Dict, Any
 from datetime import datetime
 import re
 import pandas as pd
@@ -169,23 +169,27 @@ class FormatUtils:
             return 'N/A'
     
     @staticmethod
-    def format_market_metrics(metrics: dict) -> list:
+    def format_market_metrics(metrics: Union[List[Dict[str, Any]], Dict[str, Any]]) -> list:
         """Format market metrics for HTML display."""
         from .templates import metric_item
         formatted_metrics = []
         
-        for id, data in metrics.items():
-            value = data.get('value')
-            if isinstance(value, (int, float)):
-                if data.get('is_percentage', True):
-                    value = FormatUtils.format_percentage(value)
-                else:
-                    value = FormatUtils.format_number(value)
-            formatted_metrics.append({
-                'id': id,
-                'value': value,
-                'label': data.get('label', id)
-            })
+        # Handle both list and dict inputs
+        if isinstance(metrics, list):
+            formatted_metrics = metrics
+        else:
+            for id, data in metrics.items():
+                value = data.get('value')
+                if isinstance(value, (int, float)):
+                    if data.get('is_percentage', True):
+                        value = FormatUtils.format_percentage(value)
+                    else:
+                        value = FormatUtils.format_number(value)
+                formatted_metrics.append({
+                    'id': id,
+                    'value': value,
+                    'label': data.get('label', id)
+                })
         
         return formatted_metrics
     
@@ -200,7 +204,8 @@ class FormatUtils:
                 title=section['title'],
                 metrics=section['metrics'],
                 columns=section.get('columns', 4),
-                width=section.get('width', '700px')
+                width=section.get('width', '700px'),
+                date_range=section.get('date_range', '')
             )
             content_parts.append(grid)
         
