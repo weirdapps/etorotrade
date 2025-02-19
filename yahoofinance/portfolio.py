@@ -45,7 +45,6 @@ def get_soup(url: str) -> BeautifulSoup:
             response = session.get(url, headers=headers, timeout=30)
             response.raise_for_status()
             
-            
             # Force response encoding to UTF-8
             response.encoding = 'utf-8'
             return BeautifulSoup(response.text, "html.parser")
@@ -119,9 +118,7 @@ def extract_data(soup):
     # Extract other metrics
     metrics = [
         ("Beta", "Beta"),
-        ("Alpha", "Jensen's Alpha"),
-        ("Sharpe", "Sharpe Ratio"),
-        ("Sortino", "Sortino Ratio")
+        ("Sharpe", "Sharpe Ratio")
     ]
     
     for label, contains_text in metrics:
@@ -135,11 +132,34 @@ def extract_data(soup):
         data[cash_result[0]] = cash_result[1]
     
     return data
+
 def update_html(data, html_path):
     """Update HTML file with the extracted data."""
+    # Map the scraped data fields to portfolio.html fields
+    field_mapping = {
+        'This Month': ['This Month', 'MTD'],
+        'Year To Date': ['Year To Date', 'YTD'],
+        '2 Years': ['2 Years', '2YR'],
+        'Beta': ['Beta'],
+        'Sharpe': ['Sharpe'],
+        'Cash': ['Cash']
+    }
+    
+    # Create portfolio data using the mapping
+    portfolio_data = {}
+    for target_field, source_fields in field_mapping.items():
+        # Try each possible source field
+        for source in source_fields:
+            if source in data:
+                portfolio_data[target_field] = data[source]
+                break
+        # If no matching field found, use default
+        if target_field not in portfolio_data:
+            portfolio_data[target_field] = '0.00%' if target_field in ['This Month', 'Year To Date', '2 Years', 'Cash'] else '0.00'
+    
     # Create metrics dictionary for formatting
     metrics_dict = {}
-    for key, value in data.items():
+    for key, value in portfolio_data.items():
         metrics_dict[key] = {
             'value': value,
             'label': key,
@@ -155,6 +175,7 @@ def update_html(data, html_path):
         'title': "Portfolio Performance",
         'metrics': formatted_metrics,
         'columns': 3,
+        'rows': 2,
         'width': "800px"
     }]
     html_content = utils.generate_market_html(
