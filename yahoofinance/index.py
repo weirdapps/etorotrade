@@ -5,6 +5,7 @@ import yfinance as yf
 import pandas as pd
 from tabulate import tabulate
 import os
+from .utils import FormatUtils
 
 # Define the indices
 INDICES = {
@@ -62,12 +63,54 @@ def fetch_changes(start_date, end_date):
             'Index': name,
             f'Previous ({start_date_actual.strftime("%Y-%m-%d")})': f"{start_value:,.2f}",
             f'Current ({end_date_actual.strftime("%Y-%m-%d")})': f"{end_value:,.2f}",
-            'Change Percent': f"{change:+.2f}%"
+            'Change Percent': f"{change:+.2f}%",
+            '_change': change,  # For HTML generation
+            '_date': end_date_actual.strftime("%Y-%m-%d")  # For HTML generation
         })
     return results
+
+def update_html(data):
+    """Update index.html with market performance data."""
+    # Create metrics dictionary for formatting
+    metrics_dict = {}
+    for item in data:
+        metrics_dict[item['Index']] = {
+            'value': f"{item['_change']:+.2f}%",
+            'label': f"{item['Index']} ({item['_date']})",
+            'is_percentage': True
+        }
+    
+    # Format metrics using FormatUtils
+    utils = FormatUtils()
+    formatted_metrics = utils.format_market_metrics(metrics_dict)
+    
+    # Generate the HTML using FormatUtils
+    sections = [{
+        'title': "Market Performance",
+        'metrics': formatted_metrics,
+        'columns': 2,
+        'rows': 2,
+        'width': "800px"
+    }]
+    html_content = utils.generate_market_html(
+        title="Market Performance",
+        sections=sections
+    )
+
+    # Write to file
+    html_path = os.path.join(os.path.dirname(__file__), 'output', 'index.html')
+    try:
+        with open(html_path, 'w', encoding='utf-8') as file:
+            file.write(html_content)
+        print("\nHTML file updated successfully.")
+    except IOError as e:
+        print(f"\nError: Could not write to file {html_path}. {e}")
+
 def display_results(data):
     """Display results in a formatted table."""
     df = pd.DataFrame(data)
+    # Remove internal fields used for HTML generation
+    df = df.drop(columns=['_change', '_date'])
     print(tabulate(df, headers='keys', tablefmt='grid', 
                   colalign=["left", "right", "right", "right"], 
                   showindex=False))
@@ -89,10 +132,15 @@ def main():
         start_date, end_date = get_previous_month_ends()
         period = "monthly"
 
-    # Fetch and display changes
+    # Fetch changes
     changes = fetch_changes(start_date, end_date)
+    
+    # Display in console
     print(f"\n{period.capitalize()} Market Performance:")
     display_results(changes)
+    
+    # Update HTML file
+    update_html(changes)
 
 if __name__ == "__main__":
     main()
