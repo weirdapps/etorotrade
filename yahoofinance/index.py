@@ -65,20 +65,23 @@ def fetch_changes(start_date, end_date):
             f'Current ({end_date_actual.strftime("%Y-%m-%d")})': f"{end_value:,.2f}",
             'Change Percent': f"{change:+.2f}%",
             '_change': change,  # For HTML generation
-            '_date': end_date_actual.strftime("%Y-%m-%d")  # For HTML generation
+            '_start_date': start_date_actual,  # For HTML generation
+            '_end_date': end_date_actual  # For HTML generation
         })
     return results
 
 def update_html(data):
     """Update index.html with market performance data."""
     # Create metrics dictionary for formatting
-    metrics_dict = {}
+    metrics_dict = []
+    date_range = f"({data[0]['_start_date'].strftime('%Y-%m-%d')} to {data[0]['_end_date'].strftime('%Y-%m-%d')})"
+    
     for item in data:
-        metrics_dict[item['Index']] = {
+        metrics_dict.append({
+            'id': item['Index'],
             'value': f"{item['_change']:+.2f}%",
-            'label': f"{item['Index']} ({item['_date']})",
-            'is_percentage': True
-        }
+            'label': item['Index']
+        })
     
     # Format metrics using FormatUtils
     utils = FormatUtils()
@@ -90,7 +93,8 @@ def update_html(data):
         'metrics': formatted_metrics,
         'columns': 2,
         'rows': 2,
-        'width': "800px"
+        'width': "800px",
+        'date_range': date_range
     }]
     html_content = utils.generate_market_html(
         title="Market Performance",
@@ -110,7 +114,7 @@ def display_results(data):
     """Display results in a formatted table."""
     df = pd.DataFrame(data)
     # Remove internal fields used for HTML generation
-    df = df.drop(columns=['_change', '_date'])
+    df = df.drop(columns=['_change', '_start_date', '_end_date'])
     print(tabulate(df, headers='keys', tablefmt='grid', 
                   colalign=["left", "right", "right", "right"], 
                   showindex=False))

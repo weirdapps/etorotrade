@@ -4,11 +4,11 @@ from yahoofinance.news import (
     calculate_sentiment,
     get_sentiment_color,
     Colors,
-    get_google_news,
+    get_newsapi_news,
     get_url,
     format_timestamp,
     wrap_text,
-    format_google_news,
+    format_newsapi_news,
     format_yahoo_news,
     get_portfolio_tickers,
     get_user_tickers,
@@ -58,8 +58,8 @@ class TestNews(unittest.TestCase):
         self.assertIsNone(wrap_text(None))
 
     @patch('builtins.print')
-    def test_format_google_news(self, mock_print):
-        """Test Google news formatting"""
+    def test_format_newsapi_news(self, mock_print):
+        """Test NewsAPI news formatting"""
         news = [
             {
                 'title': 'Test Title',
@@ -70,7 +70,7 @@ class TestNews(unittest.TestCase):
             }
         ]
         
-        format_google_news(news, 'AAPL')
+        format_newsapi_news(news, 'AAPL')
         
         # Verify print calls contain expected content
         print_calls = [call[0][0] for call in mock_print.call_args_list]
@@ -127,15 +127,15 @@ class TestNews(unittest.TestCase):
     def test_get_news_source(self, mock_input):
         """Test news source selection"""
         # Test valid inputs
-        mock_input.side_effect = ["G"]
-        self.assertEqual(get_news_source(), "G")
+        mock_input.side_effect = ["N"]
+        self.assertEqual(get_news_source(), "N")
         
         mock_input.side_effect = ["Y"]
         self.assertEqual(get_news_source(), "Y")
         
         # Test invalid then valid input
-        mock_input.side_effect = ["X", "G"]
-        self.assertEqual(get_news_source(), "G")
+        mock_input.side_effect = ["X", "N"]
+        self.assertEqual(get_news_source(), "N")
 
     @patch('builtins.input')
     def test_get_ticker_source(self, mock_input):
@@ -153,8 +153,8 @@ class TestNews(unittest.TestCase):
 
     @patch('yahoofinance.cache.news_cache')
     @patch('yahoofinance.news.requests.get')
-    def test_google_news_caching(self, mock_get, mock_cache):
-        """Test Google News caching functionality"""
+    def test_newsapi_caching(self, mock_get, mock_cache):
+        """Test NewsAPI caching functionality"""
         # Mock data
         test_articles = [{'title': 'Test Article', 'description': 'Test Description'}]
         mock_response = Mock()
@@ -164,14 +164,14 @@ class TestNews(unittest.TestCase):
         
         # Test cache miss
         mock_cache.get.return_value = None
-        result = get_google_news('AAPL', limit=1)
+        result = get_newsapi_news('AAPL', limit=1)
         
         self.assertEqual(result, test_articles)
-        mock_cache.set.assert_called_once_with('google_news_AAPL_1', test_articles)
+        mock_cache.set.assert_called_once_with('newsapi_AAPL_1', test_articles)
         
         # Test cache hit
         mock_cache.get.return_value = test_articles
-        result = get_google_news('AAPL', limit=1)
+        result = get_newsapi_news('AAPL', limit=1)
         
         self.assertEqual(result, test_articles)
         mock_get.assert_called_once()  # Request should only be made once

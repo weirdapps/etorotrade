@@ -2,55 +2,44 @@
 <html lang="en">
 <head>
     <meta charset="utf-8"/>
-    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="description" content="Dashboard displaying market performance metrics and statistics"/>
     <title>Market Performance</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;600;700&display=swap" rel="stylesheet"/>
     <link href="styles.css" rel="stylesheet"/>
-    <style>
-        body {
-            font-family: 'Roboto', sans-serif;
-            background-color: #111827;
-            color: white;
-        }
-    </style>
     
 </head>
 <body>
-    <div class="container"><div class="summary-container" style="width: 800px">
-        <h2>Market Performance</h2>
-        <div class="grid grid-2x1">
-            <div class="flex">
-        <div class="text-3xl font-bold" id="DJI30" data-value="+0.11">+0.11%</div>
-        <div class="text-sm text-slate-400">DJI30 (2025-02-14)</div>
-    </div>
-<div class="flex">
-        <div class="text-3xl font-bold" id="SP500" data-value="+1.20">+1.20%</div>
-        <div class="text-sm text-slate-400">SP500 (2025-02-14)</div>
-    </div>
-<div class="flex">
-        <div class="text-3xl font-bold" id="NQ100" data-value="+2.16">+2.16%</div>
-        <div class="text-sm text-slate-400">NQ100 (2025-02-14)</div>
-    </div>
-<div class="flex">
-        <div class="text-3xl font-bold" id="VIX" data-value="-15.09">-15.09%</div>
-        <div class="text-sm text-slate-400">VIX (2025-02-14)</div>
-    </div>
+    <main role="main" class="container"><div class="container"><section class="summary-container" style="width: 800px">
+        <h2 id="market-performance-title">Market Performance</h2>
+        <div class="grid grid-2x1" role="group" aria-labelledby="market-performance-title">
+            <article class="flex" role="article" tabindex="0">
+        <div class="text-3xl font-bold" id="DJI30" data-value="+0.00" role="text" aria-label="DJI30: +0.00%">+0.00%</div>
+        <div class="metric-label">
+            <div class="text-base font-semibold">DJI30</div>
         </div>
-    </div></div>
+    </article>
+<article class="flex" role="article" tabindex="0">
+        <div class="text-3xl font-bold" id="SP500" data-value="+0.00" role="text" aria-label="SP500: +0.00%">+0.00%</div>
+        <div class="metric-label">
+            <div class="text-base font-semibold">SP500</div>
+        </div>
+    </article>
+<article class="flex" role="article" tabindex="0">
+        <div class="text-3xl font-bold" id="NQ100" data-value="+0.00" role="text" aria-label="NQ100: +0.00%">+0.00%</div>
+        <div class="metric-label">
+            <div class="text-base font-semibold">NQ100</div>
+        </div>
+    </article>
+<article class="flex" role="article" tabindex="0">
+        <div class="text-3xl font-bold" id="VIX" data-value="+0.00" role="text" aria-label="VIX: +0.00%">+0.00%</div>
+        <div class="metric-label">
+            <div class="text-base font-semibold">VIX</div>
+        </div>
+    </article>
+        </div>
+        <div class="date-range">(2024-01-03 to 2024-01-03)</div>
+    </section></div></main>
     <script src="script.js"></script>
-    <script>
-        function updateColors() {
-            document.querySelectorAll('[data-value]').forEach(element => {
-                const value = parseFloat(element.dataset.value);
-                if (!isNaN(value)) {
-                    if (value > 0) element.classList.add('text-green-500');
-                    else if (value < 0) element.classList.add('text-red-500');
-                }
-            });
-        }
-        document.addEventListener('DOMContentLoaded', function() {
-            updateColors();
-        });
-    </script>
 </body>
 </html>

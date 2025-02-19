@@ -2,63 +2,43 @@
 <html lang="en">
 <head>
     <meta charset="utf-8"/>
-    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="description" content="Dashboard displaying portfolio performance metrics and statistics"/>
     <title>Portfolio Performance</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;600;700&display=swap" rel="stylesheet"/>
     <link href="styles.css" rel="stylesheet"/>
-    <style>
-        body {
-            font-family: 'Roboto', sans-serif;
-            background-color: #111827;
-            color: white;
-        }
-    </style>
     
 </head>
 <body>
-    <div class="container"><div class="summary-container" style="width: 800px">
-        <h2>Portfolio Performance</h2>
-        <div class="grid grid-3x2">
-            <div class="flex">
-        <div class="text-3xl font-bold" id="This Month" data-value="+3.58">+3.58%</div>
-        <div class="text-sm text-slate-400">This Month</div>
-    </div>
-<div class="flex">
-        <div class="text-3xl font-bold" id="Year To Date" data-value="+5.60">+5.60%</div>
-        <div class="text-sm text-slate-400">Year To Date</div>
-    </div>
-<div class="flex">
-        <div class="text-3xl font-bold" id="2 Years" data-value="+65.18">+65.18%</div>
-        <div class="text-sm text-slate-400">2 Years</div>
-    </div>
-<div class="flex">
-        <div class="text-3xl font-bold" id="Beta" data-value="0.79">0.79</div>
-        <div class="text-sm text-slate-400">Beta</div>
-    </div>
-<div class="flex">
-        <div class="text-3xl font-bold" id="Sharpe" data-value="1.83">1.83</div>
-        <div class="text-sm text-slate-400">Sharpe</div>
-    </div>
-<div class="flex">
-        <div class="text-3xl font-bold" id="Cash" data-value="6.47">6.47%</div>
-        <div class="text-sm text-slate-400">Cash</div>
-    </div>
+    <main role="main" class="container"><div class="container"><section class="summary-container" style="width: 800px">
+        <h2 id="portfolio-performance-title">Portfolio Performance</h2>
+        <div class="grid grid-3x2" role="group" aria-labelledby="portfolio-performance-title">
+            <article class="flex" role="article" tabindex="0">
+        <div class="text-3xl font-bold" id="This Month" data-value="+3.59" role="text" aria-label="This Month: +3.59%">+3.59%</div>
+        <div class="text-sm text-slate-400" aria-hidden="true">This Month</div>
+    </article>
+<article class="flex" role="article" tabindex="0">
+        <div class="text-3xl font-bold" id="Year To Date" data-value="+5.61" role="text" aria-label="Year To Date: +5.61%">+5.61%</div>
+        <div class="text-sm text-slate-400" aria-hidden="true">Year To Date</div>
+    </article>
+<article class="flex" role="article" tabindex="0">
+        <div class="text-3xl font-bold" id="2 Years" data-value="+65.19" role="text" aria-label="2 Years: +65.19%">+65.19%</div>
+        <div class="text-sm text-slate-400" aria-hidden="true">2 Years</div>
+    </article>
+<article class="flex" role="article" tabindex="0">
+        <div class="text-3xl font-bold" id="Beta" data-value="0.79" role="text" aria-label="Beta: 0.79">0.79</div>
+        <div class="text-sm text-slate-400" aria-hidden="true">Beta</div>
+    </article>
+<article class="flex" role="article" tabindex="0">
+        <div class="text-3xl font-bold" id="Sharpe" data-value="1.83" role="text" aria-label="Sharpe: 1.83">1.83</div>
+        <div class="text-sm text-slate-400" aria-hidden="true">Sharpe</div>
+    </article>
+<article class="flex" role="article" tabindex="0">
+        <div class="text-3xl font-bold" id="Cash" data-value="6.47" role="text" aria-label="Cash: 6.47%">6.47%</div>
+        <div class="text-sm text-slate-400" aria-hidden="true">Cash</div>
+    </article>
         </div>
-    </div></div>
+    </section></div></main>
     <script src="script.js"></script>
-    <script>
-        function updateColors() {
-            document.querySelectorAll('[data-value]').forEach(element => {
-                const value = parseFloat(element.dataset.value);
-                if (!isNaN(value)) {
-                    if (value > 0) element.classList.add('text-green-500');
-                    else if (value < 0) element.classList.add('text-red-500');
-                }
-            });
-        }
-        document.addEventListener('DOMContentLoaded', function() {
-            updateColors();
-        });
-    </script>
 </body>
 </html>

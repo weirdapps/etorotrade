@@ -34,7 +34,7 @@ This project is a command-line market analysis tool that fetches and analyzes st
 2. Install dependencies: `pip install -r requirements.txt`
 3. Configure API keys:
    - Create `.env` file in yahoofinance directory
-   - Add Google News API key: `GOOGLE_NEWS_API_KEY=your_api_key`
+   - Add NewsAPI key: `NEWS_API_KEY=your_api_key` (get from https://newsapi.org/)
    - Add FRED API key: `FRED_API_KEY=your_api_key` (get from https://fred.stlouisfed.org/docs/api/api_key.html)
 4. Set up input files in yahoofinance/input/:
    - portfolio.csv: Portfolio tickers
@@ -694,7 +694,7 @@ GOOGL
   - Maximum delay: 60 seconds
   - Exponential backoff multiplier: 2
 
-### Google News API
+### NewsAPI
 - Free tier: 100 requests per day
 - Paid tier: Based on subscription
 - Error handling for rate limits with 429 status code
@@ -715,7 +715,7 @@ GOOGL
    - Thread-safe file operations
 
 2. Cache Keys
-   - Format for Google News: f"google_news_{ticker}_{limit}"
+   - Format for NewsAPI: f"newsapi_{ticker}_{limit}"
    - Format for Yahoo Finance: f"yahoo_news_{ticker}"
    - Safe key hashing for filesystem compatibility
    - Includes timestamp for TTL calculation

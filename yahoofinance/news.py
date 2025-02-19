@@ -8,9 +8,9 @@ import requests
 from dotenv import load_dotenv
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
-# Load environment variables
-load_dotenv()
-GOOGLE_NEWS_API_KEY = os.getenv('GOOGLE_NEWS_API_KEY')
+# Load environment variables from root directory
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
+NEWS_API_KEY = os.getenv('NEWS_API_KEY')
 
 # ANSI color codes
 class Colors:
@@ -82,12 +82,12 @@ def get_sentiment_color(sentiment):
         return Colors.GREEN
     return Colors.YELLOW
 
-def get_google_news(ticker, limit=5):
-    """Get news from Google News API with caching"""
+def get_newsapi_news(ticker, limit=5):
+    """Get news from NewsAPI with caching"""
     from .cache import news_cache
     
     # Create cache key
-    cache_key = f"google_news_{ticker}_{limit}"
+    cache_key = f"newsapi_{ticker}_{limit}"
     print(f"\nChecking cache for {ticker} news...")
     
     # Try to get from cache first
@@ -99,7 +99,7 @@ def get_google_news(ticker, limit=5):
         url = "https://newsapi.org/v2/everything"
         params = {
             'q': ticker,
-            'apiKey': GOOGLE_NEWS_API_KEY,
+            'apiKey': NEWS_API_KEY,
             'language': 'en',
             'sortBy': 'publishedAt',
             'pageSize': limit
@@ -107,18 +107,18 @@ def get_google_news(ticker, limit=5):
         response = requests.get(url, params=params)
         if response.status_code == 200:
             articles = response.json().get('articles', [])
-            print("Fetching fresh data from Google News API...")
+            print("Fetching fresh data from NewsAPI...")
             # Cache the results
             news_cache.set(cache_key, articles)
             return articles
         else:
-            print(f"Error fetching Google News: {response.status_code}")
+            print(f"Error fetching NewsAPI: {response.status_code}")
             return []
     except Exception as e:
-        print(f"Error accessing Google News API: {str(e)}")
+        print(f"Error accessing NewsAPI: {str(e)}")
         return []
 
-def format_google_news(news, ticker):
+def format_newsapi_news(news, ticker):
     print_section(f"LATEST NEWS FOR {ticker}")
     for i, article in enumerate(news, 1):
         try:
@@ -227,12 +227,12 @@ def get_user_tickers():
 def get_news_source() -> str:
     """Get user's choice of news source."""
     print("\nSelect news source:")
-    print("G - Google News API")
+    print("N - NewsAPI")
     print("Y - Yahoo Finance")
     
     while True:
-        source = input("\nEnter your choice (G/Y): ").strip().upper()
-        if source in ['G', 'Y']:
+        source = input("\nEnter your choice (N/Y): ").strip().upper()
+        if source in ['N', 'Y']:
             return source
         print("Invalid choice. Please enter 'G' or 'Y'.")
 
@@ -272,12 +272,12 @@ def fetch_yahoo_news(ticker: str) -> None:
     except Exception as e:
         print(f"\nError fetching news for {ticker}: {str(e)}")
 
-def fetch_google_news(ticker: str) -> None:
-    """Fetch and display news from Google News API."""
+def fetch_newsapi_news(ticker: str) -> None:
+    """Fetch and display news from NewsAPI."""
     try:
-        news = get_google_news(ticker, limit=5)
+        news = get_newsapi_news(ticker, limit=5)
         if news:
-            format_google_news(news, ticker)
+            format_newsapi_news(news, ticker)
         else:
             print(f"\nNo news found for {ticker}")
     except Exception as e:
@@ -301,12 +301,12 @@ def main():
     
     print(f"\nFetching news for: {', '.join(tickers)}")
     
-    if source == 'G':
-        if not GOOGLE_NEWS_API_KEY:
-            print("Error: Google News API key not found in .env file")
+    if source == 'N':
+        if not NEWS_API_KEY:
+            print("Error: NewsAPI key not found in .env file")
             return
         for ticker in tickers:
-            fetch_google_news(ticker)
+            fetch_newsapi_news(ticker)
     else:  # source == 'Y'
         for ticker in tickers:
             fetch_yahoo_news(ticker)
