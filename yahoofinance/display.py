@@ -4,7 +4,10 @@ from tabulate import tabulate
 from tqdm import tqdm
 import logging
 import sys
+import time
 from datetime import datetime
+from collections import deque
+from statistics import mean
 
 from .client import YFinanceClient, YFinanceError
 from .analyst import AnalystData
@@ -13,17 +16,87 @@ from .formatting import DisplayFormatter, DisplayConfig, Color
 
 logger = logging.getLogger(__name__)
 
+class RateLimitTracker:
+    """Tracks API calls and manages rate limiting with adaptive delays"""
+    
+    def __init__(self, window_size: int = 60, max_calls: int = 100):
+        self.window_size = window_size  # Time window in seconds
+        self.max_calls = max_calls      # Maximum calls per window
+        self.calls = deque(maxlen=1000) # Timestamp queue
+        self.errors = deque(maxlen=20)  # Recent errors
+        self.base_delay = 2.0           # Base delay between calls (increased from 1.0)
+        self.min_delay = 1.0            # Minimum delay
+        self.max_delay = 30.0           # Maximum delay
+        self.batch_delay = 5.0          # Delay between batches
+        self.error_counts = {}          # Track error counts per ticker
+        self.success_streak = 0         # Track successful calls
+        
+    def add_call(self):
+        """Record an API call"""
+        now = time.time()
+        self.calls.append(now)
+        
+        # Remove old calls outside the window
+        while self.calls and self.calls[0] < now - self.window_size:
+            self.calls.popleft()
+            
+        # Adjust base delay based on success
+        self.success_streak += 1
+        if self.success_streak >= 10 and self.base_delay > self.min_delay:
+            self.base_delay = max(self.min_delay, self.base_delay * 0.9)
+    
+    def add_error(self, error: Exception, ticker: str):
+        """Record an error and adjust delays"""
+        now = time.time()
+        self.errors.append(now)
+        self.success_streak = 0
+        
+        # Track errors per ticker
+        self.error_counts[ticker] = self.error_counts.get(ticker, 0) + 1
+        
+        # Exponential backoff based on recent errors
+        recent_errors = sum(1 for t in self.errors if t > now - 300)  # Last 5 minutes
+        
+        if recent_errors >= 3:
+            # Significant rate limiting, increase delay aggressively
+            self.base_delay = min(self.base_delay * 2, self.max_delay)
+            self.batch_delay = min(self.batch_delay * 1.5, self.max_delay)
+            logger.warning(f"Rate limiting detected. Increasing delays - Base: {self.base_delay:.1f}s, Batch: {self.batch_delay:.1f}s")
+            
+            # Clear old errors to allow recovery
+            if recent_errors >= 10:
+                self.errors.clear()
+    
+    def get_delay(self, ticker: str = None) -> float:
+        """Calculate needed delay based on recent activity and ticker history"""
+        now = time.time()
+        recent_calls = sum(1 for t in self.calls if t > now - self.window_size)
+        
+        # Base delay calculation
+        if recent_calls >= self.max_calls * 0.8:  # Near limit
+            delay = self.base_delay * 2
+        elif self.errors:  # Recent errors
+            delay = self.base_delay * 1.5
+        else:
+            delay = self.base_delay
+            
+        # Adjust for ticker-specific issues
+        if ticker and self.error_counts.get(ticker, 0) > 0:
+            delay *= (1 + (self.error_counts[ticker] * 0.5))  # Increase delay for problematic tickers
+            
+        return min(delay, self.max_delay)
+    
+    def get_batch_delay(self) -> float:
+        """Get delay between batches"""
+        return self.batch_delay
+    
+    def should_skip_ticker(self, ticker: str) -> bool:
+        """Determine if a ticker should be skipped due to excessive errors"""
+        return self.error_counts.get(ticker, 0) >= 5  # Skip after 5 errors
+
 class MarketDisplay:
     """Handles stock market data display and reporting"""
     
-    def __init__(self, 
-                 client: Optional[YFinanceClient] = None,
-                 config: Optional[DisplayConfig] = None):
-        self.client = client or YFinanceClient()
-        self.analyst = AnalystData(self.client)
-        self.pricing = PricingAnalyzer(self.client)
-        self.formatter = DisplayFormatter(config or DisplayConfig())
-
     def __init__(self,
                  client: Optional[YFinanceClient] = None,
                  config: Optional[DisplayConfig] = None,
@@ -41,6 +114,7 @@ class MarketDisplay:
         self.pricing = PricingAnalyzer(self.client)
         self.formatter = DisplayFormatter(config or DisplayConfig())
         self.input_dir = input_dir.rstrip('/')
+        self.rate_limiter = RateLimitTracker()
         
     def _load_tickers_from_file(self, file_name: str, column_name: str) -> List[str]:
         """
@@ -141,6 +215,13 @@ class MarketDisplay:
             "_not_found": True  # Special flag for sorting
         }
 
+    def _handle_rate_limit(self, e: Exception, ticker: str):
+        """Handle rate limit errors with exponential backoff"""
+        self.rate_limiter.add_error(e, ticker)
+        delay = self.rate_limiter.get_delay(ticker)
+        logger.warning(f"Rate limit detected for {ticker}, waiting {delay:.1f} seconds...")
+        time.sleep(delay)
+
     def generate_stock_report(self, ticker: str) -> Dict[str, Any]:
         """
         Generate comprehensive report for a single stock.
@@ -151,7 +232,18 @@ class MarketDisplay:
         Returns:
             Dict containing stock metrics and analysis data
         """
+        if self.rate_limiter.should_skip_ticker(ticker):
+            logger.warning(f"Skipping {ticker} due to excessive errors")
+            return self._create_empty_report(ticker)
+            
         try:
+            # Add small delay based on recent activity
+            delay = self.rate_limiter.get_delay(ticker)
+            time.sleep(delay)
+            
+            # Record API call
+            self.rate_limiter.add_call()
+            
             # Get current price and targets
             price_metrics = self.pricing.calculate_price_metrics(ticker)
             
@@ -194,6 +286,13 @@ class MarketDisplay:
             }
             
         except YFinanceError as e:
+            if "Too many requests" in str(e):
+                self._handle_rate_limit(e, ticker)
+                # Retry once after rate limit handling
+                try:
+                    return self.generate_stock_report(ticker)
+                except Exception:
+                    return self._create_empty_report(ticker)
             logger.debug(f"YFinance API error for {ticker}: {str(e)}")
             return self._create_empty_report(ticker)
         except Exception as e:
@@ -244,28 +343,56 @@ class MarketDisplay:
         
         # Remove helper columns used for sorting
         return df.drop(columns=['_not_found', '_sort_exret', '_sort_earnings', '_ticker'])
-        
-    def _process_tickers(self, tickers: List[str]) -> List[Dict[str, Any]]:
+
+    def _process_tickers(self, tickers: List[str], batch_size: int = 15) -> List[Dict[str, Any]]:
         """
-        Process list of tickers into report data.
+        Process list of tickers into report data with rate limiting.
         
         Args:
             tickers: List of stock ticker symbols
+            batch_size: Number of tickers to process in each batch
             
         Returns:
             List of processed reports
         """
         reports = []
-        for ticker in tqdm(sorted(set(tickers)), desc="Processing", unit="ticker"):
-            try:
-                report = self.generate_stock_report(ticker)
-                if report:
-                    formatted_row = self.formatter.format_stock_row(report)
-                    formatted_row['_not_found'] = report['_not_found']
-                    formatted_row['_ticker'] = ticker
-                    reports.append(formatted_row)
-            except Exception as e:
-                logger.debug(f"Error processing {ticker}: {str(e)}")
+        sorted_tickers = sorted(set(tickers))
+        total_batches = (len(sorted_tickers) - 1) // batch_size + 1
+        
+        for batch_num, i in enumerate(range(0, len(sorted_tickers), batch_size)):
+            batch = sorted_tickers[i:i + batch_size]
+            
+            # Process batch with progress bar
+            batch_desc = f"Batch {batch_num + 1}/{total_batches}"
+            successful_tickers = 0
+            
+            for ticker in tqdm(batch, desc=batch_desc, unit="ticker"):
+                try:
+                    report = self.generate_stock_report(ticker)
+                    if report:
+                        formatted_row = self.formatter.format_stock_row(report)
+                        formatted_row['_not_found'] = report['_not_found']
+                        formatted_row['_ticker'] = ticker
+                        reports.append(formatted_row)
+                        successful_tickers += 1
+                except Exception as e:
+                    logger.debug(f"Error processing {ticker}: {str(e)}")
+                    continue
+            
+            # Add adaptive delay between batches
+            if batch_num < total_batches - 1:  # Skip delay after last batch
+                # Calculate delay based on batch success rate
+                success_rate = successful_tickers / len(batch)
+                batch_delay = self.rate_limiter.get_batch_delay()
+                
+                if success_rate < 0.5:  # Poor success rate
+                    batch_delay *= 2
+                elif success_rate > 0.8:  # Good success rate
+                    batch_delay = max(5.0, batch_delay * 0.8)
+                
+                logger.info(f"Batch {batch_num + 1} complete (Success rate: {success_rate:.1%}). Waiting {batch_delay:.1f} seconds...")
+                time.sleep(batch_delay)
+        
         return reports
 
     def _generate_market_metrics(self, tickers: List[str]) -> dict:
@@ -275,6 +402,9 @@ class MarketDisplay:
         metrics = {}
         for ticker in tickers:
             try:
+                # Add rate limiting delay
+                time.sleep(self.rate_limiter.get_delay(ticker))
+                
                 data = self.client.get_ticker_info(ticker)
                 if data and data.current_price:
                     change = data.price_change_percentage
@@ -346,6 +476,9 @@ class MarketDisplay:
             
             for ticker in tickers:
                 try:
+                    # Add rate limiting delay
+                    time.sleep(self.rate_limiter.get_delay(ticker))
+                    
                     data = self.client.get_ticker_info(ticker)
                     if data:
                         # Portfolio returns
@@ -468,5 +601,3 @@ class MarketDisplay:
             showindex=False,
             colalign=colalign
         ))
-        
-        # Display is complete
