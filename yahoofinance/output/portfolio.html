@@ -6,6 +6,13 @@
     <title>Portfolio Performance</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet"/>
     <link href="styles.css" rel="stylesheet"/>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #111827;
+            color: white;
+        }
+    </style>
     
 </head>
 <body>
@@ -13,15 +20,15 @@
         <h2>Portfolio Performance</h2>
         <div class="grid grid-3x2">
             <div class="flex">
-        <div class="text-3xl font-bold" id="This Month" data-value="+3.43">+3.43%</div>
+        <div class="text-3xl font-bold" id="This Month" data-value="+3.58">+3.58%</div>
         <div class="text-sm text-slate-400">This Month</div>
     </div>
 <div class="flex">
-        <div class="text-3xl font-bold" id="Year To Date" data-value="+5.45">+5.45%</div>
+        <div class="text-3xl font-bold" id="Year To Date" data-value="+5.60">+5.60%</div>
         <div class="text-sm text-slate-400">Year To Date</div>
     </div>
 <div class="flex">
-        <div class="text-3xl font-bold" id="2 Years" data-value="+64.94">+64.94%</div>
+        <div class="text-3xl font-bold" id="2 Years" data-value="+65.18">+65.18%</div>
         <div class="text-sm text-slate-400">2 Years</div>
     </div>
 <div class="flex">
@@ -39,5 +46,19 @@
         </div>
     </div></div>
     <script src="script.js"></script>
+    <script>
+        function updateColors() {
+            document.querySelectorAll('[data-value]').forEach(element => {
+                const value = parseFloat(element.dataset.value);
+                if (!isNaN(value)) {
+                    if (value > 0) element.classList.add('text-green-500');
+                    else if (value < 0) element.classList.add('text-red-500');
+                }
+            });
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            updateColors();
+        });
+    </script>
 </body>
 </html>
