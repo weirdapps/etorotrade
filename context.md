@@ -42,7 +42,7 @@ The Trade project is a comprehensive Python-based market analysis tool that leve
    - Manual ticker input
    - Yahoo Finance API
    - FRED API (economic data)
-   - Google News API
+   - NewsAPI
 
 2. **Processing Pipeline**
    - Data validation and cleaning
@@ -118,7 +118,7 @@ python trade.py
 ### 2. News Tracking
 ```python
 python -m yahoofinance.news
-# Choose source: Google (G) or Yahoo (Y)
+# Choose source: NewsAPI (N) or Yahoo (Y)
 # Select tickers: Portfolio (P) or Manual (I)
 ```
 
@@ -153,7 +153,7 @@ python -m yahoofinance.economics
 ## Configuration
 
 ### 1. Environment Variables
-- GOOGLE_NEWS_API_KEY
+- NEWS_API_KEY
 - FRED_API_KEY
 
 ### 2. Input Files
