@@ -3,10 +3,29 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.common.exceptions import (
+    TimeoutException,
+    NoSuchElementException,
+    ElementClickInterceptedException,
+    WebDriverException
+)
 import time
 import os
 import pandas as pd
+
+def safe_click(driver, element, description="element"):
+    """Helper function to safely click an element using JavaScript"""
+    try:
+        time.sleep(1)  # Brief pause before clicking
+        driver.execute_script("arguments[0].click();", element)
+        print(f"Clicked {description}")
+        return True
+    except ElementClickInterceptedException as e:
+        print(f"Click intercepted for {description}: {str(e)}")
+        raise
+    except WebDriverException as e:
+        print(f"WebDriver error clicking {description}: {str(e)}")
+        raise
 
 def setup_driver():
     options = webdriver.ChromeOptions()
@@ -36,132 +55,144 @@ def wait_and_find_element(driver, by, value, timeout=10, check_visibility=True):
         print(f"Error finding element {value}: {str(e)}")
         return None
 
-def login(driver, email, password):
-    print("Attempting to log in...")
-    time.sleep(10)  # Give more time for initial page load
-    
-    # Click on the sign-in button
+def find_sign_in_button(driver):
+    """Helper function to find and click the sign-in button"""
     try:
         print("Looking for sign-in button...")
         sign_in_elements = driver.find_elements(By.CLASS_NAME, "action-button")
-        if sign_in_elements:
-            for element in sign_in_elements:
-                if "Sign in" in element.text:
-                    print(f"Found sign-in button with text: {element.text}")
-                    time.sleep(2)
-                    driver.execute_script("arguments[0].click();", element)
-                    print("Clicked sign-in button")
-                    break
-    except Exception as e:
-        print(f"Error with initial sign-in: {str(e)}")
+        for element in sign_in_elements:
+            if "Sign in" in element.text:
+                print(f"Found sign-in button with text: {element.text}")
+                return element
+        return None
+    except NoSuchElementException as e:
+        print(f"Sign-in button not found: {str(e)}")
         raise
+    except WebDriverException as e:
+        print(f"WebDriver error finding sign-in button: {str(e)}")
+        raise
+
+def login(driver, email, password):
+    """Handle the login process with better error handling and reduced complexity"""
+    print("Attempting to log in...")
+    time.sleep(10)  # Give more time for initial page load
+    
+    # Find and click the sign-in button
+    sign_in_button = find_sign_in_button(driver)
+    if not sign_in_button:
+        raise NoSuchElementException("Could not find sign-in button")
+    safe_click(driver, sign_in_button, "sign-in button")
 
     time.sleep(5)  # Wait longer for auth UI
 
-    # Try to find and click the email sign-in button
-    print("Looking for email sign-in button...")
-    try:
+    def handle_email_sign_in(driver):
+        """Handle the email sign-in process"""
+        print("Looking for email sign-in button...")
         email_sign_in = wait_and_find_element(driver, By.XPATH, "//button[contains(., 'Sign in with email')]")
-        if email_sign_in:
-            time.sleep(2)
-            driver.execute_script("arguments[0].click();", email_sign_in)
-            print("Clicked email sign-in button")
-        else:
-            raise Exception("Email sign-in button not found")
-    except Exception as e:
+        if not email_sign_in:
+            raise NoSuchElementException("Email sign-in button not found")
+        safe_click(driver, email_sign_in, "email sign-in button")
+        time.sleep(5)
+
+    try:
+        handle_email_sign_in(driver)
+    except (NoSuchElementException, ElementClickInterceptedException, WebDriverException) as e:
         print(f"Error with email sign-in: {str(e)}")
         raise
 
-    time.sleep(5)
-
-    # Try to find the email input field
-    print("Looking for email input...")
-    email_input = None
-    try:
+    def handle_email_input(driver, email):
+        """Handle the email input and next button process"""
+        print("Looking for email input...")
         email_input = wait_and_find_element(driver, By.ID, "ui-sign-in-email-input")
         if not email_input:
             email_input = wait_and_find_element(driver, By.XPATH, "//input[@type='email']")
-    except Exception as e:
-        print(f"Error finding email input: {str(e)}")
-        raise
+        if not email_input:
+            raise NoSuchElementException("Email input field not found")
 
-    if email_input:
         print("Entering email...")
         email_input.clear()
         time.sleep(1)
         email_input.send_keys(email)
         time.sleep(2)
-        
+
         # Look for the Next button
         print("Looking for Next button...")
-        try:
-            next_button = wait_and_find_element(driver, By.XPATH, "//button[contains(text(), 'Next') or contains(text(), 'NEXT')]")
-            if next_button:
-                time.sleep(1)
-                driver.execute_script("arguments[0].click();", next_button)
-                print("Clicked Next button")
-            else:
-                print("No Next button found, trying to submit form...")
-                email_input.send_keys(Keys.RETURN)
-                print("Sent RETURN key to email input")
-        except Exception as e:
-            print(f"Error with Next button: {str(e)}")
+        next_button = wait_and_find_element(driver, By.XPATH, "//button[contains(text(), 'Next') or contains(text(), 'NEXT')]")
+        if next_button:
+            safe_click(driver, next_button, "Next button")
+        else:
+            print("No Next button found, submitting form...")
             email_input.send_keys(Keys.RETURN)
-            print("Sent RETURN key as fallback")
+            print("Sent RETURN key to email input")
 
         time.sleep(5)  # Wait longer for password field
 
-        # Look for password input
+    try:
+        handle_email_input(driver, email)
+    except (NoSuchElementException, ElementClickInterceptedException, WebDriverException) as e:
+        print(f"Error with email input process: {str(e)}")
+        raise
+
+    def handle_password_input(driver, password, max_attempts=3):
+        """Handle the password input and final sign in process"""
         print("Looking for password input...")
-        max_attempts = 3
         password_input = None
-        
+        last_error = None
+
         for attempt in range(max_attempts):
             try:
-                # Try different methods to find password input
-                try:
-                    password_input = wait_and_find_element(driver, By.XPATH, "//input[@type='password']", timeout=5)
-                except:
+                # Try different selectors to find password input
+                for selector in [
+                    (By.XPATH, "//input[@type='password']"),
+                    (By.CSS_SELECTOR, "input[type='password']"),
+                    (By.XPATH, "//input[contains(@class, 'password')]")
+                ]:
                     try:
-                        password_input = wait_and_find_element(driver, By.CSS_SELECTOR, "input[type='password']", timeout=5)
-                    except:
-                        password_input = wait_and_find_element(driver, By.XPATH, "//input[contains(@class, 'password')]", timeout=5)
-                
+                        password_input = wait_and_find_element(driver, selector[0], selector[1], timeout=5)
+                        if password_input:
+                            break
+                    except (NoSuchElementException, TimeoutException):
+                        continue
+
                 if password_input:
                     print("Found password input, entering password...")
                     time.sleep(1)
                     password_input.clear()
                     password_input.send_keys(password)
                     time.sleep(2)
-                    
+
                     # Try to find sign in button
-                    sign_in_button = wait_and_find_element(driver, By.XPATH, "//button[contains(text(), 'Sign in') or contains(text(), 'SIGN IN')]", timeout=5)
+                    sign_in_button = wait_and_find_element(
+                        driver,
+                        By.XPATH,
+                        "//button[contains(text(), 'Sign in') or contains(text(), 'SIGN IN')]",
+                        timeout=5
+                    )
                     if sign_in_button:
-                        time.sleep(1)
-                        driver.execute_script("arguments[0].click();", sign_in_button)
-                        print("Clicked Sign in button")
+                        safe_click(driver, sign_in_button, "Sign in button")
                     else:
-                        print("No Sign in button found, trying to submit form...")
+                        print("No Sign in button found, submitting form...")
                         password_input.send_keys(Keys.RETURN)
                         print("Sent RETURN key to password input")
-                    
-                    break  # Exit the loop if successful
-                
-            except Exception as e:
+
+                    time.sleep(10)  # Wait longer for login to complete
+                    return True
+
+            except (NoSuchElementException, TimeoutException, ElementClickInterceptedException, WebDriverException) as e:
+                last_error = e
                 print(f"Attempt {attempt + 1} failed: {str(e)}")
                 if attempt < max_attempts - 1:
                     print("Retrying...")
                     time.sleep(3)
-                else:
-                    print("All attempts failed")
-                    raise
-        
-        if not password_input:
-            raise Exception("Password input not found after all attempts")
-        
-        time.sleep(10)  # Wait longer for login to complete
-    else:
-        raise Exception("Email input not found")
+
+        # If we get here, all attempts failed
+        raise NoSuchElementException(f"Password input not found after {max_attempts} attempts: {str(last_error)}")
+
+    try:
+        handle_password_input(driver, password)
+    except (NoSuchElementException, ElementClickInterceptedException, WebDriverException) as e:
+        print(f"Error with password input process: {str(e)}")
+        raise
 
 def process_portfolio():
     # Read the downloaded portfolio
@@ -231,17 +262,44 @@ def download_portfolio():
         driver.get("https://app.pi-screener.com/")
         time.sleep(10)  # Wait longer for initial page load
         
-        # Wait for and accept cookies if present
-        try:
-            print("Looking for cookie consent...")
-            accept_button = wait_and_find_element(driver, By.XPATH, "//button[contains(text(), 'Accept All')]")
-            if accept_button:
-                time.sleep(1)
-                driver.execute_script("arguments[0].click();", accept_button)
-                print("Accepted cookies")
-                time.sleep(2)
-        except:
-            print("No cookie consent needed or already accepted")
+        def handle_cookie_consent(driver):
+            """Handle cookie consent if present"""
+            try:
+                print("Looking for cookie consent...")
+                accept_button = wait_and_find_element(driver, By.XPATH, "//button[contains(text(), 'Accept All')]")
+                if accept_button:
+                    safe_click(driver, accept_button, "cookie consent")
+                    time.sleep(2)
+            except (NoSuchElementException, TimeoutException):
+                print("No cookie consent needed or already accepted")
+
+        def handle_portfolio_buttons(driver):
+            """Handle clicking portfolio-related buttons"""
+            # Click "Load this portfolio" button
+            print("Looking for 'Load this portfolio' button...")
+            load_button = wait_and_find_element(driver, By.ID, "loadPortfolioStats", timeout=20)
+            if not load_button:
+                raise NoSuchElementException("Could not find 'Load this portfolio' button")
+            safe_click(driver, load_button, "'Load this portfolio' button")
+            time.sleep(10)
+
+            # Click "Update" button
+            print("Looking for 'Update' button...")
+            update_button = wait_and_find_element(driver, By.ID, "updatePi", timeout=20)
+            if not update_button:
+                raise NoSuchElementException("Could not find 'Update' button")
+            safe_click(driver, update_button, "'Update' button")
+            time.sleep(10)
+
+            # Click "Export Portfolio" link
+            print("Looking for 'Export Portfolio' link...")
+            export_link = wait_and_find_element(driver, By.ID, "downloadPortfolio", timeout=20)
+            if not export_link:
+                raise NoSuchElementException("Could not find 'Export Portfolio' link")
+            safe_click(driver, export_link, "'Export Portfolio' link")
+
+        # Handle cookie consent
+        handle_cookie_consent(driver)
 
         # Login
         login(driver, "plessasdimitrios@yahoo.com", "QsDXJn8m@n@Li?3Y")
@@ -250,37 +308,8 @@ def download_portfolio():
         print("Waiting for page to load after login...")
         time.sleep(20)  # Wait longer for the page to fully load
         
-        # Click "Load this portfolio" button using its ID
-        print("Looking for 'Load this portfolio' button...")
-        load_button = wait_and_find_element(driver, By.ID, "loadPortfolioStats", timeout=20)
-        if load_button:
-            time.sleep(1)
-            driver.execute_script("arguments[0].click();", load_button)
-            print("Clicked 'Load this portfolio' button")
-        else:
-            raise Exception("Could not find 'Load this portfolio' button")
-        time.sleep(10)
-        
-        # Click "Update" button using its ID
-        print("Looking for 'Update' button...")
-        update_button = wait_and_find_element(driver, By.ID, "updatePi", timeout=20)
-        if update_button:
-            time.sleep(1)
-            driver.execute_script("arguments[0].click();", update_button)
-            print("Clicked 'Update' button")
-        else:
-            raise Exception("Could not find 'Update' button")
-        time.sleep(10)
-        
-        # Click "Export Portfolio" link using its ID
-        print("Looking for 'Export Portfolio' link...")
-        export_link = wait_and_find_element(driver, By.ID, "downloadPortfolio", timeout=20)
-        if export_link:
-            time.sleep(1)
-            driver.execute_script("arguments[0].click();", export_link)
-            print("Clicked 'Export Portfolio' link")
-        else:
-            raise Exception("Could not find 'Export Portfolio' link")
+        # Handle portfolio buttons
+        handle_portfolio_buttons(driver)
         
         # Wait for download to start
         print("Waiting for download...")
@@ -292,8 +321,17 @@ def download_portfolio():
         
         return True
         
+    except (NoSuchElementException, ElementClickInterceptedException) as e:
+        print(f"Element interaction error: {str(e)}")
+        return False
+    except WebDriverException as e:
+        print(f"WebDriver error: {str(e)}")
+        return False
+    except (OSError, IOError) as e:
+        print(f"File system error: {str(e)}")
+        return False
     except Exception as e:
-        print(f"An error occurred: {str(e)}")
+        print(f"Unexpected error: {str(e)}")
         import traceback
         traceback.print_exc()
         return False

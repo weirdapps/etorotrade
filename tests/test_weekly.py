@@ -38,7 +38,7 @@ def test_get_previous_trading_day_close(mocker):
     # Check that we get a float price and a date
     assert isinstance(price, float)
     assert isinstance(actual_date, date)
-    assert price == 102.0
+    assert price == pytest.approx(102.0)
 
 def test_fetch_weekly_change(mocker):
     # Mock get_previous_trading_day_close
