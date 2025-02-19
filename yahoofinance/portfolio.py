@@ -5,6 +5,11 @@ from tabulate import tabulate
 from . import templates
 from .utils import FormatUtils
 
+# Constants for time periods
+THIS_MONTH = 'This Month'
+YEAR_TO_DATE = 'Year To Date'
+TWO_YEARS = '2 Years'
+
 def get_soup(url: str) -> BeautifulSoup:
     """
     Fetch and parse HTML content from a URL.
@@ -137,9 +142,9 @@ def update_html(data, html_path):
     """Update HTML file with the extracted data."""
     # Map the scraped data fields to portfolio.html fields
     field_mapping = {
-        'This Month': ['This Month', 'MTD'],
-        'Year To Date': ['Year To Date', 'YTD'],
-        '2 Years': ['2 Years', '2YR'],
+        THIS_MONTH: [THIS_MONTH, 'MTD'],
+        YEAR_TO_DATE: [YEAR_TO_DATE, 'YTD'],
+        TWO_YEARS: [TWO_YEARS, '2YR'],
         'Beta': ['Beta'],
         'Sharpe': ['Sharpe'],
         'Cash': ['Cash']
@@ -155,7 +160,7 @@ def update_html(data, html_path):
                 break
         # If no matching field found, use default
         if target_field not in portfolio_data:
-            portfolio_data[target_field] = '0.00%' if target_field in ['This Month', 'Year To Date', '2 Years', 'Cash'] else '0.00'
+            portfolio_data[target_field] = '0.00%' if target_field in [THIS_MONTH, YEAR_TO_DATE, TWO_YEARS, 'Cash'] else '0.00'
     
     # Create metrics dictionary for formatting
     metrics_dict = {}
