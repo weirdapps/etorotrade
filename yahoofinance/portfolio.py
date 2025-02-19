@@ -123,7 +123,9 @@ def extract_data(soup):
     # Extract other metrics
     metrics = [
         ("Beta", "Beta"),
-        ("Sharpe", "Sharpe Ratio")
+        ("Alpha", "Jensen's Alpha"),
+        ("Sharpe", "Sharpe Ratio"),
+        ("Sortino", "Sortino Ratio")
     ]
     
     for label, contains_text in metrics:
