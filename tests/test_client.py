@@ -211,8 +211,8 @@ class TestYFinanceClient(unittest.TestCase):
             'Close': [100.0]
         })
         changes = client._calculate_price_changes(single_day)
-        self.assertEqual(changes[0], None)  # price_change
-        self.assertEqual(changes[1], None)  # mtd_change
+        self.assertIsNone(changes[0])  # price_change
+        self.assertIsNone(changes[1])  # mtd_change
         self.assertEqual(changes[2], 0.0)   # ytd_change (first day is reference)
         self.assertEqual(changes[3], 0.0)   # two_year_change (same as ytd for now)
         
