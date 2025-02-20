@@ -24,16 +24,19 @@ def test_calculate_dates():
     assert previous_friday.weekday() == 4
 
 def test_get_previous_trading_day_close(mocker):
-    # Mock yfinance download function
+    # Create a test date
+    test_date = datetime(2024, 1, 10)
+    
+    # Mock yfinance download function with data spanning the expected range
     mock_data = pd.DataFrame({
         'Close': [100.0, 101.0, 102.0],
-        'Date': pd.date_range(start='2024-01-01', periods=3)
+        'Date': pd.date_range(start=test_date - timedelta(days=7), periods=3)
     }).set_index('Date')
     
     mocker.patch('yfinance.download', return_value=mock_data)
     
-    # Test the function
-    price, actual_date = get_previous_trading_day_close('^GSPC', datetime.now())
+    # Test the function with our test date
+    price, actual_date = get_previous_trading_day_close('^GSPC', test_date)
     
     # Check that we get a float price and a date
     assert isinstance(price, float)
@@ -41,21 +44,30 @@ def test_get_previous_trading_day_close(mocker):
     assert price == pytest.approx(102.0)
 
 def test_fetch_weekly_change(mocker):
-    # Mock get_previous_trading_day_close
-    def mock_trading_day_close(ticker, date):
-        if date == last_friday:
-            return 110.0, date.date()
-        return 100.0, date.date()
+    # Create test dates
+    last_friday = datetime(2024, 1, 12)  # A Friday
+    previous_friday = last_friday - timedelta(days=7)  # Previous Friday
     
-    last_friday = datetime.now()
-    previous_friday = last_friday - timedelta(days=7)
+    # Mock get_previous_trading_day_close with a more robust comparison
+    def mock_trading_day_close(ticker, date):
+        # Convert both dates to date objects for comparison
+        test_date = date.date()
+        last_friday_date = last_friday.date()
+        previous_friday_date = previous_friday.date()
+        
+        if test_date == last_friday_date:
+            return 110.0, last_friday_date
+        elif test_date == previous_friday_date:
+            return 100.0, previous_friday_date
+        else:
+            return 0.0, test_date  # Fallback case
     
     mocker.patch(
         'yahoofinance.weekly.get_previous_trading_day_close',
         side_effect=mock_trading_day_close
     )
     
-    # Test the function
+    # Test the function with our specific dates
     results = fetch_weekly_change(last_friday, previous_friday)
     
     # Check results
