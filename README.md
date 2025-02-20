@@ -8,10 +8,26 @@ A Python-based tool for analyzing stocks using data from Yahoo Finance. The tool
 
 ### 1. Market Analysis Tool (trade.py)
 
-- Real-time stock data analysis
-- Multiple data source options (Portfolio, Market, Manual)
-- Comprehensive metrics and analysis
-- Color-coded output for quick insights
+- Real-time stock data analysis with advanced rate limiting:
+  * Adaptive batch processing (15 tickers per batch)
+  * Smart delay system based on success rates
+  * Error pattern detection and handling
+  * Progress tracking with estimated completion times
+- Multiple data source options:
+  * Portfolio file (CSV)
+  * Market watchlist (CSV)
+  * Manual ticker input
+  * Automatic portfolio download
+- Comprehensive metrics and analysis:
+  * Price and target analysis
+  * Analyst coverage tracking
+  * Risk metrics calculation
+  * Insider trading monitoring
+- Intelligent output management:
+  * Color-coded console display
+  * CSV data export
+  * HTML dashboard generation
+  * Automatic file organization
 
 ### 2. News Aggregator (yahoofinance/news.py)
 
@@ -36,17 +52,31 @@ A Python-based tool for analyzing stocks using data from Yahoo Finance. The tool
 - Market cap and EPS estimates
 - Automatic handling of pre/post-market announcements
 - Coverage of major S&P 500 components across all sectors
+### 4. Economic Calendar (yahoofinance/econ.py)
 
-### 4. Economic Calendar (yahoofinance/economics.py)
+- Real-time economic data from Federal Reserve Economic Data (FRED)
+- Coverage of key economic indicators:
+  * GDP Growth Rate
+  * Unemployment Rate
+  * CPI (Month-over-Month)
+  * Federal Funds Rate
+  * Industrial Production
+  * Retail Sales
+  * Housing Starts
+  * Nonfarm Payrolls
+  * Trade Balance
+  * Initial Jobless Claims
+- Features:
+  * Automatic data scaling (K for thousands, M for millions, B for billions)
+  * Percentage change calculations
+  * Customizable date ranges
+  * Previous vs current value comparisons
+  * Properly formatted table output
+- Frequency handling:
+  * Weekly data (e.g., Initial Claims)
+  * Monthly data (e.g., CPI, Unemployment)
+  * Quarterly data (e.g., GDP)
 
-- Track major economic indicators using FRED API
-- Coverage of key metrics:
-  * Employment (Nonfarm Payrolls, Unemployment Rate, Initial Claims)
-  * Inflation (CPI, Core CPI, PPI)
-  * Growth (GDP, Retail Sales, Industrial Production)
-- Customizable date range
-- Previous and actual values for each indicator
-- Impact level indicators (High/Medium)
 
 ### 5. Market Performance (yahoofinance/index.py)
 
@@ -135,25 +165,25 @@ You'll be prompted to:
 1. Choose performance period:
    - W: Weekly performance (Last Friday vs Previous Friday)
    - M: Monthly performance (Last month-end vs Previous month-end)
-
 ### Economic Calendar
 
 ```bash
-python -m yahoofinance.economics
+python -m yahoofinance.econ
 ```
 
 You'll be prompted to:
 
 1. Enter start date (YYYY-MM-DD format)
-   - Press Enter to use today's date
+   - Press Enter to use default (last 30 days)
 2. Enter end date (YYYY-MM-DD format)
-   - Press Enter to use start date + 7 days
+   - Press Enter to use default (current date)
 
 The calendar will display:
-- Major economic events in the specified date range
-- Impact level (High/Medium)
-- Previous and actual values (when available)
-- Formatted table with event details
+- Latest values for major economic indicators
+- Percentage changes from previous readings
+- Properly scaled values (K/M/B)
+- Formatted table with indicator details
+
 
 ### Portfolio Tracking
 
@@ -244,12 +274,11 @@ The tool uses color coding for quick visual analysis:
   - Sufficient analyst coverage but metrics fall between buy/sell thresholds
   - Does not meet all conditions for buy signal
   - Does not trigger either sell condition
-
 ## Data Sources
 
-Data is sourced from multiple APIs:
+Data is sourced from Yahoo Finance API (through yfinance package):
 
-1. Yahoo Finance API (through yfinance package):
+1. Market Data:
    - Real-time and historical price data
    - Analyst recommendations and price targets
    - Financial metrics and ratios
@@ -257,19 +286,25 @@ Data is sourced from multiple APIs:
    - Company fundamentals
    - Earnings announcements and estimates
 
-2. FRED API (Federal Reserve Economic Data):
-   - Economic indicators and metrics
-   - Employment statistics
-   - Inflation data
-   - Growth indicators
+2. Economic Data:
+   - Market indices performance
+   - Sector performance
+   - Economic event tracking
+   - Market sentiment indicators
 
-- Real-time and historical price data
-- Analyst recommendations and price targets
-- Financial metrics and ratios
-- Insider trading information
-- Company fundamentals
-- Latest news articles and summaries
-- Earnings announcements and estimates
+3. News and Analysis:
+   - Latest news articles and summaries
+   - Sentiment analysis
+   - Company announcements
+   - Market commentary
+
+4. Company Information:
+   - Corporate fundamentals
+   - Institutional holdings
+   - Insider transactions
+   - Financial statements
+   - Key statistics
+
 
 ## Testing
 
