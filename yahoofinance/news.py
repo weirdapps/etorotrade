@@ -328,10 +328,11 @@ def get_user_tickers():
     tickers_input = input("Enter comma-separated tickers (e.g., AAPL,MSFT,GOOGL): ").strip()
     return [ticker.strip().upper() for ticker in tickers_input.split(',') if ticker.strip()]
 
+from pygooglenews import GoogleNews
+
 def get_google_news(ticker: str, limit: int = 5) -> list:
     """Get news from Google News with caching"""
     from .cache import news_cache
-    from pygooglenews import GoogleNews
     
     # Create cache key
     cache_key = f"googlenews_{ticker}_{limit}"
