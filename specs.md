@@ -19,7 +19,7 @@ This project is a command-line market analysis tool that fetches and analyzes st
 ### Dependencies
 - beautifulsoup4 >= 4.12.3: Web scraping functionality
 - pandas >= 2.2.2: Data manipulation and analysis
-- python-dotenv >= 1.0.1: Environment variable management
+- python-dotenv >= 1.0.1: Environment variable management (for FRED API)
 - pytz >= 2024.1: Timezone handling
 - requests >= 2.32.3: HTTP requests
 - tabulate >= 0.9.0: Table formatting
@@ -694,17 +694,6 @@ GOOGL
   - Maximum delay: 60 seconds
   - Exponential backoff multiplier: 2
 
-### News APIs
-1. Google News
-   - Free RSS feed
-   - No rate limits
-   - HTML content cleaning
-   - Title-only content (no article summaries)
-
-2. NewsAPI
-   - Free tier: 100 requests per day
-   - Paid tier: Based on subscription
-   - Error handling for rate limits with 429 status code
 
 ### FRED API
 - Default: 120 requests per minute
