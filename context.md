@@ -37,12 +37,13 @@ The Trade project is a comprehensive Python-based market analysis tool that leve
 ## Data Flow
 
 1. **Input Sources**
-   - Portfolio CSV (ticker column)
-   - Market CSV (symbol column)
-   - Manual ticker input
-   - Yahoo Finance API
-   - FRED API (economic data)
-   - NewsAPI
+    - Portfolio CSV (ticker column)
+    - Market CSV (symbol column)
+    - Manual ticker input
+    - Yahoo Finance API
+    - FRED API (economic data)
+    - Google News RSS feed
+    - NewsAPI
 
 2. **Processing Pipeline**
    - Data validation and cleaning
