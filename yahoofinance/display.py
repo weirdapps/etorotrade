@@ -370,10 +370,17 @@ class MarketDisplay:
                 try:
                     report = self.generate_stock_report(ticker)
                     if report:
+                        # Store raw report
+                        raw_report = report.copy()
+                        raw_report['_not_found'] = report['_not_found']
+                        raw_report['_ticker'] = ticker
+                        
+                        # Format report for display
                         formatted_row = self.formatter.format_stock_row(report)
                         formatted_row['_not_found'] = report['_not_found']
                         formatted_row['_ticker'] = ticker
-                        reports.append(formatted_row)
+                        
+                        reports.append({'raw': raw_report, 'formatted': formatted_row})
                         successful_tickers += 1
                 except Exception as e:
                     logger.debug(f"Error processing {ticker}: {str(e)}")
@@ -563,12 +570,40 @@ class MarketDisplay:
         except Exception as e:
             logger.error(f"Error generating portfolio HTML: {str(e)}")
     
-    def display_report(self, tickers: List[str]) -> None:
+    def _save_to_csv(self, reports: List[Dict[str, Dict[str, Any]]], source: str) -> None:
         """
-        Display formatted market analysis report.
+        Save raw report data to CSV file based on source.
+        
+        Args:
+            reports: List of dictionaries containing raw and formatted report data
+            source: Source identifier ('M' for market, 'P' for portfolio)
+        """
+        filename = 'market.csv' if source == 'M' else 'portfolio.csv'
+        output_path = f"{self.input_dir}/../output/{filename}"
+        try:
+            # Extract raw reports
+            raw_reports = [report['raw'] for report in reports]
+            
+            # Create DataFrame from raw reports
+            df = pd.DataFrame(raw_reports)
+            
+            # Remove internal sorting columns
+            columns_to_drop = ['_not_found', '_sort_exret', '_sort_earnings', '_ticker']
+            df = df.drop(columns=[col for col in columns_to_drop if col in df.columns])
+            
+            # Save to CSV with proper separator and quoting
+            df.to_csv(output_path, index=False, sep=',', encoding='utf-8', quoting=1)
+            logger.info(f"Saved data to {output_path}")
+        except Exception as e:
+            logger.error(f"Error saving to {output_path}: {str(e)}")
+
+    def display_report(self, tickers: List[str], source: str = None) -> None:
+        """
+        Display formatted market analysis report and save to CSV.
         
         Args:
             tickers: List of stock ticker symbols to analyze
+            source: Source identifier ('M' for market, 'P' for portfolio)
             
         Raises:
             ValueError: If no valid tickers are provided
@@ -583,8 +618,13 @@ class MarketDisplay:
         if not reports:
             raise ValueError("No data available to display")
 
-        # Create and process DataFrame
-        df = pd.DataFrame(reports)
+        # Save raw data to CSV if source is specified
+        if source in ['M', 'P']:
+            self._save_to_csv(reports, source)
+
+        # Create and process DataFrame for display
+        formatted_reports = [report['formatted'] for report in reports]
+        df = pd.DataFrame(formatted_reports)
         df = self._sort_market_data(df)
         df = self._format_dataframe(df)
 

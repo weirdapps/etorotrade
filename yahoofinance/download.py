@@ -12,6 +12,17 @@ from selenium.common.exceptions import (
 import time
 import os
 import pandas as pd
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Get credentials from environment variables
+PI_SCREENER_EMAIL = os.getenv('PI_SCREENER_EMAIL')
+PI_SCREENER_PASSWORD = os.getenv('PI_SCREENER_PASSWORD')
+
+if not PI_SCREENER_EMAIL or not PI_SCREENER_PASSWORD:
+    raise ValueError("PI_SCREENER_EMAIL and PI_SCREENER_PASSWORD must be set in .env file")
 
 def safe_click(driver, element, description="element"):
     """Helper function to safely click an element using JavaScript"""
@@ -296,7 +307,7 @@ def download_portfolio():
         
         # Handle initial page setup
         handle_cookie_consent(driver)
-        login(driver, "plessasdimitrios@yahoo.com", "QsDXJn8m@n@Li?3Y")
+        login(driver, PI_SCREENER_EMAIL, PI_SCREENER_PASSWORD)
         
         # Wait for page to load after login
         print("Waiting for page to load after login...")

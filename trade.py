@@ -36,7 +36,8 @@ def main():
             return
             
         try:
-            display.display_report(tickers)
+            # Only pass source for market or portfolio options
+            display.display_report(tickers, source if source in ['M', 'P'] else None)
         except ValueError as e:
             logger.error(f"Error processing numeric values: {str(e)}")
         except Exception as e:
