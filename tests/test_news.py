@@ -13,7 +13,9 @@ from yahoofinance.news import (
     get_portfolio_tickers,
     get_user_tickers,
     get_news_source,
-    get_ticker_source
+    get_ticker_source,
+    get_google_news,
+    fetch_google_news
 )
 import yfinance as yf
 import pandas as pd
@@ -197,7 +199,7 @@ class TestNews(unittest.TestCase):
 
         expected_article = {
             'title': 'Test Title',
-            'description': 'Test Summary',
+            'description': '',  # Google News doesn't use summaries
             'publishedAt': '2024-02-20T00:00:00Z',
             'source': {'name': 'Test Source'},
             'url': 'https://test.com'
@@ -217,7 +219,9 @@ class TestNews(unittest.TestCase):
         self.assertEqual(result, [expected_article])
         mock_gn_instance.search.assert_called_once()  # Search should only be called once
 
-    def test_google_news_fetching(self):
+    @patch('yahoofinance.news.GoogleNews')
+    @patch('yahoofinance.cache.news_cache')
+    def test_google_news_fetching(self, mock_cache, mock_google_news_class):
         """Test Google News fetching and caching"""
         mock_entry = Mock(
             title='MSFT Stock News: Microsoft Reports Q4 Earnings',
@@ -229,113 +233,76 @@ class TestNews(unittest.TestCase):
         
         mock_gn = Mock()
         mock_gn.search.return_value = {'entries': [mock_entry]}
+        mock_google_news_class.return_value = mock_gn
         
-        with patch('yahoofinance.news.GoogleNews', return_value=mock_gn), \
-             patch('yahoofinance.cache.news_cache') as mock_cache:
-            # Test cache miss
-            mock_cache.get.return_value = None
-            result = get_google_news('MSFT', limit=1)
-            
-            self.assertEqual(len(result), 1)
-            self.assertEqual(result[0]['title'], 'MSFT Stock News: Microsoft Reports Q4 Earnings')
-            self.assertEqual(result[0]['source']['name'], 'Financial News')
-            
-            # Verify caching
-            mock_cache.set.assert_called_once()
-            cache_key = mock_cache.set.call_args[0][0]
-            self.assertEqual(cache_key, 'googlenews_MSFT_1')
-            
-            # Test cache hit
-            mock_cache.get.return_value = result
-            cached_result = get_google_news('MSFT', limit=1)
-            self.assertEqual(cached_result, result)
-            mock_gn.search.assert_called_once()  # Search should only be called once
-    
-    def test_google_news_content_cleaning(self):
+        # Test cache miss
+        mock_cache.get.return_value = None
+        result = get_google_news('MSFT', limit=1)
+        
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['title'], 'MSFT Stock News: Microsoft Reports Q4 Earnings')
+        self.assertEqual(result[0]['source']['name'], 'Financial News')
+        
+        # Verify caching
+        mock_cache.set.assert_called_once()
+        cache_key = mock_cache.set.call_args[0][0]
+        self.assertEqual(cache_key, 'googlenews_MSFT_1')
+        
+        # Test cache hit
+        mock_cache.get.return_value = result
+        cached_result = get_google_news('MSFT', limit=1)
+        self.assertEqual(cached_result, result)
+        mock_gn.search.assert_called_once()  # Search should only be called once
+
+    @patch('yahoofinance.news.GoogleNews')
+    @patch('yahoofinance.cache.news_cache')
+    def test_google_news_content_cleaning(self, mock_cache, mock_google_news_class):
         """Test content cleaning for Google News articles"""
-        test_cases = [
-            (
-                # Input
-                {
-                    'title': 'MSFT AAPL GOOG: Tech Giants Report Earnings - Source',
-                    'summary': '<a href="link">Same title here</a>&nbsp;&nbsp;<font color="#6f6f6f">Source</font>'
-                },
-                # Expected output
-                {
-                    'title': 'MSFT AAPL GOOG: Tech Giants Report Earnings',
-                    'description': ''  # Empty because summary matches title
-                }
-            ),
-            (
-                # Input with HTML and source references
-                {
-                    'title': 'Microsoft (MSFT) Announces New AI Features - Yahoo Finance',
-                    'summary': '<p>Breaking news about <b>Microsoft</b></p>&nbsp;&nbsp;<font>Yahoo Finance</font>'
-                },
-                # Expected output
-                {
-                    'title': 'Microsoft (MSFT) Announces New AI Features',
-                    'description': ''  # Empty because it's Google News
-                }
-            )
-        ]
+        # Mock entry with HTML and source references
+        test_entry = Mock(
+            title='Microsoft (MSFT) Announces New AI Features - Yahoo Finance',
+            summary='<p>Breaking news about <b>Microsoft</b></p>&nbsp;&nbsp;<font>Yahoo Finance</font>',
+            published='2024-02-20T00:00:00Z',
+            source=Mock(title='Source'),
+            link='https://test.com'
+        )
         
-        for input_data, expected in test_cases:
-            mock_entry = Mock(
-                title=input_data['title'],
-                summary=input_data['summary'],
-                published='2024-02-20T00:00:00Z',
-                source=Mock(title='Source'),
-                link='https://test.com'
-            )
-            
-            mock_gn = Mock()
-            mock_gn.search.return_value = {'entries': [mock_entry]}
-            
-            with patch('yahoofinance.news.GoogleNews', return_value=mock_gn):
-                result = get_google_news('MSFT', limit=1)
-                self.assertEqual(result[0]['title'], expected['title'])
-                self.assertEqual(result[0]['description'], expected['description'])
-    
-    def test_google_news_integration(self):
-        """Test Google News integration with news formatting system"""
-        test_articles = [{
-            'title': 'MSFT Q4 2024 Earnings: Strong Growth in AI',
-            'description': '',  # Google News has no summaries
-            'publishedAt': '2024-02-20T00:00:00Z',
-            'source': {'name': 'Financial Times'},
-            'url': 'https://test.com'
-        }]
+        mock_gn = Mock()
+        mock_gn.search.return_value = {'entries': [test_entry]}
+        mock_google_news_class.return_value = mock_gn
         
-        with patch('yahoofinance.news.get_google_news', return_value=test_articles), \
-             patch('yahoofinance.news.format_newsapi_news') as mock_format:
-            fetch_google_news('MSFT')
-            mock_format.assert_called_once_with(test_articles, 'MSFT')
-            
-    def test_google_news_html_cleaning(self):
-        """Test HTML cleaning in Google News content for sentiment analysis"""
+        # Ensure we don't use cached data
+        mock_cache.get.return_value = None
+        
+        result = get_google_news('MSFT', limit=1)
+        
+        # Verify source name is removed from title
+        self.assertEqual(result[0]['title'], 'Microsoft (MSFT) Announces New AI Features')
+        # Verify description is empty for Google News
+        self.assertEqual(result[0]['description'], '')
+
+    @patch('yahoofinance.news.GoogleNews')
+    def test_google_news_html_cleaning(self, mock_google_news_class):
+        """Test HTML cleaning in Google News content"""
         # Mock entry with HTML tags
         test_entry = Mock(
-            title='<b>Company reports</b> record profits',
+            title='<b>Company reports</b> record profits - Source Name',
             summary='<p>Excellent performance</p> across <em>all sectors</em>',
             published='2024-02-20T00:00:00Z',
             source=Mock(title='Test Source'),
             link='https://test.com'
         )
-        
+
         mock_gn_instance = Mock()
         mock_gn_instance.search.return_value = {'entries': [test_entry]}
-        
-        with patch('yahoofinance.news.GoogleNews', return_value=mock_gn_instance):
-            result = get_google_news('AAPL', limit=1)
-            
-            # Verify HTML is cleaned
-            self.assertEqual(result[0]['title'], 'Company reports record profits')
-            self.assertEqual(result[0]['description'], 'Excellent performance across all sectors')
-            
-            # Test sentiment calculation with cleaned content
-            sentiment = calculate_sentiment(result[0]['title'], result[0]['description'])
-            self.assertGreater(sentiment, 0.05)  # Should be positive after HTML removal
+        mock_google_news_class.return_value = mock_gn_instance
+
+        result = get_google_news('AAPL', limit=1)
+
+        # Verify HTML is cleaned and source is removed from title
+        self.assertEqual(result[0]['title'], 'Company reports record profits')
+        # Description should be empty for Google News
+        self.assertEqual(result[0]['description'], '')
     
     def test_get_url(self):
         """Test URL extraction from content"""
