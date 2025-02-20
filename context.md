@@ -42,8 +42,6 @@ The Trade project is a comprehensive Python-based market analysis tool that leve
     - Manual ticker input
     - Yahoo Finance API
     - FRED API (economic data)
-    - Google News RSS feed
-    - NewsAPI
 
 2. **Processing Pipeline**
    - Data validation and cleaning
@@ -186,11 +184,11 @@ python -m yahoofinance.economics
 - pandas: Data manipulation
 - tabulate: Table formatting
 - tqdm: Progress bars
-- python-dotenv: Environment management
 - requests: HTTP client
 - beautifulsoup4: Web scraping
 - pytz: Timezone handling
 - vaderSentiment: Sentiment analysis
+- python-dotenv: Environment variable management (for FRED API)
 
 ## Future Considerations
 

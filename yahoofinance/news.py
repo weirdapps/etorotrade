@@ -4,13 +4,7 @@ import textwrap
 import html
 import pandas as pd
 import os
-import requests
-from dotenv import load_dotenv
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-
-# Load environment variables from root directory
-load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
-NEWS_API_KEY = os.getenv('NEWS_API_KEY')
 
 # ANSI color codes
 class Colors:
@@ -27,18 +21,11 @@ def print_section(title):
     print(f"{title}")
     print("="*50 + f"{Colors.ENDC}")
 
-def format_timestamp(timestamp, is_google=False):
+def format_timestamp(timestamp):
     try:
         if not timestamp:
             return 'N/A'
-            
-        # Handle various date formats
-        if ' ' in timestamp:  # Google News format like "Tue, 20 Feb 2024 12:00:00 GMT"
-            return datetime.strptime(timestamp, '%a, %d %b %Y %H:%M:%S %Z').strftime('%Y-%m-%d %H:%M:%S')
-        elif is_google:
-            return datetime.fromisoformat(timestamp.replace('Z', '+00:00')).strftime('%Y-%m-%d %H:%M:%S')
-        else:
-            return datetime.strptime(timestamp, '%Y-%m-%dT%H:%M:%SZ').strftime('%Y-%m-%d %H:%M:%S')
+        return datetime.strptime(timestamp, '%Y-%m-%dT%H:%M:%SZ').strftime('%Y-%m-%d %H:%M:%S')
     except (ValueError, TypeError):
         return 'N/A'
 
@@ -174,81 +161,6 @@ def get_sentiment_color(sentiment):
         return Colors.GREEN
     return Colors.YELLOW
 
-def get_newsapi_news(ticker, limit=5):
-    """Get news from NewsAPI with caching"""
-    from .cache import news_cache
-    
-    # Create cache key
-    cache_key = f"newsapi_{ticker}_{limit}"
-    print(f"\nChecking cache for {ticker} news...")
-    
-    # Try to get from cache first
-    cached_news = news_cache.get(cache_key)
-    if cached_news is not None:
-        return cached_news
-    
-    try:
-        url = "https://newsapi.org/v2/everything"
-        params = {
-            'q': ticker,
-            'apiKey': NEWS_API_KEY,
-            'language': 'en',
-            'sortBy': 'publishedAt',
-            'pageSize': limit
-        }
-        response = requests.get(url, params=params)
-        if response.status_code == 200:
-            articles = response.json().get('articles', [])
-            print("Fetching fresh data from NewsAPI...")
-            # Cache the results
-            news_cache.set(cache_key, articles)
-            return articles
-        else:
-            print(f"Error fetching NewsAPI: {response.status_code}")
-            return []
-    except Exception as e:
-        print(f"Error accessing NewsAPI: {str(e)}")
-        return []
-
-def format_newsapi_news(news, ticker):
-    print_section(f"LATEST NEWS FOR {ticker}")
-    for i, article in enumerate(news, 1):
-        try:
-            # Get raw content
-            raw_title = article.get('title', 'N/A')
-            raw_description = article.get('description', '')
-            
-            # Clean content for display
-            display_title = clean_text_for_display(raw_title)
-            display_description = clean_text_for_display(raw_description)
-            
-            # Clean content for sentiment
-            sentiment_title = clean_text_for_sentiment(raw_title)
-            sentiment_description = clean_text_for_sentiment(raw_description)
-            
-            # Calculate sentiment on cleaned content
-            sentiment = calculate_sentiment(sentiment_title, sentiment_description)
-            sentiment_color = get_sentiment_color(sentiment)
-            
-            print(f"\n{Colors.BOLD}• {display_title}{Colors.ENDC}")
-            print(f"   {Colors.BLUE}Sentiment:{Colors.ENDC} "
-                  f"{sentiment_color}{sentiment:.2f}{Colors.ENDC}")
-            
-            timestamp = format_timestamp(article.get('publishedAt', ''), is_google=True)
-            print(f"   {Colors.BLUE}Published:{Colors.ENDC} {timestamp}")
-            print(f"   {Colors.BLUE}Source:{Colors.ENDC} {article.get('source', {}).get('name', 'N/A')}")
-            
-            # Only show summary if we have unique content (not for Google News)
-            if display_description and display_description != display_title:
-                print(f"   {Colors.BLUE}Summary:{Colors.ENDC}")
-                wrapped_summary = wrap_text(display_description)
-                print(f"   {wrapped_summary}")
-            
-            print(f"   {Colors.BLUE}Link:{Colors.ENDC} {Colors.YELLOW}{article.get('url', 'N/A')}{Colors.ENDC}")
-            print("-" * 50)
-        except Exception as e:
-            print(f"Error processing news item: {str(e)}")
-            continue
 
 def get_url(content):
     """Safely extract URL from content"""
@@ -328,67 +240,6 @@ def get_user_tickers():
     tickers_input = input("Enter comma-separated tickers (e.g., AAPL,MSFT,GOOGL): ").strip()
     return [ticker.strip().upper() for ticker in tickers_input.split(',') if ticker.strip()]
 
-from pygooglenews import GoogleNews
-
-def get_google_news(ticker: str, limit: int = 5) -> list:
-    """Get news from Google News with caching"""
-    from .cache import news_cache
-    
-    # Create cache key
-    cache_key = f"googlenews_{ticker}_{limit}"
-    print(f"\nChecking cache for {ticker} news...")
-    
-    # Try to get from cache first
-    cached_news = news_cache.get(cache_key)
-    if cached_news is not None:
-        return cached_news
-    
-    try:
-        gn = GoogleNews(lang='en')
-        search = gn.search(ticker)
-        articles = []
-        
-        for entry in search['entries'][:limit]:
-            # Get and clean title
-            clean_title = clean_text_for_display(entry.title)
-            
-            # Fix truncated titles
-            if clean_title.endswith(' in'):
-                clean_title = clean_title[:-3].strip()
-            
-            # For Google News, we don't get article summaries in the RSS feed
-            # The description field just contains the title and source
-            clean_content = ''
-            
-            article = {
-                'title': clean_title,
-                'description': clean_content if clean_content != clean_title else '',
-                'publishedAt': entry.published,
-                'source': {'name': entry.source.title},
-                'url': entry.link
-            }
-            articles.append(article)
-        
-        print("Fetching fresh data from Google News...")
-        # Cache the results
-        news_cache.set(cache_key, articles)
-        return articles
-    except Exception as e:
-        print(f"Error accessing Google News: {str(e)}")
-        return []
-
-def get_news_source() -> str:
-    """Get user's choice of news source."""
-    print("\nSelect news source:")
-    print("G - Google News")
-    print("N - NewsAPI")
-    print("Y - Yahoo Finance")
-    
-    while True:
-        source = input("\nEnter your choice (G/N/Y): ").strip().upper()
-        if source in ['G', 'N', 'Y']:
-            return source
-        print("Invalid choice. Please enter 'G', 'N', or 'Y'.")
 
 def get_ticker_source() -> str:
     """Get user's choice of ticker input method."""
@@ -426,32 +277,10 @@ def fetch_yahoo_news(ticker: str) -> None:
     except Exception as e:
         print(f"\nError fetching news for {ticker}: {str(e)}")
 
-def fetch_newsapi_news(ticker: str) -> None:
-    """Fetch and display news from NewsAPI."""
-    try:
-        news = get_newsapi_news(ticker, limit=5)
-        if news:
-            format_newsapi_news(news, ticker)
-        else:
-            print(f"\nNo news found for {ticker}")
-    except Exception as e:
-        print(f"\nError fetching news for {ticker}: {str(e)}")
-
-def fetch_google_news(ticker: str) -> None:
-    """Fetch and display news from Google News."""
-    try:
-        news = get_google_news(ticker, limit=5)
-        if news:
-            format_newsapi_news(news, ticker)  # Reuse NewsAPI formatter since format is compatible
-        else:
-            print(f"\nNo news found for {ticker}")
-    except Exception as e:
-        print(f"\nError fetching news for {ticker}: {str(e)}")
 
 def main():
     print(f"{Colors.BOLD}Stock Market News{Colors.ENDC}")
     
-    source = get_news_source()
     choice = get_ticker_source()
     
     # Get tickers based on user choice
@@ -466,18 +295,8 @@ def main():
     
     print(f"\nFetching news for: {', '.join(tickers)}")
     
-    if source == 'G':
-        for ticker in tickers:
-            fetch_google_news(ticker)
-    elif source == 'N':
-        if not NEWS_API_KEY:
-            print("Error: NewsAPI key not found in .env file")
-            return
-        for ticker in tickers:
-            fetch_newsapi_news(ticker)
-    else:  # source == 'Y'
-        for ticker in tickers:
-            fetch_yahoo_news(ticker)
+    for ticker in tickers:
+        fetch_yahoo_news(ticker)
 
 if __name__ == "__main__":
     main()
