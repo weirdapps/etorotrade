@@ -95,8 +95,6 @@ def is_financial_term(word):
 
 def should_skip_word(word, next_word=None):
     """Determine if a word should be skipped in sentiment analysis"""
-    word_lower = word.lower()
-    
     # Check for dollar amounts
     is_dollar = word.startswith('$') or (word.startswith('(') and word[1:].startswith('$'))
     if is_dollar:
