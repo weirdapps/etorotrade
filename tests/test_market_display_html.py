@@ -34,7 +34,7 @@ def test_generate_market_metrics_success(display, mock_client, mock_stock_info):
     metrics = display._generate_market_metrics(['AAPL'])
     
     assert 'AAPL' in metrics
-    assert metrics['AAPL']['value'] == 5.0
+    assert metrics['AAPL']['value'] == pytest.approx(5.0)
     assert metrics['AAPL']['label'] == 'AAPL'
     assert metrics['AAPL']['is_percentage'] is True
 

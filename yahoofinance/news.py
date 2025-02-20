@@ -85,6 +85,31 @@ def clean_text_for_display(text):
     
     return text.strip()
 
+def is_stock_symbol(word):
+    """Check if word appears to be a stock symbol"""
+    return word.isupper() and 1 <= len(word) <= 5 and word.isalpha()
+
+def is_financial_term(word):
+    """Check if word is a common financial term"""
+    return word.lower() in ['q1', 'q2', 'q3', 'q4', 'fy', 'eps', 'revenue', 'earnings']
+
+def should_skip_word(word, next_word=None):
+    """Determine if a word should be skipped in sentiment analysis"""
+    word_lower = word.lower()
+    
+    # Check for dollar amounts
+    is_dollar = word.startswith('$') or (word.startswith('(') and word[1:].startswith('$'))
+    if is_dollar:
+        if next_word and next_word.lower() in ['billion', 'million', 'trillion']:
+            return True, True  # Skip this word and next
+        return True, False
+    
+    # Check for percentages
+    if word.endswith('%') or (word.endswith(')') and word[:-1].endswith('%')):
+        return True, False
+        
+    return False, False
+
 def clean_text_for_sentiment(text):
     """Clean text for sentiment analysis by removing financial terms and normalizing"""
     if not text:
@@ -92,36 +117,26 @@ def clean_text_for_sentiment(text):
     
     # First clean for display
     text = clean_text_for_display(text)
-    
-    # Then remove financial terms that might affect sentiment
     words = text.split()
     cleaned_words = []
-    skip_next = False
     
-    for i, word in enumerate(words):
-        if skip_next:
-            skip_next = False
-            continue
+    i = 0
+    while i < len(words):
+        word = words[i]
         
-        # Skip if word is a stock symbol (all caps 1-5 letters)
-        if word.isupper() and 1 <= len(word) <= 5 and word.isalpha():
+        # Skip financial indicators
+        if is_stock_symbol(word) or is_financial_term(word):
+            i += 1
             continue
+            
+        # Check if word should be skipped
+        next_word = words[i + 1] if i + 1 < len(words) else None
+        skip_current, skip_next = should_skip_word(word, next_word)
         
-        # Skip financial terms
-        if word.lower() in ['q1', 'q2', 'q3', 'q4', 'fy', 'eps', 'revenue', 'earnings']:
-            continue
-        
-        # Skip dollar amounts and following unit
-        if word.startswith('$') or (word.startswith('(') and word[1:].startswith('$')):
-            if i + 1 < len(words) and words[i+1].lower() in ['billion', 'million', 'trillion']:
-                skip_next = True
-            continue
-        
-        # Skip percentages
-        if word.endswith('%') or (word.endswith(')') and word[:-1].endswith('%')):
-            continue
-        
-        cleaned_words.append(word)
+        if not skip_current:
+            cleaned_words.append(word)
+            
+        i += 2 if skip_next else 1
     
     return ' '.join(cleaned_words).strip()
 
