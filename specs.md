@@ -19,7 +19,6 @@ This project is a command-line market analysis tool that fetches and analyzes st
 ### Dependencies
 - beautifulsoup4 >= 4.12.3: Web scraping functionality
 - pandas >= 2.2.2: Data manipulation and analysis
-- python-dotenv >= 1.0.1: Environment variable management (for FRED API)
 - pytz >= 2024.1: Timezone handling
 - requests >= 2.32.3: HTTP requests
 - tabulate >= 0.9.0: Table formatting
@@ -35,7 +34,6 @@ This project is a command-line market analysis tool that fetches and analyzes st
 3. Configure API keys:
    - Create `.env` file in yahoofinance directory
    - Add NewsAPI key: `NEWS_API_KEY=your_api_key` (get from https://newsapi.org/)
-   - Add FRED API key: `FRED_API_KEY=your_api_key` (get from https://fred.stlouisfed.org/docs/api/api_key.html)
 4. Set up input files in yahoofinance/input/:
    - portfolio.csv: Portfolio tickers
    - market.csv: Market watchlist tickers
@@ -579,75 +577,95 @@ Data structure for stock information
     - Data fetching and display
     - HTML file updates
 
-### 9. yahoofinance/economics.py
-
-#### Classes
-
-##### EconomicCalendar
-
-###### Methods
-
-- `__init__()`
-  - Purpose: Initialize economic calendar with FRED API key
-  - Environment Variables:
-    - FRED_API_KEY: Required for FRED API access
-
-- `validate_date_format(date_str: str) -> bool`
-  - Purpose: Validate if date string matches YYYY-MM-DD format
-  - Parameters:
-    - date_str: Date string to validate
-  - Returns: True if valid, False otherwise
-
-- `get_economic_calendar(start_date: str, end_date: str) -> Optional[pd.DataFrame]`
-  - Purpose: Get economic calendar for specified date range
-  - Parameters:
-    - start_date: Start date in YYYY-MM-DD format
-    - end_date: End date in YYYY-MM-DD format
-  - Returns: DataFrame with economic calendar information if available, None otherwise
-
-- `_get_releases(start_date: str, end_date: str) -> List[Dict]`
-  - Purpose: Get releases from FRED API
-  - Parameters:
-    - start_date: Start date
-    - end_date: End date
-  - Returns: List of release data
-
-- `_get_release_series(release_id: str) -> List[Dict]`
-  - Purpose: Get series for a specific release
-  - Parameters:
-    - release_id: FRED release ID
-  - Returns: List of series data
-
-- `_get_latest_value(series_id: str) -> str`
-  - Purpose: Get latest value for a series
-  - Parameters:
-    - series_id: FRED series ID
-  - Returns: Latest value formatted as string
+### 9. yahoofinance/econ.py
 
 #### Functions
 
-- `format_economic_table(df: pd.DataFrame, start_date: str, end_date: str) -> None`
-  - Purpose: Format and display economic calendar table
-  - Parameters:
-    - df: DataFrame with economic calendar data
-    - start_date: Start date in YYYY-MM-DD format
-    - end_date: End date in YYYY-MM-DD format
+- `get_fred_api_key() -> str`
+  - Purpose: Get FRED API key from environment variables
+  - Returns: API key string
+  - Environment Variables:
+    - FRED_API_KEY: Required for FRED API access
 
-- `get_user_dates() -> Tuple[str, str]`
-  - Purpose: Get start and end dates from user input
-  - Returns: Tuple of start_date and end_date strings
+- `get_date_input(prompt: str, default_date: str) -> str`
+  - Purpose: Get and validate date input from user
+  - Parameters:
+    - prompt: Input prompt message
+    - default_date: Default date to use if no input
+  - Returns: Date string in YYYY-MM-DD format
+
+- `get_default_dates() -> Tuple[str, str]`
+  - Purpose: Get default date range (last 30 days)
+  - Returns: Tuple of (start_date, end_date) strings
+
+- `fetch_fred_data(api_key: str, series_id: str, start_date: str, end_date: str, freq: str) -> List[Dict]`
+  - Purpose: Fetch data from FRED API
+  - Parameters:
+    - api_key: FRED API key
+    - series_id: FRED series identifier
+    - start_date: Start date
+    - end_date: End date
+    - freq: Data frequency (weekly, monthly, quarterly)
+  - Returns: List of observations
+
+- `format_value(value: Any, indicator: str) -> str`
+  - Purpose: Format numeric values based on indicator type
+  - Parameters:
+    - value: Value to format
+    - indicator: Indicator name
+  - Returns: Formatted string with appropriate units (K, M, B, %)
+
+- `calculate_change(current: str, previous: str) -> str`
+  - Purpose: Calculate percentage change between values
+  - Parameters:
+    - current: Current value
+    - previous: Previous value
+  - Returns: Formatted percentage change string
+
+- `fetch_economic_data(api_key: str, start_date: str, end_date: str) -> List[Dict]`
+  - Purpose: Fetch all economic indicators from FRED
+  - Parameters:
+    - api_key: FRED API key
+    - start_date: Start date
+    - end_date: End date
+  - Returns: List of economic data points
 
 #### Constants
 
-- `indicators`: Dictionary mapping economic indicators to FRED series IDs
+- `INDICATORS`: Dictionary mapping economic indicators to their FRED series IDs and properties
   - Categories:
-    - Employment (Nonfarm Payrolls, Unemployment Rate, Initial Claims)
-    - Inflation (CPI, Core CPI, PPI)
-    - Growth (GDP, Retail Sales, Industrial Production)
+    - GDP Growth (%)
+    - Unemployment (%)
+    - CPI MoM (%)
+    - Fed Funds Rate (%)
+    - Industrial Production
+    - Retail Sales MoM (%)
+    - Housing Starts (K)
+    - Nonfarm Payrolls (M)
+    - Trade Balance ($B)
+    - Initial Claims (K)
   - Fields per indicator:
     - id: FRED series ID
-    - impact: High/Medium importance
-    - description: Human-readable description
+    - freq: Data frequency (weekly, monthly, quarterly)
+    - scale: Scaling function for value formatting
+
+#### Data Flow
+
+1. User Input:
+   - Date range input with defaults
+   - Support for Enter key to use defaults
+
+2. Data Fetching:
+   - Automatic date extension based on frequency
+   - Proper scaling of values (K, M, B)
+   - Percentage change calculations
+
+3. Output:
+   - Formatted table with:
+     * Date and indicator name
+     * Properly scaled values
+     * Percentage changes
+     * Clear column alignment
 
 ## File Formats
 
@@ -679,27 +697,77 @@ GOOGL
 
 ### Output Files
 
-#### performance.html
+#### portfolio.html
 - Purpose: Portfolio performance dashboard
-- Format: HTML with embedded CSS
+- Format: HTML with embedded CSS and JavaScript
 - Updates: Automatic on portfolio tracking execution
-- Content: Portfolio metrics, returns, and risk measures
+- Content:
+  * Portfolio Returns Section:
+    - Today's performance
+    - Month-to-Date (MTD)
+    - Year-to-Date (YTD)
+    - 2-Year performance
+  * Risk Metrics Section:
+    - Portfolio Beta
+    - Jensen's Alpha
+    - Sharpe Ratio
+    - Sortino Ratio
+    - Cash Position
+  * Layout:
+    - Responsive design
+    - Color-coded metrics
+    - 4-column returns display
+    - 5-column risk metrics display
+
+#### index.html
+- Purpose: Market performance dashboard
+- Format: HTML with embedded CSS and JavaScript
+- Updates: Automatic on market analysis execution
+- Content:
+  * Weekly Market Performance Section:
+    - Major indices tracking
+    - Price change percentages
+    - Color-coded performance indicators
+  * Layout:
+    - 4-column grid layout
+    - 500px width sections
+    - Responsive design
+    - Automatic refresh capability
+
+#### CSV Output Files
+- market.csv and portfolio.csv in output directory
+- Purpose: Raw data storage for analysis
+- Format: UTF-8 encoded CSV with proper quoting
+- Content: All metrics from market analysis
+- Updates: Automatic on respective analysis execution
+- Fields:
+  * Stock metrics (price, targets, ratios)
+  * Analyst coverage
+  * Risk metrics
+  * Trading indicators
+  * Performance metrics
 
 ## API Rate Limiting
 
 ### Yahoo Finance API
 - Default: 2000 requests per hour per IP
-- Implemented backoff strategy:
-  - Initial delay: 1 second
-  - Maximum delay: 60 seconds
-  - Exponential backoff multiplier: 2
-
-
-### FRED API
-- Default: 120 requests per minute
-- Error handling for rate limits with 429 status code
-- Automatic retry with exponential backoff
-- Cache implementation to minimize API calls
+- Adaptive Rate Limiting (RateLimitTracker):
+  - Base delay: 2 seconds (adjustable based on success/failure)
+  - Minimum delay: 1 second
+  - Maximum delay: 30 seconds
+  - Batch delay: 5 seconds (adjustable based on success rate)
+  - Window size: 60 seconds
+  - Maximum calls per window: 100
+  - Success streak tracking for delay reduction
+  - Error tracking per ticker (skip after 5 errors)
+  - Exponential backoff on rate limit errors
+  - Batch processing with adaptive delays
+  - Success rate monitoring for batch delays
+- Error handling:
+  - 429 status code detection
+  - Automatic retry mechanism
+  - Cache implementation to minimize API calls
+  - Graceful degradation on persistent errors
 
 ## Caching Strategy
 
@@ -797,26 +865,70 @@ GOOGL
    - User selects data source (Portfolio, Market, Manual)
    - System loads tickers from selected source
    - Validates and deduplicates ticker symbols
+   - Sorts tickers alphabetically for consistent processing
 
-2. Data Fetching:
-   - YFinanceClient fetches raw data from Yahoo Finance API
-   - Implements retry mechanism and caching
-   - Validates and processes API responses
+2. Batch Processing:
+   - Processes tickers in batches of 15 for optimal performance
+   - Progress tracking with tqdm for each batch
+   - Adaptive rate limiting between batches:
+     * Base delay of 5 seconds
+     * Increases delay on low success rates (<50%)
+     * Decreases delay on high success rates (>80%)
+     * Maximum delay of 30 seconds
+   - Success rate monitoring per batch
+   - Error tracking per ticker with skip after 5 failures
 
-3. Data Analysis:
-   - PricingAnalyzer calculates price metrics
-   - AnalystData processes analyst ratings
-   - Combines multiple data points for comprehensive analysis
+3. Data Fetching and Error Handling:
+   - Per-ticker rate limiting with RateLimitTracker:
+     * Base delay: 2 seconds (adjustable)
+     * Success streak tracking for delay reduction
+     * Error history tracking for delay increases
+     * Exponential backoff on rate limit errors
+   - YFinanceClient fetches with retry mechanism:
+     * Price metrics (current, target, upside)
+     * Analyst ratings and coverage
+     * Financial ratios and metrics
+   - Empty report generation for failed fetches
+   - Caching of successful responses
 
-4. Display Formatting:
-   - DisplayFormatter applies formatting rules
-   - Adds color coding based on analysis
-   - Creates sortable DataFrame for display
+4. Data Processing and Analysis:
+   - Dual report format maintenance:
+     * Raw data for CSV export
+     * Formatted data for display
+   - Metric calculations:
+     * PricingAnalyzer for price metrics
+     * AnalystData for ratings analysis
+     * Insider trading metrics
+     * Risk indicators
+   - Null value handling with defaults
+   - Special sorting flag for failed fetches
 
-5. Output Generation:
-   - Generates formatted table output
-   - Applies color coding for visual analysis
-   - Sorts results by expected return and earnings dates
+5. Report Generation and Sorting:
+   - Two-phase sorting implementation:
+     * Primary: Expected return (_sort_exret)
+     * Secondary: Earnings dates (_sort_earnings)
+     * Special handling for not_found tickers
+   - DataFrame formatting:
+     * Adds ranking column (#)
+     * Removes helper columns
+     * Applies color coding
+   - Multiple output formats:
+     * Console table with color coding
+     * CSV files with raw data
+     * HTML dashboards with metrics
+
+6. Output Management:
+   - Automatic directory structure:
+     * Input directory for source files
+     * Output directory for generated files
+   - File operations with error handling:
+     * Safe CSV writing with proper encoding
+     * HTML generation with styling
+     * Console output formatting
+   - Multiple dashboard types:
+     * Portfolio performance (portfolio.html)
+     * Market performance (index.html)
+     * Raw data exports (CSV files)
 
 ## Error Handling
 

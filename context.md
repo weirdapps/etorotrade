@@ -14,25 +14,68 @@ The Trade project is a comprehensive Python-based market analysis tool that leve
 - Configurable display formatting
 
 ### 2. Yahoo Finance Client (client.py)
-- Robust API client with retry mechanism and error handling
-- LRU cache implementation (50 entries) for performance
-- Comprehensive data fetching for stock metrics
-- Exponential backoff for rate limiting
-- Supports multiple data points:
-  * Price metrics
-  * Analyst ratings
-  * Financial ratios
-  * Risk metrics
-  * Insider trading data
-
+- Robust API client with advanced rate limiting:
+  * Adaptive delay system (RateLimitTracker)
+  * Success streak monitoring
+  * Error pattern detection
+  * Batch processing optimization
+  * Per-ticker error tracking
+- Comprehensive data management:
+  * LRU cache (50 entries) for performance
+  * Exponential backoff on rate limits
+  * Batch size optimization (15 tickers)
+  * Success rate monitoring
+- Data point coverage:
+  * Price metrics (current, target, historical)
+  * Analyst ratings and recommendations
+  * Financial ratios and metrics
+  * Risk indicators (Beta, volatility)
+  * Insider trading patterns
+  * Institutional holdings
+  * Market performance indicators
 ### 3. Data Processing Modules
-- **Analyst Module**: Processes analyst ratings and recommendations
-- **Pricing Module**: Handles price targets and calculations
-- **Formatting Module**: Manages display formatting and color coding
-- **News Module**: Aggregates and analyzes news with sentiment scoring
-- **Earnings Module**: Tracks earnings announcements
-- **Economics Module**: Monitors economic indicators
-- **Portfolio Module**: Tracks portfolio performance
+- **Display Module**:
+  * Batch processing with progress tracking
+  * Adaptive rate limiting
+  * Error handling and recovery
+  * Multiple output formats (Console, CSV, HTML)
+- **Analyst Module**:
+  * Comprehensive ratings analysis
+  * Historical recommendations tracking
+  * Buy/Sell percentage calculations
+  * Coverage metrics processing
+- **Pricing Module**:
+  * Real-time price monitoring
+  * Target price analysis
+  * Historical price tracking
+  * Upside potential calculations
+- **Formatting Module**:
+  * Configurable display settings
+  * Color-coded output system
+  * Custom table formatting
+  * Data validation and cleaning
+- **News Module**:
+  * Multi-source aggregation
+  * VADER sentiment analysis
+  * Caching with TTL
+  * Color-coded sentiment display
+- **Earnings Module**:
+  * Calendar management
+  * Estimate tracking
+  * Pre/Post market handling
+  * Historical data analysis
+- **Economics Module**:
+  * Economic event tracking
+  * Market indicator monitoring
+  * Impact analysis
+  * Performance metrics
+  * Formatted calendar display
+- **Portfolio Module**:
+  * Performance metrics
+  * Risk analysis (Beta, Alpha, Sharpe)
+  * HTML dashboard generation
+  * Automated updates
+
 
 ## Data Flow
 
@@ -40,8 +83,7 @@ The Trade project is a comprehensive Python-based market analysis tool that leve
     - Portfolio CSV (ticker column)
     - Market CSV (symbol column)
     - Manual ticker input
-    - Yahoo Finance API
-    - FRED API (economic data)
+    - Yahoo Finance API (market and economic data)
 
 2. **Processing Pipeline**
    - Data validation and cleaning
@@ -153,7 +195,6 @@ python -m yahoofinance.economics
 
 ### 1. Environment Variables
 - NEWS_API_KEY
-- FRED_API_KEY
 
 ### 2. Input Files
 - yahoofinance/input/portfolio.csv
@@ -188,7 +229,7 @@ python -m yahoofinance.economics
 - beautifulsoup4: Web scraping
 - pytz: Timezone handling
 - vaderSentiment: Sentiment analysis
-- python-dotenv: Environment variable management (for FRED API)
+- python-dotenv: Environment variable management
 
 ## Future Considerations
 

@@ -36,7 +36,7 @@ class TestTrade(unittest.TestCase):
         ]
         mock_input.assert_has_calls(expected_calls)
         mock_display.load_tickers.assert_called_once_with("P")
-        mock_display.display_report.assert_called_once_with(["AAPL", "MSFT"])
+        mock_display.display_report.assert_called_once_with(["AAPL", "MSFT"], "P")
 
     @patch('builtins.input')
     @patch('trade.MarketDisplay')
@@ -56,7 +56,7 @@ class TestTrade(unittest.TestCase):
         # Verify interactions
         mock_input.assert_called_once_with("Load tickers for Portfolio (P), Market (M) or Manual Input (I)? ")
         mock_display.load_tickers.assert_called_once_with("M")
-        mock_display.display_report.assert_called_once_with(["SPY", "QQQ"])
+        mock_display.display_report.assert_called_once_with(["SPY", "QQQ"], "M")
 
     @patch('builtins.input')
     @patch('trade.MarketDisplay')
@@ -76,7 +76,7 @@ class TestTrade(unittest.TestCase):
         # Verify interactions
         mock_input.assert_called_once_with("Load tickers for Portfolio (P), Market (M) or Manual Input (I)? ")
         mock_display.load_tickers.assert_called_once_with("I")
-        mock_display.display_report.assert_called_once_with(["GOOGL"])
+        mock_display.display_report.assert_called_once_with(["GOOGL"], None)
 
     @patch('builtins.input')
     @patch('trade.MarketDisplay')
