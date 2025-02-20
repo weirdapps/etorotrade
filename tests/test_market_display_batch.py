@@ -160,7 +160,7 @@ def test_process_tickers_batch_success_rate(display, mock_client, mock_stock_inf
     mock_client.get_ticker_info.side_effect = mock_get_info
     
     tickers = ["AAPL", "GOOGL", "MSFT", "AMZN"]
-    with patch('time.sleep') as mock_sleep:
+    with patch('time.sleep'):
         with patch('yahoofinance.display.tqdm', side_effect=mock_tqdm_wrapper):
             reports = display._process_tickers(tickers, batch_size=2)
             

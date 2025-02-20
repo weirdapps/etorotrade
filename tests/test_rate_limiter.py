@@ -13,10 +13,10 @@ def test_init():
     limiter = RateLimitTracker(window_size=30, max_calls=50)
     assert limiter.window_size == 30
     assert limiter.max_calls == 50
-    assert limiter.base_delay == 2.0
-    assert limiter.min_delay == 1.0
-    assert limiter.max_delay == 30.0
-    assert limiter.batch_delay == 5.0
+    assert limiter.base_delay == pytest.approx(2.0)
+    assert limiter.min_delay == pytest.approx(1.0)
+    assert limiter.max_delay == pytest.approx(30.0)
+    assert limiter.batch_delay == pytest.approx(5.0)
     assert limiter.success_streak == 0
     assert isinstance(limiter.calls, deque)
     assert isinstance(limiter.errors, deque)
