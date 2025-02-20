@@ -15,7 +15,7 @@ A Python-based tool for analyzing stocks using data from Yahoo Finance. The tool
 
 ### 2. News Aggregator (yahoofinance/news.py)
 
-- Latest news from NewsAPI or Yahoo Finance
+- Latest news from Google News, NewsAPI, or Yahoo Finance
 - Up to 5 most recent news items per ticker
 - Support for both portfolio and manual ticker input
 - Clean, formatted output with color coding

@@ -29,9 +29,16 @@ def print_section(title):
 
 def format_timestamp(timestamp, is_google=False):
     try:
-        if is_google:
+        if not timestamp:
+            return 'N/A'
+            
+        # Handle various date formats
+        if ' ' in timestamp:  # Google News format like "Tue, 20 Feb 2024 12:00:00 GMT"
+            return datetime.strptime(timestamp, '%a, %d %b %Y %H:%M:%S %Z').strftime('%Y-%m-%d %H:%M:%S')
+        elif is_google:
             return datetime.fromisoformat(timestamp.replace('Z', '+00:00')).strftime('%Y-%m-%d %H:%M:%S')
-        return datetime.strptime(timestamp, '%Y-%m-%dT%H:%M:%SZ').strftime('%Y-%m-%d %H:%M:%S')
+        else:
+            return datetime.strptime(timestamp, '%Y-%m-%dT%H:%M:%SZ').strftime('%Y-%m-%d %H:%M:%S')
     except (ValueError, TypeError):
         return 'N/A'
 
@@ -50,6 +57,87 @@ def wrap_text(text, width=80, indent='   '):
     wrapped_lines = textwrap.wrap(text, width=width)
     return f"\n{indent}".join(wrapped_lines)
 
+def clean_html(text):
+    """Remove HTML tags and normalize whitespace"""
+    if not text:
+        return ''
+    
+    # Remove HTML tags
+    text = html.unescape(text)
+    while '<' in text and '>' in text:
+        start = text.find('<')
+        end = text.find('>', start)
+        if end == -1:
+            break
+        text = text[:start] + text[end + 1:]
+    
+    # Normalize whitespace and remove any remaining source references
+    text = ' '.join(text.split())
+    if '  ' in text:  # Double space often indicates source reference
+        text = text.split('  ')[0]
+    return text
+
+def clean_text_for_display(text):
+    """Clean text for display by removing source names and normalizing"""
+    if not text:
+        return ''
+    
+    # Remove source name if present after dash
+    if ' - ' in text:
+        text = text.split(' - ')[0]
+    
+    # Clean HTML and normalize
+    text = clean_html(text)
+    
+    # Remove source name if it appears at the end
+    words = text.split()
+    for i in range(len(words)-1, -1, -1):
+        if words[i] in ['TipRanks', 'CNBC', 'Reuters', 'Bloomberg', 'Yahoo', 'Finance', 'Nasdaq']:
+            text = ' '.join(words[:i])
+            break
+    
+    return text.strip()
+
+def clean_text_for_sentiment(text):
+    """Clean text for sentiment analysis by removing financial terms and normalizing"""
+    if not text:
+        return ''
+    
+    # First clean for display
+    text = clean_text_for_display(text)
+    
+    # Then remove financial terms that might affect sentiment
+    words = text.split()
+    cleaned_words = []
+    skip_next = False
+    
+    for i, word in enumerate(words):
+        if skip_next:
+            skip_next = False
+            continue
+        
+        # Skip if word is a stock symbol (all caps 1-5 letters)
+        if word.isupper() and 1 <= len(word) <= 5 and word.isalpha():
+            continue
+        
+        # Skip financial terms
+        if word.lower() in ['q1', 'q2', 'q3', 'q4', 'fy', 'eps', 'revenue', 'earnings']:
+            continue
+        
+        # Skip dollar amounts and following unit
+        if word.startswith('$') or (word.startswith('(') and word[1:].startswith('$')):
+            if i + 1 < len(words) and words[i+1].lower() in ['billion', 'million', 'trillion']:
+                skip_next = True
+            continue
+        
+        # Skip percentages
+        if word.endswith('%') or (word.endswith(')') and word[:-1].endswith('%')):
+            continue
+        
+        cleaned_words.append(word)
+    
+    return ' '.join(cleaned_words).strip()
+
 def calculate_sentiment(title, summary):
     """
     Calculate sentiment score from -1 (most negative) to +1 (most positive)
@@ -57,19 +145,23 @@ def calculate_sentiment(title, summary):
     """
     analyzer = SentimentIntensityAnalyzer()
     
+    # Clean both title and summary
+    clean_title = clean_text_for_sentiment(title)
+    clean_summary = clean_text_for_sentiment(summary)
+    
     # Title has 60% weight, summary has 40% weight
     title_weight = 0.6
     summary_weight = 0.4
     
-    title_scores = analyzer.polarity_scores(title)
-    summary_scores = analyzer.polarity_scores(summary or '')
+    title_scores = analyzer.polarity_scores(clean_title)
+    summary_scores = analyzer.polarity_scores(clean_summary)
     
     # Use compound scores which are already normalized between -1 and 1
     title_sentiment = title_scores['compound']
     summary_sentiment = summary_scores['compound']
     
     # Combine weighted sentiments
-    combined_sentiment = (title_weight * title_sentiment + 
+    combined_sentiment = (title_weight * title_sentiment +
                         summary_weight * summary_sentiment)
     
     return combined_sentiment
@@ -122,12 +214,23 @@ def format_newsapi_news(news, ticker):
     print_section(f"LATEST NEWS FOR {ticker}")
     for i, article in enumerate(news, 1):
         try:
-            title = article.get('title', 'N/A')
-            description = article.get('description', '')
-            sentiment = calculate_sentiment(title, description)
+            # Get raw content
+            raw_title = article.get('title', 'N/A')
+            raw_description = article.get('description', '')
+            
+            # Clean content for display
+            display_title = clean_text_for_display(raw_title)
+            display_description = clean_text_for_display(raw_description)
+            
+            # Clean content for sentiment
+            sentiment_title = clean_text_for_sentiment(raw_title)
+            sentiment_description = clean_text_for_sentiment(raw_description)
+            
+            # Calculate sentiment on cleaned content
+            sentiment = calculate_sentiment(sentiment_title, sentiment_description)
             sentiment_color = get_sentiment_color(sentiment)
             
-            print(f"\n{Colors.BOLD}• {title}{Colors.ENDC}")
+            print(f"\n{Colors.BOLD}• {display_title}{Colors.ENDC}")
             print(f"   {Colors.BLUE}Sentiment:{Colors.ENDC} "
                   f"{sentiment_color}{sentiment:.2f}{Colors.ENDC}")
             
@@ -135,9 +238,10 @@ def format_newsapi_news(news, ticker):
             print(f"   {Colors.BLUE}Published:{Colors.ENDC} {timestamp}")
             print(f"   {Colors.BLUE}Source:{Colors.ENDC} {article.get('source', {}).get('name', 'N/A')}")
             
-            if article.get('description'):
+            # Only show summary if we have unique content (not for Google News)
+            if display_description and display_description != display_title:
                 print(f"   {Colors.BLUE}Summary:{Colors.ENDC}")
-                wrapped_summary = wrap_text(article['description'])
+                wrapped_summary = wrap_text(display_description)
                 print(f"   {wrapped_summary}")
             
             print(f"   {Colors.BLUE}Link:{Colors.ENDC} {Colors.YELLOW}{article.get('url', 'N/A')}{Colors.ENDC}")
@@ -224,17 +328,66 @@ def get_user_tickers():
     tickers_input = input("Enter comma-separated tickers (e.g., AAPL,MSFT,GOOGL): ").strip()
     return [ticker.strip().upper() for ticker in tickers_input.split(',') if ticker.strip()]
 
+def get_google_news(ticker: str, limit: int = 5) -> list:
+    """Get news from Google News with caching"""
+    from .cache import news_cache
+    from pygooglenews import GoogleNews
+    
+    # Create cache key
+    cache_key = f"googlenews_{ticker}_{limit}"
+    print(f"\nChecking cache for {ticker} news...")
+    
+    # Try to get from cache first
+    cached_news = news_cache.get(cache_key)
+    if cached_news is not None:
+        return cached_news
+    
+    try:
+        gn = GoogleNews(lang='en')
+        search = gn.search(ticker)
+        articles = []
+        
+        for entry in search['entries'][:limit]:
+            # Get and clean title
+            clean_title = clean_text_for_display(entry.title)
+            
+            # Fix truncated titles
+            if clean_title.endswith(' in'):
+                clean_title = clean_title[:-3].strip()
+            
+            # For Google News, we don't get article summaries in the RSS feed
+            # The description field just contains the title and source
+            clean_content = ''
+            
+            article = {
+                'title': clean_title,
+                'description': clean_content if clean_content != clean_title else '',
+                'publishedAt': entry.published,
+                'source': {'name': entry.source.title},
+                'url': entry.link
+            }
+            articles.append(article)
+        
+        print("Fetching fresh data from Google News...")
+        # Cache the results
+        news_cache.set(cache_key, articles)
+        return articles
+    except Exception as e:
+        print(f"Error accessing Google News: {str(e)}")
+        return []
+
 def get_news_source() -> str:
     """Get user's choice of news source."""
     print("\nSelect news source:")
+    print("G - Google News")
     print("N - NewsAPI")
     print("Y - Yahoo Finance")
     
     while True:
-        source = input("\nEnter your choice (N/Y): ").strip().upper()
-        if source in ['N', 'Y']:
+        source = input("\nEnter your choice (G/N/Y): ").strip().upper()
+        if source in ['G', 'N', 'Y']:
             return source
-        print("Invalid choice. Please enter 'G' or 'Y'.")
+        print("Invalid choice. Please enter 'G', 'N', or 'Y'.")
 
 def get_ticker_source() -> str:
     """Get user's choice of ticker input method."""
@@ -283,6 +436,17 @@ def fetch_newsapi_news(ticker: str) -> None:
     except Exception as e:
         print(f"\nError fetching news for {ticker}: {str(e)}")
 
+def fetch_google_news(ticker: str) -> None:
+    """Fetch and display news from Google News."""
+    try:
+        news = get_google_news(ticker, limit=5)
+        if news:
+            format_newsapi_news(news, ticker)  # Reuse NewsAPI formatter since format is compatible
+        else:
+            print(f"\nNo news found for {ticker}")
+    except Exception as e:
+        print(f"\nError fetching news for {ticker}: {str(e)}")
+
 def main():
     print(f"{Colors.BOLD}Stock Market News{Colors.ENDC}")
     
@@ -301,7 +465,10 @@ def main():
     
     print(f"\nFetching news for: {', '.join(tickers)}")
     
-    if source == 'N':
+    if source == 'G':
+        for ticker in tickers:
+            fetch_google_news(ticker)
+    elif source == 'N':
         if not NEWS_API_KEY:
             print("Error: NewsAPI key not found in .env file")
             return

@@ -694,10 +694,17 @@ GOOGL
   - Maximum delay: 60 seconds
   - Exponential backoff multiplier: 2
 
-### NewsAPI
-- Free tier: 100 requests per day
-- Paid tier: Based on subscription
-- Error handling for rate limits with 429 status code
+### News APIs
+1. Google News
+   - Free RSS feed
+   - No rate limits
+   - HTML content cleaning
+   - Title-only content (no article summaries)
+
+2. NewsAPI
+   - Free tier: 100 requests per day
+   - Paid tier: Based on subscription
+   - Error handling for rate limits with 429 status code
 
 ### FRED API
 - Default: 120 requests per minute

@@ -17,6 +17,7 @@ pandas==2.2.3
 peewee==3.17.9
 platformdirs==4.3.6
 pluggy==1.5.0
+pygooglenews==0.1.2
 pytest==8.3.4
 pytest-cov==6.0.0
 python-dateutil==2.9.0.post0
