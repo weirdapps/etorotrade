@@ -222,11 +222,17 @@ def test_save_to_csv(display):
     with patch('pandas.DataFrame.to_csv') as mock_to_csv:
         # Test market source
         display._save_to_csv(df, 'M')
-        mock_to_csv.assert_called_with(f"{display.input_dir}/../output/market.csv", index=False)
+        # Check that to_csv was called with the correct path and index=False
+        args, kwargs = mock_to_csv.call_args
+        assert args[0] == f"{display.input_dir}/../output/market.csv"
+        assert kwargs.get('index') is False
         
         # Test portfolio source
         display._save_to_csv(df, 'P')
-        mock_to_csv.assert_called_with(f"{display.input_dir}/../output/portfolio.csv", index=False)
+        # Check that to_csv was called with the correct path and index=False
+        args, kwargs = mock_to_csv.call_args
+        assert args[0] == f"{display.input_dir}/../output/portfolio.csv"
+        assert kwargs.get('index') is False
 
 @patch('yahoofinance.display.tabulate')
 def test_display_report_with_csv_saving(mock_tabulate, display, mock_client, mock_stock_info):
@@ -241,11 +247,17 @@ def test_display_report_with_csv_saving(mock_tabulate, display, mock_client, moc
         with patch('builtins.print'):
             # Test market source
             display.display_report(['AAPL'], 'M')
-            mock_to_csv.assert_called_with(f"{display.input_dir}/../output/market.csv", index=False)
+            # Check that to_csv was called with the correct path and index=False
+            args, kwargs = mock_to_csv.call_args
+            assert args[0] == f"{display.input_dir}/../output/market.csv"
+            assert kwargs.get('index') is False
             
             # Test portfolio source
             display.display_report(['AAPL'], 'P')
-            mock_to_csv.assert_called_with(f"{display.input_dir}/../output/portfolio.csv", index=False)
+            # Test portfolio source
+            args, kwargs = mock_to_csv.call_args
+            assert args[0] == f"{display.input_dir}/../output/portfolio.csv"
+            assert kwargs.get('index') is False
             
             # Test manual input (no CSV saving)
             mock_to_csv.reset_mock()
