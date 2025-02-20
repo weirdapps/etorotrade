@@ -212,3 +212,42 @@ def test_generate_portfolio_html(mock_format_utils, display, mock_client, mock_s
             display.generate_portfolio_html()
             assert mock_load.call_count == 1
             assert mock_write.call_count == 1
+
+def test_save_to_csv(display):
+    df = pd.DataFrame({
+        'ticker': ['AAPL', 'GOOGL'],
+        'price': [100.0, 200.0]
+    })
+    
+    with patch('pandas.DataFrame.to_csv') as mock_to_csv:
+        # Test market source
+        display._save_to_csv(df, 'M')
+        mock_to_csv.assert_called_with(f"{display.input_dir}/../output/market.csv", index=False)
+        
+        # Test portfolio source
+        display._save_to_csv(df, 'P')
+        mock_to_csv.assert_called_with(f"{display.input_dir}/../output/portfolio.csv", index=False)
+
+@patch('yahoofinance.display.tabulate')
+def test_display_report_with_csv_saving(mock_tabulate, display, mock_client, mock_stock_info):
+    mock_client.get_ticker_info.return_value = mock_stock_info
+    display.pricing.calculate_price_metrics.return_value = {
+        'current_price': 100.0,
+        'target_price': 120.0,
+        'upside_potential': 20.0
+    }
+    
+    with patch('pandas.DataFrame.to_csv') as mock_to_csv:
+        with patch('builtins.print'):
+            # Test market source
+            display.display_report(['AAPL'], 'M')
+            mock_to_csv.assert_called_with(f"{display.input_dir}/../output/market.csv", index=False)
+            
+            # Test portfolio source
+            display.display_report(['AAPL'], 'P')
+            mock_to_csv.assert_called_with(f"{display.input_dir}/../output/portfolio.csv", index=False)
+            
+            # Test manual input (no CSV saving)
+            mock_to_csv.reset_mock()
+            display.display_report(['AAPL'], 'I')
+            mock_to_csv.assert_not_called()
