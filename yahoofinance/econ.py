@@ -207,6 +207,31 @@ def should_include_observation(obs_date, start_date, end_date, freq):
     # For weekly/daily data, only include if within range
     return start_dt <= obs_dt <= end_dt
 
+def process_observation(obs, indicator_name, scale_func, prev_value, start_date, end_date, freq):
+    """Process a single observation and return formatted data if valid"""
+    obs_date = obs.get('date')
+    raw_value = obs.get('value')
+    
+    if not should_include_observation(obs_date, start_date, end_date, freq):
+        return None
+        
+    if raw_value in ['', '.']:
+        return None
+        
+    # Scale and format the value
+    scaled_value = scale_func(raw_value, prev_value)
+    formatted_value = format_value(scaled_value, indicator_name)
+    change = calculate_change(raw_value, prev_value) if prev_value else ""
+    
+    data = {
+        "Date": obs_date,
+        "Indicator": indicator_name,
+        "Value": formatted_value,
+        "Change": change
+    }
+    logger.debug(f"Added data point: {data}")
+    return data
+
 def fetch_economic_data(api_key, start_date, end_date):
     """Fetch all economic indicators from FRED"""
     all_data = []
@@ -215,35 +240,26 @@ def fetch_economic_data(api_key, start_date, end_date):
         series_id = details["id"]
         freq = details["freq"]
         scale_func = details["scale"]
+        
         logger.info(f"Fetching {indicator_name} data")
         observations = fetch_fred_data(api_key, series_id, start_date, end_date, freq)
         
-        if observations:
-            # Keep track of previous value for change calculation
-            prev_value = None if len(observations) < 2 else observations[1].get('value')
-            included_observation = False  # Flag to track if we've included an observation
+        if not observations:
+            continue
             
-            for obs in observations:
-                obs_date = obs.get('date')
-                if should_include_observation(obs_date, start_date, end_date, freq):
-                    if not included_observation:  # Only include the most recent observation
-                        if obs.get('value') not in ['', '.']:
-                            # Scale the value using the indicator's scaling function
-                            raw_value = obs.get('value')
-                            scaled_value = scale_func(raw_value, prev_value)
-                            formatted_value = format_value(scaled_value, indicator_name)
-                            change = calculate_change(raw_value, prev_value) if prev_value else ""
-                            
-                            data = {
-                                "Date": obs_date,
-                                "Indicator": indicator_name,
-                                "Value": formatted_value,
-                                "Change": change
-                            }
-                            all_data.append(data)
-                            logger.debug(f"Added data point: {data}")
-                            included_observation = True
-                    prev_value = obs.get('value')
+        # Get previous value for change calculation
+        prev_value = None if len(observations) < 2 else observations[1].get('value')
+        
+        # Process only the most recent valid observation
+        for obs in observations:
+            data = process_observation(
+                obs, indicator_name, scale_func, prev_value,
+                start_date, end_date, freq
+            )
+            if data:
+                all_data.append(data)
+                break  # Only include the most recent observation
+            prev_value = obs.get('value')
     
     return all_data
 
@@ -255,7 +271,7 @@ def main():
     default_start, default_end = get_default_dates()
     
     # Get date range from user
-    print(f"\nEnter date range for economic data (default: last 30 days):")
+    print("\nEnter date range for economic data (default: last 30 days):")
     start_date = get_date_input("Start date", default_start)
     end_date = get_date_input("End date", default_end)
     
