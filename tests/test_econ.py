@@ -135,7 +135,7 @@ class TestEconomicData(unittest.TestCase):
         result = fetch_economic_data(
             self.api_key, self.start_date, self.end_date
         )
-        self.assertTrue(len(result) > 0)
+        self.assertGreater(len(result), 0)
         self.assertIn('Date', result[0])
         self.assertIn('Indicator', result[0])
         self.assertIn('Value', result[0])
