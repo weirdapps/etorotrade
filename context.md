@@ -44,6 +44,10 @@ The Trade project is a comprehensive Python-based market analysis tool that leve
   * Historical recommendations tracking
   * Buy/Sell percentage calculations
   * Coverage metrics processing
+  * Smart data source selection:
+    - Post-earnings data from upgradeDowngradeHistory (US stocks)
+    - All-time data from recommendations (EU/Asian stocks)
+    - Clear source indication ('E' or 'A' in output)
 - **Pricing Module**:
   * Real-time price monitoring
   * Target price analysis

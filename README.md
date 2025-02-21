@@ -211,6 +211,7 @@ Automatically fetches and displays:
 - **# T**: Number of analysts providing price targets
 - **% BUY**: Percentage of analysts recommending Buy
 - **# A**: Number of analysts providing ratings
+- **A**: Source of analyst ratings ('E' for post-earnings data, 'A' for all-time data)
 
 ### Valuation Metrics
 

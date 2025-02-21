@@ -203,6 +203,7 @@ class MarketDisplay:
             "analyst_count": 0,
             "buy_percentage": 0,
             "total_ratings": 0,
+            "A": "",  # Add A column after # A
             "pe_trailing": None,
             "pe_forward": None,
             "peg_ratio": None,
@@ -273,6 +274,7 @@ class MarketDisplay:
                 "analyst_count": stock_info.analyst_count,
                 "buy_percentage": ratings.get("positive_percentage"),
                 "total_ratings": ratings.get("total_ratings"),
+                "A": ratings.get("ratings_type", ""),  # Add A column after # A
                 "pe_trailing": stock_info.pe_trailing,
                 "pe_forward": stock_info.pe_forward,
                 "peg_ratio": stock_info.peg_ratio,
@@ -342,7 +344,10 @@ class MarketDisplay:
         df.insert(0, "#", range(1, len(df) + 1))
         
         # Remove helper columns used for sorting
-        return df.drop(columns=['_not_found', '_sort_exret', '_sort_earnings', '_ticker'])
+        # Get columns that exist in the DataFrame
+        drop_cols = ['_not_found', '_sort_exret', '_sort_earnings', '_ticker']
+        existing_cols = [col for col in drop_cols if col in df.columns]
+        return df.drop(columns=existing_cols)
 
     def _process_tickers(self, tickers: List[str], batch_size: int = 15) -> List[Dict[str, Any]]:
         """
@@ -385,8 +390,7 @@ class MarketDisplay:
                         formatted_row = self.formatter.format_stock_row(report)
                         formatted_row.update({
                             '_not_found': report.get('_not_found', True),
-                            '_ticker': ticker,
-                            'ticker': ticker
+                            '_ticker': ticker
                         })
 
                         reports.append({

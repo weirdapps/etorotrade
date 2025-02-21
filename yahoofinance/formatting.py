@@ -222,6 +222,7 @@ class DisplayFormatter:
             "# T": self.colorize(self.format_value(data.get("analyst_count"), 0), color),
             "% BUY": self.colorize(self.format_value(data.get("buy_percentage"), 1, True), color),
             "# A": self.colorize(self.format_value(data.get("total_ratings"), 0), color),
+            "A": self.colorize(data.get("A", ""), color),  # Add A column after # A
             "EXRET": self.colorize(self.format_value(metrics["ex_ret"], 1, True), color),
             "BETA": self.colorize(self.format_value(data.get("beta")), color),
             "PET": self.colorize(self.format_value(data.get("pe_trailing")), color),
@@ -275,7 +276,7 @@ class DisplayFormatter:
             logger.error(f"Error formatting stock row: {str(e)}")
             return {field: "--" for field in [
                 "TICKER", "PRICE", "TARGET", "UPSIDE", "# T",
-                "% BUY", "# A", "EXRET", "BETA", "PET", "PEF", "PEG", "DIV %", "SI",
+                "% BUY", "# A", "A", "EXRET", "BETA", "PET", "PEF", "PEG", "DIV %", "SI",
                 "INS %", "# INS", "EARNINGS", "_sort_exret", "_sort_earnings"
             ]}
 

@@ -228,13 +228,20 @@ Data structure for stock information
     - start_date: Optional start date for filtering
   - Returns: DataFrame with ratings history or None
 
-- `get_ratings_summary(ticker: str, start_date: Optional[str] = None, use_earnings_date: bool = True) -> Dict[str, Optional[float]]`
-  - Purpose: Calculate ratings summary metrics
+- `get_ratings_summary(ticker: str, start_date: Optional[str] = None, use_earnings_date: bool = True) -> Dict[str, Any]`
+  - Purpose: Calculate ratings summary metrics with source indication
   - Parameters:
     - ticker: Stock ticker symbol
     - start_date: Optional start date
     - use_earnings_date: Whether to use last earnings date as start
-  - Returns: Dictionary with positive_percentage and total_ratings
+  - Returns: Dictionary containing:
+    * positive_percentage: Percentage of positive ratings
+    * total_ratings: Total number of ratings
+    * ratings_type: 'E' for post-earnings data, 'A' for all-time data
+  - Notes:
+    * For US stocks, uses upgradeDowngradeHistory endpoint for post-earnings data
+    * For EU/Asian stocks, falls back to recommendations endpoint for all-time data
+    * Prioritizes post-earnings data when available
 
 - `get_recent_changes(ticker: str, days: int = 30) -> List[Dict[str, str]]`
   - Purpose: Get recent rating changes
