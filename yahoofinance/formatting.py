@@ -215,6 +215,7 @@ class DisplayFormatter:
     def _format_row_fields(self, data: Dict[str, Any], metrics: Dict[str, Optional[float]], color: Color) -> Dict[str, str]:
         """Format all fields with proper formatting and colors."""
         return {
+            # Order columns with EXRET after A
             "TICKER": self.colorize(data.get("ticker", ""), color),
             "PRICE": self.colorize(self.format_value(data.get("price"), 2), color),
             "TARGET": self.colorize(self.format_value(data.get("target_price"), 1), color),
@@ -222,8 +223,8 @@ class DisplayFormatter:
             "# T": self.colorize(self.format_value(data.get("analyst_count"), 0), color),
             "% BUY": self.colorize(self.format_value(data.get("buy_percentage"), 1, True), color),
             "# A": self.colorize(self.format_value(data.get("total_ratings"), 0), color),
-            "A": self.colorize(data.get("A", ""), color),  # Add A column after # A
-            "EXRET": self.colorize(self.format_value(metrics["ex_ret"], 1, True), color),
+            "A": self.colorize(data.get("A", ""), color),
+            "EXRET": self.colorize(self.format_value(metrics["ex_ret"], 1, True), color),  # EXRET right after A
             "BETA": self.colorize(self.format_value(data.get("beta")), color),
             "PET": self.colorize(self.format_value(data.get("pe_trailing")), color),
             "PEF": self.colorize(self.format_value(data.get("pe_forward")), color),

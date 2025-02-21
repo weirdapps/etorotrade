@@ -609,11 +609,29 @@ class MarketDisplay:
                     for report in reports:
                         if isinstance(report, dict) and 'raw' in report:
                             raw_report = report['raw'].copy()
+                            # Calculate EXRET
+                            upside = raw_report.get('upside')
+                            buy_percentage = raw_report.get('buy_percentage')
+                            if upside is not None and buy_percentage is not None:
+                                raw_report['EXRET'] = upside * buy_percentage / 100
+
                             # Remove internal columns
                             for col in ['_not_found', '_sort_exret', '_sort_earnings', '_ticker']:
                                 raw_report.pop(col, None)
                             raw_reports.append(raw_report)
                     df = pd.DataFrame(raw_reports)
+                    
+                    # Reorder columns to match display order
+                    column_order = [
+                        'ticker', 'price', 'target_price', 'upside', 'analyst_count',
+                        'buy_percentage', 'total_ratings', 'A', 'EXRET', 'beta',
+                        'pe_trailing', 'pe_forward', 'peg_ratio', 'dividend_yield',
+                        'short_float_pct', 'insider_buy_pct', 'insider_transactions',
+                        'last_earnings'
+                    ]
+                    # Only include columns that exist in the DataFrame
+                    existing_columns = [col for col in column_order if col in df.columns]
+                    df = df[existing_columns]
 
                 # Save to CSV with only index=False parameter to match test expectations
                 df.to_csv(output_path, index=False)
