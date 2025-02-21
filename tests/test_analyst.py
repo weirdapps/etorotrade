@@ -80,12 +80,34 @@ def test_get_ratings_summary_success(analyst_data, mock_client, sample_ratings_d
     assert isinstance(result, dict)
     assert 'positive_percentage' in result
     assert 'total_ratings' in result
+    assert 'ratings_type' in result
     assert result['total_ratings'] == 3
+    assert result['ratings_type'] == 'E'
 
     # Test with specific start date
     result = analyst_data.get_ratings_summary('AAPL', '2024-01-01', use_earnings_date=False)
     assert isinstance(result, dict)
     assert result['total_ratings'] == 3
+    assert result['ratings_type'] == 'E'
+
+def test_get_ratings_summary_fallback(analyst_data, mock_client, sample_ratings_df):
+    # Setup mocks for no post-earnings data
+    mock_stock = Mock()
+    mock_stock._stock = Mock()
+    # First call returns empty DataFrame (no post-earnings data)
+    # Second call returns sample data (all-time data)
+    mock_stock._stock.upgrades_downgrades = pd.DataFrame()
+    mock_stock.last_earnings = '2024-01-01'
+    mock_client.get_ticker_info.return_value = mock_stock
+
+    # Test fallback to all-time data
+    with patch.object(analyst_data, 'fetch_ratings_data') as mock_fetch:
+        mock_fetch.side_effect = [None, sample_ratings_df]  # First None for earnings, then data for all-time
+        result = analyst_data.get_ratings_summary('AAPL', use_earnings_date=True)
+        
+        assert isinstance(result, dict)
+        assert result['total_ratings'] == 3
+        assert result['ratings_type'] == 'A'  # Should indicate all-time ratings
 
 def test_get_ratings_summary_no_data(analyst_data, mock_client):
     # Setup mock for no data
@@ -98,6 +120,7 @@ def test_get_ratings_summary_no_data(analyst_data, mock_client):
     result = analyst_data.get_ratings_summary('AAPL')
     assert result['positive_percentage'] is None
     assert result['total_ratings'] is None
+    assert result['ratings_type'] is None
 
 def test_get_recent_changes_success(analyst_data, mock_client, sample_ratings_df):
     # Setup mock with data within the last 30 days
