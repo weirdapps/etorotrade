@@ -1,259 +1,283 @@
-# Trade Project Context
+# Trade Project: Market Analysis and Portfolio Management System
 
-## Project Overview
+## Overview
 
-The Trade project is a comprehensive Python-based market analysis tool that leverages Yahoo Finance data to provide detailed stock analysis and portfolio management capabilities. The project consists of multiple specialized tools designed to assist in stock selection, portfolio tracking, and market analysis.
+Trade is a sophisticated Python-based market analysis system that leverages the Yahoo Finance API to provide comprehensive stock analysis, portfolio management, and market intelligence. The system is designed with a focus on reliability, rate limiting, and data accuracy.
 
-## Core Components
+## Core Architecture
 
-### 1. Market Analysis Engine (trade.py, display.py)
-- Entry point for market analysis
-- Supports multiple data sources (Portfolio, Market, Manual input)
-- Real-time stock data analysis with comprehensive metrics
-- Color-coded output system for quick insights
-- Configurable display formatting
+### 1. Data Pipeline
 
-### 2. Yahoo Finance Client (client.py)
-- Robust API client with advanced rate limiting:
-  * Adaptive delay system (RateLimitTracker)
+```
+User Input → Rate Limiter → Yahoo Finance API → Data Processing → Multiple Output Formats
+```
+
+The system follows a robust data pipeline:
+1. Input handling (CSV files, manual input)
+2. Rate-limited API requests
+3. Data processing and analysis
+4. Multi-format output (Console, CSV, HTML)
+
+### 2. Key Components
+
+#### Client Layer (client.py)
+- Handles all Yahoo Finance API interactions
+- Implements sophisticated rate limiting:
+  * Adaptive delays (1-30 seconds)
   * Success streak monitoring
   * Error pattern detection
-  * Batch processing optimization
-  * Per-ticker error tracking
-- Comprehensive data management:
-  * LRU cache (50 entries) for performance
-  * Exponential backoff on rate limits
-  * Batch size optimization (15 tickers)
-  * Success rate monitoring
-- Data point coverage:
-  * Price metrics (current, target, historical)
-  * Analyst ratings and recommendations
-  * Financial ratios and metrics
-  * Risk indicators (Beta, volatility)
-  * Insider trading patterns
-  * Institutional holdings
-  * Market performance indicators
-### 3. Data Processing Modules
-- **Display Module**:
-  * Batch processing with progress tracking
-  * Adaptive rate limiting
-  * Error handling and recovery
-  * Multiple output formats (Console, CSV, HTML)
-- **Analyst Module**:
-  * Comprehensive ratings analysis
-  * Historical recommendations tracking
+  * Batch processing (15 tickers/batch)
+- Caches responses (TTL: 300s)
+- Comprehensive error handling
+- Retries with exponential backoff
+
+#### Analysis Layer
+- **Analyst Module** (analyst.py)
+  * Processes analyst ratings and recommendations
+  * Handles both US and international stocks
+  * Post-earnings analysis
   * Buy/Sell percentage calculations
-  * Coverage metrics processing
-  * Smart data source selection:
-    - Post-earnings data from upgradeDowngradeHistory (US stocks)
-    - All-time data from recommendations (EU/Asian stocks)
-    - Clear source indication ('E' or 'A' in output)
-- **Pricing Module**:
+
+- **Pricing Module** (pricing.py)
   * Real-time price monitoring
   * Target price analysis
   * Historical price tracking
-  * Upside potential calculations
-- **Formatting Module**:
-  * Configurable display settings
-  * Color-coded output system
-  * Custom table formatting
-  * Data validation and cleaning
-- **News Module**:
-  * Multi-source aggregation
-  * VADER sentiment analysis
-  * Caching with TTL
-  * Color-coded sentiment display
-- **Earnings Module**:
-  * Calendar management
-  * Estimate tracking
-  * Pre/Post market handling
-  * Historical data analysis
-- **Economics Module**:
-  * Economic event tracking
-  * Market indicator monitoring
-  * Impact analysis
-  * Performance metrics
-  * Formatted calendar display
-- **Portfolio Module**:
-  * Performance metrics
-  * Risk analysis (Beta, Alpha, Sharpe)
-  * HTML dashboard generation
-  * Automated updates
+  * Price metrics calculations
 
+- **Market Intelligence**
+  * News aggregation with sentiment analysis
+  * Earnings calendar management
+  * Economic indicators tracking
+  * Institutional holdings analysis
 
-## Data Flow
+#### Display Layer (display.py)
+- Batch processing with progress tracking
+- Adaptive rate limiting
+- Multiple output formats:
+  * Color-coded console output
+  * CSV data export
+  * HTML dashboards
+- Comprehensive error handling
 
-1. **Input Sources**
-    - Portfolio CSV (ticker column)
-    - Market CSV (symbol column)
-    - Manual ticker input
-    - Yahoo Finance API (market and economic data)
+### 3. Data Structures
 
-2. **Processing Pipeline**
-   - Data validation and cleaning
-   - API data fetching with caching
-   - Metric calculations
-   - Color coding and formatting
-   - Report generation
+#### StockData Class
+Core data structure containing:
+- Basic Info: name, sector, market_cap
+- Price Data: current_price, target_price
+- Analyst Data: recommendations, ratings
+- Financial Ratios: PE, PEG, Beta
+- Risk Metrics: short_float, debt_equity
+- Trading Data: volume, dividends
+- Insider Info: transactions, holdings
 
-3. **Output Formats**
-   - Console tables with color coding
-   - HTML reports
-   - Performance dashboards
+#### Market Report Structure
+```python
+{
+    'raw': {
+        # Raw numerical data
+        'price': float,
+        'target': float,
+        'metrics': {...}
+    },
+    'formatted': {
+        # Display-ready data
+        'color_coded': str,
+        'formatted_values': str
+    }
+}
+```
 
 ## Key Features
 
-### 1. Stock Analysis
-- Real-time price data
-- Analyst recommendations
-- Price targets
-- Valuation metrics
-- Risk indicators
-- Insider trading analysis
+### 1. Rate Limiting System
+- Adaptive delays based on:
+  * Recent API call volume
+  * Error patterns
+  * Success rates
+  * Ticker-specific history
+- Batch processing optimization
+- Error recovery mechanisms
 
-### 2. Portfolio Management
+### 2. Data Analysis
+- Price and target analysis
+- Analyst coverage tracking
+- Risk metrics calculation
+- Insider trading monitoring
+- Market sentiment analysis
+- Economic indicators tracking
+
+### 3. Portfolio Management
 - Performance tracking
-- Risk metrics (Beta, Alpha, Sharpe, Sortino)
+- Risk analysis (Beta, Alpha, Sharpe)
 - Position monitoring
 - Returns analysis (Daily, MTD, YTD, 2YR)
 
-### 3. Market Intelligence
-- News aggregation with sentiment analysis
+### 4. Market Intelligence
+- News aggregation with sentiment scoring
 - Earnings calendar
-- Economic indicators
-- Market index tracking
+- Economic event tracking
 - Institutional holdings analysis
 
-## Technical Implementation
+## Implementation Details
 
-### 1. Architecture
-- Modular design with specialized components
-- Clear separation of concerns
-- Extensive error handling
-- Caching mechanisms
-- Rate limit management
+### 1. Rate Limiting Implementation
+```python
+class RateLimitTracker:
+    def __init__(self):
+        self.window_size = 60  # seconds
+        self.max_calls = 100   # per window
+        self.base_delay = 2.0  # seconds
+        self.batch_delay = 5.0 # seconds
+        # Tracking queues
+        self.calls = deque(maxlen=1000)
+        self.errors = deque(maxlen=20)
+```
 
-### 2. Data Structures
-- StockData dataclass for comprehensive stock information
-- Pandas DataFrames for data manipulation
-- Custom display formatters
-- Configurable display settings
+### 2. Data Processing Pipeline
+```python
+def process_tickers(tickers):
+    # 1. Batch Creation
+    batches = create_batches(tickers, size=15)
+    
+    # 2. Rate-Limited Processing
+    for batch in batches:
+        process_batch(batch)
+        apply_adaptive_delay()
+    
+    # 3. Data Aggregation
+    aggregate_results()
+    
+    # 4. Output Formatting
+    generate_outputs()
+```
 
-### 3. Error Handling
-- Custom exception hierarchy
-- Retry mechanisms
-- Validation checks
+### 3. Error Handling Strategy
+- Hierarchical exception handling
 - Graceful degradation
-
-### 4. Performance Optimizations
-- LRU caching
-- Batch processing
-- Efficient data structures
-- Memory management
-
-## Usage Patterns
-
-### 1. Market Analysis
-```python
-python trade.py
-# Choose source: Portfolio (P), Market (M), Manual (I)
-# View comprehensive analysis report
-```
-
-### 2. News Tracking
-```python
-python -m yahoofinance.news
-# Choose source: NewsAPI (N) or Yahoo (Y)
-# Select tickers: Portfolio (P) or Manual (I)
-```
-
-### 3. Portfolio Tracking
-```python
-python -m yahoofinance.portfolio
-# Automatic fetching of performance metrics
-# HTML dashboard generation
-```
-
-### 4. Economic Calendar
-```python
-python -m yahoofinance.economics
-# Date range selection
-# Major economic indicators tracking
-```
-
-## Data Sources
-
-### 1. Market Data (market.csv)
-- 520+ stocks tracked
-- Major indices coverage
-- Comprehensive company information
-- Sector classification
-
-### 2. Portfolio Data (portfolio.csv)
-- User-specific holdings
-- Performance tracking
-- Risk analysis
-- Position monitoring
+- Automatic retry mechanisms
+- Comprehensive logging
+- User-friendly error messages
 
 ## Configuration
 
-### 1. Environment Variables
-- NEWS_API_KEY
+### 1. Input Files
+- portfolio.csv: Portfolio holdings
+- market.csv: Market watchlist
+- cons.csv: Constants and configurations
 
-### 2. Input Files
-- yahoofinance/input/portfolio.csv
-- yahoofinance/input/market.csv
+### 2. Output Files
+- portfolio.html: Portfolio dashboard
+- index.html: Market performance
+- market.csv: Raw market data
+- portfolio.csv: Portfolio analysis
 
-### 3. Output Files
-- yahoofinance/output/portfolio.html
-- yahoofinance/output/index.html
+### 3. Environment Variables
+Required:
+- FRED_API_KEY: For economic data
 
-## Testing Framework
+Optional:
+- NEWS_API_KEY: For additional news sources
 
-### 1. Test Coverage
-- Unit tests for core functionality
-- Integration tests for API interaction
+## Best Practices
+
+### 1. Rate Limiting
+- Always use RateLimitTracker
+- Respect batch sizes
+- Monitor success rates
+- Implement backoff strategies
+
+### 2. Error Handling
+- Use custom exceptions
+- Implement retries
+- Log errors appropriately
+- Maintain data integrity
+
+### 3. Data Processing
+- Validate input data
+- Handle missing values
+- Format output consistently
+- Cache when appropriate
+
+## Common Tasks
+
+### 1. Adding New Features
+1. Identify appropriate module
+2. Implement rate-limited data fetching
+3. Add error handling
+4. Update display formatting
+5. Add tests
+
+### 2. Modifying Analysis
+1. Update relevant analysis module
+2. Adjust display formatting
+3. Update CSV/HTML templates
+4. Update tests
+
+### 3. Adding Data Sources
+1. Implement API client
+2. Add rate limiting
+3. Create data processor
+4. Update display layer
+5. Add tests
+
+## Testing
+
+### 1. Test Structure
+- Unit tests for each module
+- Integration tests for API
 - Display formatting tests
-- Error handling verification
+- Rate limiting tests
 
-### 2. Test Categories
-- MarketDisplay tests
-- YFinanceClient tests
-- DisplayFormatter tests
-- News and sentiment tests
+### 2. Running Tests
+```bash
+# Run all tests
+pytest tests/
 
-## Dependencies
+# Run specific module tests
+pytest tests/test_market_display.py
+```
 
-### Core Dependencies
-- yfinance: Yahoo Finance API client
-- pandas: Data manipulation
-- tabulate: Table formatting
-- tqdm: Progress bars
-- requests: HTTP client
-- beautifulsoup4: Web scraping
-- pytz: Timezone handling
-- vaderSentiment: Sentiment analysis
-- python-dotenv: Environment variable management
+### 3. Test Coverage
+Current coverage: 86%
+Key areas:
+- API interaction
+- Rate limiting
+- Data processing
+- Display formatting
 
-## Future Considerations
+## Troubleshooting
 
-1. **Planned Enhancements**
-   - Real-time data streaming
-   - Technical analysis indicators
-   - Portfolio optimization
-   - Enhanced caching strategies
-   - Web interface development
+### 1. API Issues
+- Check rate limiting logs
+- Verify API credentials
+- Monitor error patterns
+- Check network connectivity
 
-2. **Scalability**
-   - Parallel data fetching
-   - Enhanced caching
-   - Optimized data structures
-   - Additional data sources
+### 2. Data Quality
+- Validate input data
+- Check API responses
+- Verify calculations
+- Monitor formatting
 
-3. **User Interface**
-   - Interactive charts
-   - Custom alerts
-   - Mobile responsiveness
-   - Real-time updates
+### 3. Performance
+- Monitor rate limiting
+- Check cache effectiveness
+- Verify batch processing
+- Analyze response times
 
-This context provides a comprehensive understanding of the Trade project's architecture, functionality, and implementation details, serving as a reference for future development and maintenance.
+## Future Development
+
+### 1. Planned Features
+- Real-time streaming
+- Technical analysis
+- Portfolio optimization
+- Enhanced caching
+
+### 2. Architecture Evolution
+- Parallel processing
+- Enhanced rate limiting
+- Additional data sources
+- Web interface
+
+This context provides a comprehensive understanding of the Trade project's architecture, implementation details, and best practices for development.
