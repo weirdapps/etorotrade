@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 import pandas as pd
 from tabulate import tabulate
 from tqdm import tqdm
@@ -349,6 +349,62 @@ class MarketDisplay:
         existing_cols = [col for col in drop_cols if col in df.columns]
         return df.drop(columns=existing_cols)
 
+    def _process_single_ticker(self, ticker: str) -> Optional[Dict[str, Any]]:
+        """Process a single ticker and return its report data"""
+        try:
+            report = self.generate_stock_report(ticker)
+            if not report:
+                return None
+
+            # Store raw report with flags
+            raw_report = report.copy()
+            raw_report['_not_found'] = report.get('_not_found', True)
+            raw_report['_ticker'] = ticker
+
+            # Format report for display
+            formatted_row = self.formatter.format_stock_row(report)
+            formatted_row.update({
+                '_not_found': report.get('_not_found', True),
+                '_ticker': ticker
+            })
+
+            return {
+                'raw': raw_report,
+                'formatted': formatted_row,
+                '_not_found': report.get('_not_found', True),
+                '_ticker': ticker
+            }
+        except Exception as e:
+            logger.debug(f"Error processing {ticker}: {str(e)}")
+            return None
+
+    def _process_batch(self, batch: List[str], batch_num: int, total_batches: int) -> Tuple[List[Dict[str, Any]], float]:
+        """Process a batch of tickers and return reports and success rate"""
+        batch_reports = []
+        successful_tickers = 0
+        
+        # Process batch with progress bar
+        batch_desc = f"Batch {batch_num + 1}/{total_batches}"
+        for ticker in tqdm(batch, desc=batch_desc, unit="ticker"):
+            report = self._process_single_ticker(ticker)
+            if report:
+                batch_reports.append(report)
+                successful_tickers += 1
+
+        success_rate = successful_tickers / len(batch)
+        return batch_reports, success_rate
+
+    def _adjust_batch_delay(self, success_rate: float) -> float:
+        """Calculate adjusted batch delay based on success rate"""
+        batch_delay = self.rate_limiter.get_batch_delay()
+        
+        if success_rate < 0.5:  # Poor success rate
+            batch_delay *= 2
+        elif success_rate > 0.8:  # Good success rate
+            batch_delay = max(5.0, batch_delay * 0.8)
+            
+        return batch_delay
+
     def _process_tickers(self, tickers: List[str], batch_size: int = 15) -> List[Dict[str, Any]]:
         """
         Process list of tickers into report data with rate limiting.
@@ -365,56 +421,14 @@ class MarketDisplay:
         total_batches = (len(sorted_tickers) - 1) // batch_size + 1
         
         for batch_num, i in enumerate(range(0, len(sorted_tickers), batch_size)):
+            # Process current batch
             batch = sorted_tickers[i:i + batch_size]
+            batch_reports, success_rate = self._process_batch(batch, batch_num, total_batches)
+            reports.extend(batch_reports)
             
-            # Process batch with progress bar
-            batch_desc = f"Batch {batch_num + 1}/{total_batches}"
-            successful_tickers = 0
-            
-            for ticker in tqdm(batch, desc=batch_desc, unit="ticker"):
-                try:
-                    report = self.generate_stock_report(ticker)
-                    if report:
-                        # Store raw report
-                        raw_report = report.copy()
-                        raw_report['_not_found'] = report['_not_found']
-                        raw_report['_ticker'] = ticker
-                        
-                        # Format report for display
-                        # Store raw report with _not_found flag
-                        raw_report = report.copy()
-                        raw_report['_not_found'] = report.get('_not_found', True)
-                        raw_report['_ticker'] = ticker
-
-                        # Format report for display
-                        formatted_row = self.formatter.format_stock_row(report)
-                        formatted_row.update({
-                            '_not_found': report.get('_not_found', True),
-                            '_ticker': ticker
-                        })
-
-                        reports.append({
-                            'raw': raw_report,
-                            'formatted': formatted_row,
-                            '_not_found': report.get('_not_found', True),
-                            '_ticker': ticker
-                        })
-                        successful_tickers += 1
-                except Exception as e:
-                    logger.debug(f"Error processing {ticker}: {str(e)}")
-                    continue
-            
-            # Add adaptive delay between batches
-            if batch_num < total_batches - 1:  # Skip delay after last batch
-                # Calculate delay based on batch success rate
-                success_rate = successful_tickers / len(batch)
-                batch_delay = self.rate_limiter.get_batch_delay()
-                
-                if success_rate < 0.5:  # Poor success rate
-                    batch_delay *= 2
-                elif success_rate > 0.8:  # Good success rate
-                    batch_delay = max(5.0, batch_delay * 0.8)
-                
+            # Add adaptive delay between batches (except for last batch)
+            if batch_num < total_batches - 1:
+                batch_delay = self._adjust_batch_delay(success_rate)
                 logger.info(f"Batch {batch_num + 1} complete (Success rate: {success_rate:.1%}). Waiting {batch_delay:.1f} seconds...")
                 time.sleep(batch_delay)
         

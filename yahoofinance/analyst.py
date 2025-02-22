@@ -88,10 +88,72 @@ class AnalystData:
             logger.error(f"Error fetching ratings data for {ticker}: {str(e)}")
             raise YFinanceError(f"Failed to fetch ratings data: {str(e)}")
 
+    def _process_earnings_date(self, ticker: str) -> Optional[str]:
+        """Process earnings date and convert to start date format"""
+        stock_info = self.client.get_ticker_info(ticker)
+        earnings_date = stock_info.last_earnings
+        if earnings_date:
+            if isinstance(earnings_date, str):
+                return pd.to_datetime(earnings_date).strftime('%Y-%m-%d')
+            return earnings_date.strftime('%Y-%m-%d')
+        return None
+
+    def _calculate_ratings_from_df(self, df: pd.DataFrame) -> Dict[str, Any]:
+        """Calculate ratings metrics from DataFrame"""
+        total_ratings = len(df)
+        positive_ratings = df[df["ToGrade"].isin(POSITIVE_GRADES)].shape[0]
+        percentage = self._safe_float_conversion(
+            (positive_ratings / total_ratings * 100) if total_ratings > 0 else 0
+        )
+        
+        return {
+            "positive_percentage": percentage,
+            "total_ratings": total_ratings,
+            "ratings_type": "E"  # Earnings-based
+        }
+
+    def _get_recommendations_data(self, ticker: str) -> Dict[str, Any]:
+        """Get ratings data from recommendations"""
+        stock = self.client.get_ticker_info(ticker)
+        stock_yf = stock._stock
+        rec_df = stock_yf.recommendations
+        
+        if rec_df is not None and not rec_df.empty:
+            latest_row = rec_df.iloc[0]
+            total = sum(int(latest_row[col]) for col in ['strongBuy', 'buy', 'hold', 'sell', 'strongSell'])
+            
+            if total > 0:
+                buy_count = int(latest_row['strongBuy']) + int(latest_row['buy'])
+                percentage = round((buy_count / total) * 100, 2)
+                
+                return {
+                    "positive_percentage": percentage,
+                    "total_ratings": total,
+                    "ratings_type": "A"  # All-time
+                }
+        return None
+
+    def _get_all_time_ratings(self, ticker: str) -> Optional[Dict[str, Any]]:
+        """Get all-time ratings data"""
+        df = self.fetch_ratings_data(ticker, None)  # Try without date filter
+        if df is not None and not df.empty:
+            total_ratings = len(df)
+            positive_ratings = df[df["ToGrade"].isin(POSITIVE_GRADES)].shape[0]
+            percentage = self._safe_float_conversion(
+                (positive_ratings / total_ratings * 100) if total_ratings > 0 else 0
+            )
+            
+            return {
+                "positive_percentage": percentage,
+                "total_ratings": total_ratings,
+                "ratings_type": "A"  # All-time
+            }
+        return None
+
     def get_ratings_summary(self,
-                           ticker: str,
-                           start_date: Optional[str] = None,
-                           use_earnings_date: bool = True) -> Dict[str, Any]:
+                          ticker: str,
+                          start_date: Optional[str] = None,
+                          use_earnings_date: bool = True) -> Dict[str, Any]:
         """
         Get summary of analyst ratings including positive percentage and total count.
         If use_earnings_date is True, returns both post-earnings and all-time ratings
@@ -107,94 +169,53 @@ class AnalystData:
             - positive_percentage: Percentage of positive ratings
             - total_ratings: Total number of ratings
             - ratings_type: 'E' for earnings-based or 'A' for all-time
-            - all_positive_percentage: All-time positive percentage (if earnings data unavailable)
-            - all_total_ratings: All-time total ratings (if earnings data unavailable)
             
         Raises:
             ValidationError: When input validation fails
             YFinanceError: When API call fails
         """
         try:
-            earnings_date = None
+            # Get start date from earnings if needed
             if use_earnings_date:
-                # Get last earnings date
-                stock_info = self.client.get_ticker_info(ticker)
-                earnings_date = stock_info.last_earnings
-                if earnings_date:
-                    if isinstance(earnings_date, str):
-                        start_date = pd.to_datetime(earnings_date).strftime('%Y-%m-%d')
-                    else:
-                        start_date = earnings_date.strftime('%Y-%m-%d')
+                earnings_start_date = self._process_earnings_date(ticker)
+                if earnings_start_date:
+                    start_date = earnings_start_date
 
-            # First try to get upgrade/downgrade history
+            # Try upgrade/downgrade history first
             try:
-                # Try to get ratings from upgrades/downgrades first
                 df = self.fetch_ratings_data(ticker, start_date)
-                
-                # If we have data from upgrades/downgrades, use it
                 if df is not None and not df.empty:
-                    total_ratings = len(df)
-                    positive_ratings = df[df["ToGrade"].isin(POSITIVE_GRADES)].shape[0]
-                    percentage = self._safe_float_conversion((positive_ratings / total_ratings * 100) if total_ratings > 0 else 0)
-                    
-                    return {
-                        "positive_percentage": percentage,
-                        "total_ratings": total_ratings,
-                        "ratings_type": "E"  # Earnings-based
-                    }
+                    return self._calculate_ratings_from_df(df)
             except Exception as e:
                 logger.debug(f"No upgrade/downgrade data for {ticker}: {str(e)}")
-            
-            # If no upgrade/downgrade data available, try recommendations
+
+            # Try recommendations data
             try:
-                stock = self.client.get_ticker_info(ticker)
-                stock_yf = stock._stock
-                rec_df = stock_yf.recommendations
-                
-                if rec_df is not None and not rec_df.empty:
-                    # Get the most recent recommendation (0m)
-                    latest_row = rec_df.iloc[0]
-                    
-                    # Calculate total analysts and buy percentage
-                    total = sum(int(latest_row[col]) for col in ['strongBuy', 'buy', 'hold', 'sell', 'strongSell'])
-                    
-                    if total > 0:
-                        buy_count = int(latest_row['strongBuy']) + int(latest_row['buy'])
-                        percentage = round((buy_count / total) * 100, 2)
-                        
-                        return {
-                            "positive_percentage": percentage,
-                            "total_ratings": total,
-                            "ratings_type": "A"  # All-time
-                        }
+                rec_data = self._get_recommendations_data(ticker)
+                if rec_data:
+                    return rec_data
             except Exception as e:
                 logger.debug(f"No recommendation data for {ticker}: {str(e)}")
-            
-            # If no data from either source, try all-time upgrade/downgrade history
+
+            # Try all-time ratings if using earnings date
             if use_earnings_date:
-                df = self.fetch_ratings_data(ticker, None)  # Try without date filter
-                if df is not None and not df.empty:
-                    total_ratings = len(df)
-                    positive_ratings = df[df["ToGrade"].isin(POSITIVE_GRADES)].shape[0]
-                    percentage = self._safe_float_conversion((positive_ratings / total_ratings * 100) if total_ratings > 0 else 0)
-                    
-                    return {
-                        "positive_percentage": percentage,
-                        "total_ratings": total_ratings,
-                        "ratings_type": "A"  # All-time
-                    }
-            
-            # If still no data
+                all_time_data = self._get_all_time_ratings(ticker)
+                if all_time_data:
+                    return all_time_data
+
+            # Return empty data if nothing found
             return {
                 "positive_percentage": None,
                 "total_ratings": None,
                 "ratings_type": None
             }
+
         except Exception as e:
             logger.error(f"Error calculating ratings summary for {ticker}: {str(e)}")
             return {
                 "positive_percentage": None,
-                "total_ratings": None
+                "total_ratings": None,
+                "ratings_type": None
             }
 
     def get_recent_changes(self, 
