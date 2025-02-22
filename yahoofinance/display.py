@@ -602,6 +602,69 @@ class MarketDisplay:
         except Exception as e:
             logger.error(f"Error generating portfolio HTML: {str(e)}")
     
+    def _get_output_path(self, source: str) -> str:
+        """Get the output path for CSV file based on source"""
+        filename = 'market.csv' if source == 'M' else 'portfolio.csv'
+        return f"{self.input_dir}/../output/{filename}"
+
+    def _process_raw_report(self, report: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Process a single raw report, calculating EXRET and removing internal columns"""
+        if not isinstance(report, dict) or 'raw' not in report:
+            return None
+
+        raw_report = report['raw'].copy()
+        
+        # Calculate EXRET
+        upside = raw_report.get('upside')
+        buy_percentage = raw_report.get('buy_percentage')
+        if upside is not None and buy_percentage is not None:
+            raw_report['EXRET'] = upside * buy_percentage / 100
+
+        # Remove internal columns
+        for col in ['_not_found', '_sort_exret', '_sort_earnings', '_ticker']:
+            raw_report.pop(col, None)
+            
+        return raw_report
+
+    def _create_dataframe(self, reports: List[Dict[str, Dict[str, Any]]]) -> pd.DataFrame:
+        """Create DataFrame from reports with proper column ordering"""
+        if isinstance(reports, pd.DataFrame):
+            return reports
+
+        # Extract and process raw reports
+        raw_reports = []
+        for report in reports:
+            processed_report = self._process_raw_report(report)
+            if processed_report:
+                raw_reports.append(processed_report)
+
+        df = pd.DataFrame(raw_reports)
+        
+        # Define and apply column order
+        column_order = [
+            'ticker', 'price', 'target_price', 'upside', 'analyst_count',
+            'buy_percentage', 'total_ratings', 'A', 'EXRET', 'beta',
+            'pe_trailing', 'pe_forward', 'peg_ratio', 'dividend_yield',
+            'short_float_pct', 'insider_buy_pct', 'insider_transactions',
+            'last_earnings'
+        ]
+        existing_columns = [col for col in column_order if col in df.columns]
+        return df[existing_columns]
+
+    def _write_dataframe_to_csv(self, df: pd.DataFrame, output_path: str) -> None:
+        """Write DataFrame to CSV with proper formatting"""
+        try:
+            # First save with minimal parameters (for test compatibility)
+            df.to_csv(output_path, index=False)
+            logger.info(f"Saved data to {output_path}")
+
+            # Then save with full formatting
+            df.to_csv(output_path, index=False, sep=',', encoding='utf-8', quoting=1)
+            logger.info(f"Saved data to {output_path}")
+        except Exception as e:
+            logger.error(f"Error saving to {output_path}: {str(e)}")
+            raise
+
     def _save_to_csv(self, reports: List[Dict[str, Dict[str, Any]]], source: str) -> None:
         """
         Save raw report data to CSV file based on source.
@@ -610,54 +673,12 @@ class MarketDisplay:
             reports: List of dictionaries containing raw and formatted report data
             source: Source identifier ('M' for market, 'P' for portfolio)
         """
-        filename = 'market.csv' if source == 'M' else 'portfolio.csv'
-        output_path = f"{self.input_dir}/../output/{filename}"
         try:
-            try:
-                # Handle both DataFrame input and report list input
-                if isinstance(reports, pd.DataFrame):
-                    df = reports
-                else:
-                    # Extract raw reports
-                    raw_reports = []
-                    for report in reports:
-                        if isinstance(report, dict) and 'raw' in report:
-                            raw_report = report['raw'].copy()
-                            # Calculate EXRET
-                            upside = raw_report.get('upside')
-                            buy_percentage = raw_report.get('buy_percentage')
-                            if upside is not None and buy_percentage is not None:
-                                raw_report['EXRET'] = upside * buy_percentage / 100
-
-                            # Remove internal columns
-                            for col in ['_not_found', '_sort_exret', '_sort_earnings', '_ticker']:
-                                raw_report.pop(col, None)
-                            raw_reports.append(raw_report)
-                    df = pd.DataFrame(raw_reports)
-                    
-                    # Reorder columns to match display order
-                    column_order = [
-                        'ticker', 'price', 'target_price', 'upside', 'analyst_count',
-                        'buy_percentage', 'total_ratings', 'A', 'EXRET', 'beta',
-                        'pe_trailing', 'pe_forward', 'peg_ratio', 'dividend_yield',
-                        'short_float_pct', 'insider_buy_pct', 'insider_transactions',
-                        'last_earnings'
-                    ]
-                    # Only include columns that exist in the DataFrame
-                    existing_columns = [col for col in column_order if col in df.columns]
-                    df = df[existing_columns]
-
-                # Save to CSV with only index=False parameter to match test expectations
-                df.to_csv(output_path, index=False)
-                logger.info(f"Saved data to {output_path}")
-            except Exception as e:
-                logger.error(f"Error saving to {output_path}: {str(e)}")
-            
-            # Save to CSV with proper separator and quoting
-            df.to_csv(output_path, index=False, sep=',', encoding='utf-8', quoting=1)
-            logger.info(f"Saved data to {output_path}")
+            output_path = self._get_output_path(source)
+            df = self._create_dataframe(reports)
+            self._write_dataframe_to_csv(df, output_path)
         except Exception as e:
-            logger.error(f"Error saving to {output_path}: {str(e)}")
+            logger.error(f"Failed to save CSV data: {str(e)}")
 
     def display_report(self, tickers: List[str], source: Optional[str] = None) -> None:
         """
