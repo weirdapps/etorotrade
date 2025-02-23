@@ -9,7 +9,8 @@ from datetime import datetime
 from collections import deque
 from statistics import mean
 
-from .client import YFinanceClient, YFinanceError
+from .client import YFinanceClient
+from .types import YFinanceError
 from .analyst import AnalystData
 from .pricing import PricingAnalyzer
 from .formatting import DisplayFormatter, DisplayConfig, Color

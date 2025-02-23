@@ -113,6 +113,83 @@ def get_hangseng_constituents():
         logger.error(f"Error with Hang Seng constituents: {str(e)}")
         return []
 
+def get_ibex_constituents():
+    """Get IBEX 35 constituents (Madrid Stock Exchange)."""
+    try:
+        symbols = [
+            'ACS.MC', 'ACX.MC', 'AENA.MC', 'AMS.MC', 'ANA.MC', 'BBVA.MC', 'BKT.MC', 'CABK.MC', 'CLNX.MC', 'COL.MC',
+            'ELE.MC', 'ENG.MC', 'FDR.MC', 'FER.MC', 'GRF.MC', 'IAG.MC', 'IBE.MC', 'IDR.MC', 'ITX.MC', 'LOG.MC',
+            'MAP.MC', 'MEL.MC', 'MRL.MC', 'NTGY.MC', 'PHM.MC', 'RED.MC', 'REP.MC', 'ROVI.MC', 'SAB.MC', 'SAN.MC',
+            'SCYR.MC', 'SLR.MC', 'TEF.MC', 'UNI.MC', 'VIS.MC'
+        ]
+        return symbols
+    except Exception as e:
+        logger.error(f"Error with IBEX constituents: {str(e)}")
+        return []
+
+def get_ftsemib_constituents():
+    """Get FTSE MIB constituents (Italian Stock Exchange)."""
+    try:
+        symbols = [
+            'A2A.MI', 'AMP.MI', 'ATL.MI', 'AZM.MI', 'BAMI.MI', 'BMED.MI', 'BMPS.MI', 'BPE.MI', 'BZU.MI', 'CPR.MI',
+            'DIA.MI', 'ENEL.MI', 'ENI.MI', 'EXO.MI', 'FBK.MI', 'FCA.MI', 'G.MI', 'HER.MI', 'IG.MI', 'INW.MI',
+            'ISP.MI', 'IVG.MI', 'LDO.MI', 'MB.MI', 'MONC.MI', 'NEXI.MI', 'PIRC.MI', 'PRY.MI', 'PST.MI', 'RACE.MI',
+            'REC.MI', 'SPM.MI', 'SRG.MI', 'STM.MI', 'TEN.MI', 'TIT.MI', 'TRN.MI', 'UCG.MI', 'UNI.MI', 'WBD.MI'
+        ]
+        return symbols
+    except Exception as e:
+        logger.error(f"Error with FTSE MIB constituents: {str(e)}")
+        return []
+
+def get_psi_constituents():
+    """Get PSI 20 constituents (Lisbon Stock Exchange)."""
+    try:
+        symbols = [
+            'ALTR.LS', 'BCP.LS', 'COR.LS', 'CTT.LS', 'EDP.LS', 'EDPR.LS', 'ESON.LS', 'EGL.LS', 'GALP.LS', 'GRE.LS',
+            'IBS.LS', 'JMT.LS', 'NBA.LS', 'NOS.LS', 'NVG.LS', 'RAM.LS', 'RENE.LS', 'SEM.LS', 'SON.LS'
+        ]
+        return symbols
+    except Exception as e:
+        logger.error(f"Error with PSI constituents: {str(e)}")
+        return []
+
+def get_smi_constituents():
+    """Get Swiss Market Index (SMI) constituents."""
+    try:
+        symbols = [
+            'ABBN.SW', 'ADEN.SW', 'ALV.SW', 'CFR.SW', 'CSGN.SW', 'GEBN.SW', 'GIVN.SW', 'HOLN.SW', 'LONN.SW', 'NESN.SW',
+            'NOVN.SW', 'ROG.SW', 'SCMN.SW', 'SGSN.SW', 'SIKA.SW', 'SLHN.SW', 'SOON.SW', 'SREN.SW', 'UHR.SW', 'UBSG.SW'
+        ]
+        return symbols
+    except Exception as e:
+        logger.error(f"Error with SMI constituents: {str(e)}")
+        return []
+
+def get_omxc25_constituents():
+    """Get OMXC25 constituents (Copenhagen Stock Exchange)."""
+    try:
+        symbols = [
+            'AMBU-B.CO', 'CARL-B.CO', 'CHR.CO', 'COLO-B.CO', 'DANSKE.CO', 'DEMANT.CO', 'DSV.CO', 'FLS.CO', 'GEN.CO',
+            'GN.CO', 'ISS.CO', 'JYSK.CO', 'MAERSK-A.CO', 'MAERSK-B.CO', 'NOVO-B.CO', 'NZYM-B.CO', 'ORSTED.CO',
+            'PNDORA.CO', 'RBREW.CO', 'ROCK-B.CO', 'SIM.CO', 'TOP.CO', 'TRYG.CO', 'VWS.CO', 'WDH.CO'
+        ]
+        return symbols
+    except Exception as e:
+        logger.error(f"Error with OMXC25 constituents: {str(e)}")
+        return []
+
+def get_athex_constituents():
+    """Get ATHEX constituents (Athens Stock Exchange)."""
+    try:
+        symbols = [
+            'ALPHA.AT', 'ADMIE.AT', 'AEGN.AT', 'OPAP.AT', 'PPC.AT', 'ETE.AT', 'EUROB.AT', 'GEKTERNA.AT', 'HTO.AT',
+            'LAMDA.AT', 'MOH.AT', 'MYTIL.AT', 'OTE.AT', 'PEIR.AT', 'TPEIR.AT', 'TENERGY.AT', 'TITC.AT', 'VIOHA.AT'
+        ]
+        return symbols
+    except Exception as e:
+        logger.error(f"Error with ATHEX constituents: {str(e)}")
+        return []
+
 def save_constituents_to_csv(all_symbols):
     """
     Save constituent symbols to a CSV file.
@@ -129,7 +206,7 @@ def save_constituents_to_csv(all_symbols):
         unique_symbols = sorted(set(all_symbols))
         
         # Create DataFrame and save to CSV
-        df = pd.DataFrame({'Symbol': unique_symbols})
+        df = pd.DataFrame({'symbol': unique_symbols})
         filepath = input_dir / 'cons.csv'
         df.to_csv(filepath, index=False)
         logger.info(f"Successfully saved {len(unique_symbols)} unique constituents to {filepath}")
@@ -155,6 +232,24 @@ def main():
     
     logger.info("Fetching DAX constituents")
     all_symbols.extend(get_dax_constituents())
+    
+    logger.info("Fetching IBEX 35 constituents")
+    all_symbols.extend(get_ibex_constituents())
+    
+    logger.info("Fetching FTSE MIB constituents")
+    all_symbols.extend(get_ftsemib_constituents())
+    
+    logger.info("Fetching PSI constituents")
+    all_symbols.extend(get_psi_constituents())
+    
+    logger.info("Fetching SMI constituents")
+    all_symbols.extend(get_smi_constituents())
+    
+    logger.info("Fetching OMXC25 constituents")
+    all_symbols.extend(get_omxc25_constituents())
+    
+    logger.info("Fetching ATHEX constituents")
+    all_symbols.extend(get_athex_constituents())
     
     # Asian Indices
     logger.info("Fetching Nikkei 225 constituents")

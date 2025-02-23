@@ -1,4 +1,3 @@
-from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any, Tuple
 import yfinance as yf
 from functools import lru_cache
@@ -6,108 +5,7 @@ import time
 import logging
 import pandas as pd
 from .insiders import InsiderAnalyzer
-
-class YFinanceError(Exception):
-    """Base exception for YFinance client errors"""
-    pass
-
-class APIError(YFinanceError):
-    """Raised when API calls fails"""
-    pass
-
-class ValidationError(YFinanceError):
-    """Raised when data validation fails"""
-    pass
-
-@dataclass
-class StockData:
-    """
-    Comprehensive stock information data class.
-    
-    Contains fundamental data, technical indicators, analyst ratings,
-    and market metrics for a given stock. All numeric fields are
-    optional as they may not be available for all stocks.
-    
-    Fields are grouped by category:
-    - Basic Info: name, sector
-    - Market Data: market_cap, current_price, target_price
-    - Analyst Coverage: recommendation_mean, recommendation_key, analyst_count
-    - Valuation Metrics: pe_trailing, pe_forward, peg_ratio
-    - Financial Health: quick_ratio, current_ratio, debt_to_equity
-    - Risk Metrics: short_float_pct, short_ratio, beta
-    - Dividends: dividend_yield
-    - Events: last_earnings, previous_earnings
-    - Insider Activity: insider_buy_pct, insider_transactions
-    """
-    # Basic Info
-    name: str
-    sector: str
-    market_cap: Optional[float]
-    
-    # Price Data
-    current_price: Optional[float]
-    target_price: Optional[float]
-    price_change_percentage: Optional[float]
-    mtd_change: Optional[float]
-    ytd_change: Optional[float]
-    two_year_change: Optional[float]
-    
-    # Analyst Coverage
-    recommendation_mean: Optional[float]
-    recommendation_key: str
-    analyst_count: Optional[int]
-    
-    # Valuation Metrics
-    pe_trailing: Optional[float]
-    pe_forward: Optional[float]
-    peg_ratio: Optional[float]
-    
-    # Financial Health
-    quick_ratio: Optional[float]
-    current_ratio: Optional[float]
-    debt_to_equity: Optional[float]
-    
-    # Risk Metrics
-    short_float_pct: Optional[float]
-    short_ratio: Optional[float]
-    beta: Optional[float]
-    alpha: Optional[float]
-    sharpe_ratio: Optional[float]
-    sortino_ratio: Optional[float]
-    cash_percentage: Optional[float]
-    
-    # Dividends
-    dividend_yield: Optional[float]
-    
-    # Events
-    last_earnings: Optional[str]
-    previous_earnings: Optional[str]
-    
-    # Insider Activity
-    insider_buy_pct: Optional[float]
-    insider_transactions: Optional[int]
-    
-    # Internal
-    ticker_object: Optional[yf.Ticker] = field(default=None)
-
-    @property
-    def _stock(self) -> yf.Ticker:
-        """
-        Access the underlying yfinance Ticker object.
-        
-        This property provides access to the raw yfinance Ticker object,
-        which can be used for additional API calls not covered by the
-        standard properties.
-        
-        Returns:
-            yfinance.Ticker object for additional API access
-            
-        Raises:
-            AttributeError: If ticker_object is None
-        """
-        if self.ticker_object is None:
-            raise AttributeError("No ticker object available")
-        return self.ticker_object
+from .types import YFinanceError, APIError, ValidationError, StockData
 
 class YFinanceClient:
     """Base client for interacting with Yahoo Finance API"""
@@ -292,11 +190,21 @@ class YFinanceClient:
         attempts = 0
         while attempts < self.retry_attempts:
             try:
-                stock = yf.Ticker(ticker)
-                info = stock.info or {}
+                try:
+                    stock = yf.Ticker(ticker)
+                    info = stock.info
+                    if info is None:
+                        info = {}
+                except Exception as e:
+                    self.logger.error(f"Failed to get ticker info: {str(e)}")
+                    raise YFinanceError(f"Failed to get ticker info: {str(e)}")
                 
                 # Get historical data for price changes
-                hist = stock.history(period="2y")
+                try:
+                    hist = stock.history(period="2y")
+                except Exception as e:
+                    self.logger.warning(f"Failed to get historical data: {str(e)}")
+                    hist = pd.DataFrame()
                 
                 # Calculate metrics
                 price_change, mtd_change, ytd_change, two_year_change = self._calculate_price_changes(hist)

@@ -72,8 +72,9 @@ class TestYFinanceClient(unittest.TestCase):
     @patch('yfinance.Ticker')
     def test_get_ticker_info_missing_data(self, mock_yf_ticker):
         """Test handling of missing data in ticker information."""
+        # Create mock ticker with empty info
         mock_ticker = Mock()
-        mock_ticker.info = {}  # Empty info dictionary
+        mock_ticker.info = None  # Test handling of None info
         mock_ticker.history.return_value = pd.DataFrame()  # Empty history
         mock_yf_ticker.return_value = mock_ticker
 
@@ -85,6 +86,7 @@ class TestYFinanceClient(unittest.TestCase):
             return_value={'insider_buy_pct': None, 'transaction_count': None}
         )
 
+        # Get ticker info and verify all fields
         info = self.client.get_ticker_info('AAPL')
         
         self.assertEqual(info.name, 'N/A')
@@ -136,11 +138,16 @@ class TestYFinanceClient(unittest.TestCase):
     @patch('yfinance.Ticker')
     def test_retry_with_backoff(self, mock_yf_ticker, mock_sleep):
         """Test retry mechanism with exponential backoff."""
+        # Create a successful mock ticker
+        mock_success = Mock()
+        mock_success.info = {}
+        mock_success.history.return_value = pd.DataFrame()
+
         # Make API call fail twice then succeed
         mock_yf_ticker.side_effect = [
             Exception("First failure"),
             Exception("Second failure"),
-            Mock(info={}, history=lambda period: pd.DataFrame())  # Success on third try
+            mock_success  # Success on third try
         ]
         
         # Mock other dependencies
@@ -150,13 +157,19 @@ class TestYFinanceClient(unittest.TestCase):
         )
         
         # Call method that uses retry mechanism
-        self.client.get_ticker_info('AAPL')
+        result = self.client.get_ticker_info('AAPL')
+        
+        # Verify the mock was called exactly 3 times
+        self.assertEqual(mock_yf_ticker.call_count, 3)
         
         # Verify backoff times
         mock_sleep.assert_has_calls([
             unittest.mock.call(1.0),  # First retry
             unittest.mock.call(2.0)   # Second retry
         ])
+        
+        # Verify we got a result
+        self.assertIsInstance(result, StockData)
 
     def test_stock_property_error(self):
         """Test StockData _stock property error handling."""
@@ -293,15 +306,22 @@ class TestYFinanceClient(unittest.TestCase):
         
         # Test cache hit/miss
         with patch('yfinance.Ticker') as mock_yf_ticker:
+            # Set up mock for both calls
             mock_ticker = Mock()
             mock_ticker.info = {}
             mock_ticker.history.return_value = pd.DataFrame()
             mock_yf_ticker.return_value = mock_ticker
             
+            # Mock get_earnings_dates and insider_metrics for both calls
+            client.get_earnings_dates = Mock(return_value=(None, None))
+            client.insider_analyzer.get_insider_metrics = Mock(
+                return_value={'insider_buy_pct': None, 'transaction_count': None}
+            )
+            
             # First call - should miss
             client.get_ticker_info('AAPL')
             cache_info = client.get_cache_info()
-            self.assertEqual(cache_info['misses'], initial_misses + 2)  # Two misses due to internal calls
+            self.assertEqual(cache_info['misses'], initial_misses + 1)
             
             # Second call - should hit
             client.get_ticker_info('AAPL')
