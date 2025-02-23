@@ -34,6 +34,19 @@ A robust Python-based market analysis system that leverages Yahoo Finance data t
   * Earnings calendar
   * Economic indicators
   * Institutional holdings
+  * Major Market Indices Coverage:
+    - US: S&P 500
+    - UK: FTSE 100
+    - France: CAC 40
+    - Germany: DAX
+    - Spain: IBEX 35
+    - Italy: FTSE MIB
+    - Portugal: PSI
+    - Switzerland: SMI
+    - Denmark: OMXC25
+    - Greece: ATHEX
+    - Japan: Nikkei 225
+    - Hong Kong: Hang Seng
 
 ### 3. Multiple Output Formats
 - **Console Display**
@@ -54,7 +67,7 @@ A robust Python-based market analysis system that leverages Yahoo Finance data t
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/trade.git
+git clone https://github.com/weirdapps/etorotrade
 cd trade
 
 # Create virtual environment
@@ -79,7 +92,7 @@ python trade.py
 Select data source:
 - P: Portfolio file (yahoofinance/input/portfolio.csv)
 - M: Market file (yahoofinance/input/market.csv)
-- I: Manual ticker input
+- I: Manual ticker(s) input (comma separated)
 
 ### 2. News Analysis
 ```bash

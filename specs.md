@@ -31,6 +31,23 @@ Input → Rate Limiting → API Fetch → Processing → Output
   └────────── Error Handling System ──────────────┘
 ```
 
+#### Market Coverage
+The system supports data fetching and analysis for major global indices:
+- North America: S&P 500
+- Western Europe:
+  * UK: FTSE 100
+  * France: CAC 40
+  * Germany: DAX
+  * Spain: IBEX 35
+  * Italy: FTSE MIB
+  * Portugal: PSI
+  * Switzerland: SMI
+  * Denmark: OMXC25
+  * Greece: ATHEX
+- Asia:
+  * Japan: Nikkei 225
+  * Hong Kong: Hang Seng
+
 ## Implementation Details
 
 ### 1. Rate Limiting System
