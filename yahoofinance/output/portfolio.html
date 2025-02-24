@@ -10,35 +10,47 @@
     
 </head>
 <body>
-    <main class="container"><div class="container"><section class="summary-container" style="width: 800px">
+    <main role="main" class="container"><div class="container"><section class="summary-container" style="width: 800px">
         <h2 id="portfolio-performance-title">Portfolio Performance</h2>
-        <fieldset class="grid grid-3x2">
-            <legend class="visually-hidden">Portfolio Performance Metrics</legend>
-            <article class="flex">
-                <div class="text-3xl font-bold" id="This Month" data-value="+3.59" aria-label="This Month: +3.59%">+3.59%</div>
-                <div class="text-sm text-slate-400" aria-hidden="true">This Month</div>
-            </article>
-            <article class="flex">
-                <div class="text-3xl font-bold" id="Year To Date" data-value="+5.61" aria-label="Year To Date: +5.61%">+5.61%</div>
-                <div class="text-sm text-slate-400" aria-hidden="true">Year To Date</div>
-            </article>
-            <article class="flex">
-                <div class="text-3xl font-bold" id="2 Years" data-value="+65.19" aria-label="2 Years: +65.19%">+65.19%</div>
-                <div class="text-sm text-slate-400" aria-hidden="true">2 Years</div>
-            </article>
-            <article class="flex">
-                <div class="text-3xl font-bold" id="Beta" data-value="0.79" aria-label="Beta: 0.79">0.79</div>
-                <div class="text-sm text-slate-400" aria-hidden="true">Beta</div>
-            </article>
-            <article class="flex">
-                <div class="text-3xl font-bold" id="Sharpe" data-value="1.83" aria-label="Sharpe: 1.83">1.83</div>
-                <div class="text-sm text-slate-400" aria-hidden="true">Sharpe</div>
-            </article>
-            <article class="flex">
-                <div class="text-3xl font-bold" id="Cash" data-value="6.47" aria-label="Cash: 6.47%">6.47%</div>
-                <div class="text-sm text-slate-400" aria-hidden="true">Cash</div>
-            </article>
-        </fieldset>
+        <div class="grid grid-3x2" role="group" aria-labelledby="portfolio-performance-title">
+            <article class="flex" role="article" tabindex="0">
+        <div class="text-3xl font-bold" id="This Month" data-value="+0.49" role="text" aria-label="This Month: +0.49%">+0.49%</div>
+        <div class="metric-label">
+            <div class="text-base font-semibold">This Month</div>
+        </div>
+    </article>
+<article class="flex" role="article" tabindex="0">
+        <div class="text-3xl font-bold" id="Year To Date" data-value="+2.45" role="text" aria-label="Year To Date: +2.45%">+2.45%</div>
+        <div class="metric-label">
+            <div class="text-base font-semibold">Year To Date</div>
+        </div>
+    </article>
+<article class="flex" role="article" tabindex="0">
+        <div class="text-3xl font-bold" id="2 Years" data-value="+60.24" role="text" aria-label="2 Years: +60.24%">+60.24%</div>
+        <div class="metric-label">
+            <div class="text-base font-semibold">2 Years</div>
+        </div>
+    </article>
+<article class="flex" role="article" tabindex="0">
+        <div class="text-3xl font-bold" id="Beta" data-value="0.79" role="text" aria-label="Beta: 0.79">0.79</div>
+        <div class="metric-label">
+            <div class="text-base font-semibold">Beta</div>
+        </div>
+    </article>
+<article class="flex" role="article" tabindex="0">
+        <div class="text-3xl font-bold" id="Sharpe" data-value="1.83" role="text" aria-label="Sharpe: 1.83">1.83</div>
+        <div class="metric-label">
+            <div class="text-base font-semibold">Sharpe</div>
+        </div>
+    </article>
+<article class="flex" role="article" tabindex="0">
+        <div class="text-3xl font-bold" id="Cash" data-value="2.2" role="text" aria-label="Cash: 2.2%">2.2%</div>
+        <div class="metric-label">
+            <div class="text-base font-semibold">Cash</div>
+        </div>
+    </article>
+        </div>
+        
     </section></div></main>
     <script src="script.js"></script>
 </body>

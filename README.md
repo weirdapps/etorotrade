@@ -11,10 +11,11 @@ A robust Python-based market analysis system that leverages Yahoo Finance data t
   * Error pattern detection and handling
   * Success streak monitoring
   * Exponential backoff on errors
+  * Ticker-specific error tracking
 - **Smart Caching**
   * 5-minute TTL for market data
   * 15-minute TTL for news
-  * Automatic cache cleanup
+  * LRU cache for frequently accessed tickers
   * Memory-efficient storage
 
 ### 2. Comprehensive Analysis
@@ -22,8 +23,9 @@ A robust Python-based market analysis system that leverages Yahoo Finance data t
   * Real-time price monitoring
   * Target price analysis
   * Analyst recommendations
-  * Risk metrics calculation
+  * Risk metrics calculation (Beta, Alpha, Sharpe, Sortino)
   * Insider trading patterns
+  * Expected return calculations (EXRET)
 - **Portfolio Analysis**
   * Performance tracking (Daily, MTD, YTD, 2YR)
   * Risk metrics (Beta, Alpha, Sharpe, Sortino)
@@ -31,7 +33,7 @@ A robust Python-based market analysis system that leverages Yahoo Finance data t
   * Returns analysis
 - **Market Intelligence**
   * News aggregation with sentiment analysis
-  * Earnings calendar
+  * Earnings calendar and tracking
   * Economic indicators
   * Institutional holdings
   * Major Market Indices Coverage:
@@ -50,24 +52,24 @@ A robust Python-based market analysis system that leverages Yahoo Finance data t
 
 ### 3. Multiple Output Formats
 - **Console Display**
-  * Color-coded metrics
-  * Progress tracking
-  * Error reporting
-  * Performance indicators
+  * Color-coded metrics based on analysis
+  * Progress tracking with tqdm
+  * Batch processing feedback
+  * Tabulated data with consistent formatting
 - **Data Export**
-  * CSV data files
-  * HTML dashboards
+  * CSV data files with comprehensive metrics
+  * HTML dashboards with performance indicators
   * Automatic file organization
 - **Web Interface**
-  * Interactive dashboards
-  * Real-time updates
-  * Responsive design
+  * Interactive performance dashboards
+  * Risk metric visualization
+  * Market index tracking
 
 ## Installation
 
 ```bash
 # Clone repository
-git clone https://github.com/weirdapps/etorotrade
+git clone https://github.com/yourusername/trade
 cd trade
 
 # Create virtual environment
@@ -110,9 +112,9 @@ python -m yahoofinance.portfolio
 ```
 Displays:
 - Current performance metrics
-- Risk indicators
+- Risk indicators (Beta, Alpha, Sharpe, Sortino)
 - Position updates
-- Historical returns
+- Historical returns (Daily, MTD, YTD, 2YR)
 
 ### 4. Economic Calendar
 ```bash
@@ -132,7 +134,7 @@ Tracks:
 yahoofinance/
 ├── input/
 │   ├── portfolio.csv  # Portfolio holdings
-│   └── market.csv     # Market watchlist
+│   ├── market.csv     # Market watchlist
 └── .env              # API keys and settings
 ```
 
@@ -174,7 +176,6 @@ NEWS_API_KEY=your_news_api_key  # Optional
   * 4+ analysts
   * 15%+ upside
   * 65%+ buy ratings
-  * Recent insider buying
 
 - 🔴 **Red** (Sell)
   * 4+ analysts AND
@@ -188,12 +189,23 @@ NEWS_API_KEY=your_news_api_key  # Optional
 - ⚪ **White** (Hold)
   * Metrics between buy/sell thresholds
 
+## Architecture
+
+The system uses a modular architecture:
+1. **Client Layer** (client.py): API interactions with rate limiting
+2. **Analysis Layer** (Multiple modules): Data processing and calculations
+3. **Display Layer** (display.py): Output formatting and presentation
+
+Key components:
+- **RateLimitTracker**: Manages API call timing and adaptive delays
+- **YFinanceClient**: Handles Yahoo Finance API interactions
+- **StockData**: Core data structure for stock information
+- **DisplayFormatter**: Formats data for console output
+- **MarketDisplay**: Manages batch processing and report generation
+
 ## Testing
 
 ```bash
-# Install test dependencies
-pip install -r requirements-dev.txt
-
 # Run all tests
 pytest tests/
 
@@ -202,13 +214,16 @@ pytest --cov=yahoofinance tests/
 
 # Run specific tests
 pytest tests/test_market_display.py
+
+# Run specific test case
+pytest tests/test_market_display.py::TestMarketDisplay::test_display_report
 ```
 
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch
-3. Follow code style guidelines
+3. Follow code style guidelines in CLAUDE.md
 4. Add tests for new features
 5. Submit pull request
 
@@ -218,9 +233,10 @@ This project is licensed under the MIT License - see LICENSE file for details.
 
 ## Acknowledgments
 
-- Yahoo Finance API
+- Yahoo Finance API (via yfinance package)
 - FRED Economic Data
+- Pandas, Tabulate, and other great Python libraries
 - Contributors and maintainers
 
----
-Follow or Copy PLESSAS on etoro
+
+### FOLLOW OR COPY PLESSAS ON ETORO
