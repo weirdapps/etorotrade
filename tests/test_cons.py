@@ -91,7 +91,7 @@ def test_save_constituents_to_csv(tmp_path):
         # Read and verify contents
         df = pd.read_csv(csv_path)
         assert len(df) == 3  # Should be 3 unique symbols
-        assert list(df['Symbol']) == ['AAPL', 'GOOGL', 'MSFT']  # Should be sorted
+        assert list(df['symbol']) == ['AAPL', 'GOOGL', 'MSFT']  # Should be sorted
 
 def test_main(tmp_path):
     """Test main function."""
@@ -104,6 +104,12 @@ def test_main(tmp_path):
          patch('yahoofinance.cons.get_ftse100_constituents', return_value=['HSBA.L']), \
          patch('yahoofinance.cons.get_cac40_constituents', return_value=['AIR.PA']), \
          patch('yahoofinance.cons.get_dax_constituents', return_value=['SAP.DE']), \
+         patch('yahoofinance.cons.get_ibex_constituents', return_value=[]), \
+         patch('yahoofinance.cons.get_ftsemib_constituents', return_value=[]), \
+         patch('yahoofinance.cons.get_psi_constituents', return_value=[]), \
+         patch('yahoofinance.cons.get_smi_constituents', return_value=[]), \
+         patch('yahoofinance.cons.get_omxc25_constituents', return_value=[]), \
+         patch('yahoofinance.cons.get_athex_constituents', return_value=[]), \
          patch('yahoofinance.cons.get_nikkei225_constituents', return_value=['7203.T']), \
          patch('yahoofinance.cons.get_hangseng_constituents', return_value=['0700.HK']), \
          patch('yahoofinance.cons.Path') as mock_path:
@@ -117,4 +123,4 @@ def test_main(tmp_path):
         
         df = pd.read_csv(csv_path)
         assert len(df) == 7  # One from each index plus one extra from S&P 500
-        assert set(df['Symbol']) == {'AAPL', 'MSFT', 'HSBA.L', 'AIR.PA', 'SAP.DE', '7203.T', '0700.HK'}
+        assert set(df['symbol']) == {'AAPL', 'MSFT', 'HSBA.L', 'AIR.PA', 'SAP.DE', '7203.T', '0700.HK'}
