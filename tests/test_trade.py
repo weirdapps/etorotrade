@@ -31,7 +31,7 @@ class TestTrade(unittest.TestCase):
         
         # Verify interactions
         expected_calls = [
-            call("Load tickers for Portfolio (P), Market (M) or Manual Input (I)? "),
+            call("Load tickers for Portfolio (P), Market (M), Trade Analysis (T) or Manual Input (I)? "),
             call("Use existing portfolio file (E) or download new one (N)? ")
         ]
         mock_input.assert_has_calls(expected_calls)
@@ -54,7 +54,7 @@ class TestTrade(unittest.TestCase):
         main()
         
         # Verify interactions
-        mock_input.assert_called_once_with("Load tickers for Portfolio (P), Market (M) or Manual Input (I)? ")
+        mock_input.assert_called_once_with("Load tickers for Portfolio (P), Market (M), Trade Analysis (T) or Manual Input (I)? ")
         mock_display.load_tickers.assert_called_once_with("M")
         mock_display.display_report.assert_called_once_with(["SPY", "QQQ"], "M")
 
@@ -74,7 +74,7 @@ class TestTrade(unittest.TestCase):
         main()
         
         # Verify interactions
-        mock_input.assert_called_once_with("Load tickers for Portfolio (P), Market (M) or Manual Input (I)? ")
+        mock_input.assert_called_once_with("Load tickers for Portfolio (P), Market (M), Trade Analysis (T) or Manual Input (I)? ")
         mock_display.load_tickers.assert_called_once_with("I")
         mock_display.display_report.assert_called_once_with(["GOOGL"], None)
 
@@ -95,7 +95,7 @@ class TestTrade(unittest.TestCase):
         
         # Verify interactions
         expected_calls = [
-            call("Load tickers for Portfolio (P), Market (M) or Manual Input (I)? "),
+            call("Load tickers for Portfolio (P), Market (M), Trade Analysis (T) or Manual Input (I)? "),
             call("Use existing portfolio file (E) or download new one (N)? ")
         ]
         mock_input.assert_has_calls(expected_calls)
