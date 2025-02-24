@@ -198,6 +198,7 @@ class MarketDisplay:
         """
         return {
             "ticker": ticker,
+            "company_name": ticker,  # Use ticker as company name for empty reports
             "price": 0,
             "target_price": 0,
             "upside": 0,
@@ -269,6 +270,7 @@ class MarketDisplay:
             # Construct report with valid data
             return {
                 "ticker": ticker,
+                "company_name": stock_info.name,  # Add company name here
                 "price": price_metrics.get("current_price"),
                 "target_price": price_metrics.get("target_price"),
                 "upside": price_metrics.get("upside_potential"),
@@ -620,6 +622,17 @@ class MarketDisplay:
         buy_percentage = raw_report.get('buy_percentage')
         if upside is not None and buy_percentage is not None:
             raw_report['EXRET'] = upside * buy_percentage / 100
+            
+        # Add company name if available
+        # This will be stored in the report for later use when creating the dataframe
+        ticker = raw_report.get('ticker')
+        if ticker:
+            try:
+                # Try to get company name from the existing data
+                raw_report['company_name'] = raw_report.get('company_name', ticker)
+            except Exception as e:
+                logger.debug(f"Error processing company name for {ticker}: {str(e)}")
+                raw_report['company_name'] = ticker
 
         # Remove internal columns
         for col in ['_not_found', '_sort_exret', '_sort_earnings', '_ticker']:
@@ -641,9 +654,16 @@ class MarketDisplay:
 
         df = pd.DataFrame(raw_reports)
         
-        # Define and apply column order
+        # Rename the company_name column to company (for CSV output)
+        if 'company_name' in df.columns:
+            df.rename(columns={'company_name': 'company'}, inplace=True)
+        # Fallback: Add company column with ticker values if company_name wasn't available
+        elif 'company' not in df.columns and 'ticker' in df.columns:
+            df['company'] = df['ticker']
+        
+        # Define and apply column order with company after ticker
         column_order = [
-            'ticker', 'price', 'target_price', 'upside', 'analyst_count',
+            'ticker', 'company', 'price', 'target_price', 'upside', 'analyst_count',
             'buy_percentage', 'total_ratings', 'A', 'EXRET', 'beta',
             'pe_trailing', 'pe_forward', 'peg_ratio', 'dividend_yield',
             'short_float_pct', 'insider_buy_pct', 'insider_transactions',
