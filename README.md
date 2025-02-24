@@ -31,6 +31,11 @@ A robust Python-based market analysis system that leverages Yahoo Finance data t
   * Risk metrics (Beta, Alpha, Sharpe, Sortino)
   * Position monitoring
   * Returns analysis
+- **Trade Recommendations**
+  * Buy opportunity identification
+  * Portfolio-based sell signals
+  * Cross-analysis with existing holdings
+  * EXRET-based ranking of opportunities
 - **Market Intelligence**
   * News aggregation with sentiment analysis
   * Earnings calendar and tracking
@@ -94,7 +99,12 @@ python trade.py
 Select data source:
 - P: Portfolio file (yahoofinance/input/portfolio.csv)
 - M: Market file (yahoofinance/input/market.csv)
+- T: Trade analysis (buy/sell recommendations)
 - I: Manual ticker(s) input (comma separated)
+
+When selecting Trade Analysis (T), you can:
+- N: Explore new buy opportunities (not in current portfolio)
+- E: Manage existing portfolio (find sell candidates)
 
 ### 2. News Analysis
 ```bash

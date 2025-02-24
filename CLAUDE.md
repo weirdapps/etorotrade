@@ -2,6 +2,10 @@
 
 ## Commands
 - `python trade.py` - Run main app
+  - Select 'P' for Portfolio analysis
+  - Select 'M' for Market analysis
+  - Select 'T' for Trade analysis (buy/sell recommendations)
+  - Select 'I' for Manual ticker input
 - `pytest tests/` - Run all tests
 - `pytest tests/test_file.py::TestClass::test_method` - Run specific test
 - `pytest tests/ --cov=yahoofinance` - Run tests with coverage
@@ -26,3 +30,20 @@
 - `yahoofinance/input/` - Input data files (.csv)
 - `yahoofinance/output/` - Generated output files
 - `tests/` - Test files with comprehensive coverage
+
+## Trading Criteria
+- **Strong Buy Signal**:
+  - More than 4 analysts covering the stock
+  - Greater than 15% upside potential
+  - More than 65% of analysts recommend buying
+  
+- **Strong Sell Signal**:
+  - More than 4 analysts covering the stock AND either:
+    - Less than 5% upside potential, OR
+    - Less than 50% of analysts recommend buying
+
+- **Low Confidence**:
+  - Fewer than 4 analysts covering the stock
+  
+- **EXRET Calculation**:
+  - Expected Return = Upside Potential × Buy Percentage / 100
