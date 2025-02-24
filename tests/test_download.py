@@ -45,7 +45,7 @@ def mock_webdriver():
 @pytest.fixture
 def mock_dataframe():
     df = pd.DataFrame({
-        'ticker': ['AAPL', 'BTC', 'ETH', 'XRP', 'SOL']
+        'ticker': ['AAPL', 'BTC', 'ETH', 'XRP', 'SOL', '03690.HK', '01299.HK', '0700.HK', '9988.HK']
     })
     return df
 
@@ -283,6 +283,26 @@ def test_process_portfolio_no_csv_files():
         result = process_portfolio()
         assert result is None
 
+def test_fix_hk_ticker():
+    """Test the fix_hk_ticker function for different HK tickers"""
+    from yahoofinance.download import fix_hk_ticker
+    
+    # Test cases for fix_hk_ticker
+    test_cases = [
+        ('03690.HK', '3690.HK'),      # Leading zero, 5 digits -> remove zero
+        ('01299.HK', '1299.HK'),      # Leading zero, 5 digits -> remove zero
+        ('0700.HK', '0700.HK'),       # Leading zero, 4 digits -> unchanged
+        ('9988.HK', '9988.HK'),       # No leading zero -> unchanged
+        ('00700.HK', '700.HK'),       # Two leading zeros, 5 digits -> remove zeros
+        ('AAPL', 'AAPL'),             # Non-HK ticker -> unchanged
+        (None, None),                  # None value -> unchanged
+        (123, 123)                     # Non-string -> unchanged
+    ]
+    
+    for input_val, expected in test_cases:
+        result = fix_hk_ticker(input_val)
+        assert result == expected, f"Failed for {input_val}, got {result}, expected {expected}"
+
 @patch('pandas.read_csv')
 def test_process_portfolio_success(mock_read_csv, mock_dataframe):
     """Test successful portfolio processing"""
@@ -307,6 +327,12 @@ def test_process_portfolio_success(mock_read_csv, mock_dataframe):
         assert 'ETH-USD' in mock_dataframe['ticker'].values
         assert 'XRP-USD' in mock_dataframe['ticker'].values
         assert 'SOL-USD' in mock_dataframe['ticker'].values
+        
+        # Verify HK ticker fix (5+ digits)
+        assert '3690.HK' in mock_dataframe['ticker'].values  # 03690.HK -> 3690.HK
+        assert '1299.HK' in mock_dataframe['ticker'].values  # 01299.HK -> 1299.HK
+        assert '0700.HK' in mock_dataframe['ticker'].values  # 0700.HK unchanged (4 digits)
+        assert '9988.HK' in mock_dataframe['ticker'].values  # 9988.HK unchanged
 
 @patch('yahoofinance.download.wait_and_find_element')
 @patch('yahoofinance.download.safe_click')

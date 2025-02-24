@@ -190,21 +190,22 @@ class YFinanceClient:
         attempts = 0
         while attempts < self.retry_attempts:
             try:
+                # Get ticker info
+                stock = None
+                info = {}
                 try:
                     stock = yf.Ticker(ticker)
-                    info = stock.info
-                    if info is None:
-                        info = {}
+                    info = stock.info or {}
                 except Exception as e:
                     self.logger.error(f"Failed to get ticker info: {str(e)}")
                     raise YFinanceError(f"Failed to get ticker info: {str(e)}")
                 
                 # Get historical data for price changes
+                hist = pd.DataFrame()
                 try:
                     hist = stock.history(period="2y")
                 except Exception as e:
                     self.logger.warning(f"Failed to get historical data: {str(e)}")
-                    hist = pd.DataFrame()
                 
                 # Calculate metrics
                 price_change, mtd_change, ytd_change, two_year_change = self._calculate_price_changes(hist)

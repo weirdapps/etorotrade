@@ -89,14 +89,22 @@ class StockData:
 
     def __post_init__(self):
         """Validate types after initialization"""
+        self._validate_required_fields()
+        self._validate_numeric_fields()
+        self._validate_string_fields()
+        self._validate_ticker_object()
+        
+    def _validate_required_fields(self):
+        """Validate required string fields"""
         if not isinstance(self.name, str):
             raise TypeError("name must be a string")
         if not isinstance(self.sector, str):
             raise TypeError("sector must be a string")
         if not isinstance(self.recommendation_key, str):
             raise TypeError("recommendation_key must be a string")
-            
-        # Validate optional numeric fields
+    
+    def _validate_numeric_fields(self):
+        """Validate and convert numeric fields"""
         numeric_fields = {
             'market_cap': float, 'current_price': float, 'target_price': float,
             'price_change_percentage': float, 'mtd_change': float, 'ytd_change': float,
@@ -118,15 +126,17 @@ class StockData:
                         setattr(self, field_name, expected_type(value))
                 except (ValueError, TypeError):
                     raise TypeError(f"{field_name} must be convertible to {expected_type.__name__}")
-        
-        # Validate optional string fields
+    
+    def _validate_string_fields(self):
+        """Validate optional string fields"""
         string_fields = ['last_earnings', 'previous_earnings']
         for field_name in string_fields:
             value = getattr(self, field_name)
             if value is not None and not isinstance(value, str):
                 raise TypeError(f"{field_name} must be a string")
-        
-        # Validate ticker_object
+    
+    def _validate_ticker_object(self):
+        """Validate ticker object if present"""
         if self.ticker_object is not None:
             # Skip validation in test environment (when Mock objects are used)
             if not hasattr(self.ticker_object, '_mock_return_value'):  # Not a mock object
