@@ -11,6 +11,10 @@ from tabulate import tabulate
 from yahoofinance.display import MarketDisplay
 from yahoofinance.formatting import DisplayFormatter, DisplayConfig, Color
 
+# Define constants for column names
+BUY_PERCENTAGE = '% BUY'
+DIVIDEND_YIELD = 'DIV %'
+
 # Set up logging with INFO level
 logging.basicConfig(
     level=logging.INFO,  # Changed from DEBUG to INFO
@@ -22,9 +26,6 @@ logger = logging.getLogger(__name__)
 def generate_trade_recommendations(action_type):
     """Generate trade recommendations based on analysis"""
     try:
-        # Initialize formatter
-        formatter = DisplayFormatter(DisplayConfig())
-        
         # Define file paths
         output_dir = "yahoofinance/output"
         input_dir = "yahoofinance/input"
@@ -94,9 +95,9 @@ def generate_trade_recommendations(action_type):
                     else:
                         new_opportunities['EXRET'] = None
                 
-                # Truncate company name to 18 characters
+                # Convert company name to uppercase and truncate to 20 characters
                 new_opportunities['company'] = new_opportunities['company'].apply(
-                    lambda x: str(x)[:18] if isinstance(x, str) else str(x)[:18]
+                    lambda x: str(x).upper()[:20]
                 )
                 
                 # Select and rename columns for display, including all requested columns
@@ -110,12 +111,12 @@ def generate_trade_recommendations(action_type):
                 # Create a dictionary mapping column names
                 column_mapping = {
                     'ticker': 'TICKER',
-                    'company': 'COMPANY',
+                    'company': 'COMPANY NAME',
                     'price': 'PRICE',
                     'target_price': 'TARGET',
                     'upside': 'UPSIDE',
                     'analyst_count': '# T',
-                    'buy_percentage': '% BUY',
+                    'buy_percentage': BUY_PERCENTAGE,
                     'total_ratings': '# A',
                     'A': 'A',
                     'EXRET': 'EXRET',
@@ -123,7 +124,7 @@ def generate_trade_recommendations(action_type):
                     'pe_trailing': 'PET',
                     'pe_forward': 'PEF',
                     'peg_ratio': 'PEG',
-                    'dividend_yield': 'DIV %',
+                    'dividend_yield': DIVIDEND_YIELD,
                     'short_float_pct': 'SI',
                     'last_earnings': 'EARNINGS'
                 }
@@ -144,7 +145,7 @@ def generate_trade_recommendations(action_type):
                         )
                 
                 # Format percentage columns
-                percentage_columns = ['UPSIDE', '% BUY', 'EXRET', 'DIV %', 'SI']
+                percentage_columns = ['UPSIDE', BUY_PERCENTAGE, 'EXRET', DIVIDEND_YIELD, 'SI']
                 for col in percentage_columns:
                     if col in display_df.columns:
                         display_df[col] = display_df[col].apply(
@@ -157,11 +158,19 @@ def generate_trade_recommendations(action_type):
                         if pd.notnull(date_str) and date_str != '--':
                             try:
                                 return pd.to_datetime(date_str).strftime('%Y-%m-%d')
-                            except:
+                            except ValueError:
                                 return date_str
                         return '--'
                     
                     display_df['EARNINGS'] = display_df['EARNINGS'].apply(format_date)
+                
+                # Define column alignment (left-align TICKER and COMPANY NAME, right-align others)
+                colalign = []
+                for col in display_df.columns:
+                    if col in ['TICKER', 'COMPANY NAME']:
+                        colalign.append('left')
+                    else:
+                        colalign.append('right')
                 
                 # Display results
                 print("\nNew Buy Opportunities (not in current portfolio):")
@@ -169,9 +178,15 @@ def generate_trade_recommendations(action_type):
                     display_df,
                     headers='keys',
                     tablefmt='fancy_grid',
-                    showindex=False
+                    showindex=False,
+                    colalign=colalign
                 ))
                 print(f"\nTotal opportunities: {len(display_df)}")
+                
+                # Save to CSV
+                output_file = os.path.join(output_dir, "buy.csv")
+                display_df.to_csv(output_file, index=False)
+                print(f"Results saved to {output_file}")
                 
         elif action_type == 'E':  # Sell recommendations for existing portfolio
             # If portfolio.csv doesn't have output data, use the output/portfolio.csv file
@@ -188,6 +203,12 @@ def generate_trade_recommendations(action_type):
                 
                 if sell_candidates.empty:
                     print("\nNo sell candidates found matching criteria in your portfolio.")
+                    # Create an empty CSV even when no candidates are found
+                    output_file = os.path.join(output_dir, "sell.csv")
+                    pd.DataFrame(columns=['TICKER', 'COMPANY NAME', 'PRICE', 'TARGET', 'UPSIDE', '# T', 
+                                          BUY_PERCENTAGE, '# A', 'A', 'EXRET', 'BETA', 'PET', 'PEF', 
+                                          'PEG', DIVIDEND_YIELD, 'SI', 'EARNINGS']).to_csv(output_file, index=False)
+                    print(f"Empty results file created at {output_file}")
                 else:
                     # Check if EXRET column exists - calculate it if not
                     if 'EXRET' not in sell_candidates.columns:
@@ -197,9 +218,9 @@ def generate_trade_recommendations(action_type):
                         else:
                             sell_candidates['EXRET'] = None
                     
-                    # Truncate company name to 18 characters
+                    # Convert company name to uppercase and truncate to 20 characters
                     sell_candidates['company'] = sell_candidates['company'].apply(
-                        lambda x: str(x)[:18] if isinstance(x, str) else str(x)[:18]
+                        lambda x: str(x).upper()[:20]
                     )
                     
                     # Select and rename columns for display, including all requested columns
@@ -213,12 +234,12 @@ def generate_trade_recommendations(action_type):
                     # Create a dictionary mapping column names
                     column_mapping = {
                         'ticker': 'TICKER',
-                        'company': 'COMPANY',
+                        'company': 'COMPANY NAME',
                         'price': 'PRICE',
                         'target_price': 'TARGET',
                         'upside': 'UPSIDE',
                         'analyst_count': '# T',
-                        'buy_percentage': '% BUY',
+                        'buy_percentage': BUY_PERCENTAGE,
                         'total_ratings': '# A',
                         'A': 'A',
                         'EXRET': 'EXRET',
@@ -226,7 +247,7 @@ def generate_trade_recommendations(action_type):
                         'pe_trailing': 'PET',
                         'pe_forward': 'PEF',
                         'peg_ratio': 'PEG',
-                        'dividend_yield': 'DIV %',
+                        'dividend_yield': DIVIDEND_YIELD,
                         'short_float_pct': 'SI',
                         'last_earnings': 'EARNINGS'
                     }
@@ -251,7 +272,7 @@ def generate_trade_recommendations(action_type):
                             )
                     
                     # Format percentage columns
-                    percentage_columns = ['UPSIDE', '% BUY', 'EXRET', 'DIV %', 'SI']
+                    percentage_columns = ['UPSIDE', BUY_PERCENTAGE, 'EXRET', DIVIDEND_YIELD, 'SI']
                     for col in percentage_columns:
                         if col in display_df.columns:
                             display_df[col] = display_df[col].apply(
@@ -264,11 +285,19 @@ def generate_trade_recommendations(action_type):
                             if pd.notnull(date_str) and date_str != '--':
                                 try:
                                     return pd.to_datetime(date_str).strftime('%Y-%m-%d')
-                                except:
+                                except ValueError:
                                     return date_str
                             return '--'
                         
                         display_df['EARNINGS'] = display_df['EARNINGS'].apply(format_date)
+                    
+                    # Define column alignment (left-align TICKER and COMPANY NAME, right-align others)
+                    colalign = []
+                    for col in display_df.columns:
+                        if col in ['TICKER', 'COMPANY NAME']:
+                            colalign.append('left')
+                        else:
+                            colalign.append('right')
                     
                     # Display results
                     print("\nSell Candidates in Your Portfolio:")
@@ -276,9 +305,15 @@ def generate_trade_recommendations(action_type):
                         display_df,
                         headers='keys',
                         tablefmt='fancy_grid',
-                        showindex=False
+                        showindex=False,
+                        colalign=colalign
                     ))
                     print(f"\nTotal sell candidates: {len(display_df)}")
+                    
+                    # Save to CSV
+                    output_file = os.path.join(output_dir, "sell.csv")
+                    display_df.to_csv(output_file, index=False)
+                    print(f"Results saved to {output_file}")
             else:
                 print(f"\nPortfolio analysis file not found: {portfolio_output_path}")
                 print("Please run the portfolio analysis (P) first to generate sell recommendations.")
@@ -294,11 +329,13 @@ def main():
         source = input("Load tickers for Portfolio (P), Market (M), Trade Analysis (T) or Manual Input (I)? ").strip().upper()
         
         if source == 'T':
-            action = input("Explore new buy opportunities (N) or manage existing portfolio (E)? ").strip().upper()
-            if action in ['N', 'E']:
-                generate_trade_recommendations(action)
+            action = input("Do you want to identify BUY (B) or SELL (S) opportunities? ").strip().upper()
+            if action == 'B':
+                generate_trade_recommendations('N')  # 'N' for new buy opportunities
+            elif action == 'S':
+                generate_trade_recommendations('E')  # 'E' for existing portfolio (sell)
             else:
-                print("Invalid option. Please enter 'N' or 'E'.")
+                print("Invalid option. Please enter 'B' or 'S'.")
             return
         
         if source == 'P':

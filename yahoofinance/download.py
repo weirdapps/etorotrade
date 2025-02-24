@@ -14,6 +14,26 @@ import os
 import pandas as pd
 from dotenv import load_dotenv
 
+
+def fix_hk_ticker(ticker):
+    """
+    Fix HK stock tickers with leading zeros.
+    
+    Args:
+        ticker: The ticker string to process
+    
+    Returns:
+        The processed ticker with leading zeros removed for 5+ digit HK tickers
+    """
+    if isinstance(ticker, str) and ticker.endswith('.HK'):
+        parts = ticker.split('.')
+        if len(parts) == 2 and parts[0].startswith('0') and len(parts[0]) >= 5:
+            # Remove leading zero from 5+ digit tickers (e.g., 03690.HK -> 3690.HK)
+            fixed_ticker = parts[0].lstrip('0') + '.HK'
+            print(f"Fixed HK ticker: {ticker} -> {fixed_ticker}")
+            return fixed_ticker
+    return ticker
+
 # Load environment variables
 load_dotenv()
 
@@ -244,6 +264,10 @@ def process_portfolio():
         print("Found ticker column, updating crypto tickers...")
         df['ticker'] = df['ticker'].replace(crypto_mapping)
         print("Updated tickers:", df[df['ticker'].isin(crypto_mapping.values())]['ticker'].tolist())
+        
+        # Fix HK stock tickers with leading zeros
+        df['ticker'] = df['ticker'].apply(fix_hk_ticker)
+        print("Processed HK tickers with leading zeros")
     else:
         print("Warning: 'ticker' column not found in CSV")
     
