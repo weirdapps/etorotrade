@@ -10,19 +10,22 @@ Client Layer → Analysis Layer → Display Layer
 ```
 
 #### Client Layer (yahoofinance/client.py)
-- Handles all Yahoo Finance API interactions
-- Implements rate limiting and caching
+- Handles all Yahoo Finance API interactions with yfinance
+- Implements rate limiting, caching, and exponential backoff
 - Manages data validation and error handling
+- Provides StockData objects with comprehensive metrics
 
 #### Analysis Layer (Multiple Modules)
 - Processes raw data into actionable insights
-- Implements business logic and calculations
+- Implements business logic and metric calculations
 - Handles data transformation and aggregation
+- Specialized modules for analysts, pricing, insiders, earnings, etc.
 
 #### Display Layer (yahoofinance/display.py)
 - Manages output formatting and presentation
 - Handles batch processing and progress tracking
-- Implements multiple output formats
+- Implements multiple output formats (console, CSV, HTML)
+- Color-codes results based on analysis metrics
 
 ### 2. Data Flow
 ```
@@ -58,18 +61,23 @@ class RateLimitTracker:
     def __init__(self):
         self.window_size = 60    # Time window in seconds
         self.max_calls = 100     # Maximum calls per window
+        self.calls = deque(maxlen=1000) # Timestamp queue
+        self.errors = deque(maxlen=20)  # Recent errors
         self.base_delay = 2.0    # Base delay between calls
         self.min_delay = 1.0     # Minimum delay
         self.max_delay = 30.0    # Maximum delay
         self.batch_delay = 5.0   # Delay between batches
+        self.error_counts = {}   # Track errors per ticker
+        self.success_streak = 0  # Track successful calls
 ```
 
 #### Adaptive Delay System
-- Base delay: 2 seconds (adjustable)
-- Success streak monitoring
-- Error pattern detection
-- Exponential backoff
-- Batch processing optimization
+- Base delay: 2 seconds (adjustable based on success)
+- Success streak monitoring (reduces delay on consecutive successes)
+- Error pattern detection (increases delay on repeated errors)
+- Exponential backoff (doubles delay after significant failures)
+- Batch processing optimization (15 tickers per batch)
+- Ticker-specific delay adjustments
 
 ### 2. Data Structures
 
@@ -77,32 +85,71 @@ class RateLimitTracker:
 ```python
 @dataclass
 class StockData:
+    # Basic Info (Required)
     name: str
     sector: str
-    market_cap: Optional[float]
-    current_price: Optional[float]
-    target_price: Optional[float]
-    recommendation_mean: Optional[float]
     recommendation_key: str
-    analyst_count: Optional[int]
-    pe_trailing: Optional[float]
-    pe_forward: Optional[float]
-    peg_ratio: Optional[float]
-    beta: Optional[float]
-    dividend_yield: Optional[float]
-    last_earnings: Optional[str]
-    insider_buy_pct: Optional[float]
-    insider_transactions: Optional[int]
+    
+    # Market Data (Optional)
+    market_cap: Optional[float] = None
+    current_price: Optional[float] = None
+    target_price: Optional[float] = None
+    price_change_percentage: Optional[float] = None
+    mtd_change: Optional[float] = None
+    ytd_change: Optional[float] = None
+    two_year_change: Optional[float] = None
+    
+    # Analyst Coverage (Optional)
+    recommendation_mean: Optional[float] = None
+    analyst_count: Optional[int] = None
+    
+    # Valuation Metrics (Optional)
+    pe_trailing: Optional[float] = None
+    pe_forward: Optional[float] = None
+    peg_ratio: Optional[float] = None
+    
+    # Financial Health (Optional)
+    quick_ratio: Optional[float] = None
+    current_ratio: Optional[float] = None
+    debt_to_equity: Optional[float] = None
+    
+    # Risk Metrics (Optional)
+    short_float_pct: Optional[float] = None
+    short_ratio: Optional[float] = None
+    beta: Optional[float] = None
+    alpha: Optional[float] = None
+    sharpe_ratio: Optional[float] = None
+    sortino_ratio: Optional[float] = None
+    cash_percentage: Optional[float] = None
+    
+    # Dividends (Optional)
+    dividend_yield: Optional[float] = None
+    
+    # Events (Optional)
+    last_earnings: Optional[str] = None
+    previous_earnings: Optional[str] = None
+    
+    # Insider Activity (Optional)
+    insider_buy_pct: Optional[float] = None
+    insider_transactions: Optional[int] = None
+    
+    # Internal (Optional)
+    ticker_object: Optional[yf.Ticker] = field(default=None)
 ```
 
-#### Market Report Structure
+#### Display Formatting
 ```python
-MarketReport = {
-    'raw': Dict[str, Any],      # Raw numerical data
-    'formatted': Dict[str, str], # Display-ready data
-    '_not_found': bool,         # Error flag
-    '_ticker': str              # Ticker symbol
-}
+@dataclass
+class DisplayConfig:
+    use_colors: bool = True
+    date_format: str = "%Y-%m-%d"
+    float_precision: int = 2
+    percentage_precision: int = 1
+    table_format: str = "fancy_grid"
+    min_analysts: int = 4       # Minimum analysts for high confidence
+    high_upside: float = 15.0   # Threshold for buy signal (%)
+    low_upside: float = 5.0     # Threshold for sell signal (%)
+    high_buy_percent: float = 65.0  # Threshold for strong buy (%)
 ```
 
 ### 3. Error Handling
@@ -121,9 +168,10 @@ class ValidationError(YFinanceError):
 
 #### Error Recovery Strategy
 1. Retry mechanism with exponential backoff
-2. Fallback to cached data when available
-3. Graceful degradation of functionality
-4. Comprehensive error logging
+2. Fallback to empty reports for problematic tickers
+3. Comprehensive error logging
+4. Skip tickers with persistent errors
+5. Batch success rate monitoring
 
 ## Technical Requirements
 
@@ -139,7 +187,7 @@ class ValidationError(YFinanceError):
 - Dependencies: See requirements.txt
 
 ### 3. API Requirements
-- Yahoo Finance API access
+- Yahoo Finance API access (via yfinance package)
 - FRED API key for economic data
 - Optional: News API key
 
@@ -147,21 +195,22 @@ class ValidationError(YFinanceError):
 
 ### Core Dependencies
 ```
-beautifulsoup4>=4.12.3  # Web scraping
-pandas>=2.2.2          # Data manipulation
-pytz>=2024.1          # Timezone handling
+beautifulsoup4>=4.13.3  # Web scraping
+pandas>=2.2.3          # Data manipulation
+pytz>=2025.1          # Timezone handling
 requests>=2.32.3      # HTTP requests
 tabulate>=0.9.0       # Table formatting
-tqdm>=4.66.4          # Progress bars
-yfinance>=0.2.52      # Yahoo Finance API
+tqdm>=4.67.1          # Progress bars
+yfinance>=0.2.54      # Yahoo Finance API
+nltk>=3.9.1          # Natural language processing
+vaderSentiment>=3.3.2 # Sentiment analysis
 ```
 
 ### Development Dependencies
 ```
-pytest>=8.0.0         # Testing framework
-pytest-cov>=4.1.0     # Coverage reporting
-black>=24.1.1         # Code formatting
-mypy>=1.8.0          # Type checking
+pytest>=8.3.4         # Testing framework
+pytest-cov>=6.0.0     # Coverage reporting
+pytest-mock>=3.14.0   # Test mocking
 ```
 
 ## File Structure
@@ -185,13 +234,27 @@ yahoofinance/
 ```
 yahoofinance/
 ├── __init__.py
+├── _metrics.py         # Internal metrics calculations
 ├── client.py          # API client
-├── analyst.py         # Analyst data
-├── pricing.py         # Price analysis
+├── types.py           # Data structures & exceptions
+├── analyst.py         # Analyst data processing
+├── cache.py           # Caching system
+├── cons.py            # Constants
 ├── display.py         # Output handling
+├── download.py        # Data downloading
+├── earnings.py        # Earnings data
+├── econ.py            # Economic indicators
 ├── formatting.py      # Data formatting
-├── cache.py          # Caching system
-└── utils.py          # Utilities
+├── holders.py         # Institutional holders
+├── index.py           # Market indices
+├── insiders.py        # Insider transactions
+├── monthly.py         # Monthly data
+├── news.py            # News and sentiment
+├── portfolio.py       # Portfolio management
+├── pricing.py         # Price analysis
+├── templates.py       # HTML templates
+├── utils.py           # Utilities
+└── weekly.py          # Weekly data
 ```
 
 ## Performance Specifications
@@ -199,41 +262,40 @@ yahoofinance/
 ### 1. Rate Limiting
 - Maximum calls: 2000/hour per IP
 - Batch size: 15 tickers
-- Base delay: 2 seconds
-- Maximum delay: 30 seconds
-- Success threshold: 80%
+- Base delay: 2 seconds between calls
+- Batch delay: 5-30 seconds between batches
+- Maximum delay: 30 seconds (during API stress)
+- Success threshold: 80% (for delay adjustment)
 
 ### 2. Caching
-- Market data TTL: 300 seconds
-- News data TTL: 900 seconds
-- Cache size limit: 100MB
-- Memory usage limit: 500MB
+- Market data TTL: 300 seconds (5 minutes)
+- News data TTL: 900 seconds (15 minutes)
+- LRU cache for ticker info (maxsize=50)
 
 ### 3. Response Times
-- API calls: < 5 seconds
-- Batch processing: < 30 seconds
+- Single API call: < 5 seconds
+- Batch processing: 30-60 seconds per batch
 - Data export: < 10 seconds
-- Dashboard generation: < 5 seconds
+- HTML generation: < 5 seconds
 
 ## Security Considerations
 
 ### 1. API Key Protection
 - Environment variable storage
-- Key rotation capability
 - Access logging
 - Rate monitoring
 
 ### 2. Data Validation
 - Input sanitization
-- Type checking
+- Type checking and validation
 - Range validation
-- Error boundaries
+- Comprehensive error boundaries
 
 ### 3. Error Handling
 - Secure error messages
 - Logging without credentials
 - Rate limit adherence
-- Retry mechanisms
+- Retry mechanisms with backoff
 
 ## Testing Strategy
 
@@ -247,13 +309,13 @@ yahoofinance/
 - API interaction
 - Data flow validation
 - Rate limiting verification
-- Cache behavior
+- Display formatting
 
-### 3. Performance Tests
-- Response time monitoring
-- Memory usage tracking
-- Cache effectiveness
-- Rate limit compliance
+### 3. Specialized Tests
+- Market display formatting
+- Batch processing
+- HTML output
+- CSV generation
 
 ## Monitoring and Logging
 
@@ -261,38 +323,38 @@ yahoofinance/
 - API response times
 - Success/error rates
 - Cache hit rates
-- Memory usage
+- Batch success rates
 
 ### 2. Error Tracking
 - API errors
 - Rate limit violations
 - Data validation failures
-- System errors
+- Display formatting issues
 
-### 3. Usage Statistics
-- API call volume
-- Popular tickers
-- Feature usage
-- User patterns
+### 3. User Feedback
+- Progress bars
+- Error messages
+- Completion notifications
+- Performance statistics
 
 ## Future Considerations
 
 ### 1. Technical Improvements
 - Parallel processing
+- Enhanced caching
 - WebSocket support
-- GraphQL API
-- Docker containerization
+- Alternative data sources
 
 ### 2. Feature Additions
 - Machine learning analysis
+- Technical indicators
+- Portfolio optimization
 - Real-time alerts
-- Custom indicators
-- Mobile app support
 
-### 3. Infrastructure
-- Cloud deployment
-- Load balancing
-- Automated scaling
-- Disaster recovery
+### 3. Interface Enhancements
+- Interactive dashboards
+- Data visualization
+- Custom metrics
+- Mobile support
 
 This technical specification provides a comprehensive guide for development, maintenance, and future enhancement of the Trade project.
