@@ -99,6 +99,7 @@ python trade.py
 Select data source:
 - P: Portfolio file (yahoofinance/input/portfolio.csv)
 - M: Market file (yahoofinance/input/market.csv)
+- E: eToro Market file (yahoofinance/input/etoro.csv) - filtered for eToro-available tickers
 - T: Trade analysis (buy/sell recommendations)
 - I: Manual ticker(s) input (comma separated)
 
@@ -109,6 +110,21 @@ When selecting Trade Analysis (T), you can:
 The analysis automatically saves results to CSV files:
 - Buy recommendations: yahoofinance/output/buy.csv
 - Sell recommendations: yahoofinance/output/sell.csv
+- Market analysis: yahoofinance/output/market.csv
+
+### eToro Ticker Management
+The yahoofinance/input/etoro.csv file contains a subset of tickers that are available for trading on eToro. By using the 'E' option in the main program, you can analyze only these eToro-tradable stocks, significantly reducing processing time from potentially thousands of tickers to just the ones you can actually trade.
+
+Format of etoro.csv:
+```
+symbol,name
+AAPL,Apple Inc.
+MSFT,Microsoft Corporation
+AMZN,Amazon.com Inc.
+...
+```
+
+You can manually edit this file to add or remove tickers as you discover what's available on eToro. This focused approach makes analysis much faster and more relevant for your trading activities.
 
 ### 2. News Analysis
 ```bash

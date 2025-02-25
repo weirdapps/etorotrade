@@ -156,6 +156,7 @@ class MarketDisplay:
             source: Source identifier
                    "P" for portfolio.csv
                    "M" for market.csv
+                   "E" for etoro.csv (filtered market tickers for eToro)
                    "I" for manual input (default)
             
         Returns:
@@ -166,7 +167,8 @@ class MarketDisplay:
         """
         file_mapping = {
             "P": ("portfolio.csv", "ticker"),
-            "M": ("market.csv", "symbol")
+            "M": ("market.csv", "symbol"),
+            "E": ("etoro.csv", "symbol")
         }
 
         try:

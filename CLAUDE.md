@@ -4,6 +4,7 @@
 - `python trade.py` - Run main app
   - Select 'P' for Portfolio analysis
   - Select 'M' for Market analysis
+  - Select 'E' for eToro Market analysis (filtered tickers available on eToro)
   - Select 'T' for Trade analysis
     - Select 'B' for Buy opportunities
     - Select 'S' for Sell candidates
@@ -30,9 +31,15 @@
 - `yahoofinance/display.py` - Output handling and batch processing
 - `yahoofinance/formatting.py` - Data formatting and colorization
 - `yahoofinance/input/` - Input data files (.csv)
+  - `market.csv` - All market tickers for analysis
+  - `etoro.csv` - Filtered list of tickers available on eToro
+  - `portfolio.csv` - Current portfolio holdings
+  - `cons.csv` - Sector/industry data
 - `yahoofinance/output/` - Generated output files
   - `buy.csv` - Generated buy recommendations
   - `sell.csv` - Generated sell recommendations
+  - `market.csv` - Analysis results from market or eToro tickers
+  - `portfolio.csv` - Analysis results from portfolio
   - `index.html`, `portfolio.html` - HTML dashboards
 - `tests/` - Test files with comprehensive coverage
 

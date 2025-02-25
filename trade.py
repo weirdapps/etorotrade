@@ -326,7 +326,7 @@ def main():
     """Command line interface for market display"""
     try:
         display = MarketDisplay()
-        source = input("Load tickers for Portfolio (P), Market (M), Trade Analysis (T) or Manual Input (I)? ").strip().upper()
+        source = input("Load tickers for Portfolio (P), Market (M), eToro Market (E), Trade Analysis (T) or Manual Input (I)? ").strip().upper()
         
         if source == 'T':
             action = input("Do you want to identify BUY (B) or SELL (S) opportunities? ").strip().upper()
@@ -353,8 +353,13 @@ def main():
             return
             
         try:
+            # Handle special case for eToro market
+            report_source = source
+            if source == 'E':
+                report_source = 'M'  # Still save as market.csv for eToro tickers
+                
             # Only pass source for market or portfolio options
-            display.display_report(tickers, source if source in ['M', 'P'] else None)
+            display.display_report(tickers, report_source if report_source in ['M', 'P'] else None)
         except ValueError as e:
             logger.error(f"Error processing numeric values: {str(e)}")
         except Exception as e:
