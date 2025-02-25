@@ -68,12 +68,12 @@ def generate_trade_recommendations(action_type):
         portfolio_tickers = set(portfolio_df[ticker_column].str.upper())
         
         if action_type == 'N':  # New buy opportunities
-            # Check for the STRONG_BUY opportunities (high upside and high buy %)
-            # Buy criteria: min 4 analysts, >15% upside, >65% buy percentage
+            # Check for the BUY opportunities (high upside and high buy %)
+            # Buy criteria: min 5 analysts, >=20% upside, >=75% buy percentage
             buy_opportunities = market_df[
-                (market_df['analyst_count'] >= 4) & 
-                (market_df['upside'] > 15.0) & 
-                (market_df['buy_percentage'] > 65.0)
+                (market_df['analyst_count'] >= 5) & 
+                (market_df['upside'] >= 20.0) & 
+                (market_df['buy_percentage'] >= 75.0)
             ].copy()
             
             # Filter out stocks already in portfolio
@@ -199,7 +199,7 @@ def generate_trade_recommendations(action_type):
                 
                 # Sell criteria: stocks with analyst coverage that have low upside or low buy percentage
                 sell_candidates = portfolio_analysis_df[
-                    (portfolio_analysis_df['analyst_count'] >= 4) & 
+                    (portfolio_analysis_df['analyst_count'] >= 5) & 
                     ((portfolio_analysis_df['upside'] < 5.0) | 
                      (portfolio_analysis_df['buy_percentage'] < 50.0))
                 ].copy()
