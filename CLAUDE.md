@@ -66,3 +66,20 @@
   - Leading zeros are removed from tickers with 5+ digits
   - Example: `03690.HK` → `3690.HK`
   - 4-digit tickers remain unchanged (e.g., `0700.HK`)
+
+## Performance Optimizations
+- **US vs Non-US Market Detection**:
+  - Automatically detects US vs non-US tickers based on exchange suffix
+  - US tickers have no suffix or end with .US
+  - Special cases handled: BRK.A, BRK.B, BF.A, BF.B are US stocks with dots
+  
+- **API Optimization for Non-US Markets**:
+  - Skips analyst ratings API calls for non-US markets
+  - Skips insider transaction API calls for non-US markets
+  - Skips short interest API calls for non-US markets
+  - Falls back to alternative data sources for non-US tickers
+  
+- **Ticker Length Validation**:
+  - Standard tickers: up to 10 characters
+  - Exchange-specific tickers: up to 20 characters (allows for longer exchange formats)
+  - Handles special formats like 'MAERSK-A.CO'
