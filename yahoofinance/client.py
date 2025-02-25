@@ -44,7 +44,7 @@ class YFinanceClient:
             raise ValidationError("Ticker must be a non-empty string")
         
         # Check for numeric input as test expects this to fail
-        if isinstance(ticker, str) and ticker.isdigit():
+        if ticker.isdigit():
             raise ValidationError("Ticker cannot be a numeric string")
         
         # Check if ticker has exchange suffix that might make it longer
@@ -220,7 +220,7 @@ class YFinanceClient:
             short_ratio = info.get("shortRatio")
         return short_float_pct, short_ratio
         
-    def _create_stock_data_object(self, ticker, stock, info, price_metrics, risk_metrics, 
+    def _create_stock_data_object(self, stock, info, price_metrics, risk_metrics, 
                                  earnings_dates, insider_metrics, short_interest):
         """Create StockData object from collected data"""
         price_change, mtd_change, ytd_change, two_year_change = price_metrics
@@ -333,7 +333,7 @@ class YFinanceClient:
                 
                 # Create and return StockData object
                 return self._create_stock_data_object(
-                    ticker, stock, info, price_metrics, risk_metrics, 
+                    stock, info, price_metrics, risk_metrics, 
                     earnings_dates, insider_metrics, short_interest
                 )
                 

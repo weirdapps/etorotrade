@@ -312,8 +312,6 @@ class TestTrade(unittest.TestCase):
             
     def test_exret_calculation(self):
         """Test Expected Return (EXRET) calculation"""
-        # EXRET = upside * buy_percentage / 100
-        
         def calculate_exret(upside, buy_percentage):
             """Simulate EXRET calculation from trade.py"""
             return upside * buy_percentage / 100
