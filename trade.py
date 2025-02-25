@@ -215,6 +215,47 @@ def prepare_display_dataframe(df):
     
     return display_df
 
+def format_numeric_columns(display_df, columns, format_str):
+    """Format numeric columns with specified format string.
+    
+    Args:
+        display_df: Dataframe to format
+        columns: List of column names to format
+        format_str: Format string to apply (e.g., '.2f')
+        
+    Returns:
+        pd.DataFrame: Formatted dataframe
+    """
+    for col in columns:
+        if col in display_df.columns:
+            display_df[col] = display_df[col].apply(
+                lambda x: f"{x:{format_str}}" if pd.notnull(x) else "--"
+            )
+    return display_df
+
+def format_earnings_date(display_df):
+    """Format earnings date column.
+    
+    Args:
+        display_df: Dataframe to format
+        
+    Returns:
+        pd.DataFrame: Formatted dataframe
+    """
+    if 'EARNINGS' not in display_df.columns:
+        return display_df
+        
+    def format_date(date_str):
+        if pd.notnull(date_str) and date_str != '--':
+            try:
+                return pd.to_datetime(date_str).strftime('%Y-%m-%d')
+            except ValueError:
+                return date_str
+        return '--'
+    
+    display_df['EARNINGS'] = display_df['EARNINGS'].apply(format_date)
+    return display_df
+
 def format_display_dataframe(display_df):
     """Format dataframe values for display.
     
@@ -224,33 +265,16 @@ def format_display_dataframe(display_df):
     Returns:
         pd.DataFrame: Formatted dataframe
     """
-    # Format numeric columns with proper decimal places
+    # Format price columns (2 decimal places)
     price_columns = ['PRICE', 'TARGET', 'BETA', 'PET', 'PEF', 'PEG']
-    for col in price_columns:
-        if col in display_df.columns:
-            display_df[col] = display_df[col].apply(
-                lambda x: f"{x:.2f}" if pd.notnull(x) else "--"
-            )
+    display_df = format_numeric_columns(display_df, price_columns, '.2f')
     
-    # Format percentage columns
+    # Format percentage columns (1 decimal place with % sign)
     percentage_columns = ['UPSIDE', BUY_PERCENTAGE, 'EXRET', DIVIDEND_YIELD, 'SI']
-    for col in percentage_columns:
-        if col in display_df.columns:
-            display_df[col] = display_df[col].apply(
-                lambda x: f"{x:.1f}%" if pd.notnull(x) else "--"
-            )
+    display_df = format_numeric_columns(display_df, percentage_columns, '.1f%')
     
     # Format date columns
-    if 'EARNINGS' in display_df.columns:
-        def format_date(date_str):
-            if pd.notnull(date_str) and date_str != '--':
-                try:
-                    return pd.to_datetime(date_str).strftime('%Y-%m-%d')
-                except ValueError:
-                    return date_str
-            return '--'
-        
-        display_df['EARNINGS'] = display_df['EARNINGS'].apply(format_date)
+    display_df = format_earnings_date(display_df)
     
     return display_df
 
@@ -393,7 +417,7 @@ def generate_trade_recommendations(action_type):
     """
     try:
         # Get file paths
-        output_dir, input_dir, market_path, portfolio_path = get_file_paths()
+        output_dir, _, market_path, portfolio_path = get_file_paths()
         
         # Ensure output directory exists
         if not ensure_output_directory(output_dir):
