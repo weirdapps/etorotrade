@@ -1,6 +1,6 @@
 import pytest
 import logging
-from unittest.mock import patch, mock_open, Mock
+from unittest.mock import patch, mock_open, Mock, MagicMock
 import pandas as pd
 from pathlib import Path
 import yahoofinance.cons
@@ -78,6 +78,60 @@ def test_get_hangseng_constituents():
     assert len(result) == 67  # Known number of Hang Seng constituents
     assert '0700.HK' in result  # Check for Tencent's symbol
     assert all(symbol.endswith('.HK') for symbol in result)  # All symbols should end with .HK
+
+def test_get_ibex_constituents():
+    """Test retrieval of IBEX 35 constituents."""
+    result = get_ibex_constituents()
+    assert isinstance(result, list)
+    assert len(result) == 35  # Known number of IBEX constituents
+    assert 'TEF.MC' in result  # Check for Telefonica's symbol
+    assert all(symbol.endswith('.MC') for symbol in result)  # All symbols should end with .MC
+
+def test_get_ftsemib_constituents():
+    """Test retrieval of FTSE MIB constituents."""
+    result = get_ftsemib_constituents()
+    assert isinstance(result, list)
+    assert len(result) == 40  # Known number of FTSE MIB constituents
+    assert 'ENI.MI' in result  # Check for ENI's symbol
+    assert all(symbol.endswith('.MI') for symbol in result)  # All symbols should end with .MI
+
+def test_get_psi_constituents():
+    """Test retrieval of PSI constituents."""
+    result = get_psi_constituents()
+    assert isinstance(result, list)
+    assert len(result) == 19  # Known number of PSI constituents
+    assert 'EDP.LS' in result  # Check for EDP's symbol
+    assert all(symbol.endswith('.LS') for symbol in result)  # All symbols should end with .LS
+
+def test_get_smi_constituents():
+    """Test retrieval of SMI constituents."""
+    result = get_smi_constituents()
+    assert isinstance(result, list)
+    assert len(result) == 20  # Known number of SMI constituents
+    assert 'NESN.SW' in result  # Check for Nestle's symbol
+    assert all(symbol.endswith('.SW') for symbol in result)  # All symbols should end with .SW
+
+def test_get_omxc25_constituents():
+    """Test retrieval of OMXC25 constituents."""
+    result = get_omxc25_constituents()
+    assert isinstance(result, list)
+    assert len(result) == 25  # Known number of OMXC25 constituents
+    assert 'NOVO-B.CO' in result  # Check for Novo Nordisk's symbol
+    assert all(symbol.endswith('.CO') for symbol in result)  # All symbols should end with .CO
+
+def test_get_athex_constituents():
+    """Test retrieval of ATHEX constituents."""
+    result = get_athex_constituents()
+    assert isinstance(result, list)
+    assert len(result) == 18  # Known number of ATHEX constituents
+    assert 'OTE.AT' in result  # Check for OTE's symbol
+    assert all(symbol.endswith('.AT') for symbol in result)  # All symbols should end with .AT
+
+def test_save_constituents_to_csv_error(tmp_path):
+    """Test error handling in save_constituents_to_csv."""
+    with patch('pandas.DataFrame.to_csv', side_effect=Exception('Write error')):
+        save_constituents_to_csv(['AAPL'])  # Should handle error gracefully
+        # No assertion needed as we're just verifying it doesn't raise an exception
 
 def test_save_constituents_to_csv(tmp_path):
     """Test saving constituents to CSV file."""
@@ -272,47 +326,23 @@ def test_main_error_handling():
         # Verify log calls - should include Info logs
         assert mock_logger.info.call_count >= 10
 
-def test_exception_handling_with_mock():
-    """Test error handling of constituent getters using a direct approach"""
-    
-    # Direct unit test of try/except behavior
-    def test_function_with_exception_handling(exception_func, error_message):
-        """Generic test function for exception handling"""
-        try:
-            # This should raise an exception
-            exception_func()
-            return False  # Should not reach here
-        except Exception as e:
-            # Should reach here
-            logger = logging.getLogger(__name__)
-            logger.error(f"{error_message}: {str(e)}")
-            return True
-    
-    # Function that always raises an exception
-    def always_fails():
-        raise ValueError("Simulated error")
-    
-    # Test our exception handling directly
-    assert test_function_with_exception_handling(
-        always_fails, 
-        "Error with test function"
-    )
-    
-    # Now test the actual behavior directly from the module
-    with patch('logging.Logger.error') as mock_error:
-        # Directly verify the try/except in get_ftse100_constituents
-        # by monkey patching the symbols list to cause an error when accessed
-        with patch.object(yahoofinance.cons, 'get_ftse100_constituents', 
-                          side_effect=Exception("Test exception")):
-            # This should catch the exception and log it
-            result = []
-            try:
-                yahoofinance.cons.main()
-            except Exception:
-                pass  # We expect an exception when other function calls are made
+def test_sp500_error_handling():
+    """Test error handling of S&P 500 constituent getter"""
+    with patch('pandas.read_html', side_effect=Exception("Test error")):
+        with patch('yahoofinance.cons.logger') as mock_logger:
+            result = get_sp500_constituents()
+            assert result == []  # Should return empty list on error
+            mock_logger.error.assert_called_once_with("Error fetching S&P 500 constituents: Test error")
+
+def test_save_constituents_error_handling():
+    """Test error handling of save_constituents_to_csv"""
+    with patch('pandas.DataFrame.to_csv', side_effect=Exception("Write error")):
+        with patch('logging.getLogger') as mock_logger:
+            mock_log = MagicMock()
+            mock_logger.return_value = mock_log
             
-            # Verify the error was logged somewhere in the process
-            assert mock_error.called
+            save_constituents_to_csv(['AAPL'])
+            mock_log.error.assert_called_once()  # Should log the error
 
 def test_error_handling_simulation():
     """Test error handling simulation for constituent functions"""
