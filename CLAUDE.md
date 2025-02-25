@@ -4,7 +4,9 @@
 - `python trade.py` - Run main app
   - Select 'P' for Portfolio analysis
   - Select 'M' for Market analysis
-  - Select 'T' for Trade analysis (buy/sell recommendations)
+  - Select 'T' for Trade analysis
+    - Select 'B' for Buy opportunities
+    - Select 'S' for Sell candidates
   - Select 'I' for Manual ticker input
 - `pytest tests/` - Run all tests
 - `pytest tests/test_file.py::TestClass::test_method` - Run specific test
@@ -29,6 +31,9 @@
 - `yahoofinance/formatting.py` - Data formatting and colorization
 - `yahoofinance/input/` - Input data files (.csv)
 - `yahoofinance/output/` - Generated output files
+  - `buy.csv` - Generated buy recommendations
+  - `sell.csv` - Generated sell recommendations
+  - `index.html`, `portfolio.html` - HTML dashboards
 - `tests/` - Test files with comprehensive coverage
 
 ## Trading Criteria
@@ -47,3 +52,10 @@
   
 - **EXRET Calculation**:
   - Expected Return = Upside Potential × Buy Percentage / 100
+
+## Exchange Ticker Formats
+- **Hong Kong (HK) Stocks**:
+  - Program automatically fixes eToro HK ticker formats
+  - Leading zeros are removed from tickers with 5+ digits
+  - Example: `03690.HK` → `3690.HK`
+  - 4-digit tickers remain unchanged (e.g., `0700.HK`)

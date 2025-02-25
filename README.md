@@ -103,8 +103,12 @@ Select data source:
 - I: Manual ticker(s) input (comma separated)
 
 When selecting Trade Analysis (T), you can:
-- N: Explore new buy opportunities (not in current portfolio)
-- E: Manage existing portfolio (find sell candidates)
+- B: Explore Buy opportunities (not in current portfolio)
+- S: Explore Sell candidates in current portfolio
+
+The analysis automatically saves results to CSV files:
+- Buy recommendations: yahoofinance/output/buy.csv
+- Sell recommendations: yahoofinance/output/sell.csv
 
 ### 2. News Analysis
 ```bash
@@ -213,6 +217,16 @@ Key components:
 - **DisplayFormatter**: Formats data for console output
 - **MarketDisplay**: Manages batch processing and report generation
 
+## Trading Platform Integration
+
+### eToro Compatibility
+- **Hong Kong Stocks**: Automatic normalization of HK stock tickers
+  * Removes leading zeros from 5+ digit ticker numbers
+  * Example: eToro's `03690.HK` format is automatically converted to `3690.HK`
+  * Compatible with portfolio.csv imports from eToro
+- **Crypto Tickers**: Standardizes eToro's crypto tickers
+  * Automatically converts tickers to the `-USD` format (e.g., `BTC-USD`, `ETH-USD`)
+
 ## Testing
 
 ```bash
@@ -248,5 +262,7 @@ This project is licensed under the MIT License - see LICENSE file for details.
 - Pandas, Tabulate, and other great Python libraries
 - Contributors and maintainers
 
+
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=weirdapps_etorotrade&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=weirdapps_etorotrade)
 
 ### FOLLOW OR COPY PLESSAS ON ETORO
