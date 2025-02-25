@@ -13,6 +13,24 @@ class InsiderAnalyzer:
     
     def __init__(self, client):
         self.client = client
+    
+    def _is_us_ticker(self, ticker: str) -> bool:
+        """
+        Determine if a ticker is from a US exchange.
+        
+        Args:
+            ticker: Stock ticker symbol
+            
+        Returns:
+            bool: True if US ticker, False otherwise
+        """
+        # Handle special cases like "BRK.B" which are US tickers
+        us_special_cases = ["BRK.A", "BRK.B", "BF.A", "BF.B"]
+        if ticker in us_special_cases:
+            return True
+            
+        # US tickers generally have no suffix or .US suffix
+        return '.' not in ticker or ticker.endswith('.US')
         
     def get_insider_metrics(self, ticker: str) -> Dict[str, Optional[float]]:
         """
@@ -26,6 +44,14 @@ class InsiderAnalyzer:
                 - insider_buy_pct: Percentage of buy transactions
                 - transaction_count: Total number of buy/sell transactions
         """
+        # Skip insider data fetching for non-US tickers (optimization)
+        if not self._is_us_ticker(ticker):
+            logger.info(f"Skipping insider data for non-US ticker: {ticker}")
+            return {
+                "insider_buy_pct": None,
+                "transaction_count": None
+            }
+            
         try:
             # Get stock info for earnings dates (skip insider metrics to prevent recursion)
             stock_info = self.client.get_ticker_info(ticker, skip_insider_metrics=True)
