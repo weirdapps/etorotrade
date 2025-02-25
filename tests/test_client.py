@@ -332,6 +332,49 @@ class TestYFinanceClient(unittest.TestCase):
         client.clear_cache()
         cache_info = client.get_cache_info()
         self.assertEqual(cache_info['currsize'], 0)
+        
+    def test_validate_ticker(self):
+        """Test ticker validation with various formats"""
+        client = YFinanceClient()
+        
+        # Test valid tickers
+        try:
+            client._validate_ticker("AAPL")              # Standard US ticker
+            client._validate_ticker("BRK.B")             # US ticker with class
+            client._validate_ticker("0700.HK")           # Hong Kong ticker
+            client._validate_ticker("MAERSK-A.CO")       # Longer ticker with exchange suffix
+            client._validate_ticker("BP.L")              # London ticker
+        except Exception as e:
+            self.fail(f"Validation raised exception for valid ticker: {e}")
+            
+        # Test invalid tickers
+        from yahoofinance.types import ValidationError
+        with self.assertRaises(ValidationError):
+            client._validate_ticker("")
+        with self.assertRaises(ValidationError):
+            client._validate_ticker(None)
+        with self.assertRaises(ValidationError):
+            client._validate_ticker(123)
+        with self.assertRaises(ValidationError):
+            client._validate_ticker("THISISAVERYLONGTICKER")
+        with self.assertRaises(ValidationError):
+            client._validate_ticker("THISISAVERYLONGTICKER.WITHSUFFIX.TOOLONG")
+            
+    def test_is_us_ticker(self):
+        """Test US ticker detection function"""
+        client = YFinanceClient()
+        
+        # US tickers
+        self.assertTrue(client._is_us_ticker("AAPL"))
+        self.assertTrue(client._is_us_ticker("MSFT"))
+        self.assertTrue(client._is_us_ticker("BRK.B"))  # Special case that should still be treated as US
+        self.assertTrue(client._is_us_ticker("AMZN.US"))
+        
+        # Non-US tickers
+        self.assertFalse(client._is_us_ticker("0700.HK"))
+        self.assertFalse(client._is_us_ticker("BP.L"))
+        self.assertFalse(client._is_us_ticker("MAERSK-A.CO"))
+        self.assertFalse(client._is_us_ticker("TSLA.MI"))
 
 if __name__ == '__main__':
     unittest.main()

@@ -136,6 +136,10 @@ class AnalystData:
 
     def _get_all_time_ratings(self, ticker: str) -> Optional[Dict[str, Any]]:
         """Get all-time ratings data"""
+        # Skip this for non-US tickers since we know they'll fail
+        if not self._is_us_ticker(ticker):
+            return None
+            
         df = self.fetch_ratings_data(ticker, None)  # Try without date filter
         if df is not None and not df.empty:
             total_ratings = len(df)
@@ -150,6 +154,19 @@ class AnalystData:
                 "ratings_type": "A"  # All-time
             }
         return None
+
+    def _is_us_ticker(self, ticker: str) -> bool:
+        """
+        Determine if a ticker is from a US exchange.
+        
+        Args:
+            ticker: Stock ticker symbol
+            
+        Returns:
+            bool: True if US ticker, False otherwise
+        """
+        # US tickers generally have no suffix or .US suffix
+        return '.' not in ticker or ticker.endswith('.US')
 
     def get_ratings_summary(self,
                           ticker: str,
@@ -182,15 +199,16 @@ class AnalystData:
                 if earnings_start_date:
                     start_date = earnings_start_date
 
-            # Try upgrade/downgrade history first
-            try:
-                df = self.fetch_ratings_data(ticker, start_date)
-                if df is not None and not df.empty:
-                    return self._calculate_ratings_from_df(df)
-            except Exception as e:
-                logger.debug(f"No upgrade/downgrade data for {ticker}: {str(e)}")
+            # Only try upgrade/downgrade history for US tickers
+            if self._is_us_ticker(ticker):
+                try:
+                    df = self.fetch_ratings_data(ticker, start_date)
+                    if df is not None and not df.empty:
+                        return self._calculate_ratings_from_df(df)
+                except Exception as e:
+                    logger.debug(f"No upgrade/downgrade data for {ticker}: {str(e)}")
 
-            # Try recommendations data
+            # Try recommendations data (fallback for US tickers, primary for non-US)
             try:
                 rec_data = self._get_recommendations_data(ticker)
                 if rec_data:
@@ -198,8 +216,8 @@ class AnalystData:
             except Exception as e:
                 logger.debug(f"No recommendation data for {ticker}: {str(e)}")
 
-            # Try all-time ratings if using earnings date
-            if use_earnings_date:
+            # Try all-time ratings if using earnings date (for US tickers only)
+            if use_earnings_date and self._is_us_ticker(ticker):
                 all_time_data = self._get_all_time_ratings(ticker)
                 if all_time_data:
                     return all_time_data

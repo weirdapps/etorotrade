@@ -42,7 +42,12 @@ class YFinanceClient:
         """Validate ticker format"""
         if not isinstance(ticker, str) or not ticker.strip():
             raise ValidationError("Ticker must be a non-empty string")
-        if len(ticker) > 10:  # Most tickers are 1-5 characters
+        
+        # Check if ticker has exchange suffix that might make it longer
+        has_exchange_suffix = '.' in ticker
+        max_length = 20 if has_exchange_suffix else 10  # Allow longer tickers for exchange-specific symbols
+        
+        if len(ticker) > max_length:
             raise ValidationError("Ticker length exceeds maximum allowed")
 
     def get_past_earnings_dates(self, ticker: str) -> List[pd.Timestamp]:
@@ -166,6 +171,24 @@ class YFinanceClient:
         
         return alpha, sharpe, sortino
 
+    def _is_us_ticker(self, ticker: str) -> bool:
+        """
+        Determine if a ticker is from a US exchange.
+        
+        Args:
+            ticker: Stock ticker symbol
+            
+        Returns:
+            bool: True if US ticker, False otherwise
+        """
+        # Handle special cases like "BRK.B" which are US tickers
+        us_special_cases = ["BRK.A", "BRK.B", "BF.A", "BF.B"]
+        if ticker in us_special_cases:
+            return True
+            
+        # US tickers generally have no suffix or .US suffix
+        return '.' not in ticker or ticker.endswith('.US')
+    
     @lru_cache(maxsize=50)  # Limit cache size to prevent memory issues
     def get_ticker_info(self, ticker: str, skip_insider_metrics: bool = False) -> StockData:
         """
@@ -186,6 +209,9 @@ class YFinanceClient:
             APIError: When API call fails after retries
         """
         self._validate_ticker(ticker)
+        
+        # Check if it's a US ticker to determine which metrics to fetch
+        is_us_ticker = self._is_us_ticker(ticker)
         
         attempts = 0
         while attempts < self.retry_attempts:
@@ -214,12 +240,19 @@ class YFinanceClient:
                 # Get earnings dates
                 last_earnings, previous_earnings = self.get_earnings_dates(ticker)
                 
-                # Get insider metrics if not skipped
+                # Get insider metrics if not skipped and this is a US ticker
                 insider_metrics = (
                     {"insider_buy_pct": None, "transaction_count": None}
-                    if skip_insider_metrics
+                    if skip_insider_metrics or not is_us_ticker
                     else self.insider_analyzer.get_insider_metrics(ticker)
                 )
+                
+                # For short interest data, only try to get it for US tickers
+                short_float_pct = None
+                short_ratio = None
+                if is_us_ticker:
+                    short_float_pct = info.get("shortPercentOfFloat", 0) * 100 if info.get("shortPercentOfFloat") is not None else None
+                    short_ratio = info.get("shortRatio")
                 
                 return StockData(
                     # Basic Info
@@ -251,8 +284,8 @@ class YFinanceClient:
                     debt_to_equity=info.get("debtToEquity"),
                     
                     # Risk Metrics
-                    short_float_pct=info.get("shortPercentOfFloat", 0) * 100 if info.get("shortPercentOfFloat") is not None else None,
-                    short_ratio=info.get("shortRatio"),
+                    short_float_pct=short_float_pct,
+                    short_ratio=short_ratio,
                     beta=info.get("beta"),
                     alpha=alpha,
                     sharpe_ratio=sharpe,
