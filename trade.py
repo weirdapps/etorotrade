@@ -104,9 +104,14 @@ def filter_buy_opportunities(market_df):
     Returns:
         pd.DataFrame: Filtered buy opportunities
     """
-    # Buy criteria: min 5 analysts, >=20% upside, >=75% buy percentage
+    # Buy criteria: 
+    # - min 5 price targets (analyst_count)
+    # - min 5 ratings (total_ratings) 
+    # - >=20% upside
+    # - >=75% buy percentage
     return market_df[
         (market_df['analyst_count'] >= 5) & 
+        (market_df['total_ratings'] >= 5) &
         (market_df['upside'] >= 20.0) & 
         (market_df['buy_percentage'] >= 75.0)
     ].copy()
@@ -120,9 +125,13 @@ def filter_sell_candidates(portfolio_df):
     Returns:
         pd.DataFrame: Filtered sell candidates
     """
-    # Sell criteria: stocks with analyst coverage that have low upside or low buy percentage
+    # Sell criteria: 
+    # - min 5 price targets (analyst_count)
+    # - min 5 ratings (total_ratings)
+    # - Either: < 5% upside OR < 50% buy percentage
     return portfolio_df[
         (portfolio_df['analyst_count'] >= 5) & 
+        (portfolio_df['total_ratings'] >= 5) &
         ((portfolio_df['upside'] < 5.0) | 
          (portfolio_df['buy_percentage'] < 50.0))
     ].copy()
@@ -228,9 +237,18 @@ def format_numeric_columns(display_df, columns, format_str):
     """
     for col in columns:
         if col in display_df.columns:
-            display_df[col] = display_df[col].apply(
-                lambda x: f"{x:{format_str}}" if pd.notnull(x) else "--"
-            )
+            # Check if format string contains a percentage sign
+            if format_str.endswith('%'):
+                # Handle percentage format separately
+                base_format = format_str.rstrip('%')
+                display_df[col] = display_df[col].apply(
+                    lambda x: f"{x:{base_format}}%" if pd.notnull(x) else "--"
+                )
+            else:
+                # Regular format
+                display_df[col] = display_df[col].apply(
+                    lambda x: f"{x:{format_str}}" if pd.notnull(x) else "--"
+                )
     return display_df
 
 def format_earnings_date(display_df):

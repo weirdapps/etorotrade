@@ -113,7 +113,28 @@ The analysis automatically saves results to CSV files:
 - Sell recommendations: yahoofinance/output/sell.csv
 - Market analysis: yahoofinance/output/market.csv
 
-### eToro Ticker Management
+### Ticker Management
+
+#### Yahoo Finance Validation
+The system has built-in ticker validation to filter out invalid or delisted tickers. This prevents errors during batch processing and improves overall reliability.
+
+To validate tickers and create a filtered list:
+```bash
+# Run this once to validate all tickers against Yahoo Finance API
+python validate.py
+
+# After validation, cons.py will automatically filter against valid tickers
+python -m yahoofinance.cons
+```
+
+The validation process:
+1. Checks each ticker against Yahoo Finance API
+2. Saves valid tickers to `yahoofinance/input/yfinance.csv`
+3. Subsequent runs of `cons.py` use this list to filter out invalid tickers
+
+This significantly improves processing time and reduces API errors when running market analysis.
+
+#### eToro Ticker Management
 The yahoofinance/input/etoro.csv file contains a subset of tickers that are available for trading on eToro. By using the 'E' option in the main program, you can analyze only these eToro-tradable stocks, significantly reducing processing time from potentially thousands of tickers to just the ones you can actually trade.
 
 Format of etoro.csv:
@@ -204,17 +225,20 @@ NEWS_API_KEY=your_news_api_key  # Optional
 ## Color Coding System
 
 - 🟢 **Green** (Buy)
-  * 5+ analysts
+  * 5+ price targets (# T)
+  * 5+ analyst ratings (# A)
   * 20%+ upside
   * 75%+ buy ratings
 
 - 🔴 **Red** (Sell)
-  * 5+ analysts AND
+  * 5+ price targets (# T)
+  * 5+ analyst ratings (# A) AND
   * < 5% upside OR
   * < 50% buy ratings
 
 - 🟡 **Yellow** (Low Confidence)
-  * < 5 analysts OR
+  * < 5 price targets OR
+  * < 5 analyst ratings OR
   * Limited data
 
 - ⚪ **White** (Hold)
