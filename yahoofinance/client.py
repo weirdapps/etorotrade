@@ -38,9 +38,20 @@ class YFinanceClient:
         self.logger = logging.getLogger(__name__)
         self.insider_analyzer = InsiderAnalyzer(self)
 
-    def _validate_ticker(self, ticker: str) -> None:
-        """Validate ticker format"""
-        if not isinstance(ticker, str) or not ticker.strip():
+    def _validate_ticker(self, ticker) -> None:
+        """
+        Validate ticker format.
+        
+        Args:
+            ticker: Ticker symbol to validate
+            
+        Raises:
+            ValidationError: When ticker validation fails
+        """
+        # Check that ticker is a non-empty string
+        if not isinstance(ticker, str):
+            raise ValidationError("Ticker must be a string")
+        if not ticker.strip():
             raise ValidationError("Ticker must be a non-empty string")
         
         # Check for numeric input as test expects this to fail
