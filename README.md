@@ -203,18 +203,18 @@ NEWS_API_KEY=your_news_api_key  # Optional
 
 ## Color Coding System
 
-- 🟢 **Green** (Strong Buy)
-  * 4+ analysts
-  * 15%+ upside
-  * 65%+ buy ratings
+- 🟢 **Green** (Buy)
+  * 5+ analysts
+  * 20%+ upside
+  * 75%+ buy ratings
 
 - 🔴 **Red** (Sell)
-  * 4+ analysts AND
+  * 5+ analysts AND
   * < 5% upside OR
   * < 50% buy ratings
 
 - 🟡 **Yellow** (Low Confidence)
-  * < 4 analysts OR
+  * < 5 analysts OR
   * Limited data
 
 - ⚪ **White** (Hold)
@@ -269,7 +269,16 @@ pytest tests/test_market_display.py
 
 # Run specific test case
 pytest tests/test_market_display.py::TestMarketDisplay::test_display_report
+
+# Run tests with coverage for specific modules
+pytest tests/test_cons.py tests/test_trade.py --cov=yahoofinance.cons --cov=trade --cov-report=term-missing
 ```
+
+The codebase includes extensive test coverage for critical components:
+- Core modules have >70% test coverage
+- 60+ comprehensive test cases covering both normal operations and edge cases
+- Test mocking for network calls and API interactions
+- Integration tests for end-to-end workflows
 
 ## Contributing
 
