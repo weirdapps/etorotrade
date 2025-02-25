@@ -90,7 +90,10 @@ def generate_trade_recommendations(action_type):
                 # Check if EXRET column exists - calculate it if not
                 if 'EXRET' not in new_opportunities.columns:
                     # Calculate EXRET if we have the necessary columns
-                    if 'upside' in new_opportunities.columns and 'buy_percentage' in new_opportunities.columns:
+                    if ('upside' in new_opportunities.columns and 
+                        'buy_percentage' in new_opportunities.columns and
+                        pd.api.types.is_numeric_dtype(new_opportunities['upside']) and
+                        pd.api.types.is_numeric_dtype(new_opportunities['buy_percentage'])):
                         new_opportunities['EXRET'] = new_opportunities['upside'] * new_opportunities['buy_percentage'] / 100
                     else:
                         new_opportunities['EXRET'] = None
@@ -213,7 +216,10 @@ def generate_trade_recommendations(action_type):
                     # Check if EXRET column exists - calculate it if not
                     if 'EXRET' not in sell_candidates.columns:
                         # Calculate EXRET if we have the necessary columns
-                        if 'upside' in sell_candidates.columns and 'buy_percentage' in sell_candidates.columns:
+                        if ('upside' in sell_candidates.columns and 
+                            'buy_percentage' in sell_candidates.columns and
+                            pd.api.types.is_numeric_dtype(sell_candidates['upside']) and
+                            pd.api.types.is_numeric_dtype(sell_candidates['buy_percentage'])):
                             sell_candidates['EXRET'] = sell_candidates['upside'] * sell_candidates['buy_percentage'] / 100
                         else:
                             sell_candidates['EXRET'] = None
