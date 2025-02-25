@@ -339,10 +339,10 @@ class TestTrade(unittest.TestCase):
         
         # Ranking logic (higher EXRET should be ranked better)
         stocks = [
-            {"ticker": "AAPL", "upside": 20.0, "buy_percentage": 80.0},  # EXRET = 16
-            {"ticker": "MSFT", "upside": 15.0, "buy_percentage": 70.0},  # EXRET = 10.5
-            {"ticker": "AMZN", "upside": 30.0, "buy_percentage": 65.0},  # EXRET = 19.5
-            {"ticker": "GOOGL", "upside": 25.0, "buy_percentage": 75.0}  # EXRET = 18.75
+            {"ticker": "AAPL", "upside": 20.0, "buy_percentage": 80.0},
+            {"ticker": "MSFT", "upside": 15.0, "buy_percentage": 70.0},
+            {"ticker": "AMZN", "upside": 30.0, "buy_percentage": 65.0},
+            {"ticker": "GOOGL", "upside": 25.0, "buy_percentage": 75.0}
         ]
         
         # Calculate EXRET for all stocks
@@ -353,10 +353,10 @@ class TestTrade(unittest.TestCase):
         sorted_stocks = sorted(stocks, key=lambda x: x["exret"], reverse=True)
         
         # Verify sort order
-        self.assertEqual(sorted_stocks[0]["ticker"], "AMZN")    # EXRET = 19.5 (highest)
-        self.assertEqual(sorted_stocks[1]["ticker"], "GOOGL")   # EXRET = 18.75
-        self.assertEqual(sorted_stocks[2]["ticker"], "AAPL")    # EXRET = 16
-        self.assertEqual(sorted_stocks[3]["ticker"], "MSFT")    # EXRET = 10.5 (lowest)
+        self.assertEqual(sorted_stocks[0]["ticker"], "AMZN")
+        self.assertEqual(sorted_stocks[1]["ticker"], "GOOGL")
+        self.assertEqual(sorted_stocks[2]["ticker"], "AAPL")
+        self.assertEqual(sorted_stocks[3]["ticker"], "MSFT")
             
     def test_file_checks_logic(self):
         """Test the file existence check logic"""
@@ -524,7 +524,7 @@ class TestTrade(unittest.TestCase):
         }.get(path, pd.DataFrame())
         
         # Test buy recommendations (should be none)
-        with patch('pandas.DataFrame.to_csv') as mock_to_csv, \
+        with patch('pandas.DataFrame.to_csv'), \
              patch('sys.stdout', new=StringIO()) as fake_out:
             generate_trade_recommendations('N')
             
@@ -681,7 +681,6 @@ class TestTrade(unittest.TestCase):
         # Calculate EXRET directly based on the formula from trade.py
         upside = 20.0
         buy_percentage = 80.0
-        expected_exret = upside * buy_percentage / 100.0  # 16.0
         
         # Simple calculation test
         calculated_exret = upside * buy_percentage / 100.0

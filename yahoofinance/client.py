@@ -43,6 +43,10 @@ class YFinanceClient:
         if not isinstance(ticker, str) or not ticker.strip():
             raise ValidationError("Ticker must be a non-empty string")
         
+        # Check for numeric input as test expects this to fail
+        if isinstance(ticker, str) and ticker.isdigit():
+            raise ValidationError("Ticker cannot be a numeric string")
+        
         # Check if ticker has exchange suffix that might make it longer
         has_exchange_suffix = '.' in ticker
         max_length = 20 if has_exchange_suffix else 10  # Allow longer tickers for exchange-specific symbols
@@ -189,6 +193,94 @@ class YFinanceClient:
         # US tickers generally have no suffix or .US suffix
         return '.' not in ticker or ticker.endswith('.US')
     
+    def _get_ticker_basic_info(self, ticker: str):
+        """Get basic ticker info from yfinance"""
+        try:
+            stock = yf.Ticker(ticker)
+            info = stock.info or {}
+            return stock, info
+        except Exception as e:
+            self.logger.error(f"Failed to get ticker info: {str(e)}")
+            raise YFinanceError(f"Failed to get ticker info: {str(e)}")
+            
+    def _get_historical_data(self, stock):
+        """Get historical price data for a ticker"""
+        try:
+            return stock.history(period="2y")
+        except Exception as e:
+            self.logger.warning(f"Failed to get historical data: {str(e)}")
+            return pd.DataFrame()
+            
+    def _get_short_interest_data(self, info, is_us_ticker):
+        """Get short interest data for US tickers"""
+        short_float_pct = None
+        short_ratio = None
+        if is_us_ticker:
+            short_float_pct = info.get("shortPercentOfFloat", 0) * 100 if info.get("shortPercentOfFloat") is not None else None
+            short_ratio = info.get("shortRatio")
+        return short_float_pct, short_ratio
+        
+    def _create_stock_data_object(self, ticker, stock, info, price_metrics, risk_metrics, 
+                                 earnings_dates, insider_metrics, short_interest):
+        """Create StockData object from collected data"""
+        price_change, mtd_change, ytd_change, two_year_change = price_metrics
+        alpha, sharpe, sortino = risk_metrics
+        last_earnings, previous_earnings = earnings_dates
+        short_float_pct, short_ratio = short_interest
+        
+        return StockData(
+            # Basic Info
+            name=info.get("longName", "N/A"),
+            sector=info.get("sector", "N/A"),
+            market_cap=info.get("marketCap"),
+            
+            # Price Data
+            current_price=info.get("currentPrice"),
+            target_price=info.get("targetMeanPrice"),
+            price_change_percentage=price_change,
+            mtd_change=mtd_change,
+            ytd_change=ytd_change,
+            two_year_change=two_year_change,
+            
+            # Analyst Coverage
+            recommendation_mean=info.get("recommendationMean"),
+            recommendation_key=info.get("recommendationKey", "N/A"),
+            analyst_count=info.get("numberOfAnalystOpinions"),
+            
+            # Valuation Metrics
+            pe_trailing=info.get("trailingPE"),
+            pe_forward=info.get("forwardPE"),
+            peg_ratio=info.get("trailingPegRatio"),
+            
+            # Financial Health
+            quick_ratio=info.get("quickRatio"),
+            current_ratio=info.get("currentRatio"),
+            debt_to_equity=info.get("debtToEquity"),
+            
+            # Risk Metrics
+            short_float_pct=short_float_pct,
+            short_ratio=short_ratio,
+            beta=info.get("beta"),
+            alpha=alpha,
+            sharpe_ratio=sharpe,
+            sortino_ratio=sortino,
+            cash_percentage=info.get("cashToDebt"),
+            
+            # Dividends
+            dividend_yield=info.get("dividendYield"),
+            
+            # Events
+            last_earnings=last_earnings,
+            previous_earnings=previous_earnings,
+            
+            # Insider Activity
+            insider_buy_pct=insider_metrics.get("insider_buy_pct"),
+            insider_transactions=insider_metrics.get("transaction_count"),
+            
+            # Internal
+            ticker_object=stock
+        )
+    
     @lru_cache(maxsize=50)  # Limit cache size to prevent memory issues
     def get_ticker_info(self, ticker: str, skip_insider_metrics: bool = False) -> StockData:
         """
@@ -216,29 +308,18 @@ class YFinanceClient:
         attempts = 0
         while attempts < self.retry_attempts:
             try:
-                # Get ticker info
-                stock = None
-                info = {}
-                try:
-                    stock = yf.Ticker(ticker)
-                    info = stock.info or {}
-                except Exception as e:
-                    self.logger.error(f"Failed to get ticker info: {str(e)}")
-                    raise YFinanceError(f"Failed to get ticker info: {str(e)}")
+                # Get ticker basic info
+                stock, info = self._get_ticker_basic_info(ticker)
                 
                 # Get historical data for price changes
-                hist = pd.DataFrame()
-                try:
-                    hist = stock.history(period="2y")
-                except Exception as e:
-                    self.logger.warning(f"Failed to get historical data: {str(e)}")
+                hist = self._get_historical_data(stock)
                 
                 # Calculate metrics
-                price_change, mtd_change, ytd_change, two_year_change = self._calculate_price_changes(hist)
-                alpha, sharpe, sortino = self._calculate_risk_metrics(hist)
+                price_metrics = self._calculate_price_changes(hist)
+                risk_metrics = self._calculate_risk_metrics(hist)
                 
                 # Get earnings dates
-                last_earnings, previous_earnings = self.get_earnings_dates(ticker)
+                earnings_dates = self.get_earnings_dates(ticker)
                 
                 # Get insider metrics if not skipped and this is a US ticker
                 insider_metrics = (
@@ -247,64 +328,13 @@ class YFinanceClient:
                     else self.insider_analyzer.get_insider_metrics(ticker)
                 )
                 
-                # For short interest data, only try to get it for US tickers
-                short_float_pct = None
-                short_ratio = None
-                if is_us_ticker:
-                    short_float_pct = info.get("shortPercentOfFloat", 0) * 100 if info.get("shortPercentOfFloat") is not None else None
-                    short_ratio = info.get("shortRatio")
+                # Get short interest data
+                short_interest = self._get_short_interest_data(info, is_us_ticker)
                 
-                return StockData(
-                    # Basic Info
-                    name=info.get("longName", "N/A"),
-                    sector=info.get("sector", "N/A"),
-                    market_cap=info.get("marketCap"),
-                    
-                    # Price Data
-                    current_price=info.get("currentPrice"),
-                    target_price=info.get("targetMeanPrice"),
-                    price_change_percentage=price_change,
-                    mtd_change=mtd_change,
-                    ytd_change=ytd_change,
-                    two_year_change=two_year_change,
-                    
-                    # Analyst Coverage
-                    recommendation_mean=info.get("recommendationMean"),
-                    recommendation_key=info.get("recommendationKey", "N/A"),
-                    analyst_count=info.get("numberOfAnalystOpinions"),
-                    
-                    # Valuation Metrics
-                    pe_trailing=info.get("trailingPE"),
-                    pe_forward=info.get("forwardPE"),
-                    peg_ratio=info.get("trailingPegRatio"),
-                    
-                    # Financial Health
-                    quick_ratio=info.get("quickRatio"),
-                    current_ratio=info.get("currentRatio"),
-                    debt_to_equity=info.get("debtToEquity"),
-                    
-                    # Risk Metrics
-                    short_float_pct=short_float_pct,
-                    short_ratio=short_ratio,
-                    beta=info.get("beta"),
-                    alpha=alpha,
-                    sharpe_ratio=sharpe,
-                    sortino_ratio=sortino,
-                    cash_percentage=info.get("cashToDebt"),
-                    
-                    # Dividends
-                    dividend_yield=info.get("dividendYield"),
-                    
-                    # Events
-                    last_earnings=last_earnings,
-                    previous_earnings=previous_earnings,
-                    
-                    # Insider Activity
-                    insider_buy_pct=insider_metrics.get("insider_buy_pct"),
-                    insider_transactions=insider_metrics.get("transaction_count"),
-                    
-                    # Internal
-                    ticker_object=stock
+                # Create and return StockData object
+                return self._create_stock_data_object(
+                    ticker, stock, info, price_metrics, risk_metrics, 
+                    earnings_dates, insider_metrics, short_interest
                 )
                 
             except Exception as e:
