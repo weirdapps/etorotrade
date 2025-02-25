@@ -190,6 +190,44 @@ def get_athex_constituents():
         logger.error(f"Error with ATHEX constituents: {str(e)}")
         return []
 
+def filter_against_valid_tickers(all_symbols):
+    """
+    Filter symbols against valid tickers list from yfinance.csv.
+    
+    Args:
+        all_symbols (list): List of all constituent symbols
+        
+    Returns:
+        list: Filtered list of valid symbols
+    """
+    try:
+        # Check if yfinance.csv exists
+        input_dir = Path(__file__).parent / 'input'
+        yfinance_path = input_dir / 'yfinance.csv'
+        
+        if not yfinance_path.exists():
+            logger.warning(f"Valid tickers file not found: {yfinance_path}")
+            logger.warning("All tickers will be included. Run 'python -m yahoofinance.validate' to filter invalid tickers.")
+            return sorted(set(all_symbols))
+            
+        # Load valid tickers
+        valid_df = pd.read_csv(yfinance_path)
+        if 'symbol' not in valid_df.columns:
+            logger.warning("Symbol column not found in valid tickers file")
+            return sorted(set(all_symbols))
+            
+        valid_tickers = set(valid_df['symbol'].tolist())
+        
+        # Filter tickers
+        filtered_symbols = [symbol for symbol in all_symbols if symbol in valid_tickers]
+        
+        logger.info(f"Filtered {len(all_symbols)} constituents to {len(filtered_symbols)} valid tickers")
+        return sorted(set(filtered_symbols))
+    except Exception as e:
+        logger.error(f"Error filtering constituents: {str(e)}")
+        # Fallback to all symbols
+        return sorted(set(all_symbols))
+
 def save_constituents_to_csv(all_symbols):
     """
     Save constituent symbols to a CSV file.
@@ -202,14 +240,14 @@ def save_constituents_to_csv(all_symbols):
         input_dir = Path(__file__).parent / 'input'
         input_dir.mkdir(exist_ok=True)
         
-        # Remove duplicates and sort
-        unique_symbols = sorted(set(all_symbols))
+        # Filter against valid tickers
+        filtered_symbols = filter_against_valid_tickers(all_symbols)
         
         # Create DataFrame and save to CSV
-        df = pd.DataFrame({'symbol': unique_symbols})
+        df = pd.DataFrame({'symbol': filtered_symbols})
         filepath = input_dir / 'cons.csv'
         df.to_csv(filepath, index=False)
-        logger.info(f"Successfully saved {len(unique_symbols)} unique constituents to {filepath}")
+        logger.info(f"Successfully saved {len(filtered_symbols)} filtered constituents to {filepath}")
     except Exception as e:
         logger.error(f"Error saving constituents: {str(e)}")
 
