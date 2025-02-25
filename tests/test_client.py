@@ -354,7 +354,7 @@ class TestYFinanceClient(unittest.TestCase):
         with self.assertRaises(ValidationError):
             client._validate_ticker(None)
         with self.assertRaises(ValidationError):
-            client._validate_ticker(123)
+            client._validate_ticker("123")
         with self.assertRaises(ValidationError):
             client._validate_ticker("THISISAVERYLONGTICKER")
         with self.assertRaises(ValidationError):

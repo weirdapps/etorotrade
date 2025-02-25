@@ -168,6 +168,39 @@ class AnalystData:
         # US tickers generally have no suffix or .US suffix
         return '.' not in ticker or ticker.endswith('.US')
 
+    def _try_get_ratings_data(self, ticker: str, start_date: Optional[str]) -> Optional[Dict[str, Any]]:
+        """Try to get ratings data from upgrade/downgrade history (US tickers only)"""
+        if not self._is_us_ticker(ticker):
+            return None
+            
+        try:
+            df = self.fetch_ratings_data(ticker, start_date)
+            if df is not None and not df.empty:
+                return self._calculate_ratings_from_df(df)
+        except Exception as e:
+            logger.debug(f"No upgrade/downgrade data for {ticker}: {str(e)}")
+        
+        return None
+        
+    def _try_get_recommendations_data(self, ticker: str) -> Optional[Dict[str, Any]]:
+        """Try to get data from recommendations"""
+        try:
+            rec_data = self._get_recommendations_data(ticker)
+            if rec_data:
+                return rec_data
+        except Exception as e:
+            logger.debug(f"No recommendation data for {ticker}: {str(e)}")
+            
+        return None
+        
+    def _get_empty_ratings_data(self) -> Dict[str, Any]:
+        """Return empty ratings data structure"""
+        return {
+            "positive_percentage": None,
+            "total_ratings": None,
+            "ratings_type": None
+        }
+    
     def get_ratings_summary(self,
                           ticker: str,
                           start_date: Optional[str] = None,
@@ -199,23 +232,15 @@ class AnalystData:
                 if earnings_start_date:
                     start_date = earnings_start_date
 
-            # Only try upgrade/downgrade history for US tickers
-            if self._is_us_ticker(ticker):
-                try:
-                    df = self.fetch_ratings_data(ticker, start_date)
-                    if df is not None and not df.empty:
-                        return self._calculate_ratings_from_df(df)
-                except Exception as e:
-                    logger.debug(f"No upgrade/downgrade data for {ticker}: {str(e)}")
-
-            # Try recommendations data (fallback for US tickers, primary for non-US)
-            try:
-                rec_data = self._get_recommendations_data(ticker)
-                if rec_data:
-                    return rec_data
-            except Exception as e:
-                logger.debug(f"No recommendation data for {ticker}: {str(e)}")
-
+            # Try to get ratings data from different sources
+            ratings_data = self._try_get_ratings_data(ticker, start_date)
+            if ratings_data:
+                return ratings_data
+                
+            recommendations_data = self._try_get_recommendations_data(ticker)
+            if recommendations_data:
+                return recommendations_data
+                
             # Try all-time ratings if using earnings date (for US tickers only)
             if use_earnings_date and self._is_us_ticker(ticker):
                 all_time_data = self._get_all_time_ratings(ticker)
@@ -223,19 +248,11 @@ class AnalystData:
                     return all_time_data
 
             # Return empty data if nothing found
-            return {
-                "positive_percentage": None,
-                "total_ratings": None,
-                "ratings_type": None
-            }
+            return self._get_empty_ratings_data()
 
         except Exception as e:
             logger.error(f"Error calculating ratings summary for {ticker}: {str(e)}")
-            return {
-                "positive_percentage": None,
-                "total_ratings": None,
-                "ratings_type": None
-            }
+            return self._get_empty_ratings_data()
 
     def get_recent_changes(self, 
                           ticker: str, 

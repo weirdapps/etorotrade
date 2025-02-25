@@ -231,16 +231,8 @@ def test_exception_handling_in_constituents_getters():
         # Verify it has items
         assert len(result) > 0
         
-        # Verify function has try-except (look for "try" in its code constants)
-        func_code = func.__code__.co_consts
-        has_try_except = False
-        for const in func_code:
-            if isinstance(const, str) and "try:" in const:
-                has_try_except = True
-                break
-        
-        # Skip this check as it's not reliable - just verify result is correct
-        # assert has_try_except, f"Function {func.__name__} should have try-except protection"
+        # Verify function has try-except by checking code constants is not reliable
+        # Just verify result is correct instead
 
 def test_error_in_save_constituents(tmp_path):
     """Test error handling in save_constituents_to_csv"""
@@ -352,9 +344,9 @@ def test_error_handling_simulation():
     def function_with_exception_handling():
         try:
             # This line would be processing the hardcoded list in the real function
-            raise Exception("Simulated exception")
+            raise ValueError("Simulated exception")
             return ["Some", "values"]  # This won't be reached
-        except Exception as e:
+        except ValueError as e:
             logging.getLogger(__name__).error(f"Error simulated: {str(e)}")
             return []
     

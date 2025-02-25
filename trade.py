@@ -14,6 +14,7 @@ from yahoofinance.formatting import DisplayFormatter, DisplayConfig, Color
 # Define constants for column names
 BUY_PERCENTAGE = '% BUY'
 DIVIDEND_YIELD = 'DIV %'
+COMPANY_NAME = 'COMPANY NAME'
 
 # Set up logging with INFO level
 logging.basicConfig(
@@ -114,7 +115,7 @@ def generate_trade_recommendations(action_type):
                 # Create a dictionary mapping column names
                 column_mapping = {
                     'ticker': 'TICKER',
-                    'company': 'COMPANY NAME',
+                    'company': COMPANY_NAME,
                     'price': 'PRICE',
                     'target_price': 'TARGET',
                     'upside': 'UPSIDE',
@@ -170,7 +171,7 @@ def generate_trade_recommendations(action_type):
                 # Define column alignment (left-align TICKER and COMPANY NAME, right-align others)
                 colalign = []
                 for col in display_df.columns:
-                    if col in ['TICKER', 'COMPANY NAME']:
+                    if col in ['TICKER', COMPANY_NAME]:
                         colalign.append('left')
                     else:
                         colalign.append('right')
@@ -240,7 +241,7 @@ def generate_trade_recommendations(action_type):
                     # Create a dictionary mapping column names
                     column_mapping = {
                         'ticker': 'TICKER',
-                        'company': 'COMPANY NAME',
+                        'company': COMPANY_NAME,
                         'price': 'PRICE',
                         'target_price': 'TARGET',
                         'upside': 'UPSIDE',
@@ -300,7 +301,7 @@ def generate_trade_recommendations(action_type):
                     # Define column alignment (left-align TICKER and COMPANY NAME, right-align others)
                     colalign = []
                     for col in display_df.columns:
-                        if col in ['TICKER', 'COMPANY NAME']:
+                        if col in ['TICKER', COMPANY_NAME]:
                             colalign.append('left')
                         else:
                             colalign.append('right')
@@ -328,48 +329,64 @@ def generate_trade_recommendations(action_type):
         logger.error(f"Error generating trade recommendations: {str(e)}")
         print(f"Error generating recommendations: {str(e)}")
 
+def handle_trade_analysis():
+    """Handle trade analysis (buy/sell) flow"""
+    action = input("Do you want to identify BUY (B) or SELL (S) opportunities? ").strip().upper()
+    if action == 'B':
+        generate_trade_recommendations('N')  # 'N' for new buy opportunities
+    elif action == 'S':
+        generate_trade_recommendations('E')  # 'E' for existing portfolio (sell)
+    else:
+        print("Invalid option. Please enter 'B' or 'S'.")
+
+def handle_portfolio_download():
+    """Handle portfolio download if requested"""
+    use_existing = input("Use existing portfolio file (E) or download new one (N)? ").strip().upper()
+    if use_existing == 'N':
+        from yahoofinance.download import download_portfolio
+        if not download_portfolio():
+            logger.error("Failed to download portfolio")
+            return False
+    return True
+
+def display_report_for_source(display, tickers, source):
+    """Display report for the selected source"""
+    if not tickers:
+        logger.error("No valid tickers provided")
+        return
+        
+    try:
+        # Handle special case for eToro market
+        report_source = source
+        if source == 'E':
+            report_source = 'M'  # Still save as market.csv for eToro tickers
+            
+        # Only pass source for market or portfolio options
+        display.display_report(tickers, report_source if report_source in ['M', 'P'] else None)
+    except ValueError as e:
+        logger.error(f"Error processing numeric values: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error displaying report: {str(e)}")
+
 def main():
     """Command line interface for market display"""
     try:
         display = MarketDisplay()
         source = input("Load tickers for Portfolio (P), Market (M), eToro Market (E), Trade Analysis (T) or Manual Input (I)? ").strip().upper()
         
+        # Handle trade analysis separately
         if source == 'T':
-            action = input("Do you want to identify BUY (B) or SELL (S) opportunities? ").strip().upper()
-            if action == 'B':
-                generate_trade_recommendations('N')  # 'N' for new buy opportunities
-            elif action == 'S':
-                generate_trade_recommendations('E')  # 'E' for existing portfolio (sell)
-            else:
-                print("Invalid option. Please enter 'B' or 'S'.")
+            handle_trade_analysis()
             return
         
+        # Handle portfolio download if needed
         if source == 'P':
-            use_existing = input("Use existing portfolio file (E) or download new one (N)? ").strip().upper()
-            if use_existing == 'N':
-                from yahoofinance.download import download_portfolio
-                if not download_portfolio():
-                    logger.error("Failed to download portfolio")
-                    return
-                
-        tickers = display.load_tickers(source)
+            if not handle_portfolio_download():
+                return
         
-        if not tickers:
-            logger.error("No valid tickers provided")
-            return
-            
-        try:
-            # Handle special case for eToro market
-            report_source = source
-            if source == 'E':
-                report_source = 'M'  # Still save as market.csv for eToro tickers
-                
-            # Only pass source for market or portfolio options
-            display.display_report(tickers, report_source if report_source in ['M', 'P'] else None)
-        except ValueError as e:
-            logger.error(f"Error processing numeric values: {str(e)}")
-        except Exception as e:
-            logger.error(f"Error displaying report: {str(e)}")
+        # Load tickers and display report
+        tickers = display.load_tickers(source)
+        display_report_for_source(display, tickers, source)
             
     except KeyboardInterrupt:
         print("\nOperation cancelled by user")
