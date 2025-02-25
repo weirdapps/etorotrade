@@ -9,6 +9,8 @@
     - Select 'B' for Buy opportunities
     - Select 'S' for Sell candidates
   - Select 'I' for Manual ticker input
+- `python validate.py` - Validate tickers against Yahoo Finance API
+- `python -m yahoofinance.cons` - Generate market constituents (filtered by yfinance.csv when available)
 - `pytest tests/` - Run all tests
 - `pytest tests/test_file.py::TestClass::test_method` - Run specific test
 - `pytest tests/ --cov=yahoofinance` - Run tests with coverage
@@ -31,11 +33,14 @@
 - `yahoofinance/client.py` - API client with rate limiting and caching
 - `yahoofinance/display.py` - Output handling and batch processing
 - `yahoofinance/formatting.py` - Data formatting and colorization
+- `yahoofinance/cons.py` - Market constituents management
+- `yahoofinance/validate.py` - Ticker validation against Yahoo Finance API
 - `yahoofinance/input/` - Input data files (.csv)
   - `market.csv` - All market tickers for analysis
   - `etoro.csv` - Filtered list of tickers available on eToro
   - `portfolio.csv` - Current portfolio holdings
-  - `cons.csv` - Sector/industry data
+  - `cons.csv` - Market constituent data (filtered by yfinance.csv when available)
+  - `yfinance.csv` - Valid tickers that pass Yahoo Finance API validation
 - `yahoofinance/output/` - Generated output files
   - `buy.csv` - Generated buy recommendations
   - `sell.csv` - Generated sell recommendations
@@ -50,17 +55,21 @@
 
 ## Trading Criteria
 - **Buy Signal**:
-  - 5 or more analysts covering the stock
+  - 5 or more price targets (# T)
+  - 5 or more analyst ratings (# A)
   - 20% or greater upside potential
   - 75% or more of analysts recommend buying
   
 - **Sell Signal**:
-  - 5 or more analysts covering the stock AND either:
+  - 5 or more price targets (# T)
+  - 5 or more analyst ratings (# A)
+  - AND either:
     - Less than 5% upside potential, OR
     - Less than 50% of analysts recommend buying
 
 - **Low Confidence**:
-  - Fewer than 5 analysts covering the stock
+  - Fewer than 5 price targets OR
+  - Fewer than 5 analyst ratings
   
 - **EXRET Calculation**:
   - Expected Return = Upside Potential × Buy Percentage / 100
@@ -73,6 +82,13 @@
   - 4-digit tickers remain unchanged (e.g., `0700.HK`)
 
 ## Performance Optimizations
+- **Ticker Validation**:
+  - Validates tickers against Yahoo Finance API
+  - Filters out invalid or delisted tickers 
+  - Saves valid tickers to yfinance.csv
+  - Improves batch processing reliability
+  - Reduces API errors and failed requests
+
 - **US vs Non-US Market Detection**:
   - Automatically detects US vs non-US tickers based on exchange suffix
   - US tickers have no suffix or end with .US
