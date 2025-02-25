@@ -10,17 +10,17 @@ logger = logging.getLogger(__name__)
 
 class ColorCode:
     """ANSI color codes for terminal output"""
-    GREEN = "\033[92m"   # Strong buy signal
+    GREEN = "\033[92m"   # Buy signal
     YELLOW = "\033[93m"  # Low confidence rating
-    RED = "\033[91m"     # Strong sell signal
+    RED = "\033[91m"     # Sell signal
     RESET = "\033[0m"    # Reset color
     DEFAULT = ""         # Neutral/hold rating
 
 class Color(Enum):
     """Color enum with semantic meanings"""
-    STRONG_BUY = ColorCode.GREEN
+    BUY = ColorCode.GREEN
     LOW_CONFIDENCE = ColorCode.YELLOW
-    STRONG_SELL = ColorCode.RED
+    SELL = ColorCode.RED
     RESET = ColorCode.RESET
     NEUTRAL = ColorCode.DEFAULT
 
@@ -32,10 +32,10 @@ class DisplayConfig:
     float_precision: int = 2
     percentage_precision: int = 1
     table_format: str = "fancy_grid"
-    min_analysts: int = 4  # Minimum analysts for high confidence rating
-    high_upside: float = 15.0  # Threshold for buy signal
+    min_analysts: int = 5  # Minimum analysts for high confidence rating
+    high_upside: float = 20.0  # Threshold for buy signal
     low_upside: float = 5.0   # Threshold for sell signal
-    high_buy_percent: float = 65.0  # Threshold for strong buy signal
+    high_buy_percent: float = 75.0  # Threshold for strong buy signal
 
 class DisplayFormatter:
     """Handles formatting of display output"""
@@ -93,17 +93,17 @@ class DisplayFormatter:
             if num_targets <= self.config.min_analysts or total_ratings <= self.config.min_analysts:
                 return Color.LOW_CONFIDENCE
 
-            # Strong buy signal
-            if (num_targets > self.config.min_analysts and
-                upside > self.config.high_upside and
-                total_ratings > self.config.min_analysts and
-                percent_buy > self.config.high_buy_percent):
-                return Color.STRONG_BUY
+            # Buy signal
+            if (num_targets >= self.config.min_analysts and
+                upside >= self.config.high_upside and
+                total_ratings >= self.config.min_analysts and
+                percent_buy >= self.config.high_buy_percent):
+                return Color.BUY
 
-            # Strong sell signal
-            if ((num_targets > self.config.min_analysts and upside < self.config.low_upside) or
-                (total_ratings > self.config.min_analysts and percent_buy < 50)):
-                return Color.STRONG_SELL
+            # Sell signal
+            if ((num_targets >= self.config.min_analysts and upside < self.config.low_upside) or
+                (total_ratings >= self.config.min_analysts and percent_buy < 50)):
+                return Color.SELL
 
             # Default to neutral
             return Color.NEUTRAL

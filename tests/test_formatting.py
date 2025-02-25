@@ -226,19 +226,19 @@ class TestDisplayFormatter(unittest.TestCase):
     def test_color_enum_values(self):
         """Test Color enum values and behavior."""
         # Test color values
-        self.assertEqual(Color.STRONG_BUY.value, ColorCode.GREEN)
+        self.assertEqual(Color.BUY.value, ColorCode.GREEN)
         self.assertEqual(Color.LOW_CONFIDENCE.value, ColorCode.YELLOW)
-        self.assertEqual(Color.STRONG_SELL.value, ColorCode.RED)
+        self.assertEqual(Color.SELL.value, ColorCode.RED)
         self.assertEqual(Color.NEUTRAL.value, ColorCode.DEFAULT)
         
         # Test color application with config
         formatter_with_colors = DisplayFormatter(DisplayConfig(use_colors=True))
-        colored_text = formatter_with_colors.colorize("test", Color.STRONG_BUY)
+        colored_text = formatter_with_colors.colorize("test", Color.BUY)
         self.assertIn(ColorCode.GREEN, colored_text)
         
         # Test color disabled
         formatter_no_colors = DisplayFormatter(DisplayConfig(use_colors=False))
-        plain_text = formatter_no_colors.colorize("test", Color.STRONG_BUY)
+        plain_text = formatter_no_colors.colorize("test", Color.BUY)
         self.assertEqual(plain_text, "test")
 
 if __name__ == '__main__':
