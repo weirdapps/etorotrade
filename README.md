@@ -121,7 +121,7 @@ The system has built-in ticker validation to filter out invalid or delisted tick
 To validate tickers and create a filtered list:
 ```bash
 # Run this once to validate all tickers against Yahoo Finance API
-python validate.py
+python -m yahoofinance.validate
 
 # After validation, cons.py will automatically filter against valid tickers
 python -m yahoofinance.cons

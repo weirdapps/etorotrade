@@ -9,7 +9,7 @@
     - Select 'B' for Buy opportunities
     - Select 'S' for Sell candidates
   - Select 'I' for Manual ticker input
-- `python validate.py` - Validate tickers against Yahoo Finance API
+- `python -m yahoofinance.validate` - Validate tickers against Yahoo Finance API
 - `python -m yahoofinance.cons` - Generate market constituents (filtered by yfinance.csv when available)
 - `pytest tests/` - Run all tests
 - `pytest tests/test_file.py::TestClass::test_method` - Run specific test
