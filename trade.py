@@ -380,9 +380,8 @@ def main():
             return
         
         # Handle portfolio download if needed
-        if source == 'P':
-            if not handle_portfolio_download():
-                return
+        if source == 'P' and not handle_portfolio_download():
+            return
         
         # Load tickers and display report
         tickers = display.load_tickers(source)
