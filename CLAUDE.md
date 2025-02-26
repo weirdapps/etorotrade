@@ -58,14 +58,14 @@
   - 5 or more price targets (# T)
   - 5 or more analyst ratings (# A)
   - 20% or greater upside potential
-  - 75% or more of analysts recommend buying
+  - 80% or more of analysts recommend buying
   
 - **Sell Signal**:
   - 5 or more price targets (# T)
   - 5 or more analyst ratings (# A)
   - AND either:
     - Less than 5% upside potential, OR
-    - Less than 50% of analysts recommend buying
+    - Less than 60% of analysts recommend buying
 
 - **Low Confidence**:
   - Fewer than 5 price targets OR

@@ -228,13 +228,13 @@ NEWS_API_KEY=your_news_api_key  # Optional
   * 5+ price targets (# T)
   * 5+ analyst ratings (# A)
   * 20%+ upside
-  * 75%+ buy ratings
+  * 80%+ buy ratings
 
 - 🔴 **Red** (Sell)
   * 5+ price targets (# T)
   * 5+ analyst ratings (# A) AND
   * < 5% upside OR
-  * < 50% buy ratings
+  * < 60% buy ratings
 
 - 🟡 **Yellow** (Low Confidence)
   * < 5 price targets OR

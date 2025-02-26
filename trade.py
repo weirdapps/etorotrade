@@ -104,16 +104,16 @@ def filter_buy_opportunities(market_df):
     Returns:
         pd.DataFrame: Filtered buy opportunities
     """
-    # Buy criteria: 
+    # Buy criteria:
     # - min 5 price targets (analyst_count)
-    # - min 5 ratings (total_ratings) 
+    # - min 5 ratings (total_ratings)
     # - >=20% upside
-    # - >=75% buy percentage
+    # - >=80% buy percentage
     return market_df[
-        (market_df['analyst_count'] >= 5) & 
+        (market_df['analyst_count'] >= 5) &
         (market_df['total_ratings'] >= 5) &
-        (market_df['upside'] >= 20.0) & 
-        (market_df['buy_percentage'] >= 75.0)
+        (market_df['upside'] >= 20.0) &
+        (market_df['buy_percentage'] >= 80.0)
     ].copy()
 
 def filter_sell_candidates(portfolio_df):
@@ -125,15 +125,15 @@ def filter_sell_candidates(portfolio_df):
     Returns:
         pd.DataFrame: Filtered sell candidates
     """
-    # Sell criteria: 
+    # Sell criteria:
     # - min 5 price targets (analyst_count)
     # - min 5 ratings (total_ratings)
-    # - Either: < 5% upside OR < 50% buy percentage
+    # - Either: < 5% upside OR < 60% buy percentage
     return portfolio_df[
-        (portfolio_df['analyst_count'] >= 5) & 
+        (portfolio_df['analyst_count'] >= 5) &
         (portfolio_df['total_ratings'] >= 5) &
-        ((portfolio_df['upside'] < 5.0) | 
-         (portfolio_df['buy_percentage'] < 50.0))
+        ((portfolio_df['upside'] < 5.0) |
+         (portfolio_df['buy_percentage'] < 60.0))
     ].copy()
 
 def calculate_exret(df):

@@ -94,9 +94,10 @@ def get_date_input(prompt, default_date):
         return default_date
 
 def get_default_dates():
-    """Get default date range (last 30 days)"""
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=30)
+    """Get default date range (-2 days to +8 days)"""
+    current_date = datetime.now()
+    start_date = current_date - timedelta(days=2)
+    end_date = current_date + timedelta(days=8)
     return start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")
 
 def get_extended_start_date(start_date, freq):
@@ -193,18 +194,14 @@ def calculate_change(current, previous):
     except (ValueError, TypeError):
         pass
     return ""
-
 def should_include_observation(obs_date, start_date, end_date, freq):
     """Determine if observation should be included based on frequency"""
     obs_dt = datetime.strptime(obs_date, "%Y-%m-%d")
-    start_dt = datetime.strptime(start_date, "%Y-%m-%d")
     end_dt = datetime.strptime(end_date, "%Y-%m-%d")
     
-    # For monthly/quarterly data, include if it's the most recent observation
-    if freq in ["monthly", "quarterly"]:
-        return obs_dt <= end_dt
-    
-    # For weekly/daily data, only include if within range
+    # For all data types, include if it's before or equal to end date
+    # This ensures we get the most recent available data for all indicators
+    return obs_dt <= end_dt
     return start_dt <= obs_dt <= end_dt
 
 def process_observation(obs, indicator_name, scale_func, prev_value, start_date, end_date, freq):
@@ -249,7 +246,6 @@ def fetch_economic_data(api_key, start_date, end_date):
             
         # Get previous value for change calculation
         prev_value = None if len(observations) < 2 else observations[1].get('value')
-        
         # Process only the most recent valid observation
         for obs in observations:
             data = process_observation(
@@ -259,6 +255,7 @@ def fetch_economic_data(api_key, start_date, end_date):
             if data:
                 all_data.append(data)
                 break  # Only include the most recent observation
+            prev_value = obs.get('value')
             prev_value = obs.get('value')
     
     return all_data
@@ -271,7 +268,7 @@ def main():
     default_start, default_end = get_default_dates()
     
     # Get date range from user
-    print("\nEnter date range for economic data (default: last 30 days):")
+    print("\nEnter date range for economic data (default: -2 days to +8 days from today):")
     start_date = get_date_input("Start date", default_start)
     end_date = get_date_input("End date", default_end)
     

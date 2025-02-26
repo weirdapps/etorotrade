@@ -289,11 +289,26 @@ def test_fix_hk_ticker():
     
     # Test cases for fix_hk_ticker
     test_cases = [
-        ('03690.HK', '3690.HK'),      # Leading zero, 5 digits -> remove zero
-        ('01299.HK', '1299.HK'),      # Leading zero, 5 digits -> remove zero
-        ('0700.HK', '0700.HK'),       # Leading zero, 4 digits -> unchanged
-        ('9988.HK', '9988.HK'),       # No leading zero -> unchanged
-        ('00700.HK', '700.HK'),       # Two leading zeros, 5 digits -> remove zeros
+        # Case 1: Fewer than 4 numerals - add leading zeros
+        ('1.HK', '0001.HK'),          # 1 digit -> add 3 zeros
+        ('12.HK', '0012.HK'),         # 2 digits -> add 2 zeros
+        ('123.HK', '0123.HK'),        # 3 digits -> add 1 zero
+        
+        # Case 2: Exactly 4 numerals - unchanged
+        ('0700.HK', '0700.HK'),       # 4 digits with leading zero -> unchanged
+        ('9988.HK', '9988.HK'),       # 4 digits no leading zero -> unchanged
+        
+        # Case 3: More than 4 numerals with leading zeros - remove leading zeros until 4 digits
+        ('03690.HK', '3690.HK'),      # 5 digits with 1 leading zero -> remove zero
+        ('01299.HK', '1299.HK'),      # 5 digits with 1 leading zero -> remove zero
+        ('00700.HK', '0700.HK'),      # 5 digits with 2 leading zeros -> remove 1 zero
+        ('000123.HK', '0123.HK'),     # 6 digits with 3 leading zeros -> remove 2 zeros
+        
+        # Case 4: More than 4 numerals with no leading zeros - keep as is
+        ('12345.HK', '12345.HK'),     # 5 digits, no leading zeros -> unchanged
+        ('123456.HK', '123456.HK'),   # 6 digits, no leading zeros -> unchanged
+        
+        # Edge cases
         ('AAPL', 'AAPL'),             # Non-HK ticker -> unchanged
         (None, None),                  # None value -> unchanged
         (123, 123)                     # Non-string -> unchanged
@@ -378,7 +393,8 @@ def test_download_portfolio_success():
          patch('yahoofinance.download.handle_cookie_consent') as mock_cookie, \
          patch('yahoofinance.download.login') as mock_login, \
          patch('yahoofinance.download.handle_portfolio_buttons') as mock_buttons, \
-         patch('yahoofinance.download.process_portfolio') as mock_process:
+         patch('yahoofinance.download.process_portfolio') as mock_process, \
+         patch('os.getenv', return_value='dummy_value'):
         
         result = download_portfolio()
         
@@ -409,7 +425,8 @@ def test_download_portfolio_file_error():
          patch('yahoofinance.download.handle_cookie_consent'), \
          patch('yahoofinance.download.login'), \
          patch('yahoofinance.download.handle_portfolio_buttons'), \
-         patch('yahoofinance.download.process_portfolio', side_effect=IOError):
+         patch('yahoofinance.download.process_portfolio', side_effect=IOError), \
+         patch('os.getenv', return_value='dummy_value'):
         
         result = download_portfolio()
         assert result is False

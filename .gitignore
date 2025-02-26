@@ -1,10 +1,11 @@
 # Python
 __pycache__/
-.pytest_cache/
 *.py[cod]
 *$py.class
 *.so
 .Python
+
+# Distribution / packaging
 build/
 develop-eggs/
 dist/
@@ -17,34 +18,85 @@ parts/
 sdist/
 var/
 wheels/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
-# Virtual Environment
+# Python testing
+.pytest_cache/
+pytest.ini
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Virtual Environments
 myenv/
 venv/
+env/
+ENV/
 testenv/
+.env/
+.venv/
+env.bak/
+venv.bak/
 
 # Environment Variables
 .env
 .env.local
 .env.*.local
+.env.development
+.env.test
+.env.production
 
-# IDE
+# IDEs and editors
 .idea/
 .vscode/
 *.swp
 *.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+*.sublime-project
 
-# OS
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 
-# Cache files
+# Project specific
 yahoofinance/cache/
 
-# Testing
-.cov*
-.coverage
-htmlcov/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version

@@ -17,32 +17,51 @@ from dotenv import load_dotenv
 
 def fix_hk_ticker(ticker):
     """
-    Fix HK stock tickers with leading zeros.
+    Fix HK stock tickers to standardize their format:
+    1. If fewer than 4 numerals, add leading zeros to make it 4 numerals
+    2. If more than 4 numerals and they are leading zeros, remove until you get to 4 numerals
+    3. If more than 4 numerals and the leading numeral is not zero, keep as is
     
     Args:
         ticker: The ticker string to process
     
     Returns:
-        The processed ticker with leading zeros removed for 5+ digit HK tickers
+        The processed ticker with standardized format
     """
     if isinstance(ticker, str) and ticker.endswith('.HK'):
         parts = ticker.split('.')
-        if len(parts) == 2 and parts[0].startswith('0') and len(parts[0]) >= 5:
-            # Remove leading zero from 5+ digit tickers (e.g., 03690.HK -> 3690.HK)
-            fixed_ticker = parts[0].lstrip('0') + '.HK'
-            print(f"Fixed HK ticker: {ticker} -> {fixed_ticker}")
-            return fixed_ticker
+        if len(parts) == 2:
+            numeric_part = parts[0]
+            
+            # If fewer than 4 digits, add leading zeros
+            if len(numeric_part) < 4:
+                fixed_ticker = numeric_part.zfill(4) + '.HK'
+                print(f"Fixed HK ticker: {ticker} -> {fixed_ticker}")
+                return fixed_ticker
+            
+            # If more than 4 digits
+            elif len(numeric_part) > 4:
+                # Check if there are leading zeros to remove
+                if numeric_part.startswith('0'):
+                    # Remove leading zeros until we have 4 digits
+                    stripped_part = numeric_part.lstrip('0')
+                    
+                    # Make sure it's still 4 digits
+                    if len(stripped_part) < 4:
+                        fixed_ticker = stripped_part.zfill(4) + '.HK'
+                    else:
+                        fixed_ticker = stripped_part + '.HK'
+                    
+                    print(f"Fixed HK ticker: {ticker} -> {fixed_ticker}")
+                    return fixed_ticker
+                else:
+                    # If leading numeral is not zero, keep as is
+                    return ticker
+    
     return ticker
 
 # Load environment variables
 load_dotenv()
-
-# Get credentials from environment variables
-PI_SCREENER_EMAIL = os.getenv('PI_SCREENER_EMAIL')
-PI_SCREENER_PASSWORD = os.getenv('PI_SCREENER_PASSWORD')
-
-if not PI_SCREENER_EMAIL or not PI_SCREENER_PASSWORD:
-    raise ValueError("PI_SCREENER_EMAIL and PI_SCREENER_PASSWORD must be set in .env file")
 
 def safe_click(driver, element, description="element"):
     """Helper function to safely click an element using JavaScript"""
@@ -319,6 +338,14 @@ def handle_portfolio_buttons(driver):
 
 def download_portfolio():
     """Main function to download and process the portfolio"""
+    # Get credentials from environment variables
+    pi_screener_email = os.getenv('PI_SCREENER_EMAIL')
+    pi_screener_password = os.getenv('PI_SCREENER_PASSWORD')
+
+    if not pi_screener_email or not pi_screener_password:
+        print("Error: PI_SCREENER_EMAIL and PI_SCREENER_PASSWORD must be set in .env file")
+        return False
+
     driver = None
     try:
         # Setup and navigate
@@ -331,7 +358,7 @@ def download_portfolio():
         
         # Handle initial page setup
         handle_cookie_consent(driver)
-        login(driver, PI_SCREENER_EMAIL, PI_SCREENER_PASSWORD)
+        login(driver, pi_screener_email, pi_screener_password)
         
         # Wait for page to load after login
         print("Waiting for page to load after login...")
