@@ -28,37 +28,31 @@ def fix_hk_ticker(ticker):
     Returns:
         The processed ticker with standardized format
     """
-    if isinstance(ticker, str) and ticker.endswith('.HK'):
-        parts = ticker.split('.')
-        if len(parts) == 2:
-            numeric_part = parts[0]
-            
-            # If fewer than 4 digits, add leading zeros
-            if len(numeric_part) < 4:
-                fixed_ticker = numeric_part.zfill(4) + '.HK'
-                print(f"Fixed HK ticker: {ticker} -> {fixed_ticker}")
-                return fixed_ticker
-            
-            # If more than 4 digits
-            elif len(numeric_part) > 4:
-                # Check if there are leading zeros to remove
-                if numeric_part.startswith('0'):
-                    # Remove leading zeros until we have 4 digits
-                    stripped_part = numeric_part.lstrip('0')
-                    
-                    # Make sure it's still 4 digits
-                    if len(stripped_part) < 4:
-                        fixed_ticker = stripped_part.zfill(4) + '.HK'
-                    else:
-                        fixed_ticker = stripped_part + '.HK'
-                    
-                    print(f"Fixed HK ticker: {ticker} -> {fixed_ticker}")
-                    return fixed_ticker
-                else:
-                    # If leading numeral is not zero, keep as is
-                    return ticker
+    # Return early if not a valid HK ticker format
+    if not isinstance(ticker, str) or not ticker.endswith('.HK'):
+        return ticker
+        
+    parts = ticker.split('.')
+    if len(parts) != 2:
+        return ticker
+        
+    numeric_part = parts[0]
+    fixed_ticker = ticker
     
-    return ticker
+    # Process based on digit count
+    if len(numeric_part) < 4:
+        # Add leading zeros for fewer than 4 digits
+        fixed_ticker = numeric_part.zfill(4) + '.HK'
+    elif len(numeric_part) > 4 and numeric_part.startswith('0'):
+        # Remove leading zeros for more than 4 digits
+        stripped_part = numeric_part.lstrip('0')
+        fixed_ticker = (stripped_part.zfill(4) if len(stripped_part) < 4 else stripped_part) + '.HK'
+    
+    # Log changes if the ticker was modified
+    if fixed_ticker != ticker:
+        print(f"Fixed HK ticker: {ticker} -> {fixed_ticker}")
+    
+    return fixed_ticker
 
 # Load environment variables
 load_dotenv()
