@@ -242,7 +242,7 @@ def format_numeric_columns(display_df, columns, format_str):
                 # Handle percentage format separately
                 base_format = format_str.rstrip('%')
                 display_df[col] = display_df[col].apply(
-                    lambda x: f"{x:{base_format}}%" if pd.notnull(x) else "--"
+                    lambda x, fmt=base_format: f"{x:{fmt}}%" if pd.notnull(x) else "--"
                 )
             else:
                 # Regular format
