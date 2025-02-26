@@ -85,7 +85,7 @@ def validate_tickers_batch(tickers, max_workers=5, batch_size=20):
         
         # Pause between batches to avoid API rate limits
         if i + batch_size < len(tickers):
-            logger.info(f"Waiting 3 seconds before next batch...")
+            logger.info("Waiting 3 seconds before next batch...")
             time.sleep(3)
     
     return valid_tickers
