@@ -194,7 +194,7 @@ def calculate_change(current, previous):
     except (ValueError, TypeError):
         pass
     return ""
-def should_include_observation(obs_date, start_date, end_date):
+def should_include_observation(obs_date, end_date):
     """Determine if observation should be included based on date range"""
     obs_dt = datetime.strptime(obs_date, "%Y-%m-%d")
     end_dt = datetime.strptime(end_date, "%Y-%m-%d")
@@ -203,12 +203,12 @@ def should_include_observation(obs_date, start_date, end_date):
     # This ensures we get the most recent available data for all indicators
     return obs_dt <= end_dt
 
-def process_observation(obs, indicator_name, scale_func, prev_value, start_date, end_date, freq):
+def process_observation(obs, indicator_name, scale_func, prev_value, start_date, end_date):
     """Process a single observation and return formatted data if valid"""
     obs_date = obs.get('date')
     raw_value = obs.get('value')
     
-    if not should_include_observation(obs_date, start_date, end_date):
+    if not should_include_observation(obs_date, end_date):
         return None
         
     if raw_value in ['', '.']:
@@ -249,7 +249,7 @@ def fetch_economic_data(api_key, start_date, end_date):
         for obs in observations:
             data = process_observation(
                 obs, indicator_name, scale_func, prev_value,
-                start_date, end_date, freq
+                start_date, end_date
             )
             if data:
                 all_data.append(data)
