@@ -55,21 +55,27 @@
 
 ## Trading Criteria
 - **Buy Signal**:
-  - 5 or more price targets (# T)
-  - 5 or more analyst ratings (# A)
-  - 20% or greater upside potential
-  - 80% or more of analysts recommend buying
+  - More than 5 price targets (# T)
+  - More than 5 analyst ratings (# A)
+  - More than 20% upside potential
+  - More than 85% of analysts recommend buying
   
 - **Sell Signal**:
-  - 5 or more price targets (# T)
-  - 5 or more analyst ratings (# A)
+  - More than 5 price targets (# T)
+  - More than 5 analyst ratings (# A)
   - AND either:
     - Less than 5% upside potential, OR
-    - Less than 60% of analysts recommend buying
+    - Less than 55% of analysts recommend buying
 
-- **Low Confidence**:
-  - Fewer than 5 price targets OR
-  - Fewer than 5 analyst ratings
+- **Hold Signal**:
+  - More than 5 price targets (# T)
+  - More than 5 analyst ratings (# A)
+  - Between 5-20% upside potential
+  - Between 55-85% of analysts recommend buying
+
+- **Low Confidence/Insufficient Data**:
+  - 5 or fewer price targets OR
+  - 5 or fewer analyst ratings
   
 - **EXRET Calculation**:
   - Expected Return = Upside Potential × Buy Percentage / 100

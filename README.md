@@ -225,24 +225,26 @@ NEWS_API_KEY=your_news_api_key  # Optional
 ## Color Coding System
 
 - 🟢 **Green** (Buy)
-  * 5+ price targets (# T)
-  * 5+ analyst ratings (# A)
-  * 20%+ upside
-  * 80%+ buy ratings
+  * More than 5 price targets (# T)
+  * More than 5 analyst ratings (# A)
+  * More than 20% upside
+  * More than 85% buy ratings
 
 - 🔴 **Red** (Sell)
-  * 5+ price targets (# T)
-  * 5+ analyst ratings (# A) AND
+  * More than 5 price targets (# T)
+  * More than 5 analyst ratings (# A) AND
   * < 5% upside OR
-  * < 60% buy ratings
+  * < 55% buy ratings
 
-- 🟡 **Yellow** (Low Confidence)
-  * < 5 price targets OR
-  * < 5 analyst ratings OR
-  * Limited data
+- 🟡 **Yellow** (Low Confidence/Insufficient Data)
+  * 5 or fewer price targets OR
+  * 5 or fewer analyst ratings
 
 - ⚪ **White** (Hold)
-  * Metrics between buy/sell thresholds
+  * More than 5 price targets (# T)
+  * More than 5 analyst ratings (# A)
+  * 5-20% upside AND
+  * 55-85% buy ratings
 
 ## Architecture
 
