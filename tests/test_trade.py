@@ -294,24 +294,24 @@ class TestTrade(unittest.TestCase):
         # This is a simpler test just focusing on the logic, not file operations
         def is_buy_opportunity(upside, analyst_count, total_ratings, buy_percentage):
             """Simulates the buy criteria from trade.py"""
-            return (analyst_count >= 5 and
-                    total_ratings >= 5 and
-                    upside >= 20.0 and
-                    buy_percentage >= 75.0)
+            return (analyst_count > 5 and
+                    total_ratings > 5 and
+                    upside > 20.0 and
+                    buy_percentage > 85.0)
         
         # Test cases that should be buy opportunities
-        self.assertTrue(is_buy_opportunity(20.0, 5, 5, 75.0))
-        self.assertTrue(is_buy_opportunity(25.0, 6, 6, 80.0))
+        self.assertTrue(is_buy_opportunity(21.0, 6, 6, 86.0))
+        self.assertTrue(is_buy_opportunity(25.0, 7, 7, 90.0))
         
         # Test cases that should NOT be buy opportunities
         # Fails on upside
-        self.assertFalse(is_buy_opportunity(19.9, 5, 5, 75.0))
+        self.assertFalse(is_buy_opportunity(20.0, 6, 6, 86.0))
         # Fails on analyst count
-        self.assertFalse(is_buy_opportunity(20.0, 4, 5, 75.0))
+        self.assertFalse(is_buy_opportunity(21.0, 5, 6, 86.0))
         # Fails on total ratings
-        self.assertFalse(is_buy_opportunity(20.0, 5, 4, 75.0))
+        self.assertFalse(is_buy_opportunity(21.0, 6, 5, 86.0))
         # Fails on buy percentage
-        self.assertFalse(is_buy_opportunity(20.0, 5, 5, 74.9))
+        self.assertFalse(is_buy_opportunity(21.0, 6, 6, 85.0))
             
     def test_exret_calculation(self):
         """Test Expected Return (EXRET) calculation"""
@@ -384,22 +384,24 @@ class TestTrade(unittest.TestCase):
     def test_sell_criteria_logic(self):
         """Test sell recommendations criteria"""
         # This is a simpler test just focusing on the logic, not file operations
-        def is_sell_candidate(upside, analyst_count, buy_percentage):
+        def is_sell_candidate(upside, analyst_count, total_ratings, buy_percentage):
             """Simulates the sell criteria from trade.py"""
-            return (analyst_count >= 4 and 
-                    (upside < 5.0 or buy_percentage < 50.0))
+            return (analyst_count > 5 and
+                    total_ratings > 5 and
+                    (upside < 5.0 or buy_percentage < 55.0))
         
         # Test cases that should be sell candidates
-        self.assertTrue(is_sell_candidate(4.9, 5, 60.0))  # Low upside
-        self.assertTrue(is_sell_candidate(10.0, 5, 45.0))  # Low buy %
-        self.assertTrue(is_sell_candidate(4.0, 5, 45.0))  # Both low
+        self.assertTrue(is_sell_candidate(4.9, 6, 6, 60.0))  # Low upside
+        self.assertTrue(is_sell_candidate(10.0, 6, 6, 54.0))  # Low buy %
+        self.assertTrue(is_sell_candidate(4.0, 6, 6, 54.0))  # Both low
         
         # Test cases that should NOT be sell candidates
-        self.assertFalse(is_sell_candidate(5.0, 3, 45.0))  # Not enough analysts
-        self.assertFalse(is_sell_candidate(5.1, 5, 50.1))  # Good metrics
+        self.assertFalse(is_sell_candidate(4.9, 5, 6, 54.0))  # Not enough analysts
+        self.assertFalse(is_sell_candidate(4.9, 6, 5, 54.0))  # Not enough ratings
+        self.assertFalse(is_sell_candidate(5.1, 6, 6, 55.1))  # Good metrics
         
         # Edge cases
-        self.assertTrue(is_sell_candidate(4.9, 4, 50.0))  # Just meets criteria
+        self.assertTrue(is_sell_candidate(4.9, 6, 6, 55.0))  # Just meets criteria
             
     def test_trade_recommendations_error_handling(self):
         """Test error handling in trade recommendations"""
@@ -416,26 +418,26 @@ class TestTrade(unittest.TestCase):
         # This is a simpler test that just tests the buy criteria
         def is_buy_opportunity(analyst_count, total_ratings, upside, buy_percentage):
             """Simulates the buy criteria from trade.py"""
-            return (analyst_count >= 5 and 
-                   total_ratings >= 5 and
-                   upside >= 20.0 and 
-                   buy_percentage >= 75.0)
+            return (analyst_count > 5 and
+                   total_ratings > 5 and
+                   upside > 20.0 and
+                   buy_percentage > 85.0)
                    
         # Test cases
-        self.assertTrue(is_buy_opportunity(10, 10, 25.0, 80.0))  # All criteria met
-        self.assertTrue(is_buy_opportunity(5, 5, 20.0, 75.0))    # Just meets minimum
+        self.assertTrue(is_buy_opportunity(6, 6, 21.0, 86.0))  # All criteria met
+        self.assertTrue(is_buy_opportunity(10, 10, 25.0, 90.0))  # Well above minimum
         
         # Fails on analyst count
-        self.assertFalse(is_buy_opportunity(4, 10, 25.0, 80.0))
+        self.assertFalse(is_buy_opportunity(5, 10, 25.0, 90.0))
         
         # Fails on ratings count
-        self.assertFalse(is_buy_opportunity(10, 4, 25.0, 80.0))
+        self.assertFalse(is_buy_opportunity(10, 5, 25.0, 90.0))
         
         # Fails on upside
-        self.assertFalse(is_buy_opportunity(10, 10, 19.9, 80.0))
+        self.assertFalse(is_buy_opportunity(10, 10, 20.0, 90.0))
         
         # Fails on buy percentage
-        self.assertFalse(is_buy_opportunity(10, 10, 25.0, 74.9))
+        self.assertFalse(is_buy_opportunity(10, 10, 25.0, 85.0))
         
         # Fails on multiple criteria
         self.assertFalse(is_buy_opportunity(3, 3, 10.0, 50.0))
@@ -468,25 +470,25 @@ class TestTrade(unittest.TestCase):
         # This is a simpler test that just tests the sell criteria
         def is_sell_candidate(analyst_count, total_ratings, upside, buy_percentage):
             """Simulates the sell criteria from trade.py"""
-            return (analyst_count >= 5 and 
-                   total_ratings >= 5 and
-                   (upside < 5.0 or buy_percentage < 50.0))
+            return (analyst_count > 5 and
+                   total_ratings > 5 and
+                   (upside < 5.0 or buy_percentage < 55.0))
                    
         # Test cases
-        self.assertTrue(is_sell_candidate(10, 10, 4.9, 80.0))  # Low upside only
-        self.assertTrue(is_sell_candidate(10, 10, 10.0, 49.9)) # Low buy % only
-        self.assertTrue(is_sell_candidate(10, 10, 4.9, 49.9))  # Both low
-        self.assertTrue(is_sell_candidate(5, 5, 4.9, 80.0))    # Minimum analyst and rating count
+        self.assertTrue(is_sell_candidate(6, 6, 4.9, 80.0))  # Low upside only
+        self.assertTrue(is_sell_candidate(6, 6, 10.0, 54.9)) # Low buy % only
+        self.assertTrue(is_sell_candidate(6, 6, 4.9, 54.9))  # Both low
+        self.assertTrue(is_sell_candidate(6, 6, 4.9, 80.0))  # Above minimum analyst and rating count
         
         # Not enough analysts
-        self.assertFalse(is_sell_candidate(4, 10, 4.9, 49.9))
+        self.assertFalse(is_sell_candidate(5, 6, 4.9, 54.9))
         
         # Not enough ratings
-        self.assertFalse(is_sell_candidate(10, 4, 4.9, 49.9))
+        self.assertFalse(is_sell_candidate(6, 5, 4.9, 54.9))
         
         # Good metrics
-        self.assertFalse(is_sell_candidate(10, 10, 5.0, 50.0))
-        self.assertFalse(is_sell_candidate(10, 10, 10.0, 80.0))
+        self.assertFalse(is_sell_candidate(6, 6, 5.0, 55.0))
+        self.assertFalse(is_sell_candidate(6, 6, 10.0, 80.0))
             
     @patch('os.path.exists')
     def test_trade_recommendations_missing_files(self, mock_path_exists):
@@ -632,59 +634,59 @@ class TestTrade(unittest.TestCase):
                 "ticker": "AAPL",
                 "upside": 33.3,
                 "analyst_count": 10,
-                "buy_percentage": 80.0,
+                "buy_percentage": 86.0,
                 "already_in_portfolio": True
             },
             {
                 "ticker": "MSFT",
                 "upside": 16.7,
-                "analyst_count": 3,  # Not enough analysts
-                "buy_percentage": 75.0,
+                "analyst_count": 6,  # Upside too low
+                "buy_percentage": 86.0,
                 "already_in_portfolio": False
             },
             {
                 "ticker": "GOOGL",
-                "upside": 20.0,
-                "analyst_count": 5,
-                "buy_percentage": 76.0,
+                "upside": 21.0,
+                "analyst_count": 6,
+                "buy_percentage": 85.0,  # Buy percentage too low
                 "already_in_portfolio": False
             },
             {
                 "ticker": "AMZN",
                 "upside": 25.0,
-                "analyst_count": 5,
-                "buy_percentage": 85.0,
+                "analyst_count": 6,
+                "buy_percentage": 86.0,
                 "already_in_portfolio": False
             },
             {
                 "ticker": "TSLA",
                 "upside": 25.0,
-                "analyst_count": 5,
-                "buy_percentage": 50.0,  # Too low buy percentage
+                "analyst_count": 5,  # Not enough analysts
+                "buy_percentage": 86.0,
                 "already_in_portfolio": False
             }
         ]
         
         # Direct implementation of buy criteria
         def is_buy_opportunity(stock):
-            return (stock["analyst_count"] >= 5 and
-                    stock["upside"] >= 20.0 and
-                    stock["buy_percentage"] >= 75.0 and
+            return (stock["analyst_count"] > 5 and
+                    stock["upside"] > 20.0 and
+                    stock["buy_percentage"] > 85.0 and
                     not stock["already_in_portfolio"])
         
         # Filter stocks
         buy_opportunities = [stock for stock in stocks if is_buy_opportunity(stock)]
         
         # Verify results
-        self.assertEqual(len(buy_opportunities), 2)
-        self.assertEqual(buy_opportunities[0]["ticker"], "GOOGL")
-        self.assertEqual(buy_opportunities[1]["ticker"], "AMZN")
+        self.assertEqual(len(buy_opportunities), 1)
+        self.assertEqual(buy_opportunities[0]["ticker"], "AMZN")
         
         # Verify specific rejections
         rejected_tickers = [stock["ticker"] for stock in stocks if not is_buy_opportunity(stock)]
         self.assertIn("AAPL", rejected_tickers)  # In portfolio already
-        self.assertIn("MSFT", rejected_tickers)  # Not enough analysts
-        self.assertIn("TSLA", rejected_tickers)  # Buy percentage too low
+        self.assertIn("MSFT", rejected_tickers)  # Upside too low
+        self.assertIn("GOOGL", rejected_tickers)  # Buy percentage too low
+        self.assertIn("TSLA", rejected_tickers)  # Not enough analysts
 
     def test_exret_calculation_basic(self):
         """Test Expected Return (EXRET) calculation directly"""
@@ -711,45 +713,45 @@ class TestTrade(unittest.TestCase):
             {
                 "ticker": "AAPL",
                 "upside": 3.3,
-                "analyst_count": 10,
-                "total_ratings": 10,
+                "analyst_count": 6,
+                "total_ratings": 6,
                 "buy_percentage": 45.0  # Low buy percentage
             },
             {
                 "ticker": "MSFT",
                 "upside": 10.0,
-                "analyst_count": 8,
-                "total_ratings": 8,
+                "analyst_count": 6,
+                "total_ratings": 6,
                 "buy_percentage": 60.0  # Above buy threshold but not upside
             },
             {
                 "ticker": "GOOGL",
                 "upside": 20.0,
-                "analyst_count": 4,  # Not enough analysts
-                "total_ratings": 4,  # Not enough ratings
+                "analyst_count": 5,  # Not enough analysts
+                "total_ratings": 5,  # Not enough ratings
                 "buy_percentage": 76.0  # Good buy percentage
             },
             {
                 "ticker": "AMZN",
                 "upside": 1.6,  # Low upside
-                "analyst_count": 5,
-                "total_ratings": 5,
-                "buy_percentage": 40.0  # Low buy percentage
+                "analyst_count": 6,
+                "total_ratings": 6,
+                "buy_percentage": 54.0  # Low buy percentage
             },
             {
                 "ticker": "TSLA",
                 "upside": 25.0,  # Good upside
-                "analyst_count": 2,  # Not enough analysts
-                "total_ratings": 2,  # Not enough ratings
+                "analyst_count": 6,
+                "total_ratings": 6,
                 "buy_percentage": 80.0  # Good buy percentage
             }
         ]
         
         # Direct implementation of sell criteria
         def is_sell_candidate(stock):
-            return (stock["analyst_count"] >= 5 and 
-                   stock["total_ratings"] >= 5 and
-                   (stock["upside"] < 5.0 or stock["buy_percentage"] < 50.0))
+            return (stock["analyst_count"] > 5 and
+                   stock["total_ratings"] > 5 and
+                   (stock["upside"] < 5.0 or stock["buy_percentage"] < 55.0))
         
         # Filter stocks
         sell_candidates = [stock for stock in portfolio_stocks if is_sell_candidate(stock)]
@@ -764,9 +766,9 @@ class TestTrade(unittest.TestCase):
         
         # Verify specific non-candidates
         non_candidates = [stock["ticker"] for stock in portfolio_stocks if not is_sell_candidate(stock)]
-        self.assertIn("TSLA", non_candidates)  # Not enough analysts
-        self.assertIn("GOOGL", non_candidates)  # Not enough analysts 
+        self.assertIn("GOOGL", non_candidates)  # Not enough analysts
         self.assertIn("MSFT", non_candidates)  # Above thresholds
+        self.assertIn("TSLA", non_candidates)  # Above thresholds
     
     @patch('os.path.exists')
     @patch('pandas.read_csv')
@@ -983,11 +985,11 @@ class TestTrade(unittest.TestCase):
         
         # Test data - each dict represents a stock
         stocks = [
-            {'ticker': 'AAPL', 'analyst_count': 10, 'total_ratings': 10, 'upside': 15.0, 'buy_percentage': 80.0},
-            {'ticker': 'MSFT', 'analyst_count': 8, 'total_ratings': 8, 'upside': 25.0, 'buy_percentage': 80.0},
-            {'ticker': 'GOOGL', 'analyst_count': 5, 'total_ratings': 5, 'upside': 22.0, 'buy_percentage': 70.0},
-            {'ticker': 'AMZN', 'analyst_count': 5, 'total_ratings': 5, 'upside': 30.0, 'buy_percentage': 85.0},
-            {'ticker': 'META', 'analyst_count': 3, 'total_ratings': 3, 'upside': 40.0, 'buy_percentage': 90.0},
+            {'ticker': 'AAPL', 'analyst_count': 6, 'total_ratings': 6, 'upside': 15.0, 'buy_percentage': 86.0},
+            {'ticker': 'MSFT', 'analyst_count': 6, 'total_ratings': 6, 'upside': 25.0, 'buy_percentage': 84.0},
+            {'ticker': 'GOOGL', 'analyst_count': 6, 'total_ratings': 6, 'upside': 22.0, 'buy_percentage': 84.0},
+            {'ticker': 'AMZN', 'analyst_count': 6, 'total_ratings': 6, 'upside': 30.0, 'buy_percentage': 90.0},
+            {'ticker': 'META', 'analyst_count': 5, 'total_ratings': 5, 'upside': 40.0, 'buy_percentage': 90.0},
         ]
         
         # Portfolio tickers
@@ -995,34 +997,34 @@ class TestTrade(unittest.TestCase):
         
         # Buy criteria function that mimics generate_trade_recommendations logic
         def meets_buy_criteria(stock):
-            return (stock['analyst_count'] >= 5 and 
-                    stock['total_ratings'] >= 5 and
-                    stock['upside'] >= 20.0 and 
-                    stock['buy_percentage'] >= 75.0 and
+            return (stock['analyst_count'] > 5 and
+                    stock['total_ratings'] > 5 and
+                    stock['upside'] > 20.0 and
+                    stock['buy_percentage'] > 85.0 and
                     stock['ticker'] not in portfolio_tickers)
         
         # Filter stocks using buy criteria
         buy_opportunities = [stock for stock in stocks if meets_buy_criteria(stock)]
         
         # Expected results:
-        # MSFT: meets all criteria and not in portfolio ✓
         # AMZN: meets all criteria and not in portfolio ✓
+        # MSFT: buy percentage too low ✗
         # AAPL: upside too low + in portfolio ✗
         # GOOGL: buy percentage too low + in portfolio ✗
         # META: not enough analysts ✗
         
         # Verify results
-        self.assertEqual(len(buy_opportunities), 2)
+        self.assertEqual(len(buy_opportunities), 1)
         
         # Verify specific stocks
         buy_tickers = [stock['ticker'] for stock in buy_opportunities]
-        self.assertIn('MSFT', buy_tickers)
         self.assertIn('AMZN', buy_tickers)
-        self.assertNotIn('AAPL', buy_tickers)
-        self.assertNotIn('GOOGL', buy_tickers)
-        self.assertNotIn('META', buy_tickers)
+        self.assertNotIn('MSFT', buy_tickers)  # Buy percentage too low
+        self.assertNotIn('AAPL', buy_tickers)  # In portfolio_tickers and upside too low
+        self.assertNotIn('GOOGL', buy_tickers)  # In portfolio_tickers and buy percentage too low
+        self.assertNotIn('META', buy_tickers)  # Not enough analysts
         
         # Test with empty portfolio
         portfolio_tickers = []
         buy_opportunities = [stock for stock in stocks if meets_buy_criteria(stock)]
-        self.assertEqual(len(buy_opportunities), 2)  # Still just MSFT and AMZN meet all criteria
+        self.assertEqual(len(buy_opportunities), 1)  # Only AMZN meets all criteria
