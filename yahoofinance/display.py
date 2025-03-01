@@ -14,21 +14,25 @@ from .types import YFinanceError
 from .analyst import AnalystData
 from .pricing import PricingAnalyzer
 from .formatting import DisplayFormatter, DisplayConfig, Color
+from .config import RATE_LIMIT, DISPLAY, FILE_PATHS
 
 logger = logging.getLogger(__name__)
 
 class RateLimitTracker:
     """Tracks API calls and manages rate limiting with adaptive delays"""
     
-    def __init__(self, window_size: int = 60, max_calls: int = 100):
-        self.window_size = window_size  # Time window in seconds
-        self.max_calls = max_calls      # Maximum calls per window
+    def __init__(self,
+                window_size: int = None,
+                max_calls: int = None):
+        # Use config values or fallback to defaults
+        self.window_size = window_size if window_size is not None else RATE_LIMIT["WINDOW_SIZE"]
+        self.max_calls = max_calls if max_calls is not None else RATE_LIMIT["MAX_CALLS"]
         self.calls = deque(maxlen=1000) # Timestamp queue
         self.errors = deque(maxlen=20)  # Recent errors
-        self.base_delay = 2.0           # Base delay between calls (increased from 1.0)
-        self.min_delay = 1.0            # Minimum delay
-        self.max_delay = 30.0           # Maximum delay
-        self.batch_delay = 5.0          # Delay between batches
+        self.base_delay = RATE_LIMIT["BASE_DELAY"]
+        self.min_delay = RATE_LIMIT["MIN_DELAY"]
+        self.max_delay = RATE_LIMIT["MAX_DELAY"]
+        self.batch_delay = RATE_LIMIT["BATCH_DELAY"]
         self.error_counts = {}          # Track error counts per ticker
         self.success_streak = 0         # Track successful calls
         
@@ -101,20 +105,20 @@ class MarketDisplay:
     def __init__(self,
                  client: Optional[YFinanceClient] = None,
                  config: Optional[DisplayConfig] = None,
-                 input_dir: str = "yahoofinance/input"):
+                 input_dir: str = None):
         """
         Initialize MarketDisplay.
         
         Args:
             client: YFinanceClient instance for data fetching
             config: Display configuration
-            input_dir: Directory containing input files
+            input_dir: Directory containing input files (defaults to config value)
         """
         self.client = client or YFinanceClient()
         self.analyst = AnalystData(self.client)
         self.pricing = PricingAnalyzer(self.client)
         self.formatter = DisplayFormatter(config or DisplayConfig())
-        self.input_dir = input_dir.rstrip('/')
+        self.input_dir = (input_dir or FILE_PATHS["INPUT_DIR"]).rstrip('/')
         self.rate_limiter = RateLimitTracker()
         
     def _load_tickers_from_file(self, file_name: str, column_name: str) -> List[str]:
@@ -410,17 +414,20 @@ class MarketDisplay:
             
         return batch_delay
 
-    def _process_tickers(self, tickers: List[str], batch_size: int = 15) -> List[Dict[str, Any]]:
+    def _process_tickers(self, tickers: List[str], batch_size: int = None) -> List[Dict[str, Any]]:
         """
         Process list of tickers into report data with rate limiting.
         
         Args:
             tickers: List of stock ticker symbols
-            batch_size: Number of tickers to process in each batch
+            batch_size: Number of tickers to process in each batch (defaults to config value)
             
         Returns:
             List of processed reports
         """
+        # Use config value if not provided
+        if batch_size is None:
+            batch_size = RATE_LIMIT["BATCH_SIZE"]
         reports = []
         sorted_tickers = sorted(set(tickers))
         total_batches = (len(sorted_tickers) - 1) // batch_size + 1
