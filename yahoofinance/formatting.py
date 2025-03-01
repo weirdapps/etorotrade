@@ -35,7 +35,8 @@ class DisplayConfig:
     min_analysts: int = 5  # Minimum analysts for high confidence rating
     high_upside: float = 20.0  # Threshold for buy signal
     low_upside: float = 5.0   # Threshold for sell signal
-    high_buy_percent: float = 75.0  # Threshold for strong buy signal
+    high_buy_percent: float = 85.0  # Threshold for strong buy signal
+    low_buy_percent: float = 55.0  # Threshold for sell signal
 
 class DisplayFormatter:
     """Handles formatting of display output"""
@@ -89,23 +90,31 @@ class DisplayFormatter:
             upside = self._convert_numeric(upside)
             percent_buy = self._convert_numeric(percent_buy)
 
-            # Low confidence check
-            if num_targets <= self.config.min_analysts or total_ratings <= self.config.min_analysts:
+            # UNSURE: number of targets <= 5 or number of analyst recommendations <=5
+            if num_targets <= 5 or total_ratings <= 5:
                 return Color.LOW_CONFIDENCE
 
-            # Buy signal
-            if (num_targets >= self.config.min_analysts and
-                upside >= self.config.high_upside and
-                total_ratings >= self.config.min_analysts and
-                percent_buy >= self.config.high_buy_percent):
+            # BUY: number of targets > 5 AND number of analyst recommendations > 5 AND BUY percent > 85% AND upside > 20%
+            if (num_targets > 5 and
+                total_ratings > 5 and
+                upside > 20.0 and
+                percent_buy > 85.0):
                 return Color.BUY
 
-            # Sell signal
-            if ((num_targets >= self.config.min_analysts and upside < self.config.low_upside) or
-                (total_ratings >= self.config.min_analysts and percent_buy < 50)):
+            # SELL: number of targets > 5 AND number of analyst recommendations > 5 AND (BUY percent < 55% OR upside < 5%)
+            if (num_targets > 5 and
+                total_ratings > 5 and
+                (percent_buy < 55.0 or upside < 5.0)):
                 return Color.SELL
 
-            # Default to neutral
+            # HOLD: number of targets > 5 AND number of analyst recommendations > 5 AND BUY percent between 55-85% AND upside between 5-20%
+            if (num_targets > 5 and
+                total_ratings > 5 and
+                55.0 <= percent_buy <= 85.0 and
+                5.0 <= upside <= 20.0):
+                return Color.NEUTRAL
+
+            # Default to neutral for any other case
             return Color.NEUTRAL
 
         except Exception as e:
