@@ -4,8 +4,15 @@ from functools import lru_cache
 import time
 import logging
 import pandas as pd
+import requests
 from .insiders import InsiderAnalyzer
-from .types import YFinanceError, APIError, ValidationError, StockData
+from .types import (
+    YFinanceError, APIError, ValidationError, StockData,
+    RateLimitError, ConnectionError, TimeoutError, ResourceNotFoundError
+)
+from .utils.market_utils import is_us_ticker
+from .config import RATE_LIMIT, RISK_METRICS
+from .errors import format_error_details, classify_api_error
 
 class YFinanceClient:
     """Base client for interacting with Yahoo Finance API"""
@@ -25,16 +32,16 @@ class YFinanceClient:
         backoff = min(base * (2 ** (attempt - 1)), max_time)
         return backoff
     
-    def __init__(self, retry_attempts: int = 3, timeout: int = 10):
+    def __init__(self, retry_attempts: int = None, timeout: int = None):
         """
         Initialize YFinanceClient.
 
         Args:
-            retry_attempts: Number of retry attempts for API calls
-            timeout: Timeout in seconds for API calls
+            retry_attempts: Number of retry attempts for API calls (defaults to config value)
+            timeout: Timeout in seconds for API calls (defaults to config value)
         """
-        self.retry_attempts = retry_attempts
-        self.timeout = timeout
+        self.retry_attempts = retry_attempts if retry_attempts is not None else RATE_LIMIT["MAX_RETRY_ATTEMPTS"]
+        self.timeout = timeout if timeout is not None else RATE_LIMIT["API_TIMEOUT"]
         self.logger = logging.getLogger(__name__)
         self.insider_analyzer = InsiderAnalyzer(self)
 
@@ -77,11 +84,17 @@ class YFinanceClient:
 
         Raises:
             ValidationError: When ticker validation fails
-            APIError: When API call fails after retries
+            ResourceNotFoundError: When ticker is not found
+            RateLimitError: When API rate limit is reached
+            ConnectionError: When network connection fails
+            TimeoutError: When request times out
+            APIError: For other API-related errors
         """
         self._validate_ticker(ticker)
         
         attempts = 0
+        last_error = None
+        
         while attempts < self.retry_attempts:
             try:
                 stock = yf.Ticker(ticker)
@@ -96,12 +109,43 @@ class YFinanceClient:
 
                 # Return sorted dates (most recent first)
                 return sorted(past_earnings.index, reverse=True)
+                
+            except requests.exceptions.Timeout as e:
+                last_error = TimeoutError(f"Request timed out for {ticker}", {"original_error": str(e)})
+                self.logger.debug(f"Timeout on attempt {attempts + 1} for {ticker}: {str(e)}")
+                
+            except requests.exceptions.ConnectionError as e:
+                last_error = ConnectionError(f"Connection error for {ticker}", {"original_error": str(e)})
+                self.logger.debug(f"Connection error on attempt {attempts + 1} for {ticker}: {str(e)}")
+                
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 429:
+                    last_error = RateLimitError(f"Rate limit exceeded for {ticker}", None, {"original_error": str(e)})
+                    self.logger.warning(f"Rate limit hit on attempt {attempts + 1} for {ticker}")
+                elif e.response.status_code == 404:
+                    # No need to retry for not found
+                    raise ResourceNotFoundError(f"Ticker {ticker} not found", {"status_code": 404, "original_error": str(e)})
+                else:
+                    last_error = classify_api_error(e.response.status_code, e.response.text)
+                    self.logger.debug(f"HTTP error on attempt {attempts + 1} for {ticker}: {str(e)}")
+                    
             except Exception as e:
+                last_error = APIError(f"Error fetching earnings dates for {ticker}", {"original_error": str(e)})
                 self.logger.debug(f"Attempt {attempts + 1} failed for {ticker}: {str(e)}")
-                attempts += 1
-                if attempts == self.retry_attempts:
-                    raise APIError(f"Failed to fetch earnings dates for {ticker} after {self.retry_attempts} attempts: {str(e)}")
-                time.sleep(self._get_backoff_time(attempts))  # Exponential backoff
+            
+            # Handle the retry logic
+            attempts += 1
+            if attempts == self.retry_attempts:
+                # If we've exhausted all retries, raise the last error
+                if not last_error:
+                    last_error = APIError(f"Failed to fetch earnings dates for {ticker} after {self.retry_attempts} attempts")
+                self.logger.error(format_error_details(last_error))
+                raise last_error
+                
+            # Exponential backoff
+            backoff_time = self._get_backoff_time(attempts)
+            self.logger.debug(f"Retrying in {backoff_time:.2f} seconds (attempt {attempts}/{self.retry_attempts})")
+            time.sleep(backoff_time)
         
     def get_earnings_dates(self, ticker: str) -> Tuple[Optional[str], Optional[str]]:
         """
@@ -165,44 +209,30 @@ class YFinanceClient:
         if not hist.empty:
             returns = hist['Close'].pct_change().dropna()
             if len(returns) > 0:
-                risk_free_rate = 0.05  # 5% annual risk-free rate
-                daily_rf = risk_free_rate / 252  # Daily risk-free rate
+                # Use values from configuration
+                risk_free_rate = RISK_METRICS["RISK_FREE_RATE"]
+                trading_days = RISK_METRICS["TRADING_DAYS_PER_YEAR"]
+                daily_rf = risk_free_rate / trading_days
                 
                 # Calculate alpha (excess return)
                 excess_returns = returns - daily_rf
-                alpha = excess_returns.mean() * 252  # Annualized
+                alpha = excess_returns.mean() * trading_days  # Annualized
                 
                 # Calculate Sharpe ratio
-                returns_std = returns.std() * (252 ** 0.5)  # Annualized
+                returns_std = returns.std() * (trading_days ** 0.5)  # Annualized
                 if returns_std > 0:
-                    sharpe = (returns.mean() * 252 - risk_free_rate) / returns_std
+                    sharpe = (returns.mean() * trading_days - risk_free_rate) / returns_std
                 
                 # Calculate Sortino ratio
                 downside_returns = returns[returns < 0]
                 if len(downside_returns) > 0:
-                    downside_std = downside_returns.std() * (252 ** 0.5)
+                    downside_std = downside_returns.std() * (trading_days ** 0.5)
                     if downside_std > 0:
-                        sortino = (returns.mean() * 252 - risk_free_rate) / downside_std
+                        sortino = (returns.mean() * trading_days - risk_free_rate) / downside_std
         
         return alpha, sharpe, sortino
 
-    def _is_us_ticker(self, ticker: str) -> bool:
-        """
-        Determine if a ticker is from a US exchange.
-        
-        Args:
-            ticker: Stock ticker symbol
-            
-        Returns:
-            bool: True if US ticker, False otherwise
-        """
-        # Handle special cases like "BRK.B" which are US tickers
-        us_special_cases = ["BRK.A", "BRK.B", "BF.A", "BF.B"]
-        if ticker in us_special_cases:
-            return True
-            
-        # US tickers generally have no suffix or .US suffix
-        return '.' not in ticker or ticker.endswith('.US')
+    # Using the centralized utility for US ticker detection
     
     def _get_ticker_basic_info(self, ticker: str):
         """Get basic ticker info from yfinance"""
@@ -314,7 +344,7 @@ class YFinanceClient:
         self._validate_ticker(ticker)
         
         # Check if it's a US ticker to determine which metrics to fetch
-        is_us_ticker = self._is_us_ticker(ticker)
+        is_us_ticker_flag = is_us_ticker(ticker)
         
         attempts = 0
         while attempts < self.retry_attempts:
@@ -335,12 +365,12 @@ class YFinanceClient:
                 # Get insider metrics if not skipped and this is a US ticker
                 insider_metrics = (
                     {"insider_buy_pct": None, "transaction_count": None}
-                    if skip_insider_metrics or not is_us_ticker
+                    if skip_insider_metrics or not is_us_ticker_flag
                     else self.insider_analyzer.get_insider_metrics(ticker)
                 )
                 
                 # Get short interest data
-                short_interest = self._get_short_interest_data(info, is_us_ticker)
+                short_interest = self._get_short_interest_data(info, is_us_ticker_flag)
                 
                 # Create and return StockData object
                 return self._create_stock_data_object(

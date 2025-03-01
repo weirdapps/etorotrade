@@ -1,21 +1,13 @@
-from typing import Optional, Set, Dict, List, Any
+from typing import Optional, Dict, List, Any
 import pandas as pd
 from datetime import datetime, timedelta
 from .client import YFinanceClient
 from .types import YFinanceError, ValidationError
+from .utils.market_utils import is_us_ticker
+from .config import POSITIVE_GRADES
 import logging
 
 logger = logging.getLogger(__name__)
-
-# Constants
-POSITIVE_GRADES: Set[str] = {
-    "Buy", 
-    "Overweight", 
-    "Outperform", 
-    "Strong Buy", 
-    "Long-Term Buy", 
-    "Positive"
-}
 
 class AnalystData:
     """Class to handle analyst ratings and recommendations"""
@@ -137,7 +129,7 @@ class AnalystData:
     def _get_all_time_ratings(self, ticker: str) -> Optional[Dict[str, Any]]:
         """Get all-time ratings data"""
         # Skip this for non-US tickers since we know they'll fail
-        if not self._is_us_ticker(ticker):
+        if not is_us_ticker(ticker):
             return None
             
         df = self.fetch_ratings_data(ticker, None)  # Try without date filter
@@ -155,22 +147,11 @@ class AnalystData:
             }
         return None
 
-    def _is_us_ticker(self, ticker: str) -> bool:
-        """
-        Determine if a ticker is from a US exchange.
-        
-        Args:
-            ticker: Stock ticker symbol
-            
-        Returns:
-            bool: True if US ticker, False otherwise
-        """
-        # US tickers generally have no suffix or .US suffix
-        return '.' not in ticker or ticker.endswith('.US')
+    # Using the centralized utility for US ticker detection
 
     def _try_get_ratings_data(self, ticker: str, start_date: Optional[str]) -> Optional[Dict[str, Any]]:
         """Try to get ratings data from upgrade/downgrade history (US tickers only)"""
-        if not self._is_us_ticker(ticker):
+        if not is_us_ticker(ticker):
             return None
             
         try:
@@ -242,7 +223,7 @@ class AnalystData:
                 return recommendations_data
                 
             # Try all-time ratings if using earnings date (for US tickers only)
-            if use_earnings_date and self._is_us_ticker(ticker):
+            if use_earnings_date and is_us_ticker(ticker):
                 all_time_data = self._get_all_time_ratings(ticker)
                 if all_time_data:
                     return all_time_data

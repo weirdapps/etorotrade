@@ -1,20 +1,20 @@
-"""Common types and exceptions used across the package"""
+"""Common types and data structures used across the package"""
 
 from dataclasses import dataclass, field
 from typing import Optional
 import yfinance as yf
 
-class YFinanceError(Exception):
-    """Base exception for YFinance client errors"""
-    pass
-
-class APIError(YFinanceError):
-    """Raised when API calls fails"""
-    pass
-
-class ValidationError(YFinanceError):
-    """Raised when data validation fails"""
-    pass
+# Import errors from the centralized errors module
+from .errors import (
+    YFinanceError,
+    APIError,
+    ValidationError,
+    RateLimitError,
+    ConnectionError,
+    TimeoutError,
+    ResourceNotFoundError,
+    DataError
+)
 
 @dataclass
 class StockData:
