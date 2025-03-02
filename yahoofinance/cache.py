@@ -77,7 +77,7 @@ class Cache:
         # Create a deterministic hash of the key using SHA-256
         import hashlib
         safe_key = hashlib.sha256(key.encode()).hexdigest()
-        return os.path.join(self.cache_dir, f"{safe_key}.json"), safe_key
+        return os.path.join(self.cache_dir, f"{safe_key}.json")
     
     def _enforce_size_limit(self):
         """Enforce cache size limit by removing oldest entries."""
@@ -107,7 +107,11 @@ class Cache:
         Returns:
             Cached value if valid, None otherwise
         """
-        cache_path, key_hash = self._get_cache_path(key)
+        cache_path = self._get_cache_path(key)
+        
+        # Create a deterministic hash of the key
+        import hashlib
+        key_hash = hashlib.sha256(key.encode()).hexdigest()
         
         if not os.path.exists(cache_path):
             logger.debug(f"No cache file found for: {key}")
@@ -155,7 +159,11 @@ class Cache:
             key: Cache key
             value: Value to cache
         """
-        cache_path, key_hash = self._get_cache_path(key)
+        cache_path = self._get_cache_path(key)
+        
+        # Create a deterministic hash of the key
+        import hashlib
+        key_hash = hashlib.sha256(key.encode()).hexdigest()
         
         # Enforce size limit before adding new entry
         self._enforce_size_limit()

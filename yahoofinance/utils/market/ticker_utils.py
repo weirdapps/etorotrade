@@ -1,4 +1,4 @@
-"""Market-specific utility functions."""
+"""Market-specific ticker utility functions."""
 
 from typing import List, Set
 

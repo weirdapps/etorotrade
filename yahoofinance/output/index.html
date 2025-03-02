@@ -1,45 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <meta name="description" content="Dashboard displaying market performance metrics and statistics"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Market Performance</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;600;700&display=swap" rel="stylesheet"/>
-    <link href="styles.css" rel="stylesheet"/>
-    
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <main role="main" class="container"><div class="container"><section class="summary-container" style="width: 800px">
-        <h2 id="market-performance-title">Market Performance</h2>
-        <div class="grid grid-2x1" role="group" aria-labelledby="market-performance-title">
-            <article class="flex" role="article" tabindex="0">
-        <div class="text-3xl font-bold" id="DJI30" data-value="+0.00" role="text" aria-label="DJI30: +0.00%">+0.00%</div>
-        <div class="metric-label">
-            <div class="text-base font-semibold">DJI30</div>
+    <div class="container">
+        <h1>Market Performance</h1>
+        <div class="dashboard">
+
+        <div class="section" style="width: 800px">
+            <h2>Market Performance</h2>
+            <div class="metrics-grid" style="grid-template-columns: repeat(2, 1fr)">
+
+            </div>
         </div>
-    </article>
-<article class="flex" role="article" tabindex="0">
-        <div class="text-3xl font-bold" id="SP500" data-value="+0.00" role="text" aria-label="SP500: +0.00%">+0.00%</div>
-        <div class="metric-label">
-            <div class="text-base font-semibold">SP500</div>
+
         </div>
-    </article>
-<article class="flex" role="article" tabindex="0">
-        <div class="text-3xl font-bold" id="NQ100" data-value="+0.00" role="text" aria-label="NQ100: +0.00%">+0.00%</div>
-        <div class="metric-label">
-            <div class="text-base font-semibold">NQ100</div>
-        </div>
-    </article>
-<article class="flex" role="article" tabindex="0">
-        <div class="text-3xl font-bold" id="VIX" data-value="+0.00" role="text" aria-label="VIX: +0.00%">+0.00%</div>
-        <div class="metric-label">
-            <div class="text-base font-semibold">VIX</div>
-        </div>
-    </article>
-        </div>
-        <div class="date-range">(2024-01-03 to 2024-01-03)</div>
-    </section></div></main>
+    </div>
     <script src="script.js"></script>
 </body>
 </html>

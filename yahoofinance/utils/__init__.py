@@ -1,63 +1,86 @@
 """
-Utility modules for Yahoo Finance API client.
+Central utilities package for Yahoo Finance data processing.
 
-This package contains various utility modules that support the main functionality:
-- market_utils: Ticker-related utilities like validation and normalization
-- rate_limiter: Advanced rate limiting for API calls
-- pagination: Utilities for handling paginated API results
-- async_helpers: Asynchronous utilities with rate limiting
-- format_utils: HTML and output formatting utilities
+This package provides various utilities organized by category:
+- network: Rate limiting, pagination, and API request handling
+- data: Data formatting and transformation
+- market: Market-specific utilities for ticker handling
+- date: Date/time utilities for financial data
 """
 
-from .market_utils import (
-    is_us_ticker,
-    normalize_hk_ticker
-)
+# Import submodules to make them accessible
+from . import network
+from . import data
+from . import market
+from . import date
 
-from .rate_limiter import (
-    AdaptiveRateLimiter,
+# Re-export commonly used components for convenience
+from .network import (
     global_rate_limiter,
     rate_limited,
-    batch_process
-)
-
-from .pagination import (
-    PaginatedResults,
+    batch_process,
     paginated_request,
-    bulk_fetch
+    bulk_fetch,
 )
 
-from .async_helpers import (
-    async_rate_limited,
-    gather_with_rate_limit,
-    process_batch_async,
-    retry_async
+from .data import (
+    FormatUtils,
+    format_number,
+    format_table,
+    format_market_metrics,
+    generate_market_html,
+    format_for_csv,
 )
 
-from .format_utils import FormatUtils
+from .market import (
+    is_us_ticker,
+    normalize_hk_ticker,
+    filter_valid_tickers,
+    US_SPECIAL_CASES,
+)
+
+from .date import (
+    DateUtils,
+    validate_date_format,
+    get_user_dates,
+    get_date_range,
+    format_date_for_api,
+    format_date_for_display,
+)
 
 __all__ = [
-    # Market utils
-    'is_us_ticker',
-    'normalize_hk_ticker',
+    # Modules
+    'network',
+    'data',
+    'market',
+    'date',
     
-    # Rate limiter
-    'AdaptiveRateLimiter',
+    # Rate limiting and network utilities
     'global_rate_limiter',
     'rate_limited',
     'batch_process',
-    
-    # Pagination
-    'PaginatedResults',
     'paginated_request',
     'bulk_fetch',
     
-    # Async helpers
-    'async_rate_limited',
-    'gather_with_rate_limit',
-    'process_batch_async',
-    'retry_async',
+    # Data formatting utilities
+    'FormatUtils',
+    'format_number',
+    'format_table',
+    'format_market_metrics',
+    'generate_market_html',
+    'format_for_csv',
     
-    # Formatting utilities
-    'FormatUtils'
+    # Market utilities
+    'is_us_ticker',
+    'normalize_hk_ticker',
+    'filter_valid_tickers',
+    'US_SPECIAL_CASES',
+    
+    # Date utilities
+    'DateUtils',
+    'validate_date_format',
+    'get_user_dates',
+    'get_date_range',
+    'format_date_for_api',
+    'format_date_for_display',
 ]

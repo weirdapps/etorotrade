@@ -1,57 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <meta name="description" content="Dashboard displaying portfolio performance metrics and statistics"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portfolio Performance</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;600;700&display=swap" rel="stylesheet"/>
-    <link href="styles.css" rel="stylesheet"/>
-    
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <main role="main" class="container"><div class="container"><section class="summary-container" style="width: 800px">
-        <h2 id="portfolio-performance-title">Portfolio Performance</h2>
-        <div class="grid grid-3x2" role="group" aria-labelledby="portfolio-performance-title">
-            <article class="flex" role="article" tabindex="0">
-        <div class="text-3xl font-bold" id="This Month" data-value="-2.45" role="text" aria-label="This Month: -2.45%">-2.45%</div>
-        <div class="metric-label">
-            <div class="text-base font-semibold">This Month</div>
+    <div class="container">
+        <h1>Portfolio Performance</h1>
+        <div class="dashboard">
+
+        <div class="section" style="width: 800px">
+            <h2>Portfolio Performance</h2>
+            <div class="metrics-grid" style="grid-template-columns: repeat(3, 1fr)">
+
+                <div class="metric-card">
+                    <div class="metric-label">2 Years</div>
+                    <div class="metric-value normal">+56.21%</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Beta</div>
+                    <div class="metric-value normal">0.81</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Cash</div>
+                    <div class="metric-value normal">23.84%</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Sharpe</div>
+                    <div class="metric-value normal">1.62</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">This Month</div>
+                    <div class="metric-value normal">+0.06%</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Year To Date</div>
+                    <div class="metric-value normal">-0.13%</div>
+                </div>
+
+            </div>
         </div>
-    </article>
-<article class="flex" role="article" tabindex="0">
-        <div class="text-3xl font-bold" id="Year To Date" data-value="-0.55" role="text" aria-label="Year To Date: -0.55%">-0.55%</div>
-        <div class="metric-label">
-            <div class="text-base font-semibold">Year To Date</div>
+
         </div>
-    </article>
-<article class="flex" role="article" tabindex="0">
-        <div class="text-3xl font-bold" id="2 Years" data-value="+55.55" role="text" aria-label="2 Years: +55.55%">+55.55%</div>
-        <div class="metric-label">
-            <div class="text-base font-semibold">2 Years</div>
-        </div>
-    </article>
-<article class="flex" role="article" tabindex="0">
-        <div class="text-3xl font-bold" id="Beta" data-value="0.79" role="text" aria-label="Beta: 0.79">0.79</div>
-        <div class="metric-label">
-            <div class="text-base font-semibold">Beta</div>
-        </div>
-    </article>
-<article class="flex" role="article" tabindex="0">
-        <div class="text-3xl font-bold" id="Sharpe" data-value="1.83" role="text" aria-label="Sharpe: 1.83">1.83</div>
-        <div class="metric-label">
-            <div class="text-base font-semibold">Sharpe</div>
-        </div>
-    </article>
-<article class="flex" role="article" tabindex="0">
-        <div class="text-3xl font-bold" id="Cash" data-value="18.37" role="text" aria-label="Cash: 18.37%">18.37%</div>
-        <div class="metric-label">
-            <div class="text-base font-semibold">Cash</div>
-        </div>
-    </article>
-        </div>
-        
-    </section></div></main>
+    </div>
     <script src="script.js"></script>
 </body>
 </html>
