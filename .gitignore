@@ -100,3 +100,6 @@ yarn-error.log*
 
 # pyenv
 .python-version
+
+# reports
+reports/
