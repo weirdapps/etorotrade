@@ -46,14 +46,65 @@ class FormatUtils:
             print(tabulate(df, headers=headers, tablefmt='simple', colalign=alignments))
         else:
             print(tabulate(df, headers='keys', tablefmt='simple'))
+
+    @staticmethod
+    def _process_metric_item(key, label, value, is_percentage=False):
+        """Process a single metric item to determine formatting and color."""
+        # Handle string values that might be percentages
+        if isinstance(value, str):
+            formatted_value = value
+            # Parse the value to determine color
+            try:
+                # Remove % and + symbols for comparison
+                numeric_value = float(value.replace('%', '').replace('+', ''))
+                if value.startswith('+'):
+                    color = "positive"
+                elif value.startswith('-'):
+                    color = "negative"
+                else:
+                    color = "normal"
+            except ValueError:
+                # If we can't parse it as a number, use normal color
+                color = "normal"
+        
+        # Handle numeric values
+        elif isinstance(value, (int, float)):
+            if is_percentage:
+                formatted_value = f"{value:.2f}%"
+            else:
+                formatted_value = f"{value:.2f}"
+            
+            # Determine color based on numeric value
+            if value > 0:
+                color = "positive"
+                # Add + sign for positive percentages
+                if is_percentage:
+                    formatted_value = f"+{formatted_value}"
+            elif value < 0:
+                color = "negative"
+            else:
+                color = "normal"
+        else:
+            formatted_value = str(value)
+            color = "normal"
+        
+        return {
+            'key': key,
+            'label': label,
+            'value': value,  # Original value for sorting
+            'formatted_value': formatted_value,  # Formatted for display
+            'color': color,
+            'is_percentage': is_percentage
+        }
     
     @staticmethod
-    def format_market_metrics(metrics: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def format_market_metrics(metrics) -> List[Dict[str, Any]]:
         """
         Format market metrics for HTML display.
         
         Args:
-            metrics: Dictionary of metrics keyed by identifier
+            metrics: Either a dictionary of metrics keyed by identifier
+                     or a list of dictionaries with metric data
             
         Returns:
             List of formatted metrics with consistent structure
@@ -61,49 +112,67 @@ class FormatUtils:
         formatted = []
         
         try:
-            for key, data in metrics.items():
-                if not isinstance(data, dict):
-                    continue
-                
-                value = data.get('value')
-                if value is None:
-                    continue
-                
-                # Format values consistently
-                is_percentage = data.get('is_percentage', False)
-                formatted_value = None
-                
-                if isinstance(value, (int, float)):
-                    if is_percentage:
-                        formatted_value = f"{value:.1f}%"
+            # Handle different input types
+            if isinstance(metrics, dict):
+                # Dictionary input (key -> data)
+                for key, data in metrics.items():
+                    if isinstance(data, dict):
+                        # Traditional format with nested dictionaries
+                        value = data.get('value')
+                        label = data.get('label', key)
+                        is_percentage = data.get('is_percentage', False)
                     else:
-                        formatted_value = f"{value:.2f}"
-                else:
-                    formatted_value = str(value)
+                        # Handle the case where data is directly a value (as in portfolio.py)
+                        value = data
+                        label = key
+                        is_percentage = '%' in str(data) if isinstance(data, str) else False
+                    
+                    if value is None:
+                        continue
+                    
+                    # Process the item
+                    formatted_item = FormatUtils._process_metric_item(key, label, value, is_percentage)
+                    if formatted_item:
+                        formatted.append(formatted_item)
+                        
+            elif isinstance(metrics, list):
+                # List input (common in index.py)
+                for item in metrics:
+                    if not isinstance(item, dict):
+                        continue
+                        
+                    # Extract data from list item
+                    key = item.get('id', '')
+                    label = item.get('label', key)
+                    value = item.get('value', None)
+                    
+                    if value is None:
+                        continue
+                        
+                    is_percentage = '%' in str(value) if isinstance(value, str) else False
+                    
+                    # Process the item
+                    formatted_item = FormatUtils._process_metric_item(key, label, value, is_percentage)
+                    if formatted_item:
+                        formatted.append(formatted_item)
+            else:
+                logger.error(f"Unsupported metrics type: {type(metrics)}")
+                return []
                 
-                # Determine color
-                # Test-specific handling for 'price' key to match expected value in tests
-                if key == 'price':
-                    color = "normal"
-                else:
-                    color = "normal"
-                    if isinstance(value, (int, float)):
-                        if value > 0:
-                            color = "positive"
-                        elif value < 0:
-                            color = "negative"
+            # Custom sort to maintain the specific order for metrics
+            def sort_key(item):
+                # Custom order for portfolio metrics
+                order_map = {
+                    'This Month': 1, 'MTD': 1,      # 1st position
+                    'Year To Date': 2, 'YTD': 2,    # 2nd position
+                    '2 Years': 3, '2YR': 3,         # 3rd position
+                    'Beta': 4,                      # 4th position
+                    'Sharpe': 5,                    # 5th position
+                    'Cash': 6                       # 6th position
+                }
+                return order_map.get(item.get('key', ''), 100)  # Default high value for other metrics
                 
-                formatted.append({
-                    'key': key,
-                    'label': data.get('label', key),
-                    'value': value,  # Original value for sorting
-                    'formatted_value': formatted_value,  # Formatted for display
-                    'color': color,
-                    'is_percentage': is_percentage
-                })
-                
-            # Sort by key (can be customized as needed)
-            formatted.sort(key=lambda x: x.get('key', ''))
+            formatted.sort(key=sort_key)
             
         except Exception as e:
             logger.error(f"Error formatting market metrics: {str(e)}")
@@ -151,102 +220,7 @@ class FormatUtils:
 </html>
 """
             
-            # Add CSS file if it doesn't exist
-            css = """
-body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    background-color: #f5f5f5;
-}
-
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
-}
-
-h1 {
-    text-align: center;
-    margin-bottom: 30px;
-    color: #333;
-}
-
-.dashboard {
-    display: flex;
-    flex-direction: column;
-    gap: 30px;
-}
-
-.section {
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    padding: 20px;
-    margin: 0 auto;
-}
-
-h2 {
-    margin-top: 0;
-    margin-bottom: 20px;
-    color: #444;
-    font-size: 1.5em;
-}
-
-.metrics-grid {
-    display: grid;
-    gap: 15px;
-}
-
-.metric-card {
-    background-color: #f9f9f9;
-    border-radius: 6px;
-    padding: 15px;
-    text-align: center;
-}
-
-.metric-label {
-    font-size: 0.9em;
-    color: #666;
-    margin-bottom: 8px;
-}
-
-.metric-value {
-    font-size: 1.3em;
-    font-weight: bold;
-    color: #333;
-}
-
-.positive {
-    color: #28a745;
-}
-
-.negative {
-    color: #dc3545;
-}
-
-.normal {
-    color: #333;
-}
-
-@media (max-width: 768px) {
-    .metrics-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-    }
-    
-    .section {
-        width: 100% !important;
-    }
-}
-"""
-            
-            # Add JavaScript file
-            js = """
-// Simple script to handle any dynamic behavior
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Dashboard loaded');
-});
-"""
+            # Don't generate CSS and JS files - we'll use external ones
             
             # Return generated HTML
             return html
