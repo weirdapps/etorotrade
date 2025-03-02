@@ -6,6 +6,7 @@ This package contains various utility modules that support the main functionalit
 - rate_limiter: Advanced rate limiting for API calls
 - pagination: Utilities for handling paginated API results
 - async_helpers: Asynchronous utilities with rate limiting
+- format_utils: HTML and output formatting utilities
 """
 
 from .market_utils import (
@@ -33,6 +34,8 @@ from .async_helpers import (
     retry_async
 )
 
+from .format_utils import FormatUtils
+
 __all__ = [
     # Market utils
     'is_us_ticker',
@@ -53,5 +56,8 @@ __all__ = [
     'async_rate_limited',
     'gather_with_rate_limit',
     'process_batch_async',
-    'retry_async'
+    'retry_async',
+    
+    # Formatting utilities
+    'FormatUtils'
 ]

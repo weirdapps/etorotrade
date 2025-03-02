@@ -8,6 +8,7 @@ A robust Python-based market analysis system that leverages Yahoo Finance data t
 - **Advanced Rate Limiting**
   * Adaptive batch processing (15 tickers per batch)
   * Smart delay system (1-30s) based on success rates
+  * Thread-safe API call tracking
   * Error pattern detection and handling
   * Success streak monitoring
   * Exponential backoff on errors
@@ -16,8 +17,10 @@ A robust Python-based market analysis system that leverages Yahoo Finance data t
 - **Smart Caching**
   * 5-minute TTL for market data
   * 15-minute TTL for news
-  * LRU cache for frequently accessed tickers
+  * 60-minute TTL for earnings data
+  * LRU cache with size limiting (prevents unbounded growth)
   * Memory-efficient storage
+  * Automatic cache cleanup
 
 ### 2. Comprehensive Analysis
 - **Market Data**
@@ -56,7 +59,23 @@ A robust Python-based market analysis system that leverages Yahoo Finance data t
     - Japan: Nikkei 225
     - Hong Kong: Hang Seng
 
-### 3. Multiple Output Formats
+### 3. Advanced Utilities
+- **Rate Limiting Utilities**
+  * Thread-safe API call tracking
+  * Adaptive delays based on API response patterns
+  * Support for both synchronous and asynchronous operations
+  * Function decorators for easy application to any API call
+- **Pagination Support**
+  * Automatic handling of paginated API responses
+  * Rate-limiting aware iteration
+  * Memory-efficient result buffering
+- **Async Capabilities**
+  * Asynchronous operations with rate limiting
+  * Controlled concurrency to prevent API throttling
+  * Safe alternatives to standard asyncio functions
+  * Retry mechanisms with exponential backoff
+
+### 4. Multiple Output Formats
 - **Console Display**
   * Color-coded metrics based on analysis
   * Progress tracking with tqdm
@@ -233,8 +252,8 @@ NEWS_API_KEY=your_news_api_key  # Optional
 - 🔴 **Red** (Sell)
   * More than 5 price targets (# T)
   * More than 5 analyst ratings (# A) AND
-  * < 5% upside OR
-  * < 55% buy ratings
+  * &lt; 5% upside OR
+  * &lt; 55% buy ratings
 
 - 🟡 **Yellow** (Low Confidence/Insufficient Data)
   * 5 or fewer price targets OR
@@ -250,15 +269,19 @@ NEWS_API_KEY=your_news_api_key  # Optional
 
 The system uses a modular architecture:
 1. **Client Layer** (client.py): API interactions with rate limiting
-2. **Analysis Layer** (Multiple modules): Data processing and calculations
-3. **Display Layer** (display.py): Output formatting and presentation
+2. **Utilities Layer**: Reusable components for different operations
+3. **Analysis Layer** (Multiple modules): Data processing and calculations
+4. **Display Layer** (display.py): Output formatting and presentation
 
 Key components:
-- **RateLimitTracker**: Manages API call timing and adaptive delays
+- **YFinanceError Hierarchy**: Comprehensive error handling system
+- **AdaptiveRateLimiter**: Advanced rate limiting with thread safety
 - **YFinanceClient**: Handles Yahoo Finance API interactions
+- **Cache**: LRU caching system with size limiting
 - **StockData**: Core data structure for stock information
 - **DisplayFormatter**: Formats data for console output
 - **MarketDisplay**: Manages batch processing and report generation
+- **PaginatedResults**: Handles paginated API responses efficiently
 
 ## Trading Platform Integration
 
@@ -293,6 +316,9 @@ pytest --cov=yahoofinance tests/
 # Run specific tests
 pytest tests/test_market_display.py
 
+# Run tests for utility modules
+pytest tests/test_utils.py tests/test_rate.py tests/test_async.py tests/test_errors.py
+
 # Run specific test case
 pytest tests/test_market_display.py::TestMarketDisplay::test_display_report
 
@@ -301,7 +327,8 @@ pytest tests/test_cons.py tests/test_trade.py --cov=yahoofinance.cons --cov=trad
 ```
 
 The codebase includes extensive test coverage for critical components:
-- Core modules have >70% test coverage
+- Core modules have &gt;70% test coverage
+- Utility modules have &gt;90% test coverage
 - 60+ comprehensive test cases covering both normal operations and edge cases
 - Test mocking for network calls and API interactions
 - Integration tests for end-to-end workflows
