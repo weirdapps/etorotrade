@@ -104,7 +104,8 @@ def test_color_value():
     assert "\033[93m" in color_value("0.00%")   # Yellow for zero
     assert "invalid" == color_value("invalid")   # No color for invalid
 
-def test_update_html(tmp_path):
+@patch('yahoofinance.portfolio.FormatUtils')
+def test_update_html(mock_format_utils_class, tmp_path):
     html_file = tmp_path / "test.html"
     
     # Test data to update
@@ -119,7 +120,9 @@ def test_update_html(tmp_path):
         "Sortino": "2.1"
     }
     
-    formatted_metrics = [
+    # Set up the mock FormatUtils instance
+    mock_utils = Mock()
+    mock_utils.format_market_metrics = Mock(return_value=[
         {'id': 'TODAY', 'value': '+5.23%', 'label': 'Today'},
         {'id': 'MTD', 'value': '-2.15%', 'label': 'MTD'},
         {'id': 'YTD', 'value': '+8.45%', 'label': 'YTD'},
@@ -128,20 +131,23 @@ def test_update_html(tmp_path):
         {'id': 'Alpha', 'value': '0.45', 'label': 'Alpha'},
         {'id': 'Sharpe', 'value': '1.8', 'label': 'Sharpe'},
         {'id': 'Sortino', 'value': '2.1', 'label': 'Sortino'}
-    ]
+    ])
+    mock_utils.generate_market_html = Mock(return_value="<html>Mocked HTML</html>")
     
-    mock_utils = Mock()
-    mock_utils.format_market_metrics.return_value = formatted_metrics
-    mock_utils.generate_market_html.return_value = "<html>Mocked HTML</html>"
+    # Configure the class mock to return our instance mock
+    mock_format_utils_class.return_value = mock_utils
     
-    with patch('yahoofinance.portfolio.FormatUtils', return_value=mock_utils):
+    # Create a file for testing
+    html_file.touch()
+    
+    # Call the function
+    with patch('builtins.open'), patch('builtins.print'):
         update_html(data, str(html_file))
-        
-        # Verify format_market_metrics was called
-        assert mock_utils.format_market_metrics.call_count == 1
-        # Verify generate_market_html was called
-        assert mock_utils.generate_market_html.call_count == 1
-        assert "Portfolio Performance" in mock_utils.generate_market_html.call_args[1]['title']
+    
+    # Verify the mocks were called correctly
+    assert mock_format_utils_class.call_count == 1
+    assert mock_utils.generate_market_html.call_count == 1
+    assert "Portfolio Performance" in mock_utils.generate_market_html.call_args[1]['title']
 
 def test_extract_data_empty_soup():
     empty_soup = BeautifulSoup("", 'html.parser')
