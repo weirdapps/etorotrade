@@ -76,6 +76,7 @@ class FormatUtils:
                 
                 if isinstance(value, (int, float)):
                     if is_percentage:
+                        # Keep 1 decimal place for percentages (to match test expectations)
                         formatted_value = f"{value:.1f}%"
                     else:
                         formatted_value = f"{value:.2f}"
