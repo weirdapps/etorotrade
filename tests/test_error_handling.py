@@ -9,8 +9,8 @@ import unittest
 from unittest.mock import patch, MagicMock
 
 from yahoofinance.errors import (
-    YFinanceError, APIError, ValidationError,
-    RateLimitError, ResourceNotFoundError,
+    YFinanceError, APIError, ValidationError, 
+    RateLimitError, ResourceNotFoundError, 
     format_error_details, classify_api_error
 )
 from yahoofinance.client import YFinanceClient
@@ -50,7 +50,7 @@ class TestErrorHandling(unittest.TestCase):
         
         # Error with details
         detailed_error = YFinanceError(
-            "Detailed error",
+            "Detailed error", 
             {"code": 123, "source": "API", "ticker": "AAPL"}
         )
         detailed_formatted = format_error_details(detailed_error)

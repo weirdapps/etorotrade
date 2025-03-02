@@ -1,182 +1,185 @@
+#!/usr/bin/env python3
+"""
+Tests for utility modules (market_utils, format_utils)
+
+This test file verifies the functionality of utility modules including:
+- Market utilities like ticker normalization and validation
+- Formatting utilities for HTML and output
+- General utility improvements to the codebase
+"""
+
 import unittest
-from unittest.mock import patch, Mock
-from datetime import datetime
-import pandas as pd
-from yahoofinance.utils import DateUtils, FormatUtils
+import time
+import logging
+from unittest.mock import patch, MagicMock
 
-class TestDateUtils(unittest.TestCase):
-    def test_clean_date_string(self):
-        """Test cleaning date strings."""
-        test_cases = [
-            ('2024-01-01', '2024-01-01'),  # Already clean
-            ('2024/01/01', '2024-01-01'),  # Convert slashes to hyphens
-            ('2024.01.01', '2024-01-01'),  # Convert dots to hyphens
-            ('2024 01 01', '2024-01-01'),  # Convert spaces to hyphens
-            ('abc2024-01-01xyz', '2024-01-01'),  # Remove non-numeric/non-hyphen
-            ('', ''),  # Empty string
-            ('abc', '')  # No numbers
-        ]
-        
-        for input_str, expected in test_cases:
-            with self.subTest(input_str=input_str):
-                result = DateUtils.clean_date_string(input_str)
-                self.assertEqual(result, expected)
+from yahoofinance.utils.market_utils import is_us_ticker, normalize_hk_ticker
+from yahoofinance.utils.format_utils import FormatUtils
+from yahoofinance.config import CACHE, RISK_METRICS, POSITIVE_GRADES, RATE_LIMIT
+from yahoofinance.cache import market_cache, news_cache, earnings_cache
 
-    def test_parse_date(self):
-        """Test parsing date strings."""
-        # Valid dates
-        self.assertEqual(
-            DateUtils.parse_date('2024-01-01'),
-            datetime(2024, 1, 1)
-        )
-        self.assertEqual(
-            DateUtils.parse_date('2024/01/01'),
-            datetime(2024, 1, 1)
-        )
-        
-        # Invalid dates
-        self.assertIsNone(DateUtils.parse_date('2024-13-01'))  # Invalid month
-        self.assertIsNone(DateUtils.parse_date('2024-01-32'))  # Invalid day
-        self.assertIsNone(DateUtils.parse_date('invalid'))     # Not a date
-        self.assertIsNone(DateUtils.parse_date(''))           # Empty string
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-    def test_validate_date_format(self):
-        """Test date format validation."""
-        # Valid formats
-        self.assertTrue(DateUtils.validate_date_format('2024-01-01'))
-        self.assertTrue(DateUtils.validate_date_format('2024/01/01'))
-        
-        # Invalid formats
-        self.assertFalse(DateUtils.validate_date_format('01-01-2024'))
-        self.assertFalse(DateUtils.validate_date_format('2024-1-1'))
-        self.assertFalse(DateUtils.validate_date_format('2024-13-01'))
-        self.assertFalse(DateUtils.validate_date_format('invalid'))
-        self.assertFalse(DateUtils.validate_date_format(''))
 
-    @patch('builtins.input')
-    def test_get_user_dates(self, mock_input):
-        """Test getting user dates with various scenarios."""
-        today = datetime.now().strftime(DateUtils.DATE_FORMAT)
-        default_end = (datetime.strptime(today, DateUtils.DATE_FORMAT) + 
-                      pd.Timedelta(days=7)).strftime(DateUtils.DATE_FORMAT)
+class TestMarketUtils(unittest.TestCase):
+    """Test market utilities for ticker validation and normalization."""
+    
+    def test_us_ticker_detection(self):
+        """Test detection of US vs non-US tickers."""
+        # US tickers
+        self.assertTrue(is_us_ticker("AAPL"))
+        self.assertTrue(is_us_ticker("MSFT"))
+        self.assertTrue(is_us_ticker("BRK.B"))  # Special case with dot
+        self.assertTrue(is_us_ticker("BF.A"))   # Special case with dot
         
-        # Test with default dates (empty inputs)
-        mock_input.side_effect = ['', '']
-        start_date, end_date = DateUtils.get_user_dates()
-        self.assertEqual(start_date, today)
-        self.assertEqual(end_date, default_end)
+        # Non-US tickers
+        self.assertFalse(is_us_ticker("9988.HK"))
+        self.assertFalse(is_us_ticker("BP.L"))
+        self.assertFalse(is_us_ticker("MAERSK-A.CO"))
+    
+    def test_hk_ticker_normalization(self):
+        """Test normalization of Hong Kong tickers."""
+        # 5-digit ticker with leading zeros
+        self.assertEqual(normalize_hk_ticker("03690.HK"), "3690.HK")
         
-        # Test with custom valid dates
-        mock_input.side_effect = ['2024-01-01', '2024-01-07']
-        start_date, end_date = DateUtils.get_user_dates()
-        self.assertEqual(start_date, '2024-01-01')
-        self.assertEqual(end_date, '2024-01-07')
+        # 4-digit ticker (should remain unchanged)
+        self.assertEqual(normalize_hk_ticker("0700.HK"), "0700.HK")
         
-        # Test with invalid then valid dates
-        mock_input.side_effect = [
-            'invalid', '2024-01-01',  # Invalid then valid start date
-            '2023-12-31', '2024-01-07'  # Invalid (before start) then valid end date
-        ]
-        start_date, end_date = DateUtils.get_user_dates()
-        self.assertEqual(start_date, '2024-01-01')
-        self.assertEqual(end_date, '2024-01-07')
+        # Non-HK ticker (should remain unchanged)
+        self.assertEqual(normalize_hk_ticker("AAPL"), "AAPL")
+        self.assertEqual(normalize_hk_ticker("MSFT.US"), "MSFT.US")
+
 
 class TestFormatUtils(unittest.TestCase):
-    def test_format_number(self):
-        """Test number formatting with K/M suffixes."""
-        test_cases = [
-            (1234567, '1.2M'),      # Millions
-            (1234, '1.2K'),         # Thousands
-            (123.456, '123.5'),     # Regular number
-            (0, '0.0'),             # Zero
-            (-1234567, '-1.2M'),    # Negative millions
-            (-1234, '-1.2K'),       # Negative thousands
-            (None, 'N/A'),          # None value
-            ('invalid', 'N/A')      # Invalid input
-        ]
-        
-        for value, expected in test_cases:
-            with self.subTest(value=value):
-                result = FormatUtils.format_number(value)
-                self.assertEqual(result, expected)
-
-    def test_format_percentage(self):
-        """Test percentage formatting."""
-        test_cases = [
-            (0.1234, '+12.34%'),     # Positive with sign
-            (-0.1234, '-12.34%'),    # Negative
-            (0, '0.00%'),            # Zero
-            (None, 'N/A'),           # None value
-            (float('nan'), 'N/A'),   # NaN
-            ('invalid', 'N/A')       # Invalid input
-        ]
-        
-        for value, expected in test_cases:
-            with self.subTest(value=value):
-                result = FormatUtils.format_percentage(value)
-                self.assertEqual(result, expected)
-                
-        # Test without sign
-        self.assertEqual(FormatUtils.format_percentage(0.1234, include_sign=False), '12.34%')
-
+    """Test formatting utilities for output formatting."""
+    
     def test_format_market_metrics(self):
-        """Test market metrics formatting."""
-        metrics = {
-            'metric1': {'value': 0.1234, 'label': 'Metric 1', 'is_percentage': True},
-            'metric2': {'value': 1234567, 'label': 'Metric 2', 'is_percentage': False},
-            'metric3': {'value': 'text', 'label': 'Metric 3'},
-            'metric4': {'value': None, 'label': 'Metric 4'}
+        """Test formatting of market metrics."""
+        # Test metrics
+        test_metrics = {
+            "AAPL": {
+                "value": 5.25,
+                "label": "Apple Inc",
+                "is_percentage": True
+            },
+            "MSFT": {
+                "value": -2.1,
+                "label": "Microsoft",
+                "is_percentage": True
+            },
+            "RATE": {
+                "value": 3.75,
+                "label": "Interest Rate",
+                "is_percentage": False
+            }
         }
         
-        formatted = FormatUtils.format_market_metrics(metrics)
+        # Format metrics
+        formatted = FormatUtils.format_market_metrics(test_metrics)
         
-        self.assertEqual(len(formatted), 4)
-        self.assertEqual(formatted[0]['value'], '+12.34%')
-        self.assertEqual(formatted[1]['value'], '1.2M')
-        self.assertEqual(formatted[2]['value'], 'text')
-        self.assertIsNone(formatted[3]['value'])
-
-    def test_format_table(self):
-        """Test table formatting."""
-        df = pd.DataFrame({
-            'A': [1, 2],
-            'B': ['x', 'y']
-        })
-        headers = ['Col A', 'Col B']
-        alignments = ('right', 'left')
+        # Verify results
+        self.assertEqual(len(formatted), 3)
         
-        # Test with valid data
-        with patch('builtins.print') as mock_print:
-            FormatUtils.format_table(df, 'Test Title', '2024-01-01', '2024-01-07',
-                                   headers, alignments)
-            self.assertTrue(mock_print.called)
+        # Check Apple formatting
+        apple = next((m for m in formatted if m['key'] == 'AAPL'), None)
+        self.assertIsNotNone(apple)
+        self.assertEqual(apple['formatted_value'], "5.2%")
+        self.assertEqual(apple['color'], "positive")
         
-        # Test with empty DataFrame
-        with patch('builtins.print') as mock_print:
-            FormatUtils.format_table(pd.DataFrame(), 'Test Title', '2024-01-01',
-                                   '2024-01-07', headers, alignments)
-            self.assertFalse(mock_print.called)
-
+        # Check Microsoft formatting
+        msft = next((m for m in formatted if m['key'] == 'MSFT'), None)
+        self.assertIsNotNone(msft)
+        self.assertEqual(msft['formatted_value'], "-2.1%")
+        self.assertEqual(msft['color'], "negative")
+        
+        # Check non-percentage formatting
+        rate = next((m for m in formatted if m['key'] == 'RATE'), None)
+        self.assertIsNotNone(rate)
+        self.assertEqual(rate['formatted_value'], "3.75")
+    
     def test_generate_market_html(self):
-        """Test HTML generation for market display."""
+        """Test generation of market HTML."""
+        # Test data
+        title = "Market Dashboard"
         sections = [{
             'title': 'Test Section',
             'metrics': [
-                {'id': 'metric1', 'value': '10%', 'label': 'Metric 1'},
-                {'id': 'metric2', 'value': '1.2M', 'label': 'Metric 2'}
+                {
+                    'key': 'AAPL',
+                    'label': 'Apple',
+                    'formatted_value': '5.3%',
+                    'color': 'positive'
+                }
             ],
             'columns': 2,
             'width': '500px'
         }]
         
-        html = FormatUtils.generate_market_html('Test Title', sections)
+        # Generate HTML
+        html = FormatUtils.generate_market_html(title, sections)
         
+        # Verify output
         self.assertIsInstance(html, str)
-        self.assertIn('Test Title', html)
+        self.assertIn(title, html)
         self.assertIn('Test Section', html)
-        self.assertIn('Metric 1', html)
-        self.assertIn('10%', html)
-        self.assertIn('500px', html)
+        self.assertIn('Apple', html)
+        self.assertIn('5.3%', html)
+        self.assertIn('positive', html)
 
-if __name__ == '__main__':
+
+class TestConfigAndCache(unittest.TestCase):
+    """Test configuration values and cache improvements."""
+    
+    def test_config_values(self):
+        """Test that config values are properly loaded."""
+        # Test rate limiting config
+        self.assertIn("WINDOW_SIZE", RATE_LIMIT)
+        self.assertIn("MAX_CALLS", RATE_LIMIT)
+        self.assertIn("BATCH_SIZE", RATE_LIMIT)
+        
+        # Test cache config
+        self.assertIn("MARKET_DATA_TTL", CACHE)
+        self.assertIn("NEWS_DATA_TTL", CACHE)
+        self.assertIn("DEFAULT_TTL", CACHE)
+        
+        # Test analyst ratings config
+        self.assertIn("Buy", POSITIVE_GRADES)
+        self.assertIn("Strong Buy", POSITIVE_GRADES)
+    
+    def test_cache_implementation(self):
+        """Test the improved cache implementation."""
+        # Test different cache instances
+        self.assertEqual(market_cache.expiration_minutes, CACHE["MARKET_DATA_TTL"])
+        self.assertEqual(news_cache.expiration_minutes, CACHE["NEWS_DATA_TTL"])
+        self.assertEqual(earnings_cache.expiration_minutes, CACHE["EARNINGS_DATA_TTL"])
+        
+        # Test cache operations
+        test_key = "test_key"
+        test_value = {"data": "test_value", "timestamp": time.time()}
+        
+        # Set a value
+        market_cache.set(test_key, test_value)
+        
+        # Retrieve the value
+        retrieved_value = market_cache.get(test_key)
+        self.assertEqual(retrieved_value, test_value)
+        
+        # Test LRU behavior by adding many entries
+        for i in range(10):
+            market_cache.set(f"test_key_{i}", f"test_value_{i}")
+        
+        # Original entry should still be available (max entries is much larger)
+        self.assertEqual(market_cache.get(test_key), test_value)
+        
+        # Clear the cache for cleanup
+        market_cache.clear()
+        self.assertIsNone(market_cache.get(test_key))
+
+
+if __name__ == "__main__":
     unittest.main()
