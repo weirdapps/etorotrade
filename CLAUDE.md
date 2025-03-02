@@ -10,11 +10,10 @@
     - Select 'S' for Sell candidates
   - Select 'I' for Manual ticker input
 - `python -m yahoofinance.validate` - Validate tickers against Yahoo Finance API
-- `python -m yahoofinance.cons` - Generate market constituents (filtered by yfinance.csv when available)
 - `pytest tests/` - Run all tests
 - `pytest tests/test_file.py::TestClass::test_method` - Run specific test
 - `pytest tests/ --cov=yahoofinance` - Run tests with coverage
-- `pytest tests/test_cons.py tests/test_trade.py --cov=yahoofinance.cons --cov=trade --cov-report=term-missing` - Run specific module tests with coverage
+- `pytest tests/test_trade.py --cov=trade --cov-report=term-missing` - Run specific module tests with coverage
 - `pytest -xvs tests/test_specific.py` - Run verbose, no capture
 - `python -m yahoofinance.module_name` - Run specific module (news, portfolio, econ)
 - `pytest tests/test_utils.py` - Test core utilities and improvements
@@ -39,7 +38,6 @@
 - `yahoofinance/client.py` - API client with rate limiting and caching
 - `yahoofinance/display.py` - Output handling and batch processing
 - `yahoofinance/formatting.py` - Data formatting and colorization
-- `yahoofinance/cons.py` - Market constituents management
 - `yahoofinance/validate.py` - Ticker validation against Yahoo Finance API
 - `yahoofinance/errors.py` - Centralized error handling
 - `yahoofinance/types.py` - Common types and data structures
@@ -52,6 +50,18 @@
 - `yahoofinance/utils/pagination.py` - Paginated API result handling
 - `yahoofinance/utils/async_helpers.py` - Async utilities with rate limiting
 - `yahoofinance/utils/format_utils.py` - HTML and output formatting utilities
+
+### Modular Design
+The codebase follows a modular design with clear separation of concerns:
+
+- **Core Functionality**: Main modules in the root directory provide high-level features
+- **Utility Modules**: Common utilities in the utils/ directory for reusable functionality
+- **Specialized Submodules**:
+  - `utils/data/` - Data formatting and transformation
+  - `utils/network/` - Rate limiting and API communication
+  - `utils/market/` - Market-specific utilities like ticker validation
+  - `utils/date/` - Date manipulation and formatting
+  - `utils/async/` - Asynchronous operation helpers
 
 ### Test Organization
 - `tests/` - Test files with module-based organization
@@ -66,7 +76,6 @@
   - `market.csv` - All market tickers for analysis
   - `etoro.csv` - Filtered list of tickers available on eToro
   - `portfolio.csv` - Current portfolio holdings
-  - `cons.csv` - Market constituent data (filtered by yfinance.csv when available)
   - `yfinance.csv` - Valid tickers that pass Yahoo Finance API validation
 - `yahoofinance/output/` - Generated output files
   - `buy.csv` - Generated buy recommendations
@@ -171,3 +180,22 @@
   - Controlled concurrency
   - Exponential backoff for failures
   - Resource-efficient batch processing
+
+## Code Duplication Cleanup
+The codebase has been reorganized to eliminate duplications:
+
+- **Format Utilities**:
+  - Consolidated duplicate code between `format_utils.py` and `utils/data/format_utils.py`
+  - Maintained backward compatibility via imports
+  
+- **Rate Limiting**:
+  - Unified implementations between `rate_limiter.py` and `utils/network/rate_limiter.py`
+  - Ensured proper patching for tests
+  
+- **Pagination**:
+  - Merged duplicated functionality between `pagination.py` and `utils/network/pagination.py`
+  - Standardized interfaces for consistent usage
+  
+- **Market Utilities**:
+  - Combined functionality from `market_utils.py` and `utils/market/ticker_utils.py`
+  - Preserved API compatibility

@@ -12,7 +12,6 @@ import concurrent.futures
 from yahoofinance.validate import (
     is_valid_ticker,
     validate_tickers_batch,
-    load_constituents,
     save_valid_tickers,
     main
 )
@@ -115,60 +114,6 @@ class TestValidate(unittest.TestCase):
             self.assertEqual(result, ['AAPL', 'MSFT'])
             self.assertEqual(mock_executor_instance.__enter__.return_value.submit.call_count, 3)
 
-    @patch('yahoofinance.validate.Path')
-    @patch('yahoofinance.validate.pd.read_csv')
-    def test_load_constituents(self, mock_read_csv, mock_path):
-        """Test loading constituents from CSV."""
-        # Setup mocks
-        mock_path_instance = MagicMock()
-        mock_path_instance.exists.return_value = True
-        mock_path.return_value = mock_path_instance
-        
-        mock_df = pd.DataFrame({'symbol': ['AAPL', 'MSFT', 'GOOGL']})
-        mock_read_csv.return_value = mock_df
-        
-        # Test
-        result = load_constituents()
-        
-        # Verify
-        self.assertEqual(result, ['AAPL', 'MSFT', 'GOOGL'])
-        mock_read_csv.assert_called_once()
-
-    @patch('yahoofinance.validate.Path')
-    @patch('yahoofinance.validate.pd.read_csv')
-    def test_load_constituents_file_not_found(self, mock_read_csv, mock_path):
-        """Test loading constituents when file doesn't exist."""
-        # Setup mocks
-        mock_path_instance = MagicMock()
-        mock_path_instance.exists.return_value = False
-        mock_path.return_value = mock_path_instance
-        
-        # Test
-        result = load_constituents()
-        
-        # Verify
-        self.assertEqual(result, [])
-
-    @patch('yahoofinance.validate.Path')
-    @patch('yahoofinance.validate.pd.read_csv')
-    def test_load_constituents_no_symbol_column(self, mock_read_csv, mock_path):
-        """Test loading constituents with no symbol column."""
-        # Setup mocks
-        mock_path_instance = MagicMock()
-        mock_path_instance.exists.return_value = True
-        mock_path.return_value = mock_path_instance
-        
-        # DataFrame without 'symbol' column
-        mock_df = pd.DataFrame({'name': ['Apple', 'Microsoft', 'Google']})
-        mock_read_csv.return_value = mock_df
-        
-        # Test
-        result = load_constituents()
-        
-        # Verify
-        self.assertEqual(result, [])
-        mock_read_csv.assert_called_once()
-
     @patch('pathlib.Path.mkdir')
     @patch('pandas.DataFrame.to_csv')
     def test_save_valid_tickers(self, mock_to_csv, mock_mkdir):
@@ -181,36 +126,34 @@ class TestValidate(unittest.TestCase):
         mock_mkdir.assert_called_once_with(exist_ok=True)
         mock_to_csv.assert_called_once()
 
-    @patch('yahoofinance.validate.load_constituents')
+    @patch('yahoofinance.validate.input', return_value='AAPL,MSFT,GOOGL')
     @patch('yahoofinance.validate.validate_tickers_batch')
     @patch('yahoofinance.validate.save_valid_tickers')
-    def test_main_success(self, mock_save, mock_validate, mock_load):
+    def test_main_success(self, mock_save, mock_validate, mock_input):
         """Test main function with successful flow."""
         # Setup mocks
-        mock_load.return_value = ['AAPL', 'INVALID', 'MSFT']
         mock_validate.return_value = ['AAPL', 'MSFT']
         
         # Test
-        main()
+        with patch('builtins.print'):  # Suppress print statements
+            main()
         
         # Verify
-        mock_load.assert_called_once()
-        mock_validate.assert_called_once_with(['AAPL', 'INVALID', 'MSFT'])
+        mock_input.assert_called_once()
+        mock_validate.assert_called_once_with(['AAPL', 'MSFT', 'GOOGL'])
         mock_save.assert_called_once_with(['AAPL', 'MSFT'])
 
-    @patch('yahoofinance.validate.load_constituents')
+    @patch('yahoofinance.validate.input', return_value='')
     @patch('yahoofinance.validate.validate_tickers_batch')
     @patch('yahoofinance.validate.save_valid_tickers')
-    def test_main_no_constituents(self, mock_save, mock_validate, mock_load):
-        """Test main function with no constituents."""
-        # Setup mocks
-        mock_load.return_value = []
-        
+    def test_main_no_tickers(self, mock_save, mock_validate, mock_input):
+        """Test main function with no tickers."""
         # Test
-        main()
+        with patch('builtins.print'):  # Suppress print statements
+            main()
         
         # Verify
-        mock_load.assert_called_once()
+        mock_input.assert_called_once()
         mock_validate.assert_not_called()
         mock_save.assert_not_called()
         
@@ -235,18 +178,6 @@ class TestValidate(unittest.TestCase):
             # Verify
             self.assertEqual(result, [])
             
-    @patch('pandas.read_csv')
-    def test_load_constituents_exception(self, mock_read_csv):
-        """Test loading constituents with an exception."""
-        # Setup mock
-        mock_read_csv.side_effect = Exception("File error")
-        
-        # Test
-        result = load_constituents()
-        
-        # Verify
-        self.assertEqual(result, [])
-        
     @patch('pandas.DataFrame.to_csv')
     def test_save_valid_tickers_exception(self, mock_to_csv):
         """Test saving valid tickers with an exception."""

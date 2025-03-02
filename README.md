@@ -45,19 +45,6 @@ A robust Python-based market analysis system that leverages Yahoo Finance data t
   * Earnings calendar and tracking
   * Economic indicators
   * Institutional holdings
-  * Major Market Indices Coverage:
-    - US: S&P 500
-    - UK: FTSE 100
-    - France: CAC 40
-    - Germany: DAX
-    - Spain: IBEX 35
-    - Italy: FTSE MIB
-    - Portugal: PSI
-    - Switzerland: SMI
-    - Denmark: OMXC25
-    - Greece: ATHEX
-    - Japan: Nikkei 225
-    - Hong Kong: Hang Seng
 
 ### 3. Advanced Utilities
 - **Rate Limiting Utilities**
@@ -137,19 +124,16 @@ The analysis automatically saves results to CSV files:
 #### Yahoo Finance Validation
 The system has built-in ticker validation to filter out invalid or delisted tickers. This prevents errors during batch processing and improves overall reliability.
 
-To validate tickers and create a filtered list:
+To validate tickers:
 ```bash
-# Run this once to validate all tickers against Yahoo Finance API
+# Run this to validate tickers against Yahoo Finance API
 python -m yahoofinance.validate
-
-# After validation, cons.py will automatically filter against valid tickers
-python -m yahoofinance.cons
 ```
 
 The validation process:
-1. Checks each ticker against Yahoo Finance API
-2. Saves valid tickers to `yahoofinance/input/yfinance.csv`
-3. Subsequent runs of `cons.py` use this list to filter out invalid tickers
+1. Asks for tickers to be validated 
+2. Checks each ticker against Yahoo Finance API
+3. Saves valid tickers to `yahoofinance/input/yfinance.csv`
 
 This significantly improves processing time and reduces API errors when running market analysis.
 
@@ -252,8 +236,8 @@ NEWS_API_KEY=your_news_api_key  # Optional
 - 🔴 **Red** (Sell)
   * More than 5 price targets (# T)
   * More than 5 analyst ratings (# A) AND
-  * &lt; 5% upside OR
-  * &lt; 55% buy ratings
+  * < 5% upside OR
+  * < 55% buy ratings
 
 - 🟡 **Yellow** (Low Confidence/Insufficient Data)
   * 5 or fewer price targets OR
@@ -323,12 +307,12 @@ pytest tests/test_utils.py tests/test_rate.py tests/test_async.py tests/test_err
 pytest tests/test_market_display.py::TestMarketDisplay::test_display_report
 
 # Run tests with coverage for specific modules
-pytest tests/test_cons.py tests/test_trade.py --cov=yahoofinance.cons --cov=trade --cov-report=term-missing
+pytest tests/test_trade.py --cov=trade --cov-report=term-missing
 ```
 
 The codebase includes extensive test coverage for critical components:
-- Core modules have &gt;70% test coverage
-- Utility modules have &gt;90% test coverage
+- Core modules have >70% test coverage
+- Utility modules have >90% test coverage
 - 60+ comprehensive test cases covering both normal operations and edge cases
 - Test mocking for network calls and API interactions
 - Integration tests for end-to-end workflows

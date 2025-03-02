@@ -90,29 +90,6 @@ def validate_tickers_batch(tickers, max_workers=5, batch_size=20):
     
     return valid_tickers
 
-def load_constituents():
-    """
-    Load constituents from cons.csv file.
-    
-    Returns:
-        list: List of constituent symbols
-    """
-    try:
-        filepath = Path(__file__).parent / 'input' / 'cons.csv'
-        if not filepath.exists():
-            logger.error(f"Constituents file not found: {filepath}")
-            return []
-            
-        df = pd.read_csv(filepath)
-        if 'symbol' not in df.columns:
-            logger.error("Symbol column not found in constituents file")
-            return []
-            
-        return df['symbol'].tolist()
-    except Exception as e:
-        logger.error(f"Error loading constituents: {str(e)}")
-        return []
-
 def save_valid_tickers(valid_tickers):
     """
     Save valid tickers to a CSV file.
@@ -135,23 +112,27 @@ def save_valid_tickers(valid_tickers):
 
 def main():
     """
-    Main function to validate tickers against Yahoo Finance.
+    Main function to validate manually entered tickers against Yahoo Finance.
     """
-    # Load constituents
-    logger.info("Loading constituents...")
-    constituents = load_constituents()
+    logger.info("Welcome to ticker validation tool")
+    logger.info("This tool will validate stock ticker symbols against Yahoo Finance API")
+    logger.info("Enter tickers separated by commas (e.g., AAPL,MSFT,GOOG)")
     
-    if not constituents:
-        logger.error("No constituents found. Please run cons.py first.")
+    # Get ticker input from user
+    ticker_input = input("Enter tickers: ")
+    tickers = [t.strip() for t in ticker_input.split(',') if t.strip()]
+    
+    if not tickers:
+        logger.error("No tickers entered. Exiting.")
         return
     
-    logger.info(f"Loaded {len(constituents)} constituents")
+    logger.info(f"You entered {len(tickers)} tickers")
     
     # Validate tickers
     logger.info("Starting ticker validation...")
-    valid_tickers = validate_tickers_batch(constituents)
+    valid_tickers = validate_tickers_batch(tickers)
     
-    logger.info(f"Found {len(valid_tickers)} valid tickers out of {len(constituents)} constituents")
+    logger.info(f"Found {len(valid_tickers)} valid tickers out of {len(tickers)}")
     
     # Save valid tickers
     save_valid_tickers(valid_tickers)
