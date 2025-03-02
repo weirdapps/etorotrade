@@ -72,16 +72,28 @@ def fetch_changes(start_date, end_date):
 
 def update_html(data):
     """Update index.html with market performance data."""
-    # Create metrics dictionary for formatting
-    metrics_dict = []
+    # Create metrics dictionary for formatting with proper colors
+    metrics_dict = {}
     date_range = f"({data[0]['_start_date'].strftime('%Y-%m-%d')} to {data[0]['_end_date'].strftime('%Y-%m-%d')})"
     
     for item in data:
-        metrics_dict.append({
-            'id': item['Index'],
-            'value': f"{item['_change']:+.2f}%",
-            'label': item['Index']
-        })
+        key = item['Index']
+        value = f"{item['_change']:+.2f}%"
+        
+        # Determine color based on value
+        if item['_change'] > 0:
+            color = 'positive'
+        elif item['_change'] < 0:
+            color = 'negative'
+        else:
+            color = 'normal'
+            
+        metrics_dict[key] = {
+            'value': value,
+            'label': item['Index'],
+            'is_percentage': True,
+            'color': color  # Add explicit color information
+        }
     
     # Format metrics using FormatUtils
     utils = FormatUtils()
