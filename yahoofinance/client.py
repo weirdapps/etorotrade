@@ -233,7 +233,18 @@ class YFinanceClient:
         return alpha, sharpe, sortino
 
     # Using the centralized utility for US ticker detection
-    
+    def _is_us_ticker(self, ticker: str) -> bool:
+        """
+        Determine if ticker is for US market.
+        
+        Args:
+            ticker: Ticker symbol
+            
+        Returns:
+            bool: True if US ticker, False otherwise
+        """
+        return is_us_ticker(ticker)
+        
     def _get_ticker_basic_info(self, ticker: str):
         """Get basic ticker info from yfinance"""
         try:

@@ -6,10 +6,11 @@ including market metrics, portfolio data, and visual elements.
 """
 
 import json
-from typing import List, Dict, Any, Optional
 import logging
+from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
+
 
 class FormatUtils:
     """Utilities for formatting HTML output and market metrics."""
@@ -151,103 +152,6 @@ class FormatUtils:
 </html>
 """
             
-            # Add CSS file if it doesn't exist
-            css = """
-body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    background-color: #f5f5f5;
-}
-
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
-}
-
-h1 {
-    text-align: center;
-    margin-bottom: 30px;
-    color: #333;
-}
-
-.dashboard {
-    display: flex;
-    flex-direction: column;
-    gap: 30px;
-}
-
-.section {
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    padding: 20px;
-    margin: 0 auto;
-}
-
-h2 {
-    margin-top: 0;
-    margin-bottom: 20px;
-    color: #444;
-    font-size: 1.5em;
-}
-
-.metrics-grid {
-    display: grid;
-    gap: 15px;
-}
-
-.metric-card {
-    background-color: #f9f9f9;
-    border-radius: 6px;
-    padding: 15px;
-    text-align: center;
-}
-
-.metric-label {
-    font-size: 0.9em;
-    color: #666;
-    margin-bottom: 8px;
-}
-
-.metric-value {
-    font-size: 1.3em;
-    font-weight: bold;
-    color: #333;
-}
-
-.positive {
-    color: #28a745;
-}
-
-.negative {
-    color: #dc3545;
-}
-
-.normal {
-    color: #333;
-}
-
-@media (max-width: 768px) {
-    .metrics-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-    }
-    
-    .section {
-        width: 100% !important;
-    }
-}
-"""
-            
-            # Add JavaScript file
-            js = """
-// Simple script to handle any dynamic behavior
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Dashboard loaded');
-});
-"""
-            
             # Return generated HTML
             return html
             
@@ -318,3 +222,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 formatted[key] = value
                 
         return formatted
+
+
+# For compatibility, expose functions at module level
+format_number = FormatUtils.format_number
+format_table = FormatUtils.format_table
+format_market_metrics = FormatUtils.format_market_metrics
+generate_market_html = FormatUtils.generate_market_html
+format_for_csv = FormatUtils.format_for_csv
