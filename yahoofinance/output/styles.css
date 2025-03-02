@@ -1,222 +1,93 @@
-/* Base styles */
-:root {
-    --bg-primary: #111827;
-    --bg-secondary: #1f2937;
-    --text-primary: #ffffff;
-    --text-secondary: #94a3b8;
-    --green: #10b981;
-    --red: #ef4444;
-    --gray: #4b5563;
-    --spacing-xs: 0.625rem;
-    --spacing-sm: 1.25rem;
-    --spacing-md: 1.875rem;
-    --transition-speed: 0.2s;
-}
-
+/* Dark theme with simple styling */
 body {
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
-    font-family: 'Roboto', sans-serif;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    min-height: 100vh;
+    font-family: Arial, sans-serif;
     margin: 0;
-    padding: var(--spacing-sm);
-    padding-top: var(--spacing-md);
+    padding: 0;
+    background-color: #111827;
+    color: #ffffff;
 }
 
-/* Container styles */
 .container {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-    width: 100%;
     max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
 }
 
-.summary-container {
-    background-color: var(--bg-secondary);
-    padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + 1.5rem) var(--spacing-md);
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+h1 {
     text-align: center;
-    transition: transform var(--transition-speed);
-    position: relative;
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: 30px;
+    color: #ffffff;
 }
 
-.summary-container:hover {
-    transform: translateY(-2px);
+.dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
 }
 
-/* Typography */
-.summary-container h2 {
-    margin: 0 0 var(--spacing-md);
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--text-primary);
+.section {
+    background-color: #1f2937;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin: 0 auto;
 }
 
-.text-3xl {
-    font-size: 1.875rem;
-    line-height: 2.25rem;
+h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #ffffff;
 }
 
-.text-base {
-    font-size: 1rem;
-    line-height: 1.5rem;
-}
-
-.text-sm {
-    font-size: 0.875rem;
-    line-height: 1.25rem;
-}
-
-.font-bold {
-    font-weight: 700;
-}
-
-.font-semibold {
-    font-weight: 600;
-}
-
-/* Grid layouts */
-.grid {
+.metrics-grid {
     display: grid;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-sm);
+    gap: 15px;
 }
 
-.grid-4x1 {
-    grid-template-columns: repeat(4, 1fr);
-}
-
-.grid-3x2 {
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(2, 1fr);
-    aspect-ratio: 16/9;
-    width: 100%;
-    max-width: 960px;
-    margin: 0 auto;
-}
-
-.grid-2x2 {
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: repeat(2, 1fr);
-    aspect-ratio: 1;
-    width: 100%;
-    max-width: 400px;
-    margin: 0 auto;
-}
-
-/* Flex container */
-.flex {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: var(--spacing-sm);
+.metric-card {
     background-color: rgba(255, 255, 255, 0.05);
-    border-radius: 6px;
-    transition: background-color var(--transition-speed);
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
 }
 
-.flex:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-}
-
-/* Metric label styles */
 .metric-label {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
-    margin-top: 0.5rem;
+    font-size: 0.9em;
+    color: #94a3b8;
+    margin-bottom: 8px;
 }
 
-/* Date range styles */
-.date-range {
-    position: absolute;
-    bottom: var(--spacing-xs);
-    right: var(--spacing-sm);
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    font-weight: normal;
-    padding: 0.25rem 0.5rem;
-    background-color: rgba(0, 0, 0, 0.2);
-    border-radius: 4px;
+.metric-value {
+    font-size: 1.3em;
+    font-weight: bold;
+    color: #ffffff;
 }
 
-/* Colors */
-.text-green-500 {
-    color: var(--green);
-    transition: color var(--transition-speed);
+/* Make sure these match the class names used in format_utils.py */
+.positive {
+    color: #10b981;
 }
 
-.text-red-500 {
-    color: var(--red);
-    transition: color var(--transition-speed);
+.negative {
+    color: #ef4444;
 }
 
-.text-slate-400 {
-    color: var(--text-secondary);
+.normal {
+    color: #ffffff;
 }
 
-/* Responsive design */
 @media (max-width: 768px) {
-    .grid-4x1,
-    .grid-3x2 {
-        grid-template-columns: repeat(2, 1fr);
+    .metrics-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
     }
     
-    .text-3xl {
-        font-size: 1.5rem;
-    }
-    
-    .summary-container {
-        padding: var(--spacing-sm);
-        padding-bottom: calc(var(--spacing-sm) + 1.5rem);
-    }
-
-    .text-base {
-        font-size: 0.875rem;
-    }
-
-    .date-range {
-        font-size: 0.625rem;
-        padding: 0.125rem 0.25rem;
+    .section {
+        width: 100% !important;
     }
 }
 
 @media (max-width: 480px) {
-    .grid-4x1,
-    .grid-3x2,
-    .grid-2x2 {
-        grid-template-columns: 1fr;
-    }
-    
-    .text-3xl {
-        font-size: 1.25rem;
-    }
-
-    .text-base {
-        font-size: 0.75rem;
-    }
-
-    .summary-container {
-        padding-bottom: calc(var(--spacing-sm) + 2rem);
-    }
-
-    .date-range {
-        width: 100%;
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        text-align: center;
-        background-color: rgba(0, 0, 0, 0.3);
-        border-radius: 0 0 8px 8px;
-        padding: 0.25rem;
+    .metrics-grid {
+        grid-template-columns: 1fr !important;
     }
 }

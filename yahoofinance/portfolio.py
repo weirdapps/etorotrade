@@ -142,15 +142,21 @@ def extract_data(soup):
 
 def update_html(data, html_path):
     """Update HTML file with the extracted data."""
-    # Map the scraped data fields to portfolio.html fields
+    # Map the scraped data fields to portfolio.html fields with specific order
     field_mapping = {
-        THIS_MONTH: [THIS_MONTH, 'MTD'],
+        # First row metrics (in order)
+        THIS_MONTH: [THIS_MONTH, 'MTD', 'Today'],
         YEAR_TO_DATE: [YEAR_TO_DATE, 'YTD'],
         TWO_YEARS: [TWO_YEARS, '2YR'],
+        
+        # Second row metrics (in order)
         'Beta': ['Beta'],
         'Sharpe': ['Sharpe'],
         'Cash': ['Cash']
     }
+    
+    # Preserve the exact order of fields for the final display
+    ordered_fields = [THIS_MONTH, YEAR_TO_DATE, TWO_YEARS, 'Beta', 'Sharpe', 'Cash']
     
     # Create portfolio data using the mapping
     portfolio_data = {}
@@ -164,18 +170,61 @@ def update_html(data, html_path):
         if target_field not in portfolio_data:
             portfolio_data[target_field] = '0.00%' if target_field in [THIS_MONTH, YEAR_TO_DATE, TWO_YEARS, 'Cash'] else '0.00'
     
-    # Create metrics dictionary for formatting
-    metrics_dict = {}
-    for key, value in portfolio_data.items():
-        metrics_dict[key] = {
-            'value': value,
-            'label': key,
-            'is_percentage': '%' in str(value)
-        }
+    # Create a direct grid layout of metrics in exact order without relying on sorting
+    row1 = []  # First row: THIS_MONTH, YEAR_TO_DATE, TWO_YEARS
+    row2 = []  # Second row: Beta, Sharpe, Cash
     
-    # Format metrics using FormatUtils instance
+    # First row metrics
+    for field in [THIS_MONTH, YEAR_TO_DATE, TWO_YEARS]:
+        if field in portfolio_data:
+            is_percentage = '%' in str(portfolio_data[field])
+            value = portfolio_data[field]
+            
+            # Determine color class based on value
+            if isinstance(value, str) and '+' in value:
+                color = 'positive'
+            elif isinstance(value, str) and '-' in value:
+                color = 'negative'
+            else:
+                color = 'normal'
+                
+            row1.append({
+                'key': field,
+                'label': field,
+                'value': value,
+                'formatted_value': value,
+                'color': color,
+                'is_percentage': is_percentage
+            })
+    
+    # Second row metrics
+    for field in ['Beta', 'Sharpe', 'Cash']:
+        if field in portfolio_data:
+            is_percentage = '%' in str(portfolio_data[field])
+            value = portfolio_data[field]
+            
+            # Determine color class based on value
+            if isinstance(value, str) and '+' in value:
+                color = 'positive'
+            elif isinstance(value, str) and '-' in value:
+                color = 'negative'
+            else:
+                color = 'normal'
+                
+            row2.append({
+                'key': field,
+                'label': field,
+                'value': value,
+                'formatted_value': value,
+                'color': color,
+                'is_percentage': is_percentage
+            })
+    
+    # Combine rows in order (no sorting needed)
+    formatted_metrics = row1 + row2
+    
+    # Initialize the FormatUtils instance
     utils = FormatUtils()
-    formatted_metrics = utils.format_market_metrics(metrics_dict)
     
     # Generate the HTML using FormatUtils
     sections = [{
