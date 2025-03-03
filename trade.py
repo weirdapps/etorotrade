@@ -118,13 +118,12 @@ def filter_buy_opportunities(market_df):
     # - 5 or more price targets
     # - 5 or more analyst ratings
     # - >20% upside
-    # - >85% buy percentage
-    # - beta <= 1.25
+    # - >80% buy percentage
+    # - beta < 2.0
     # - PEF < PET (or PET non-positive)
     # - PEF > 0
-    # - PEG < 2.5 (and not missing)
+    # - PEG < 2.5 if available, missing PEG is acceptable
     # - SI <= 3% OR SI is missing/null
-    
     # Convert PEG ratio to numeric, handling non-numeric values
     sufficient_coverage['peg_ratio_numeric'] = pd.to_numeric(
         sufficient_coverage['peg_ratio'], errors='coerce')
@@ -132,8 +131,19 @@ def filter_buy_opportunities(market_df):
     # Identify PEG missing values (either null or "--")
     peg_missing = sufficient_coverage['peg_ratio_numeric'].isna()
     
+    # Apply Buy criteria:
+    # - 5 or more price targets
+    # - 5 or more analyst ratings
+    # - >20% upside
+    # - >80% buy percentage
+    # - beta < 2.0
+    # - PEF < PET (or PET non-positive)
+    # - PEF > 0
+    # - If PEG is available, it must be < 2.5, but if PEG is missing/null, we ignore this condition
+    # - SI <= 3% OR SI is missing/null
+    
     return sufficient_coverage[
-        (sufficient_coverage['upside'] > 20.0) &
+        (sufficient_coverage['upside'] >= 20.0) &  # Changed from > to >= to include exactly 20% upside
         (sufficient_coverage['buy_percentage'] >= 80.0) &
         (sufficient_coverage['beta'] < 2.0) &
         (
@@ -141,7 +151,7 @@ def filter_buy_opportunities(market_df):
             (sufficient_coverage['pe_trailing'] <= 0)
         ) &
         (sufficient_coverage['pe_forward'] > 0) &
-        (~peg_missing & (sufficient_coverage['peg_ratio_numeric'] < 2.5)) &  # PEG must be present and < 2.5
+        (peg_missing | (sufficient_coverage['peg_ratio_numeric'] < 2.5)) &  # PEG must be < 2.5 if present, or can be missing
         (si_missing | (sufficient_coverage['short_float_pct'] <= 3.0))
     ].copy()
 
@@ -245,7 +255,7 @@ def filter_hold_candidates(market_df):
     
     # Buy filter (to exclude)
     buy_filter = (
-        (sufficient_coverage['upside'] > 20.0) &
+        (sufficient_coverage['upside'] >= 20.0) &  # Changed from > to >= to match buy filter
         (sufficient_coverage['buy_percentage'] >= 80.0) &
         (sufficient_coverage['beta'] < 2.0) &
         (
@@ -253,13 +263,13 @@ def filter_hold_candidates(market_df):
             (sufficient_coverage['pe_trailing'] <= 0)
         ) &
         (sufficient_coverage['pe_forward'] > 0) &
-        (~peg_missing & (sufficient_coverage['peg_ratio_numeric'] < 2.5)) &
+        (peg_missing | (sufficient_coverage['peg_ratio_numeric'] < 2.5)) &
         (si_missing | (sufficient_coverage['short_float_pct_numeric'] <= 3.0))
     )
     
     # Filter stocks that are neither buy nor sell candidates
-    # and have beta between 2.0 and 3.0 to be considered suitable for holding
-    hold_filter = (~buy_filter & ~sell_filter & (sufficient_coverage['beta'] >= 2.0) & (sufficient_coverage['beta'] <= 3.0))
+    # We don't need to restrict to a specific beta range for hold candidates
+    hold_filter = (~buy_filter & ~sell_filter)
     
     # Return stocks that meet the hold criteria
     return sufficient_coverage[hold_filter].copy()

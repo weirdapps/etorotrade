@@ -127,8 +127,7 @@ class DisplayFormatter:
                 beta <= self.config.max_beta_buy and
                 (pef < pet or pet <= 0) and  # PEF < PET or PET non-positive
                 pef > 0 and  # Positive forward P/E
-                not peg_missing and  # PEG must be present
-                peg < self.config.max_peg_buy and  # Good PEG ratio (now <= 2.5)
+                (peg_missing or peg < self.config.max_peg_buy) and  # PEG must be < max_peg_buy if present, or can be missing
                 (si_missing or si <= self.config.max_si_buy)):  # Low or missing short interest
                 return Color.BUY
                 
