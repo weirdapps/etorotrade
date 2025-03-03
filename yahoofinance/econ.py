@@ -203,7 +203,7 @@ def should_include_observation(obs_date, end_date):
     # This ensures we get the most recent available data for all indicators
     return obs_dt <= end_dt
 
-def process_observation(obs, indicator_name, scale_func, prev_value, start_date, end_date):
+def process_observation(obs, indicator_name, scale_func, prev_value, end_date):
     """Process a single observation and return formatted data if valid"""
     obs_date = obs.get('date')
     raw_value = obs.get('value')
@@ -249,7 +249,7 @@ def fetch_economic_data(api_key, start_date, end_date):
         for obs in observations:
             data = process_observation(
                 obs, indicator_name, scale_func, prev_value,
-                start_date, end_date
+                end_date
             )
             if data:
                 all_data.append(data)

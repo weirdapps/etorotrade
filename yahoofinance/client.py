@@ -72,6 +72,75 @@ class YFinanceClient:
         if len(ticker) > max_length:
             raise ValidationError("Ticker length exceeds maximum allowed")
 
+    def _fetch_and_process_earnings(self, ticker: str) -> List[pd.Timestamp]:
+        """
+        Fetch and process earnings dates for a ticker.
+        
+        Args:
+            ticker: Stock ticker symbol
+            
+        Returns:
+            List of processed past earnings dates
+            
+        Raises:
+            Various exceptions that will be caught by the calling method
+        """
+        stock = yf.Ticker(ticker)
+        earnings_dates = stock.get_earnings_dates()
+
+        if earnings_dates is None or earnings_dates.empty:
+            return []
+
+        # Convert index to datetime and filter only past earnings dates
+        current_time = pd.Timestamp.now(tz=earnings_dates.index.tz)
+        past_earnings = earnings_dates[earnings_dates.index < current_time]
+
+        # Return sorted dates (most recent first)
+        return sorted(past_earnings.index, reverse=True)
+    
+    def _handle_api_error(self, e, ticker: str, attempts: int) -> Optional[Exception]:
+        """
+        Handle API errors and create appropriate exception objects.
+        
+        Args:
+            e: Exception object
+            ticker: Stock ticker symbol
+            attempts: Current attempt number
+            
+        Returns:
+            Exception object or None
+            
+        Raises:
+            ResourceNotFoundError: For 404 errors that should not be retried
+        """
+        if isinstance(e, requests.exceptions.Timeout):
+            error = TimeoutError(f"Request timed out for {ticker}", {"original_error": str(e)})
+            self.logger.debug(f"Timeout on attempt {attempts + 1} for {ticker}: {str(e)}")
+            return error
+            
+        if isinstance(e, requests.exceptions.ConnectionError):
+            error = ConnectionError(f"Connection error for {ticker}", {"original_error": str(e)})
+            self.logger.debug(f"Connection error on attempt {attempts + 1} for {ticker}: {str(e)}")
+            return error
+            
+        if isinstance(e, requests.exceptions.HTTPError):
+            if e.response.status_code == 429:
+                error = RateLimitError(f"Rate limit exceeded for {ticker}", None, {"original_error": str(e)})
+                self.logger.warning(f"Rate limit hit on attempt {attempts + 1} for {ticker}")
+                return error
+            elif e.response.status_code == 404:
+                # No need to retry for not found
+                raise ResourceNotFoundError(f"Ticker {ticker} not found", {"status_code": 404, "original_error": str(e)})
+            else:
+                error = classify_api_error(e.response.status_code, e.response.text)
+                self.logger.debug(f"HTTP error on attempt {attempts + 1} for {ticker}: {str(e)}")
+                return error
+                
+        # Generic exception handling
+        error = APIError(f"Error fetching earnings dates for {ticker}", {"original_error": str(e)})
+        self.logger.debug(f"Attempt {attempts + 1} failed for {ticker}: {str(e)}")
+        return error
+    
     def get_past_earnings_dates(self, ticker: str) -> List[pd.Timestamp]:
         """
         Retrieve past earnings dates sorted in descending order.
@@ -97,46 +166,17 @@ class YFinanceClient:
         
         while attempts < self.retry_attempts:
             try:
-                stock = yf.Ticker(ticker)
-                earnings_dates = stock.get_earnings_dates()
-
-                if earnings_dates is None or earnings_dates.empty:
-                    return []
-
-                # Convert index to datetime and filter only past earnings dates
-                current_time = pd.Timestamp.now(tz=earnings_dates.index.tz)
-                past_earnings = earnings_dates[earnings_dates.index < current_time]
-
-                # Return sorted dates (most recent first)
-                return sorted(past_earnings.index, reverse=True)
+                return self._fetch_and_process_earnings(ticker)
                 
-            except requests.exceptions.Timeout as e:
-                last_error = TimeoutError(f"Request timed out for {ticker}", {"original_error": str(e)})
-                self.logger.debug(f"Timeout on attempt {attempts + 1} for {ticker}: {str(e)}")
-                
-            except requests.exceptions.ConnectionError as e:
-                last_error = ConnectionError(f"Connection error for {ticker}", {"original_error": str(e)})
-                self.logger.debug(f"Connection error on attempt {attempts + 1} for {ticker}: {str(e)}")
-                
-            except requests.exceptions.HTTPError as e:
-                if e.response.status_code == 429:
-                    last_error = RateLimitError(f"Rate limit exceeded for {ticker}", None, {"original_error": str(e)})
-                    self.logger.warning(f"Rate limit hit on attempt {attempts + 1} for {ticker}")
-                elif e.response.status_code == 404:
-                    # No need to retry for not found
-                    raise ResourceNotFoundError(f"Ticker {ticker} not found", {"status_code": 404, "original_error": str(e)})
-                else:
-                    last_error = classify_api_error(e.response.status_code, e.response.text)
-                    self.logger.debug(f"HTTP error on attempt {attempts + 1} for {ticker}: {str(e)}")
-                    
             except Exception as e:
-                last_error = APIError(f"Error fetching earnings dates for {ticker}", {"original_error": str(e)})
-                self.logger.debug(f"Attempt {attempts + 1} failed for {ticker}: {str(e)}")
+                # Handle the error and get appropriate exception object
+                last_error = self._handle_api_error(e, ticker, attempts)
             
-            # Handle the retry logic
+            # Increment attempts counter
             attempts += 1
+            
+            # If we've exhausted all retries, raise the last error
             if attempts == self.retry_attempts:
-                # If we've exhausted all retries, raise the last error
                 if not last_error:
                     last_error = APIError(f"Failed to fetch earnings dates for {ticker} after {self.retry_attempts} attempts")
                 self.logger.error(format_error_details(last_error))

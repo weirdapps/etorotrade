@@ -66,7 +66,7 @@ class Cache:
                         else:
                             # Add to cache keys (OrderedDict maintains insertion order)
                             self.cache_keys[key_hash] = cached_time
-                    except (json.JSONDecodeError, KeyError, ValueError):
+                    except (KeyError, ValueError):
                         # Clean up corrupted cache
                         os.remove(cache_path)
         except Exception as e:

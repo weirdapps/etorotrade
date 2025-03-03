@@ -49,8 +49,8 @@ class TestAdvancedIntegration(unittest.TestCase):
             ticker="AAPL"
         )
         
-        # Collect all results
-        all_items = list(paginator)
+        # Iterate through all pages to trigger rate limiting
+        list(paginator)
         
         # Verify rate limiter was used
         self.assertTrue(mock_rate_limiter.get_delay.called)

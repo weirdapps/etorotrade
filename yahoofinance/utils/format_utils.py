@@ -17,11 +17,3 @@ from .data.format_utils import (
 
 # Explicitly add the module-level functions for backward compatibility
 # These are automatically imported from the data module above
-"""
-# For compatibility, these functions are already imported:
-format_number = FormatUtils.format_number
-format_table = FormatUtils.format_table
-format_market_metrics = FormatUtils.format_market_metrics
-generate_market_html = FormatUtils.generate_market_html
-format_for_csv = FormatUtils.format_for_csv
-"""

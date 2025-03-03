@@ -292,21 +292,6 @@ def rate_limited(ticker_param: Optional[str] = None):
     """
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         def wrapper(*args, **kwargs) -> T:
-            # Extract ticker from the specified parameter
-            ticker = None
-            if ticker_param:
-                if ticker_param in kwargs:
-                    ticker = kwargs[ticker_param]
-                elif args and len(args) > 0:
-                    # Extract parameter position from function signature
-                    import inspect
-                    sig = inspect.signature(func)
-                    params = list(sig.parameters.keys())
-                    if ticker_param in params:
-                        idx = params.index(ticker_param)
-                        if idx < len(args):
-                            ticker = args[idx]
-            
             return global_rate_limiter.execute_with_rate_limit(func, *args, **kwargs)
         
         # Preserve function metadata
