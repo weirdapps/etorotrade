@@ -81,8 +81,8 @@ A robust Python-based market analysis system that leverages Yahoo Finance data t
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/trade
-cd trade
+git clone https://github.com/weirdapps/etorotrade
+cd etorotrade
 
 # Create virtual environment
 python -m venv myenv
@@ -236,30 +236,39 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
 
 - 🔴 **Red** (Sell) - Checked first due to risk management priority
   * Less than 5% upside OR
-  * Less than 65% buy ratings OR
-  * PEF > PET (deteriorating earnings outlook) OR
+  * Less than or equal to 60% buy ratings OR
+  * PEF > PET (deteriorating earnings outlook, when both are positive) OR
   * PEF < 0 (negative earnings projection) OR
   * PEG > 3.0 (overvalued relative to growth) OR
-  * SI > 5% (high short interest)
+  * SI > 5% (high short interest) OR
+  * Beta > 3.0 (high volatility)
 
 - 🟢 **Green** (Buy) - Checked after eliminating sell candidates
   * More than 20% upside AND
-  * More than 85% buy ratings AND
-  * Beta <= 1.25 (lower volatility) AND
+  * More than 80% buy ratings AND
+  * Beta < 2.0 (lower volatility) AND
   * PEF < PET (improving earnings outlook) AND
   * PEF > 0 (positive earnings projection) AND
   * PEG < 2.5 (undervalued relative to growth) AND
   * PEG data must be present (not missing) AND
   * SI <= 3% OR SI data missing (low short interest)
 
-- ⚪ **White** (Hold) - All other stocks that pass confidence check
-  * Stocks that passed the confidence check but did not qualify as Buy or Sell
+- ⚪ **White** (Hold) - Stocks with balanced risk profile
+  * Stocks that pass the confidence check
+  * Don't meet the criteria for Buy or Sell recommendations
+  * Have a beta value between 2.0 and 3.0 (moderate volatility)
 
 ## Architecture
 
 The system uses a modular architecture:
 1. **Client Layer** (client.py): API interactions with rate limiting
 2. **Utilities Layer**: Reusable components for different operations
+   - **Specialized Submodules**:
+     - `utils/data/` - Data formatting utilities
+     - `utils/network/` - Rate limiting and API communication
+     - `utils/market/` - Market-specific utilities like ticker validation
+     - `utils/date/` - Date manipulation and formatting
+     - `utils/async/` - Asynchronous operation helpers
 3. **Analysis Layer** (Multiple modules): Data processing and calculations
 4. **Display Layer** (display.py): Output formatting and presentation
 
