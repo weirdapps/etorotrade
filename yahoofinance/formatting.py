@@ -38,14 +38,14 @@ class DisplayConfig:
     
     # Buy signal thresholds
     high_upside: float = 20.0  # Upside threshold for buy signal
-    high_buy_percent: float = 85.0  # Buy percentage for buy signal
+    high_buy_percent: float = 80.0  # Buy percentage for buy signal
     max_beta_buy: float = 2.0  # Maximum beta for buy signal
     max_peg_buy: float = 2.5  # Maximum PEG for buy signal (updated from 1.25)
     max_si_buy: float = 3.0  # Maximum short interest % for buy signal
     
     # Sell signal thresholds
     low_upside: float = 5.0   # Upside threshold for sell signal
-    low_buy_percent: float = 65.0  # Buy percentage threshold for sell signal
+    low_buy_percent: float = 60.0  # Buy percentage threshold for sell signal
     max_peg_sell: float = 3.0  # Maximum PEG for stocks not considered a sell
     max_si_sell: float = 5.0  # Maximum short interest % before considered a sell
 
@@ -111,7 +111,7 @@ class DisplayFormatter:
             
             # 2. Second check: Sell Signal (Red)
             if (upside < self.config.low_upside or
-                percent_buy < self.config.low_buy_percent or
+                percent_buy <= self.config.low_buy_percent or
                 (pef > pet and pef > 0 and pet > 0) or  # PEF > PET (if both are positive)
                 pef < 0 or  # Negative forward P/E
                 peg > self.config.max_peg_sell or  # PEG too high
@@ -123,7 +123,7 @@ class DisplayFormatter:
             peg_missing = data.get("peg_ratio") in [None, "N/A", "--", ""]
             
             if (upside > self.config.high_upside and
-                percent_buy > self.config.high_buy_percent and
+                percent_buy >= self.config.high_buy_percent and
                 beta <= self.config.max_beta_buy and
                 (pef < pet or pet <= 0) and  # PEF < PET or PET non-positive
                 pef > 0 and  # Positive forward P/E

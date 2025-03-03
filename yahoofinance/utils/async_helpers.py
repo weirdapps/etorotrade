@@ -220,6 +220,38 @@ async def process_batch_async(
     return all_results
 
 
+def _should_retry_exception(error: Exception, retry_on: List[type]) -> bool:
+    """
+    Check if an exception should trigger a retry.
+    
+    Args:
+        error: The exception that occurred
+        retry_on: List of exception types to retry on
+        
+    Returns:
+        True if the exception should be retried, False otherwise
+    """
+    for exc_type in retry_on:
+        if isinstance(error, exc_type):
+            return True
+    return False
+
+
+def _calculate_backoff_delay(attempt: int, base_delay: float, max_delay: float) -> float:
+    """
+    Calculate exponential backoff delay.
+    
+    Args:
+        attempt: Current attempt number (1-based)
+        base_delay: Base delay in seconds
+        max_delay: Maximum delay in seconds
+        
+    Returns:
+        Delay time in seconds
+    """
+    return min(max_delay, base_delay * (2 ** (attempt - 1)))
+
+
 async def retry_async(
         func: Callable[..., Awaitable[T]],
         max_retries: int = 3,
@@ -260,18 +292,11 @@ async def retry_async(
             attempt += 1
             last_error = e
             
-            # Check if we should retry this exception type
-            should_retry = False
-            for exc_type in retry_on:
-                if isinstance(e, exc_type):
-                    should_retry = True
-                    break
-            
-            if not should_retry or attempt > max_retries:
+            if not _should_retry_exception(e, retry_on) or attempt > max_retries:
                 raise
             
             # Calculate backoff delay
-            delay = min(max_delay, base_delay * (2 ** (attempt - 1)))
+            delay = _calculate_backoff_delay(attempt, base_delay, max_delay)
             
             logger.warning(
                 f"Retry {attempt}/{max_retries} after error: {str(e)}. "

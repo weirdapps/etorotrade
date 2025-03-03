@@ -155,9 +155,6 @@ def update_html(data, html_path):
         'Cash': ['Cash']
     }
     
-    # Preserve the exact order of fields for the final display
-    ordered_fields = [THIS_MONTH, YEAR_TO_DATE, TWO_YEARS, 'Beta', 'Sharpe', 'Cash']
-    
     # Create portfolio data using the mapping
     portfolio_data = {}
     for target_field, source_fields in field_mapping.items():
