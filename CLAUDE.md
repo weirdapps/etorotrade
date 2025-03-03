@@ -46,11 +46,11 @@
 
 ### Utility Modules
 - `yahoofinance/utils/` - Utility modules for core functionality
-- `yahoofinance/utils/market_utils.py` - Ticker validation and normalization
-- `yahoofinance/utils/rate_limiter.py` - Thread-safe adaptive rate limiting
-- `yahoofinance/utils/pagination.py` - Paginated API result handling
+- `yahoofinance/utils/market_utils.py` - Ticker validation and normalization (compatibility layer)
+- `yahoofinance/utils/rate_limiter.py` - Thread-safe adaptive rate limiting (compatibility layer)
+- `yahoofinance/utils/pagination.py` - Paginated API result handling (compatibility layer)
 - `yahoofinance/utils/async_helpers.py` - Async utilities with rate limiting
-- `yahoofinance/utils/format_utils.py` - HTML and output formatting utilities
+- `yahoofinance/utils/format_utils.py` - HTML and output formatting utilities (compatibility layer)
 
 ### Modular Design
 The codebase follows a modular design with clear separation of concerns:
@@ -59,10 +59,17 @@ The codebase follows a modular design with clear separation of concerns:
 - **Utility Modules**: Common utilities in the utils/ directory for reusable functionality
 - **Specialized Submodules**:
   - `utils/data/` - Data formatting and transformation
+    - `format_utils.py` - Core implementation of formatting utilities
   - `utils/network/` - Rate limiting and API communication
+    - `rate_limiter.py` - Core implementation of rate limiting functionality
+    - `pagination.py` - Core implementation of pagination functionality
   - `utils/market/` - Market-specific utilities like ticker validation
+    - `ticker_utils.py` - Core implementation of ticker validation/normalization
   - `utils/date/` - Date manipulation and formatting
+    - `date_utils.py` - Date formatting and processing utilities
   - `utils/async/` - Asynchronous operation helpers
+
+The top-level utils files (`rate_limiter.py`, `pagination.py`, etc.) serve as compatibility layers that re-export functionality from their specialized submodule implementations, ensuring backward compatibility while allowing for a more organized code structure.
 
 ### Test Organization
 - `tests/` - Test files with module-based organization
@@ -96,16 +103,17 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
 
 - **Sell Signal** (Checked first for risk management):
   - Less than 5% upside OR
-  - Less than 65% buy ratings OR
-  - PEF > PET (deteriorating earnings outlook) OR
+  - Less than or equal to 60% buy ratings OR
+  - PEF > PET (deteriorating earnings outlook, when both are positive) OR
   - PEF < 0 (negative earnings projection) OR
   - PEG > 3.0 (overvalued relative to growth) OR
-  - SI > 5% (high short interest)
+  - SI > 5% (high short interest) OR
+  - Beta > 3.0 (high volatility)
 
 - **Buy Signal**:
   - More than 20% upside AND
-  - More than 85% buy ratings AND
-  - Beta <= 1.25 (lower volatility) AND
+  - More than 80% buy ratings AND
+  - Beta < 2.0 (lower volatility) AND
   - PEF < PET (improving earnings outlook) AND
   - PEF > 0 (positive earnings projection) AND
   - PEG < 2.5 (undervalued relative to growth) AND
@@ -116,6 +124,7 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
   - Stocks that pass confidence threshold
   - Don't meet sell criteria
   - Don't meet buy criteria
+  - Have a beta value between 2.0 and 3.0 (moderate volatility)
 
 - **EXRET Calculation**:
   - Expected Return = Upside Potential × Buy Percentage / 100
