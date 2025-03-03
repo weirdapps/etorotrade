@@ -52,13 +52,10 @@ class TestPaginationUtils(unittest.TestCase):
         all_items = results.get_all()
         self.assertEqual(all_items, [1, 2, 3, 4, 5, 6])
     
-    @patch('yahoofinance.utils.pagination.PaginatedResults')
-    def test_paginated_request(self, mock_paginated_results):
+    def test_paginated_request(self):
         """Test paginated request wrapper function."""
-        # Configure mock
-        mock_instance = MagicMock()
-        mock_instance.get_all.return_value = [1, 2, 3, 4, 5]
-        mock_paginated_results.return_value = mock_instance
+        # Since we're now using the pagination module as a re-export layer,
+        # let's test the actual functionality without mocking
         
         # Define a mock fetcher
         def mock_fetcher(token=None):
@@ -73,21 +70,11 @@ class TestPaginationUtils(unittest.TestCase):
             ticker="AAPL"
         )
         
-        # Verify results
-        self.assertEqual(result, [1, 2, 3, 4, 5])
-        
-        # Verify mock calls
-        mock_paginated_results.assert_called_once_with(
-            fetcher=mock_fetcher,
-            items_key="items",
-            token_key="next_page_token",
-            max_pages=3,
-            ticker="AAPL"
-        )
-        mock_instance.get_all.assert_called_once()
+        # Verify results - since the paginated_request function should return the actual data
+        self.assertEqual(result, [1, 2])
     
     @patch('time.sleep')  # Mock sleep to avoid actual delays
-    @patch('yahoofinance.utils.pagination.global_rate_limiter')
+    @patch('yahoofinance.utils.network.rate_limiter.global_rate_limiter')
     def test_bulk_fetch(self, mock_limiter, mock_sleep):
         """Test bulk fetch utility for multiple items."""
         # Configure mocks
@@ -145,7 +132,7 @@ class TestPaginationUtils(unittest.TestCase):
         
         # Test case 2: Rate Limit Error with retry
         # We need to patch the global rate limiter to avoid actual delays
-        with patch('yahoofinance.utils.pagination.global_rate_limiter') as mock_limiter:
+        with patch('yahoofinance.utils.network.rate_limiter.global_rate_limiter') as mock_limiter:
             mock_limiter.get_delay.return_value = 0.01
             
             # Set up rate limiter error then success response

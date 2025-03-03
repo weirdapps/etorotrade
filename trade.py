@@ -108,7 +108,7 @@ def filter_buy_opportunities(market_df):
     sufficient_coverage = market_df[
         (market_df['analyst_count'] >= 5) &
         (market_df['total_ratings'] >= 5)
-    ]
+    ].copy()  # Create a copy to avoid SettingWithCopyWarning
     
     # Identify SI missing values
     si_missing = sufficient_coverage['short_float_pct'].isnull() | \
@@ -135,7 +135,7 @@ def filter_buy_opportunities(market_df):
     return sufficient_coverage[
         (sufficient_coverage['upside'] > 20.0) &
         (sufficient_coverage['buy_percentage'] > 85.0) &
-        (sufficient_coverage['beta'] <= 1.25) &
+        (sufficient_coverage['beta'] < 2.0) &
         (
             (sufficient_coverage['pe_forward'] < sufficient_coverage['pe_trailing']) |
             (sufficient_coverage['pe_trailing'] <= 0)
@@ -158,7 +158,7 @@ def filter_sell_candidates(portfolio_df):
     sufficient_coverage = portfolio_df[
         (portfolio_df['analyst_count'] >= 5) &
         (portfolio_df['total_ratings'] >= 5)
-    ]
+    ].copy()  # Create a copy to avoid SettingWithCopyWarning
     
     # Convert values to numeric for comparison
     sufficient_coverage['peg_ratio_numeric'] = pd.to_numeric(
@@ -197,7 +197,8 @@ def filter_sell_candidates(portfolio_df):
         ) |
         (sufficient_coverage['pe_forward'] < 0) |
         (sufficient_coverage['peg_ratio_numeric'] > 3.0) |
-        (~si_missing & (sufficient_coverage['short_float_pct_numeric'] > 5.0))
+        (~si_missing & (sufficient_coverage['short_float_pct_numeric'] > 5.0)) |
+        (sufficient_coverage['beta'] > 3.0)  # Added beta > 3.0 condition
     )
     
     return sufficient_coverage[sell_filter].copy()
@@ -215,7 +216,7 @@ def filter_hold_candidates(market_df):
     sufficient_coverage = market_df[
         (market_df['analyst_count'] >= 5) &
         (market_df['total_ratings'] >= 5)
-    ]
+    ].copy()  # Create a copy to avoid SettingWithCopyWarning
     
     # Convert PEG and SI to numeric values for comparison
     sufficient_coverage['peg_ratio_numeric'] = pd.to_numeric(
@@ -238,14 +239,15 @@ def filter_hold_candidates(market_df):
         ) |
         (sufficient_coverage['pe_forward'] < 0) |
         (sufficient_coverage['peg_ratio_numeric'] > 3.0) |
-        (~si_missing & (sufficient_coverage['short_float_pct_numeric'] > 5.0))
+        (~si_missing & (sufficient_coverage['short_float_pct_numeric'] > 5.0)) |
+        (sufficient_coverage['beta'] > 3.0)  # Added beta > 3.0 condition
     )
     
     # Buy filter (to exclude)
     buy_filter = (
         (sufficient_coverage['upside'] > 20.0) &
         (sufficient_coverage['buy_percentage'] > 85.0) &
-        (sufficient_coverage['beta'] <= 1.25) &
+        (sufficient_coverage['beta'] < 2.0) &
         (
             (sufficient_coverage['pe_forward'] < sufficient_coverage['pe_trailing']) |
             (sufficient_coverage['pe_trailing'] <= 0)
@@ -256,8 +258,8 @@ def filter_hold_candidates(market_df):
     )
     
     # Filter stocks that are neither buy nor sell candidates
-    # and have beta <= 1.25 to be considered suitable for holding
-    hold_filter = (~buy_filter & ~sell_filter & (sufficient_coverage['beta'] <= 1.25))
+    # and have beta between 2.0 and 3.0 to be considered suitable for holding
+    hold_filter = (~buy_filter & ~sell_filter & (sufficient_coverage['beta'] >= 2.0) & (sufficient_coverage['beta'] <= 3.0))
     
     # Return stocks that meet the hold criteria
     return sufficient_coverage[hold_filter].copy()
@@ -320,12 +322,11 @@ def get_columns_to_select():
         'short_float_pct', 'last_earnings'
     ]
 
-def prepare_display_dataframe(df, formatter=None):
+def prepare_display_dataframe(df):
     """Prepare dataframe for display.
     
     Args:
         df: Source dataframe
-        formatter: Optional DisplayFormatter for colorization
         
     Returns:
         pd.DataFrame: Prepared dataframe for display
@@ -457,15 +458,14 @@ def display_and_save_results(display_df, title, output_file):
     """
     # Enable colors for console output
     pd.set_option('display.max_colwidth', None)
-    
     # Create colored values for display
-    formatter = DisplayFormatter(DisplayConfig(use_colors=True))
+    colored_values = []
     colored_values = []
     
     for _, row in display_df.iterrows():
         # Convert row to dict for formatter
         row_dict = row.to_dict()
-        # Calculate metrics needed by formatter
+        # Apply color formatting
         try:
             # Fix string values to numeric
             for key in ['analyst_count', 'total_ratings']:
@@ -476,14 +476,6 @@ def display_and_save_results(display_df, title, output_file):
             for key in ['buy_percentage', 'upside']:
                 if key in row_dict and isinstance(row_dict[key], str) and row_dict[key].endswith('%'):
                     row_dict[key] = float(row_dict[key].rstrip('%'))
-            
-            metrics = {
-                'upside': float(str(row_dict.get('UPSIDE', 0)).rstrip('%')) if row_dict.get('UPSIDE') not in ['--', None] else 0,
-                'ex_ret': float(str(row_dict.get('EXRET', 0)).rstrip('%')) if row_dict.get('EXRET') not in ['--', None] else 0
-            }
-            
-            # Use explicit color coding
-            ticker = row_dict.get('TICKER', '')
             
             # Determine which color to use based on the title
             if 'Buy' in title:  # For buy opportunities
@@ -504,7 +496,7 @@ def display_and_save_results(display_df, title, output_file):
                     colored_row[col] = f"{color_code}{val}\033[0m"
             
             colored_values.append(colored_row)
-        except Exception as e:
+        except Exception:
             # Fall back to original row if any error
             colored_values.append(row)
     
@@ -544,9 +536,6 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir):
         portfolio_tickers: Set of portfolio tickers
         output_dir: Output directory
     """
-    # Use explicit display config with colors enabled
-    formatter = DisplayFormatter(DisplayConfig(use_colors=True))
-    
     # Get buy opportunities
     buy_opportunities = filter_buy_opportunities(market_df)
     
@@ -563,7 +552,7 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir):
         create_empty_results_file(output_file)
     else:
         # Prepare and format dataframe for display
-        display_df = prepare_display_dataframe(new_opportunities, formatter)
+        display_df = prepare_display_dataframe(new_opportunities)
         display_df = format_display_dataframe(display_df)
         
         # Sort by TICKER (ascending) as requested
@@ -583,9 +572,6 @@ def process_sell_candidates(output_dir):
     Args:
         output_dir: Output directory
     """
-    # Use explicit display config with colors enabled
-    formatter = DisplayFormatter(DisplayConfig(use_colors=True))
-    
     portfolio_output_path = f"{output_dir}/portfolio.csv"
     
     if not os.path.exists(portfolio_output_path):
@@ -605,7 +591,7 @@ def process_sell_candidates(output_dir):
         create_empty_results_file(output_file)
     else:
         # Prepare and format dataframe for display
-        display_df = prepare_display_dataframe(sell_candidates, formatter)
+        display_df = prepare_display_dataframe(sell_candidates)
         display_df = format_display_dataframe(display_df)
         
         # Sort by TICKER (ascending) as requested
@@ -625,9 +611,6 @@ def process_hold_candidates(output_dir):
     Args:
         output_dir: Output directory
     """
-    # Use explicit display config with colors enabled
-    formatter = DisplayFormatter(DisplayConfig(use_colors=True))
-    
     market_path = f"{output_dir}/market.csv"
     
     if not os.path.exists(market_path):
@@ -647,7 +630,7 @@ def process_hold_candidates(output_dir):
         create_empty_results_file(output_file)
     else:
         # Prepare and format dataframe for display
-        display_df = prepare_display_dataframe(hold_candidates, formatter)
+        display_df = prepare_display_dataframe(hold_candidates)
         display_df = format_display_dataframe(display_df)
         
         # Sort by TICKER (ascending) as requested

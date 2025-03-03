@@ -36,7 +36,6 @@ class TestErrorHierarchy(unittest.TestCase):
     def test_basic_inheritance(self):
         """Test basic inheritance relationships between error classes."""
         # Create test errors
-        base_error = YFinanceError("Base error")
         api_error = APIError("API error")
         validation_error = ValidationError("Validation error")
         rate_limit_error = RateLimitError("Rate limit error")

@@ -116,8 +116,8 @@ class TestFormatUtils(unittest.TestCase):
         self.assertEqual(formatted['large_number'], 12345.68)
         self.assertEqual(formatted['huge_number'], 1000000.0)
         self.assertEqual(formatted['string_value'], 'test')
-        self.assertEqual(formatted['none_value'], None)
-        self.assertEqual(formatted['boolean'], True)
+        self.assertIsNone(formatted['none_value'])
+        self.assertTrue(formatted['boolean'])
     
     def test_generate_market_html(self):
         """Test generation of HTML content for market metrics."""

@@ -1,25 +1,23 @@
 #!/usr/bin/env python3
 """
-Test script for the advanced utility modules: rate limiting, pagination and async helpers.
+Integration tests for advanced utility modules: rate limiting, pagination and async helpers.
+
+These tests verify the proper integration between different utility modules.
 """
 
-import os
-import asyncio
-import time
 import unittest
 import logging
-import threading
-from unittest.mock import patch, MagicMock, AsyncMock
-from concurrent.futures import ThreadPoolExecutor
+from unittest.mock import patch
 
-from yahoofinance.utils.rate_limiter import (
-    AdaptiveRateLimiter, rate_limited, batch_process, global_rate_limiter
+from yahoofinance.utils.rate_limiter import global_rate_limiter
+from yahoofinance.utils.pagination import PaginatedResults
+from yahoofinance.utils.async_helpers import retry_async
+from yahoofinance.errors import RateLimitError
+
+# Import test fixtures
+from tests.utils.test_fixtures import (
+    create_paginated_data, create_mock_fetcher, create_flaky_function
 )
-from yahoofinance.utils.pagination import PaginatedResults, paginated_request, bulk_fetch
-from yahoofinance.utils.async_helpers import (
-    async_rate_limited, gather_with_rate_limit, process_batch_async, retry_async
-)
-from yahoofinance.errors import RateLimitError, APIError
 
 # Set up logging for tests
 logging.basicConfig(
@@ -29,289 +27,72 @@ logging.basicConfig(
 logger = logging.getLogger("test_advanced_utils")
 
 
-class TestRateLimiter(unittest.TestCase):
-    """Test the adaptive rate limiter functionality."""
+class TestAdvancedIntegration(unittest.TestCase):
+    """Test the integration between rate limiting and pagination."""
     
-    def setUp(self):
-        # Create a fresh rate limiter for each test
-        self.rate_limiter = AdaptiveRateLimiter(window_size=10, max_calls=20)
-    
-    def test_add_call_tracking(self):
-        """Test that calls are properly tracked."""
-        self.assertEqual(len(self.rate_limiter.calls), 0)
+    @patch('yahoofinance.utils.network.pagination.global_rate_limiter')
+    def test_paginator_with_rate_limiter(self, mock_rate_limiter):
+        """Test that pagination properly uses rate limiting."""
+        # Setup mock rate limiter
+        mock_rate_limiter.get_delay.return_value = 0.01
+        mock_rate_limiter.add_call.return_value = None
         
-        # Add several calls
-        for _ in range(5):
-            self.rate_limiter.add_call()
-        
-        self.assertEqual(len(self.rate_limiter.calls), 5)
-    
-    def test_error_tracking(self):
-        """Test error tracking and backoff behavior."""
-        # Add several errors
-        for i in range(3):
-            self.rate_limiter.add_error(Exception(f"Test error {i}"), "AAPL")
-        
-        # Should have 3 errors recorded
-        self.assertEqual(len(self.rate_limiter.errors), 3)
-        
-        # AAPL should be marked as problematic
-        self.assertEqual(self.rate_limiter.error_counts.get("AAPL"), 3)
-        
-        # Base delay should have increased
-        self.assertGreater(self.rate_limiter.base_delay, 2.0)
-    
-    def test_should_skip_ticker(self):
-        """Test that problematic tickers are identified for skipping."""
-        # Add 5 errors for AAPL
-        for i in range(5):
-            self.rate_limiter.add_error(Exception(f"Test error {i}"), "AAPL")
-        
-        # Should recommend skipping AAPL
-        self.assertTrue(self.rate_limiter.should_skip_ticker("AAPL"))
-        
-        # But not MSFT
-        self.assertFalse(self.rate_limiter.should_skip_ticker("MSFT"))
-    
-    def test_get_delay(self):
-        """Test delay calculation based on load and ticker history."""
-        # Initial delay should be the base delay
-        initial_delay = self.rate_limiter.get_delay()
-        self.assertEqual(initial_delay, self.rate_limiter.base_delay)
-        
-        # Add many calls to increase load - just at 80% of max_calls (16 out of 20)
-        for _ in range(16):
-            self.rate_limiter.add_call()
-        
-        # Delay should increase or remain the same due to higher load
-        high_load_delay = self.rate_limiter.get_delay()
-        self.assertGreaterEqual(high_load_delay, initial_delay)
-        
-        # Add errors for a specific ticker
-        self.rate_limiter.add_error(Exception("Test error"), "AAPL")
-        
-        # Delay for problematic ticker should be higher
-        ticker_delay = self.rate_limiter.get_delay("AAPL")
-        self.assertGreater(ticker_delay, high_load_delay)
-    
-    def test_rate_limited_decorator(self):
-        """Test the rate_limited decorator."""
-        calls = []
-        
-        @rate_limited(ticker_param='ticker')
-        def test_func(ticker, value):
-            calls.append((ticker, value))
-            return f"{ticker}:{value}"
-        
-        # Call the function a few times
-        for i in range(3):
-            result = test_func("AAPL", i)
-            self.assertEqual(result, f"AAPL:{i}")
-        
-        # All calls should be in the calls list
-        self.assertEqual(len(calls), 3)
-        self.assertEqual(calls, [("AAPL", 0), ("AAPL", 1), ("AAPL", 2)])
-    
-    def test_batch_process(self):
-        """Test batch processing with rate limiting."""
-        processed = []
-        
-        def process_item(item):
-            processed.append(item)
-            return item * 2
-        
-        items = list(range(10))
-        results = batch_process(items, process_item, batch_size=3)
-        
-        # All items should be processed
-        self.assertEqual(len(processed), 10)
-        self.assertEqual(processed, items)
-        
-        # Results should be doubled
-        self.assertEqual(results, [i * 2 for i in items])
-
-
-class TestPagination(unittest.TestCase):
-    """Test the pagination utilities."""
-    
-    def test_paginated_results(self):
-        """Test iterating through paginated results."""
-        # Mock a paginated API
-        page1 = {"items": [1, 2, 3], "next_page_token": "page2"}
-        page2 = {"items": [4, 5, 6], "next_page_token": "page3"}
-        page3 = {"items": [7, 8, 9], "next_page_token": None}
-        
-        pages = [page1, page2, page3]
-        page_index = 0
-        
-        def mock_fetcher(token=None):
-            nonlocal page_index
-            result = pages[page_index]
-            page_index += 1
-            return result
+        # Create mock paginated data
+        pages = create_paginated_data(num_pages=3, items_per_page=2)
+        mock_fetcher = create_mock_fetcher(pages)
         
         # Create paginated results iterator
         paginator = PaginatedResults(
             fetcher=mock_fetcher,
             items_key="items",
-            token_key="next_page_token"
+            token_key="next_page_token",
+            ticker="AAPL"
         )
         
         # Collect all results
         all_items = list(paginator)
         
-        # Should have all items
-        self.assertEqual(all_items, [1, 2, 3, 4, 5, 6, 7, 8, 9])
-    
-    def test_paginated_request_function(self):
-        """Test the paginated_request convenience function."""
-        # Mock a paginated API
-        page1 = {"items": [1, 2, 3], "next_page_token": "page2"}
-        page2 = {"items": [4, 5, 6], "next_page_token": None}
+        # Verify rate limiter was used
+        self.assertTrue(mock_rate_limiter.get_delay.called)
+        self.assertEqual(mock_rate_limiter.get_delay.call_count, 3)  # Three pages
         
-        pages = [page1, page2]
+        # Verify add_call was called for each page
+        self.assertEqual(mock_rate_limiter.add_call.call_count, 3)  # Three pages
         
-        def mock_fetcher(token=None):
-            return pages[0] if token is None else pages[1]
-        
-        # Get all results
-        all_items = paginated_request(
-            fetcher=mock_fetcher,
-            items_key="items",
-            token_key="next_page_token",
-            max_pages=2
-        )
-        
-        # Should have all items
-        self.assertEqual(all_items, [1, 2, 3, 4, 5, 6])
-    
-    def test_bulk_fetch(self):
-        """Test bulk fetching with rate limiting."""
-        # Mock a fetcher function
-        def mock_fetcher(item):
-            if item == 3:
-                raise APIError("Test error")
-            return {"result": item * 2}
-        
-        # Mock result extractor
-        def mock_extractor(response):
-            return response["result"]
-        
-        # Fetch results for multiple items
-        items = [1, 2, 3, 4, 5]
-        results = bulk_fetch(
-            items=items,
-            fetcher=mock_fetcher,
-            result_extractor=mock_extractor,
-            batch_size=2
-        )
-        
-        # Check results
-        expected = [
-            (1, 2),   # (item, result)
-            (2, 4),
-            (3, None),  # Error case
-            (4, 8),
-            (5, 10)
-        ]
-        self.assertEqual(results, expected)
+        # Verify correct ticker was passed
+        mock_rate_limiter.get_delay.assert_called_with("AAPL")
+        mock_rate_limiter.add_call.assert_called_with(ticker="AAPL")
 
 
-class TestAsyncHelpers(unittest.IsolatedAsyncioTestCase):
-    """Test async helper functions."""
+class TestRateLimiterErrorRecovery(unittest.IsolatedAsyncioTestCase):
+    """Test the error recovery strategies with rate limiting."""
     
-    async def test_async_rate_limited_decorator(self):
-        """Test the async_rate_limited decorator."""
-        calls = []
+    async def test_retry_with_rate_limited_errors(self):
+        """Test retry mechanism handling rate limited errors."""
+        # Create a flaky function that fails due to rate limits
+        flaky_func = await create_flaky_function(fail_count=2)
         
-        @async_rate_limited(ticker_param='ticker')
-        async def test_func(ticker, value):
-            calls.append((ticker, value))
-            return f"{ticker}:{value}"
-        
-        # Call the function a few times
-        for i in range(3):
-            result = await test_func("AAPL", i)
-            self.assertEqual(result, f"AAPL:{i}")
-        
-        # All calls should be in the calls list
-        self.assertEqual(len(calls), 3)
-        self.assertEqual(calls, [("AAPL", 0), ("AAPL", 1), ("AAPL", 2)])
-    
-    async def test_gather_with_rate_limit(self):
-        """Test gathering async tasks with rate limiting."""
-        # Create test coroutines
-        async def coro(i):
-            # Simulate work
-            await asyncio.sleep(0.1)
-            return i * 2
-        
-        tasks = [coro(i) for i in range(5)]
-        
-        # Gather results with rate limiting
-        results = await gather_with_rate_limit(
-            tasks,
-            max_concurrent=2,
-            delay_between_tasks=0.1
-        )
-        
-        # Check results
-        self.assertEqual(results, [0, 2, 4, 6, 8])
-    
-    async def test_process_batch_async(self):
-        """Test async batch processing."""
-        # Mock async processor
-        async def mock_processor(item):
-            if item == 3:
-                raise APIError("Test error")
-            return item * 2
-        
-        # Process batch of items
-        items = [1, 2, 3, 4, 5]
-        results = await process_batch_async(
-            items=items,
-            processor=mock_processor,
-            batch_size=2,
-            max_concurrency=2
-        )
-        
-        # Check results
-        expected = [
-            (1, 2),    # (item, result)
-            (2, 4),
-            (3, None),  # Error case
-            (4, 8),
-            (5, 10)
-        ]
-        self.assertEqual(results, expected)
-    
-    async def test_retry_async(self):
-        """Test async retry with exponential backoff."""
-        # Mock function that fails a few times
-        call_count = 0
-        
-        async def flaky_function():
-            nonlocal call_count
-            call_count += 1
-            
-            if call_count <= 2:
-                raise RateLimitError("Rate limit exceeded")
-            
-            return "success"
-        
-        # Retry the flaky function
+        # Verify retry mechanism
         result = await retry_async(
-            flaky_function,
-            max_retries=3,
-            base_delay=0.1,
-            max_delay=1.0
+            flaky_func,
+            max_retries=5,  # More than needed
+            base_delay=0.01,
+            max_delay=0.1
         )
         
         # Check results
         self.assertEqual(result, "success")
-        self.assertEqual(call_count, 3)  # Should succeed on third try
+        
+        # Test with insufficient retries
+        with self.assertRaises(RateLimitError):
+            await retry_async(
+                await create_flaky_function(fail_count=4),
+                max_retries=2,  # Not enough
+                base_delay=0.01,
+                max_delay=0.1
+            )
 
 
 if __name__ == "__main__":
-    logger.info("Running advanced utility tests...")
+    logger.info("Running advanced utility integration tests...")
     unittest.main()

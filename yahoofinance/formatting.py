@@ -39,7 +39,7 @@ class DisplayConfig:
     # Buy signal thresholds
     high_upside: float = 20.0  # Upside threshold for buy signal
     high_buy_percent: float = 85.0  # Buy percentage for buy signal
-    max_beta_buy: float = 1.25  # Maximum beta for buy signal
+    max_beta_buy: float = 2.0  # Maximum beta for buy signal
     max_peg_buy: float = 2.5  # Maximum PEG for buy signal (updated from 1.25)
     max_si_buy: float = 3.0  # Maximum short interest % for buy signal
     
