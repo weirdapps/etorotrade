@@ -5,6 +5,10 @@ from typing import Optional, Tuple, List, Dict
 import re
 from tabulate import tabulate
 
+# Constants for column names
+MARKET_CAP_COLUMN = 'Market Cap'
+EPS_EST_COLUMN = 'EPS Est'
+
 class EarningsCalendar:
     """Class to handle earnings calendar retrieval from Yahoo Finance"""
     
@@ -83,9 +87,9 @@ class EarningsCalendar:
         """Process a single earnings row."""
         return {
             'Symbol': ticker,
-            'Market Cap': self._format_market_cap(info.get('marketCap')),
+            MARKET_CAP_COLUMN: self._format_market_cap(info.get('marketCap')),
             'Date': self.get_trading_date(date),
-            'EPS Est': self._format_eps(row.get('EPS Estimate'))
+            EPS_EST_COLUMN: self._format_eps(row.get('EPS Estimate'))
         }
 
     def get_trading_date(self, date: pd.Timestamp) -> str:
@@ -173,9 +177,9 @@ class EarningsCalendar:
                 test_data = [
                     {
                         'Symbol': 'AAPL',
-                        'Market Cap': '$3000.0B',
+                        MARKET_CAP_COLUMN: '$3000.0B',
                         'Date': '2024-01-01',
-                        'EPS Est': '1.23'
+                        EPS_EST_COLUMN: '1.23'
                     }
                 ]
                 return pd.DataFrame(test_data)
@@ -226,9 +230,9 @@ def format_earnings_table(df: pd.DataFrame, start_date: str, end_date: str) -> N
     
     headers = [
         'Symbol',
-        'Market Cap'.rjust(12),
+        MARKET_CAP_COLUMN.rjust(12),
         'Report Date'.rjust(12),
-        'EPS Est'.rjust(8)
+        EPS_EST_COLUMN.rjust(8)
     ]
     
     alignments = ('left', 'right', 'right', 'right')

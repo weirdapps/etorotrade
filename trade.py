@@ -134,7 +134,7 @@ def filter_buy_opportunities(market_df):
     
     return sufficient_coverage[
         (sufficient_coverage['upside'] > 20.0) &
-        (sufficient_coverage['buy_percentage'] > 85.0) &
+        (sufficient_coverage['buy_percentage'] >= 80.0) &
         (sufficient_coverage['beta'] < 2.0) &
         (
             (sufficient_coverage['pe_forward'] < sufficient_coverage['pe_trailing']) |
@@ -189,7 +189,7 @@ def filter_sell_candidates(portfolio_df):
     # - SI > 5%
     sell_filter = (
         (sufficient_coverage['upside'] < 5.0) |
-        (sufficient_coverage['buy_percentage'] < 65.0) |
+        (sufficient_coverage['buy_percentage'] <= 60.0) |
         (
             (sufficient_coverage['pe_forward'] > sufficient_coverage['pe_trailing']) &
             (sufficient_coverage['pe_forward'] > 0) &
@@ -231,7 +231,7 @@ def filter_hold_candidates(market_df):
     # Sell filter (to exclude)
     sell_filter = (
         (sufficient_coverage['upside'] < 5.0) |
-        (sufficient_coverage['buy_percentage'] < 65.0) |
+        (sufficient_coverage['buy_percentage'] <= 60.0) |
         (
             (sufficient_coverage['pe_forward'] > sufficient_coverage['pe_trailing']) &
             (sufficient_coverage['pe_forward'] > 0) &
@@ -246,7 +246,7 @@ def filter_hold_candidates(market_df):
     # Buy filter (to exclude)
     buy_filter = (
         (sufficient_coverage['upside'] > 20.0) &
-        (sufficient_coverage['buy_percentage'] > 85.0) &
+        (sufficient_coverage['buy_percentage'] >= 80.0) &
         (sufficient_coverage['beta'] < 2.0) &
         (
             (sufficient_coverage['pe_forward'] < sufficient_coverage['pe_trailing']) |
@@ -448,6 +448,64 @@ def get_column_alignments(display_df):
         else:
             colalign.append('right')
     return colalign
+
+def convert_to_numeric(row_dict):
+    """Convert string values to numeric in place.
+    
+    Args:
+        row_dict: Dictionary representation of a row
+        
+    Returns:
+        dict: Updated row dictionary
+    """
+    # Fix string values to numeric
+    for key in ['analyst_count', 'total_ratings']:
+        if key in row_dict and isinstance(row_dict[key], str):
+            row_dict[key] = float(row_dict[key].replace(',', ''))
+    
+    # Fix percentage values
+    for key in ['buy_percentage', 'upside']:
+        if key in row_dict and isinstance(row_dict[key], str) and row_dict[key].endswith('%'):
+            row_dict[key] = float(row_dict[key].rstrip('%'))
+    
+    return row_dict
+
+def get_color_code(title):
+    """Determine color code based on title.
+    
+    Args:
+        title: Title string
+        
+    Returns:
+        str: ANSI color code
+    """
+    if 'Buy' in title:
+        return "\033[92m"  # Green for buy
+    elif 'Sell' in title:
+        return "\033[91m"  # Red for sell
+    else:
+        return ""
+
+def apply_color_to_row(row, color_code):
+    """Apply color formatting to each cell in a row.
+    
+    Args:
+        row: Pandas Series representing a row
+        color_code: ANSI color code to apply
+        
+    Returns:
+        pd.Series: Row with colored values
+    """
+    if not color_code:
+        return row
+    
+    colored_row = row.copy()
+    for col in colored_row.index:
+        val = str(colored_row[col])
+        colored_row[col] = f"{color_code}{val}\033[0m"
+    
+    return colored_row
+
 def display_and_save_results(display_df, title, output_file):
     """Display results in console and save to file.
     
@@ -458,51 +516,32 @@ def display_and_save_results(display_df, title, output_file):
     """
     # Enable colors for console output
     pd.set_option('display.max_colwidth', None)
+    
+    # Get color code based on title
+    color_code = get_color_code(title)
+    
     # Create colored values for display
-    colored_values = []
     colored_values = []
     
     for _, row in display_df.iterrows():
-        # Convert row to dict for formatter
-        row_dict = row.to_dict()
-        # Apply color formatting
         try:
-            # Fix string values to numeric
-            for key in ['analyst_count', 'total_ratings']:
-                if key in row_dict and isinstance(row_dict[key], str):
-                    row_dict[key] = float(row_dict[key].replace(',', ''))
+            # Convert row to dict and fix numeric values
+            row_dict = convert_to_numeric(row.to_dict())
             
-            # Fix percentage values
-            for key in ['buy_percentage', 'upside']:
-                if key in row_dict and isinstance(row_dict[key], str) and row_dict[key].endswith('%'):
-                    row_dict[key] = float(row_dict[key].rstrip('%'))
-            
-            # Determine which color to use based on the title
-            if 'Buy' in title:  # For buy opportunities
-                color_code = "\033[92m"  # Green for buy
-            elif 'Sell' in title:  # For sell candidates
-                color_code = "\033[91m"  # Red for sell
-            else:
-                color_code = ""
-            
-            # Create a new row with all values colored
-            colored_row = row.copy()
-            if color_code:
-                # Apply color to every cell in the row
-                for col in colored_row.index:
-                    # Convert the value to string if not already
-                    val = str(colored_row[col])
-                    # Add color code at the start and reset at the end
-                    colored_row[col] = f"{color_code}{val}\033[0m"
-            
+            # Apply color to row
+            colored_row = apply_color_to_row(row, color_code)
             colored_values.append(colored_row)
         except Exception:
             # Fall back to original row if any error
             colored_values.append(row)
     
+    # Create dataframe from colored values
     colored_df = pd.DataFrame(colored_values)
+    
+    # Get column alignments
     colalign = get_column_alignments(display_df)
     
+    # Display results
     print(f"\n{title}:")
     print(tabulate(
         colored_df,
