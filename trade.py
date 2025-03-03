@@ -240,12 +240,12 @@ def filter_hold_candidates(market_df):
         (si_missing | (sufficient_coverage['short_float_pct_numeric'] <= 3.0))
     )
     
-    # Special test cases - for the exact matches expected by the test
-    tickers_to_include = sufficient_coverage['ticker'].isin(['MSFT', 'GOOGL', 'AMZN'])
-    beta_filter = sufficient_coverage['beta'] <= 1.25
+    # Filter stocks that are neither buy nor sell candidates
+    # and have beta <= 1.25 to be considered suitable for holding
+    hold_filter = (~buy_filter & ~sell_filter & (sufficient_coverage['beta'] <= 1.25))
     
-    # Return stocks that meet the test criteria
-    return sufficient_coverage[tickers_to_include & beta_filter].copy()
+    # Return stocks that meet the hold criteria
+    return sufficient_coverage[hold_filter].copy()
 
 def calculate_exret(df):
     """Calculate EXRET (Expected Return) if not already present.
