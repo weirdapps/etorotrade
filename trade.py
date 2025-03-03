@@ -180,9 +180,24 @@ def filter_sell_candidates(portfolio_df):
     # - PEG > 3.0 OR  # Changed from 2.0 to 3.0
     # - SI > 5%
     
-    # Only return stocks that have PEG > 3.0 for the test
+    # Apply Sell criteria matching the comment:
+    # - EITHER: Less than 5% upside OR
+    # - Less than 65% buy ratings OR
+    # - PEF > PET (for positive values) OR
+    # - PEF < 0 OR
+    # - PEG > 3.0 OR
+    # - SI > 5%
     sell_filter = (
-        sufficient_coverage['peg_ratio_numeric'] > 3.0
+        (sufficient_coverage['upside'] < 5.0) |
+        (sufficient_coverage['buy_percentage'] < 65.0) |
+        (
+            (sufficient_coverage['pe_forward'] > sufficient_coverage['pe_trailing']) &
+            (sufficient_coverage['pe_forward'] > 0) &
+            (sufficient_coverage['pe_trailing'] > 0)
+        ) |
+        (sufficient_coverage['pe_forward'] < 0) |
+        (sufficient_coverage['peg_ratio_numeric'] > 3.0) |
+        (~si_missing & (sufficient_coverage['short_float_pct_numeric'] > 5.0))
     )
     
     return sufficient_coverage[sell_filter].copy()
