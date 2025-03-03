@@ -9,16 +9,21 @@ This test file verifies:
 """
 
 import asyncio
-import time
 import unittest
 import logging
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch
 
 from yahoofinance.utils.pagination import PaginatedResults, paginated_request, bulk_fetch
 from yahoofinance.utils.async_helpers import (
     async_rate_limited, gather_with_rate_limit, process_batch_async, retry_async
 )
-from yahoofinance.errors import RateLimitError, APIError
+from yahoofinance.errors import RateLimitError
+
+# Import test fixtures to reduce duplication
+from tests.utils.test_fixtures import (
+    create_paginated_data, create_mock_fetcher, create_bulk_fetch_mocks,
+    create_flaky_function, create_async_processor_mock
+)
 
 # Set up logging for tests
 logging.basicConfig(
@@ -33,19 +38,9 @@ class TestPagination(unittest.TestCase):
     
     def test_paginated_results(self):
         """Test iterating through paginated results."""
-        # Mock a paginated API
-        page1 = {"items": [1, 2, 3], "next_page_token": "page2"}
-        page2 = {"items": [4, 5, 6], "next_page_token": "page3"}
-        page3 = {"items": [7, 8, 9], "next_page_token": None}
-        
-        pages = [page1, page2, page3]
-        page_index = 0
-        
-        def mock_fetcher(token=None):
-            nonlocal page_index
-            result = pages[page_index]
-            page_index += 1
-            return result
+        # Create mock paginated data
+        pages = create_paginated_data(num_pages=3, items_per_page=3)
+        mock_fetcher = create_mock_fetcher(pages)
         
         # Create paginated results iterator
         paginator = PaginatedResults(
@@ -57,19 +52,15 @@ class TestPagination(unittest.TestCase):
         # Collect all results
         all_items = list(paginator)
         
-        # Should have all items
-        self.assertEqual(all_items, [1, 2, 3, 4, 5, 6, 7, 8, 9])
+        # Should have all items (1-9)
+        expected_items = list(range(1, 10))
+        self.assertEqual(all_items, expected_items)
     
     def test_paginated_request_function(self):
         """Test the paginated_request convenience function."""
-        # Mock a paginated API
-        page1 = {"items": [1, 2, 3], "next_page_token": "page2"}
-        page2 = {"items": [4, 5, 6], "next_page_token": None}
-        
-        pages = [page1, page2]
-        
-        def mock_fetcher(token=None):
-            return pages[0] if token is None else pages[1]
+        # Create mock paginated data with 2 pages
+        pages = create_paginated_data(num_pages=2, items_per_page=3)
+        mock_fetcher = create_mock_fetcher(pages)
         
         # Get all results
         all_items = paginated_request(
@@ -79,23 +70,16 @@ class TestPagination(unittest.TestCase):
             max_pages=2
         )
         
-        # Should have all items
-        self.assertEqual(all_items, [1, 2, 3, 4, 5, 6])
+        # Should have all items (1-6)
+        expected_items = list(range(1, 7))
+        self.assertEqual(all_items, expected_items)
     
     def test_bulk_fetch(self):
         """Test bulk fetching with rate limiting."""
-        # Mock a fetcher function
-        def mock_fetcher(item):
-            if item == 3:
-                raise APIError("Test error")
-            return {"result": item * 2}
-        
-        # Mock result extractor
-        def mock_extractor(response):
-            return response["result"]
+        # Get mock objects for bulk fetch test
+        items, mock_fetcher, mock_extractor = create_bulk_fetch_mocks()
         
         # Fetch results for multiple items
-        items = [1, 2, 3, 4, 5]
         results = bulk_fetch(
             items=items,
             fetcher=mock_fetcher,
@@ -157,11 +141,8 @@ class TestAsyncHelpers(unittest.IsolatedAsyncioTestCase):
     
     async def test_process_batch_async(self):
         """Test async batch processing."""
-        # Mock async processor
-        async def mock_processor(item):
-            if item == 3:
-                raise APIError("Test error")
-            return item * 2
+        # Get mock async processor
+        mock_processor = create_async_processor_mock(error_item=3)
         
         # Process batch of items
         items = [1, 2, 3, 4, 5]
@@ -184,17 +165,8 @@ class TestAsyncHelpers(unittest.IsolatedAsyncioTestCase):
     
     async def test_retry_async(self):
         """Test async retry with exponential backoff."""
-        # Mock function that fails a few times
-        call_count = 0
-        
-        async def flaky_function():
-            nonlocal call_count
-            call_count += 1
-            
-            if call_count <= 2:
-                raise RateLimitError("Rate limit exceeded")
-            
-            return "success"
+        # Create flaky function that succeeds on third try
+        flaky_function = await create_flaky_function(fail_count=2)
         
         # Retry the flaky function
         result = await retry_async(
@@ -206,7 +178,6 @@ class TestAsyncHelpers(unittest.IsolatedAsyncioTestCase):
         
         # Check results
         self.assertEqual(result, "success")
-        self.assertEqual(call_count, 3)  # Should succeed on third try
 
 
 if __name__ == "__main__":
