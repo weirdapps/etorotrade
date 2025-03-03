@@ -32,11 +32,22 @@ class DisplayConfig:
     float_precision: int = 2
     percentage_precision: int = 1
     table_format: str = "fancy_grid"
+    
+    # Confidence thresholds
     min_analysts: int = 5  # Minimum analysts for high confidence rating
-    high_upside: float = 20.0  # Threshold for buy signal
-    low_upside: float = 5.0   # Threshold for sell signal
-    high_buy_percent: float = 85.0  # Threshold for strong buy signal
-    low_buy_percent: float = 55.0  # Threshold for sell signal
+    
+    # Buy signal thresholds
+    high_upside: float = 20.0  # Upside threshold for buy signal
+    high_buy_percent: float = 85.0  # Buy percentage for buy signal
+    max_beta_buy: float = 1.25  # Maximum beta for buy signal
+    max_peg_buy: float = 2.5  # Maximum PEG for buy signal (updated from 1.25)
+    max_si_buy: float = 3.0  # Maximum short interest % for buy signal
+    
+    # Sell signal thresholds
+    low_upside: float = 5.0   # Upside threshold for sell signal
+    low_buy_percent: float = 65.0  # Buy percentage threshold for sell signal
+    max_peg_sell: float = 3.0  # Maximum PEG for stocks not considered a sell
+    max_si_sell: float = 5.0  # Maximum short interest % before considered a sell
 
 class DisplayFormatter:
     """Handles formatting of display output"""
@@ -63,19 +74,13 @@ class DisplayFormatter:
         except (ValueError, TypeError):
             return default
 
-    def _get_color_code(self,
-                       num_targets: Optional[int],
-                       upside: Optional[float],
-                       total_ratings: Optional[int],
-                       percent_buy: Optional[float]) -> Color:
+    def _get_color_code(self, data: Dict[str, Any], metrics: Dict[str, Any]) -> Color:
         """
-        Determine color coding based on analyst metrics.
+        Determine color coding based on comprehensive financial metrics.
         
         Args:
-            num_targets: Number of analyst price targets
-            upside: Calculated upside percentage
-            total_ratings: Total number of analyst ratings
-            percent_buy: Percentage of buy ratings
+            data: Dictionary containing all stock metrics
+            metrics: Dictionary containing calculated metrics (upside, ex_ret)
             
         Returns:
             Color enum value based on metrics analysis
@@ -84,37 +89,50 @@ class DisplayFormatter:
             return Color.NEUTRAL
 
         try:
-            # Convert values with proper type hints
-            num_targets = int(self._convert_numeric(num_targets))
-            total_ratings = int(self._convert_numeric(total_ratings))
-            upside = self._convert_numeric(upside)
-            percent_buy = self._convert_numeric(percent_buy)
-
-            # UNSURE: number of targets <= 5 or number of analyst recommendations <=5
-            if num_targets <= 5 or total_ratings <= 5:
+            # Extract required metrics
+            num_targets = int(self._convert_numeric(data.get("analyst_count")))
+            total_ratings = int(self._convert_numeric(data.get("total_ratings")))
+            upside = self._convert_numeric(metrics.get("upside"))
+            percent_buy = self._convert_numeric(data.get("buy_percentage"))
+            beta = self._convert_numeric(data.get("beta"))
+            pef = self._convert_numeric(data.get("pe_forward"))
+            pet = self._convert_numeric(data.get("pe_trailing"))
+            peg = self._convert_numeric(data.get("peg_ratio"))
+            si = self._convert_numeric(data.get("short_float_pct"))
+            
+            # Check if SI data is missing
+            si_missing = data.get("short_float_pct") in [None, "N/A", "--", ""]
+            
+            # 1. First check: Low Confidence/Inconclusive (Yellow)
+            if num_targets < self.config.min_analysts or total_ratings < self.config.min_analysts:
                 return Color.LOW_CONFIDENCE
-
-            # BUY: number of targets > 5 AND number of analyst recommendations > 5 AND BUY percent > 85% AND upside > 20%
-            if (num_targets > 5 and
-                total_ratings > 5 and
-                upside > 20.0 and
-                percent_buy > 85.0):
-                return Color.BUY
-
-            # SELL: number of targets > 5 AND number of analyst recommendations > 5 AND (BUY percent < 55% OR upside < 5%)
-            if (num_targets > 5 and
-                total_ratings > 5 and
-                (percent_buy < 55.0 or upside < 5.0)):
+                
+            # From here, we know we have sufficient analyst coverage
+            
+            # 2. Second check: Sell Signal (Red)
+            if (upside < self.config.low_upside or
+                percent_buy < self.config.low_buy_percent or
+                (pef > pet and pef > 0 and pet > 0) or  # PEF > PET (if both are positive)
+                pef < 0 or  # Negative forward P/E
+                peg > self.config.max_peg_sell or  # PEG too high
+                (not si_missing and si > self.config.max_si_sell)):  # High short interest
                 return Color.SELL
-
-            # HOLD: number of targets > 5 AND number of analyst recommendations > 5 AND BUY percent between 55-85% AND upside between 5-20%
-            if (num_targets > 5 and
-                total_ratings > 5 and
-                55.0 <= percent_buy <= 85.0 and
-                5.0 <= upside <= 20.0):
-                return Color.NEUTRAL
-
-            # Default to neutral for any other case
+                
+            # 3. Third check: Buy Signal (Green)
+            # Check if PEG is missing
+            peg_missing = data.get("peg_ratio") in [None, "N/A", "--", ""]
+            
+            if (upside > self.config.high_upside and
+                percent_buy > self.config.high_buy_percent and
+                beta <= self.config.max_beta_buy and
+                (pef < pet or pet <= 0) and  # PEF < PET or PET non-positive
+                pef > 0 and  # Positive forward P/E
+                not peg_missing and  # PEG must be present
+                peg < self.config.max_peg_buy and  # Good PEG ratio (now <= 2.5)
+                (si_missing or si <= self.config.max_si_buy)):  # Low or missing short interest
+                return Color.BUY
+                
+            # 4. Fourth check: Hold Signal (Neutral/White) - everything else
             return Color.NEUTRAL
 
         except Exception as e:
@@ -226,21 +244,21 @@ class DisplayFormatter:
         return {
             # Order columns with EXRET after A
             "TICKER": self.colorize(data.get("ticker", ""), color),
-            "PRICE": self.colorize(self.format_value(data.get("price"), 2), color),
+            "PRICE": self.colorize(self.format_value(data.get("price"), 1), color),
             "TARGET": self.colorize(self.format_value(data.get("target_price"), 1), color),
             "UPSIDE": self.colorize(self.format_value(metrics["upside"], 1, True), color),
             "# T": self.colorize(self.format_value(data.get("analyst_count"), 0), color),
-            "% BUY": self.colorize(self.format_value(data.get("buy_percentage"), 1, True), color),
+            "% BUY": self.colorize(self.format_value(data.get("buy_percentage"), 0, True), color),
             "# A": self.colorize(self.format_value(data.get("total_ratings"), 0), color),
             "A": self.colorize(data.get("A", ""), color),
             "EXRET": self.colorize(self.format_value(metrics["ex_ret"], 1, True), color),  # EXRET right after A
-            "BETA": self.colorize(self.format_value(data.get("beta")), color),
-            "PET": self.colorize(self.format_value(data.get("pe_trailing")), color),
-            "PEF": self.colorize(self.format_value(data.get("pe_forward")), color),
-            "PEG": self.colorize(self.format_value(data.get("peg_ratio")), color),
+            "BETA": self.colorize(self.format_value(data.get("beta"), 1), color),
+            "PET": self.colorize(self.format_value(data.get("pe_trailing"), 1), color),
+            "PEF": self.colorize(self.format_value(data.get("pe_forward"), 1), color),
+            "PEG": self.colorize(self.format_value(data.get("peg_ratio"), 1), color),
             "DIV %": self.colorize(self.format_value(data.get("dividend_yield"), 2, True), color),
             "SI": self.colorize(self.format_value(data.get("short_float_pct"), 1, True), color),
-            "INS %": self.colorize(self.format_value(data.get("insider_buy_pct"), 1, True), color),
+            "INS %": self.colorize(self.format_value(data.get("insider_buy_pct"), 0, True), color),
             "# INS": self.colorize(self.format_value(data.get("insider_transactions"), 0), color),
             "EARNINGS": self.colorize(self.format_date(data.get("last_earnings")), color)
         }
@@ -266,13 +284,8 @@ class DisplayFormatter:
             # Calculate derived metrics
             metrics = self._calculate_metrics(data)
             
-            # Get color based on metrics
-            color = self._get_color_code(
-                data.get("analyst_count"),
-                metrics["upside"],
-                data.get("total_ratings"),
-                data.get("buy_percentage")
-            )
+            # Get color based on comprehensive metrics
+            color = self._get_color_code(data, metrics)
             
             # Format all fields
             formatted = self._format_row_fields(data, metrics, color)
