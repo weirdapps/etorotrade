@@ -8,6 +8,7 @@
   - Select 'T' for Trade analysis
     - Select 'B' for Buy opportunities
     - Select 'S' for Sell candidates
+    - Select 'H' for Hold candidates
   - Select 'I' for Manual ticker input
 - `python -m yahoofinance.validate` - Validate tickers against Yahoo Finance API
 - `pytest tests/` - Run all tests
@@ -80,34 +81,42 @@ The codebase follows a modular design with clear separation of concerns:
 - `yahoofinance/output/` - Generated output files
   - `buy.csv` - Generated buy recommendations
   - `sell.csv` - Generated sell recommendations
+  - `hold.csv` - Generated hold recommendations
   - `market.csv` - Analysis results from market or eToro tickers
   - `portfolio.csv` - Analysis results from portfolio
   - `index.html`, `portfolio.html` - HTML dashboards
   
 ## Trading Criteria
-- **Buy Signal**:
-  - More than 5 price targets (# T)
-  - More than 5 analyst ratings (# A)
-  - More than 20% upside potential
-  - More than 85% of analysts recommend buying
-  
-- **Sell Signal**:
-  - More than 5 price targets (# T)
-  - More than 5 analyst ratings (# A)
-  - AND either:
-    - Less than 5% upside potential, OR
-    - Less than 55% of analysts recommend buying
-
-- **Hold Signal**:
-  - More than 5 price targets (# T)
-  - More than 5 analyst ratings (# A)
-  - Between 5-20% upside potential
-  - Between 55-85% of analysts recommend buying
 
 - **Low Confidence/Insufficient Data**:
-  - 5 or fewer price targets OR
-  - 5 or fewer analyst ratings
-  
+  - Less than 5 price targets OR
+  - Less than 5 analyst ratings
+
+For stocks that pass the confidence threshold (5+ price targets and 5+ analyst ratings):
+
+- **Sell Signal** (Checked first for risk management):
+  - Less than 5% upside OR
+  - Less than 65% buy ratings OR
+  - PEF > PET (deteriorating earnings outlook) OR
+  - PEF < 0 (negative earnings projection) OR
+  - PEG > 3.0 (overvalued relative to growth) OR
+  - SI > 5% (high short interest)
+
+- **Buy Signal**:
+  - More than 20% upside AND
+  - More than 85% buy ratings AND
+  - Beta <= 1.25 (lower volatility) AND
+  - PEF < PET (improving earnings outlook) AND
+  - PEF > 0 (positive earnings projection) AND
+  - PEG < 2.5 (undervalued relative to growth) AND
+  - PEG data must be present (not missing) AND
+  - SI <= 3% OR SI data missing (low short interest)
+
+- **Hold Signal**:
+  - Stocks that pass confidence threshold
+  - Don't meet sell criteria
+  - Don't meet buy criteria
+
 - **EXRET Calculation**:
   - Expected Return = Upside Potential × Buy Percentage / 100
 

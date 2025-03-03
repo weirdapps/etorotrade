@@ -113,6 +113,7 @@ Select data source:
 When selecting Trade Analysis (T), you can:
 - B: Explore Buy opportunities (not in current portfolio)
 - S: Explore Sell candidates in current portfolio
+- H: Explore Hold candidates (stocks that meet neither buy nor sell criteria)
 
 The analysis automatically saves results to CSV files:
 - Buy recommendations: yahoofinance/output/buy.csv
@@ -227,27 +228,32 @@ NEWS_API_KEY=your_news_api_key  # Optional
 
 ## Color Coding System
 
-- 🟢 **Green** (Buy)
-  * More than 5 price targets (# T)
-  * More than 5 analyst ratings (# A)
-  * More than 20% upside
-  * More than 85% buy ratings
-
-- 🔴 **Red** (Sell)
-  * More than 5 price targets (# T)
-  * More than 5 analyst ratings (# A) AND
-  * < 5% upside OR
-  * < 55% buy ratings
-
 - 🟡 **Yellow** (Low Confidence/Insufficient Data)
-  * 5 or fewer price targets OR
-  * 5 or fewer analyst ratings
+  * Less than 5 price targets OR
+  * Less than 5 analyst ratings
 
-- ⚪ **White** (Hold)
-  * More than 5 price targets (# T)
-  * More than 5 analyst ratings (# A)
-  * 5-20% upside AND
-  * 55-85% buy ratings
+For stocks that pass the confidence threshold (5+ price targets and 5+ analyst ratings):
+
+- 🔴 **Red** (Sell) - Checked first due to risk management priority
+  * Less than 5% upside OR
+  * Less than 65% buy ratings OR
+  * PEF > PET (deteriorating earnings outlook) OR
+  * PEF < 0 (negative earnings projection) OR
+  * PEG > 3.0 (overvalued relative to growth) OR
+  * SI > 5% (high short interest)
+
+- 🟢 **Green** (Buy) - Checked after eliminating sell candidates
+  * More than 20% upside AND
+  * More than 85% buy ratings AND
+  * Beta <= 1.25 (lower volatility) AND
+  * PEF < PET (improving earnings outlook) AND
+  * PEF > 0 (positive earnings projection) AND
+  * PEG < 2.5 (undervalued relative to growth) AND
+  * PEG data must be present (not missing) AND
+  * SI <= 3% OR SI data missing (low short interest)
+
+- ⚪ **White** (Hold) - All other stocks that pass confidence check
+  * Stocks that passed the confidence check but did not qualify as Buy or Sell
 
 ## Architecture
 

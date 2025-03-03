@@ -32,11 +32,11 @@ class TestDisplayFormatter(unittest.TestCase):
         formatted = self.formatter.format_stock_row(stock_data)
 
         self.assertEqual(formatted['TICKER'], 'AAPL')
-        self.assertEqual(formatted['PRICE'], '150.00')
+        self.assertEqual(formatted['PRICE'], '150.0')
         self.assertEqual(formatted['TARGET'], '180.0')
         self.assertEqual(formatted['UPSIDE'], '20.0%')
         self.assertEqual(formatted['# T'], '10')
-        self.assertEqual(formatted['% BUY'], '80.0%')
+        self.assertEqual(formatted['% BUY'], '80%')
         self.assertEqual(formatted['PET'], '20.5')
         self.assertEqual(formatted['PEF'], '18.2')
         self.assertEqual(formatted['PEG'], '1.5')
@@ -106,11 +106,11 @@ class TestDisplayFormatter(unittest.TestCase):
         formatted = self.formatter.format_stock_row(stock_data)
 
         self.assertEqual(formatted['TICKER'], 'AAPL')
-        self.assertEqual(formatted['PRICE'], '150.00')
+        self.assertEqual(formatted['PRICE'], '150.0')
         self.assertEqual(formatted['TARGET'], '120.0')
         self.assertEqual(formatted['UPSIDE'], '-20.0%')
         self.assertEqual(formatted['# T'], '10')
-        self.assertEqual(formatted['% BUY'], '30.0%')
+        self.assertEqual(formatted['% BUY'], '30%')
         self.assertEqual(formatted['PET'], '-15.5')
         self.assertEqual(formatted['PEF'], '-12.2')
         self.assertEqual(formatted['PEG'], '-0.5')
@@ -143,11 +143,11 @@ class TestDisplayFormatter(unittest.TestCase):
         formatted = self.formatter.format_stock_row(stock_data)
 
         self.assertEqual(formatted['TICKER'], 'AAPL')
-        self.assertEqual(formatted['PRICE'], '0.00')
+        self.assertEqual(formatted['PRICE'], '0.0')
         self.assertEqual(formatted['TARGET'], '0.0')
         self.assertEqual(formatted['UPSIDE'], '0.0%')
         self.assertEqual(formatted['# T'], '0')
-        self.assertEqual(formatted['% BUY'], '0.0%')
+        self.assertEqual(formatted['% BUY'], '0%')
         self.assertEqual(formatted['PET'], '0.0')
         self.assertEqual(formatted['PEF'], '0.0')
         self.assertEqual(formatted['PEG'], '0.0')
@@ -240,6 +240,173 @@ class TestDisplayFormatter(unittest.TestCase):
         formatter_no_colors = DisplayFormatter(DisplayConfig(use_colors=False))
         plain_text = formatter_no_colors.colorize("test", Color.BUY)
         self.assertEqual(plain_text, "test")
+        
+    def test_color_coding_logic(self):
+        """Test the new sophisticated color coding logic with various scenarios."""
+        formatter = DisplayFormatter(DisplayConfig(use_colors=True))
+        
+        # Test case 1: Low confidence (Yellow) - Insufficient analyst coverage
+        low_confidence_data = {
+            'ticker': 'TEST1',
+            'analyst_count': 3,  # Below threshold of 5
+            'total_ratings': 10,
+            'price': 100.0,
+            'target_price': 120.0,  # 20% upside
+            'buy_percentage': 90.0,
+            'beta': 1.0,
+            'pe_trailing': 15.0,
+            'pe_forward': 12.0,
+            'peg_ratio': 1.0,
+            'short_float_pct': 2.0
+        }
+        low_confidence_metrics = {'upside': 20.0, 'ex_ret': 18.0}
+        color = formatter._get_color_code(low_confidence_data, low_confidence_metrics)
+        self.assertEqual(color, Color.LOW_CONFIDENCE)
+        
+        # Test case 2: Sell signal (Red) - Multiple sell conditions
+        # 2a: Low buy percentage
+        sell_data_1 = {
+            'ticker': 'TEST2a',
+            'analyst_count': 10,
+            'total_ratings': 10,
+            'price': 100.0,
+            'target_price': 110.0,  # 10% upside
+            'buy_percentage': 60.0,  # Below 65% threshold
+            'beta': 1.3,
+            'pe_trailing': 15.0,
+            'pe_forward': 14.0,
+            'peg_ratio': 1.5,
+            'short_float_pct': 3.0
+        }
+        sell_metrics_1 = {'upside': 10.0, 'ex_ret': 6.0}
+        color = formatter._get_color_code(sell_data_1, sell_metrics_1)
+        self.assertEqual(color, Color.SELL)
+        
+        # 2b: PEF > PET (deteriorating earnings)
+        sell_data_2 = {
+            'ticker': 'TEST2b',
+            'analyst_count': 10,
+            'total_ratings': 10,
+            'price': 100.0,
+            'target_price': 130.0,  # 30% upside
+            'buy_percentage': 90.0,
+            'beta': 1.0,
+            'pe_trailing': 15.0,
+            'pe_forward': 17.0,  # Higher than trailing
+            'peg_ratio': 1.0,
+            'short_float_pct': 2.0
+        }
+        sell_metrics_2 = {'upside': 30.0, 'ex_ret': 27.0}
+        color = formatter._get_color_code(sell_data_2, sell_metrics_2)
+        self.assertEqual(color, Color.SELL)
+        
+        # 2c: High PEG ratio
+        sell_data_3 = {
+            'ticker': 'TEST2c',
+            'analyst_count': 10,
+            'total_ratings': 10,
+            'price': 100.0,
+            'target_price': 130.0,
+            'buy_percentage': 90.0,
+            'beta': 1.0,
+            'pe_trailing': 15.0,
+            'pe_forward': 14.0,
+            'peg_ratio': 3.2,  # Above 3.0 threshold
+            'short_float_pct': 2.0
+        }
+        sell_metrics_3 = {'upside': 30.0, 'ex_ret': 27.0}
+        color = formatter._get_color_code(sell_data_3, sell_metrics_3)
+        self.assertEqual(color, Color.SELL)
+        
+        # 2d: High short interest
+        sell_data_3 = {
+            'ticker': 'TEST2c',
+            'analyst_count': 10,
+            'total_ratings': 10,
+            'price': 100.0,
+            'target_price': 130.0,
+            'buy_percentage': 90.0,
+            'beta': 1.0,
+            'pe_trailing': 15.0,
+            'pe_forward': 14.0,
+            'peg_ratio': 1.0,
+            'short_float_pct': 6.0  # Above 5% threshold
+        }
+        sell_metrics_3 = {'upside': 30.0, 'ex_ret': 27.0}
+        color = formatter._get_color_code(sell_data_3, sell_metrics_3)
+        self.assertEqual(color, Color.SELL)
+        
+        # Test case 3: Buy signal (Green) - Meets all buy criteria
+        buy_data = {
+            'ticker': 'TEST3',
+            'analyst_count': 10,
+            'total_ratings': 10,
+            'price': 100.0,
+            'target_price': 130.0,  # 30% upside
+            'buy_percentage': 90.0,  # Above 85% threshold
+            'beta': 1.0,   # Below 1.25 threshold
+            'pe_trailing': 15.0,
+            'pe_forward': 12.0,  # PEF < PET
+            'peg_ratio': 2.2,    # Below 2.5 threshold but above original 1.25
+            'short_float_pct': 2.0  # Below 3% threshold
+        }
+        buy_metrics = {'upside': 30.0, 'ex_ret': 27.0}
+        color = formatter._get_color_code(buy_data, buy_metrics)
+        self.assertEqual(color, Color.BUY)
+        
+        # Test case 3b: Not a Buy signal - Missing PEG (should not be green)
+        missing_peg_data = {
+            'ticker': 'TEST3b',
+            'analyst_count': 10,
+            'total_ratings': 10,
+            'price': 100.0,
+            'target_price': 130.0,  # 30% upside
+            'buy_percentage': 90.0,  # Above 85% threshold
+            'beta': 1.0,   # Below 1.25 threshold
+            'pe_trailing': 15.0,
+            'pe_forward': 12.0,  # PEF < PET
+            'peg_ratio': None,   # Missing PEG
+            'short_float_pct': 2.0  # Below 3% threshold
+        }
+        missing_peg_metrics = {'upside': 30.0, 'ex_ret': 27.0}
+        color = formatter._get_color_code(missing_peg_data, missing_peg_metrics)
+        self.assertNotEqual(color, Color.BUY, "Stocks with missing PEG should not be marked as BUY")
+        
+        # Test case 3c: Not a Buy signal - PEG as '--' (should not be green)
+        missing_peg_data2 = {
+            'ticker': 'TEST3c',
+            'analyst_count': 10,
+            'total_ratings': 10,
+            'price': 100.0,
+            'target_price': 130.0,  # 30% upside
+            'buy_percentage': 90.0,  # Above 85% threshold
+            'beta': 1.0,   # Below 1.25 threshold
+            'pe_trailing': 15.0,
+            'pe_forward': 12.0,  # PEF < PET
+            'peg_ratio': '--',   # Missing PEG as string
+            'short_float_pct': 2.0  # Below 3% threshold
+        }
+        missing_peg_metrics2 = {'upside': 30.0, 'ex_ret': 27.0}
+        color = formatter._get_color_code(missing_peg_data2, missing_peg_metrics2)
+        self.assertNotEqual(color, Color.BUY, "Stocks with PEG='--' should not be marked as BUY")
+        
+        # Test case 4: Hold signal (Neutral) - Passes confidence but not buy or sell
+        hold_data = {
+            'ticker': 'TEST4',
+            'analyst_count': 10,
+            'total_ratings': 10,
+            'price': 100.0,
+            'target_price': 110.0,  # 10% upside (between 5-20%)
+            'buy_percentage': 70.0,  # Between 65-85%
+            'beta': 1.5,   # Above buy threshold
+            'pe_trailing': 15.0,
+            'pe_forward': 14.0,  # PEF < PET but other criteria not met
+            'peg_ratio': 1.5,    # Between 1.25-2
+            'short_float_pct': 4.0  # Between 3-5%
+        }
+        hold_metrics = {'upside': 10.0, 'ex_ret': 7.0}
+        color = formatter._get_color_code(hold_data, hold_metrics)
+        self.assertEqual(color, Color.NEUTRAL)
 
 if __name__ == '__main__':
     unittest.main()
