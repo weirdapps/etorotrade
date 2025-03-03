@@ -62,15 +62,15 @@ class TestTrade(unittest.TestCase):
             self.assertIn('Portfolio analysis file not found', output)
             self.assertIn('Please run the portfolio analysis (P) first', output)
 
-    def test_filter_buy_opportunities_excludes_missing_peg(self):
-        """Test that buy opportunities filter excludes stocks with missing PEG"""
+    def test_filter_buy_opportunities_includes_missing_peg(self):
+        """Test that buy opportunities filter includes stocks with missing PEG if other conditions are met"""
         # Create test market data
         market_df = pd.DataFrame({
             'ticker': ['AAPL', 'MSFT', 'GOOGL', 'AMZN'],
             'company': ['Apple Inc', 'Microsoft Corp', 'Alphabet Inc', 'Amazon.com Inc'],
             'price': [150.0, 250.0, 2500.0, 3000.0],
             'target_price': [200.0, 300.0, 3000.0, 3600.0],
-            'upside': [33.3, 20.1, 20.0, 20.0],  # MSFT upside > 20%
+            'upside': [33.3, 20.1, 20.0, 20.0],  # All have upside >= 20%
             'analyst_count': [20, 20, 20, 20],
             'total_ratings': [25, 25, 25, 25],
             'buy_percentage': [90, 90, 90, 90],
@@ -88,12 +88,12 @@ class TestTrade(unittest.TestCase):
         # Apply the filter
         result = filter_buy_opportunities(market_df)
         
-        # Check that only stocks with valid PEG ratios are included
-        self.assertEqual(len(result), 2)
-        self.assertIn('AAPL', result['ticker'].values)
-        self.assertIn('MSFT', result['ticker'].values)
-        self.assertNotIn('GOOGL', result['ticker'].values)  # Missing PEG as string
-        self.assertNotIn('AMZN', result['ticker'].values)   # Missing PEG as None
+        # Check that all stocks are included, including those with missing PEG
+        self.assertEqual(len(result), 4)
+        self.assertIn('AAPL', result['ticker'].values)  # Valid low PEG
+        self.assertIn('MSFT', result['ticker'].values)  # Valid low PEG
+        self.assertIn('GOOGL', result['ticker'].values) # Missing PEG as string is now included
+        self.assertIn('AMZN', result['ticker'].values)  # Missing PEG as None is now included
 
     def test_filter_sell_candidates_uses_peg_3_threshold(self):
         """Test that sell candidates filter uses the 3.0 PEG threshold"""
@@ -152,9 +152,9 @@ class TestTrade(unittest.TestCase):
         result = filter_hold_candidates(market_df)
         # Check the candidates in the hold filter
         # Implementation has changed, now returns different values than expected in the original test
-        self.assertEqual(len(result), 4)  # Updated to match current implementation (not 3 as originally expected)
-        # Implementation now includes AAPL as a hold candidate
-        self.assertIn('AAPL', result['ticker'].values)      # Now part of hold candidates in current implementation
+        self.assertEqual(len(result), 3)  # Updated to match current implementation with upside >= 20.0 change
+        # AAPL has upside of exactly 20.0, so it's now a buy candidate, not hold
+        self.assertNotIn('AAPL', result['ticker'].values)   # Now a buy candidate due to upside >= 20.0
         self.assertIn('MSFT', result['ticker'].values)      # Hold - good metrics but upside < 20%
         self.assertIn('GOOGL', result['ticker'].values)     # Hold - good metrics but upside < 20%
         self.assertIn('AMZN', result['ticker'].values)      # Hold - good metrics but upside < 20%
