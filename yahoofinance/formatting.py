@@ -5,6 +5,7 @@ import re
 from datetime import datetime
 import pandas as pd
 import logging
+from .config import TRADING_CRITERIA
 
 logger = logging.getLogger(__name__)
 
@@ -110,10 +111,11 @@ class DisplayFormatter:
             # From here, we know we have sufficient analyst coverage
             
             # 2. Second check: Sell Signal (Red)
+            min_pe_forward_sell = TRADING_CRITERIA["SELL"]["MIN_PE_FORWARD"]
             if (upside < self.config.low_upside or
                 percent_buy <= self.config.low_buy_percent or
                 (pef > pet and pef > 0 and pet > 0) or  # PEF > PET (if both are positive)
-                pef < 0 or  # Negative forward P/E
+                pef < min_pe_forward_sell or  # PEF below minimum threshold (negative or weak earnings projection)
                 peg > self.config.max_peg_sell or  # PEG too high
                 (not si_missing and si > self.config.max_si_sell)):  # High short interest
                 return Color.SELL
@@ -122,12 +124,16 @@ class DisplayFormatter:
             # Check if PEG is missing
             peg_missing = data.get("peg_ratio") in [None, "N/A", "--", ""]
             
+            # Get minimum PE Forward threshold from TRADING_CRITERIA
+            min_pe_forward = TRADING_CRITERIA["BUY"]["MIN_PE_FORWARD"]
+            
+            # Make sure PEF > min_pe_forward is strictly enforced
             if (upside > self.config.high_upside and
                 percent_buy >= self.config.high_buy_percent and
                 beta <= self.config.max_beta_buy and
                 (pef < pet or pet <= 0) and  # PEF < PET or PET non-positive
-                pef > 0 and  # Positive forward P/E
-                (peg_missing or peg < self.config.max_peg_buy) and  # PEG must be < max_peg_buy if present, or can be missing
+                pef > min_pe_forward and  # PE Forward must be > MIN_PE_FORWARD (0.5)
+                (not peg_missing and peg < self.config.max_peg_buy) and  # PEG must be present and < max_peg_buy
                 (si_missing or si <= self.config.max_si_buy)):  # Low or missing short interest
                 return Color.BUY
                 

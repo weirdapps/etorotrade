@@ -390,6 +390,24 @@ class TestDisplayFormatter(unittest.TestCase):
         color = formatter._get_color_code(missing_peg_data2, missing_peg_metrics2)
         self.assertNotEqual(color, Color.BUY, "Stocks with PEG='--' should not be marked as BUY")
         
+        # Test case 3d: Not a Buy signal - PEF < MIN_PE_FORWARD (PEF < 0.5)
+        low_pef_data = {
+            'ticker': 'TEST3d',
+            'analyst_count': 10,
+            'total_ratings': 10,
+            'price': 100.0,
+            'target_price': 130.0,  # 30% upside
+            'buy_percentage': 90.0,  # Above threshold
+            'beta': 1.0,   # Below threshold
+            'pe_trailing': 15.0,
+            'pe_forward': 0.3,    # Below minimum PEF threshold of 0.5
+            'peg_ratio': 1.0,
+            'short_float_pct': 2.0
+        }
+        low_pef_metrics = {'upside': 30.0, 'ex_ret': 27.0}
+        color = formatter._get_color_code(low_pef_data, low_pef_metrics)
+        self.assertNotEqual(color, Color.BUY, "Stocks with PEF < 0.5 should not be marked as BUY")
+        
         # Test case 4: Hold signal (Neutral) - Passes confidence but not buy or sell
         hold_data = {
             'ticker': 'TEST4',
