@@ -104,55 +104,56 @@ def filter_buy_opportunities(market_df):
     Returns:
         pd.DataFrame: Filtered buy opportunities
     """
-    # Apply confidence threshold
+    from yahoofinance.config import TRADING_CRITERIA
+    
+    # Get criteria from config
+    common_criteria = TRADING_CRITERIA["COMMON"]
+    buy_criteria = TRADING_CRITERIA["BUY"]
+    
+    # Apply confidence threshold (INCONCLUSIVE check)
     sufficient_coverage = market_df[
-        (market_df['analyst_count'] >= 5) &
-        (market_df['total_ratings'] >= 5)
+        (market_df['analyst_count'] >= common_criteria["MIN_ANALYST_COUNT"]) &
+        (market_df['total_ratings'] >= common_criteria["MIN_RATINGS_COUNT"])
     ].copy()  # Create a copy to avoid SettingWithCopyWarning
     
-    # Identify SI missing values
-    si_missing = sufficient_coverage['short_float_pct'].isnull() | \
-                 (sufficient_coverage['short_float_pct'].astype(str) == '--')
-    
-    # Apply Buy criteria:
-    # - 5 or more price targets
-    # - 5 or more analyst ratings
-    # - >20% upside
-    # - >80% buy percentage
-    # - beta < 2.0
-    # - PEF < PET (or PET non-positive)
-    # - PEF > 0
-    # - PEG < 2.5 if available, missing PEG is acceptable
-    # - SI <= 3% OR SI is missing/null
-    # Convert PEG ratio to numeric, handling non-numeric values
+    # Convert values to numeric for comparison
     sufficient_coverage['peg_ratio_numeric'] = pd.to_numeric(
         sufficient_coverage['peg_ratio'], errors='coerce')
     
-    # Identify PEG missing values (either null or "--")
+    sufficient_coverage['short_float_pct_numeric'] = pd.to_numeric(
+        sufficient_coverage['short_float_pct'], errors='coerce')
+    
+    # Convert PE forward and trailing to numeric
+    sufficient_coverage['pe_forward_numeric'] = pd.to_numeric(
+        sufficient_coverage['pe_forward'], errors='coerce')
+    
+    sufficient_coverage['pe_trailing_numeric'] = pd.to_numeric(
+        sufficient_coverage['pe_trailing'], errors='coerce')
+    
+    # Identify missing values
     peg_missing = sufficient_coverage['peg_ratio_numeric'].isna()
+    si_missing = sufficient_coverage['short_float_pct_numeric'].isna()
     
     # Apply Buy criteria:
-    # - 5 or more price targets
-    # - 5 or more analyst ratings
-    # - >20% upside
-    # - >80% buy percentage
-    # - beta < 2.0
-    # - PEF < PET (or PET non-positive)
-    # - PEF > 0
-    # - If PEG is available, it must be < 2.5, but if PEG is missing/null, we ignore this condition
-    # - SI <= 3% OR SI is missing/null
+    # - UPSIDE > 20%
+    # - BUY % > 80%
+    # - BETA <= 3
+    # - PEF < PET
+    # - PEF > 0.5
+    # - PEG < 3 (ignored if PEG not available)
+    # - SI <= 5% (ignored if SI not available)
     
     return sufficient_coverage[
-        (sufficient_coverage['upside'] >= 20.0) &  # Changed from > to >= to include exactly 20% upside
-        (sufficient_coverage['buy_percentage'] >= 80.0) &
-        (sufficient_coverage['beta'] < 2.0) &
+        (sufficient_coverage['upside'] > buy_criteria["MIN_UPSIDE"]) &
+        (sufficient_coverage['buy_percentage'] > buy_criteria["MIN_BUY_PERCENTAGE"]) &
+        (sufficient_coverage['beta'] <= buy_criteria["MAX_BETA"]) &
         (
-            (sufficient_coverage['pe_forward'] < sufficient_coverage['pe_trailing']) |
-            (sufficient_coverage['pe_trailing'] <= 0)
+            (sufficient_coverage['pe_forward_numeric'] < sufficient_coverage['pe_trailing_numeric']) |
+            (sufficient_coverage['pe_trailing_numeric'] <= 0)
         ) &
-        (sufficient_coverage['pe_forward'] > 0) &
-        (peg_missing | (sufficient_coverage['peg_ratio_numeric'] < 2.5)) &  # PEG must be < 2.5 if present, or can be missing
-        (si_missing | (sufficient_coverage['short_float_pct'] <= 3.0))
+        (sufficient_coverage['pe_forward_numeric'] > buy_criteria["MIN_PE_FORWARD"]) &
+        (peg_missing | (sufficient_coverage['peg_ratio_numeric'] < buy_criteria["MAX_PEG_RATIO"])) &
+        (si_missing | (sufficient_coverage['short_float_pct_numeric'] <= buy_criteria["MAX_SHORT_INTEREST"]))
     ].copy()
 
 def filter_sell_candidates(portfolio_df):
@@ -164,10 +165,16 @@ def filter_sell_candidates(portfolio_df):
     Returns:
         pd.DataFrame: Filtered sell candidates
     """
-    # Apply confidence threshold
+    from yahoofinance.config import TRADING_CRITERIA
+    
+    # Get criteria from config
+    common_criteria = TRADING_CRITERIA["COMMON"]
+    sell_criteria = TRADING_CRITERIA["SELL"]
+    
+    # Apply confidence threshold (INCONCLUSIVE check)
     sufficient_coverage = portfolio_df[
-        (portfolio_df['analyst_count'] >= 5) &
-        (portfolio_df['total_ratings'] >= 5)
+        (portfolio_df['analyst_count'] >= common_criteria["MIN_ANALYST_COUNT"]) &
+        (portfolio_df['total_ratings'] >= common_criteria["MIN_RATINGS_COUNT"])
     ].copy()  # Create a copy to avoid SettingWithCopyWarning
     
     # Convert values to numeric for comparison
@@ -177,38 +184,36 @@ def filter_sell_candidates(portfolio_df):
     sufficient_coverage['short_float_pct_numeric'] = pd.to_numeric(
         sufficient_coverage['short_float_pct'], errors='coerce')
     
+    # Convert PE forward and trailing to numeric
+    sufficient_coverage['pe_forward_numeric'] = pd.to_numeric(
+        sufficient_coverage['pe_forward'], errors='coerce')
+    
+    sufficient_coverage['pe_trailing_numeric'] = pd.to_numeric(
+        sufficient_coverage['pe_trailing'], errors='coerce')
+    
     # Identify stocks with missing SI values
     si_missing = sufficient_coverage['short_float_pct_numeric'].isna()
     
     # Apply Sell criteria:
-    # - 5 or more price targets
-    # - 5 or more analyst ratings
-    # - EITHER: Less than 5% upside OR
-    # - Less than 65% buy ratings OR
+    # - UPSIDE < 5% OR
+    # - BUY % < 65% OR
     # - PEF > PET (for positive values) OR
-    # - PEF < 0 OR
-    # - PEG > 3.0 OR  # Changed from 2.0 to 3.0
-    # - SI > 5%
-    
-    # Apply Sell criteria matching the comment:
-    # - EITHER: Less than 5% upside OR
-    # - Less than 65% buy ratings OR
-    # - PEF > PET (for positive values) OR
-    # - PEF < 0 OR
-    # - PEG > 3.0 OR
-    # - SI > 5%
+    # - PEF < 0.5 OR
+    # - PEG > 3 OR
+    # - SI > 5% OR
+    # - BETA > 3
     sell_filter = (
-        (sufficient_coverage['upside'] < 5.0) |
-        (sufficient_coverage['buy_percentage'] <= 60.0) |
+        (sufficient_coverage['upside'] < sell_criteria["MAX_UPSIDE"]) |
+        (sufficient_coverage['buy_percentage'] < sell_criteria["MAX_BUY_PERCENTAGE"]) |
         (
-            (sufficient_coverage['pe_forward'] > sufficient_coverage['pe_trailing']) &
-            (sufficient_coverage['pe_forward'] > 0) &
-            (sufficient_coverage['pe_trailing'] > 0)
+            (sufficient_coverage['pe_forward_numeric'] > sufficient_coverage['pe_trailing_numeric']) &
+            (sufficient_coverage['pe_forward_numeric'] > 0) &
+            (sufficient_coverage['pe_trailing_numeric'] > 0)
         ) |
-        (sufficient_coverage['pe_forward'] < 0) |
-        (sufficient_coverage['peg_ratio_numeric'] > 3.0) |
-        (~si_missing & (sufficient_coverage['short_float_pct_numeric'] > 5.0)) |
-        (sufficient_coverage['beta'] > 3.0)  # Added beta > 3.0 condition
+        (sufficient_coverage['pe_forward_numeric'] < sell_criteria["MIN_PE_FORWARD"]) |
+        (sufficient_coverage['peg_ratio_numeric'] > sell_criteria["MAX_PEG_RATIO"]) |
+        (~si_missing & (sufficient_coverage['short_float_pct_numeric'] > sell_criteria["MIN_SHORT_INTEREST"])) |
+        (sufficient_coverage['beta'] > sell_criteria["MAX_BETA"])
     )
     
     return sufficient_coverage[sell_filter].copy()
@@ -222,17 +227,30 @@ def filter_hold_candidates(market_df):
     Returns:
         pd.DataFrame: Filtered hold candidates
     """
-    # Apply confidence threshold
+    from yahoofinance.config import TRADING_CRITERIA
+    
+    # Get criteria from config
+    common_criteria = TRADING_CRITERIA["COMMON"]
+    buy_criteria = TRADING_CRITERIA["BUY"]
+    sell_criteria = TRADING_CRITERIA["SELL"]
+    
+    # Apply confidence threshold (INCONCLUSIVE check)
     sufficient_coverage = market_df[
-        (market_df['analyst_count'] >= 5) &
-        (market_df['total_ratings'] >= 5)
+        (market_df['analyst_count'] >= common_criteria["MIN_ANALYST_COUNT"]) &
+        (market_df['total_ratings'] >= common_criteria["MIN_RATINGS_COUNT"])
     ].copy()  # Create a copy to avoid SettingWithCopyWarning
     
-    # Convert PEG and SI to numeric values for comparison
+    # Convert values to numeric for comparison
     sufficient_coverage['peg_ratio_numeric'] = pd.to_numeric(
         sufficient_coverage['peg_ratio'], errors='coerce')
     sufficient_coverage['short_float_pct_numeric'] = pd.to_numeric(
         sufficient_coverage['short_float_pct'], errors='coerce')
+    
+    # Convert PE forward and trailing to numeric
+    sufficient_coverage['pe_forward_numeric'] = pd.to_numeric(
+        sufficient_coverage['pe_forward'], errors='coerce')
+    sufficient_coverage['pe_trailing_numeric'] = pd.to_numeric(
+        sufficient_coverage['pe_trailing'], errors='coerce')
     
     # Identify stocks with missing SI and PEG values
     si_missing = sufficient_coverage['short_float_pct_numeric'].isna()
@@ -240,35 +258,34 @@ def filter_hold_candidates(market_df):
     
     # Sell filter (to exclude)
     sell_filter = (
-        (sufficient_coverage['upside'] < 5.0) |
-        (sufficient_coverage['buy_percentage'] <= 60.0) |
+        (sufficient_coverage['upside'] < sell_criteria["MAX_UPSIDE"]) |
+        (sufficient_coverage['buy_percentage'] < sell_criteria["MAX_BUY_PERCENTAGE"]) |
         (
-            (sufficient_coverage['pe_forward'] > sufficient_coverage['pe_trailing']) &
-            (sufficient_coverage['pe_forward'] > 0) &
-            (sufficient_coverage['pe_trailing'] > 0)
+            (sufficient_coverage['pe_forward_numeric'] > sufficient_coverage['pe_trailing_numeric']) &
+            (sufficient_coverage['pe_forward_numeric'] > 0) &
+            (sufficient_coverage['pe_trailing_numeric'] > 0)
         ) |
-        (sufficient_coverage['pe_forward'] < 0) |
-        (sufficient_coverage['peg_ratio_numeric'] > 3.0) |
-        (~si_missing & (sufficient_coverage['short_float_pct_numeric'] > 5.0)) |
-        (sufficient_coverage['beta'] > 3.0)  # Added beta > 3.0 condition
+        (sufficient_coverage['pe_forward_numeric'] < sell_criteria["MIN_PE_FORWARD"]) |
+        (sufficient_coverage['peg_ratio_numeric'] > sell_criteria["MAX_PEG_RATIO"]) |
+        (~si_missing & (sufficient_coverage['short_float_pct_numeric'] > sell_criteria["MIN_SHORT_INTEREST"])) |
+        (sufficient_coverage['beta'] > sell_criteria["MAX_BETA"])
     )
     
     # Buy filter (to exclude)
     buy_filter = (
-        (sufficient_coverage['upside'] >= 20.0) &  # Changed from > to >= to match buy filter
-        (sufficient_coverage['buy_percentage'] >= 80.0) &
-        (sufficient_coverage['beta'] < 2.0) &
+        (sufficient_coverage['upside'] > buy_criteria["MIN_UPSIDE"]) &
+        (sufficient_coverage['buy_percentage'] > buy_criteria["MIN_BUY_PERCENTAGE"]) &
+        (sufficient_coverage['beta'] <= buy_criteria["MAX_BETA"]) &
         (
-            (sufficient_coverage['pe_forward'] < sufficient_coverage['pe_trailing']) |
-            (sufficient_coverage['pe_trailing'] <= 0)
+            (sufficient_coverage['pe_forward_numeric'] < sufficient_coverage['pe_trailing_numeric']) |
+            (sufficient_coverage['pe_trailing_numeric'] <= 0)
         ) &
-        (sufficient_coverage['pe_forward'] > 0) &
-        (peg_missing | (sufficient_coverage['peg_ratio_numeric'] < 2.5)) &
-        (si_missing | (sufficient_coverage['short_float_pct_numeric'] <= 3.0))
+        (sufficient_coverage['pe_forward_numeric'] > buy_criteria["MIN_PE_FORWARD"]) &
+        (peg_missing | (sufficient_coverage['peg_ratio_numeric'] < buy_criteria["MAX_PEG_RATIO"])) &
+        (si_missing | (sufficient_coverage['short_float_pct_numeric'] <= buy_criteria["MAX_SHORT_INTEREST"]))
     )
     
     # Filter stocks that are neither buy nor sell candidates
-    # We don't need to restrict to a specific beta range for hold candidates
     hold_filter = (~buy_filter & ~sell_filter)
     
     # Return stocks that meet the hold criteria
@@ -585,8 +602,24 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir):
         portfolio_tickers: Set of portfolio tickers
         output_dir: Output directory
     """
-    # Get buy opportunities
-    buy_opportunities = filter_buy_opportunities(market_df)
+    # First filter out any stocks that meet SELL criteria to ensure risk management priority
+    from yahoofinance.config import TRADING_CRITERIA
+    common_criteria = TRADING_CRITERIA["COMMON"]
+    
+    # Apply confidence threshold (INCONCLUSIVE check)
+    sufficient_coverage = market_df[
+        (market_df['analyst_count'] >= common_criteria["MIN_ANALYST_COUNT"]) &
+        (market_df['total_ratings'] >= common_criteria["MIN_RATINGS_COUNT"])
+    ].copy()  # Create a copy to avoid SettingWithCopyWarning
+    
+    # Get stocks that DON'T meet sell criteria
+    # Extract indexes of sell candidates
+    sell_candidate_indexes = set(filter_sell_candidates(sufficient_coverage).index)
+    # Select rows that are not in the sell candidate indexes
+    not_sell_candidates = sufficient_coverage[~sufficient_coverage.index.isin(sell_candidate_indexes)]
+    
+    # Get buy opportunities from the remaining stocks
+    buy_opportunities = filter_buy_opportunities(not_sell_candidates)
     
     # Filter out stocks already in portfolio
     new_opportunities = buy_opportunities[~buy_opportunities['ticker'].str.upper().isin(portfolio_tickers)]
