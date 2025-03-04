@@ -105,14 +105,13 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
   - Less than 5% upside OR
   - Less than 65% buy ratings OR
   - PEF > PET (deteriorating earnings outlook, when both are positive) OR
-  - PEF < 0.5 (negative or weak earnings projection) OR
   - PEG > 3.0 (overvalued relative to growth) OR
   - SI > 5% (high short interest) OR
   - Beta > 3.0 (excessive volatility)
 
 - **BUY** (ALL of these conditions must be met):
-  - More than 20% upside AND
-  - More than 80% buy ratings AND
+  - 20% or more upside AND
+  - 80% or more buy ratings AND
   - Beta <= 3.0 (acceptable volatility) AND
   - PEF < PET (improving earnings outlook) OR Trailing P/E ≤ 0 (negative) AND
   - PEF > 0.5 (positive earnings projection) AND

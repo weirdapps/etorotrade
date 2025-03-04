@@ -135,8 +135,8 @@ def filter_buy_opportunities(market_df):
     si_missing = sufficient_coverage['short_float_pct_numeric'].isna()
     
     # Apply Buy criteria:
-    # - UPSIDE > 20%
-    # - BUY % > 80%
+    # - UPSIDE >= 20%
+    # - BUY % >= 80%
     # - BETA <= 3
     # - PEF < PET
     # - PEF > 0.5
@@ -144,14 +144,14 @@ def filter_buy_opportunities(market_df):
     # - SI <= 5% (ignored if SI not available)
     
     return sufficient_coverage[
-        (sufficient_coverage['upside'] > buy_criteria["MIN_UPSIDE"]) &
-        (sufficient_coverage['buy_percentage'] > buy_criteria["MIN_BUY_PERCENTAGE"]) &
+        (sufficient_coverage['upside'] >= buy_criteria["MIN_UPSIDE"]) &
+        (sufficient_coverage['buy_percentage'] >= buy_criteria["MIN_BUY_PERCENTAGE"]) &
         (sufficient_coverage['beta'] <= buy_criteria["MAX_BETA"]) &
         (
             (sufficient_coverage['pe_forward_numeric'] < sufficient_coverage['pe_trailing_numeric']) |
             (sufficient_coverage['pe_trailing_numeric'] <= 0)
         ) &
-        (sufficient_coverage['pe_forward_numeric'] > buy_criteria["MIN_PE_FORWARD"]) &
+        (~sufficient_coverage['pe_forward_numeric'].isna() & (sufficient_coverage['pe_forward_numeric'] > buy_criteria["MIN_PE_FORWARD"])) &
         (peg_missing | (sufficient_coverage['peg_ratio_numeric'] < buy_criteria["MAX_PEG_RATIO"])) &
         (si_missing | (sufficient_coverage['short_float_pct_numeric'] <= buy_criteria["MAX_SHORT_INTEREST"]))
     ].copy()
@@ -198,7 +198,6 @@ def filter_sell_candidates(portfolio_df):
     # - UPSIDE < 5% OR
     # - BUY % < 65% OR
     # - PEF > PET (for positive values) OR
-    # - PEF < 0.5 OR
     # - PEG > 3 OR
     # - SI > 5% OR
     # - BETA > 3
@@ -210,7 +209,6 @@ def filter_sell_candidates(portfolio_df):
             (sufficient_coverage['pe_forward_numeric'] > 0) &
             (sufficient_coverage['pe_trailing_numeric'] > 0)
         ) |
-        (sufficient_coverage['pe_forward_numeric'] < sell_criteria["MIN_PE_FORWARD"]) |
         (sufficient_coverage['peg_ratio_numeric'] > sell_criteria["MAX_PEG_RATIO"]) |
         (~si_missing & (sufficient_coverage['short_float_pct_numeric'] > sell_criteria["MIN_SHORT_INTEREST"])) |
         (sufficient_coverage['beta'] > sell_criteria["MAX_BETA"])
@@ -265,7 +263,6 @@ def filter_hold_candidates(market_df):
             (sufficient_coverage['pe_forward_numeric'] > 0) &
             (sufficient_coverage['pe_trailing_numeric'] > 0)
         ) |
-        (sufficient_coverage['pe_forward_numeric'] < sell_criteria["MIN_PE_FORWARD"]) |
         (sufficient_coverage['peg_ratio_numeric'] > sell_criteria["MAX_PEG_RATIO"]) |
         (~si_missing & (sufficient_coverage['short_float_pct_numeric'] > sell_criteria["MIN_SHORT_INTEREST"])) |
         (sufficient_coverage['beta'] > sell_criteria["MAX_BETA"])
@@ -273,14 +270,14 @@ def filter_hold_candidates(market_df):
     
     # Buy filter (to exclude)
     buy_filter = (
-        (sufficient_coverage['upside'] > buy_criteria["MIN_UPSIDE"]) &
-        (sufficient_coverage['buy_percentage'] > buy_criteria["MIN_BUY_PERCENTAGE"]) &
+        (sufficient_coverage['upside'] >= buy_criteria["MIN_UPSIDE"]) &
+        (sufficient_coverage['buy_percentage'] >= buy_criteria["MIN_BUY_PERCENTAGE"]) &
         (sufficient_coverage['beta'] <= buy_criteria["MAX_BETA"]) &
         (
             (sufficient_coverage['pe_forward_numeric'] < sufficient_coverage['pe_trailing_numeric']) |
             (sufficient_coverage['pe_trailing_numeric'] <= 0)
         ) &
-        (sufficient_coverage['pe_forward_numeric'] > buy_criteria["MIN_PE_FORWARD"]) &
+        (~sufficient_coverage['pe_forward_numeric'].isna() & (sufficient_coverage['pe_forward_numeric'] > buy_criteria["MIN_PE_FORWARD"])) &
         (peg_missing | (sufficient_coverage['peg_ratio_numeric'] < buy_criteria["MAX_PEG_RATIO"])) &
         (si_missing | (sufficient_coverage['short_float_pct_numeric'] <= buy_criteria["MAX_SHORT_INTEREST"]))
     )

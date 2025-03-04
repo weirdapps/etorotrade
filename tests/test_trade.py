@@ -70,7 +70,7 @@ class TestTrade(unittest.TestCase):
             'company': ['Apple Inc', 'Microsoft Corp', 'Alphabet Inc', 'Amazon.com Inc'],
             'price': [150.0, 250.0, 2500.0, 3000.0],
             'target_price': [200.0, 300.0, 3000.0, 3600.0],
-            'upside': [33.3, 20.1, 20.0, 20.0],  # All have upside >= 20%
+            'upside': [33.3, 20.1, 20.2, 20.3],  # All have upside > 20%
             'analyst_count': [20, 20, 20, 20],
             'total_ratings': [25, 25, 25, 25],
             'buy_percentage': [90, 90, 90, 90],
@@ -81,19 +81,51 @@ class TestTrade(unittest.TestCase):
             'short_float_pct': [2.0, 2.0, 2.0, 2.0],
             'dividend_yield': [0.5, 0.5, 0.5, 0.5]
         })
-        
+    
         # Update GOOGL's PEG to be a string "--"
         market_df.at[2, 'peg_ratio'] = '--'
-        
+    
         # Apply the filter
         result = filter_buy_opportunities(market_df)
-        
+    
         # Check that all stocks are included, including those with missing PEG
         self.assertEqual(len(result), 4)
         self.assertIn('AAPL', result['ticker'].values)  # Valid low PEG
         self.assertIn('MSFT', result['ticker'].values)  # Valid low PEG
         self.assertIn('GOOGL', result['ticker'].values) # Missing PEG as string is now included
         self.assertIn('AMZN', result['ticker'].values)  # Missing PEG as None is now included
+        
+    def test_filter_buy_opportunities_excludes_low_pef(self):
+        """Test that buy opportunities filter excludes stocks with PEF < 0.5"""
+        # Create test market data
+        market_df = pd.DataFrame({
+            'ticker': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA'],
+            'company': ['Apple Inc', 'Microsoft Corp', 'Alphabet Inc', 'Amazon.com Inc', 'Tesla Inc'],
+            'price': [150.0, 250.0, 2500.0, 3000.0, 800.0],
+            'target_price': [200.0, 300.0, 3000.0, 3600.0, 1000.0],
+            'upside': [33.3, 20.1, 20.0, 20.0, 25.0],  # Note: GOOGL's upside is exactly 20.0, which now meets the >= 20.0 condition
+            'analyst_count': [20, 20, 20, 20, 20],
+            'total_ratings': [25, 25, 25, 25, 25],
+            'buy_percentage': [90, 90, 90, 90, 90],
+            'beta': [1.0, 1.0, 1.0, 1.0, 2.0],
+            'pe_trailing': [25.0, 30.0, 35.0, 40.0, 45.0],
+            'pe_forward': [20.0, 25.0, 30.0, 0.3, 0.4],  # AMZN and TSLA have PEF < 0.5
+            'peg_ratio': [1.5, 2.0, 2.5, 2.0, 2.0],
+            'short_float_pct': [2.0, 2.0, 2.0, 2.0, 2.0],
+            'dividend_yield': [0.5, 0.5, 0.5, 0.5, 0.0]
+        })
+        
+        # Apply the filter
+        result = filter_buy_opportunities(market_df)
+        
+        # Check that stocks with PEF < 0.5 are excluded
+        # AAPL, MSFT, and GOOGL pass with the new condition that includes upside >= 20.0
+        self.assertEqual(len(result), 3)
+        self.assertIn('AAPL', result['ticker'].values)  # Valid PEF > 0.5 and upside > 20.0
+        self.assertIn('MSFT', result['ticker'].values)  # Valid PEF > 0.5 and upside > 20.0
+        self.assertIn('GOOGL', result['ticker'].values)  # Upside exactly 20.0, now included with >= 20.0
+        self.assertNotIn('AMZN', result['ticker'].values)  # PEF < 0.5, should be excluded
+        self.assertNotIn('TSLA', result['ticker'].values)  # PEF < 0.5, should be excluded
 
     def test_filter_sell_candidates_uses_peg_3_threshold(self):
         """Test that sell candidates filter uses the 3.0 PEG threshold"""
@@ -119,7 +151,8 @@ class TestTrade(unittest.TestCase):
         result = filter_sell_candidates(portfolio_df)
         
         # The implementation includes more tickers as sell candidates than initially expected
-        self.assertEqual(len(result), 5)  # Current implementation returns all 5 tickers
+        # Current implementation does not have "MIN_PE_FORWARD" in sell criteria
+        self.assertEqual(len(result), 5)  # Current implementation returns all 5 tickers based on upside < 5.0%
         
         # All tickers should be included in the result based on current implementation
         self.assertIn('AAPL', result['ticker'].values)
@@ -151,8 +184,7 @@ class TestTrade(unittest.TestCase):
         # Apply the filter
         result = filter_hold_candidates(market_df)
         # Check the candidates in the hold filter
-        # Implementation has changed, now returns different values than expected in the original test
-        self.assertEqual(len(result), 3)  # Updated to match current implementation with upside >= 20.0 change
+        self.assertEqual(len(result), 3)  # Updated to match implementation with >= 20.0 upside condition
         # AAPL has upside of exactly 20.0, so it's now a buy candidate, not hold
         self.assertNotIn('AAPL', result['ticker'].values)   # Now a buy candidate due to upside >= 20.0
         self.assertIn('MSFT', result['ticker'].values)      # Hold - good metrics but upside < 20%
