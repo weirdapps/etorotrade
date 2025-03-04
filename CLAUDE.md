@@ -95,36 +95,34 @@ The top-level utils files (`rate_limiter.py`, `pagination.py`, etc.) serve as co
   
 ## Trading Criteria
 
-- **Low Confidence/Insufficient Data**:
+- **INCONCLUSIVE**:
   - Less than 5 price targets OR
   - Less than 5 analyst ratings
 
 For stocks that pass the confidence threshold (5+ price targets and 5+ analyst ratings):
 
-- **Sell Signal** (Checked first for risk management):
+- **SELL** (Checked first for risk management, triggered if ANY of these conditions are met):
   - Less than 5% upside OR
-  - Less than or equal to 60% buy ratings OR
+  - Less than 65% buy ratings OR
   - PEF > PET (deteriorating earnings outlook, when both are positive) OR
-  - PEF < 0 (negative earnings projection) OR
+  - PEF < 0.5 (negative or weak earnings projection) OR
   - PEG > 3.0 (overvalued relative to growth) OR
   - SI > 5% (high short interest) OR
-  - Beta > 3.0 (high volatility)
+  - Beta > 3.0 (excessive volatility)
 
-- **Buy Signal**:
+- **BUY** (ALL of these conditions must be met):
   - More than 20% upside AND
   - More than 80% buy ratings AND
-  - Beta < 2.0 (lower volatility) AND
-  - PEF < PET (improving earnings outlook) AND
-  - PEF > 0 (positive earnings projection) AND
-  - PEG < 2.5 (undervalued relative to growth) AND
-  - PEG data must be present (not missing) AND
-  - SI <= 3% OR SI data missing (low short interest)
+  - Beta <= 3.0 (acceptable volatility) AND
+  - PEF < PET (improving earnings outlook) OR Trailing P/E ≤ 0 (negative) AND
+  - PEF > 0.5 (positive earnings projection) AND
+  - PEG < 3.0 (reasonable valuation relative to growth) - *ignored if PEG data not available* AND
+  - SI <= 5% (acceptable short interest) - *ignored if SI data not available*
 
-- **Hold Signal**:
+- **HOLD**:
   - Stocks that pass confidence threshold
-  - Don't meet sell criteria
-  - Don't meet buy criteria
-  - Have a beta value between 2.0 and 3.0 (moderate volatility)
+  - Don't meet SELL criteria
+  - Don't meet BUY criteria
 
 - **EXRET Calculation**:
   - Expected Return = Upside Potential × Buy Percentage / 100

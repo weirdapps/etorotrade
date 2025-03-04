@@ -45,23 +45,44 @@ POSITIVE_GRADES: Set[str] = {
     "Positive"
 }
 
-# Buy/Sell Criteria
-CRITERIA = {
+# Trading Criteria
+TRADING_CRITERIA = {
+    # Common criteria for all trading recommendations
+    "COMMON": {
+        "MIN_ANALYST_COUNT": 5,      # Minimum number of analyst price targets
+        "MIN_RATINGS_COUNT": 5,      # Minimum number of analyst ratings
+    },
+    
+    # Buy criteria
     "BUY": {
-        "MIN_ANALYST_COUNT": 5,  # Minimum number of analysts
-        "MIN_RATINGS_COUNT": 5,  # Minimum number of ratings
-        "MIN_UPSIDE": 20.0,      # Minimum upside percentage
-        "MIN_BUY_PERCENTAGE": 85.0 # Minimum buy percentage
+        "MIN_UPSIDE": 20.0,          # Minimum upside percentage (>)
+        "MIN_BUY_PERCENTAGE": 80.0,  # Minimum buy percentage (>)
+        "MAX_BETA": 3.0,             # Maximum beta value (<=)
+        "MIN_PE_FORWARD": 0.5,       # Minimum forward P/E (>)
+        "MAX_PEG_RATIO": 3.0,        # Maximum PEG ratio (<)
+        "MAX_SHORT_INTEREST": 5.0,   # Maximum short interest percentage (<=)
+        "PE_CONDITION": "PEF < PET"  # PE Forward should be less than PE Trailing
     },
+    
+    # Sell criteria - any of these conditions trigger a sell recommendation
     "SELL": {
-        "MIN_ANALYST_COUNT": 5,  # Minimum number of analysts
-        "MIN_RATINGS_COUNT": 5,  # Minimum number of ratings
-        "MAX_UPSIDE": 5.0,       # Maximum upside percentage
-        "MAX_BUY_PERCENTAGE": 55.0 # Maximum buy percentage
+        "MAX_UPSIDE": 5.0,           # Maximum upside percentage (<)
+        "MAX_BUY_PERCENTAGE": 65.0,  # Maximum buy percentage (<)
+        "MIN_PE_FORWARD": 0.5,       # Minimum forward P/E - below this is a sell signal
+        "MAX_PEG_RATIO": 3.0,        # Maximum PEG ratio - above this is a sell signal (>)
+        "MIN_SHORT_INTEREST": 5.0,   # Minimum short interest - above this is a sell signal (>)
+        "MAX_BETA": 3.0,             # Maximum beta - above this is a sell signal (>)
+        "PE_CONDITION": "PEF > PET"  # PE Forward greater than PE Trailing is a sell signal (when both positive)
     },
+    
+    # Hold criteria - stocks that pass confidence threshold but don't meet buy or sell criteria
     "HOLD": {
-        "UPSIDE_RANGE": (5.0, 20.0),  # Upside percentage range
-        "BUY_PERCENTAGE_RANGE": (55.0, 85.0)  # Buy percentage range
+        # No specific parameters, defined by not meeting buy or sell criteria
+    },
+    
+    # Inconclusive - insufficient analyst coverage
+    "INCONCLUSIVE": {
+        # Defined by not meeting the common criteria
     }
 }
 
