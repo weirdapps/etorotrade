@@ -34,21 +34,21 @@ class DisplayConfig:
     percentage_precision: int = 1
     table_format: str = "fancy_grid"
     
-    # Confidence thresholds
-    min_analysts: int = 5  # Minimum analysts for high confidence rating
+    # Confidence thresholds - align with TRADING_CRITERIA
+    min_analysts: int = TRADING_CRITERIA["COMMON"]["MIN_ANALYST_COUNT"]
     
-    # Buy signal thresholds
-    high_upside: float = 20.0  # Upside threshold for buy signal
-    high_buy_percent: float = 80.0  # Buy percentage for buy signal
-    max_beta_buy: float = 2.0  # Maximum beta for buy signal
-    max_peg_buy: float = 2.5  # Maximum PEG for buy signal (updated from 1.25)
-    max_si_buy: float = 3.0  # Maximum short interest % for buy signal
+    # Buy signal thresholds - align with TRADING_CRITERIA
+    high_upside: float = TRADING_CRITERIA["BUY"]["MIN_UPSIDE"]
+    high_buy_percent: float = TRADING_CRITERIA["BUY"]["MIN_BUY_PERCENTAGE"]
+    max_beta_buy: float = TRADING_CRITERIA["BUY"]["MAX_BETA"]
+    max_peg_buy: float = TRADING_CRITERIA["BUY"]["MAX_PEG_RATIO"]
+    max_si_buy: float = TRADING_CRITERIA["BUY"]["MAX_SHORT_INTEREST"]
     
-    # Sell signal thresholds
-    low_upside: float = 5.0   # Upside threshold for sell signal
-    low_buy_percent: float = 60.0  # Buy percentage threshold for sell signal
-    max_peg_sell: float = 3.0  # Maximum PEG for stocks not considered a sell
-    max_si_sell: float = 5.0  # Maximum short interest % before considered a sell
+    # Sell signal thresholds - align with TRADING_CRITERIA
+    low_upside: float = TRADING_CRITERIA["SELL"]["MAX_UPSIDE"]
+    low_buy_percent: float = TRADING_CRITERIA["SELL"]["MAX_BUY_PERCENTAGE"]
+    max_peg_sell: float = TRADING_CRITERIA["SELL"]["MAX_PEG_RATIO"]
+    max_si_sell: float = TRADING_CRITERIA["SELL"]["MIN_SHORT_INTEREST"]
 
 class DisplayFormatter:
     """Handles formatting of display output"""
@@ -111,11 +111,9 @@ class DisplayFormatter:
             # From here, we know we have sufficient analyst coverage
             
             # 2. Second check: Sell Signal (Red)
-            min_pe_forward_sell = TRADING_CRITERIA["SELL"]["MIN_PE_FORWARD"]
             if (upside < self.config.low_upside or
                 percent_buy <= self.config.low_buy_percent or
                 (pef > pet and pef > 0 and pet > 0) or  # PEF > PET (if both are positive)
-                pef < min_pe_forward_sell or  # PEF below minimum threshold (negative or weak earnings projection)
                 peg > self.config.max_peg_sell or  # PEG too high
                 (not si_missing and si > self.config.max_si_sell)):  # High short interest
                 return Color.SELL
@@ -128,13 +126,18 @@ class DisplayFormatter:
             min_pe_forward = TRADING_CRITERIA["BUY"]["MIN_PE_FORWARD"]
             
             # Make sure PEF > min_pe_forward is strictly enforced
-            if (upside > self.config.high_upside and
-                percent_buy >= self.config.high_buy_percent and
-                beta <= self.config.max_beta_buy and
-                (pef < pet or pet <= 0) and  # PEF < PET or PET non-positive
-                pef > min_pe_forward and  # PE Forward must be > MIN_PE_FORWARD (0.5)
-                (not peg_missing and peg < self.config.max_peg_buy) and  # PEG must be present and < max_peg_buy
-                (si_missing or si <= self.config.max_si_buy)):  # Low or missing short interest
+            if (upside >= self.config.high_upside and
+            percent_buy >= self.config.high_buy_percent and
+            beta <= self.config.max_beta_buy and
+            (pef < pet or pet <= 0) and  # PEF < PET or PET non-positive
+            pef > min_pe_forward and  # PE Forward must be > MIN_PE_FORWARD (0.5)
+            (peg_missing or peg < self.config.max_peg_buy) and  # PEG must be < max_peg_buy or missing
+            (si_missing or si <= self.config.max_si_buy)):  # Low or missing short interest
+                # Add debug logging to diagnose PEG condition failures
+                logger.debug(f"Buy condition check: Ticker: {data.get('ticker')}, "
+                            f"PEG: {peg}, PEG missing: {peg_missing}, "
+                            f"Max PEG buy: {self.config.max_peg_buy}, "
+                            f"PEG condition: {peg_missing or peg < self.config.max_peg_buy}")
                 return Color.BUY
                 
             # 4. Fourth check: Hold Signal (Neutral/White) - everything else

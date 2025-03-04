@@ -55,8 +55,8 @@ TRADING_CRITERIA = {
     
     # Buy criteria
     "BUY": {
-        "MIN_UPSIDE": 20.0,          # Minimum upside percentage (>)
-        "MIN_BUY_PERCENTAGE": 80.0,  # Minimum buy percentage (>)
+        "MIN_UPSIDE": 20.0,          # Minimum upside percentage (>=)
+        "MIN_BUY_PERCENTAGE": 80.0,  # Minimum buy percentage (>=)
         "MAX_BETA": 3.0,             # Maximum beta value (<=)
         "MIN_PE_FORWARD": 0.5,       # Minimum forward P/E (>)
         "MAX_PEG_RATIO": 3.0,        # Maximum PEG ratio (<)
@@ -68,7 +68,7 @@ TRADING_CRITERIA = {
     "SELL": {
         "MAX_UPSIDE": 5.0,           # Maximum upside percentage (<)
         "MAX_BUY_PERCENTAGE": 65.0,  # Maximum buy percentage (<)
-        "MIN_PE_FORWARD": 0.5,       # Minimum forward P/E - below this is a sell signal
+        # "MIN_PE_FORWARD": 0.5,     # Removed - No longer consider low PEF as a sell signal
         "MAX_PEG_RATIO": 3.0,        # Maximum PEG ratio - above this is a sell signal (>)
         "MIN_SHORT_INTEREST": 5.0,   # Minimum short interest - above this is a sell signal (>)
         "MAX_BETA": 3.0,             # Maximum beta - above this is a sell signal (>)
