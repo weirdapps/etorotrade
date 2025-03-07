@@ -28,14 +28,15 @@ def get_file_paths():
     """Get the file paths for trade recommendation analysis.
     
     Returns:
-        tuple: (output_dir, input_dir, market_path, portfolio_path)
+        tuple: (output_dir, input_dir, market_path, portfolio_path, notrade_path)
     """
     output_dir = "yahoofinance/output"
     input_dir = "yahoofinance/input"
     market_path = f"{output_dir}/market.csv"
     portfolio_path = f"{input_dir}/portfolio.csv"
+    notrade_path = f"{input_dir}/notrade.csv"
     
-    return output_dir, input_dir, market_path, portfolio_path
+    return output_dir, input_dir, market_path, portfolio_path, notrade_path
 
 def ensure_output_directory(output_dir):
     """Ensure the output directory exists.
@@ -136,8 +137,9 @@ def filter_buy_opportunities(market_df):
     
     # Apply Buy criteria:
     # - UPSIDE >= 20%
-    # - BUY % >= 80%
+    # - BUY % >= 82%
     # - BETA <= 3
+    # - BETA > 0.2
     # - PEF < PET
     # - PEF > 0.5
     # - PEG < 3 (ignored if PEG not available)
@@ -147,6 +149,7 @@ def filter_buy_opportunities(market_df):
         (sufficient_coverage['upside'] >= buy_criteria["MIN_UPSIDE"]) &
         (sufficient_coverage['buy_percentage'] >= buy_criteria["MIN_BUY_PERCENTAGE"]) &
         (sufficient_coverage['beta'] <= buy_criteria["MAX_BETA"]) &
+        (sufficient_coverage['beta'] > buy_criteria["MIN_BETA"]) &
         (
             (sufficient_coverage['pe_forward_numeric'] < sufficient_coverage['pe_trailing_numeric']) |
             (sufficient_coverage['pe_trailing_numeric'] <= 0)
@@ -273,6 +276,7 @@ def filter_hold_candidates(market_df):
         (sufficient_coverage['upside'] >= buy_criteria["MIN_UPSIDE"]) &
         (sufficient_coverage['buy_percentage'] >= buy_criteria["MIN_BUY_PERCENTAGE"]) &
         (sufficient_coverage['beta'] <= buy_criteria["MAX_BETA"]) &
+        (sufficient_coverage['beta'] > buy_criteria["MIN_BETA"]) &
         (
             (sufficient_coverage['pe_forward_numeric'] < sufficient_coverage['pe_trailing_numeric']) |
             (sufficient_coverage['pe_trailing_numeric'] <= 0)
@@ -591,13 +595,14 @@ def create_empty_results_file(output_file):
                           'PEG', DIVIDEND_YIELD, 'SI', 'EARNINGS']).to_csv(output_file, index=False)
     print(f"Empty results file created at {output_file}")
 
-def process_buy_opportunities(market_df, portfolio_tickers, output_dir):
+def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_path=None):
     """Process buy opportunities.
     
     Args:
         market_df: Market dataframe
         portfolio_tickers: Set of portfolio tickers
         output_dir: Output directory
+        notrade_path: Path to no-trade tickers file
     """
     # First filter out any stocks that meet SELL criteria to ensure risk management priority
     from yahoofinance.config import TRADING_CRITERIA
@@ -621,6 +626,27 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir):
     # Filter out stocks already in portfolio
     new_opportunities = buy_opportunities[~buy_opportunities['ticker'].str.upper().isin(portfolio_tickers)]
     
+    # Filter out stocks in notrade.csv if file exists
+    notrade_tickers = set()
+    if notrade_path and os.path.exists(notrade_path):
+        try:
+            notrade_df = pd.read_csv(notrade_path)
+            # Find the ticker column in notrade.csv
+            ticker_column = None
+            for col in ['ticker', 'TICKER', 'symbol', 'SYMBOL']:
+                if col in notrade_df.columns:
+                    ticker_column = col
+                    break
+            
+            if ticker_column:
+                notrade_tickers = set(notrade_df[ticker_column].str.upper())
+                if notrade_tickers:
+                    # Filter out no-trade stocks
+                    new_opportunities = new_opportunities[~new_opportunities['ticker'].str.upper().isin(notrade_tickers)]
+                    logger.info(f"Excluded {len(notrade_tickers)} stocks from notrade.csv")
+        except Exception as e:
+            logger.error(f"Error reading notrade.csv: {str(e)}")
+    
     # Sort by ticker (ascending) as requested
     if not new_opportunities.empty:
         new_opportunities = new_opportunities.sort_values('ticker', ascending=True)
@@ -641,7 +667,7 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir):
         output_file = os.path.join(output_dir, "buy.csv")
         display_and_save_results(
             display_df, 
-            "New Buy Opportunities (not in current portfolio)", 
+            "New Buy Opportunities (not in current portfolio or notrade list)", 
             output_file
         )
 
@@ -731,7 +757,7 @@ def generate_trade_recommendations(action_type):
     """
     try:
         # Get file paths
-        output_dir, _, market_path, portfolio_path = get_file_paths()
+        output_dir, input_dir, market_path, portfolio_path, notrade_path = get_file_paths()
         
         # Ensure output directory exists
         if not ensure_output_directory(output_dir):
@@ -764,7 +790,7 @@ def generate_trade_recommendations(action_type):
         
         # Process according to action type
         if action_type == 'N':  # New buy opportunities
-            process_buy_opportunities(market_df, portfolio_tickers, output_dir)
+            process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_path)
         elif action_type == 'E':  # Sell recommendations
             process_sell_candidates(output_dir)
     
