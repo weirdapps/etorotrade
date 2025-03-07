@@ -246,8 +246,9 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
 
 - 🟢 **BUY** - Checked after eliminating sell candidates, ALL of these conditions must be met:
   * 20% or more upside AND
-  * 80% or more buy ratings AND
+  * 82% or more buy ratings AND
   * Beta <= 3.0 (acceptable volatility) AND
+  * Beta > 0.2 (sufficient volatility) AND
   * PEF < PET (improving earnings outlook) OR Trailing P/E ≤ 0 (negative) AND
   * PEF > 0.5 (positive earnings projection) AND
   * PEG < 3.0 (reasonable valuation relative to growth) - *ignored if PEG data not available* AND

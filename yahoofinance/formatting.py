@@ -40,7 +40,8 @@ class DisplayConfig:
     # Buy signal thresholds - align with TRADING_CRITERIA
     high_upside: float = TRADING_CRITERIA["BUY"]["MIN_UPSIDE"]
     high_buy_percent: float = TRADING_CRITERIA["BUY"]["MIN_BUY_PERCENTAGE"]
-    max_beta_buy: float = TRADING_CRITERIA["BUY"]["MAX_BETA"]
+    max_beta_buy: float = TRADING_CRITERIA["BUY"]["MAX_BETA"] 
+    min_beta_buy: float = TRADING_CRITERIA["BUY"]["MIN_BETA"]
     max_peg_buy: float = TRADING_CRITERIA["BUY"]["MAX_PEG_RATIO"]
     max_si_buy: float = TRADING_CRITERIA["BUY"]["MAX_SHORT_INTEREST"]
     
@@ -129,6 +130,7 @@ class DisplayFormatter:
             if (upside >= self.config.high_upside and
             percent_buy >= self.config.high_buy_percent and
             beta <= self.config.max_beta_buy and
+            beta > self.config.min_beta_buy and
             (pef < pet or pet <= 0) and  # PEF < PET or PET non-positive
             pef > min_pe_forward and  # PE Forward must be > MIN_PE_FORWARD (0.5)
             (peg_missing or peg < self.config.max_peg_buy) and  # PEG must be < max_peg_buy or missing

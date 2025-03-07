@@ -56,8 +56,9 @@ TRADING_CRITERIA = {
     # Buy criteria
     "BUY": {
         "MIN_UPSIDE": 20.0,          # Minimum upside percentage (>=)
-        "MIN_BUY_PERCENTAGE": 80.0,  # Minimum buy percentage (>=)
+        "MIN_BUY_PERCENTAGE": 82.0,  # Minimum buy percentage (>=)
         "MAX_BETA": 3.0,             # Maximum beta value (<=)
+        "MIN_BETA": 0.2,             # Minimum beta value (>)
         "MIN_PE_FORWARD": 0.5,       # Minimum forward P/E (>)
         "MAX_PEG_RATIO": 3.0,        # Maximum PEG ratio (<)
         "MAX_SHORT_INTEREST": 5.0,   # Maximum short interest percentage (<=)
