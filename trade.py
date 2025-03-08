@@ -319,7 +319,9 @@ def get_column_mapping():
     """
     return {
         'ticker': 'TICKER',
-        'company': COMPANY_NAME,
+        'company': 'COMPANY',
+        'cap': 'CAP',
+        'market_cap': 'CAP',  # Add market_cap field mapping
         'price': 'PRICE',
         'target_price': 'TARGET',
         'upside': 'UPSIDE',
@@ -344,7 +346,7 @@ def get_columns_to_select():
         list: Columns to select
     """
     return [
-        'ticker', 'company', 'price', 'target_price', 'upside', 'analyst_count',
+        'ticker', 'company', 'market_cap', 'cap', 'price', 'target_price', 'upside', 'analyst_count',
         'buy_percentage', 'total_ratings', 'A', 'EXRET', 'beta',
         'pe_trailing', 'pe_forward', 'peg_ratio', 'dividend_yield',
         'short_float_pct', 'last_earnings'
@@ -359,10 +361,43 @@ def prepare_display_dataframe(df):
     Returns:
         pd.DataFrame: Prepared dataframe for display
     """
-    # Normalize company name
-    df['company'] = df['company'].apply(
-        lambda x: str(x).upper()[:20]
+    # Normalize company name to 14 characters for display and convert to ALL CAPS
+    df['company'] = df.apply(
+        lambda row: str(row['company']).upper()[:14] if row.get('company') != row.get('ticker') else "",
+        axis=1
     )
+    
+    # Format market cap according to size rules
+    if 'market_cap' in df.columns:
+        def format_market_cap(value):
+            if pd.isna(value) or value in ["N/A", "--", ""]:
+                return "--"
+            try:
+                # Convert to a float value
+                value_float = float(str(value).replace(',', ''))
+                
+                # For trillion-level market caps
+                if value_float >= 1_000_000_000_000:
+                    value_trillions = value_float / 1_000_000_000_000
+                    if value_trillions >= 10:
+                        return f"{value_trillions:.1f}T"
+                    else:
+                        return f"{value_trillions:.2f}T"
+                else:
+                    # Format in billions
+                    value_billions = value_float / 1_000_000_000
+                    
+                    # Apply formatting rules based on size
+                    if value_billions >= 100:
+                        return f"{value_billions:.0f}B"
+                    elif value_billions >= 10:
+                        return f"{value_billions:.1f}B"
+                    else:
+                        return f"{value_billions:.2f}B"
+            except (ValueError, TypeError):
+                return "--"
+        
+        df['cap'] = df['market_cap'].apply(format_market_cap)
     
     # Calculate EXRET if needed
     df = calculate_exret(df)
@@ -469,12 +504,24 @@ def get_column_alignments(display_df):
     Returns:
         list: Column alignments
     """
-    colalign = []
-    for col in display_df.columns:
-        if col in ['TICKER', COMPANY_NAME]:
-            colalign.append('left')
-        else:
-            colalign.append('right')
+    # Set alignment for each column - following the same pattern as in display.py
+    # First column is usually an index and right-aligned
+    # Second column is TICKER which should be left-aligned
+    # Third column is COMPANY which should be left-aligned
+    # All other columns are right-aligned
+    
+    # Check if we have the expected columns in the right order
+    if list(display_df.columns)[:2] == ['TICKER', 'COMPANY']:
+        # TICKER and COMPANY as first two columns
+        colalign = ['left', 'left'] + ['right'] * (len(display_df.columns) - 2)
+    else:
+        # Manual alignment based on column names
+        colalign = []
+        for col in display_df.columns:
+            if col in ['TICKER', 'COMPANY']:
+                colalign.append('left')
+            else:
+                colalign.append('right')
     return colalign
 
 def convert_to_numeric(row_dict):
@@ -551,6 +598,20 @@ def display_and_save_results(display_df, title, output_file):
     # Create colored values for display
     colored_values = []
     
+    # First, format CAP column to use T/B suffixes
+    if 'CAP' in display_df.columns:
+        from yahoofinance.formatting import DisplayFormatter
+        formatter = DisplayFormatter()
+        for idx, val in enumerate(display_df['CAP']):
+            try:
+                # Only process if it looks like a number in scientific notation or large integer
+                if isinstance(val, (int, float)) or (isinstance(val, str) and ('e' in val.lower() or val.isdigit())):
+                    numeric_val = float(str(val).replace(',', ''))
+                    display_df.at[display_df.index[idx], 'CAP'] = formatter.format_market_cap(numeric_val)
+            except:
+                # Keep original value if conversion fails
+                pass
+    
     for _, row in display_df.iterrows():
         try:
             # Convert row to dict and fix numeric values
@@ -566,8 +627,11 @@ def display_and_save_results(display_df, title, output_file):
     # Create dataframe from colored values
     colored_df = pd.DataFrame(colored_values)
     
+    # Add ranking column at the beginning (matching other display formats)
+    colored_df.insert(0, "#", range(1, len(colored_df) + 1))
+    
     # Get column alignments
-    colalign = get_column_alignments(display_df)
+    colalign = ['right'] + get_column_alignments(display_df)
     
     # Display results
     print(f"\n{title}:")
@@ -580,8 +644,31 @@ def display_and_save_results(display_df, title, output_file):
     ))
     print(f"\nTotal: {len(display_df)}")
     
+    # Add extra columns for CSV output
+    csv_df = display_df.copy()
+    
+    # Add ranking column to CSV output
+    csv_df.insert(0, "#", range(1, len(csv_df) + 1))
+    
+    # Add % SI column (same as SI but explicitly named for clarity in CSV)
+    if 'SI' in csv_df.columns:
+        csv_df['% SI'] = csv_df['SI']
+        
+    # Add SI column (no percentage symbol)
+    if 'SI' in csv_df.columns:
+        # Try to remove '%' and convert to float
+        def clean_si(value):
+            try:
+                if isinstance(value, str) and '%' in value:
+                    return float(value.replace('%', ''))
+                return value
+            except (ValueError, TypeError):
+                return value
+                
+        csv_df['SI_value'] = csv_df['SI'].apply(clean_si)
+    
     # Save to CSV
-    display_df.to_csv(output_file, index=False)
+    csv_df.to_csv(output_file, index=False)
     print(f"Results saved to {output_file}")
 
 def create_empty_results_file(output_file):
@@ -590,9 +677,9 @@ def create_empty_results_file(output_file):
     Args:
         output_file: Path to the output file
     """
-    pd.DataFrame(columns=['TICKER', COMPANY_NAME, 'PRICE', 'TARGET', 'UPSIDE', '# T', 
+    pd.DataFrame(columns=['#', 'TICKER', 'COMPANY', 'CAP', 'PRICE', 'TARGET', 'UPSIDE', '# T', 
                           BUY_PERCENTAGE, '# A', 'A', 'EXRET', 'BETA', 'PET', 'PEF', 
-                          'PEG', DIVIDEND_YIELD, 'SI', 'EARNINGS']).to_csv(output_file, index=False)
+                          'PEG', DIVIDEND_YIELD, 'SI', '% SI', 'SI_value', 'EARNINGS']).to_csv(output_file, index=False)
     print(f"Empty results file created at {output_file}")
 
 def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_path=None):
@@ -658,6 +745,21 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_
     else:
         # Prepare and format dataframe for display
         display_df = prepare_display_dataframe(new_opportunities)
+        
+        # Format market cap values properly for display
+        if 'CAP' in display_df.columns:
+            from yahoofinance.formatting import DisplayFormatter
+            formatter = DisplayFormatter()
+            # First get the raw market cap value from the original dataframe
+            for idx, row in display_df.iterrows():
+                ticker = row['TICKER']
+                # Find the corresponding market cap in the original dataframe
+                if ticker in new_opportunities['ticker'].values:
+                    orig_row = new_opportunities[new_opportunities['ticker'] == ticker].iloc[0]
+                    if 'market_cap' in orig_row and not pd.isna(orig_row['market_cap']):
+                        # Format the market cap value properly
+                        display_df.at[idx, 'CAP'] = formatter.format_market_cap(orig_row['market_cap'])
+        
         display_df = format_display_dataframe(display_df)
         
         # Sort by TICKER (ascending) as requested
@@ -697,6 +799,21 @@ def process_sell_candidates(output_dir):
     else:
         # Prepare and format dataframe for display
         display_df = prepare_display_dataframe(sell_candidates)
+        
+        # Format market cap values properly for display
+        if 'CAP' in display_df.columns:
+            from yahoofinance.formatting import DisplayFormatter
+            formatter = DisplayFormatter()
+            # First get the raw market cap value from the original dataframe
+            for idx, row in display_df.iterrows():
+                ticker = row['TICKER']
+                # Find the corresponding market cap in the original dataframe
+                if ticker in sell_candidates['ticker'].values:
+                    orig_row = sell_candidates[sell_candidates['ticker'] == ticker].iloc[0]
+                    if 'market_cap' in orig_row and not pd.isna(orig_row['market_cap']):
+                        # Format the market cap value properly
+                        display_df.at[idx, 'CAP'] = formatter.format_market_cap(orig_row['market_cap'])
+        
         display_df = format_display_dataframe(display_df)
         
         # Sort by TICKER (ascending) as requested
@@ -736,6 +853,21 @@ def process_hold_candidates(output_dir):
     else:
         # Prepare and format dataframe for display
         display_df = prepare_display_dataframe(hold_candidates)
+        
+        # Format market cap values properly for display
+        if 'CAP' in display_df.columns:
+            from yahoofinance.formatting import DisplayFormatter
+            formatter = DisplayFormatter()
+            # First get the raw market cap value from the original dataframe
+            for idx, row in display_df.iterrows():
+                ticker = row['TICKER']
+                # Find the corresponding market cap in the original dataframe
+                if ticker in hold_candidates['ticker'].values:
+                    orig_row = hold_candidates[hold_candidates['ticker'] == ticker].iloc[0]
+                    if 'market_cap' in orig_row and not pd.isna(orig_row['market_cap']):
+                        # Format the market cap value properly
+                        display_df.at[idx, 'CAP'] = formatter.format_market_cap(orig_row['market_cap'])
+        
         display_df = format_display_dataframe(display_df)
         
         # Sort by TICKER (ascending) as requested

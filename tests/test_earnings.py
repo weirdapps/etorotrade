@@ -24,12 +24,24 @@ class TestEarningsCalendar(unittest.TestCase):
     def test_format_market_cap(self):
         """Test market cap formatting."""
         test_cases = [
-            (1000000000, '$1.0B'),      # 1B
-            (1500000000, '$1.5B'),      # 1.5B
-            (10000000000, '$10.0B'),    # 10B
-            (None, 'N/A'),              # None
-            (0, 'N/A'),                 # Zero
-            (-1000000000, 'N/A')        # Negative
+            # Billions
+            (1000000000, '$1.00B'),      # 1B (< 10B: 2 decimals)
+            (1500000000, '$1.50B'),      # 1.5B (< 10B: 2 decimals)
+            (10000000000, '$10.0B'),     # 10B (≥ 10B: 1 decimal)
+            (99900000000, '$99.9B'),     # 99.9B (≥ 10B: 1 decimal)
+            (100000000000, '$100B'),     # 100B (≥ 100B: 0 decimals)
+            (500000000000, '$500B'),     # 500B (≥ 100B: 0 decimals)
+            
+            # Trillions
+            (1000000000000, '$1.00T'),   # 1T (< 10T: 2 decimals)
+            (2500000000000, '$2.50T'),   # 2.5T (< 10T: 2 decimals)
+            (10000000000000, '$10.0T'),  # 10T (≥ 10T: 1 decimal)
+            (15500000000000, '$15.5T'),  # 15.5T (≥ 10T: 1 decimal)
+            
+            # Edge cases
+            (None, 'N/A'),               # None
+            (0, 'N/A'),                  # Zero
+            (-1000000000, 'N/A')         # Negative
         ]
         
         for value, expected in test_cases:
@@ -85,7 +97,7 @@ class TestEarningsCalendar(unittest.TestCase):
         result = self.calendar._process_earnings_row(ticker, date, row, info)
         
         self.assertEqual(result['Symbol'], 'AAPL')
-        self.assertEqual(result['Market Cap'], '$3000.0B')  # Fixed to show full value
+        self.assertEqual(result['Market Cap'], '$3.00T')  # Now properly formatted as trillions
         self.assertEqual(result['Date'], '2024-01-01')
         self.assertEqual(result['EPS Est'], '1.23')
         
