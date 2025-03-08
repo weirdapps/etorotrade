@@ -2,6 +2,8 @@
 
 A robust Python-based market analysis system that leverages Yahoo Finance data to provide comprehensive stock analysis, portfolio management, and market intelligence. The system features advanced rate limiting, intelligent caching, and multiple output formats.
 
+![eToro Trade Analysis Tool](assets/etorotrade.png)
+
 ## Key Features
 
 ### 1. Intelligent Data Fetching
