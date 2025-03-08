@@ -68,11 +68,25 @@ class EarningsCalendar:
             return False
     
     def _format_market_cap(self, market_cap: Optional[float]) -> str:
-        """Format market cap value in billions."""
+        """Format market cap value in trillions or billions with dynamic precision."""
         from .utils import FormatUtils
         if market_cap and market_cap > 0:
-            # Convert to billions and format with full precision
-            return f"${market_cap/1e9:.1f}B"
+            # For trillion-level market caps
+            if market_cap >= 1_000_000_000_000:
+                value_trillions = market_cap / 1_000_000_000_000
+                if value_trillions >= 10:
+                    return f"${value_trillions:.1f}T"
+                else:
+                    return f"${value_trillions:.2f}T"
+            else:
+                # For billion-level market caps
+                value_billions = market_cap / 1_000_000_000
+                if value_billions >= 100:
+                    return f"${value_billions:.0f}B"
+                elif value_billions >= 10:
+                    return f"${value_billions:.1f}B"
+                else:
+                    return f"${value_billions:.2f}B"
         return 'N/A'
         
     def _format_eps(self, eps: Optional[float]) -> str:

@@ -2,14 +2,14 @@
 
 ## Commands
 - `python trade.py` - Run main app
-  - Select 'P' for Portfolio analysis
-  - Select 'M' for Market analysis
-  - Select 'E' for eToro Market analysis (filtered tickers available on eToro)
-  - Select 'T' for Trade analysis
-    - Select 'B' for Buy opportunities
-    - Select 'S' for Sell candidates
-    - Select 'H' for Hold candidates
-  - Select 'I' for Manual ticker input
+  - Select 'P' for Portfolio analysis - Shows analysis of current portfolio holdings
+  - Select 'M' for Market analysis - Analyzes all stocks in the market list
+  - Select 'E' for eToro Market analysis - Analyzes stocks available on eToro platform
+  - Select 'T' for Trade analysis - Provides actionable trading recommendations
+    - Select 'B' for Buy opportunities - Shows new stocks to consider buying
+    - Select 'S' for Sell candidates - Shows portfolio stocks to consider selling
+    - Select 'H' for Hold candidates - Shows stocks with neutral outlook
+  - Select 'I' for Manual ticker input - Analyze specific tickers
 - `python -m yahoofinance.validate` - Validate tickers against Yahoo Finance API
 - `pytest tests/` - Run all tests
 - `pytest tests/test_file.py::TestClass::test_method` - Run specific test
@@ -30,7 +30,7 @@
 - **Documentation**: Docstrings with Args/Returns/Raises sections for all functions/classes
 - **Error Handling**: Custom exception hierarchy (YFinanceError → APIError, ValidationError, etc.)
 - **Rate Limiting**: Always use rate limiting for API calls with adaptive delays
-- **Formatting**: Format numbers with proper precision (1-2 decimals), handle None values
+- **Formatting**: Format numbers with proper precision (1-2 decimals), handle None values, display company names in ALL CAPS
 - **Thread Safety**: Use proper locks when modifying shared state
 - **Asyncio**: Use appropriate async patterns with rate limiting protection
 
@@ -38,7 +38,7 @@
 - `yahoofinance/` - Main package with modular components
 - `yahoofinance/client.py` - API client with rate limiting and caching
 - `yahoofinance/display.py` - Output handling and batch processing
-- `yahoofinance/formatting.py` - Data formatting and colorization
+- `yahoofinance/formatting.py` - Data formatting, colorization, and display style rules
 - `yahoofinance/validate.py` - Ticker validation against Yahoo Finance API
 - `yahoofinance/errors.py` - Centralized error handling
 - `yahoofinance/types.py` - Common types and data structures
@@ -133,6 +133,31 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
   - Leading zeros are removed from tickers with 5+ digits
   - Example: `03690.HK` → `3690.HK`
   - 4-digit tickers remain unchanged (e.g., `0700.HK`)
+
+## Display Formatting
+- **Company Names**: 
+  - Always displayed in ALL CAPS for readability
+  - Truncated to maximum 14 characters if needed
+  - Left-aligned in all table outputs
+
+- **Market Cap Formatting**:
+  - Trillion-scale values use "T" suffix (e.g., "2.75T")
+    - ≥ 10T: 1 decimal place (e.g., "12.5T")
+    - < 10T: 2 decimal places (e.g., "2.75T")
+  - Billion-scale values use "B" suffix (e.g., "175B")
+    - ≥ 100B: No decimals (e.g., "175B")
+    - ≥ 10B and < 100B: 1 decimal place (e.g., "25.5B")
+    - < 10B: 2 decimal places (e.g., "5.25B")
+  - Right-aligned in all table outputs
+  
+- **Percentage Formatting**:
+  - Upside, EXRET, SI use 1 decimal place with % suffix (e.g., "27.9%")
+  - Buy percentage uses 0 decimal places with % suffix (e.g., "85%")
+  - Dividend yield uses 2 decimal places with % suffix (e.g., "0.84%")
+  
+- **Other Number Formatting**:
+  - Price, target price, beta, PET, PEF, PEG use 1 decimal place
+  - Rankings (# column) included in all views for consistent display
 
 ## Performance Optimizations
 - **Ticker Validation**:
