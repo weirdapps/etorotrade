@@ -68,6 +68,9 @@ A robust Python-based market analysis system that leverages Yahoo Finance data t
   * Progress tracking with tqdm
   * Batch processing feedback
   * Tabulated data with consistent formatting
+  * Company names in ALL CAPS for readability
+  * Market cap values with T/B suffixes (e.g., "2.75T", "175B")
+  * Consistent column alignment and number formatting
 - **Data Export**
   * CSV data files with comprehensive metrics
   * HTML dashboards with performance indicators

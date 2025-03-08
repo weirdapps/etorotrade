@@ -177,6 +177,51 @@ class DisplayFormatter:
         except (ValueError, TypeError) as e:
             logger.debug(f"Value formatting failed: {str(e)}")
             return str(value)
+            
+    def format_market_cap(self, value: Any) -> str:
+        """
+        Format market cap in trillions or billions with a 'T' or 'B' suffix.
+        
+        Formatting rules:
+        - >= 10T: 1 decimal (e.g. "10.5T")
+        - >= 1T and < 10T: 2 decimals (e.g. "2.75T")
+        - >= 100B: No decimals (e.g. "100B")
+        - >= 10B and < 100B: 1 decimal (e.g. "50.5B")
+        - < 10B: 2 decimals (e.g. "5.25B")
+        - No dollar sign
+        
+        Args:
+            value: Market cap value
+            
+        Returns:
+            Formatted market cap string according to rules
+        """
+        if value is None or value in ["N/A", "--", ""]:
+            return "--"
+        try:
+            # Convert to a float value
+            value_float = float(str(value).replace(',', ''))
+            
+            # Check if trillion formatting is needed (>= 1T)
+            if value_float >= 1_000_000_000_000:
+                value_trillions = value_float / 1_000_000_000_000
+                if value_trillions >= 10:
+                    return f"{value_trillions:.1f}T"
+                else:
+                    return f"{value_trillions:.2f}T"
+            else:
+                # Format in billions
+                value_billions = value_float / 1_000_000_000
+                
+                # Apply formatting rules based on size
+                if value_billions >= 100:
+                    return f"{value_billions:.0f}B"
+                elif value_billions >= 10:
+                    return f"{value_billions:.1f}B"
+                else:
+                    return f"{value_billions:.2f}B"
+        except (ValueError, TypeError):
+            return "--"
 
     def format_date(self, date_str: Optional[str]) -> str:
         """
@@ -251,9 +296,28 @@ class DisplayFormatter:
         
     def _format_row_fields(self, data: Dict[str, Any], metrics: Dict[str, Optional[float]], color: Color) -> Dict[str, str]:
         """Format all fields with proper formatting and colors."""
-        return {
-            # Order columns with EXRET after A
+        
+        fields = {
+            # Always add TICKER first
             "TICKER": self.colorize(data.get("ticker", ""), color),
+        }
+        
+        # Add COMPANY NAME after TICKER (truncated to 14 characters) - ALL CAPS
+        company_name = data.get("company_name", "")
+        if company_name and company_name != data.get("ticker", ""):
+            # Convert company name to ALL CAPS
+            company_name = str(company_name).upper()
+            if len(company_name) > 14:
+                company_name = company_name[:14]
+            fields["COMPANY"] = self.colorize(company_name, color)
+        else:
+            fields["COMPANY"] = self.colorize("", color)
+        
+        # Add CAP column after COMPANY
+        fields["CAP"] = self.colorize(self.format_market_cap(data.get("market_cap")), color)
+            
+        # Add remaining columns
+        fields.update({
             "PRICE": self.colorize(self.format_value(data.get("price"), 1), color),
             "TARGET": self.colorize(self.format_value(data.get("target_price"), 1), color),
             "UPSIDE": self.colorize(self.format_value(metrics["upside"], 1, True), color),
@@ -268,10 +332,10 @@ class DisplayFormatter:
             "PEG": self.colorize(self.format_value(data.get("peg_ratio"), 1), color),
             "DIV %": self.colorize(self.format_value(data.get("dividend_yield"), 2, True), color),
             "SI": self.colorize(self.format_value(data.get("short_float_pct"), 1, True), color),
-            "INS %": self.colorize(self.format_value(data.get("insider_buy_pct"), 0, True), color),
-            "# INS": self.colorize(self.format_value(data.get("insider_transactions"), 0), color),
             "EARNINGS": self.colorize(self.format_date(data.get("last_earnings")), color)
-        }
+        })
+        
+        return fields
         
     def _get_sort_values(self, data: Dict[str, Any], metrics: Dict[str, Optional[float]]) -> Dict[str, Any]:
         """Get values used for sorting."""
@@ -308,9 +372,9 @@ class DisplayFormatter:
         except Exception as e:
             logger.error(f"Error formatting stock row: {str(e)}")
             return {field: "--" for field in [
-                "TICKER", "PRICE", "TARGET", "UPSIDE", "# T",
-                "% BUY", "# A", "A", "EXRET", "BETA", "PET", "PEF", "PEG", "DIV %", "SI",
-                "INS %", "# INS", "EARNINGS", "_sort_exret", "_sort_earnings"
+                "TICKER", "CAP", "COMPANY", "PRICE", "TARGET", "UPSIDE", "# T",
+                "% BUY", "# A", "A", "EXRET", "BETA", "PET", "PEF", "PEG", "DIV %", "SI", 
+                "EARNINGS", "_sort_exret", "_sort_earnings"
             ]}
 
     def _validate_dataframe_input(self, rows: List[Dict[str, Any]]) -> None:

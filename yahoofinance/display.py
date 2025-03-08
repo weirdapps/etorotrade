@@ -205,6 +205,7 @@ class MarketDisplay:
         return {
             "ticker": ticker,
             "company_name": ticker,  # Use ticker as company name for empty reports
+            "market_cap": None,      # Add market cap field
             "price": 0,
             "target_price": 0,
             "upside": 0,
@@ -276,7 +277,8 @@ class MarketDisplay:
             # Construct report with valid data
             return {
                 "ticker": ticker,
-                "company_name": stock_info.name,  # Add company name here
+                "company_name": str(stock_info.name).upper() if stock_info.name else "",  # Add company name in ALL CAPS
+                "market_cap": stock_info.market_cap,  # Add market cap field
                 "price": price_metrics.get("current_price"),
                 "target_price": price_metrics.get("target_price"),
                 "upside": price_metrics.get("upside_potential"),
@@ -663,19 +665,43 @@ class MarketDisplay:
 
         df = pd.DataFrame(raw_reports)
         
-        # Rename the company_name column to company (for CSV output)
+        # Rename the company_name column to company (for CSV output) and convert to ALL CAPS
         if 'company_name' in df.columns:
+            # First convert to ALL CAPS
+            df['company_name'] = df['company_name'].apply(lambda x: str(x).upper() if x else "")
+            # Then rename
             df.rename(columns={'company_name': 'company'}, inplace=True)
         # Fallback: Add company column with ticker values if company_name wasn't available
         elif 'company' not in df.columns and 'ticker' in df.columns:
             df['company'] = df['ticker']
+        # Make sure company column is in ALL CAPS if it exists
+        if 'company' in df.columns:
+            df['company'] = df['company'].apply(lambda x: str(x).upper() if x else "")
+            
+        # Add formatted market cap column and rename original market_cap to cap
+        if 'market_cap' in df.columns:
+            # First, add a properly formatted market_cap_formatted column
+            from yahoofinance.formatting import DisplayFormatter
+            formatter = DisplayFormatter()
+            df['market_cap_formatted'] = df['market_cap'].apply(lambda x: formatter.format_market_cap(x))
+            
+            # Then rename the original column as before
+            df.rename(columns={'market_cap': 'cap'}, inplace=True)
         
-        # Define and apply column order with company after ticker
+        # Add % SI column (same as short_float_pct but explicitly named for clarity in CSV)
+        if 'short_float_pct' in df.columns:
+            df['short_interest_percent'] = df['short_float_pct']
+            
+        # Add SI column (no percentage symbol, to match display output)
+        if 'short_float_pct' in df.columns:
+            df['short_interest'] = df['short_float_pct']
+        
+        # Define column order matching display output format, with full company name for CSV
         column_order = [
-            'ticker', 'company', 'price', 'target_price', 'upside', 'analyst_count',
+            'ticker', 'company', 'cap', 'market_cap_formatted', 'price', 'target_price', 'upside', 'analyst_count',
             'buy_percentage', 'total_ratings', 'A', 'EXRET', 'beta',
             'pe_trailing', 'pe_forward', 'peg_ratio', 'dividend_yield',
-            'short_float_pct', 'insider_buy_pct', 'insider_transactions',
+            'short_float_pct', 'short_interest_percent', 'short_interest',
             'last_earnings'
         ]
         existing_columns = [col for col in column_order if col in df.columns]
@@ -745,7 +771,17 @@ class MarketDisplay:
         df = self._format_dataframe(df)
 
         # Define column alignment
-        colalign = ["right", "left"] + ["right"] * (len(df.columns) - 2)
+        # Find the COMPANY column position to make it left-aligned
+        column_list = list(df.columns)
+        colalign = []
+        
+        for i, col in enumerate(column_list):
+            if i == 0:  # First column (index/number)
+                colalign.append("right")
+            elif col == "TICKER" or col == "COMPANY":
+                colalign.append("left")
+            else:
+                colalign.append("right")
 
         # Display the report
         print("\nMarket Analysis Report:")
