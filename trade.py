@@ -142,8 +142,9 @@ def filter_buy_opportunities(market_df):
     # - BETA > 0.2
     # - PEF < PET
     # - PEF > 0.5
+    # - PEF <= 100
     # - PEG < 3 (ignored if PEG not available)
-    # - SI <= 5% (ignored if SI not available)
+    # - SI <= 3% (ignored if SI not available)
     
     return sufficient_coverage[
         (sufficient_coverage['upside'] >= buy_criteria["MIN_UPSIDE"]) &
@@ -155,6 +156,7 @@ def filter_buy_opportunities(market_df):
             (sufficient_coverage['pe_trailing_numeric'] <= 0)
         ) &
         (~sufficient_coverage['pe_forward_numeric'].isna() & (sufficient_coverage['pe_forward_numeric'] > buy_criteria["MIN_PE_FORWARD"])) &
+        (~sufficient_coverage['pe_forward_numeric'].isna() & (sufficient_coverage['pe_forward_numeric'] <= buy_criteria["MAX_PE_FORWARD"])) &
         (peg_missing | (sufficient_coverage['peg_ratio_numeric'] < buy_criteria["MAX_PEG_RATIO"])) &
         (si_missing | (sufficient_coverage['short_float_pct_numeric'] <= buy_criteria["MAX_SHORT_INTEREST"]))
     ].copy()
@@ -201,8 +203,9 @@ def filter_sell_candidates(portfolio_df):
     # - UPSIDE < 5% OR
     # - BUY % < 65% OR
     # - PEF > PET (for positive values) OR
+    # - PEF > 100 OR
     # - PEG > 3 OR
-    # - SI > 5% OR
+    # - SI > 3% OR
     # - BETA > 3
     sell_filter = (
         (sufficient_coverage['upside'] < sell_criteria["MAX_UPSIDE"]) |
@@ -212,6 +215,7 @@ def filter_sell_candidates(portfolio_df):
             (sufficient_coverage['pe_forward_numeric'] > 0) &
             (sufficient_coverage['pe_trailing_numeric'] > 0)
         ) |
+        (~sufficient_coverage['pe_forward_numeric'].isna() & (sufficient_coverage['pe_forward_numeric'] > sell_criteria["MIN_PE_FORWARD"])) |
         (sufficient_coverage['peg_ratio_numeric'] > sell_criteria["MAX_PEG_RATIO"]) |
         (~si_missing & (sufficient_coverage['short_float_pct_numeric'] > sell_criteria["MIN_SHORT_INTEREST"])) |
         (sufficient_coverage['beta'] > sell_criteria["MAX_BETA"])
@@ -266,6 +270,7 @@ def filter_hold_candidates(market_df):
             (sufficient_coverage['pe_forward_numeric'] > 0) &
             (sufficient_coverage['pe_trailing_numeric'] > 0)
         ) |
+        (~sufficient_coverage['pe_forward_numeric'].isna() & (sufficient_coverage['pe_forward_numeric'] > sell_criteria["MIN_PE_FORWARD"])) |
         (sufficient_coverage['peg_ratio_numeric'] > sell_criteria["MAX_PEG_RATIO"]) |
         (~si_missing & (sufficient_coverage['short_float_pct_numeric'] > sell_criteria["MIN_SHORT_INTEREST"])) |
         (sufficient_coverage['beta'] > sell_criteria["MAX_BETA"])
@@ -282,6 +287,7 @@ def filter_hold_candidates(market_df):
             (sufficient_coverage['pe_trailing_numeric'] <= 0)
         ) &
         (~sufficient_coverage['pe_forward_numeric'].isna() & (sufficient_coverage['pe_forward_numeric'] > buy_criteria["MIN_PE_FORWARD"])) &
+        (~sufficient_coverage['pe_forward_numeric'].isna() & (sufficient_coverage['pe_forward_numeric'] <= buy_criteria["MAX_PE_FORWARD"])) &
         (peg_missing | (sufficient_coverage['peg_ratio_numeric'] < buy_criteria["MAX_PEG_RATIO"])) &
         (si_missing | (sufficient_coverage['short_float_pct_numeric'] <= buy_criteria["MAX_SHORT_INTEREST"]))
     )
@@ -397,6 +403,7 @@ def prepare_display_dataframe(df):
             except (ValueError, TypeError):
                 return "--"
         
+        # Create cap column as string type to prevent dtype warnings
         df['cap'] = df['market_cap'].apply(format_market_cap)
     
     # Calculate EXRET if needed
@@ -600,14 +607,19 @@ def display_and_save_results(display_df, title, output_file):
     
     # First, format CAP column to use T/B suffixes
     if 'CAP' in display_df.columns:
+        # Convert CAP to string type first to avoid dtype incompatibility warning
+        display_df['CAP'] = display_df['CAP'].astype(str)
+        
         from yahoofinance.formatting import DisplayFormatter
         formatter = DisplayFormatter()
         for idx, val in enumerate(display_df['CAP']):
             try:
                 # Only process if it looks like a number in scientific notation or large integer
-                if isinstance(val, (int, float)) or (isinstance(val, str) and ('e' in val.lower() or val.isdigit())):
-                    numeric_val = float(str(val).replace(',', ''))
-                    display_df.at[display_df.index[idx], 'CAP'] = formatter.format_market_cap(numeric_val)
+                if val.replace('.', '', 1).isdigit() or ('e' in val.lower()):
+                    numeric_val = float(val.replace(',', ''))
+                    formatted_cap = formatter.format_market_cap(numeric_val)
+                    # Now safe to assign string to string
+                    display_df.loc[display_df.index[idx], 'CAP'] = formatted_cap
             except:
                 # Keep original value if conversion fails
                 pass
@@ -748,6 +760,9 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_
         
         # Format market cap values properly for display
         if 'CAP' in display_df.columns:
+            # Convert CAP to string type first to avoid dtype incompatibility warning
+            display_df['CAP'] = display_df['CAP'].astype(str)
+            
             from yahoofinance.formatting import DisplayFormatter
             formatter = DisplayFormatter()
             # First get the raw market cap value from the original dataframe
@@ -802,6 +817,9 @@ def process_sell_candidates(output_dir):
         
         # Format market cap values properly for display
         if 'CAP' in display_df.columns:
+            # Convert CAP to string type first to avoid dtype incompatibility warning
+            display_df['CAP'] = display_df['CAP'].astype(str)
+            
             from yahoofinance.formatting import DisplayFormatter
             formatter = DisplayFormatter()
             # First get the raw market cap value from the original dataframe
@@ -856,6 +874,9 @@ def process_hold_candidates(output_dir):
         
         # Format market cap values properly for display
         if 'CAP' in display_df.columns:
+            # Convert CAP to string type first to avoid dtype incompatibility warning
+            display_df['CAP'] = display_df['CAP'].astype(str)
+            
             from yahoofinance.formatting import DisplayFormatter
             formatter = DisplayFormatter()
             # First get the raw market cap value from the original dataframe
