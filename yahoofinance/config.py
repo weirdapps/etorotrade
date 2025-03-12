@@ -60,7 +60,7 @@ TRADING_CRITERIA = {
         "MAX_BETA": 3.0,             # Maximum beta value (<=)
         "MIN_BETA": 0.2,             # Minimum beta value (>)
         "MIN_PE_FORWARD": 0.5,       # Minimum forward P/E (>)
-        "MAX_PE_FORWARD": 100.0,     # Maximum forward P/E (<=)
+        "MAX_PE_FORWARD": 45.0,      # Maximum forward P/E (<=)
         "MAX_PEG_RATIO": 3.0,        # Maximum PEG ratio (<)
         "MAX_SHORT_INTEREST": 3.0,   # Maximum short interest percentage (<=)
         "PE_CONDITION": "PEF < PET"  # PE Forward should be less than PE Trailing
@@ -74,7 +74,8 @@ TRADING_CRITERIA = {
         "MAX_PEG_RATIO": 3.0,        # Maximum PEG ratio - above this is a sell signal (>)
         "MIN_SHORT_INTEREST": 4.0,   # Minimum short interest - above this is a sell signal (>)
         "MAX_BETA": 3.0,             # Maximum beta - above this is a sell signal (>)
-        "MIN_PE_FORWARD": 100.0,     # Minimum PE Forward - above this is a sell signal (>)
+        "MIN_PE_FORWARD": 45.0,      # Minimum PE Forward - above this is a sell signal (>)
+        "MAX_EXRET": 10.0,           # Maximum EXRET - below this is a sell signal (<)
         "PE_CONDITION": "PEF > PET"  # PE Forward greater than PE Trailing is a sell signal (when both positive)
     },
     
