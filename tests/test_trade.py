@@ -181,18 +181,41 @@ class TestTrade(unittest.TestCase):
             'dividend_yield': [0.5, 0.5, 0.5, 0.5, 0.5, 0.0, 0.0]
         })
         
+        # Calculate EXRET values - MSFT:9.6, GOOGL:9.6, AMZN:8.0, FB:6.5, TSLA:8.75 all under 10.0
+        # This means all these stocks would now be sell candidates with the new EXRET < 10.0 criterion
+        # AAPL:18.0 and NFLX:22.5 have EXRET values above 10.0
+        
         # Apply the filter
         result = filter_hold_candidates(market_df)
         # Check the candidates in the hold filter
-        self.assertEqual(len(result), 3)  # Updated to match implementation with >= 20.0 upside condition
-        # AAPL has upside of exactly 20.0, so it's now a buy candidate, not hold
-        self.assertNotIn('AAPL', result['ticker'].values)   # Now a buy candidate due to upside >= 20.0
-        self.assertIn('MSFT', result['ticker'].values)      # Hold - good metrics but upside < 20%
-        self.assertIn('GOOGL', result['ticker'].values)     # Hold - good metrics but upside < 20%
-        self.assertIn('AMZN', result['ticker'].values)      # Hold - good metrics but upside < 20%
-        self.assertNotIn('FB', result['ticker'].values)     # Should be a sell - low buy %
-        self.assertNotIn('NFLX', result['ticker'].values)   # Not a hold - beta > 1.25
-        self.assertNotIn('TSLA', result['ticker'].values)   # Should be a sell - high PEG, high SI
+        self.assertEqual(len(result), 0)  # With EXRET < 10.0 as sell criterion, no stocks qualify as hold
+        
+        # Test with modified EXRET criterion just for this test
+        from yahoofinance.config import TRADING_CRITERIA
+        original_exret = TRADING_CRITERIA["SELL"]["MAX_EXRET"]
+        result = None  # Define result outside try block
+        
+        try:
+            # Temporarily lower the MAX_EXRET threshold to 5.0 for testing
+            TRADING_CRITERIA["SELL"]["MAX_EXRET"] = 5.0
+            
+            # Apply the filter again with modified threshold
+            result = filter_hold_candidates(market_df)
+            # Now we should get some hold candidates
+            self.assertGreater(len(result), 0)
+            # AAPL has upside of exactly 20.0, so it's now a buy candidate, not hold
+            self.assertNotIn('AAPL', result['ticker'].values)  # Now a buy candidate due to upside >= 20.0
+            
+            # Check for specifics with the modified threshold (these assertions need to be in the try block)
+            self.assertIn('MSFT', result['ticker'].values)      # Hold - good metrics but upside < 20%
+            self.assertIn('GOOGL', result['ticker'].values)     # Hold - good metrics but upside < 20%
+            self.assertIn('AMZN', result['ticker'].values)      # Hold - good metrics but upside < 20%
+            self.assertNotIn('FB', result['ticker'].values)     # Should be a sell - low buy %
+            self.assertNotIn('NFLX', result['ticker'].values)   # Not a hold - it's now a buy candidate
+            self.assertNotIn('TSLA', result['ticker'].values)   # Should be a sell - high PEG, high SI
+        finally:
+            # Restore the original threshold
+            TRADING_CRITERIA["SELL"]["MAX_EXRET"] = original_exret
 
     @patch('os.path.exists')
     @patch('pandas.read_csv')
@@ -205,41 +228,54 @@ class TestTrade(unittest.TestCase):
             'yahoofinance/output/market.csv': True,
         }.get(path, False)
         
-        # Mock the market.csv reading
-        market_df = pd.DataFrame({
-            'ticker': ['MSFT', 'GOOGL', 'AMZN'],
-            'company': ['Microsoft Corp', 'Alphabet Inc', 'Amazon.com Inc'],
-            'price': [250.0, 2500.0, 3000.0],
-            'target_price': [280.0, 2800.0, 3300.0],
-            'upside': [12.0, 12.0, 10.0],
-            'analyst_count': [20, 20, 20],
-            'total_ratings': [25, 25, 25],
-            'buy_percentage': [80, 80, 80],
-            'beta': [1.0, 1.0, 1.0],
-            'pe_trailing': [30.0, 35.0, 40.0],
-            'pe_forward': [25.0, 30.0, 35.0],
-            'peg_ratio': [1.8, 1.9, 2.0],
-            'short_float_pct': [2.0, 2.0, 2.0],
-            'dividend_yield': [0.5, 0.5, 0.5]
-        })
+        # With our new EXRET < 10.0 criterion, we need to temporarily modify the threshold for testing
+        from yahoofinance.config import TRADING_CRITERIA
+        original_exret = TRADING_CRITERIA["SELL"]["MAX_EXRET"]
         
-        # Set up the read_csv mock
-        mock_read_csv.return_value = market_df
-        
-        # Run the function
-        process_hold_candidates('yahoofinance/output')
-        
-        # Check that display_and_save_results was called with correct parameters
-        mock_display.assert_called_once()
-        self.assertEqual(mock_display.call_args[0][1], "Hold Candidates (neither buy nor sell)")
-        self.assertEqual(mock_display.call_args[0][2], "yahoofinance/output/hold.csv")
-        
-        # Verify the dataframe passed has the right tickers
-        display_df = mock_display.call_args[0][0]
-        ticker_column_name = 'TICKER'  # This is the display name after renaming
-        self.assertIn('MSFT', display_df[ticker_column_name].values)
-        self.assertIn('GOOGL', display_df[ticker_column_name].values)
-        self.assertIn('AMZN', display_df[ticker_column_name].values)
+        try:
+            # Set a lower threshold to allow our test data to be classified as hold
+            TRADING_CRITERIA["SELL"]["MAX_EXRET"] = 5.0
+            
+            # Mock the market.csv reading - these stocks have EXRET values around 9.6
+            # With MAX_EXRET=10.0, they would be sell candidates
+            # With MAX_EXRET=5.0, they should be hold candidates
+            market_df = pd.DataFrame({
+                'ticker': ['MSFT', 'GOOGL', 'AMZN'],
+                'company': ['Microsoft Corp', 'Alphabet Inc', 'Amazon.com Inc'],
+                'price': [250.0, 2500.0, 3000.0],
+                'target_price': [280.0, 2800.0, 3300.0],
+                'upside': [12.0, 12.0, 10.0],
+                'analyst_count': [20, 20, 20],
+                'total_ratings': [25, 25, 25],
+                'buy_percentage': [80, 80, 80],
+                'beta': [1.0, 1.0, 1.0],
+                'pe_trailing': [30.0, 35.0, 40.0],
+                'pe_forward': [25.0, 30.0, 35.0],
+                'peg_ratio': [1.8, 1.9, 2.0],
+                'short_float_pct': [2.0, 2.0, 2.0],
+                'dividend_yield': [0.5, 0.5, 0.5]
+            })
+            
+            # Set up the read_csv mock
+            mock_read_csv.return_value = market_df
+            
+            # Run the function
+            process_hold_candidates('yahoofinance/output')
+            
+            # Check that display_and_save_results was called with correct parameters
+            mock_display.assert_called_once()
+            self.assertEqual(mock_display.call_args[0][1], "Hold Candidates (neither buy nor sell)")
+            self.assertEqual(mock_display.call_args[0][2], "yahoofinance/output/hold.csv")
+            
+            # Verify the dataframe passed has the right tickers
+            display_df = mock_display.call_args[0][0]
+            ticker_column_name = 'TICKER'  # This is the display name after renaming
+            self.assertIn('MSFT', display_df[ticker_column_name].values)
+            self.assertIn('GOOGL', display_df[ticker_column_name].values)
+            self.assertIn('AMZN', display_df[ticker_column_name].values)
+        finally:
+            # Restore the original threshold
+            TRADING_CRITERIA["SELL"]["MAX_EXRET"] = original_exret
 
     @patch('builtins.input')
     @patch('trade.generate_trade_recommendations')

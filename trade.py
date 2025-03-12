@@ -199,14 +199,19 @@ def filter_sell_candidates(portfolio_df):
     # Identify stocks with missing SI values
     si_missing = sufficient_coverage['short_float_pct_numeric'].isna()
     
+    # Calculate EXRET if it doesn't exist
+    if 'EXRET' not in sufficient_coverage.columns:
+        sufficient_coverage['EXRET'] = sufficient_coverage['upside'] * sufficient_coverage['buy_percentage'] / 100
+    
     # Apply Sell criteria:
     # - UPSIDE < 5% OR
     # - BUY % < 65% OR
     # - PEF > PET (for positive values) OR
-    # - PEF > 100 OR
+    # - PEF > 45 OR
     # - PEG > 3 OR
-    # - SI > 3% OR
+    # - SI > 4% OR
     # - BETA > 3
+    # - EXRET < 10%
     sell_filter = (
         (sufficient_coverage['upside'] < sell_criteria["MAX_UPSIDE"]) |
         (sufficient_coverage['buy_percentage'] < sell_criteria["MAX_BUY_PERCENTAGE"]) |
@@ -218,7 +223,8 @@ def filter_sell_candidates(portfolio_df):
         (~sufficient_coverage['pe_forward_numeric'].isna() & (sufficient_coverage['pe_forward_numeric'] > sell_criteria["MIN_PE_FORWARD"])) |
         (sufficient_coverage['peg_ratio_numeric'] > sell_criteria["MAX_PEG_RATIO"]) |
         (~si_missing & (sufficient_coverage['short_float_pct_numeric'] > sell_criteria["MIN_SHORT_INTEREST"])) |
-        (sufficient_coverage['beta'] > sell_criteria["MAX_BETA"])
+        (sufficient_coverage['beta'] > sell_criteria["MAX_BETA"]) |
+        (sufficient_coverage['EXRET'] < sell_criteria["MAX_EXRET"])
     )
     
     return sufficient_coverage[sell_filter].copy()
@@ -261,6 +267,10 @@ def filter_hold_candidates(market_df):
     si_missing = sufficient_coverage['short_float_pct_numeric'].isna()
     peg_missing = sufficient_coverage['peg_ratio_numeric'].isna()
     
+    # Calculate EXRET if it doesn't exist
+    if 'EXRET' not in sufficient_coverage.columns:
+        sufficient_coverage['EXRET'] = sufficient_coverage['upside'] * sufficient_coverage['buy_percentage'] / 100
+        
     # Sell filter (to exclude)
     sell_filter = (
         (sufficient_coverage['upside'] < sell_criteria["MAX_UPSIDE"]) |
@@ -273,7 +283,8 @@ def filter_hold_candidates(market_df):
         (~sufficient_coverage['pe_forward_numeric'].isna() & (sufficient_coverage['pe_forward_numeric'] > sell_criteria["MIN_PE_FORWARD"])) |
         (sufficient_coverage['peg_ratio_numeric'] > sell_criteria["MAX_PEG_RATIO"]) |
         (~si_missing & (sufficient_coverage['short_float_pct_numeric'] > sell_criteria["MIN_SHORT_INTEREST"])) |
-        (sufficient_coverage['beta'] > sell_criteria["MAX_BETA"])
+        (sufficient_coverage['beta'] > sell_criteria["MAX_BETA"]) |
+        (sufficient_coverage['EXRET'] < sell_criteria["MAX_EXRET"])
     )
     
     # Buy filter (to exclude)
