@@ -50,6 +50,7 @@ class DisplayConfig:
     low_buy_percent: float = TRADING_CRITERIA["SELL"]["MAX_BUY_PERCENTAGE"]
     max_peg_sell: float = TRADING_CRITERIA["SELL"]["MAX_PEG_RATIO"]
     max_si_sell: float = TRADING_CRITERIA["SELL"]["MIN_SHORT_INTEREST"]
+    max_exret: float = TRADING_CRITERIA["SELL"]["MAX_EXRET"]
 
 class DisplayFormatter:
     """Handles formatting of display output"""
@@ -112,11 +113,15 @@ class DisplayFormatter:
             # From here, we know we have sufficient analyst coverage
             
             # 2. Second check: Sell Signal (Red)
+            # Get EXRET for evaluation
+            ex_ret = self._convert_numeric(metrics.get("ex_ret"))
+            
             if (upside < self.config.low_upside or
                 percent_buy <= self.config.low_buy_percent or
                 (pef > pet and pef > 0 and pet > 0) or  # PEF > PET (if both are positive)
                 peg > self.config.max_peg_sell or  # PEG too high
-                (not si_missing and si > self.config.max_si_sell)):  # High short interest
+                (not si_missing and si > self.config.max_si_sell) or  # High short interest
+                ex_ret < self.config.max_exret):  # EXRET too low
                 return Color.SELL
                 
             # 3. Third check: Buy Signal (Green)
