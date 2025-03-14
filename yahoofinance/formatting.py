@@ -44,6 +44,7 @@ class DisplayConfig:
     min_beta_buy: float = TRADING_CRITERIA["BUY"]["MIN_BETA"]
     max_peg_buy: float = TRADING_CRITERIA["BUY"]["MAX_PEG_RATIO"]
     max_si_buy: float = TRADING_CRITERIA["BUY"]["MAX_SHORT_INTEREST"]
+    max_pe_forward: float = TRADING_CRITERIA["BUY"]["MAX_PE_FORWARD"]
     
     # Sell signal thresholds - align with TRADING_CRITERIA
     low_upside: float = TRADING_CRITERIA["SELL"]["MAX_UPSIDE"]
@@ -116,11 +117,17 @@ class DisplayFormatter:
             # Get EXRET for evaluation
             ex_ret = self._convert_numeric(metrics.get("ex_ret"))
             
+            # Get PE Forward thresholds
+            min_pe_forward = TRADING_CRITERIA["BUY"]["MIN_PE_FORWARD"]
+            max_pe_forward = self.config.max_pe_forward
+            
             if (upside < self.config.low_upside or
                 percent_buy <= self.config.low_buy_percent or
                 (pef > pet and pef > 0 and pet > 0) or  # PEF > PET (if both are positive)
+                pef > max_pe_forward or  # PEF > MAX_PE_FORWARD (45.0) - check specifically for this condition
                 peg > self.config.max_peg_sell or  # PEG too high
                 (not si_missing and si > self.config.max_si_sell) or  # High short interest
+                beta > self.config.max_beta_buy or  # Beta too high (>3.0)
                 ex_ret < self.config.max_exret):  # EXRET too low
                 return Color.SELL
                 
@@ -128,16 +135,18 @@ class DisplayFormatter:
             # Check if PEG is missing
             peg_missing = data.get("peg_ratio") in [None, "N/A", "--", ""]
             
-            # Get minimum PE Forward threshold from TRADING_CRITERIA
+            # Get PE Forward thresholds
             min_pe_forward = TRADING_CRITERIA["BUY"]["MIN_PE_FORWARD"]
+            max_pe_forward = self.config.max_pe_forward
             
-            # Make sure PEF > min_pe_forward is strictly enforced
+            # Make sure PEF thresholds are strictly enforced
             if (upside >= self.config.high_upside and
             percent_buy >= self.config.high_buy_percent and
             beta <= self.config.max_beta_buy and
             beta > self.config.min_beta_buy and
             (pef < pet or pet <= 0) and  # PEF < PET or PET non-positive
             pef > min_pe_forward and  # PE Forward must be > MIN_PE_FORWARD (0.5)
+            pef <= self.config.max_pe_forward and  # PE Forward must be <= MAX_PE_FORWARD (45.0)
             (peg_missing or peg < self.config.max_peg_buy) and  # PEG must be < max_peg_buy or missing
             (si_missing or si <= self.config.max_si_buy)):  # Low or missing short interest
                 # Add debug logging to diagnose PEG condition failures
