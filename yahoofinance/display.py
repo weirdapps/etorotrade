@@ -793,3 +793,12 @@ class MarketDisplay:
             showindex=False,
             colalign=colalign
         ))
+        
+        # Add a color key for manual entry mode (source=None)
+        # This ensures users understand the coloring criteria even for manual entry
+        if source is None:
+            print("\nColor Key:")
+            print(f"{Color.BUY.value}■{Color.RESET.value} GREEN: BUY - Strong outlook, meets all criteria (upside ≥20%, buy rating ≥82%, PEF ≤45.0, etc.)")
+            print(f"{Color.SELL.value}■{Color.RESET.value} RED: SELL - Risk flags present (ANY of: upside <5%, buy rating <65%, PEF >45.0, etc.)")
+            print(f"{Color.LOW_CONFIDENCE.value}■{Color.RESET.value} YELLOW: LOW CONFIDENCE - Insufficient analyst coverage (<5 price targets or <5 ratings)")
+            print(f"{Color.NEUTRAL.value}■{Color.RESET.value} WHITE: HOLD - Passes confidence threshold but doesn't meet buy or sell criteria")
