@@ -6,6 +6,7 @@ These tests verify the proper integration between different utility modules.
 """
 
 import unittest
+import pytest
 import logging
 from unittest.mock import patch
 
@@ -15,7 +16,7 @@ from yahoofinance.utils.async_helpers import retry_async
 from yahoofinance.errors import RateLimitError
 
 # Import test fixtures
-from tests.utils.test_fixtures import (
+from tests.fixtures import (
     create_paginated_data, create_mock_fetcher, create_flaky_function
 )
 
@@ -27,6 +28,7 @@ logging.basicConfig(
 logger = logging.getLogger("test_advanced_utils")
 
 
+@pytest.mark.integration
 class TestAdvancedIntegration(unittest.TestCase):
     """Test the integration between rate limiting and pagination."""
     
@@ -64,6 +66,8 @@ class TestAdvancedIntegration(unittest.TestCase):
         mock_rate_limiter.add_call.assert_called_with(ticker="AAPL")
 
 
+@pytest.mark.integration
+@pytest.mark.asyncio
 class TestRateLimiterErrorRecovery(unittest.IsolatedAsyncioTestCase):
     """Test the error recovery strategies with rate limiting."""
     
