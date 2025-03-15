@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
-"""Debug script to show all available metrics from Yahoo Finance"""
+"""
+Yahoo Finance metrics utility module.
+
+This module provides utilities for inspecting and displaying available 
+metrics from Yahoo Finance API. It can be used both as a module import
+and as a command-line tool to explore available metrics for any ticker.
+
+Example:
+    python -m yahoofinance.metrics AAPL
+"""
 
 import sys
 import yfinance as yf
@@ -53,9 +62,9 @@ def show_available_metrics(ticker: str):
                 print(f"{metric:25} = {value}")
 
 def main():
-    """Main entry point"""
+    """Main entry point for command-line usage"""
     if len(sys.argv) != 2:
-        print("Usage: python -m yahoofinance.metrics_debug TICKER")
+        print("Usage: python -m yahoofinance.metrics TICKER")
         sys.exit(1)
         
     ticker = sys.argv[1].upper()
