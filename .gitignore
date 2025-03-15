@@ -103,3 +103,6 @@ yarn-error.log*
 
 # reports
 reports/
+
+# AI assist
+.claude/
