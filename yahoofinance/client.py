@@ -44,6 +44,25 @@ class YFinanceClient:
         self.timeout = timeout if timeout is not None else RATE_LIMIT["API_TIMEOUT"]
         self.logger = logging.getLogger(__name__)
         self.insider_analyzer = InsiderAnalyzer(self)
+        self._ticker_cache = {}  # Cache for yf.Ticker objects
+    
+    def _get_or_create_ticker(self, ticker: str) -> yf.Ticker:
+        """
+        Get existing Ticker object or create a new one if needed.
+        
+        Args:
+            ticker: Stock ticker symbol
+            
+        Returns:
+            yf.Ticker: Ticker object for the given symbol
+        """
+        if ticker not in self._ticker_cache:
+            self.logger.debug(f"Creating new Ticker object for {ticker}")
+            self._ticker_cache[ticker] = yf.Ticker(ticker)
+        else:
+            self.logger.debug(f"Using cached Ticker object for {ticker}")
+            
+        return self._ticker_cache[ticker]
 
     def _validate_ticker(self, ticker) -> None:
         """
@@ -85,7 +104,8 @@ class YFinanceClient:
         Raises:
             Various exceptions that will be caught by the calling method
         """
-        stock = yf.Ticker(ticker)
+        # Use cached ticker object instead of creating a new one
+        stock = self._get_or_create_ticker(ticker)
         try:
             # Suppress pandas warnings during this operation
             import warnings
@@ -329,7 +349,8 @@ class YFinanceClient:
     def _get_ticker_basic_info(self, ticker: str):
         """Get basic ticker info from yfinance"""
         try:
-            stock = yf.Ticker(ticker)
+            # Use cached ticker object instead of creating a new one
+            stock = self._get_or_create_ticker(ticker)
             info = stock.info or {}
             return stock, info
         except Exception as e:
@@ -465,10 +486,14 @@ class YFinanceClient:
                 short_interest = self._get_short_interest_data(info, is_us_ticker_flag)
                 
                 # Create and return StockData object
-                return self._create_stock_data_object(
+                stock_data = self._create_stock_data_object(
                     stock, info, price_metrics, risk_metrics, 
                     earnings_dates, insider_metrics, short_interest
                 )
+                
+                # Store the ticker object in the StockData object for reuse
+                stock_data.ticker_object = stock
+                return stock_data
                 
             except Exception as e:
                 self.logger.debug(f"Attempt {attempts + 1} failed for {ticker}: {str(e)}")
@@ -481,24 +506,30 @@ class YFinanceClient:
         """
         Clear the internal cache for ticker information.
         This will force the next get_ticker_info call to fetch fresh data.
+        Also clears the ticker object cache.
         """
         self.get_ticker_info.cache_clear()
+        # Clear ticker object cache
+        self._ticker_cache.clear()
+        self.logger.debug("Cleared ticker object cache")
         
-    def get_cache_info(self) -> Dict[str, int]:
+    def get_cache_info(self) -> Dict[str, Any]:
         """
         Get information about the current cache state.
         
         Returns:
-            Dict[str, int]: Dictionary containing:
+            Dict[str, Any]: Dictionary containing:
                 - hits: Number of cache hits
                 - misses: Number of cache misses
                 - maxsize: Maximum cache size
                 - currsize: Current cache size
+                - ticker_cache_size: Number of cached ticker objects
         """
         info = self.get_ticker_info.cache_info()
         return {
             'hits': info.hits,
             'misses': info.misses,
             'maxsize': info.maxsize,
-            'currsize': info.currsize
+            'currsize': info.currsize,
+            'ticker_cache_size': len(self._ticker_cache)
         }
