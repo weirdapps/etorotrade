@@ -678,6 +678,13 @@ class MarketDisplay:
         if 'company' in df.columns:
             df['company'] = df['company'].apply(lambda x: str(x).upper() if x else "")
             
+        # Fix last_earnings column to prevent datetime warnings
+        if 'last_earnings' in df.columns:
+            # Convert earnings dates to string to avoid pandas datetime warnings
+            df['last_earnings'] = df['last_earnings'].apply(
+                lambda x: self.formatter.format_date(x) if x is not None else "--"
+            )
+            
         # Add formatted market cap column and rename original market_cap to cap
         if 'market_cap' in df.columns:
             # First, add a properly formatted market_cap_formatted column
