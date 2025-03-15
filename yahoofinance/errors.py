@@ -81,6 +81,39 @@ class DataError(YFinanceError):
     pass
 
 
+class DataQualityError(DataError):
+    """
+    Raised when data quality is insufficient for analysis.
+    
+    This error indicates that while data was retrieved successfully,
+    its quality or completeness is insufficient for meaningful analysis.
+    """
+    pass
+
+
+class MissingDataError(DataError):
+    """
+    Raised when required data fields are missing.
+    
+    This error is more specific than DataQualityError and indicates
+    that specific required data points are missing for analysis.
+    """
+    
+    def __init__(self, message: str, missing_fields: List[str], details: Optional[Dict[str, Any]] = None):
+        """
+        Initialize with message and list of missing fields.
+        
+        Args:
+            message: Error message
+            missing_fields: List of field names that are missing
+            details: Additional error details
+        """
+        self.missing_fields = missing_fields
+        details = details or {}
+        details['missing_fields'] = missing_fields
+        super().__init__(message, details)
+
+
 class CacheError(YFinanceError):
     """Raised when cache operations fail."""
     pass
