@@ -11,22 +11,22 @@ from typing import Dict, Set
 RATE_LIMIT = {
     "WINDOW_SIZE": 60,           # Time window in seconds
     "MAX_CALLS": 100,            # Maximum calls per window
-    "BASE_DELAY": 2.0,           # Base delay between calls
-    "MIN_DELAY": 1.0,            # Minimum delay
+    "BASE_DELAY": 1.5,           # Base delay between calls (reduced from 2.0)
+    "MIN_DELAY": 0.8,            # Minimum delay (reduced from 1.0)
     "MAX_DELAY": 30.0,           # Maximum delay
-    "BATCH_DELAY": 5.0,          # Delay between batches
+    "BATCH_DELAY": 3.0,          # Delay between batches (reduced from 5.0)
     "MAX_RETRY_ATTEMPTS": 3,     # Maximum retry attempts
     "API_TIMEOUT": 10,           # Timeout in seconds for API calls
-    "BATCH_SIZE": 15,            # Default batch size
+    "BATCH_SIZE": 20,            # Default batch size (increased from 15)
 }
 
 # Cache Configuration
 CACHE = {
-    "MARKET_DATA_TTL": 5,        # Market data cache expiration in minutes
-    "NEWS_DATA_TTL": 15,         # News cache expiration in minutes
-    "EARNINGS_DATA_TTL": 60,     # Earnings data cache expiration in minutes
-    "DEFAULT_TTL": 15,           # Default cache expiration in minutes
-    "MAX_CACHE_ENTRIES": 500,    # Maximum number of cache entries
+    "MARKET_DATA_TTL": 15,       # Market data cache expiration in minutes (increased from 5)
+    "NEWS_DATA_TTL": 30,         # News cache expiration in minutes (increased from 15)
+    "EARNINGS_DATA_TTL": 120,    # Earnings data cache expiration in minutes (increased from 60)
+    "DEFAULT_TTL": 30,           # Default cache expiration in minutes (increased from 15)
+    "MAX_CACHE_ENTRIES": 750,    # Maximum number of cache entries (increased from 500)
 }
 
 # Risk Metrics
