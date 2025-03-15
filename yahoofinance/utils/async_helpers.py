@@ -27,7 +27,7 @@ class AsyncRateLimiter:
     by controlling concurrency and introducing appropriate delays.
     """
     
-    def __init__(self, max_concurrency: int = 3):
+    def __init__(self, max_concurrency: int = 4):
         """
         Initialize async rate limiter.
         

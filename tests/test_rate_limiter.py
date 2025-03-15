@@ -13,10 +13,10 @@ def test_init():
     limiter = RateLimitTracker(window_size=30, max_calls=50)
     assert limiter.window_size == 30
     assert limiter.max_calls == 50
-    assert limiter.base_delay == pytest.approx(2.0)
-    assert limiter.min_delay == pytest.approx(1.0)
+    assert limiter.base_delay == pytest.approx(1.5)  # Updated from 2.0 to match config
+    assert limiter.min_delay == pytest.approx(0.8)  # Updated from 1.0 to match config
     assert limiter.max_delay == pytest.approx(30.0)
-    assert limiter.batch_delay == pytest.approx(5.0)
+    assert limiter.batch_delay == pytest.approx(3.0)  # Updated from 5.0 to match config
     assert limiter.success_streak == 0
     assert isinstance(limiter.calls, deque)
     assert isinstance(limiter.errors, deque)
@@ -113,8 +113,8 @@ def test_adaptive_backoff(rate_limiter):
         rate_limiter.add_error(error, "AAPL")
     
     # Verify increased delays
-    assert rate_limiter.base_delay > 2.0  # Initial base delay
-    assert rate_limiter.batch_delay > 5.0  # Initial batch delay
+    assert rate_limiter.base_delay > 1.5  # Initial base delay (updated from 2.0)
+    assert rate_limiter.batch_delay > 3.0  # Initial batch delay (updated from 5.0)
 
 def test_error_recovery(rate_limiter):
     """Test error recovery behavior"""
