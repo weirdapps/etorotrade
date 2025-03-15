@@ -16,7 +16,15 @@ import json
 from pprint import pprint
 
 def show_available_metrics(ticker: str):
-    """Show all available metrics for a given ticker"""
+    """
+    Show all available metrics for a given ticker.
+    
+    Retrieves information from Yahoo Finance API and displays metrics
+    organized by category for easier analysis.
+    
+    Args:
+        ticker: Stock ticker symbol (e.g., 'AAPL')
+    """
     print(f"\nAvailable metrics for {ticker}")
     print("=" * 80)
     

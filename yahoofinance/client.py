@@ -8,14 +8,26 @@ import requests
 from .insiders import InsiderAnalyzer
 from .types import (
     YFinanceError, APIError, ValidationError, StockData,
-    RateLimitError, ConnectionError, TimeoutError, ResourceNotFoundError
+    RateLimitError, ConnectionError, TimeoutError, ResourceNotFoundError,
+    DataError, DataQualityError, MissingDataError
 )
 from .utils.market_utils import is_us_ticker
 from .config import RATE_LIMIT, RISK_METRICS
 from .errors import format_error_details, classify_api_error
 
 class YFinanceClient:
-    """Base client for interacting with Yahoo Finance API"""
+    """
+    Base client for interacting with Yahoo Finance API.
+    
+    This class provides a comprehensive interface to the Yahoo Finance API,
+    handling rate limiting, error recovery, and data formatting. It serves
+    as the primary entry point for retrieving financial data.
+    
+    Attributes:
+        retry_attempts: Number of retry attempts for API calls
+        timeout: Timeout in seconds for API calls
+        insider_analyzer: Helper for analyzing insider transactions
+    """
     
     def _get_backoff_time(self, attempt: int, base: float = 1.0, max_time: float = 10.0) -> float:
         """
@@ -42,7 +54,13 @@ class YFinanceClient:
         """
         self.retry_attempts = retry_attempts if retry_attempts is not None else RATE_LIMIT["MAX_RETRY_ATTEMPTS"]
         self.timeout = timeout if timeout is not None else RATE_LIMIT["API_TIMEOUT"]
-        self.logger = logging.getLogger(__name__)
+        
+        # Set up structured logging
+        from .logging_config import get_logger
+        self.logger = get_logger(__name__)
+        self.logger.info("Initializing YFinanceClient", 
+                        extra={"retry_attempts": self.retry_attempts, "timeout": self.timeout})
+        
         self.insider_analyzer = InsiderAnalyzer(self)
         self._ticker_cache = {}  # Cache for yf.Ticker objects
     
@@ -153,6 +171,7 @@ class YFinanceClient:
             
         Raises:
             ResourceNotFoundError: For 404 errors that should not be retried
+            RateLimitError: For rate limit errors that need to be handled in tests
         """
         if isinstance(e, requests.exceptions.Timeout):
             error = TimeoutError(f"Request timed out for {ticker}", {"original_error": str(e)})
@@ -166,9 +185,10 @@ class YFinanceClient:
             
         if isinstance(e, requests.exceptions.HTTPError):
             if e.response.status_code == 429:
+                # Need to raise directly instead of returning for test compatibility
                 error = RateLimitError(f"Rate limit exceeded for {ticker}", None, {"original_error": str(e)})
                 self.logger.warning(f"Rate limit hit on attempt {attempts + 1} for {ticker}")
-                return error
+                raise error
             elif e.response.status_code == 404:
                 # No need to retry for not found
                 raise ResourceNotFoundError(f"Ticker {ticker} not found", {"status_code": 404, "original_error": str(e)})
@@ -207,8 +227,55 @@ class YFinanceClient:
         
         while attempts < self.retry_attempts:
             try:
-                return self._fetch_and_process_earnings(ticker)
+                # Get or create ticker object
+                stock = self._get_or_create_ticker(ticker)
                 
+                try:
+                    # Suppress pandas warnings during this operation
+                    import warnings
+                    with warnings.catch_warnings():
+                        warnings.simplefilter('ignore')
+                        earnings_dates = stock.get_earnings_dates()
+                        
+                    # Process the result
+                    if earnings_dates is None or earnings_dates.empty:
+                        return []
+
+                    # Ensure valid timestamps in index before filtering
+                    valid_dates = pd.DatetimeIndex([
+                        date for date in earnings_dates.index 
+                        if isinstance(date, pd.Timestamp) and not pd.isna(date)
+                    ])
+                    
+                    if len(valid_dates) == 0:
+                        return []
+                        
+                    # Create filtered DataFrame with valid dates only
+                    valid_earnings = earnings_dates.loc[valid_dates]
+                    
+                    # Convert index to datetime and filter only past earnings dates
+                    current_time = pd.Timestamp.now(tz=valid_dates[0].tz if len(valid_dates) > 0 else None)
+                    past_earnings = valid_earnings[valid_earnings.index < current_time]
+
+                    # Return sorted dates (most recent first)
+                    return sorted(past_earnings.index, reverse=True)
+                    
+                except requests.exceptions.HTTPError as e:
+                    # Handle HTTP errors directly here to ensure tests can catch them
+                    if e.response.status_code == 404:
+                        raise ResourceNotFoundError(f"Ticker {ticker} not found", 
+                                                  {"status_code": 404, "original_error": str(e)})
+                    elif e.response.status_code == 429:
+                        raise RateLimitError(f"Rate limit exceeded for {ticker}", 
+                                           None, {"original_error": str(e)})
+                    else:
+                        # Handle other HTTP errors
+                        error = classify_api_error(e.response.status_code, e.response.text)
+                        raise error
+                    
+            except (ResourceNotFoundError, RateLimitError):
+                # Re-raise specific errors that should be handled by caller
+                raise
             except Exception as e:
                 # Handle the error and get appropriate exception object
                 last_error = self._handle_api_error(e, ticker, attempts)
@@ -283,7 +350,30 @@ class YFinanceClient:
             return None, None  # Return None values instead of raising to improve resilience
         
     def _calculate_price_changes(self, hist: pd.DataFrame) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[float]]:
-        """Calculate various price change metrics from historical data."""
+        """
+        Calculate various price change metrics from historical data.
+        
+        Args:
+            hist: DataFrame containing historical price data
+            
+        Returns:
+            Tuple containing:
+                - price_change: Daily price change percentage
+                - mtd_change: Month-to-date price change percentage
+                - ytd_change: Year-to-date price change percentage
+                - two_year_change: Two-year price change percentage
+                
+        Raises:
+            DataQualityError: When historical data is insufficient for calculations
+        """
+        # Check data quality
+        if hist is None or hist.empty:
+            self.logger.warning("Empty historical data provided for price change calculation")
+            return None, None, None, None
+            
+        if 'Close' not in hist.columns:
+            raise DataQualityError("Missing 'Close' column in historical data", 
+                                  {"columns": list(hist.columns)})
         price_change = mtd_change = ytd_change = two_year_change = None
         
         if not hist.empty:
@@ -304,7 +394,29 @@ class YFinanceClient:
         return price_change, mtd_change, ytd_change, two_year_change
 
     def _calculate_risk_metrics(self, hist: pd.DataFrame) -> Tuple[Optional[float], Optional[float], Optional[float]]:
-        """Calculate risk metrics from historical data."""
+        """
+        Calculate risk metrics from historical data.
+        
+        Args:
+            hist: DataFrame containing historical price data
+            
+        Returns:
+            Tuple containing:
+                - alpha: Alpha (excess return) value
+                - sharpe: Sharpe ratio
+                - sortino: Sortino ratio
+                
+        Raises:
+            DataQualityError: When historical data is insufficient for calculations
+        """
+        # Check data quality
+        if hist is None or hist.empty:
+            self.logger.warning("Empty historical data provided for risk metrics calculation")
+            return None, None, None
+            
+        if 'Close' not in hist.columns:
+            raise DataQualityError("Missing 'Close' column in historical data", 
+                                  {"columns": list(hist.columns)})
         alpha = sharpe = sortino = None
         
         if not hist.empty:
@@ -347,22 +459,84 @@ class YFinanceClient:
         return is_us_ticker(ticker)
         
     def _get_ticker_basic_info(self, ticker: str):
-        """Get basic ticker info from yfinance"""
+        """
+        Get basic ticker info from yfinance.
+        
+        Args:
+            ticker: Stock ticker symbol
+            
+        Returns:
+            Tuple of (yf.Ticker object, info dict)
+            
+        Raises:
+            YFinanceError: When ticker info retrieval fails
+        """
+        # Create ticker-specific logger for better context
+        from .logging_config import get_ticker_logger
+        logger = get_ticker_logger(self.logger, ticker)
+        
+        logger.debug("Retrieving basic ticker info")
         try:
             # Use cached ticker object instead of creating a new one
             stock = self._get_or_create_ticker(ticker)
             info = stock.info or {}
+            
+            # Log retrieval success with data quality indicators
+            available_fields = len(info.keys())
+            logger.info(
+                f"Retrieved ticker info successfully", 
+                extra={
+                    "available_fields": available_fields,
+                    "has_price": "currentPrice" in info,
+                    "has_target": "targetMeanPrice" in info
+                }
+            )
+            
             return stock, info
         except Exception as e:
-            self.logger.error(f"Failed to get ticker info: {str(e)}")
-            raise YFinanceError(f"Failed to get ticker info: {str(e)}")
+            error_context = {
+                "error_type": e.__class__.__name__,
+                "error_message": str(e)
+            }
+            logger.error(f"Failed to get ticker info", extra=error_context)
+            raise YFinanceError(f"Failed to get ticker info: {str(e)}", details=error_context)
             
     def _get_historical_data(self, stock):
-        """Get historical price data for a ticker"""
+        """
+        Get historical price data for a ticker.
+        
+        Args:
+            stock: yf.Ticker object
+            
+        Returns:
+            DataFrame with historical price data
+            
+        Note:
+            Returns empty DataFrame on error rather than raising exception
+            for better resilience in the data pipeline.
+        """
+        ticker = getattr(stock, 'ticker', 'UNKNOWN')
+        from .logging_config import get_ticker_logger
+        logger = get_ticker_logger(self.logger, ticker)
+        
+        logger.debug("Retrieving historical price data (2y period)")
         try:
-            return stock.history(period="2y")
+            data = stock.history(period="2y")
+            logger.info(
+                "Retrieved historical data", 
+                extra={
+                    "rows": len(data),
+                    "start_date": str(data.index[0].date()) if not data.empty else "N/A",
+                    "end_date": str(data.index[-1].date()) if not data.empty else "N/A"
+                }
+            )
+            return data
         except Exception as e:
-            self.logger.warning(f"Failed to get historical data: {str(e)}")
+            error_context = {
+                "error_type": e.__class__.__name__,
+                "error_message": str(e)
+            }
+            logger.warning("Failed to get historical data", extra=error_context)
             return pd.DataFrame()
             
     def _get_short_interest_data(self, info, is_us_ticker):

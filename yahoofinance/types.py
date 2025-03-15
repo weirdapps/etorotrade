@@ -13,7 +13,9 @@ from .errors import (
     ConnectionError,
     TimeoutError,
     ResourceNotFoundError,
-    DataError
+    DataError,
+    DataQualityError,
+    MissingDataError
 )
 
 @dataclass

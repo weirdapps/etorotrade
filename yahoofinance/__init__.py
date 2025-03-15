@@ -5,6 +5,9 @@ A robust Python-based market analysis system that leverages Yahoo Finance data
 to provide comprehensive stock analysis, portfolio management, and market intelligence.
 The system features advanced rate limiting, intelligent caching, and multiple output formats.
 
+The package handles logging, error management, and performance optimization automatically,
+allowing you to focus on analyzing financial data rather than handling infrastructure concerns.
+
 Example usage:
     
     # Basic usage - Get ticker information
@@ -31,6 +34,22 @@ Example usage:
     display.display_report(tickers)
 """
 
+# Setup logging
+import os
+import logging
+from .logging_config import setup_logging, get_logger, get_ticker_logger
+
+# Set up default logging if not already configured
+if not logging.root.handlers:
+    log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs", "yahoofinance.log")
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    setup_logging(log_level=logging.INFO, log_file=log_path)
+    
+    # Reduce noise from third-party libraries
+    logging.getLogger("requests").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("yfinance").setLevel(logging.WARNING)
+
 # Client and data types
 from .client import YFinanceClient
 from .types import StockData
@@ -49,6 +68,8 @@ from .errors import (
     TimeoutError,
     ResourceNotFoundError,
     DataError,
+    DataQualityError,
+    MissingDataError,
     CacheError,
     ConfigError
 )
@@ -82,6 +103,8 @@ __all__ = [
     'TimeoutError',
     'ResourceNotFoundError',
     'DataError',
+    'DataQualityError',
+    'MissingDataError',
     'CacheError',
     'ConfigError',
     
@@ -90,5 +113,10 @@ __all__ = [
     'normalize_hk_ticker',
     'market_cache',
     'news_cache',
-    'earnings_cache'
+    'earnings_cache',
+    
+    # Logging
+    'setup_logging',
+    'get_logger',
+    'get_ticker_logger'
 ]

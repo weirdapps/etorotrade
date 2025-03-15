@@ -20,7 +20,7 @@ from yahoofinance.utils.async_helpers import (
 from yahoofinance.errors import RateLimitError
 
 # Import test fixtures to reduce duplication
-from tests.utils.test_fixtures import (
+from tests.fixtures import (
     create_paginated_data, create_mock_fetcher, create_bulk_fetch_mocks,
     create_flaky_function, create_async_processor_mock
 )

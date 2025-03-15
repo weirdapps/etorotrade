@@ -21,7 +21,7 @@ from yahoofinance.utils.rate_limiter import (
 from yahoofinance.errors import RateLimitError, APIError
 
 # Create a reusable test fixture module
-from tests.utils.test_fixtures import create_bulk_fetch_mocks
+from tests.fixtures import create_bulk_fetch_mocks
 
 # Set up logging for tests
 logging.basicConfig(
