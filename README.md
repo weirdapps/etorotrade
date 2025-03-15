@@ -77,10 +77,11 @@ A robust Python-based market analysis system that leverages Yahoo Finance data t
   * CSV data files with comprehensive metrics
   * HTML dashboards with performance indicators
   * Automatic file organization
-- **Web Interface**
-  * Interactive performance dashboards
+- **HTML Dashboards**
+  * Performance dashboards with metrics visualization
   * Risk metric visualization
   * Market index tracking
+  * Generated from templates in templates.py
 
 ## Installation
 
@@ -89,7 +90,7 @@ A robust Python-based market analysis system that leverages Yahoo Finance data t
 git clone https://github.com/weirdapps/etorotrade
 cd etorotrade
 
-# Create virtual environment
+# Create virtual environment (Python 3.8+ recommended)
 python -m venv myenv
 source myenv/bin/activate  # Unix
 myenv\Scripts\activate     # Windows
@@ -123,7 +124,9 @@ When selecting Trade Analysis (T), you can:
 The analysis automatically saves results to CSV files:
 - Buy recommendations: yahoofinance/output/buy.csv
 - Sell recommendations: yahoofinance/output/sell.csv
+- Hold recommendations: yahoofinance/output/hold.csv
 - Market analysis: yahoofinance/output/market.csv
+- Portfolio analysis: yahoofinance/output/portfolio.csv
 
 ### Ticker Management
 
@@ -142,6 +145,17 @@ The validation process:
 3. Saves valid tickers to `yahoofinance/input/yfinance.csv`
 
 This significantly improves processing time and reduces API errors when running market analysis.
+
+#### "No Trade" List
+The system supports a list of tickers to exclude from trading recommendations (yahoofinance/input/notrade.csv). Tickers in this list will still be analyzed but won't appear in buy/sell recommendations.
+
+Format of notrade.csv:
+```
+symbol
+AAPL
+MSFT
+...
+```
 
 #### eToro Ticker Management
 The yahoofinance/input/etoro.csv file contains a subset of tickers that are available for trading on eToro. By using the 'E' option in the main program, you can analyze only these eToro-tradable stocks, significantly reducing processing time from potentially thousands of tickers to just the ones you can actually trade.
@@ -188,15 +202,66 @@ Tracks:
 - Federal Funds Rate
 - And more...
 
+### 5. Earnings Calendar
+```bash
+python -m yahoofinance.earnings
+```
+Features:
+- Upcoming earnings dates
+- Historical earnings surprises
+- Earnings estimate trends
+
+### 6. Market Index Tracking
+```bash
+python -m yahoofinance.index
+```
+Features:
+- Weekly and monthly index performance
+- Major US and international indices
+- Customizable time periods
+
 ## Configuration
 
 ### Required Files
 ```
 yahoofinance/
 ├── input/
-│   ├── portfolio.csv  # Portfolio holdings
-│   ├── market.csv     # Market watchlist
-└── .env              # API keys and settings
+│   ├── portfolio.csv    # Portfolio holdings
+│   ├── market.csv       # Market watchlist
+│   ├── etoro.csv        # eToro available tickers
+│   ├── notrade.csv      # Tickers to exclude from recommendations
+│   ├── cons.csv         # Consolidated list of important tickers
+│   ├── us_tickers.csv   # US market tickers
+│   └── yfinance.csv     # Validated tickers
+├── output/              # Generated output files
+│   ├── buy.csv          # Buy recommendations
+│   ├── sell.csv         # Sell recommendations
+│   ├── hold.csv         # Hold recommendations
+│   ├── market.csv       # Market analysis results
+│   ├── portfolio.csv    # Portfolio analysis results
+│   ├── index.html       # HTML dashboard
+│   ├── portfolio.html   # Portfolio HTML dashboard
+│   ├── script.js        # Dashboard JavaScript
+│   └── styles.css       # Dashboard CSS
+└── .env                 # API keys and settings
+```
+
+### Input File Formats
+
+**portfolio.csv** - Your current holdings:
+```
+symbol,shares,cost,date
+AAPL,10,150.25,2022-03-15
+MSFT,5,280.75,2022-04-20
+...
+```
+
+**market.csv** - Full watchlist of tickers to analyze:
+```
+symbol,sector
+AAPL,Technology
+MSFT,Technology
+...
 ```
 
 ### Environment Variables
@@ -272,7 +337,7 @@ The system uses a modular architecture:
 1. **Client Layer** (client.py): API interactions with rate limiting
 2. **Utilities Layer**: Reusable components for different operations
    - **Specialized Submodules**:
-     - `utils/data/` - Data formatting utilities
+     - `utils/data/` - Data formatting and transformation utilities
      - `utils/network/` - Rate limiting and API communication
      - `utils/market/` - Market-specific utilities like ticker validation
      - `utils/date/` - Date manipulation and formatting
@@ -311,6 +376,51 @@ Key components:
   * Exchange-specific tickers: validated up to 20 characters
   * Supports complex formats like `MAERSK-A.CO` (Danish market)
 
+## Display Formatting
+
+The system follows consistent formatting rules:
+
+- **Company Names**: 
+  * Always displayed in ALL CAPS for readability
+  * Truncated to maximum 14 characters if needed
+  * Left-aligned in all table outputs
+
+- **Market Cap Formatting**:
+  * Trillion-scale values use "T" suffix (e.g., "2.75T")
+    * ≥ 10T: 1 decimal place (e.g., "12.5T")
+    * < 10T: 2 decimal places (e.g., "2.75T")
+  * Billion-scale values use "B" suffix (e.g., "175B")
+    * ≥ 100B: No decimals (e.g., "175B")
+    * ≥ 10B and < 100B: 1 decimal place (e.g., "25.5B")
+    * < 10B: 2 decimal places (e.g., "5.25B")
+  * Right-aligned in all table outputs
+  
+- **Percentage Formatting**:
+  * Upside, EXRET, SI use 1 decimal place with % suffix (e.g., "27.9%")
+  * Buy percentage uses 0 decimal places with % suffix (e.g., "85%")
+  * Dividend yield uses 2 decimal places with % suffix (e.g., "0.84%")
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Rate Limiting Errors**
+   * Symptom: "API rate limit exceeded" errors
+   * Solution: The system implements automatic backoff. Simply wait and retry.
+
+2. **Invalid Ticker Errors**
+   * Symptom: "Invalid ticker" warnings during batch processing
+   * Solution: Run `python -m yahoofinance.validate` to update the valid tickers list
+
+3. **Missing Data for Non-US Stocks**
+   * Symptom: Missing analyst ratings or insider data for international tickers
+   * Reason: These data points are often unavailable through the API for non-US markets
+   * Solution: The system automatically adapts by skipping unavailable data sources
+
+4. **Format Errors in Input Files**
+   * Symptom: "KeyError" or "Expected column X" errors
+   * Solution: Check the format of your input CSV files against the examples provided
+
 ## Testing
 
 ```bash
@@ -331,6 +441,9 @@ pytest tests/test_market_display.py::TestMarketDisplay::test_display_report
 
 # Run tests with coverage for specific modules
 pytest tests/test_trade.py --cov=trade --cov-report=term-missing
+
+# Run verbosely with no output capture
+pytest -xvs tests/test_specific.py
 ```
 
 The codebase includes extensive test coverage for critical components:

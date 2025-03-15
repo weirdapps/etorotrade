@@ -11,12 +11,20 @@
     - Select 'H' for Hold candidates - Shows stocks with neutral outlook
   - Select 'I' for Manual ticker input - Analyze specific tickers
 - `python -m yahoofinance.validate` - Validate tickers against Yahoo Finance API
+- `python -m yahoofinance.news` - Show latest news with sentiment analysis
+- `python -m yahoofinance.portfolio` - Show portfolio performance metrics
+- `python -m yahoofinance.econ` - View economic indicators from FRED API
+- `python -m yahoofinance.earnings` - View upcoming earnings dates and surprises
+- `python -m yahoofinance.index` - View market index performance (weekly/monthly)
+- `python -m yahoofinance.monthly` - View monthly market index performance
+- `python -m yahoofinance.weekly` - View weekly market index performance
+- `python -m yahoofinance.holders` - Analyze institutional ownership
+- `python -m yahoofinance.insiders` - Analyze insider transactions
 - `pytest tests/` - Run all tests
 - `pytest tests/test_file.py::TestClass::test_method` - Run specific test
 - `pytest tests/ --cov=yahoofinance` - Run tests with coverage
 - `pytest tests/test_trade.py --cov=trade --cov-report=term-missing` - Run specific module tests with coverage
 - `pytest -xvs tests/test_specific.py` - Run verbose, no capture
-- `python -m yahoofinance.module_name` - Run specific module (news, portfolio, econ)
 - `pytest tests/test_utils.py` - Test core utilities and improvements
 - `pytest tests/test_errors.py` - Test error handling and hierarchy
 - `pytest tests/test_async.py` - Test async utilities and pagination
@@ -34,6 +42,23 @@
 - **Thread Safety**: Use proper locks when modifying shared state
 - **Asyncio**: Use appropriate async patterns with rate limiting protection
 
+## Configuration
+- **config.py**: Central configuration file with application settings
+- **Rate Limiting Settings**:
+  - `WINDOW_SIZE`: Time window for rate limiting in seconds (default: 60)
+  - `MAX_CALLS`: Maximum API calls per window (default: 60)
+  - `BASE_DELAY`: Starting delay between calls in seconds (default: 1.0)
+  - `MIN_DELAY`: Minimum delay after many successful calls (default: 0.5)
+  - `MAX_DELAY`: Maximum delay after errors (default: 30.0)
+  - `BATCH_SIZE`: Number of items per batch (default: 15)
+  - `BATCH_DELAY`: Delay between batches in seconds (default: 15.0)
+- **Trading Criteria**: Trading rules defined in `TRADING_CRITERIA` dictionary
+- **Caching Settings**:
+  - `MARKET_CACHE_TTL`: Market data cache timeout (default: 300 seconds / 5 minutes)
+  - `NEWS_CACHE_TTL`: News cache timeout (default: 900 seconds / 15 minutes)
+  - `EARNINGS_CACHE_TTL`: Earnings cache timeout (default: 3600 seconds / 1 hour)
+  - `CACHE_SIZE_LIMIT`: Maximum cache size (default: 1000 items)
+
 ## Project Organization
 - `yahoofinance/` - Main package with modular components
 - `yahoofinance/client.py` - API client with rate limiting and caching
@@ -43,6 +68,21 @@
 - `yahoofinance/errors.py` - Centralized error handling
 - `yahoofinance/types.py` - Common types and data structures
 - `yahoofinance/cache.py` - LRU caching system with size limits
+- `yahoofinance/config.py` - Configuration settings and constants
+
+### Analysis Modules
+- `yahoofinance/analyst.py` - Analyst ratings and recommendations
+- `yahoofinance/earnings.py` - Earnings dates and surprises
+- `yahoofinance/econ.py` - Economic indicators from FRED
+- `yahoofinance/holders.py` - Institutional ownership analysis
+- `yahoofinance/insiders.py` - Insider transactions analysis
+- `yahoofinance/monthly.py` - Monthly market performance
+- `yahoofinance/news.py` - News with sentiment analysis
+- `yahoofinance/portfolio.py` - Portfolio performance tracking
+- `yahoofinance/pricing.py` - Stock price and target analysis
+- `yahoofinance/weekly.py` - Weekly market performance
+- `yahoofinance/index.py` - Combined market index performance
+- `yahoofinance/_metrics.py` - Internal metrics calculations
 
 ### Utility Modules
 - `yahoofinance/utils/` - Utility modules for core functionality
@@ -67,7 +107,7 @@ The codebase follows a modular design with clear separation of concerns:
     - `ticker_utils.py` - Core implementation of ticker validation/normalization
   - `utils/date/` - Date manipulation and formatting
     - `date_utils.py` - Date formatting and processing utilities
-  - `utils/async/` - Asynchronous operation helpers
+  - `utils/async/` - Asynchronous operation helpers (currently missing, planned)
 
 The top-level utils files (`rate_limiter.py`, `pagination.py`, etc.) serve as compatibility layers that re-export functionality from their specialized submodule implementations, ensuring backward compatibility while allowing for a more organized code structure.
 
@@ -77,7 +117,12 @@ The top-level utils files (`rate_limiter.py`, `pagination.py`, etc.) serve as co
   - `tests/test_rate.py` - Tests for rate limiting functionality
   - `tests/test_async.py` - Tests for async helpers and pagination
   - `tests/test_errors.py` - Tests for error hierarchy and handling
+  - `tests/test_market_display.py` - Tests for market display functionality
+  - `tests/test_market_display_batch.py` - Tests for batch processing
+  - `tests/test_market_display_html.py` - Tests for HTML output
   - Other module-specific test files (test_client.py, test_display.py, etc.)
+  - `tests/fixtures/` - Reusable test fixtures for complex objects
+  - `tests/utils/test_fixtures.py` - Common test utilities
 
 ### Data Directories
 - `yahoofinance/input/` - Input data files (.csv)
@@ -85,6 +130,9 @@ The top-level utils files (`rate_limiter.py`, `pagination.py`, etc.) serve as co
   - `etoro.csv` - Filtered list of tickers available on eToro
   - `portfolio.csv` - Current portfolio holdings
   - `yfinance.csv` - Valid tickers that pass Yahoo Finance API validation
+  - `notrade.csv` - Tickers to exclude from trading recommendations
+  - `cons.csv` - Consolidated list of important tickers
+  - `us_tickers.csv` - US market tickers
 - `yahoofinance/output/` - Generated output files
   - `buy.csv` - Generated buy recommendations
   - `sell.csv` - Generated sell recommendations
@@ -92,7 +140,43 @@ The top-level utils files (`rate_limiter.py`, `pagination.py`, etc.) serve as co
   - `market.csv` - Analysis results from market or eToro tickers
   - `portfolio.csv` - Analysis results from portfolio
   - `index.html`, `portfolio.html` - HTML dashboards
-  
+  - `script.js` - Dashboard JavaScript
+  - `styles.css` - Dashboard styles
+
+### Input File Formats
+
+#### portfolio.csv
+```
+symbol,shares,cost,date
+AAPL,10,150.25,2022-03-15
+MSFT,5,280.75,2022-04-20
+...
+```
+
+#### market.csv
+```
+symbol,sector
+AAPL,Technology
+MSFT,Technology
+...
+```
+
+#### etoro.csv
+```
+symbol,name
+AAPL,Apple Inc.
+MSFT,Microsoft Corporation
+...
+```
+
+#### notrade.csv
+```
+symbol
+AAPL
+MSFT
+...
+```
+
 ## Trading Criteria
 
 - **INCONCLUSIVE**:
@@ -137,6 +221,13 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
   - Example: `03690.HK` → `3690.HK`
   - 4-digit tickers remain unchanged (e.g., `0700.HK`)
 
+- **US Ticker Detection**:
+  - US tickers have no suffix or end with .US
+  - Special cases: BRK.A, BRK.B, BF.A, BF.B are US stocks with dots
+
+- **Crypto Tickers**:
+  - Standardized to the `-USD` format (e.g., `BTC-USD`, `ETH-USD`)
+
 ## Display Formatting
 - **Company Names**: 
   - Always displayed in ALL CAPS for readability
@@ -162,6 +253,21 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
   - Price, target price, beta, PET, PEF, PEG use 1 decimal place
   - Rankings (# column) included in all views for consistent display
 
+## HTML Dashboard Generation
+- **Templates**: Defined in `templates.py`
+- **Components**:
+  - Base HTML structure with responsive design
+  - CSS styles for metrics and data visualization
+  - JavaScript for dynamic content
+- **Dashboard Types**:
+  - Market dashboard (index.html)
+  - Portfolio dashboard (portfolio.html)
+- **Update Process**:
+  - Data retrieved through API or from CSVs
+  - Formatted using FormatUtils for consistent presentation
+  - Inserted into templates
+  - Written to output directory
+
 ## Performance Optimizations
 - **Ticker Validation**:
   - Validates tickers against Yahoo Finance API
@@ -169,7 +275,7 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
   - Saves valid tickers to yfinance.csv
   - Improves batch processing reliability
   - Reduces API errors and failed requests
-
+  
 - **US vs Non-US Market Detection**:
   - Automatically detects US vs non-US tickers based on exchange suffix
   - US tickers have no suffix or end with .US
@@ -212,11 +318,46 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
   - Contextual error recovery
   - API-specific error handling
   
+- **Error Hierarchy**:
+  - `YFinanceError` - Base class for all errors
+  - `ValidationError` - Input validation issues
+  - `APIError` - General API communication errors
+  - `RateLimitError` - Rate limiting detected
+  - `NetworkError` - Network connectivity issues
+  - `DataError` - Problems with data quality or availability
+  - `ConfigError` - Configuration-related errors
+  
 - **Rate Limit Handling**:
   - Automatic detection of rate limits
   - Smart backoff strategies
   - Success/failure tracking
   - Adaptive delay calculation
+
+## Testing Approach
+- **Unit Testing**: Tests individual components in isolation
+- **Mock-Based Testing**: Uses mock objects to isolate components
+- **Test Coverage**: Aims for high coverage of critical components
+- **Component Testing**: Tests interactions between related components
+- **Test Fixtures**: Reusable test data and setup utilities
+- **Pytest Patterns**: Uses pytest fixtures and parameterization
+
+## Troubleshooting Common Issues
+- **Rate Limiting Errors**:
+  - The system implements automatic backoff
+  - Check if you're using rate_limited decorator or AdaptiveRateLimiter
+  - Increase BASE_DELAY if experiencing frequent errors
+  
+- **Invalid Ticker Errors**:
+  - Run `python -m yahoofinance.validate` to update valid tickers
+  - Check ticker formats for exchange-specific requirements
+  
+- **Missing Data for Non-US Stocks**:
+  - Expected behavior - some data isn't available for international markets
+  - System will skip those API calls automatically
+  
+- **Input File Format Errors**:
+  - Verify CSV headers match expected format
+  - Check for BOM markers or encoding issues in input files
 
 ## Asynchronous Capabilities
 - **Safe Async Operations**:
@@ -224,6 +365,9 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
   - Controlled concurrency
   - Exponential backoff for failures
   - Resource-efficient batch processing
+- **AsyncRateLimiter**: Thread-safe rate limiting for async operations
+- **async_rate_limited Decorator**: Easy application to async functions
+- **Semaphore Usage**: Controls concurrent API access
 
 ## Code Duplication Cleanup
 The codebase has been reorganized to eliminate duplications:
@@ -243,3 +387,10 @@ The codebase has been reorganized to eliminate duplications:
 - **Market Utilities**:
   - Combined functionality from `market_utils.py` and `utils/market/ticker_utils.py`
   - Preserved API compatibility
+
+## Pending Improvements
+- **Async Directory Structure**: Create proper `utils/async/` directory with implementations
+- **Testing Consolidation**: Combine similar test files (rate limiter, market display)
+- **API Architecture**: Implement or remove empty `api/providers/` directory
+- **Trading Directory**: Implement or remove empty `trading/` directory
+- **Metrics Naming**: Rename `_metrics.py` to follow standard naming conventions
