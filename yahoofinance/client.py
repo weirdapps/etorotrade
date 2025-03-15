@@ -86,17 +86,38 @@ class YFinanceClient:
             Various exceptions that will be caught by the calling method
         """
         stock = yf.Ticker(ticker)
-        earnings_dates = stock.get_earnings_dates()
+        try:
+            # Suppress pandas warnings during this operation
+            import warnings
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                earnings_dates = stock.get_earnings_dates()
+            
+            if earnings_dates is None or earnings_dates.empty:
+                return []
 
-        if earnings_dates is None or earnings_dates.empty:
+            # Ensure valid timestamps in index before filtering
+            valid_dates = pd.DatetimeIndex([
+                date for date in earnings_dates.index 
+                if isinstance(date, pd.Timestamp) and not pd.isna(date)
+            ])
+            
+            if len(valid_dates) == 0:
+                return []
+                
+            # Create filtered DataFrame with valid dates only
+            valid_earnings = earnings_dates.loc[valid_dates]
+            
+            # Convert index to datetime and filter only past earnings dates
+            current_time = pd.Timestamp.now(tz=valid_dates[0].tz if len(valid_dates) > 0 else None)
+            past_earnings = valid_earnings[valid_earnings.index < current_time]
+
+            # Return sorted dates (most recent first)
+            return sorted(past_earnings.index, reverse=True)
+            
+        except Exception as e:
+            self.logger.debug(f"Error processing earnings dates for {ticker}: {str(e)}")
             return []
-
-        # Convert index to datetime and filter only past earnings dates
-        current_time = pd.Timestamp.now(tz=earnings_dates.index.tz)
-        past_earnings = earnings_dates[earnings_dates.index < current_time]
-
-        # Return sorted dates (most recent first)
-        return sorted(past_earnings.index, reverse=True)
     
     def _handle_api_error(self, e, ticker: str, attempts: int) -> Optional[Exception]:
         """
@@ -206,20 +227,40 @@ class YFinanceClient:
         """
         self._validate_ticker(ticker)
         try:
-            past_dates = self.get_past_earnings_dates(ticker)
+            # Suppress pandas warnings during this operation
+            import warnings
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                past_dates = self.get_past_earnings_dates(ticker)
             
             if not past_dates:
                 return None, None
                 
-            most_recent = past_dates[0].strftime('%Y-%m-%d') if past_dates else None
-            previous = past_dates[1].strftime('%Y-%m-%d') if len(past_dates) >= 2 else None
+            # Format dates safely
+            most_recent = None
+            previous = None
+            
+            if past_dates and len(past_dates) > 0:
+                try:
+                    most_recent = past_dates[0].strftime('%Y-%m-%d')
+                except (AttributeError, ValueError, TypeError):
+                    # Handle cases where the date is not a valid Timestamp
+                    most_recent = None
+                    
+            if past_dates and len(past_dates) >= 2:
+                try:
+                    previous = past_dates[1].strftime('%Y-%m-%d')
+                except (AttributeError, ValueError, TypeError):
+                    # Handle cases where the date is not a valid Timestamp
+                    previous = None
             
             return most_recent, previous
         except APIError:
             # Re-raise API errors
             raise
         except Exception as e:
-            raise APIError(f"Failed to process earnings dates for {ticker}: {str(e)}")
+            self.logger.warning(f"Failed to process earnings dates for {ticker}: {str(e)}")
+            return None, None  # Return None values instead of raising to improve resilience
         
     def _calculate_price_changes(self, hist: pd.DataFrame) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[float]]:
         """Calculate various price change metrics from historical data."""

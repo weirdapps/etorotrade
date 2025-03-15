@@ -6,19 +6,23 @@ Command-line interface for the market analysis tool.
 import logging
 import sys
 import os
+import warnings
 import pandas as pd
 from tabulate import tabulate
 from yahoofinance.display import MarketDisplay
 from yahoofinance.formatting import DisplayFormatter, DisplayConfig, Color
+
+# Filter out pandas-specific warnings about invalid values
+warnings.filterwarnings("ignore", category=RuntimeWarning, message="invalid value encountered in cast")
 
 # Define constants for column names
 BUY_PERCENTAGE = '% BUY'
 DIVIDEND_YIELD = 'DIV %'
 COMPANY_NAME = 'COMPANY NAME'
 
-# Set up logging with INFO level
+# Set up logging with CRITICAL level only
 logging.basicConfig(
-    level=logging.INFO,  # Changed from DEBUG to INFO
+    level=logging.CRITICAL,  # Only show CRITICAL notifications
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
@@ -473,12 +477,21 @@ def format_earnings_date(display_df):
         return display_df
         
     def format_date(date_str):
-        if pd.notnull(date_str) and date_str != '--':
-            try:
-                return pd.to_datetime(date_str).strftime('%Y-%m-%d')
-            except ValueError:
-                return date_str
-        return '--'
+        if pd.isna(date_str) or date_str == '--':
+            return '--'
+            
+        try:
+            # Convert to datetime safely with errors='coerce'
+            date_obj = pd.to_datetime(date_str, errors='coerce')
+            # If conversion was successful, format it
+            if pd.notna(date_obj):
+                return date_obj.strftime('%Y-%m-%d')
+            else:
+                # If conversion resulted in NaT, return placeholder
+                return '--'
+        except Exception:
+            # Fall back to original string if any unexpected error
+            return str(date_str)
     
     display_df['EARNINGS'] = display_df['EARNINGS'].apply(format_date)
     return display_df
