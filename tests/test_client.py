@@ -301,7 +301,7 @@ class TestYFinanceClient(unittest.TestCase):
         cache_info = client.get_cache_info()
         initial_hits = cache_info['hits']
         initial_misses = cache_info['misses']
-        self.assertEqual(cache_info['maxsize'], 50)
+        self.assertEqual(cache_info['maxsize'], 100)  # Updated from 50 to match new config
         self.assertEqual(cache_info['currsize'], 0)
         
         # Test cache hit/miss
@@ -332,6 +332,7 @@ class TestYFinanceClient(unittest.TestCase):
         client.clear_cache()
         cache_info = client.get_cache_info()
         self.assertEqual(cache_info['currsize'], 0)
+        self.assertEqual(cache_info['ticker_cache_size'], 0)  # Check ticker cache was cleared too
         
     def test_validate_ticker(self):
         """Test ticker validation with various formats"""

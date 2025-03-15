@@ -85,7 +85,7 @@ class StockData:
     insider_transactions: Optional[int] = None
     
     # Internal (Optional)
-    ticker_object: Optional[yf.Ticker] = field(default=None)
+    ticker_object: Optional[yf.Ticker] = field(default=None, repr=False)  # Don't include in string representation
 
     def __post_init__(self):
         """Validate types after initialization"""

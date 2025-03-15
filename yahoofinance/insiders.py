@@ -63,7 +63,11 @@ class InsiderAnalyzer:
                 }
             
             # Get insider transactions
-            stock = stock_info._stock
+            # stock_info.ticker_object was set to None in StockData object, use stock_info._stock instead
+            if stock_info.ticker_object is not None:
+                stock = stock_info.ticker_object
+            else:
+                stock = stock_info._stock
             insider_df = stock.insider_transactions
             
             if insider_df is None or insider_df.empty:
