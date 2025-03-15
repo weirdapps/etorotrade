@@ -334,9 +334,9 @@ def batch_process(items: List[Any], processor: Callable[[Any], T],
             # Calculate delay based on success rate
             if success_rate < 0.5:  # Poor success rate
                 batch_delay = global_rate_limiter.batch_delay * 2
-            elif success_rate > 0.8:  # Good success rate
+            elif success_rate > 0.75:  # Good success rate (threshold reduced from 0.8)
                 batch_delay = max(global_rate_limiter.min_delay, 
-                                  global_rate_limiter.batch_delay * 0.8)
+                                  global_rate_limiter.batch_delay * 0.75)  # Faster reduction (from 0.8)
             else:
                 batch_delay = global_rate_limiter.batch_delay
             

@@ -414,12 +414,12 @@ class YFinanceClient:
             ticker_object=stock
         )
     
-    @lru_cache(maxsize=50)  # Limit cache size to prevent memory issues
+    @lru_cache(maxsize=100)  # Limit cache size to prevent memory issues (increased from 50)
     def get_ticker_info(self, ticker: str, skip_insider_metrics: bool = False) -> StockData:
         """
         Get stock information with retry mechanism and caching.
         
-        The data is cached for a maximum of 50 entries to prevent memory issues.
+        The data is cached for a maximum of 100 entries to prevent memory issues.
         Cache is automatically cleared when full.
         
         Args:
