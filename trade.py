@@ -20,13 +20,22 @@ BUY_PERCENTAGE = '% BUY'
 DIVIDEND_YIELD = 'DIV %'
 COMPANY_NAME = 'COMPANY NAME'
 
-# Set up logging with CRITICAL level only
+# Set up logging to show only CRITICAL and RateLimitError
 logging.basicConfig(
     level=logging.CRITICAL,  # Only show CRITICAL notifications
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
+# Configure loggers
 logger = logging.getLogger(__name__)
+
+# Set all loggers to CRITICAL level
+for logger_name in logging.root.manager.loggerDict:
+    logging.getLogger(logger_name).setLevel(logging.CRITICAL)
+
+# Allow rate limiter warnings to pass through
+rate_limiter_logger = logging.getLogger('yahoofinance.display')
+rate_limiter_logger.setLevel(logging.WARNING)
 
 def get_file_paths():
     """Get the file paths for trade recommendation analysis.
