@@ -389,22 +389,6 @@ class MarketDisplay:
             logger.debug(f"Error processing {ticker}: {str(e)}")
             return None
 
-    def _process_batch(self, batch: List[str], batch_num: int, total_batches: int) -> Tuple[List[Dict[str, Any]], float]:
-        """Process a batch of tickers and return reports and success rate"""
-        batch_reports = []
-        successful_tickers = 0
-        
-        # Process batch with progress bar
-        batch_desc = f"Batch {batch_num + 1}/{total_batches}"
-        for ticker in tqdm(batch, desc=batch_desc, unit="ticker"):
-            report = self._process_single_ticker(ticker)
-            if report:
-                batch_reports.append(report)
-                successful_tickers += 1
-
-        success_rate = successful_tickers / len(batch)
-        return batch_reports, success_rate
-
     def _adjust_batch_delay(self, success_rate: float) -> float:
         """Calculate adjusted batch delay based on success rate"""
         batch_delay = self.rate_limiter.get_batch_delay()
@@ -432,19 +416,94 @@ class MarketDisplay:
             batch_size = RATE_LIMIT["BATCH_SIZE"]
         reports = []
         sorted_tickers = sorted(set(tickers))
-        total_batches = (len(sorted_tickers) - 1) // batch_size + 1
+        total_tickers = len(sorted_tickers)
+        total_batches = (total_tickers - 1) // batch_size + 1
         
-        for batch_num, i in enumerate(range(0, len(sorted_tickers), batch_size)):
-            # Process current batch
-            batch = sorted_tickers[i:i + batch_size]
-            batch_reports, success_rate = self._process_batch(batch, batch_num, total_batches)
-            reports.extend(batch_reports)
-            
-            # Add adaptive delay between batches (except for last batch)
-            if batch_num < total_batches - 1:
-                batch_delay = self._adjust_batch_delay(success_rate)
-                logger.info(f"Batch {batch_num + 1} complete (Success rate: {success_rate:.1%}). Waiting {batch_delay:.1f} seconds...")
-                time.sleep(batch_delay)
+        # Track average time per ticker for better progress estimates
+        avg_time_per_ticker = None
+        
+        process_start_time = time.time()
+        
+        # Create a master progress bar for all tickers - with explicit formatting and wider bar
+        with tqdm(total=total_tickers, desc=f"BATCH 0/{total_batches} ({0}/{total_tickers} tickers)", 
+                  unit="ticker", bar_format='{desc}: {percentage:3.0f}%|{bar:80}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as master_pbar:
+            for batch_num, i in enumerate(range(0, total_tickers, batch_size)):
+                # Process current batch
+                batch = sorted_tickers[i:i + batch_size]
+                processed_so_far = i  # Number of tickers processed before this batch
+                
+                # Process batch without its own progress bar - we'll update the master bar
+                batch_start_time = time.time()
+                batch_reports = []
+                successful_tickers = 0
+                ticker_times = []
+                
+                # Update master bar description at batch start - simpler format
+                master_pbar.set_description(
+                    f"BATCH {batch_num+1}/{total_batches} ({processed_so_far}/{total_tickers} tickers)"
+                )
+                
+                for j, ticker in enumerate(batch):
+                    # Process ticker
+                    ticker_start_time = time.time()
+                    report = self._process_single_ticker(ticker)
+                    ticker_end_time = time.time()
+                    
+                    # Update counters and progress
+                    ticker_time = ticker_end_time - ticker_start_time
+                    ticker_times.append(ticker_time)
+                    current_ticker = processed_so_far + j + 1
+                    
+                    # Update master bar after completing a ticker
+                    master_pbar.update(1)
+                    
+                    # Update description to show current progress - simpler format
+                    master_pbar.set_description(
+                        f"BATCH {batch_num+1}/{total_batches} ({current_ticker}/{total_tickers} tickers)"
+                    )
+                    
+                    if report:
+                        batch_reports.append(report)
+                        successful_tickers += 1
+                
+                # Add batch reports to overall reports
+                reports.extend(batch_reports)
+                
+                # Calculate batch metrics
+                batch_end_time = time.time()
+                batch_duration = batch_end_time - batch_start_time
+                success_rate = successful_tickers / len(batch) if len(batch) > 0 else 0
+                batch_avg_time = sum(ticker_times) / len(ticker_times) if ticker_times else 0
+                
+                # Update average time per ticker across all batches
+                if avg_time_per_ticker is None:
+                    avg_time_per_ticker = batch_avg_time
+                else:
+                    # Weighted average based on number of tickers processed
+                    processed_so_far += len(batch)  # Update for next batch
+                    avg_time_per_ticker = (avg_time_per_ticker * (processed_so_far - len(batch)) + 
+                                          batch_avg_time * len(batch)) / processed_so_far
+                
+                # Add adaptive delay between batches (except for last batch)
+                if batch_num < total_batches - 1:
+                    batch_delay = self._adjust_batch_delay(success_rate)
+                    
+                    # Update progress bar to show waiting message - simpler format
+                    master_pbar.set_description(
+                        f"BATCH {batch_num+1}/{total_batches} - Waiting {batch_delay:.1f}s before next batch..."
+                    )
+                    
+                    # Sleep without interrupting the progress display
+                    time.sleep(batch_delay)
+        
+        # Show summary at the end - update the progress bar's final state
+        process_end_time = time.time()
+        total_duration = process_end_time - process_start_time
+        
+        # Final summary is displayed in the progress bar without additional logging - simpler format
+        master_pbar.set_description(
+            f"COMPLETED - Processed {total_tickers} tickers"
+        )
         
         return reports
 
@@ -551,40 +610,28 @@ class MarketDisplay:
                                 'label': 'YTD',
                                 'is_percentage': True
                             }
-                            portfolio_metrics['2YR'] = {
-                                'value': data.two_year_change,
-                                'label': '2YR',
-                                'is_percentage': True
-                            }
                         
                         # Risk metrics
-                        risk_metrics['Beta'] = {
-                            'value': data.beta,
-                            'label': 'Portfolio Beta',
-                            'is_percentage': False
-                        }
-                        risk_metrics['Alpha'] = {
-                            'value': data.alpha,
-                            'label': "Jensen's Alpha",
-                            'is_percentage': False
-                        }
-                        risk_metrics['Sharpe'] = {
-                            'value': data.sharpe_ratio,
-                            'label': 'Sharpe Ratio',
-                            'is_percentage': False
-                        }
-                        risk_metrics['Sortino'] = {
-                            'value': data.sortino_ratio,
-                            'label': 'Sortino Ratio',
-                            'is_percentage': False
-                        }
-                        risk_metrics['Cash'] = {
-                            'value': data.cash_percentage,
-                            'label': 'Cash',
-                            'is_percentage': True
-                        }
+                        if data.beta:
+                            risk_metrics['BETA'] = {
+                                'value': data.beta,
+                                'label': 'Beta',
+                                'is_percentage': False
+                            }
+                        if data.alpha:
+                            risk_metrics['ALPHA'] = {
+                                'value': data.alpha,
+                                'label': 'Alpha',
+                                'is_percentage': True
+                            }
+                        if data.sharpe_ratio:
+                            risk_metrics['SHARPE'] = {
+                                'value': data.sharpe_ratio,
+                                'label': 'Sharpe',
+                                'is_percentage': False
+                            }
                 except Exception as e:
-                    logger.debug(f"Error getting metrics for {ticker}: {str(e)}")
+                    logger.debug(f"Error getting portfolio metrics for {ticker}: {str(e)}")
             
             # Format metrics
             formatted_portfolio = FormatUtils.format_market_metrics(portfolio_metrics)
@@ -593,109 +640,86 @@ class MarketDisplay:
             # Create sections for HTML
             sections = [
                 {
-                    'title': 'Portfolio Returns',
+                    'title': 'Portfolio Performance',
                     'metrics': formatted_portfolio,
-                    'columns': 4,
-                    'width': '700px'
+                    'columns': 3,
+                    'width': '400px'
                 },
                 {
                     'title': 'Risk Metrics',
                     'metrics': formatted_risk,
-                    'columns': 5,
-                    'width': '700px'
+                    'columns': 3,
+                    'width': '400px'
                 }
             ]
             
             # Generate and write HTML
             html_content = FormatUtils.generate_market_html(
-                title='Portfolio Performance',
+                title='Portfolio Dashboard',
                 sections=sections
             )
             self._write_html_file(html_content, 'portfolio.html')
             
         except Exception as e:
             logger.error(f"Error generating portfolio HTML: {str(e)}")
-    
+            
     def _get_output_path(self, source: str) -> str:
-        """Get the output path for CSV file based on source"""
-        filename = 'market.csv' if source == 'M' else 'portfolio.csv'
-        return f"{self.input_dir}/../output/{filename}"
-
-    def _process_raw_report(self, report: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Process a single raw report, calculating EXRET and removing internal columns"""
-        if not isinstance(report, dict) or 'raw' not in report:
-            return None
-
-        raw_report = report['raw'].copy()
-        
-        # Calculate EXRET
-        upside = raw_report.get('upside')
-        buy_percentage = raw_report.get('buy_percentage')
-        if upside is not None and buy_percentage is not None:
-            raw_report['EXRET'] = upside * buy_percentage / 100
+        """Get output path based on source."""
+        if source == 'M':
+            return f"{self.input_dir}/../output/market.csv"
+        elif source == 'P':
+            return f"{self.input_dir}/../output/portfolio.csv"
+        else:
+            raise ValueError(f"Invalid source: {source}")
             
-        # Add company name if available
-        # This will be stored in the report for later use when creating the dataframe
-        ticker = raw_report.get('ticker')
-        if ticker:
-            try:
-                # Try to get company name from the existing data
-                raw_report['company_name'] = raw_report.get('company_name', ticker)
-            except Exception as e:
-                logger.debug(f"Error processing company name for {ticker}: {str(e)}")
-                raw_report['company_name'] = ticker
-
-        # Remove internal columns
-        for col in ['_not_found', '_sort_exret', '_sort_earnings', '_ticker']:
-            raw_report.pop(col, None)
-            
-        return raw_report
-
     def _create_dataframe(self, reports: List[Dict[str, Dict[str, Any]]]) -> pd.DataFrame:
-        """Create DataFrame from reports with proper column ordering"""
-        if isinstance(reports, pd.DataFrame):
-            return reports
-
-        # Extract and process raw reports
-        raw_reports = []
-        for report in reports:
-            processed_report = self._process_raw_report(report)
-            if processed_report:
-                raw_reports.append(processed_report)
-
-        df = pd.DataFrame(raw_reports)
+        """Create and preprocess market analysis DataFrame."""
+        # Extract raw data from reports
+        raw_data = [report['raw'] for report in reports]
+        df = pd.DataFrame(raw_data)
         
-        # Rename the company_name column to company (for CSV output) and convert to ALL CAPS
-        if 'company_name' in df.columns:
-            # First convert to ALL CAPS
-            df['company_name'] = df['company_name'].apply(lambda x: str(x).upper() if x else "")
-            # Then rename
-            df.rename(columns={'company_name': 'company'}, inplace=True)
-        # Fallback: Add company column with ticker values if company_name wasn't available
-        elif 'company' not in df.columns and 'ticker' in df.columns:
-            df['company'] = df['ticker']
-        # Make sure company column is in ALL CAPS if it exists
-        if 'company' in df.columns:
-            df['company'] = df['company'].apply(lambda x: str(x).upper() if x else "")
+        if df.empty:
+            return df
             
-        # Fix last_earnings column to prevent datetime warnings
-        if 'last_earnings' in df.columns:
-            # Convert earnings dates to string to avoid pandas datetime warnings
-            df['last_earnings'] = df['last_earnings'].apply(
-                lambda x: self.formatter.format_date(x) if x is not None else "--"
+        # Add helper columns for sorting
+        df['_ticker'] = df['ticker']
+        
+        # Add excess return (EXRET) column for sorting if needed data is available
+        if all(col in df.columns for col in ['upside', 'buy_percentage']):
+            df['_sort_exret'] = df.apply(
+                lambda row: row['upside'] * row['buy_percentage'] / 100 if pd.notnull(row['upside']) and pd.notnull(row['buy_percentage']) else 0,
+                axis=1
             )
+            df['EXRET'] = df['_sort_exret']  # Add EXRET as regular column too
+        else:
+            df['_sort_exret'] = 0
             
-        # Add formatted market cap column and rename original market_cap to cap
+        # Add earnings sorting column if data is available
+        if 'last_earnings' in df.columns:
+            df['_sort_earnings'] = df['last_earnings'].notna().astype(int)
+        else:
+            df['_sort_earnings'] = 0
+            
+        # Set company column if not present
+        if 'company' not in df.columns and 'company_name' in df.columns:
+            df['company'] = df['company_name']
+            
+        # Format market cap for display
         if 'market_cap' in df.columns:
-            # First, add a properly formatted market_cap_formatted column
-            from yahoofinance.formatting import DisplayFormatter
+            from .formatting import DisplayFormatter
             formatter = DisplayFormatter()
-            df['market_cap_formatted'] = df['market_cap'].apply(lambda x: formatter.format_market_cap(x))
+            df['cap'] = df['market_cap'].apply(
+                lambda x: formatter.format_market_cap(x) if pd.notnull(x) else "--"
+            )
+            df['market_cap_formatted'] = df['cap']
             
-            # Then rename the original column as before
-            df.rename(columns={'market_cap': 'cap'}, inplace=True)
-        
-        # Add % SI column (same as short_float_pct but explicitly named for clarity in CSV)
+        # Add percentage sign columns for CSV
+        if 'buy_percentage' in df.columns:
+            df['buy_percentage_pct'] = df['buy_percentage']
+            
+        if 'dividend_yield' in df.columns:
+            df['dividend_yield_pct'] = df['dividend_yield']
+            
         if 'short_float_pct' in df.columns:
             df['short_interest_percent'] = df['short_float_pct']
             
@@ -808,4 +832,4 @@ class MarketDisplay:
             print(f"{Color.BUY.value}■{Color.RESET.value} GREEN: BUY - Strong outlook, meets all criteria (upside ≥20%, buy rating ≥82%, PEF ≤45.0, etc.)")
             print(f"{Color.SELL.value}■{Color.RESET.value} RED: SELL - Risk flags present (ANY of: upside <5%, buy rating <65%, PEF >45.0, etc.)")
             print(f"{Color.LOW_CONFIDENCE.value}■{Color.RESET.value} YELLOW: LOW CONFIDENCE - Insufficient analyst coverage (<5 price targets or <5 ratings)")
-            print(f"{Color.NEUTRAL.value}■{Color.RESET.value} WHITE: HOLD - Passes confidence threshold but doesn't meet buy or sell criteria")
+            print(f"{Color.NEUTRAL.value}■{Color.RESET.value} WHITE: HOLD - Passes confidence threshold but doesn't meet buy or sell criteria)")
