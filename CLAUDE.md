@@ -1,6 +1,25 @@
 # CLAUDE.md - Guide for Coding Agents
 
+## Table of Contents
+- [Commands](#commands)
+- [Code Style](#code-style)
+- [Configuration](#configuration)
+- [Project Structure](#project-structure)
+- [Data Formats](#data-formats)
+- [Trading Criteria](#trading-criteria)
+- [Ticker Formats](#ticker-formats)
+- [Display Formatting](#display-formatting)
+- [Performance Optimizations](#performance-optimizations)
+- [Error Handling](#error-handling)
+- [Testing](#testing)
+- [Asynchronous Capabilities](#asynchronous-capabilities)
+- [Troubleshooting](#troubleshooting)
+- [Pending Improvements](#pending-improvements)
+- [File Directory Documentation](#file-directory-documentation)
+
 ## Commands
+
+### Application Commands
 - `python trade.py` - Run main app
   - Select 'P' for Portfolio analysis - Shows analysis of current portfolio holdings
   - Select 'M' for Market analysis - Analyzes all stocks in the market list
@@ -20,6 +39,8 @@
 - `python -m yahoofinance.weekly` - View weekly market index performance
 - `python -m yahoofinance.holders` - Analyze institutional ownership
 - `python -m yahoofinance.insiders` - Analyze insider transactions
+
+### Testing Commands
 - `pytest tests/` - Run all tests
 - `pytest tests/test_file.py::TestClass::test_method` - Run specific test
 - `pytest tests/ --cov=yahoofinance` - Run tests with coverage
@@ -52,15 +73,28 @@
   - `MAX_DELAY`: Maximum delay after errors (default: 30.0)
   - `BATCH_SIZE`: Number of items per batch (default: 15)
   - `BATCH_DELAY`: Delay between batches in seconds (default: 15.0)
-- **Trading Criteria**: Trading rules defined in `TRADING_CRITERIA` dictionary
+  - **Rate Limit Handling**:
+    - Automatic detection of rate limits
+    - Smart backoff strategies
+    - Success/failure tracking
+    - Adaptive delay calculation
 - **Caching Settings**:
   - `MARKET_CACHE_TTL`: Market data cache timeout (default: 300 seconds / 5 minutes)
   - `NEWS_CACHE_TTL`: News cache timeout (default: 900 seconds / 15 minutes)
   - `EARNINGS_CACHE_TTL`: Earnings cache timeout (default: 3600 seconds / 1 hour)
   - `CACHE_SIZE_LIMIT`: Maximum cache size (default: 1000 items)
+- **Trading Criteria**: Trading rules defined in `TRADING_CRITERIA` dictionary
 
-## Project Organization
+## Project Structure
+
+### High-Level Organization
 - `yahoofinance/` - Main package with modular components
+- `tests/` - Test files with module-based organization
+- `logs/` - Log files
+- `assets/` - Application assets (images, etc.)
+- `myenv/` - Python virtual environment
+
+### Core Modules
 - `yahoofinance/client.py` - API client with rate limiting and caching
 - `yahoofinance/display.py` - Output handling and batch processing
 - `yahoofinance/formatting.py` - Data formatting, colorization, and display style rules
@@ -82,7 +116,7 @@
 - `yahoofinance/pricing.py` - Stock price and target analysis
 - `yahoofinance/weekly.py` - Weekly market performance
 - `yahoofinance/index.py` - Combined market index performance
-- `yahoofinance/_metrics.py` - Internal metrics calculations
+- `yahoofinance/metrics.py` - Internal metrics calculations
 
 ### Utility Modules
 - `yahoofinance/utils/` - Utility modules for core functionality
@@ -123,6 +157,8 @@ The top-level utils files (`rate_limiter.py`, `pagination.py`, etc.) serve as co
   - Other module-specific test files (test_client.py, test_display.py, etc.)
   - `tests/fixtures/` - Reusable test fixtures for complex objects
   - `tests/utils/test_fixtures.py` - Common test utilities
+
+## Data Formats
 
 ### Data Directories
 - `yahoofinance/input/` - Input data files (.csv)
@@ -214,21 +250,30 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
 - **EXRET Calculation**:
   - Expected Return = Upside Potential × Buy Percentage / 100
 
-## Exchange Ticker Formats
+## Ticker Formats
+
+- **US Ticker Detection**:
+  - US tickers have no suffix or end with .US
+  - Special cases: BRK.A, BRK.B, BF.A, BF.B are US stocks with dots
+
 - **Hong Kong (HK) Stocks**:
   - Program automatically fixes eToro HK ticker formats
   - Leading zeros are removed from tickers with 5+ digits
   - Example: `03690.HK` → `3690.HK`
   - 4-digit tickers remain unchanged (e.g., `0700.HK`)
 
-- **US Ticker Detection**:
-  - US tickers have no suffix or end with .US
-  - Special cases: BRK.A, BRK.B, BF.A, BF.B are US stocks with dots
-
 - **Crypto Tickers**:
   - Standardized to the `-USD` format (e.g., `BTC-USD`, `ETH-USD`)
 
+- **Ticker Length Validation**:
+  - Standard tickers: up to 10 characters
+  - Exchange-specific tickers: up to 20 characters (allows for longer exchange formats)
+  - Handles special formats like 'MAERSK-A.CO'
+
 ## Display Formatting
+
+### Text Formatting
+
 - **Company Names**: 
   - Always displayed in ALL CAPS for readability
   - Truncated to maximum 14 characters if needed
@@ -253,7 +298,7 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
   - Price, target price, beta, PET, PEF, PEG use 1 decimal place
   - Rankings (# column) included in all views for consistent display
 
-## HTML Dashboard Generation
+### HTML Dashboard Generation
 - **Templates**: Defined in `templates.py`
 - **Components**:
   - Base HTML structure with responsive design
@@ -269,6 +314,7 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
   - Written to output directory
 
 ## Performance Optimizations
+
 - **Ticker Validation**:
   - Validates tickers against Yahoo Finance API
   - Filters out invalid or delisted tickers 
@@ -276,21 +322,11 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
   - Improves batch processing reliability
   - Reduces API errors and failed requests
   
-- **US vs Non-US Market Detection**:
-  - Automatically detects US vs non-US tickers based on exchange suffix
-  - US tickers have no suffix or end with .US
-  - Special cases handled: BRK.A, BRK.B, BF.A, BF.B are US stocks with dots
-  
 - **API Optimization for Non-US Markets**:
   - Skips analyst ratings API calls for non-US markets
   - Skips insider transaction API calls for non-US markets
   - Skips short interest API calls for non-US markets
   - Falls back to alternative data sources for non-US tickers
-  
-- **Ticker Length Validation**:
-  - Standard tickers: up to 10 characters
-  - Exchange-specific tickers: up to 20 characters (allows for longer exchange formats)
-  - Handles special formats like 'MAERSK-A.CO'
   
 - **Rate Limiting Optimizations**:
   - Thread-safe API call tracking
@@ -326,14 +362,10 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
   - `NetworkError` - Network connectivity issues
   - `DataError` - Problems with data quality or availability
   - `ConfigError` - Configuration-related errors
-  
-- **Rate Limit Handling**:
-  - Automatic detection of rate limits
-  - Smart backoff strategies
-  - Success/failure tracking
-  - Adaptive delay calculation
 
-## Testing Approach
+## Testing
+
+### Testing Approach
 - **Unit Testing**: Tests individual components in isolation
 - **Mock-Based Testing**: Uses mock objects to isolate components
 - **Test Coverage**: Aims for high coverage of critical components
@@ -341,7 +373,19 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
 - **Test Fixtures**: Reusable test data and setup utilities
 - **Pytest Patterns**: Uses pytest fixtures and parameterization
 
-## Troubleshooting Common Issues
+## Asynchronous Capabilities
+- **Safe Async Operations**:
+  - Rate limiting for async functions
+  - Controlled concurrency
+  - Exponential backoff for failures
+  - Resource-efficient batch processing
+- **AsyncRateLimiter**: Thread-safe rate limiting for async operations
+- **async_rate_limited Decorator**: Easy application to async functions
+- **Semaphore Usage**: Controls concurrent API access
+
+## Troubleshooting
+
+### Common Issues
 - **Rate Limiting Errors**:
   - The system implements automatic backoff
   - Check if you're using rate_limited decorator or AdaptiveRateLimiter
@@ -358,16 +402,6 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
 - **Input File Format Errors**:
   - Verify CSV headers match expected format
   - Check for BOM markers or encoding issues in input files
-
-## Asynchronous Capabilities
-- **Safe Async Operations**:
-  - Rate limiting for async functions
-  - Controlled concurrency
-  - Exponential backoff for failures
-  - Resource-efficient batch processing
-- **AsyncRateLimiter**: Thread-safe rate limiting for async operations
-- **async_rate_limited Decorator**: Easy application to async functions
-- **Semaphore Usage**: Controls concurrent API access
 
 ## Code Duplication Cleanup
 The codebase has been reorganized to eliminate duplications:
@@ -394,3 +428,150 @@ The codebase has been reorganized to eliminate duplications:
 - **API Architecture**: Implement or remove empty `api/providers/` directory
 - **Trading Directory**: Implement or remove empty `trading/` directory
 - **Metrics Naming**: Rename `_metrics.py` to follow standard naming conventions
+
+## File Directory Documentation
+
+### Root Directory
+
+- **trade.py**: Main entry point for the application. Provides menu options for Portfolio analysis, Market analysis, eToro Market analysis, and Trade analysis.
+- **README.md**: Project overview and documentation.
+- **LICENSE**: License information for the project.
+- **CLAUDE.md**: Guide for coding agents with commands, code style guidelines, and project organization.
+- **requirements.txt**: Python package dependencies for the project.
+
+### yahoofinance/ (Main Package)
+
+#### Core Files
+
+- **__init__.py**: Package initialization for yahoofinance, exports key functionality.
+- **client.py**: API client with rate limiting and caching capabilities for Yahoo Finance data.
+- **display.py**: Handles output formatting and batch processing of financial data.
+- **formatting.py**: Utility functions for data formatting, colorization, and display style rules.
+- **validate.py**: Functions to validate tickers against Yahoo Finance API.
+- **errors.py**: Centralized error handling system with custom exception hierarchy.
+- **types.py**: Common type definitions and data structures.
+- **cache.py**: LRU caching system with size limits for API responses.
+- **config.py**: Configuration settings and constants for the application.
+- **logging_config.py**: Logging configuration for the application.
+- **templates.py**: Templates for HTML dashboard generation.
+
+#### Analysis Modules
+
+- **analyst.py**: Handles analyst ratings and recommendations.
+- **earnings.py**: Manages earnings dates and surprises information.
+- **econ.py**: Retrieves economic indicators from FRED.
+- **holders.py**: Analyzes institutional ownership.
+- **insiders.py**: Analyzes insider transactions.
+- **monthly.py**: Processes monthly market performance.
+- **news.py**: Retrieves news with sentiment analysis.
+- **portfolio.py**: Tracks portfolio performance.
+- **pricing.py**: Analyzes stock price and target data.
+- **weekly.py**: Processes weekly market performance.
+- **index.py**: Combined market index performance.
+- **download.py**: File download functionality.
+- **metrics.py**: Internal metrics calculations.
+
+#### yahoofinance/utils/ (Utility Modules)
+
+- **__init__.py**: Initializes the utils package.
+- **market_utils.py**: Compatibility layer for ticker validation and normalization.
+- **rate_limiter.py**: Compatibility layer for thread-safe adaptive rate limiting.
+- **pagination.py**: Compatibility layer for paginated API result handling.
+- **async_helpers.py**: Async utilities with rate limiting.
+- **format_utils.py**: Compatibility layer for HTML and output formatting utilities.
+
+##### yahoofinance/utils/async/ (Async Utilities)
+- **__init__.py**: Package initialization.
+- **async_utils.py**: Core async utility implementations.
+
+##### yahoofinance/utils/data/ (Data Formatting)
+- **__init__.py**: Package initialization.
+- **format_utils.py**: Core implementation of formatting utilities.
+
+##### yahoofinance/utils/date/ (Date Utilities)
+- **__init__.py**: Package initialization.
+- **date_utils.py**: Date formatting and processing utilities.
+
+##### yahoofinance/utils/market/ (Market Utilities)
+- **__init__.py**: Package initialization.
+- **ticker_utils.py**: Core implementation of ticker validation/normalization.
+
+##### yahoofinance/utils/network/ (Network Utilities)
+- **__init__.py**: Package initialization.
+- **pagination.py**: Core implementation of pagination functionality.
+- **rate_limiter.py**: Core implementation of rate limiting functionality.
+
+#### yahoofinance/core/ (Core Functionality)
+
+- **__init__.py**: Core package initialization.
+- **cache.py**: Core caching implementation.
+- **client.py**: Core client implementation.
+- **config.py**: Core configuration.
+- **errors.py**: Core error handling.
+- **logging.py**: Core logging functionality.
+- **types.py**: Core type definitions.
+
+#### yahoofinance/api/ (API Interface)
+
+- **__init__.py**: API package initialization.
+- **providers/__init__.py**: Initialization for API providers.
+
+### tests/ (Test Directory)
+
+- **__init__.py**: Test package initialization.
+- **conftest.py**: Pytest configuration and shared fixtures.
+
+#### Test Files for Core Functionality
+
+- **test_advanced_utils.py**: Tests for advanced utility functions.
+- **test_analyst.py**: Tests for analyst module.
+- **test_async.py**: Tests for async utilities and pagination.
+- **test_cache.py**: Tests for caching functionality.
+- **test_client.py**: Tests for API client.
+- **test_compatibility.py**: Tests for compatibility between old and new interfaces.
+- **test_display.py**: Tests for display functionality.
+- **test_download.py**: Tests for download functionality.
+- **test_earnings.py**: Tests for earnings module.
+- **test_econ.py**: Tests for economic indicators.
+- **test_error_handling.py**: Tests for error handling.
+- **test_errors.py**: Tests for error hierarchy.
+- **test_format_utils.py**: Tests for format utilities.
+- **test_formatting.py**: Tests for formatting module.
+- **test_holders.py**: Tests for institutional holders module.
+- **test_improvements.py**: Tests for code improvements.
+- **test_index.py**: Tests for index module.
+- **test_insiders.py**: Tests for insider transactions.
+- **test_market_display.py**: Tests for market display functionality.
+- **test_market_display_batch.py**: Tests for batch processing in market display.
+- **test_market_display_html.py**: Tests for HTML output in market display.
+- **test_market_display_unified.py**: Tests for unified market display.
+- **test_market_utils.py**: Tests for market utilities.
+- **test_metrics.py**: Tests for metrics calculations.
+- **test_monthly.py**: Tests for monthly performance.
+- **test_news.py**: Tests for news module.
+- **test_pagination_utils.py**: Tests for pagination utilities.
+- **test_portfolio.py**: Tests for portfolio module.
+- **test_pricing.py**: Tests for pricing module.
+- **test_rate.py**: Tests for rate limiting.
+- **test_rate_limiter.py**: Tests for rate limiter functionality.
+- **test_rate_limiter_advanced.py**: Tests for advanced rate limiter features.
+- **test_rate_limiter_unified.py**: Tests for unified rate limiter.
+- **test_templates.py**: Tests for HTML templates.
+- **test_trade.py**: Tests for trade analysis.
+- **test_types.py**: Tests for type definitions.
+- **test_utils.py**: Tests for utility functions.
+- **test_utils_refactor.py**: Tests for refactored utilities.
+- **test_validate.py**: Tests for ticker validation.
+- **test_weekly.py**: Tests for weekly performance.
+
+#### test/fixtures/ (Test Fixtures)
+
+- **__init__.py**: Fixtures package initialization.
+- **README.md**: Documentation for test fixtures.
+- **async_fixtures.py**: Fixtures for async testing.
+- **pagination.py**: Fixtures for pagination testing.
+
+#### test/utils/ (Test Utilities)
+
+- **__init__.py**: Test utilities package initialization.
+- **test_fixtures.py**: Common test utilities and fixtures.
