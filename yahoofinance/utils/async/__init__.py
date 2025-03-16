@@ -1,24 +1,20 @@
 """
-Asynchronous utilities package for Yahoo Finance API.
+Asynchronous utilities for Yahoo Finance API client.
 
-This package provides asynchronous helpers and rate limiting
-functionality designed to work with the Yahoo Finance API.
+This package contains utilities for asynchronous operations,
+including rate limiting and async request handling.
 """
 
 from .async_utils import (
     AsyncRateLimiter,
-    global_async_limiter,
     async_rate_limited,
-    gather_with_rate_limit,
-    process_batch_async,
-    retry_async
+    global_async_rate_limiter,
+    async_batch_process
 )
 
 __all__ = [
     'AsyncRateLimiter',
-    'global_async_limiter',
     'async_rate_limited',
-    'gather_with_rate_limit',
-    'process_batch_async',
-    'retry_async'
+    'global_async_rate_limiter',
+    'async_batch_process'
 ]

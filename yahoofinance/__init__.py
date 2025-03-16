@@ -37,7 +37,7 @@ Example usage:
 # Setup logging
 import os
 import logging
-from .logging_config import setup_logging, get_logger, get_ticker_logger
+from .core.logging import setup_logging, get_logger, get_ticker_logger
 
 # Set up default logging if not already configured
 if not logging.root.handlers:
@@ -50,16 +50,20 @@ if not logging.root.handlers:
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     logging.getLogger("yfinance").setLevel(logging.WARNING)
 
-# Client and data types
-from .client import YFinanceClient
-from .types import StockData
+# Client and data types from core
+from .core.client import YFinanceClient
+from .core.types import StockData
+
+# Analysis modules
 from .analyst import AnalystData
 from .pricing import PricingAnalyzer, PriceTarget, PriceData
+
+# Display and formatting
 from .formatting import DisplayFormatter, DisplayConfig, Color
 from .display import MarketDisplay
 
 # Error types
-from .errors import (
+from .core.errors import (
     YFinanceError,
     APIError,
     ValidationError,
@@ -76,9 +80,9 @@ from .errors import (
 
 # Utilities
 from .utils.market_utils import is_us_ticker, normalize_hk_ticker
-from .cache import market_cache, news_cache, earnings_cache
+from .core.cache import market_cache, news_cache, earnings_cache
 
-__version__ = "0.2.0"  # Updated version for improvements
+__version__ = "0.3.0"  # Updated version for organization improvements
 __author__ = "Roo"
 
 __all__ = [
