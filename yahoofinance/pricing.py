@@ -1,7 +1,8 @@
 from typing import Dict, Optional, List, NamedTuple, Union, Any
 from datetime import datetime, timedelta
 import pandas as pd
-from .client import YFinanceClient, YFinanceError, ValidationError
+from .core.client import YFinanceClient
+from .core.errors import YFinanceError, ValidationError
 import logging
 
 logger = logging.getLogger(__name__)
