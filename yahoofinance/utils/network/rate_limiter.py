@@ -12,8 +12,8 @@ from collections import deque
 from typing import Dict, Optional, Callable, Any, TypeVar, List
 from datetime import datetime
 
-from ...config import RATE_LIMIT
-from ...errors import RateLimitError
+from ...core.config import RATE_LIMIT
+from ...core.errors import RateLimitError
 
 logger = logging.getLogger(__name__)
 
