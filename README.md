@@ -331,6 +331,8 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
   * Stocks that pass the confidence check
   * Don't meet the criteria for Buy or Sell recommendations
 
+**Note:** These exact same criteria are used for both coloring in market/portfolio views and for filtering stocks into the buy/sell/hold lists. There is perfect alignment between the color a stock receives in the main views and which list it appears in with the trade command.
+
 ## Architecture
 
 The system uses a modular architecture:
