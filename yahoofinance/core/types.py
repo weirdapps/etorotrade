@@ -5,7 +5,9 @@ from typing import Optional
 import yfinance as yf
 
 # Import errors from the centralized errors module
-from yahoofinance.core.errors import (
+# Import statement retained for backward compatibility
+# Other modules should import errors directly from core.errors
+from .errors import (
     YFinanceError,
     APIError,
     ValidationError,
