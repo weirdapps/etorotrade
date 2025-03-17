@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch, Mock
 import sys
 from io import StringIO
-from yahoofinance._metrics import show_available_metrics, main
+from yahoofinance.metrics import show_available_metrics, main
 
 @pytest.fixture
 def mock_stock_info():
@@ -109,7 +109,7 @@ def test_show_available_metrics_empty_info(capsys):
 def test_main_with_valid_args():
     test_args = ['script.py', 'AAPL']
     with patch.object(sys, 'argv', test_args), \
-         patch('yahoofinance._metrics.show_available_metrics') as mock_show:
+         patch('yahoofinance.metrics.show_available_metrics') as mock_show:
         main()
         mock_show.assert_called_once_with('AAPL')
 
@@ -126,7 +126,7 @@ def test_main_with_invalid_args(capsys):
 def test_main_lowercase_ticker():
     test_args = ['script.py', 'aapl']
     with patch.object(sys, 'argv', test_args), \
-         patch('yahoofinance._metrics.show_available_metrics') as mock_show:
+         patch('yahoofinance.metrics.show_available_metrics') as mock_show:
         main()
         # Should convert ticker to uppercase
         mock_show.assert_called_once_with('AAPL')
@@ -144,7 +144,7 @@ def test_metrics_categories_structure(mock_yf_ticker):
     }
     
     import inspect
-    from yahoofinance._metrics import show_available_metrics
+    from yahoofinance.metrics import show_available_metrics
     source = inspect.getsource(show_available_metrics)
     
     # Verify each category and some of its metrics are present
