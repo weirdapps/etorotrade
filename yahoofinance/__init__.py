@@ -10,7 +10,26 @@ allowing you to focus on analyzing financial data rather than handling infrastru
 
 Example usage:
     
-    # Basic usage - Get ticker information
+    # Recommended usage - Using provider pattern
+    from yahoofinance import get_provider
+    
+    provider = get_provider()
+    stock_data = provider.get_ticker_info("AAPL")
+    print(f"Current price: ${stock_data['current_price']}")
+    print(f"Name: {stock_data['name']}")
+    
+    # For async usage
+    from yahoofinance import get_provider
+    import asyncio
+    
+    async def fetch_data():
+        async_provider = get_provider(async_mode=True)
+        stock_data = await async_provider.get_ticker_info("MSFT")
+        print(f"Current price: ${stock_data['current_price']}")
+    
+    asyncio.run(fetch_data())
+    
+    # Legacy usage - Direct client instantiation
     from yahoofinance import YFinanceClient
     
     client = YFinanceClient()
@@ -53,6 +72,9 @@ if not logging.root.handlers:
 # Client and data types from core
 from .core.client import YFinanceClient
 from .core.types import StockData
+
+# Provider API
+from .api import get_provider, FinanceDataProvider, AsyncFinanceDataProvider
 
 # Analysis modules
 from .analyst import AnalystData
@@ -97,6 +119,11 @@ __all__ = [
     'DisplayConfig',
     'Color',
     'MarketDisplay',
+    
+    # Provider API
+    'get_provider',
+    'FinanceDataProvider',
+    'AsyncFinanceDataProvider',
     
     # Error types
     'YFinanceError',

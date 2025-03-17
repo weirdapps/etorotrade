@@ -14,6 +14,20 @@ from .providers.async_yahoo_finance import AsyncYahooFinanceProvider
 default_provider = YahooFinanceProvider()
 default_async_provider = AsyncYahooFinanceProvider()
 
+def get_provider(async_mode: bool = False) -> FinanceDataProvider:
+    """
+    Get appropriate finance data provider.
+    
+    Args:
+        async_mode: Whether to return an async provider
+        
+    Returns:
+        Finance data provider instance
+    """
+    if async_mode:
+        return default_async_provider
+    return default_provider
+
 # Export key components
 __all__ = [
     'FinanceDataProvider',
@@ -22,4 +36,5 @@ __all__ = [
     'AsyncYahooFinanceProvider',
     'default_provider',
     'default_async_provider',
+    'get_provider',
 ]

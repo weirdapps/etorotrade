@@ -15,6 +15,7 @@ from .analyst import AnalystData
 from .pricing import PricingAnalyzer
 from .formatting import DisplayFormatter, DisplayConfig, Color
 from .config import RATE_LIMIT, DISPLAY, FILE_PATHS
+from .api import get_provider, FinanceDataProvider
 
 logger = logging.getLogger(__name__)
 
@@ -104,19 +105,34 @@ class MarketDisplay:
     
     def __init__(self,
                  client: Optional[YFinanceClient] = None,
+                 provider: Optional[FinanceDataProvider] = None,
                  config: Optional[DisplayConfig] = None,
                  input_dir: str = None):
         """
         Initialize MarketDisplay.
         
         Args:
-            client: YFinanceClient instance for data fetching
+            client: YFinanceClient instance for data fetching (legacy mode)
+            provider: FinanceDataProvider instance (preferred, overrides client if both provided)
             config: Display configuration
             input_dir: Directory containing input files (defaults to config value)
         """
-        self.client = client or YFinanceClient()
-        self.analyst = AnalystData(self.client)
-        self.pricing = PricingAnalyzer(self.client)
+        # Use provided provider, or get default provider, or use provided client, or create new client
+        if provider:
+            self.provider = provider
+            self.client = None  # Provider mode doesn't use client directly
+        elif client:
+            self.provider = None
+            self.client = client  # Legacy mode using client directly
+        else:
+            # Default to using provider pattern
+            self.provider = get_provider()
+            self.client = None
+
+        # For backward compatibility, create client instance if needed
+        client_instance = self.client or YFinanceClient()
+        self.analyst = AnalystData(client_instance)
+        self.pricing = PricingAnalyzer(client_instance)
         self.formatter = DisplayFormatter(config or DisplayConfig())
         self.input_dir = (input_dir or FILE_PATHS["INPUT_DIR"]).rstrip('/')
         self.rate_limiter = RateLimitTracker()
@@ -271,8 +287,22 @@ class MarketDisplay:
                 "total_ratings": None
             }
             
-            # Get stock info
-            stock_info = self.client.get_ticker_info(ticker)
+            # Get stock info - try provider first, fall back to client if necessary
+            if self.provider:
+                stock_info_dict = self.provider.get_ticker_info(ticker)
+                # Create a wrapper object that mimics StockData properties for backward compatibility
+                class StockDataWrapper:
+                    def __init__(self, data):
+                        self.data = data
+                        
+                    def __getattr__(self, name):
+                        return self.data.get(name)
+                
+                stock_info = StockDataWrapper(stock_info_dict)
+            elif self.client:
+                stock_info = self.client.get_ticker_info(ticker)
+            else:
+                raise ValueError("No data provider available (neither provider nor client is set)")
             
             # Construct report with valid data
             return {
@@ -517,14 +547,28 @@ class MarketDisplay:
                 # Add rate limiting delay
                 time.sleep(self.rate_limiter.get_delay(ticker))
                 
-                data = self.client.get_ticker_info(ticker)
-                if data and data.current_price:
-                    change = data.price_change_percentage
-                    metrics[ticker] = {
-                        'value': change,
-                        'label': ticker,
-                        'is_percentage': True
-                    }
+                # Try provider first, fall back to client
+                if self.provider:
+                    data_dict = self.provider.get_ticker_info(ticker)
+                    # Check if we have price data
+                    if data_dict and data_dict.get('current_price'):
+                        change = data_dict.get('price_change_percentage')
+                        metrics[ticker] = {
+                            'value': change,
+                            'label': ticker,
+                            'is_percentage': True
+                        }
+                elif self.client:
+                    data = self.client.get_ticker_info(ticker)
+                    if data and data.current_price:
+                        change = data.price_change_percentage
+                        metrics[ticker] = {
+                            'value': change,
+                            'label': ticker,
+                            'is_percentage': True
+                        }
+                else:
+                    logger.error(f"No data provider available for {ticker}")
             except Exception as e:
                 logger.debug(f"Error getting metrics for {ticker}: {str(e)}")
                 
@@ -591,45 +635,89 @@ class MarketDisplay:
                     # Add rate limiting delay
                     time.sleep(self.rate_limiter.get_delay(ticker))
                     
-                    data = self.client.get_ticker_info(ticker)
-                    if data:
-                        # Portfolio returns
-                        if data.current_price:
-                            portfolio_metrics['TODAY'] = {
-                                'value': data.price_change_percentage,
-                                'label': 'Today',
-                                'is_percentage': True
-                            }
-                            portfolio_metrics['MTD'] = {
-                                'value': data.mtd_change,
-                                'label': 'MTD',
-                                'is_percentage': True
-                            }
-                            portfolio_metrics['YTD'] = {
-                                'value': data.ytd_change,
-                                'label': 'YTD',
-                                'is_percentage': True
-                            }
-                        
-                        # Risk metrics
-                        if data.beta:
-                            risk_metrics['BETA'] = {
-                                'value': data.beta,
-                                'label': 'Beta',
-                                'is_percentage': False
-                            }
-                        if data.alpha:
-                            risk_metrics['ALPHA'] = {
-                                'value': data.alpha,
-                                'label': 'Alpha',
-                                'is_percentage': True
-                            }
-                        if data.sharpe_ratio:
-                            risk_metrics['SHARPE'] = {
-                                'value': data.sharpe_ratio,
-                                'label': 'Sharpe',
-                                'is_percentage': False
-                            }
+                    # Try provider first, fall back to client
+                    if self.provider:
+                        data_dict = self.provider.get_ticker_info(ticker)
+                        if data_dict:
+                            # Portfolio returns
+                            if data_dict.get('current_price'):
+                                portfolio_metrics['TODAY'] = {
+                                    'value': data_dict.get('price_change_percentage'),
+                                    'label': 'Today',
+                                    'is_percentage': True
+                                }
+                                portfolio_metrics['MTD'] = {
+                                    'value': data_dict.get('mtd_change'),
+                                    'label': 'MTD',
+                                    'is_percentage': True
+                                }
+                                portfolio_metrics['YTD'] = {
+                                    'value': data_dict.get('ytd_change'),
+                                    'label': 'YTD',
+                                    'is_percentage': True
+                                }
+                            
+                            # Risk metrics
+                            if data_dict.get('beta'):
+                                risk_metrics['BETA'] = {
+                                    'value': data_dict.get('beta'),
+                                    'label': 'Beta',
+                                    'is_percentage': False
+                                }
+                            if data_dict.get('alpha'):
+                                risk_metrics['ALPHA'] = {
+                                    'value': data_dict.get('alpha'),
+                                    'label': 'Alpha',
+                                    'is_percentage': True
+                                }
+                            if data_dict.get('sharpe_ratio'):
+                                risk_metrics['SHARPE'] = {
+                                    'value': data_dict.get('sharpe_ratio'),
+                                    'label': 'Sharpe',
+                                    'is_percentage': False
+                                }
+                    elif self.client:
+                        data = self.client.get_ticker_info(ticker)
+                        if data:
+                            # Portfolio returns
+                            if data.current_price:
+                                portfolio_metrics['TODAY'] = {
+                                    'value': data.price_change_percentage,
+                                    'label': 'Today',
+                                    'is_percentage': True
+                                }
+                                portfolio_metrics['MTD'] = {
+                                    'value': data.mtd_change,
+                                    'label': 'MTD',
+                                    'is_percentage': True
+                                }
+                                portfolio_metrics['YTD'] = {
+                                    'value': data.ytd_change,
+                                    'label': 'YTD',
+                                    'is_percentage': True
+                                }
+                            
+                            # Risk metrics
+                            if data.beta:
+                                risk_metrics['BETA'] = {
+                                    'value': data.beta,
+                                    'label': 'Beta',
+                                    'is_percentage': False
+                                }
+                            if data.alpha:
+                                risk_metrics['ALPHA'] = {
+                                    'value': data.alpha,
+                                    'label': 'Alpha',
+                                    'is_percentage': True
+                                }
+                            if data.sharpe_ratio:
+                                risk_metrics['SHARPE'] = {
+                                    'value': data.sharpe_ratio,
+                                    'label': 'Sharpe',
+                                    'is_percentage': False
+                                }
+                    else:
+                        logger.error(f"No data provider available for {ticker}")
                 except Exception as e:
                     logger.debug(f"Error getting portfolio metrics for {ticker}: {str(e)}")
             

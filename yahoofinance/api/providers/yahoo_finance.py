@@ -41,19 +41,21 @@ class YahooFinanceProvider(FinanceDataProvider):
         try:
             stock_data = self.client.get_ticker_info(ticker)
             # Convert StockData object to dictionary
+            # Extract ticker symbol from ticker_object
+            ticker_symbol = ticker
+            if hasattr(stock_data.ticker_object, 'ticker'):
+                ticker_symbol = stock_data.ticker_object.ticker
+                
             return {
-                'ticker': stock_data.symbol,
+                'ticker': ticker_symbol,
                 'name': stock_data.name,
                 'sector': stock_data.sector,
-                'industry': stock_data.industry,
                 'market_cap': stock_data.market_cap,
                 'beta': stock_data.beta,
                 'pe_trailing': stock_data.pe_trailing,
                 'pe_forward': stock_data.pe_forward,
                 'dividend_yield': stock_data.dividend_yield,
                 'price': stock_data.current_price,
-                'currency': stock_data.currency,
-                'exchange': stock_data.exchange,
                 'analyst_count': stock_data.analyst_count,
                 'peg_ratio': stock_data.peg_ratio,
                 'short_float_pct': stock_data.short_float_pct,

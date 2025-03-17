@@ -7,7 +7,7 @@ from ../async/helpers.py to maintain backward compatibility.
 WARNING: This module is deprecated. Please use `yahoofinance.utils.async.helpers` instead.
 """
 
-# Re-export from helpers.py
+# Re-export from helpers.py module - keeping for backward compatibility
 from .helpers import (
     AsyncRateLimiter,
     global_async_limiter,

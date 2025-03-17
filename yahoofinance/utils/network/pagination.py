@@ -10,7 +10,7 @@ import logging
 from typing import TypeVar, Generic, List, Callable, Iterator, Dict, Any, Optional, Tuple
 
 from .rate_limiter import global_rate_limiter
-from ...errors import APIError, RateLimitError
+from ...core.errors import APIError, RateLimitError
 
 logger = logging.getLogger(__name__)
 

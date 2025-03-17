@@ -13,14 +13,15 @@ import logging
 import pandas as pd
 import requests
 from ..insiders import InsiderAnalyzer
-from .types import (
-    YFinanceError, APIError, ValidationError, StockData,
+from .errors import (
+    YFinanceError, APIError, ValidationError, 
     RateLimitError, ConnectionError, TimeoutError, ResourceNotFoundError,
-    DataError, DataQualityError, MissingDataError
+    DataError, DataQualityError, MissingDataError,
+    format_error_details, classify_api_error
 )
-from ..utils.market_utils import is_us_ticker
+from .types import StockData
+from ..utils.market.ticker_utils import is_us_ticker
 from .config import RATE_LIMIT, RISK_METRICS
-from .errors import format_error_details, classify_api_error
 
 class YFinanceClient:
     """
@@ -65,7 +66,7 @@ class YFinanceClient:
         # Set up structured logging
         from .logging import get_logger
         self.logger = get_logger(__name__)
-        self.logger.info("Initializing YFinanceClient", 
+        self.logger.debug("Initializing YFinanceClient", 
                         extra={"retry_attempts": self.retry_attempts, "timeout": self.timeout})
         
         self.insider_analyzer = InsiderAnalyzer(self)
@@ -715,6 +716,107 @@ class YFinanceClient:
                     raise APIError(f"Failed to fetch data for {ticker} after {self.retry_attempts} attempts: {str(e)}")
                 time.sleep(self._get_backoff_time(attempts))  # Exponential backoff
                 
+    def get_historical_data(self, ticker: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
+        """
+        Get historical price data for a ticker.
+        
+        Args:
+            ticker: Stock ticker symbol
+            period: Time period (e.g., "1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "ytd", "max")
+            interval: Data interval (e.g., "1m", "2m", "5m", "15m", "30m", "60m", "90m", "1h", "1d", "5d", "1wk", "1mo", "3mo")
+            
+        Returns:
+            DataFrame containing historical data
+            
+        Raises:
+            ValidationError: When ticker validation fails
+            APIError: When API call fails after retries
+        """
+        self._validate_ticker(ticker)
+        
+        attempts = 0
+        while attempts < self.retry_attempts:
+            try:
+                # Get ticker object
+                stock = self._get_or_create_ticker(ticker)
+                
+                # Fetch historical data
+                data = stock.history(period=period, interval=interval)
+                
+                # Add moving averages if using daily data and period is long enough
+                if interval in ["1d", "1wk", "1mo"] and not data.empty and len(data) > 50:
+                    # Calculate moving averages appropriate for the data frequency
+                    data['ma50'] = data['Close'].rolling(window=50).mean()
+                    if len(data) > 200:
+                        data['ma200'] = data['Close'].rolling(window=200).mean()
+                
+                return data
+                
+            except Exception as e:
+                self.logger.debug(f"Attempt {attempts + 1} failed for {ticker} historical data: {str(e)}")
+                attempts += 1
+                if attempts == self.retry_attempts:
+                    raise APIError(f"Failed to fetch historical data for {ticker} after {self.retry_attempts} attempts: {str(e)}")
+                time.sleep(self._get_backoff_time(attempts))  # Exponential backoff
+    
+    def search_tickers(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Search for tickers matching a query.
+        
+        Args:
+            query: Search query string
+            limit: Maximum number of results to return
+            
+        Returns:
+            List of matching tickers with metadata
+            
+        Raises:
+            ValidationError: When query validation fails
+            APIError: When API call fails after retries
+        """
+        if not query or not isinstance(query, str):
+            raise ValidationError("Search query must be a non-empty string")
+            
+        if limit <= 0:
+            raise ValidationError("Limit must be a positive integer")
+            
+        attempts = 0
+        while attempts < self.retry_attempts:
+            try:
+                # Import yfinance lazily to avoid import cycle
+                import yfinance as yf
+                
+                # Use the yfinance search function
+                search_results = yf.Ticker(query).recommendations
+                if search_results is None or search_results.empty:
+                    # Try searching by symbol directly
+                    return [{'symbol': query, 'name': query, 'exchange': 'UNKNOWN', 'type': 'UNKNOWN', 'score': 1.0}]
+                
+                # Format results
+                formatted_results = []
+                for _, row in search_results.iterrows():
+                    if len(formatted_results) >= limit:
+                        break
+                        
+                    ticker_symbol = row.get('toSymbol')
+                    if ticker_symbol:
+                        formatted_results.append({
+                            'symbol': ticker_symbol,
+                            'name': row.get('toName', ticker_symbol),
+                            'exchange': row.get('exchange', 'UNKNOWN'),
+                            'type': 'EQUITY',  # Default to EQUITY
+                            'score': 1.0  # Default score
+                        })
+                
+                return formatted_results[:limit]
+                
+            except Exception as e:
+                self.logger.debug(f"Attempt {attempts + 1} failed for search '{query}': {str(e)}")
+                attempts += 1
+                if attempts == self.retry_attempts:
+                    raise APIError(f"Failed to search tickers for '{query}' after {self.retry_attempts} attempts: {str(e)}")
+                time.sleep(self._get_backoff_time(attempts))  # Exponential backoff
+    
     def clear_cache(self) -> None:
         """
         Clear the internal cache for ticker information.
