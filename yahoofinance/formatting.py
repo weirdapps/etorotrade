@@ -122,7 +122,7 @@ class DisplayFormatter:
             max_pe_forward = self.config.max_pe_forward
             
             if (upside < self.config.low_upside or
-                percent_buy <= self.config.low_buy_percent or
+                percent_buy < self.config.low_buy_percent or  # Changed from <= to < to match filter_sell_candidates
                 (pef > pet and pef > 0 and pet > 0) or  # PEF > PET (if both are positive)
                 pef > max_pe_forward or  # PEF > MAX_PE_FORWARD (45.0) - check specifically for this condition
                 peg > self.config.max_peg_sell or  # PEG too high

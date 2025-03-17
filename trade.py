@@ -632,8 +632,14 @@ def display_and_save_results(display_df, title, output_file):
     # Enable colors for console output
     pd.set_option('display.max_colwidth', None)
     
-    # Get color code based on title
-    color_code = get_color_code(title)
+    # Get color code based on title - always apply category-specific coloring
+    # This ensures tickers in buy/sell/hold lists have consistent coloring
+    if 'Buy' in title:
+        color_code = "\033[92m"  # Green for buy
+    elif 'Sell' in title:
+        color_code = "\033[91m"  # Red for sell
+    else:
+        color_code = ""  # Neutral for hold
     
     # Create colored values for display
     colored_values = []
@@ -662,7 +668,7 @@ def display_and_save_results(display_df, title, output_file):
             # Convert row to dict and fix numeric values
             row_dict = convert_to_numeric(row.to_dict())
             
-            # Apply color to row
+            # Apply color to row - use the category-specific color
             colored_row = apply_color_to_row(row, color_code)
             colored_values.append(colored_row)
         except Exception:
@@ -770,19 +776,10 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_
     from yahoofinance.config import TRADING_CRITERIA
     common_criteria = TRADING_CRITERIA["COMMON"]
     
-    # Process market data to add technical indicators
-    processed_df = process_market_data(market_df)
-    
     # Apply confidence threshold (INCONCLUSIVE check)
-    sufficient_coverage = processed_df[
-        (processed_df['analyst_count'] >= common_criteria["MIN_ANALYST_COUNT"]) &
-        (processed_df['total_ratings'] >= common_criteria["MIN_RATINGS_COUNT"])
-    ].copy()
-    
-    # Also keep stocks with insufficient coverage for alternative criteria
-    insufficient_coverage = processed_df[
-        ~((processed_df['analyst_count'] >= common_criteria["MIN_ANALYST_COUNT"]) &
-          (processed_df['total_ratings'] >= common_criteria["MIN_RATINGS_COUNT"]))
+    sufficient_coverage = market_df[
+        (market_df['analyst_count'] >= common_criteria["MIN_ANALYST_COUNT"]) &
+        (market_df['total_ratings'] >= common_criteria["MIN_RATINGS_COUNT"])
     ].copy()
     
     # Get stocks that DON'T meet sell criteria
@@ -793,15 +790,6 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_
     
     # Get buy opportunities from the remaining stocks
     buy_opportunities = filter_buy_opportunities(not_sell_candidates)
-    
-    # Identify additional buy opportunities based on technical analysis
-    technical_buys = insufficient_coverage[
-        (insufficient_coverage['in_uptrend'] == True) |  # Stocks in technical uptrend
-        (insufficient_coverage['ticker'].str.upper() == 'OPRA')  # Special case for OPRA
-    ].copy()
-    
-    # Combine traditional buy opportunities with technical buys
-    buy_opportunities = pd.concat([buy_opportunities, technical_buys])
     
     # Filter out stocks already in portfolio
     new_opportunities = buy_opportunities[~buy_opportunities['ticker'].str.upper().isin(portfolio_tickers)]
