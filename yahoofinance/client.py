@@ -7,14 +7,27 @@ The implementation has moved to yahoofinance.core.client
 
 import warnings
 from yahoofinance.core.client import YFinanceClient
+from yahoofinance.core.errors import YFinanceError, ValidationError, APIError, RateLimitError, ConnectionError, TimeoutError, ResourceNotFoundError, DataError, DataQualityError, MissingDataError
+from yahoofinance.core.types import StockData
 
 __all__ = [
-    'YFinanceClient'
+    'YFinanceClient',
+    'YFinanceError',
+    'ValidationError',
+    'APIError',
+    'RateLimitError',
+    'ConnectionError',
+    'TimeoutError',
+    'ResourceNotFoundError',
+    'DataError',
+    'DataQualityError',
+    'MissingDataError',
+    'StockData'
 ]
 
 warnings.warn(
     "Importing from yahoofinance.client is deprecated. "
-    "Please import from yahoofinance.core.client instead.",
+    "Please import from yahoofinance.core.client or yahoofinance.core.errors instead.",
     DeprecationWarning,
     stacklevel=2
 )
