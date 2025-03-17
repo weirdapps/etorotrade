@@ -3,6 +3,8 @@ Market-specific utility functions.
 
 This module is a compatibility layer that re-exports market utilities
 from the structured 'market' package to maintain backward compatibility.
+
+In new code, you should import directly from yahoofinance.utils.market package.
 """
 
 # Import from the market.ticker_utils module
@@ -21,5 +23,5 @@ This module provides backward compatibility for:
 - normalize_hk_ticker function 
 - filter_valid_tickers function
 
-These are now maintained in market.ticker_utils module.
+These are now maintained in utils.market.ticker_utils module.
 """
