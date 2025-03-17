@@ -1,17 +1,19 @@
 """
-Integration tests for API client and rate limiting.
+Integration tests for API client, provider pattern, and rate limiting.
 
-These tests verify that the API client and rate limiting components
+These tests verify that the API client, providers, and rate limiting components
 work together correctly in realistic scenarios.
 """
 
 import pytest
 import time
+import pandas as pd
 from unittest.mock import patch, Mock
 
 from yahoofinance.client import YFinanceClient
+from yahoofinance.api import get_provider, FinanceDataProvider
 from yahoofinance.utils.rate_limiter import global_rate_limiter, AdaptiveRateLimiter
-from yahoofinance.errors import RateLimitError, APIError
+from yahoofinance.errors import RateLimitError, APIError, ValidationError
 
 
 @pytest.mark.integration
@@ -166,3 +168,101 @@ def test_error_recovery_integration():
                 normal_delay = test_limiter.get_delay()
                 error_delay = test_limiter.get_delay('RATE_LIMIT')
                 assert error_delay > normal_delay
+
+
+@pytest.mark.integration
+@pytest.mark.network
+class TestProviderIntegration:
+    """Integration tests for the provider interface"""
+    
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        """Set up test case"""
+        self.provider = get_provider()
+        self.valid_ticker = "AAPL"
+        yield
+        
+    def test_get_ticker_info(self):
+        """Test getting ticker info via provider"""
+        info = self.provider.get_ticker_info(self.valid_ticker)
+        
+        # Verify data structure
+        assert isinstance(info, dict)
+        assert 'ticker' in info
+        assert 'name' in info
+        assert 'sector' in info
+        
+        # Verify actual data
+        assert info['ticker'] == self.valid_ticker
+        assert info['name'] is not None
+        
+    def test_get_price_data(self):
+        """Test getting price data via provider"""
+        price_data = self.provider.get_price_data(self.valid_ticker)
+        
+        # Verify data structure
+        assert isinstance(price_data, dict)
+        assert 'current_price' in price_data
+        
+        # Verify actual data
+        assert price_data.get('current_price') is not None
+        
+    def test_get_historical_data(self):
+        """Test getting historical data via provider"""
+        hist_data = self.provider.get_historical_data(self.valid_ticker, period="1mo")
+        
+        # Verify data structure
+        assert isinstance(hist_data, pd.DataFrame)
+        assert len(hist_data) > 0
+        
+        # Verify columns
+        assert 'Close' in hist_data.columns
+        assert 'Volume' in hist_data.columns
+        
+    def test_get_analyst_ratings(self):
+        """Test getting analyst ratings via provider"""
+        ratings = self.provider.get_analyst_ratings(self.valid_ticker)
+        
+        # Verify data structure
+        assert isinstance(ratings, dict)
+        
+    @pytest.mark.xfail(reason="Invalid tickers may not raise ValidationError with all providers")
+    def test_invalid_ticker(self):
+        """Test validation for invalid tickers"""
+        with pytest.raises(ValidationError):
+            self.provider.get_ticker_info("INVALID_TICKER_123456789")
+        
+    @pytest.mark.skip(reason="Async tests require separate handling")
+    def test_async_provider(self):
+        """Test async provider (placeholder, need to be run separately)"""
+        pass
+
+
+@pytest.mark.integration
+@pytest.mark.network
+class TestProviderCompatibility:
+    """Tests to ensure compatibility with existing code"""
+    
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        """Set up test case"""
+        self.client = YFinanceClient()
+        self.provider = get_provider()
+        self.valid_ticker = "MSFT"
+        yield
+        
+    def test_client_provider_consistency(self):
+        """Compare data from client and provider to ensure consistency"""
+        # Get data from client (direct)
+        client_data = self.client.get_ticker_info(self.valid_ticker)
+        
+        # Get data from provider
+        provider_data = self.provider.get_ticker_info(self.valid_ticker)
+        
+        # Compare key data points - client returns StockData objects, provider returns dicts
+        assert provider_data['name'] == client_data.name
+        assert provider_data['sector'] == client_data.sector
+        
+        # Price data should be available (might not match exactly if called at different times)
+        assert provider_data.get('current_price') is not None
+        assert client_data.current_price is not None

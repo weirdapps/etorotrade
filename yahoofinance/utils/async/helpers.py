@@ -11,8 +11,8 @@ import time
 from typing import TypeVar, List, Dict, Any, Callable, Awaitable, Optional, Union, Tuple
 from functools import wraps
 
-from ...errors import RateLimitError, APIError
-from ..rate_limiter import global_rate_limiter
+from ...core.errors import RateLimitError, APIError
+from ...utils.network.rate_limiter import global_rate_limiter
 
 logger = logging.getLogger(__name__)
 
