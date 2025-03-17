@@ -75,6 +75,10 @@ class StockData:
     sortino_ratio: Optional[float] = None
     cash_percentage: Optional[float] = None
     
+    # Technical Indicators (Optional)
+    ma50: Optional[float] = None
+    ma200: Optional[float] = None
+    
     # Dividends (Optional)
     dividend_yield: Optional[float] = None
     
@@ -116,7 +120,8 @@ class StockData:
             'short_float_pct': float, 'short_ratio': float, 'beta': float,
             'alpha': float, 'sharpe_ratio': float, 'sortino_ratio': float,
             'cash_percentage': float, 'dividend_yield': float,
-            'insider_buy_pct': float, 'insider_transactions': int
+            'insider_buy_pct': float, 'insider_transactions': int,
+            'ma50': float, 'ma200': float  # Add validation for technical indicators
         }
         
         for field_name, expected_type in numeric_fields.items():

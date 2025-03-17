@@ -516,7 +516,7 @@ class YFinanceClient:
             stock: yf.Ticker object
             
         Returns:
-            DataFrame with historical price data
+            DataFrame with historical price data and moving averages
             
         Note:
             Returns empty DataFrame on error rather than raising exception
@@ -529,12 +529,20 @@ class YFinanceClient:
         logger.debug("Retrieving historical price data (2y period)")
         try:
             data = stock.history(period="2y")
+            
+            # Calculate moving averages if data is available
+            if not data.empty and len(data) > 200:
+                # Calculate 50-day and 200-day moving averages
+                data['ma50'] = data['Close'].rolling(window=50).mean()
+                data['ma200'] = data['Close'].rolling(window=200).mean()
+            
             logger.info(
-                "Retrieved historical data", 
+                "Retrieved historical data",
                 extra={
                     "rows": len(data),
                     "start_date": str(data.index[0].date()) if not data.empty else "N/A",
-                    "end_date": str(data.index[-1].date()) if not data.empty else "N/A"
+                    "end_date": str(data.index[-1].date()) if not data.empty else "N/A",
+                    "ma_calculated": 'ma50' in data.columns and 'ma200' in data.columns
                 }
             )
             return data
@@ -555,13 +563,33 @@ class YFinanceClient:
             short_ratio = info.get("shortRatio")
         return short_float_pct, short_ratio
         
-    def _create_stock_data_object(self, stock, info, price_metrics, risk_metrics, 
+    def _create_stock_data_object(self, stock, info, price_metrics, risk_metrics,
                                  earnings_dates, insider_metrics, short_interest):
         """Create StockData object from collected data"""
         price_change, mtd_change, ytd_change, two_year_change = price_metrics
         alpha, sharpe, sortino = risk_metrics
         last_earnings, previous_earnings = earnings_dates
         short_float_pct, short_ratio = short_interest
+        
+        # Get moving averages from historical data if available
+        ma50 = None
+        ma200 = None
+        try:
+            hist = getattr(stock, '_history', None)
+            if hist is None:
+                hist = stock.history(period="1y")
+                
+            if not hist.empty and 'ma50' in hist.columns and 'ma200' in hist.columns:
+                # Get the latest non-NaN values
+                ma50_series = hist['ma50'].dropna()
+                ma200_series = hist['ma200'].dropna()
+                
+                if not ma50_series.empty:
+                    ma50 = ma50_series.iloc[-1]
+                if not ma200_series.empty:
+                    ma200 = ma200_series.iloc[-1]
+        except Exception as e:
+            self.logger.debug(f"Error getting moving averages: {str(e)}")
         
         return StockData(
             # Basic Info
@@ -600,6 +628,10 @@ class YFinanceClient:
             sharpe_ratio=sharpe,
             sortino_ratio=sortino,
             cash_percentage=info.get("cashToDebt"),
+            
+            # Technical Indicators
+            ma50=ma50,
+            ma200=ma200,
             
             # Dividends
             dividend_yield=info.get("dividendYield"),

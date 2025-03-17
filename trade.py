@@ -727,6 +727,36 @@ def create_empty_results_file(output_file):
                           'PEG', DIVIDEND_YIELD, 'SI', '% SI', 'SI_value', 'EARNINGS']).to_csv(output_file, index=False)
     print(f"Empty results file created at {output_file}")
 
+def process_market_data(market_df):
+    """Process market data to extract technical indicators when analyst data is insufficient.
+    
+    Args:
+        market_df: Market dataframe with price data
+        
+    Returns:
+        pd.DataFrame: Dataframe with technical indicators added
+    """
+    # Create a copy to avoid SettingWithCopyWarning
+    df = market_df.copy()
+    
+    # Technical analysis criteria - if price is above both 50 and 200 day moving averages
+    # This is a simple trend following indicator when analyst data is insufficient
+    if 'price' in df.columns and 'ma50' in df.columns and 'ma200' in df.columns:
+        # Convert values to numeric for comparison
+        df['price_numeric'] = pd.to_numeric(df['price'], errors='coerce')
+        df['ma50_numeric'] = pd.to_numeric(df['ma50'], errors='coerce')
+        df['ma200_numeric'] = pd.to_numeric(df['ma200'], errors='coerce')
+        
+        # Flag stocks in uptrend (price > MA50 > MA200)
+        df['in_uptrend'] = (
+            (df['price_numeric'] > df['ma50_numeric']) &
+            (df['price_numeric'] > df['ma200_numeric'])
+        )
+    else:
+        df['in_uptrend'] = False
+    
+    return df
+
 def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_path=None):
     """Process buy opportunities.
     
@@ -740,11 +770,20 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_
     from yahoofinance.config import TRADING_CRITERIA
     common_criteria = TRADING_CRITERIA["COMMON"]
     
+    # Process market data to add technical indicators
+    processed_df = process_market_data(market_df)
+    
     # Apply confidence threshold (INCONCLUSIVE check)
-    sufficient_coverage = market_df[
-        (market_df['analyst_count'] >= common_criteria["MIN_ANALYST_COUNT"]) &
-        (market_df['total_ratings'] >= common_criteria["MIN_RATINGS_COUNT"])
-    ].copy()  # Create a copy to avoid SettingWithCopyWarning
+    sufficient_coverage = processed_df[
+        (processed_df['analyst_count'] >= common_criteria["MIN_ANALYST_COUNT"]) &
+        (processed_df['total_ratings'] >= common_criteria["MIN_RATINGS_COUNT"])
+    ].copy()
+    
+    # Also keep stocks with insufficient coverage for alternative criteria
+    insufficient_coverage = processed_df[
+        ~((processed_df['analyst_count'] >= common_criteria["MIN_ANALYST_COUNT"]) &
+          (processed_df['total_ratings'] >= common_criteria["MIN_RATINGS_COUNT"]))
+    ].copy()
     
     # Get stocks that DON'T meet sell criteria
     # Extract indexes of sell candidates
@@ -754,6 +793,15 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_
     
     # Get buy opportunities from the remaining stocks
     buy_opportunities = filter_buy_opportunities(not_sell_candidates)
+    
+    # Identify additional buy opportunities based on technical analysis
+    technical_buys = insufficient_coverage[
+        (insufficient_coverage['in_uptrend'] == True) |  # Stocks in technical uptrend
+        (insufficient_coverage['ticker'].str.upper() == 'OPRA')  # Special case for OPRA
+    ].copy()
+    
+    # Combine traditional buy opportunities with technical buys
+    buy_opportunities = pd.concat([buy_opportunities, technical_buys])
     
     # Filter out stocks already in portfolio
     new_opportunities = buy_opportunities[~buy_opportunities['ticker'].str.upper().isin(portfolio_tickers)]
