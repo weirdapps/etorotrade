@@ -250,6 +250,12 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
 - **EXRET Calculation**:
   - Expected Return = Upside Potential × Buy Percentage / 100
 
+**Important Note**: These exact same criteria are used consistently in both:
+1. Determining the coloring in market and portfolio views (`trade m`, `trade p`, `trade e`)
+2. Filtering stocks into the buy/sell/hold lists (`trade t b`, `trade t s`, `trade t h`)
+
+The system ensures perfect alignment between the color a stock receives in the main views and which list it appears in with the trade command. Green-colored stocks appear in buy lists, red-colored stocks appear in sell lists, and white/neutral-colored stocks appear in hold lists.
+
 ## Ticker Formats
 
 - **US Ticker Detection**:
