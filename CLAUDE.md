@@ -123,7 +123,7 @@
 - `yahoofinance/utils/market_utils.py` - Ticker validation and normalization (compatibility layer)
 - `yahoofinance/utils/rate_limiter.py` - Thread-safe adaptive rate limiting (compatibility layer)
 - `yahoofinance/utils/pagination.py` - Paginated API result handling (compatibility layer)
-- `yahoofinance/utils/async_helpers.py` - Async utilities with rate limiting
+- `yahoofinance/utils/async_helpers.py` - Async utilities with rate limiting (compatibility layer)
 - `yahoofinance/utils/format_utils.py` - HTML and output formatting utilities (compatibility layer)
 
 ### Modular Design
@@ -141,7 +141,8 @@ The codebase follows a modular design with clear separation of concerns:
     - `ticker_utils.py` - Core implementation of ticker validation/normalization
   - `utils/date/` - Date manipulation and formatting
     - `date_utils.py` - Date formatting and processing utilities
-  - `utils/async/` - Asynchronous operation helpers (currently missing, planned)
+  - `utils/async/` - Asynchronous operation helpers
+    - `helpers.py` - Core implementation of async utilities
 
 The top-level utils files (`rate_limiter.py`, `pagination.py`, etc.) serve as compatibility layers that re-export functionality from their specialized submodule implementations, ensuring backward compatibility while allowing for a more organized code structure.
 
@@ -429,9 +430,8 @@ The codebase has been reorganized to eliminate duplications:
   - Preserved API compatibility
 
 ## Pending Improvements
-- **Async Directory Structure**: Create proper `utils/async/` directory with implementations
 - **Testing Consolidation**: Combine similar test files (rate limiter, market display)
-- **API Architecture**: Implement or remove empty `api/providers/` directory
+- **API Architecture**: Complete the empty `api/providers/` directory implementations
 - **Trading Directory**: Implement or remove empty `trading/` directory
 - **Metrics Naming**: Rename `_metrics.py` to follow standard naming conventions
 

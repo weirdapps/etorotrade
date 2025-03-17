@@ -1,8 +1,8 @@
 """
 Async utilities for Yahoo Finance API client.
 
-This module provides async utilities for working with the Yahoo Finance API,
-including rate limiting, batching, and retry mechanisms for async operations.
+This module provides async utilities with rate limiting for the Yahoo Finance API,
+including rate limiting decorators, controlled concurrency, and retry mechanisms.
 """
 
 import asyncio
@@ -11,8 +11,8 @@ import time
 from typing import TypeVar, List, Dict, Any, Callable, Awaitable, Optional, Union, Tuple
 from functools import wraps
 
-from ..errors import RateLimitError, APIError
-from .network.rate_limiter import global_rate_limiter
+from ...errors import RateLimitError, APIError
+from ..rate_limiter import global_rate_limiter
 
 logger = logging.getLogger(__name__)
 

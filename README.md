@@ -343,9 +343,14 @@ The system uses a modular architecture:
      - `utils/network/` - Rate limiting and API communication
      - `utils/market/` - Market-specific utilities like ticker validation
      - `utils/date/` - Date manipulation and formatting
-     - `utils/async/` - Asynchronous operation helpers
+     - `utils/async/` - Asynchronous operation helpers with rate limiting
 3. **Analysis Layer** (Multiple modules): Data processing and calculations
 4. **Display Layer** (display.py): Output formatting and presentation
+
+The codebase follows a clean, organized structure:
+- Core functionality lives in specialized modules (e.g., `utils/async/helpers.py`)
+- Compatibility layers provide backward compatibility (e.g., `utils/async_helpers.py`)
+- Clear module boundaries and consistent patterns across all utilities
 
 Key components:
 - **YFinanceError Hierarchy**: Comprehensive error handling system
