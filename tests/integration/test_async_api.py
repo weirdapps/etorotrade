@@ -1,6 +1,7 @@
 """Integration tests for async provider pattern"""
 
 import pytest
+import pytest_asyncio
 import asyncio
 import pandas as pd
 from yahoofinance.api import get_provider
@@ -15,7 +16,7 @@ pytestmark = [
 class TestAsyncProviderIntegration:
     """Integration tests for the async provider interface"""
     
-    @pytest.fixture(autouse=True)
+    @pytest_asyncio.fixture(autouse=True)
     async def setup(self):
         """Set up test case"""
         self.provider = get_provider(async_mode=True)

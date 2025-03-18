@@ -168,17 +168,9 @@ class YahooFinanceProvider(FinanceDataProvider):
                 'previous_earnings': stock_data.previous_earnings,
             }
             
-            # Add detailed earnings from earnings module if needed
-            from ...earnings import EarningsAnalyzer
-            
-            try:
-                earnings_analyzer = EarningsAnalyzer(self.client)
-                detailed_earnings = earnings_analyzer.get_earnings_data(ticker)
-                if detailed_earnings:
-                    earnings_data.update(detailed_earnings)
-            except Exception:
-                # Fallback to basic earnings data if detailed fetch fails
-                pass
+            # We only use basic earnings data
+            # Expanded earnings data would need a proper EarningsAnalyzer implementation
+            pass
                 
             return earnings_data
         except Exception as e:

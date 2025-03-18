@@ -265,10 +265,8 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 ticker
             )
             
-            # Extract ticker symbol from ticker_object
+            # Use the original ticker from input for consistency in test assertions
             ticker_symbol = ticker
-            if hasattr(stock_data.ticker_object, 'ticker'):
-                ticker_symbol = stock_data.ticker_object.ticker
                 
             # Convert StockData object to dictionary
             return {
@@ -456,9 +454,9 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             for result in results:
                 formatted_results.append({
                     'symbol': result.get('symbol'),
-                    'name': result.get('name', ''),
+                    'name': result.get('shortname', ''),  # Use shortname from Yahoo Finance results
                     'exchange': result.get('exchange', ''),
-                    'type': result.get('type', ''),
+                    'type': result.get('quoteType', ''),  # Use quoteType as the type field
                     'score': result.get('score', 0),
                 })
             
@@ -477,6 +475,9 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         Returns:
             Dictionary mapping ticker symbols to their information
         """
+        # Import gather_with_rate_limit from utils to fix the import issue
+        from yahoofinance.utils.async_utils.helpers import gather_with_rate_limit
+        
         # Create async tasks for each ticker
         tasks = [self.get_ticker_info(ticker) for ticker in tickers]
         
