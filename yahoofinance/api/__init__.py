@@ -6,15 +6,13 @@ including both synchronous and asynchronous interfaces.
 """
 
 from .providers.base import FinanceDataProvider
-from .providers.yahoo_finance import YahooFinanceProvider
 from .providers.async_base import AsyncFinanceDataProvider
-from .providers.async_yahoo_finance import AsyncYahooFinanceProvider
 
-# Create default provider instances
-default_provider = YahooFinanceProvider()
-default_async_provider = AsyncYahooFinanceProvider()
+# Import providers lazily to avoid circular dependencies
+_default_provider = None
+_default_async_provider = None
 
-def get_provider(async_mode: bool = False) -> FinanceDataProvider:
+def get_provider(async_mode: bool = False):
     """
     Get appropriate finance data provider.
     
@@ -24,17 +22,22 @@ def get_provider(async_mode: bool = False) -> FinanceDataProvider:
     Returns:
         Finance data provider instance
     """
+    global _default_provider, _default_async_provider
+    
     if async_mode:
-        return default_async_provider
-    return default_provider
+        if _default_async_provider is None:
+            from .providers.async_yahoo_finance import AsyncYahooFinanceProvider
+            _default_async_provider = AsyncYahooFinanceProvider()
+        return _default_async_provider
+    
+    if _default_provider is None:
+        from .providers.yahoo_finance import YahooFinanceProvider
+        _default_provider = YahooFinanceProvider()
+    return _default_provider
 
 # Export key components
 __all__ = [
     'FinanceDataProvider',
-    'YahooFinanceProvider',
     'AsyncFinanceDataProvider',
-    'AsyncYahooFinanceProvider',
-    'default_provider',
-    'default_async_provider',
     'get_provider',
 ]

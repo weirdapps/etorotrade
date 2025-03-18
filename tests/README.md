@@ -25,7 +25,13 @@ The tests are undergoing reorganization to better align with best practices and 
   - `api_responses/`: API response fixtures
 - `utils/`: Test utilities and helpers
 
-**Note on Migration**: Currently, many test files are still in the root directory. New tests should be added to the appropriate subdirectory, and existing tests are being gradually migrated to this structure.
+**Migration Status**: The migration is in progress. Several key test files have been moved to the new structure:
+- Rate limiter tests consolidated in `unit/core/test_rate_limiter.py`
+- Async utility tests consolidated in `unit/utils/async/test_async_helpers.py`
+- E2E tests for trade workflows in `e2e/test_trade_workflows.py` (now enabled)
+- API provider tests in `unit/api/test_providers.py`
+
+New tests should be added to the appropriate subdirectory, and existing tests are being gradually migrated to this structure.
 
 ## Test Naming Conventions
 
@@ -130,6 +136,25 @@ def test_api_function(mock_client):
     assert result["processed_key"] == "processed_value"
 ```
 
+### Testing Provider Pattern Components
+
+```python
+def test_provider_function(mock_provider):
+    # Arrange: Set up mock provider responses
+    mock_provider.get_ticker_info.return_value = {
+        "ticker": "AAPL",
+        "price": 150.0,
+        "name": "Apple Inc."
+    }
+    
+    # Act: Call the function under test with provider
+    result = function_using_provider(mock_provider)
+    
+    # Assert: Verify the result
+    assert result["ticker_name"] == "Apple Inc."
+    assert result["price_formatted"] == "$150.00"
+```
+
 ### Testing Error Handling
 
 ```python
@@ -140,6 +165,26 @@ def test_error_handling(mock_client):
     # Act & Assert: Verify exception handling
     with pytest.raises(APIError):
         function_using_api(mock_client)
+```
+
+### Testing Retry Logic
+
+```python
+def test_retry_logic(mock_provider):
+    # Arrange: Set up mock to fail twice then succeed
+    mock_provider.get_ticker_info.side_effect = [
+        RateLimitError("Rate limit exceeded", retry_after=1),
+        ConnectionError("Network failure"),
+        {"ticker": "AAPL", "price": 150.0}
+    ]
+    
+    # Act: Call the function that should implement retries
+    result = get_data_with_retries(mock_provider, "AAPL")
+    
+    # Assert: Verify final success
+    assert result["ticker"] == "AAPL"
+    assert result["price"] == 150.0
+    assert mock_provider.get_ticker_info.call_count == 3
 ```
 
 ### Testing with Parametrization

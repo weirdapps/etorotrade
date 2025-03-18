@@ -4,6 +4,8 @@ import pandas as pd
 from typing import Optional, Tuple, List, Dict
 import re
 from tabulate import tabulate
+from yahoofinance.api import get_provider
+from yahoofinance.core.errors import YFinanceError, DataError, ConnectionError, TimeoutError
 
 # Constants for column names
 MARKET_CAP_COLUMN = 'Market Cap'
@@ -14,6 +16,7 @@ class EarningsCalendar:
     
     def __init__(self):
         self.market_close_hour = 16  # 4:00 PM ET
+        self._provider = None
         # List of major stocks to track (S&P 500 components and other significant stocks)
         self.major_stocks = [
             # Technology
@@ -130,10 +133,45 @@ class EarningsCalendar:
         end_date = re.sub(r'[^0-9\-]', '', end_date) if end_date else ''
         return start_date, end_date
 
+    @property
+    def provider(self):
+        """Lazy-loaded provider instance."""
+        if self._provider is None:
+            self._provider = get_provider()
+        return self._provider
+        
     def _process_stock(self, ticker: str, start_date: str, end_date: str) -> List[Dict[str, str]]:
         """Process a single stock's earnings data."""
         earnings_data = []
         try:
+            # Try to use provider first, then fall back to direct yfinance access
+            try:
+                # Use the provider if available (better error handling, caching, rate limiting)
+                if self._provider:
+                    ticker_data = self.provider.get_ticker_info(ticker)
+                    earnings_dates_data = self.provider.get_earnings_data(ticker)
+                    
+                    if not earnings_dates_data or 'earnings_dates' not in earnings_dates_data or not earnings_dates_data['earnings_dates']:
+                        return earnings_data
+                        
+                    for date_str, row in earnings_dates_data['earnings_dates'].items():
+                        date = pd.to_datetime(date_str)
+                        trading_date = self.get_trading_date(date)
+                        if start_date <= trading_date <= end_date:
+                            earnings_data.append({
+                                'Symbol': ticker,
+                                MARKET_CAP_COLUMN: self._format_market_cap(ticker_data.get('market_cap')),
+                                'Date': trading_date,
+                                EPS_EST_COLUMN: self._format_eps(row.get('eps_estimate'))
+                            })
+                    
+                    return earnings_data
+            except (YFinanceError, AttributeError):
+                # Provider not available or couldn't handle the request
+                # Fall back to direct yfinance access
+                pass
+                
+            # Traditional direct yfinance access as fallback
             stock = yf.Ticker(ticker)
             earnings_dates = stock.earnings_dates
             
@@ -149,6 +187,12 @@ class EarningsCalendar:
                         ticker, date, row, info
                     ))
                     
+        except ConnectionError as e:
+            print(f"Network error while processing {ticker}: {str(e)}")
+        except TimeoutError as e:
+            print(f"Timeout while processing {ticker}: {str(e)}")
+        except DataError as e:
+            print(f"Data quality issue with {ticker}: {str(e)}")
         except Exception as e:
             print(f"Error processing {ticker}: {str(e)}")
             

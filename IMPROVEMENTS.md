@@ -71,6 +71,39 @@ This document outlines the improvements made to the codebase organization and st
 - Reuse of common utilities throughout the codebase
 - Improved maintainability through clear module boundaries
 
+## Recent Improvements
+
+The following additional improvements have been implemented:
+
+### 1. Enhanced Error Handling
+
+- Added error classification helpers in `core/errors.py`
+- Implemented new retry helper functions for smart backoff
+- Enhanced `RateLimitError` with retry recommendations
+- Added better error context and status code tracking
+- Improved error handling in providers with specialized error types
+
+### 2. Provider-Compatible Module Refactoring
+
+- Updated `insiders.py` and `earnings.py` to use provider pattern
+- Added backward compatibility for legacy client usage
+- Improved error handling with proper error classification
+- Added structured fallbacks for data quality issues
+
+### 3. Fixed Circular Dependencies
+
+- Implemented lazy loading of providers in `api/__init__.py`
+- Modified provider initialization to avoid import cycles
+- Improved direct yfinance usage in providers
+- Fixed thread-pool-based batch implementation
+
+### 4. E2E Test Improvements
+
+- Enabled previously skipped E2E tests in `test_trade_workflows.py`
+- Updated tests to work with provider pattern
+- Fixed mock providers for proper E2E testing
+- Added comprehensive workflow verification
+
 ## Future Work
 
 While significant improvements have been made, some additional work could further enhance the codebase:
@@ -79,4 +112,6 @@ While significant improvements have been made, some additional work could furthe
 2. **True Async Implementation**: Implement true async I/O rather than using executors for better performance
 3. **Provider Expansion**: Add additional provider implementations for other data sources
 4. **Documentation**: Enhance API documentation with more examples
-5. **Error Handling Refinement**: Add more specific error types for common failure modes
+5. **Connection Pooling**: Add HTTP connection pooling for better performance
+6. **Disk-Based Caching**: Implement persistent cache for improved performance
+7. **Circuit Breaker Pattern**: Add circuit breaker for API failures

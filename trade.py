@@ -118,7 +118,7 @@ def filter_buy_opportunities(market_df):
     Returns:
         pd.DataFrame: Filtered buy opportunities
     """
-    from yahoofinance.config import TRADING_CRITERIA
+    from yahoofinance.core.config import TRADING_CRITERIA
     
     # Get criteria from config
     common_criteria = TRADING_CRITERIA["COMMON"]
@@ -183,7 +183,7 @@ def filter_sell_candidates(portfolio_df):
     Returns:
         pd.DataFrame: Filtered sell candidates
     """
-    from yahoofinance.config import TRADING_CRITERIA
+    from yahoofinance.core.config import TRADING_CRITERIA
     
     # Get criteria from config
     common_criteria = TRADING_CRITERIA["COMMON"]
@@ -251,7 +251,7 @@ def filter_hold_candidates(market_df):
     Returns:
         pd.DataFrame: Filtered hold candidates
     """
-    from yahoofinance.config import TRADING_CRITERIA
+    from yahoofinance.core.config import TRADING_CRITERIA
     
     # Get criteria from config
     common_criteria = TRADING_CRITERIA["COMMON"]
@@ -773,7 +773,7 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_
         notrade_path: Path to no-trade tickers file
     """
     # First filter out any stocks that meet SELL criteria to ensure risk management priority
-    from yahoofinance.config import TRADING_CRITERIA
+    from yahoofinance.core.config import TRADING_CRITERIA
     common_criteria = TRADING_CRITERIA["COMMON"]
     
     # Apply confidence threshold (INCONCLUSIVE check)

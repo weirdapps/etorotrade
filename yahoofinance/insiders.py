@@ -2,6 +2,8 @@ from typing import Optional, Dict, List
 import pandas as pd
 from datetime import datetime
 import logging
+from yahoofinance.api import get_provider
+from yahoofinance.core.errors import YFinanceError, DataError, MissingDataError
 
 logger = logging.getLogger(__name__)
 
@@ -11,8 +13,22 @@ START_DATE_COL = "Start Date"
 class InsiderAnalyzer:
     """Analyzes insider transactions data"""
     
-    def __init__(self, client):
+    def __init__(self, client=None):
+        """
+        Initialize the insider analyzer with either a client or provider.
+        
+        Args:
+            client: Legacy client interface (optional)
+        """
         self.client = client
+        self._provider = None
+        
+    @property
+    def provider(self):
+        """Lazy-loaded provider instance."""
+        if self._provider is None:
+            self._provider = get_provider()
+        return self._provider
     
     def _is_us_ticker(self, ticker: str) -> bool:
         """
@@ -53,30 +69,61 @@ class InsiderAnalyzer:
             }
             
         try:
-            # Get stock info for earnings dates (skip insider metrics to prevent recursion)
-            stock_info = self.client.get_ticker_info(ticker, skip_insider_metrics=True)
-            if not stock_info.previous_earnings:
-                logger.info(f"No previous earnings date available for {ticker}")
-                return {
-                    "insider_buy_pct": None,
-                    "transaction_count": None
-                }
-            
-            # Get insider transactions
-            # stock_info.ticker_object was set to None in StockData object, use stock_info._stock instead
-            try:
-                if stock_info.ticker_object is not None:
-                    stock = stock_info.ticker_object
-                else:
-                    stock = stock_info._stock
-                insider_df = stock.insider_transactions
-            except AttributeError:
-                # Handle the case where _stock is not accessible
-                logger.warning(f"Could not access insider transactions for {ticker}")
-                return {
-                    "insider_buy_pct": None,
-                    "transaction_count": None
-                }
+            # Get stock info for earnings dates using provider if available
+            if self.client:
+                # Legacy client path
+                stock_info = self.client.get_ticker_info(ticker, skip_insider_metrics=True)
+                if not stock_info.previous_earnings:
+                    logger.info(f"No previous earnings date available for {ticker}")
+                    return {
+                        "insider_buy_pct": None,
+                        "transaction_count": None
+                    }
+                
+                # Get insider transactions from ticker object
+                try:
+                    if stock_info.ticker_object is not None:
+                        stock = stock_info.ticker_object
+                    else:
+                        stock = stock_info._stock
+                    insider_df = stock.insider_transactions
+                except AttributeError:
+                    # Handle the case where _stock is not accessible
+                    logger.warning(f"Could not access insider transactions for {ticker}")
+                    return {
+                        "insider_buy_pct": None,
+                        "transaction_count": None
+                    }
+            else:
+                # Provider path
+                try:
+                    ticker_info = self.provider.get_ticker_info(ticker)
+                    earnings_data = self.provider.get_earnings_data(ticker)
+                    
+                    if not earnings_data or 'previous_earnings' not in earnings_data or not earnings_data['previous_earnings']:
+                        logger.info(f"No previous earnings date available for {ticker}")
+                        return {
+                            "insider_buy_pct": None,
+                            "transaction_count": None
+                        }
+                    
+                    # Get raw insider transactions data
+                    # For a real provider implementation, this would call a specific method
+                    # Since we don't have a proper abstraction yet, we'll use the same fallback
+                    # This would be replaced with provider.get_insider_transactions(ticker)
+                    if 'stock_object' in ticker_info and ticker_info['stock_object']:
+                        insider_df = ticker_info['stock_object'].insider_transactions
+                    else:
+                        raise MissingDataError(
+                            f"No insider data available for {ticker}", 
+                            ['insider_transactions']
+                        )
+                except YFinanceError as e:
+                    logger.warning(f"Provider error: {str(e)}")
+                    return {
+                        "insider_buy_pct": None,
+                        "transaction_count": None
+                    }
             
             if insider_df is None or insider_df.empty:
                 logger.info(f"No insider transactions available for {ticker}")
@@ -86,9 +133,15 @@ class InsiderAnalyzer:
                 }
             
             # Filter transactions since second-to-last earnings
+            # This code path needs previous_earnings from either client or provider
+            previous_earnings = (
+                stock_info.previous_earnings if self.client 
+                else earnings_data['previous_earnings']
+            )
+            
             insider_df[START_DATE_COL] = pd.to_datetime(insider_df[START_DATE_COL])
             filtered_df = insider_df[
-                insider_df[START_DATE_COL] >= pd.to_datetime(stock_info.previous_earnings)
+                insider_df[START_DATE_COL] >= pd.to_datetime(previous_earnings)
             ]
             
             if filtered_df.empty:
@@ -139,6 +192,13 @@ class InsiderAnalyzer:
                 "transaction_count": total
             }
             
+        except DataError as e:
+            # Handle data-specific errors with better context
+            logger.error(f"Data error calculating insider metrics for {ticker}: {str(e)}")
+            return {
+                "insider_buy_pct": None,
+                "transaction_count": None
+            }
         except Exception as e:
             logger.error(f"Error calculating insider metrics for {ticker}: {str(e)}")
             return {
