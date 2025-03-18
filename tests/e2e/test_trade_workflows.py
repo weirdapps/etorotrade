@@ -37,7 +37,6 @@ def sample_market_data():
 
 
 @pytest.mark.e2e
-@pytest.mark.skip(reason="Needs to be updated for new provider pattern")
 class TestPortfolioWorkflow:
     """Test portfolio analysis workflow from data loading to recommendation."""
     
@@ -229,7 +228,6 @@ class TestPortfolioWorkflow:
 
 
 @pytest.mark.e2e
-@pytest.mark.skip(reason="Needs to be updated for new provider pattern")
 class TestTradeWorkflow:
     """Test trade recommendation workflow."""
     
