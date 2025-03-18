@@ -1,10 +1,10 @@
 from typing import Optional, Dict, List, Any
 import pandas as pd
 from datetime import datetime, timedelta
-from .client import YFinanceClient
-from .types import YFinanceError, ValidationError
+from .core.client import YFinanceClient
+from .core.types import YFinanceError, ValidationError
 from .utils.market_utils import is_us_ticker
-from .config import POSITIVE_GRADES
+from .core.config import POSITIVE_GRADES
 import logging
 
 logger = logging.getLogger(__name__)

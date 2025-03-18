@@ -1,7 +1,9 @@
 import unittest
 from unittest.mock import Mock, patch
 import pandas as pd
-from yahoofinance.client import YFinanceClient, YFinanceError, StockData
+from yahoofinance.core.client import YFinanceClient
+from yahoofinance.core.errors import YFinanceError
+from yahoofinance.core.types import StockData
 
 class TestYFinanceClient(unittest.TestCase):
     def setUp(self):
@@ -297,6 +299,9 @@ class TestYFinanceClient(unittest.TestCase):
         """Test cache management functions"""
         client = YFinanceClient()
         
+        # Clear the cache at the beginning to ensure consistent state
+        client.clear_cache()
+        
         # Test initial cache state
         cache_info = client.get_cache_info()
         initial_hits = cache_info['hits']
@@ -312,7 +317,10 @@ class TestYFinanceClient(unittest.TestCase):
             mock_ticker.history.return_value = pd.DataFrame()
             mock_yf_ticker.return_value = mock_ticker
             
-            # Mock get_earnings_dates and insider_metrics for both calls
+            # Mock _get_ticker_basic_info directly to bypass complex logic in get_ticker_info
+            client._get_ticker_basic_info = Mock(return_value=(mock_ticker, {}))
+            
+            # Mock get_earnings_dates and insider_metrics
             client.get_earnings_dates = Mock(return_value=(None, None))
             client.insider_analyzer.get_insider_metrics = Mock(
                 return_value={'insider_buy_pct': None, 'transaction_count': None}
@@ -349,7 +357,7 @@ class TestYFinanceClient(unittest.TestCase):
             self.fail(f"Validation raised exception for valid ticker: {e}")
             
         # Test invalid tickers
-        from yahoofinance.types import ValidationError
+        from yahoofinance.core.types import ValidationError
         with self.assertRaises(ValidationError):
             client._validate_ticker("")
         with self.assertRaises(ValidationError):

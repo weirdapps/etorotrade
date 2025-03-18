@@ -46,7 +46,9 @@ def rate_limited(ticker_param: Optional[str] = None):
                         if idx < len(args):
                             ticker = args[idx]
             
-            return global_rate_limiter.execute_with_rate_limit(func, *args, ticker=ticker, **kwargs)
+            # Don't pass ticker as a named parameter to execute_with_rate_limit
+            # The method will extract it from args/kwargs directly
+            return global_rate_limiter.execute_with_rate_limit(func, *args, **kwargs)
         
         # Preserve function metadata
         return functools.wraps(func)(wrapper)

@@ -15,10 +15,10 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch, MagicMock
 
-from yahoofinance.utils.rate_limiter import (
+from yahoofinance.utils.network.rate_limiter import (
     AdaptiveRateLimiter, rate_limited, batch_process, global_rate_limiter
 )
-from yahoofinance.errors import RateLimitError, APIError
+from yahoofinance.core.errors import RateLimitError, APIError
 
 # Create a reusable test fixture module
 from tests.fixtures import create_bulk_fetch_mocks
@@ -176,7 +176,7 @@ class TestRateLimiterDecorators(unittest.TestCase):
         # Configure mock to actually call the function
         mock_limiter.execute_with_rate_limit.side_effect = lambda func, *args, **kwargs: func(*args, **kwargs)
         
-        with patch('yahoofinance.utils.rate_limiter.global_rate_limiter', mock_limiter):
+        with patch('yahoofinance.utils.network.rate_limiter.global_rate_limiter', mock_limiter):
             calls = []
             
             @rate_limited(ticker_param='ticker')
@@ -202,7 +202,7 @@ class TestRateLimiterDecorators(unittest.TestCase):
         # Configure mock to actually call the function
         mock_limiter.execute_with_rate_limit.side_effect = lambda func, *args, **kwargs: func(*args, **kwargs)
         
-        with patch('yahoofinance.utils.rate_limiter.global_rate_limiter', mock_limiter):
+        with patch('yahoofinance.utils.network.rate_limiter.global_rate_limiter', mock_limiter):
             @rate_limited()  # No ticker param
             def simple_func(x):
                 return x * 2
