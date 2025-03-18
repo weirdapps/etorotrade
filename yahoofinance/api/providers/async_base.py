@@ -100,3 +100,16 @@ class AsyncFinanceDataProvider(ABC):
             List of matching tickers with metadata
         """
         pass
+    
+    @abstractmethod
+    async def batch_get_ticker_info(self, tickers: List[str]) -> Dict[str, Dict[str, Any]]:
+        """
+        Get ticker information for multiple symbols in a batch asynchronously.
+        
+        Args:
+            tickers: List of ticker symbols
+            
+        Returns:
+            Dictionary mapping ticker symbols to their information
+        """
+        pass
