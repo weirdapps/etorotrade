@@ -121,7 +121,7 @@ def test_main_with_invalid_args(capsys):
         assert exc_info.value.code == 1
         
         captured = capsys.readouterr()
-        assert "Usage: python -m yahoofinance.metrics_debug TICKER" in captured.out
+        assert "Usage: python -m yahoofinance.metrics TICKER" in captured.out
 
 def test_main_lowercase_ticker():
     test_args = ['script.py', 'aapl']

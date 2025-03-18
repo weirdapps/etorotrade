@@ -4,7 +4,7 @@ import shutil
 import json
 from datetime import datetime, timedelta
 from unittest.mock import patch
-from yahoofinance.cache import Cache
+from yahoofinance.core.cache import Cache
 
 class TestCache(unittest.TestCase):
     def setUp(self):

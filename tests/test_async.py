@@ -13,11 +13,11 @@ import unittest
 import logging
 from unittest.mock import patch
 
-from yahoofinance.utils.pagination import PaginatedResults, paginated_request, bulk_fetch
-from yahoofinance.utils.async_helpers import (
+from yahoofinance.utils.network.pagination import PaginatedResults, paginated_request, bulk_fetch
+from yahoofinance.utils.async_utils import (
     async_rate_limited, gather_with_rate_limit, process_batch_async, retry_async
 )
-from yahoofinance.errors import RateLimitError
+from yahoofinance.core.errors import RateLimitError
 
 # Import test fixtures to reduce duplication
 from tests.fixtures import (

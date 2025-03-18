@@ -152,7 +152,7 @@ class TestAsyncProviders(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(results[0]['exchange'], 'NASDAQ')
         self.assertEqual(results[0]['type'], 'EQUITY')
     
-    @patch('yahoofinance.utils.async_helpers.gather_with_rate_limit')
+    @patch('yahoofinance.utils.async_utils.helpers.gather_with_rate_limit')
     @patch('yahoofinance.api.providers.async_yahoo_finance.AsyncYahooFinanceProvider.get_ticker_info')
     async def test_batch_get_ticker_info(self, mock_get_ticker, mock_gather):
         """Test batch processing of ticker data."""

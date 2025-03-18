@@ -8,7 +8,7 @@ import asyncio
 from typing import Callable
 from unittest.mock import AsyncMock
 
-from yahoofinance.errors import RateLimitError, APIError
+from yahoofinance.core.errors import RateLimitError, APIError
 
 
 async def create_flaky_function(fail_count: int = 2) -> Callable[[], AsyncMock]:

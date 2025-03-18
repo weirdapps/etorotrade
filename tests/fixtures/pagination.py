@@ -5,7 +5,7 @@ This module provides fixtures and helpers for testing pagination functionality.
 """
 
 from typing import Dict, Any, List, Optional, Callable, Tuple
-from yahoofinance.errors import APIError
+from yahoofinance.core.errors import APIError
 
 
 def create_paginated_data(num_pages: int = 3, items_per_page: int = 3) -> List[Dict[str, Any]]:

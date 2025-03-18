@@ -10,7 +10,7 @@ import pandas as pd
 from unittest.mock import Mock, patch
 from datetime import datetime, timedelta
 
-from yahoofinance.client import YFinanceClient
+from yahoofinance.core.client import YFinanceClient
 from yahoofinance.display import MarketDisplay
 from yahoofinance.formatting import DisplayConfig, DisplayFormatter
 
@@ -128,3 +128,4 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "slow: mark test as slow running")
     config.addinivalue_line("markers", "api: mark test as requiring API access")
     config.addinivalue_line("markers", "network: mark test as requiring network connectivity")
+    config.addinivalue_line("markers", "asyncio: mark test as requiring asyncio support")

@@ -6,6 +6,7 @@ The implementation has moved to yahoofinance.core.client
 """
 
 import warnings
+import yfinance as yf
 from yahoofinance.core.client import YFinanceClient
 from yahoofinance.core.errors import YFinanceError, ValidationError, APIError, RateLimitError, ConnectionError, TimeoutError, ResourceNotFoundError, DataError, DataQualityError, MissingDataError
 from yahoofinance.core.types import StockData
@@ -22,7 +23,8 @@ __all__ = [
     'DataError',
     'DataQualityError',
     'MissingDataError',
-    'StockData'
+    'StockData',
+    'yf'  # Add yf to __all__
 ]
 
 warnings.warn(

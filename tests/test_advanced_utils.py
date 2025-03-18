@@ -10,10 +10,10 @@ import pytest
 import logging
 from unittest.mock import patch
 
-from yahoofinance.utils.rate_limiter import global_rate_limiter
-from yahoofinance.utils.pagination import PaginatedResults
-from yahoofinance.utils.async_helpers import retry_async
-from yahoofinance.errors import RateLimitError
+from yahoofinance.utils.network.rate_limiter import global_rate_limiter
+from yahoofinance.utils.network.pagination import PaginatedResults
+from yahoofinance.utils.async_utils import retry_async
+from yahoofinance.core.errors import RateLimitError
 
 # Import test fixtures
 from tests.fixtures import (

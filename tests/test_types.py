@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import Mock
 import yfinance as yf
-from yahoofinance.types import YFinanceError, APIError, ValidationError, StockData
+from yahoofinance.core.types import YFinanceError, APIError, ValidationError, StockData
 
 class TestExceptions(unittest.TestCase):
     """Test suite for custom exceptions"""
