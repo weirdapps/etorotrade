@@ -12,7 +12,7 @@ from typing import Dict, Any, Optional, List, Union, TypeVar, Callable, Awaitabl
 from functools import wraps
 
 from .async_base import AsyncFinanceDataProvider
-from ...core.client import YFinanceClient
+import yfinance as yf
 from ...core.errors import YFinanceError, RateLimitError, APIError
 from ...utils.network.async_utils import (
     AsyncRateLimiter, 
@@ -42,7 +42,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         Args:
             max_concurrency: Maximum number of concurrent requests
         """
-        self.client = YFinanceClient()
+        self._ticker_cache = {}
         self.limiter = AsyncRateLimiter(max_concurrency=max_concurrency)
     
     async def _run_sync_in_executor(self, func, *args, **kwargs):
