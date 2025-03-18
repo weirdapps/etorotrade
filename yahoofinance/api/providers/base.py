@@ -100,3 +100,28 @@ class FinanceDataProvider(ABC):
             List of matching tickers with metadata
         """
         pass
+    
+    def batch_get_ticker_info(self, tickers: List[str]) -> Dict[str, Dict[str, Any]]:
+        """
+        Get ticker information for multiple symbols in a batch.
+        
+        This is a convenience method with a default implementation that
+        calls get_ticker_info for each ticker. Subclasses can override
+        this method to provide a more efficient batch implementation.
+        
+        Args:
+            tickers: List of ticker symbols
+            
+        Returns:
+            Dictionary mapping ticker symbols to their information
+        """
+        results = {}
+        for ticker in tickers:
+            try:
+                results[ticker] = self.get_ticker_info(ticker)
+            except Exception as e:
+                # Log error and continue with next ticker
+                import logging
+                logging.getLogger(__name__).warning(f"Error getting data for {ticker}: {str(e)}")
+                results[ticker] = None
+        return results

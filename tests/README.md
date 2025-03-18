@@ -4,14 +4,19 @@ This directory contains the test suite for the etorotrade application. The tests
 
 ## Test Organization
 
-The tests are organized into the following directories:
+The tests are undergoing reorganization to better align with best practices and the codebase structure. The target directory structure is:
 
 - `unit/`: Unit tests testing individual components in isolation
-  - `core/`: Tests for core modules like client, cache, errors
+  - `core/`: Tests for core modules like client, cache, errors, rate limiters
   - `api/`: Tests for API providers and interfaces
   - `utils/`: Tests for utility functions and helpers
+    - `async/`: Tests for async utilities
+    - `data/`: Tests for data formatting utilities
+    - `market/`: Tests for market utilities
+    - `network/`: Tests for network utilities (rate limiting, pagination)
+  - `modules/`: Tests for specific feature modules
 - `integration/`: Integration tests between components
-  - `api_client/`: Tests for API client integrations
+  - `api/`: Tests for API client and provider integrations
   - `display/`: Tests for display integrations
 - `e2e/`: End-to-end tests of complete workflows
 - `performance/`: Performance and benchmark tests
@@ -19,6 +24,8 @@ The tests are organized into the following directories:
   - `market_data/`: Market data fixtures
   - `api_responses/`: API response fixtures
 - `utils/`: Test utilities and helpers
+
+**Note on Migration**: Currently, many test files are still in the root directory. New tests should be added to the appropriate subdirectory, and existing tests are being gradually migrated to this structure.
 
 ## Test Naming Conventions
 
