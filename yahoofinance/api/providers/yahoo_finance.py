@@ -168,9 +168,23 @@ class YahooFinanceProvider(FinanceDataProvider):
                 'previous_earnings': stock_data.previous_earnings,
             }
             
-            # We only use basic earnings data
-            # Expanded earnings data would need a proper EarningsAnalyzer implementation
-            pass
+            # Try to get more detailed earnings data if available
+            try:
+                from ...earnings import EarningsAnalyzer
+                
+                analyzer = EarningsAnalyzer(self.client)
+                detailed_data = analyzer.get_earnings_data(ticker)
+                
+                if detailed_data:
+                    earnings_data.update({
+                        'upcoming_earnings': detailed_data.get('next_earnings_date'),
+                        'earnings_history': detailed_data.get('earnings_history', []),
+                        'earnings_trend': detailed_data.get('earnings_trend', []),
+                    })
+            except ImportError:
+                logger.debug(f"EarningsAnalyzer not available for detailed earnings data")
+            except Exception as e:
+                logger.debug(f"Could not get detailed earnings data: {str(e)}")
                 
             return earnings_data
         except Exception as e:
@@ -207,3 +221,41 @@ class YahooFinanceProvider(FinanceDataProvider):
         except Exception as e:
             logger.error(f"Error searching tickers for '{query}': {str(e)}")
             raise YFinanceError(f"Failed to search tickers: {str(e)}")
+    
+    def batch_get_ticker_info(self, tickers: List[str]) -> Dict[str, Dict[str, Any]]:
+        """
+        Get ticker information for multiple symbols in a batch.
+        
+        This provides a more efficient implementation than the default
+        by using the client's batching capabilities when available.
+        
+        Args:
+            tickers: List of ticker symbols
+            
+        Returns:
+            Dictionary mapping ticker symbols to their information
+        """
+        results = {}
+        
+        # Process in batches of 10 for better performance
+        from ...utils.network.rate_limiter import batch_process
+        
+        try:
+            # Use batch_process to efficiently process tickers with rate limiting
+            batch_results = batch_process(
+                tickers,
+                self.get_ticker_info,
+                batch_size=10,
+                continue_on_error=True
+            )
+            
+            # Convert to dictionary format
+            for ticker, result in batch_results:
+                results[ticker] = result
+                
+            return results
+        except Exception as e:
+            logger.error(f"Error in batch processing: {str(e)}")
+            
+            # Fall back to serial processing if batch fails
+            return super().batch_get_ticker_info(tickers)

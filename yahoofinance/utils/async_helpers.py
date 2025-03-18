@@ -1,15 +1,14 @@
 """
 Async utilities for Yahoo Finance API client.
 
-This module is a compatibility layer that re-exports functionality from the yahoofinance.utils.async_utils
-module for backward compatibility. Use the async_utils module directly in new code.
+This module is a compatibility layer that re-exports functionality from the 
+yahoofinance.utils.network.async_utils module for backward compatibility.
 
-WARNING: This module is deprecated. Import from yahoofinance.utils.async_utils instead.
+WARNING: This module is deprecated. Import from yahoofinance.utils.network.async_utils instead.
 """
 
-# Re-export from async_utils module - using absolute imports to avoid circular imports
-# pylint: disable=import-error,no-name-in-module
-from yahoofinance.utils.async_utils import (
+# Re-export from network.async_utils module
+from .network.async_utils import (
     AsyncRateLimiter,
     global_async_limiter,
     async_rate_limited,
