@@ -296,7 +296,19 @@ class MarketDisplay:
                         self.data = data
                         
                     def __getattr__(self, name):
-                        return self.data.get(name)
+                        # Special handling for peg_ratio to ensure it's properly passed through
+                        if name == 'peg_ratio':
+                            return self.data.get('peg_ratio')
+                            
+                        # Special handling for last_earnings to ensure date format passes through correctly
+                        if name == 'last_earnings':
+                            return self.data.get('last_earnings')
+                            
+                        value = self.data.get(name)
+                        # A wrapper shouldn't return None for expected properties as that breaks the display
+                        if name in ['name', 'price', 'target_price', 'analyst_count', 'total_ratings']:
+                            return value or ""
+                        return value
                 
                 stock_info = StockDataWrapper(stock_info_dict)
             elif self.client:
@@ -305,28 +317,53 @@ class MarketDisplay:
                 raise ValueError("No data provider available (neither provider nor client is set)")
             
             # Construct report with valid data
-            return {
+            # Calculate upside potential if missing
+            upside = price_metrics.get("upside_potential")
+            if upside is None and price_metrics.get("current_price") and price_metrics.get("target_price"):
+                current_price = price_metrics.get("current_price")
+                target_price = price_metrics.get("target_price")
+                if current_price > 0:
+                    upside = ((target_price / current_price) - 1) * 100
+            
+            # Get company name
+            company_name = str(stock_info.name).upper() if stock_info.name else ""
+            
+            # Create the report with carefully handled values
+            report = {
                 "ticker": ticker,
-                "company_name": str(stock_info.name).upper() if stock_info.name else "",  # Add company name in ALL CAPS
+                "company_name": company_name,
                 "market_cap": stock_info.market_cap,  # Add market cap field
                 "price": price_metrics.get("current_price"),
                 "target_price": price_metrics.get("target_price"),
-                "upside": price_metrics.get("upside_potential"),
-                "analyst_count": stock_info.analyst_count,
-                "buy_percentage": ratings.get("positive_percentage"),
-                "total_ratings": ratings.get("total_ratings"),
+                "upside": upside,
+                "analyst_count": stock_info.analyst_count or 0,
+                "buy_percentage": ratings.get("positive_percentage", 0),
+                "total_ratings": ratings.get("total_ratings", 0),
                 "A": ratings.get("ratings_type", ""),  # Add A column after # A
                 "pe_trailing": stock_info.pe_trailing,
                 "pe_forward": stock_info.pe_forward,
-                "peg_ratio": stock_info.peg_ratio,
                 "dividend_yield": stock_info.dividend_yield,
                 "beta": stock_info.beta,
                 "short_float_pct": stock_info.short_float_pct,
-                "last_earnings": stock_info.last_earnings,
                 "insider_buy_pct": stock_info.insider_buy_pct,
                 "insider_transactions": stock_info.insider_transactions,
                 "_not_found": False
             }
+            
+            # Handle special fields with careful attention to null values
+            # PEG ratio needs special handling since it's used in filtering
+            if hasattr(stock_info, 'peg_ratio'):
+                report["peg_ratio"] = stock_info.peg_ratio
+            else:
+                report["peg_ratio"] = None
+                
+            # Earnings date needs special formatting
+            if hasattr(stock_info, 'last_earnings') and stock_info.last_earnings:
+                report["last_earnings"] = stock_info.last_earnings
+            else:
+                report["last_earnings"] = None
+                
+            return report
             
         except YFinanceError as e:
             if "Too many requests" in str(e):

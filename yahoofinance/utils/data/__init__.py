@@ -8,6 +8,7 @@ from .format_utils import (
     generate_market_html,
     format_for_csv,
 )
+from .market_cap_formatter import format_market_cap
 
 __all__ = [
     'FormatUtils',
@@ -16,4 +17,5 @@ __all__ = [
     'format_market_metrics',
     'generate_market_html',
     'format_for_csv',
+    'format_market_cap',
 ]

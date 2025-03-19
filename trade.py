@@ -118,61 +118,8 @@ def filter_buy_opportunities(market_df):
     Returns:
         pd.DataFrame: Filtered buy opportunities
     """
-    from yahoofinance.core.config import TRADING_CRITERIA
-    
-    # Get criteria from config
-    common_criteria = TRADING_CRITERIA["COMMON"]
-    buy_criteria = TRADING_CRITERIA["BUY"]
-    
-    # Apply confidence threshold (INCONCLUSIVE check)
-    sufficient_coverage = market_df[
-        (market_df['analyst_count'] >= common_criteria["MIN_ANALYST_COUNT"]) &
-        (market_df['total_ratings'] >= common_criteria["MIN_RATINGS_COUNT"])
-    ].copy()  # Create a copy to avoid SettingWithCopyWarning
-    
-    # Convert values to numeric for comparison
-    sufficient_coverage['peg_ratio_numeric'] = pd.to_numeric(
-        sufficient_coverage['peg_ratio'], errors='coerce')
-    
-    sufficient_coverage['short_float_pct_numeric'] = pd.to_numeric(
-        sufficient_coverage['short_float_pct'], errors='coerce')
-    
-    # Convert PE forward and trailing to numeric
-    sufficient_coverage['pe_forward_numeric'] = pd.to_numeric(
-        sufficient_coverage['pe_forward'], errors='coerce')
-    
-    sufficient_coverage['pe_trailing_numeric'] = pd.to_numeric(
-        sufficient_coverage['pe_trailing'], errors='coerce')
-    
-    # Identify missing values
-    peg_missing = sufficient_coverage['peg_ratio_numeric'].isna()
-    si_missing = sufficient_coverage['short_float_pct_numeric'].isna()
-    
-    # Apply Buy criteria:
-    # - UPSIDE >= 20%
-    # - BUY % >= 82%
-    # - BETA <= 3
-    # - BETA > 0.2
-    # - PEF < PET
-    # - PEF > 0.5
-    # - PEF <= 100
-    # - PEG < 3 (ignored if PEG not available)
-    # - SI <= 3% (ignored if SI not available)
-    
-    return sufficient_coverage[
-        (sufficient_coverage['upside'] >= buy_criteria["MIN_UPSIDE"]) &
-        (sufficient_coverage['buy_percentage'] >= buy_criteria["MIN_BUY_PERCENTAGE"]) &
-        (sufficient_coverage['beta'] <= buy_criteria["MAX_BETA"]) &
-        (sufficient_coverage['beta'] > buy_criteria["MIN_BETA"]) &
-        (
-            (sufficient_coverage['pe_forward_numeric'] < sufficient_coverage['pe_trailing_numeric']) |
-            (sufficient_coverage['pe_trailing_numeric'] <= 0)
-        ) &
-        (~sufficient_coverage['pe_forward_numeric'].isna() & (sufficient_coverage['pe_forward_numeric'] > buy_criteria["MIN_PE_FORWARD"])) &
-        (~sufficient_coverage['pe_forward_numeric'].isna() & (sufficient_coverage['pe_forward_numeric'] <= buy_criteria["MAX_PE_FORWARD"])) &
-        (peg_missing | (sufficient_coverage['peg_ratio_numeric'] < buy_criteria["MAX_PEG_RATIO"])) &
-        (si_missing | (sufficient_coverage['short_float_pct_numeric'] <= buy_criteria["MAX_SHORT_INTEREST"]))
-    ].copy()
+    from yahoofinance.utils.market import filter_buy_opportunities as filter_buy
+    return filter_buy(market_df)
 
 def filter_sell_candidates(portfolio_df):
     """Filter sell candidates from portfolio data.
@@ -183,64 +130,8 @@ def filter_sell_candidates(portfolio_df):
     Returns:
         pd.DataFrame: Filtered sell candidates
     """
-    from yahoofinance.core.config import TRADING_CRITERIA
-    
-    # Get criteria from config
-    common_criteria = TRADING_CRITERIA["COMMON"]
-    sell_criteria = TRADING_CRITERIA["SELL"]
-    
-    # Apply confidence threshold (INCONCLUSIVE check)
-    sufficient_coverage = portfolio_df[
-        (portfolio_df['analyst_count'] >= common_criteria["MIN_ANALYST_COUNT"]) &
-        (portfolio_df['total_ratings'] >= common_criteria["MIN_RATINGS_COUNT"])
-    ].copy()  # Create a copy to avoid SettingWithCopyWarning
-    
-    # Convert values to numeric for comparison
-    sufficient_coverage['peg_ratio_numeric'] = pd.to_numeric(
-        sufficient_coverage['peg_ratio'], errors='coerce')
-    
-    sufficient_coverage['short_float_pct_numeric'] = pd.to_numeric(
-        sufficient_coverage['short_float_pct'], errors='coerce')
-    
-    # Convert PE forward and trailing to numeric
-    sufficient_coverage['pe_forward_numeric'] = pd.to_numeric(
-        sufficient_coverage['pe_forward'], errors='coerce')
-    
-    sufficient_coverage['pe_trailing_numeric'] = pd.to_numeric(
-        sufficient_coverage['pe_trailing'], errors='coerce')
-    
-    # Identify stocks with missing SI values
-    si_missing = sufficient_coverage['short_float_pct_numeric'].isna()
-    
-    # Calculate EXRET if it doesn't exist
-    if 'EXRET' not in sufficient_coverage.columns:
-        sufficient_coverage['EXRET'] = sufficient_coverage['upside'] * sufficient_coverage['buy_percentage'] / 100
-    
-    # Apply Sell criteria:
-    # - UPSIDE < 5% OR
-    # - BUY % < 65% OR
-    # - PEF > PET (for positive values) OR
-    # - PEF > 45 OR
-    # - PEG > 3 OR
-    # - SI > 4% OR
-    # - BETA > 3
-    # - EXRET < 10%
-    sell_filter = (
-        (sufficient_coverage['upside'] < sell_criteria["MAX_UPSIDE"]) |
-        (sufficient_coverage['buy_percentage'] < sell_criteria["MAX_BUY_PERCENTAGE"]) |
-        (
-            (sufficient_coverage['pe_forward_numeric'] > sufficient_coverage['pe_trailing_numeric']) &
-            (sufficient_coverage['pe_forward_numeric'] > 0) &
-            (sufficient_coverage['pe_trailing_numeric'] > 0)
-        ) |
-        (~sufficient_coverage['pe_forward_numeric'].isna() & (sufficient_coverage['pe_forward_numeric'] > sell_criteria["MIN_PE_FORWARD"])) |
-        (sufficient_coverage['peg_ratio_numeric'] > sell_criteria["MAX_PEG_RATIO"]) |
-        (~si_missing & (sufficient_coverage['short_float_pct_numeric'] > sell_criteria["MIN_SHORT_INTEREST"])) |
-        (sufficient_coverage['beta'] > sell_criteria["MAX_BETA"]) |
-        (sufficient_coverage['EXRET'] < sell_criteria["MAX_EXRET"])
-    )
-    
-    return sufficient_coverage[sell_filter].copy()
+    from yahoofinance.utils.market import filter_sell_candidates as filter_sell
+    return filter_sell(portfolio_df)
 
 def filter_hold_candidates(market_df):
     """Filter hold candidates from market data.
@@ -251,76 +142,8 @@ def filter_hold_candidates(market_df):
     Returns:
         pd.DataFrame: Filtered hold candidates
     """
-    from yahoofinance.core.config import TRADING_CRITERIA
-    
-    # Get criteria from config
-    common_criteria = TRADING_CRITERIA["COMMON"]
-    buy_criteria = TRADING_CRITERIA["BUY"]
-    sell_criteria = TRADING_CRITERIA["SELL"]
-    
-    # Apply confidence threshold (INCONCLUSIVE check)
-    sufficient_coverage = market_df[
-        (market_df['analyst_count'] >= common_criteria["MIN_ANALYST_COUNT"]) &
-        (market_df['total_ratings'] >= common_criteria["MIN_RATINGS_COUNT"])
-    ].copy()  # Create a copy to avoid SettingWithCopyWarning
-    
-    # Convert values to numeric for comparison
-    sufficient_coverage['peg_ratio_numeric'] = pd.to_numeric(
-        sufficient_coverage['peg_ratio'], errors='coerce')
-    sufficient_coverage['short_float_pct_numeric'] = pd.to_numeric(
-        sufficient_coverage['short_float_pct'], errors='coerce')
-    
-    # Convert PE forward and trailing to numeric
-    sufficient_coverage['pe_forward_numeric'] = pd.to_numeric(
-        sufficient_coverage['pe_forward'], errors='coerce')
-    sufficient_coverage['pe_trailing_numeric'] = pd.to_numeric(
-        sufficient_coverage['pe_trailing'], errors='coerce')
-    
-    # Identify stocks with missing SI and PEG values
-    si_missing = sufficient_coverage['short_float_pct_numeric'].isna()
-    peg_missing = sufficient_coverage['peg_ratio_numeric'].isna()
-    
-    # Calculate EXRET if it doesn't exist
-    if 'EXRET' not in sufficient_coverage.columns:
-        sufficient_coverage['EXRET'] = sufficient_coverage['upside'] * sufficient_coverage['buy_percentage'] / 100
-        
-    # Sell filter (to exclude)
-    sell_filter = (
-        (sufficient_coverage['upside'] < sell_criteria["MAX_UPSIDE"]) |
-        (sufficient_coverage['buy_percentage'] < sell_criteria["MAX_BUY_PERCENTAGE"]) |
-        (
-            (sufficient_coverage['pe_forward_numeric'] > sufficient_coverage['pe_trailing_numeric']) &
-            (sufficient_coverage['pe_forward_numeric'] > 0) &
-            (sufficient_coverage['pe_trailing_numeric'] > 0)
-        ) |
-        (~sufficient_coverage['pe_forward_numeric'].isna() & (sufficient_coverage['pe_forward_numeric'] > sell_criteria["MIN_PE_FORWARD"])) |
-        (sufficient_coverage['peg_ratio_numeric'] > sell_criteria["MAX_PEG_RATIO"]) |
-        (~si_missing & (sufficient_coverage['short_float_pct_numeric'] > sell_criteria["MIN_SHORT_INTEREST"])) |
-        (sufficient_coverage['beta'] > sell_criteria["MAX_BETA"]) |
-        (sufficient_coverage['EXRET'] < sell_criteria["MAX_EXRET"])
-    )
-    
-    # Buy filter (to exclude)
-    buy_filter = (
-        (sufficient_coverage['upside'] >= buy_criteria["MIN_UPSIDE"]) &
-        (sufficient_coverage['buy_percentage'] >= buy_criteria["MIN_BUY_PERCENTAGE"]) &
-        (sufficient_coverage['beta'] <= buy_criteria["MAX_BETA"]) &
-        (sufficient_coverage['beta'] > buy_criteria["MIN_BETA"]) &
-        (
-            (sufficient_coverage['pe_forward_numeric'] < sufficient_coverage['pe_trailing_numeric']) |
-            (sufficient_coverage['pe_trailing_numeric'] <= 0)
-        ) &
-        (~sufficient_coverage['pe_forward_numeric'].isna() & (sufficient_coverage['pe_forward_numeric'] > buy_criteria["MIN_PE_FORWARD"])) &
-        (~sufficient_coverage['pe_forward_numeric'].isna() & (sufficient_coverage['pe_forward_numeric'] <= buy_criteria["MAX_PE_FORWARD"])) &
-        (peg_missing | (sufficient_coverage['peg_ratio_numeric'] < buy_criteria["MAX_PEG_RATIO"])) &
-        (si_missing | (sufficient_coverage['short_float_pct_numeric'] <= buy_criteria["MAX_SHORT_INTEREST"]))
-    )
-    
-    # Filter stocks that are neither buy nor sell candidates
-    hold_filter = (~buy_filter & ~sell_filter)
-    
-    # Return stocks that meet the hold criteria
-    return sufficient_coverage[hold_filter].copy()
+    from yahoofinance.utils.market import filter_hold_candidates as filter_hold
+    return filter_hold(market_df)
 
 def calculate_exret(df):
     """Calculate EXRET (Expected Return) if not already present.
@@ -399,36 +222,15 @@ def prepare_display_dataframe(df):
     
     # Format market cap according to size rules
     if 'market_cap' in df.columns:
-        def format_market_cap(value):
-            if pd.isna(value) or value in ["N/A", "--", ""]:
-                return "--"
-            try:
-                # Convert to a float value
-                value_float = float(str(value).replace(',', ''))
-                
-                # For trillion-level market caps
-                if value_float >= 1_000_000_000_000:
-                    value_trillions = value_float / 1_000_000_000_000
-                    if value_trillions >= 10:
-                        return f"{value_trillions:.1f}T"
-                    else:
-                        return f"{value_trillions:.2f}T"
-                else:
-                    # Format in billions
-                    value_billions = value_float / 1_000_000_000
-                    
-                    # Apply formatting rules based on size
-                    if value_billions >= 100:
-                        return f"{value_billions:.0f}B"
-                    elif value_billions >= 10:
-                        return f"{value_billions:.1f}B"
-                    else:
-                        return f"{value_billions:.2f}B"
-            except (ValueError, TypeError):
-                return "--"
+        from yahoofinance.utils.data import format_market_cap
+        
+        # Convert market cap based on the centralized implementation
+        def format_market_cap_wrapper(value):
+            formatted = format_market_cap(value)
+            return formatted if formatted is not None else "--"
         
         # Create cap column as string type to prevent dtype warnings
-        df['cap'] = df['market_cap'].apply(format_market_cap)
+        df['cap'] = df['market_cap'].apply(format_market_cap_wrapper)
     
     # Calculate EXRET if needed
     df = calculate_exret(df)
@@ -486,22 +288,36 @@ def format_earnings_date(display_df):
         return display_df
         
     def format_date(date_str):
-        if pd.isna(date_str) or date_str == '--':
+        if pd.isna(date_str) or date_str == '--' or date_str is None or (isinstance(date_str, str) and not date_str.strip()):
             return '--'
             
         try:
+            # If it's already in YYYY-MM-DD format, return as is
+            if isinstance(date_str, str) and len(date_str) == 10 and date_str[4] == '-' and date_str[7] == '-':
+                # Validate that it's a proper date by parsing it
+                try:
+                    pd.to_datetime(date_str)
+                    return date_str
+                except:
+                    # If it fails validation, continue to the conversion below
+                    pass
+                
             # Convert to datetime safely with errors='coerce'
             date_obj = pd.to_datetime(date_str, errors='coerce')
+            
             # If conversion was successful, format it
             if pd.notna(date_obj):
                 return date_obj.strftime('%Y-%m-%d')
             else:
                 # If conversion resulted in NaT, return placeholder
                 return '--'
-        except Exception:
+                
+        except Exception as e:
+            logger.debug(f"Error formatting earnings date: {str(e)}")
             # Fall back to original string if any unexpected error
-            return str(date_str)
+            return str(date_str) if date_str and not pd.isna(date_str) else '--'
     
+    # Apply formatting to EARNINGS column
     display_df['EARNINGS'] = display_df['EARNINGS'].apply(format_date)
     return display_df
 
@@ -515,8 +331,14 @@ def format_display_dataframe(display_df):
         pd.DataFrame: Formatted dataframe
     """
     # Format price-related columns (1 decimal place)
-    price_columns = ['PRICE', 'TARGET', 'BETA', 'PET', 'PEF', 'PEG']
+    price_columns = ['PRICE', 'TARGET', 'BETA', 'PET', 'PEF']
     display_df = format_numeric_columns(display_df, price_columns, '.1f')
+    
+    # Format PEG ratio (ALWAYS show 1 decimal place) with improved handling of edge cases
+    if 'PEG' in display_df.columns:
+        display_df['PEG'] = display_df['PEG'].apply(
+            lambda x: f"{float(x):.1f}" if pd.notnull(x) and x != "--" and str(x).strip() != "" and not pd.isna(x) else "--"
+        )
     
     # Format percentage columns (1 decimal place with % sign)
     percentage_columns = ['UPSIDE', 'EXRET', 'SI']
@@ -772,24 +594,11 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_
         output_dir: Output directory
         notrade_path: Path to no-trade tickers file
     """
-    # First filter out any stocks that meet SELL criteria to ensure risk management priority
-    from yahoofinance.core.config import TRADING_CRITERIA
-    common_criteria = TRADING_CRITERIA["COMMON"]
+    # Use the risk-first implementation to filter buy opportunities
+    from yahoofinance.utils.market import filter_risk_first_buy_opportunities
     
-    # Apply confidence threshold (INCONCLUSIVE check)
-    sufficient_coverage = market_df[
-        (market_df['analyst_count'] >= common_criteria["MIN_ANALYST_COUNT"]) &
-        (market_df['total_ratings'] >= common_criteria["MIN_RATINGS_COUNT"])
-    ].copy()
-    
-    # Get stocks that DON'T meet sell criteria
-    # Extract indexes of sell candidates
-    sell_candidate_indexes = set(filter_sell_candidates(sufficient_coverage).index)
-    # Select rows that are not in the sell candidate indexes
-    not_sell_candidates = sufficient_coverage[~sufficient_coverage.index.isin(sell_candidate_indexes)]
-    
-    # Get buy opportunities from the remaining stocks
-    buy_opportunities = filter_buy_opportunities(not_sell_candidates)
+    # Get buy opportunities with risk management priority
+    buy_opportunities = filter_risk_first_buy_opportunities(market_df)
     
     # Filter out stocks already in portfolio
     new_opportunities = buy_opportunities[~buy_opportunities['ticker'].str.upper().isin(portfolio_tickers)]

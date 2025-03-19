@@ -121,19 +121,32 @@ class DisplayFormatter:
             min_pe_forward = TRADING_CRITERIA["BUY"]["MIN_PE_FORWARD"]
             max_pe_forward = self.config.max_pe_forward
             
+            # Check if PEG is missing with improved handling for sell condition
+            peg_value = data.get("peg_ratio")
+            peg_valid = (peg_value is not None and 
+                        peg_value != "" and 
+                        peg_value != "N/A" and 
+                        peg_value != "--" and
+                        not pd.isna(peg_value))
+                        
             if (upside < self.config.low_upside or
                 percent_buy < self.config.low_buy_percent or  # Changed from <= to < to match filter_sell_candidates
                 (pef > pet and pef > 0 and pet > 0) or  # PEF > PET (if both are positive)
                 pef > max_pe_forward or  # PEF > MAX_PE_FORWARD (45.0) - check specifically for this condition
-                peg > self.config.max_peg_sell or  # PEG too high
+                (peg_valid and peg > self.config.max_peg_sell) or  # PEG too high (only if PEG has valid value)
                 (not si_missing and si > self.config.max_si_sell) or  # High short interest
                 beta > self.config.max_beta_buy or  # Beta too high (>3.0)
                 ex_ret < self.config.max_exret):  # EXRET too low
                 return Color.SELL
                 
             # 3. Third check: Buy Signal (Green)
-            # Check if PEG is missing
-            peg_missing = data.get("peg_ratio") in [None, "N/A", "--", ""]
+            # Check if PEG is missing or invalid with improved handling
+            peg_value = data.get("peg_ratio")
+            peg_missing = (peg_value is None or 
+                          peg_value == "" or 
+                          peg_value == "N/A" or 
+                          peg_value == "--" or
+                          pd.isna(peg_value))
             
             # Get PE Forward thresholds
             min_pe_forward = TRADING_CRITERIA["BUY"]["MIN_PE_FORWARD"]
@@ -196,13 +209,7 @@ class DisplayFormatter:
         """
         Format market cap in trillions or billions with a 'T' or 'B' suffix.
         
-        Formatting rules:
-        - >= 10T: 1 decimal (e.g. "10.5T")
-        - >= 1T and < 10T: 2 decimals (e.g. "2.75T")
-        - >= 100B: No decimals (e.g. "100B")
-        - >= 10B and < 100B: 1 decimal (e.g. "50.5B")
-        - < 10B: 2 decimals (e.g. "5.25B")
-        - No dollar sign
+        Delegates to the centralized utility function in utils.data.market_cap_formatter.
         
         Args:
             value: Market cap value
@@ -210,36 +217,20 @@ class DisplayFormatter:
         Returns:
             Formatted market cap string according to rules
         """
-        if value is None or value in ["N/A", "--", ""]:
+        from yahoofinance.utils.data import format_market_cap
+        
+        # Call the centralized implementation
+        formatted = format_market_cap(value)
+        
+        # Handle None return value for UI consistency
+        if formatted is None:
             return "--"
-        try:
-            # Convert to a float value
-            value_float = float(str(value).replace(',', ''))
             
-            # Check if trillion formatting is needed (>= 1T)
-            if value_float >= 1_000_000_000_000:
-                value_trillions = value_float / 1_000_000_000_000
-                if value_trillions >= 10:
-                    return f"{value_trillions:.1f}T"
-                else:
-                    return f"{value_trillions:.2f}T"
-            else:
-                # Format in billions
-                value_billions = value_float / 1_000_000_000
-                
-                # Apply formatting rules based on size
-                if value_billions >= 100:
-                    return f"{value_billions:.0f}B"
-                elif value_billions >= 10:
-                    return f"{value_billions:.1f}B"
-                else:
-                    return f"{value_billions:.2f}B"
-        except (ValueError, TypeError):
-            return "--"
+        return formatted
 
     def format_date(self, date_str: Optional[str]) -> str:
         """
-        Format date strings consistently.
+        Format date strings consistently with improved handling of edge cases.
         
         Args:
             date_str: Date string to format
@@ -247,14 +238,30 @@ class DisplayFormatter:
         Returns:
             Formatted date string or placeholder
         """
-        if not date_str or date_str == "--":
+        if not date_str or date_str == "--" or pd.isna(date_str):
             return "--"
             
+        # If it's already in YYYY-MM-DD format, return as is
+        if isinstance(date_str, str) and len(date_str) == 10 and date_str[4] == '-' and date_str[7] == '-':
+            # Validate that it's a proper date
+            try:
+                pd.to_datetime(date_str)
+                return date_str
+            except:
+                # If validation fails, continue to standard parsing below
+                pass
+                
         try:
-            date = pd.to_datetime(date_str)
+            # Use pandas to handle various date formats
+            date = pd.to_datetime(date_str, errors='coerce')
+            if pd.isna(date):
+                return "--"
             return date.strftime(self.config.date_format)
         except (ValueError, TypeError) as e:
             logger.debug(f"Date formatting failed: {str(e)}")
+            # Fall back to original string if it looks date-like
+            if isinstance(date_str, str) and any(c in date_str for c in ['-', '/', '.']):
+                return date_str
             return "--"
 
     def remove_ansi(self, text: Union[str, Any]) -> str:
@@ -353,7 +360,8 @@ class DisplayFormatter:
             "BETA": self.colorize(self.format_value(data.get("beta"), 1), color),
             "PET": self.colorize(self.format_value(data.get("pe_trailing"), 1), color),
             "PEF": self.colorize(self.format_value(data.get("pe_forward"), 1), color),
-            "PEG": self.colorize(self.format_value(data.get("peg_ratio"), 1), color),
+            "PEG": self.colorize(self.format_value(
+                None if pd.isna(data.get("peg_ratio")) else data.get("peg_ratio"), 1), color),
             "DIV %": self.colorize(self.format_value(data.get("dividend_yield"), 2, True), color),
             "SI": self.colorize(self.format_value(data.get("short_float_pct"), 1, True), color),
             "EARNINGS": self.colorize(self.format_date(data.get("last_earnings")), color)
