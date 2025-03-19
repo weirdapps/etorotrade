@@ -3,6 +3,35 @@ Async rate limiting utilities for network operations.
 
 This module provides async-compatible rate limiting utilities for network operations,
 including rate limiting decorators, controlled concurrency, and retry mechanisms.
+
+CANONICAL SOURCE:
+This is the canonical source for async rate limiting functionality. Other modules
+that provide similar functionality are compatibility layers that import from 
+this module. Always prefer to import directly from this module in new code:
+
+    from yahoofinance.utils.network.async_utils.rate_limiter import (
+        AsyncRateLimiter, async_rate_limited, gather_with_rate_limit
+    )
+
+Key Components:
+- AsyncRateLimiter: Class for controlling async operation concurrency
+- async_rate_limited: Decorator for rate-limiting async functions
+- gather_with_rate_limit: Async gather with concurrency control
+- process_batch_async: Process items in controlled batches asynchronously
+- retry_async: Retry async operations with exponential backoff
+
+Example usage:
+    # Rate-limited async function
+    @async_rate_limited(ticker_param='ticker')
+    async def fetch_data(ticker: str):
+        # Fetch data with proper rate limiting
+        
+    # Process multiple operations with concurrency control
+    results = await gather_with_rate_limit([
+        fetch_data('AAPL'),
+        fetch_data('MSFT'),
+        fetch_data('GOOG')
+    ], max_concurrent=5)
 """
 
 import asyncio

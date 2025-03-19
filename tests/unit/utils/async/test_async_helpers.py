@@ -10,7 +10,7 @@ import asyncio
 import time
 from unittest.mock import Mock, patch, AsyncMock
 
-from yahoofinance.utils.network.async import (
+from yahoofinance.utils.network.async_utils import (
     AsyncRateLimiter,
     async_rate_limited,
     gather_with_rate_limit,
@@ -115,13 +115,14 @@ class TestAsyncRateLimitedDecorator:
         test_limiter = AsyncRateLimiter()
         
         # Define a function with the decorator that uses ticker
-        @async_rate_limited(ticker_param='ticker')
-        async def get_stock_data(ticker):
-            return f"Data for {ticker}"
+        # Use a different parameter name than 'ticker' to avoid conflict
+        @async_rate_limited(ticker_param='symbol')
+        async def get_stock_data(symbol):
+            return f"Data for {symbol}"
         
         # Call with positional and keyword args
         result1 = await get_stock_data("AAPL")
-        result2 = await get_stock_data(ticker="MSFT")
+        result2 = await get_stock_data(symbol="MSFT")
         
         assert result1 == "Data for AAPL"
         assert result2 == "Data for MSFT"
@@ -175,9 +176,10 @@ class TestGatherWithRateLimit:
     async def test_error_handling(self):
         """Test error handling during gathering."""
         # Create tasks, some of which will fail
+        error_task = async_error()
         tasks = [
             async_identity(1),
-            asyncio.create_task(async_error()),
+            error_task,
             async_identity(3)
         ]
         
@@ -186,6 +188,13 @@ class TestGatherWithRateLimit:
             await gather_with_rate_limit(tasks)
         
         # With return_exceptions, should return exceptions as results
+        # Create new tasks since the previous ones have been consumed
+        error_task = async_error()  
+        tasks = [
+            async_identity(1),
+            error_task,
+            async_identity(3)
+        ]
         results = await gather_with_rate_limit(tasks, return_exceptions=True)
         assert results[0] == 1
         assert isinstance(results[1], Exception)
@@ -322,7 +331,7 @@ def test_import_compatibility():
     """Test compatibility between different import patterns."""
     # Import from both locations
     from yahoofinance.utils.async_helpers import AsyncRateLimiter as RL1
-    from yahoofinance.utils.network.async import AsyncRateLimiter as RL2
+    from yahoofinance.utils.network.async_utils import AsyncRateLimiter as RL2
     from yahoofinance.utils.async_utils.helpers import AsyncRateLimiter as RL3
     
     # They should be the same class

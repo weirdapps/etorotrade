@@ -1,4 +1,30 @@
-"""Market-specific ticker utility functions."""
+"""
+Market-specific ticker utility functions.
+
+This module provides utilities for working with ticker symbols,
+including normalization and validation functions.
+
+CANONICAL SOURCE:
+This is the canonical source for ticker and market utilities. Other modules
+that provide similar functionality are compatibility layers that import from 
+this module. Always prefer to import directly from this module in new code:
+
+    from yahoofinance.utils.market.ticker_utils import (
+        is_us_ticker, normalize_hk_ticker, filter_valid_tickers
+    )
+
+Key Components:
+- is_us_ticker: Check if a ticker is a US stock
+- normalize_hk_ticker: Normalize Hong Kong stock tickers
+- filter_valid_tickers: Filter valid ticker symbols from a list
+
+Example usage:
+    # Normalize a Hong Kong ticker symbol
+    normalized = normalize_hk_ticker('03690.HK')  # Returns '3690.HK'
+    
+    # Check if a ticker is a US stock
+    is_us = is_us_ticker('AAPL')  # Returns True
+"""
 
 from typing import List, Set
 

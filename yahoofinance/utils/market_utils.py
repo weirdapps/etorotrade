@@ -4,8 +4,17 @@ Market-specific utility functions.
 This module is a compatibility layer that re-exports market utilities
 from the structured 'market' package to maintain backward compatibility.
 
-In new code, you should import directly from yahoofinance.utils.market package.
+WARNING: This module is deprecated. Import from yahoofinance.utils.market.ticker_utils instead.
 """
+
+import warnings
+
+warnings.warn(
+    "The yahoofinance.utils.market_utils module is deprecated. "
+    "Use yahoofinance.utils.market.ticker_utils instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 # Import from the market.ticker_utils module
 from .market.ticker_utils import (

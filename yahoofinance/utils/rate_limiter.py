@@ -1,9 +1,19 @@
-"""
-Advanced rate limiting utilities to prevent API throttling.
+"""Advanced rate limiting utilities to prevent API throttling.
 
 This module is a compatibility layer that re-exports rate limiting utilities
 from the structured 'network' package to maintain backward compatibility.
+
+WARNING: This module is deprecated. Import from yahoofinance.utils.network.rate_limiter instead.
 """
+
+import warnings
+
+warnings.warn(
+    "The yahoofinance.utils.rate_limiter module is deprecated. "
+    "Use yahoofinance.utils.network.rate_limiter instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 # Import components directly so they can be patched properly in tests
 from .network.rate_limiter import AdaptiveRateLimiter

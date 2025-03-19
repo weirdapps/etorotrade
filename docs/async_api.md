@@ -155,7 +155,7 @@ Returns price-specific information:
 Returns a pandas DataFrame with historical price data:
 
 ```
-                  Open        High         Low       Close    Volume
+              Open        High         Low       Close    Volume
 Date                                                                
 2023-07-03  193.780000  193.880000  191.759999  192.460000  18246500
 2023-07-05  191.570000  192.979999  190.619999  191.330000  20583900
@@ -261,13 +261,72 @@ For high-volume applications, the async provider offers significant performance 
 - Batch processing
 - Non-blocking I/O
 
+## Code Structure and Canonical Sources
+
+To maintain clean code organization while ensuring backward compatibility, the codebase follows a modular design with clear canonical sources:
+
+### Async Utilities
+
+**Canonical Source**: `yahoofinance/utils/network/async_utils/rate_limiter.py`
+- Contains AsyncRateLimiter, async_rate_limited, gather_with_rate_limit, process_batch_async, retry_async
+- Full async functionality with proper rate limiting and error handling
+
+**Compatibility/Legacy Layers** (DEPRECATED):
+- `yahoofinance/utils/async/helpers.py` - Re-exports from canonical source
+- `yahoofinance/utils/async_utils/helpers.py` - Re-exports from canonical source
+- `yahoofinance/utils/network/async/rate_limiter.py` - Re-exports from canonical source
+- `yahoofinance/utils/async_helpers.py` - Re-exports from canonical source
+
+For new code, always import directly from the canonical source:
+
+```python
+# PREFERRED: Import from canonical source
+from yahoofinance.utils.network.async_utils.rate_limiter import AsyncRateLimiter, async_rate_limited
+
+# DEPRECATED: Legacy imports
+from yahoofinance.utils.async_helpers import AsyncRateLimiter  # Not recommended for new code
+```
+
+### Pagination Utilities
+
+**Canonical Source**: `yahoofinance.utils.network.pagination`
+- Contains PaginatedResults, paginate_results, bulk_fetch
+
+**Compatibility/Legacy Layer** (DEPRECATED):
+- `yahoofinance.utils.pagination` - Re-exports from canonical source
+
+### Market/Ticker Utilities
+
+**Canonical Source**: `yahoofinance.utils.market.ticker_utils`
+- Contains normalize_ticker, validate_ticker, is_valid_ticker
+
+**Compatibility/Legacy Layer** (DEPRECATED):
+- `yahoofinance.utils.market_utils` - Re-exports from canonical source
+
+### Rate Limiter (Sync)
+
+**Canonical Source**: `yahoofinance.utils.network.rate_limiter`
+- Contains AdaptiveRateLimiter, rate_limited, batch_process
+
+**Compatibility/Legacy Layer** (DEPRECATED):
+- `yahoofinance.utils.rate_limiter` - Re-exports from canonical source
+
+### Formatting Utilities
+
+**Canonical Source**: `yahoofinance.utils.data.format_utils`
+- Contains FormatUtils, format_number, format_percentage
+
+**Compatibility/Legacy Layer** (DEPRECATED):
+- `yahoofinance.utils.format_utils` - Re-exports from canonical source
+
 ## Best Practices
 
 1. Use the provider pattern for all new code
-2. Prefer async mode for processing multiple tickers
-3. Use batch methods when available
-4. Handle potential None values in batch results
-5. Use try/except blocks to handle potential errors
+2. Import utilities directly from their canonical sources
+3. Prefer async mode for processing multiple tickers
+4. Use batch methods when available
+5. Handle potential None values in batch results
+6. Use try/except blocks to handle potential errors
 
 ## Complete Example
 
@@ -276,6 +335,7 @@ Here's a complete example showing how to use the provider pattern effectively:
 ```python
 import asyncio
 from yahoofinance import get_provider
+from yahoofinance.utils.network.async_utils.rate_limiter import gather_with_rate_limit
 
 async def analyze_sector(sector_tickers):
     # Get async provider
@@ -305,10 +365,10 @@ async def main():
     finance_tickers = ["JPM", "BAC", "GS", "WFC", "C"]
     
     # Run analyses concurrently
-    tech_analysis, finance_analysis = await asyncio.gather(
+    tech_analysis, finance_analysis = await gather_with_rate_limit([
         analyze_sector(tech_tickers),
         analyze_sector(finance_tickers)
-    )
+    ])
     
     print(f"Tech sector: Average P/E = {tech_analysis['average_pe']:.2f}")
     print(f"Finance sector: Average P/E = {finance_analysis['average_pe']:.2f}")

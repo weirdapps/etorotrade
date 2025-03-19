@@ -3,6 +3,34 @@ Advanced rate limiting utilities to prevent API throttling.
 
 This module contains tools for managing API request rates,
 including adaptive delays and safe concurrent access patterns.
+
+CANONICAL SOURCE:
+This is the canonical source for synchronous rate limiting functionality. Other modules
+that provide similar functionality are compatibility layers that import from 
+this module. Always prefer to import directly from this module in new code:
+
+    from yahoofinance.utils.network.rate_limiter import (
+        AdaptiveRateLimiter, rate_limited, batch_process
+    )
+
+Key Components:
+- AdaptiveRateLimiter: Class for adaptive rate limiting
+- global_rate_limiter: Singleton instance for library-wide rate limiting
+- rate_limited: Decorator for rate-limiting functions
+- batch_process: Process items in batches with rate limiting
+
+Example usage:
+    # Rate-limited function
+    @rate_limited(ticker_param='ticker')
+    def fetch_data(ticker: str):
+        # Fetch data with proper rate limiting
+        
+    # Process multiple items in batches
+    results = batch_process(
+        items=['AAPL', 'MSFT', 'GOOG'],
+        process_func=fetch_data,
+        batch_size=5
+    )
 """
 
 import time
