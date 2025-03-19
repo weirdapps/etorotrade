@@ -3,6 +3,29 @@ Formatting utilities for HTML output and other display formats.
 
 This module contains utilities for generating and formatting HTML content,
 including market metrics, portfolio data, and visual elements.
+
+CANONICAL SOURCE:
+This is the canonical source for formatting utilities. Other modules
+that provide similar functionality are compatibility layers that import from 
+this module. Always prefer to import directly from this module in new code:
+
+    from yahoofinance.utils.data.format_utils import (
+        FormatUtils, format_number, format_table, format_market_metrics
+    )
+
+Key Components:
+- FormatUtils: Class with formatting methods for financial data
+- format_number: Format numbers with appropriate precision and units
+- format_table: Format tabular data for display
+- format_market_metrics: Format market metrics for display
+- generate_market_html: Generate HTML for market data
+
+Example usage:
+    # Format a number with FormatUtils
+    formatted = FormatUtils.format_number(1234.56, precision=1)  # Returns "1234.6"
+    
+    # Format a market cap
+    market_cap = FormatUtils.format_market_cap(2750000000000)  # Returns "2.75T"
 """
 
 import json

@@ -3,6 +3,34 @@ Utilities for handling paginated API results efficiently.
 
 This module provides functionality for working with paginated API responses
 while respecting rate limits and preventing excessive API calls.
+
+CANONICAL SOURCE:
+This is the canonical source for pagination utilities. Other modules
+that provide similar functionality are compatibility layers that import from 
+this module. Always prefer to import directly from this module in new code:
+
+    from yahoofinance.utils.network.pagination import (
+        PaginatedResults, paginated_request, bulk_fetch
+    )
+
+Key Components:
+- PaginatedResults: Class for representing paginated data
+- paginated_request: Function for handling paginated API requests
+- bulk_fetch: Function for fetching data in bulk with pagination
+
+Example usage:
+    # Handling paginated API results
+    async def fetch_page(page, limit):
+        # Fetch data with pagination 
+        return {'data': [...], 'next_page': next_page}
+        
+    # Process all pages
+    all_results = await paginated_request(
+        request_func=fetch_page,
+        process_func=lambda x: x['data'],
+        has_more_func=lambda x: x.get('next_page') is not None,
+        next_page_func=lambda x: x.get('next_page')
+    )
 """
 
 import time
