@@ -60,6 +60,34 @@ class YahooFinanceProvider(FinanceDataProvider):
             stock = self._get_or_create_ticker(ticker)
             info = stock.info or {}
             
+            # Debug info - removed to fix display issues
+            
+            # Get earnings data directly to avoid making a separate API call
+            earnings_data = self.get_earnings_data(ticker)
+            
+            # Get the PEG ratio with corrected field name and consistent formatting
+            # Yahoo Finance returns trailingPegRatio, not pegRatio
+            peg_ratio = info.get('trailingPegRatio')
+            
+            # Format PEG ratio to ensure consistent precision (one decimal place)
+            if peg_ratio is not None:
+                try:
+                    # Round to 1 decimal place for consistency
+                    peg_ratio = round(float(peg_ratio), 1)
+                except (ValueError, TypeError):
+                    # Keep original value if conversion fails
+                    pass
+            
+            # Add debug logging for PEG fields
+            peg_fields = {k: v for k, v in info.items() if 'peg' in k.lower()}
+            logger.debug(f"PEG-related fields for {ticker}: {peg_fields}")
+            
+            # Debug PEG ratio value
+            if peg_ratio is not None:
+                logger.debug(f"PEG ratio for {ticker}: {peg_ratio}, type: {type(peg_ratio)}")
+            else:
+                logger.debug(f"PEG ratio not available for {ticker}")
+            
             # Build response dictionary
             return {
                 'ticker': ticker,
@@ -72,10 +100,10 @@ class YahooFinanceProvider(FinanceDataProvider):
                 'dividend_yield': info.get('dividendYield'),
                 'price': info.get('currentPrice'),
                 'analyst_count': info.get('numberOfAnalystOpinions'),
-                'peg_ratio': info.get('pegRatio'),
+                'peg_ratio': peg_ratio,
                 'short_float_pct': info.get('shortPercentOfFloat', 0) * 100 if info.get('shortPercentOfFloat') is not None else None,
-                'last_earnings': None,  # Will be filled by get_earnings_data
-                'previous_earnings': None,  # Will be filled by get_earnings_data
+                'last_earnings': earnings_data.get('last_earnings'),
+                'previous_earnings': earnings_data.get('previous_earnings'),
                 'stock_object': stock  # Store the stock object for other methods to use
             }
         except Exception as e:
@@ -239,24 +267,54 @@ class YahooFinanceProvider(FinanceDataProvider):
             except Exception as e:
                 logger.warning(f"Error getting earnings dates for {ticker}: {str(e)}")
             
-            # Process earnings dates
+            # Process earnings dates with improved timezone handling
             last_earnings = None
             previous_earnings = None
             
             if earnings_dates is not None and not earnings_dates.empty:
-                # Find past earnings dates
-                current_time = pd.Timestamp.now()
-                past_earnings = earnings_dates.loc[earnings_dates.index < current_time]
-                
-                if not past_earnings.empty:
-                    # Get sorted dates (most recent first)
-                    dates = sorted(past_earnings.index, reverse=True)
+                try:
+                    # Find past earnings dates - normalize timestamps to avoid timezone comparison issues
+                    current_time = pd.Timestamp.now()
                     
-                    if len(dates) > 0:
-                        last_earnings = dates[0].strftime('%Y-%m-%d')
+                    # Create a safe comparison by converting everything to naive dates
+                    past_earnings = earnings_dates.copy()
                     
-                    if len(dates) > 1:
-                        previous_earnings = dates[1].strftime('%Y-%m-%d')
+                    # Convert dates and filter manually to avoid timezone issues
+                    past_dates = []
+                    for date_idx in earnings_dates.index:
+                        try:
+                            # Convert to string and back to normalize
+                            date_str = date_idx.strftime('%Y-%m-%d')
+                            date_obj = pd.to_datetime(date_str)
+                            
+                            # Compare only the date portion
+                            if date_obj < current_time:
+                                past_dates.append((date_obj, date_str))
+                        except Exception as dt_err:
+                            logger.warning(f"Error processing date {date_idx}: {str(dt_err)}")
+                    
+                    # Sort dates (most recent first)
+                    past_dates.sort(key=lambda x: x[0], reverse=True)
+                    
+                    if past_dates:
+                        last_earnings = past_dates[0][1]
+                        logger.debug(f"Found last earnings date for {ticker}: {last_earnings}")
+                    
+                    if len(past_dates) > 1:
+                        previous_earnings = past_dates[1][1]
+                        logger.debug(f"Found previous earnings date for {ticker}: {previous_earnings}")
+                        
+                except Exception as e:
+                    logger.warning(f"Error processing earnings dates for {ticker}: {str(e)}")
+                    # Try a simpler approach using only the first two dates
+                    try:
+                        if len(earnings_dates) > 0:
+                            last_earnings = earnings_dates.index[0].strftime('%Y-%m-%d')
+                        if len(earnings_dates) > 1:
+                            previous_earnings = earnings_dates.index[1].strftime('%Y-%m-%d')
+                    except Exception:
+                        # Final fallback to handle any date format issues
+                        pass
             
             # Create earnings data dictionary
             earnings_data = {
@@ -279,13 +337,28 @@ class YahooFinanceProvider(FinanceDataProvider):
                 
                 earnings_data['earnings_dates'] = earnings_dict
                 
-            # Get upcoming earnings date if available
+            # Get upcoming earnings date if available with improved error handling
             try:
                 calendar = stock.calendar
-                if calendar is not None and not calendar.empty and 'Earnings Date' in calendar:
-                    next_date = calendar['Earnings Date']
-                    if isinstance(next_date, pd.Timestamp):
-                        earnings_data['upcoming_earnings'] = next_date.strftime('%Y-%m-%d')
+                # Handle different types of calendar data
+                if calendar is not None:
+                    # If it's a DataFrame
+                    if hasattr(calendar, 'empty') and not calendar.empty and 'Earnings Date' in calendar:
+                        next_date = calendar['Earnings Date']
+                        if isinstance(next_date, pd.Timestamp):
+                            earnings_data['upcoming_earnings'] = next_date.strftime('%Y-%m-%d')
+                    # If it's a dictionary (newer yfinance version)
+                    elif isinstance(calendar, dict) and 'Earnings Date' in calendar:
+                        next_date = calendar['Earnings Date']
+                        if next_date:
+                            # Try to convert to datetime
+                            try:
+                                date_obj = pd.to_datetime(next_date)
+                                earnings_data['upcoming_earnings'] = date_obj.strftime('%Y-%m-%d')
+                            except:
+                                # If conversion fails, use as is if it's a string
+                                if isinstance(next_date, str):
+                                    earnings_data['upcoming_earnings'] = next_date
             except Exception as cal_err:
                 logger.warning(f"Error getting earnings calendar for {ticker}: {str(cal_err)}")
                 
@@ -319,7 +392,8 @@ class YahooFinanceProvider(FinanceDataProvider):
             
             # Try using the yfinance search function with recommendations
             try:
-                search_results = yf.Ticker(query).recommendations
+                ticker_obj = yf.Ticker(query)
+                search_results = ticker_obj.recommendations
                 
                 if search_results is not None and not search_results.empty:
                     # Format results
