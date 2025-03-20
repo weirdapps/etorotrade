@@ -38,3 +38,7 @@ fredapi>=0.5.0
 
 # Async support
 aiohttp>=3.8.0
+
+# Web scraping and automation
+selenium>=4.1.0
+python-dotenv>=0.19.0
