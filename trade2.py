@@ -18,6 +18,7 @@ import numpy as np
 import yfinance as yf
 import asyncio
 from tabulate import tabulate
+from tqdm import tqdm
 
 try:
     from yahoofinance_v2.api import get_provider
@@ -958,9 +959,57 @@ def handle_portfolio_download():
 async def fetch_ticker_data(provider, tickers):
     """Fetch ticker data from provider"""
     results = []
-    for ticker in tickers:
-        info = await provider.get_ticker_info(ticker)
-        results.append(info)
+    # Calculate batch size and total batches for progress display
+    total_tickers = len(tickers)
+    batch_size = 20  # Default batch size
+    total_batches = (total_tickers - 1) // batch_size + 1
+    
+    # Create a master progress bar for all tickers with explicit formatting
+    with tqdm(total=total_tickers, desc=f"BATCH 0/{total_batches} (0/{total_tickers} tickers)", 
+              unit="ticker", bar_format='{desc}: {percentage:3.0f}%|{bar:80}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as pbar:
+        
+        # Process tickers in batches for better display
+        for batch_num, i in enumerate(range(0, total_tickers, batch_size)):
+            # Get current batch
+            batch = tickers[i:i+batch_size]
+            processed_so_far = i
+            
+            # Update progress bar description for new batch
+            pbar.set_description(f"BATCH {batch_num+1}/{total_batches} ({processed_so_far}/{total_tickers} tickers)")
+            
+            # Process each ticker in the batch
+            for j, ticker in enumerate(batch):
+                try:
+                    # Get ticker info
+                    info = await provider.get_ticker_info(ticker)
+                    results.append(info)
+                    
+                    # Update progress after each ticker
+                    pbar.update(1)
+                    
+                    # Update description to show current progress
+                    current_ticker = processed_so_far + j + 1
+                    pbar.set_description(f"BATCH {batch_num+1}/{total_batches} ({current_ticker}/{total_tickers} tickers)")
+                except Exception as e:
+                    # Log error but continue with other tickers
+                    logger.error(f"Error processing ticker {ticker}: {str(e)}")
+                    # Still count this ticker in progress
+                    pbar.update(1)
+            
+            # Add delay between batches (except for last batch)
+            if batch_num < total_batches - 1:
+                # Default batch delay
+                batch_delay = 3.0
+                
+                # Update progress bar to show waiting message
+                pbar.set_description(f"BATCH {batch_num+1}/{total_batches} - Waiting {batch_delay:.1f}s before next batch...")
+                
+                # Sleep without interrupting progress display
+                await asyncio.sleep(batch_delay)
+        
+        # Final progress update
+        pbar.set_description(f"COMPLETED - Processed {total_tickers} tickers")
+    
     return pd.DataFrame(results)
 
 def display_report_for_source(display, tickers, source):
@@ -979,7 +1028,7 @@ def display_report_for_source(display, tickers, source):
         provider = display.provider
         
         # Use the provider directly to get ticker data
-        print(f"Processing {len(tickers)} tickers...")
+        print("\nFetching market data...")
         result_df = asyncio.run(fetch_ticker_data(provider, tickers))
         
         # Save the data to the appropriate file
@@ -1132,7 +1181,7 @@ def display_report_for_source(display, tickers, source):
         colored_df = pd.DataFrame(colored_rows)
         
         # Display results using tabulate with proper formatting
-        print(f"\n{report_title}")
+        print(f"\n{report_title}:")
         print(f"Generated at: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print(tabulate(
             colored_df,
