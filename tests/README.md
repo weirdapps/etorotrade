@@ -1,37 +1,57 @@
 # etorotrade Test Suite
 
-This directory contains the test suite for the etorotrade application. The tests are organized according to their type and the module they test.
+This directory contains the test suite for the etorotrade application. The tests are organized to mirror the package structure for better discoverability and maintenance.
 
 ## Test Organization
 
-The tests are undergoing reorganization to better align with best practices and the codebase structure. The target directory structure is:
+Tests are structured to mirror the main package organization for easy navigation and maintenance. This update:
 
-- `unit/`: Unit tests testing individual components in isolation
-  - `core/`: Tests for core modules like client, cache, errors, rate limiters
-  - `api/`: Tests for API providers and interfaces
-  - `utils/`: Tests for utility functions and helpers
-    - `async/`: Tests for async utilities
+1. Makes it easier to find tests for specific components
+2. Clarifies the scope and relationships between tests
+3. Improves test cohesion by grouping related tests
+4. Establishes a standard pattern for adding new tests
+5. Simplifies navigation between implementation and tests
+
+### New Structure
+
+Tests are organized in a hierarchical structure mirroring the package:
+
+- `yahoofinance/`: Tests for the yahoofinance package components
+  - `analysis/`: Tests for market analysis modules
+    - `market/`: Tests for market-specific analysis
+  - `api/`: Tests for API interfaces
+    - `providers/`: Tests for data providers (Yahoo Finance, etc.)
+  - `core/`: Tests for core functionality
+    - Cache system, client, error handling, types, config
+  - `data/`: Tests for data handling
+  - `presentation/`: Tests for output formatting and display
+  - `utils/`: Tests for utility modules
+    - `async/`: Tests for async utilities and rate limiting
     - `data/`: Tests for data formatting utilities
-    - `market/`: Tests for market utilities
-    - `network/`: Tests for network utilities (rate limiting, pagination)
-  - `modules/`: Tests for specific feature modules
-- `integration/`: Integration tests between components
-  - `api/`: Tests for API client and provider integrations
-  - `display/`: Tests for display integrations
-- `e2e/`: End-to-end tests of complete workflows
-- `performance/`: Performance and benchmark tests
-- `fixtures/`: Reusable test fixtures
-  - `market_data/`: Market data fixtures
-  - `api_responses/`: API response fixtures
-- `utils/`: Test utilities and helpers
+    - `date/`: Tests for date utilities
+    - `market/`: Tests for market-specific utilities
+    - `network/`: Tests for network operations
+      - `async_utils/`: Tests for async network utilities
+  - `validators/`: Tests for validation functions
+- `trade/`: Tests for main trade module functionality
+- `e2e/`: End-to-end tests for complete workflows
+- `integration/`: Integration tests for component interactions
+- `fixtures/`: Shared test fixtures
+- `conftest.py`: Pytest configuration and global fixtures
 
-**Migration Status**: The migration is in progress. Several key test files have been moved to the new structure:
-- Rate limiter tests consolidated in `unit/core/test_rate_limiter.py`
-- Async utility tests consolidated in `unit/utils/async/test_async_helpers.py`
-- E2E tests for trade workflows in `e2e/test_trade_workflows.py` (now enabled)
-- API provider tests in `unit/api/test_providers.py`
+### Categorization
 
-New tests should be added to the appropriate subdirectory, and existing tests are being gradually migrated to this structure.
+Tests are also categorized by type using pytest markers:
+
+- `@pytest.mark.unit`: Unit tests for isolated components
+- `@pytest.mark.integration`: Tests verifying component interactions
+- `@pytest.mark.e2e`: End-to-end workflow tests
+- `@pytest.mark.api`: Tests requiring API access
+- `@pytest.mark.slow`: Tests that take longer to run
+- `@pytest.mark.network`: Tests requiring network connectivity
+- `@pytest.mark.asyncio`: Tests for async functionality
+
+**Migration Status**: This restructuring is in progress. New tests should follow this pattern, and existing tests are being gradually migrated.
 
 ## Test Naming Conventions
 

@@ -16,7 +16,7 @@ from yahoofinance.utils.async_utils import retry_async
 from yahoofinance.core.errors import RateLimitError
 
 # Import test fixtures
-from tests.fixtures import (
+from ...fixtures import (
     create_paginated_data, create_mock_fetcher, create_flaky_function
 )
 
