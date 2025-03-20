@@ -1202,8 +1202,8 @@ def main_async():
                     "SILVER": "SI=F"  # Silver futures
                 }
                 
-                # Define positive grades like in the original code
-                self.POSITIVE_GRADES = ["Outperform", "Strong Buy", "Buy", "Overweight", "Market Outperform", "Add"]
+                # Define positive grades to match the original code in core/config.py
+                self.POSITIVE_GRADES = ["Buy", "Overweight", "Outperform", "Strong Buy", "Long-Term Buy", "Positive", "Market Outperform", "Add"]
                 
             def _get_yticker(self, ticker: str):
                 """Get or create yfinance Ticker object"""
@@ -1263,21 +1263,80 @@ def main_async():
                     
                     # Map recommendation to buy percentage
                     if ticker_info.get("numberOfAnalystOpinions", 0) > 0:
-                        rec_key = ticker_info.get("recommendationKey", "").lower()
-                        if rec_key == "strong_buy":
-                            info["buy_percentage"] = 95
-                        elif rec_key == "buy":
-                            info["buy_percentage"] = 85
-                        elif rec_key == "hold":
-                            info["buy_percentage"] = 65
-                        elif rec_key == "sell":
-                            info["buy_percentage"] = 30
-                        elif rec_key == "strong_sell":
-                            info["buy_percentage"] = 10
-                        else:
-                            info["buy_percentage"] = 50
-                        
-                        info["total_ratings"] = ticker_info.get("numberOfAnalystOpinions", 0)
+                        # First try to get recommendations data directly for more accurate percentage
+                        try:
+                            recommendations = yticker.recommendations
+                            if recommendations is not None and not recommendations.empty:
+                                # Use the most recent recommendations (first row)
+                                latest_recs = recommendations.iloc[0]
+                                
+                                # Calculate buy percentage from recommendations
+                                strong_buy = int(latest_recs.get('strongBuy', 0))
+                                buy = int(latest_recs.get('buy', 0))
+                                hold = int(latest_recs.get('hold', 0))
+                                sell = int(latest_recs.get('sell', 0))
+                                strong_sell = int(latest_recs.get('strongSell', 0))
+                                
+                                total = strong_buy + buy + hold + sell + strong_sell
+                                if total > 0:
+                                    # Calculate percentage of buy/strong buy recommendations
+                                    buy_count = strong_buy + buy
+                                    buy_percentage = (buy_count / total) * 100
+                                    info["buy_percentage"] = buy_percentage
+                                    info["total_ratings"] = total
+                                    logger.debug(f"Using recommendations data for {ticker}: {buy_count}/{total} = {buy_percentage:.1f}%")
+                                else:
+                                    # Fallback to recommendationKey if total is zero
+                                    rec_key = ticker_info.get("recommendationKey", "").lower()
+                                    if rec_key == "strong_buy":
+                                        info["buy_percentage"] = 95
+                                    elif rec_key == "buy":
+                                        info["buy_percentage"] = 85
+                                    elif rec_key == "hold":
+                                        info["buy_percentage"] = 65
+                                    elif rec_key == "sell":
+                                        info["buy_percentage"] = 30
+                                    elif rec_key == "strong_sell":
+                                        info["buy_percentage"] = 10
+                                    else:
+                                        info["buy_percentage"] = 50
+                                    
+                                    info["total_ratings"] = ticker_info.get("numberOfAnalystOpinions", 0)
+                            else:
+                                # Fallback to recommendationKey if recommendations is empty
+                                rec_key = ticker_info.get("recommendationKey", "").lower()
+                                if rec_key == "strong_buy":
+                                    info["buy_percentage"] = 95
+                                elif rec_key == "buy":
+                                    info["buy_percentage"] = 85
+                                elif rec_key == "hold":
+                                    info["buy_percentage"] = 65
+                                elif rec_key == "sell":
+                                    info["buy_percentage"] = 30
+                                elif rec_key == "strong_sell":
+                                    info["buy_percentage"] = 10
+                                else:
+                                    info["buy_percentage"] = 50
+                                
+                                info["total_ratings"] = ticker_info.get("numberOfAnalystOpinions", 0)
+                        except Exception as e:
+                            # If we failed to get recommendations, fall back to recommendation key
+                            logger.debug(f"Error getting recommendations for {ticker}: {e}, falling back to recommendationKey")
+                            rec_key = ticker_info.get("recommendationKey", "").lower()
+                            if rec_key == "strong_buy":
+                                info["buy_percentage"] = 95
+                            elif rec_key == "buy":
+                                info["buy_percentage"] = 85
+                            elif rec_key == "hold":
+                                info["buy_percentage"] = 65
+                            elif rec_key == "sell":
+                                info["buy_percentage"] = 30
+                            elif rec_key == "strong_sell":
+                                info["buy_percentage"] = 10
+                            else:
+                                info["buy_percentage"] = 50
+                            
+                            info["total_ratings"] = ticker_info.get("numberOfAnalystOpinions", 0)
                         
                         # The A column value is set after we calculate the ratings metrics
                     else:
