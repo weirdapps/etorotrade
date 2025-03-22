@@ -1768,7 +1768,7 @@ def main_async():
                 }
                 
                 # Define positive grades to match the original code in core/config.py
-                self.POSITIVE_GRADES = ["Buy", "Overweight", "Outperform", "Strong Buy", "Long-Term Buy", "Positive", "Market Outperform", "Add"]
+                self.POSITIVE_GRADES = ["Buy", "Overweight", "Outperform", "Strong Buy", "Long-Term Buy", "Positive", "Market Outperform", "Add", "Sector Outperform"]
                 
                 # Initialize rate limiter for API calls
                 # Create a simple rate limiter to track API calls
