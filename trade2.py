@@ -19,6 +19,7 @@ import yfinance as yf
 import asyncio
 import re
 import time
+import datetime
 from tabulate import tabulate
 from tqdm import tqdm
 
