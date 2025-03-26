@@ -128,6 +128,44 @@ The analysis automatically saves results to CSV files:
 - Market analysis: yahoofinance/output/market.csv
 - Portfolio analysis: yahoofinance/output/portfolio.csv
 
+### Custom Analysis Using Provider Pattern
+
+You can also use the provider pattern to create custom analyses:
+
+```python
+from yahoofinance import get_provider
+
+# Get the default provider
+provider = get_provider()
+
+# Get data for a specific ticker
+info = provider.get_ticker_info("AAPL")
+print(f"Company: {info['name']}")
+print(f"Current price: ${info['current_price']}")
+print(f"Target price: ${info['target_price']}")
+print(f"Upside potential: {info['upside_potential']}%")
+
+# For async operations
+import asyncio
+from yahoofinance import get_provider
+
+async def analyze_portfolio():
+    # Get async provider
+    provider = get_provider(async_mode=True)
+    
+    # Analyze multiple tickers concurrently
+    portfolio = ["AAPL", "MSFT", "GOOG", "AMZN", "META"]
+    results = await provider.batch_get_ticker_info(portfolio)
+    
+    # Process results
+    for ticker, data in results.items():
+        if data:
+            print(f"{ticker}: {data['name']} - ${data['current_price']}")
+
+# Run async function
+asyncio.run(analyze_portfolio())
+```
+
 ### Ticker Management
 
 #### Yahoo Finance Validation
@@ -222,28 +260,58 @@ Features:
 
 ## Configuration
 
-### Required Files
+### Project Structure
 ```
-yahoofinance/
-├── input/
-│   ├── portfolio.csv    # Portfolio holdings
-│   ├── market.csv       # Market watchlist
-│   ├── etoro.csv        # eToro available tickers
-│   ├── notrade.csv      # Tickers to exclude from recommendations
-│   ├── cons.csv         # Consolidated list of important tickers
-│   ├── us_tickers.csv   # US market tickers
-│   └── yfinance.csv     # Validated tickers
-├── output/              # Generated output files
-│   ├── buy.csv          # Buy recommendations
-│   ├── sell.csv         # Sell recommendations
-│   ├── hold.csv         # Hold recommendations
-│   ├── market.csv       # Market analysis results
-│   ├── portfolio.csv    # Portfolio analysis results
-│   ├── index.html       # HTML dashboard
-│   ├── portfolio.html   # Portfolio HTML dashboard
-│   ├── script.js        # Dashboard JavaScript
-│   └── styles.css       # Dashboard CSS
-└── .env                 # API keys and settings
+/
+├── yahoofinance/           # Main package
+│   ├── api/                # Provider interfaces and implementations
+│   │   └── providers/      # Data provider implementations
+│   ├── core/               # Core functionality
+│   │   ├── errors.py       # Error hierarchy
+│   │   ├── config.py       # Configuration settings
+│   │   └── types.py        # Type definitions
+│   ├── analysis/           # Analysis modules
+│   │   ├── analyst.py      # Analyst ratings
+│   │   ├── performance.py  # Performance tracking
+│   │   └── ...
+│   ├── utils/              # Utility modules
+│   │   ├── network/        # Network utilities (rate limiting, pagination)
+│   │   ├── data/           # Data formatting utilities
+│   │   ├── market/         # Market-specific utilities
+│   │   ├── date/           # Date utilities
+│   │   └── async/          # Async utilities
+│   ├── presentation/       # Presentation components
+│   │   ├── console.py      # Console output
+│   │   ├── html.py         # HTML generation
+│   │   └── templates.py    # HTML templates
+│   ├── input/              # Input data files
+│   │   ├── portfolio.csv   # Portfolio holdings
+│   │   ├── market.csv      # Market watchlist
+│   │   ├── etoro.csv       # eToro available tickers
+│   │   ├── notrade.csv     # Tickers to exclude from recommendations
+│   │   ├── cons.csv        # Consolidated list of important tickers
+│   │   ├── us_tickers.csv  # US market tickers
+│   │   └── yfinance.csv    # Validated tickers
+│   └── output/             # Generated output files
+│       ├── buy.csv         # Buy recommendations
+│       ├── sell.csv        # Sell recommendations
+│       ├── hold.csv        # Hold recommendations
+│       ├── market.csv      # Market analysis results
+│       ├── portfolio.csv   # Portfolio analysis results
+│       ├── index.html      # HTML dashboard
+│       ├── portfolio.html  # Portfolio HTML dashboard
+│       ├── script.js       # Dashboard JavaScript
+│       └── styles.css      # Dashboard CSS
+├── tests/                  # Test files
+│   ├── unit/               # Unit tests
+│   ├── integration/        # Integration tests
+│   └── e2e/                # End-to-end tests
+├── scripts/                # Utility scripts
+├── assets/                 # Static assets
+├── trade.py                # Main entry point
+├── CLAUDE.md               # Comprehensive documentation
+├── requirements.txt        # Dependencies
+└── .env                    # API keys and settings
 ```
 
 ### Input File Formats
@@ -335,30 +403,49 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
 
 ## Architecture
 
-The system uses a modular architecture:
-1. **Client Layer** (client.py): API interactions with rate limiting
-2. **Utilities Layer**: Reusable components for different operations
-   - **Specialized Submodules**:
-     - `utils/data/` - Data formatting and transformation utilities
-     - `utils/network/` - Rate limiting and API communication
-     - `utils/market/` - Market-specific utilities like ticker validation
-     - `utils/date/` - Date manipulation and formatting
-     - `utils/async/` - Asynchronous operation helpers with rate limiting
-3. **Analysis Layer** (Multiple modules): Data processing and calculations
-4. **Display Layer** (display.py): Output formatting and presentation
+The system uses a modern provider-based architecture with five key layers:
+
+1. **Provider Layer**: Abstract interfaces and implementations for data access
+   - Base provider interfaces (`FinanceDataProvider`, `AsyncFinanceDataProvider`)
+   - Implementations (`YahooFinanceProvider`, `AsyncYahooFinanceProvider`, `EnhancedAsyncYahooFinanceProvider`)
+   - Factory function (`get_provider()`) for obtaining appropriate provider instances
+
+2. **Core Layer**: Fundamental services and definitions
+   - Error handling (`core.errors`)
+   - Configuration (`core.config`)
+   - Logging (`core.logging`)
+   - Type definitions (`core.types`)
+
+3. **Utilities Layer**: Reusable components with specialized submodules
+   - Network utilities: Rate limiting, pagination, circuit breakers
+   - Data utilities: Formatting, transformation
+   - Market utilities: Ticker validation and normalization
+   - Date utilities: Date handling and formatting
+   - Async utilities: Asynchronous operations support
+
+4. **Analysis Layer**: Domain-specific processing modules
+   - Finance-specific analysis components
+   - Performance tracking
+   - Market data processing
+
+5. **Presentation Layer**: Output formatting and display
+   - Console output
+   - HTML generation
+   - Data visualization
 
 The codebase follows a clean, organized structure:
-- Core functionality lives in specialized modules (e.g., `utils/async/helpers.py`)
+- Core functionality in canonical source modules (e.g., `utils/network/async_utils/rate_limiter.py`)
 - Compatibility layers provide backward compatibility (e.g., `utils/async_helpers.py`)
-- Clear module boundaries and consistent patterns across all utilities
+- Clear provider interfaces ensure consistent data access patterns
 
 Key components:
+- **Provider Pattern**: Abstracts data access behind consistent interfaces
 - **YFinanceError Hierarchy**: Comprehensive error handling system
 - **AdaptiveRateLimiter**: Advanced rate limiting with thread safety
-- **YFinanceClient**: Handles Yahoo Finance API interactions
+- **AsyncRateLimiter**: Async-compatible rate limiting
+- **Circuit Breaker Pattern**: Resilient handling of external service failures
 - **Cache**: LRU caching system with size limiting
-- **StockData**: Core data structure for stock information
-- **DisplayFormatter**: Formats data for console output
+- **PerformanceTracker**: Tracks performance metrics and generates dashboards
 - **MarketDisplay**: Manages batch processing and report generation
 - **PaginatedResults**: Handles paginated API responses efficiently
 
