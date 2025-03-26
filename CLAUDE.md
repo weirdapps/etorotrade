@@ -31,16 +31,16 @@
     - Select 'S' for Sell candidates - Shows portfolio stocks to consider selling
     - Select 'H' for Hold candidates - Shows stocks with neutral outlook
   - Select 'I' for Manual ticker input - Analyze specific tickers
-- `python -m yahoofinance.validate` - Validate tickers against Yahoo Finance API
-- `python -m yahoofinance.news` - Show latest news with sentiment analysis
-- `python -m yahoofinance.portfolio` - Show portfolio performance metrics
-- `python -m yahoofinance.econ` - View economic indicators from FRED API
-- `python -m yahoofinance.earnings` - View upcoming earnings dates and surprises
-- `python -m yahoofinance.index` - View market index performance (weekly/monthly)
-- `python -m yahoofinance.monthly` - View monthly market index performance
-- `python -m yahoofinance.weekly` - View weekly market index performance
-- `python -m yahoofinance.holders` - Analyze institutional ownership
-- `python -m yahoofinance.insiders` - Analyze insider transactions
+
+### Analysis Module Commands
+- `python -m yahoofinance.analysis.stock validate` - Validate tickers against Yahoo Finance API
+- `python -m yahoofinance.analysis.news` - Show latest news with sentiment analysis
+- `python -m yahoofinance.analysis.portfolio` - Show portfolio performance metrics
+- `python -m yahoofinance.analysis.metrics` - View economic indicators and metrics
+- `python -m yahoofinance.analysis.earnings` - View upcoming earnings dates and surprises
+- `python -m yahoofinance.analysis.performance` - View market and portfolio performance tracking
+- `python -m yahoofinance.analysis.analyst` - View analyst ratings and recommendations
+- `python -m yahoofinance.analysis.insiders` - Analyze insider transactions
 
 ### Testing Commands
 - `pytest tests/` - Run all tests
@@ -96,57 +96,107 @@
 - `assets/` - Application assets (images, etc.)
 - `myenv/` - Python virtual environment
 
-### Core Modules
-- `yahoofinance/client.py` - API client with rate limiting and caching
-- `yahoofinance/display.py` - Output handling and batch processing
-- `yahoofinance/formatting.py` - Data formatting, colorization, and display style rules
-- `yahoofinance/validate.py` - Ticker validation against Yahoo Finance API
-- `yahoofinance/errors.py` - Centralized error handling
-- `yahoofinance/types.py` - Common types and data structures
-- `yahoofinance/cache.py` - LRU caching system with size limits
-- `yahoofinance/config.py` - Configuration settings and constants
+### Package Structure
+The codebase follows a modern provider-based architecture with five key layers:
 
-### Analysis Modules
-- `yahoofinance/analyst.py` - Analyst ratings and recommendations
-- `yahoofinance/earnings.py` - Earnings dates and surprises
-- `yahoofinance/econ.py` - Economic indicators from FRED
-- `yahoofinance/holders.py` - Institutional ownership analysis
-- `yahoofinance/insiders.py` - Insider transactions analysis
-- `yahoofinance/monthly.py` - Monthly market performance
-- `yahoofinance/news.py` - News with sentiment analysis
-- `yahoofinance/portfolio.py` - Portfolio performance tracking
-- `yahoofinance/pricing.py` - Stock price and target analysis
-- `yahoofinance/weekly.py` - Weekly market performance
-- `yahoofinance/index.py` - Combined market index performance
-- `yahoofinance/metrics.py` - Internal metrics calculations
+```
+yahoofinance/               # Main package
+├── api/                    # Provider interfaces and implementations
+│   └── providers/          # Data provider implementations
+│       ├── base_provider.py            # Provider interfaces
+│       ├── yahoo_finance.py            # Sync implementation
+│       ├── async_yahoo_finance.py      # Async implementation
+│       └── enhanced_async_yahoo_finance.py # Enhanced async
+├── analysis/               # Analysis modules
+│   ├── analyst.py          # Analyst ratings
+│   ├── earnings.py         # Earnings data
+│   ├── insiders.py         # Insider transactions
+│   ├── market.py           # Market analysis
+│   ├── metrics.py          # Financial metrics
+│   ├── news.py             # News analysis
+│   ├── performance.py      # Performance tracking
+│   ├── portfolio.py        # Portfolio analysis
+│   └── stock.py            # Stock data analysis
+├── compat/                 # Compatibility layer
+│   ├── client.py           # Legacy client compatibility
+│   └── display.py          # Legacy display compatibility
+├── core/                   # Core functionality
+│   ├── client.py           # Core client implementation
+│   ├── config.py           # Configuration settings
+│   ├── errors.py           # Error hierarchy
+│   ├── logging.py          # Logging configuration
+│   └── types.py            # Type definitions
+├── data/                   # Data management
+│   ├── cache.py            # Caching implementation
+│   ├── cache/              # Cache storage
+│   └── download.py         # Data download functionality
+├── presentation/           # Presentation components
+│   ├── console.py          # Console output
+│   ├── formatter.py        # Data formatting
+│   ├── html.py             # HTML generation
+│   └── templates.py        # HTML templates
+├── utils/                  # Utility modules
+│   ├── async/              # Basic async utilities
+│   ├── async_utils/        # Enhanced async utilities
+│   │   ├── enhanced.py     # Enhanced async features
+│   │   └── helpers.py      # Async helpers
+│   ├── data/               # Data formatting utilities
+│   │   ├── format_utils.py            # Formatting utilities
+│   │   └── market_cap_formatter.py    # Market cap formatting
+│   ├── date/               # Date utilities
+│   │   └── date_utils.py   # Date handling
+│   ├── market/             # Market-specific utilities
+│   │   ├── filter_utils.py # Market filtering
+│   │   └── ticker_utils.py # Ticker validation
+│   └── network/            # Network utilities
+│       ├── batch.py        # Batch processing
+│       ├── circuit_breaker.py # Circuit breaker pattern
+│       ├── pagination.py   # Paginated response handling
+│       └── rate_limiter.py # Rate limiting
+├── input/                  # Input data files
+└── output/                 # Generated output files
+```
 
-### Utility Modules
-- `yahoofinance/utils/` - Utility modules for core functionality
-- `yahoofinance/utils/market_utils.py` - Ticker validation and normalization (compatibility layer)
-- `yahoofinance/utils/rate_limiter.py` - Thread-safe adaptive rate limiting (compatibility layer)
-- `yahoofinance/utils/pagination.py` - Paginated API result handling (compatibility layer)
-- `yahoofinance/utils/async_helpers.py` - Async utilities with rate limiting (compatibility layer)
-- `yahoofinance/utils/format_utils.py` - HTML and output formatting utilities (compatibility layer)
+### Key Components
 
-### Modular Design
-The codebase follows a modular design with clear separation of concerns:
+1. **Provider Layer**: 
+   - `api/providers/base_provider.py` - Defines the interfaces `FinanceDataProvider` and `AsyncFinanceDataProvider`
+   - `api/providers/yahoo_finance.py` - Synchronous Yahoo Finance provider
+   - `api/providers/async_yahoo_finance.py` - Asynchronous Yahoo Finance provider
+   - `api/providers/enhanced_async_yahoo_finance.py` - Enhanced asynchronous provider with batch operations
 
-- **Core Functionality**: Main modules in the root directory provide high-level features
-- **Utility Modules**: Common utilities in the utils/ directory for reusable functionality
-- **Specialized Submodules**:
-  - `utils/data/` - Data formatting and transformation
-    - `format_utils.py` - Core implementation of formatting utilities
-  - `utils/network/` - Rate limiting and API communication
-    - `rate_limiter.py` - Core implementation of rate limiting functionality
-    - `pagination.py` - Core implementation of pagination functionality
-  - `utils/market/` - Market-specific utilities like ticker validation
-    - `ticker_utils.py` - Core implementation of ticker validation/normalization
-  - `utils/date/` - Date manipulation and formatting
-    - `date_utils.py` - Date formatting and processing utilities
-  - `utils/async/` - Asynchronous operation helpers
-    - `helpers.py` - Core implementation of async utilities
+2. **Core Layer**:
+   - `core/errors.py` - Comprehensive error hierarchy
+   - `core/config.py` - Centralized configuration
+   - `core/client.py` - Core API client implementation
+   - `core/types.py` - Type definitions and data classes
+   - `core/logging.py` - Logging configuration
 
-The top-level utils files (`rate_limiter.py`, `pagination.py`, etc.) serve as compatibility layers that re-export functionality from their specialized submodule implementations, ensuring backward compatibility while allowing for a more organized code structure.
+3. **Utility Modules**:
+   - Network utilities - Rate limiting, pagination, circuit breaker pattern
+   - Data formatting utilities - Consistent presentation of financial data
+   - Market utilities - Ticker validation and normalization
+   - Date utilities - Date handling and formatting
+   - Async utilities - Asynchronous operations with rate limiting and concurrency control
+
+4. **Analysis Layer**:
+   - Finance-specific analysis modules
+   - Stock data analysis and validation
+   - Performance tracking for portfolios and indices
+   - News sentiment analysis
+
+5. **Presentation Layer**:
+   - Console output formatting
+   - HTML dashboard generation
+   - Data visualization components
+
+### Compatibility Layer
+
+The codebase includes a compatibility layer that ensures backward compatibility:
+
+- `compat/client.py` - Legacy client interface
+- `compat/display.py` - Legacy display interface
+- Top-level utility modules serve as compatibility layers that re-export functionality from their specialized submodule implementations
 
 ### Test Organization
 - `tests/` - Test files with module-based organization
@@ -171,14 +221,22 @@ The top-level utils files (`rate_limiter.py`, `pagination.py`, etc.) serve as co
   - `yfinance.csv` - Valid tickers that pass Yahoo Finance API validation
   - `notrade.csv` - Tickers to exclude from trading recommendations
   - `cons.csv` - Consolidated list of important tickers
-  - `us_tickers.csv` - US market tickers
+  - `china.csv` - China market tickers
+  - `europe.csv` - Europe market tickers
+  - `usa.csv` - USA market tickers
+  - `usindex.csv` - US market indices
 - `yahoofinance/output/` - Generated output files
   - `buy.csv` - Generated buy recommendations
   - `sell.csv` - Generated sell recommendations
   - `hold.csv` - Generated hold recommendations
   - `market.csv` - Analysis results from market or eToro tickers
   - `portfolio.csv` - Analysis results from portfolio
-  - `index.html`, `portfolio.html` - HTML dashboards
+  - `index.html` - Main HTML dashboard
+  - `portfolio_dashboard.html` - Portfolio HTML dashboard
+  - `manual_input.csv` - Results from manual ticker input
+  - `monthly_performance.json` - Monthly performance data
+  - `portfolio_performance.json` - Portfolio performance data
+  - `weekly_performance.json` - Weekly performance data
   - `script.js` - Dashboard JavaScript
   - `styles.css` - Dashboard styles
 
@@ -870,137 +928,150 @@ The web scraping functionality includes the circuit breaker pattern for resilien
 
 ### yahoofinance/ (Main Package)
 
-#### Core Files
+#### Provider Layer (yahoofinance/api/)
 
-- **__init__.py**: Package initialization for yahoofinance, exports key functionality.
-- **client.py**: API client with rate limiting and caching capabilities for Yahoo Finance data.
-- **display.py**: Handles output formatting and batch processing of financial data.
-- **formatting.py**: Utility functions for data formatting, colorization, and display style rules.
-- **validate.py**: Functions to validate tickers against Yahoo Finance API.
-- **errors.py**: Centralized error handling system with custom exception hierarchy.
-- **types.py**: Common type definitions and data structures.
-- **cache.py**: LRU caching system with size limits for API responses.
-- **config.py**: Configuration settings and constants for the application.
-- **logging_config.py**: Logging configuration for the application.
-- **templates.py**: Templates for HTML dashboard generation.
+- **api/__init__.py**: Exports provider factory function and interfaces.
+- **api/providers/base_provider.py**: Defines `FinanceDataProvider` and `AsyncFinanceDataProvider` interfaces.
+- **api/providers/yahoo_finance.py**: Synchronous Yahoo Finance provider implementation.
+- **api/providers/async_yahoo_finance.py**: Asynchronous Yahoo Finance provider implementation.
+- **api/providers/enhanced_async_yahoo_finance.py**: Enhanced async provider with batch operations.
 
-#### Analysis Modules
+#### Analysis Layer (yahoofinance/analysis/)
 
-- **analyst.py**: Handles analyst ratings and recommendations.
-- **earnings.py**: Manages earnings dates and surprises information.
-- **econ.py**: Retrieves economic indicators from FRED.
-- **holders.py**: Analyzes institutional ownership.
-- **insiders.py**: Analyzes insider transactions.
-- **monthly.py**: Processes monthly market performance.
-- **news.py**: Retrieves news with sentiment analysis.
-- **portfolio.py**: Tracks portfolio performance.
-- **pricing.py**: Analyzes stock price and target data.
-- **weekly.py**: Processes weekly market performance.
-- **index.py**: Combined market index performance.
-- **download.py**: File download functionality.
-- **metrics.py**: Internal metrics calculations.
+- **analysis/__init__.py**: Exports analysis module functionality.
+- **analysis/analyst.py**: Analyst ratings and recommendations.
+- **analysis/earnings.py**: Earnings dates and surprises.
+- **analysis/insiders.py**: Insider transactions analysis.
+- **analysis/market.py**: Market analysis functionality.
+- **analysis/metrics.py**: Financial metrics calculations.
+- **analysis/news.py**: News with sentiment analysis.
+- **analysis/performance.py**: Performance tracking for indices and portfolios.
+- **analysis/portfolio.py**: Portfolio analysis and management.
+- **analysis/stock.py**: Stock data analysis and validation.
 
-#### yahoofinance/utils/ (Utility Modules)
+#### Core Layer (yahoofinance/core/)
 
-- **__init__.py**: Initializes the utils package.
-- **market_utils.py**: Compatibility layer for ticker validation and normalization.
-- **rate_limiter.py**: Compatibility layer for thread-safe adaptive rate limiting.
-- **pagination.py**: Compatibility layer for paginated API result handling.
-- **async_helpers.py**: Async utilities with rate limiting.
-- **format_utils.py**: Compatibility layer for HTML and output formatting utilities.
+- **core/__init__.py**: Core package initialization.
+- **core/client.py**: Core client implementation.
+- **core/config.py**: Configuration settings and constants.
+- **core/errors.py**: Centralized error hierarchy.
+- **core/logging.py**: Logging configuration.
+- **core/types.py**: Common type definitions.
 
-##### yahoofinance/utils/async/ (Async Utilities)
-- **__init__.py**: Package initialization.
-- **async_utils.py**: Core async utility implementations.
+#### Data Management (yahoofinance/data/)
 
-##### yahoofinance/utils/data/ (Data Formatting)
-- **__init__.py**: Package initialization.
-- **format_utils.py**: Core implementation of formatting utilities.
+- **data/__init__.py**: Data package initialization.
+- **data/cache.py**: Cache implementation with size limits.
+- **data/download.py**: Data download functionality.
 
-##### yahoofinance/utils/date/ (Date Utilities)
-- **__init__.py**: Package initialization.
-- **date_utils.py**: Date formatting and processing utilities.
+#### Presentation Layer (yahoofinance/presentation/)
 
-##### yahoofinance/utils/market/ (Market Utilities)
-- **__init__.py**: Package initialization.
-- **ticker_utils.py**: Core implementation of ticker validation/normalization.
+- **presentation/__init__.py**: Presentation package initialization.
+- **presentation/console.py**: Console output formatting.
+- **presentation/formatter.py**: Data formatting utilities.
+- **presentation/html.py**: HTML generation.
+- **presentation/templates.py**: HTML dashboard templates.
 
-##### yahoofinance/utils/network/ (Network Utilities)
-- **__init__.py**: Package initialization.
-- **pagination.py**: Core implementation of pagination functionality.
-- **rate_limiter.py**: Core implementation of rate limiting functionality.
+#### Compatibility Layer (yahoofinance/compat/)
 
-#### yahoofinance/core/ (Core Functionality)
+- **compat/__init__.py**: Compatibility package initialization.
+- **compat/client.py**: Legacy client interface.
+- **compat/display.py**: Legacy display interface.
 
-- **__init__.py**: Core package initialization.
-- **cache.py**: Core caching implementation.
-- **client.py**: Core client implementation.
-- **config.py**: Core configuration.
-- **errors.py**: Core error handling.
-- **logging.py**: Core logging functionality.
-- **types.py**: Core type definitions.
+#### Utility Modules (yahoofinance/utils/)
 
-#### yahoofinance/api/ (API Interface)
-
-- **__init__.py**: API package initialization.
-- **providers/__init__.py**: Initialization for API providers.
+- **utils/__init__.py**: Utilities package initialization.
+- **utils/async/**: Basic async utilities (compatibility layer).
+- **utils/async_utils/**: Enhanced async utilities.
+  - **async_utils/enhanced.py**: Enhanced async functionality.
+  - **async_utils/helpers.py**: Async helper functions.
+- **utils/data/**: Data formatting utilities.
+  - **data/format_utils.py**: Core formatting implementation.
+  - **data/market_cap_formatter.py**: Market cap formatting.
+- **utils/date/**: Date utilities.
+  - **date/date_utils.py**: Date formatting and processing.
+- **utils/market/**: Market-specific utilities.
+  - **market/filter_utils.py**: Market filtering utilities.
+  - **market/ticker_utils.py**: Ticker validation and normalization.
+- **utils/network/**: Network utilities.
+  - **network/batch.py**: Batch processing.
+  - **network/circuit_breaker.py**: Circuit breaker pattern.
+  - **network/pagination.py**: Paginated response handling.
+  - **network/rate_limiter.py**: Thread-safe rate limiting.
 
 ### tests/ (Test Directory)
 
 - **__init__.py**: Test package initialization.
 - **conftest.py**: Pytest configuration and shared fixtures.
 
-#### Test Files for Core Functionality
+#### Test Organization
 
-- **test_advanced_utils.py**: Tests for advanced utility functions.
-- **test_analyst.py**: Tests for analyst module.
-- **test_async.py**: Tests for async utilities and pagination.
-- **test_cache.py**: Tests for caching functionality.
-- **test_client.py**: Tests for API client.
-- **test_compatibility.py**: Tests for compatibility between old and new interfaces.
-- **test_display.py**: Tests for display functionality.
-- **test_download.py**: Tests for download functionality.
-- **test_earnings.py**: Tests for earnings module.
-- **test_econ.py**: Tests for economic indicators.
-- **test_error_handling.py**: Tests for error handling.
-- **test_errors.py**: Tests for error hierarchy.
-- **test_format_utils.py**: Tests for format utilities.
-- **test_formatting.py**: Tests for formatting module.
-- **test_holders.py**: Tests for institutional holders module.
-- **test_improvements.py**: Tests for code improvements.
-- **test_index.py**: Tests for index module.
-- **test_insiders.py**: Tests for insider transactions.
-- **test_market_display.py**: Tests for market display functionality.
-- **test_market_display_batch.py**: Tests for batch processing in market display.
-- **test_market_display_html.py**: Tests for HTML output in market display.
-- **test_market_display_unified.py**: Tests for unified market display.
-- **test_market_utils.py**: Tests for market utilities.
-- **test_metrics.py**: Tests for metrics calculations.
-- **test_monthly.py**: Tests for monthly performance.
-- **test_news.py**: Tests for news module.
-- **test_pagination_utils.py**: Tests for pagination utilities.
-- **test_portfolio.py**: Tests for portfolio module.
-- **test_pricing.py**: Tests for pricing module.
-- **test_rate.py**: Tests for rate limiting.
-- **test_rate_limiter.py**: Tests for rate limiter functionality.
-- **test_rate_limiter_advanced.py**: Tests for advanced rate limiter features.
-- **test_rate_limiter_unified.py**: Tests for unified rate limiter.
-- **test_templates.py**: Tests for HTML templates.
-- **test_trade.py**: Tests for trade analysis.
-- **test_types.py**: Tests for type definitions.
-- **test_utils.py**: Tests for utility functions.
-- **test_utils_refactor.py**: Tests for refactored utilities.
-- **test_validate.py**: Tests for ticker validation.
-- **test_weekly.py**: Tests for weekly performance.
+The test directory follows a modular structure matching the main package:
+
+```
+tests/
+├── e2e/                    # End-to-end tests
+│   └── test_trade_workflows.py
+├── integration/            # Integration tests
+│   ├── api/                # API integration tests
+│   │   ├── test_api_integration.py
+│   │   ├── test_async_api.py
+│   │   └── test_circuit_breaker_integration.py
+├── trade/                  # Trade module tests
+│   └── test_trade.py
+├── unit/                   # Unit tests
+│   ├── api/                # API unit tests
+│   │   └── providers/
+│   │       └── test_enhanced_async_provider.py
+│   ├── core/               # Core unit tests
+│   └── utils/              # Utils unit tests
+│       └── async/
+│           └── test_enhanced.py
+│       └── network/
+│           ├── test_async_circuit_breaker.py
+│           └── test_circuit_breaker.py
+└── yahoofinance/           # Package tests
+    ├── analysis/           # Analysis module tests
+    │   ├── test_analyst.py
+    │   ├── test_earnings.py
+    │   ├── test_insiders.py
+    │   └── ...
+    ├── core/               # Core module tests
+    │   ├── test_cache.py
+    │   ├── test_client.py
+    │   ├── test_errors.py
+    │   └── test_types.py
+    └── utils/              # Utils tests
+        ├── async/
+        │   ├── test_async.py
+        │   └── test_async_helpers.py
+        ├── data/
+        │   ├── test_format_utils.py
+        │   └── test_formatting.py
+        └── network/
+            ├── test_pagination.py
+            ├── test_rate_limiter.py
+            └── test_rate.py
+```
+
+#### Key Test Files
+
+- **e2e/test_trade_workflows.py**: Tests for end-to-end trading workflows.
+- **integration/api/test_api_integration.py**: Tests for API integration.
+- **integration/api/test_async_api.py**: Tests for async API functionality.
+- **trade/test_trade.py**: Tests for main trade module functionality.
+- **unit/api/providers/test_enhanced_async_provider.py**: Tests for enhanced async provider.
+- **unit/utils/network/test_circuit_breaker.py**: Tests for circuit breaker pattern.
+- **yahoofinance/analysis/test_analyst.py**: Tests for analyst module.
+- **yahoofinance/core/test_cache.py**: Tests for cache functionality.
+- **yahoofinance/utils/async/test_async.py**: Tests for async utilities.
 
 #### test/fixtures/ (Test Fixtures)
 
 - **__init__.py**: Fixtures package initialization.
 - **README.md**: Documentation for test fixtures.
 - **async_fixtures.py**: Fixtures for async testing.
+- **api_responses/api_errors.py**: Mock API error responses.
+- **market_data/stock_data.py**: Sample stock data for testing.
 - **pagination.py**: Fixtures for pagination testing.
-
-#### test/utils/ (Test Utilities)
-
-- **__init__.py**: Test utilities package initialization.
-- **test_fixtures.py**: Common test utilities and fixtures.
+- **rate_limiter_fixtures.py**: Rate limiter testing utilities.
