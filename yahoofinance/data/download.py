@@ -296,7 +296,7 @@ def process_portfolio():
         logger.warning("Warning: 'ticker' column not found in CSV")
     
     # Save to input directory
-    output_dir = os.path.join("yahoofinance_v2", "input")
+    output_dir = os.path.join("yahoofinance", "input")
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, "portfolio.csv")
     df.to_csv(output_path, index=False)
@@ -351,7 +351,7 @@ def download_portfolio():
     2. Navigating to the portfolio page
     3. Downloading the portfolio data
     4. Processing the downloaded file to standardize tickers
-    5. Saving the processed file to yahoofinance_v2/input
+    5. Saving the processed file to yahoofinance/input
     
     Returns:
         bool: True if successful, False otherwise
@@ -434,7 +434,7 @@ def download_portfolio():
 def fallback_portfolio_download():
     """
     Fallback method that copies the existing portfolio 
-    from yahoofinance/input to yahoofinance_v2/input
+    from the original location to yahoofinance/input
     
     Returns:
         bool: True if successful, False otherwise
@@ -443,7 +443,7 @@ def fallback_portfolio_download():
         print("Using fallback portfolio download method...")
         # Define source and destination paths
         src_path = os.path.join("yahoofinance", "input", "portfolio.csv")
-        dest_dir = os.path.join("yahoofinance_v2", "input")
+        dest_dir = os.path.join("yahoofinance", "input")
         dest_path = os.path.join(dest_dir, "portfolio.csv")
         
         # Ensure destination directory exists

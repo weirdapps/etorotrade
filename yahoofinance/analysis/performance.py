@@ -1259,7 +1259,7 @@ if __name__ == "__main__":
         period_type = "weekly"
         asyncio.run(track_performance_async(period_type=period_type))
     else:
-        print(f"Usage: python -m yahoofinance_v2.analysis.performance [option]")
+        print(f"Usage: python -m yahoofinance.analysis.performance [option]")
         print(f"Options:")
         print(f"  weekly (w)    - Track weekly market performance")
         print(f"  monthly (m)   - Track monthly market performance")

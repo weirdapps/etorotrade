@@ -5,7 +5,7 @@ This module provides a standardized interface for accessing financial data
 from different sources such as Yahoo Finance or other providers.
 
 Importing:
-    from yahoofinance_v2.api.providers import get_provider, FinanceDataProvider, AsyncFinanceDataProvider
+    from yahoofinance.api.providers import get_provider, FinanceDataProvider, AsyncFinanceDataProvider
     
     # Get default provider
     provider = get_provider()
