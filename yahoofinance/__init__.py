@@ -3,60 +3,18 @@ Yahoo Finance Market Analysis Package
 
 A robust Python-based market analysis system that leverages Yahoo Finance data
 to provide comprehensive stock analysis, portfolio management, and market intelligence.
-The system features advanced rate limiting, intelligent caching, and multiple output formats.
 
-The package handles logging, error management, and performance optimization automatically,
-allowing you to focus on analyzing financial data rather than handling infrastructure concerns.
-
-Example usage:
-    
-    # Recommended usage - Using provider pattern
-    from yahoofinance import get_provider
-    
-    provider = get_provider()
-    stock_data = provider.get_ticker_info("AAPL")
-    print(f"Current price: ${stock_data['current_price']}")
-    print(f"Name: {stock_data['name']}")
-    
-    # For async usage
-    from yahoofinance import get_provider
-    import asyncio
-    
-    async def fetch_data():
-        async_provider = get_provider(async_mode=True)
-        stock_data = await async_provider.get_ticker_info("MSFT")
-        print(f"Current price: ${stock_data['current_price']}")
-    
-    asyncio.run(fetch_data())
-    
-    # Legacy usage - Direct client instantiation
-    from yahoofinance import YFinanceClient
-    
-    client = YFinanceClient()
-    stock_data = client.get_ticker_info("AAPL")
-    print(f"Current price: ${stock_data.current_price}")
-    print(f"Recommendation: {stock_data.recommendation_key}")
-    
-    # Get analyst ratings
-    from yahoofinance import AnalystData
-    
-    analyst = AnalystData(client)
-    ratings = analyst.get_ratings_summary("MSFT")
-    print(f"Buy percentage: {ratings['positive_percentage']}%")
-    print(f"Total ratings: {ratings['total_ratings']}")
-    
-    # Display market data with formatting
-    from yahoofinance import MarketDisplay
-    
-    display = MarketDisplay()
-    tickers = ["AAPL", "MSFT", "GOOG", "AMZN", "META"]
-    display.display_report(tickers)
+This package features:
+- Enhanced async architecture with true async I/O
+- Circuit breaker pattern for improved reliability
+- Disk-based caching for better performance
+- Provider pattern for data access abstraction
 """
 
-# Setup logging
+# Import only the core components needed for the package interface
+from .core.logging import setup_logging, get_logger
 import os
 import logging
-from .core.logging import setup_logging, get_logger, get_ticker_logger
 
 # Set up default logging if not already configured
 if not logging.root.handlers:
@@ -69,22 +27,16 @@ if not logging.root.handlers:
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     logging.getLogger("yfinance").setLevel(logging.WARNING)
 
-# Client and data types from core
-from .core.client import YFinanceClient
-from .core.types import StockData
-
-# Provider API
+# Import and re-export the main API components
 from .api import get_provider, FinanceDataProvider, AsyncFinanceDataProvider
 
-# Analysis modules
-from .analyst import AnalystData
-from .pricing import PricingAnalyzer, PriceTarget, PriceData
+# Import and re-export key analysis components
+from .analysis import StockAnalyzer, AnalysisResults
 
-# Display and formatting
-from .formatting import DisplayFormatter, DisplayConfig, Color
-from .display import MarketDisplay
+# Import and re-export core data types
+from .core.types import StockData
 
-# Error types
+# Import and re-export error types
 from .core.errors import (
     YFinanceError,
     APIError,
@@ -100,30 +52,24 @@ from .core.errors import (
     ConfigError
 )
 
-# Utilities
-from .utils.market_utils import is_us_ticker, normalize_hk_ticker
-from .core.cache import market_cache, news_cache, earnings_cache
+# Import and re-export key utility functions
+from .utils.market import is_us_ticker, normalize_hk_ticker
 
-__version__ = "0.3.0"  # Updated version for organization improvements
+__version__ = "1.0.0"
 __author__ = "Roo"
 
 __all__ = [
-    # Client and core classes
-    'YFinanceClient',
-    'StockData',
-    'AnalystData',
-    'PricingAnalyzer',
-    'PriceTarget',
-    'PriceData',
-    'DisplayFormatter',
-    'DisplayConfig',
-    'Color',
-    'MarketDisplay',
-    
     # Provider API
     'get_provider',
     'FinanceDataProvider',
     'AsyncFinanceDataProvider',
+    
+    # Analysis components
+    'StockAnalyzer',
+    'AnalysisResults',
+    
+    # Core data types
+    'StockData',
     
     # Error types
     'YFinanceError',
@@ -139,15 +85,11 @@ __all__ = [
     'CacheError',
     'ConfigError',
     
-    # Utilities
+    # Utility functions
     'is_us_ticker',
     'normalize_hk_ticker',
-    'market_cache',
-    'news_cache',
-    'earnings_cache',
     
     # Logging
     'setup_logging',
-    'get_logger',
-    'get_ticker_logger'
+    'get_logger'
 ]

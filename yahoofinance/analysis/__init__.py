@@ -1,24 +1,50 @@
 """
 Analysis modules for Yahoo Finance data.
 
-This package contains specialized modules for analyzing different
-aspects of financial market data.
+This package contains modules for analyzing financial data including:
+- Analyst data: Analyst ratings and price targets
+- Earnings: Earnings dates and surprises
+- Insiders: Insider transactions
+- Market: Market-wide analysis and sector analysis
+- Metrics: Financial metrics and ratios
+- Portfolio: Portfolio analysis and tracking
+- Stock: Comprehensive stock analysis with trading recommendations
 """
 
-# General analysis modules
-from ..analyst import AnalystData
-from ..pricing import PricingAnalyzer, PriceTarget, PriceData
-# The portfolio file exists but doesn't have a PortfolioAnalyzer class yet
-# from ..portfolio import portfolio functions directly
-from ..insiders import InsiderAnalyzer
-# Other modules may need to be imported as they're implemented
+from .analyst import AnalystData
+from .earnings import EarningsAnalyzer
+from .insiders import InsiderAnalyzer
+from .market import MarketAnalyzer, MarketMetrics, SectorAnalysis
+from .metrics import PricingAnalyzer, PriceTarget, PriceData
+from .stock import StockAnalyzer, AnalysisResults
+from .portfolio import PortfolioAnalyzer, PortfolioHolding, PortfolioSummary
 
 __all__ = [
-    # Analysis classes
+    # Analyst
     'AnalystData',
+    
+    # Earnings
+    'EarningsAnalyzer',
+    
+    # Insiders
+    'InsiderAnalyzer',
+    
+    # Market
+    'MarketAnalyzer',
+    'MarketMetrics',
+    'SectorAnalysis',
+    
+    # Metrics
     'PricingAnalyzer',
-    'PriceTarget', 
+    'PriceTarget',
     'PriceData',
-    'InsiderAnalyzer'
-    # Additional classes can be added as they're implemented
+    
+    # Portfolio
+    'PortfolioAnalyzer',
+    'PortfolioHolding',
+    'PortfolioSummary',
+    
+    # Stock Analysis
+    'StockAnalyzer',
+    'AnalysisResults',
 ]

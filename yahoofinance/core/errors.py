@@ -1,263 +1,187 @@
 """
-Centralized error handling for the Yahoo Finance API client.
+Error handling module for Yahoo Finance data access.
 
-This module contains a comprehensive exception hierarchy for all types of errors
-that can occur in the application. Using specific exception types allows for
-more precise error handling and better diagnostics.
+This module defines a comprehensive exception hierarchy for error handling,
+ensuring consistent error handling throughout the package.
 """
 
-from typing import Optional, Dict, Any, List
-
+from typing import Dict, Any, Optional
 
 class YFinanceError(Exception):
-    """Base exception for all Yahoo Finance client errors."""
+    """
+    Base class for all Yahoo Finance related errors.
+    
+    This class provides a consistent interface for error handling and logging.
+    All exceptions raised by the package should inherit from this class.
+    
+    Attributes:
+        message: Error message
+        details: Additional error details
+    """
     
     def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
         """
-        Initialize exception with message and optional details.
+        Initialize a YFinanceError.
         
         Args:
             message: Error message
-            details: Additional error details (API response, etc.)
+            details: Additional error details
         """
         self.message = message
         self.details = details or {}
         super().__init__(message)
-
-
-class ValidationError(YFinanceError):
-    """Raised when data validation fails."""
-    pass
-
+        
+    def __str__(self) -> str:
+        """
+        Get string representation of the error.
+        
+        Returns:
+            String representation of the error
+        """
+        if not self.details:
+            return self.message
+        
+        detail_str = ", ".join(f"{k}={v}" for k, v in self.details.items())
+        return f"{self.message} ({detail_str})"
 
 class APIError(YFinanceError):
-    """Base class for API-related errors."""
+    """
+    Error related to API requests.
     
-    def __init__(self, message: str, status_code: Optional[int] = None, details: Optional[Dict[str, Any]] = None):
-        """
-        Initialize with message and optional status code.
-        
-        Args:
-            message: Error message
-            status_code: HTTP status code if available
-            details: Additional error details
-        """
-        details = details or {}
-        if status_code:
-            details['status_code'] = status_code
-        super().__init__(message, details)
-        
-    @property
-    def status_code(self) -> Optional[int]:
-        """Get the HTTP status code if available."""
-        return self.details.get('status_code')
+    This class represents errors that occur during API requests,
+    including network errors, rate limiting, and server errors.
+    """
+    pass
 
+class ValidationError(YFinanceError):
+    """
+    Error related to validation.
+    
+    This class represents errors that occur during validation,
+    such as invalid ticker symbols or invalid parameters.
+    """
+    pass
 
 class RateLimitError(APIError):
-    """Raised when API rate limit is reached."""
+    """
+    Error related to rate limiting.
     
-    def __init__(self, message: str, retry_after: Optional[int] = None, 
-                 status_code: Optional[int] = None, details: Optional[Dict[str, Any]] = None):
+    This class represents errors that occur when an API rate limit is reached.
+    
+    Attributes:
+        message: Error message
+        retry_after: Suggested retry delay in seconds
+        details: Additional error details
+    """
+    
+    def __init__(self, message: str, retry_after: Optional[float] = None, details: Optional[Dict[str, Any]] = None):
         """
-        Initialize with message and recommended retry time.
+        Initialize a RateLimitError.
         
         Args:
             message: Error message
-            retry_after: Seconds to wait before retrying (if provided by API)
-            status_code: HTTP status code if available
+            retry_after: Suggested retry delay in seconds
             details: Additional error details
         """
-        details = details or {}
-        if retry_after:
-            details['retry_after'] = retry_after
         self.retry_after = retry_after
-        super().__init__(message, status_code, details)
+        super().__init__(message, details)
         
-    def should_retry(self) -> bool:
-        """Determine if the request should be retried."""
-        return True
-        
-    def get_retry_delay(self, base_delay: float = 1.0, max_delay: float = 60.0) -> float:
+    def __str__(self) -> str:
         """
-        Calculate appropriate retry delay.
+        Get string representation of the error.
         
-        Args:
-            base_delay: Base delay to use if no retry_after is provided
-            max_delay: Maximum delay to enforce
-            
         Returns:
-            Recommended delay in seconds
+            String representation of the error
         """
-        if self.retry_after:
-            return min(float(self.retry_after), max_delay)
-        return min(base_delay * 2, max_delay)  # Default exponential backoff
+        base_str = super().__str__()
+        if self.retry_after is not None:
+            return f"{base_str} (retry after {self.retry_after} seconds)"
+        return base_str
 
-
-class ConnectionError(APIError):
-    """Raised when network connection fails."""
+class NetworkError(APIError):
+    """Error related to network issues."""
     pass
 
-
-class TimeoutError(APIError):
-    """Raised when API request times out."""
+class ConnectionError(NetworkError):
+    """Error related to network connection issues."""
     pass
 
-
-class AuthenticationError(APIError):
-    """Raised when API authentication fails."""
+class TimeoutError(NetworkError):
+    """Error related to request timeouts."""
     pass
-
-
-class UnexpectedResponseError(APIError):
-    """Raised when API response format is unexpected."""
-    pass
-
 
 class ResourceNotFoundError(APIError):
-    """Raised when requested resource (e.g., ticker) is not found."""
+    """Error related to resources not found (404)."""
     pass
-
 
 class DataError(YFinanceError):
-    """Base class for data processing errors."""
+    """
+    Error related to data handling.
+    
+    This class represents errors that occur during data processing,
+    such as parsing errors or missing data.
+    """
     pass
-
 
 class DataQualityError(DataError):
-    """
-    Raised when data quality is insufficient for analysis.
-    
-    This error indicates that while data was retrieved successfully,
-    its quality or completeness is insufficient for meaningful analysis.
-    """
+    """Error related to data quality issues."""
     pass
-
 
 class MissingDataError(DataError):
-    """
-    Raised when required data fields are missing.
-    
-    This error is more specific than DataQualityError and indicates
-    that specific required data points are missing for analysis.
-    """
-    
-    def __init__(self, message: str, missing_fields: List[str], details: Optional[Dict[str, Any]] = None):
-        """
-        Initialize with message and list of missing fields.
-        
-        Args:
-            message: Error message
-            missing_fields: List of field names that are missing
-            details: Additional error details
-        """
-        self.missing_fields = missing_fields
-        details = details or {}
-        details['missing_fields'] = missing_fields
-        super().__init__(message, details)
-
+    """Error related to missing data."""
+    pass
 
 class CacheError(YFinanceError):
-    """Raised when cache operations fail."""
+    """Error related to caching operations."""
     pass
-
 
 class ConfigError(YFinanceError):
-    """Raised when configuration is invalid or missing."""
+    """Error related to configuration issues."""
     pass
-
-
-class PermissionError(YFinanceError):
-    """Raised when operation lacks necessary permissions."""
-    pass
-
 
 def format_error_details(error: Exception) -> str:
     """
-    Format error details for logging and display.
+    Format error details for logging.
     
     Args:
-        error: The exception to format
+        error: Exception object
         
     Returns:
-        Formatted error message with details
+        Formatted error details string
     """
-    if isinstance(error, YFinanceError) and error.details:
-        details_str = "\n".join(f"  {k}: {v}" for k, v in error.details.items())
-        return f"{error.message}\nDetails:\n{details_str}"
+    if isinstance(error, YFinanceError):
+        # For YFinanceError, include details in the formatted string
+        if hasattr(error, 'details') and error.details:
+            detail_str = ", ".join(f"{k}={v}" for k, v in error.details.items())
+            return f"{error.__class__.__name__}: {error.message} ({detail_str})"
+        return f"{error.__class__.__name__}: {error.message}"
     
-    return str(error)
-
+    # For other exceptions, return the string representation
+    return f"{error.__class__.__name__}: {str(error)}"
 
 def classify_api_error(status_code: int, response_text: str) -> APIError:
     """
-    Classify API error based on status code and response.
+    Classify API error based on status code and response text.
     
     Args:
         status_code: HTTP status code
-        response_text: Response text from API
+        response_text: Response text
         
     Returns:
-        Appropriate APIError subclass
+        Appropriate APIError subclass instance
     """
-    error_map = {
-        400: UnexpectedResponseError(f"Bad Request: {response_text}", status_code),
-        401: AuthenticationError(f"Authentication failed: {response_text}", status_code),
-        403: PermissionError(f"Permission denied: {response_text}", status_code),
-        404: ResourceNotFoundError(f"Resource not found: {response_text}", status_code),
-        429: RateLimitError(f"Rate limit exceeded: {response_text}", None, status_code),
-        500: APIError(f"Server error: {response_text}", status_code),
-        502: APIError(f"Bad gateway: {response_text}", status_code),
-        503: APIError(f"Service unavailable: {response_text}", status_code),
-        504: TimeoutError(f"Gateway timeout: {response_text}", status_code),
+    details = {
+        "status_code": status_code,
+        "response_text": response_text[:100] + ("..." if len(response_text) > 100 else "")
     }
     
-    return error_map.get(status_code, APIError(f"API error ({status_code}): {response_text}", status_code))
-
-
-def error_requires_retry(error: Exception) -> bool:
-    """
-    Determine if an error should trigger a retry.
-    
-    Args:
-        error: The exception to check
-        
-    Returns:
-        True if the error indicates a retry should be attempted
-    """
-    # Rate limit errors should always be retried
-    if isinstance(error, RateLimitError):
-        return True
-        
-    # Connection and timeout errors typically warrant a retry
-    if isinstance(error, (ConnectionError, TimeoutError)):
-        return True
-        
-    # Server errors (500s) may recover on retry
-    if isinstance(error, APIError) and error.status_code and 500 <= error.status_code < 600:
-        return True
-        
-    return False
-
-
-def get_retry_delay(error: Exception, attempt: int, base_delay: float = 1.0, max_delay: float = 60.0) -> float:
-    """
-    Calculate retry delay based on error type and attempt number.
-    
-    Args:
-        error: The exception that occurred
-        attempt: The current attempt number (1-based)
-        base_delay: Base delay in seconds
-        max_delay: Maximum delay in seconds
-        
-    Returns:
-        Recommended delay in seconds
-    """
-    # RateLimitError has its own delay logic
-    if isinstance(error, RateLimitError):
-        return error.get_retry_delay(base_delay, max_delay)
-        
-    # Exponential backoff with jitter for other retryable errors
-    import random
-    delay = min(base_delay * (2 ** (attempt - 1)), max_delay)
-    jitter = random.uniform(0.8, 1.2)  # Add +/- 20% jitter
-    return delay * jitter
+    if status_code == 404:
+        return ResourceNotFoundError(f"Resource not found (status code: {status_code})", details)
+    elif status_code == 429:
+        return RateLimitError(f"Rate limit exceeded (status code: {status_code})", None, details)
+    elif status_code >= 500:
+        return APIError(f"Server error (status code: {status_code})", details)
+    elif status_code >= 400:
+        return APIError(f"Client error (status code: {status_code})", details)
+    else:
+        return APIError(f"Unexpected API error (status code: {status_code})", details)

@@ -1,287 +1,308 @@
 """
-Formatting utilities for HTML output and other display formats.
+Formatting utilities for data display.
 
-This module contains utilities for generating and formatting HTML content,
-including market metrics, portfolio data, and visual elements.
-
-CANONICAL SOURCE:
-This is the canonical source for formatting utilities. Other modules
-that provide similar functionality are compatibility layers that import from 
-this module. Always prefer to import directly from this module in new code:
-
-    from yahoofinance.utils.data.format_utils import (
-        FormatUtils, format_number, format_table, format_market_metrics
-    )
-
-Key Components:
-- FormatUtils: Class with formatting methods for financial data
-- format_number: Format numbers with appropriate precision and units
-- format_table: Format tabular data for display
-- format_market_metrics: Format market metrics for display
-- generate_market_html: Generate HTML for market data
-
-Example usage:
-    # Format a number with FormatUtils
-    formatted = FormatUtils.format_number(1234.56, precision=1)  # Returns "1234.6"
-    
-    # Format a market cap
-    market_cap = FormatUtils.format_market_cap(2750000000000)  # Returns "2.75T"
+This module provides functions for formatting data for display in
+tables, HTML, CSV, and other formats.
 """
 
-import json
-import logging
-from typing import List, Dict, Any, Optional
-
-logger = logging.getLogger(__name__)
+from typing import Any, Dict, List, Union, Optional
+import math
 
 
-class FormatUtils:
-    """Utilities for formatting HTML output and market metrics."""
+def format_number(value: Any, precision: int = 2, as_percentage: bool = False,
+                 include_sign: bool = False, abbreviate: bool = False) -> str:
+    """
+    Format a number for display.
     
-    @staticmethod
-    def format_number(value, precision=2):
-        """Format numeric value with specified precision."""
-        import pandas as pd
-        if pd.isna(value) or value is None:
-            return 'N/A'
+    Args:
+        value: The value to format
+        precision: Number of decimal places
+        as_percentage: Whether to format as percentage
+        include_sign: Whether to include + sign for positive values
+        abbreviate: Whether to abbreviate large numbers (K, M, B, T)
         
-        if isinstance(value, (int, float)):
-            format_str = f"{{:.{precision}f}}"
-            return format_str.format(value)
-        
+    Returns:
+        Formatted string representation
+    """
+    if value is None or value == '':
+        return 'N/A'
+    
+    try:
+        num_value = float(value)
+    except (ValueError, TypeError):
         return str(value)
+    
+    # Handle special cases
+    if math.isnan(num_value):
+        return 'N/A'
+    if math.isinf(num_value):
+        return '∞' if num_value > 0 else '-∞'
+    
+    # Apply formatting options
+    if as_percentage:
+        formatted = f"{num_value:.{precision}f}%"
+    elif abbreviate:
+        formatted = _abbreviate_number(num_value, precision)
+    else:
+        formatted = f"{num_value:.{precision}f}"
+    
+    # Add sign if requested
+    if include_sign and num_value > 0:
+        formatted = f"+{formatted}"
+    
+    return formatted
+
+
+def _abbreviate_number(value: float, precision: int = 2) -> str:
+    """
+    Abbreviate a large number with K, M, B, T suffix.
+    
+    Args:
+        value: The value to abbreviate
+        precision: Number of decimal places
         
-    @staticmethod
-    def format_table(df, title, start_date=None, end_date=None, headers=None, alignments=None):
-        """Format and display a table using tabulate."""
-        from tabulate import tabulate
+    Returns:
+        Abbreviated number string
+    """
+    abs_value = abs(value)
+    
+    if abs_value >= 1e12:  # Trillion
+        return f"{value / 1e12:.{precision}f}T"
+    elif abs_value >= 1e9:  # Billion
+        return f"{value / 1e9:.{precision}f}B"
+    elif abs_value >= 1e6:  # Million
+        return f"{value / 1e6:.{precision}f}M"
+    elif abs_value >= 1e3:  # Thousand
+        return f"{value / 1e3:.{precision}f}K"
+    else:
+        return f"{value:.{precision}f}"
+
+
+def format_market_cap(value: Optional[float]) -> Optional[str]:
+    """
+    Format market cap value with appropriate suffix.
+    
+    Args:
+        value: Market capitalization value
         
-        if df is None or df.empty:
-            return
-            
-        period_text = ""
-        if start_date and end_date:
-            period_text = f" ({start_date} to {end_date})"
-            
-        print(f"\n{title}{period_text}")
-        print("=" * len(f"{title}{period_text}"))
+    Returns:
+        Formatted market cap string
+    """
+    if value is None:
+        return None
         
-        if headers and alignments:
-            print(tabulate(df, headers=headers, tablefmt='simple', colalign=alignments))
+    if value >= 1e12:  # Trillion
+        if value >= 10e12:
+            return f"{value / 1e12:.1f}T"
         else:
-            print(tabulate(df, headers='keys', tablefmt='simple'))
-    
-    @staticmethod
-    def _format_metric_value(value: Any, is_percentage: bool) -> str:
-        """
-        Format a metric value consistently.
-        
-        Args:
-            value: The value to format
-            is_percentage: Whether the value is a percentage
-            
-        Returns:
-            Formatted value as string
-        """
-        if isinstance(value, (int, float)):
-            if is_percentage:
-                # Keep 1 decimal place for percentages
-                return f"{value:.1f}%"
-            else:
-                return f"{value:.2f}"
+            return f"{value / 1e12:.2f}T"
+    elif value >= 1e9:  # Billion
+        if value >= 100e9:
+            return f"{int(value / 1e9)}B"
+        elif value >= 10e9:
+            return f"{value / 1e9:.1f}B"
         else:
-            return str(value)
-    
-    @staticmethod
-    def _determine_metric_color(key: str, value: Any) -> str:
-        """
-        Determine the color for a metric based on its value.
-        
-        Args:
-            key: The metric key
-            value: The metric value
-            
-        Returns:
-            Color class name (positive, negative, or normal)
-        """
-        # Special case for price to match tests
-        if key == 'price':
-            return "normal"
-            
-        # For numeric values, determine by sign
-        if isinstance(value, (int, float)):
-            if value > 0:
-                return "positive"
-            elif value < 0:
-                return "negative"
-                
-        # Default
-        return "normal"
-    
-    @staticmethod
-    def format_market_metrics(metrics: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """
-        Format market metrics for HTML display.
-        
-        Args:
-            metrics: Dictionary of metrics keyed by identifier
-            
-        Returns:
-            List of formatted metrics with consistent structure
-        """
-        formatted = []
-        
-        try:
-            for key, data in metrics.items():
-                # Skip non-dictionary or empty values
-                if not isinstance(data, dict):
-                    continue
-                    
-                value = data.get('value')
-                if value is None:
-                    continue
-                
-                # Get formatting attributes
-                is_percentage = data.get('is_percentage', False)
-                
-                # Format the value and get the color
-                formatted_value = FormatUtils._format_metric_value(value, is_percentage)
-                color = FormatUtils._determine_metric_color(key, value)
-                
-                # Create the formatted metric entry
-                formatted.append({
-                    'key': key,
-                    'label': data.get('label', key),
-                    'value': value,  # Original value for sorting
-                    'formatted_value': formatted_value,
-                    'color': color,
-                    'is_percentage': is_percentage
-                })
-                
-            # Sort by key
-            formatted.sort(key=lambda x: x.get('key', ''))
-            
-        except Exception as e:
-            logger.error(f"Error formatting market metrics: {str(e)}")
-            
-        return formatted
-    
-    @staticmethod
-    def generate_market_html(title: str, sections: List[Dict[str, Any]]) -> str:
-        """
-        Generate HTML content for market metrics display.
-        
-        Args:
-            title: Page title
-            sections: List of sections containing metrics
-            
-        Returns:
-            HTML content as string
-        """
-        try:
-            # Basic HTML template
-            html = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{title}</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-    <div class="container">
-        <h1>{title}</h1>
-        <div class="dashboard">
-"""
-            
-            # Add sections
-            for section in sections:
-                html += FormatUtils._format_section(section)
-            
-            # Close HTML
-            html += """
-        </div>
-    </div>
-    <script src="script.js"></script>
-</body>
-</html>
-"""
-            
-            # Return generated HTML
-            return html
-            
-        except Exception as e:
-            logger.error(f"Error generating market HTML: {str(e)}")
-            return f"<html><body><h1>Error</h1><p>{str(e)}</p></body></html>"
-    
-    @staticmethod
-    def _format_section(section: Dict[str, Any]) -> str:
-        """Format a section for HTML display."""
-        section_title = section.get('title', 'Market Data')
-        metrics = section.get('metrics', [])
-        columns = section.get('columns', 4)
-        width = section.get('width', '100%')
-        
-        html = f"""
-        <div class="section" style="width: {width}">
-            <h2>{section_title}</h2>
-            <div class="metrics-grid" style="grid-template-columns: repeat({columns}, 1fr)">
-"""
-        
-        # Add metrics
-        for metric in metrics:
-            key = metric.get('key', '')
-            label = metric.get('label', key)
-            formatted_value = metric.get('formatted_value', '--')
-            color_class = metric.get('color', 'normal')
-            
-            html += f"""
-                <div class="metric-card">
-                    <div class="metric-label">{label}</div>
-                    <div class="metric-value {color_class}">{formatted_value}</div>
-                </div>
-"""
-        
-        html += """
-            </div>
-        </div>
-"""
-        return html
+            return f"{value / 1e9:.2f}B"
+    elif value >= 1e6:  # Million
+        if value >= 100e6:
+            return f"{int(value / 1e6)}M"
+        elif value >= 10e6:
+            return f"{value / 1e6:.1f}M"
+        else:
+            return f"{value / 1e6:.2f}M"
+    else:
+        return f"{int(value):,}"
 
-    @staticmethod
-    def format_for_csv(metrics: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Format metrics for CSV output.
+
+def format_market_metrics(metrics: Dict[str, Any], include_pct_signs: bool = True) -> Dict[str, str]:
+    """
+    Format market metrics for display.
+    
+    Args:
+        metrics: Dictionary of metric values
+        include_pct_signs: Whether to include % signs for percentage values
         
-        Args:
-            metrics: Dictionary of metrics to format
+    Returns:
+        Dictionary of formatted metric strings
+    """
+    formatted = {}
+    
+    # Define formatting rules for different metrics
+    formatting_rules = {
+        "price": {"precision": 2},
+        "target_price": {"precision": 2},
+        "upside": {"precision": 1, "as_percentage": include_pct_signs},
+        "buy_percentage": {"precision": 0, "as_percentage": include_pct_signs},
+        "beta": {"precision": 2},
+        "pe_trailing": {"precision": 1},
+        "pe_forward": {"precision": 1},
+        "peg_ratio": {"precision": 2},
+        "dividend_yield": {"precision": 2, "as_percentage": include_pct_signs},
+        "short_percent": {"precision": 1, "as_percentage": include_pct_signs},
+    }
+    
+    # Apply formatting to each metric
+    for key, value in metrics.items():
+        if key in formatting_rules:
+            rules = formatting_rules[key]
+            formatted[key] = format_number(
+                value, 
+                precision=rules.get("precision", 2),
+                as_percentage=rules.get("as_percentage", False)
+            )
+        elif key == "market_cap" and value is not None:
+            formatted[key] = format_market_cap(value)
+        else:
+            formatted[key] = str(value) if value is not None else "N/A"
+    
+    return formatted
+
+
+def format_table(data: List[Dict[str, Any]], columns: List[str], formatters: Optional[Dict[str, Dict[str, Any]]] = None) -> List[List[str]]:
+    """
+    Format tabular data with column-specific formatting.
+    
+    Args:
+        data: List of data dictionaries
+        columns: List of column names to include
+        formatters: Dictionary mapping column names to formatter dictionaries
+        
+    Returns:
+        List of rows with formatted values
+    """
+    if not data:
+        return []
+    
+    # Ensure formatters dictionary exists
+    if formatters is None:
+        formatters = {}
+    
+    # Create table header row
+    table = [columns]
+    
+    # Format each row
+    for item in data:
+        row = []
+        for col in columns:
+            value = item.get(col, "")
             
-        Returns:
-            Dictionary with formatted values for CSV
-        """
-        formatted = {}
-        
-        for key, value in metrics.items():
-            if isinstance(value, (int, float)):
-                # Format numbers consistently for CSV
-                if abs(value) < 0.01:
-                    formatted[key] = 0.0
-                # Special case for test_format_utils.py unit test
-                elif key == 'large_number' and abs(value - 12345.678) < 0.001:
-                    formatted[key] = 12345.68
-                elif abs(value) > 1000:
-                    formatted[key] = round(value, 0)
-                else:
-                    formatted[key] = round(value, 2)
+            # Apply column-specific formatter if available
+            if col in formatters:
+                formatter = formatters[col]
+                precision = formatter.get("precision", 2)
+                as_percentage = formatter.get("as_percentage", False)
+                include_sign = formatter.get("include_sign", False)
+                abbreviate = formatter.get("abbreviate", False)
+                
+                formatted_value = format_number(
+                    value,
+                    precision=precision,
+                    as_percentage=as_percentage,
+                    include_sign=include_sign,
+                    abbreviate=abbreviate
+                )
             else:
-                formatted[key] = value
+                # Default formatting
+                formatted_value = str(value) if value is not None else "N/A"
+            
+            row.append(formatted_value)
+        
+        table.append(row)
+    
+    return table
+
+
+def generate_market_html(data: List[Dict[str, Any]], title: str, 
+                        columns: List[str] = None, formatters: Dict[str, Dict[str, Any]] = None) -> str:
+    """
+    Generate HTML table for market data.
+    
+    Args:
+        data: List of market data dictionaries
+        title: Table title
+        columns: List of columns to include (default: all)
+        formatters: Dictionary mapping column names to formatter dictionaries
+        
+    Returns:
+        HTML table string
+    """
+    if not data:
+        return "<p>No data available</p>"
+    
+    # Use all columns if not specified
+    if columns is None:
+        columns = list(data[0].keys())
+    
+    # Start HTML
+    html = f"<h2>{title}</h2>\n"
+    html += "<table border='1' cellpadding='5' cellspacing='0'>\n"
+    
+    # Table header
+    html += "  <tr>\n"
+    for col in columns:
+        html += f"    <th>{col}</th>\n"
+    html += "  </tr>\n"
+    
+    # Table rows
+    for item in data:
+        html += "  <tr>\n"
+        for col in columns:
+            value = item.get(col, "")
+            
+            # Apply column-specific formatter if available
+            if formatters and col in formatters:
+                formatter = formatters[col]
+                precision = formatter.get("precision", 2)
+                as_percentage = formatter.get("as_percentage", False)
+                include_sign = formatter.get("include_sign", False)
+                abbreviate = formatter.get("abbreviate", False)
                 
-        return formatted
+                formatted_value = format_number(
+                    value,
+                    precision=precision,
+                    as_percentage=as_percentage,
+                    include_sign=include_sign,
+                    abbreviate=abbreviate
+                )
+            else:
+                # Default formatting
+                formatted_value = str(value) if value is not None else "N/A"
+            
+            html += f"    <td>{formatted_value}</td>\n"
+        html += "  </tr>\n"
+    
+    html += "</table>\n"
+    return html
 
 
-# For compatibility, expose functions at module level
-format_number = FormatUtils.format_number
-format_table = FormatUtils.format_table
-format_market_metrics = FormatUtils.format_market_metrics
-generate_market_html = FormatUtils.generate_market_html
-format_for_csv = FormatUtils.format_for_csv
+def format_for_csv(data: List[Dict[str, Any]], columns: List[str] = None) -> List[List[str]]:
+    """
+    Format data for CSV export.
+    
+    Args:
+        data: List of data dictionaries
+        columns: List of columns to include (default: all)
+        
+    Returns:
+        List of rows with formatted values
+    """
+    if not data:
+        return []
+    
+    # Use all columns if not specified
+    if columns is None:
+        columns = list(data[0].keys())
+    
+    # Create CSV header row
+    csv_data = [columns]
+    
+    # Format each row
+    for item in data:
+        row = []
+        for col in columns:
+            value = item.get(col, "")
+            row.append(str(value) if value is not None else "")
+        
+        csv_data.append(row)
+    
+    return csv_data

@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """
+DEPRECATED: This file is deprecated and will be removed in a future version.
+Please use trade.py instead, which now contains the updated code.
+
 Command-line interface for the market analysis tool using V2 components.
 
 This version uses the enhanced components from yahoofinance_v2:
@@ -8,6 +11,22 @@ This version uses the enhanced components from yahoofinance_v2:
 - Disk-based caching for better performance
 - Provider pattern for data access abstraction
 """
+
+import sys
+import warnings
+
+warnings.warn(
+    "trade2.py is deprecated and will be removed in a future version. "
+    "Please use trade.py instead, which now contains the updated code.",
+    DeprecationWarning, stacklevel=2
+)
+
+# For backward compatibility, import and run the new trade.py
+if __name__ == "__main__":
+    print("WARNING: trade2.py is deprecated. Please use trade.py instead.")
+    print("Redirecting to trade.py...")
+    import trade
+    sys.exit(0)
 
 import logging
 import sys

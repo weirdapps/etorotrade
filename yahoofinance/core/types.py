@@ -1,52 +1,64 @@
-"""Common types and data structures used across the package"""
+"""
+Core data types for Yahoo Finance data.
+
+This module defines the core data structures used throughout the package.
+"""
 
 from dataclasses import dataclass, field
-from typing import Optional
-import yfinance as yf
+from typing import Any, Optional, Dict
 
-# Import errors from the centralized errors module
-# Import statement retained for backward compatibility
-# Other modules should import errors directly from core.errors
-from .errors import (
-    YFinanceError,
-    APIError,
-    ValidationError,
-    RateLimitError,
-    ConnectionError,
-    TimeoutError,
-    ResourceNotFoundError,
-    DataError,
-    DataQualityError,
-    MissingDataError
-)
 
 @dataclass
 class StockData:
     """
-    Comprehensive stock information data class.
+    Comprehensive stock data container.
     
-    Contains fundamental data, technical indicators, analyst ratings,
-    and market metrics for a given stock. All numeric fields are
-    optional as they may not be available for all stocks.
+    This class represents a comprehensive set of stock data,
+    including price data, analyst coverage, valuation metrics,
+    risk metrics, and more.
     
-    Fields are grouped by category:
-    - Basic Info: name, sector
-    - Market Data: market_cap, current_price, target_price
-    - Analyst Coverage: recommendation_mean, recommendation_key, analyst_count
-    - Valuation Metrics: pe_trailing, pe_forward, peg_ratio
-    - Financial Health: quick_ratio, current_ratio, debt_to_equity
-    - Risk Metrics: short_float_pct, short_ratio, beta
-    - Dividends: dividend_yield
-    - Events: last_earnings, previous_earnings
-    - Insider Activity: insider_buy_pct, insider_transactions
+    Attributes:
+        name: Company name
+        sector: Company sector
+        market_cap: Market capitalization
+        current_price: Current stock price
+        target_price: Average analyst target price
+        price_change_percentage: Percentage price change (daily)
+        mtd_change: Month-to-date price change percentage
+        ytd_change: Year-to-date price change percentage
+        two_year_change: Two-year price change percentage
+        recommendation_mean: Average analyst recommendation (1-5 scale)
+        recommendation_key: Recommendation key (buy, sell, hold, etc.)
+        analyst_count: Number of analysts covering the stock
+        pe_trailing: Trailing P/E ratio
+        pe_forward: Forward P/E ratio
+        peg_ratio: PEG ratio
+        quick_ratio: Quick ratio
+        current_ratio: Current ratio
+        debt_to_equity: Debt-to-equity ratio
+        short_float_pct: Short float percentage
+        short_ratio: Short ratio
+        beta: Beta value
+        alpha: Alpha value
+        sharpe_ratio: Sharpe ratio
+        sortino_ratio: Sortino ratio
+        cash_percentage: Cash-to-debt ratio
+        ma50: 50-day moving average
+        ma200: 200-day moving average
+        dividend_yield: Dividend yield
+        last_earnings: Last earnings date (YYYY-MM-DD format)
+        previous_earnings: Previous earnings date (YYYY-MM-DD format)
+        insider_buy_pct: Insider buy percentage
+        insider_transactions: Number of insider transactions
+        ticker_object: Underlying ticker object (for internal use)
     """
-    # Basic Info (Required)
-    name: str
-    sector: str
-    recommendation_key: str
     
-    # Market Data (Optional)
+    # Basic Info
+    name: str = "N/A"
+    sector: str = "N/A"
     market_cap: Optional[float] = None
+    
+    # Price Data
     current_price: Optional[float] = None
     target_price: Optional[float] = None
     price_change_percentage: Optional[float] = None
@@ -54,21 +66,22 @@ class StockData:
     ytd_change: Optional[float] = None
     two_year_change: Optional[float] = None
     
-    # Analyst Coverage (Optional)
+    # Analyst Coverage
     recommendation_mean: Optional[float] = None
+    recommendation_key: str = "N/A"
     analyst_count: Optional[int] = None
     
-    # Valuation Metrics (Optional)
+    # Valuation Metrics
     pe_trailing: Optional[float] = None
     pe_forward: Optional[float] = None
     peg_ratio: Optional[float] = None
     
-    # Financial Health (Optional)
+    # Financial Health
     quick_ratio: Optional[float] = None
     current_ratio: Optional[float] = None
     debt_to_equity: Optional[float] = None
     
-    # Risk Metrics (Optional)
+    # Risk Metrics
     short_float_pct: Optional[float] = None
     short_ratio: Optional[float] = None
     beta: Optional[float] = None
@@ -77,96 +90,51 @@ class StockData:
     sortino_ratio: Optional[float] = None
     cash_percentage: Optional[float] = None
     
-    # Technical Indicators (Optional)
+    # Technical Indicators
     ma50: Optional[float] = None
     ma200: Optional[float] = None
     
-    # Dividends (Optional)
+    # Dividends
     dividend_yield: Optional[float] = None
     
-    # Events (Optional)
+    # Events
     last_earnings: Optional[str] = None
     previous_earnings: Optional[str] = None
     
-    # Insider Activity (Optional)
+    # Insider Activity
     insider_buy_pct: Optional[float] = None
     insider_transactions: Optional[int] = None
     
-    # Internal (Optional)
-    ticker_object: Optional[yf.Ticker] = field(default=None, repr=False)  # Don't include in string representation
-
-    def __post_init__(self):
-        """Validate types after initialization"""
-        self._validate_required_fields()
-        self._validate_numeric_fields()
-        self._validate_string_fields()
-        self._validate_ticker_object()
-        
-    def _validate_required_fields(self):
-        """Validate required string fields"""
-        if not isinstance(self.name, str):
-            raise TypeError("name must be a string")
-        if not isinstance(self.sector, str):
-            raise TypeError("sector must be a string")
-        if not isinstance(self.recommendation_key, str):
-            raise TypeError("recommendation_key must be a string")
+    # Internal
+    ticker_object: Any = None
     
-    def _validate_numeric_fields(self):
-        """Validate and convert numeric fields"""
-        numeric_fields = {
-            'market_cap': float, 'current_price': float, 'target_price': float,
-            'price_change_percentage': float, 'mtd_change': float, 'ytd_change': float,
-            'two_year_change': float, 'recommendation_mean': float, 'analyst_count': int,
-            'pe_trailing': float, 'pe_forward': float, 'peg_ratio': float,
-            'quick_ratio': float, 'current_ratio': float, 'debt_to_equity': float,
-            'short_float_pct': float, 'short_ratio': float, 'beta': float,
-            'alpha': float, 'sharpe_ratio': float, 'sortino_ratio': float,
-            'cash_percentage': float, 'dividend_yield': float,
-            'insider_buy_pct': float, 'insider_transactions': int,
-            'ma50': float, 'ma200': float  # Add validation for technical indicators
-        }
-        
-        for field_name, expected_type in numeric_fields.items():
-            value = getattr(self, field_name)
-            if value is not None:
-                try:
-                    # Convert to expected type if needed
-                    if not isinstance(value, expected_type):
-                        setattr(self, field_name, expected_type(value))
-                except (ValueError, TypeError):
-                    raise TypeError(f"{field_name} must be convertible to {expected_type.__name__}")
-    
-    def _validate_string_fields(self):
-        """Validate optional string fields"""
-        string_fields = ['last_earnings', 'previous_earnings']
-        for field_name in string_fields:
-            value = getattr(self, field_name)
-            if value is not None and not isinstance(value, str):
-                raise TypeError(f"{field_name} must be a string")
-    
-    def _validate_ticker_object(self):
-        """Validate ticker object if present"""
-        if self.ticker_object is not None:
-            # Skip validation in test environment (when Mock objects are used)
-            if not hasattr(self.ticker_object, '_mock_return_value'):  # Not a mock object
-                if not isinstance(self.ticker_object, yf.Ticker):
-                    raise TypeError("ticker_object must be a yfinance.Ticker instance")
-
-    @property
-    def _stock(self) -> yf.Ticker:
+    def to_dict(self) -> Dict[str, Any]:
         """
-        Access the underlying yfinance Ticker object.
-        
-        This property provides access to the raw yfinance Ticker object,
-        which can be used for additional API calls not covered by the
-        standard properties.
+        Convert to dictionary.
         
         Returns:
-            yfinance.Ticker object for additional API access
-            
-        Raises:
-            AttributeError: If ticker_object is None
+            Dictionary representation of the stock data
         """
-        if self.ticker_object is None:
-            raise AttributeError("No ticker object available")
-        return self.ticker_object
+        result = {}
+        for key, value in self.__dict__.items():
+            # Skip internal ticker object
+            if key == 'ticker_object':
+                continue
+            result[key] = value
+        return result
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'StockData':
+        """
+        Create StockData from dictionary.
+        
+        Args:
+            data: Dictionary containing stock data
+            
+        Returns:
+            StockData instance
+        """
+        # Filter out unknown keys
+        valid_keys = {field.name for field in cls.__dataclass_fields__.values()}
+        filtered_data = {k: v for k, v in data.items() if k in valid_keys}
+        return cls(**filtered_data)
