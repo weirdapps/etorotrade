@@ -1,0 +1,520 @@
+symbol,name,sector,subSector,headQuarter,founded
+NVDA,Nvidia,Technology,Semiconductors,"Santa Clara, CA",1993-04-05
+SHW,Sherwin-Williams,Basic Materials,Chemicals - Specialty,"Cleveland, OH",1866-01-01
+AMZN,"Amazon.com, Inc.amazon.com",Consumer Cyclical,Specialty Retail,"Seattle, WA",1994-07-05
+AMGN,Amgen Inc.,Healthcare,Drug Manufacturers - General,"Thousand Oaks, CA",1980-04-08
+CRM,"Salesforce, Inc.",Technology,Software - Application,"San Francisco, CA",1999-02-03
+HON,Honeywell International Inc.,Industrials,Conglomerates,"Charlotte, NC",1906-01-01
+GS,"The Goldman Sachs Group, Inc.",Financial Services,Financial - Capital Markets,"New York, NY",1869-01-01
+AAPL,Apple Inc.,Technology,Consumer Electronics,"Cupertino, CA",1976-04-01
+NKE,"Nike, Inc.",Consumer Cyclical,Apparel - Footwear & Accessories,"Beaverton, OR",1964-01-25
+V,Visa Inc.,Financial Services,Financial - Credit Services,"San Francisco, CA",1958-09-18
+UNH,UnitedHealth Group Incorporated,Healthcare,Medical - Healthcare Plans,"Minnetonka, MN",1977-01-01
+CSCO,"Cisco Systems, Inc.",Technology,Communication Equipment,"San Jose, CA",1984-12-10
+TRV,"The Travelers Companies, Inc.",Financial Services,Insurance - Property & Casualty,"New York, NY",1853-01-01
+CVX,Chevron Corporation,Energy,Oil & Gas Integrated,"San Ramon, CA",1879-09-10
+VZ,Verizon Communications Inc.,Communication Services,Telecommunications Services,"New York, NY",1983-10-07
+HD,"The Home Depot, Inc.",Consumer Cyclical,Home Improvement,"Atlanta, GA",1978-02-06
+MSFT,Microsoft Corporation,Technology,Software - Infrastructure,"Redmond, WA",1975-04-04
+JNJ,Johnson & Johnson,Healthcare,Drug Manufacturers - General,"New Brunswick, NJ",1886-01-01
+WMT,Walmart Inc.,Consumer Defensive,Discount Stores,"Bentonville, AR",1962-07-02
+CAT,Caterpillar Inc.,Industrials,Agricultural - Machinery,"Deerfield, IL",1925-04-15
+DIS,The Walt Disney Company,Communication Services,Entertainment,"Burbank, CA",1923-10-16
+JPM,JPMorgan Chase & Co.,Financial Services,Banks - Diversified,"New York, NY",2000-12-01
+BA,The Boeing Company,Industrials,Aerospace & Defense,"Arlington, VA",1916-07-15
+KO,The Coca-Cola Company,Consumer Defensive,Beverages - Non-Alcoholic,"Atlanta, GA",1892-01-29
+MCD,McDonald's Corporation,Consumer Cyclical,Restaurants,"Chicago, IL",1940-05-15
+AXP,American Express Company,Financial Services,Financial - Credit Services,"New York, NY",1850-03-18
+IBM,International Business Machines Corporation,Technology,Information Technology Services,"Armonk, NY",1924-06-16
+MRK,"Merck & Co., Inc.",Healthcare,Drug Manufacturers - General,"Kenilworth, NJ",1891-01-01
+MMM,3M Company,Industrials,Conglomerates,"Saint Paul, MN",1902-06-13
+PG,The Procter & Gamble Company,Consumer Defensive,Household & Personal Products,"Cincinnati, OH",1837-10-31
+ABNB,Airbnb,Consumer Cyclical,Travel Services,"San Francisco, CA",2008-08-01
+ADBE,Adobe Inc.,Technology,Software - Infrastructure,"San Jose, CA",1982-12-01
+ADI,Analog Devices,Technology,Semiconductors,"Wilmington, MA",1965-01-01
+ADP,ADP,Industrials,Staffing & Employment Services,"Roseland, NJ",1949-01-01
+ADSK,Autodesk,Technology,Software - Application,"San Rafael, CA",1982-01-30
+AEP,American Electric Power,Utilities,Regulated Electric,"Columbus, OH",1906-01-01
+AMAT,Applied Materials,Technology,Semiconductors,"Santa Clara, CA",1967-11-10
+AMD,Advanced Micro Devices Inc.,Technology,Semiconductors,"Santa Clara, CA",1969-05-01
+ANSS,Ansys,Technology,Software - Application,"Canonsburg, PA",1970-01-01
+APP,Applovin Corp,Technology,Software - Application,"Palo Alto, CA",2011-07-18
+ARM,Arm Holdings,Technology,Semiconductors,"Cambridge, ",1990-11-27
+ASML,ASML Holding,Technology,Semiconductors,"Veldhoven, ",1984-01-01
+AVGO,Broadcom Inc.,Technology,Semiconductors,"San Jose, CA",1961-01-01
+AXON,Axon Enterprise Inc.,Industrials,Aerospace & Defense,"Scottdale, AZ",1993-09-07
+AZN,AstraZeneca,Healthcare,Drug Manufacturers - General,"Cambridge, ",1999-04-06
+BIIB,Biogen,Healthcare,Drug Manufacturers - General,"Cambridge, MA",1978-01-01
+BKNG,Booking Holdings,Consumer Cyclical,Travel Services,"Norwalk, CT",1996-01-01
+BKR,Baker Hughes,Energy,Oil & Gas Equipment & Services,"Houston, TX",1908-01-01
+CCEP,Coca-Cola Europacific Partners,Consumer Defensive,Beverages - Non-Alcoholic,"Uxbridge, ",2016-05-28
+CDNS,Cadence Design Systems,Technology,Software - Application,"San Jose, CA",1983-01-01
+CDW,CDW Corporation,Technology,Information Technology Services,"Vernon Hills, IL",1984-01-01
+CEG,Constellation Energy,Utilities,Renewable Utilities,"Baltimore, MD",1999-01-01
+CHTR,Charter Communications,Communication Services,Telecommunications Services,"Stamford, CT",1993-01-01
+CMCSA,Comcast,Communication Services,Telecommunications Services,"Philadelphia, PA",1963-06-28
+COST,Costco,Consumer Defensive,Discount Stores,"Issaquah, WA",1983-09-15
+CPRT,Copart,Consumer Cyclical,Auto - Dealerships,"Dallas, TX",1982-01-01
+CRWD,CrowdStrike,Technology,Software - Infrastructure,"Austin, TX",2011-01-01
+CSGP,CoStar Group,Real Estate,Real Estate - Services,"Washington, DC",1987-01-01
+CSX,CSX Corporation,Industrials,Railroads,"Jacksonville, FL",1980-11-01
+CTAS,Cintas,Industrials,Specialty Business Services,"Cincinnati, OH",1929-01-01
+CTSH,Cognizant,Technology,Information Technology Services,"Teaneck, NJ",1994-01-26
+DASH,DoorDash,Communication Services,Internet Content & Information,"San Francisco, CA",2012-10-01
+DDOG,Datadog,Technology,Software - Application,"New York, NY",2010-01-01
+DXCM,DexCom,Healthcare,Medical - Devices,"San Diego, CA",1999-01-01
+EA,Electronic Arts,Technology,Electronic Gaming & Multimedia,"Redwood City, CA",1982-05-27
+EXC,Exelon,Utilities,Regulated Electric,"Chicago, IL",2000-10-20
+FANG,Diamondback Energy,Energy,Oil & Gas Exploration & Production,"Midland, TX",2012-10-12
+FAST,Fastenal,Industrials,Industrial - Distribution,"Winona, MN",1967-01-01
+FTNT,Fortinet,Technology,Software - Infrastructure,"Sunnyvale, CA",2000-01-01
+GEHC,GE HealthCare,Healthcare,Medical - Healthcare Information Services,"Chicago, IL",1994-09-28
+GFS,GlobalFoundries,Technology,Semiconductors,"Malta, NY",2009-03-02
+GILD,Gilead Sciences,Healthcare,Drug Manufacturers - General,"Foster City, CA",1987-06-22
+GOOG,Alphabet Inc. (Class C),Communication Services,Internet Content & Information,"Mountain View, CA",1998-09-04
+GOOGL,Alphabet Inc. (Class A),Communication Services,Internet Content & Information,"Mountain View, CA",1998-09-04
+IDXX,Idexx Laboratories,Healthcare,Medical - Diagnostics & Research,"Westbrook, ME",1983-01-01
+INTC,Intel,Technology,Semiconductors,"Santa Clara, CA",1968-07-18
+INTU,Intuit,Technology,Software - Application,"Mountain View, CA",1983-01-01
+ISRG,Intuitive Surgical,Healthcare,Medical - Instruments & Supplies,"Sunnyvale, CA",1995-01-01
+KDP,Keurig Dr Pepper,Consumer Defensive,Beverages - Non-Alcoholic,"Burlington, MA",1981-01-01
+KHC,Kraft Heinz,Consumer Defensive,Packaged Foods,"Pittsburgh, PA",2015-07-02
+KLAC,KLA Corporation,Technology,Semiconductors,"Milpitas, CA",1997-01-01
+LIN,Linde plc,Basic Materials,Chemicals - Specialty,"Woking, ",1879-06-21
+LRCX,Lam Research,Technology,Semiconductors,"Fremont, CA",1980-01-01
+LULU,Lululemon Athletica,Consumer Cyclical,Apparel - Retail,"Vancouver, BC",1998-01-01
+MAR,Marriott International,Consumer Cyclical,Travel Lodging,"Bethesda, MD",1927-03-05
+MCHP,Microchip Technology,Technology,Semiconductors,"Chandler, AZ",1989-01-01
+MDB,MongoDB Inc.,Technology,Software - Infrastructure,"New York, NY",2007-01-01
+MDLZ,Mondelez International,Consumer Defensive,Food Confectioners,"Chicago, IL",1923-12-10
+MELI,MercadoLibre,Consumer Cyclical,Specialty Retail,"Montevideo, ",1999-08-02
+META,Meta Platforms,Communication Services,Internet Content & Information,"Menlo Park, CA",2004-01-04
+MNST,Monster Beverage,Consumer Defensive,Beverages - Non-Alcoholic,"Corona, CA",1935-01-01
+MRVL,Marvell Technology,Technology,Semiconductors,"Wilmington, DE",1995-01-01
+MSTR,MicroStrategy Inc.,Technology,Software - Application,"Vienna, VA",1989-11-17
+MU,Micron Technology,Technology,Semiconductors,"Boise, ID",1978-10-05
+NFLX,Netflix,Communication Services,Entertainment,"Los Gatos, CA",1997-08-29
+NXPI,NXP Semiconductors,Technology,Semiconductors,"Eindhoven, ",2006-01-01
+ODFL,Old Dominion Freight Line,Industrials,Trucking,"Thomasville, NC",1934-01-01
+ON,Onsemi,Technology,Semiconductors,"Phoenix, AZ",1999-01-01
+ORLY,O'Reilly Automotive,Consumer Cyclical,Specialty Retail,"Springfield, MO",1957-12-02
+PANW,Palo Alto Networks,Technology,Software - Infrastructure,"Santa Clara, CA",2005-01-01
+PAYX,Paychex,Industrials,Staffing & Employment Services,"Rochester, NY",1971-01-01
+PCAR,Paccar,Industrials,Agricultural - Machinery,"Bellevue, WA",1905-01-01
+PDD,PDD Holdings,Consumer Cyclical,Specialty Retail,"Shanghai, ",2015-01-01
+PEP,PepsiCo,Consumer Defensive,Beverages - Non-Alcoholic,"Purchase, NY",1898-08-28
+PLTR,Palantir Technologies,Technology,Software - Infrastructure,"Denver, CO",2003-05-06
+PYPL,PayPal,Financial Services,Financial - Credit Services,"San Jose, CA",1998-12-01
+QCOM,Qualcomm,Technology,Semiconductors,"San Diego, CA",1985-07-01
+REGN,Regeneron Pharmaceuticals,Healthcare,Biotechnology,"Tarrytown, NY",1988-01-01
+ROP,Roper Technologies,Industrials,Industrial - Machinery,"Sarasota, FL",1890-01-01
+ROST,Ross Stores,Consumer Cyclical,Apparel - Retail,"Dublin, CA",2050-01-19
+SBUX,Starbucks,Consumer Cyclical,Restaurants,"Seattle, WA",1971-03-30
+SNPS,Synopsys,Technology,Software - Infrastructure,"Mountain View, CA",1986-01-01
+TEAM,Atlassian,Technology,Software - Application,"Sydney, NSW",2002-01-01
+TMUS,T-Mobile US,Communication Services,Telecommunications Services,"Bellevue, WA",2001-09-02
+TSLA,"Tesla, Inc.",Consumer Cyclical,Auto - Manufacturers,"Austin, TX",2003-07-01
+TTD,Trade Desk (The),Technology,Software - Application,"Ventura, CA",2009-01-01
+TTWO,Take-Two Interactive,Technology,Electronic Gaming & Multimedia,"New York, NY",1993-09-30
+TXN,Texas Instruments,Technology,Semiconductors,"Dallas, TX",1930-01-01
+VRSK,Verisk,Industrials,Consulting Services,"Jersey City, NJ",1971-01-01
+VRTX,Vertex Pharmaceuticals,Healthcare,Biotechnology,"Boston, MA",1989-01-01
+WBD,Warner Bros. Discovery,Communication Services,Entertainment,"New York, NY",2022-04-08
+WDAY,"Workday, Inc.",Technology,Software - Application,"Pleasanton, CA",2005-03-01
+XEL,Xcel Energy,Utilities,Regulated Electric,"Minneapolis, MN",1909-06-17
+ZS,Zscaler,Technology,Software - Infrastructure,"San Jose, CA",2007-01-01
+APO,Apollo Global Management,Financial Services,Asset Management - Global,"New York City, New York",1990
+LII,Lennox International,Industrials,Construction,"Richardson, Texas",1895
+TPL,Texas Pacific Land Corporation,Energy,Oil & Gas Exploration & Production,"Dallas, Texas",1888
+DELL,Dell Technologies,Technology,Computer Hardware,"Round Rock, Texas",2016
+ERIE,Erie Indemnity,Financial Services,Insurance - Brokers,"Erie, Pennsylvania",1925
+SW,Smurfit WestRock,Consumer Cyclical,Packaging & Containers,"Dublin, Ireland",1934
+GDDY,GoDaddy,Technology,Software - Infrastructure,"Tempe, Arizona",1997
+KKR,KKR,Financial Services,Asset Management,"New York City, New York",1976
+VST,Vistra Corp.,Utilities,Independent Power Producers,"Irving, Texas",2016
+GEV,GE Vernova,Utilities,Renewable Utilities,"Cambridge, Massachusetts",2024
+SOLV,Solventum,Healthcare,Medical - Care Facilities,"Saint Paul, Minnesota",2023
+DECK,Deckers Brands,Consumer Cyclical,Apparel - Footwear & Accessories,"Goleta, California",1973
+SMCI,Supermicro,Technology,Computer Hardware,"San Jose, California",1993
+BLDR,Builders FirstSource,Industrials,Construction,"Irving, Texas",1998
+JBL,Jabil,Technology,"Hardware, Equipment & Parts","St. Petersburg, Florida",1966
+UBER,Uber,Technology,Software - Application,"San Francisco, California",2009
+HUBB,Hubbell Incorporated,Industrials,Electrical Equipment & Parts,"Shelton, Connecticut",1888
+VLTO,Veralto,Industrials,Industrial - Pollution & Treatment Controls,"Waltham, Massachusetts",2023
+BX,Blackstone Inc.,Financial Services,Asset Management,"New York City, New York",1985
+KVUE,Kenvue,Consumer Defensive,Household & Personal Products,"Skillman, New Jersey",2022
+FICO,Fair Isaac,Technology,Software - Application,"Bozeman, Montana",1956
+BG,Bunge Global,Consumer Defensive,Agricultural Farm Products,"Chesterfield, Missouri",1818
+PODD,Insulet Corporation,Healthcare,Medical - Devices,"Acton, Massachusetts",2000
+STLD,Steel Dynamics,Basic Materials,Steel,"Fort Wayne, Indiana",1993
+FSLR,First Solar,Energy,Solar,"Tempe, Arizona",1999
+ACGL,Arch Capital Group,Financial Services,Insurance - Diversified,"Hamilton, Bermuda",1995
+TRGP,Targa Resources,Energy,Oil & Gas Midstream,"Houston, Texas",2005
+EQT,EQT Corporation,Energy,Oil & Gas Exploration & Production,"Pittsburgh, Pennsylvania",1888
+PCG,PG&E Corporation,Utilities,Regulated Electric,"Oakland, California",1905
+INVH,Invitation Homes,Real Estate,REIT - Residential,"Dallas, Texas",2012
+VICI,Vici Properties,Real Estate,REIT - Diversified,"New York City, New York",2017
+CPT,Camden Property Trust,Real Estate,REIT - Residential,"Houston, Texas",1981
+MOH,Molina Healthcare,Healthcare,Medical - Healthcare Plans,"Long Beach, California",1980
+NDSN,Nordson Corporation,Industrials,Industrial - Machinery,"Westlake, Ohio",1935
+FDS,FactSet,Financial Services,Financial - Data & Stock Exchanges,"Norwalk, Connecticut",1978
+EPAM,EPAM Systems,Technology,Information Technology Services,"Newtown, Pennsylvania",1993
+BRO,Brown & Brown,Financial Services,Insurance - Brokers,"Daytona Beach, Florida",1939
+DAY,Dayforce,Technology,Software - Application,"Minneapolis, Minnesota",1992
+MTCH,Match Group,Communication Services,Internet Content & Information,"Dallas, Texas",1986
+TECH,Bio-Techne,Healthcare,Biotechnology,"Minneapolis, Minnesota",1976
+MRNA,Moderna,Healthcare,Biotechnology,"Cambridge, Massachusetts",2010
+CRL,Charles River Laboratories,Healthcare,Medical - Diagnostics & Research,"Wilmington, Massachusetts",1947
+PTC,PTC Inc.,Technology,Software - Application,"Boston, Massachusetts",1985
+CZR,Caesars Entertainment,Consumer Cyclical,"Gambling, Resorts & Casinos","Reno, Nevada",1973
+GNRC,Generac,Industrials,Industrial - Machinery,"Waukesha, Wisconsin",1959
+MPWR,Monolithic Power Systems,Technology,Semiconductors,"Kirkland, Washington",1997
+TRMB,Trimble Inc.,Technology,"Hardware, Equipment & Parts","Westminster, Colorado",1978
+ENPH,Enphase Energy,Energy,Solar,"Fremont, California",2006
+POOL,Pool Corporation,Industrials,Industrial - Distribution,"Covington, Louisiana",1993
+TER,Teradyne,Technology,Semiconductors,"North Reading, Massachusetts",1960
+TDY,Teledyne Technologies,Technology,"Hardware, Equipment & Parts","Thousand Oaks, California",1960
+TYL,Tyler Technologies,Technology,Software - Application,"Plano, Texas",1966
+WST,West Pharmaceutical Services,Healthcare,Medical - Instruments & Supplies,"Exton, Pennsylvania",1923
+DPZ,Domino's,Consumer Cyclical,Restaurants,"Ann Arbor, Michigan",1960
+CARR,Carrier Global,Industrials,Construction,"Palm Beach Gardens, Florida",2020
+OTIS,Otis Worldwide,Industrials,Industrial - Machinery,"Farmington, Connecticut",2020
+IR,Ingersoll Rand,Industrials,Industrial - Machinery,"Davidson, North Carolina",1859
+PAYC,Paycom,Technology,Software - Application,"Oklahoma City, Oklahoma",1998
+LYV,Live Nation Entertainment,Communication Services,Entertainment,"Beverly Hills, California",2010
+STE,Steris,Healthcare,Medical - Devices,"Dublin, Ireland",1985
+ZBRA,Zebra Technologies,Technology,Communication Equipment,"Lincolnshire, Illinois",1969
+WRB,W. R. Berkley Corporation,Financial Services,Insurance - Property & Casualty,"Greenwich, Connecticut",1967
+NOW,ServiceNow,Technology,Software - Application,"Santa Clara, California",2003
+LVS,Las Vegas Sands,Consumer Cyclical,"Gambling, Resorts & Casinos","Las Vegas, Nevada",1988
+NVR,"NVR, Inc.",Consumer Cyclical,Residential Construction,"Reston, Virginia",1980
+IEX,IDEX Corporation,Industrials,Industrial - Machinery,"Lake Forest, Illinois",1988
+LDOS,Leidos,Technology,Information Technology Services,"Reston, Virginia",1969
+TROW,T. Rowe Price,Financial Services,Asset Management,"Baltimore, Maryland",1937
+MKTX,MarketAxess,Financial Services,Financial - Capital Markets,"New York City, New York",2000
+AMCR,Amcor,Consumer Cyclical,Packaging & Containers,"Warmley, Bristol, United Kingdom",2019
+CTVA,Corteva,Basic Materials,Agricultural Inputs,"Indianapolis, Indiana",2019
+DD,DuPont,Basic Materials,Chemicals - Specialty,"Wilmington, Delaware",2017
+DOW,Dow Inc.,Basic Materials,Chemicals,"Midland, Michigan",2019
+FOX,Fox Corporation (Class B),Communication Services,Entertainment,"New York City, New York",2019
+FOXA,Fox Corporation (Class A),Communication Services,Entertainment,"New York City, New York",2019
+WAB,Wabtec,Industrials,Railroads,"Pittsburgh, Pennsylvania",1999
+ATO,Atmos Energy,Utilities,Regulated Gas,"Dallas, Texas",1906
+TFX,Teleflex,Healthcare,Medical - Instruments & Supplies,"Wayne, Pennsylvania",1943
+CE,Celanese,Basic Materials,Chemicals,"Irving, Texas",1918
+LW,Lamb Weston,Consumer Defensive,Packaged Foods,"Eagle, Idaho",2016
+JKHY,Jack Henry & Associates,Technology,Information Technology Services,"Monett, Missouri",1976
+KEYS,Keysight Technologies,Technology,"Hardware, Equipment & Parts","Santa Rosa, California",2014
+ROL,"Rollins, Inc.",Consumer Cyclical,Personal Products & Services,"Atlanta, Georgia",1948
+ANET,Arista Networks,Technology,Computer Hardware,"Santa Clara, California",2004
+CPAY,Corpay,Technology,Software - Infrastructure,"Atlanta, Georgia",2000
+BR,Broadridge Financial Solutions,Technology,Information Technology Services,"Lake Success, New York",1962
+EVRG,Evergy,Utilities,Regulated Electric,"Kansas City, Missouri",1909
+MSCI,MSCI,Financial Services,Financial - Data & Stock Exchanges,"New York City, New York",1969
+HII,Huntington Ingalls Industries,Industrials,Aerospace & Defense,"Newport News, Virginia",2011
+NCLH,Norwegian Cruise Line Holdings,Consumer Cyclical,Travel Services,"Miami, Florida",2011
+SBAC,SBA Communications,Real Estate,REIT - Specialty,"Boca Raton, Florida",1989
+IQV,IQVIA,Healthcare,Medical - Diagnostics & Research,"Durham, North Carolina",1982
+AOS,A. O. Smith,Industrials,Industrial - Machinery,"Milwaukee, Wisconsin",1916
+MGM,MGM Resorts,Consumer Cyclical,"Gambling, Resorts & Casinos","Paradise, Nevada",1986
+PKG,Packaging Corporation of America,Consumer Cyclical,Packaging & Containers,"Lake Forest, Illinois",1959
+RMD,ResMed,Healthcare,Medical - Instruments & Supplies,"San Diego, California",1989
+ALGN,Align Technology,Healthcare,Medical - Devices,"Tempe, Arizona",1997
+EG,Everest Group,Financial Services,Insurance - Reinsurance,"Hamilton, Bermuda",1973
+HLT,Hilton Worldwide,Consumer Cyclical,Travel Lodging,"Tysons Corner, Virginia",1919
+IT,Gartner,Technology,Information Technology Services,"Stamford, Connecticut",1979
+ARE,Alexandria Real Estate Equities,Real Estate,REIT - Office,"Pasadena, California",1994
+RJF,Raymond James Financial,Financial Services,Financial - Capital Markets,"St. Petersburg, Florida",1962
+SRE,Sempra,Utilities,Diversified Utilities,"San Diego, California",1998
+REG,Regency Centers,Real Estate,REIT - Retail,"Jacksonville, Florida",1963
+CBOE,Cboe Global Markets,Financial Services,Financial - Data & Stock Exchanges,"Chicago, Illinois",1973
+INCY,Incyte,Healthcare,Biotechnology,"Wilmington, Delaware",1991
+MAA,Mid-America Apartment Communities,Real Estate,REIT - Residential,"Memphis, Tennessee",1977
+D,Dominion Energy,Utilities,Regulated Electric,"Richmond, Virginia",1983
+HWM,Howmet Aerospace,Industrials,Industrial - Machinery,"Pittsburgh, Pennsylvania",1888
+COO,Cooper Companies (The),Healthcare,Medical - Instruments & Supplies,"San Ramon, California",1958
+MTD,Mettler Toledo,Healthcare,Medical - Diagnostics & Research,"Columbus, Ohio",1945
+ALB,Albemarle Corporation,Basic Materials,Chemicals - Specialty,"Charlotte, North Carolina",1994
+FTV,Fortive,Technology,"Hardware, Equipment & Parts","Everett, Washington",2016
+LNT,Alliant Energy,Utilities,Regulated Electric,"Madison, Wisconsin",1917
+TDG,TransDigm Group,Industrials,Aerospace & Defense,"Cleveland, Ohio",1993
+AJG,Arthur J. Gallagher & Co.,Financial Services,Insurance - Brokers,"Rolling Meadows, Illinois",1927
+LKQ,LKQ Corporation,Consumer Cyclical,Auto - Parts,"Chicago, Illinois",1998
+DLR,Digital Realty,Real Estate,REIT - Office,"Austin, Texas",2004
+GPN,Global Payments,Industrials,Specialty Business Services,"Atlanta, Georgia",2000
+ULTA,Ulta Beauty,Consumer Cyclical,Specialty Retail,"Bolingbrook, Illinois",1990
+CNC,Centene Corporation,Healthcare,Medical - Healthcare Plans,"St. Louis, Missouri",1984
+HOLX,Hologic,Healthcare,Medical - Instruments & Supplies,"Marlborough, Massachusetts",1985
+UDR,"UDR, Inc.",Real Estate,REIT - Residential,"Highlands Ranch, Colorado",1972
+AWK,American Water Works,Utilities,Regulated Water,"Camden, New Jersey",1886
+FRT,Federal Realty Investment Trust,Real Estate,REIT - Retail,"Rockville, Maryland",1962
+CFG,Citizens Financial Group,Financial Services,Banks - Regional,"Providence, Rhode Island",1828
+EXR,Extra Space Storage,Real Estate,REIT - Industrial,"Salt Lake City, Utah",1977
+WTW,Willis Towers Watson,Financial Services,Insurance - Brokers,"London, United Kingdom",2016
+CHD,Church & Dwight,Consumer Defensive,Household & Personal Products,"Ewing, New Jersey",1847
+SYF,Synchrony Financial,Financial Services,Financial - Credit Services,"Stamford, Connecticut",2003
+HPE,Hewlett Packard Enterprise,Technology,Communication Equipment,"Houston, Texas",2015
+NWS,News Corp (Class B),Communication Services,Entertainment,"New York City, New York",2013
+UAL,United Airlines Holdings,Industrials,"Airlines, Airports & Air Services","Chicago, Illinois",1967
+JBHT,J.B. Hunt,Industrials,Integrated Freight & Logistics,"Lowell, Arkansas",1961
+O,Realty Income,Real Estate,REIT - Retail,"San Diego, California",1969
+EQIX,Equinix,Real Estate,REIT - Specialty,"Redwood City, California",1998
+HSIC,Henry Schein,Healthcare,Medical - Distribution,"Melville, New York",1932
+SWKS,Skyworks Solutions,Technology,Semiconductors,"Irvine, California",2002
+HCA,HCA Healthcare,Healthcare,Medical - Care Facilities,"Nashville, Tennessee",1968
+RCL,Royal Caribbean Group,Consumer Cyclical,Travel Services,"Miami, Florida",1997
+UHS,Universal Health Services,Healthcare,Medical - Care Facilities,"King of Prussia, Pennsylvania",1979
+URI,United Rentals,Industrials,Rental & Leasing Services,"Stamford, Connecticut",1997
+MLM,Martin Marietta Materials,Basic Materials,Construction Materials,"Raleigh, North Carolina",1993
+ESS,Essex Property Trust,Real Estate,REIT - Residential,"San Mateo, California",1971
+TSCO,Tractor Supply,Consumer Cyclical,Specialty Retail,"Brentwood, Tennessee",1938
+MHK,Mohawk Industries,Consumer Cyclical,"Furnishings, Fixtures & Appliances","Calhoun, Georgia",1878
+ALLE,Allegion,Industrials,Security & Protection Services,"Dublin, Ireland",1908
+AME,Ametek,Industrials,Industrial - Machinery,"Berwyn, Pennsylvania",1930
+DAL,Delta Air Lines,Industrials,"Airlines, Airports & Air Services","Atlanta, Georgia",1929
+NWSA,News Corp (Class A),Communication Services,Entertainment,"New York City, New York",2013
+ZTS,Zoetis,Healthcare,Drug Manufacturers - Specialty & Generic,"Parsippany, New Jersey",1952
+GM,General Motors,Consumer Cyclical,Auto - Manufacturers,"Detroit, Michigan",1908
+ABBV,AbbVie,Healthcare,Drug Manufacturers - General,"North Chicago, Illinois",2013
+APTV,Aptiv,Consumer Cyclical,Auto - Parts,"Dublin, Ireland",1994
+GRMN,Garmin,Technology,"Hardware, Equipment & Parts","Schaffhausen, Switzerland",1989
+HUM,Humana,Healthcare,Medical - Healthcare Plans,"Louisville, Kentucky",1961
+DG,Dollar General,Consumer Defensive,Discount Stores,"Goodlettsville, Tennessee",1939
+PNR,Pentair,Industrials,Industrial - Machinery,"Worsley, United Kingdom",1966
+LYB,LyondellBasell,Basic Materials,Chemicals - Specialty,"Rotterdam, Netherlands",2007
+STX,Seagate Technology,Technology,Computer Hardware,"Dublin, Ireland",1979
+KMI,Kinder Morgan,Energy,Oil & Gas Midstream,"Houston, Texas",1997
+PSX,Phillips 66,Energy,Oil & Gas Refining & Marketing,"Houston, Texas",2012
+CCI,Crown Castle,Real Estate,REIT - Specialty,"Houston, Texas",1994
+BWA,BorgWarner,Consumer Cyclical,Auto - Parts,"Auburn Hills, Michigan",1880
+DLTR,Dollar Tree,Consumer Defensive,Discount Stores,"Chesapeake, Virginia",1986
+XYL,Xylem Inc.,Industrials,Industrial - Machinery,"White Plains, New York",2011
+TEL,TE Connectivity,Technology,"Hardware, Equipment & Parts","Galway, Ireland",2007
+MOS,Mosaic Company (The),Basic Materials,Agricultural Inputs,"Tampa, Florida",2004
+ACN,Accenture,Technology,Information Technology Services,"Dublin, Ireland",1989
+FCX,Freeport-McMoRan,Basic Materials,Copper,"Phoenix, Arizona",1912
+MPC,Marathon Petroleum,Energy,Oil & Gas Refining & Marketing,"Findlay, Ohio",2009
+CMG,Chipotle Mexican Grill,Consumer Cyclical,Restaurants,"Newport Beach, California",1993
+BLK,BlackRock,Financial Services,Asset Management,"New York City, New York",1988
+EW,Edwards Lifesciences,Healthcare,Medical - Devices,"Irvine, California",1958
+FFIV,"F5, Inc.",Technology,Software - Infrastructure,"Seattle, Washington",1996
+TT,Trane Technologies,Industrials,Construction,"Dublin, Ireland",1871
+JCI,Johnson Controls,Industrials,Construction,"Cork, Ireland",1885
+CB,Chubb Limited,Financial Services,Insurance - Property & Casualty,"Zurich, Switzerland",1985
+KMX,CarMax,Consumer Cyclical,Auto - Dealerships,"Richmond, Virginia",1993
+OKE,ONEOK,Energy,Oil & Gas Midstream,"Tulsa, Oklahoma",1906
+BRK-B,Berkshire Hathaway,Financial Services,Insurance - Diversified,"Omaha, Nebraska",1839
+NRG,NRG Energy,Utilities,Independent Power Producers,"Houston, Texas",1992
+FMC,FMC Corporation,Basic Materials,Agricultural Inputs,"Philadelphia, Pennsylvania",1883
+ES,Eversource Energy,Utilities,Regulated Electric,"Hartford, Connecticut",1966
+PWR,Quanta Services,Industrials,Engineering & Construction,"Houston, Texas",1997
+WDC,Western Digital,Technology,Computer Hardware,"San Jose, California",1970
+HRL,Hormel Foods,Consumer Defensive,Packaged Foods,"Austin, Minnesota",1891
+VTR,Ventas,Real Estate,REIT - Healthcare Facilities,"Chicago, Illinois",1998
+WELL,Welltower,Real Estate,REIT - Healthcare Facilities,"Toledo, Ohio",1970
+IRM,Iron Mountain,Real Estate,REIT - Specialty,"Boston, Massachusetts",1951
+RSG,Republic Services,Industrials,Waste Management,"Phoenix, Arizona",1998
+WYNN,Wynn Resorts,Consumer Cyclical,"Gambling, Resorts & Casinos","Paradise, Nevada",2002
+SJM,J.M. Smucker Company (The),Consumer Defensive,Packaged Foods,"Orrville, Ohio",1897
+WEC,WEC Energy Group,Utilities,Regulated Electric,"Milwaukee, Wisconsin",1896
+NDAQ,"Nasdaq, Inc.",Financial Services,Financial - Data & Stock Exchanges,"New York City, New York",1971
+APH,Amphenol,Technology,"Hardware, Equipment & Parts","Wallingford, Connecticut",1932
+LHX,L3Harris,Industrials,Aerospace & Defense,"Melbourne, Florida",2019
+CF,CF Industries,Basic Materials,Agricultural Inputs,"Deerfield, Illinois",1946
+IVZ,Invesco,Financial Services,Asset Management,"Atlanta, Georgia",1935
+DVA,DaVita,Healthcare,Medical - Care Facilities,"Denver, Colorado",1979
+MA,Mastercard,Financial Services,Financial - Credit Services,"Harrison, New York",1966
+CTRA,Coterra,Energy,Oil & Gas Exploration & Production,"Houston, Texas",2021
+DOC,Healthpeak Properties,Real Estate,REIT - Healthcare Facilities,"Denver, Colorado",1985
+PM,Philip Morris International,Consumer Defensive,Tobacco,"New York City, New York",2008
+AMT,American Tower,Real Estate,REIT - Specialty,"Boston, Massachusetts",1995
+J,Jacobs Solutions,Industrials,Engineering & Construction,"Dallas, Texas",1947
+EXPD,Expeditors International,Industrials,Integrated Freight & Logistics,"Seattle, Washington",1979
+EXPE,Expedia Group,Consumer Cyclical,Travel Services,"Seattle, Washington",1996
+ICE,Intercontinental Exchange,Financial Services,Financial - Data & Stock Exchanges,"Atlanta, Georgia",2000
+AKAM,Akamai Technologies,Technology,Software - Infrastructure,"Cambridge, Massachusetts",1998
+DFS,Discover Financial,Financial Services,Financial - Credit Services,"Riverwoods, Illinois",1985
+AIZ,Assurant,Financial Services,Insurance - Specialty,"Atlanta, Georgia",1892
+HST,Host Hotels & Resorts,Real Estate,REIT - Hotel & Motel,"Bethesda, Maryland",1993
+CHRW,C.H. Robinson,Industrials,Integrated Freight & Logistics,"Eden Prairie, Minnesota",1905
+RL,Ralph Lauren Corporation,Consumer Cyclical,Apparel - Manufacturers,"New York City, New York",1967
+AVB,AvalonBay Communities,Real Estate,REIT - Residential,"Arlington, Virginia",1978
+CBRE,CBRE Group,Real Estate,Real Estate - Services,"Dallas, Texas",1906
+FIS,Fidelity National Information Services,Technology,Information Technology Services,"Jacksonville, Florida",1968
+CME,CME Group,Financial Services,Financial - Data & Stock Exchanges,"Chicago, Illinois",1848
+JNPR,Juniper Networks,Technology,Communication Equipment,"Sunnyvale, California",1996
+KIM,Kimco Realty,Real Estate,REIT - Retail,"Jericho, New York",1958
+BXP,"BXP, Inc.",Real Estate,REIT - Office,"Boston, Massachusetts",1970
+VRSN,Verisign,Technology,Software - Infrastructure,"Dulles, Virginia",1995
+EL,Estée Lauder Companies (The),Consumer Defensive,Household & Personal Products,"New York City, New York",1946
+LEN,Lennar,Consumer Cyclical,Residential Construction,"Miami, Florida",1954
+AMP,Ameriprise Financial,Financial Services,Asset Management,"Minneapolis, Minnesota",1894
+PSA,Public Storage,Real Estate,REIT - Industrial,"Glendale, California",1972
+TSN,Tyson Foods,Consumer Defensive,Agricultural Farm Products,"Springdale, Arkansas",1935
+STZ,Constellation Brands,Consumer Defensive,Beverages - Wineries & Distilleries,"Rochester, New York",1945
+DHI,D. R. Horton,Consumer Cyclical,Residential Construction,"Arlington, Texas",1978
+LH,LabCorp,Healthcare,Medical - Diagnostics & Research,"Burlington, North Carolina",1978
+TPR,"Tapestry, Inc.",Consumer Cyclical,Luxury Goods,"New York City, New York",2017
+TMO,Thermo Fisher Scientific,Healthcare,Medical - Diagnostics & Research,"Waltham, Massachusetts",2006
+VTRS,Viatris,Healthcare,Drug Manufacturers - Specialty & Generic,"Pittsburgh, Pennsylvania",1961
+MTB,M&T Bank,Financial Services,Banks - Regional,"Buffalo, New York",1856
+PLD,Prologis,Real Estate,REIT - Industrial,"San Francisco, California",1983
+GEN,Gen Digital,Technology,Software - Infrastructure,"Tempe, Arizona",1982
+MKC,McCormick & Company,Consumer Defensive,Packaged Foods,"Hunt Valley, Maryland",1889
+STT,State Street Corporation,Financial Services,Asset Management,"Boston, Massachusetts",1792
+VLO,Valero Energy,Energy,Oil & Gas Refining & Marketing,"San Antonio, Texas",1980
+DGX,Quest Diagnostics,Healthcare,Medical - Diagnostics & Research,"Secaucus, New Jersey",1967
+ELV,Elevance Health,Healthcare,Medical - Healthcare Plans,"Indianapolis, Indiana",2014
+EBAY,eBay,Consumer Cyclical,Specialty Retail,"San Jose, California",1995
+PFG,Principal Financial Group,Financial Services,Insurance - Diversified,"Des Moines, Iowa",1879
+PRU,Prudential Financial,Financial Services,Insurance - Life,"Newark, New Jersey",1875
+UPS,United Parcel Service,Industrials,Integrated Freight & Logistics,"Sandy Springs, Georgia",1907
+SPG,Simon Property Group,Real Estate,REIT - Retail,"Indianapolis, Indiana",2003
+WAT,Waters Corporation,Healthcare,Medical - Diagnostics & Research,"Milford, Massachusetts",1958
+EQR,Equity Residential,Real Estate,REIT - Residential,"Chicago, Illinois",1969
+PPL,PPL Corporation,Utilities,Regulated Electric,"Allentown, Pennsylvania",1920
+COR,Cencora,Healthcare,Medical - Distribution,"Conshohocken, Pennsylvania",1985
+ZBH,Zimmer Biomet,Healthcare,Medical - Devices,"Warsaw, Indiana",1927
+FI,Fiserv,Technology,Information Technology Services,"Brookfield, Wisconsin",1984
+SYK,Stryker Corporation,Healthcare,Medical - Devices,"Kalamazoo, Michigan",1941
+MET,MetLife,Financial Services,Insurance - Life,"New York City, New York",1868
+EOG,EOG Resources,Energy,Oil & Gas Exploration & Production,"Houston, Texas",1999
+NI,NiSource,Utilities,Regulated Gas,"Merrillville, Indiana",1912
+DVN,Devon Energy,Energy,Oil & Gas Exploration & Production,"Oklahoma City, Oklahoma",1971
+A,Agilent Technologies,Healthcare,Medical - Diagnostics & Research,"Santa Clara, California",1999
+ROK,Rockwell Automation,Industrials,Industrial - Machinery,"Milwaukee, Wisconsin",1903
+USB,U.S. Bancorp,Financial Services,Banks - Regional,"Minneapolis, Minnesota",1968
+PNW,Pinnacle West,Utilities,Regulated Electric,"Phoenix, Arizona",1985
+VMC,Vulcan Materials Company,Basic Materials,Construction Materials,"Birmingham, Alabama",1909
+BBY,Best Buy,Consumer Cyclical,Specialty Retail,"Richfield, Minnesota",1966
+NTAP,NetApp,Technology,Computer Hardware,"San Jose, California",1992
+AFL,Aflac,Financial Services,Insurance - Life,"Columbus, Georgia",1955
+MCK,McKesson Corporation,Healthcare,Medical - Distribution,"Irving, Texas",1833
+CCL,Carnival,Consumer Cyclical,Leisure,"Miami, Florida",1972
+DHR,Danaher Corporation,Healthcare,Medical - Diagnostics & Research,"Washington, D.C.",1969
+AES,AES Corporation,Utilities,Diversified Utilities,"Arlington, Virginia",1981
+WM,Waste Management,Industrials,Waste Management,"Houston, Texas",1968
+RF,Regions Financial Corporation,Financial Services,Banks - Regional,"Birmingham, Alabama",1971
+COF,Capital One,Financial Services,Financial - Credit Services,"Tysons Corner, Virginia",1994
+MCO,Moody's Corporation,Financial Services,Financial - Data & Stock Exchanges,"New York City, New York",1909
+BEN,Franklin Resources,Financial Services,Asset Management,"San Mateo, California",1947
+NTRS,Northern Trust,Financial Services,Asset Management,"Chicago, Illinois",1889
+OMC,Omnicom Group,Communication Services,Advertising Agencies,"New York City, New York",1986
+CINF,Cincinnati Financial,Financial Services,Insurance - Property & Casualty,"Fairfield, Ohio",1950
+TFC,Truist Financial,Financial Services,Banks - Regional,"Charlotte, North Carolina",1872
+FE,FirstEnergy,Utilities,Regulated Electric,"Akron, Ohio",1997
+YUM,Yum! Brands,Consumer Cyclical,Restaurants,"Louisville, Kentucky",1997
+HBAN,Huntington Bancshares,Financial Services,Banks - Regional,"Columbus, Ohio; Detroit, Michigan",1866
+PGR,Progressive Corporation,Financial Services,Insurance - Property & Casualty,"Mayfield Village, Ohio",1937
+APA,APA Corporation,Energy,Oil & Gas Exploration & Production,"Houston, Texas",1954
+EFX,Equifax,Industrials,Consulting Services,"Atlanta, Georgia",1899
+SCHW,Charles Schwab Corporation,Financial Services,Financial - Capital Markets,"Westlake, Texas",1971
+CAH,Cardinal Health,Healthcare,Medical - Distribution,"Dublin, Ohio",1971
+AZO,AutoZone,Consumer Cyclical,Specialty Retail,"Memphis, Tennessee",1979
+AON,Aon,Financial Services,Insurance - Brokers,"London, UK",1982
+FITB,Fifth Third Bancorp,Financial Services,Banks - Regional,"Cincinnati, Ohio",1858
+ALL,Allstate,Financial Services,Insurance - Property & Casualty,"Northbrook, Illinois",1931
+DRI,Darden Restaurants,Consumer Cyclical,Restaurants,"Orlando, Florida",1938
+L,Loews Corporation,Financial Services,Insurance - Property & Casualty,"New York City, New York",1959
+BK,BNY Mellon,Financial Services,Asset Management,"New York City, New York",1784
+GLW,Corning Inc.,Technology,"Hardware, Equipment & Parts","Corning, New York",1851
+BSX,Boston Scientific,Healthcare,Medical - Devices,"Marlborough, Massachusetts",1979
+PARA,Paramount Global,Communication Services,Entertainment,"New York City, New York",2019
+LUV,Southwest Airlines,Industrials,"Airlines, Airports & Air Services","Dallas, Texas",1967
+KEY,KeyCorp,Financial Services,Banks - Regional,"Cleveland, Ohio",1825
+EMN,Eastman Chemical Company,Basic Materials,Chemicals - Specialty,"Kingsport, Tennessee",1920
+MS,Morgan Stanley,Financial Services,Financial - Capital Markets,"New York City, New York",1935
+IPG,Interpublic Group of Companies (The),Communication Services,Advertising Agencies,"New York City, New York",1961
+AEE,Ameren,Utilities,Regulated Electric,"St. Louis, Missouri",1902
+K,Kellanova,Consumer Defensive,Food Confectioners,"Chicago, Illinois",1906
+ORCL,Oracle Corporation,Technology,Software - Infrastructure,"Austin, Texas",1977
+GL,Globe Life,Financial Services,Insurance - Life,"McKinney, Texas",1900
+ECL,Ecolab,Basic Materials,Chemicals - Specialty,"Saint Paul, Minnesota",1923
+C,Citigroup,Financial Services,Banks - Diversified,"New York City, New York",1998
+PNC,PNC Financial Services,Financial Services,Banks - Regional,"Pittsburgh, Pennsylvania",1845
+AVY,Avery Dennison,Industrials,Business Equipment & Supplies,"Mentor, Ohio",1990
+MMC,Marsh McLennan,Financial Services,Insurance - Brokers,"New York City, New York",1905
+SYY,Sysco,Consumer Defensive,Food Distribution,"Houston, Texas",1969
+MDT,Medtronic,Healthcare,Medical - Devices,"Dublin, Ireland",1949
+ITW,Illinois Tool Works,Industrials,Industrial - Machinery,"Glenview, Illinois",1912
+PH,Parker Hannifin,Industrials,Industrial - Machinery,"Cleveland, Ohio",1917
+DOV,Dover Corporation,Industrials,Industrial - Machinery,"Downers Grove, Illinois",1955
+TJX,TJX Companies,Consumer Cyclical,Apparel - Retail,"Framingham, Massachusetts",1987
+CNP,CenterPoint Energy,Utilities,Regulated Electric,"Houston, Texas",1882
+RVTY,Revvity,Healthcare,Medical - Diagnostics & Research,"Waltham, Massachusetts",1937
+APD,Air Products,Basic Materials,Chemicals - Specialty,"Upper Macungie Township, Pennsylvania",1940
+NUE,Nucor,Basic Materials,Steel,"Charlotte, North Carolina",1940
+BALL,Ball Corporation,Consumer Cyclical,Packaging & Containers,"Broomfield, Colorado",1880
+HAS,Hasbro,Consumer Cyclical,Leisure,"Pawtucket, Rhode Island",1923
+HES,Hess Corporation,Energy,Oil & Gas Exploration & Production,"New York City, New York",1919
+PHM,PulteGroup,Consumer Cyclical,Residential Construction,"Atlanta, Georgia",1956
+LOW,Lowe's,Consumer Cyclical,Home Improvement,"Mooresville, North Carolina",1904/1946/1959
+T,AT&T,Communication Services,Telecommunications Services,"Dallas, Texas",1983
+CAG,Conagra Brands,Consumer Defensive,Packaged Foods,"Chicago, Illinois",1919
+BF-B,Brown–Forman,Consumer Defensive,Beverages - Wineries & Distilleries,"Louisville, Kentucky",1870
+SNA,Snap-on,Industrials,Manufacturing - Tools & Accessories,"Kenosha, Wisconsin",1920
+SWK,Stanley Black & Decker,Industrials,Manufacturing - Tools & Accessories,"New Britain, Connecticut",1843
+GWW,W. W. Grainger,Industrials,Industrial - Distribution,"Lake Forest, Illinois",1927
+MAS,Masco,Industrials,Construction,"Livonia, Michigan",1929
+FDX,FedEx,Industrials,Integrated Freight & Logistics,"Memphis, Tennessee",1971
+AIG,American International Group,Financial Services,Insurance - Diversified,"New York City, New York",1919
+WBA,Walgreens Boots Alliance,Healthcare,Medical - Pharmaceuticals,"Deerfield, Illinois",2014
+WY,Weyerhaeuser,Real Estate,REIT - Specialty,"Seattle, Washington",1900
+TXT,Textron,Industrials,Aerospace & Defense,"Providence, Rhode Island",1923
+TGT,Target Corporation,Consumer Defensive,Discount Stores,"Minneapolis, Minnesota",1902
+BAC,Bank of America,Financial Services,Banks - Diversified,"Charlotte, North Carolina",1998
+CI,Cigna,Healthcare,Medical - Healthcare Plans,"Bloomfield, Connecticut",1982
+DUK,Duke Energy,Utilities,Regulated Electric,"Charlotte, North Carolina",1904
+NEE,NextEra Energy,Utilities,Regulated Electric,"Juno Beach, Florida",1984
+TAP,Molson Coors Beverage Company,Consumer Defensive,Beverages - Alcoholic,"Chicago, Illinois",2005
+WFC,Wells Fargo,Financial Services,Banks - Diversified,"San Francisco, California",1852
+IFF,International Flavors & Fragrances,Basic Materials,Chemicals - Specialty,"New York City, New York",1958
+WMB,Williams Companies,Energy,Oil & Gas Midstream,"Tulsa, Oklahoma",1908
+HPQ,HP Inc.,Technology,Computer Hardware,"Palo Alto, California",1939
+GPC,Genuine Parts Company,Consumer Cyclical,Specialty Retail,"Atlanta, Georgia",1925
+BAX,Baxter International,Healthcare,Medical - Instruments & Supplies,"Deerfield, Illinois",1931
+BDX,Becton Dickinson,Healthcare,Medical - Instruments & Supplies,"Franklin Lakes, New Jersey",1897
+LLY,Lilly (Eli),Healthcare,Drug Manufacturers - General,"Indianapolis, Indiana",1876
+NEM,Newmont,Basic Materials,Gold,"Denver, Colorado",1921
+CLX,Clorox,Consumer Defensive,Household & Personal Products,"Oakland, California",1913
+CMI,Cummins,Industrials,Industrial - Machinery,"Columbus, Indiana",1919
+EMR,Emerson Electric,Industrials,Industrial - Machinery,"Ferguson, Missouri",1890
+ABT,Abbott Laboratories,Healthcare,Medical - Devices,"North Chicago, Illinois",1888
+ADM,Archer Daniels Midland,Consumer Defensive,Agricultural Farm Products,"Chicago, Illinois",1902
+BMY,Bristol Myers Squibb,Healthcare,Drug Manufacturers - General,"New York City, New York",1989
+CL,Colgate-Palmolive,Consumer Defensive,Household & Personal Products,"New York City, New York",1806
+CMS,CMS Energy,Utilities,Regulated Electric,"Jackson, Michigan",1886
+COP,ConocoPhillips,Energy,Oil & Gas Exploration & Production,"Houston, Texas",2002
+CPB,Campbell Soup Company,Consumer Defensive,Packaged Foods,"Camden, New Jersey",1869
+CVS,CVS Health,Healthcare,Medical - Healthcare Plans,"Woonsocket, Rhode Island",1996
+DE,Deere & Company,Industrials,Agricultural - Machinery,"Moline, Illinois",1837
+DTE,DTE Energy,Utilities,Regulated Electric,"Detroit, Michigan",1995
+ED,Consolidated Edison,Utilities,Regulated Electric,"New York City, New York",1823
+EIX,Edison International,Utilities,Regulated Electric,"Rosemead, California",1886
+ETN,Eaton Corporation,Industrials,Industrial - Machinery,"Dublin, Ireland",1911
+ETR,Entergy,Utilities,Regulated Electric,"New Orleans, Louisiana",1913
+F,Ford Motor Company,Consumer Cyclical,Auto - Manufacturers,"Dearborn, Michigan",1903
+GD,General Dynamics,Industrials,Aerospace & Defense,"Falls Church, Virginia",1899
+GE,GE Aerospace,Industrials,Aerospace & Defense,"Evendale, Ohio",1892
+GIS,General Mills,Consumer Defensive,Packaged Foods,"Golden Valley, Minnesota",1856
+HAL,Halliburton,Energy,Oil & Gas Equipment & Services,"Houston, Texas",1919
+HIG,Hartford (The),Financial Services,Insurance - Diversified,"Hartford, Connecticut",1810
+HSY,Hershey Company (The),Consumer Defensive,Food Confectioners,"Hershey, Pennsylvania",1894
+IP,International Paper,Consumer Cyclical,Packaging & Containers,"Memphis, Tennessee",1898
+KMB,Kimberly-Clark,Consumer Defensive,Household & Personal Products,"Irving, Texas",1872
+KR,Kroger,Consumer Defensive,Grocery Stores,"Cincinnati, Ohio",1883
+LMT,Lockheed Martin,Industrials,Aerospace & Defense,"Bethesda, Maryland",1995
+MO,Altria,Consumer Defensive,Tobacco,"Richmond, Virginia",1985
+MSI,Motorola Solutions,Technology,Communication Equipment,"Chicago, Illinois",1928
+NOC,Northrop Grumman,Industrials,Aerospace & Defense,"West Falls Church, Virginia",1994
+NSC,Norfolk Southern Railway,Industrials,Railroads,"Atlanta, Georgia",1881/1894
+OXY,Occidental Petroleum,Energy,Oil & Gas Exploration & Production,"Houston, Texas",1920
+PEG,Public Service Enterprise Group,Utilities,Regulated Electric,"Newark, New Jersey",1903
+PFE,Pfizer,Healthcare,Drug Manufacturers - General,"New York City, New York",1849
+PPG,PPG Industries,Basic Materials,Chemicals - Specialty,"Pittsburgh, Pennsylvania",1883
+RTX,RTX Corporation,Industrials,Aerospace & Defense,"Waltham, Massachusetts",1922
+SLB,Schlumberger,Energy,Oil & Gas Equipment & Services,"Houston, Texas",1926
+SO,Southern Company,Utilities,Regulated Electric,"Atlanta, Georgia",1945
+SPGI,S&P Global,Financial Services,Financial - Data & Stock Exchanges,"New York City, New York",1917
+UNP,Union Pacific Corporation,Industrials,Railroads,"Omaha, Nebraska",1862
+XOM,ExxonMobil,Energy,Oil & Gas Integrated,"Irving, Texas",1999
