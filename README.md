@@ -266,50 +266,94 @@ Features:
 ├── yahoofinance/           # Main package
 │   ├── api/                # Provider interfaces and implementations
 │   │   └── providers/      # Data provider implementations
-│   ├── core/               # Core functionality
-│   │   ├── errors.py       # Error hierarchy
-│   │   ├── config.py       # Configuration settings
-│   │   └── types.py        # Type definitions
+│   │       ├── base_provider.py           # Base provider interfaces
+│   │       ├── yahoo_finance.py           # Synchronous provider implementation
+│   │       ├── async_yahoo_finance.py     # Asynchronous provider implementation
+│   │       └── enhanced_async_yahoo_finance.py # Enhanced async implementation
 │   ├── analysis/           # Analysis modules
 │   │   ├── analyst.py      # Analyst ratings
+│   │   ├── earnings.py     # Earnings data
+│   │   ├── insiders.py     # Insider trading analysis
+│   │   ├── market.py       # Market analysis
+│   │   ├── metrics.py      # Financial metrics calculations
+│   │   ├── news.py         # News analysis
 │   │   ├── performance.py  # Performance tracking
-│   │   └── ...
-│   ├── utils/              # Utility modules
-│   │   ├── network/        # Network utilities (rate limiting, pagination)
-│   │   ├── data/           # Data formatting utilities
-│   │   ├── market/         # Market-specific utilities
-│   │   ├── date/           # Date utilities
-│   │   └── async/          # Async utilities
+│   │   ├── portfolio.py    # Portfolio analysis
+│   │   └── stock.py        # Stock data analysis
+│   ├── compat/             # Compatibility layer
+│   │   ├── client.py       # Legacy client compatibility
+│   │   └── display.py      # Legacy display compatibility
+│   ├── core/               # Core functionality
+│   │   ├── client.py       # Core client implementation
+│   │   ├── config.py       # Configuration settings
+│   │   ├── errors.py       # Error hierarchy
+│   │   ├── logging.py      # Logging configuration
+│   │   └── types.py        # Type definitions
+│   ├── data/               # Data management
+│   │   ├── cache.py        # Caching implementation
+│   │   ├── cache/          # Cache storage
+│   │   └── download.py     # Data download functionality
 │   ├── presentation/       # Presentation components
 │   │   ├── console.py      # Console output
+│   │   ├── formatter.py    # Data formatting
 │   │   ├── html.py         # HTML generation
 │   │   └── templates.py    # HTML templates
+│   ├── utils/              # Utility modules
+│   │   ├── async/          # Basic async utilities
+│   │   ├── async_utils/    # Enhanced async utilities
+│   │   │   ├── enhanced.py # Enhanced async features
+│   │   │   └── helpers.py  # Async helpers
+│   │   ├── data/           # Data formatting utilities
+│   │   │   ├── format_utils.py        # Formatting utilities
+│   │   │   └── market_cap_formatter.py # Market cap formatting
+│   │   ├── date/           # Date utilities
+│   │   │   └── date_utils.py # Date handling
+│   │   ├── market/         # Market-specific utilities
+│   │   │   ├── filter_utils.py # Market filtering
+│   │   │   └── ticker_utils.py # Ticker validation
+│   │   └── network/        # Network utilities
+│   │       ├── batch.py          # Batch processing
+│   │       ├── circuit_breaker.py # Circuit breaker pattern
+│   │       ├── pagination.py     # Paginated response handling
+│   │       └── rate_limiter.py   # Rate limiting
 │   ├── input/              # Input data files
-│   │   ├── portfolio.csv   # Portfolio holdings
-│   │   ├── market.csv      # Market watchlist
-│   │   ├── etoro.csv       # eToro available tickers
-│   │   ├── notrade.csv     # Tickers to exclude from recommendations
+│   │   ├── china.csv       # China market tickers
 │   │   ├── cons.csv        # Consolidated list of important tickers
-│   │   ├── us_tickers.csv  # US market tickers
+│   │   ├── etoro.csv       # eToro available tickers
+│   │   ├── europe.csv      # Europe market tickers
+│   │   ├── market.csv      # Market watchlist
+│   │   ├── notrade.csv     # Tickers to exclude from recommendations
+│   │   ├── portfolio.csv   # Portfolio holdings
+│   │   ├── usa.csv         # USA market tickers
+│   │   ├── usindex.csv     # US market indices
 │   │   └── yfinance.csv    # Validated tickers
 │   └── output/             # Generated output files
 │       ├── buy.csv         # Buy recommendations
-│       ├── sell.csv        # Sell recommendations
 │       ├── hold.csv        # Hold recommendations
+│       ├── index.html      # HTML dashboard
+│       ├── manual_input.csv # Manual ticker input results
 │       ├── market.csv      # Market analysis results
 │       ├── portfolio.csv   # Portfolio analysis results
-│       ├── index.html      # HTML dashboard
-│       ├── portfolio.html  # Portfolio HTML dashboard
+│       ├── portfolio_dashboard.html # Portfolio dashboard
 │       ├── script.js       # Dashboard JavaScript
+│       ├── sell.csv        # Sell recommendations
 │       └── styles.css      # Dashboard CSS
 ├── tests/                  # Test files
-│   ├── unit/               # Unit tests
+│   ├── e2e/                # End-to-end tests
 │   ├── integration/        # Integration tests
-│   └── e2e/                # End-to-end tests
+│   │   └── api/            # API integration tests
+│   ├── trade/              # Trade module tests
+│   ├── unit/               # Unit tests
+│   │   ├── api/            # API unit tests
+│   │   ├── core/           # Core unit tests
+│   │   └── utils/          # Utilities unit tests
+│   └── yahoofinance/       # Package tests
 ├── scripts/                # Utility scripts
 ├── assets/                 # Static assets
+├── logs/                   # Log files
 ├── trade.py                # Main entry point
 ├── CLAUDE.md               # Comprehensive documentation
+├── README.md               # Project overview
 ├── requirements.txt        # Dependencies
 └── .env                    # API keys and settings
 ```
