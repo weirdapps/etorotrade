@@ -1,18 +1,20 @@
-"""Date and time utilities for handling financial data."""
+"""
+Date utilities for Yahoo Finance data.
+
+This module provides utilities for date handling including date validation,
+date range generation, and date formatting.
+"""
 
 from .date_utils import (
-    DateUtils,
     validate_date_format,
-    get_user_dates,
     get_date_range,
     format_date_for_api,
     format_date_for_display,
 )
 
 __all__ = [
-    'DateUtils',
+    # Date utilities
     'validate_date_format',
-    'get_user_dates',
     'get_date_range',
     'format_date_for_api',
     'format_date_for_display',

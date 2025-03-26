@@ -1,377 +1,327 @@
 """
-Advanced rate limiting utilities to prevent API throttling.
+Rate limiting utilities for Yahoo Finance API.
 
-This module contains tools for managing API request rates,
-including adaptive delays and safe concurrent access patterns.
-
-CANONICAL SOURCE:
-This is the canonical source for synchronous rate limiting functionality. Other modules
-that provide similar functionality are compatibility layers that import from 
-this module. Always prefer to import directly from this module in new code:
-
-    from yahoofinance.utils.network.rate_limiter import (
-        AdaptiveRateLimiter, rate_limited, batch_process
-    )
-
-Key Components:
-- AdaptiveRateLimiter: Class for adaptive rate limiting
-- global_rate_limiter: Singleton instance for library-wide rate limiting
-- rate_limited: Decorator for rate-limiting functions
-- batch_process: Process items in batches with rate limiting
-
-Example usage:
-    # Rate-limited function
-    @rate_limited(ticker_param='ticker')
-    def fetch_data(ticker: str):
-        # Fetch data with proper rate limiting
-        
-    # Process multiple items in batches
-    results = batch_process(
-        items=['AAPL', 'MSFT', 'GOOG'],
-        process_func=fetch_data,
-        batch_size=5
-    )
+This module provides utilities for rate limiting API requests to avoid
+exceeding rate limits and getting blocked. It includes an adaptive rate
+limiter that adjusts the delay between requests based on success and
+failure patterns.
 """
 
-import time
 import logging
+import time
 import threading
-from collections import deque
-from typing import Dict, Optional, Callable, Any, TypeVar, List
-from datetime import datetime
+from functools import wraps
+from typing import Dict, Any, Optional, Callable, TypeVar, cast
 
 from ...core.config import RATE_LIMIT
 from ...core.errors import RateLimitError
 
 logger = logging.getLogger(__name__)
 
-# Type variable for generic function wrapping
+# Define a generic type variable for the return type
 T = TypeVar('T')
 
-
-class AdaptiveRateLimiter:
+class RateLimiter:
     """
-    Advanced rate limiter with adaptive delays based on API response patterns.
+    Thread-safe adaptive rate limiter for API requests.
     
-    Features:
-    - Thread-safe tracking of API calls
-    - Exponential backoff for rate limit errors
-    - Adaptive delays based on success/failure patterns
-    - Individual ticker tracking for problematic symbols
+    This class provides a mechanism to limit the rate of API requests
+    based on a sliding window. It adaptively adjusts the delay between
+    requests based on success and failure patterns.
+    
+    Attributes:
+        window_size: Size of the sliding window in seconds
+        max_calls: Maximum number of calls allowed in the window
+        base_delay: Base delay between calls in seconds
+        min_delay: Minimum delay after many successful calls in seconds
+        max_delay: Maximum delay after errors in seconds
+        call_timestamps: List of timestamps of recent calls
+        delay: Current delay between calls in seconds
+        success_streak: Number of consecutive successful calls
+        failure_streak: Number of consecutive failed calls
+        lock: Thread lock for synchronization
+        ticker_specific_delays: Dictionary mapping tickers to delays
     """
     
-    def __init__(self,
-                window_size: int = None,
-                max_calls: int = None):
+    def __init__(
+        self,
+        window_size: Optional[int] = None,
+        max_calls: Optional[int] = None,
+        base_delay: Optional[float] = None,
+        min_delay: Optional[float] = None,
+        max_delay: Optional[float] = None
+    ):
         """
-        Initialize rate limiter with configurable window and limits.
+        Initialize the rate limiter.
         
         Args:
-            window_size: Time window in seconds (default from config)
-            max_calls: Maximum calls per window (default from config)
+            window_size: Size of the sliding window in seconds
+            max_calls: Maximum number of calls allowed in the window
+            base_delay: Base delay between calls in seconds
+            min_delay: Minimum delay after many successful calls in seconds
+            max_delay: Maximum delay after errors in seconds
         """
-        # Use config values or fallback to defaults
-        self.window_size = window_size if window_size is not None else RATE_LIMIT["WINDOW_SIZE"]
-        self.max_calls = max_calls if max_calls is not None else RATE_LIMIT["MAX_CALLS"]
+        # Set default values from configuration
+        self.window_size = window_size or RATE_LIMIT["WINDOW_SIZE"]
+        self.max_calls = max_calls or RATE_LIMIT["MAX_CALLS"]
+        self.base_delay = base_delay or RATE_LIMIT["BASE_DELAY"]
+        self.min_delay = min_delay or RATE_LIMIT["MIN_DELAY"]
+        self.max_delay = max_delay or RATE_LIMIT["MAX_DELAY"]
         
-        # Call tracking
-        self.calls = deque(maxlen=1000)  # Timestamp queue
-        self.errors = deque(maxlen=20)   # Recent errors
+        # Initialize state
+        self.call_timestamps: list[float] = []
+        self.delay = self.base_delay
+        self.success_streak = 0
+        self.failure_streak = 0
         
-        # Delay settings
-        self.base_delay = RATE_LIMIT["BASE_DELAY"]
-        self.min_delay = RATE_LIMIT["MIN_DELAY"]
-        self.max_delay = RATE_LIMIT["MAX_DELAY"]
-        self.batch_delay = RATE_LIMIT["BATCH_DELAY"]
+        # Initialize lock
+        self.lock = threading.RLock()
         
-        # Performance tracking
-        self.error_counts: Dict[str, int] = {}  # Track error counts per ticker
-        self.success_streak = 0                 # Track successful calls
+        # Initialize ticker-specific delays
+        self.ticker_specific_delays: Dict[str, float] = {}
+        self.slow_tickers = RATE_LIMIT["SLOW_TICKERS"]
         
-        # Thread safety
-        self._lock = threading.RLock()
-        
-        # API call history (for diagnostics)
-        self.api_call_history = deque(maxlen=100)
-        
-    def add_call(self, ticker: Optional[str] = None, endpoint: Optional[str] = None) -> None:
-        """
-        Record an API call with thread safety.
-        
-        Args:
-            ticker: Optional ticker symbol associated with the call
-            endpoint: Optional API endpoint identifier
-        """
-        with self._lock:
-            now = time.time()
-            self.calls.append(now)
-            
-            # Track call for diagnostics
-            self.api_call_history.append({
-                'timestamp': datetime.fromtimestamp(now).isoformat(),
-                'ticker': ticker,
-                'endpoint': endpoint
-            })
-            
-            # Remove old calls outside the window
-            while self.calls and self.calls[0] < now - self.window_size:
-                self.calls.popleft()
-                
-            # Adjust base delay based on success
-            self.success_streak += 1
-            if self.success_streak >= 10 and self.base_delay > self.min_delay:
-                self.base_delay = max(self.min_delay, self.base_delay * 0.9)
+        logger.debug(f"Initialized rate limiter with window_size={self.window_size}, "
+                    f"max_calls={self.max_calls}, base_delay={self.base_delay}")
     
-    def add_error(self, error: Exception, ticker: Optional[str] = None) -> None:
+    def get_delay_for_ticker(self, ticker: Optional[str] = None) -> float:
         """
-        Record an error and adjust delays with thread safety.
+        Get the appropriate delay for a ticker.
         
         Args:
-            error: The exception that occurred
-            ticker: Optional ticker symbol associated with the error
-        """
-        with self._lock:
-            now = time.time()
-            self.errors.append(now)
-            self.success_streak = 0
-            
-            # Track errors per ticker
-            if ticker:
-                self.error_counts[ticker] = self.error_counts.get(ticker, 0) + 1
-            
-            # Track error for diagnostics
-            self.api_call_history.append({
-                'timestamp': datetime.fromtimestamp(now).isoformat(),
-                'ticker': ticker,
-                'error': str(error),
-                'error_type': error.__class__.__name__
-            })
-            
-            # Exponential backoff based on recent errors
-            recent_errors = sum(1 for t in self.errors if t > now - 300)  # Last 5 minutes
-            
-            if recent_errors >= 3:
-                # Significant rate limiting, increase delay aggressively
-                self.base_delay = min(self.base_delay * 2, self.max_delay)
-                self.batch_delay = min(self.batch_delay * 1.5, self.max_delay)
-                logger.warning(
-                    f"Rate limiting detected. Increasing delays - Base: {self.base_delay:.1f}s, "
-                    f"Batch: {self.batch_delay:.1f}s"
-                )
-                
-                # Clear old errors to allow recovery
-                if recent_errors >= 10:
-                    self.errors.clear()
-    
-    def get_delay(self, ticker: Optional[str] = None) -> float:
-        """
-        Calculate needed delay based on recent activity and ticker history.
-        Thread-safe implementation.
-        
-        Args:
-            ticker: Optional ticker symbol to adjust delay for problematic symbols
+            ticker: Ticker symbol
             
         Returns:
-            Recommended delay in seconds
+            Delay in seconds
         """
-        with self._lock:
-            now = time.time()
-            recent_calls = sum(1 for t in self.calls if t > now - self.window_size)
+        if ticker is None:
+            return self.delay
+        
+        with self.lock:
+            # Check if the ticker has a specific delay
+            if ticker in self.ticker_specific_delays:
+                return self.ticker_specific_delays[ticker]
             
-            # Calculate load percentage (how close we are to the limit)
-            load_percentage = recent_calls / self.max_calls if self.max_calls > 0 else 0
+            # Check if the ticker is in the slow tickers set
+            if ticker in self.slow_tickers:
+                # Use a longer delay for slow tickers
+                return min(self.delay * 2, self.max_delay)
             
-            # Base delay calculation
-            if load_percentage >= 0.8:  # Near limit (80%+)
-                delay = self.base_delay * 2
-                logger.debug(f"High API load ({load_percentage:.1%}), increasing delay")
-            elif load_percentage >= 0.5:  # Medium load (50-80%)
-                delay = self.base_delay * 1.5
-            elif self.errors:  # Recent errors
-                delay = self.base_delay * 1.5
-            else:
-                delay = self.base_delay
-                
-            # Adjust for ticker-specific issues
-            if ticker and self.error_counts.get(ticker, 0) > 0:
-                # Increase delay for problematic tickers
-                ticker_factor = 1 + (self.error_counts[ticker] * 0.5)
-                delay *= ticker_factor
-                logger.debug(
-                    f"Ticker {ticker} has {self.error_counts[ticker]} errors, "
-                    f"applying factor: {ticker_factor:.1f}"
-                )
-                
-            return min(delay, self.max_delay)
+            return self.delay
     
-    def get_batch_delay(self) -> float:
+    def _clean_old_timestamps(self) -> None:
         """
-        Get delay between batches with thread safety.
+        Remove timestamps that are outside the window.
+        
+        This method is called internally to maintain the sliding window.
+        """
+        current_time = time.time()
+        with self.lock:
+            # Remove timestamps outside the window
+            self.call_timestamps = [
+                ts for ts in self.call_timestamps
+                if current_time - ts <= self.window_size
+            ]
+    
+    def would_exceed_rate_limit(self) -> bool:
+        """
+        Check if making a call now would exceed the rate limit.
         
         Returns:
-            Recommended batch delay in seconds
+            True if making a call would exceed the rate limit, False otherwise
         """
-        with self._lock:
-            return self.batch_delay
+        self._clean_old_timestamps()
+        with self.lock:
+            return len(self.call_timestamps) >= self.max_calls
     
-    def should_skip_ticker(self, ticker: str) -> bool:
+    def wait_if_needed(self, ticker: Optional[str] = None) -> None:
         """
-        Determine if a ticker should be skipped due to excessive errors.
-        Thread-safe implementation.
+        Wait if needed to avoid exceeding the rate limit.
+        
+        This method blocks until it's safe to make a call.
         
         Args:
-            ticker: Ticker symbol to check
-            
-        Returns:
-            True if ticker should be skipped, False otherwise
+            ticker: Ticker symbol for ticker-specific delay
         """
-        with self._lock:
-            max_errors = 5  # Skip after 5 errors
-            return self.error_counts.get(ticker, 0) >= max_errors
-    
-    def wait(self, ticker: Optional[str] = None) -> None:
-        """
-        Wait for the appropriate delay time.
+        # Check if we need to wait
+        if self.would_exceed_rate_limit():
+            # Calculate how long to wait
+            with self.lock:
+                if self.call_timestamps:
+                    # Get the oldest timestamp in the window
+                    oldest_ts = min(self.call_timestamps)
+                    # Calculate when that timestamp will be outside the window
+                    next_available = oldest_ts + self.window_size
+                    # Calculate how long to wait
+                    wait_time = next_available - time.time()
+                    if wait_time > 0:
+                        logger.warning(f"Rate limit would be exceeded. Waiting {wait_time:.2f} seconds.")
+                        time.sleep(wait_time)
         
-        Args:
-            ticker: Optional ticker symbol to adjust delay
-        """
-        delay = self.get_delay(ticker)
+        # Apply appropriate delay based on success/failure pattern and ticker
+        delay = self.get_delay_for_ticker(ticker)
         if delay > 0:
             time.sleep(delay)
     
-    def execute_with_rate_limit(self, func: Callable[..., T], *args, **kwargs) -> T:
+    def record_call(self) -> None:
         """
-        Execute a function with rate limiting applied.
+        Record that a call was made.
+        
+        This method should be called after making an API call.
+        """
+        with self.lock:
+            self.call_timestamps.append(time.time())
+    
+    def record_success(self, ticker: Optional[str] = None) -> None:
+        """
+        Record a successful call and adjust delay.
         
         Args:
-            func: Function to execute
-            *args: Positional arguments for the function
-            **kwargs: Keyword arguments for the function
-            
-        Returns:
-            Result of the function call
-            
-        Raises:
-            Original exceptions from the function
+            ticker: Ticker symbol
         """
-        # Extract ticker from kwargs if present
-        ticker = kwargs.get('ticker')
-        if ticker is None and args:
-            # Try to find a string arg that might be a ticker
-            for arg in args:
-                if isinstance(arg, str) and len(arg) <= 5:
-                    ticker = arg
-                    break
-        
-        # Apply rate limiting delay
-        self.wait(ticker)
-        
-        try:
-            # Execute the function
-            result = func(*args, **kwargs)
-            # Record successful call
-            self.add_call(ticker=ticker)
-            return result
-        except Exception as e:
-            # Record error and re-raise
-            self.add_error(e, ticker=ticker)
-            raise
+        with self.lock:
+            # Record success
+            self.success_streak += 1
+            self.failure_streak = 0
+            
+            # Adjust delay
+            if self.success_streak >= 10:
+                # Decrease delay after many consecutive successes
+                self.delay = max(self.delay * 0.9, self.min_delay)
+                # Reset success streak
+                self.success_streak = 0
+                
+                logger.debug(f"Decreased delay to {self.delay:.2f} after 10 consecutive successes")
+            
+            # Update ticker-specific delay if needed
+            if ticker is not None and ticker in self.ticker_specific_delays:
+                # Decrease ticker-specific delay
+                self.ticker_specific_delays[ticker] = max(
+                    self.ticker_specific_delays[ticker] * 0.9,
+                    self.delay  # Don't go below the global delay
+                )
     
-    def get_status(self) -> Dict[str, Any]:
+    def record_failure(self, ticker: Optional[str] = None, is_rate_limit: bool = False) -> None:
         """
-        Get current rate limiter status for diagnostics.
+        Record a failed call and adjust delay.
         
-        Returns:
-            Dictionary with current status
+        Args:
+            ticker: Ticker symbol
+            is_rate_limit: Whether the failure was due to rate limiting
         """
-        with self._lock:
-            now = time.time()
-            recent_calls = sum(1 for t in self.calls if t > now - self.window_size)
-            recent_errors = sum(1 for t in self.errors if t > now - 300)  # Last 5 minutes
+        with self.lock:
+            # Record failure
+            self.failure_streak += 1
+            self.success_streak = 0
             
-            return {
-                'recent_calls': recent_calls,
-                'max_calls': self.max_calls,
-                'load_percentage': recent_calls / self.max_calls if self.max_calls > 0 else 0,
-                'recent_errors': recent_errors,
-                'problematic_tickers': {k: v for k, v in self.error_counts.items() if v > 0},
-                'current_delays': {
-                    'base_delay': self.base_delay,
-                    'batch_delay': self.batch_delay
-                },
-                'success_streak': self.success_streak
-            }
-
+            # Adjust delay
+            if is_rate_limit or self.failure_streak >= 3:
+                # Increase delay significantly for rate limit errors
+                # or after several consecutive failures
+                multiplier = 2.0 if is_rate_limit else 1.5
+                self.delay = min(self.delay * multiplier, self.max_delay)
+                
+                logger.warning(
+                    f"Increased delay to {self.delay:.2f} due to "
+                    f"{'rate limiting' if is_rate_limit else 'consecutive failures'}"
+                )
+                
+                # Reset failure streak
+                self.failure_streak = 0
+            
+            # Update ticker-specific delay if needed
+            if ticker is not None:
+                # Use a longer delay for this ticker in the future
+                current_delay = self.ticker_specific_delays.get(ticker, self.delay)
+                new_delay = min(current_delay * 2, self.max_delay)
+                self.ticker_specific_delays[ticker] = new_delay
+                
+                logger.debug(f"Set ticker-specific delay for {ticker} to {new_delay:.2f}")
+                
+                # Add to slow tickers set if not already there
+                if ticker not in self.slow_tickers:
+                    self.slow_tickers.add(ticker)
+    
+    def reset(self) -> None:
+        """
+        Reset the rate limiter to its initial state.
+        
+        This method clears all recorded calls and resets the delay.
+        """
+        with self.lock:
+            self.call_timestamps = []
+            self.delay = self.base_delay
+            self.success_streak = 0
+            self.failure_streak = 0
+            self.ticker_specific_delays = {}
 
 # Create a global rate limiter instance
-global_rate_limiter = AdaptiveRateLimiter()
+global_rate_limiter = RateLimiter()
 
-
-def rate_limited(ticker_param: Optional[str] = None):
+def rate_limited(
+    func: Optional[Callable[..., T]] = None,
+    *,
+    limiter: Optional[RateLimiter] = None,
+    ticker_arg: Optional[str] = None
+) -> Callable[..., T]:
     """
-    Decorator for rate limiting functions that make API calls.
+    Decorator for rate-limiting function calls.
+    
+    This decorator can be used to rate-limit any function that makes API calls.
+    It automatically handles waiting between calls and adjusting delays based
+    on success and failure patterns.
     
     Args:
-        ticker_param: Name of the parameter containing ticker symbol
+        func: Function to rate-limit
+        limiter: Rate limiter to use (defaults to global_rate_limiter)
+        ticker_arg: Name of the argument that contains the ticker symbol
         
     Returns:
-        Decorated function with rate limiting
+        Decorated function
     """
-    def decorator(func: Callable[..., T]) -> Callable[..., T]:
-        def wrapper(*args, **kwargs) -> T:
-            return global_rate_limiter.execute_with_rate_limit(func, *args, **kwargs)
+    # Set default rate limiter
+    if limiter is None:
+        limiter = global_rate_limiter
         
-        # Preserve function metadata
-        import functools
-        return functools.wraps(func)(wrapper)
+    def decorator(f: Callable[..., T]) -> Callable[..., T]:
+        @wraps(f)
+        def wrapper(*args: Any, **kwargs: Any) -> T:
+            # Get ticker from args or kwargs if ticker_arg is specified
+            ticker = None
+            if ticker_arg is not None:
+                if ticker_arg in kwargs:
+                    ticker = kwargs[ticker_arg]
+                elif args and len(args) > 0:
+                    # This is a simplification - it assumes the ticker is the first argument
+                    # For more complex cases, inspect.signature should be used
+                    ticker = args[0]
+            
+            # Wait if needed to avoid exceeding rate limit
+            limiter.wait_if_needed(ticker)
+            
+            # Record the call
+            limiter.record_call()
+            
+            try:
+                # Call the function
+                result = f(*args, **kwargs)
+                
+                # Record success
+                limiter.record_success(ticker)
+                
+                return result
+            except Exception as e:
+                # Record failure
+                is_rate_limit = isinstance(e, RateLimitError)
+                limiter.record_failure(ticker, is_rate_limit)
+                
+                # Re-raise the exception
+                raise
+        
+        return cast(Callable[..., T], wrapper)
+    
+    # Handle the case where the decorator is used without parentheses
+    if func is not None:
+        return decorator(func)
     
     return decorator
-
-
-def batch_process(items: List[Any], processor: Callable[[Any], T], 
-                  batch_size: Optional[int] = None) -> List[T]:
-    """
-    Process a list of items in batches with rate limiting.
-    
-    Args:
-        items: List of items to process
-        processor: Function to process each item
-        batch_size: Number of items per batch (default from config)
-        
-    Returns:
-        List of processed results
-    """
-    if batch_size is None:
-        batch_size = RATE_LIMIT["BATCH_SIZE"]
-    
-    results = []
-    total_batches = (len(items) - 1) // batch_size + 1
-    
-    for batch_num, i in enumerate(range(0, len(items), batch_size)):
-        # Process current batch
-        batch = items[i:i + batch_size]
-        batch_results = [processor(item) for item in batch]
-        results.extend([r for r in batch_results if r is not None])
-        
-        # Add adaptive delay between batches (except for last batch)
-        if batch_num < total_batches - 1:
-            success_count = sum(1 for r in batch_results if r is not None)
-            success_rate = success_count / len(batch) if batch else 0
-            
-            # Calculate delay based on success rate
-            if success_rate < 0.5:  # Poor success rate
-                batch_delay = global_rate_limiter.batch_delay * 2
-            elif success_rate > 0.75:  # Good success rate (threshold reduced from 0.8)
-                batch_delay = max(global_rate_limiter.min_delay, 
-                                  global_rate_limiter.batch_delay * 0.75)  # Faster reduction (from 0.8)
-            else:
-                batch_delay = global_rate_limiter.batch_delay
-            
-            logger.info(
-                f"Batch {batch_num + 1}/{total_batches} complete "
-                f"(Success rate: {success_rate:.1%}). Waiting {batch_delay:.1f} seconds..."
-            )
-            time.sleep(batch_delay)
-    
-    return results

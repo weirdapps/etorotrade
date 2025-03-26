@@ -1,113 +1,323 @@
 """
-Centralized configuration for the Yahoo Finance API client.
+Configuration settings for Yahoo Finance data access.
 
-This module contains constants and configuration settings used throughout the package,
-including rate limiting parameters, cache settings, API timeouts, and finance-specific constants.
+This module defines configuration settings for rate limiting, caching,
+API timeouts, and more. It provides a central location for all configuration
+values used throughout the package.
 """
 
-from typing import Dict, Set
+import os
+from typing import Dict, Any, List, Set
 
-# Rate Limiting Configuration
+# Rate limiting configuration
 RATE_LIMIT = {
-    "WINDOW_SIZE": 60,           # Time window in seconds
-    "MAX_CALLS": 100,            # Maximum calls per window
-    "BASE_DELAY": 1.5,           # Base delay between calls (reduced from 2.0)
-    "MIN_DELAY": 0.8,            # Minimum delay (reduced from 1.0)
-    "MAX_DELAY": 30.0,           # Maximum delay
-    "BATCH_DELAY": 3.0,          # Delay between batches (reduced from 5.0)
-    "MAX_RETRY_ATTEMPTS": 3,     # Maximum retry attempts
-    "API_TIMEOUT": 10,           # Timeout in seconds for API calls
-    "BATCH_SIZE": 20,            # Default batch size (increased from 15)
+    # Time window for rate limiting in seconds
+    "WINDOW_SIZE": 60,
+    
+    # Maximum API calls per window
+    "MAX_CALLS": 60,
+    
+    # Base delay between calls in seconds
+    "BASE_DELAY": 1.0,
+    
+    # Minimum delay after many successful calls in seconds
+    "MIN_DELAY": 0.5,
+    
+    # Maximum delay after errors in seconds
+    "MAX_DELAY": 30.0,
+    
+    # Number of items per batch
+    "BATCH_SIZE": 15,
+    
+    # Delay between batches in seconds
+    "BATCH_DELAY": 15.0,
+    
+    # Maximum retry attempts for API calls
+    "MAX_RETRY_ATTEMPTS": 3,
+    
+    # API request timeout in seconds
+    "API_TIMEOUT": 30,
+    
+    # Maximum concurrent API calls (for async)
+    "MAX_CONCURRENT_CALLS": 5,
+    
+    # Problematic tickers that should use longer delays
+    "SLOW_TICKERS": set(),
 }
 
-# Cache Configuration
-CACHE = {
-    "MARKET_DATA_TTL": 15,       # Market data cache expiration in minutes (increased from 5)
-    "NEWS_DATA_TTL": 30,         # News cache expiration in minutes (increased from 15)
-    "EARNINGS_DATA_TTL": 120,    # Earnings data cache expiration in minutes (increased from 60)
-    "DEFAULT_TTL": 30,           # Default cache expiration in minutes (increased from 15)
-    "MAX_CACHE_ENTRIES": 750,    # Maximum number of cache entries (increased from 500)
+# Circuit breaker configuration
+CIRCUIT_BREAKER = {
+    # Failure threshold to trip the circuit breaker
+    "FAILURE_THRESHOLD": 5,
+    
+    # Time window in seconds to count failures
+    "FAILURE_WINDOW": 60,
+    
+    # Recovery timeout in seconds before circuit half-opens
+    "RECOVERY_TIMEOUT": 300,
+    
+    # Maximum consecutive successes required to close circuit
+    "SUCCESS_THRESHOLD": 3,
+    
+    # Percentage of requests to allow through in half-open state
+    "HALF_OPEN_ALLOW_PERCENTAGE": 10,
+    
+    # Maximum time in seconds a circuit can stay open
+    "MAX_OPEN_TIMEOUT": 1800,  # 30 minutes
+    
+    # Enable circuit breaker by default
+    "ENABLED": True,
+    
+    # Path to persistent circuit state file
+    "STATE_FILE": os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        "data",
+        "circuit_state.json"
+    ),
 }
 
-# Risk Metrics
+# Caching configuration
+CACHE_CONFIG = {
+    # Enable memory cache
+    "ENABLE_MEMORY_CACHE": True,
+    
+    # Enable disk cache
+    "ENABLE_DISK_CACHE": True,
+    
+    # Memory cache size (items)
+    "MEMORY_CACHE_SIZE": 1000,
+    
+    # Default memory cache TTL (seconds)
+    "MEMORY_CACHE_TTL": 300,  # 5 minutes
+    
+    # Disk cache size (MB)
+    "DISK_CACHE_SIZE_MB": 100,
+    
+    # Default disk cache TTL (seconds)
+    "DISK_CACHE_TTL": 3600,  # 1 hour
+    
+    # Disk cache directory
+    "DISK_CACHE_DIR": os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        "data",
+        "cache"
+    ),
+    
+    # TTL settings by data type (seconds)
+    "TICKER_INFO_MEMORY_TTL": 300,      # 5 minutes
+    "TICKER_INFO_DISK_TTL": 3600,       # 1 hour
+    "MARKET_DATA_MEMORY_TTL": 60,       # 1 minute
+    "MARKET_DATA_DISK_TTL": 1800,       # 30 minutes
+    "FUNDAMENTALS_MEMORY_TTL": 3600,    # 1 hour
+    "FUNDAMENTALS_DISK_TTL": 86400,     # 1 day
+    "NEWS_MEMORY_TTL": 900,             # 15 minutes
+    "NEWS_DISK_TTL": 7200,              # 2 hours
+    "ANALYSIS_MEMORY_TTL": 1800,        # 30 minutes
+    "ANALYSIS_DISK_TTL": 14400,         # 4 hours
+}
+
+# Risk metrics configuration
 RISK_METRICS = {
-    "RISK_FREE_RATE": 0.05,      # 5% annual risk-free rate
-    "TRADING_DAYS_PER_YEAR": 252,# Trading days in a year
+    # Risk-free rate (annual)
+    "RISK_FREE_RATE": 0.03,
+    
+    # Trading days per year
+    "TRADING_DAYS_PER_YEAR": 252,
 }
 
-# Analyst Ratings
-POSITIVE_GRADES: Set[str] = {
-    "Buy", 
-    "Overweight", 
-    "Outperform", 
-    "Strong Buy", 
-    "Long-Term Buy", 
-    "Positive"
-}
-
-# Trading Criteria
+# Trading criteria configuration
 TRADING_CRITERIA = {
-    # Common criteria for all trading recommendations
-    "COMMON": {
-        "MIN_ANALYST_COUNT": 5,      # Minimum number of analyst price targets
-        "MIN_RATINGS_COUNT": 5,      # Minimum number of analyst ratings
+    "CONFIDENCE": {
+        # Minimum number of analysts covering the stock
+        "MIN_ANALYST_COUNT": 5,
+        
+        # Minimum number of price targets
+        "MIN_PRICE_TARGETS": 5,
     },
-    
-    # Buy criteria
-    "BUY": {
-        "MIN_UPSIDE": 20.0,          # Minimum upside percentage (>=)
-        "MIN_BUY_PERCENTAGE": 82.0,  # Minimum buy percentage (>=)
-        "MAX_BETA": 3.0,             # Maximum beta value (<=)
-        "MIN_BETA": 0.2,             # Minimum beta value (>)
-        "MIN_PE_FORWARD": 0.5,       # Minimum forward P/E (>)
-        "MAX_PE_FORWARD": 45.0,      # Maximum forward P/E (<=)
-        "MAX_PEG_RATIO": 3.0,        # Maximum PEG ratio (<)
-        "MAX_SHORT_INTEREST": 3.0,   # Maximum short interest percentage (<=)
-        "PE_CONDITION": "PEF < PET"  # PE Forward should be less than PE Trailing
-    },
-    
-    # Sell criteria - any of these conditions trigger a sell recommendation
     "SELL": {
-        "MAX_UPSIDE": 5.0,           # Maximum upside percentage (<)
-        "MAX_BUY_PERCENTAGE": 65.0,  # Maximum buy percentage (<)
-        # "MIN_PE_FORWARD": 0.5,     # Removed - No longer consider low PEF as a sell signal
-        "MAX_PEG_RATIO": 3.0,        # Maximum PEG ratio - above this is a sell signal (>)
-        "MIN_SHORT_INTEREST": 4.0,   # Minimum short interest - above this is a sell signal (>)
-        "MAX_BETA": 3.0,             # Maximum beta - above this is a sell signal (>)
-        "MIN_PE_FORWARD": 45.0,      # Minimum PE Forward - above this is a sell signal (>)
-        "MAX_EXRET": 10.0,           # Maximum EXRET - below this is a sell signal (<)
-        "PE_CONDITION": "PEF > PET"  # PE Forward greater than PE Trailing is a sell signal (when both positive)
+        # Maximum upside potential for sell recommendation
+        "MAX_UPSIDE": 5.0,
+        
+        # Minimum buy percentage for sell recommendation
+        "MIN_BUY_PERCENTAGE": 65.0,
+        
+        # Maximum forward P/E for sell recommendation
+        "MAX_FORWARD_PE": 45.0,
+        
+        # Maximum PEG ratio for sell recommendation
+        "MAX_PEG": 3.0,
+        
+        # Maximum short interest for sell recommendation
+        "MAX_SHORT_INTEREST": 4.0,
+        
+        # Maximum beta for sell recommendation
+        "MAX_BETA": 3.0,
+        
+        # Minimum expected return for sell recommendation
+        "MIN_EXRET": 10.0,
     },
-    
-    # Hold criteria - stocks that pass confidence threshold but don't meet buy or sell criteria
-    "HOLD": {
-        # No specific parameters, defined by not meeting buy or sell criteria
+    "BUY": {
+        # Minimum upside potential for buy recommendation
+        "MIN_UPSIDE": 20.0,
+        
+        # Minimum buy percentage for buy recommendation
+        "MIN_BUY_PERCENTAGE": 82.0,
+        
+        # Minimum beta for buy recommendation
+        "MIN_BETA": 0.2,
+        
+        # Maximum beta for buy recommendation
+        "MAX_BETA": 3.0,
+        
+        # Minimum forward P/E for buy recommendation
+        "MIN_FORWARD_PE": 0.5,
+        
+        # Maximum forward P/E for buy recommendation
+        "MAX_FORWARD_PE": 45.0,
+        
+        # Maximum PEG ratio for buy recommendation
+        "MAX_PEG": 3.0,
+        
+        # Maximum short interest for buy recommendation
+        "MAX_SHORT_INTEREST": 3.0,
     },
-    
-    # Inconclusive - insufficient analyst coverage
-    "INCONCLUSIVE": {
-        # Defined by not meeting the common criteria
-    }
 }
 
-# API Endpoints (reserved for future use)
-API_ENDPOINTS: Dict[str, str] = {
-    "BASE_URL": "https://query1.finance.yahoo.com/v8/finance",
-    # Add more endpoints as needed
-}
-
-# Display Configuration
+# Display configuration
 DISPLAY = {
-    "DEFAULT_TABLE_FORMAT": "fancy_grid",
-    "MAX_COMPANY_NAME_LENGTH": 20,
-    "PRICE_DECIMALS": 2,
-    "PERCENTAGE_DECIMALS": 1,
-    "RATIO_DECIMALS": 2,
+    # Maximum company name length
+    "MAX_COMPANY_NAME_LENGTH": 14,
+    
+    # Default display columns
+    "DEFAULT_COLUMNS": [
+        "ticker", 
+        "company", 
+        "market_cap", 
+        "price", 
+        "target_price", 
+        "upside", 
+        "analyst_count",
+        "buy_percentage", 
+        "total_ratings", 
+        "beta",
+        "pe_trailing", 
+        "pe_forward", 
+        "peg_ratio", 
+        "dividend_yield",
+        "short_float_pct"
+    ],
+    
+    # Column formatters
+    "FORMATTERS": {
+        "price": {"precision": 2},
+        "target_price": {"precision": 2},
+        "upside": {"precision": 1, "as_percentage": True},
+        "buy_percentage": {"precision": 0, "as_percentage": True},
+        "beta": {"precision": 2},
+        "pe_trailing": {"precision": 1},
+        "pe_forward": {"precision": 1},
+        "peg_ratio": {"precision": 1},
+        "dividend_yield": {"precision": 2, "as_percentage": True},
+        "short_float_pct": {"precision": 1, "as_percentage": True},
+    },
 }
 
-# File Paths Configuration
-FILE_PATHS = {
-    "INPUT_DIR": "yahoofinance/input",
-    "OUTPUT_DIR": "yahoofinance/output",
-    "CACHE_DIR": "yahoofinance/cache",
+# Paths configuration
+PATHS = {
+    # Input directory
+    "INPUT_DIR": os.path.join(os.path.dirname(os.path.dirname(__file__)), "input"),
+    
+    # Output directory
+    "OUTPUT_DIR": os.path.join(os.path.dirname(os.path.dirname(__file__)), "output"),
+    
+    # Log directory
+    "LOG_DIR": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logs"),
+    
+    # Default log file
+    "DEFAULT_LOG_FILE": os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
+        "logs", 
+        "yahoofinance.log"
+    ),
 }
+
+# File paths for data files
+FILE_PATHS = {
+    # Input files
+    "MARKET_FILE": os.path.join(PATHS["INPUT_DIR"], "market.csv"),
+    "PORTFOLIO_FILE": os.path.join(PATHS["INPUT_DIR"], "portfolio.csv"),
+    "ETORO_FILE": os.path.join(PATHS["INPUT_DIR"], "etoro.csv"),
+    "YFINANCE_FILE": os.path.join(PATHS["INPUT_DIR"], "yfinance.csv"),
+    "NOTRADE_FILE": os.path.join(PATHS["INPUT_DIR"], "notrade.csv"),
+    "CONS_FILE": os.path.join(PATHS["INPUT_DIR"], "cons.csv"),
+    "US_TICKERS_FILE": os.path.join(PATHS["INPUT_DIR"], "us_tickers.csv"),
+    
+    # Output files
+    "MARKET_OUTPUT": os.path.join(PATHS["OUTPUT_DIR"], "market.csv"),
+    "PORTFOLIO_OUTPUT": os.path.join(PATHS["OUTPUT_DIR"], "portfolio.csv"),
+    "BUY_OUTPUT": os.path.join(PATHS["OUTPUT_DIR"], "buy.csv"),
+    "SELL_OUTPUT": os.path.join(PATHS["OUTPUT_DIR"], "sell.csv"),
+    "HOLD_OUTPUT": os.path.join(PATHS["OUTPUT_DIR"], "hold.csv"),
+    "HTML_OUTPUT": os.path.join(PATHS["OUTPUT_DIR"], "index.html"),
+    "PORTFOLIO_HTML": os.path.join(PATHS["OUTPUT_DIR"], "portfolio.html"),
+    "CSS_OUTPUT": os.path.join(PATHS["OUTPUT_DIR"], "styles.css"),
+    "JS_OUTPUT": os.path.join(PATHS["OUTPUT_DIR"], "script.js"),
+}
+
+# Special tickers configuration
+SPECIAL_TICKERS = {
+    # US stocks with dots in their symbols
+    "US_SPECIAL_CASES": {
+        'BRK.A', 'BRK.B',  # Berkshire Hathaway
+        'BF.A', 'BF.B',    # Brown-Forman
+    },
+}
+
+# Load environment variables if needed
+def load_env_config() -> Dict[str, Any]:
+    """
+    Load configuration from environment variables.
+    
+    Returns:
+        Dictionary containing configuration values from environment variables
+    """
+    config = {}
+    
+    # Rate limit settings
+    if 'YFINANCE_MAX_CALLS' in os.environ:
+        config['RATE_LIMIT.MAX_CALLS'] = int(os.environ['YFINANCE_MAX_CALLS'])
+    
+    # Cache settings
+    if 'YFINANCE_CACHE_TTL' in os.environ:
+        config['CACHE_CONFIG.MEMORY_CACHE_TTL'] = int(os.environ['YFINANCE_CACHE_TTL'])
+    
+    # API settings
+    if 'YFINANCE_API_TIMEOUT' in os.environ:
+        config['RATE_LIMIT.API_TIMEOUT'] = int(os.environ['YFINANCE_API_TIMEOUT'])
+    
+    # Circuit breaker settings
+    if 'YFINANCE_CIRCUIT_BREAKER_ENABLED' in os.environ:
+        config['CIRCUIT_BREAKER.ENABLED'] = os.environ['YFINANCE_CIRCUIT_BREAKER_ENABLED'].lower() == 'true'
+    
+    return config
+
+# Apply environment variable configuration
+ENV_CONFIG = load_env_config()
+
+# Update configuration with environment variables
+def apply_env_config(env_config: Dict[str, Any]) -> None:
+    """
+    Apply environment variable configuration.
+    
+    Args:
+        env_config: Dictionary containing configuration values from environment variables
+    """
+    for key, value in env_config.items():
+        parts = key.split('.')
+        if len(parts) == 2:
+            module_name, setting_name = parts
+            if module_name in globals() and setting_name in globals()[module_name]:
+                globals()[module_name][setting_name] = value
+
+# Apply environment configuration
+apply_env_config(ENV_CONFIG)

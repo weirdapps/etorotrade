@@ -1,33 +1,70 @@
 """
-Yahoo Finance API providers package.
+Provider module for different finance data sources.
 
-This package contains various data provider implementations,
-each conforming to the FinanceDataProvider interface and
-their asynchronous counterparts.
+This module provides a standardized interface for accessing financial data
+from different sources such as Yahoo Finance or other providers.
+
+Importing:
+    from yahoofinance_v2.api.providers import get_provider, FinanceDataProvider, AsyncFinanceDataProvider
+    
+    # Get default provider
+    provider = get_provider()
+    
+    # Get specific provider
+    async_provider = get_provider(async_api=True)
+    
+    # Custom provider implementation
+    custom_provider = get_provider(provider_name="custom")
 """
 
-# Import backward compatibility classes
-from .base import FinanceDataProvider
-from .async_base import AsyncFinanceDataProvider
+from typing import Optional, Union, Dict, Any, List
 
-# Import Protocol definitions and base classes
 from .base_provider import (
-    BaseProviderProtocol, 
-    AsyncProviderProtocol
+    FinanceDataProvider, 
+    AsyncFinanceDataProvider
 )
-
-# Import concrete implementations
 from .yahoo_finance import YahooFinanceProvider
 from .async_yahoo_finance import AsyncYahooFinanceProvider
 
 __all__ = [
-    # Base classes and protocols
+    'get_provider',
     'FinanceDataProvider',
     'AsyncFinanceDataProvider',
-    'BaseProviderProtocol',
-    'AsyncProviderProtocol',
-    
-    # Concrete implementations
     'YahooFinanceProvider',
     'AsyncYahooFinanceProvider',
 ]
+
+_PROVIDERS = {
+    'yahoo': YahooFinanceProvider,
+    'yahoo_async': AsyncYahooFinanceProvider,
+}
+
+def get_provider(
+    provider_name: str = 'yahoo',
+    async_api: bool = False,
+    **kwargs
+) -> Union[FinanceDataProvider, AsyncFinanceDataProvider]:
+    """
+    Get an instance of a finance data provider.
+    
+    Args:
+        provider_name: Name of the provider to use (default: 'yahoo')
+        async_api: Whether to return an async provider
+        **kwargs: Additional arguments to pass to the provider constructor
+        
+    Returns:
+        An instance of a FinanceDataProvider or AsyncFinanceDataProvider
+        
+    Raises:
+        ValueError: If an invalid provider name is provided
+    """
+    if async_api:
+        key = f"{provider_name}_async"
+        if key not in _PROVIDERS:
+            raise ValueError(f"Async provider '{provider_name}' not found")
+        return _PROVIDERS[key](**kwargs)
+    
+    if provider_name not in _PROVIDERS:
+        raise ValueError(f"Provider '{provider_name}' not found")
+    
+    return _PROVIDERS[provider_name](**kwargs)
