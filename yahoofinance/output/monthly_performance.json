@@ -1,0 +1,42 @@
+[
+  {
+    "index_name": "DJI30",
+    "ticker": "^DJI",
+    "current_value": 43840.91015625,
+    "previous_value": 44544.66015625,
+    "change_percent": -1.5798751130470974,
+    "start_date": "2025-01-31T00:00:00",
+    "end_date": "2025-02-28T00:00:00",
+    "period_type": "monthly"
+  },
+  {
+    "index_name": "SP500",
+    "ticker": "^GSPC",
+    "current_value": 5954.5,
+    "previous_value": 6040.52978515625,
+    "change_percent": -1.4242092699825115,
+    "start_date": "2025-01-31T00:00:00",
+    "end_date": "2025-02-28T00:00:00",
+    "period_type": "monthly"
+  },
+  {
+    "index_name": "NQ100",
+    "ticker": "^NDX",
+    "current_value": 20884.41015625,
+    "previous_value": 21478.05078125,
+    "change_percent": -2.763940876414348,
+    "start_date": "2025-01-31T00:00:00",
+    "end_date": "2025-02-28T00:00:00",
+    "period_type": "monthly"
+  },
+  {
+    "index_name": "VIX",
+    "ticker": "^VIX",
+    "current_value": 19.6299991607666,
+    "previous_value": 16.43000030517578,
+    "change_percent": 19.47655992789456,
+    "start_date": "2025-01-31T00:00:00",
+    "end_date": "2025-02-28T00:00:00",
+    "period_type": "monthly"
+  }
+]

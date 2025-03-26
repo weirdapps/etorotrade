@@ -1,124 +1,155 @@
 """
-Market-specific ticker utility functions.
+Ticker-related utilities for Yahoo Finance data.
 
-This module provides utilities for working with ticker symbols,
-including normalization and validation functions.
-
-CANONICAL SOURCE:
-This is the canonical source for ticker and market utilities. Other modules
-that provide similar functionality are compatibility layers that import from 
-this module. Always prefer to import directly from this module in new code:
-
-    from yahoofinance.utils.market.ticker_utils import (
-        is_us_ticker, normalize_hk_ticker, filter_valid_tickers
-    )
-
-Key Components:
-- is_us_ticker: Check if a ticker is a US stock
-- normalize_hk_ticker: Normalize Hong Kong stock tickers
-- filter_valid_tickers: Filter valid ticker symbols from a list
-
-Example usage:
-    # Normalize a Hong Kong ticker symbol
-    normalized = normalize_hk_ticker('03690.HK')  # Returns '3690.HK'
-    
-    # Check if a ticker is a US stock
-    is_us = is_us_ticker('AAPL')  # Returns True
+This module provides functions for validating and transforming ticker symbols
+to ensure they are properly formatted for API calls.
 """
 
-from typing import List, Set
+import re
+from typing import List, Set, Optional, Dict, Any
+
+from ...core.errors import ValidationError
+from ...core.config import SPECIAL_TICKERS
 
 
-# US tickers that have dots but are still US stocks
-US_SPECIAL_CASES: Set[str] = {"BRK.A", "BRK.B", "BF.A", "BF.B"}
+def validate_ticker(ticker: str) -> bool:
+    """
+    Validate a ticker symbol format.
+    
+    Args:
+        ticker: Ticker symbol to validate
+        
+    Returns:
+        True if valid, False otherwise
+        
+    Raises:
+        ValidationError: If ticker format is invalid
+    """
+    if not ticker or not isinstance(ticker, str):
+        raise ValidationError("Ticker must be a non-empty string")
+    
+    # Check basic ticker format
+    if len(ticker) > 20:
+        raise ValidationError(f"Ticker '{ticker}' exceeds maximum length of 20 characters")
+    
+    # Check for invalid characters
+    if re.search(r'[^\w\.\-]', ticker):
+        raise ValidationError(f"Ticker '{ticker}' contains invalid characters")
+    
+    return True
 
 
 def is_us_ticker(ticker: str) -> bool:
     """
-    Determine if a ticker is from a US exchange.
+    Check if a ticker is a US stock.
+    
+    US stocks have either:
+    1. No suffix (like "AAPL")
+    2. A .US suffix (like "INTC.US")
+    3. Are in the special cases list (like "BRK.A", "BRK.B")
     
     Args:
-        ticker: Stock ticker symbol
+        ticker: Ticker symbol to check
         
     Returns:
-        bool: True if US ticker, False otherwise
+        True if US ticker, False otherwise
     """
-    # Handle special cases like "BRK.B" which are US tickers
-    if ticker in US_SPECIAL_CASES:
+    # Check special cases first (US stocks with dots like BRK.A)
+    if ticker in SPECIAL_TICKERS["US_SPECIAL_CASES"]:
         return True
-        
-    # US tickers generally have no suffix or .US suffix
-    return '.' not in ticker or ticker.endswith('.US')
+    
+    # Check for .US suffix
+    if ticker.endswith(".US"):
+        return True
+    
+    # Check for non-US exchange suffixes
+    non_us_suffixes = {'.L', '.TO', '.V', '.PA', '.DE', '.HK', '.LN', '.SZ', 
+                       '.SS', '.TW', '.AX', '.SA', '.F', '.MI', '.BR', '.SW',
+                       '.MC', '.AS', '.CO', '.OL', '.ST', '.LS', '.MX', '.KS',
+                       '.KQ', '.VX', '.IR', '.JK', '.SI', '.IL', '.NZ', '.TA'}
+    
+    for suffix in non_us_suffixes:
+        if ticker.endswith(suffix):
+            return False
+    
+    # If no exchange suffix, assume US
+    if '.' not in ticker:
+        return True
+    
+    # Check for crypto (not US stock)
+    if ticker.endswith('-USD') or ticker.endswith('-EUR'):
+        return False
+    
+    # Default to assuming US if no other patterns matched
+    return True
 
 
 def normalize_hk_ticker(ticker: str) -> str:
     """
-    Normalize Hong Kong stock tickers to standard format.
+    Normalize Hong Kong ticker format.
     
-    Hong Kong stock tickers follow these rules:
-    1. Remove all leading zeros
-    2. If the numeric part is less than 4 digits, pad with leading zeros to make it 4 digits
-    3. If the numeric part is 4 or more digits, leave it as is
+    eToro uses different formats for HK stocks, this function
+    standardizes them for API calls.
     
     Args:
-        ticker: Stock ticker symbol
+        ticker: Ticker symbol to normalize
         
     Returns:
-        str: Normalized ticker symbol
+        Normalized ticker
     """
-    if not ticker or not isinstance(ticker, str) or not ticker.endswith('.HK'):
+    # Check if it's a HK ticker
+    if not ticker.endswith('.HK'):
         return ticker
     
-    # Handle case with class designations (e.g., '0700-A.HK')
-    if '-' in ticker:
-        base_part, class_part = ticker.split('-', 1)
-        suffix = f"-{class_part}"
-    else:
-        base_part = ticker.split('.')[0]
-        suffix = ".HK"
+    # Extract the numerical part
+    ticker_num = ticker.split('.')[0]
     
-    # Remove all leading zeros
-    normalized_base = base_part.lstrip('0')
+    # For HK stocks with 5+ digits, remove leading zeros
+    if len(ticker_num) >= 5 and ticker_num.startswith('0'):
+        normalized_num = ticker_num.lstrip('0')
+        # If all digits were zeros, keep one
+        if not normalized_num:
+            normalized_num = '0'
+        return f"{normalized_num}.HK"
     
-    # Handle the case where it was all zeros
-    if not normalized_base:
-        normalized_base = '0'
-    
-    # If less than 4 digits, pad with leading zeros
-    if len(normalized_base) < 4:
-        normalized_base = normalized_base.zfill(4)
-    
-    return f"{normalized_base}{suffix}"
+    # For 4-digit tickers, keep leading zeros
+    return ticker
 
 
-def filter_valid_tickers(tickers: List[str]) -> List[str]:
+def filter_valid_tickers(tickers: List[str], excluded_tickers: Optional[Set[str]] = None) -> List[str]:
     """
-    Filter out invalid ticker formats.
+    Filter out invalid tickers and excluded tickers.
     
     Args:
-        tickers: List of ticker symbols
+        tickers: List of ticker symbols to filter
+        excluded_tickers: Set of tickers to exclude
         
     Returns:
-        List[str]: Filtered list of valid ticker symbols
+        List of valid tickers
     """
+    if excluded_tickers is None:
+        excluded_tickers = set()
+    
     valid_tickers = []
+    
     for ticker in tickers:
-        if not isinstance(ticker, str):
-            continue
-            
-        ticker = ticker.strip().upper()
+        # Skip empty or None values
         if not ticker:
             continue
-            
-        # Skip numeric-only tickers
-        if ticker.isdigit():
-            continue
-            
-        # Check length constraints based on exchange suffix
-        has_exchange_suffix = '.' in ticker
-        max_length = 20 if has_exchange_suffix else 10
         
-        if len(ticker) <= max_length:
-            valid_tickers.append(ticker)
-            
+        # Skip excluded tickers
+        if ticker in excluded_tickers:
+            continue
+        
+        try:
+            # Validate ticker format
+            valid = validate_ticker(ticker)
+            if valid:
+                # Normalize HK tickers
+                normalized = normalize_hk_ticker(ticker)
+                valid_tickers.append(normalized)
+        except ValidationError:
+            # Skip invalid tickers
+            continue
+    
     return valid_tickers

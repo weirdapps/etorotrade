@@ -1,43 +1,56 @@
 """
-Yahoo Finance API package.
+Finance API module for accessing financial data.
 
-This package provides a standardized interface for accessing financial data,
-including both synchronous and asynchronous interfaces.
+This module provides access to financial data through provider interfaces,
+which abstract the implementation details of different data sources.
 """
 
-from .providers.base import FinanceDataProvider
-from .providers.async_base import AsyncFinanceDataProvider
+from typing import Dict, Any, Optional, Type, Union
 
-# Import providers lazily to avoid circular dependencies
-_default_provider = None
-_default_async_provider = None
+from .providers.base_provider import FinanceDataProvider, AsyncFinanceDataProvider
+from .providers.yahoo_finance import YahooFinanceProvider
+from .providers.async_yahoo_finance import AsyncYahooFinanceProvider
+from .providers.enhanced_async_yahoo_finance import EnhancedAsyncYahooFinanceProvider
 
-def get_provider(async_mode: bool = False):
+# Factory function to get appropriate provider
+def get_provider(
+    provider_type: str = "yahoo",
+    async_mode: bool = False,
+    enhanced: bool = False,
+    **kwargs
+) -> Union[FinanceDataProvider, AsyncFinanceDataProvider]:
     """
-    Get appropriate finance data provider.
+    Get a provider instance for accessing financial data.
     
     Args:
-        async_mode: Whether to return an async provider
+        provider_type: Type of provider (yahoo, etc.)
+        async_mode: Whether to use asynchronous API
+        enhanced: Whether to use enhanced async implementation (only applicable when async_mode=True)
+        **kwargs: Additional arguments to pass to provider constructor
         
     Returns:
-        Finance data provider instance
+        Provider instance
+    
+    Raises:
+        ValueError: When provider_type is invalid
     """
-    global _default_provider, _default_async_provider
-    
-    if async_mode:
-        if _default_async_provider is None:
-            from .providers.async_yahoo_finance import AsyncYahooFinanceProvider
-            _default_async_provider = AsyncYahooFinanceProvider()
-        return _default_async_provider
-    
-    if _default_provider is None:
-        from .providers.yahoo_finance import YahooFinanceProvider
-        _default_provider = YahooFinanceProvider()
-    return _default_provider
+    if provider_type.lower() == "yahoo":
+        if async_mode:
+            if enhanced:
+                return EnhancedAsyncYahooFinanceProvider(**kwargs)
+            else:
+                return AsyncYahooFinanceProvider(**kwargs)
+        else:
+            return YahooFinanceProvider(**kwargs)
+    else:
+        raise ValueError(f"Unknown provider type: {provider_type}")
 
-# Export key components
+# Export provider classes
 __all__ = [
+    'get_provider',
     'FinanceDataProvider',
     'AsyncFinanceDataProvider',
-    'get_provider',
+    'YahooFinanceProvider',
+    'AsyncYahooFinanceProvider',
+    'EnhancedAsyncYahooFinanceProvider',
 ]
