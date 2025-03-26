@@ -72,6 +72,82 @@ class YahooFinanceProvider(FinanceDataProvider):
             return ticker_obj
         except Exception as e:
             raise ValidationError(f"Failed to create ticker object for {ticker}: {str(e)}")
+            
+    def calculate_upside_potential(self, current_price, target_price):
+        """
+        Calculate upside potential as a percentage.
+        
+        Args:
+            current_price: Current stock price
+            target_price: Target stock price
+            
+        Returns:
+            Upside potential as a percentage or None if not calculable
+        """
+        if not current_price or not target_price or current_price <= 0:
+            return None
+        return ((target_price - current_price) / current_price) * 100
+        
+    def format_date(self, date_obj):
+        """
+        Format a date object to a string.
+        
+        Args:
+            date_obj: Date object or string to format
+            
+        Returns:
+            Formatted date string or None if input is None
+        """
+        if not date_obj:
+            return None
+            
+        if isinstance(date_obj, str):
+            try:
+                # Try to parse as ISO format
+                from datetime import datetime
+                date_obj = datetime.fromisoformat(date_obj.replace('Z', '+00:00'))
+            except (ValueError, TypeError):
+                # Return as is if parsing fails
+                return date_obj
+                
+        try:
+            return date_obj.strftime('%Y-%m-%d')
+        except (AttributeError, TypeError):
+            return str(date_obj)
+    
+    def format_market_cap(self, market_cap):
+        """
+        Format market cap value to a readable string with B/T suffix.
+        
+        Args:
+            market_cap: Market cap value in numeric format
+            
+        Returns:
+            Formatted market cap string with appropriate suffix
+        """
+        if not market_cap:
+            return None
+            
+        # Convert to billions or trillions
+        if market_cap >= 1_000_000_000_000:  # Trillion
+            value = market_cap / 1_000_000_000_000
+            if value >= 10:
+                return f"{value:.1f}T"
+            else:
+                return f"{value:.2f}T"
+        elif market_cap >= 1_000_000_000:  # Billion
+            value = market_cap / 1_000_000_000
+            if value >= 100:
+                return f"{value:.0f}B"
+            elif value >= 10:
+                return f"{value:.1f}B"
+            else:
+                return f"{value:.2f}B"
+        elif market_cap >= 1_000_000:  # Million
+            value = market_cap / 1_000_000
+            return f"{value:.2f}M"
+        else:
+            return f"{market_cap:,.0f}"
     
     @rate_limited
     def get_ticker_info(self, ticker: str, skip_insider_metrics: bool = False) -> Dict[str, Any]:
@@ -110,7 +186,7 @@ class YahooFinanceProvider(FinanceDataProvider):
                     "price": info.get("currentPrice", info.get("regularMarketPrice")),
                     "currency": info.get("currency", "USD"),
                     "market_cap": info.get("marketCap"),
-                    "market_cap_fmt": self._format_market_cap(info.get("marketCap")),
+                    "market_cap_fmt": self.format_market_cap(info.get("marketCap")),
                     "pe_ratio": info.get("trailingPE"),
                     "forward_pe": info.get("forwardPE"),
                     "peg_ratio": info.get("pegRatio"),
@@ -128,7 +204,7 @@ class YahooFinanceProvider(FinanceDataProvider):
                 # Calculate upside potential if possible
                 price = result.get("price")
                 target = result.get("target_price")
-                result["upside"] = self._calculate_upside_potential(price, target)
+                result["upside"] = self.calculate_upside_potential(price, target)
                 
                 # Additional metrics for US stocks
                 if is_us_ticker(ticker) and not skip_insider_metrics:
@@ -330,7 +406,7 @@ class YahooFinanceProvider(FinanceDataProvider):
                     "hold": hold,
                     "sell": sell,
                     "strong_sell": strong_sell,
-                    "date": self._format_date(latest_date)
+                    "date": self.format_date(latest_date)
                 }
                 
             except RateLimitError:
@@ -381,7 +457,7 @@ class YahooFinanceProvider(FinanceDataProvider):
                     transaction = {
                         "name": row.get("Holder", ""),
                         "shares": row.get("Shares", 0),
-                        "date": self._format_date(row.get("Date Reported", None)),
+                        "date": self.format_date(row.get("Date Reported", None)),
                         "value": row.get("Value", 0),
                         "pct_out": row.get("% Out", 0) * 100 if row.get("% Out") else 0,
                     }
