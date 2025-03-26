@@ -17,5 +17,31 @@
       1742437096.590768
     ],
     "consecutive_failures": 5
+  },
+  "web_scraping": {
+    "state": "CLOSED",
+    "failure_count": 0,
+    "success_count": 0,
+    "last_state_change": 1743020122.5512729,
+    "last_failure_time": 0,
+    "last_success_time": 1743020688.238702,
+    "total_failures": 0,
+    "total_successes": 2,
+    "total_requests": 2,
+    "failure_timestamps": [],
+    "consecutive_failures": 0
+  },
+  "yahoo_finance": {
+    "state": "CLOSED",
+    "failure_count": 0,
+    "success_count": 0,
+    "last_state_change": 1743021240.3425589,
+    "last_failure_time": 0,
+    "last_success_time": 1743021240.855216,
+    "total_failures": 0,
+    "total_successes": 1,
+    "total_requests": 1,
+    "failure_timestamps": [],
+    "consecutive_failures": 0
   }
 }
