@@ -2,9 +2,9 @@ import pytest
 from datetime import datetime, timedelta
 import pandas as pd
 from unittest.mock import Mock, patch
-from yahoofinance.analysis.analyst import AnalystData
+from yahoofinance.compat.analyst import AnalystData
 from yahoofinance.core.config import POSITIVE_GRADES
-from yahoofinance.core.types import ValidationError, YFinanceError
+from yahoofinance.core.errors import ValidationError, YFinanceError
 
 @pytest.fixture
 def mock_client():
