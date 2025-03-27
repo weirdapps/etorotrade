@@ -28,6 +28,7 @@ try:
     from yahoofinance.presentation.formatter import DisplayFormatter
     from yahoofinance.presentation.console import MarketDisplay
     from yahoofinance.utils.network.circuit_breaker import get_all_circuits
+    from yahoofinance.core.config import FILE_PATHS, PATHS
 except ImportError as e:
     logging.error(f"Error importing yahoofinance modules: {str(e)}")
     sys.exit(1)
@@ -39,6 +40,19 @@ warnings.filterwarnings("ignore", category=RuntimeWarning, message="invalid valu
 BUY_PERCENTAGE = '% BUY'
 DIVIDEND_YIELD = 'DIV %'
 COMPANY_NAME = 'COMPANY NAME'
+
+# Define constants for market types
+PORTFOLIO_SOURCE = 'P'
+MARKET_SOURCE = 'M'
+ETORO_SOURCE = 'E'
+MANUAL_SOURCE = 'I'
+
+# Define constants for trade actions
+BUY_ACTION = 'B'
+SELL_ACTION = 'S'
+HOLD_ACTION = 'H'
+NEW_BUY_OPPORTUNITIES = 'N'
+EXISTING_PORTFOLIO = 'E'
 
 # Set up logging configuration
 logging.basicConfig(
@@ -57,14 +71,14 @@ for logger_name in logging.root.manager.loggerDict:
 rate_limiter_logger = logging.getLogger('yahoofinance.utils.network')
 rate_limiter_logger.setLevel(logging.WARNING)
 
-# Define constants for file paths
-OUTPUT_DIR = "yahoofinance/output"
-INPUT_DIR = "yahoofinance/input"
+# Define constants for file paths - use values from config if available, else fallback
+OUTPUT_DIR = PATHS["OUTPUT_DIR"]
+INPUT_DIR = PATHS["INPUT_DIR"]
 
 # Define constants for output files
-BUY_CSV = "buy.csv"
-SELL_CSV = "sell.csv"
-HOLD_CSV = "hold.csv"
+BUY_CSV = os.path.basename(FILE_PATHS["BUY_OUTPUT"])
+SELL_CSV = os.path.basename(FILE_PATHS["SELL_OUTPUT"])
+HOLD_CSV = os.path.basename(FILE_PATHS["HOLD_OUTPUT"])
 
 def get_file_paths():
     """Get the file paths for trade recommendation analysis.
@@ -72,9 +86,9 @@ def get_file_paths():
     Returns:
         tuple: (output_dir, input_dir, market_path, portfolio_path, notrade_path)
     """
-    market_path = f"{OUTPUT_DIR}/market.csv"
-    portfolio_path = f"{INPUT_DIR}/portfolio.csv"
-    notrade_path = f"{INPUT_DIR}/notrade.csv"
+    market_path = FILE_PATHS["MARKET_OUTPUT"]
+    portfolio_path = FILE_PATHS["PORTFOLIO_FILE"]
+    notrade_path = FILE_PATHS["NOTRADE_FILE"]
     
     return OUTPUT_DIR, INPUT_DIR, market_path, portfolio_path, notrade_path
 
@@ -1044,18 +1058,18 @@ def generate_trade_recommendations(action_type):
 def handle_trade_analysis():
     """Handle trade analysis (buy/sell/hold) flow"""
     action = input("Do you want to identify BUY (B), SELL (S), or HOLD (H) opportunities? ").strip().upper()
-    if action == 'B':
+    if action == BUY_ACTION:
         logger.info("User selected BUY analysis")
-        generate_trade_recommendations('N')  # 'N' for new buy opportunities
-    elif action == 'S':
+        generate_trade_recommendations(NEW_BUY_OPPORTUNITIES)  # 'N' for new buy opportunities
+    elif action == SELL_ACTION:
         logger.info("User selected SELL analysis")
-        generate_trade_recommendations('E')  # 'E' for existing portfolio (sell)
-    elif action == 'H':
+        generate_trade_recommendations(EXISTING_PORTFOLIO)  # 'E' for existing portfolio (sell)
+    elif action == HOLD_ACTION:
         logger.info("User selected HOLD analysis")
-        generate_trade_recommendations('H')  # 'H' for hold candidates
+        generate_trade_recommendations(HOLD_ACTION)  # 'H' for hold candidates
     else:
         logger.warning(f"Invalid option: {action}")
-        print("Invalid option. Please enter 'B', 'S', or 'H'.")
+        print(f"Invalid option. Please enter '{BUY_ACTION}', '{SELL_ACTION}', or '{HOLD_ACTION}'.")
 
 def handle_portfolio_download():
     """Handle portfolio download if requested"""
@@ -1211,8 +1225,8 @@ def display_report_for_source(display, tickers, source, verbose=False):
     try:
         # Handle special case for eToro market
         report_source = source
-        if source == 'E':
-            report_source = 'M'  # Still save as market.csv for eToro tickers
+        if source == ETORO_SOURCE:
+            report_source = MARKET_SOURCE  # Still save as market.csv for eToro tickers
             # Log for eToro specifically since it has many tickers
             print(f"Processing {len(tickers)} eToro tickers. This may take a while...")
             print("All rows will be displayed when processing completes.")
@@ -1221,7 +1235,7 @@ def display_report_for_source(display, tickers, source, verbose=False):
         provider = display.provider
         
         # For manual input, make sure we parse the tickers correctly
-        if source == 'I':
+        if source == MANUAL_SOURCE:
             # Process the ticker string (it might be comma or space separated)
             tickers_str = ' '.join(tickers)
             tickers_list = []
@@ -1248,17 +1262,17 @@ def display_report_for_source(display, tickers, source, verbose=False):
             print(f"Sample tickers: {', '.join(sample_tickers)}")
         
         # Save the data to the appropriate file
-        output_dir = "yahoofinance/output"
+        output_dir = OUTPUT_DIR  # Use the constant from config
         os.makedirs(output_dir, exist_ok=True)
         
-        if report_source == 'M':
-            output_file = f"{output_dir}/market.csv"
+        if report_source == MARKET_SOURCE:
+            output_file = FILE_PATHS["MARKET_OUTPUT"]
             report_title = "Market Analysis"
-        elif report_source == 'P':
-            output_file = f"{output_dir}/portfolio.csv"
+        elif report_source == PORTFOLIO_SOURCE:
+            output_file = FILE_PATHS["PORTFOLIO_OUTPUT"]
             report_title = "Portfolio Analysis"
         else:
-            output_file = f"{output_dir}/manual.csv"
+            output_file = FILE_PATHS["MANUAL_OUTPUT"]
             report_title = "Manual Ticker Analysis"
         
         # Save raw data to CSV
@@ -2351,7 +2365,7 @@ def main():
     os.makedirs(input_dir, exist_ok=True)
     
     # Use inputs from v1 directory if available
-    v1_input_dir = "yahoofinance/input"
+    v1_input_dir = INPUT_DIR
     if os.path.exists(v1_input_dir):
         logger.debug(f"Using input files from legacy directory: {v1_input_dir}")
         
@@ -2366,7 +2380,7 @@ if __name__ == "__main__":
         os.makedirs(input_dir, exist_ok=True)
         
         # Copy input files from v1 directory if they don't exist
-        v1_input_dir = "yahoofinance/input"
+        v1_input_dir = INPUT_DIR
         if os.path.exists(v1_input_dir):
             for file in os.listdir(v1_input_dir):
                 src_file = os.path.join(v1_input_dir, file)
