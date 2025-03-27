@@ -9,6 +9,12 @@ values used throughout the package.
 import os
 from typing import Dict, Any, List, Set
 
+# Define set of analyst grades considered positive
+POSITIVE_GRADES = {
+    "Buy", "Outperform", "Strong Buy", "Overweight", "Accumulate", 
+    "Add", "Conviction Buy", "Top Pick", "Positive"
+}
+
 # Rate limiting configuration
 RATE_LIMIT = {
     # Time window for rate limiting in seconds
