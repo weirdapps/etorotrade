@@ -12,8 +12,9 @@ import pytest
 from collections import deque
 
 from yahoofinance.utils.network.rate_limiter import (
-    AdaptiveRateLimiter, rate_limited, batch_process, global_rate_limiter
+    RateLimiter as AdaptiveRateLimiter, rate_limited, global_rate_limiter
 )
+from yahoofinance.utils.network.batch import batch_process
 from yahoofinance.core.errors import RateLimitError, APIError
 
 
