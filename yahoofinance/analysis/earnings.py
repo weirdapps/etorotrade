@@ -3,6 +3,10 @@ Earnings analysis module.
 
 This module provides functionality for analyzing earnings data,
 including earnings dates, surprises, and trends.
+
+The module includes both synchronous and asynchronous implementations
+of earnings data analysis functionality, sharing common business logic
+across both APIs through private helper methods like _calculate_trend_metrics.
 """
 
 from typing import Dict, Any, List, Optional, Union, Tuple
@@ -242,6 +246,67 @@ class EarningsAnalyzer:
         
         return earnings_data
     
+    def _calculate_trend_metrics(self, earnings_data: EarningsData, ticker: str, quarters: int = 4) -> Optional[Dict[str, Any]]:
+        """
+        Calculate earnings trend metrics from earnings data.
+        This is a helper method used by both sync and async trend calculation methods.
+        
+        Args:
+            earnings_data: The earnings data to analyze
+            ticker: Stock ticker symbol (for logging)
+            quarters: Number of quarters to analyze
+            
+        Returns:
+            Dictionary with earnings trend metrics or None if insufficient data
+        """
+        # Check if we have enough history
+        if not earnings_data.earnings_history or len(earnings_data.earnings_history) < quarters:
+            logger.info(f"Insufficient earnings history for {ticker} to calculate trend")
+            return None
+        
+        # Limit to specified number of quarters
+        history = earnings_data.earnings_history[:quarters]
+        
+        # Extract EPS values
+        eps_values = [report.get('eps_actual') for report in history if report.get('eps_actual') is not None]
+        
+        # Extract revenue values
+        revenue_values = [report.get('revenue_actual') for report in history if report.get('revenue_actual') is not None]
+        
+        # Calculate trends
+        if len(eps_values) < 2 or len(revenue_values) < 2:
+            logger.info(f"Insufficient valid data points for {ticker} to calculate trend")
+            return None
+        
+        # Calculate growth rates
+        eps_growth = [(eps_values[i] - eps_values[i+1]) / abs(eps_values[i+1]) * 100 if eps_values[i+1] != 0 else 0 
+                     for i in range(len(eps_values)-1)]
+        
+        revenue_growth = [(revenue_values[i] - revenue_values[i+1]) / revenue_values[i+1] * 100 if revenue_values[i+1] != 0 else 0 
+                        for i in range(len(revenue_values)-1)]
+        
+        # Calculate averages
+        avg_eps_growth = sum(eps_growth) / len(eps_growth) if eps_growth else None
+        avg_revenue_growth = sum(revenue_growth) / len(revenue_growth) if revenue_growth else None
+        
+        # Calculate consistency (how many quarters showed growth)
+        eps_beat_count = sum(1 for x in eps_growth if x > 0)
+        revenue_beat_count = sum(1 for x in revenue_growth if x > 0)
+        
+        return {
+            'eps_values': eps_values,
+            'revenue_values': revenue_values,
+            'eps_growth': eps_growth,
+            'revenue_growth': revenue_growth,
+            'avg_eps_growth': avg_eps_growth,
+            'avg_revenue_growth': avg_revenue_growth,
+            'eps_beat_count': eps_beat_count,
+            'revenue_beat_count': revenue_beat_count,
+            'total_quarters': len(eps_growth) + 1,
+            'eps_consistency': eps_beat_count / len(eps_growth) * 100 if eps_growth else None,
+            'revenue_consistency': revenue_beat_count / len(revenue_growth) * 100 if revenue_growth else None
+        }
+
     def calculate_earnings_trend(self, ticker: str, quarters: int = 4) -> Optional[Dict[str, Any]]:
         """
         Calculate earnings trend over multiple quarters.
@@ -264,53 +329,8 @@ class EarningsAnalyzer:
             # Get earnings data
             earnings_data = self.get_earnings_data(ticker)
             
-            # Check if we have enough history
-            if not earnings_data.earnings_history or len(earnings_data.earnings_history) < quarters:
-                logger.info(f"Insufficient earnings history for {ticker} to calculate trend")
-                return None
-            
-            # Limit to specified number of quarters
-            history = earnings_data.earnings_history[:quarters]
-            
-            # Extract EPS values
-            eps_values = [report.get('eps_actual') for report in history if report.get('eps_actual') is not None]
-            
-            # Extract revenue values
-            revenue_values = [report.get('revenue_actual') for report in history if report.get('revenue_actual') is not None]
-            
-            # Calculate trends
-            if len(eps_values) < 2 or len(revenue_values) < 2:
-                logger.info(f"Insufficient valid data points for {ticker} to calculate trend")
-                return None
-            
-            # Calculate growth rates
-            eps_growth = [(eps_values[i] - eps_values[i+1]) / abs(eps_values[i+1]) * 100 if eps_values[i+1] != 0 else 0 
-                         for i in range(len(eps_values)-1)]
-            
-            revenue_growth = [(revenue_values[i] - revenue_values[i+1]) / revenue_values[i+1] * 100 if revenue_values[i+1] != 0 else 0 
-                            for i in range(len(revenue_values)-1)]
-            
-            # Calculate averages
-            avg_eps_growth = sum(eps_growth) / len(eps_growth) if eps_growth else None
-            avg_revenue_growth = sum(revenue_growth) / len(revenue_growth) if revenue_growth else None
-            
-            # Calculate consistency (how many quarters showed growth)
-            eps_beat_count = sum(1 for x in eps_growth if x > 0)
-            revenue_beat_count = sum(1 for x in revenue_growth if x > 0)
-            
-            return {
-                'eps_values': eps_values,
-                'revenue_values': revenue_values,
-                'eps_growth': eps_growth,
-                'revenue_growth': revenue_growth,
-                'avg_eps_growth': avg_eps_growth,
-                'avg_revenue_growth': avg_revenue_growth,
-                'eps_beat_count': eps_beat_count,
-                'revenue_beat_count': revenue_beat_count,
-                'total_quarters': len(eps_growth) + 1,
-                'eps_consistency': eps_beat_count / len(eps_growth) * 100 if eps_growth else None,
-                'revenue_consistency': revenue_beat_count / len(revenue_growth) * 100 if revenue_growth else None
-            }
+            # Calculate trend metrics using the shared helper method
+            return self._calculate_trend_metrics(earnings_data, ticker, quarters)
         
         except Exception as e:
             logger.error(f"Error calculating earnings trend for {ticker}: {str(e)}")
@@ -338,53 +358,8 @@ class EarningsAnalyzer:
             # Get earnings data asynchronously
             earnings_data = await self.get_earnings_data_async(ticker)
             
-            # Check if we have enough history
-            if not earnings_data.earnings_history or len(earnings_data.earnings_history) < quarters:
-                logger.info(f"Insufficient earnings history for {ticker} to calculate trend")
-                return None
-            
-            # Limit to specified number of quarters
-            history = earnings_data.earnings_history[:quarters]
-            
-            # Extract EPS values
-            eps_values = [report.get('eps_actual') for report in history if report.get('eps_actual') is not None]
-            
-            # Extract revenue values
-            revenue_values = [report.get('revenue_actual') for report in history if report.get('revenue_actual') is not None]
-            
-            # Calculate trends
-            if len(eps_values) < 2 or len(revenue_values) < 2:
-                logger.info(f"Insufficient valid data points for {ticker} to calculate trend")
-                return None
-            
-            # Calculate growth rates
-            eps_growth = [(eps_values[i] - eps_values[i+1]) / abs(eps_values[i+1]) * 100 if eps_values[i+1] != 0 else 0 
-                         for i in range(len(eps_values)-1)]
-            
-            revenue_growth = [(revenue_values[i] - revenue_values[i+1]) / revenue_values[i+1] * 100 if revenue_values[i+1] != 0 else 0 
-                            for i in range(len(revenue_values)-1)]
-            
-            # Calculate averages
-            avg_eps_growth = sum(eps_growth) / len(eps_growth) if eps_growth else None
-            avg_revenue_growth = sum(revenue_growth) / len(revenue_growth) if revenue_growth else None
-            
-            # Calculate consistency (how many quarters showed growth)
-            eps_beat_count = sum(1 for x in eps_growth if x > 0)
-            revenue_beat_count = sum(1 for x in revenue_growth if x > 0)
-            
-            return {
-                'eps_values': eps_values,
-                'revenue_values': revenue_values,
-                'eps_growth': eps_growth,
-                'revenue_growth': revenue_growth,
-                'avg_eps_growth': avg_eps_growth,
-                'avg_revenue_growth': avg_revenue_growth,
-                'eps_beat_count': eps_beat_count,
-                'revenue_beat_count': revenue_beat_count,
-                'total_quarters': len(eps_growth) + 1,
-                'eps_consistency': eps_beat_count / len(eps_growth) * 100 if eps_growth else None,
-                'revenue_consistency': revenue_beat_count / len(revenue_growth) * 100 if revenue_growth else None
-            }
+            # Calculate trend metrics using the shared helper method
+            return self._calculate_trend_metrics(earnings_data, ticker, quarters)
         
         except Exception as e:
             logger.error(f"Error calculating earnings trend for {ticker}: {str(e)}")
