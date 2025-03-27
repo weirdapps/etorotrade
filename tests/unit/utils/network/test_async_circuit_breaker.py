@@ -13,7 +13,7 @@ import asyncio
 import pytest
 from unittest.mock import patch, mock_open, MagicMock, call, AsyncMock
 
-from yahoofinance_v2.utils.network.circuit_breaker import (
+from yahoofinance.utils.network.circuit_breaker import (
     AsyncCircuitBreaker,
     CircuitState,
     CircuitOpenError,
@@ -144,7 +144,7 @@ async def test_async_circuit_protected_decorator():
     mock_circuit = MagicMock()
     mock_circuit.execute_async = AsyncMock(return_value="success_from_async_circuit")
     
-    with patch("yahoofinance_v2.utils.network.circuit_breaker.get_async_circuit_breaker", 
+    with patch("yahoofinance.utils.network.circuit_breaker.get_async_circuit_breaker", 
                return_value=mock_circuit):
         result = await decorated_func("arg1", kwarg1="value1")
     
@@ -158,7 +158,7 @@ async def test_async_circuit_protected_decorator():
 async def test_get_async_circuit_breaker():
     """Test get_async_circuit_breaker creates and returns async circuit breakers."""
     # Clear existing circuits
-    with patch.dict("yahoofinance_v2.utils.network.circuit_breaker._circuit_breakers", {}):
+    with patch.dict("yahoofinance.utils.network.circuit_breaker._circuit_breakers", {}):
         circuit1 = get_async_circuit_breaker("test_async_get_1")
         circuit2 = get_async_circuit_breaker("test_async_get_2")
         circuit1_again = get_async_circuit_breaker("test_async_get_1")

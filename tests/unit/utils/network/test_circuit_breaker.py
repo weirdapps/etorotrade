@@ -12,7 +12,7 @@ import time
 import pytest
 from unittest.mock import patch, mock_open, MagicMock, call
 
-from yahoofinance_v2.utils.network.circuit_breaker import (
+from yahoofinance.utils.network.circuit_breaker import (
     CircuitBreaker,
     CircuitState,
     CircuitOpenError,
@@ -351,7 +351,7 @@ def test_circuit_protected_decorator():
     mock_circuit = MagicMock()
     mock_circuit.execute.return_value = "success_from_circuit"
     
-    with patch("yahoofinance_v2.utils.network.circuit_breaker.get_circuit_breaker", 
+    with patch("yahoofinance.utils.network.circuit_breaker.get_circuit_breaker", 
                return_value=mock_circuit):
         result = decorated_func("arg1", kwarg1="value1")
     
@@ -364,7 +364,7 @@ def test_circuit_protected_decorator():
 def test_get_circuit_breaker():
     """Test get_circuit_breaker creates and returns circuit breakers."""
     # Clear existing circuits
-    with patch.dict("yahoofinance_v2.utils.network.circuit_breaker._circuit_breakers", {}):
+    with patch.dict("yahoofinance.utils.network.circuit_breaker._circuit_breakers", {}):
         circuit1 = get_circuit_breaker("test_get_1")
         circuit2 = get_circuit_breaker("test_get_2")
         circuit1_again = get_circuit_breaker("test_get_1")
@@ -381,7 +381,7 @@ def test_reset_all_circuits():
     mock_circuit2 = MagicMock()
     
     # Patch the circuits registry
-    with patch.dict("yahoofinance_v2.utils.network.circuit_breaker._circuit_breakers", 
+    with patch.dict("yahoofinance.utils.network.circuit_breaker._circuit_breakers", 
                    {"circuit1": mock_circuit1, "circuit2": mock_circuit2}):
         
         reset_all_circuits()

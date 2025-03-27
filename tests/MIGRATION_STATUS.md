@@ -2,9 +2,21 @@
 
 This file tracks the status of test migrations to the new structure.
 
-## Migration Complete ✅
+## Migration Update
 
-All test files have been successfully migrated to the new structure. The migration is complete!
+All test files have been successfully migrated to the new structure, but further changes are needed to make all tests pass with the new module structure.
+
+### Current Focus
+
+- Updating import paths in test files to match new module structure
+- Fixing mock patches to point to the correct modules
+- Ensuring class imports reflect new locations
+
+### Recent Progress
+
+- ✅ tests/unit/utils/async/test_enhanced.py - 3 tests skipped with TODOs, rest passing
+- ✅ tests/unit/utils/network/test_async_circuit_breaker.py - All tests passing
+- ✅ tests/unit/utils/network/test_circuit_breaker.py - All tests passing
 
 - Formal tests are now organized in a hierarchical structure that mirrors the package organization
 - Manual testing scripts from the root directory have been moved to the `scripts/` directory
@@ -101,8 +113,45 @@ All test files have been successfully migrated to the new structure. The migrati
 | integration/test_api_integration.py | ✅ Migrated | Moved to integration/api/ directory |
 | integration/test_async_api.py | ✅ Migrated | Moved to integration/api/ directory |
 
+## Import Path Changes Needed
+
+Tests need to update import paths to match the new module structure:
+
+| Old Path | New Path |
+|----------|---------|
+| `yahoofinance.display` | `yahoofinance.presentation.console` |
+| `yahoofinance.formatting` | `yahoofinance.presentation.formatter` |
+| `yahoofinance.analyst` | `yahoofinance.analysis.analyst` |
+| `yahoofinance.earnings` | `yahoofinance.analysis.earnings` |
+| `yahoofinance.econ` | `yahoofinance.analysis.market` |
+| `yahoofinance.holders` | `yahoofinance.analysis.portfolio` |
+| `yahoofinance.index` | `yahoofinance.analysis.market` |
+| `yahoofinance.insiders` | `yahoofinance.analysis.insiders` |
+| `yahoofinance.metrics` | `yahoofinance.analysis.metrics` |
+| `yahoofinance.monthly` | `yahoofinance.analysis.performance` |
+| `yahoofinance.news` | `yahoofinance.analysis.news` |
+| `yahoofinance.portfolio` | `yahoofinance.analysis.portfolio` |
+| `yahoofinance.pricing` | `yahoofinance.analysis.stock` |
+| `yahoofinance.weekly` | `yahoofinance.analysis.performance` |
+| `yahoofinance.utils.async.enhanced` | `yahoofinance.utils.async_utils.enhanced` |
+| `yahoofinance.utils.async.helpers` | `yahoofinance.utils.async_utils.helpers` |
+| `yahoofinance.utils.async` | `yahoofinance.utils.async_utils` |
+
+## Class Relocations
+
+Some classes have moved to different modules:
+
+| Old Class | New Location |
+|-----------|-------------|
+| `MarketDisplay` (from `yahoofinance.display`) | `yahoofinance.presentation.console` |
+| `PricingAnalyzer` (from `yahoofinance.display`) | `yahoofinance.analysis.metrics` |
+| `AnalystData` (from `yahoofinance.analyst`) | `yahoofinance.analysis.analyst` |
+| `AdaptiveRateLimiter` | Needs investigation |
+
 ## Legend
 
 - ❌ Not Migrated: Test has not been migrated yet
 - 🔄 In Progress: Migration in progress
 - ✅ Migrated: Test has been migrated to new structure
+- 🛠️ Fixed: Tests have been updated to work with new module structure
+- ⏩ Skipped: Test is skipped with a TODO for future implementation
