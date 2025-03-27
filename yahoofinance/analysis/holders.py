@@ -71,8 +71,8 @@ def analyze_holders(ticker: str) -> None:
         # Get institutional holders
         institutional_holders = stock.institutional_holders
         
-        # Get shares outstanding
-        shares_outstanding = stock.info.get('sharesOutstanding')
+        # Get shares outstanding - not used in this function but may be useful in future
+        # shares_outstanding = stock.info.get('sharesOutstanding')
         
         # Display major holders information
         if major_holders is not None:
@@ -99,7 +99,8 @@ def analyze_holders(ticker: str) -> None:
                     
                 holder = row['Holder']
                 shares = int(row['Shares'])
-                date = row['Date Reported'].strftime('%Y-%m-%d') if pd.notna(row['Date Reported']) else 'N/A'
+                # Date is available but not displayed in current output format
+                # date = row['Date Reported'].strftime('%Y-%m-%d') if pd.notna(row['Date Reported']) else 'N/A'
                 pct_held = row['pctHeld'] if 'pctHeld' in row and pd.notna(row['pctHeld']) else 0
                 value = row['Value'] if 'Value' in row and pd.notna(row['Value']) else 0
                 

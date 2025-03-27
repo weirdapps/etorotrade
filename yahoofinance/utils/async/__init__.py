@@ -16,7 +16,6 @@ warnings.warn(
     stacklevel=2
 )
 
-# from .rate_limiter import AsyncRateLimiter, async_rate_limited
 from .helpers import (
     gather_with_concurrency, 
     gather_with_semaphore,
