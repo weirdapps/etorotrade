@@ -17,6 +17,9 @@ from ..api import get_provider, FinanceDataProvider, AsyncFinanceDataProvider
 from ..core.errors import YFinanceError, ValidationError
 from .stock import StockAnalyzer, AnalysisResults
 
+# Constants
+GAIN_LOSS_PCT = 'Gain/Loss %'
+
 logger = logging.getLogger(__name__)
 
 @dataclass
@@ -371,7 +374,7 @@ class PortfolioAnalyzer:
                 'Current Price': holding.current_price,
                 'Current Value': holding.current_value,
                 'Gain/Loss': holding.gain_loss,
-                'Gain/Loss %': holding.gain_loss_pct,
+                GAIN_LOSS_PCT: holding.gain_loss_pct,
                 'Category': holding.analysis.category if holding.analysis else 'N/A',
                 'Name': holding.analysis.name if holding.analysis else holding.ticker,
                 'Upside': holding.analysis.upside if holding.analysis else None,
@@ -387,7 +390,7 @@ class PortfolioAnalyzer:
             df['Category_Sort'] = df['Category'].map(category_order)
             
             # Sort by category first, then by gain/loss within each category
-            df = df.sort_values(['Category_Sort', 'Gain/Loss %'], ascending=[True, False])
+            df = df.sort_values(['Category_Sort', GAIN_LOSS_PCT], ascending=[True, False])
             
             # Drop the sort column
             df = df.drop('Category_Sort', axis=1)
@@ -438,7 +441,7 @@ class PortfolioAnalyzer:
                     'Shares': holding.shares,
                     'Cost Basis': holding.cost_basis,
                     'Current Value': holding.current_value,
-                    'Gain/Loss %': holding.gain_loss_pct,
+                    GAIN_LOSS_PCT: holding.gain_loss_pct,
                     'Category': holding.analysis.category,
                     'Upside': holding.analysis.upside,
                     'Buy Rating': holding.analysis.buy_rating,

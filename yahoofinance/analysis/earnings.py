@@ -228,7 +228,7 @@ class EarningsAnalyzer:
             earnings_data.earnings_history = earnings_history
             
             # Get the latest earnings report
-            latest_report = earnings_history[0] if earnings_history else {}
+            latest_report = earnings_history[0]  # We already checked that earnings_history is not empty
             
             # Extract EPS data
             earnings_data.eps_estimate = latest_report.get('eps_estimate')

@@ -19,6 +19,9 @@ from functools import wraps
 from .base_provider import AsyncFinanceDataProvider
 from ...core.errors import YFinanceError, APIError, ValidationError, RateLimitError, NetworkError
 from ...utils.market.ticker_utils import validate_ticker, is_us_ticker
+
+# Constants
+EARNINGS_DATE_COL = "Earnings Date"
 from ...utils.async_utils.enhanced import (
     AsyncRateLimiter, 
     process_batch_async, 
@@ -224,14 +227,7 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             info["target_price"] = ticker_info.get("targetMeanPrice", None)
             info["recommendation"] = ticker_info.get("recommendationMean", None)
             
-            # Get analyst ratings if available
-            analysts = {
-                "strongBuy": ticker_info.get("recommendationKey", "").lower() == "strong_buy",
-                "buy": ticker_info.get("recommendationKey", "").lower() == "buy",
-                "hold": ticker_info.get("recommendationKey", "").lower() == "hold",
-                "sell": ticker_info.get("recommendationKey", "").lower() == "sell",
-                "strongSell": ticker_info.get("recommendationKey", "").lower() == "strong_sell"
-            }
+            # Get analyst ratings if available - using recommendationKey directly instead of intermediate map
             
             # Calculate buy percentage from recommendation
             if "numberOfAnalystOpinions" in ticker_info and ticker_info["numberOfAnalystOpinions"]:
@@ -264,8 +260,8 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             # Get earnings date
             try:
                 calendar = yticker.calendar
-                if calendar is not None and not calendar.empty and "Earnings Date" in calendar.columns:
-                    earnings_date = calendar["Earnings Date"].iloc[0]
+                if calendar is not None and not calendar.empty and EARNINGS_DATE_COL in calendar.columns:
+                    earnings_date = calendar[EARNINGS_DATE_COL].iloc[0]
                     if pd.notna(earnings_date):
                         info["last_earnings"] = earnings_date.strftime("%Y-%m-%d")
             except Exception as e:
@@ -388,8 +384,8 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             # Get calendar for earnings dates
             try:
                 calendar = yticker.calendar
-                if calendar is not None and not calendar.empty and "Earnings Date" in calendar.columns:
-                    earnings_date = calendar["Earnings Date"].iloc[0]
+                if calendar is not None and not calendar.empty and EARNINGS_DATE_COL in calendar.columns:
+                    earnings_date = calendar[EARNINGS_DATE_COL].iloc[0]
                     if pd.notna(earnings_date):
                         earnings_data["earnings_dates"].append(earnings_date.strftime("%Y-%m-%d"))
             except Exception as e:
@@ -538,7 +534,6 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 if recommendations is not None and not recommendations.empty:
                     # Get the most recent recommendation
                     latest_rec = recommendations.iloc[-1]
-                    total = 1
                     
                     # Map the grade to our categories
                     grade = latest_rec.get('To Grade', '').lower()
