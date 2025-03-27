@@ -71,7 +71,7 @@ class AnalysisResults:
     short_percent: Optional[float] = None
     expected_return: Optional[float] = None
     category: str = "NEUTRAL"
-    signals: List[str] = None
+    signals: Optional[List[str]] = None
     warning: Optional[str] = None
     
     def __post_init__(self):

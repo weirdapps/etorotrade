@@ -294,8 +294,10 @@ async def test_process_batch_async():
     assert mock_sleep.call_count > 0
     
     # At least some of the sleeps should be for the right delay amount
+    # Using proper floating point comparison with small epsilon
+    epsilon = 1e-10
     delay_between_batches_calls = [call for call in mock_sleep.call_args_list 
-                                  if call[0][0] == 0.05]
+                                  if abs(call[0][0] - 0.05) < epsilon]
     assert len(delay_between_batches_calls) > 0
 
 

@@ -57,19 +57,26 @@ for logger_name in logging.root.manager.loggerDict:
 rate_limiter_logger = logging.getLogger('yahoofinance.utils.network')
 rate_limiter_logger.setLevel(logging.WARNING)
 
+# Define constants for file paths
+OUTPUT_DIR = "yahoofinance/output"
+INPUT_DIR = "yahoofinance/input"
+
+# Define constants for output files
+BUY_CSV = "buy.csv"
+SELL_CSV = "sell.csv"
+HOLD_CSV = "hold.csv"
+
 def get_file_paths():
     """Get the file paths for trade recommendation analysis.
     
     Returns:
         tuple: (output_dir, input_dir, market_path, portfolio_path, notrade_path)
     """
-    output_dir = "yahoofinance/output"
-    input_dir = "yahoofinance/input"
-    market_path = f"{output_dir}/market.csv"
-    portfolio_path = f"{input_dir}/portfolio.csv"
-    notrade_path = f"{input_dir}/notrade.csv"
+    market_path = f"{OUTPUT_DIR}/market.csv"
+    portfolio_path = f"{INPUT_DIR}/portfolio.csv"
+    notrade_path = f"{INPUT_DIR}/notrade.csv"
     
-    return output_dir, input_dir, market_path, portfolio_path, notrade_path
+    return OUTPUT_DIR, INPUT_DIR, market_path, portfolio_path, notrade_path
 
 def ensure_output_directory(output_dir):
     """Ensure the output directory exists.
@@ -249,7 +256,7 @@ def calculate_action(df):
     # Check each stock individually against SELL criteria
     for idx in confident_indices:
         row = working_df.loc[idx]
-        ticker = row.get('ticker', row.get('symbol', f"idx_{idx}"))
+        # We don't need the ticker value here, just the index
         
         sell_criteria = TRADING_CRITERIA["SELL"]
         buy_criteria = TRADING_CRITERIA["BUY"]
@@ -757,9 +764,6 @@ def display_and_save_results(display_df, title, output_file):
     
     for _, row in display_df.iterrows():
         try:
-            # Convert row to dict and fix numeric values
-            row_dict = convert_to_numeric(row.to_dict())
-            
             # Apply color to row - use the category-specific color
             colored_row = apply_color_to_row(row, color_code)
             colored_values.append(colored_row)
@@ -900,7 +904,7 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_
     
     if new_opportunities.empty:
         print("\nNo new buy opportunities found matching criteria.")
-        output_file = os.path.join(output_dir, "buy.csv")
+        output_file = os.path.join(output_dir, BUY_CSV)
         create_empty_results_file(output_file)
     else:
         # Prepare and format dataframe for display
@@ -929,7 +933,7 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_
         display_df = display_df.sort_values('TICKER', ascending=True)
         
         # Display and save results
-        output_file = os.path.join(output_dir, "buy.csv")
+        output_file = os.path.join(output_dir, BUY_CSV)
         display_and_save_results(
             display_df, 
             "New Buy Opportunities (not in current portfolio or notrade list)", 
@@ -957,7 +961,7 @@ def process_sell_candidates(output_dir):
     
     if sell_candidates.empty:
         print("\nNo sell candidates found matching criteria in your portfolio.")
-        output_file = os.path.join(output_dir, "sell.csv")
+        output_file = os.path.join(output_dir, SELL_CSV)
         create_empty_results_file(output_file)
     else:
         # Prepare and format dataframe for display
@@ -986,7 +990,7 @@ def process_sell_candidates(output_dir):
         display_df = display_df.sort_values('TICKER', ascending=True)
         
         # Display and save results
-        output_file = os.path.join(output_dir, "sell.csv")
+        output_file = os.path.join(output_dir, SELL_CSV)
         display_and_save_results(
             display_df,
             "Sell Candidates in Your Portfolio",
@@ -1014,7 +1018,7 @@ def process_hold_candidates(output_dir):
     
     if hold_candidates.empty:
         print("\nNo hold candidates found matching criteria.")
-        output_file = os.path.join(output_dir, "hold.csv")
+        output_file = os.path.join(output_dir, HOLD_CSV)
         create_empty_results_file(output_file)
     else:
         # Prepare and format dataframe for display
@@ -1043,7 +1047,7 @@ def process_hold_candidates(output_dir):
         display_df = display_df.sort_values('TICKER', ascending=True)
         
         # Display and save results
-        output_file = os.path.join(output_dir, "hold.csv")
+        output_file = os.path.join(output_dir, HOLD_CSV)
         display_and_save_results(
             display_df,
             "Hold Candidates (neither buy nor sell)",
@@ -1058,16 +1062,16 @@ def generate_trade_recommendations(action_type):
     """
     try:
         # Get file paths
-        output_dir, input_dir, market_path, portfolio_path, notrade_path = get_file_paths()
+        output_dir, _, market_path, portfolio_path, notrade_path = get_file_paths()
         
         # Ensure output directory exists
         if not ensure_output_directory(output_dir):
             return
         
         # Ensure output file paths are accessible for all types
-        buy_output = os.path.join(output_dir, "buy.csv")
-        sell_output = os.path.join(output_dir, "sell.csv")
-        hold_output = os.path.join(output_dir, "hold.csv")
+        buy_output = os.path.join(output_dir, BUY_CSV)
+        sell_output = os.path.join(output_dir, SELL_CSV)
+        hold_output = os.path.join(output_dir, HOLD_CSV)
         
         print(f"Generating trade recommendations for action type: {action_type}")
         print(f"Using market data from: {market_path}")
@@ -1606,7 +1610,6 @@ def display_report_for_source(display, tickers, source, verbose=False):
             except Exception as e:
                 # If any error in color logic, use the original row
                 logger.debug(f"Error applying color: {str(e)}")
-                pass
                 
             colored_rows.append(colored_row)
             
@@ -1630,9 +1633,9 @@ def display_report_for_source(display, tickers, source, verbose=False):
         
         # Display color coding key
         print("\nColor coding key:")
-        print(f"\033[92mGreen\033[0m - BUY (meets all BUY criteria and confidence threshold)")
-        print(f"\033[91mRed\033[0m - SELL (meets at least one SELL criterion and confidence threshold)")
-        print(f"White - HOLD (meets confidence threshold but not BUY or SELL criteria)")
+        print("\033[92mGreen\033[0m - BUY (meets all BUY criteria and confidence threshold)")
+        print("\033[91mRed\033[0m - SELL (meets at least one SELL criterion and confidence threshold)")
+        print("White - HOLD (meets confidence threshold but not BUY or SELL criteria)")
         print(f"\033[93mYellow\033[0m - INCONCLUSIVE (fails confidence threshold: <{TRADING_CRITERIA['CONFIDENCE']['MIN_ANALYST_COUNT']} analysts or <{TRADING_CRITERIA['CONFIDENCE']['MIN_PRICE_TARGETS']} price targets)")
         
         # Debug output for ACTION column with confidence information
@@ -1669,7 +1672,7 @@ def display_report_for_source(display, tickers, source, verbose=False):
             )
             
             if confidence_met:
-                confidence_status = f"\033[92mPASS\033[0m"
+                confidence_status = "\033[92mPASS\033[0m"
             else:
                 confidence_status = f"\033[93mINCONCLUSIVE\033[0m (min: {min_analysts}A/{min_targets}T)"
             
@@ -2122,7 +2125,6 @@ def main_async():
                                             earnings_data["earnings_dates"].append(formatted_date)
                         except Exception as e:
                             logger.debug(f"Error processing earnings dates from calendar: {e}")
-                            pass
                         
                     # Add earnings data from ticker info
                     if "last_earnings" in info and info["last_earnings"]:

@@ -58,7 +58,7 @@ class InsiderSummary:
         average_sell_price: Average price per share for sells
     """
     
-    transactions: List[InsiderTransaction] = None
+    transactions: Optional[List[InsiderTransaction]] = None
     buy_count: int = 0
     sell_count: int = 0
     total_buy_value: float = 0.0
