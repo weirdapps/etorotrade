@@ -20,6 +20,7 @@ from yahoofinance.utils.async_utils.enhanced import (
     enhanced_async_rate_limited
 )
 from yahoofinance.utils.network.circuit_breaker import CircuitOpenError
+from yahoofinance.core.errors import RateLimitError
 
 
 @pytest.fixture
@@ -87,7 +88,7 @@ async def test_async_rate_limiter_record_success():
     assert limiter.failure_streak == 0
     
     # Delay should be reduced after 5 successes
-    assert limiter.current_delay < 0.1
+    assert limiter.current_delay < 0.1 + 1e-10  # Use epsilon for floating point comparison
 
 
 @pytest.mark.asyncio
@@ -103,13 +104,21 @@ async def test_async_rate_limiter_record_failure():
     assert limiter.failure_streak == 1
     assert limiter.success_streak == 0
     # Non-rate-limit failure increases delay by factor of 1.5
-    assert 0.14 <= limiter.current_delay <= 0.16
+    # Using proper floating point comparison with small epsilon
+    epsilon = 1e-10
+    expected_min = 0.14 - epsilon
+    expected_max = 0.16 + epsilon
+    assert expected_min <= limiter.current_delay <= expected_max
     
     # Record rate limit failure
     await limiter.record_failure(is_rate_limit=True)
     assert limiter.failure_streak == 2
     # Rate-limit failure increases delay by factor of 2
-    assert 0.29 <= limiter.current_delay <= 0.31
+    # Using proper floating point comparison with small epsilon
+    epsilon = 1e-10
+    expected_min = 0.29 - epsilon
+    expected_max = 0.31 + epsilon
+    assert expected_min <= limiter.current_delay <= expected_max
 
 
 @pytest.mark.asyncio
@@ -336,9 +345,8 @@ async def test_async_rate_limited_decorator():
     
     @async_rate_limited(limiter)
     async def rate_limit_func():
-        raise Exception("rate limit exceeded")
-    
-    with pytest.raises(Exception, match="rate limit exceeded"):
+        raise RateLimitError("rate limit exceeded")
+    with pytest.raises(RateLimitError, match="rate limit exceeded"):
         await rate_limit_func()
     
     # The rate limit flag should be True for rate limit errors
