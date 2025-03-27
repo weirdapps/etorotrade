@@ -233,7 +233,7 @@ The codebase includes a compatibility layer that ensures backward compatibility:
   - `portfolio.csv` - Analysis results from portfolio
   - `index.html` - Main HTML dashboard
   - `portfolio_dashboard.html` - Portfolio HTML dashboard
-  - `manual_input.csv` - Results from manual ticker input
+  - `manual.csv` - Results from manual ticker input
   - `monthly_performance.json` - Monthly performance data
   - `portfolio_performance.json` - Portfolio performance data
   - `weekly_performance.json` - Weekly performance data
