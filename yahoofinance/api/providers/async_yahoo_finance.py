@@ -17,6 +17,7 @@ import concurrent.futures
 from datetime import datetime
 
 from .base_provider import AsyncFinanceDataProvider
+from .yahoo_finance_base import YahooFinanceBaseProvider
 from ...core.errors import YFinanceError, APIError, ValidationError, RateLimitError
 from ...utils.market.ticker_utils import validate_ticker, is_us_ticker
 from ...utils.async_utils.helpers import async_rate_limited, gather_with_concurrency
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar('T')  # Return type for async functions
 
-class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
+class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvider):
     """
     Asynchronous Yahoo Finance data provider implementation.
     
@@ -48,87 +49,14 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             retry_delay: Base delay in seconds between retries (exponential backoff applied)
             max_concurrency: Maximum number of concurrent operations
         """
-        self.max_retries = max_retries
-        self.retry_delay = retry_delay
+        # Call the base class constructor
+        super().__init__(max_retries=max_retries, retry_delay=retry_delay)
+        
+        # Add async-specific attributes
         self.max_concurrency = max_concurrency
-        self._ticker_cache = {}
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_concurrency)
         
-    def _format_market_cap(self, market_cap: Optional[Union[int, float]]) -> Optional[str]:
-        """
-        Format market cap value to a readable string with B/T suffix.
-        
-        Args:
-            market_cap: Market cap value in numeric format
-            
-        Returns:
-            Formatted market cap string with appropriate suffix
-        """
-        if not market_cap:
-            return None
-            
-        # Convert to billions or trillions
-        if market_cap >= 1_000_000_000_000:  # Trillion
-            value = market_cap / 1_000_000_000_000
-            if value >= 10:
-                return f"{value:.1f}T"
-            else:
-                return f"{value:.2f}T"
-        elif market_cap >= 1_000_000_000:  # Billion
-            value = market_cap / 1_000_000_000
-            if value >= 100:
-                return f"{value:.0f}B"
-            elif value >= 10:
-                return f"{value:.1f}B"
-            else:
-                return f"{value:.2f}B"
-        elif market_cap >= 1_000_000:  # Million
-            value = market_cap / 1_000_000
-            return f"{value:.2f}M"
-        else:
-            return f"{market_cap:,.0f}"
-            
-    def _format_date(self, date_obj: Any) -> Optional[str]:
-        """
-        Format a date object to a string.
-        
-        Args:
-            date_obj: Date object or string to format
-            
-        Returns:
-            Formatted date string or None if input is None
-        """
-        if not date_obj:
-            return None
-            
-        if isinstance(date_obj, str):
-            try:
-                # Try to parse as ISO format
-                date_obj = datetime.fromisoformat(date_obj.replace('Z', '+00:00'))
-            except (ValueError, TypeError):
-                # Return as is if parsing fails
-                return date_obj
-                
-        try:
-            return date_obj.strftime('%Y-%m-%d')
-        except (AttributeError, TypeError):
-            return str(date_obj)
-            
-    def _calculate_upside_potential(self, current_price: Optional[float], target_price: Optional[float]) -> Optional[float]:
-        """
-        Calculate upside potential as a percentage.
-        
-        Args:
-            current_price: Current stock price
-            target_price: Target stock price
-            
-        Returns:
-            Upside potential as a percentage or None if not calculable
-        """
-        if not current_price or not target_price or current_price <= 0:
-            return None
-            
-        return ((target_price - current_price) / current_price) * 100
+    # These methods are now inherited from YahooFinanceBaseProvider
     
     async def _run_sync_in_executor(self, func: Callable[..., T], *args, **kwargs) -> T:
         """
