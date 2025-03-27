@@ -2,6 +2,35 @@
 
 This file tracks the status of test migrations to the new structure.
 
+## Code Duplication Resolution Plan
+
+The following duplication issues have been identified and need to be addressed:
+
+| Duplication Pattern | Duplication % | Status |
+|---------------------|--------------|---------|
+| Fixture files (`tests/yahoofinance/fixtures/` vs `tests/fixtures/`) | 100% | In Progress |
+| Async utilities (`utils/async/` vs `utils/async_utils/`) | ~40% | Planned |
+| Provider implementations (`yahoo_finance.py` vs `async_yahoo_finance.py`) | ~35% | Planned |
+| Rate limiter implementations (async vs sync) | ~18% | Planned |
+
+### Fixture Files Migration
+
+1. ✅ Update `conftest.py` to register fixtures from canonical location
+2. ⏱️ Add deprecation warnings to duplicate fixture modules
+3. ⏱️ Remove duplicated fixture files once all tests are migrated
+
+### Async Utilities Consolidation
+
+1. ⏱️ Design unified interfaces for async operations
+2. ⏱️ Create base classes for shared functionality
+3. ⏱️ Update all consumers to use the new unified API
+
+### Provider Implementations
+
+1. ⏱️ Extract common behavior to base classes
+2. ⏱️ Use mixins for specialized features (async, batching)
+3. ⏱️ Use template method pattern for async/sync differences
+
 ## Migration Update
 
 All test files have been migrated to the new structure, and most of the critical tests are now passing. The integration tests for both API and Async API have been fixed and are now passing, along with the end-to-end tests.

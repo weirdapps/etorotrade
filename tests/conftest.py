@@ -14,6 +14,16 @@ from yahoofinance.core.client import YFinanceClient
 from yahoofinance.presentation.console import MarketDisplay
 from yahoofinance.presentation.formatter import DisplayConfig, DisplayFormatter
 
+# Import common fixtures to make them available globally
+# This allows us to use fixtures defined in the fixture modules throughout the test suite
+# without needing to import them directly in each test file
+pytest_plugins = [
+    "tests.fixtures.api_responses.api_errors",
+    "tests.fixtures.async_fixtures",
+    "tests.fixtures.rate_limiter_fixtures",
+    "tests.fixtures.market_data.stock_data"
+]
+
 
 @pytest.fixture
 def mock_client():
@@ -70,8 +80,8 @@ def mock_display(mock_client):
     Returns:
         MarketDisplay: A MarketDisplay instance for testing.
     """
-    with patch('yahoofinance.analysis.metrics.PricingAnalyzer') as mock_pricing, \
-         patch('yahoofinance.analysis.analyst.AnalystData') as mock_analyst:
+    with patch('yahoofinance.analysis.metrics.PricingAnalyzer'), \
+         patch('yahoofinance.analysis.analyst.AnalystData'):
         display = MarketDisplay(client=mock_client)
         return display
 
