@@ -10,12 +10,17 @@ import pandas as pd
 from datetime import datetime, timedelta
 from unittest.mock import Mock
 
+# Constants for company names
+APPLE_NAME = "Apple Inc."
+MICROSOFT_NAME = "Microsoft Corporation"
+AMAZON_NAME = "Amazon.com Inc."
+
 # Market condition sets
 BULL_MARKET = {
     "AAPL": {
         "current_price": 170.0,
         "target_price": 210.0,
-        "company_name": "Apple Inc.",
+        "company_name": APPLE_NAME,
         "price_change_percentage": 2.5,
         "upside_potential": 23.5,
         "pe_trailing": 28.0,
@@ -30,7 +35,7 @@ BULL_MARKET = {
     "MSFT": {
         "current_price": 330.0,
         "target_price": 400.0,
-        "company_name": "Microsoft Corporation",
+        "company_name": MICROSOFT_NAME,
         "price_change_percentage": 1.8,
         "upside_potential": 21.2,
         "pe_trailing": 32.0,
@@ -45,7 +50,7 @@ BULL_MARKET = {
     "AMZN": {
         "current_price": 140.0,
         "target_price": 185.0,
-        "company_name": "Amazon.com Inc.",
+        "company_name": AMAZON_NAME,
         "price_change_percentage": 3.2,
         "upside_potential": 32.1,
         "pe_trailing": 60.0,
@@ -63,7 +68,7 @@ BEAR_MARKET = {
     "AAPL": {
         "current_price": 140.0,
         "target_price": 155.0,
-        "company_name": "Apple Inc.",
+        "company_name": APPLE_NAME,
         "price_change_percentage": -1.5,
         "upside_potential": 10.7,
         "pe_trailing": 22.0,
@@ -78,7 +83,7 @@ BEAR_MARKET = {
     "MSFT": {
         "current_price": 290.0,
         "target_price": 310.0,
-        "company_name": "Microsoft Corporation",
+        "company_name": MICROSOFT_NAME,
         "price_change_percentage": -0.8,
         "upside_potential": 6.9,
         "pe_trailing": 27.0,
@@ -93,7 +98,7 @@ BEAR_MARKET = {
     "AMZN": {
         "current_price": 115.0,
         "target_price": 130.0,
-        "company_name": "Amazon.com Inc.",
+        "company_name": AMAZON_NAME,
         "price_change_percentage": -2.2,
         "upside_potential": 13.0,
         "pe_trailing": 40.0,
@@ -111,7 +116,7 @@ VOLATILE_MARKET = {
     "AAPL": {
         "current_price": 155.0,
         "target_price": 190.0,
-        "company_name": "Apple Inc.",
+        "company_name": APPLE_NAME,
         "price_change_percentage": -3.5,
         "upside_potential": 22.6,
         "pe_trailing": 24.0,
@@ -126,7 +131,7 @@ VOLATILE_MARKET = {
     "MSFT": {
         "current_price": 310.0,
         "target_price": 350.0,
-        "company_name": "Microsoft Corporation",
+        "company_name": MICROSOFT_NAME,
         "price_change_percentage": 2.8,
         "upside_potential": 12.9,
         "pe_trailing": 29.0,
@@ -141,7 +146,7 @@ VOLATILE_MARKET = {
     "AMZN": {
         "current_price": 125.0,
         "target_price": 170.0,
-        "company_name": "Amazon.com Inc.",
+        "company_name": AMAZON_NAME,
         "price_change_percentage": -4.2,
         "upside_potential": 36.0,
         "pe_trailing": 45.0,

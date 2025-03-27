@@ -179,7 +179,7 @@ class TestRateLimiterDecorators(unittest.TestCase):
         with patch('yahoofinance.utils.network.rate_limiter.global_rate_limiter', mock_limiter):
             calls = []
             
-            @rate_limited(ticker_param='ticker')
+            @rate_limited
             def test_func(ticker, value):
                 calls.append((ticker, value))
                 return f"{ticker}:{value}"

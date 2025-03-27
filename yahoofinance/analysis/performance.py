@@ -6,6 +6,14 @@ and portfolio performance from external sources, including web scraping
 for additional performance metrics not available through the API.
 """
 
+# Constants for repeated strings
+THIS_MONTH = "This Month"
+YEAR_TO_DATE = "Year To Date"
+TWO_YEARS = "2 Years"
+JENSENS_ALPHA = "Jensen's Alpha"
+DEFAULT_PORTFOLIO_URL = "https://bullaware.com/etoro/plessas"
+HTML_PARSER = "html.parser"
+
 import logging
 import asyncio
 import pytz
@@ -118,23 +126,23 @@ class PortfolioPerformance:
         
         # Performance metrics
         if self.this_month is not None:
-            result["This Month"] = {
+            result[THIS_MONTH] = {
                 "value": self.this_month,
-                "label": "This Month",
+                "label": THIS_MONTH,
                 "is_percentage": True
             }
             
         if self.year_to_date is not None:
-            result["Year To Date"] = {
+            result[YEAR_TO_DATE] = {
                 "value": self.year_to_date,
-                "label": "Year To Date",
+                "label": YEAR_TO_DATE,
                 "is_percentage": True
             }
             
         if self.two_years is not None:
-            result["2 Years"] = {
+            result[TWO_YEARS] = {
                 "value": self.two_years,
-                "label": "2 Years",
+                "label": TWO_YEARS,
                 "is_percentage": True
             }
         
@@ -163,7 +171,7 @@ class PortfolioPerformance:
         if self.alpha is not None:
             result["Alpha"] = {
                 "value": self.alpha,
-                "label": "Jensen's Alpha",
+                "label": JENSENS_ALPHA,
                 "is_percentage": False
             }
             
@@ -241,10 +249,8 @@ class PerformanceTracker:
         today = datetime.today()
         # Get the last day of the previous month
         last_month = today.replace(day=1) - timedelta(days=1)
-        last_month_end = last_month.date()
         # Get the last day of the previous previous month
         previous_month = last_month.replace(day=1) - timedelta(days=1)
-        previous_month_end = previous_month.date()
         return previous_month.replace(hour=0, minute=0, second=0, microsecond=0), \
                last_month.replace(hour=0, minute=0, second=0, microsecond=0)
     
@@ -486,7 +492,7 @@ class PerformanceTracker:
             )
     
     @staticmethod
-    def _format_percentage_value(value: str) -> float:
+    def _format_percentage_value(value: str) -> Optional[float]:
         """Format a percentage value as float."""
         try:
             # Remove % symbol but keep signs
@@ -496,7 +502,7 @@ class PerformanceTracker:
             return None
     
     @circuit_protected("web_scraping")
-    def get_portfolio_performance_web(self, url: str = "https://bullaware.com/etoro/plessas") -> PortfolioPerformance:
+    def get_portfolio_performance_web(self, url: str = DEFAULT_PORTFOLIO_URL) -> PortfolioPerformance:
         """
         Get portfolio performance data from a web source.
         
@@ -518,15 +524,15 @@ class PerformanceTracker:
             
             # Map the scraped data fields to performance fields
             field_mapping = {
-                'This Month': 'this_month',
+                THIS_MONTH: 'this_month',
                 'MTD': 'this_month',
                 'Today': 'this_month',
-                'Year To Date': 'year_to_date',
+                YEAR_TO_DATE: 'year_to_date',
                 'YTD': 'year_to_date',
-                '2 Years': 'two_years',
+                TWO_YEARS: 'two_years',
                 '2YR': 'two_years',
                 'Beta': 'beta',
-                "Jensen's Alpha": 'alpha',
+                JENSENS_ALPHA: 'alpha',
                 'Alpha': 'alpha',
                 'Sharpe': 'sharpe',
                 'Sharpe Ratio': 'sharpe',
@@ -566,7 +572,7 @@ class PerformanceTracker:
             return PortfolioPerformance(source=url, last_updated=datetime.now())
     
     @async_circuit_protected("web_scraping")
-    async def get_portfolio_performance_web_async(self, url: str = "https://bullaware.com/etoro/plessas") -> PortfolioPerformance:
+    async def get_portfolio_performance_web_async(self, url: str = DEFAULT_PORTFOLIO_URL) -> PortfolioPerformance:
         """
         Get portfolio performance data from a web source asynchronously.
         
@@ -588,15 +594,15 @@ class PerformanceTracker:
             
             # Map the scraped data fields to performance fields
             field_mapping = {
-                'This Month': 'this_month',
+                THIS_MONTH: 'this_month',
                 'MTD': 'this_month',
                 'Today': 'this_month',
-                'Year To Date': 'year_to_date',
+                YEAR_TO_DATE: 'year_to_date',
                 'YTD': 'year_to_date',
-                '2 Years': 'two_years',
+                TWO_YEARS: 'two_years',
                 '2YR': 'two_years',
                 'Beta': 'beta',
-                "Jensen's Alpha": 'alpha',
+                JENSENS_ALPHA: 'alpha',
                 'Alpha': 'alpha',
                 'Sharpe': 'sharpe',
                 'Sharpe Ratio': 'sharpe',
@@ -657,29 +663,28 @@ class PerformanceTracker:
             'Connection': 'keep-alive',
         }
         
+        # Import certifi for SSL certificate verification
+        import certifi
+        
         session = requests.Session()
         try:
-            # First attempt with default SSL verification
-            response = session.get(url, headers=headers, verify=True, timeout=30)
+            # Always use SSL verification with proper certificate bundle
+            response = session.get(
+                url, 
+                headers=headers, 
+                verify=certifi.where(),  # Use certifi's certificate bundle
+                timeout=30
+            )
             response.raise_for_status()
             
             # Force response encoding to UTF-8
             response.encoding = 'utf-8'
-            return BeautifulSoup(response.text, "html.parser")
+            return BeautifulSoup(response.text, HTML_PARSER)
             
-        except requests.exceptions.SSLError:
-            try:
-                # Second attempt with SSL verification disabled
-                session.verify = False
-                response = session.get(url, headers=headers, timeout=30)
-                response.raise_for_status()
-                
-                # Force response encoding to UTF-8
-                response.encoding = 'utf-8'
-                return BeautifulSoup(response.text, "html.parser")
-                
-            except requests.exceptions.RequestException as e:
-                raise NetworkError(f"Failed to fetch data from {url} (SSL retry failed): {str(e)}")
+        except requests.exceptions.SSLError as e:
+            # Do not fall back to insecure connections
+            # SSL errors indicate certificate validation problems that should be addressed properly
+            raise NetworkError(f"SSL certificate validation failed for {url}. This could indicate a security issue: {str(e)}")
         except requests.exceptions.RequestException as e:
             raise NetworkError(f"Failed to fetch data from {url}: {str(e)}")
         finally:
@@ -707,31 +712,27 @@ class PerformanceTracker:
             'Connection': 'keep-alive',
         }
         
-        # Configure client SSL context
-        ssl_context = None  # Default
+        # Use SSL with proper verification
+        # Import for creating proper SSL context
+        import ssl
+        import certifi
+        
+        # Create a proper SSL context with certificate verification
+        ssl_context = ssl.create_default_context(cafile=certifi.where())
         
         async with aiohttp.ClientSession() as session:
             try:
-                # First attempt with default SSL verification
+                # Always use SSL verification
                 async with session.get(url, headers=headers, ssl=ssl_context, timeout=30) as response:
                     if response.status == 200:
                         html_content = await response.text()
-                        return BeautifulSoup(html_content, "html.parser")
+                        return BeautifulSoup(html_content, HTML_PARSER)
                     else:
                         response.raise_for_status()
-                        
-            except aiohttp.ClientSSLError:
-                try:
-                    # Second attempt with SSL verification disabled
-                    async with session.get(url, headers=headers, ssl=False, timeout=30) as response:
-                        if response.status == 200:
-                            html_content = await response.text()
-                            return BeautifulSoup(html_content, "html.parser")
-                        else:
-                            response.raise_for_status()
                             
-                except aiohttp.ClientError as e:
-                    raise NetworkError(f"Failed to fetch data from {url} (SSL retry failed): {str(e)}")
+                # Using proper SSL handling without fallbacks to insecure connections
+                except aiohttp.ClientSSLError as e:
+                    raise NetworkError(f"SSL certificate validation failed for {url}. This could indicate a security issue: {str(e)}")
             except aiohttp.ClientError as e:
                 raise NetworkError(f"Failed to fetch data from {url}: {str(e)}")
     
@@ -1053,7 +1054,7 @@ def track_index_performance(period_type: str = "weekly"):
         print(f"Error: {str(e)}")
 
 
-def track_portfolio_performance(url: str = "https://bullaware.com/etoro/plessas"):
+def track_portfolio_performance(url: str = DEFAULT_PORTFOLIO_URL):
     """
     Track and display portfolio performance from web source.
     
@@ -1116,7 +1117,7 @@ def track_portfolio_performance(url: str = "https://bullaware.com/etoro/plessas"
         print(f"Error: {str(e)}")
 
 
-async def track_performance_async(period_type: str = "weekly", portfolio_url: str = "https://bullaware.com/etoro/plessas"):
+async def track_performance_async(period_type: str = "weekly", portfolio_url: str = DEFAULT_PORTFOLIO_URL):
     """
     Track both index and portfolio performance asynchronously.
     

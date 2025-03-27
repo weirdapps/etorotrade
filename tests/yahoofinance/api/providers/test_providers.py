@@ -136,7 +136,7 @@ class TestYahooFinanceProvider:
             assert "ticker" in result
             assert "price" in result
             assert "name" in result
-            assert result["price"] == 150.0
+            assert result["price"] == pytest.approx(150.0, 0.001)
             assert result["name"] == "Apple Inc."
     
     def test_get_price_data(self, mock_client):
@@ -164,7 +164,7 @@ class TestYahooFinanceProvider:
                 assert isinstance(result, dict)
                 assert "current_price" in result
                 assert "upside_potential" in result
-                assert result["current_price"] == 150.0
+                assert result["current_price"] == pytest.approx(150.0, 0.001)
     
     def test_get_historical_data(self, mock_client):
         """Test get_historical_data method returns correctly formatted data."""
@@ -202,7 +202,7 @@ class TestYahooFinanceProvider:
                 assert isinstance(result, dict)
                 assert "positive_percentage" in result
                 assert "total_ratings" in result
-                assert result["positive_percentage"] == 85.0
+                assert result["positive_percentage"] == pytest.approx(85.0, 0.001)
     
     def test_get_earnings_data(self, mock_client):
         """Test get_earnings_data method returns correctly formatted data."""

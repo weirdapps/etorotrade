@@ -3,7 +3,19 @@ API error response fixtures for etorotrade tests.
 
 This module contains fixtures for simulating various API error scenarios
 for unit and integration testing.
+
+DEPRECATED: This module is deprecated in favor of tests.fixtures.api_responses.api_errors.
+Use the fixtures from that module instead, which are automatically registered in conftest.py.
 """
+
+import warnings
+
+warnings.warn(
+    "This module (tests.yahoofinance.fixtures.api_responses.api_errors) is deprecated. "
+    "Use tests.fixtures.api_responses.api_errors instead, which is automatically registered in conftest.py.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 import pytest
 from unittest.mock import Mock

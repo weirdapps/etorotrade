@@ -6,6 +6,10 @@ for unit and integration testing.
 """
 
 import pytest
+
+# Constants for repeated strings
+NON_JSON_TEXT = "This is not JSON"
+
 from unittest.mock import Mock
 import requests
 import json
@@ -99,8 +103,8 @@ def malformed_json_response():
     """
     return MockResponse(
         status_code=200,
-        text="This is not JSON",
-        error=json.JSONDecodeError("Expecting value", "This is not JSON", 0)
+        text=NON_JSON_TEXT,
+        error=json.JSONDecodeError("Expecting value", NON_JSON_TEXT, 0)
     )
 
 
@@ -190,8 +194,8 @@ def mock_error_responses():
         ),
         "malformed_json": MockResponse(
             status_code=200,
-            text="This is not JSON",
-            error=json.JSONDecodeError("Expecting value", "This is not JSON", 0)
+            text=NON_JSON_TEXT,
+            error=json.JSONDecodeError("Expecting value", NON_JSON_TEXT, 0)
         ),
         "timeout": requests.Timeout("Request timed out"),
         "connection_error": requests.ConnectionError("Connection failed"),

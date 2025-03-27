@@ -100,7 +100,7 @@ class TestAsyncRateLimitedDecorator:
     @pytest.mark.asyncio
     async def test_basic_decoration(self):
         """Test basic functionality of the decorator."""
-        test_limiter = AsyncRateLimiter()
+        # Unused variable removed
         
         @async_rate_limited()
         async def test_func(x):
@@ -112,7 +112,7 @@ class TestAsyncRateLimitedDecorator:
     @pytest.mark.asyncio
     async def test_ticker_parameter(self):
         """Test with ticker parameter extraction."""
-        test_limiter = AsyncRateLimiter()
+        # Unused variable removed
         
         # Define a function with the decorator that uses ticker
         # Use a different parameter name than 'ticker' to avoid conflict

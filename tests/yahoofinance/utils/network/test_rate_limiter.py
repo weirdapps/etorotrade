@@ -312,8 +312,8 @@ class TestRateLimitTracker:
         limiter = RateLimitTracker(window_size=30, max_calls=50)
         assert limiter.window_size == 30
         assert limiter.max_calls == 50
-        assert limiter.base_delay == 1.5
-        assert limiter.min_delay == 0.8
+        assert limiter.base_delay == pytest.approx(1.5, 0.001)
+        assert limiter.min_delay == pytest.approx(0.8, 0.001)
     
     def test_add_call(self):
         """Test adding calls and delay calculation."""
