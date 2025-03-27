@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch, Mock
-from yahoofinance.news import (
+from yahoofinance.analysis.news import (
     calculate_sentiment,
     get_sentiment_color,
     Colors,

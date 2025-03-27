@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch, Mock
-from yahoofinance.formatting import DisplayFormatter, DisplayConfig, Color, ColorCode
+from yahoofinance.presentation.formatter import DisplayFormatter, DisplayConfig, Color, ColorCode
 
 class TestDisplayFormatter(unittest.TestCase):
     def setUp(self):

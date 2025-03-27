@@ -344,20 +344,38 @@ class AsyncRateLimiter:
                 logger.debug(f"Increased delay to {self.current_delay:.2f}s after failure")
 
 
-def async_rate_limited(rate_limiter: Optional[AsyncRateLimiter] = None):
+def async_rate_limited(func=None, rate_limiter=None):
     """
     Decorator for rate-limiting async functions.
     
+    This decorator can be used in two ways:
+    1. @async_rate_limited - no arguments, uses default rate limiter
+    2. @async_rate_limited(rate_limiter=my_limiter) - with custom rate limiter
+    
     Args:
-        rate_limiter: Rate limiter to use (creates new one if None)
+        func: The function to decorate (None if used with parentheses)
+        rate_limiter: Optional custom rate limiter to use
         
     Returns:
         Decorated async function
     """
+    actual_decorator = _make_async_rate_limited_decorator(rate_limiter)
+    
+    # Handle both @async_rate_limited and @async_rate_limited(rate_limiter=...)
+    if func is None:
+        # Called with parentheses - @async_rate_limited(...)
+        return actual_decorator
+    else:
+        # Called without parentheses - @async_rate_limited
+        return actual_decorator(func)
+
+
+def _make_async_rate_limited_decorator(rate_limiter=None):
+    """Create the actual decorator function"""
     # Create rate limiter if not provided
     if rate_limiter is None:
         rate_limiter = AsyncRateLimiter()
-    
+        
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
