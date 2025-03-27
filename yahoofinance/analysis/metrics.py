@@ -3,6 +3,12 @@ Financial metrics analysis module.
 
 This module provides functionality for analyzing financial metrics,
 including price targets, price-to-earnings ratios, and other fundamental data.
+
+The module includes both synchronous and asynchronous implementations
+of metrics analysis functionality, sharing common business logic
+across both APIs through private helper methods like _extract_all_metrics.
+Helper methods eliminate code duplication between sync and async variants
+while maintaining the same functionality.
 """
 
 from typing import Dict, Any, List, Optional, Union, Tuple
@@ -205,6 +211,67 @@ class PricingAnalyzer:
             logger.error(f"Error fetching price target for {ticker}: {str(e)}")
             return PriceTarget()
     
+    def _extract_all_metrics(self, ticker_info: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Extract comprehensive metrics from ticker info.
+        This is a helper method used by both sync and async methods.
+        
+        Args:
+            ticker_info: The ticker info dictionary
+            
+        Returns:
+            Dictionary of extracted metrics
+        """
+        return {
+            # Price data
+            'price': ticker_info.get('price'),
+            'change': ticker_info.get('change'),
+            'change_percent': ticker_info.get('change_percent'),
+            
+            # Volume data
+            'volume': ticker_info.get('volume'),
+            'average_volume': ticker_info.get('average_volume'),
+            
+            # Price targets
+            'target_price': ticker_info.get('target_price'),
+            'target_upside': ticker_info.get('upside'),
+            'analyst_count': ticker_info.get('analyst_count'),
+            
+            # Valuation metrics
+            'pe_ratio': ticker_info.get('pe_ratio'),
+            'forward_pe': ticker_info.get('forward_pe'),
+            'peg_ratio': ticker_info.get('peg_ratio'),
+            'price_to_book': ticker_info.get('price_to_book'),
+            'price_to_sales': ticker_info.get('price_to_sales'),
+            'ev_to_ebitda': ticker_info.get('ev_to_ebitda'),
+            
+            # Dividend metrics
+            'dividend_yield': ticker_info.get('dividend_yield'),
+            'dividend_rate': ticker_info.get('dividend_rate'),
+            'ex_dividend_date': ticker_info.get('ex_dividend_date'),
+            
+            # Growth metrics
+            'earnings_growth': ticker_info.get('earnings_growth'),
+            'revenue_growth': ticker_info.get('revenue_growth'),
+            
+            # Risk metrics
+            'beta': ticker_info.get('beta'),
+            'short_percent': ticker_info.get('short_percent'),
+            
+            # Market data
+            'market_cap': ticker_info.get('market_cap'),
+            'market_cap_fmt': ticker_info.get('market_cap_fmt'),
+            'enterprise_value': ticker_info.get('enterprise_value'),
+            'float_shares': ticker_info.get('float_shares'),
+            'shares_outstanding': ticker_info.get('shares_outstanding'),
+            
+            # 52-week data
+            'high_52week': ticker_info.get('high_52week'),
+            'low_52week': ticker_info.get('low_52week'),
+            'from_high': ticker_info.get('from_high'),
+            'from_low': ticker_info.get('from_low')
+        }
+
     def get_all_metrics(self, ticker: str) -> Dict[str, Any]:
         """
         Get comprehensive financial metrics for a ticker.
@@ -226,58 +293,8 @@ class PricingAnalyzer:
             # Fetch ticker info
             ticker_info = self.provider.get_ticker_info(ticker)
             
-            # Extract relevant metrics
-            metrics = {
-                # Price data
-                'price': ticker_info.get('price'),
-                'change': ticker_info.get('change'),
-                'change_percent': ticker_info.get('change_percent'),
-                
-                # Volume data
-                'volume': ticker_info.get('volume'),
-                'average_volume': ticker_info.get('average_volume'),
-                
-                # Price targets
-                'target_price': ticker_info.get('target_price'),
-                'target_upside': ticker_info.get('upside'),
-                'analyst_count': ticker_info.get('analyst_count'),
-                
-                # Valuation metrics
-                'pe_ratio': ticker_info.get('pe_ratio'),
-                'forward_pe': ticker_info.get('forward_pe'),
-                'peg_ratio': ticker_info.get('peg_ratio'),
-                'price_to_book': ticker_info.get('price_to_book'),
-                'price_to_sales': ticker_info.get('price_to_sales'),
-                'ev_to_ebitda': ticker_info.get('ev_to_ebitda'),
-                
-                # Dividend metrics
-                'dividend_yield': ticker_info.get('dividend_yield'),
-                'dividend_rate': ticker_info.get('dividend_rate'),
-                'ex_dividend_date': ticker_info.get('ex_dividend_date'),
-                
-                # Growth metrics
-                'earnings_growth': ticker_info.get('earnings_growth'),
-                'revenue_growth': ticker_info.get('revenue_growth'),
-                
-                # Risk metrics
-                'beta': ticker_info.get('beta'),
-                'short_percent': ticker_info.get('short_percent'),
-                
-                # Market data
-                'market_cap': ticker_info.get('market_cap'),
-                'market_cap_fmt': ticker_info.get('market_cap_fmt'),
-                'enterprise_value': ticker_info.get('enterprise_value'),
-                'float_shares': ticker_info.get('float_shares'),
-                'shares_outstanding': ticker_info.get('shares_outstanding'),
-                
-                # 52-week data
-                'high_52week': ticker_info.get('high_52week'),
-                'low_52week': ticker_info.get('low_52week'),
-                'from_high': ticker_info.get('from_high'),
-                'from_low': ticker_info.get('from_low')
-            }
-            
-            return metrics
+            # Extract metrics using shared helper method
+            return self._extract_all_metrics(ticker_info)
         
         except Exception as e:
             logger.error(f"Error fetching metrics for {ticker}: {str(e)}")
@@ -304,58 +321,8 @@ class PricingAnalyzer:
             # Fetch ticker info asynchronously
             ticker_info = await self.provider.get_ticker_info(ticker)
             
-            # Extract relevant metrics
-            metrics = {
-                # Price data
-                'price': ticker_info.get('price'),
-                'change': ticker_info.get('change'),
-                'change_percent': ticker_info.get('change_percent'),
-                
-                # Volume data
-                'volume': ticker_info.get('volume'),
-                'average_volume': ticker_info.get('average_volume'),
-                
-                # Price targets
-                'target_price': ticker_info.get('target_price'),
-                'target_upside': ticker_info.get('upside'),
-                'analyst_count': ticker_info.get('analyst_count'),
-                
-                # Valuation metrics
-                'pe_ratio': ticker_info.get('pe_ratio'),
-                'forward_pe': ticker_info.get('forward_pe'),
-                'peg_ratio': ticker_info.get('peg_ratio'),
-                'price_to_book': ticker_info.get('price_to_book'),
-                'price_to_sales': ticker_info.get('price_to_sales'),
-                'ev_to_ebitda': ticker_info.get('ev_to_ebitda'),
-                
-                # Dividend metrics
-                'dividend_yield': ticker_info.get('dividend_yield'),
-                'dividend_rate': ticker_info.get('dividend_rate'),
-                'ex_dividend_date': ticker_info.get('ex_dividend_date'),
-                
-                # Growth metrics
-                'earnings_growth': ticker_info.get('earnings_growth'),
-                'revenue_growth': ticker_info.get('revenue_growth'),
-                
-                # Risk metrics
-                'beta': ticker_info.get('beta'),
-                'short_percent': ticker_info.get('short_percent'),
-                
-                # Market data
-                'market_cap': ticker_info.get('market_cap'),
-                'market_cap_fmt': ticker_info.get('market_cap_fmt'),
-                'enterprise_value': ticker_info.get('enterprise_value'),
-                'float_shares': ticker_info.get('float_shares'),
-                'shares_outstanding': ticker_info.get('shares_outstanding'),
-                
-                # 52-week data
-                'high_52week': ticker_info.get('high_52week'),
-                'low_52week': ticker_info.get('low_52week'),
-                'from_high': ticker_info.get('from_high'),
-                'from_low': ticker_info.get('from_low')
-            }
-            
-            return metrics
+            # Extract metrics using shared helper method
+            return self._extract_all_metrics(ticker_info)
         
         except Exception as e:
             logger.error(f"Error fetching metrics for {ticker}: {str(e)}")
@@ -486,6 +453,9 @@ class PricingAnalyzer:
             analyst_count=ticker_info.get('analyst_count')
         )
     
+    # Note: This is a legacy version of the method that was duplicate.
+    # We've consolidated with the more comprehensive version defined above.
+    # This method is maintained for backward compatibility, now acting as a subset of the comprehensive metrics.
     def _extract_metrics(self, ticker_info: Dict[str, Any]) -> Dict[str, Any]:
         """
         Extract key metrics from ticker info.
@@ -499,36 +469,40 @@ class PricingAnalyzer:
         if not ticker_info:
             return {}
         
-        # Extract relevant metrics
-        metrics = {
+        # Use the comprehensive version but select a subset of fields
+        # that match the original implementation
+        all_metrics = self._extract_all_metrics(ticker_info)
+        
+        # Create a subset with just the fields that were in the original implementation
+        subset_metrics = {
             # Price data
-            'price': ticker_info.get('price'),
-            'change': ticker_info.get('change'),
-            'change_percent': ticker_info.get('change_percent'),
+            'price': all_metrics.get('price'),
+            'change': all_metrics.get('change'),
+            'change_percent': all_metrics.get('change_percent'),
             
             # Volume data
-            'volume': ticker_info.get('volume'),
-            'average_volume': ticker_info.get('average_volume'),
+            'volume': all_metrics.get('volume'),
+            'average_volume': all_metrics.get('average_volume'),
             
             # Price targets
-            'target_price': ticker_info.get('target_price'),
-            'target_upside': ticker_info.get('upside'),
-            'analyst_count': ticker_info.get('analyst_count'),
+            'target_price': all_metrics.get('target_price'),
+            'target_upside': all_metrics.get('target_upside'),
+            'analyst_count': all_metrics.get('analyst_count'),
             
             # Valuation metrics
-            'pe_ratio': ticker_info.get('pe_ratio'),
-            'forward_pe': ticker_info.get('forward_pe'),
-            'peg_ratio': ticker_info.get('peg_ratio'),
-            'price_to_book': ticker_info.get('price_to_book'),
-            'price_to_sales': ticker_info.get('price_to_sales'),
+            'pe_ratio': all_metrics.get('pe_ratio'),
+            'forward_pe': all_metrics.get('forward_pe'),
+            'peg_ratio': all_metrics.get('peg_ratio'),
+            'price_to_book': all_metrics.get('price_to_book'),
+            'price_to_sales': all_metrics.get('price_to_sales'),
             
             # Growth and risk metrics
-            'beta': ticker_info.get('beta'),
-            'short_percent': ticker_info.get('short_percent'),
+            'beta': all_metrics.get('beta'),
+            'short_percent': all_metrics.get('short_percent'),
             
             # Market data
-            'market_cap': ticker_info.get('market_cap'),
-            'market_cap_fmt': ticker_info.get('market_cap_fmt')
+            'market_cap': all_metrics.get('market_cap'),
+            'market_cap_fmt': all_metrics.get('market_cap_fmt')
         }
         
-        return metrics
+        return subset_metrics

@@ -23,6 +23,7 @@ from .base_provider import (
     FinanceDataProvider, 
     AsyncFinanceDataProvider
 )
+from .yahoo_finance_base import YahooFinanceBaseProvider
 from .yahoo_finance import YahooFinanceProvider
 from .async_yahoo_finance import AsyncYahooFinanceProvider
 
@@ -30,6 +31,7 @@ __all__ = [
     'get_provider',
     'FinanceDataProvider',
     'AsyncFinanceDataProvider',
+    'YahooFinanceBaseProvider',
     'YahooFinanceProvider',
     'AsyncYahooFinanceProvider',
 ]
