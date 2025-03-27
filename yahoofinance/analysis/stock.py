@@ -11,8 +11,9 @@ import pandas as pd
 from dataclasses import dataclass
 
 from ..api import get_provider, FinanceDataProvider, AsyncFinanceDataProvider
-from ..core.errors import YFinanceError
+from ..core.errors import YFinanceError, APIError, NetworkError, ValidationError, DataError
 from ..core.types import StockData
+from ..core.config import MESSAGES
 from ..utils.market import is_us_ticker
 
 logger = logging.getLogger(__name__)
@@ -152,8 +153,15 @@ class StockAnalyzer:
             ticker_info = self.provider.get_ticker_info(ticker)
             analyst_ratings = self.provider.get_analyst_ratings(ticker)
             earnings_dates = self.provider.get_earnings_dates(ticker)
+        except (APIError, NetworkError) as e:
+            # Re-raise API/network errors directly with original context
+            raise
+        except (ValidationError, DataError) as e:
+            # Handle data validation errors
+            raise DataError(MESSAGES["ERROR_FETCHING_DATA"].format(ticker=ticker, error=str(e)))
         except Exception as e:
-            raise YFinanceError(f"Error fetching data for {ticker}: {str(e)}")
+            # Handle unexpected errors
+            raise YFinanceError(MESSAGES["ERROR_FETCHING_DATA"].format(ticker=ticker, error=str(e)))
         
         # Process the data
         return self._process_analysis(ticker, ticker_info, analyst_ratings, earnings_dates)
@@ -179,8 +187,15 @@ class StockAnalyzer:
             ticker_info = await self.provider.get_ticker_info(ticker)
             analyst_ratings = await self.provider.get_analyst_ratings(ticker)
             earnings_dates = await self.provider.get_earnings_dates(ticker)
+        except (APIError, NetworkError) as e:
+            # Re-raise API/network errors directly with original context
+            raise
+        except (ValidationError, DataError) as e:
+            # Handle data validation errors
+            raise DataError(MESSAGES["ERROR_FETCHING_DATA"].format(ticker=ticker, error=str(e)))
         except Exception as e:
-            raise YFinanceError(f"Error fetching data for {ticker}: {str(e)}")
+            # Handle unexpected errors
+            raise YFinanceError(MESSAGES["ERROR_FETCHING_DATA"].format(ticker=ticker, error=str(e)))
         
         # Process the data
         return self._process_analysis(ticker, ticker_info, analyst_ratings, earnings_dates)
@@ -209,7 +224,7 @@ class StockAnalyzer:
             results = {}
             for ticker in tickers:
                 if ticker not in ticker_info_batch or ticker_info_batch[ticker] is None:
-                    logger.warning(f"No data found for {ticker}")
+                    logger.warning(MESSAGES["NO_DATA_FOUND_TICKER"].format(ticker=ticker))
                     continue
                 
                 try:
@@ -217,15 +232,22 @@ class StockAnalyzer:
                     earnings_dates = self.provider.get_earnings_dates(ticker)
                     results[ticker] = self._process_analysis(ticker, ticker_info_batch[ticker], analyst_ratings, earnings_dates)
                 except Exception as e:
-                    logger.error(f"Error analyzing {ticker}: {str(e)}")
+                    logger.error(MESSAGES["ERROR_ANALYZING_TICKER"].format(ticker=ticker, error=str(e)))
                     results[ticker] = AnalysisResults(
                         ticker=ticker,
                         name=ticker_info_batch[ticker].get('name', ticker),
                         price=ticker_info_batch[ticker].get('price', 0.0),
-                        warning=f"Analysis failed: {str(e)}"
+                        warning=MESSAGES["ANALYSIS_FAILED"].format(error=str(e))
                     )
+        except (APIError, NetworkError) as e:
+            # Re-raise API/network errors directly with original context
+            raise
+        except (ValidationError, DataError) as e:
+            # Handle data validation errors
+            raise DataError(MESSAGES["ERROR_BATCH_FETCH"].format(error=str(e)))
         except Exception as e:
-            raise YFinanceError(f"Error fetching batch data: {str(e)}")
+            # Handle unexpected errors
+            raise YFinanceError(MESSAGES["ERROR_BATCH_FETCH"].format(error=str(e)))
         
         return results
     
@@ -254,7 +276,7 @@ class StockAnalyzer:
             tasks = []
             for ticker in tickers:
                 if ticker not in ticker_info_batch or ticker_info_batch[ticker] is None:
-                    logger.warning(f"No data found for {ticker}")
+                    logger.warning(MESSAGES["NO_DATA_FOUND_TICKER"].format(ticker=ticker))
                     continue
                 
                 tasks.append(self._fetch_and_analyze_async(ticker, ticker_info_batch[ticker]))
@@ -271,8 +293,15 @@ class StockAnalyzer:
             for item in results_list:
                 if isinstance(item, Exception):
                     logger.error(f"Error in async batch analysis: {str(item)}")
+        except (APIError, NetworkError) as e:
+            # Re-raise API/network errors directly with original context
+            raise
+        except (ValidationError, DataError) as e:
+            # Handle data validation errors
+            raise DataError(MESSAGES["ERROR_BATCH_FETCH_ASYNC"].format(error=str(e)))
         except Exception as e:
-            raise YFinanceError(f"Error fetching batch data asynchronously: {str(e)}")
+            # Handle unexpected errors
+            raise YFinanceError(MESSAGES["ERROR_BATCH_FETCH_ASYNC"].format(error=str(e)))
         
         return results
     
@@ -292,13 +321,32 @@ class StockAnalyzer:
             earnings_dates = await self.provider.get_earnings_dates(ticker)
             analysis = self._process_analysis(ticker, ticker_info, analyst_ratings, earnings_dates)
             return ticker, analysis
-        except Exception as e:
-            logger.error(f"Error analyzing {ticker}: {str(e)}")
+        except (APIError, NetworkError) as e:
+            # Log API/network errors but return a valid object for batch processing
+            logger.error(f"API error analyzing {ticker}: {str(e)}")
             return ticker, AnalysisResults(
                 ticker=ticker,
                 name=ticker_info.get('name', ticker),
                 price=ticker_info.get('price', 0.0),
-                warning=f"Analysis failed: {str(e)}"
+                warning=f"API error: {str(e)}"
+            )
+        except (ValidationError, DataError) as e:
+            # Log data validation errors
+            logger.error(f"Data error analyzing {ticker}: {str(e)}")
+            return ticker, AnalysisResults(
+                ticker=ticker,
+                name=ticker_info.get('name', ticker),
+                price=ticker_info.get('price', 0.0),
+                warning=f"Data error: {str(e)}"
+            )
+        except Exception as e:
+            # Log unexpected errors
+            logger.error(MESSAGES["ERROR_ANALYZING_TICKER"].format(ticker=ticker, error=str(e)))
+            return ticker, AnalysisResults(
+                ticker=ticker,
+                name=ticker_info.get('name', ticker),
+                price=ticker_info.get('price', 0.0),
+                warning=MESSAGES["ANALYSIS_FAILED"].format(error=str(e))
             )
     
     def _process_analysis(

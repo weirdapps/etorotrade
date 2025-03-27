@@ -15,6 +15,7 @@ from ..presentation.formatter import DisplayFormatter as V2Formatter
 from ..presentation.formatter import DisplayConfig as V2Config
 from .client import YFinanceClient
 from .formatting import DisplayFormatter, DisplayConfig
+from ..core.config import MESSAGES, PATHS
 
 logger = logging.getLogger(__name__)
 
@@ -73,11 +74,11 @@ class MarketDisplay:
             # Load tickers from portfolio file
             tickers = self.load_tickers("P")
             if not tickers:
-                logger.warning("No portfolio tickers found.")
+                logger.warning(MESSAGES["NO_PORTFOLIO_TICKERS_FOUND"])
                 return pd.DataFrame()
                 
             # Process tickers with v2 display's method
-            logger.info(f"Analyzing {len(tickers)} portfolio tickers...")
+            logger.info(MESSAGES["INFO_ANALYZING_PORTFOLIO"].format(count=len(tickers)))
             
             # Get analysis for each ticker
             results = []
@@ -90,7 +91,7 @@ class MarketDisplay:
             df = pd.DataFrame(results)
             
             # Save to CSV
-            output_dir = f"{self.input_dir}/../output" if self.input_dir else "./output"
+            output_dir = f"{self.input_dir}/../output" if self.input_dir else PATHS["OUTPUT_DIR"]
             df.to_csv(f"{output_dir}/portfolio.csv", index=False)
             
             # Display the results
@@ -99,7 +100,7 @@ class MarketDisplay:
             return df
             
         except Exception as e:
-            logger.error(f"Error analyzing portfolio: {str(e)}")
+            logger.error(MESSAGES["ERROR_ANALYZING_PORTFOLIO"].format(error=str(e)))
             return pd.DataFrame()
             
     def get_buy_recommendations(self) -> pd.DataFrame:
@@ -116,11 +117,11 @@ class MarketDisplay:
             # Load tickers from market file
             tickers = self.load_tickers("M")
             if not tickers:
-                logger.warning("No market tickers found.")
+                logger.warning(MESSAGES["NO_MARKET_TICKERS_FOUND"])
                 return pd.DataFrame()
                 
             # Process tickers with v2 display's method
-            logger.info(f"Analyzing {len(tickers)} market tickers...")
+            logger.info(MESSAGES["INFO_ANALYZING_MARKET"].format(count=len(tickers)))
             
             # Get analysis for each ticker
             results = []
@@ -139,7 +140,7 @@ class MarketDisplay:
             df = pd.DataFrame(buy_recommendations)
             
             # Save to CSV
-            output_dir = f"{self.input_dir}/../output" if self.input_dir else "./output"
+            output_dir = f"{self.input_dir}/../output" if self.input_dir else PATHS["OUTPUT_DIR"]
             df.to_csv(f"{output_dir}/buy.csv", index=False)
             
             # Display the results
@@ -151,7 +152,7 @@ class MarketDisplay:
             return df
             
         except Exception as e:
-            logger.error(f"Error generating buy recommendations: {str(e)}")
+            logger.error(MESSAGES["ERROR_GENERATING_BUY_RECOMMENDATIONS"].format(error=str(e)))
             return pd.DataFrame()
             
     def get_sell_recommendations(self) -> pd.DataFrame:
@@ -168,11 +169,11 @@ class MarketDisplay:
             # Load tickers from portfolio file
             tickers = self.load_tickers("P")
             if not tickers:
-                logger.warning("No portfolio tickers found.")
+                logger.warning(MESSAGES["NO_PORTFOLIO_TICKERS_FOUND"])
                 return pd.DataFrame()
                 
             # Process tickers with v2 display's method
-            logger.info(f"Analyzing {len(tickers)} portfolio tickers...")
+            logger.info(MESSAGES["INFO_ANALYZING_PORTFOLIO"].format(count=len(tickers)))
             
             # Get analysis for each ticker
             results = []
@@ -191,7 +192,7 @@ class MarketDisplay:
             df = pd.DataFrame(sell_recommendations)
             
             # Save to CSV
-            output_dir = f"{self.input_dir}/../output" if self.input_dir else "./output"
+            output_dir = f"{self.input_dir}/../output" if self.input_dir else PATHS["OUTPUT_DIR"]
             df.to_csv(f"{output_dir}/sell.csv", index=False)
             
             # Display the results
@@ -203,7 +204,7 @@ class MarketDisplay:
             return df
             
         except Exception as e:
-            logger.error(f"Error generating sell recommendations: {str(e)}")
+            logger.error(MESSAGES["ERROR_GENERATING_SELL_RECOMMENDATIONS"].format(error=str(e)))
             return pd.DataFrame()
             
     def get_hold_recommendations(self) -> pd.DataFrame:
@@ -220,11 +221,11 @@ class MarketDisplay:
             # Load tickers from portfolio file
             tickers = self.load_tickers("P")
             if not tickers:
-                logger.warning("No portfolio tickers found.")
+                logger.warning(MESSAGES["NO_PORTFOLIO_TICKERS_FOUND"])
                 return pd.DataFrame()
                 
             # Process tickers with v2 display's method
-            logger.info(f"Analyzing {len(tickers)} portfolio tickers...")
+            logger.info(MESSAGES["INFO_ANALYZING_PORTFOLIO"].format(count=len(tickers)))
             
             # Get analysis for each ticker
             results = []
@@ -243,7 +244,7 @@ class MarketDisplay:
             df = pd.DataFrame(hold_recommendations)
             
             # Save to CSV
-            output_dir = f"{self.input_dir}/../output" if self.input_dir else "./output"
+            output_dir = f"{self.input_dir}/../output" if self.input_dir else PATHS["OUTPUT_DIR"]
             df.to_csv(f"{output_dir}/hold.csv", index=False)
             
             # Display the results
@@ -255,7 +256,7 @@ class MarketDisplay:
             return df
             
         except Exception as e:
-            logger.error(f"Error generating hold recommendations: {str(e)}")
+            logger.error(MESSAGES["ERROR_GENERATING_HOLD_RECOMMENDATIONS"].format(error=str(e)))
             return pd.DataFrame()
     
     def _load_tickers_from_file(self, file_name: str, column_name: str) -> List[str]:
@@ -281,7 +282,7 @@ class MarketDisplay:
         Returns:
             List of ticker symbols
         """
-        tickers_input = input("Enter tickers separated by commas: ").strip()
+        tickers_input = input(MESSAGES["PROMPT_ENTER_TICKERS_DISPLAY"]).strip()
         tickers = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]
         return list(set(tickers))  # Remove duplicates
     
@@ -310,13 +311,16 @@ class MarketDisplay:
                 return self._load_tickers_from_input()
                 
             if source not in file_mapping:
-                raise ValueError(f"Invalid source: {source}. Must be one of: {', '.join(file_mapping.keys())} or I")
+                raise ValueError(MESSAGES["ERROR_INVALID_SOURCE"].format(
+                    source=source, 
+                    valid_sources=', '.join(file_mapping.keys())
+                ))
                 
             file_name, column_name = file_mapping[source]
             return self._load_tickers_from_file(file_name, column_name)
             
         except Exception as e:
-            logger.error(f"Error loading tickers: {str(e)}")
+            logger.error(MESSAGES["ERROR_LOADING_TICKERS"].format(error=str(e)))
             return []
     
     def generate_stock_report(self, ticker: str) -> Dict[str, Any]:
@@ -366,6 +370,123 @@ class MarketDisplay:
         
         return report
         
+    def _has_sufficient_confidence(self, stock_data) -> bool:
+        """
+        Check if the stock has sufficient analyst coverage for confident analysis.
+        
+        Args:
+            stock_data: StockData object with market metrics
+            
+        Returns:
+            True if the stock has sufficient analyst coverage, False otherwise
+        """
+        min_price_targets = 5
+        min_analyst_count = 5
+        
+        # Check if essential metrics are available
+        if stock_data.analyst_count is None or stock_data.total_ratings is None:
+            return False
+            
+        # Check if metrics meet minimum thresholds
+        if stock_data.analyst_count < min_price_targets or stock_data.total_ratings < min_analyst_count:
+            return False
+            
+        return True
+        
+    def _meets_sell_criteria(self, stock_data) -> bool:
+        """
+        Check if the stock meets any of the SELL criteria.
+        
+        Args:
+            stock_data: StockData object with market metrics
+            
+        Returns:
+            True if the stock meets any SELL criteria, False otherwise
+        """
+        # Low upside potential
+        if stock_data.upside is not None and stock_data.upside < 5.0:
+            return True
+            
+        # Low buy percentage
+        if stock_data.buy_pct is not None and stock_data.buy_pct < 65.0:
+            return True
+            
+        # Deteriorating earnings outlook
+        if (stock_data.pe_forward is not None and stock_data.pe_trailing is not None and
+            stock_data.pe_forward > 0 and stock_data.pe_trailing > 0 and 
+            stock_data.pe_forward > stock_data.pe_trailing):
+            return True
+            
+        # Extremely high forward P/E
+        if stock_data.pe_forward is not None and stock_data.pe_forward > 45.0:
+            return True
+            
+        # High PEG ratio (overvalued relative to growth)
+        if stock_data.peg_ratio is not None and stock_data.peg_ratio > 3.0:
+            return True
+            
+        # High short interest
+        if stock_data.short_float_pct is not None and stock_data.short_float_pct > 4.0:
+            return True
+            
+        # Excessive volatility
+        if stock_data.beta is not None and stock_data.beta > 3.0:
+            return True
+            
+        return False
+        
+    def _meets_buy_criteria(self, stock_data) -> bool:
+        """
+        Check if the stock meets all BUY criteria.
+        
+        Args:
+            stock_data: StockData object with market metrics
+            
+        Returns:
+            True if the stock meets all BUY criteria, False otherwise
+        """
+        # Upside potential
+        if stock_data.upside is None or stock_data.upside < 20.0:
+            return False
+            
+        # Analyst consensus
+        if stock_data.buy_pct is None or stock_data.buy_pct < 82.0:
+            return False
+            
+        # Acceptable volatility
+        if stock_data.beta is not None and (stock_data.beta > 3.0 or stock_data.beta <= 0.2):
+            return False
+            
+        # Improving earnings outlook or negative trailing PE (potential turnaround)
+        earnings_outlook_ok = False
+        
+        if stock_data.pe_forward is None or stock_data.pe_trailing is None:
+            # Not enough earnings data to evaluate
+            earnings_outlook_ok = True
+        elif stock_data.pe_trailing <= 0:
+            # Negative trailing PE might indicate turnaround potential
+            earnings_outlook_ok = True
+        elif stock_data.pe_forward < stock_data.pe_trailing:
+            # Improving earnings outlook
+            earnings_outlook_ok = True
+            
+        if not earnings_outlook_ok:
+            return False
+            
+        # Reasonable forward P/E
+        if stock_data.pe_forward is not None and (stock_data.pe_forward <= 0.5 or stock_data.pe_forward > 45.0):
+            return False
+            
+        # Reasonable PEG ratio
+        if stock_data.peg_ratio is not None and stock_data.peg_ratio >= 3.0:
+            return False
+            
+        # Acceptable short interest
+        if stock_data.short_float_pct is not None and stock_data.short_float_pct > 3.0:
+            return False
+            
+        return True
+        
     def _calculate_recommendation(self, stock_data) -> str:
         """
         Calculate recommendation based on trading criteria.
@@ -376,38 +497,16 @@ class MarketDisplay:
         Returns:
             Recommendation string: "BUY", "SELL", "HOLD", or "INCONCLUSIVE"
         """
-        # Confidence check
-        min_price_targets = 5
-        min_analyst_count = 5
-        
-        if stock_data.analyst_count is None or stock_data.total_ratings is None:
-            return "INCONCLUSIVE"
-            
-        if stock_data.analyst_count < min_price_targets or stock_data.total_ratings < min_analyst_count:
+        # Check confidence first
+        if not self._has_sufficient_confidence(stock_data):
             return "INCONCLUSIVE"
         
-        # SELL criteria (checked first for risk management)
-        if (stock_data.upside is not None and stock_data.upside < 5.0) or \
-           (stock_data.buy_pct is not None and stock_data.buy_pct < 65.0) or \
-           (stock_data.pe_forward is not None and stock_data.pe_trailing is not None and
-            stock_data.pe_forward > 0 and stock_data.pe_trailing > 0 and 
-            stock_data.pe_forward > stock_data.pe_trailing) or \
-           (stock_data.pe_forward is not None and stock_data.pe_forward > 45.0) or \
-           (stock_data.peg_ratio is not None and stock_data.peg_ratio > 3.0) or \
-           (stock_data.short_float_pct is not None and stock_data.short_float_pct > 4.0) or \
-           (stock_data.beta is not None and stock_data.beta > 3.0):
+        # Check SELL criteria first (for risk management)
+        if self._meets_sell_criteria(stock_data):
             return "SELL"
             
-        # BUY criteria (all must be met)
-        if (stock_data.upside is not None and stock_data.upside >= 20.0) and \
-           (stock_data.buy_pct is not None and stock_data.buy_pct >= 82.0) and \
-           (stock_data.beta is None or (stock_data.beta <= 3.0 and stock_data.beta > 0.2)) and \
-           ((stock_data.pe_forward is None or stock_data.pe_trailing is None) or
-            (stock_data.pe_forward is not None and stock_data.pe_trailing is not None and
-             (stock_data.pe_forward < stock_data.pe_trailing or stock_data.pe_trailing <= 0))) and \
-           (stock_data.pe_forward is None or (stock_data.pe_forward > 0.5 and stock_data.pe_forward <= 45.0)) and \
-           (stock_data.peg_ratio is None or stock_data.peg_ratio < 3.0) and \
-           (stock_data.short_float_pct is None or stock_data.short_float_pct <= 3.0):
+        # Check BUY criteria (all must be met)
+        if self._meets_buy_criteria(stock_data):
             return "BUY"
             
         # HOLD - passed confidence but not BUY or SELL
@@ -459,7 +558,7 @@ class MarketDisplay:
             raise ValueError("No valid tickers provided")
             
         # Process tickers and generate reports
-        print("\nFetching market data...")
+        print(f"\n{MESSAGES['INFO_FETCHING_DATA']}")
         
         reports = []
         for ticker in tickers:
@@ -485,7 +584,7 @@ class MarketDisplay:
         
         # Save to CSV if source is specified
         if source in ['M', 'P']:
-            output_dir = f"{self.input_dir}/../output" if self.input_dir else "./output"
+            output_dir = f"{self.input_dir}/../output" if self.input_dir else PATHS["OUTPUT_DIR"]
             filename = "market.csv" if source == 'M' else "portfolio.csv"
             raw_data = [report['raw'] for report in reports]
             self.v2_display.save_to_csv(raw_data, filename, output_dir)
