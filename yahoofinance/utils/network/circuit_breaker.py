@@ -243,8 +243,12 @@ class CircuitBreaker:
                 return False
                 
             if self.state == CircuitState.HALF_OPEN:
-                # Only allow a percentage of requests through
-                return random.randint(1, 100) <= self.half_open_allow_percentage
+                # Use a more deterministic approach based on request count
+                with self.lock:
+                    self.total_requests += 1
+                    # Allow exactly the configured percentage of requests through
+                    # by using modulo on the request count
+                    return (self.total_requests % 100) < self.half_open_allow_percentage
                 
             # Default to closed for safety
             return True

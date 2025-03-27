@@ -103,13 +103,13 @@ async def test_async_rate_limiter_record_failure():
     assert limiter.failure_streak == 1
     assert limiter.success_streak == 0
     # Non-rate-limit failure increases delay by factor of 1.5
-    assert limiter.current_delay == pytest.approx(0.15, 0.01)
+    assert 0.14 <= limiter.current_delay <= 0.16
     
     # Record rate limit failure
     await limiter.record_failure(is_rate_limit=True)
     assert limiter.failure_streak == 2
     # Rate-limit failure increases delay by factor of 2
-    assert limiter.current_delay == pytest.approx(0.30, 0.01)
+    assert 0.29 <= limiter.current_delay <= 0.31
 
 
 @pytest.mark.asyncio

@@ -1,16 +1,24 @@
 """
 Test fixtures for etorotrade tests.
 
-This package provides common test fixtures and helpers used across all test files.
+DEPRECATED: These fixtures are now in tests/fixtures/. 
+Please import them from there instead.
 """
 
-from .pagination import (
-    create_paginated_data,
-    create_mock_fetcher,
-    create_bulk_fetch_mocks
+import warnings
+
+warnings.warn(
+    "The fixtures in tests/yahoofinance/fixtures/ are deprecated. "
+    "Please import fixtures from tests/fixtures/ instead.",
+    DeprecationWarning,
+    stacklevel=2
 )
 
-from .async_fixtures import (
+# Import from canonical source to maintain backwards compatibility
+from tests.fixtures import (
+    create_paginated_data,
+    create_mock_fetcher,
+    create_bulk_fetch_mocks,
     create_flaky_function,
     create_async_processor_mock
 )

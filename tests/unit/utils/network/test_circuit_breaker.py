@@ -33,7 +33,7 @@ def circuit_breaker_config():
         "half_open_allow_percentage": 50,
         "max_open_timeout": 60,
         "enabled": True,
-        "state_file": "/tmp/test_circuit_breaker_state.json"
+        "state_file": os.path.join(os.path.dirname(__file__), "test_circuit_breaker_state.json")
     }
 
 
