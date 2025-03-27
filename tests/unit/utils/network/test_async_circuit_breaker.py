@@ -33,7 +33,7 @@ def circuit_breaker_config():
         "half_open_allow_percentage": 50,
         "max_open_timeout": 60,
         "enabled": True,
-        "state_file": "/tmp/test_async_circuit_breaker_state.json"
+        "state_file": os.path.join(os.path.dirname(__file__), "test_async_circuit_breaker_state.json")
     }
 
 
@@ -184,7 +184,7 @@ async def test_async_circuit_breaker_integration_with_enhanced_async():
         "half_open_allow_percentage": 50,
         "max_open_timeout": 60,
         "enabled": True,
-        "state_file": "/tmp/test_simplified_circuit_state.json"
+        "state_file": os.path.join(os.path.dirname(__file__), "test_simplified_circuit_state.json")
     }
     
     # Ensure clean state for test

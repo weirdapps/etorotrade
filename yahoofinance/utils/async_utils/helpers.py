@@ -3,52 +3,37 @@ Asynchronous helpers for Yahoo Finance API.
 
 This module provides helper functions for async operations, including
 controlled concurrency, safe gathering, and error handling.
+
+NOTE: This module has been reorganized to reduce code duplication.
+The AsyncRateLimiter class has been moved to enhanced.py, and this module
+now imports it from there to maintain backward compatibility.
 """
 
 import logging
 import asyncio
 import time
-import random
 from typing import List, TypeVar, Any, Callable, Coroutine, Dict, Optional, Set, Union
 from functools import wraps
 
 from ...core.config import RATE_LIMIT
 from ..network.circuit_breaker import CircuitOpenError
+from .enhanced import (
+    AsyncRateLimiter, 
+    gather_with_concurrency, 
+    async_rate_limited,
+    process_batch_async as enhanced_process_batch_async
+)
 
 logger = logging.getLogger(__name__)
 
 # Define a generic type variable for the return type
 T = TypeVar('T')
 
-async def gather_with_concurrency(
-    n: int,
-    *tasks: Coroutine[Any, Any, T],
-    return_exceptions: bool = False
-) -> List[T]:
-    """
-    Run tasks with a limit on concurrent executions.
-    
-    This function is similar to asyncio.gather, but limits the number of
-    tasks that can run concurrently.
-    
-    Args:
-        n: Maximum number of concurrent tasks
-        *tasks: Tasks to run
-        return_exceptions: Whether to return exceptions instead of raising them
-        
-    Returns:
-        List of results from the tasks
-    """
-    semaphore = asyncio.Semaphore(n)
-    
-    async def task_with_semaphore(task: Coroutine[Any, Any, T]) -> T:
-        async with semaphore:
-            return await task
-    
-    return await asyncio.gather(
-        *(task_with_semaphore(task) for task in tasks),
-        return_exceptions=return_exceptions
-    )
+# Re-export AsyncRateLimiter for backward compatibility
+# AsyncRateLimiter is now defined in enhanced.py
+
+# Re-export gather_with_concurrency
+# This function is now defined in enhanced.py
 
 
 async def gather_with_semaphore(
@@ -90,8 +75,8 @@ async def async_bulk_fetch(
     """
     Fetch data for multiple items concurrently with rate limiting.
     
-    This function fetches data for multiple items concurrently, with
-    appropriate rate limiting and error handling.
+    This function is a wrapper around process_batch_async with slightly different 
+    parameters for backward compatibility.
     
     Args:
         items: List of items to fetch data for
@@ -111,46 +96,14 @@ async def async_bulk_fetch(
     if batch_delay is None:
         batch_delay = RATE_LIMIT["BATCH_DELAY"]
     
-    # Create batches
-    batches = [
-        items[i:i + batch_size]
-        for i in range(0, len(items), batch_size)
-    ]
-    logger.info(f"Processing {len(items)} items in {len(batches)} batches "
-               f"with max_concurrency={max_concurrency}")
-    
-    # Create result dictionary
-    results: Dict[Any, T] = {}
-    
-    # Create semaphore for limiting concurrency
-    semaphore = asyncio.Semaphore(max_concurrency)
-    
-    # Process batches
-    for i, batch in enumerate(batches):
-        logger.info(f"Processing batch {i+1}/{len(batches)} ({len(batch)} items)")
-        
-        # Create tasks for the batch
-        tasks = [fetch_func(item) for item in batch]
-        
-        # Run tasks with limited concurrency
-        batch_results = await gather_with_semaphore(
-            semaphore, *tasks, return_exceptions=True
-        )
-        
-        # Process results
-        for item, result in zip(batch, batch_results):
-            if isinstance(result, Exception):
-                logger.error(f"Error fetching data for {item}: {str(result)}")
-                results[item] = None  # type: ignore
-            else:
-                results[item] = result
-        
-        # Wait before processing the next batch
-        if i < len(batches) - 1:
-            logger.debug(f"Waiting {batch_delay} seconds before next batch")
-            await asyncio.sleep(batch_delay)
-    
-    return results
+    # Use the enhanced implementation
+    return await enhanced_process_batch_async(
+        items=items,
+        processor=fetch_func,
+        batch_size=batch_size,
+        concurrency=max_concurrency,
+        delay_between_batches=batch_delay
+    )
 
 
 async def async_retry(
@@ -206,201 +159,8 @@ async def async_retry(
     assert last_exception is not None
     raise last_exception
 
-
-class AsyncRateLimiter:
-    """
-    True async implementation of rate limiting with adaptive delay.
-    
-    This class implements proper async/await patterns for rate limiting,
-    rather than using thread pools to simulate async behavior.
-    """
-    
-    def __init__(self, 
-                 window_size: int = None,
-                 max_calls: int = None,
-                 base_delay: float = None,
-                 min_delay: float = None,
-                 max_delay: float = None):
-        """
-        Initialize async rate limiter.
-        
-        Args:
-            window_size: Time window in seconds
-            max_calls: Maximum calls per window
-            base_delay: Base delay between calls
-            min_delay: Minimum delay after successful calls
-            max_delay: Maximum delay after failures
-        """
-        self.window_size = window_size or RATE_LIMIT["WINDOW_SIZE"]
-        self.max_calls = max_calls or RATE_LIMIT["MAX_CALLS"]
-        self.base_delay = base_delay or RATE_LIMIT["BASE_DELAY"]
-        self.min_delay = min_delay or RATE_LIMIT["MIN_DELAY"]
-        self.max_delay = max_delay or RATE_LIMIT["MAX_DELAY"]
-        
-        # State tracking
-        self.call_times: List[float] = []
-        self.current_delay = self.base_delay
-        self.success_streak = 0
-        self.failure_streak = 0
-        self.last_call_time = 0
-        
-        # Lock for concurrency safety
-        self.lock = asyncio.Lock()
-        
-        logger.debug(
-            f"Initialized AsyncRateLimiter: window={self.window_size}s, "
-            f"max_calls={self.max_calls}, base_delay={self.base_delay}s"
-        )
-    
-    async def wait(self) -> float:
-        """
-        Wait for appropriate delay before making a call.
-        
-        Returns:
-            Actual delay in seconds
-        """
-        async with self.lock:
-            now = time.time()
-            
-            # Clean up old call times outside the window
-            window_start = now - self.window_size
-            self.call_times = [t for t in self.call_times if t >= window_start]
-            
-            # Calculate time until we can make another call
-            if len(self.call_times) >= self.max_calls:
-                # We've hit the limit, need to wait until oldest call exits the window
-                oldest_call = min(self.call_times)
-                wait_time = oldest_call + self.window_size - now
-                
-                if wait_time > 0:
-                    logger.debug(f"Rate limit reached. Waiting {wait_time:.2f}s")
-                    # Release lock during wait
-                    self.lock.release()
-                    try:
-                        await asyncio.sleep(wait_time)
-                    finally:
-                        # Re-acquire lock
-                        await self.lock.acquire()
-                    
-                    # Recalculate now after waiting
-                    now = time.time()
-            
-            # Add delay between calls
-            time_since_last_call = now - self.last_call_time if self.last_call_time > 0 else self.current_delay
-            
-            # If we need to add additional delay
-            additional_delay = max(0, self.current_delay - time_since_last_call)
-            
-            if additional_delay > 0:
-                logger.debug(f"Adding delay of {additional_delay:.2f}s between calls")
-                # Release lock during wait
-                self.lock.release()
-                try:
-                    await asyncio.sleep(additional_delay)
-                finally:
-                    # Re-acquire lock
-                    await self.lock.acquire()
-            
-            # Record this call
-            call_time = time.time()
-            self.call_times.append(call_time)
-            self.last_call_time = call_time
-            
-            # Calculate actual delay that was enforced
-            actual_delay = time_since_last_call if additional_delay <= 0 else self.current_delay
-            
-            return actual_delay
-    
-    async def record_success(self) -> None:
-        """Record a successful API call and adjust delay"""
-        async with self.lock:
-            self.success_streak += 1
-            self.failure_streak = 0
-            
-            # Reduce delay after consecutive successes, but not below minimum
-            if self.success_streak >= 5:
-                self.current_delay = max(self.min_delay, self.current_delay * 0.9)
-                logger.debug(f"Reduced delay to {self.current_delay:.2f}s after {self.success_streak} successes")
-    
-    async def record_failure(self, is_rate_limit: bool = False) -> None:
-        """
-        Record a failed API call and adjust delay.
-        
-        Args:
-            is_rate_limit: Whether the failure was due to rate limiting
-        """
-        async with self.lock:
-            self.failure_streak += 1
-            self.success_streak = 0
-            
-            # Increase delay after failures, with larger increase for rate limit errors
-            if is_rate_limit:
-                # Double delay for rate limit errors
-                self.current_delay = min(self.max_delay, self.current_delay * 2.0)
-                logger.warning(f"Rate limit detected. Increased delay to {self.current_delay:.2f}s")
-            else:
-                # Smaller increase for other errors
-                self.current_delay = min(self.max_delay, self.current_delay * 1.5)
-                logger.debug(f"Increased delay to {self.current_delay:.2f}s after failure")
-
-
-def async_rate_limited(func=None, rate_limiter=None):
-    """
-    Decorator for rate-limiting async functions.
-    
-    This decorator can be used in two ways:
-    1. @async_rate_limited - no arguments, uses default rate limiter
-    2. @async_rate_limited(rate_limiter=my_limiter) - with custom rate limiter
-    
-    Args:
-        func: The function to decorate (None if used with parentheses)
-        rate_limiter: Optional custom rate limiter to use
-        
-    Returns:
-        Decorated async function
-    """
-    actual_decorator = _make_async_rate_limited_decorator(rate_limiter)
-    
-    # Handle both @async_rate_limited and @async_rate_limited(rate_limiter=...)
-    if func is None:
-        # Called with parentheses - @async_rate_limited(...)
-        return actual_decorator
-    else:
-        # Called without parentheses - @async_rate_limited
-        return actual_decorator(func)
-
-
+# For backward compatibility
 def _make_async_rate_limited_decorator(rate_limiter=None):
     """Create the actual decorator function"""
-    # Create rate limiter if not provided
-    if rate_limiter is None:
-        rate_limiter = AsyncRateLimiter()
-        
-    def decorator(func):
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            # Wait for rate limiting
-            await rate_limiter.wait()
-            
-            try:
-                # Call function
-                result = await func(*args, **kwargs)
-                
-                # Record success
-                await rate_limiter.record_success()
-                
-                return result
-                
-            except Exception as e:
-                # Record failure (check if it's a rate limit error)
-                is_rate_limit = any(
-                    err_text in str(e).lower() 
-                    for err_text in ["rate limit", "too many requests", "429"]
-                )
-                await rate_limiter.record_failure(is_rate_limit=is_rate_limit)
-                
-                # Re-raise the exception
-                raise e
-                
-        return wrapper
-    return decorator
+    from .enhanced import _make_async_rate_limited_decorator as make_decorator
+    return make_decorator(rate_limiter)

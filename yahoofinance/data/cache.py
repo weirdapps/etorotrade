@@ -55,7 +55,10 @@ class CacheKeyGenerator:
         # Join and hash if the key would be too long
         key = ":".join(key_parts)
         if len(key) > 250:  # Avoid extremely long keys
-            return hashlib.md5(key.encode('utf-8')).hexdigest()
+            # Use SHA-256 instead of MD5 for better security
+            # This is only used for cache key generation, not for security-critical functions
+            # so collision resistance is more important than cryptographic strength
+            return hashlib.sha256(key.encode('utf-8')).hexdigest()[:64]
         
         return key
     
@@ -240,7 +243,9 @@ class DiskCache:
     def _get_file_path(self, key: str) -> Path:
         """Get file path for a cache key"""
         # Use a hash of the key for the filename to avoid invalid characters
-        hashed_key = hashlib.md5(key.encode('utf-8')).hexdigest()
+        # SHA-256 is used for better collision resistance
+        # We use only the first 64 chars to keep filenames reasonably sized
+        hashed_key = hashlib.sha256(key.encode('utf-8')).hexdigest()[:64]
         return self.cache_dir / f"{hashed_key}.cache"
     
     def _cleanup(self) -> None:
