@@ -22,6 +22,8 @@ from selenium.common.exceptions import (
     WebDriverException
 )
 
+from ..core.config import PATHS, FILE_PATHS
+
 logger = logging.getLogger(__name__)
 
 def fix_hk_ticker(ticker):
@@ -296,11 +298,9 @@ def process_portfolio():
         logger.warning("Warning: 'ticker' column not found in CSV")
     
     # Save to input directory
-    output_dir = os.path.join("yahoofinance", "input")
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, "portfolio.csv")
-    df.to_csv(output_path, index=False)
-    logger.info(f"Portfolio saved to {output_path}")
+    os.makedirs(PATHS["INPUT_DIR"], exist_ok=True)
+    df.to_csv(FILE_PATHS["PORTFOLIO_FILE"], index=False)
+    logger.info(f"Portfolio saved to {FILE_PATHS['PORTFOLIO_FILE']}")
     
     # Clean up downloaded file
     os.remove(latest_file)
@@ -442,9 +442,9 @@ def fallback_portfolio_download():
     try:
         print("Using fallback portfolio download method...")
         # Define source and destination paths
-        src_path = os.path.join("yahoofinance", "input", "portfolio.csv")
-        dest_dir = os.path.join("yahoofinance", "input")
-        dest_path = os.path.join(dest_dir, "portfolio.csv")
+        src_path = FILE_PATHS["PORTFOLIO_FILE"]
+        dest_dir = PATHS["INPUT_DIR"]
+        dest_path = FILE_PATHS["PORTFOLIO_FILE"]
         
         # Ensure destination directory exists
         os.makedirs(dest_dir, exist_ok=True)
