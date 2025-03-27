@@ -309,11 +309,9 @@ def test_circuit_breaker_save_load_state(circuit_breaker, circuit_breaker_config
     circuit_breaker.record_success()
     circuit_breaker.total_requests = 2
     
-    # Mock open to capture the saved state
-    mock_data = {}
-    
-    with patch("builtins.open", mock_open()) as mock_file, \
-         patch("json.dump") as mock_dump, \
+    # Mock open
+    with patch("builtins.open", mock_open()) as _, \
+         patch("json.dump") as _, \
          patch("json.load", return_value={circuit_breaker.name: {
              "state": CircuitState.CLOSED.value,
              "failure_count": 1,
@@ -406,6 +404,6 @@ def test_circuit_breaker_metrics(circuit_breaker):
     assert metrics["total_failures"] == 1
     assert metrics["total_successes"] == 1
     assert metrics["total_requests"] == 2
-    assert metrics["failure_rate"] == 50.0  # 1 failure out of 2 requests
+    assert metrics["failure_rate"] == pytest.approx(50.0, 0.001)  # 1 failure out of 2 requests
     assert "time_in_current_state" in metrics
     assert metrics["consecutive_failures"] == 0

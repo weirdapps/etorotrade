@@ -245,16 +245,16 @@ async def test_get_ticker_info(enhanced_provider):
         # Verify key fields were extracted properly
         assert result["symbol"] == "AAPL"
         assert result["name"] == "Test Company"
-        assert result["current_price"] == 150.25
-        assert result["target_price"] == 175.0
+        assert result["current_price"] == pytest.approx(150.25, 0.001)
+        assert result["target_price"] == pytest.approx(175.0, 0.001)
         assert result["upside"] == pytest.approx(16.47, 0.01)
         assert result["market_cap"] == 2000000000000
         assert result["market_cap_fmt"] == "2.00T"
-        assert result["pe_trailing"] == 25.5
-        assert result["pe_forward"] == 22.5
-        assert result["peg_ratio"] == 1.8
-        assert result["dividend_yield"] == 1.65
-        assert result["short_percent"] == 1.5
+        assert result["pe_trailing"] == pytest.approx(25.5, 0.001)
+        assert result["pe_forward"] == pytest.approx(22.5, 0.001)
+        assert result["peg_ratio"] == pytest.approx(1.8, 0.001)
+        assert result["dividend_yield"] == pytest.approx(1.65, 0.001)
+        assert result["short_percent"] == pytest.approx(1.5, 0.001)
         assert result["analyst_count"] == 32
     finally:
         # Restore the original method
@@ -308,13 +308,13 @@ async def test_batch_get_ticker_info(enhanced_provider):
         
         # Verify data for each ticker
         assert result["AAPL"]["name"] == "Test AAPL"
-        assert result["AAPL"]["current_price"] == 100.0
+        assert result["AAPL"]["current_price"] == pytest.approx(100.0, 0.001)
         
         assert result["MSFT"]["name"] == "Test MSFT"
-        assert result["MSFT"]["current_price"] == 130.0
+        assert result["MSFT"]["current_price"] == pytest.approx(130.0, 0.001)
         
         assert result["GOOG"]["name"] == "Test GOOG"
-        assert result["GOOG"]["current_price"] == 110.0
+        assert result["GOOG"]["current_price"] == pytest.approx(110.0, 0.001)
     finally:
         # Restore the original method
         provider.batch_get_ticker_info = original_method
@@ -383,11 +383,11 @@ async def test_error_handling_in_batch_operations(enhanced_provider):
         # Verify successful requests
         assert "AAPL" in result
         assert result["AAPL"]["name"] == "Apple Inc."
-        assert result["AAPL"]["current_price"] == 150.0
+        assert result["AAPL"]["current_price"] == pytest.approx(150.0, 0.001)
         
         assert "MSFT" in result
         assert result["MSFT"]["name"] == "Microsoft Corp."
-        assert result["MSFT"]["current_price"] == 300.0
+        assert result["MSFT"]["current_price"] == pytest.approx(300.0, 0.001)
         
         # Verify error handling for failing requests
         assert "ERROR" in result

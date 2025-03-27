@@ -3,7 +3,19 @@ Market data fixtures for etorotrade tests.
 
 This module contains fixtures for creating stock data in various market conditions
 for unit and integration testing.
+
+DEPRECATED: This module is deprecated in favor of tests.fixtures.market_data.stock_data.
+Use the fixtures from that module instead, which are automatically registered in conftest.py.
 """
+
+import warnings
+
+warnings.warn(
+    "This module (tests.yahoofinance.fixtures.market_data.stock_data) is deprecated. "
+    "Use tests.fixtures.market_data.stock_data instead, which is automatically registered in conftest.py.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 import pytest
 import pandas as pd

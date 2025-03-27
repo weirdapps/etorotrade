@@ -3,6 +3,9 @@ Asynchronous utilities for Yahoo Finance data.
 
 This module provides utilities for asynchronous operations including rate limiting,
 batch processing, and safe alternatives to standard asyncio functions.
+
+This is the canonical location for async utilities. Code in yahoofinance.utils.async
+is deprecated and will be removed in a future version.
 """
 
 from .helpers import (
