@@ -911,6 +911,45 @@ The web scraping functionality includes the circuit breaker pattern for resilien
 - Prevents excessive retries when the target site is unavailable
 - Gradually recovers when the target site becomes available again
 
+## Code Duplication Reduction Plan
+
+The codebase currently has several areas with significant duplication. Here's a systematic plan to address these issues:
+
+### 1. Test Fixtures Consolidation
+- **Current Issue**: Nearly identical test fixtures exist in both `tests/fixtures/` and `tests/yahoofinance/fixtures/`
+- **Solution**: 
+  - Keep single source of truth in `tests/fixtures/` 
+  - Add import redirects in yahoofinance fixture files (already started with deprecation warnings)
+  - Update all imports to reference the canonical fixtures
+
+### 2. Async Utilities Consolidation
+- **Current Issue**: Duplicate AsyncRateLimiter implementations in both helpers.py and enhanced.py
+- **Solution**:
+  - Make enhanced.py the canonical source for AsyncRateLimiter
+  - Refactor helpers.py to import from enhanced.py
+  - Remove duplicate code and ensure backward compatibility
+
+### 3. Provider Implementation Consolidation
+- **Current Issue**: Substantial code duplication between sync and async provider implementations
+- **Solution**:
+  - Create a base provider with shared functionality
+  - Have sync and async implementations inherit from this base
+  - Extract common logic to the base class to avoid duplication
+
+### 4. Shared Mock Response Objects
+- **Current Issue**: Mock response and error handling duplicated across test files
+- **Solution**:
+  - Centralize all mock response objects in fixtures
+  - Add helper functions for common testing patterns
+  - Update tests to use the centralized fixtures
+
+### 5. Stock Data Processing Logic
+- **Current Issue**: Similar data processing logic duplicated across analysis modules
+- **Solution**:
+  - Extract common processing logic to shared utility functions
+  - Implement a shared dataclass for stock data representations
+  - Ensure consistent approach to data transformation
+
 ## Future Opportunities
 - **Extend Provider Pattern**: Create additional provider implementations for other data sources
 - **Full Migration**: Gradually migrate all direct YFinanceClient usage to provider pattern

@@ -220,7 +220,7 @@ class EarningsAnalyzer:
         
         # Process earnings dates
         if earnings_dates:
-            earnings_data.next_date = earnings_dates[0] if len(earnings_dates) > 0 else None
+            earnings_data.next_date = earnings_dates[0]
             earnings_data.previous_date = earnings_dates[1] if len(earnings_dates) > 1 else None
         
         # Process earnings history
