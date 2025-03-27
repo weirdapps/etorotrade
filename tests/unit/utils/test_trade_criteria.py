@@ -211,16 +211,16 @@ def test_format_numeric_values():
     numeric_columns = ['upside', 'beta']
     result_df = format_numeric_values(df, numeric_columns)
     
-    # Check that values are properly converted
-    assert result_df['upside'].iloc[0] == 25.0
-    assert result_df['upside'].iloc[1] == 15.5
-    assert result_df['upside'].iloc[2] == 10.0
+    # Check that values are properly converted - using pytest.approx for floating point comparisons
+    assert result_df['upside'].iloc[0] == pytest.approx(25.0)
+    assert result_df['upside'].iloc[1] == pytest.approx(15.5)
+    assert result_df['upside'].iloc[2] == pytest.approx(10.0)
     assert pd.isna(result_df['upside'].iloc[3])
     
-    assert result_df['beta'].iloc[0] == 1.5
-    assert result_df['beta'].iloc[1] == 2.0
+    assert result_df['beta'].iloc[0] == pytest.approx(1.5)
+    assert result_df['beta'].iloc[1] == pytest.approx(2.0)
     assert pd.isna(result_df['beta'].iloc[2])
-    assert result_df['beta'].iloc[3] == 3.2
+    assert result_df['beta'].iloc[3] == pytest.approx(3.2)
     
     # Text column should remain unchanged
     assert result_df['text'].equals(df['text'])
