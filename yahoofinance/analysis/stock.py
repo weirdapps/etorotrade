@@ -153,10 +153,10 @@ class StockAnalyzer:
             ticker_info = self.provider.get_ticker_info(ticker)
             analyst_ratings = self.provider.get_analyst_ratings(ticker)
             earnings_dates = self.provider.get_earnings_dates(ticker)
-        except (APIError, NetworkError) as e:
-            # Re-raise API/network errors directly with original context
+        except APIError as e:
+            # Re-raise API errors directly with original context
             raise
-        except (ValidationError, DataError) as e:
+        except ValidationError as e:
             # Handle data validation errors
             raise DataError(MESSAGES["ERROR_FETCHING_DATA"].format(ticker=ticker, error=str(e)))
         except Exception as e:
@@ -187,10 +187,10 @@ class StockAnalyzer:
             ticker_info = await self.provider.get_ticker_info(ticker)
             analyst_ratings = await self.provider.get_analyst_ratings(ticker)
             earnings_dates = await self.provider.get_earnings_dates(ticker)
-        except (APIError, NetworkError) as e:
-            # Re-raise API/network errors directly with original context
+        except APIError as e:
+            # Re-raise API errors directly with original context
             raise
-        except (ValidationError, DataError) as e:
+        except ValidationError as e:
             # Handle data validation errors
             raise DataError(MESSAGES["ERROR_FETCHING_DATA"].format(ticker=ticker, error=str(e)))
         except Exception as e:
@@ -239,10 +239,10 @@ class StockAnalyzer:
                         price=ticker_info_batch[ticker].get('price', 0.0),
                         warning=MESSAGES["ANALYSIS_FAILED"].format(error=str(e))
                     )
-        except (APIError, NetworkError) as e:
-            # Re-raise API/network errors directly with original context
+        except APIError as e:
+            # Re-raise API errors directly with original context
             raise
-        except (ValidationError, DataError) as e:
+        except ValidationError as e:
             # Handle data validation errors
             raise DataError(MESSAGES["ERROR_BATCH_FETCH"].format(error=str(e)))
         except Exception as e:
@@ -293,10 +293,10 @@ class StockAnalyzer:
             for item in results_list:
                 if isinstance(item, Exception):
                     logger.error(f"Error in async batch analysis: {str(item)}")
-        except (APIError, NetworkError) as e:
-            # Re-raise API/network errors directly with original context
+        except APIError as e:
+            # Re-raise API errors directly with original context
             raise
-        except (ValidationError, DataError) as e:
+        except ValidationError as e:
             # Handle data validation errors
             raise DataError(MESSAGES["ERROR_BATCH_FETCH_ASYNC"].format(error=str(e)))
         except Exception as e:
@@ -321,8 +321,8 @@ class StockAnalyzer:
             earnings_dates = await self.provider.get_earnings_dates(ticker)
             analysis = self._process_analysis(ticker, ticker_info, analyst_ratings, earnings_dates)
             return ticker, analysis
-        except (APIError, NetworkError) as e:
-            # Log API/network errors but return a valid object for batch processing
+        except APIError as e:
+            # Log API errors but return a valid object for batch processing
             logger.error(f"API error analyzing {ticker}: {str(e)}")
             return ticker, AnalysisResults(
                 ticker=ticker,
@@ -330,14 +330,14 @@ class StockAnalyzer:
                 price=ticker_info.get('price', 0.0),
                 warning=f"API error: {str(e)}"
             )
-        except (ValidationError, DataError) as e:
-            # Log data validation errors
-            logger.error(f"Data error analyzing {ticker}: {str(e)}")
+        except ValidationError as e:
+            # Log validation errors
+            logger.error(f"Validation error analyzing {ticker}: {str(e)}")
             return ticker, AnalysisResults(
                 ticker=ticker,
                 name=ticker_info.get('name', ticker),
                 price=ticker_info.get('price', 0.0),
-                warning=f"Data error: {str(e)}"
+                warning=f"Validation error: {str(e)}"
             )
         except Exception as e:
             # Log unexpected errors

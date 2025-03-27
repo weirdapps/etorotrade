@@ -207,6 +207,11 @@ def calculate_action(df):
     """
     # Import trading criteria from the same source used by filter functions
     from yahoofinance.core.config import TRADING_CRITERIA
+    # Import trade criteria utilities
+    from yahoofinance.utils.trade_criteria import (
+        format_numeric_values,
+        calculate_action_for_row
+    )
     
     # Standard logging
     import logging
@@ -218,7 +223,7 @@ def calculate_action(df):
     # Initialize ACTION column as empty strings
     working_df['ACTION'] = ''
     
-    # Fix null values and ensure proper types for critical fields
+    # Define numeric columns to format
     numeric_columns = ['upside', 'buy_percentage', 'pe_trailing', 'pe_forward', 
                        'peg_ratio', 'beta', 'analyst_count', 'total_ratings']
                        
@@ -227,124 +232,17 @@ def calculate_action(df):
     if short_field in working_df.columns:
         numeric_columns.append(short_field)
     
-    # Convert all numeric columns to float, handle percentages and missing values
-    for col in numeric_columns:
-        if col in working_df.columns:
-            # Handle percentage strings
-            if working_df[col].dtype == 'object':
-                working_df[col] = working_df[col].apply(
-                    lambda x: float(str(x).replace('%', '')) if isinstance(x, str) and '%' in x else x
-                )
-            # Convert to numeric, coerce errors to NaN
-            working_df[col] = pd.to_numeric(working_df[col], errors='coerce')
+    # Format numeric values
+    working_df = format_numeric_values(working_df, numeric_columns)
     
     # Calculate EXRET if not already present
     if 'EXRET' not in working_df.columns and 'upside' in working_df.columns and 'buy_percentage' in working_df.columns:
         working_df['EXRET'] = working_df['upside'] * working_df['buy_percentage'] / 100
     
-    # Check confidence criteria (same as in filter functions)
-    confidence_condition = (
-        working_df['analyst_count'].notna() & 
-        working_df['total_ratings'].notna() & 
-        (working_df['analyst_count'] >= TRADING_CRITERIA["CONFIDENCE"]["MIN_PRICE_TARGETS"]) &
-        (working_df['total_ratings'] >= TRADING_CRITERIA["CONFIDENCE"]["MIN_ANALYST_COUNT"])
-    )
-    
-    # Get confident stocks for further classification
-    confident_indices = working_df[confidence_condition].index
-    
-    # Check each stock individually against SELL criteria
-    for idx in confident_indices:
-        row = working_df.loc[idx]
-        # We don't need the ticker value here, just the index
-        
-        sell_criteria = TRADING_CRITERIA["SELL"]
-        buy_criteria = TRADING_CRITERIA["BUY"]
-        
-        # SELL criteria - if ANY of these are true, it's a SELL
-        is_sell = False
-        
-        # 1. Upside too low
-        if 'upside' in row and pd.notna(row['upside']) and row['upside'] < sell_criteria["MAX_UPSIDE"]:
-            is_sell = True
-            
-        # 2. Analyst buy percentage too low
-        if not is_sell and 'buy_percentage' in row and pd.notna(row['buy_percentage']) and row['buy_percentage'] < sell_criteria["MIN_BUY_PERCENTAGE"]:
-            is_sell = True
-            
-        # 3. PE Forward higher than PE Trailing (worsening outlook)
-        if not is_sell and 'pe_forward' in row and 'pe_trailing' in row and pd.notna(row['pe_forward']) and pd.notna(row['pe_trailing']) and row['pe_forward'] > 0 and row['pe_trailing'] > 0 and row['pe_forward'] > row['pe_trailing']:
-            is_sell = True
-            
-        # 4. Forward PE too high
-        if not is_sell and 'pe_forward' in row and pd.notna(row['pe_forward']) and row['pe_forward'] > sell_criteria["MAX_FORWARD_PE"]:
-            is_sell = True
-            
-        # 5. PEG ratio too high
-        if not is_sell and 'peg_ratio' in row and pd.notna(row['peg_ratio']) and row['peg_ratio'] > sell_criteria["MAX_PEG"]:
-            is_sell = True
-            
-        # 6. Short interest too high
-        if not is_sell and short_field in row and pd.notna(row[short_field]) and row[short_field] > sell_criteria["MAX_SHORT_INTEREST"]:
-            is_sell = True
-            
-        # 7. Beta too high
-        if not is_sell and 'beta' in row and pd.notna(row['beta']) and row['beta'] > sell_criteria["MAX_BETA"]:
-            is_sell = True
-            
-        # 8. Expected return too low
-        if not is_sell and 'EXRET' in row and pd.notna(row['EXRET']) and row['EXRET'] < sell_criteria["MIN_EXRET"]:
-            is_sell = True
-        
-        if is_sell:
-            working_df.at[idx, 'ACTION'] = 'S'  # Mark as SELL
-            continue  # Skip BUY checks if it's already a SELL
-            
-        # BUY criteria - ALL of these must be true
-        is_buy = True
-        
-        # 1. Sufficient upside
-        if 'upside' not in row or pd.isna(row['upside']) or row['upside'] < buy_criteria["MIN_UPSIDE"]:
-            is_buy = False
-            
-        # 2. Sufficient buy percentage
-        if is_buy and ('buy_percentage' not in row or pd.isna(row['buy_percentage']) or row['buy_percentage'] < buy_criteria["MIN_BUY_PERCENTAGE"]):
-            is_buy = False
-            
-        # 3. Beta criteria (if beta is available)
-        if is_buy and 'beta' in row and pd.notna(row['beta']):
-            # Beta must be in valid range for buy
-            if row['beta'] <= buy_criteria["MIN_BETA"] or row['beta'] > buy_criteria["MAX_BETA"]:
-                is_buy = False
-        
-        # 4. PE condition - positive and not too high
-        # Forward PE must be positive and not too high
-        pe_condition = False
-        if 'pe_forward' in row and pd.notna(row['pe_forward']):
-            if row['pe_forward'] > buy_criteria["MIN_FORWARD_PE"] and row['pe_forward'] <= buy_criteria["MAX_FORWARD_PE"]:
-                # Either: Forward PE < Trailing PE (improving outlook) when Trailing PE is positive
-                if 'pe_trailing' in row and pd.notna(row['pe_trailing']):
-                    if row['pe_trailing'] > 0 and row['pe_forward'] < row['pe_trailing']:
-                        pe_condition = True
-                    # Or: Trailing PE <= 0 (growth case)
-                    elif row['pe_trailing'] <= 0:
-                        pe_condition = True
-        
-        if is_buy and not pe_condition:
-            is_buy = False
-            
-        # 5. PEG not too high (only if available)
-        if is_buy and 'peg_ratio' in row and pd.notna(row['peg_ratio']) and row['peg_ratio'] >= buy_criteria["MAX_PEG"]:
-            is_buy = False
-            
-        # 6. Short interest not too high (only if available)
-        if is_buy and short_field in row and pd.notna(row[short_field]) and row[short_field] > buy_criteria["MAX_SHORT_INTEREST"]:
-            is_buy = False
-        
-        if is_buy:
-            working_df.at[idx, 'ACTION'] = 'B'  # Mark as BUY
-        else:
-            working_df.at[idx, 'ACTION'] = 'H'  # Mark as HOLD if passed confidence but not BUY or SELL
+    # Process each row and calculate action
+    for idx, row in working_df.iterrows():
+        action, _ = calculate_action_for_row(row, TRADING_CRITERIA, short_field)
+        working_df.at[idx, 'ACTION'] = action
     
     # Transfer ACTION column to the original DataFrame
     df['ACTION'] = working_df['ACTION']
