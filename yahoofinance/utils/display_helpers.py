@@ -56,13 +56,12 @@ def get_output_file_and_title(report_source, output_dir):
         return f"{output_dir}/manual.csv", "Manual Ticker Analysis"
 
 
-def format_market_cap(row, result_df=None):
+def format_market_cap(row):
     """
     Format market cap values for display in the CAP column.
     
     Args:
         row: DataFrame row
-        result_df: Original result DataFrame with possible market cap columns
         
     Returns:
         Formatted market cap string
