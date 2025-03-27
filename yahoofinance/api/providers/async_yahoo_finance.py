@@ -21,7 +21,7 @@ from .yahoo_finance_base import YahooFinanceBaseProvider
 from ...core.errors import YFinanceError, APIError, ValidationError, RateLimitError
 from ...utils.market.ticker_utils import validate_ticker, is_us_ticker
 from ...utils.async_utils.helpers import async_rate_limited, gather_with_concurrency
-from ...core.config import CACHE_CONFIG
+from ...core.config import CACHE_CONFIG, COLUMN_NAMES
 
 logger = logging.getLogger(__name__)
 
@@ -253,11 +253,11 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
                 calendar = await self._run_sync_in_executor(lambda: ticker_obj.calendar)
                 
                 # Handle cases where calendar might be None or not have earnings date
-                if calendar is None or 'Earnings Date' not in calendar:
+                if calendar is None or COLUMN_NAMES['EARNINGS_DATE'] not in calendar:
                     logger.debug(f"No earnings dates found for {ticker}")
                     return None, None
                     
-                earnings_date = calendar['Earnings Date']
+                earnings_date = calendar[COLUMN_NAMES['EARNINGS_DATE']]
                 
                 # Convert to list even if there's only one date
                 if not isinstance(earnings_date, list):
@@ -567,8 +567,7 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
                 info = await self.get_ticker_info(ticker, skip_insider_metrics)
                 return ticker, info
             except Exception as e:
-                logger.warning(f"Error getting data for {ticker}: {str(e)}")
-                return ticker, {"symbol": ticker, "error": str(e)}
+                return ticker, self._handle_ticker_info_error(ticker, e)
         
         # Process tickers with controlled concurrency
         tasks = [get_info_for_ticker(ticker) for ticker in tickers]

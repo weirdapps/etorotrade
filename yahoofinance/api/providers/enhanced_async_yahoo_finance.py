@@ -16,20 +16,21 @@ from typing import Dict, Any, Optional, List, Tuple, cast, TypeVar, Callable, Aw
 import pandas as pd
 from functools import wraps
 
+from ...core.config import RATE_LIMIT, CIRCUIT_BREAKER, CACHE_CONFIG, COLUMN_NAMES
+
 from .base_provider import AsyncFinanceDataProvider
 from ...core.errors import YFinanceError, APIError, ValidationError, RateLimitError, NetworkError
 from ...utils.market.ticker_utils import validate_ticker, is_us_ticker
+from ...utils.network.circuit_breaker import CircuitOpenError
 
-# Constants
-EARNINGS_DATE_COL = "Earnings Date"
+# Constants - Use from config
+EARNINGS_DATE_COL = COLUMN_NAMES["EARNINGS_DATE"]
 from ...utils.async_utils.enhanced import (
     AsyncRateLimiter, 
     process_batch_async, 
     enhanced_async_rate_limited,
     gather_with_concurrency
 )
-from ...utils.network.circuit_breaker import CircuitOpenError
-from ...core.config import RATE_LIMIT, CIRCUIT_BREAKER, CACHE_CONFIG
 
 logger = logging.getLogger(__name__)
 

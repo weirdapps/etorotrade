@@ -13,12 +13,13 @@ from yahoofinance.utils.trade_criteria import (
     meets_sell_criteria as tc_meets_sell_criteria,
     meets_buy_criteria as tc_meets_buy_criteria
 )
+from yahoofinance.core.config import COLUMN_NAMES
 
 # Configure logger
 logger = logging.getLogger(__name__)
 
 # Constants for column names
-BUY_PERCENTAGE = '% BUY'
+BUY_PERCENTAGE = COLUMN_NAMES["BUY_PERCENTAGE"]
 TICKER_COL = 'TICKER'
 COMPANY_COL = 'COMPANY'
 ACTION_COL = 'ACTION'
