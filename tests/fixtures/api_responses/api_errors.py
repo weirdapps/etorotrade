@@ -6,10 +6,6 @@ for unit and integration testing.
 """
 
 import pytest
-
-# Constants for repeated strings
-NON_JSON_TEXT = "This is not JSON"
-
 from unittest.mock import Mock
 import requests
 import json
@@ -17,6 +13,9 @@ from yahoofinance.core.errors import (
     YFinanceError, APIError, RateLimitError, 
     NetworkError, DataError, ValidationError
 )
+
+# Constants for repeated strings
+NON_JSON_TEXT = "This is not JSON"
 
 
 class MockResponse:
