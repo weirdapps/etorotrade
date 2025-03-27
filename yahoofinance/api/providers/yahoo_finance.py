@@ -387,14 +387,45 @@ class YahooFinanceProvider(FinanceDataProvider):
                 latest_date = recommendations.index.max()
                 latest_recs = recommendations.loc[latest_date]
                 
-                # Calculate buy percentage
-                total_recs = latest_recs.sum()
-                strong_buy = latest_recs.get('strongBuy', 0)
-                buy = latest_recs.get('buy', 0)
-                hold = latest_recs.get('hold', 0)
-                sell = latest_recs.get('sell', 0)
-                strong_sell = latest_recs.get('strongSell', 0)
+                # Handle DataFrame or Series
+                if hasattr(latest_recs, 'sum'):
+                    try:
+                        # Try to sum the values (for Series)
+                        total_recs = latest_recs.sum()
+                    except Exception:
+                        # If summing fails, count the entries
+                        total_recs = len(latest_recs)
+                else:
+                    # Handle case where it's a single value
+                    total_recs = 1 if latest_recs is not None else 0
                 
+                # Safely extract values with fallbacks
+                try:
+                    strong_buy = float(latest_recs.get('strongBuy', 0))
+                except (ValueError, TypeError, AttributeError):
+                    strong_buy = 0
+                    
+                try:
+                    buy = float(latest_recs.get('buy', 0))
+                except (ValueError, TypeError, AttributeError):
+                    buy = 0
+                    
+                try:
+                    hold = float(latest_recs.get('hold', 0))
+                except (ValueError, TypeError, AttributeError):
+                    hold = 0
+                    
+                try:
+                    sell = float(latest_recs.get('sell', 0))
+                except (ValueError, TypeError, AttributeError):
+                    sell = 0
+                    
+                try:
+                    strong_sell = float(latest_recs.get('strongSell', 0))
+                except (ValueError, TypeError, AttributeError):
+                    strong_sell = 0
+                
+                # Calculate buy percentage with safety check
                 buy_percentage = ((strong_buy + buy) / total_recs * 100) if total_recs > 0 else 0
                 
                 return {

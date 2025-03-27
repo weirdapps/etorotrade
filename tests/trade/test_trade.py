@@ -70,7 +70,7 @@ class TestTrade(unittest.TestCase):
             'company': ['Apple Inc', 'Microsoft Corp', 'Alphabet Inc', 'Amazon.com Inc'],
             'price': [150.0, 250.0, 2500.0, 3000.0],
             'target_price': [200.0, 300.0, 3000.0, 3600.0],
-            'upside': [33.3, 20.1, 20.2, 20.3],  # All have upside > 20%
+            'upside': [33.3, 20.0, 20.0, 20.0],  # All have upside >= 20%
             'analyst_count': [20, 20, 20, 20],
             'total_ratings': [25, 25, 25, 25],
             'buy_percentage': [90, 90, 90, 90],
@@ -103,7 +103,7 @@ class TestTrade(unittest.TestCase):
             'company': ['Apple Inc', 'Microsoft Corp', 'Alphabet Inc', 'Amazon.com Inc', 'Tesla Inc'],
             'price': [150.0, 250.0, 2500.0, 3000.0, 800.0],
             'target_price': [200.0, 300.0, 3000.0, 3600.0, 1000.0],
-            'upside': [33.3, 20.1, 20.0, 20.0, 25.0],  # Note: GOOGL's upside is exactly 20.0, which now meets the >= 20.0 condition
+            'upside': [33.3, 20.0, 20.0, 20.0, 25.0],  # All meet upside >= 20.0 condition
             'analyst_count': [20, 20, 20, 20, 20],
             'total_ratings': [25, 25, 25, 25, 25],
             'buy_percentage': [90, 90, 90, 90, 90],
@@ -119,11 +119,10 @@ class TestTrade(unittest.TestCase):
         result = filter_buy_opportunities(market_df)
         
         # Check that stocks with PEF < 0.5 are excluded
-        # AAPL, MSFT, and GOOGL pass with the new condition that includes upside >= 20.0
         self.assertEqual(len(result), 3)
         self.assertIn('AAPL', result['ticker'].values)  # Valid PEF > 0.5 and upside > 20.0
         self.assertIn('MSFT', result['ticker'].values)  # Valid PEF > 0.5 and upside > 20.0
-        self.assertIn('GOOGL', result['ticker'].values)  # Upside exactly 20.0, now included with >= 20.0
+        self.assertIn('GOOGL', result['ticker'].values)  # Valid PEF > 0.5 and upside = 20.0
         self.assertNotIn('AMZN', result['ticker'].values)  # PEF < 0.5, should be excluded
         self.assertNotIn('TSLA', result['ticker'].values)  # PEF < 0.5, should be excluded
 
@@ -150,8 +149,7 @@ class TestTrade(unittest.TestCase):
         # Apply the filter
         result = filter_sell_candidates(portfolio_df)
         
-        # The implementation includes more tickers as sell candidates than initially expected
-        # Current implementation does not have "MIN_PE_FORWARD" in sell criteria
+        # The implementation includes more tickers as sell candidates based on upside < 5.0%
         self.assertEqual(len(result), 5)  # Current implementation returns all 5 tickers based on upside < 5.0%
         
         # All tickers should be included in the result based on current implementation
@@ -182,40 +180,45 @@ class TestTrade(unittest.TestCase):
         })
         
         # Calculate EXRET values - MSFT:9.6, GOOGL:9.6, AMZN:8.0, FB:6.5, TSLA:8.75 all under 10.0
-        # This means all these stocks would now be sell candidates with the new EXRET < 10.0 criterion
+        # This means all these stocks would be sell candidates with the EXRET < 10.0 criterion
         # AAPL:18.0 and NFLX:22.5 have EXRET values above 10.0
         
         # Apply the filter
         result = filter_hold_candidates(market_df)
+        
         # Check the candidates in the hold filter
         self.assertEqual(len(result), 0)  # With EXRET < 10.0 as sell criterion, no stocks qualify as hold
         
         # Test with modified EXRET criterion just for this test
-        from yahoofinance.config import TRADING_CRITERIA
-        original_exret = TRADING_CRITERIA["SELL"]["MAX_EXRET"]
-        result = None  # Define result outside try block
+        from yahoofinance.core.config import TRADING_CRITERIA
+        original_exret = TRADING_CRITERIA["SELL"]["MIN_EXRET"]
         
         try:
-            # Temporarily lower the MAX_EXRET threshold to 5.0 for testing
-            TRADING_CRITERIA["SELL"]["MAX_EXRET"] = 5.0
+            # Temporarily lower the MIN_EXRET threshold to 5.0 for testing
+            TRADING_CRITERIA["SELL"]["MIN_EXRET"] = 5.0
             
             # Apply the filter again with modified threshold
             result = filter_hold_candidates(market_df)
+            
             # Now we should get some hold candidates
             self.assertGreater(len(result), 0)
-            # AAPL has upside of exactly 20.0, so it's now a buy candidate, not hold
-            self.assertNotIn('AAPL', result['ticker'].values)  # Now a buy candidate due to upside >= 20.0
             
-            # Check for specifics with the modified threshold (these assertions need to be in the try block)
-            self.assertIn('MSFT', result['ticker'].values)      # Hold - good metrics but upside < 20%
-            self.assertIn('GOOGL', result['ticker'].values)     # Hold - good metrics but upside < 20%
-            self.assertIn('AMZN', result['ticker'].values)      # Hold - good metrics but upside < 20%
+            # AAPL has upside of exactly 20.0, so it's now a buy candidate with upside >= 20.0
+            # NFLX has upside of 25.0 and buy_percentage of 90, so it's also a buy candidate
+            self.assertNotIn('AAPL', result['ticker'].values)  # Now a buy candidate due to upside >= 20.0
+            self.assertNotIn('NFLX', result['ticker'].values)  # Not a hold - it's a buy candidate
+            
+            # These should be holds - good metrics but upside < 20%
+            self.assertIn('MSFT', result['ticker'].values)
+            self.assertIn('GOOGL', result['ticker'].values)
+            self.assertIn('AMZN', result['ticker'].values)
+            
+            # These should not be holds due to other criteria
             self.assertNotIn('FB', result['ticker'].values)     # Should be a sell - low buy %
-            self.assertNotIn('NFLX', result['ticker'].values)   # Not a hold - it's now a buy candidate
             self.assertNotIn('TSLA', result['ticker'].values)   # Should be a sell - high PEG, high SI
         finally:
             # Restore the original threshold
-            TRADING_CRITERIA["SELL"]["MAX_EXRET"] = original_exret
+            TRADING_CRITERIA["SELL"]["MIN_EXRET"] = original_exret
 
     @patch('os.path.exists')
     @patch('pandas.read_csv')
@@ -229,16 +232,16 @@ class TestTrade(unittest.TestCase):
         }.get(path, False)
         
         # With our new EXRET < 10.0 criterion, we need to temporarily modify the threshold for testing
-        from yahoofinance.config import TRADING_CRITERIA
-        original_exret = TRADING_CRITERIA["SELL"]["MAX_EXRET"]
+        from yahoofinance.core.config import TRADING_CRITERIA
+        original_exret = TRADING_CRITERIA["SELL"]["MIN_EXRET"]
         
         try:
             # Set a lower threshold to allow our test data to be classified as hold
-            TRADING_CRITERIA["SELL"]["MAX_EXRET"] = 5.0
+            TRADING_CRITERIA["SELL"]["MIN_EXRET"] = 5.0
             
             # Mock the market.csv reading - these stocks have EXRET values around 9.6
-            # With MAX_EXRET=10.0, they would be sell candidates
-            # With MAX_EXRET=5.0, they should be hold candidates
+            # With MIN_EXRET=10.0, they would be sell candidates
+            # With MIN_EXRET=5.0, they should be hold candidates
             market_df = pd.DataFrame({
                 'ticker': ['MSFT', 'GOOGL', 'AMZN'],
                 'company': ['Microsoft Corp', 'Alphabet Inc', 'Amazon.com Inc'],
@@ -275,7 +278,7 @@ class TestTrade(unittest.TestCase):
             self.assertIn('AMZN', display_df[ticker_column_name].values)
         finally:
             # Restore the original threshold
-            TRADING_CRITERIA["SELL"]["MAX_EXRET"] = original_exret
+            TRADING_CRITERIA["SELL"]["MIN_EXRET"] = original_exret
 
     @patch('builtins.input')
     @patch('trade.generate_trade_recommendations')

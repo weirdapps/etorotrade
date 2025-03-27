@@ -2,7 +2,7 @@ import pytest
 from datetime import datetime
 from unittest.mock import Mock, patch
 import pandas as pd
-from yahoofinance.pricing import (
+from yahoofinance.analysis.stock import (
     PricingAnalyzer,
     PriceTarget,
     PriceData,

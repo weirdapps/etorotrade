@@ -1,7 +1,7 @@
 import pytest
 from datetime import datetime, timedelta, date
 import pandas as pd
-from yahoofinance.weekly import (
+from yahoofinance.analysis.performance import (
     calculate_dates,
     get_previous_trading_day_close,
     fetch_weekly_change,
@@ -63,7 +63,7 @@ def test_fetch_weekly_change(mocker):
             return 0.0, test_date  # Fallback case
     
     mocker.patch(
-        'yahoofinance.weekly.get_previous_trading_day_close',
+        'yahoofinance.analysis.performance.get_previous_trading_day_close',
         side_effect=mock_trading_day_close
     )
     

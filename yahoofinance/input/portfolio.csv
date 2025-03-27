@@ -1,91 +1,91 @@
 BuySell,investmentPctRealized,profitPct,valuePctUnrealized,positionValue,name,ticker,Exchange,Sector,AssetClass
-BUY,0.199398,16.81069,0.227063,0.2329181796462,Oil (Non Expiry),OIL,Commodity,,Commodity
-BUY,3.390314,2.067765,3.373425,3.4604177262821,Meta Platforms Inc,META,Nasdaq,Technology,Stocks
-BUY,8.376071,-3.144095,7.90877,8.11271937049255,Microsoft,MSFT,Nasdaq,Technology,Stocks
-BUY,5.709644,13.101114,6.295329,6.45767096943416,Amazon.com Inc,AMZN,Nasdaq,Services,Stocks
-BUY,0.797721,-5.5445,0.734549,0.753491359155,UnitedHealth,UNH,NYSE,Healthcare,Stocks
-BUY,0.398861,4.536,0.406471,0.41695333496,Citigroup,C,NYSE,Financial,Stocks
-BUY,0.398861,-2.357,0.379669,0.38945984623,"Autodesk, Inc.",ADSK,Nasdaq,Technology,Stocks
-BUY,8.376031,9.310901,8.92574,9.15591495413931,NVIDIA Corporation,NVDA,Nasdaq,Technology,Stocks
-BUY,0.398861,0.471,0.390665,0.40073963531,Alibaba-ADR,BABA,NYSE,Services,Stocks
-BUY,0.398861,-4.841,0.37001,0.37955213899,Infineon Technologies AG,IFX.DE,FRA,Technology,Stocks
-BUY,0.398861,-1.045,0.38477,0.39469290255,Accor S.A.,AC.PA,Euronext Paris,Services,Stocks
-BUY,0.392016,1.365431,0.387379,0.39736870798896,Fomento de Construcciones,FCC.MC,Bolsa De Madrid,Industrial Goods,Stocks
-BUY,0.398861,1.832,0.395957,0.40616813352,Sacyr,SCYR.MC,Bolsa De Madrid,Industrial Goods,Stocks
-BUY,0.398861,2.114,0.397053,0.40729292154,Lowe's Companies Inc,LOW,NYSE,Consumer Goods,Stocks
-BUY,0.398861,0.969,0.392601,0.40272596309,ConocoPhillips Co,COP,NYSE,Basic Materials,Stocks
-BUY,0.398861,6.559,0.414337,0.42502229299,Reinsurance Group America Inc,RGA,NYSE,Financial,Stocks
-BUY,0.398861,-10.796,0.346855,0.35579996644,IQVIA Holdings Inc.,IQV,NYSE,Healthcare,Stocks
-BUY,0.398861,-0.918,0.385264,0.39519945602,Lam Research Corp,LRCX,Nasdaq,Technology,Stocks
-BUY,0.398861,19.719,0.465507,0.47751240059,Prudential,PRU.L,LSE,Financial,Stocks
-BUY,0.398861,3.864,0.403858,0.41427298904,Flutter Entertainment,FLTR.L,LSE,Services,Stocks
-BUY,0.398861,-3.136,0.37664,0.38635271904,Smurfit WestRock Public Limited Company,SWR.L,LSE,Services,Stocks
-BUY,0.398861,-1.423,0.3833,0.39318520797,DSV A/S,DSV.CO,Copenhagen Stock Exchange,Industrial Goods,Stocks
-BUY,0.398861,1.175,0.393402,0.40354761675,Lenovo Group,0992.HK,Hong Kong Exchanges,Technology,Stocks
-BUY,0.398861,0.361,0.390237,0.40030088821,Ping An Insurance,2318.HK,Hong Kong Exchanges,Financial,Stocks
-BUY,0.396212,23.147701,0.47566,0.48792596908612,Zijin Mining,2899.HK,Hong Kong Exchanges,Basic Materials,Stocks
-BUY,0.398861,6.039,0.412315,0.42294821579,China Oilfield,2883.HK,Hong Kong Exchanges,Basic Materials,Stocks
-BUY,0.398861,2.353,0.397983,0.40824619933,AIA Group Ltd,1299.HK,Hong Kong Exchanges,Financial,Stocks
-BUY,0.396846,-1.253329,0.382021,0.39187221399666,China Railway Group,0390.HK,Hong Kong Exchanges,Industrial Goods,Stocks
-BUY,0.398861,-2.636,0.378584,0.38834702404,CK Hutchison Holdings Ltd,0001.HK,Hong Kong Exchanges,Services,Stocks
-BUY,0.398861,4.849,0.407688,0.41820176989,Galaxy Entertainment Group Ltd,0027.HK,Hong Kong Exchanges,Consumer Goods,Stocks
-BUY,0.398861,6.7,0.414885,0.425584687,China Everbright Environment Group Ltd,0257.HK,Hong Kong Exchanges,Utilities,Stocks
-BUY,0.398861,0.347,0.390183,0.40024504767,BYD Electronic International,0285.HK,Hong Kong Exchanges,Industrial Goods,Stocks
-BUY,0.398861,2.297,0.397765,0.40802283717,PetroChina Co Ltd,0857.HK,Hong Kong Exchanges,Basic Materials,Stocks
-BUY,0.398861,-0.019,0.38876,0.39878521641,Brilliance China Automotive,1114.HK,Hong Kong Exchanges,Consumer Goods,Stocks
-BUY,0.398861,7.154,0.416651,0.42739551594,Sino Biopharmaceutical Ltd,1177.HK,Hong Kong Exchanges,Consumer Goods,Stocks
-BUY,0.398414,-5.354998,0.367599,0.37707893826828,Sands China Ltd,1928.HK,Hong Kong Exchanges,Consumer Goods,Stocks
-BUY,0.398861,7.461,0.417844,0.42862001921,Shenzhou International Group,2313.HK,Hong Kong Exchanges,Consumer Goods,Stocks
-BUY,0.398861,-0.418,0.387208,0.39719376102,Sunny Optical Technology Group,2382.HK,Hong Kong Exchanges,Industrial Goods,Stocks
-BUY,0.396148,-4.858035,0.367428,0.3769029915082,Sinopec Engineering Group Co,2386.HK,Hong Kong Exchanges,Utilities,Stocks
-BUY,0.398861,-1.477,0.38309,0.39296982303,Meituan Class B,3690.HK,Hong Kong Exchanges,Services,Stocks
-BUY,0.398861,-1.618,0.382542,0.39240742902,China International Capital Co,3908.HK,Hong Kong Exchanges,Financial,Stocks
-BUY,0.398861,7.397,0.417595,0.42836474817,China Molybdenum Co Ltd,3993.HK,Hong Kong Exchanges,Basic Materials,Stocks
-BUY,0.398861,-0.017,0.388767,0.39879319363,ZhongAn Online P&C Insurance,6060.HK,Hong Kong Exchanges,Financial,Stocks
-BUY,0.398861,0.928,0.392442,0.40256243008,Sino Land Co Ltd,0083.HK,Hong Kong Exchanges,Financial,Stocks
-BUY,0.398861,-6.258,0.3645,0.37390027862,Techtronic Industries Co Ltd,0669.HK,Hong Kong Exchanges,Industrial Goods,Stocks
-BUY,0.398861,2.945,0.400285,0.41060745645,JD.com Inc,9618.HK,Hong Kong Exchanges,Services,Stocks
-BUY,0.398861,-3.672,0.374555,0.38421482408,Gerresheimer,GXI.DE,FRA,Basic Materials,Stocks
-BUY,0.398861,-3.707,0.374419,0.38407522273,Siemens Healthineers AG,SHL.DE,FRA,Healthcare,Stocks
-BUY,0.398829,-2.13117,0.380516,0.3903292760007,Coats Group PLC,COA.L,LSE,Financial,Stocks
-BUY,0.398829,-4.091327,0.372895,0.38251160143917,IWG PLC,IWG.L,LSE,Financial,Stocks
-BUY,0.398861,-2.182,0.380349,0.39015785298,Indivior PLC,INDV.L,LSE,Consumer Goods,Stocks
-BUY,0.398837,-8.178491,0.357011,0.36621815185033,Intercos S.p.A,ICOS.MI,Borsa Italiana,Consumer Goods,Stocks
-BUY,0.398861,1.422,0.394363,0.40453280342,Gaztransport et Technigaz SA,GTT.PA,Euronext Paris,Utilities,Stocks
-BUY,0.398837,-3.279197,0.37606,0.38575834906111,Lectra SA,LSS.PA,Euronext Paris,Technology,Stocks
-BUY,0.398861,-11.683,0.343406,0.35226206937,X Fab Silicon Foundries EV,XFAB.PA,Euronext Paris,Technology,Stocks
-BUY,0.398861,0.561,0.391015,0.40109861021,STABILUS SE,STM.DE,FRA,Industrial Goods,Stocks
-BUY,0.398853,13.099262,0.439759,0.45109979946486,GFT TECHNOLOGIES SE,GFT.DE,FRA,Technology,Stocks
-BUY,0.398857,-2.929029,0.377441,0.38717436280147,HAMBORNER REIT AG,HABA.DE,FRA,Financial,Stocks
-BUY,0.398861,0.57,0.39105,0.4011345077,CIE Automotive S.A.,CIE.MC,Bolsa De Madrid,Consumer Goods,Stocks
-BUY,0.398861,2.512,0.398601,0.40888038832,The Cooper Companies Inc,COO,Nasdaq,Healthcare,Stocks
-BUY,0.997151,-5.7404,0.916282,0.939910543996,Broadcom Inc,AVGO,Nasdaq,Technology,Stocks
-BUY,0.398861,3.431,0.402174,0.41254592091,Eiffage SA,FGR.PA,Euronext Paris,Industrial Goods,Stocks
-BUY,0.398861,4.414,0.405996,0.41646672454,SEB SA,SK.PA,Euronext Paris,Consumer Goods,Stocks
-BUY,0.398861,0.364,0.390249,0.40031285404,Acerinox SA,ACX.MC,Bolsa De Madrid,Basic Materials,Stocks
-BUY,0.392989,3.269121,0.395634,0.40583628592669,Laboratorios Almirall SA,ALM.MC,Bolsa De Madrid,Consumer Goods,Stocks
-BUY,0.398853,-0.853017,0.385509,0.39545071610499,Ence Energia Y Celulosa SA,ENC.MC,Bolsa De Madrid,Basic Materials,Stocks
-BUY,0.398861,-11.605,0.343709,0.35257318095,Arkema,AKE.PA,Euronext Paris,Basic Materials,Stocks
-BUY,0.398861,2.986,0.400444,0.41077098946,Rubis SCA,RUI.PA,Euronext Paris,Utilities,Stocks
-BUY,3.589701,-2.795812,3.401619,3.48933970867788,Alphabet Inc Class A,GOOGL,Nasdaq,Services,Stocks
-BUY,0.3976,2.645359,0.397858,0.408117947384,VTEX,VTEX,NYSE,Technology,Stocks
-BUY,0.398861,-6.798,0.3624,0.37174642922,Clean Harbors Inc.,CLH,NYSE,Industrial Goods,Stocks
-BUY,0.398861,-0.791,0.385758,0.39570600949,Opera Limited,OPRA,Nasdaq,Services,Stocks
-BUY,0.398861,-0.044,0.388662,0.39868550116,SPX Technologies Inc,SPXC,NYSE,Industrial Goods,Stocks
-BUY,0.398174,-6.201667,0.364092,0.37348057443942,Constellium Se,CSTM,NYSE,Basic Materials,Stocks
-BUY,0.398861,-3.957,0.373447,0.38307807023,National Central Cooling Company PJSC,TABREED.AE,Dubai Financial Market,Utilities,Stocks
-BUY,0.398861,-5.095,0.369022,0.37853903205,Spinneys 1961 Holding PLC,SPINNEYS.AE,Dubai Financial Market,Financial,Stocks
-BUY,0.398861,-2.874,0.377658,0.38739773486,QCR Holdings Inc,QCRH,Nasdaq,Financial,Stocks
-BUY,0.398861,0.239,0.389763,0.39981427779,Business First Bancshares Inc,BFST,Nasdaq,Financial,Stocks
-BUY,0.394417,0.957668,0.388184,0.39819420539556,Origin Bancorp Inc,OBK,NYSE,Financial,Stocks
-BUY,0.398861,4.658,0.406945,0.41743994538,Ducommun Incorporated,DCO,NYSE,Industrial Goods,Stocks
-BUY,6.181991,23.139686,7.421111,7.61248430594826,Amundi MSCI Greece UCITS ETF,LYXGRE.DE,Xetra ETFs,Financial,ETF
-BUY,0.398861,7.505,0.418015,0.42879551805,DIeteren Group SA,DIE.BR,Euronext Brussels,Consumer Goods,Stocks
-BUY,0.398861,-5.2,0.368614,0.378120228,Azelis Group NV,AZE.BR,Euronext Brussels,Consumer Goods,Stocks
-BUY,0.398378,-0.699847,0.385645,0.39558996351834,Corticeira Amorim SGPS SA,COR.LS,Euronext Lisbon,Industrial Goods,Stocks
-BUY,0.398414,-6.456231,0.363322,0.37269147182366,Quadient SA,QDT.PA,Euronext Paris,Technology,Stocks
-BUY,0.398422,14.728201,0.445611,0.45710239298822,GL Events SA,GLO.PA,Euronext Paris,Consumer Goods,Stocks
-BUY,0.398845,-3.24813,0.376189,0.3858899959015,Seche Environnement SA,SCHP.PA,Euronext Paris,Industrial Goods,Stocks
-BUY,0.398861,3.599,0.402828,0.41321600739,Guerbet SA,GBT.PA,Euronext Paris,Consumer Goods,Stocks
-BUY,0.398322,-0.45962,0.386524,0.3964912324236,Pierre et Vacances SA,VAC.PA,Euronext Paris,Financial,Stocks
-BUY,1.196398,-13.775446,1.005655,1.03158883956492,Bitcoin,BTC-USD,Digital Currency,,Crypto
+BUY,0.199398,18.074892,0.229575,0.23543897315016,Oil (Non Expiry),OIL,Commodity,,Commodity
+BUY,3.390312,1.960941,3.370696,3.45679401803592,Meta Platforms Inc,META,Nasdaq,Technology,Stocks
+BUY,8.376065,-3.282952,7.89931,8.1010828065612,Microsoft,MSFT,Nasdaq,Technology,Stocks
+BUY,5.70964,13.146172,6.299335,6.4602390949808,Amazon.com Inc,AMZN,Nasdaq,Services,Stocks
+BUY,0.79772,-5.2625,0.736917,0.755739985,UnitedHealth,UNH,NYSE,Healthcare,Stocks
+BUY,0.39886,4.11,0.404911,0.415253146,Citigroup,C,NYSE,Financial,Stocks
+BUY,0.39886,-2.59,0.378853,0.388529526,"Autodesk, Inc.",ADSK,Nasdaq,Technology,Stocks
+BUY,8.376025,9.397711,8.934953,9.16317962278775,NVIDIA Corporation,NVDA,Nasdaq,Technology,Stocks
+BUY,0.39886,0.326,0.390194,0.4001602836,Alibaba-ADR,BABA,NYSE,Services,Stocks
+BUY,0.39886,-4.805,0.370238,0.379694777,Infineon Technologies AG,IFX.DE,FRA,Technology,Stocks
+BUY,0.39886,-1.009,0.385002,0.3948355026,Accor S.A.,AC.PA,Euronext Paris,Services,Stocks
+BUY,0.392016,1.402059,0.387611,0.39751229560944,Fomento de Construcciones,FCC.MC,Bolsa De Madrid,Industrial Goods,Stocks
+BUY,0.39886,1.868,0.396191,0.4063107048,Sacyr,SCYR.MC,Bolsa De Madrid,Industrial Goods,Stocks
+BUY,0.39886,2.079,0.397012,0.4071522994,Lowe's Companies Inc,LOW,NYSE,Consumer Goods,Stocks
+BUY,0.39886,0.959,0.392656,0.4026850674,ConocoPhillips Co,COP,NYSE,Basic Materials,Stocks
+BUY,0.39886,6.464,0.414066,0.4246423104,Reinsurance Group America Inc,RGA,NYSE,Financial,Stocks
+BUY,0.39886,-11.048,0.345957,0.3547939472,IQVIA Holdings Inc.,IQV,NYSE,Healthcare,Stocks
+BUY,0.39886,-0.131,0.388416,0.3983374934,Lam Research Corp,LRCX,Nasdaq,Technology,Stocks
+BUY,0.39886,19.765,0.465797,0.477694679,Prudential,PRU.L,LSE,Financial,Stocks
+BUY,0.39886,3.905,0.404113,0.414435483,Flutter Entertainment,FLTR.L,LSE,Services,Stocks
+BUY,0.39886,-3.099,0.376873,0.3864993286,Smurfit WestRock Public Limited Company,SWR.L,LSE,Services,Stocks
+BUY,0.39886,-1.387,0.383531,0.3933278118,DSV A/S,DSV.CO,Copenhagen Stock Exchange,Industrial Goods,Stocks
+BUY,0.39886,1.183,0.393527,0.4035785138,Lenovo Group,0992.HK,Hong Kong Exchanges,Technology,Stocks
+BUY,0.39886,0.369,0.390361,0.4003317934,Ping An Insurance,2318.HK,Hong Kong Exchanges,Financial,Stocks
+BUY,0.396212,23.157768,0.475812,0.48796585574816,Zijin Mining,2899.HK,Hong Kong Exchanges,Basic Materials,Stocks
+BUY,0.39886,6.047,0.412444,0.4229790642,China Oilfield,2883.HK,Hong Kong Exchanges,Basic Materials,Stocks
+BUY,0.39886,2.361,0.398108,0.4082770846,AIA Group Ltd,1299.HK,Hong Kong Exchanges,Financial,Stocks
+BUY,0.396846,-1.246294,0.382139,0.39190013211276,China Railway Group,0390.HK,Hong Kong Exchanges,Industrial Goods,Stocks
+BUY,0.39886,-2.628,0.378705,0.3883779592,CK Hutchison Holdings Ltd,0001.HK,Hong Kong Exchanges,Services,Stocks
+BUY,0.39886,4.857,0.407816,0.4182326302,Galaxy Entertainment Group Ltd,0027.HK,Hong Kong Exchanges,Consumer Goods,Stocks
+BUY,0.39886,6.709,0.415019,0.4256195174,China Everbright Environment Group Ltd,0257.HK,Hong Kong Exchanges,Utilities,Stocks
+BUY,0.39886,0.356,0.39031,0.4002799416,BYD Electronic International,0285.HK,Hong Kong Exchanges,Industrial Goods,Stocks
+BUY,0.39886,2.305,0.397891,0.408053723,PetroChina Co Ltd,0857.HK,Hong Kong Exchanges,Basic Materials,Stocks
+BUY,0.39886,-0.011,0.388883,0.3988161254,Brilliance China Automotive,1114.HK,Hong Kong Exchanges,Consumer Goods,Stocks
+BUY,0.39886,7.163,0.416785,0.4274303418,Sino Biopharmaceutical Ltd,1177.HK,Hong Kong Exchanges,Consumer Goods,Stocks
+BUY,0.398413,-5.34799,0.367714,0.3771059126013,Sands China Ltd,1928.HK,Hong Kong Exchanges,Consumer Goods,Stocks
+BUY,0.39886,7.47,0.417979,0.428654842,Shenzhou International Group,2313.HK,Hong Kong Exchanges,Consumer Goods,Stocks
+BUY,0.39886,-0.41,0.387331,0.397224674,Sunny Optical Technology Group,2382.HK,Hong Kong Exchanges,Industrial Goods,Stocks
+BUY,0.396148,-4.84998,0.367547,0.3769349012296,Sinopec Engineering Group Co,2386.HK,Hong Kong Exchanges,Utilities,Stocks
+BUY,0.39886,-1.469,0.383213,0.3930007466,Meituan Class B,3690.HK,Hong Kong Exchanges,Services,Stocks
+BUY,0.39886,-1.61,0.382664,0.392438354,China International Capital Co,3908.HK,Hong Kong Exchanges,Financial,Stocks
+BUY,0.39886,7.406,0.41773,0.4283995716,China Molybdenum Co Ltd,3993.HK,Hong Kong Exchanges,Basic Materials,Stocks
+BUY,0.39886,-0.009,0.388891,0.3988241026,ZhongAn Online P&C Insurance,6060.HK,Hong Kong Exchanges,Financial,Stocks
+BUY,0.39886,0.936,0.392566,0.4025933296,Sino Land Co Ltd,0083.HK,Hong Kong Exchanges,Financial,Stocks
+BUY,0.39886,-6.25,0.364618,0.37393125,Techtronic Industries Co Ltd,0669.HK,Hong Kong Exchanges,Industrial Goods,Stocks
+BUY,0.39886,2.954,0.400415,0.4106423244,JD.com Inc,9618.HK,Hong Kong Exchanges,Services,Stocks
+BUY,0.39886,-3.637,0.374781,0.3843534618,Gerresheimer,GXI.DE,FRA,Basic Materials,Stocks
+BUY,0.39886,-3.672,0.374644,0.3842138608,Siemens Healthineers AG,SHL.DE,FRA,Healthcare,Stocks
+BUY,0.398828,-2.093167,0.380755,0.39047986391724,Coats Group PLC,COA.L,LSE,Financial,Stocks
+BUY,0.398828,-4.054324,0.373128,0.38265822067728,IWG PLC,IWG.L,LSE,Financial,Stocks
+BUY,0.39886,-2.144,0.380587,0.3903084416,Indivior PLC,INDV.L,LSE,Consumer Goods,Stocks
+BUY,0.398836,-8.145489,0.357225,0.36634885749196,Intercos S.p.A,ICOS.MI,Borsa Italiana,Consumer Goods,Stocks
+BUY,0.39886,1.459,0.3946,0.4046793674,Gaztransport et Technigaz SA,GTT.PA,Euronext Paris,Utilities,Stocks
+BUY,0.398836,-3.244195,0.376286,0.3858969824298,Lectra SA,LSS.PA,Euronext Paris,Technology,Stocks
+BUY,0.39886,-11.651,0.343612,0.3523888214,X Fab Silicon Foundries EV,XFAB.PA,Euronext Paris,Technology,Stocks
+BUY,0.39886,0.597,0.391248,0.4012411942,STABILUS SE,STM.DE,FRA,Industrial Goods,Stocks
+BUY,0.398852,13.140263,0.440023,0.45126220178076,GFT TECHNOLOGIES SE,GFT.DE,FRA,Technology,Stocks
+BUY,0.398856,-2.894029,0.377666,0.38731299169176,HAMBORNER REIT AG,HABA.DE,FRA,Financial,Stocks
+BUY,0.39886,0.606,0.391283,0.4012770916,CIE Automotive S.A.,CIE.MC,Bolsa De Madrid,Consumer Goods,Stocks
+BUY,0.39886,2.72,0.399505,0.409708992,The Cooper Companies Inc,COO,Nasdaq,Healthcare,Stocks
+BUY,0.997151,-6.1332,0.912681,0.935993734868,Broadcom Inc,AVGO,Nasdaq,Technology,Stocks
+BUY,0.39886,3.468,0.402414,0.4126924648,Eiffage SA,FGR.PA,Euronext Paris,Industrial Goods,Stocks
+BUY,0.39886,4.451,0.406237,0.4166132586,SEB SA,SK.PA,Euronext Paris,Consumer Goods,Stocks
+BUY,0.39886,0.4,0.390482,0.40045544,Acerinox SA,ACX.MC,Bolsa De Madrid,Basic Materials,Stocks
+BUY,0.392989,3.305659,0.395868,0.40597987624751,Laboratorios Almirall SA,ALM.MC,Bolsa De Madrid,Consumer Goods,Stocks
+BUY,0.398852,-0.817016,0.385741,0.39559331534368,Ence Energia Y Celulosa SA,ENC.MC,Bolsa De Madrid,Basic Materials,Stocks
+BUY,0.39886,-11.573,0.343915,0.3526999322,Arkema,AKE.PA,Euronext Paris,Basic Materials,Stocks
+BUY,0.39886,3.024,0.400687,0.4109215264,Rubis SCA,RUI.PA,Euronext Paris,Utilities,Stocks
+BUY,3.589698,-3.654045,3.372388,3.4585288197159,Alphabet Inc Class A,GOOGL,Nasdaq,Services,Stocks
+BUY,0.3976,2.857028,0.398773,0.408959543328,VTEX,VTEX,NYSE,Technology,Stocks
+BUY,0.39886,-7.438,0.359998,0.3691927932,Clean Harbors Inc.,CLH,NYSE,Industrial Goods,Stocks
+BUY,0.39886,-1.355,0.383656,0.393455447,Opera Limited,OPRA,Nasdaq,Services,Stocks
+BUY,0.39886,-0.715,0.386145,0.396008151,SPX Technologies Inc,SPXC,NYSE,Industrial Goods,Stocks
+BUY,0.398174,-5.770926,0.365851,0.37519567310876,Constellium Se,CSTM,NYSE,Basic Materials,Stocks
+BUY,0.39886,-3.957,0.373536,0.3830771098,National Central Cooling Company PJSC,TABREED.AE,Dubai Financial Market,Utilities,Stocks
+BUY,0.39886,-5.095,0.36911,0.378538083,Spinneys 1961 Holding PLC,SPINNEYS.AE,Dubai Financial Market,Financial,Stocks
+BUY,0.39886,-2.834,0.377904,0.3875563076,QCR Holdings Inc,QCRH,Nasdaq,Financial,Stocks
+BUY,0.39886,1.155,0.393418,0.403466833,Business First Bancshares Inc,BFST,Nasdaq,Financial,Stocks
+BUY,0.394417,0.084946,0.38492,0.39475204146482,Origin Bancorp Inc,OBK,NYSE,Financial,Stocks
+BUY,0.39886,4.641,0.406976,0.4173710926,Ducommun Incorporated,DCO,NYSE,Industrial Goods,Stocks
+BUY,6.181986,23.184269,7.425563,7.61523426378234,Amundi MSCI Greece UCITS ETF,LYXGRE.DE,Xetra ETFs,Financial,ETF
+BUY,0.39886,7.544,0.418266,0.4289499984,DIeteren Group SA,DIE.BR,Euronext Brussels,Consumer Goods,Stocks
+BUY,0.39886,-5.166,0.368834,0.3782548924,Azelis Group NV,AZE.BR,Euronext Brussels,Consumer Goods,Stocks
+BUY,0.398378,-0.663803,0.385877,0.39573355488466,Corticeira Amorim SGPS SA,COR.LS,Euronext Lisbon,Industrial Goods,Stocks
+BUY,0.398413,-6.422193,0.363541,0.37282614820291,Quadient SA,QDT.PA,Euronext Paris,Technology,Stocks
+BUY,0.398421,14.770247,0.44588,0.45726876579987,GL Events SA,GLO.PA,Euronext Paris,Consumer Goods,Stocks
+BUY,0.398844,-3.213129,0.376414,0.38602862777124,Seche Environnement SA,SCHP.PA,Euronext Paris,Industrial Goods,Stocks
+BUY,0.39886,3.636,0.403067,0.4133625496,Guerbet SA,GBT.PA,Euronext Paris,Consumer Goods,Stocks
+BUY,0.398322,-0.423572,0.386756,0.39663481953816,Pierre et Vacances SA,VAC.PA,Euronext Paris,Financial,Stocks
+BUY,1.196397,-13.146349,1.013234,1.03911447495447,Bitcoin,BTC-USD,Digital Currency,,Crypto

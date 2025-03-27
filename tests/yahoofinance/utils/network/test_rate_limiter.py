@@ -24,7 +24,7 @@ from unittest.mock import patch, MagicMock, Mock
 from yahoofinance.utils.network.rate_limiter import (
     AdaptiveRateLimiter, rate_limited, batch_process, global_rate_limiter
 )
-from yahoofinance.display import RateLimitTracker
+from yahoofinance.presentation.console import RateLimitTracker
 from yahoofinance.core.errors import RateLimitError, APIError
 from yahoofinance.core.config import RATE_LIMIT
 

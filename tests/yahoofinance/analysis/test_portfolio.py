@@ -1,7 +1,7 @@
 import pytest
 from bs4 import BeautifulSoup
 from unittest.mock import patch, Mock
-from yahoofinance.portfolio import (
+from yahoofinance.analysis.portfolio import (
     format_percentage_value,
     extract_summary_data,
     extract_metric,
@@ -104,7 +104,7 @@ def test_color_value():
     assert "\033[93m" in color_value("0.00%")   # Yellow for zero
     assert "invalid" == color_value("invalid")   # No color for invalid
 
-@patch('yahoofinance.portfolio.FormatUtils')
+@patch('yahoofinance.analysis.portfolio.FormatUtils')
 def test_update_html(mock_format_utils_class, tmp_path):
     html_file = tmp_path / "test.html"
     

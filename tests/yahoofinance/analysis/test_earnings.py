@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import Mock, patch
 import pandas as pd
 from datetime import datetime
-from yahoofinance.earnings import EarningsCalendar, format_earnings_table
+from yahoofinance.analysis.earnings import EarningsCalendar, format_earnings_table
 
 class TestEarningsCalendar(unittest.TestCase):
     def setUp(self):

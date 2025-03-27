@@ -3,7 +3,7 @@ from unittest.mock import patch, Mock, call
 import pandas as pd
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-from yahoofinance.monthly import (
+from yahoofinance.analysis.performance import (
     get_last_business_day,
     get_previous_trading_day_close,
     get_previous_month_ends,
@@ -13,7 +13,7 @@ from yahoofinance.monthly import (
 
 @pytest.fixture
 def mock_yf_download():
-    with patch('yahoofinance.monthly.yf.download') as mock:
+    with patch('yahoofinance.analysis.performance.yf.download') as mock:
         yield mock
 
 def test_get_last_business_day():
@@ -43,7 +43,7 @@ def test_get_previous_trading_day_close(mock_yf_download):
     assert date is None
 
 def test_get_previous_month_ends():
-    with patch('yahoofinance.monthly.datetime') as mock_datetime:
+    with patch('yahoofinance.analysis.performance.datetime') as mock_datetime:
         # Mock current time to a known date
         mock_now = datetime(2024, 3, 15, tzinfo=ZoneInfo('Europe/Athens'))
         mock_datetime.now.return_value = mock_now
@@ -78,11 +78,11 @@ def test_fetch_monthly_change(mock_yf_download):
     assert '+10.00%' in first_result['Change Percent']
 
 def test_main():
-    with patch('yahoofinance.monthly.get_previous_month_ends') as mock_ends, \
-         patch('yahoofinance.monthly.fetch_monthly_change') as mock_fetch, \
-         patch('yahoofinance.monthly.pd.DataFrame') as mock_df, \
-         patch('yahoofinance.monthly.tabulate') as mock_tabulate, \
-         patch('yahoofinance.monthly.datetime') as mock_datetime:
+    with patch('yahoofinance.analysis.performance.get_previous_month_ends') as mock_ends, \
+         patch('yahoofinance.analysis.performance.fetch_monthly_change') as mock_fetch, \
+         patch('yahoofinance.analysis.performance.pd.DataFrame') as mock_df, \
+         patch('yahoofinance.analysis.performance.tabulate') as mock_tabulate, \
+         patch('yahoofinance.analysis.performance.datetime') as mock_datetime:
         
         # Mock the return values
         mock_ends.return_value = (

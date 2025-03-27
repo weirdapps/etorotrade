@@ -4,22 +4,27 @@ This file tracks the status of test migrations to the new structure.
 
 ## Migration Update
 
-All test files have been successfully migrated to the new structure, but further changes are needed to make all tests pass with the new module structure.
+All test files have been migrated to the new structure, and most of the critical tests are now passing. The integration tests for both API and Async API have been fixed and are now passing, along with the end-to-end tests.
 
 ### Current Focus
 
-- Updating import paths in test files to match new module structure
-- Fixing mock patches to point to the correct modules
+- Finishing fixes for the circuit breaker integration tests
+- Updating import paths in remaining test files to match new module structure
 - Ensuring class imports reflect new locations
 
 ### Recent Progress
 
-- ✅ tests/unit/utils/async/test_enhanced.py - 3 tests skipped with TODOs, rest passing
+- 🛠️ tests/e2e/test_trade_workflows.py - Fixed and all tests now passing
+- 🛠️ tests/integration/api/test_api_integration.py - All tests now passing
+- 🛠️ tests/integration/api/test_async_api.py - All tests now passing
+- 🛠️ tests/unit/utils/async/test_enhanced.py - All tests now passing (no more skipped tests)
 - ✅ tests/unit/utils/network/test_async_circuit_breaker.py - All tests passing
 - ✅ tests/unit/utils/network/test_circuit_breaker.py - All tests passing
+- 🛠️ Added compatibility layers in yahoofinance/compat/ for smooth transition
 
 - Formal tests are now organized in a hierarchical structure that mirrors the package organization
 - Manual testing scripts from the root directory have been moved to the `scripts/` directory
+- Compatibility layers ensure backward compatibility while moving to the new structure
 
 ## Core Module Tests
 
@@ -110,8 +115,15 @@ All test files have been successfully migrated to the new structure, but further
 
 | Test File | Status | Notes |
 |-----------|--------|-------|
-| integration/test_api_integration.py | ✅ Migrated | Moved to integration/api/ directory |
-| integration/test_async_api.py | ✅ Migrated | Moved to integration/api/ directory |
+| integration/test_api_integration.py | 🛠️ Fixed | Updated to use compatibility layer for YFinanceClient |
+| integration/test_async_api.py | 🛠️ Fixed | Fixed and enhanced to work with new provider structure |
+| integration/test_circuit_breaker_integration.py | 🔄 In Progress | Some tests still failing, need to fix circuit breaker state persistence |
+
+## End-to-End Tests
+
+| Test File | Status | Notes |
+|-----------|--------|-------|
+| e2e/test_trade_workflows.py | 🛠️ Fixed | Updated to use compatibility layer for MarketDisplay |
 
 ## Import Path Changes Needed
 
@@ -146,7 +158,9 @@ Some classes have moved to different modules:
 | `MarketDisplay` (from `yahoofinance.display`) | `yahoofinance.presentation.console` |
 | `PricingAnalyzer` (from `yahoofinance.display`) | `yahoofinance.analysis.metrics` |
 | `AnalystData` (from `yahoofinance.analyst`) | `yahoofinance.analysis.analyst` |
-| `AdaptiveRateLimiter` | Needs investigation |
+| `AdaptiveRateLimiter` | Renamed to `RateLimiter` in `yahoofinance.utils.network.rate_limiter` |
+| `YFinanceClient` | Compatibility version in `yahoofinance.compat.client`, new version in `yahoofinance.core.client` |
+| `StockData` | Added to `yahoofinance.compat.client` for compatibility |
 
 ## Legend
 

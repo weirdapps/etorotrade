@@ -22,7 +22,7 @@ import multiprocessing
 from yahoofinance.utils.network.rate_limiter import (
     AdaptiveRateLimiter, rate_limited, batch_process, global_rate_limiter
 )
-from yahoofinance.display import RateLimitTracker
+from yahoofinance.presentation.console import RateLimitTracker
 from yahoofinance.core.errors import RateLimitError, APIError
 
 # Import shared test fixtures

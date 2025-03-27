@@ -57,6 +57,206 @@ class MarketDisplay:
         
         # Store input directory
         self.input_dir = input_dir
+        
+    def analyze_portfolio(self) -> pd.DataFrame:
+        """
+        Analyze portfolio holdings and return results.
+        
+        This method loads tickers from the portfolio file,
+        retrieves market data for each ticker, and generates
+        analysis with recommendations.
+        
+        Returns:
+            DataFrame with portfolio analysis results
+        """
+        try:
+            # Load tickers from portfolio file
+            tickers = self.load_tickers("P")
+            if not tickers:
+                logger.warning("No portfolio tickers found.")
+                return pd.DataFrame()
+                
+            # Process tickers with v2 display's method
+            logger.info(f"Analyzing {len(tickers)} portfolio tickers...")
+            
+            # Get analysis for each ticker
+            results = []
+            for ticker in tickers:
+                report = self.generate_stock_report(ticker)
+                if report:
+                    results.append(report)
+            
+            # Convert to DataFrame
+            df = pd.DataFrame(results)
+            
+            # Save to CSV
+            output_dir = f"{self.input_dir}/../output" if self.input_dir else "./output"
+            df.to_csv(f"{output_dir}/portfolio.csv", index=False)
+            
+            # Display the results
+            self.v2_display.display_stock_table(results, "Portfolio Analysis")
+            
+            return df
+            
+        except Exception as e:
+            logger.error(f"Error analyzing portfolio: {str(e)}")
+            return pd.DataFrame()
+            
+    def get_buy_recommendations(self) -> pd.DataFrame:
+        """
+        Generate buy recommendations based on market analysis.
+        
+        This method loads tickers from the market file,
+        analyzes each ticker, and filters for BUY recommendations.
+        
+        Returns:
+            DataFrame with buy recommendations
+        """
+        try:
+            # Load tickers from market file
+            tickers = self.load_tickers("M")
+            if not tickers:
+                logger.warning("No market tickers found.")
+                return pd.DataFrame()
+                
+            # Process tickers with v2 display's method
+            logger.info(f"Analyzing {len(tickers)} market tickers...")
+            
+            # Get analysis for each ticker
+            results = []
+            for ticker in tickers:
+                report = self.generate_stock_report(ticker)
+                if report:
+                    results.append(report)
+            
+            # Filter for BUY recommendations
+            buy_recommendations = [
+                item for item in results 
+                if item.get("recommendation") == "BUY"
+            ]
+            
+            # Convert to DataFrame
+            df = pd.DataFrame(buy_recommendations)
+            
+            # Save to CSV
+            output_dir = f"{self.input_dir}/../output" if self.input_dir else "./output"
+            df.to_csv(f"{output_dir}/buy.csv", index=False)
+            
+            # Display the results
+            self.v2_display.display_stock_table(
+                buy_recommendations, 
+                "Buy Recommendations"
+            )
+            
+            return df
+            
+        except Exception as e:
+            logger.error(f"Error generating buy recommendations: {str(e)}")
+            return pd.DataFrame()
+            
+    def get_sell_recommendations(self) -> pd.DataFrame:
+        """
+        Generate sell recommendations based on portfolio analysis.
+        
+        This method loads tickers from the portfolio file,
+        analyzes each ticker, and filters for SELL recommendations.
+        
+        Returns:
+            DataFrame with sell recommendations
+        """
+        try:
+            # Load tickers from portfolio file
+            tickers = self.load_tickers("P")
+            if not tickers:
+                logger.warning("No portfolio tickers found.")
+                return pd.DataFrame()
+                
+            # Process tickers with v2 display's method
+            logger.info(f"Analyzing {len(tickers)} portfolio tickers...")
+            
+            # Get analysis for each ticker
+            results = []
+            for ticker in tickers:
+                report = self.generate_stock_report(ticker)
+                if report:
+                    results.append(report)
+            
+            # Filter for SELL recommendations
+            sell_recommendations = [
+                item for item in results 
+                if item.get("recommendation") == "SELL"
+            ]
+            
+            # Convert to DataFrame
+            df = pd.DataFrame(sell_recommendations)
+            
+            # Save to CSV
+            output_dir = f"{self.input_dir}/../output" if self.input_dir else "./output"
+            df.to_csv(f"{output_dir}/sell.csv", index=False)
+            
+            # Display the results
+            self.v2_display.display_stock_table(
+                sell_recommendations, 
+                "Sell Recommendations"
+            )
+            
+            return df
+            
+        except Exception as e:
+            logger.error(f"Error generating sell recommendations: {str(e)}")
+            return pd.DataFrame()
+            
+    def get_hold_recommendations(self) -> pd.DataFrame:
+        """
+        Generate hold recommendations based on portfolio analysis.
+        
+        This method loads tickers from the portfolio file,
+        analyzes each ticker, and filters for HOLD recommendations.
+        
+        Returns:
+            DataFrame with hold recommendations
+        """
+        try:
+            # Load tickers from portfolio file
+            tickers = self.load_tickers("P")
+            if not tickers:
+                logger.warning("No portfolio tickers found.")
+                return pd.DataFrame()
+                
+            # Process tickers with v2 display's method
+            logger.info(f"Analyzing {len(tickers)} portfolio tickers...")
+            
+            # Get analysis for each ticker
+            results = []
+            for ticker in tickers:
+                report = self.generate_stock_report(ticker)
+                if report:
+                    results.append(report)
+            
+            # Filter for HOLD recommendations
+            hold_recommendations = [
+                item for item in results 
+                if item.get("recommendation") == "HOLD"
+            ]
+            
+            # Convert to DataFrame
+            df = pd.DataFrame(hold_recommendations)
+            
+            # Save to CSV
+            output_dir = f"{self.input_dir}/../output" if self.input_dir else "./output"
+            df.to_csv(f"{output_dir}/hold.csv", index=False)
+            
+            # Display the results
+            self.v2_display.display_stock_table(
+                hold_recommendations, 
+                "Hold Recommendations"
+            )
+            
+            return df
+            
+        except Exception as e:
+            logger.error(f"Error generating hold recommendations: {str(e)}")
+            return pd.DataFrame()
     
     def _load_tickers_from_file(self, file_name: str, column_name: str) -> List[str]:
         """
@@ -153,7 +353,8 @@ class MarketDisplay:
             "short_float_pct": stock_data.short_float_pct,
             "last_earnings": stock_data.last_earnings,
             "insider_buy_pct": stock_data.insider_buy_pct,
-            "insider_transactions": stock_data.insider_transactions
+            "insider_transactions": stock_data.insider_transactions,
+            "recommendation": stock_data.recommendation if hasattr(stock_data, 'recommendation') else self._calculate_recommendation(stock_data)
         }
         
         # Calculate upside if missing
@@ -164,6 +365,53 @@ class MarketDisplay:
                 report["upside"] = ((target_price / current_price) - 1) * 100
         
         return report
+        
+    def _calculate_recommendation(self, stock_data) -> str:
+        """
+        Calculate recommendation based on trading criteria.
+        
+        Args:
+            stock_data: StockData object with market metrics
+            
+        Returns:
+            Recommendation string: "BUY", "SELL", "HOLD", or "INCONCLUSIVE"
+        """
+        # Confidence check
+        min_price_targets = 5
+        min_analyst_count = 5
+        
+        if stock_data.analyst_count is None or stock_data.total_ratings is None:
+            return "INCONCLUSIVE"
+            
+        if stock_data.analyst_count < min_price_targets or stock_data.total_ratings < min_analyst_count:
+            return "INCONCLUSIVE"
+        
+        # SELL criteria (checked first for risk management)
+        if (stock_data.upside is not None and stock_data.upside < 5.0) or \
+           (stock_data.buy_pct is not None and stock_data.buy_pct < 65.0) or \
+           (stock_data.pe_forward is not None and stock_data.pe_trailing is not None and
+            stock_data.pe_forward > 0 and stock_data.pe_trailing > 0 and 
+            stock_data.pe_forward > stock_data.pe_trailing) or \
+           (stock_data.pe_forward is not None and stock_data.pe_forward > 45.0) or \
+           (stock_data.peg_ratio is not None and stock_data.peg_ratio > 3.0) or \
+           (stock_data.short_float_pct is not None and stock_data.short_float_pct > 4.0) or \
+           (stock_data.beta is not None and stock_data.beta > 3.0):
+            return "SELL"
+            
+        # BUY criteria (all must be met)
+        if (stock_data.upside is not None and stock_data.upside >= 20.0) and \
+           (stock_data.buy_pct is not None and stock_data.buy_pct >= 82.0) and \
+           (stock_data.beta is None or (stock_data.beta <= 3.0 and stock_data.beta > 0.2)) and \
+           ((stock_data.pe_forward is None or stock_data.pe_trailing is None) or
+            (stock_data.pe_forward is not None and stock_data.pe_trailing is not None and
+             (stock_data.pe_forward < stock_data.pe_trailing or stock_data.pe_trailing <= 0))) and \
+           (stock_data.pe_forward is None or (stock_data.pe_forward > 0.5 and stock_data.pe_forward <= 45.0)) and \
+           (stock_data.peg_ratio is None or stock_data.peg_ratio < 3.0) and \
+           (stock_data.short_float_pct is None or stock_data.short_float_pct <= 3.0):
+            return "BUY"
+            
+        # HOLD - passed confidence but not BUY or SELL
+        return "HOLD"
     
     def _create_empty_report(self, ticker: str) -> Dict[str, Any]:
         """
@@ -195,6 +443,7 @@ class MarketDisplay:
             "last_earnings": None,
             "insider_buy_pct": None,
             "insider_transactions": None,
+            "recommendation": "INCONCLUSIVE",
             "_not_found": True
         }
     

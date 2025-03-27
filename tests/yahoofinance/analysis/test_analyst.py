@@ -2,7 +2,7 @@ import pytest
 from datetime import datetime, timedelta
 import pandas as pd
 from unittest.mock import Mock, patch
-from yahoofinance.analyst import AnalystData
+from yahoofinance.analysis.analyst import AnalystData
 from yahoofinance.core.config import POSITIVE_GRADES
 from yahoofinance.core.types import ValidationError, YFinanceError
 
