@@ -28,7 +28,7 @@ try:
     from yahoofinance.presentation.formatter import DisplayFormatter
     from yahoofinance.presentation.console import MarketDisplay
     from yahoofinance.utils.network.circuit_breaker import get_all_circuits
-    from yahoofinance.core.config import FILE_PATHS, PATHS
+    from yahoofinance.core.config import FILE_PATHS, PATHS, COLUMN_NAMES
 except ImportError as e:
     logging.error(f"Error importing yahoofinance modules: {str(e)}")
     sys.exit(1)
@@ -37,7 +37,7 @@ except ImportError as e:
 warnings.filterwarnings("ignore", category=RuntimeWarning, message="invalid value encountered in cast")
 
 # Define constants for column names
-BUY_PERCENTAGE = '% BUY'
+BUY_PERCENTAGE = COLUMN_NAMES["BUY_PERCENTAGE"]
 DIVIDEND_YIELD = 'DIV %'
 COMPANY_NAME = 'COMPANY NAME'
 
@@ -1920,8 +1920,8 @@ def main_async():
                         if last_earnings_date is None:
                             try:
                                 calendar = yticker.calendar
-                                if isinstance(calendar, dict) and "Earnings Date" in calendar:
-                                    earnings_date_list = calendar["Earnings Date"]
+                                if isinstance(calendar, dict) and COLUMN_NAMES["EARNINGS_DATE"] in calendar:
+                                    earnings_date_list = calendar[COLUMN_NAMES["EARNINGS_DATE"]]
                                     if isinstance(earnings_date_list, list) and len(earnings_date_list) > 0:
                                         # Check which dates are past
                                         today_date = datetime.datetime.now().date()
@@ -2004,8 +2004,8 @@ def main_async():
                             if calendar is not None:
                                 if isinstance(calendar, pd.DataFrame) and not calendar.empty:
                                     # For DataFrame calendar format
-                                    if "Earnings Date" in calendar.columns:
-                                        earnings_col = calendar["Earnings Date"]
+                                    if COLUMN_NAMES["EARNINGS_DATE"] in calendar.columns:
+                                        earnings_col = calendar[COLUMN_NAMES["EARNINGS_DATE"]]
                                         if isinstance(earnings_col, pd.Series) and not earnings_col.empty:
                                             date_val = earnings_col.iloc[0]
                                             if pd.notna(date_val):
@@ -2013,8 +2013,8 @@ def main_async():
                                                 earnings_data["earnings_dates"].append(formatted_date)
                                 elif isinstance(calendar, dict):
                                     # For dict calendar format
-                                    if "Earnings Date" in calendar:
-                                        date_val = calendar["Earnings Date"]
+                                    if COLUMN_NAMES["EARNINGS_DATE"] in calendar:
+                                        date_val = calendar[COLUMN_NAMES["EARNINGS_DATE"]]
                                         # Handle both scalar and array cases
                                         if isinstance(date_val, (list, np.ndarray)):
                                             # Take the first non-null value if it's an array
@@ -2220,8 +2220,8 @@ def main_async():
                 try:
                     # Try calendar approach first - it usually has the most recent past earnings
                     calendar = yticker.calendar
-                    if isinstance(calendar, dict) and "Earnings Date" in calendar:
-                        earnings_date_list = calendar["Earnings Date"]
+                    if isinstance(calendar, dict) and COLUMN_NAMES["EARNINGS_DATE"] in calendar:
+                        earnings_date_list = calendar[COLUMN_NAMES["EARNINGS_DATE"]]
                         if isinstance(earnings_date_list, list) and len(earnings_date_list) > 0:
                             # Look for the most recent PAST earnings date, not future ones
                             today = pd.Timestamp.now().date()

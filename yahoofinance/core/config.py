@@ -338,6 +338,12 @@ SPECIAL_TICKERS = {
     },
 }
 
+# Column and field name constants
+COLUMN_NAMES = {
+    "EARNINGS_DATE": "Earnings Date",
+    "BUY_PERCENTAGE": "% BUY",
+}
+
 # Load environment variables if needed
 def load_env_config() -> Dict[str, Any]:
     """

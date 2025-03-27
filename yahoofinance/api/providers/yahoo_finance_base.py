@@ -14,6 +14,7 @@ from datetime import datetime
 
 from ...core.errors import YFinanceError, APIError, ValidationError, RateLimitError
 from ...utils.market.ticker_utils import validate_ticker, is_us_ticker
+from ...core.config import COLUMN_NAMES
 
 logger = logging.getLogger(__name__)
 
@@ -309,8 +310,8 @@ class YahooFinanceBaseProvider:
         """
         try:
             calendar = ticker_obj.calendar
-            if calendar is not None and 'Earnings Date' in calendar:
-                earnings_date = calendar['Earnings Date']
+            if calendar is not None and COLUMN_NAMES['EARNINGS_DATE'] in calendar:
+                earnings_date = calendar[COLUMN_NAMES['EARNINGS_DATE']]
                 if isinstance(earnings_date, pd.Timestamp):
                     return self.format_date(earnings_date), None
                 return None, None
@@ -332,3 +333,17 @@ class YahooFinanceBaseProvider:
         except Exception as e:
             logger.warning(f"Error getting earnings dates: {str(e)}")
             return None, None
+            
+    def _handle_ticker_info_error(self, ticker: str, error: Exception) -> Dict[str, Any]:
+        """
+        Handle errors that occur during ticker info retrieval.
+        
+        Args:
+            ticker: Stock ticker symbol
+            error: Exception that occurred
+            
+        Returns:
+            Error information dictionary
+        """
+        logger.warning(f"Error getting data for {ticker}: {str(error)}")
+        return {"symbol": ticker, "error": str(error)}

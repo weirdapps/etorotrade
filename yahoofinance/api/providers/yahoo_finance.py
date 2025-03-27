@@ -16,7 +16,7 @@ from .yahoo_finance_base import YahooFinanceBaseProvider
 from ...core.errors import YFinanceError, APIError, ValidationError, RateLimitError
 from ...utils.market.ticker_utils import is_us_ticker
 from ...utils.network.rate_limiter import rate_limited
-from ...core.config import CACHE_CONFIG
+from ...core.config import CACHE_CONFIG, COLUMN_NAMES
 
 logger = logging.getLogger(__name__)
 
@@ -180,11 +180,11 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 calendar = ticker_obj.calendar
                 
                 # Handle cases where calendar might be None or not have earnings date
-                if calendar is None or 'Earnings Date' not in calendar:
+                if calendar is None or COLUMN_NAMES['EARNINGS_DATE'] not in calendar:
                     logger.debug(f"No earnings dates found for {ticker}")
                     return None, None
                     
-                earnings_date = calendar['Earnings Date']
+                earnings_date = calendar[COLUMN_NAMES['EARNINGS_DATE']]
                 
                 # Convert to list even if there's only one date
                 if not isinstance(earnings_date, list):
@@ -464,8 +464,7 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             try:
                 results[ticker] = self.get_ticker_info(ticker, skip_insider_metrics)
             except Exception as e:
-                logger.warning(f"Error getting data for {ticker}: {str(e)}")
-                results[ticker] = {"symbol": ticker, "error": str(e)}
+                results[ticker] = self._handle_ticker_info_error(ticker, e)
         
         return results
     

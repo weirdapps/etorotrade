@@ -17,7 +17,7 @@ import time
 from datetime import datetime
 from collections import deque
 
-from ..core.config import FILE_PATHS, MESSAGES
+from ..core.config import FILE_PATHS, MESSAGES, COLUMN_NAMES
 from .formatter import DisplayFormatter, DisplayConfig, Color
 from ..api.providers.base_provider import FinanceDataProvider, AsyncFinanceDataProvider
 
@@ -263,7 +263,7 @@ class MarketDisplay:
         # Standard column ordering for compatibility with trade.py
         standard_cols = [
             "#", "TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE",
-            "# T", "% BUY", "# A", "A", "EXRET", "BETA", "PET", "PEF", "PEG",
+            "# T", COLUMN_NAMES["BUY_PERCENTAGE"], "# A", "A", "EXRET", "BETA", "PET", "PEF", "PEG",
             "DIV %", "SI", "EARNINGS"
         ]
         
