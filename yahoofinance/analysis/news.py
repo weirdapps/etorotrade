@@ -18,7 +18,7 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import yfinance as yf
 
 from ..core.errors import YFinanceError
-from ..core.config import PATHS, FILE_PATHS
+from ..core.config import PATHS, FILE_PATHS, MESSAGES
 from ..utils.network.circuit_breaker import circuit_protected, async_circuit_protected
 
 # Configure logger
@@ -221,7 +221,7 @@ def format_yahoo_news(news, ticker, limit=5):
     print_section(f"LATEST NEWS FOR {ticker}")
     
     if not news:
-        print(f"No news found for {ticker}")
+        print(MESSAGES["NO_NEWS_FOUND_TICKER"].format(ticker=ticker))
         return
     
     for i, item in enumerate(news[:limit], 1):
@@ -259,8 +259,8 @@ def format_yahoo_news(news, ticker, limit=5):
             print("-" * 50)
             
         except Exception as e:
-            logger.error(f"Error processing news item: {str(e)}")
-            print(f"Error processing news item: {str(e)}")
+            logger.error(MESSAGES["ERROR_PROCESSING_NEWS"].format(error=str(e)))
+            print(MESSAGES["ERROR_PROCESSING_NEWS"].format(error=str(e)))
             continue
 
 def get_portfolio_tickers():
@@ -280,26 +280,25 @@ def get_portfolio_tickers():
             
         return [ticker for ticker in tickers if not str(ticker).endswith('USD')]
     except Exception as e:
-        logger.error(f"Error reading portfolio file: {str(e)}")
-        print(f"Error reading portfolio file: {str(e)}")
+        logger.error(MESSAGES["ERROR_READING_PORTFOLIO"].format(error=str(e)))
+        print(MESSAGES["ERROR_READING_PORTFOLIO"].format(error=str(e)))
         return []
 
 def get_user_tickers():
     """Get tickers from user input."""
-    tickers_input = input("Enter comma-separated tickers (e.g., AAPL,MSFT,GOOGL): ").strip()
+    tickers_input = input(MESSAGES["PROMPT_ENTER_TICKERS"]).strip()
     return [ticker.strip().upper() for ticker in tickers_input.split(',') if ticker.strip()]
 
 def get_ticker_source():
     """Get user's choice of ticker input method."""
-    print("\nSelect ticker input method:")
-    print("P - Load tickers from portfolio.csv")
-    print("I - Enter tickers manually")
+    print(MESSAGES["PROMPT_TICKER_SOURCE"])
+    print(MESSAGES["PROMPT_TICKER_SOURCE_OPTIONS"])
     
     while True:
-        choice = input("\nEnter your choice (P/I): ").strip().upper()
+        choice = input(MESSAGES["PROMPT_TICKER_SOURCE_CHOICE"]).strip().upper()
         if choice in ['P', 'I']:
             return choice
-        print("Invalid choice. Please enter 'P' or 'I'.")
+        print(MESSAGES["PROMPT_INVALID_CHOICE"])
 
 @circuit_protected("yahoo_finance")
 def fetch_yahoo_news(ticker):
@@ -318,10 +317,10 @@ def fetch_yahoo_news(ticker):
         if news:
             format_yahoo_news(news, ticker, limit=5)
         else:
-            print(f"\nNo news found for {ticker}")
+            print(f"\n{MESSAGES['NO_NEWS_FOUND_TICKER'].format(ticker=ticker)}")
     except Exception as e:
-        logger.error(f"Error fetching news for {ticker}: {str(e)}")
-        print(f"\nError fetching news for {ticker}: {str(e)}")
+        logger.error(MESSAGES["ERROR_FETCHING_NEWS"].format(ticker=ticker, error=str(e)))
+        print(f"\n{MESSAGES['ERROR_FETCHING_NEWS'].format(ticker=ticker, error=str(e))}")
 
 async def fetch_yahoo_news_async(ticker):
     """
@@ -338,10 +337,10 @@ async def fetch_yahoo_news_async(ticker):
         if news:
             format_yahoo_news(news, ticker, limit=5)
         else:
-            print(f"\nNo news found for {ticker}")
+            print(f"\n{MESSAGES['NO_NEWS_FOUND_TICKER'].format(ticker=ticker)}")
     except Exception as e:
-        logger.error(f"Error fetching news async for {ticker}: {str(e)}")
-        print(f"\nError fetching news async for {ticker}: {str(e)}")
+        logger.error(MESSAGES["ERROR_FETCHING_NEWS_ASYNC"].format(ticker=ticker, error=str(e)))
+        print(f"\n{MESSAGES['ERROR_FETCHING_NEWS_ASYNC'].format(ticker=ticker, error=str(e))}")
 
 def display_news(ticker):
     """
@@ -387,10 +386,10 @@ def main():
         tickers = get_portfolio_tickers() if choice == 'P' else get_user_tickers()
     
     if not tickers:
-        print("No tickers found or provided.")
+        print(MESSAGES["NO_TICKERS_FOUND"])
         return
     
-    print(f"\nFetching news for: {', '.join(tickers)}")
+    print(MESSAGES["INFO_FETCHING_NEWS"].format(tickers=', '.join(tickers)))
     
     # Fetch news for each ticker
     for ticker in tickers:

@@ -228,6 +228,57 @@ DISPLAY = {
     },
 }
 
+# Message constants
+MESSAGES = {
+    # Error messages
+    "NO_DATA_FOUND_TICKER": "No data found for {ticker}",
+    "NO_TICKERS_FOUND": "No tickers found or provided.",
+    "NO_NEWS_FOUND_TICKER": "No news found for {ticker}",
+    "NO_PORTFOLIO_TICKERS_FOUND": "No portfolio tickers found.",
+    "NO_MARKET_TICKERS_FOUND": "No market tickers found.",
+    "NO_PROVIDER_AVAILABLE": "No provider available. Please initialize with a provider.",
+    "NO_RESULTS_AVAILABLE": "No results available.",
+    "ANALYSIS_FAILED": "Analysis failed: {error}",
+    
+    # Common error messages
+    "ERROR_FETCHING_DATA": "Error fetching data for {ticker}: {error}",
+    "ERROR_FETCHING_NEWS": "Error fetching news for {ticker}: {error}",
+    "ERROR_FETCHING_NEWS_ASYNC": "Error fetching news async for {ticker}: {error}",
+    "ERROR_ANALYZING_TICKER": "Error analyzing {ticker}: {error}",
+    "ERROR_PROCESSING_NEWS": "Error processing news item: {error}",
+    "ERROR_LOADING_TICKERS": "Error loading tickers: {error}",
+    "ERROR_READING_PORTFOLIO": "Error reading portfolio file: {error}",
+    "ERROR_ANALYZING_PORTFOLIO": "Error analyzing portfolio: {error}",
+    "ERROR_GENERATING_BUY_RECOMMENDATIONS": "Error generating buy recommendations: {error}",
+    "ERROR_GENERATING_SELL_RECOMMENDATIONS": "Error generating sell recommendations: {error}",
+    "ERROR_GENERATING_HOLD_RECOMMENDATIONS": "Error generating hold recommendations: {error}",
+    "ERROR_BATCH_FETCH": "Error fetching batch data: {error}",
+    "ERROR_BATCH_FETCH_ASYNC": "Error fetching batch data asynchronously: {error}",
+    "ERROR_INVALID_SOURCE": "Invalid source: {source}. Must be one of: {valid_sources} or I",
+    "ERROR_LOADING_FILE": "Error loading tickers from {file_path}: {error}",
+    "ERROR_TICKER_COLUMN_NOT_FOUND": "Ticker column not found in {file_path}. Expected one of: {columns}",
+    
+    # User prompts
+    "PROMPT_ENTER_TICKERS": "Enter comma-separated tickers (e.g., AAPL,MSFT,GOOGL): ",
+    "PROMPT_ENTER_TICKERS_DISPLAY": "Enter tickers separated by commas: ",
+    "PROMPT_TICKER_SOURCE": "\nSelect ticker input method:",
+    "PROMPT_TICKER_SOURCE_OPTIONS": "P - Load tickers from portfolio.csv\nI - Enter tickers manually",
+    "PROMPT_TICKER_SOURCE_CHOICE": "\nEnter your choice (P/I): ",
+    "PROMPT_INVALID_CHOICE": "Invalid choice. Please enter 'P' or 'I'.",
+    
+    # Informational messages
+    "INFO_FETCHING_DATA": "Fetching market data...",
+    "INFO_FETCHING_NEWS": "\nFetching news for: {tickers}",
+    "INFO_ANALYZING_PORTFOLIO": "Analyzing {count} portfolio tickers...",
+    "INFO_ANALYZING_MARKET": "Analyzing {count} market tickers...",
+    "INFO_CIRCUIT_BREAKER_STATUS": "Circuit breaker status: {status}",
+    "INFO_MARKET_ANALYSIS_COMPLETE": "Market analysis complete. Results saved to {path}",
+    "INFO_PORTFOLIO_ANALYSIS_COMPLETE": "Portfolio analysis complete. Results saved to {path}",
+    "INFO_FETCHING_TICKER_DATA": "Fetching data for ticker: {ticker}",
+    "INFO_TICKERS_LOADED": "Loaded {count} tickers from {file_path}",
+    "INFO_PROCESSING_TICKERS": "Processing {count} tickers...",
+}
+
 # Paths configuration
 PATHS = {
     # Input directory
@@ -257,6 +308,10 @@ FILE_PATHS = {
     "NOTRADE_FILE": os.path.join(PATHS["INPUT_DIR"], "notrade.csv"),
     "CONS_FILE": os.path.join(PATHS["INPUT_DIR"], "cons.csv"),
     "US_TICKERS_FILE": os.path.join(PATHS["INPUT_DIR"], "us_tickers.csv"),
+    "EUROPE_FILE": os.path.join(PATHS["INPUT_DIR"], "europe.csv"),
+    "CHINA_FILE": os.path.join(PATHS["INPUT_DIR"], "china.csv"),
+    "USA_FILE": os.path.join(PATHS["INPUT_DIR"], "usa.csv"),
+    "USINDEX_FILE": os.path.join(PATHS["INPUT_DIR"], "usindex.csv"),
     
     # Output files
     "MARKET_OUTPUT": os.path.join(PATHS["OUTPUT_DIR"], "market.csv"),
@@ -264,8 +319,12 @@ FILE_PATHS = {
     "BUY_OUTPUT": os.path.join(PATHS["OUTPUT_DIR"], "buy.csv"),
     "SELL_OUTPUT": os.path.join(PATHS["OUTPUT_DIR"], "sell.csv"),
     "HOLD_OUTPUT": os.path.join(PATHS["OUTPUT_DIR"], "hold.csv"),
+    "MANUAL_OUTPUT": os.path.join(PATHS["OUTPUT_DIR"], "manual.csv"),
     "HTML_OUTPUT": os.path.join(PATHS["OUTPUT_DIR"], "index.html"),
-    "PORTFOLIO_HTML": os.path.join(PATHS["OUTPUT_DIR"], "portfolio.html"),
+    "PORTFOLIO_HTML": os.path.join(PATHS["OUTPUT_DIR"], "portfolio_dashboard.html"),
+    "PORTFOLIO_PERFORMANCE_JSON": os.path.join(PATHS["OUTPUT_DIR"], "portfolio_performance.json"),
+    "MONTHLY_PERFORMANCE_JSON": os.path.join(PATHS["OUTPUT_DIR"], "monthly_performance.json"),
+    "WEEKLY_PERFORMANCE_JSON": os.path.join(PATHS["OUTPUT_DIR"], "weekly_performance.json"),
     "CSS_OUTPUT": os.path.join(PATHS["OUTPUT_DIR"], "styles.css"),
     "JS_OUTPUT": os.path.join(PATHS["OUTPUT_DIR"], "script.js"),
 }

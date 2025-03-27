@@ -17,7 +17,7 @@ import time
 from datetime import datetime
 from collections import deque
 
-from ..core.config import FILE_PATHS
+from ..core.config import FILE_PATHS, MESSAGES
 from .formatter import DisplayFormatter, DisplayConfig, Color
 from ..api.providers.base_provider import FinanceDataProvider, AsyncFinanceDataProvider
 
@@ -412,7 +412,10 @@ class MarketDisplay:
                         break
                 
                 if not column_found:
-                    print(f"Ticker column not found in {file_path}. Expected one of: {ticker_column}")
+                    print(MESSAGES["ERROR_TICKER_COLUMN_NOT_FOUND"].format(
+                        file_path=file_path, 
+                        columns=ticker_column
+                    ))
                     return []
                 
                 # Read tickers
@@ -421,10 +424,10 @@ class MarketDisplay:
                     if ticker:
                         tickers.append(ticker)
             
-            print(f"Loaded {len(tickers)} tickers from {file_path}")
+            print(MESSAGES["INFO_TICKERS_LOADED"].format(count=len(tickers), file_path=file_path))
             return tickers
         except Exception as e:
-            print(f"Error loading tickers from {file_path}: {str(e)}")
+            print(MESSAGES["ERROR_LOADING_FILE"].format(file_path=file_path, error=str(e)))
             return []
             
     def _get_manual_tickers(self) -> List[str]:
@@ -434,7 +437,7 @@ class MarketDisplay:
         Returns:
             List of tickers
         """
-        ticker_input = input("Enter ticker symbols (comma-separated): ").strip()
+        ticker_input = input(MESSAGES["PROMPT_ENTER_TICKERS"]).strip()
         if not ticker_input:
             return []
             
@@ -451,11 +454,11 @@ class MarketDisplay:
             report_type: Type of report ('M' for market, 'P' for portfolio)
         """
         if not tickers:
-            print("No tickers provided.")
+            print(MESSAGES["NO_TICKERS_FOUND"])
             return
             
         if not self.provider:
-            print("No provider available. Please initialize with a provider.")
+            print(MESSAGES["NO_PROVIDER_AVAILABLE"])
             return
             
         # Determine if the provider is async
@@ -495,7 +498,7 @@ class MarketDisplay:
                 filename = "portfolio.csv" if report_type == 'P' else "market.csv"
                 self.save_to_csv(results, filename)
         else:
-            print("No results available.")
+            print(MESSAGES["NO_RESULTS_AVAILABLE"])
             
     async def _async_display_report(self, tickers: List[str], report_type: Optional[str] = None) -> None:
         """
@@ -507,7 +510,7 @@ class MarketDisplay:
         """
         from ..utils.async_utils.enhanced import process_batch_async
         
-        print(f"Processing {len(tickers)} tickers...")
+        print(MESSAGES["INFO_PROCESSING_TICKERS"].format(count=len(tickers)))
         
         # Use batch processing for async provider
         results_dict = await process_batch_async(
@@ -533,4 +536,4 @@ class MarketDisplay:
                 filename = "portfolio.csv" if report_type == 'P' else "market.csv"
                 self.save_to_csv(results, filename)
         else:
-            print("No results available.")
+            print(MESSAGES["NO_RESULTS_AVAILABLE"])

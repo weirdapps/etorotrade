@@ -11,6 +11,92 @@ from typing import Optional, Union, Dict, Any
 
 logger = logging.getLogger(__name__)
 
+def _get_scale_info(
+    value: float, 
+    config: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Determine the appropriate scale, divisor, suffix, and precision for a market cap value.
+    
+    Args:
+        value: The market cap value
+        config: Configuration dictionary with scale thresholds and settings
+        
+    Returns:
+        Dictionary with scale info including divisor, suffix, and precision
+    """
+    # Define thresholds
+    trillion_threshold = config.get('trillion_threshold', 1_000_000_000_000)
+    billion_threshold = config.get('billion_threshold', 1_000_000_000)
+    million_threshold = config.get('million_threshold', 1_000_000)
+    
+    # Determine scale
+    if value >= trillion_threshold:
+        scale = "trillion"
+        divisor = trillion_threshold
+        suffix = config.get('trillion_suffix', 'T')
+        
+        # Determine precision based on magnitude
+        if value >= 10 * trillion_threshold:
+            precision = config.get('large_trillion_precision', 1)
+        else:
+            precision = config.get('small_trillion_precision', 2)
+            
+    elif value >= billion_threshold:
+        scale = "billion"
+        divisor = billion_threshold
+        suffix = config.get('billion_suffix', 'B')
+        
+        # Determine precision based on magnitude
+        if value >= 100 * billion_threshold:
+            precision = config.get('large_billion_precision', 0)
+        elif value >= 10 * billion_threshold:
+            precision = config.get('medium_billion_precision', 1)
+        else:
+            precision = config.get('small_billion_precision', 2)
+            
+    elif value >= million_threshold:
+        scale = "million"
+        divisor = million_threshold
+        suffix = config.get('million_suffix', 'M')
+        precision = config.get('million_precision', 2)
+        
+    else:
+        scale = "raw"
+        divisor = 1
+        suffix = ""
+        precision = config.get('default_precision', 0)
+        
+    return {
+        "scale": scale,
+        "divisor": divisor,
+        "suffix": suffix,
+        "precision": precision
+    }
+
+def _format_with_scale(
+    value: float, 
+    scale_info: Dict[str, Any]
+) -> str:
+    """
+    Format a value using the provided scale information.
+    
+    Args:
+        value: The value to format
+        scale_info: Dictionary with scale information
+        
+    Returns:
+        Formatted string
+    """
+    divisor = scale_info["divisor"]
+    suffix = scale_info["suffix"]
+    precision = scale_info["precision"]
+    
+    if scale_info["scale"] == "raw":
+        return f"{value:,.{precision}f}"
+    else:
+        return f"{value / divisor:.{precision}f}{suffix}"
+
 def format_market_cap_advanced(
     value: Optional[Union[int, float]],
     config: Optional[Dict[str, Any]] = None
@@ -48,54 +134,16 @@ def format_market_cap_advanced(
     if config is None:
         config = {}
     
-    # Define thresholds
-    trillion_threshold = config.get('trillion_threshold', 1_000_000_000_000)
-    billion_threshold = config.get('billion_threshold', 1_000_000_000)
-    million_threshold = config.get('million_threshold', 1_000_000)
-    
-    # Define suffixes
-    trillion_suffix = config.get('trillion_suffix', 'T')
-    billion_suffix = config.get('billion_suffix', 'B')
-    million_suffix = config.get('million_suffix', 'M')
-    
-    # Define precision
-    large_trillion_precision = config.get('large_trillion_precision', 1)
-    small_trillion_precision = config.get('small_trillion_precision', 2)
-    large_billion_precision = config.get('large_billion_precision', 0)
-    medium_billion_precision = config.get('medium_billion_precision', 1)
-    small_billion_precision = config.get('small_billion_precision', 2)
-    million_precision = config.get('million_precision', 2)
-    default_precision = config.get('default_precision', 0)
-    
     try:
         # Convert to float
         cap_value = float(value)
         
-        # Trillion scale
-        if cap_value >= trillion_threshold:
-            # Format with specified precision based on size
-            if cap_value >= 10 * trillion_threshold:
-                return f"{cap_value / trillion_threshold:.{large_trillion_precision}f}{trillion_suffix}"
-            else:
-                return f"{cap_value / trillion_threshold:.{small_trillion_precision}f}{trillion_suffix}"
+        # Get scale information
+        scale_info = _get_scale_info(cap_value, config)
         
-        # Billion scale
-        elif cap_value >= billion_threshold:
-            # Format with specified precision based on size
-            if cap_value >= 100 * billion_threshold:
-                return f"{cap_value / billion_threshold:.{large_billion_precision}f}{billion_suffix}"
-            elif cap_value >= 10 * billion_threshold:
-                return f"{cap_value / billion_threshold:.{medium_billion_precision}f}{billion_suffix}"
-            else:
-                return f"{cap_value / billion_threshold:.{small_billion_precision}f}{billion_suffix}"
+        # Format with appropriate scale
+        return _format_with_scale(cap_value, scale_info)
         
-        # Million scale
-        elif cap_value >= million_threshold:
-            return f"{cap_value / million_threshold:.{million_precision}f}{million_suffix}"
-        
-        # Smaller values
-        else:
-            return f"{cap_value:,.{default_precision}f}"
     except (ValueError, TypeError) as e:
         logger.debug(f"Failed to format market cap: {value} - {str(e)}")
         return None

@@ -2291,7 +2291,6 @@ def main_async():
                     except Exception as e:
                         # If there's an error, log it and default to all-time ratings
                         logger.debug(f"Error getting post-earnings ratings for {ticker}: {e}")
-                        pass
                     
                     return False
                 except Exception as e:
@@ -2445,7 +2444,6 @@ def main_async():
                 logger.info("Display closed")
         except Exception as e:
             logger.error(f"Error closing display: {str(e)}")
-            pass
 
 def main():
     """Command line interface entry point"""
