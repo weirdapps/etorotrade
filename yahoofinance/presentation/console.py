@@ -351,15 +351,28 @@ class MarketDisplay:
         
         Args:
             source_type: Source type for tickers ('P' for portfolio, 'M' for market, 
-                        'E' for eToro, 'I' for manual input)
+                        'E' for eToro, 'I' for manual input, 'U' for USA market,
+                        'C' for China market, 'EU' for Europe market)
             
         Returns:
             List of tickers
         """
+        # Get input directory from MARKET_FILE path by removing the filename
+        input_dir = os.path.dirname(FILE_PATHS["MARKET_FILE"])
+        
         if source_type == 'P':
             return self._load_tickers_from_file(FILE_PATHS["PORTFOLIO_FILE"], ticker_column=['symbol', 'ticker'])
         elif source_type == 'M':
-            return self._load_tickers_from_file(FILE_PATHS["MARKET_FILE"], ticker_column=['symbol', 'ticker'])
+            # For market, check if we need to prompt for which market file to use
+            market_choice = input("Select market: USA (U), Europe (E), China (C), or Manual (M)? ").strip().upper()
+            if market_choice == 'U':
+                return self._load_tickers_from_file(os.path.join(input_dir, "usa.csv"), ticker_column=['symbol', 'ticker'])
+            elif market_choice == 'E':
+                return self._load_tickers_from_file(os.path.join(input_dir, "europe.csv"), ticker_column=['symbol', 'ticker'])
+            elif market_choice == 'C':
+                return self._load_tickers_from_file(os.path.join(input_dir, "china.csv"), ticker_column=['symbol', 'ticker'])
+            else:  # Default to using the main market.csv file
+                return self._load_tickers_from_file(FILE_PATHS["MARKET_FILE"], ticker_column=['symbol', 'ticker'])
         elif source_type == 'E':
             return self._load_tickers_from_file(FILE_PATHS["ETORO_FILE"], ticker_column=['symbol', 'ticker'])
         elif source_type == 'I':

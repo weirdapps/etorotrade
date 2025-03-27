@@ -1356,7 +1356,7 @@ def display_report_for_source(display, tickers, source, verbose=False):
             output_file = f"{output_dir}/portfolio.csv"
             report_title = "Portfolio Analysis"
         else:
-            output_file = f"{output_dir}/manual_input.csv"
+            output_file = f"{output_dir}/manual.csv"
             report_title = "Manual Ticker Analysis"
         
         # Save raw data to CSV
