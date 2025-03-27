@@ -7,9 +7,10 @@ and calculating buy/sell/hold recommendations.
 
 import pandas as pd
 import logging
+from yahoofinance.core.config import COLUMN_NAMES
 
 # Constants for column names
-BUY_PERCENTAGE = '% BUY'  # Column name for buy percentage
+BUY_PERCENTAGE = COLUMN_NAMES["BUY_PERCENTAGE"]  # Column name for buy percentage
 UPSIDE = 'upside'
 BUY_PERCENTAGE_COL = 'buy_percentage'
 PE_FORWARD = 'pe_forward'

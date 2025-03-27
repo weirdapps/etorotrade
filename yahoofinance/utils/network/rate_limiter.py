@@ -5,6 +5,9 @@ This module provides utilities for rate limiting API requests to avoid
 exceeding rate limits and getting blocked. It includes an adaptive rate
 limiter that adjusts the delay between requests based on success and
 failure patterns.
+
+CANONICAL SOURCE: This module is now the canonical source for synchronous rate limiting functionality.
+For asynchronous rate limiting, use yahoofinance.utils.async.rate_limiter.
 """
 
 import logging

@@ -4,6 +4,8 @@ Asynchronous rate limiting utilities for Yahoo Finance API.
 This module provides utilities for rate limiting async API requests,
 allowing for efficient handling of concurrent requests while respecting
 rate limits.
+
+CANONICAL SOURCE: This module is now the canonical source for async rate limiting functionality.
 """
 
 import logging
