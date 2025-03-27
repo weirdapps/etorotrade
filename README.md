@@ -1,4 +1,4 @@
-# etoroTRADE - Market Analysis & Portfolio Management Tool
+# etorotrade - Market Analysis & Portfolio Management
 
 A powerful Python-based analysis system that provides actionable trading recommendations for stocks, portfolios, and market intelligence using Yahoo Finance data. The tool features sophisticated rate limiting, intelligent caching, and multiple output formats to help you make informed investment decisions.
 
