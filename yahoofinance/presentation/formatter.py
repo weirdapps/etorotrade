@@ -345,8 +345,8 @@ class DisplayFormatter:
             
             # Check sell signals first (any trigger a sell)
             if any([
-                upside is not None and upside < 5,  # Low upside
-                buy_percentage is not None and buy_percentage < 65,  # Low buy rating
+                upside < 5,  # Low upside (upside is already confirmed not None above)
+                buy_percentage < 65,  # Low buy rating (buy_percentage is already confirmed not None above)
                 # PE deteriorating (both positive, but forward > trailing)
                 pe_forward is not None and pe_trailing is not None and pe_forward > 0 and pe_trailing > 0 and pe_forward > pe_trailing,
                 pe_forward is not None and pe_forward > 45,  # Extremely high forward PE
@@ -358,8 +358,8 @@ class DisplayFormatter:
                 signal = "SELL"
             # Then check buy signals (all criteria must be met)
             elif all([
-                upside is not None and upside >= 20,  # Strong upside
-                buy_percentage is not None and buy_percentage >= 82,  # Strong buy consensus
+                upside >= 20,  # Strong upside (upside is already confirmed not None above)
+                buy_percentage >= 82,  # Strong buy consensus (buy_percentage is already confirmed not None above)
                 beta is None or (beta > 0.2 and beta <= 3.0),  # Reasonable volatility
                 # PE improvement or negative trailing PE (growth stock)
                 (pe_forward is None or pe_trailing is None or
@@ -422,25 +422,25 @@ class DisplayFormatter:
             return "NEUTRAL"
         
         # Calculate expected return
-        expected_return = (upside * buy_percentage / 100) if upside is not None and buy_percentage is not None else None
+        expected_return = (upside * buy_percentage / 100) # upside and buy_percentage are confirmed not None in the condition above
         
         # Check sell signals first (any trigger a sell)
         if any([
-            upside is not None and upside < 5,  # Low upside
-            buy_percentage is not None and buy_percentage < 65,  # Low buy rating
+            upside < 5,  # Low upside
+            buy_percentage < 65,  # Low buy rating
             # PE deteriorating (both positive, but forward > trailing)
             pe_forward is not None and pe_trailing is not None and pe_forward > 0 and pe_trailing > 0 and pe_forward > pe_trailing,
             pe_forward is not None and pe_forward > 45,  # Extremely high forward PE
             peg is not None and peg > 3.0,  # High PEG ratio
             short_interest is not None and short_interest > 4.0,  # High short interest
             beta is not None and beta > 3.0,  # Excessive volatility
-            expected_return is not None and expected_return < 10.0  # Low expected return
+            expected_return < 10.0  # Low expected return (expected_return is calculated above and is not None)
         ]):
             return "SELL"
         # Then check buy signals (all criteria must be met)
         elif all([
-            upside is not None and upside >= 20,  # Strong upside
-            buy_percentage is not None and buy_percentage >= 82,  # Strong buy consensus
+            upside >= 20,  # Strong upside
+            buy_percentage >= 82,  # Strong buy consensus
             beta is None or (beta > 0.2 and beta <= 3.0),  # Reasonable volatility
             # PE improvement or negative trailing PE (growth stock)
             (pe_forward is None or pe_trailing is None or
