@@ -440,10 +440,11 @@ def filter_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame:
         )
     )
     
-    # PEG Ratio criteria with nullability handling
+    # PEG Ratio criteria with nullability handling, also handle string values like '--'
     peg_condition = (
         market_df['peg_ratio'].isna() |  # Ignore missing PEG values
-        (market_df['peg_ratio'] < buy_criteria["MAX_PEG"])
+        pd.to_numeric(market_df['peg_ratio'], errors='coerce').isna() |  # Convert string values to NaN
+        (pd.to_numeric(market_df['peg_ratio'], errors='coerce') < buy_criteria["MAX_PEG"])
     )
     
     # Short interest criteria with nullability handling - handle both column names
@@ -537,9 +538,11 @@ def filter_sell_candidates(portfolio_df: pd.DataFrame) -> pd.DataFrame:
     
     # PEG ratio too high
     if 'peg_ratio' in portfolio_df.columns and 'MAX_PEG' in sell_criteria:
+        # Convert string values like '--' to NaN with pd.to_numeric
+        numeric_peg = pd.to_numeric(portfolio_df['peg_ratio'], errors='coerce')
         peg_condition = (
-            portfolio_df['peg_ratio'].notna() &
-            (portfolio_df['peg_ratio'] > sell_criteria["MAX_PEG"])
+            numeric_peg.notna() &
+            (numeric_peg > sell_criteria["MAX_PEG"])
         )
         filters.append(peg_condition)
     

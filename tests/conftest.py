@@ -11,8 +11,8 @@ from unittest.mock import Mock, patch
 from datetime import datetime, timedelta
 
 from yahoofinance.core.client import YFinanceClient
-from yahoofinance.display import MarketDisplay
-from yahoofinance.formatting import DisplayConfig, DisplayFormatter
+from yahoofinance.presentation.console import MarketDisplay
+from yahoofinance.presentation.formatter import DisplayConfig, DisplayFormatter
 
 
 @pytest.fixture
@@ -70,8 +70,8 @@ def mock_display(mock_client):
     Returns:
         MarketDisplay: A MarketDisplay instance for testing.
     """
-    with patch('yahoofinance.display.PricingAnalyzer') as mock_pricing, \
-         patch('yahoofinance.display.AnalystData') as mock_analyst:
+    with patch('yahoofinance.analysis.metrics.PricingAnalyzer') as mock_pricing, \
+         patch('yahoofinance.analysis.analyst.AnalystData') as mock_analyst:
         display = MarketDisplay(client=mock_client)
         return display
 

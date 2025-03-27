@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import Mock, patch
 import pandas as pd
 from datetime import datetime
-import yahoofinance.holders as holders
+import yahoofinance.analysis.holders as holders
 
 @pytest.fixture
 def sample_major_holders():
@@ -75,7 +75,7 @@ def test_main_single_ticker(mock_input, capsys):
     # Mock user entering one ticker and then quitting
     mock_input.side_effect = ['AAPL', 'q']
     
-    with patch('yahoofinance.holders.analyze_holders') as mock_analyze:
+    with patch('yahoofinance.analysis.holders.analyze_holders') as mock_analyze:
         holders.main()
         mock_analyze.assert_called_once_with('AAPL')
 
@@ -84,7 +84,7 @@ def test_main_multiple_tickers(mock_input, capsys):
     # Mock user entering multiple tickers and then quitting
     mock_input.side_effect = ['AAPL,MSFT,GOOGL', 'q']
     
-    with patch('yahoofinance.holders.analyze_holders') as mock_analyze:
+    with patch('yahoofinance.analysis.holders.analyze_holders') as mock_analyze:
         holders.main()
         assert mock_analyze.call_count == 3
         mock_analyze.assert_any_call('AAPL')

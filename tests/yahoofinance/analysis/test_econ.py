@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import Mock, patch
 import pandas as pd
 from datetime import datetime, timedelta
-from yahoofinance.econ import (
+from yahoofinance.analysis.market import (
     get_fred_api_key,
     get_date_input,
     get_default_dates,
@@ -52,7 +52,7 @@ class TestEconomicData(unittest.TestCase):
     def test_get_default_dates(self):
         """Test default date range calculation."""
         mock_now = datetime(2024, 2, 1)
-        with patch('yahoofinance.econ.datetime') as mock_datetime:
+        with patch('yahoofinance.analysis.market.datetime') as mock_datetime:
             mock_datetime.now.return_value = mock_now
             mock_datetime.strftime = datetime.strftime
             mock_datetime.strptime = datetime.strptime
@@ -123,7 +123,7 @@ class TestEconomicData(unittest.TestCase):
             result = calculate_change(current, previous)
             self.assertEqual(result, expected)
 
-    @patch('yahoofinance.econ.fetch_fred_data')
+    @patch('yahoofinance.analysis.market.fetch_fred_data')
     def test_fetch_economic_data(self, mock_fetch):
         """Test economic data fetching."""
         # Mock successful data fetch

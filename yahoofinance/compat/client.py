@@ -140,6 +140,30 @@ class YFinanceClient:
             logger.error(f"Error getting analyst ratings for {ticker}: {str(e)}")
             return None
     
+    def get_price_data(self, ticker: str) -> Optional[Dict[str, Any]]:
+        """
+        Get price data with v1-compatible interface.
+        
+        Args:
+            ticker: Stock ticker symbol
+            
+        Returns:
+            Dictionary with price data
+        """
+        try:
+            # Get data from v2 provider
+            data = self.provider.get_ticker_info(ticker)
+            return {
+                "current_price": data.get("price"),
+                "target_price": data.get("target_price"),
+                "upside": data.get("upside"),
+                "ticker": ticker
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting price data for {ticker}: {str(e)}")
+            return None
+    
     def get_price_targets(self, ticker: str) -> Optional[Dict[str, Any]]:
         """
         Get price targets with v1-compatible interface.
@@ -152,8 +176,12 @@ class YFinanceClient:
         """
         try:
             # Get data from v2 provider
-            data = self.provider.get_price_targets(ticker)
-            return data
+            data = self.provider.get_ticker_info(ticker)
+            return {
+                "target_price": data.get("target_price"),
+                "upside": data.get("upside"),
+                "ticker": ticker
+            }
             
         except Exception as e:
             logger.error(f"Error getting price targets for {ticker}: {str(e)}")

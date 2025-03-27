@@ -153,7 +153,7 @@ class TestYahooFinanceProvider:
                 'price_change_percentage': 2.3
             }
             
-            with patch('yahoofinance.pricing.PricingAnalyzer') as mock_pricing:
+            with patch('yahoofinance.analysis.stock.PricingAnalyzer') as mock_pricing:
                 mock_pricing_instance = Mock()
                 mock_pricing_instance.calculate_price_metrics.return_value = metrics
                 mock_pricing.return_value = mock_pricing_instance
@@ -191,7 +191,7 @@ class TestYahooFinanceProvider:
                 'recommendations': {'buy': 30, 'hold': 3, 'sell': 2}
             }
             
-            with patch('yahoofinance.analyst.AnalystData') as mock_analyst:
+            with patch('yahoofinance.analysis.analyst.AnalystData') as mock_analyst:
                 mock_analyst_instance = Mock()
                 mock_analyst_instance.get_ratings_summary.return_value = ratings
                 mock_analyst.return_value = mock_analyst_instance

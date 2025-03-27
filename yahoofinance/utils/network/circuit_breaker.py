@@ -102,14 +102,19 @@ class CircuitBreaker:
     
     def _load_state(self) -> None:
         """Load circuit breaker state from file if it exists"""
-        if not os.path.exists(self.state_file):
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(self.state_file), exist_ok=True)
+        if not self.state_file or not os.path.exists(self.state_file):
+            # Ensure directory exists if state file is specified
+            if self.state_file:
+                os.makedirs(os.path.dirname(self.state_file), exist_ok=True)
             return
         
         try:
             with open(self.state_file, 'r') as f:
-                state_data = json.load(f)
+                try:
+                    state_data = json.load(f)
+                except json.JSONDecodeError:
+                    # File exists but is not valid JSON, create empty state data
+                    state_data = {}
                 
             # Only load state for this specific circuit breaker
             if self.name in state_data:
@@ -118,7 +123,13 @@ class CircuitBreaker:
                 # Check if state is still valid (not too old)
                 last_change = circuit_data.get('last_state_change', 0)
                 if time.time() - last_change < self.max_open_timeout:
-                    self.state = CircuitState(circuit_data.get('state', CircuitState.CLOSED.value))
+                    state_value = circuit_data.get('state', CircuitState.CLOSED.value)
+                    try:
+                        self.state = CircuitState(state_value)
+                    except ValueError:
+                        # Invalid state value, default to CLOSED
+                        self.state = CircuitState.CLOSED
+                        
                     self.failure_count = circuit_data.get('failure_count', 0)
                     self.success_count = circuit_data.get('success_count', 0)
                     self.last_state_change = last_change
@@ -136,9 +147,14 @@ class CircuitBreaker:
             logger.debug(f"Loaded circuit breaker state for '{self.name}': {self.state.value}")
         except Exception as e:
             logger.warning(f"Failed to load circuit breaker state: {str(e)}")
+            # Ensure we default to CLOSED state for safety
+            self.state = CircuitState.CLOSED
     
     def _save_state(self) -> None:
         """Save circuit breaker state to file"""
+        if not self.state_file:
+            return
+            
         try:
             # Ensure directory exists
             os.makedirs(os.path.dirname(self.state_file), exist_ok=True)
@@ -146,8 +162,15 @@ class CircuitBreaker:
             # Load existing state file
             state_data = {}
             if os.path.exists(self.state_file):
-                with open(self.state_file, 'r') as f:
-                    state_data = json.load(f)
+                try:
+                    with open(self.state_file, 'r') as f:
+                        try:
+                            state_data = json.load(f)
+                        except json.JSONDecodeError:
+                            # File exists but is not valid JSON, create empty state data
+                            state_data = {}
+                except Exception as e:
+                    logger.warning(f"Error reading state file: {str(e)}, creating new state file")
             
             # Update with current state
             state_data[self.name] = {
@@ -446,6 +469,11 @@ def get_circuit_breaker(name: str) -> CircuitBreaker:
     with _circuit_breakers_lock:
         if name not in _circuit_breakers:
             _circuit_breakers[name] = CircuitBreaker(name=name)
+            
+        # If the circuit breaker is already an AsyncCircuitBreaker, that's fine
+        # AsyncCircuitBreaker is a subclass of CircuitBreaker, so it satisfies the type
+        # No need to convert in this direction
+            
         return _circuit_breakers[name]
 
 def get_async_circuit_breaker(name: str) -> AsyncCircuitBreaker:
@@ -461,13 +489,51 @@ def get_async_circuit_breaker(name: str) -> AsyncCircuitBreaker:
     with _circuit_breakers_lock:
         if name not in _circuit_breakers:
             _circuit_breakers[name] = AsyncCircuitBreaker(name=name)
+        
+        # Ensure the returned circuit breaker is of the correct type
+        # If we have a CircuitBreaker but need AsyncCircuitBreaker, replace it
+        if not isinstance(_circuit_breakers[name], AsyncCircuitBreaker):
+            logger.warning(f"Converting circuit breaker '{name}' from CircuitBreaker to AsyncCircuitBreaker")
+            # Copy state from the existing circuit breaker
+            old_circuit = _circuit_breakers[name]
+            new_circuit = AsyncCircuitBreaker(
+                name=name,
+                failure_threshold=old_circuit.failure_threshold,
+                failure_window=old_circuit.failure_window,
+                recovery_timeout=old_circuit.recovery_timeout,
+                success_threshold=old_circuit.success_threshold,
+                half_open_allow_percentage=old_circuit.half_open_allow_percentage,
+                max_open_timeout=old_circuit.max_open_timeout,
+                enabled=old_circuit.enabled,
+                state_file=old_circuit.state_file
+            )
+            # Copy dynamic state
+            new_circuit.state = old_circuit.state
+            new_circuit.failure_count = old_circuit.failure_count
+            new_circuit.failure_timestamps = old_circuit.failure_timestamps.copy()
+            new_circuit.success_count = old_circuit.success_count
+            new_circuit.last_state_change = old_circuit.last_state_change
+            new_circuit.last_failure_time = old_circuit.last_failure_time
+            new_circuit.last_success_time = old_circuit.last_success_time
+            new_circuit.total_failures = old_circuit.total_failures
+            new_circuit.total_successes = old_circuit.total_successes
+            new_circuit.total_requests = old_circuit.total_requests
+            new_circuit.consecutive_failures = old_circuit.consecutive_failures
+            
+            # Replace in registry
+            _circuit_breakers[name] = new_circuit
+            
         return _circuit_breakers[name]  # type: ignore
 
 def reset_all_circuits() -> None:
     """Reset all circuit breakers to closed state"""
     with _circuit_breakers_lock:
+        # First reset all circuit breakers
         for circuit in _circuit_breakers.values():
             circuit.reset()
+            
+        # Clear the cache to ensure new calls get fresh instances
+        _circuit_breakers.clear()
             
     # Clear the state file to ensure a clean slate
     state_file = CIRCUIT_BREAKER["STATE_FILE"]

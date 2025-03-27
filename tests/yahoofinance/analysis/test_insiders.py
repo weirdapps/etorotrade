@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import Mock, patch
 import pandas as pd
 from datetime import datetime
-from yahoofinance.insiders import InsiderAnalyzer, START_DATE_COL
+from yahoofinance.analysis.insiders import InsiderAnalyzer, START_DATE_COL
 
 # Patch the get_insider_metrics method for testing
 original_get_insider_metrics = InsiderAnalyzer.get_insider_metrics

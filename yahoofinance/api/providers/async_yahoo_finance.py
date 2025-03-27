@@ -9,11 +9,12 @@ appropriate rate limiting, caching, and error handling.
 import logging
 import asyncio
 import time
-from typing import Dict, Any, Optional, List, Tuple, cast, TypeVar, Callable, Awaitable
+from typing import Dict, Any, Optional, List, Tuple, cast, TypeVar, Callable, Awaitable, Union
 import pandas as pd
 import yfinance as yf
 from functools import wraps
 import concurrent.futures
+from datetime import datetime
 
 from .base_provider import AsyncFinanceDataProvider
 from ...core.errors import YFinanceError, APIError, ValidationError, RateLimitError
@@ -52,6 +53,82 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         self.max_concurrency = max_concurrency
         self._ticker_cache = {}
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_concurrency)
+        
+    def _format_market_cap(self, market_cap: Optional[Union[int, float]]) -> Optional[str]:
+        """
+        Format market cap value to a readable string with B/T suffix.
+        
+        Args:
+            market_cap: Market cap value in numeric format
+            
+        Returns:
+            Formatted market cap string with appropriate suffix
+        """
+        if not market_cap:
+            return None
+            
+        # Convert to billions or trillions
+        if market_cap >= 1_000_000_000_000:  # Trillion
+            value = market_cap / 1_000_000_000_000
+            if value >= 10:
+                return f"{value:.1f}T"
+            else:
+                return f"{value:.2f}T"
+        elif market_cap >= 1_000_000_000:  # Billion
+            value = market_cap / 1_000_000_000
+            if value >= 100:
+                return f"{value:.0f}B"
+            elif value >= 10:
+                return f"{value:.1f}B"
+            else:
+                return f"{value:.2f}B"
+        elif market_cap >= 1_000_000:  # Million
+            value = market_cap / 1_000_000
+            return f"{value:.2f}M"
+        else:
+            return f"{market_cap:,.0f}"
+            
+    def _format_date(self, date_obj: Any) -> Optional[str]:
+        """
+        Format a date object to a string.
+        
+        Args:
+            date_obj: Date object or string to format
+            
+        Returns:
+            Formatted date string or None if input is None
+        """
+        if not date_obj:
+            return None
+            
+        if isinstance(date_obj, str):
+            try:
+                # Try to parse as ISO format
+                date_obj = datetime.fromisoformat(date_obj.replace('Z', '+00:00'))
+            except (ValueError, TypeError):
+                # Return as is if parsing fails
+                return date_obj
+                
+        try:
+            return date_obj.strftime('%Y-%m-%d')
+        except (AttributeError, TypeError):
+            return str(date_obj)
+            
+    def _calculate_upside_potential(self, current_price: Optional[float], target_price: Optional[float]) -> Optional[float]:
+        """
+        Calculate upside potential as a percentage.
+        
+        Args:
+            current_price: Current stock price
+            target_price: Target stock price
+            
+        Returns:
+            Upside potential as a percentage or None if not calculable
+        """
+        if not current_price or not target_price or current_price <= 0:
+            return None
+            
+        return ((target_price - current_price) / current_price) * 100
     
     async def _run_sync_in_executor(self, func: Callable[..., T], *args, **kwargs) -> T:
         """
@@ -338,14 +415,45 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 latest_date = recommendations.index.max()
                 latest_recs = recommendations.loc[latest_date]
                 
-                # Calculate buy percentage
-                total_recs = latest_recs.sum()
-                strong_buy = latest_recs.get('strongBuy', 0)
-                buy = latest_recs.get('buy', 0)
-                hold = latest_recs.get('hold', 0)
-                sell = latest_recs.get('sell', 0)
-                strong_sell = latest_recs.get('strongSell', 0)
+                # Handle DataFrame or Series
+                if hasattr(latest_recs, 'sum'):
+                    try:
+                        # Try to sum the values (for Series)
+                        total_recs = latest_recs.sum()
+                    except Exception:
+                        # If summing fails, count the entries
+                        total_recs = len(latest_recs)
+                else:
+                    # Handle case where it's a single value
+                    total_recs = 1 if latest_recs is not None else 0
                 
+                # Safely extract values with fallbacks
+                try:
+                    strong_buy = float(latest_recs.get('strongBuy', 0))
+                except (ValueError, TypeError, AttributeError):
+                    strong_buy = 0
+                    
+                try:
+                    buy = float(latest_recs.get('buy', 0))
+                except (ValueError, TypeError, AttributeError):
+                    buy = 0
+                    
+                try:
+                    hold = float(latest_recs.get('hold', 0))
+                except (ValueError, TypeError, AttributeError):
+                    hold = 0
+                    
+                try:
+                    sell = float(latest_recs.get('sell', 0))
+                except (ValueError, TypeError, AttributeError):
+                    sell = 0
+                    
+                try:
+                    strong_sell = float(latest_recs.get('strongSell', 0))
+                except (ValueError, TypeError, AttributeError):
+                    strong_sell = 0
+                
+                # Calculate buy percentage with safety check
                 buy_percentage = ((strong_buy + buy) / total_recs * 100) if total_recs > 0 else 0
                 
                 return {
@@ -480,6 +588,35 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 else:
                     raise APIError(f"Failed to search tickers for '{query}' after {self.max_retries} attempts: {str(e)}")
     
+    @async_rate_limited
+    async def get_price_data(self, ticker: str) -> Dict[str, Any]:
+        """
+        Get price data for a ticker asynchronously.
+        
+        Args:
+            ticker: Stock ticker symbol
+            
+        Returns:
+            Dict containing price data
+            
+        Raises:
+            YFinanceError: When an error occurs while fetching data
+        """
+        logger.debug(f"Getting price data for {ticker}")
+        info = await self.get_ticker_info(ticker)
+        
+        # Extract price-related fields
+        return {
+            "ticker": ticker,
+            "current_price": info.get("price"),
+            "target_price": info.get("target_price"),
+            "upside": self._calculate_upside_potential(info.get("price"), info.get("target_price")),
+            "fifty_two_week_high": info.get("fifty_two_week_high"),
+            "fifty_two_week_low": info.get("fifty_two_week_low"),
+            "fifty_day_avg": info.get("fifty_day_avg"),
+            "two_hundred_day_avg": info.get("two_hundred_day_avg")
+        }
+        
     async def batch_get_ticker_info(self, tickers: List[str], skip_insider_metrics: bool = False) -> Dict[str, Dict[str, Any]]:
         """
         Get ticker information for multiple tickers in a batch asynchronously.
