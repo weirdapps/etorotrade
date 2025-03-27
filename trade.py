@@ -227,10 +227,6 @@ def calculate_action(df):
         calculate_action_for_row
     )
     
-    # Standard logging
-    import logging
-    logger = logging.getLogger(__name__)
-    
     # Create a working copy to prevent modifying the original
     working_df = df.copy()
     

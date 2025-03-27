@@ -182,7 +182,10 @@ class YahooFinanceBaseProvider:
         Args:
             ticker: Stock ticker symbol
             ticker_obj: yfinance Ticker object
-            skip_insider_metrics: If True, skip fetching insider trading metrics
+            skip_insider_metrics: If True, skip fetching insider trading metrics.
+                                  Note: This parameter is passed through from provider implementations
+                                  but not used directly in the base class. Provider subclasses
+                                  should implement insider metrics handling as needed.
             
         Returns:
             Dict containing processed stock information
