@@ -150,6 +150,31 @@ def find_ticker_column(portfolio_df):
     
     return ticker_column
 
+def _create_empty_ticker_dataframe():
+    """Create an empty ticker dataframe with a placeholder row.
+    
+    Returns:
+        pd.DataFrame: Empty dataframe with placeholder data
+    """
+    return pd.DataFrame([{
+        "ticker": "NO_DATA",
+        "company": "No Data",
+        "price": None,
+        "target_price": None,
+        "market_cap": None,
+        "buy_percentage": None,
+        "total_ratings": 0,
+        "analyst_count": 0,
+        "upside": None,
+        "pe_trailing": None,
+        "pe_forward": None,
+        "peg_ratio": None,
+        "beta": None,
+        "short_percent": None,
+        "dividend_yield": None,
+        "A": ""
+    }])
+
 def filter_buy_opportunities(market_df):
     """Filter buy opportunities from market data.
     
@@ -302,35 +327,30 @@ def get_columns_to_select():
         'short_percent', 'last_earnings', 'ACTION'  # Include ACTION column
     ]
 
-def prepare_display_dataframe(df):
-    """Prepare dataframe for display.
+def _create_empty_display_dataframe():
+    """Create an empty dataframe with the expected display columns.
+    
+    Returns:
+        pd.DataFrame: Empty dataframe with display columns
+    """
+    empty_df = pd.DataFrame(columns=['ticker', 'company', 'cap', 'price', 'target_price', 
+                                   'upside', 'buy_percentage', 'total_ratings', 'analyst_count',
+                                   'EXRET', 'beta', 'pe_trailing', 'pe_forward', 'peg_ratio',
+                                   'dividend_yield', 'short_percent', 'last_earnings', 'A', 'ACTION'])
+    # Rename columns to display format
+    column_mapping = get_column_mapping()
+    empty_df.rename(columns={col: column_mapping.get(col, col) for col in empty_df.columns}, inplace=True)
+    return empty_df
+
+def _format_company_names(working_df):
+    """Format company names for display.
     
     Args:
-        df: Source dataframe
+        working_df: Dataframe with company data
         
     Returns:
-        pd.DataFrame: Prepared dataframe for display
+        pd.DataFrame: Dataframe with formatted company names
     """
-    # Check if dataframe is empty
-    if df.empty:
-        print("Warning: Empty dataframe passed to prepare_display_dataframe")
-        # Return empty DataFrame with expected columns to avoid downstream errors
-        empty_df = pd.DataFrame(columns=['ticker', 'company', 'cap', 'price', 'target_price', 
-                                       'upside', 'buy_percentage', 'total_ratings', 'analyst_count',
-                                       'EXRET', 'beta', 'pe_trailing', 'pe_forward', 'peg_ratio',
-                                       'dividend_yield', 'short_percent', 'last_earnings', 'A', 'ACTION'])
-        # Rename columns to display format
-        column_mapping = get_column_mapping()
-        empty_df.rename(columns={col: column_mapping.get(col, col) for col in empty_df.columns}, inplace=True)
-        return empty_df
-    
-    # Create a copy to avoid modifying the original
-    working_df = df.copy()
-    
-    # Add concise debug log for input size
-    if len(working_df) > 1000:
-        print(f"Formatting {len(working_df)} rows for display...")
-    
     # Make sure company column exists
     if 'company' not in working_df.columns:
         print("Warning: 'company' column not found, using ticker as company name")
@@ -347,56 +367,82 @@ def prepare_display_dataframe(df):
         # Fallback formatting
         working_df['company'] = working_df['company'].astype(str).str.upper().str[:14]
     
+    return working_df
+
+def _format_market_cap_value(value):
+    """Format a single market cap value according to size rules.
+    
+    Args:
+        value: Market cap value to format
+        
+    Returns:
+        str: Formatted market cap string
+    """
+    if value is None or pd.isna(value):
+        return "--"
+            
+    try:
+        # Convert to float to ensure proper handling
+        val = float(value)
+        # Trillions
+        if val >= 1e12:
+            if val >= 10e12:
+                return f"{val / 1e12:.1f}T"
+            else:
+                return f"{val / 1e12:.2f}T"
+        # Billions
+        elif val >= 1e9:
+            if val >= 100e9:
+                return f"{int(val / 1e9)}B"
+            elif val >= 10e9:
+                return f"{val / 1e9:.1f}B"
+            else:
+                return f"{val / 1e9:.2f}B"
+        # Millions
+        elif val >= 1e6:
+            if val >= 100e6:
+                return f"{int(val / 1e6)}M"
+            elif val >= 10e6:
+                return f"{val / 1e6:.1f}M"
+            else:
+                return f"{val / 1e6:.2f}M"
+        else:
+            return f"{int(val):,}"
+    except (ValueError, TypeError):
+        return "--"
+
+def _add_market_cap_column(working_df):
+    """Add formatted market cap column to dataframe.
+    
+    Args:
+        working_df: Dataframe with market cap data
+        
+    Returns:
+        pd.DataFrame: Dataframe with formatted market cap column
+    """
     # Use cap_formatted if available
     if 'cap_formatted' in working_df.columns:
         working_df['cap'] = working_df['cap_formatted']
     # Format market cap according to size rules
     elif 'market_cap' in working_df.columns:
         print("Formatting market cap for display...")
-        # Use our custom formatter directly
-        def format_market_cap(value):
-            if value is None or pd.isna(value):
-                return "--"
-                
-            try:
-                # Convert to float to ensure proper handling
-                val = float(value)
-                # Trillions
-                if val >= 1e12:
-                    if val >= 10e12:
-                        return f"{val / 1e12:.1f}T"
-                    else:
-                        return f"{val / 1e12:.2f}T"
-                # Billions
-                elif val >= 1e9:
-                    if val >= 100e9:
-                        return f"{int(val / 1e9)}B"
-                    elif val >= 10e9:
-                        return f"{val / 1e9:.1f}B"
-                    else:
-                        return f"{val / 1e9:.2f}B"
-                # Millions
-                elif val >= 1e6:
-                    if val >= 100e6:
-                        return f"{int(val / 1e6)}M"
-                    elif val >= 10e6:
-                        return f"{val / 1e6:.1f}M"
-                    else:
-                        return f"{val / 1e6:.2f}M"
-                else:
-                    return f"{int(val):,}"
-            except (ValueError, TypeError):
-                return "--"
-                
         # Create cap column as string type to prevent dtype warnings
-        working_df['cap'] = working_df['market_cap'].apply(format_market_cap)
+        working_df['cap'] = working_df['market_cap'].apply(_format_market_cap_value)
     else:
         print("Warning: No market cap column found for formatting")
         working_df['cap'] = "--"  # Default placeholder
     
-    # Calculate EXRET if needed
-    working_df = calculate_exret(working_df)
+    return working_df
+
+def _select_and_rename_columns(working_df):
+    """Select and rename columns for display.
     
+    Args:
+        working_df: Dataframe with all data columns
+        
+    Returns:
+        pd.DataFrame: Dataframe with selected and renamed columns
+    """
     # Select and rename columns
     columns_to_select = get_columns_to_select()
     column_mapping = get_column_mapping()
@@ -412,13 +458,46 @@ def prepare_display_dataframe(df):
     available_columns = [col for col in columns_to_select if col in working_df.columns]
     if not available_columns:
         print("Error: No requested columns found in dataframe")
-        # Return the working dataframe to avoid empty results
         return working_df
         
     display_df = working_df[available_columns].copy()
     
     # Rename columns according to mapping
     display_df.rename(columns={col: column_mapping[col] for col in available_columns if col in column_mapping}, inplace=True)
+    return display_df
+
+def prepare_display_dataframe(df):
+    """Prepare dataframe for display.
+    
+    Args:
+        df: Source dataframe
+        
+    Returns:
+        pd.DataFrame: Prepared dataframe for display
+    """
+    # Check if dataframe is empty
+    if df.empty:
+        print("Warning: Empty dataframe passed to prepare_display_dataframe")
+        return _create_empty_display_dataframe()
+    
+    # Create a copy to avoid modifying the original
+    working_df = df.copy()
+    
+    # Add concise debug log for input size
+    if len(working_df) > 1000:
+        print(f"Formatting {len(working_df)} rows for display...")
+    
+    # Format company names
+    working_df = _format_company_names(working_df)
+    
+    # Add formatted market cap column
+    working_df = _add_market_cap_column(working_df)
+    
+    # Calculate EXRET if needed
+    working_df = calculate_exret(working_df)
+    
+    # Select and rename columns
+    display_df = _select_and_rename_columns(working_df)
     
     # Check if we have any rows left
     if display_df.empty:
@@ -455,6 +534,76 @@ def format_numeric_columns(display_df, columns, format_str):
                 )
     return display_df
 
+def _is_empty_date(date_str):
+    """Check if a date string is empty or missing.
+    
+    Args:
+        date_str: Date string to check
+        
+    Returns:
+        bool: True if date is empty, False otherwise
+    """
+    return (pd.isna(date_str) or 
+            date_str == '--' or 
+            date_str is None or 
+            (isinstance(date_str, str) and not date_str.strip()))
+
+def _is_valid_iso_date_string(date_str):
+    """Check if a string is already in valid ISO format (YYYY-MM-DD).
+    
+    Args:
+        date_str: Date string to check
+        
+    Returns:
+        bool: True if in valid ISO format, False otherwise
+    """
+    if not isinstance(date_str, str) or len(date_str) != 10:
+        return False
+        
+    if date_str[4] != '-' or date_str[7] != '-':
+        return False
+        
+    # Try to parse it to validate
+    try:
+        pd.to_datetime(date_str)
+        return True
+    except (ValueError, TypeError, pd.errors.OutOfBoundsDatetime):
+        # Common date parsing exceptions
+        return False
+
+def _format_date_string(date_str):
+    """Format a date string to YYYY-MM-DD format.
+    
+    Args:
+        date_str: Date string to format
+        
+    Returns:
+        str: Formatted date string or placeholder
+    """
+    # Handle empty dates
+    if _is_empty_date(date_str):
+        return '--'
+        
+    # If already in proper format, return as is
+    if _is_valid_iso_date_string(date_str):
+        return date_str
+    
+    try:
+        # Convert to datetime safely with errors='coerce'
+        date_obj = pd.to_datetime(date_str, errors='coerce')
+        
+        # If conversion was successful, format it
+        if pd.notna(date_obj):
+            return date_obj.strftime('%Y-%m-%d')
+        else:
+            # If conversion resulted in NaT, return placeholder
+            return '--'
+            
+    except Exception as e:
+        logger.debug(f"Error formatting earnings date: {str(e)}")
+        # Fall back to original string if any unexpected error
+        return str(date_str) if date_str and not pd.isna(date_str) else '--'
+
 def format_earnings_date(display_df):
     """Format earnings date column.
     
@@ -466,39 +615,9 @@ def format_earnings_date(display_df):
     """
     if 'EARNINGS' not in display_df.columns:
         return display_df
-        
-    def format_date(date_str):
-        if pd.isna(date_str) or date_str == '--' or date_str is None or (isinstance(date_str, str) and not date_str.strip()):
-            return '--'
-            
-        try:
-            # If it's already in YYYY-MM-DD format, return as is
-            if isinstance(date_str, str) and len(date_str) == 10 and date_str[4] == '-' and date_str[7] == '-':
-                # Validate that it's a proper date by parsing it
-                try:
-                    pd.to_datetime(date_str)
-                    return date_str
-                except:
-                    # If it fails validation, continue to the conversion below
-                    pass
-                
-            # Convert to datetime safely with errors='coerce'
-            date_obj = pd.to_datetime(date_str, errors='coerce')
-            
-            # If conversion was successful, format it
-            if pd.notna(date_obj):
-                return date_obj.strftime('%Y-%m-%d')
-            else:
-                # If conversion resulted in NaT, return placeholder
-                return '--'
-                
-        except Exception as e:
-            logger.debug(f"Error formatting earnings date: {str(e)}")
-            # Fall back to original string if any unexpected error
-            return str(date_str) if date_str and not pd.isna(date_str) else '--'
     
     # Apply formatting to EARNINGS column
-    display_df['EARNINGS'] = display_df['EARNINGS'].apply(format_date)
+    display_df['EARNINGS'] = display_df['EARNINGS'].apply(_format_date_string)
     return display_df
 
 def format_display_dataframe(display_df):
@@ -628,6 +747,133 @@ def apply_color_to_row(row, color_code):
     
     return colored_row
 
+def _get_color_by_title(title):
+    """Get the appropriate color code based on title.
+    
+    Args:
+        title: Display title
+        
+    Returns:
+        str: ANSI color code for the title
+    """
+    if 'Buy' in title:
+        return "\033[92m"  # Green for buy
+    elif 'Sell' in title:
+        return "\033[91m"  # Red for sell
+    else:
+        return ""  # Neutral for hold
+
+def _format_cap_column(display_df):
+    """Format market cap column to use T/B/M suffixes.
+    
+    Args:
+        display_df: Dataframe with market cap data
+        
+    Returns:
+        pd.DataFrame: Dataframe with formatted market cap column
+    """
+    if 'CAP' not in display_df.columns:
+        return display_df
+        
+    # Make a copy to avoid modifying the original
+    formatted_df = display_df.copy()
+    
+    # Convert CAP to string type first to avoid dtype incompatibility warning
+    formatted_df['CAP'] = formatted_df['CAP'].astype(str)
+    
+    # Use V2 formatter
+    formatter = DisplayFormatter()
+    for idx, val in enumerate(formatted_df['CAP']):
+        try:
+            # Only process if it looks like a number in scientific notation or large integer
+            if val.replace('.', '', 1).isdigit() or ('e' in val.lower()):
+                numeric_val = float(val.replace(',', ''))
+                formatted_cap = formatter.format_market_cap(numeric_val)
+                # Now safe to assign string to string
+                formatted_df.loc[formatted_df.index[idx], 'CAP'] = formatted_cap
+        except (ValueError, TypeError):
+            # Keep original value if conversion fails
+            pass
+            
+    return formatted_df
+
+def _apply_color_to_dataframe(display_df, color_code):
+    """Apply color formatting to an entire dataframe.
+    
+    Args:
+        display_df: Dataframe to color
+        color_code: ANSI color code to apply
+        
+    Returns:
+        pd.DataFrame: Dataframe with colored values
+    """
+    colored_values = []
+    
+    for _, row in display_df.iterrows():
+        try:
+            # Apply color to row
+            colored_row = apply_color_to_row(row, color_code)
+            colored_values.append(colored_row)
+        except Exception:
+            # Fall back to original row if any error
+            colored_values.append(row)
+    
+    return pd.DataFrame(colored_values)
+
+def _add_ranking_column(df):
+    """Add ranking column at the beginning.
+    
+    Args:
+        df: Dataframe to add ranking to
+        
+    Returns:
+        pd.DataFrame: Dataframe with ranking column
+    """
+    result_df = df.copy()
+    result_df.insert(0, "#", range(1, len(result_df) + 1))
+    return result_df
+
+def _prepare_csv_dataframe(display_df):
+    """Prepare dataframe for CSV export.
+    
+    Args:
+        display_df: Dataframe to prepare
+        
+    Returns:
+        pd.DataFrame: Dataframe ready for CSV export
+    """
+    # Add extra columns for CSV output
+    csv_df = display_df.copy()
+    
+    # Add ranking column to CSV output
+    csv_df = _add_ranking_column(csv_df)
+    
+    # Add % SI column (same as SI but explicitly named for clarity in CSV)
+    if 'SI' in csv_df.columns:
+        csv_df['% SI'] = csv_df['SI']
+        
+    # Add SI column (no percentage symbol)
+    if 'SI' in csv_df.columns:
+        csv_df['SI_value'] = csv_df['SI'].apply(_clean_si_value)
+        
+    return csv_df
+
+def _clean_si_value(value):
+    """Clean short interest value by removing percentage symbol.
+    
+    Args:
+        value: Short interest value
+        
+    Returns:
+        float or original value: Cleaned short interest value
+    """
+    try:
+        if isinstance(value, str) and '%' in value:
+            return float(value.replace('%', ''))
+        return value
+    except (ValueError, TypeError):
+        return value
+
 def display_and_save_results(display_df, title, output_file):
     """Display results in console and save to file.
     
@@ -639,56 +885,22 @@ def display_and_save_results(display_df, title, output_file):
     # Enable colors for console output
     pd.set_option('display.max_colwidth', None)
     
-    # Get color code based on title - always apply category-specific coloring
-    # This ensures tickers in buy/sell/hold lists have consistent coloring
-    if 'Buy' in title:
-        color_code = "\033[92m"  # Green for buy
-    elif 'Sell' in title:
-        color_code = "\033[91m"  # Red for sell
-    else:
-        color_code = ""  # Neutral for hold
+    # Get appropriate color code based on title
+    color_code = _get_color_by_title(title)
     
-    # Create colored values for display
-    colored_values = []
+    # Format CAP column to use T/B suffixes
+    formatted_df = _format_cap_column(display_df)
     
-    # First, format CAP column to use T/B suffixes
-    if 'CAP' in display_df.columns:
-        # Convert CAP to string type first to avoid dtype incompatibility warning
-        display_df['CAP'] = display_df['CAP'].astype(str)
-        
-        # Use V2 formatter
-        formatter = DisplayFormatter()
-        for idx, val in enumerate(display_df['CAP']):
-            try:
-                # Only process if it looks like a number in scientific notation or large integer
-                if val.replace('.', '', 1).isdigit() or ('e' in val.lower()):
-                    numeric_val = float(val.replace(',', ''))
-                    formatted_cap = formatter.format_market_cap(numeric_val)
-                    # Now safe to assign string to string
-                    display_df.loc[display_df.index[idx], 'CAP'] = formatted_cap
-            except:
-                # Keep original value if conversion fails
-                pass
+    # Apply coloring to values
+    colored_df = _apply_color_to_dataframe(formatted_df, color_code)
     
-    for _, row in display_df.iterrows():
-        try:
-            # Apply color to row - use the category-specific color
-            colored_row = apply_color_to_row(row, color_code)
-            colored_values.append(colored_row)
-        except Exception:
-            # Fall back to original row if any error
-            colored_values.append(row)
+    # Add ranking column
+    colored_df = _add_ranking_column(colored_df)
     
-    # Create dataframe from colored values
-    colored_df = pd.DataFrame(colored_values)
-    
-    # Add ranking column at the beginning (matching other display formats)
-    colored_df.insert(0, "#", range(1, len(colored_df) + 1))
-    
-    # Get column alignments
+    # Get column alignments for display
     colalign = ['right'] + get_column_alignments(display_df)
     
-    # Display results
+    # Display results in console
     print(f"\n{title}:")
     print(tabulate(
         colored_df,
@@ -699,28 +911,8 @@ def display_and_save_results(display_df, title, output_file):
     ))
     print(f"\nTotal: {len(display_df)}")
     
-    # Add extra columns for CSV output
-    csv_df = display_df.copy()
-    
-    # Add ranking column to CSV output
-    csv_df.insert(0, "#", range(1, len(csv_df) + 1))
-    
-    # Add % SI column (same as SI but explicitly named for clarity in CSV)
-    if 'SI' in csv_df.columns:
-        csv_df['% SI'] = csv_df['SI']
-        
-    # Add SI column (no percentage symbol)
-    if 'SI' in csv_df.columns:
-        # Try to remove '%' and convert to float
-        def clean_si(value):
-            try:
-                if isinstance(value, str) and '%' in value:
-                    return float(value.replace('%', ''))
-                return value
-            except (ValueError, TypeError):
-                return value
-                
-        csv_df['SI_value'] = csv_df['SI'].apply(clean_si)
+    # Prepare dataframe for CSV export
+    csv_df = _prepare_csv_dataframe(display_df)
     
     # Save to CSV
     csv_df.to_csv(output_file, index=False)
@@ -905,6 +1097,71 @@ def process_sell_candidates(output_dir):
             output_file
         )
 
+def _load_market_data(market_path):
+    """Load market data from CSV file.
+    
+    Args:
+        market_path: Path to market CSV file
+        
+    Returns:
+        pd.DataFrame or None: Market data or None if file not found
+    """
+    if not os.path.exists(market_path):
+        print(f"\nMarket analysis file not found: {market_path}")
+        print("Please run the market analysis (M) first to generate hold recommendations.")
+        return None
+    
+    try:
+        # Read market analysis data
+        return pd.read_csv(market_path)
+    except Exception as e:
+        print(f"Error reading market data: {str(e)}")
+        return None
+
+def _process_empty_hold_candidates(output_dir):
+    """Process the case when no hold candidates are found.
+    
+    Args:
+        output_dir: Output directory
+    """
+    print("\nNo hold candidates found matching criteria.")
+    output_file = os.path.join(output_dir, HOLD_CSV)
+    create_empty_results_file(output_file)
+
+def _format_market_caps(display_df, hold_candidates):
+    """Format market cap values properly for display.
+    
+    Args:
+        display_df: Display dataframe
+        hold_candidates: Original hold candidates dataframe
+        
+    Returns:
+        pd.DataFrame: Dataframe with formatted market caps
+    """
+    if 'CAP' not in display_df.columns:
+        return display_df
+        
+    # Make a copy to avoid modifying the original
+    result_df = display_df.copy()
+    
+    # Convert CAP to string type first to avoid dtype incompatibility warning
+    result_df['CAP'] = result_df['CAP'].astype(str)
+    
+    # Use V2 formatter
+    formatter = DisplayFormatter()
+    
+    # First get the raw market cap value from the original dataframe
+    for idx, row in result_df.iterrows():
+        ticker = row['TICKER']
+        # Find the corresponding market cap in the original dataframe
+        if ticker in hold_candidates['ticker'].values:
+            orig_row = hold_candidates[hold_candidates['ticker'] == ticker].iloc[0]
+            if 'market_cap' in orig_row and not pd.isna(orig_row['market_cap']):
+                # Format the market cap value properly
+                result_df.at[idx, 'CAP'] = formatter.format_market_cap(orig_row['market_cap'])
+    
+    return result_df
+
 def process_hold_candidates(output_dir):
     """Process hold candidates from market data.
     
@@ -913,42 +1170,24 @@ def process_hold_candidates(output_dir):
     """
     market_path = f"{output_dir}/market.csv"
     
-    if not os.path.exists(market_path):
-        print(f"\nMarket analysis file not found: {market_path}")
-        print("Please run the market analysis (M) first to generate hold recommendations.")
+    # Load market data
+    market_df = _load_market_data(market_path)
+    if market_df is None:
         return
-    
-    # Read market analysis data
-    market_df = pd.read_csv(market_path)
     
     # Get hold candidates
     hold_candidates = filter_hold_candidates(market_df)
     
     if hold_candidates.empty:
-        print("\nNo hold candidates found matching criteria.")
-        output_file = os.path.join(output_dir, HOLD_CSV)
-        create_empty_results_file(output_file)
+        _process_empty_hold_candidates(output_dir)
     else:
         # Prepare and format dataframe for display
         display_df = prepare_display_dataframe(hold_candidates)
         
         # Format market cap values properly for display
-        if 'CAP' in display_df.columns:
-            # Convert CAP to string type first to avoid dtype incompatibility warning
-            display_df['CAP'] = display_df['CAP'].astype(str)
-            
-            # Use V2 formatter
-            formatter = DisplayFormatter()
-            # First get the raw market cap value from the original dataframe
-            for idx, row in display_df.iterrows():
-                ticker = row['TICKER']
-                # Find the corresponding market cap in the original dataframe
-                if ticker in hold_candidates['ticker'].values:
-                    orig_row = hold_candidates[hold_candidates['ticker'] == ticker].iloc[0]
-                    if 'market_cap' in orig_row and not pd.isna(orig_row['market_cap']):
-                        # Format the market cap value properly
-                        display_df.at[idx, 'CAP'] = formatter.format_market_cap(orig_row['market_cap'])
+        display_df = _format_market_caps(display_df, hold_candidates)
         
+        # Apply general formatting
         display_df = format_display_dataframe(display_df)
         
         # Sort by TICKER (ascending) as requested
@@ -962,11 +1201,12 @@ def process_hold_candidates(output_dir):
             output_file
         )
 
-def generate_trade_recommendations(action_type):
-    """Generate trade recommendations based on analysis.
+def _setup_trade_recommendation_paths():
+    """Set up paths for trade recommendation processing.
     
-    Args:
-        action_type: 'N' for new buy opportunities, 'E' for existing portfolio (sell), 'H' for hold candidates
+    Returns:
+        tuple: (output_dir, market_path, portfolio_path, notrade_path, output_files)
+               or (None, None, None, None, None) if setup fails
     """
     try:
         # Get file paths
@@ -974,12 +1214,163 @@ def generate_trade_recommendations(action_type):
         
         # Ensure output directory exists
         if not ensure_output_directory(output_dir):
-            return
+            return None, None, None, None, None
         
-        # Ensure output file paths are accessible for all types
-        buy_output = os.path.join(output_dir, BUY_CSV)
-        sell_output = os.path.join(output_dir, SELL_CSV)
-        hold_output = os.path.join(output_dir, HOLD_CSV)
+        # Create output file paths
+        output_files = {
+            'buy': os.path.join(output_dir, BUY_CSV),
+            'sell': os.path.join(output_dir, SELL_CSV),
+            'hold': os.path.join(output_dir, HOLD_CSV)
+        }
+        
+        return output_dir, market_path, portfolio_path, notrade_path, output_files
+    except Exception as e:
+        logger.error(f"Error setting up trade recommendation paths: {str(e)}")
+        print(f"Error setting up paths: {str(e)}")
+        return None, None, None, None, None
+
+def _process_hold_action(market_path, output_dir, output_files):
+    """Process hold action type.
+    
+    Args:
+        market_path: Path to market data file
+        output_dir: Output directory
+        output_files: Dictionary of output file paths
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    if not os.path.exists(market_path):
+        logger.error(f"Market file not found: {market_path}")
+        print("Please run the market analysis (M) first to generate data.")
+        return False
+        
+    print("Processing HOLD candidates...")
+    process_hold_candidates(output_dir)
+    print(f"HOLD recommendations saved to {output_files['hold']}")
+    return True
+
+def _load_data_files(market_path, portfolio_path):
+    """Load market and portfolio data files.
+    
+    Args:
+        market_path: Path to market data file
+        portfolio_path: Path to portfolio data file
+        
+    Returns:
+        tuple: (market_df, portfolio_df) or (None, None) if loading fails
+    """
+    # Read market data
+    print(f"Loading market data from {market_path}...")
+    try:
+        market_df = pd.read_csv(market_path)
+        print(f"Loaded {len(market_df)} market ticker records")
+    except Exception as e:
+        logger.error(f"Error loading market data: {str(e)}")
+        print(f"Error loading market data: {str(e)}")
+        return None, None
+    
+    # Read portfolio data
+    print(f"Loading portfolio data from {portfolio_path}...")
+    try:
+        portfolio_df = pd.read_csv(portfolio_path)
+        print(f"Loaded {len(portfolio_df)} portfolio ticker records")
+    except Exception as e:
+        logger.error(f"Error loading portfolio data: {str(e)}")
+        print(f"Error loading portfolio data: {str(e)}")
+        return None, None
+    
+    return market_df, portfolio_df
+
+def _extract_portfolio_tickers(portfolio_df):
+    """Extract unique tickers from portfolio dataframe.
+    
+    Args:
+        portfolio_df: Portfolio dataframe
+        
+    Returns:
+        set: Set of portfolio tickers or None if extraction fails
+    """
+    # Find ticker column in portfolio
+    ticker_column = find_ticker_column(portfolio_df)
+    if ticker_column is None:
+        print("Error: Could not find ticker column in portfolio file")
+        return None
+    
+    # Get portfolio tickers
+    try:
+        portfolio_tickers = set(portfolio_df[ticker_column].str.upper())
+        print(f"Found {len(portfolio_tickers)} unique tickers in portfolio")
+        return portfolio_tickers
+    except Exception as e:
+        logger.error(f"Error extracting portfolio tickers: {str(e)}")
+        print(f"Error extracting portfolio tickers: {str(e)}")
+        return None
+
+def _process_buy_action(market_df, portfolio_tickers, output_dir, notrade_path, output_file):
+    """Process buy action type.
+    
+    Args:
+        market_df: Market dataframe
+        portfolio_tickers: Set of portfolio tickers
+        output_dir: Output directory
+        notrade_path: Path to notrade file
+        output_file: Path to output file
+    """
+    print("Processing BUY opportunities...")
+    process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_path)
+    print(f"BUY recommendations saved to {output_file}")
+
+def _process_sell_action(output_dir, output_file):
+    """Process sell action type.
+    
+    Args:
+        output_dir: Output directory
+        output_file: Path to output file
+    """
+    print("Processing SELL candidates from portfolio...")
+    process_sell_candidates(output_dir)
+    print(f"SELL recommendations saved to {output_file}")
+
+def _process_buy_or_sell_action(action_type, market_df, portfolio_tickers, output_dir, notrade_path, output_files):
+    """Process buy or sell action type.
+    
+    Args:
+        action_type: 'N' for buy, 'E' for sell
+        market_df: Market dataframe
+        portfolio_tickers: Set of portfolio tickers
+        output_dir: Output directory
+        notrade_path: Path to notrade file
+        output_files: Dictionary of output file paths
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    # Use a dictionary to map action types to their respective processing functions
+    action_processors = {
+        'N': lambda: _process_buy_action(market_df, portfolio_tickers, output_dir, notrade_path, output_files['buy']),
+        'E': lambda: _process_sell_action(output_dir, output_files['sell'])
+    }
+    
+    # Execute the appropriate action processor if available
+    processor = action_processors.get(action_type)
+    if processor:
+        processor()
+        return True
+    
+    return False
+
+def generate_trade_recommendations(action_type):
+    """Generate trade recommendations based on analysis.
+    
+    Args:
+        action_type: 'N' for new buy opportunities, 'E' for existing portfolio (sell), 'H' for hold candidates
+    """
+    try:
+        # Set up paths
+        output_dir, market_path, portfolio_path, notrade_path, output_files = _setup_trade_recommendation_paths()
+        if output_dir is None:
+            return
         
         print(f"Generating trade recommendations for action type: {action_type}")
         print(f"Using market data from: {market_path}")
@@ -987,62 +1378,25 @@ def generate_trade_recommendations(action_type):
         
         # For hold candidates, we only need the market file
         if action_type == 'H':
-            if not os.path.exists(market_path):
-                logger.error(f"Market file not found: {market_path}")
-                print("Please run the market analysis (M) first to generate data.")
-                return
-            print("Processing HOLD candidates...")
-            process_hold_candidates(output_dir)
-            print(f"HOLD recommendations saved to {hold_output}")
+            _process_hold_action(market_path, output_dir, output_files)
             return
         
         # For buy/sell, check if required files exist
         if not check_required_files(market_path, portfolio_path):
             return
         
-        # Read market and portfolio data
-        print(f"Loading market data from {market_path}...")
-        try:
-            market_df = pd.read_csv(market_path)
-            print(f"Loaded {len(market_df)} market ticker records")
-        except Exception as e:
-            logger.error(f"Error loading market data: {str(e)}")
-            print(f"Error loading market data: {str(e)}")
+        # Load market and portfolio data
+        market_df, portfolio_df = _load_data_files(market_path, portfolio_path)
+        if market_df is None or portfolio_df is None:
             return
         
-        print(f"Loading portfolio data from {portfolio_path}...")
-        try:
-            portfolio_df = pd.read_csv(portfolio_path)
-            print(f"Loaded {len(portfolio_df)} portfolio ticker records")
-        except Exception as e:
-            logger.error(f"Error loading portfolio data: {str(e)}")
-            print(f"Error loading portfolio data: {str(e)}")
-            return
-        
-        # Find ticker column in portfolio
-        ticker_column = find_ticker_column(portfolio_df)
-        if ticker_column is None:
-            print("Error: Could not find ticker column in portfolio file")
-            return
-        
-        # Get portfolio tickers
-        try:
-            portfolio_tickers = set(portfolio_df[ticker_column].str.upper())
-            print(f"Found {len(portfolio_tickers)} unique tickers in portfolio")
-        except Exception as e:
-            logger.error(f"Error extracting portfolio tickers: {str(e)}")
-            print(f"Error extracting portfolio tickers: {str(e)}")
+        # Extract portfolio tickers
+        portfolio_tickers = _extract_portfolio_tickers(portfolio_df)
+        if portfolio_tickers is None:
             return
         
         # Process according to action type
-        if action_type == 'N':  # New buy opportunities
-            print("Processing BUY opportunities...")
-            process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_path)
-            print(f"BUY recommendations saved to {buy_output}")
-        elif action_type == 'E':  # Sell recommendations
-            print("Processing SELL candidates from portfolio...")
-            process_sell_candidates(output_dir)
-            print(f"SELL recommendations saved to {sell_output}")
+        _process_buy_or_sell_action(action_type, market_df, portfolio_tickers, output_dir, notrade_path, output_files)
     
     except Exception as e:
         logger.error(f"Error generating trade recommendations: {str(e)}")
@@ -1177,28 +1531,10 @@ async def fetch_ticker_data(provider, tickers):
     result_df = pd.DataFrame(results)
     logger.info(f"Fetch completed: {len(result_df)} valid tickers out of {total_tickers} requested")
     
-    # If the DataFrame is empty, add a simple row to avoid issues
+    # If the DataFrame is empty, add a placeholder row
     if result_df.empty:
         logger.warning("No valid ticker data was returned. Using empty placeholder DataFrame.")
-        # Create a minimal dataframe with empty values
-        result_df = pd.DataFrame([{
-            "ticker": "NO_DATA",
-            "company": "No Data",
-            "price": None,
-            "target_price": None,
-            "market_cap": None,
-            "buy_percentage": None,
-            "total_ratings": 0,
-            "analyst_count": 0,
-            "upside": None,
-            "pe_trailing": None,
-            "pe_forward": None,
-            "peg_ratio": None,
-            "beta": None,
-            "short_percent": None,
-            "dividend_yield": None,
-            "A": ""
-        }])
+        result_df = _create_empty_ticker_dataframe()
     
     return result_df
 
