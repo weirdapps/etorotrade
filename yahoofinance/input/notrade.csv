@@ -1,4 +1,5 @@
 symbol,company,price,target_price,upside,analyst_count,buy_percentage,total_ratings,A,EXRET,beta,pe_trailing,pe_forward,peg_ratio,dividend_yield,short_float_pct,insider_buy_pct,insider_transactions,last_earnings,exchange
+0883.HK,CNOOC,17.88,22.367107,25.09567673378077,18.0,94.44,18.0,A,23.70035710738256,0.742,5.570093,5.5874996,,8.28,,,,,HK
 ATYM.L,"Atalaya Mining Copper, S.A.",365.0,488.33298,33.78985753424657,6.0,85.71,7.0,A,28.96128689260273,1.642,24.333332,6.759259,,1.69,,,,2024-11-13,L
 CSH.DE,CENIT Aktiengesellschaft,7.25,16.74,130.8965517241379,5.0,100.0,5.0,A,130.8965517241379,0.725,20.138887,8.630953,,0.55,,,,2024-11-05,DE
 D6H.DE,DATAGROUP SE,40.45,76.91667,90.15245982694682,6.0,100.0,6.0,A,90.15245982694684,1.101,13.805461,12.220544,,2.47,,,,2025-02-20,DE

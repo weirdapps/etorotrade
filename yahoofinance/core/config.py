@@ -340,8 +340,28 @@ SPECIAL_TICKERS = {
 
 # Column and field name constants
 COLUMN_NAMES = {
+    # Display column names
     "EARNINGS_DATE": "Earnings Date",
     "BUY_PERCENTAGE": "% BUY",
+    "DIVIDEND_YIELD": "DIV %",
+    "COMPANY_NAME": "COMPANY",
+    "TICKER": "TICKER",
+    "MARKET_CAP": "CAP",
+    "PRICE": "PRICE",
+    "TARGET_PRICE": "TARGET",
+    "UPSIDE": "UPSIDE",
+    "ANALYST_COUNT": "# T",
+    "TOTAL_RATINGS": "# A",
+    "ACTION": "ACTION",
+    "RATING_TYPE": "A",
+    "EXPECTED_RETURN": "EXRET",
+    "BETA": "BETA",
+    "PE_TRAILING": "PET",
+    "PE_FORWARD": "PEF",
+    "PEG_RATIO": "PEG",
+    "SHORT_INTEREST": "SI",
+    "EARNINGS": "EARNINGS",
+    "RANKING": "#",
 }
 
 # Load environment variables if needed

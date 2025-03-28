@@ -9,18 +9,20 @@ import pandas as pd
 import logging
 from yahoofinance.core.config import COLUMN_NAMES
 
-# Constants for column names
+# Constants for column names from config
 BUY_PERCENTAGE = COLUMN_NAMES["BUY_PERCENTAGE"]  # Column name for buy percentage
-UPSIDE = 'upside'
-BUY_PERCENTAGE_COL = 'buy_percentage'
-PE_FORWARD = 'pe_forward'
-PE_TRAILING = 'pe_trailing'
-PEG_RATIO = 'peg_ratio'
-BETA = 'beta'
-EXRET = 'EXRET'
-ANALYST_COUNT = 'analyst_count'
-TOTAL_RATINGS = 'total_ratings'
-DEFAULT_SHORT_FIELD = 'short_percent'
+
+# Constants for column internal names
+UPSIDE = 'upside'  # Internal column name for upside percentage
+BUY_PERCENTAGE_COL = 'buy_percentage'  # Internal column name for buy percentage
+PE_FORWARD = 'pe_forward'  # Internal column name for forward P/E
+PE_TRAILING = 'pe_trailing'  # Internal column name for trailing P/E
+PEG_RATIO = 'peg_ratio'  # Internal column name for PEG ratio
+BETA = 'beta'  # Internal column name for beta
+EXRET = COLUMN_NAMES["EXPECTED_RETURN"]  # Column name for expected return
+ANALYST_COUNT = 'analyst_count'  # Internal column name for analyst count
+TOTAL_RATINGS = 'total_ratings'  # Internal column name for total ratings
+DEFAULT_SHORT_FIELD = 'short_percent'  # Default field name for short interest
 
 # Action constants
 SELL_ACTION = 'S'

@@ -500,6 +500,7 @@ The codebase has been reorganized to eliminate duplications:
   - Added proper provider interfaces and implementations
   - Created a centralized `get_provider()` function for easy access
   - Implemented missing client methods to complete provider API compatibility
+  - Extracted `CustomYahooFinanceProvider` to a dedicated module for better maintainability
 
 - **Code Organization**:
   - Fixed compatibility layers to properly re-export functionality
@@ -513,6 +514,9 @@ The codebase has been reorganized to eliminate duplications:
   - Created clear module boundaries and responsibilities
   - Consolidated duplicate async utilities into a single implementation
   - Updated imports to use core.errors instead of relative imports
+  - Made `enhanced.py` the canonical source for AsyncRateLimiter
+  - Added proper import redirection with deprecation warnings
+  - Updated tests to use the new API correctly
 
 - **Error Handling**:
   - Consolidated error type definitions to core.errors module
@@ -922,12 +926,16 @@ The codebase currently has several areas with significant duplication. Here's a 
   - Add import redirects in yahoofinance fixture files (already started with deprecation warnings)
   - Update all imports to reference the canonical fixtures
 
-### 2. Async Utilities Consolidation
-- **Current Issue**: Duplicate AsyncRateLimiter implementations in both helpers.py and enhanced.py
-- **Solution**:
-  - Make enhanced.py the canonical source for AsyncRateLimiter
-  - Refactor helpers.py to import from enhanced.py
-  - Remove duplicate code and ensure backward compatibility
+### 2. Async Utilities Consolidation ✓
+- **COMPLETED**: AsyncRateLimiter has been consolidated with enhanced.py as the canonical source
+- **Implementation**:
+  - Enhanced.py contains the canonical AsyncRateLimiter implementation with full docstrings
+  - Helpers.py imports and re-exports from enhanced.py 
+  - Rate_limiter.py in utils/async/ imports from enhanced.py with deprecation warnings
+  - All test files updated to use the new API correctly
+  - Import redirection ensures backward compatibility
+  
+These changes follow the canonical source pattern to reduce duplication while maintaining backward compatibility. The AsyncRateLimiter class now has a single, well-documented implementation that is used throughout the codebase.
 
 ### 3. Provider Implementation Consolidation
 - **Current Issue**: Substantial code duplication between sync and async provider implementations

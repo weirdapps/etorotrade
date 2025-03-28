@@ -335,12 +335,24 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 
             return df
             
-        except Exception as e:
-            # Translate specific errors for better user experience
-            if isinstance(e, (APIError, ValidationError, RateLimitError, NetworkError)):
-                raise e
-            else:
-                raise APIError(f"Failed to get historical data for {ticker}: {str(e)}")
+        except (ValueError, KeyError, TypeError, AttributeError) as e:
+            # Common parsing/data access errors
+            raise APIError(f"Failed to parse historical data for {ticker}: {str(e)}")
+        except (IOError, ConnectionError, aiohttp.ClientError) as e:
+            # Network-related errors
+            raise NetworkError(f"Network error when fetching historical data for {ticker}: {str(e)}")
+        except (APIError, ValidationError, RateLimitError, NetworkError) as e:
+            # Re-raise known error types
+            raise e
+        except pd.errors.EmptyDataError as e:
+            # DataFrame-specific errors
+            raise APIError(f"Empty data returned for {ticker}: {str(e)}")
+        except ImportError as e:
+            # yfinance import errors
+            raise APIError(f"Failed to import yfinance module: {str(e)}")
+        except (ModuleNotFoundError, RuntimeError, MemoryError) as e:
+            # Other serious errors
+            raise APIError(f"System error when fetching historical data for {ticker}: {str(e)}")
     
     @enhanced_async_rate_limited(max_retries=0)
     async def get_earnings_data(self, ticker: str) -> Dict[str, Any]:
@@ -427,12 +439,24 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             
             return earnings_data
             
-        except Exception as e:
-            # Translate specific errors for better user experience
-            if isinstance(e, (APIError, ValidationError, RateLimitError, NetworkError)):
-                raise e
-            else:
-                raise APIError(f"Failed to get earnings data for {ticker}: {str(e)}")
+        except (ValueError, KeyError, TypeError, AttributeError) as e:
+            # Common parsing/data access errors
+            raise APIError(f"Failed to parse earnings data for {ticker}: {str(e)}")
+        except (IOError, ConnectionError, aiohttp.ClientError) as e:
+            # Network-related errors
+            raise NetworkError(f"Network error when fetching earnings data for {ticker}: {str(e)}")
+        except (APIError, ValidationError, RateLimitError, NetworkError) as e:
+            # Re-raise known error types
+            raise e
+        except pd.errors.EmptyDataError as e:
+            # DataFrame-specific errors
+            raise APIError(f"Empty earnings data returned for {ticker}: {str(e)}")
+        except ImportError as e:
+            # yfinance import errors
+            raise APIError(f"Failed to import yfinance module: {str(e)}")
+        except (ModuleNotFoundError, RuntimeError, MemoryError) as e:
+            # Other serious errors
+            raise APIError(f"System error when fetching earnings data for {ticker}: {str(e)}")
     
     @enhanced_async_rate_limited(max_retries=0)
     async def get_analyst_ratings(self, ticker: str) -> Dict[str, Any]:
@@ -560,12 +584,24 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             
             return ratings_data
             
-        except Exception as e:
-            # Translate specific errors for better user experience
-            if isinstance(e, (APIError, ValidationError, RateLimitError, NetworkError)):
-                raise e
-            else:
-                raise APIError(f"Failed to get analyst ratings for {ticker}: {str(e)}")
+        except (ValueError, KeyError, TypeError, AttributeError) as e:
+            # Common parsing/data access errors
+            raise APIError(f"Failed to parse analyst ratings data for {ticker}: {str(e)}")
+        except (IOError, ConnectionError, aiohttp.ClientError) as e:
+            # Network-related errors
+            raise NetworkError(f"Network error when fetching analyst ratings for {ticker}: {str(e)}")
+        except (APIError, ValidationError, RateLimitError, NetworkError) as e:
+            # Re-raise known error types
+            raise e
+        except pd.errors.EmptyDataError as e:
+            # DataFrame-specific errors
+            raise APIError(f"Empty analyst ratings data returned for {ticker}: {str(e)}")
+        except ImportError as e:
+            # yfinance import errors
+            raise APIError(f"Failed to import yfinance module: {str(e)}")
+        except (ModuleNotFoundError, RuntimeError, MemoryError) as e:
+            # Other serious errors
+            raise APIError(f"System error when fetching analyst ratings for {ticker}: {str(e)}")
     
     @enhanced_async_rate_limited(max_retries=0)
     async def get_insider_transactions(self, ticker: str) -> List[Dict[str, Any]]:
@@ -642,12 +678,21 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             
             return transactions
             
-        except Exception as e:
-            # Translate specific errors for better user experience
-            if isinstance(e, (APIError, ValidationError, RateLimitError, NetworkError)):
-                raise e
-            else:
-                raise APIError(f"Failed to get insider transactions for {ticker}: {str(e)}")
+        except (ValueError, KeyError, TypeError, AttributeError) as e:
+            # Common parsing/data access errors
+            raise APIError(f"Failed to parse insider transactions data for {ticker}: {str(e)}")
+        except (IOError, ConnectionError, aiohttp.ClientError) as e:
+            # Network-related errors
+            raise NetworkError(f"Network error when fetching insider transactions for {ticker}: {str(e)}")
+        except (APIError, ValidationError, RateLimitError, NetworkError) as e:
+            # Re-raise known error types
+            raise e
+        except pd.errors.EmptyDataError as e:
+            # DataFrame-specific errors
+            raise APIError(f"Empty insider transactions data returned for {ticker}: {str(e)}")
+        except (ModuleNotFoundError, RuntimeError, MemoryError) as e:
+            # Other serious errors
+            raise APIError(f"System error when fetching insider transactions for {ticker}: {str(e)}")
     
     @enhanced_async_rate_limited(max_retries=0)
     async def search_tickers(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
@@ -699,12 +744,18 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             
             return results
             
-        except Exception as e:
-            # Translate specific errors for better user experience
-            if isinstance(e, (APIError, ValidationError, RateLimitError, NetworkError)):
-                raise e
-            else:
-                raise APIError(f"Failed to search tickers for '{query}': {str(e)}")
+        except (ValueError, KeyError, TypeError, AttributeError) as e:
+            # Common parsing/data access errors
+            raise APIError(f"Failed to parse search results for '{query}': {str(e)}")
+        except (IOError, ConnectionError, aiohttp.ClientError) as e:
+            # Network-related errors
+            raise NetworkError(f"Network error when searching tickers for '{query}': {str(e)}")
+        except (APIError, ValidationError, RateLimitError, NetworkError) as e:
+            # Re-raise known error types
+            raise e
+        except (ModuleNotFoundError, RuntimeError, MemoryError) as e:
+            # Other serious errors
+            raise APIError(f"System error when searching tickers for '{query}': {str(e)}")
     
     async def batch_get_ticker_info(self, tickers: List[str], skip_insider_metrics: bool = False) -> Dict[str, Dict[str, Any]]:
         """
@@ -727,9 +778,22 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         async def get_info_for_ticker(ticker: str) -> Dict[str, Any]:
             try:
                 return await self.get_ticker_info(ticker, skip_insider_metrics)
-            except Exception as e:
-                logger.warning(f"Error getting data for {ticker}: {str(e)}")
-                return {"symbol": ticker, "error": str(e)}
+            except (APIError, ValidationError, RateLimitError, NetworkError) as e:
+                # Log known error types
+                logger.warning(f"API error when getting data for {ticker}: {str(e)}")
+                return {"symbol": ticker, "error": str(e), "error_type": e.__class__.__name__}
+            except (ValueError, TypeError, KeyError, AttributeError) as e:
+                # Data parsing errors
+                logger.warning(f"Data parsing error for {ticker}: {str(e)}")
+                return {"symbol": ticker, "error": f"Data parsing error: {str(e)}"}
+            except (IOError, ConnectionError) as e:
+                # Network errors
+                logger.warning(f"Network error for {ticker}: {str(e)}")
+                return {"symbol": ticker, "error": f"Network error: {str(e)}"}
+            except (pd.errors.EmptyDataError, pd.errors.ParserError) as e:
+                # Pandas-specific errors
+                logger.warning(f"Data format error for {ticker}: {str(e)}")
+                return {"symbol": ticker, "error": f"Data format error: {str(e)}"}
         
         results = await process_batch_async(
             tickers,
@@ -786,8 +850,12 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 return pd.to_datetime(date).strftime('%Y-%m-%d')
             else:
                 return str(date)
-        except Exception:
+        except (ValueError, TypeError, AttributeError, pd.errors.OutOfBoundsDatetime):
+            # Common date parsing errors
             return str(date)
+        except KeyError:
+            # Missing key in date object
+            return None
     
     @enhanced_async_rate_limited(max_retries=0)
     async def get_earnings_dates(self, ticker: str) -> List[str]:
@@ -850,12 +918,21 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             
             return dates
             
-        except Exception as e:
-            # Translate specific errors for better user experience
-            if isinstance(e, (APIError, ValidationError, RateLimitError, NetworkError)):
-                raise e
-            else:
-                raise APIError(f"Failed to get earnings dates for {ticker}: {str(e)}")
+        except (ValueError, KeyError, TypeError, AttributeError) as e:
+            # Common parsing/data access errors
+            raise APIError(f"Failed to parse earnings dates for {ticker}: {str(e)}")
+        except (IOError, ConnectionError, aiohttp.ClientError) as e:
+            # Network-related errors
+            raise NetworkError(f"Network error when fetching earnings dates for {ticker}: {str(e)}")
+        except (APIError, ValidationError, RateLimitError, NetworkError) as e:
+            # Re-raise known error types
+            raise e
+        except pd.errors.EmptyDataError as e:
+            # DataFrame-specific errors
+            raise APIError(f"Empty earnings dates data returned for {ticker}: {str(e)}")
+        except (ModuleNotFoundError, RuntimeError, MemoryError) as e:
+            # Other serious errors
+            raise APIError(f"System error when fetching earnings dates for {ticker}: {str(e)}")
                 
     async def get_ticker_analysis(self, ticker: str) -> Dict[str, Any]:
         """
