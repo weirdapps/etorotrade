@@ -117,7 +117,9 @@ class YahooFinanceBaseProvider:
                 
             # Try to convert from pandas Timestamp or other date-like object
             return pd.Timestamp(date_obj).strftime("%Y-%m-%d")
-        except Exception:
+        except (ValueError, TypeError, pd.errors.OutOfBoundsDatetime) as e:
+            # These are common errors when parsing dates
+            logger.debug(f"Error formatting date: {str(e)}")
             # If we can't parse it, return as string
             return str(date_obj) if date_obj else None
             
