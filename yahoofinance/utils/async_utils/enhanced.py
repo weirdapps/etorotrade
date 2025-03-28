@@ -5,6 +5,9 @@ This module provides true async I/O implementations of async helpers,
 replacing the thread-pool based async with proper async/await patterns.
 It includes rate limiting, circuit breaking, and retry mechanisms
 designed specifically for asynchronous operations.
+
+CANONICAL SOURCE: This module is the canonical source for AsyncRateLimiter and
+related async rate limiting functionality.
 """
 
 import asyncio
@@ -271,14 +274,14 @@ def async_rate_limited(rate_limiter: Optional[AsyncRateLimiter] = None):
     Decorator for rate-limiting async functions.
     
     Args:
-        rate_limiter: Rate limiter to use (creates new one if None)
+        rate_limiter: Rate limiter to use (uses global_async_rate_limiter if None)
         
     Returns:
         Decorated async function
     """
-    # Create rate limiter if not provided
+    # Use global rate limiter if not provided
     if rate_limiter is None:
-        rate_limiter = AsyncRateLimiter()
+        rate_limiter = global_async_rate_limiter
     
     def decorator(func):
         @wraps(func)
@@ -383,6 +386,9 @@ async def process_batch_async(
     
     return results
 
+# Create a global async rate limiter instance for use across the application
+global_async_rate_limiter = AsyncRateLimiter()
+
 def enhanced_async_rate_limited(
     circuit_name: Optional[str] = None,
     max_retries: int = 3,
@@ -401,7 +407,7 @@ def enhanced_async_rate_limited(
     """
     # Create rate limiter if not provided
     if rate_limiter is None:
-        rate_limiter = AsyncRateLimiter()
+        rate_limiter = global_async_rate_limiter
     
     def decorator(func):
         @wraps(func)
