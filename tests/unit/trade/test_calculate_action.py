@@ -25,7 +25,7 @@ def sample_data():
         },
         {
             'ticker': 'SELL',
-            'upside': 3.0,  # Below MAX_UPSIDE threshold
+            'upside': 3.0,  # Below SELL_MAX_UPSIDE threshold
             'buy_percentage': 70.0,
             'pe_trailing': 25.0,
             'pe_forward': 20.0,
@@ -37,8 +37,8 @@ def sample_data():
         },
         {
             'ticker': 'HOLD',
-            'upside': 15.0,  # Not enough for BUY
-            'buy_percentage': 80.0,  # Not enough for BUY
+            'upside': 15.0,  # Not enough for BUY_MIN_UPSIDE
+            'buy_percentage': 80.0,  # Not enough for BUY_MIN_BUY_PERCENTAGE
             'pe_trailing': 18.0,
             'pe_forward': 16.0,
             'peg_ratio': 1.5,
@@ -46,7 +46,7 @@ def sample_data():
             'short_percent': 2.5,
             'analyst_count': 6,
             'total_ratings': 5,
-            'EXRET': 8.0  # Manually setting to trigger SELL due to low EXRET
+            'EXRET': 8.0  # Manually setting to trigger SELL due to low EXRET (below BUY_MIN_EXRET)
         },
         {
             'ticker': 'LOWCONF',

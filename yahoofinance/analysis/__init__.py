@@ -9,6 +9,7 @@ This package contains modules for analyzing financial data including:
 - Metrics: Financial metrics and ratios
 - Portfolio: Portfolio analysis and tracking
 - Stock: Comprehensive stock analysis with trading recommendations
+- Backtest: Backtesting and optimization of trading strategies
 """
 
 from .analyst import AnalystData
@@ -18,6 +19,10 @@ from .market import MarketAnalyzer, MarketMetrics, SectorAnalysis
 from .metrics import PricingAnalyzer, PriceTarget, PriceData
 from .stock import StockAnalyzer, AnalysisResults
 from .portfolio import PortfolioAnalyzer, PortfolioHolding, PortfolioSummary
+from .backtest import (
+    BacktestSettings, BacktestResult, BacktestPosition,
+    Backtester, BacktestOptimizer, run_backtest, optimize_criteria
+)
 
 __all__ = [
     # Analyst
@@ -47,4 +52,13 @@ __all__ = [
     # Stock Analysis
     'StockAnalyzer',
     'AnalysisResults',
+    
+    # Backtesting
+    'BacktestSettings',
+    'BacktestResult',
+    'BacktestPosition',
+    'Backtester',
+    'BacktestOptimizer',
+    'run_backtest',
+    'optimize_criteria',
 ]
