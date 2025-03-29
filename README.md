@@ -13,6 +13,7 @@ etoroTRADE helps you:
 - **Track news sentiment** to stay ahead of market-moving events
 - **Follow insider transactions** and institutional activity
 - **Generate actionable trade recommendations** based on comprehensive criteria
+- **Backtest trading strategies** to optimize criteria parameters
 
 ## Trade.py - Main Application
 
@@ -121,6 +122,39 @@ python -m yahoofinance.analysis.earnings
 python -m yahoofinance.analysis.insiders
 ```
 
+### Backtesting & Optimization
+```bash
+# Run a backtest with default settings
+python scripts/optimize_criteria.py --mode backtest
+
+# Optimize trading criteria parameters
+python scripts/optimize_criteria.py --mode optimize --metric sharpe_ratio
+```
+
+## Backtesting Framework
+
+The backtesting framework allows you to:
+
+1. Test your trading criteria against historical data
+2. Optimize criteria parameters to find the best performing combination
+3. Generate performance reports comparing to benchmark indices
+4. Perform what-if analysis with different market conditions
+
+For detailed instructions on using the backtesting framework, see [scripts/BACKTEST_README.md](scripts/BACKTEST_README.md).
+
+### Basic Examples
+
+```bash
+# Run a 2-year backtest on your portfolio
+python scripts/optimize_criteria.py --mode backtest --period 2y --source portfolio
+
+# Optimize sell criteria parameters for maximum Sharpe ratio
+python scripts/optimize_criteria.py --mode optimize --param-file scripts/sample_parameters.json
+
+# Test specific tickers with weekly rebalancing
+python scripts/optimize_criteria.py --mode backtest --tickers AAPL,MSFT,GOOGL,AMZN --rebalance weekly
+```
+
 ## Setup Instructions
 
 ### Installation
@@ -177,15 +211,21 @@ etorotrade/
 ├── logs/                 # Log files directory
 ├── requirements.txt      # Python dependencies
 ├── scripts/              # Utility scripts
+│   ├── BACKTEST_README.md         # Backtesting documentation
+│   ├── optimize_criteria.py       # Backtesting & optimization CLI
+│   └── sample_parameters.json     # Sample parameter ranges
 ├── trade.py              # Main application entry point
 ├── yahoofinance/         # Core package
     ├── analysis/         # Analysis modules
+    │   ├── backtest.py   # Backtesting framework
+    │   └── ...           # Other analysis modules
     ├── api/              # Provider interfaces
     │   └── providers/    # Data providers
     ├── core/             # Core functionality
     ├── data/             # Data management
     ├── input/            # Input data files
     ├── output/           # Generated outputs
+    │   └── backtest/     # Backtesting results
     ├── presentation/     # Display formatting
     └── utils/            # Utility modules
 ```

@@ -68,14 +68,14 @@ def check_confidence_criteria(row, criteria):
 
 def _check_upside_sell_criterion(row, sell_criteria):
     """Check if a stock fails the upside criterion for selling."""
-    if UPSIDE in row and pd.notna(row[UPSIDE]) and row[UPSIDE] < sell_criteria["MAX_UPSIDE"]:
-        return True, f"Low upside ({row[UPSIDE]:.1f}% < {sell_criteria['MAX_UPSIDE']}%)"
+    if UPSIDE in row and pd.notna(row[UPSIDE]) and row[UPSIDE] < sell_criteria["SELL_MAX_UPSIDE"]:
+        return True, f"Low upside ({row[UPSIDE]:.1f}% < {sell_criteria['SELL_MAX_UPSIDE']}%)"
     return False, None
 
 def _check_buy_percentage_sell_criterion(row, sell_criteria):
     """Check if a stock fails the buy percentage criterion for selling."""
-    if BUY_PERCENTAGE_COL in row and pd.notna(row[BUY_PERCENTAGE_COL]) and row[BUY_PERCENTAGE_COL] < sell_criteria["MIN_BUY_PERCENTAGE"]:
-        return True, f"Low buy percentage ({row[BUY_PERCENTAGE_COL]:.1f}% < {sell_criteria['MIN_BUY_PERCENTAGE']}%)"
+    if BUY_PERCENTAGE_COL in row and pd.notna(row[BUY_PERCENTAGE_COL]) and row[BUY_PERCENTAGE_COL] < sell_criteria["SELL_MIN_BUY_PERCENTAGE"]:
+        return True, f"Low buy percentage ({row[BUY_PERCENTAGE_COL]:.1f}% < {sell_criteria['SELL_MIN_BUY_PERCENTAGE']}%)"
     return False, None
 
 def _check_pe_ratio_sell_criterion(row):
@@ -89,32 +89,32 @@ def _check_pe_ratio_sell_criterion(row):
 
 def _check_forward_pe_sell_criterion(row, sell_criteria):
     """Check if a stock has a forward PE that's too high."""
-    if 'pe_forward' in row and pd.notna(row['pe_forward']) and row['pe_forward'] > sell_criteria["MAX_FORWARD_PE"]:
-        return True, f"High forward P/E ({row['pe_forward']:.1f} > {sell_criteria['MAX_FORWARD_PE']})"
+    if 'pe_forward' in row and pd.notna(row['pe_forward']) and row['pe_forward'] > sell_criteria["SELL_MIN_FORWARD_PE"]:
+        return True, f"High forward P/E ({row['pe_forward']:.1f} > {sell_criteria['SELL_MIN_FORWARD_PE']})"
     return False, None
 
 def _check_peg_sell_criterion(row, sell_criteria):
     """Check if a stock has a PEG ratio that's too high."""
-    if 'peg_ratio' in row and pd.notna(row['peg_ratio']) and row['peg_ratio'] > sell_criteria["MAX_PEG"]:
-        return True, f"High PEG ratio ({row['peg_ratio']:.1f} > {sell_criteria['MAX_PEG']})"
+    if 'peg_ratio' in row and pd.notna(row['peg_ratio']) and row['peg_ratio'] > sell_criteria["SELL_MIN_PEG"]:
+        return True, f"High PEG ratio ({row['peg_ratio']:.1f} > {sell_criteria['SELL_MIN_PEG']})"
     return False, None
 
 def _check_short_interest_sell_criterion(row, sell_criteria, short_field):
     """Check if a stock has a short interest that's too high."""
-    if short_field in row and pd.notna(row[short_field]) and row[short_field] > sell_criteria["MAX_SHORT_INTEREST"]:
-        return True, f"High short interest ({row[short_field]:.1f}% > {sell_criteria['MAX_SHORT_INTEREST']}%)"
+    if short_field in row and pd.notna(row[short_field]) and row[short_field] > sell_criteria["SELL_MIN_SHORT_INTEREST"]:
+        return True, f"High short interest ({row[short_field]:.1f}% > {sell_criteria['SELL_MIN_SHORT_INTEREST']}%)"
     return False, None
 
 def _check_beta_sell_criterion(row, sell_criteria):
     """Check if a stock has a beta that's too high."""
-    if 'beta' in row and pd.notna(row['beta']) and row['beta'] > sell_criteria["MAX_BETA"]:
-        return True, f"High beta ({row['beta']:.1f} > {sell_criteria['MAX_BETA']})"
+    if 'beta' in row and pd.notna(row['beta']) and row['beta'] > sell_criteria["SELL_MIN_BETA"]:
+        return True, f"High beta ({row['beta']:.1f} > {sell_criteria['SELL_MIN_BETA']})"
     return False, None
 
 def _check_expected_return_sell_criterion(row, sell_criteria):
     """Check if a stock has an expected return that's too low."""
-    if 'EXRET' in row and pd.notna(row['EXRET']) and row['EXRET'] < sell_criteria["MIN_EXRET"]:
-        return True, f"Low expected return ({row['EXRET']:.1f}% < {sell_criteria['MIN_EXRET']}%)"
+    if 'EXRET' in row and pd.notna(row['EXRET']) and row['EXRET'] < sell_criteria["SELL_MAX_EXRET"]:
+        return True, f"Low expected return ({row['EXRET']:.1f}% < {sell_criteria['SELL_MAX_EXRET']}%)"
     return False, None
 
 def meets_sell_criteria(row, criteria, short_field=DEFAULT_SHORT_FIELD):
@@ -177,44 +177,44 @@ def meets_sell_criteria(row, criteria, short_field=DEFAULT_SHORT_FIELD):
 
 def _check_upside_buy_criterion(row, buy_criteria):
     """Check if a stock meets the upside criterion for buying."""
-    if UPSIDE not in row or pd.isna(row[UPSIDE]) or row[UPSIDE] < buy_criteria["MIN_UPSIDE"]:
+    if UPSIDE not in row or pd.isna(row[UPSIDE]) or row[UPSIDE] < buy_criteria["BUY_MIN_UPSIDE"]:
         upside_value = row.get(UPSIDE, NA_VALUE) if pd.notna(row.get(UPSIDE, None)) else NA_VALUE
-        return False, f"Insufficient upside ({upside_value}% < {buy_criteria['MIN_UPSIDE']}%)"
+        return False, f"Insufficient upside ({upside_value}% < {buy_criteria['BUY_MIN_UPSIDE']}%)"
     return True, None
 
 def _check_buy_percentage_buy_criterion(row, buy_criteria):
     """Check if a stock meets the buy percentage criterion for buying."""
-    if BUY_PERCENTAGE_COL not in row or pd.isna(row[BUY_PERCENTAGE_COL]) or row[BUY_PERCENTAGE_COL] < buy_criteria["MIN_BUY_PERCENTAGE"]:
+    if BUY_PERCENTAGE_COL not in row or pd.isna(row[BUY_PERCENTAGE_COL]) or row[BUY_PERCENTAGE_COL] < buy_criteria["BUY_MIN_BUY_PERCENTAGE"]:
         pct_value = row.get(BUY_PERCENTAGE_COL, NA_VALUE) if pd.notna(row.get(BUY_PERCENTAGE_COL, None)) else NA_VALUE
-        return False, f"Insufficient buy percentage ({pct_value}% < {buy_criteria['MIN_BUY_PERCENTAGE']}%)"
+        return False, f"Insufficient buy percentage ({pct_value}% < {buy_criteria['BUY_MIN_BUY_PERCENTAGE']}%)"
     return True, None
 
 def _check_beta_buy_criterion(row, buy_criteria):
     """Check if a stock meets the beta criterion for buying."""
     if 'beta' in row and pd.notna(row['beta']):
         # Beta must be in valid range for buy
-        if row['beta'] <= buy_criteria["MIN_BETA"]:
-            return False, f"Beta too low ({row['beta']:.1f} ≤ {buy_criteria['MIN_BETA']})"
-        elif row['beta'] > buy_criteria["MAX_BETA"]:
-            return False, f"Beta too high ({row['beta']:.1f} > {buy_criteria['MAX_BETA']})"
+        if row['beta'] <= buy_criteria["BUY_MIN_BETA"]:
+            return False, f"Beta too low ({row['beta']:.1f} ≤ {buy_criteria['BUY_MIN_BETA']})"
+        elif row['beta'] > buy_criteria["BUY_MAX_BETA"]:
+            return False, f"Beta too high ({row['beta']:.1f} > {buy_criteria['BUY_MAX_BETA']})"
     return True, None
 
 def _check_peg_buy_criterion(row, buy_criteria):
     """Check if a stock meets the PEG ratio criterion for buying."""
-    if 'peg_ratio' in row and pd.notna(row['peg_ratio']) and row['peg_ratio'] >= buy_criteria["MAX_PEG"]:
-        return False, f"PEG ratio too high ({row['peg_ratio']:.1f} ≥ {buy_criteria['MAX_PEG']})"
+    if 'peg_ratio' in row and pd.notna(row['peg_ratio']) and row['peg_ratio'] >= buy_criteria["BUY_MAX_PEG"]:
+        return False, f"PEG ratio too high ({row['peg_ratio']:.1f} ≥ {buy_criteria['BUY_MAX_PEG']})"
     return True, None
 
 def _check_short_interest_buy_criterion(row, buy_criteria, short_field):
     """Check if a stock meets the short interest criterion for buying."""
-    if short_field in row and pd.notna(row[short_field]) and row[short_field] > buy_criteria["MAX_SHORT_INTEREST"]:
-        return False, f"Short interest too high ({row[short_field]:.1f}% > {buy_criteria['MAX_SHORT_INTEREST']}%)"
+    if short_field in row and pd.notna(row[short_field]) and row[short_field] > buy_criteria["BUY_MAX_SHORT_INTEREST"]:
+        return False, f"Short interest too high ({row[short_field]:.1f}% > {buy_criteria['BUY_MAX_SHORT_INTEREST']}%)"
     return True, None
 
 def _check_exret_buy_criterion(row, buy_criteria):
     """Check if a stock meets the expected return criterion for buying."""
-    if 'EXRET' in row and pd.notna(row['EXRET']) and row['EXRET'] < buy_criteria.get("MIN_EXRET", 0):
-        return False, f"Expected return too low ({row['EXRET']:.1f}% < {buy_criteria.get('MIN_EXRET', 0)}%)"
+    if 'EXRET' in row and pd.notna(row['EXRET']) and row['EXRET'] < buy_criteria.get("BUY_MIN_EXRET", 0):
+        return False, f"Expected return too low ({row['EXRET']:.1f}% < {buy_criteria.get('BUY_MIN_EXRET', 0)}%)"
     return True, None
 
 def meets_buy_criteria(row, criteria, short_field=DEFAULT_SHORT_FIELD):
@@ -262,8 +262,8 @@ def meets_buy_criteria(row, criteria, short_field=DEFAULT_SHORT_FIELD):
     if not is_valid:
         return False, reason
         
-    # 7. Expected return high enough (if MIN_EXRET is defined)
-    if "MIN_EXRET" in buy_criteria:
+    # 7. Expected return high enough (if BUY_MIN_EXRET is defined)
+    if "BUY_MIN_EXRET" in buy_criteria:
         is_valid, reason = _check_exret_buy_criterion(row, buy_criteria)
         if not is_valid:
             return False, reason
@@ -277,8 +277,8 @@ def _is_forward_pe_in_range(row, criteria):
     return (
         'pe_forward' in row and 
         pd.notna(row['pe_forward']) and 
-        row['pe_forward'] > criteria["MIN_FORWARD_PE"] and 
-        row['pe_forward'] <= criteria["MAX_FORWARD_PE"]
+        row['pe_forward'] > criteria["BUY_MIN_FORWARD_PE"] and 
+        row['pe_forward'] <= criteria["BUY_MAX_FORWARD_PE"]
     )
 
 def _is_pe_improving(row):
