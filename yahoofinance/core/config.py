@@ -141,54 +141,54 @@ TRADING_CRITERIA = {
         "MIN_PRICE_TARGETS": 5,
     },
     "SELL": {
-        # Maximum upside potential for sell recommendation
-        "MAX_UPSIDE": 5.0,
+        # Maximum upside potential for sell recommendation (sell if below this)
+        "SELL_MAX_UPSIDE": 5.0,
         
-        # Minimum buy percentage for sell recommendation
-        "MIN_BUY_PERCENTAGE": 65.0,
+        # Minimum buy percentage for sell recommendation (sell if below this)
+        "SELL_MIN_BUY_PERCENTAGE": 65.0,
         
-        # Maximum forward P/E for sell recommendation
-        "MAX_FORWARD_PE": 45.0,
+        # Minimum forward P/E for sell recommendation (sell if above this)
+        "SELL_MIN_FORWARD_PE": 45.0,
         
-        # Maximum PEG ratio for sell recommendation
-        "MAX_PEG": 2.0,  # Changed from 3.0 to 2.0
+        # Minimum PEG ratio for sell recommendation (sell if above this)
+        "SELL_MIN_PEG": 2.0,
         
-        # Maximum short interest for sell recommendation
-        "MAX_SHORT_INTEREST": 3.0,  # Changed from 4.0 to 3.0
+        # Minimum short interest for sell recommendation (sell if above this)
+        "SELL_MIN_SHORT_INTEREST": 3.0,
         
-        # Maximum beta for sell recommendation
-        "MAX_BETA": 2.5,  # Changed from 3.0 to 2.5
+        # Minimum beta for sell recommendation (sell if above this)
+        "SELL_MIN_BETA": 3.0,  # Changed from 2.5 to 3.0
         
-        # Minimum expected return for sell recommendation
-        "MIN_EXRET": 2.5,  # Changed from 10.0 to 2.5
+        # Maximum expected return for sell recommendation (sell if below this)
+        "SELL_MAX_EXRET": 2.5,
     },
     "BUY": {
-        # Minimum upside potential for buy recommendation
-        "MIN_UPSIDE": 20.0,
+        # Minimum upside potential for buy recommendation (buy if above this)
+        "BUY_MIN_UPSIDE": 20.0,
         
-        # Minimum buy percentage for buy recommendation
-        "MIN_BUY_PERCENTAGE": 82.0,
+        # Minimum buy percentage for buy recommendation (buy if above this)
+        "BUY_MIN_BUY_PERCENTAGE": 82.0,
         
-        # Minimum beta for buy recommendation
-        "MIN_BETA": 0.2,
+        # Minimum beta for buy recommendation (buy if above this)
+        "BUY_MIN_BETA": 0.2,
         
-        # Maximum beta for buy recommendation
-        "MAX_BETA": 2.5,  # Changed from 3.0 to 2.5
+        # Maximum beta for buy recommendation (buy if below this)
+        "BUY_MAX_BETA": 2.5,
         
-        # Minimum forward P/E for buy recommendation
-        "MIN_FORWARD_PE": 0.5,
+        # Minimum forward P/E for buy recommendation (buy if above this)
+        "BUY_MIN_FORWARD_PE": 0.5,
         
-        # Maximum forward P/E for buy recommendation
-        "MAX_FORWARD_PE": 45.0,
+        # Maximum forward P/E for buy recommendation (buy if below this)
+        "BUY_MAX_FORWARD_PE": 45.0,
         
-        # Maximum PEG ratio for buy recommendation
-        "MAX_PEG": 2.0,  # Changed from 3.0 to 2.0
+        # Maximum PEG ratio for buy recommendation (buy if below this)
+        "BUY_MAX_PEG": 2.0,
         
-        # Maximum short interest for buy recommendation
-        "MAX_SHORT_INTEREST": 2.0,  # Changed from 3.0 to 2.0
+        # Maximum short interest for buy recommendation (buy if below this)
+        "BUY_MAX_SHORT_INTEREST": 2.0,
         
-        # NEW: Minimum expected return for buy recommendation
-        "MIN_EXRET": 10.0,  # Added new criterion
+        # Minimum expected return for buy recommendation (buy if above this)
+        "BUY_MIN_EXRET": 10.0,
     },
 }
 

@@ -411,16 +411,16 @@ def filter_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame:
     )
     
     # Filter stocks based on upside and analyst consensus
-    upside_condition = market_df['upside'] >= buy_criteria["MIN_UPSIDE"]
-    analyst_condition = market_df['buy_percentage'] >= buy_criteria["MIN_BUY_PERCENTAGE"]
+    upside_condition = market_df['upside'] >= buy_criteria["BUY_MIN_UPSIDE"]
+    analyst_condition = market_df['buy_percentage'] >= buy_criteria["BUY_MIN_BUY_PERCENTAGE"]
     
     # Additional criteria for PE ratio, PEG ratio, beta, and short interest
     # Beta criteria with nullability handling, consistent with PEG and short interest
     beta_condition = (
         market_df['beta'].isna() |  # Ignore missing beta values
         (
-            (market_df['beta'] > buy_criteria["MIN_BETA"]) &
-            (market_df['beta'] <= buy_criteria["MAX_BETA"])
+            (market_df['beta'] > buy_criteria["BUY_MIN_BETA"]) &
+            (market_df['beta'] <= buy_criteria["BUY_MAX_BETA"])
         )
     )
     
@@ -429,8 +429,8 @@ def filter_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame:
     # If PET is <= 0 (negative), allow any PEF value
     pe_condition = (
         # PE Forward must be positive and not too high
-        (market_df['pe_forward'] > buy_criteria["MIN_FORWARD_PE"]) &
-        (market_df['pe_forward'] <= buy_criteria["MAX_FORWARD_PE"]) &
+        (market_df['pe_forward'] > buy_criteria["BUY_MIN_FORWARD_PE"]) &
+        (market_df['pe_forward'] <= buy_criteria["BUY_MAX_FORWARD_PE"]) &
         (
             # PE Forward must be less than PE Trailing (improving)
             ((market_df['pe_forward'] < market_df['pe_trailing']) & 
@@ -444,7 +444,7 @@ def filter_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame:
     peg_condition = (
         market_df['peg_ratio'].isna() |  # Ignore missing PEG values
         pd.to_numeric(market_df['peg_ratio'], errors='coerce').isna() |  # Convert string values to NaN
-        (pd.to_numeric(market_df['peg_ratio'], errors='coerce') < buy_criteria["MAX_PEG"])
+        (pd.to_numeric(market_df['peg_ratio'], errors='coerce') < buy_criteria["BUY_MAX_PEG"])
     )
     
     # Short interest criteria with nullability handling - handle both column names
@@ -453,7 +453,7 @@ def filter_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame:
         short_condition = (
             market_df[short_field].isna() |  # Ignore missing short interest
             market_df[short_field].isnull() |
-            (market_df[short_field] <= buy_criteria["MAX_SHORT_INTEREST"])
+            (market_df[short_field] <= buy_criteria["BUY_MAX_SHORT_INTEREST"])
         )
     else:
         # If no short interest column exists, skip this check
@@ -502,18 +502,18 @@ def filter_sell_candidates(portfolio_df: pd.DataFrame) -> pd.DataFrame:
     # Add individual sell criteria with explicit reasons
     
     # Upside too low
-    if 'upside' in portfolio_df.columns and 'MAX_UPSIDE' in sell_criteria:
+    if 'upside' in portfolio_df.columns and 'SELL_MAX_UPSIDE' in sell_criteria:
         upside_condition = (
             portfolio_df['upside'].notna() &
-            (portfolio_df['upside'] < sell_criteria["MAX_UPSIDE"])
+            (portfolio_df['upside'] < sell_criteria["SELL_MAX_UPSIDE"])
         )
         filters.append(upside_condition)
     
     # Analyst buy percentage too low
-    if 'buy_percentage' in portfolio_df.columns and 'MAX_BUY_PERCENTAGE' in sell_criteria:
+    if 'buy_percentage' in portfolio_df.columns and 'SELL_MIN_BUY_PERCENTAGE' in sell_criteria:
         analyst_condition = (
             portfolio_df['buy_percentage'].notna() &
-            (portfolio_df['buy_percentage'] < sell_criteria["MAX_BUY_PERCENTAGE"])
+            (portfolio_df['buy_percentage'] < sell_criteria["SELL_MIN_BUY_PERCENTAGE"])
         )
         filters.append(analyst_condition)
     
@@ -529,53 +529,53 @@ def filter_sell_candidates(portfolio_df: pd.DataFrame) -> pd.DataFrame:
         filters.append(pe_condition)
     
     # Forward PE too high
-    if 'pe_forward' in portfolio_df.columns and 'MIN_PE_FORWARD' in sell_criteria:
+    if 'pe_forward' in portfolio_df.columns and 'SELL_MIN_FORWARD_PE' in sell_criteria:
         pe_high_condition = (
             portfolio_df['pe_forward'].notna() &
-            (portfolio_df['pe_forward'] > sell_criteria["MIN_PE_FORWARD"])
+            (portfolio_df['pe_forward'] > sell_criteria["SELL_MIN_FORWARD_PE"])
         )
         filters.append(pe_high_condition)
     
     # PEG ratio too high
-    if 'peg_ratio' in portfolio_df.columns and 'MAX_PEG' in sell_criteria:
+    if 'peg_ratio' in portfolio_df.columns and 'SELL_MIN_PEG' in sell_criteria:
         # Convert string values like '--' to NaN with pd.to_numeric
         numeric_peg = pd.to_numeric(portfolio_df['peg_ratio'], errors='coerce')
         peg_condition = (
             numeric_peg.notna() &
-            (numeric_peg > sell_criteria["MAX_PEG"])
+            (numeric_peg > sell_criteria["SELL_MIN_PEG"])
         )
         filters.append(peg_condition)
     
     # Short interest too high - handle both column names
     short_field = 'short_percent' if 'short_percent' in portfolio_df.columns else 'short_float_pct'
-    if short_field in portfolio_df.columns and 'MAX_SHORT_INTEREST' in sell_criteria:
+    if short_field in portfolio_df.columns and 'SELL_MIN_SHORT_INTEREST' in sell_criteria:
         short_condition = (
             portfolio_df[short_field].notna() &
-            (portfolio_df[short_field] > sell_criteria["MAX_SHORT_INTEREST"])
+            (portfolio_df[short_field] > sell_criteria["SELL_MIN_SHORT_INTEREST"])
         )
         filters.append(short_condition)
     
     # Beta too high
-    if 'beta' in portfolio_df.columns and 'MAX_BETA' in sell_criteria:
+    if 'beta' in portfolio_df.columns and 'SELL_MIN_BETA' in sell_criteria:
         beta_condition = (
             portfolio_df['beta'].notna() &
-            (portfolio_df['beta'] > sell_criteria["MAX_BETA"])
+            (portfolio_df['beta'] > sell_criteria["SELL_MIN_BETA"])
         )
         filters.append(beta_condition)
     
     # Expected return too low
-    if 'EXRET' in portfolio_df.columns and 'MIN_EXRET' in sell_criteria:
+    if 'EXRET' in portfolio_df.columns and 'SELL_MAX_EXRET' in sell_criteria:
         exret_condition = (
             portfolio_df['EXRET'].notna() &
-            (portfolio_df['EXRET'] < sell_criteria["MIN_EXRET"])
+            (portfolio_df['EXRET'] < sell_criteria["SELL_MAX_EXRET"])
         )
         filters.append(exret_condition)
-    elif 'upside' in portfolio_df.columns and 'buy_percentage' in portfolio_df.columns and 'MIN_EXRET' in sell_criteria:
+    elif 'upside' in portfolio_df.columns and 'buy_percentage' in portfolio_df.columns and 'SELL_MAX_EXRET' in sell_criteria:
         # Calculate EXRET on the fly if not present
         portfolio_df['EXRET'] = portfolio_df['upside'] * portfolio_df['buy_percentage'] / 100
         exret_condition = (
             portfolio_df['EXRET'].notna() &
-            (portfolio_df['EXRET'] < sell_criteria["MIN_EXRET"])
+            (portfolio_df['EXRET'] < sell_criteria["SELL_MAX_EXRET"])
         )
         filters.append(exret_condition)
     
@@ -668,15 +668,15 @@ def filter_risk_first_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame
     beta_condition = (
         market_df['beta'].isna() |  # Ignore missing beta values
         (
-            (market_df['beta'] > buy_criteria["MIN_BETA"]) &
-            (market_df['beta'] <= buy_criteria["MAX_BETA"])
+            (market_df['beta'] > buy_criteria["BUY_MIN_BETA"]) &
+            (market_df['beta'] <= buy_criteria["BUY_MAX_BETA"])
         )
     )
     
     # PEG Ratio check (not too expensive relative to growth)
     peg_condition = (
         market_df['peg_ratio'].isna() |  # Ignore missing PEG values
-        (market_df['peg_ratio'] < buy_criteria["MAX_PEG"])
+        (market_df['peg_ratio'] < buy_criteria["BUY_MAX_PEG"])
     )
     
     # Short interest check (not too heavily shorted) - handle both column names
@@ -685,7 +685,7 @@ def filter_risk_first_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame
         short_condition = (
             market_df[short_field].isna() |  # Ignore missing short interest
             market_df[short_field].isnull() |
-            (market_df[short_field] <= buy_criteria["MAX_SHORT_INTEREST"])
+            (market_df[short_field] <= buy_criteria["BUY_MAX_SHORT_INTEREST"])
         )
     else:
         # If no short interest column exists, skip this check
@@ -695,14 +695,14 @@ def filter_risk_first_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame
     risk_filter = beta_condition & peg_condition & short_condition
     
     # Then apply return filters
-    upside_condition = market_df['upside'] >= buy_criteria["MIN_UPSIDE"]
-    analyst_condition = market_df['buy_percentage'] >= buy_criteria["MIN_BUY_PERCENTAGE"]
+    upside_condition = market_df['upside'] >= buy_criteria["BUY_MIN_UPSIDE"]
+    analyst_condition = market_df['buy_percentage'] >= buy_criteria["BUY_MIN_BUY_PERCENTAGE"]
     
     # PE condition - complex criteria with nullability handling
     pe_condition = (
         # PE Forward must be positive and not too high
-        (market_df['pe_forward'] > buy_criteria["MIN_FORWARD_PE"]) &
-        (market_df['pe_forward'] <= buy_criteria["MAX_FORWARD_PE"]) &
+        (market_df['pe_forward'] > buy_criteria["BUY_MIN_FORWARD_PE"]) &
+        (market_df['pe_forward'] <= buy_criteria["BUY_MAX_FORWARD_PE"]) &
         (
             # PE Forward must be less than PE Trailing (improving)
             ((market_df['pe_forward'] < market_df['pe_trailing']) & 

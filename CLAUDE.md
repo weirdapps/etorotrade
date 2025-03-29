@@ -283,26 +283,26 @@ MSFT
 For stocks that pass the confidence threshold (5+ price targets and 5+ analyst ratings):
 
 - **SELL** (Checked first for risk management, triggered if ANY of these conditions are met):
-  - Less than 5% upside OR
-  - Less than 65% buy ratings OR
+  - Less than 5% upside (SELL_MAX_UPSIDE) OR
+  - Less than 65% buy ratings (SELL_MIN_BUY_PERCENTAGE) OR
   - PEF > PET (deteriorating earnings outlook, when both are positive) OR
-  - PEF > 45.0 (extremely high valuation) OR
-  - PEG > 2.0 (overvalued relative to growth) OR
-  - SI > 3% (high short interest) OR
-  - Beta > 2.5 (excessive volatility) OR
-  - EXRET < 2.5 (insufficient expected return)
+  - PEF > 45.0 (extremely high valuation) (SELL_MIN_FORWARD_PE) OR
+  - PEG > 2.0 (overvalued relative to growth) (SELL_MIN_PEG) OR
+  - SI > 3% (high short interest) (SELL_MIN_SHORT_INTEREST) OR
+  - Beta > 3.0 (excessive volatility) (SELL_MIN_BETA) OR
+  - EXRET < 2.5 (insufficient expected return) (SELL_MAX_EXRET)
 
 - **BUY** (ALL of these conditions must be met):
-  - 20% or more upside AND
-  - 82% or more buy ratings AND
-  - Beta <= 2.5 (acceptable volatility) AND
-  - Beta > 0.2 (sufficient volatility) AND
+  - 20% or more upside (BUY_MIN_UPSIDE) AND
+  - 82% or more buy ratings (BUY_MIN_BUY_PERCENTAGE) AND
+  - Beta <= 2.5 (acceptable volatility) (BUY_MAX_BETA) AND
+  - Beta > 0.2 (sufficient volatility) (BUY_MIN_BETA) AND
   - PEF < PET (improving earnings outlook) OR Trailing P/E ≤ 0 (negative) AND
-  - PEF > 0.5 (positive earnings projection) AND
-  - PEF <= 45.0 (reasonable valuation) AND
-  - PEG < 2.0 (reasonable valuation relative to growth) - *ignored if PEG data not available* AND
-  - SI <= 2% (acceptable short interest) - *ignored if SI data not available* AND
-  - EXRET >= 10.0 (strong expected return)
+  - PEF > 0.5 (positive earnings projection) (BUY_MIN_FORWARD_PE) AND
+  - PEF <= 45.0 (reasonable valuation) (BUY_MAX_FORWARD_PE) AND
+  - PEG < 2.0 (reasonable valuation relative to growth) (BUY_MAX_PEG) - *ignored if PEG data not available* AND
+  - SI <= 2% (acceptable short interest) (BUY_MAX_SHORT_INTEREST) - *ignored if SI data not available* AND
+  - EXRET >= 10.0 (strong expected return) (BUY_MIN_EXRET)
 
 - **HOLD**:
   - Stocks that pass confidence threshold
@@ -317,6 +317,74 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
 2. Filtering stocks into the buy/sell/hold lists (`trade t b`, `trade t s`, `trade t h`)
 
 The system ensures perfect alignment between the color a stock receives in the main views and which list it appears in with the trade command. Green-colored stocks appear in buy lists, red-colored stocks appear in sell lists, and white/neutral-colored stocks appear in hold lists.
+
+## Backtesting Framework
+
+The backtesting framework provides functionality to evaluate trading criteria against historical data and optimize parameter values for best performance.
+
+### Backtesting Components
+
+- **Backtester**: Core class that runs backtest simulations
+- **BacktestOptimizer**: Utility for finding optimal trading criteria parameters
+- **BacktestSettings**: Configuration for backtests (period, capital, position size, etc.)
+- **BacktestPosition**: Represents a position held during the simulation
+- **BacktestResult**: Contains complete backtest results with performance metrics
+
+### Performance Metrics
+
+The framework calculates several key performance metrics:
+- **Total Return**: Percentage return over the entire period
+- **Annualized Return**: Return normalized to yearly rate
+- **Sharpe Ratio**: Risk-adjusted return (return / volatility)
+- **Max Drawdown**: Largest peak-to-trough decline
+- **Volatility**: Standard deviation of returns
+- **Hit Rate**: Percentage of profitable trades
+- **Win/Loss Ratio**: Average gain / average loss
+
+### Optimization Capabilities
+
+The BacktestOptimizer can systematically test different criteria parameters:
+```python
+parameter_ranges = {
+    "SELL.SELL_MIN_PEG": [1.5, 2.0, 2.5, 3.0],
+    "BUY.BUY_MIN_EXRET": [5.0, 7.5, 10.0, 15.0]
+}
+
+best_params, best_result = optimize_criteria(
+    parameter_ranges,
+    metric='sharpe_ratio',
+    max_combinations=50
+)
+```
+
+### CLI Interface
+
+The framework includes a command-line interface for backtesting and optimization:
+```bash
+# Run a backtest
+python scripts/optimize_criteria.py --mode backtest --period 3y
+
+# Optimize parameters
+python scripts/optimize_criteria.py --mode optimize --metric sharpe_ratio
+```
+
+### Synthetic Data Generation
+
+Since historical analyst ratings aren't available, the backtest uses a synthetic data generation approach that:
+- Uses real historical price data
+- Creates synthetic analyst ratings and targets
+- Calculates all metrics needed for trading decisions
+- Allows for realistic simulation of the trading strategy
+
+### HTML Reports
+
+The framework automatically generates HTML reports with:
+- Performance metrics and comparison to benchmark
+- Portfolio value chart
+- Trade list with P&L information
+- Parameter settings and test configuration
+
+All backtest results are saved to the `yahoofinance/output/backtest/` directory.
 
 ## Ticker Formats
 
