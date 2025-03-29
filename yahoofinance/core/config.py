@@ -151,16 +151,16 @@ TRADING_CRITERIA = {
         "MAX_FORWARD_PE": 45.0,
         
         # Maximum PEG ratio for sell recommendation
-        "MAX_PEG": 3.0,
+        "MAX_PEG": 2.0,  # Changed from 3.0 to 2.0
         
         # Maximum short interest for sell recommendation
-        "MAX_SHORT_INTEREST": 4.0,
+        "MAX_SHORT_INTEREST": 3.0,  # Changed from 4.0 to 3.0
         
         # Maximum beta for sell recommendation
-        "MAX_BETA": 3.0,
+        "MAX_BETA": 2.5,  # Changed from 3.0 to 2.5
         
         # Minimum expected return for sell recommendation
-        "MIN_EXRET": 10.0,
+        "MIN_EXRET": 2.5,  # Changed from 10.0 to 2.5
     },
     "BUY": {
         # Minimum upside potential for buy recommendation
@@ -173,7 +173,7 @@ TRADING_CRITERIA = {
         "MIN_BETA": 0.2,
         
         # Maximum beta for buy recommendation
-        "MAX_BETA": 3.0,
+        "MAX_BETA": 2.5,  # Changed from 3.0 to 2.5
         
         # Minimum forward P/E for buy recommendation
         "MIN_FORWARD_PE": 0.5,
@@ -182,10 +182,13 @@ TRADING_CRITERIA = {
         "MAX_FORWARD_PE": 45.0,
         
         # Maximum PEG ratio for buy recommendation
-        "MAX_PEG": 3.0,
+        "MAX_PEG": 2.0,  # Changed from 3.0 to 2.0
         
         # Maximum short interest for buy recommendation
-        "MAX_SHORT_INTEREST": 3.0,
+        "MAX_SHORT_INTEREST": 2.0,  # Changed from 3.0 to 2.0
+        
+        # NEW: Minimum expected return for buy recommendation
+        "MIN_EXRET": 10.0,  # Added new criterion
     },
 }
 

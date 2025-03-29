@@ -65,20 +65,21 @@ Triggered if ANY of these conditions are met:
 - Less than 65% buy ratings from analysts
 - Forward P/E (PEF) > Trailing P/E (PET) - deteriorating earnings outlook
 - Forward P/E (PEF) > 45.0 (extremely high valuation)
-- PEG ratio > 3.0 (overvalued relative to growth)
-- Short Interest (SI) > 4% (high short interest)
-- Beta > 3.0 (excessive volatility)
-- Expected Return (EXRET) < 10.0 (insufficient potential return)
+- PEG ratio > 2.0 (overvalued relative to growth)
+- Short Interest (SI) > 3% (high short interest)
+- Beta > 2.5 (excessive volatility)
+- Expected Return (EXRET) < 2.5 (insufficient potential return)
 
 ### 🟢 BUY (Growth Opportunity)
 ALL of these conditions must be met:
 - 20% or more upside potential
 - 82% or more buy ratings from analysts
-- Acceptable volatility (0.2 < Beta ≤ 3.0)
+- Acceptable volatility (0.2 < Beta ≤ 2.5)
 - Improving earnings outlook (PEF < PET) OR Negative trailing P/E
 - Positive earnings projection (0.5 < PEF ≤ 45.0)
-- Reasonable valuation relative to growth (PEG < 3.0)
-- Acceptable short interest (SI ≤ 3%)
+- Reasonable valuation relative to growth (PEG < 2.0)
+- Acceptable short interest (SI ≤ 2%)
+- Strong expected return (EXRET ≥ 10.0)
 
 ### ⚪ HOLD
 - Stocks that pass confidence threshold

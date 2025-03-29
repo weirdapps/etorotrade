@@ -1,1 +1,28 @@
-{}
+{
+  "web_scraping": {
+    "state": "CLOSED",
+    "failure_count": 0,
+    "success_count": 0,
+    "last_state_change": 1743166132.7828639,
+    "last_failure_time": 0,
+    "last_success_time": 1743167353.129164,
+    "total_failures": 0,
+    "total_successes": 6,
+    "total_requests": 6,
+    "failure_timestamps": [],
+    "consecutive_failures": 0
+  },
+  "yahoo_finance": {
+    "state": "CLOSED",
+    "failure_count": 0,
+    "success_count": 0,
+    "last_state_change": 1743167696.833808,
+    "last_failure_time": 0,
+    "last_success_time": 1743167697.684211,
+    "total_failures": 0,
+    "total_successes": 1,
+    "total_requests": 1,
+    "failure_timestamps": [],
+    "consecutive_failures": 0
+  }
+}

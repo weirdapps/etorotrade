@@ -26,6 +26,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Union, Tuple
 from dataclasses import dataclass, field
 import pandas as pd
+import numpy as np
 from pathlib import Path
 
 from ..api import get_provider, FinanceDataProvider, AsyncFinanceDataProvider
@@ -220,39 +221,73 @@ class PerformanceTracker:
         # Check if the provider is async
         self.is_async = hasattr(self.provider, 'batch_get_ticker_info') and \
                         callable(self.provider.batch_get_ticker_info) and \
-                        hasattr(self.provider.batch_get_ticker_info, '__await__')
+                        asyncio.iscoroutinefunction(self.provider.batch_get_ticker_info)
     
     @staticmethod
     def calculate_weekly_dates() -> Tuple[datetime, datetime]:
         """
-        Calculate last Friday and the previous Friday.
+        Calculate the dates for weekly performance comparison.
+        
+        If the current week is complete (today is after Friday market close),
+        returns previous week and the week before.
+        Otherwise, returns the week before the previous week and the previous week.
         
         Returns:
-            Tuple of (previous_friday, last_friday)
+            Tuple of (older_friday, newer_friday)
         """
         today = datetime.today()
-        # Calculate last Friday
+        
+        # Determine if current week is complete (today is past Friday)
+        is_after_friday = today.weekday() > 4  # Friday is 4
+        is_friday_after_market_close = today.weekday() == 4 and today.hour >= 16  # 4pm market close
+        current_week_complete = is_after_friday or is_friday_after_market_close
+        
+        # Calculate the most recent completed Friday
         days_since_friday = (today.weekday() - 4) % 7
-        last_friday = today - timedelta(days=days_since_friday)
-        # Calculate previous Friday
-        previous_friday = last_friday - timedelta(days=7)
-        return previous_friday, last_friday
+        latest_friday = today - timedelta(days=days_since_friday)
+        
+        # If we're still in the current week's trading window, 
+        # move back to the previous completed week
+        if not current_week_complete:
+            latest_friday = latest_friday - timedelta(days=7)
+            
+        # Get previous Friday
+        previous_friday = latest_friday - timedelta(days=7)
+        
+        return previous_friday.replace(hour=0, minute=0, second=0, microsecond=0), \
+               latest_friday.replace(hour=0, minute=0, second=0, microsecond=0)
     
     @staticmethod
     def calculate_monthly_dates() -> Tuple[datetime, datetime]:
         """
-        Calculate last business days of previous and current month.
+        Calculate dates for monthly performance comparison.
+        
+        If the current month is complete (we're in a new month),
+        returns previous month end and the month end before that.
+        Otherwise, returns the month end before the previous month and the previous month end.
         
         Returns:
-            Tuple of (previous_month_end, last_month_end)
+            Tuple of (older_month_end, newer_month_end)
         """
         today = datetime.today()
-        # Get the last day of the previous month
-        last_month = today.replace(day=1) - timedelta(days=1)
-        # Get the last day of the previous previous month
-        previous_month = last_month.replace(day=1) - timedelta(days=1)
-        return previous_month.replace(hour=0, minute=0, second=0, microsecond=0), \
-               last_month.replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        # Determine if current month is complete (we're in a new month)
+        # For stocks, month is considered complete when we reach the next month
+        # We don't need to check time since we only care about the day
+        current_month_complete = today.day > 1  # past the 1st of month
+        
+        # Calculate the last day of the previous month
+        last_month_end = today.replace(day=1) - timedelta(days=1)
+        
+        # If current month is not complete, go back one more month
+        if not current_month_complete:
+            last_month_end = last_month_end.replace(day=1) - timedelta(days=1)
+            
+        # Get the end of the month before the last month
+        previous_month_end = last_month_end.replace(day=1) - timedelta(days=1)
+        
+        return previous_month_end.replace(hour=0, minute=0, second=0, microsecond=0), \
+               last_month_end.replace(hour=0, minute=0, second=0, microsecond=0)
     
     def get_previous_trading_day_close(self, ticker: str, date: datetime) -> Tuple[float, datetime]:
         """
@@ -730,9 +765,9 @@ class PerformanceTracker:
                     else:
                         response.raise_for_status()
                             
-                # Using proper SSL handling without fallbacks to insecure connections
-                except aiohttp.ClientSSLError as e:
-                    raise NetworkError(f"SSL certificate validation failed for {url}. This could indicate a security issue: {str(e)}")
+            # Using proper SSL handling without fallbacks to insecure connections
+            except aiohttp.ClientSSLError as e:
+                raise NetworkError(f"SSL certificate validation failed for {url}. This could indicate a security issue: {str(e)}")
             except aiohttp.ClientError as e:
                 raise NetworkError(f"Failed to fetch data from {url}: {str(e)}")
     
@@ -881,8 +916,8 @@ class PerformanceTracker:
                 sections=sections
             )
             
-            # Write to file
-            output_path = os.path.join(self.output_dir, "index.html")
+            # Write to file with the requested name 'markets.html'
+            output_path = os.path.join(self.output_dir, "markets.html")
             with open(output_path, 'w', encoding='utf-8') as file:
                 file.write(html_content)
                 
@@ -991,10 +1026,10 @@ class PerformanceTracker:
 
 def track_index_performance(period_type: str = "weekly"):
     """
-    Track and display market index performance.
+    Track and display market index performance for a previous period.
     
     Args:
-        period_type: 'weekly' or 'monthly'
+        period_type: 'weekly' or 'monthly' - shows the previous completed period
     """
     try:
         # Create performance tracker
@@ -1003,8 +1038,32 @@ def track_index_performance(period_type: str = "weekly"):
         # Get index performance
         performances = tracker.get_index_performance(period_type=period_type)
         
-        # Display in console
-        print(f"\n{period_type.capitalize()} Market Performance:")
+        # Determine what periods we're showing based on current date
+        today = datetime.today()
+        
+        # For weekly display
+        if period_type.lower() == 'weekly':
+            # Check if we're past Friday market close
+            is_after_friday = today.weekday() > 4  # Friday is 4
+            is_friday_after_market_close = today.weekday() == 4 and today.hour >= 16  # 4pm market close
+            current_week_complete = is_after_friday or is_friday_after_market_close
+            
+            if current_week_complete:
+                period_desc = "Last Week vs. Previous Week"
+            else:
+                period_desc = "Previous Week vs. Week Before"
+        # For monthly display
+        else:
+            # Check if we're in a new month (past day 1)
+            current_month_complete = today.day > 1
+            
+            if current_month_complete:
+                period_desc = "Last Month vs. Previous Month"
+            else:
+                period_desc = "Previous Month vs. Month Before"
+                
+        # Display in console with clear period indication
+        print(f"\n{period_type.capitalize()} Market Performance: {period_desc}")
         
         # Convert to DataFrame for display
         data = []
@@ -1017,18 +1076,201 @@ def track_index_performance(period_type: str = "weekly"):
                     change_str = f"\033[92m{change_str}\033[0m"  # Green for positive
                 elif perf.change_percent < 0:
                     change_str = f"\033[91m{change_str}\033[0m"  # Red for negative
+                    
+            # Determine column keys based on period type - for previous periods display
+            if period_type.lower() == 'weekly':
+                prev_key = f'Week-2 ({perf.start_date.strftime("%Y-%m-%d") if perf.start_date else "N/A"})'
+                curr_key = f'Week-1 ({perf.end_date.strftime("%Y-%m-%d") if perf.end_date else "N/A"})'
+            else:
+                prev_key = f'Month-2 ({perf.start_date.strftime("%Y-%m-%d") if perf.start_date else "N/A"})'
+                curr_key = f'Month-1 ({perf.end_date.strftime("%Y-%m-%d") if perf.end_date else "N/A"})'
+                
+            # For display purposes, we need consistent columns
+            current_value = perf.current_value
+            display_date = perf.end_date
             
-            data.append({
+            # For VIX ticker, always calculate the current value from the change percent
+            # This ensures we have a value to display even when the standard API call fails
+            if perf.index_name == 'VIX' and perf.previous_value is not None and perf.change_percent is not None:
+                # Direct calculation for display purposes
+                calculated_vix = perf.previous_value * (1 + perf.change_percent / 100)
+                current_value = calculated_vix
+                
+                # If we don't have an end date, use the start date + 7 days for weekly
+                if display_date is None and perf.start_date is not None:
+                    if period_type.lower() == "weekly":
+                        display_date = perf.start_date + timedelta(days=7)
+                
+                # Try to get the latest data anyway for reference
+                try:
+                    import yfinance as yf
+                    ticker = yf.Ticker('^VIX')
+                    latest = ticker.history(period="1d")
+                    if not latest.empty:
+                        # Log the direct value but don't use it directly
+                        logger.debug(f"Direct VIX value: {float(latest['Close'].iloc[-1])}")
+                except Exception as e:
+                    logger.warning(f"Could not get VIX data directly: {str(e)}")
+            
+            # For all other tickers, or if VIX direct lookup failed:
+            # If we have change percent but no current value, calculate it
+            if (current_value is None or pd.isna(current_value)) and perf.previous_value is not None and perf.change_percent is not None:
+                current_value = perf.previous_value * (1 + perf.change_percent / 100)
+            
+            # Ensure we have a date to display
+            if display_date is None and perf.start_date is not None:
+                # Use start date + 7 days for weekly view as fallback
+                if period_type.lower() == "weekly":
+                    display_date = perf.start_date + timedelta(days=7)
+                elif period_type.lower() == "monthly" and perf.start_date.month < 12:
+                    # For monthly, use last day of month
+                    next_month = perf.start_date.month + 1
+                    display_date = perf.start_date.replace(month=next_month, day=1) - timedelta(days=1)
+            
+            # Prepare the Current column display string
+            current_display = "N/A"
+            
+            # Special handling for VIX or other tickers that might have missing data
+            # First check for VIX explicitly since it's known to have issues
+            if perf.index_name == 'VIX' and perf.previous_value is not None and perf.change_percent is not None:
+                # Always calculate VIX directly regardless of whether we have a current_value
+                calculated_value = perf.previous_value * (1 + perf.change_percent / 100)
+                current_display = f"{calculated_value:,.2f}"
+            # For other tickers with missing data but valid previous value and change percent
+            elif (current_value is None or pd.isna(current_value)) and perf.previous_value is not None and perf.change_percent is not None:
+                # Calculate current value from previous value and change percent
+                calculated_value = perf.previous_value * (1 + perf.change_percent / 100)
+                current_display = f"{calculated_value:,.2f}"
+                
+                # If display date is missing, use an appropriate date based on period type
+                if display_date is None and perf.start_date is not None:
+                    if period_type.lower() == "weekly":
+                        # For weekly, use previous Friday + 7 days
+                        display_date = perf.start_date + timedelta(days=7)
+                    elif period_type.lower() == "monthly":
+                        # For monthly, use end of previous month
+                        next_month = perf.start_date.month + 1
+                        year = perf.start_date.year + (1 if next_month > 12 else 0)
+                        next_month = next_month % 12 or 12  # Handle December
+                        display_date = datetime(year, next_month, 1) - timedelta(days=1)
+            elif current_value is not None and not pd.isna(current_value):
+                # Normal case - use the API data
+                current_display = f"{current_value:,.2f}"
+                
+            # Create row data with previous period columns (Week-2, Week-1 or Month-2, Month-1)
+            row_data = {
                 'Index': perf.index_name,
-                f'Previous ({perf.start_date.strftime("%Y-%m-%d") if perf.start_date else "N/A"})': 
-                    f"{perf.previous_value:,.2f}" if perf.previous_value else "N/A",
-                f'Current ({perf.end_date.strftime("%Y-%m-%d") if perf.end_date else "N/A"})': 
-                    f"{perf.current_value:,.2f}" if perf.current_value else "N/A",
-                'Change Percent': change_str
-            })
+                prev_key: f"{perf.previous_value:,.2f}" if perf.previous_value is not None else "N/A",
+                curr_key: current_display, 
+                'Change %': change_str
+            }
+            
+            # Debug log the performance data for troubleshooting
+            logger.debug(f"Performance data for {perf.index_name}: {perf.__dict__}")
+            
+            # VIX special handling - if this is the VIX ticker, fix the data before adding it
+            if perf.index_name == 'VIX' and period_type.lower() == 'weekly' and perf.previous_value is not None and perf.change_percent is not None:
+                # Calculate VIX value directly - we know this works
+                calculated_vix = perf.previous_value * (1 + perf.change_percent / 100)
+                
+                # Get column names for consistent display
+                prev_date = perf.start_date.strftime("%Y-%m-%d") if perf.start_date else "N/A"
+                
+                # Find the common current date from other indices (not VIX)
+                curr_date = None
+                # This is the date we want to use for all indices
+                for other_perf in performances:
+                    if other_perf.index_name != 'VIX' and other_perf.end_date:
+                        curr_date = other_perf.end_date.strftime("%Y-%m-%d")
+                        break
+                
+                # If we couldn't find a date, use a default
+                if not curr_date:
+                    curr_date = (perf.start_date + timedelta(days=7)).strftime("%Y-%m-%d") if perf.start_date else "N/A"
+                
+                # Determine column keys based on period type
+                if period_type.lower() == 'weekly':
+                    prev_key = f'Week-2 ({prev_date})'
+                    curr_key = f'Week-1 ({curr_date})'
+                else:
+                    prev_key = f'Month-2 ({prev_date})'
+                    curr_key = f'Month-1 ({curr_date})'
+                
+                # Update the row data with correct column names and calculated value
+                row_data = {
+                    'Index': 'VIX',
+                    prev_key: f"{perf.previous_value:,.2f}",
+                    curr_key: f"{calculated_vix:,.2f}",
+                    'Change %': change_str
+                }
+                
+                logger.info(f"Created VIX display with calculated value: {calculated_vix:.2f}")
+            
+            # Add to data list
+            data.append(row_data)
         
         # Create DataFrame with proper column alignment
         df = pd.DataFrame(data)
+        
+        # Standardize column names to ensure consistent display - especially for VIX
+        # For weekly/monthly display, all indices should use the same date format
+        
+        # 1. First, find a standard format for week/month columns (using first non-VIX index)
+        std_prev_col = None
+        std_curr_col = None
+        for idx, row in df.iterrows():
+            if row['Index'] != 'VIX':
+                std_prev_col = next((col for col in row.index if 'Week-2' in col or 'Month-2' in col), None)
+                std_curr_col = next((col for col in row.index if 'Week-1' in col or 'Month-1' in col), None)
+                if std_prev_col and std_curr_col:
+                    break
+                    
+        # 2. Now normalize all columns to standard format
+        if std_prev_col and std_curr_col:
+            # Fix VIX to use the same column names as other indices
+            for idx, row in df.iterrows():
+                if row['Index'] == 'VIX':
+                    # Find VIX-specific column names
+                    vix_prev = next((col for col in row.index if 'Week-2' in col or 'Month-2' in col), None)
+                    vix_curr = next((col for col in row.index if 'Week-1' in col or 'Month-1' in col), None)
+                    
+                    # If different from standard, rename
+                    if vix_curr != std_curr_col and vix_curr and std_curr_col:
+                        # Move the value to the standard column
+                        df.at[idx, std_curr_col] = row[vix_curr]
+                        
+                    # Make sure we don't have any 'nan' values
+                    if isinstance(df.at[idx, std_curr_col], str) and df.at[idx, std_curr_col] == 'nan' and row['Change %'] and vix_prev:
+                        try:
+                            # Get previous value
+                            prev_val = float(str(row[vix_prev]).replace(',', ''))
+                            # Get change percent
+                            change_str = str(row['Change %']).replace('\033[91m', '').replace('\033[92m', '').replace('\033[0m', '').replace('%', '')
+                            change_pct = float(change_str)
+                            # Calculate current
+                            calculated_val = prev_val * (1 + change_pct/100)
+                            df.at[idx, std_curr_col] = f"{calculated_val:,.2f}"
+                            logger.info(f"Fixed VIX display with calculated value: {calculated_val:.2f}")
+                        except Exception as e:
+                            logger.warning(f"Cannot calculate VIX value: {str(e)}")
+        
+            # Create standardized column list
+            standard_columns = ['Index', std_prev_col, std_curr_col, 'Change %']
+            df = df[standard_columns]
+        else:
+            # Fallback if no standard columns found
+            standard_columns = ['Index']
+            prev_col = next((col for col in df.columns if 'Week-2' in col or 'Month-2' in col), None)
+            curr_col = next((col for col in df.columns if 'Week-1' in col or 'Month-1' in col), None)
+            if prev_col and curr_col:
+                standard_columns.extend([prev_col, curr_col, 'Change %'])
+                df = df[standard_columns]
+        
+        # Ensure we'll still display data if column detection failed
+        if len(standard_columns) < 4:
+            logger.warning(f"Failed to detect standard columns. Using all columns: {df.columns.tolist()}")
+            
+        # VIX fix is now applied at the row level when creating the data
         
         # Use tabulate for better table formatting (like in v1)
         from tabulate import tabulate
@@ -1040,13 +1282,13 @@ def track_index_performance(period_type: str = "weekly"):
         # Generate HTML
         tracker.generate_index_performance_html(
             performances,
-            title=f"{period_type.capitalize()} Market Performance"
+            title=f"{period_type.capitalize()} Market Performance: {period_desc}"
         )
         
-        # Save performance data
+        # Save performance data with consistent naming convention
         tracker.save_performance_data(
             performances,
-            file_name=f"{period_type.lower()}_performance.json"
+            file_name="markets.json"
         )
         
     except Exception as e:
@@ -1106,10 +1348,10 @@ def track_portfolio_performance(url: str = DEFAULT_PORTFOLIO_URL):
         # Generate HTML
         tracker.generate_portfolio_performance_html(performance)
         
-        # Save performance data
+        # Save performance data with consistent naming convention
         tracker.save_performance_data(
             performance,
-            file_name="portfolio_performance.json"
+            file_name="portfolio.json"
         )
         
     except Exception as e:
@@ -1127,8 +1369,8 @@ async def track_performance_async(period_type: str = "weekly", portfolio_url: st
     """
     try:
         # Create performance tracker with async provider
-        from ..api import get_async_provider
-        provider = get_async_provider()
+        from ..api import get_provider
+        provider = get_provider(async_mode=True, enhanced=True)
         tracker = PerformanceTracker(provider=provider)
         
         # Create tasks for both operations
@@ -1144,13 +1386,37 @@ async def track_performance_async(period_type: str = "weekly", portfolio_url: st
             print(f"Error getting index performance: {str(index_perf)}")
         else:
             # Generate HTML and save data
+            # Determine what periods we're showing based on current date
+            today = datetime.today()
+            
+            # For weekly display
+            if period_type.lower() == 'weekly':
+                # Check if we're past Friday market close
+                is_after_friday = today.weekday() > 4  # Friday is 4
+                is_friday_after_market_close = today.weekday() == 4 and today.hour >= 16  # 4pm market close
+                current_week_complete = is_after_friday or is_friday_after_market_close
+                
+                if current_week_complete:
+                    period_desc = "Last Week vs. Previous Week"
+                else:
+                    period_desc = "Previous Week vs. Week Before"
+            # For monthly display
+            else:
+                # Check if we're in a new month (past day 1)
+                current_month_complete = today.day > 1
+                
+                if current_month_complete:
+                    period_desc = "Last Month vs. Previous Month"
+                else:
+                    period_desc = "Previous Month vs. Month Before"
+            
             tracker.generate_index_performance_html(
                 index_perf,
-                title=f"{period_type.capitalize()} Market Performance"
+                title=f"{period_type.capitalize()} Market Performance: {period_desc}"
             )
             tracker.save_performance_data(
                 index_perf,
-                file_name=f"{period_type.lower()}_performance.json"
+                file_name="markets.json"
             )
             
             # Display in console
@@ -1166,14 +1432,26 @@ async def track_performance_async(period_type: str = "weekly", portfolio_url: st
                     elif perf.change_percent < 0:
                         change_str = f"\033[91m{change_str}\033[0m"  # Red for negative
                 
-                data.append({
+                # Determine column keys based on period type
+                if period_type.lower() == 'weekly':
+                    prev_key = f'Week-2 ({perf.start_date.strftime("%Y-%m-%d") if perf.start_date else "N/A"})'
+                    curr_key = f'Week-1 ({perf.end_date.strftime("%Y-%m-%d") if perf.end_date else "N/A"})'
+                else:
+                    prev_key = f'Month-2 ({perf.start_date.strftime("%Y-%m-%d") if perf.start_date else "N/A"})'
+                    curr_key = f'Month-1 ({perf.end_date.strftime("%Y-%m-%d") if perf.end_date else "N/A"})'
+                
+                # Create row data with proper titles for previous period comparison
+                row_data = {
                     'Index': perf.index_name,
-                    f'Previous ({perf.start_date.strftime("%Y-%m-%d") if perf.start_date else "N/A"})': 
-                        f"{perf.previous_value:,.2f}" if perf.previous_value else "N/A",
-                    f'Current ({perf.end_date.strftime("%Y-%m-%d") if perf.end_date else "N/A"})': 
-                        f"{perf.current_value:,.2f}" if perf.current_value else "N/A",
-                    'Change Percent': change_str
-                })
+                    prev_key: f"{perf.previous_value:,.2f}" if perf.previous_value is not None else "N/A",
+                    curr_key: f"{perf.current_value:,.2f}" if perf.current_value is not None and not pd.isna(perf.current_value) else "N/A",
+                    'Change %': change_str
+                }
+                
+                # Log data for DEBUG
+                logger.debug(f"Created row data for {perf.index_name}: {row_data}")
+                
+                data.append(row_data)
             
             # Use tabulate for better table formatting (like in v1)
             from tabulate import tabulate
@@ -1186,11 +1464,11 @@ async def track_performance_async(period_type: str = "weekly", portfolio_url: st
             logger.error(f"Error getting portfolio performance: {str(portfolio_perf)}")
             print(f"Error getting portfolio performance: {str(portfolio_perf)}")
         else:
-            # Generate HTML and save data
+            # Generate HTML and save data with consistent naming
             tracker.generate_portfolio_performance_html(portfolio_perf)
             tracker.save_performance_data(
                 portfolio_perf,
-                file_name="portfolio_performance.json"
+                file_name="portfolio.json"
             )
             
             # Display in console
