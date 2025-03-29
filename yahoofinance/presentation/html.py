@@ -358,8 +358,8 @@ class HTMLGenerator:
                 sections=sections
             )
             
-            # Write to file
-            output_path = f"{self.output_dir}/portfolio_dashboard.html"
+            # Write to file with the requested name 'portfolio.html'
+            output_path = f"{self.output_dir}/portfolio.html"
             with open(output_path, 'w') as f:
                 f.write(html_content)
                 

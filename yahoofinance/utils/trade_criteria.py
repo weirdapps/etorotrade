@@ -211,6 +211,12 @@ def _check_short_interest_buy_criterion(row, buy_criteria, short_field):
         return False, f"Short interest too high ({row[short_field]:.1f}% > {buy_criteria['MAX_SHORT_INTEREST']}%)"
     return True, None
 
+def _check_exret_buy_criterion(row, buy_criteria):
+    """Check if a stock meets the expected return criterion for buying."""
+    if 'EXRET' in row and pd.notna(row['EXRET']) and row['EXRET'] < buy_criteria.get("MIN_EXRET", 0):
+        return False, f"Expected return too low ({row['EXRET']:.1f}% < {buy_criteria.get('MIN_EXRET', 0)}%)"
+    return True, None
+
 def meets_buy_criteria(row, criteria, short_field=DEFAULT_SHORT_FIELD):
     """
     Check if a stock meets all of the buy criteria.
@@ -255,6 +261,12 @@ def meets_buy_criteria(row, criteria, short_field=DEFAULT_SHORT_FIELD):
     is_valid, reason = _check_short_interest_buy_criterion(row, buy_criteria, short_field)
     if not is_valid:
         return False, reason
+        
+    # 7. Expected return high enough (if MIN_EXRET is defined)
+    if "MIN_EXRET" in buy_criteria:
+        is_valid, reason = _check_exret_buy_criterion(row, buy_criteria)
+        if not is_valid:
+            return False, reason
     
     # All criteria met
     return True, None
