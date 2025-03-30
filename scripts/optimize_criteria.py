@@ -23,14 +23,14 @@ os.environ['FORCE_TQDM'] = '1'  # Force tqdm to use progress bars
 # Add parent directory to path for module imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Configure longer cache TTLs for backtest to reduce API calls
+# Configure aggressive caching for backtesting to reduce API calls
 from yahoofinance.core.config import CACHE_CONFIG
 # Increase cache TTLs for backtest operations
-CACHE_CONFIG["TICKER_INFO_MEMORY_TTL"] = 14400  # 4 hours
-CACHE_CONFIG["TICKER_INFO_DISK_TTL"] = 86400    # 24 hours
-CACHE_CONFIG["MARKET_DATA_MEMORY_TTL"] = 3600   # 1 hour
-CACHE_CONFIG["MARKET_DATA_DISK_TTL"] = 14400    # 4 hours
-CACHE_CONFIG["MEMORY_CACHE_SIZE"] = 2000        # Increase cache size
+CACHE_CONFIG["TICKER_INFO_MEMORY_TTL"] = 86400  # 24 hours
+CACHE_CONFIG["TICKER_INFO_DISK_TTL"] = 604800   # 7 days
+CACHE_CONFIG["MARKET_DATA_MEMORY_TTL"] = 86400  # 24 hours 
+CACHE_CONFIG["MARKET_DATA_DISK_TTL"] = 604800   # 7 days
+CACHE_CONFIG["MEMORY_CACHE_SIZE"] = 5000        # Larger cache size for backtests
 
 # Configure rate limiting for backtest
 from yahoofinance.core.config import RATE_LIMIT
@@ -63,18 +63,18 @@ def parse_parameters(param_file: Optional[str] = None) -> Dict[str, List[Any]]:
     return {
         "SELL.SELL_MIN_PEG": [1.5, 2.0, 2.5, 3.0],
         "SELL.SELL_MIN_SHORT_INTEREST": [1.0, 2.0, 3.0, 4.0],
-        "SELL.SELL_MIN_BETA": [2.0, 2.5, 3.0, 3.5],
+        "SELL.SELL_MIN_BETA": [2.5, 3.0, 3.5, 4.0],
         "SELL.SELL_MAX_EXRET": [0.0, 2.5, 5.0, 10.0],
-        "SELL.SELL_MAX_UPSIDE": [3.0, 5.0, 7.0],
+        "SELL.SELL_MAX_UPSIDE": [3.0, 5.0, 7.5],
         "SELL.SELL_MIN_BUY_PERCENTAGE": [60.0, 65.0, 70.0],
         "SELL.SELL_MIN_FORWARD_PE": [40.0, 45.0, 50.0],
-        "BUY.BUY_MIN_UPSIDE": [15.0, 20.0, 25.0],
-        "BUY.BUY_MIN_BUY_PERCENTAGE": [75.0, 80.0, 82.0, 85.0],
-        "BUY.BUY_MAX_PEG": [1.5, 2.0, 2.5, 3.0],
-        "BUY.BUY_MAX_SHORT_INTEREST": [1.0, 2.0, 3.0],
-        "BUY.BUY_MIN_EXRET": [5.0, 7.5, 10.0, 15.0],
-        "BUY.BUY_MIN_BETA": [0.1, 0.2, 0.3],
-        "BUY.BUY_MAX_BETA": [2.0, 2.5, 3.0],
+        "BUY.BUY_MIN_UPSIDE": [20.0, 25.0, 30.0],
+        "BUY.BUY_MIN_BUY_PERCENTAGE": [85.0, 87.5, 90.0],
+        "BUY.BUY_MAX_PEG": [2.0, 2.5, 3.0],
+        "BUY.BUY_MAX_SHORT_INTEREST": [1.0, 1.5, 2.0],
+        "BUY.BUY_MIN_EXRET": [15.0, 17.5, 20.0, 25.0],
+        "BUY.BUY_MIN_BETA": [0.2, 0.25, 0.3],
+        "BUY.BUY_MAX_BETA": [2.5, 3.0, 3.5],
         "BUY.BUY_MIN_FORWARD_PE": [0.3, 0.5, 0.7],
         "BUY.BUY_MAX_FORWARD_PE": [40.0, 45.0, 50.0]
     }
@@ -99,13 +99,15 @@ def create_settings(args: argparse.Namespace) -> BacktestSettings:
         backtester = Backtester()
         all_tickers = backtester.load_tickers(args.source)
         
-        # Apply ticker limit for faster testing
-        if args.ticker_limit and args.ticker_limit < len(all_tickers):
+        # Apply ticker limit for faster testing if specified
+        if args.ticker_limit is not None and args.ticker_limit > 0 and args.ticker_limit < len(all_tickers):
             logging.info(f"Limiting tickers to {args.ticker_limit} (from {len(all_tickers)})")
             import random
             random.shuffle(all_tickers)  # Randomize to get a representative sample
             tickers = all_tickers[:args.ticker_limit]
         else:
+            # Use all tickers
+            logging.info(f"Using all {len(all_tickers)} tickers from {args.source}")
             tickers = all_tickers
         
     # Create settings
@@ -117,7 +119,10 @@ def create_settings(args: argparse.Namespace) -> BacktestSettings:
         commission_pct=args.commission,
         rebalance_frequency=args.rebalance,
         tickers=tickers,
-        ticker_source=args.source
+        ticker_source=args.source,
+        ticker_limit=args.ticker_limit,  # Pass the ticker limit to settings
+        cache_max_age_days=args.cache_days,  # Pass cache age limit
+        data_coverage_threshold=args.data_coverage_threshold  # Pass data coverage threshold
     )
     
     return settings
@@ -149,7 +154,7 @@ def main():
                        help='Backtest period')
     parser.add_argument('--tickers', type=str, default='',
                        help='Comma-separated list of tickers to backtest')
-    parser.add_argument('--ticker-limit', type=int, default=20,
+    parser.add_argument('--ticker-limit', type=int, default=None,
                        help='Limit number of tickers to test (for faster execution)')
     parser.add_argument('--source', 
                        choices=['portfolio', 'market', 'etoro', 'yfinance', 'usa', 'europe', 'china', 'usindex'], 
@@ -181,6 +186,14 @@ def main():
     parser.add_argument('--quiet', action='store_true',
                        help='Suppress progress bars and detailed output (for batch processing)')
     
+    # Caching settings
+    parser.add_argument('--cache-days', type=int, default=1,
+                       help='Maximum age of cached data in days (default: 1)')
+    
+    # Data filtering settings
+    parser.add_argument('--data-coverage-threshold', type=float, default=0.7,
+                       help='Data coverage threshold (0.0-1.0). Lower values allow longer backtests by excluding tickers with limited history.')
+    
     args = parser.parse_args()
     
     # Create backtest settings
@@ -195,7 +208,7 @@ def main():
             result = run_backtest(settings, disable_progress=args.quiet)
             
             # Print results
-            print("\nBacktest Results:")
+            print("\nBacktest Performance:")
             print(f"Period: {result.portfolio_values.index.min().date()} to "
                  f"{result.portfolio_values.index.max().date()}")
             print(f"Total Return: {result.performance['total_return']:.2f}%")
@@ -205,11 +218,12 @@ def main():
             print(f"Benchmark (S&P 500) Return: {result.benchmark_performance['total_return']:.2f}%")
             print(f"Number of Trades: {len(result.trades)}")
             
-            # Get the HTML file path directly from the result object
-            if hasattr(result, 'saved_paths') and 'html' in result.saved_paths:
-                html_path = result.saved_paths['html']
-                if os.path.exists(html_path):
-                    print(f"\nResults saved to: {html_path}")
+            # Print all saved file paths
+            print("\nBacktest Files:")
+            print(f"  HTML Report: {result.saved_paths.get('html', 'Not available')}")
+            print(f"  JSON Results: {result.saved_paths.get('json', 'Not available')}")
+            print(f"  Portfolio CSV: {result.saved_paths.get('csv', 'Not available')}")
+            print(f"  Trades CSV: {result.saved_paths.get('trades', 'Not available')}")
             
             # Save trades to CSV if output specified
             if args.output:
@@ -273,12 +287,19 @@ def main():
             print(f"Annualized Return: {best_result.performance['annualized_return']:.2f}%")
             print(f"Sharpe Ratio: {best_result.performance['sharpe_ratio']:.2f}")
             print(f"Max Drawdown: {best_result.performance['max_drawdown']:.2f}%")
+            print(f"Number of Trades: {len(best_result.trades)}")
+            print(f"Benchmark (S&P 500) Return: {best_result.benchmark_performance['total_return']:.2f}%")
             
-            # Display HTML path if available
-            if hasattr(best_result, 'saved_paths') and 'html' in best_result.saved_paths:
-                html_path = best_result.saved_paths['html']
-                if os.path.exists(html_path):
-                    print(f"\nOptimized parameters performance report: {html_path}")
+            # Print all saved file paths
+            print("\nOptimization Files:")
+            print(f"  HTML Report: {best_result.saved_paths.get('html', 'Not available')}")
+            print(f"  JSON Results: {best_result.saved_paths.get('json', 'Not available')}")
+            print(f"  Portfolio CSV: {best_result.saved_paths.get('csv', 'Not available')}")
+            print(f"  Trades CSV: {best_result.saved_paths.get('trades', 'Not available')}")
+            
+            # Print optimized parameters in JSON format for easy copying
+            print("\nOptimized Trading Parameters JSON:")
+            print(json.dumps(best_params, indent=2))
             
             # Save best parameters to JSON if output specified
             if args.output:

@@ -65,22 +65,22 @@ Triggered if ANY of these conditions are met:
 - Less than 5% upside potential
 - Less than 65% buy ratings from analysts
 - Forward P/E (PEF) > Trailing P/E (PET) - deteriorating earnings outlook
-- Forward P/E (PEF) > 45.0 (extremely high valuation)
-- PEG ratio > 2.0 (overvalued relative to growth)
-- Short Interest (SI) > 3% (high short interest)
-- Beta > 2.5 (excessive volatility)
-- Expected Return (EXRET) < 2.5 (insufficient potential return)
+- Forward P/E (PEF) > 50.0 (extremely high valuation)
+- PEG ratio > 3.0 (overvalued relative to growth)
+- Short Interest (SI) > 2% (high short interest)
+- Beta > 3.0 (excessive volatility)
+- Expected Return (EXRET) < 5.0 (insufficient potential return)
 
 ### 🟢 BUY (Growth Opportunity)
 ALL of these conditions must be met:
 - 20% or more upside potential
-- 82% or more buy ratings from analysts
-- Acceptable volatility (0.2 < Beta ≤ 2.5)
+- 85% or more buy ratings from analysts
+- Acceptable volatility (0.25 < Beta ≤ 2.5)
 - Improving earnings outlook (PEF < PET) OR Negative trailing P/E
 - Positive earnings projection (0.5 < PEF ≤ 45.0)
-- Reasonable valuation relative to growth (PEG < 2.0)
-- Acceptable short interest (SI ≤ 2%)
-- Strong expected return (EXRET ≥ 10.0)
+- Reasonable valuation relative to growth (PEG < 2.5)
+- Acceptable short interest (SI ≤ 1.5%)
+- Strong expected return (EXRET ≥ 15.0)
 
 ### ⚪ HOLD
 - Stocks that pass confidence threshold
@@ -139,6 +139,8 @@ The backtesting framework allows you to:
 2. Optimize criteria parameters to find the best performing combination
 3. Generate performance reports comparing to benchmark indices
 4. Perform what-if analysis with different market conditions
+5. Use market cap-based position weighting (1% to 10% per position) for realistic portfolio allocation
+6. Analyze detailed portfolio synthesis tables with complete metrics for each position
 
 For detailed instructions on using the backtesting framework, see [scripts/BACKTEST_README.md](scripts/BACKTEST_README.md).
 

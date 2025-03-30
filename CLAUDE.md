@@ -286,23 +286,23 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
   - Less than 5% upside (SELL_MAX_UPSIDE) OR
   - Less than 65% buy ratings (SELL_MIN_BUY_PERCENTAGE) OR
   - PEF > PET (deteriorating earnings outlook, when both are positive) OR
-  - PEF > 45.0 (extremely high valuation) (SELL_MIN_FORWARD_PE) OR
-  - PEG > 2.0 (overvalued relative to growth) (SELL_MIN_PEG) OR
-  - SI > 3% (high short interest) (SELL_MIN_SHORT_INTEREST) OR
+  - PEF > 50.0 (extremely high valuation) (SELL_MIN_FORWARD_PE) OR
+  - PEG > 3.0 (overvalued relative to growth) (SELL_MIN_PEG) OR
+  - SI > 2% (high short interest) (SELL_MIN_SHORT_INTEREST) OR
   - Beta > 3.0 (excessive volatility) (SELL_MIN_BETA) OR
-  - EXRET < 2.5 (insufficient expected return) (SELL_MAX_EXRET)
+  - EXRET < 5.0 (insufficient expected return) (SELL_MAX_EXRET)
 
 - **BUY** (ALL of these conditions must be met):
   - 20% or more upside (BUY_MIN_UPSIDE) AND
-  - 82% or more buy ratings (BUY_MIN_BUY_PERCENTAGE) AND
+  - 85% or more buy ratings (BUY_MIN_BUY_PERCENTAGE) AND
   - Beta <= 2.5 (acceptable volatility) (BUY_MAX_BETA) AND
-  - Beta > 0.2 (sufficient volatility) (BUY_MIN_BETA) AND
+  - Beta > 0.25 (sufficient volatility) (BUY_MIN_BETA) AND
   - PEF < PET (improving earnings outlook) OR Trailing P/E ≤ 0 (negative) AND
   - PEF > 0.5 (positive earnings projection) (BUY_MIN_FORWARD_PE) AND
   - PEF <= 45.0 (reasonable valuation) (BUY_MAX_FORWARD_PE) AND
-  - PEG < 2.0 (reasonable valuation relative to growth) (BUY_MAX_PEG) - *ignored if PEG data not available* AND
-  - SI <= 2% (acceptable short interest) (BUY_MAX_SHORT_INTEREST) - *ignored if SI data not available* AND
-  - EXRET >= 10.0 (strong expected return) (BUY_MIN_EXRET)
+  - PEG < 2.5 (reasonable valuation relative to growth) (BUY_MAX_PEG) - *ignored if PEG data not available* AND
+  - SI <= 1.5% (acceptable short interest) (BUY_MAX_SHORT_INTEREST) - *ignored if SI data not available* AND
+  - EXRET >= 15.0 (strong expected return) (BUY_MIN_EXRET)
 
 - **HOLD**:
   - Stocks that pass confidence threshold
@@ -329,6 +329,15 @@ The backtesting framework provides functionality to evaluate trading criteria ag
 - **BacktestSettings**: Configuration for backtests (period, capital, position size, etc.)
 - **BacktestPosition**: Represents a position held during the simulation
 - **BacktestResult**: Contains complete backtest results with performance metrics
+
+### Position Allocation
+
+The backtest uses a market cap-based position weighting system:
+- Positions are weighted proportionally to their market capitalization
+- Minimum position weight: 1% of portfolio
+- Maximum position weight: 10% of portfolio
+- Weights are normalized to ensure full capital deployment
+- This approach creates realistic portfolio allocation mimicking how diversified funds typically invest
 
 ### Performance Metrics
 
@@ -380,9 +389,17 @@ Since historical analyst ratings aren't available, the backtest uses a synthetic
 
 The framework automatically generates HTML reports with:
 - Performance metrics and comparison to benchmark
-- Portfolio value chart
+- Portfolio value chart 
 - Trade list with P&L information
+- Detailed portfolio synthesis table showing:
+  - Ticker and company name
+  - Market cap and position weight
+  - Entry/exit dates and holding period
+  - Return percentage
+  - Key metrics used in trading decisions (beta, PEG, PE, etc.)
 - Parameter settings and test configuration
+
+This comprehensive reporting enables detailed analysis of both the overall strategy performance and individual position metrics.
 
 All backtest results are saved to the `yahoofinance/output/backtest/` directory.
 
