@@ -1712,6 +1712,8 @@ class SimpleProgressTracker:
     This class provides a beautiful progress tracking mechanism that prints progress 
     information directly to the console with consistent spacing and visual elements.
     """
+    # Import regex at the class level to ensure it's available
+    import re
     
     # ANSI color codes for colored output
     COLORS = {
@@ -1802,16 +1804,22 @@ class SimpleProgressTracker:
         # Use gradient colors for the progress bar
         bar = f"{c['green']}{'━' * filled_length}{c['white']}{'╺' * (bar_length - filled_length)}{c['reset']}"
         
-        # Format ticker with fixed width (8 chars) and add processing time if available
+        # Format ticker with fixed width (14 chars) and add processing time if available
         ticker_display = ""
         if self.current_ticker:
-            ticker_display = f"{c['cyan']}{self.current_ticker:<8}{c['reset']}"
+            # Pad or truncate ticker to exactly 14 characters
+            ticker_padded = f"{self.current_ticker:<14}"
+            if len(ticker_padded) > 14:
+                ticker_padded = ticker_padded[:11] + "..."
+            
+            ticker_display = f"{c['cyan']}{ticker_padded}{c['reset']}"
+            
             if self.ticker_time:
                 ticker_display += f" {c['yellow']}({self.ticker_time}){c['reset']}"
             else:
                 ticker_display += "          "  # Add space for timing info
         else:
-            ticker_display = " " * 20  # Placeholder space when no ticker
+            ticker_display = " " * 26  # Placeholder space when no ticker (14 + 12)
             
         # Format batch and progress counters
         batch_info = f"{c['bold']}Batch {c['blue']}{self.batch:2d}/{self.total_batches:2d}{c['reset']}"
@@ -1884,6 +1892,19 @@ class SimpleProgressTracker:
                 
                 if "cache" in desc.lower():
                     self.cache_count += 1
+                    
+            # If waiting description, use special format
+            if desc.startswith("Waiting "):
+                self.current_ticker = "WAITING"
+                if "batch" in desc:
+                    # Extract the "Xs for batch Y" format
+                    try:
+                        match = re.search(r"Waiting (\d+)s for batch (\d+)", desc)
+                        if match:
+                            seconds, batch = match.groups()
+                            self.ticker_time = f"{seconds}s → {batch}"
+                    except:
+                        pass
         
         self._print_status()
     
@@ -2017,12 +2038,8 @@ async def fetch_ticker_data(provider, tickers):
     batch_size = 25  # Increased batch size for better performance
     total_batches = (total_tickers - 1) // batch_size + 1
     
-    # For debugging, process max 100 tickers at a time to avoid rate limits
-    if total_tickers > 100:
-        print(f"Warning: Processing only the first 100 tickers for rate limiting protection")
-        tickers = tickers[:100]
-        total_tickers = len(tickers)
-        total_batches = (total_tickers - 1) // batch_size + 1
+    # Process all tickers (no limit)
+    # Note: This will process all tickers but may take a long time
     
     print(f"\nProcessing {total_tickers} tickers in {total_batches} batches (batch size: {batch_size})")
     
