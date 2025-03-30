@@ -367,6 +367,34 @@ class YahooFinanceBaseProvider(abc.ABC):
         except Exception as e:
             logger.warning(f"Error getting analyst consensus: {str(e)}")
             return result
+            
+    def _process_recommendation_key(self, ticker_info: Dict[str, Any]) -> Dict[str, Any]:
+        """Process recommendation key as fallback for buy percentage
+        
+        Args:
+            ticker_info: Ticker info dictionary
+            
+        Returns:
+            Dict with buy percentage and total ratings
+        """
+        result = {
+            'buy_percentage': 50,  # Default value
+            'total_ratings': ticker_info.get("numberOfAnalystOpinions", 0)
+        }
+        
+        rec_key = ticker_info.get("recommendationKey", "").lower()
+        if rec_key == "strong_buy":
+            result["buy_percentage"] = 95
+        elif rec_key == "buy":
+            result["buy_percentage"] = 85
+        elif rec_key == "hold":
+            result["buy_percentage"] = 65
+        elif rec_key == "sell":
+            result["buy_percentage"] = 30
+        elif rec_key == "strong_sell":
+            result["buy_percentage"] = 10
+            
+        return result
     
     def _get_earnings_dates_from_obj(self, ticker_obj: yf.Ticker) -> Tuple[Optional[str], Optional[str]]:
         """
@@ -404,6 +432,47 @@ class YahooFinanceBaseProvider(abc.ABC):
             logger.warning(f"Error getting earnings dates: {str(e)}")
             return None, None
             
+    def _get_last_earnings_date(self, ticker_obj: yf.Ticker) -> Optional[str]:
+        """
+        Get the most recent past earnings date.
+        
+        Args:
+            ticker_obj: yfinance Ticker object
+            
+        Returns:
+            str: Formatted earnings date or None if not available
+        """
+        try:
+            # Try calendar approach first - it usually has the most recent past earnings
+            calendar = ticker_obj.calendar
+            if isinstance(calendar, dict) and COLUMN_NAMES["EARNINGS_DATE"] in calendar:
+                earnings_date_list = calendar[COLUMN_NAMES["EARNINGS_DATE"]]
+                if isinstance(earnings_date_list, list) and len(earnings_date_list) > 0:
+                    # Look for the most recent PAST earnings date, not future ones
+                    today = pd.Timestamp.now().date()
+                    past_earnings = [date for date in earnings_date_list if date < today]
+                    
+                    if past_earnings:
+                        return self.format_date(max(past_earnings))
+                        
+            # Try earnings_dates approach if we didn't get a past earnings date
+            earnings_dates = ticker_obj.earnings_dates if hasattr(ticker_obj, 'earnings_dates') else None
+            if earnings_dates is not None and not earnings_dates.empty:
+                # Handle timezone-aware dates
+                today = pd.Timestamp.now()
+                if hasattr(earnings_dates.index, 'tz') and earnings_dates.index.tz is not None:
+                    today = pd.Timestamp.now(tz=earnings_dates.index.tz)
+                
+                # Find past dates for last earnings
+                past_dates = [date for date in earnings_dates.index if date < today]
+                if past_dates:
+                    return self.format_date(max(past_dates))
+                    
+            return None
+        except Exception as e:
+            logger.warning(f"Error getting last earnings date: {str(e)}")
+            return None
+            
     def _handle_ticker_info_error(self, ticker: str, error: Exception) -> Dict[str, Any]:
         """
         Handle errors that occur during ticker info retrieval.
@@ -417,6 +486,54 @@ class YahooFinanceBaseProvider(abc.ABC):
         """
         logger.warning(f"Error getting data for {ticker}: {str(error)}")
         return {"symbol": ticker, "error": str(error)}
+        
+    def _is_us_ticker(self, ticker: str) -> bool:
+        """
+        Check if a ticker is a US ticker based on suffix.
+        
+        Args:
+            ticker: Stock ticker symbol
+            
+        Returns:
+            bool: True if it's a US ticker, False otherwise
+        """
+        # Some special cases of US stocks with dots in the ticker
+        if ticker in ["BRK.A", "BRK.B", "BF.A", "BF.B"]:
+            return True
+            
+        # Most US tickers don't have a suffix
+        if "." not in ticker:
+            return True
+            
+        # Handle .US suffix
+        if ticker.endswith(".US"):
+            return True
+            
+        return False
+        
+    def _calculate_peg_ratio(self, ticker_info: Dict[str, Any]) -> Optional[float]:
+        """
+        Calculate PEG ratio from available financial metrics.
+        
+        Args:
+            ticker_info: Ticker info dictionary
+            
+        Returns:
+            float: PEG ratio or None if not available
+        """
+        # Get the trailingPegRatio directly from Yahoo Finance's API
+        peg_ratio = ticker_info.get('trailingPegRatio')
+        
+        # Format PEG ratio to ensure consistent precision (one decimal place)
+        if peg_ratio is not None:
+            try:
+                # Round to 1 decimal place for consistency
+                peg_ratio = round(float(peg_ratio), 1)
+            except (ValueError, TypeError):
+                # Keep original value if conversion fails
+                pass
+                
+        return peg_ratio
         
     def _extract_historical_data(self, ticker: str, ticker_obj: yf.Ticker, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
         """
