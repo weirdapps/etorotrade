@@ -321,6 +321,45 @@ class InsiderAnalyzer:
             average_sell_price=average_sell_price
         )
     
+    def _calculate_sentiment_metrics(self, summary: InsiderSummary, days: int) -> Dict[str, Any]:
+        """
+        Calculate sentiment metrics from an InsiderSummary.
+        
+        Args:
+            summary: InsiderSummary object
+            days: Number of days looked back
+            
+        Returns:
+            Dictionary with sentiment metrics
+        """
+        # Calculate sentiment metrics
+        sentiment = "NEUTRAL"
+        confidence = "LOW"
+        
+        # Determine sentiment based on net value and transaction counts
+        if summary.net_value > 0 and summary.buy_count > summary.sell_count:
+            sentiment = "BULLISH"
+        elif summary.net_value < 0 and summary.sell_count > summary.buy_count:
+            sentiment = "BEARISH"
+        
+        # Determine confidence based on transaction counts and size
+        total_transactions = summary.buy_count + summary.sell_count
+        if total_transactions > 5:
+            confidence = "HIGH" if abs(summary.net_value) > 1000000 else "MEDIUM"
+        elif total_transactions > 2:
+            confidence = "MEDIUM"
+        
+        return {
+            "sentiment": sentiment,
+            "confidence": confidence,
+            "buy_count": summary.buy_count,
+            "sell_count": summary.sell_count,
+            "net_value": summary.net_value,
+            "net_share_count": summary.net_share_count,
+            "recent_transactions": len(summary.transactions),
+            "lookback_days": days
+        }
+    
     def analyze_insider_sentiment(self, ticker: str, days: int = 90) -> Dict[str, Any]:
         """
         Analyze insider sentiment based on recent transactions.
@@ -343,33 +382,8 @@ class InsiderAnalyzer:
             # Get insider transactions
             summary = self.get_transactions(ticker, days)
             
-            # Calculate sentiment metrics
-            sentiment = "NEUTRAL"
-            confidence = "LOW"
-            
-            # Determine sentiment based on net value and transaction counts
-            if summary.net_value > 0 and summary.buy_count > summary.sell_count:
-                sentiment = "BULLISH"
-            elif summary.net_value < 0 and summary.sell_count > summary.buy_count:
-                sentiment = "BEARISH"
-            
-            # Determine confidence based on transaction counts and size
-            total_transactions = summary.buy_count + summary.sell_count
-            if total_transactions > 5:
-                confidence = "HIGH" if abs(summary.net_value) > 1000000 else "MEDIUM"
-            elif total_transactions > 2:
-                confidence = "MEDIUM"
-            
-            return {
-                "sentiment": sentiment,
-                "confidence": confidence,
-                "buy_count": summary.buy_count,
-                "sell_count": summary.sell_count,
-                "net_value": summary.net_value,
-                "net_share_count": summary.net_share_count,
-                "recent_transactions": len(summary.transactions),
-                "lookback_days": days
-            }
+            # Calculate sentiment metrics using the shared method
+            return self._calculate_sentiment_metrics(summary, days)
         
         except Exception as e:
             logger.error(f"Error analyzing insider sentiment for {ticker}: {str(e)}")
@@ -401,33 +415,8 @@ class InsiderAnalyzer:
             # Get insider transactions asynchronously
             summary = await self.get_transactions_async(ticker, days)
             
-            # Calculate sentiment metrics
-            sentiment = "NEUTRAL"
-            confidence = "LOW"
-            
-            # Determine sentiment based on net value and transaction counts
-            if summary.net_value > 0 and summary.buy_count > summary.sell_count:
-                sentiment = "BULLISH"
-            elif summary.net_value < 0 and summary.sell_count > summary.buy_count:
-                sentiment = "BEARISH"
-            
-            # Determine confidence based on transaction counts and size
-            total_transactions = summary.buy_count + summary.sell_count
-            if total_transactions > 5:
-                confidence = "HIGH" if abs(summary.net_value) > 1000000 else "MEDIUM"
-            elif total_transactions > 2:
-                confidence = "MEDIUM"
-            
-            return {
-                "sentiment": sentiment,
-                "confidence": confidence,
-                "buy_count": summary.buy_count,
-                "sell_count": summary.sell_count,
-                "net_value": summary.net_value,
-                "net_share_count": summary.net_share_count,
-                "recent_transactions": len(summary.transactions),
-                "lookback_days": days
-            }
+            # Calculate sentiment metrics using the shared method
+            return self._calculate_sentiment_metrics(summary, days)
         
         except Exception as e:
             logger.error(f"Error analyzing insider sentiment for {ticker}: {str(e)}")

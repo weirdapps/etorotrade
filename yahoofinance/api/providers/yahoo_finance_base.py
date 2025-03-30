@@ -551,6 +551,69 @@ class YahooFinanceBaseProvider(abc.ABC):
                 pass
                 
         return peg_ratio
+    
+    # Common helper methods used by both sync and async providers
+    def _extract_common_ticker_info(self, ticker_info: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Extract common ticker information from Yahoo Finance data.
+        
+        Args:
+            ticker_info: Raw ticker info dictionary from Yahoo Finance API
+            
+        Returns:
+            Dict with standardized ticker info
+        """
+        # Extract relevant fields with proper fallbacks
+        result = {
+            "symbol": ticker_info.get("symbol", ""),
+            "name": ticker_info.get("longName", ticker_info.get("shortName", "")),
+            "sector": ticker_info.get("sector", ""),
+            "industry": ticker_info.get("industry", ""),
+            "price": ticker_info.get("currentPrice", ticker_info.get("regularMarketPrice")),
+            "currency": ticker_info.get("currency", "USD"),
+            "market_cap": ticker_info.get("marketCap"),
+            "pe_ratio": ticker_info.get("trailingPE"),
+            "forward_pe": ticker_info.get("forwardPE"),
+            "peg_ratio": ticker_info.get("pegRatio"),
+            "beta": ticker_info.get("beta"),
+            "fifty_day_avg": ticker_info.get("fiftyDayAverage"),
+            "two_hundred_day_avg": ticker_info.get("twoHundredDayAverage"),
+            "fifty_two_week_high": ticker_info.get("fiftyTwoWeekHigh"),
+            "fifty_two_week_low": ticker_info.get("fiftyTwoWeekLow"),
+            "target_price": ticker_info.get("targetMeanPrice"),
+            "dividend_yield": ticker_info.get("dividendYield", 0) * 100 if ticker_info.get("dividendYield") else None,
+            "short_percent": ticker_info.get("shortPercentOfFloat", 0) * 100 if ticker_info.get("shortPercentOfFloat") else None,
+            "country": ticker_info.get("country", ""),
+        }
+        
+        # Add market cap formatted
+        result["market_cap_fmt"] = self._format_market_cap(result["market_cap"])
+        
+        # Calculate upside potential if possible
+        price = result.get("price")
+        target = result.get("target_price")
+        result["upside"] = self._calculate_upside_potential(price, target)
+        
+        return result
+    
+    def _process_error_for_batch(self, ticker: str, error: Exception) -> Dict[str, Any]:
+        """
+        Process an error for batch operations, providing a standardized error response.
+        
+        Args:
+            ticker: The ticker symbol that caused the error
+            error: The exception that occurred
+            
+        Returns:
+            Dict with error information
+        """
+        logger.warning(f"Error getting data for {ticker}: {str(error)}")
+        return {
+            "symbol": ticker,
+            "error": str(error),
+            "ticker": ticker,
+            "name": ticker
+        }
         
     def _extract_historical_data(self, ticker: str, ticker_obj: yf.Ticker, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
         """

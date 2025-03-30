@@ -101,34 +101,9 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 if not info:
                     raise APIError(f"Failed to retrieve info for {ticker}")
                 
-                # Extract key metrics
-                result = {
-                    "symbol": ticker,
-                    "name": info.get("longName", info.get("shortName", "")),
-                    "sector": info.get("sector", ""),
-                    "industry": info.get("industry", ""),
-                    "price": info.get("currentPrice", info.get("regularMarketPrice")),
-                    "currency": info.get("currency", "USD"),
-                    "market_cap": info.get("marketCap"),
-                    "market_cap_fmt": self.format_market_cap(info.get("marketCap")),
-                    "pe_ratio": info.get("trailingPE"),
-                    "forward_pe": info.get("forwardPE"),
-                    "peg_ratio": info.get("pegRatio"),
-                    "beta": info.get("beta"),
-                    "fifty_day_avg": info.get("fiftyDayAverage"),
-                    "two_hundred_day_avg": info.get("twoHundredDayAverage"),
-                    "fifty_two_week_high": info.get("fiftyTwoWeekHigh"),
-                    "fifty_two_week_low": info.get("fiftyTwoWeekLow"),
-                    "target_price": info.get("targetMeanPrice"),
-                    "dividend_yield": info.get("dividendYield", 0) * 100 if info.get("dividendYield") else None,
-                    "short_percent": info.get("shortPercentOfFloat", 0) * 100 if info.get("shortPercentOfFloat") else None,
-                    "country": info.get("country", ""),
-                }
-                
-                # Calculate upside potential if possible
-                price = result.get("price")
-                target = result.get("target_price")
-                result["upside"] = self.calculate_upside_potential(price, target)
+                # Extract key metrics using the base class helper
+                result = self._extract_common_ticker_info(info)
+                result["symbol"] = ticker  # Ensure the symbol is set correctly
                 
                 # Additional metrics for US stocks
                 if is_us_ticker(ticker) and not skip_insider_metrics:
@@ -505,7 +480,7 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             try:
                 results[ticker] = self.get_ticker_info(ticker, skip_insider_metrics)
             except Exception as e:
-                results[ticker] = self._handle_ticker_info_error(ticker, e)
+                results[ticker] = self._process_error_for_batch(ticker, e)
         
         return results
     

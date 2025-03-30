@@ -797,26 +797,66 @@ class PerformanceTracker:
                     value = value_span.text.strip()
                     data[label] = value
         
-        # Extract other metrics (Beta, Alpha, etc.)
-        metrics = [
-            ("Beta", "Beta"),
-            ("Alpha", "Jensen's Alpha"),
-            ("Sharpe", "Sharpe Ratio"),
-            ("Sortino", "Sortino Ratio")
-        ]
+        # Extract other metrics (Beta, Alpha, etc.) using our generic extractor
+        metrics_map = {
+            "Beta": "Beta",
+            "Alpha": "Jensen's Alpha",
+            "Sharpe": "Sharpe Ratio",
+            "Sortino": "Sortino Ratio",
+            "Cash": "Cash"
+        }
         
-        for label, contains_text in metrics:
-            result = self._extract_metric(soup, label, contains_text)
-            if result:
-                data[result[0]] = result[1]
+        # Use the generic metrics extractor for all metrics at once
+        additional_metrics = self._extract_metrics_from_soup(soup, metrics_map)
         
-        # Extract cash percentage
-        cash_result = self._extract_cash_percentage(soup)
-        if cash_result:
-            data[cash_result[0]] = cash_result[1]
+        # Merge the results
+        data.update(additional_metrics)
         
         return data
     
+    def _extract_metrics_from_soup(self, soup: BeautifulSoup, metrics_map: Dict[str, str]) -> Dict[str, str]:
+        """
+        Generic extractor for metrics from soup with various extraction methods.
+        
+        Args:
+            soup: BeautifulSoup object to search in
+            metrics_map: Dictionary mapping metric names to lookup texts
+            
+        Returns:
+            Dictionary of extracted metrics
+        """
+        results = {}
+        
+        # Try each metric with multiple extraction methods
+        for label, contains_text in metrics_map.items():
+            # Method 1: Look for h2 heading with the text
+            container = soup.find('h2',
+                                class_=['font-semibold', 'text-slate-100'],
+                                string=lambda s: contains_text in str(s))
+            if container:
+                value_span = container.find_next("span", class_="text-5xl")
+                if value_span:
+                    results[label] = value_span.text.strip()
+                    continue
+            
+            # Method 2: Using CSS selector with contains
+            metric_container = soup.select_one(f"div.relative.flex.justify-between.space-x-2:-soup-contains('{contains_text}')")
+            if metric_container:
+                value_span = metric_container.find("div", class_="font-medium")
+                if value_span:
+                    results[label] = value_span.text.strip()
+                    continue
+            
+            # Method 3: Look for any div containing the text
+            containers = soup.find_all(lambda tag: tag.name == 'div' and contains_text in tag.text)
+            for container in containers:
+                value_span = container.find("div", class_="font-medium")
+                if value_span:
+                    results[label] = value_span.text.strip()
+                    break
+                    
+        return results
+            
     def _extract_metric(self, soup: BeautifulSoup, label: str, contains_text: str) -> Optional[Tuple[str, str]]:
         """
         Extract a metric value given its label and containing text.
@@ -829,13 +869,10 @@ class PerformanceTracker:
         Returns:
             Tuple of (label, value) or None if not found
         """
-        container = soup.find('h2',
-                            class_=['font-semibold', 'text-slate-100'],
-                            string=lambda s: contains_text in str(s))
-        if container:
-            value_span = container.find_next("span", class_="text-5xl")
-            if value_span:
-                return label, value_span.text.strip()
+        # Use the generic method with a single metric
+        results = self._extract_metrics_from_soup(soup, {label: contains_text})
+        if label in results:
+            return label, results[label]
         return None
     
     def _extract_cash_percentage(self, soup: BeautifulSoup) -> Optional[Tuple[str, str]]:
@@ -848,21 +885,10 @@ class PerformanceTracker:
         Returns:
             Tuple of ('Cash', value) or None if not found
         """
-        # Two ways to try finding the cash element
-        # Method 1: Using CSS selector
-        cash_container = soup.select_one("div.relative.flex.justify-between.space-x-2:-soup-contains('Cash')")
-        if cash_container:
-            cash_value_span = cash_container.find("div", class_="font-medium")
-            if cash_value_span:
-                return "Cash", cash_value_span.text.strip()
-        
-        # Method 2: Look for text containing Cash
-        cash_containers = soup.find_all(lambda tag: tag.name == 'div' and 'Cash' in tag.text)
-        for container in cash_containers:
-            value_span = container.find("div", class_="font-medium")
-            if value_span:
-                return "Cash", value_span.text.strip()
-                
+        # Use the generic method with Cash metric
+        results = self._extract_metrics_from_soup(soup, {"Cash": "Cash"})
+        if "Cash" in results:
+            return "Cash", results["Cash"]
         return None
     
     def generate_index_performance_html(self, performances: List[IndexPerformance], title: str = "Market Performance") -> Optional[str]:
