@@ -295,13 +295,15 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
 - **BUY** (ALL of these conditions must be met):
   - 20% or more upside (BUY_MIN_UPSIDE) AND
   - 85% or more buy ratings (BUY_MIN_BUY_PERCENTAGE) AND
+  - Beta data must be available (primary required criterion) AND
   - Beta <= 2.5 (acceptable volatility) (BUY_MAX_BETA) AND
   - Beta > 0.25 (sufficient volatility) (BUY_MIN_BETA) AND
+  - PE Forward (PEF) and PE Trailing (PET) data must be available (primary required criteria) AND
   - PEF < PET (improving earnings outlook) OR Trailing P/E ≤ 0 (negative) AND
   - PEF > 0.5 (positive earnings projection) (BUY_MIN_FORWARD_PE) AND
   - PEF <= 45.0 (reasonable valuation) (BUY_MAX_FORWARD_PE) AND
-  - PEG < 2.5 (reasonable valuation relative to growth) (BUY_MAX_PEG) - *ignored if PEG data not available* AND
-  - SI <= 1.5% (acceptable short interest) (BUY_MAX_SHORT_INTEREST) - *ignored if SI data not available* AND
+  - PEG < 2.5 (reasonable valuation relative to growth) (BUY_MAX_PEG) - *secondary criterion, only checked if PEG data available* AND
+  - SI <= 1.5% (acceptable short interest) (BUY_MAX_SHORT_INTEREST) - *secondary criterion, only checked if SI data available* AND
   - EXRET >= 15.0 (strong expected return) (BUY_MIN_EXRET)
 
 - **HOLD**:
@@ -312,9 +314,23 @@ For stocks that pass the confidence threshold (5+ price targets and 5+ analyst r
 - **EXRET Calculation**:
   - Expected Return = Upside Potential × Buy Percentage / 100
 
+**Primary vs. Secondary Criteria**:
+- **Primary Criteria** (must be available for BUY classification):
+  - Beta
+  - PE Forward (PEF)
+  - PE Trailing (PET)
+  - These metrics are required to classify a stock as BUY, even if all other criteria are met
+  - Stocks missing any primary criterion will be classified as HOLD
+
+- **Secondary Criteria** (only checked if available):
+  - PEG Ratio
+  - Short Interest (SI)
+  - These metrics are only evaluated when present, and ignored when missing
+
 **Important Note**: These exact same criteria are used consistently in both:
 1. Determining the coloring in market and portfolio views (`trade m`, `trade p`, `trade e`)
 2. Filtering stocks into the buy/sell/hold lists (`trade t b`, `trade t s`, `trade t h`)
+3. Manual ticker input mode (`trade i`)
 
 The system ensures perfect alignment between the color a stock receives in the main views and which list it appears in with the trade command. Green-colored stocks appear in buy lists, red-colored stocks appear in sell lists, and white/neutral-colored stocks appear in hold lists.
 
