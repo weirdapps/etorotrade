@@ -35,8 +35,8 @@ RATE_LIMIT = {
     # Number of items per batch
     "BATCH_SIZE": 20,
     
-    # Delay between batches in seconds
-    "BATCH_DELAY": 5.0,
+    # Delay between batches in seconds (reduced for better performance)
+    "BATCH_DELAY": 3.0,
     
     # Maximum retry attempts for API calls
     "MAX_RETRY_ATTEMPTS": 3,
