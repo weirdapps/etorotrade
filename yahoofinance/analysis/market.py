@@ -7,7 +7,7 @@ identifying trading opportunities, and applying trading criteria.
 
 import pandas as pd
 import logging
-from typing import Dict, List, Optional, Any, Union, Set
+from typing import Dict, List, Optional, Any, Union, Set, Tuple
 from dataclasses import dataclass, field
 
 from ..api import get_provider, FinanceDataProvider, AsyncFinanceDataProvider
@@ -111,6 +111,135 @@ class SectorAnalysis:
     avg_peg_ratio: Optional[float] = None
 
 
+def get_confidence_condition(df: pd.DataFrame) -> pd.Series:
+    """
+    Create a condition to check if stocks have sufficient analyst coverage.
+    
+    Args:
+        df: DataFrame with market data
+        
+    Returns:
+        Boolean Series indicating which stocks have sufficient analyst coverage
+    """
+    return (
+        df['analyst_count'].notna() & 
+        df['total_ratings'].notna() & 
+        (df['analyst_count'] >= TRADING_CRITERIA["CONFIDENCE"]["MIN_PRICE_TARGETS"]) &
+        (df['total_ratings'] >= TRADING_CRITERIA["CONFIDENCE"]["MIN_ANALYST_COUNT"])
+    )
+
+
+def process_ticker_batch_result(tickers: List[str], ticker_info_batch: Dict[str, Dict]) -> List[Dict]:
+    """
+    Process batch results from the provider to create a consistent market data list.
+    
+    Args:
+        tickers: List of stock ticker symbols
+        ticker_info_batch: Dictionary mapping tickers to their data
+        
+    Returns:
+        List of dictionaries with processed market data
+    """
+    market_data = []
+    for ticker in tickers:
+        if ticker in ticker_info_batch and ticker_info_batch[ticker]:
+            ticker_info = ticker_info_batch[ticker]
+            market_data.append({
+                'ticker': ticker,
+                'name': ticker_info.get('name', ticker),
+                'price': ticker_info.get('price'),
+                'market_cap': ticker_info.get('market_cap'),
+                'market_cap_fmt': ticker_info.get('market_cap_fmt'),
+                'upside': ticker_info.get('upside'),
+                'pe_trailing': ticker_info.get('pe_ratio'),
+                'pe_forward': ticker_info.get('forward_pe'),
+                'peg_ratio': ticker_info.get('peg_ratio'),
+                'beta': ticker_info.get('beta'),
+                'dividend_yield': ticker_info.get('dividend_yield'),
+                'buy_percentage': ticker_info.get('buy_percentage'),
+                'total_ratings': ticker_info.get('total_ratings'),
+                'analyst_count': ticker_info.get('analyst_count'),
+                'short_float_pct': ticker_info.get('short_percent'),
+                'sector': ticker_info.get('sector')
+            })
+    return market_data
+
+
+def get_short_interest_condition(df: pd.DataFrame, short_interest_threshold: float, is_maximum: bool = True) -> pd.Series:
+    """
+    Create a condition for filtering based on short interest thresholds.
+    
+    Args:
+        df: DataFrame with market data
+        short_interest_threshold: Threshold value for short interest
+        is_maximum: If True, filter for values below threshold (for buy). If False, above threshold (for sell).
+        
+    Returns:
+        Boolean Series for filtering
+    """
+    # Handle either short_percent or short_float_pct column name
+    short_field = 'short_percent' if 'short_percent' in df.columns else 'short_float_pct'
+    
+    if short_field in df.columns:
+        if is_maximum:
+            return (
+                df[short_field].isna() |  # Ignore missing short interest
+                df[short_field].isnull() |
+                (df[short_field] <= short_interest_threshold)
+            )
+        else:
+            return (
+                df[short_field].notna() &
+                (df[short_field] > short_interest_threshold)
+            )
+    else:
+        # If no short interest column exists, return appropriate default
+        return pd.Series(True if is_maximum else False, index=df.index)
+
+
+def calculate_sector_metrics(sector_stocks: pd.DataFrame) -> Tuple[int, int, int, Dict[str, Optional[float]]]:
+    """
+    Calculate sector-specific metrics for stocks in a given sector.
+    
+    Args:
+        sector_stocks: DataFrame with stocks from a single sector
+        
+    Returns:
+        Tuple of (buy_count, sell_count, stock_count, metrics_dict)
+    """
+    # Apply filters
+    sector_buy = filter_buy_opportunities(sector_stocks)
+    sector_sell = filter_sell_candidates(sector_stocks)
+    sector_hold = filter_hold_candidates(sector_stocks)
+    
+    # Get counts
+    stock_count = len(sector_stocks)
+    buy_count = len(sector_buy)
+    sell_count = len(sector_sell)
+    hold_count = len(sector_hold)
+    
+    # Calculate percentages
+    metrics = {}
+    if stock_count > 0:
+        metrics['buy_pct'] = (buy_count / stock_count) * 100
+        metrics['sell_pct'] = (sell_count / stock_count) * 100
+        metrics['hold_pct'] = (hold_count / stock_count) * 100
+        metrics['net_breadth'] = metrics['buy_pct'] - metrics['sell_pct']
+    else:
+        metrics['buy_pct'] = None
+        metrics['sell_pct'] = None
+        metrics['hold_pct'] = None
+        metrics['net_breadth'] = None
+    
+    # Calculate averages for key metrics
+    for col in ['upside', 'buy_percentage', 'pe_trailing', 'peg_ratio']:
+        if col in sector_stocks.columns:
+            valid_values = sector_stocks[col].dropna()
+            metrics[f'avg_{col}'] = valid_values.mean() if len(valid_values) > 0 else None
+    
+    return buy_count, sell_count, stock_count, metrics
+
+
 class MarketAnalyzer:
     """
     Analyzer for market-wide data and sector-specific analysis.
@@ -157,37 +286,12 @@ class MarketAnalyzer:
             # Fetch data in batch
             ticker_info_batch = self.provider.batch_get_ticker_info(tickers)
             
-            # Convert to DataFrame
-            market_data = []
-            for ticker in tickers:
-                if ticker in ticker_info_batch and ticker_info_batch[ticker]:
-                    ticker_info = ticker_info_batch[ticker]
-                    market_data.append({
-                        'ticker': ticker,
-                        'name': ticker_info.get('name', ticker),
-                        'price': ticker_info.get('price'),
-                        'market_cap': ticker_info.get('market_cap'),
-                        'market_cap_fmt': ticker_info.get('market_cap_fmt'),
-                        'upside': ticker_info.get('upside'),
-                        'pe_trailing': ticker_info.get('pe_ratio'),
-                        'pe_forward': ticker_info.get('forward_pe'),
-                        'peg_ratio': ticker_info.get('peg_ratio'),
-                        'beta': ticker_info.get('beta'),
-                        'dividend_yield': ticker_info.get('dividend_yield'),
-                        'buy_percentage': ticker_info.get('buy_percentage'),
-                        'total_ratings': ticker_info.get('total_ratings'),
-                        'analyst_count': ticker_info.get('analyst_count'),
-                        'short_float_pct': ticker_info.get('short_percent'),
-                        'sector': ticker_info.get('sector')
-                    })
+            # Process batch results
+            market_data = process_ticker_batch_result(tickers, ticker_info_batch)
             
-            # Create DataFrame
+            # Create and return DataFrame
             market_df = pd.DataFrame(market_data)
-            
-            # Classify stocks
-            market_df = classify_stocks(market_df)
-            
-            return market_df
+            return classify_stocks(market_df)
         
         except Exception as e:
             logger.error(f"Error analyzing market: {str(e)}")
@@ -213,37 +317,12 @@ class MarketAnalyzer:
             # Fetch data in batch asynchronously
             ticker_info_batch = await self.provider.batch_get_ticker_info(tickers)
             
-            # Convert to DataFrame
-            market_data = []
-            for ticker in tickers:
-                if ticker in ticker_info_batch and ticker_info_batch[ticker]:
-                    ticker_info = ticker_info_batch[ticker]
-                    market_data.append({
-                        'ticker': ticker,
-                        'name': ticker_info.get('name', ticker),
-                        'price': ticker_info.get('price'),
-                        'market_cap': ticker_info.get('market_cap'),
-                        'market_cap_fmt': ticker_info.get('market_cap_fmt'),
-                        'upside': ticker_info.get('upside'),
-                        'pe_trailing': ticker_info.get('pe_ratio'),
-                        'pe_forward': ticker_info.get('forward_pe'),
-                        'peg_ratio': ticker_info.get('peg_ratio'),
-                        'beta': ticker_info.get('beta'),
-                        'dividend_yield': ticker_info.get('dividend_yield'),
-                        'buy_percentage': ticker_info.get('buy_percentage'),
-                        'total_ratings': ticker_info.get('total_ratings'),
-                        'analyst_count': ticker_info.get('analyst_count'),
-                        'short_float_pct': ticker_info.get('short_percent'),
-                        'sector': ticker_info.get('sector')
-                    })
+            # Process batch results
+            market_data = process_ticker_batch_result(tickers, ticker_info_batch)
             
-            # Create DataFrame
+            # Create and return DataFrame
             market_df = pd.DataFrame(market_data)
-            
-            # Classify stocks
-            market_df = classify_stocks(market_df)
-            
-            return market_df
+            return classify_stocks(market_df)
         
         except Exception as e:
             logger.error(f"Error analyzing market asynchronously: {str(e)}")
@@ -308,15 +387,13 @@ class MarketAnalyzer:
             sector_breadth = {}
             for sector in sector_counts.index:
                 sector_stocks = market_df[market_df['sector'] == sector]
-                sector_buys = len(filter_buy_opportunities(sector_stocks))
-                sector_sells = len(filter_sell_candidates(sector_stocks))
-                sector_total = len(sector_stocks)
+                buy_count, sell_count, sector_total, sector_metrics = calculate_sector_metrics(sector_stocks)
                 
                 if sector_total > 0:
                     sector_breadth[sector] = {
-                        'buy_pct': (sector_buys / sector_total) * 100,
-                        'sell_pct': (sector_sells / sector_total) * 100,
-                        'net_breadth': ((sector_buys - sector_sells) / sector_total) * 100
+                        'buy_pct': sector_metrics['buy_pct'],
+                        'sell_pct': sector_metrics['sell_pct'],
+                        'net_breadth': sector_metrics['net_breadth']
                     }
             
             metrics.sector_breadth = sector_breadth
@@ -344,20 +421,8 @@ class MarketAnalyzer:
         
         for sector in sectors:
             sector_stocks = market_df[market_df['sector'] == sector]
-            sector_buy = filter_buy_opportunities(sector_stocks)
-            sector_sell = filter_sell_candidates(sector_stocks)
-            sector_hold = filter_hold_candidates(sector_stocks)
-            
-            stock_count = len(sector_stocks)
-            buy_count = len(sector_buy)
-            sell_count = len(sector_sell)
-            hold_count = len(sector_hold)
-            
-            # Calculate percentages
-            buy_percentage = (buy_count / stock_count) * 100 if stock_count > 0 else None
-            sell_percentage = (sell_count / stock_count) * 100 if stock_count > 0 else None
-            hold_percentage = (hold_count / stock_count) * 100 if stock_count > 0 else None
-            net_breadth = buy_percentage - sell_percentage if buy_percentage is not None and sell_percentage is not None else None
+            buy_count, sell_count, stock_count, sector_metrics = calculate_sector_metrics(sector_stocks)
+            hold_count = stock_count - buy_count - sell_count
             
             # Calculate averages
             avg_upside = sector_stocks['upside'].dropna().mean() if 'upside' in sector_stocks.columns else None
@@ -372,10 +437,10 @@ class MarketAnalyzer:
                 buy_count=buy_count,
                 sell_count=sell_count,
                 hold_count=hold_count,
-                buy_percentage=buy_percentage,
-                sell_percentage=sell_percentage,
-                hold_percentage=hold_percentage,
-                net_breadth=net_breadth,
+                buy_percentage=sector_metrics['buy_pct'],
+                sell_percentage=sector_metrics['sell_pct'],
+                hold_percentage=sector_metrics['hold_pct'],
+                net_breadth=sector_metrics['net_breadth'],
                 avg_upside=avg_upside,
                 avg_buy_rating=avg_buy_rating,
                 avg_pe_ratio=avg_pe_ratio,
@@ -403,19 +468,13 @@ def filter_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame:
     buy_criteria = TRADING_CRITERIA["BUY"]
     
     # Filter condition with confidence requirements
-    confidence_condition = (
-        market_df['analyst_count'].notna() & 
-        market_df['total_ratings'].notna() & 
-        (market_df['analyst_count'] >= TRADING_CRITERIA["CONFIDENCE"]["MIN_PRICE_TARGETS"]) &
-        (market_df['total_ratings'] >= TRADING_CRITERIA["CONFIDENCE"]["MIN_ANALYST_COUNT"])
-    )
+    confidence_condition = get_confidence_condition(market_df)
     
     # Filter stocks based on upside and analyst consensus
     upside_condition = market_df['upside'] >= buy_criteria["BUY_MIN_UPSIDE"]
     analyst_condition = market_df['buy_percentage'] >= buy_criteria["BUY_MIN_BUY_PERCENTAGE"]
     
-    # Additional criteria for PE ratio, PEG ratio, beta, and short interest
-    # Beta criteria with nullability handling, consistent with PEG and short interest
+    # Beta criteria with nullability handling
     beta_condition = (
         market_df['beta'].isna() |  # Ignore missing beta values
         (
@@ -425,8 +484,6 @@ def filter_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame:
     )
     
     # PE condition - complex criteria with nullability handling
-    # If both PE values are positive, require PEF < PET
-    # If PET is <= 0 (negative), allow any PEF value
     pe_condition = (
         # PE Forward must be positive and not too high
         (market_df['pe_forward'] > buy_criteria["BUY_MIN_FORWARD_PE"]) &
@@ -447,17 +504,12 @@ def filter_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame:
         (pd.to_numeric(market_df['peg_ratio'], errors='coerce') < buy_criteria["BUY_MAX_PEG"])
     )
     
-    # Short interest criteria with nullability handling - handle both column names
-    short_field = 'short_percent' if 'short_percent' in market_df.columns else 'short_float_pct'
-    if short_field in market_df.columns:
-        short_condition = (
-            market_df[short_field].isna() |  # Ignore missing short interest
-            market_df[short_field].isnull() |
-            (market_df[short_field] <= buy_criteria["BUY_MAX_SHORT_INTEREST"])
-        )
-    else:
-        # If no short interest column exists, skip this check
-        short_condition = pd.Series(True, index=market_df.index)
+    # Short interest criteria with nullability handling
+    short_condition = get_short_interest_condition(
+        market_df, 
+        buy_criteria["BUY_MAX_SHORT_INTEREST"],
+        is_maximum=True
+    )
     
     # Combine all criteria
     buy_filter = (
@@ -489,12 +541,7 @@ def filter_sell_candidates(portfolio_df: pd.DataFrame) -> pd.DataFrame:
     sell_criteria = TRADING_CRITERIA["SELL"]
     
     # Filter condition with confidence requirements
-    confidence_condition = (
-        portfolio_df['analyst_count'].notna() &
-        portfolio_df['total_ratings'].notna() &
-        (portfolio_df['analyst_count'] >= TRADING_CRITERIA["CONFIDENCE"]["MIN_PRICE_TARGETS"]) &
-        (portfolio_df['total_ratings'] >= TRADING_CRITERIA["CONFIDENCE"]["MIN_ANALYST_COUNT"])
-    )
+    confidence_condition = get_confidence_condition(portfolio_df)
     
     # Initialize filters list for each SELL criterion
     filters = []
@@ -546,12 +593,12 @@ def filter_sell_candidates(portfolio_df: pd.DataFrame) -> pd.DataFrame:
         )
         filters.append(peg_condition)
     
-    # Short interest too high - handle both column names
-    short_field = 'short_percent' if 'short_percent' in portfolio_df.columns else 'short_float_pct'
-    if short_field in portfolio_df.columns and 'SELL_MIN_SHORT_INTEREST' in sell_criteria:
-        short_condition = (
-            portfolio_df[short_field].notna() &
-            (portfolio_df[short_field] > sell_criteria["SELL_MIN_SHORT_INTEREST"])
+    # Short interest too high
+    if 'SELL_MIN_SHORT_INTEREST' in sell_criteria:
+        short_condition = get_short_interest_condition(
+            portfolio_df, 
+            sell_criteria["SELL_MIN_SHORT_INTEREST"],
+            is_maximum=False
         )
         filters.append(short_condition)
     
@@ -616,12 +663,7 @@ def filter_hold_candidates(market_df: pd.DataFrame) -> pd.DataFrame:
     sell_candidates = filter_sell_candidates(market_df)
     
     # Filter for confidence condition
-    confidence_condition = (
-        market_df['analyst_count'].notna() &
-        market_df['total_ratings'].notna() &
-        (market_df['analyst_count'] >= TRADING_CRITERIA["CONFIDENCE"]["MIN_PRICE_TARGETS"]) &
-        (market_df['total_ratings'] >= TRADING_CRITERIA["CONFIDENCE"]["MIN_ANALYST_COUNT"])
-    )
+    confidence_condition = get_confidence_condition(market_df)
     
     # Get stocks with sufficient confidence
     confident_stocks = market_df[confidence_condition].copy()
@@ -641,9 +683,8 @@ def filter_risk_first_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame
     """
     Filter for buy opportunities with a risk-first approach.
     
-    This function prioritizes filtering out high-risk stocks first
-    before applying standard buy criteria. This helps ensure that
-    only the highest quality opportunities are included.
+    This function applies the same criteria as filter_buy_opportunities but
+    in a different order, prioritizing risk filters first.
     
     Args:
         market_df: DataFrame with market data
@@ -651,80 +692,9 @@ def filter_risk_first_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame
     Returns:
         DataFrame with risk-adjusted buy opportunities
     """
-    # Apply BUY criteria
-    buy_criteria = TRADING_CRITERIA["BUY"]
-    
-    # Start with confidence check
-    confidence_condition = (
-        market_df['analyst_count'].notna() & 
-        market_df['total_ratings'].notna() & 
-        (market_df['analyst_count'] >= TRADING_CRITERIA["CONFIDENCE"]["MIN_PRICE_TARGETS"]) &
-        (market_df['total_ratings'] >= TRADING_CRITERIA["CONFIDENCE"]["MIN_ANALYST_COUNT"])
-    )
-    
-    # Apply risk filters first - eliminate stocks with excessive risk
-    # Beta check (volatility not too high or too low)
-    # Ignore missing beta values, consistent with PEG and short interest handling
-    beta_condition = (
-        market_df['beta'].isna() |  # Ignore missing beta values
-        (
-            (market_df['beta'] > buy_criteria["BUY_MIN_BETA"]) &
-            (market_df['beta'] <= buy_criteria["BUY_MAX_BETA"])
-        )
-    )
-    
-    # PEG Ratio check (not too expensive relative to growth)
-    peg_condition = (
-        market_df['peg_ratio'].isna() |  # Ignore missing PEG values
-        (market_df['peg_ratio'] < buy_criteria["BUY_MAX_PEG"])
-    )
-    
-    # Short interest check (not too heavily shorted) - handle both column names
-    short_field = 'short_percent' if 'short_percent' in market_df.columns else 'short_float_pct'
-    if short_field in market_df.columns:
-        short_condition = (
-            market_df[short_field].isna() |  # Ignore missing short interest
-            market_df[short_field].isnull() |
-            (market_df[short_field] <= buy_criteria["BUY_MAX_SHORT_INTEREST"])
-        )
-    else:
-        # If no short interest column exists, skip this check
-        short_condition = pd.Series(True, index=market_df.index)
-    
-    # Apply risk filter first
-    risk_filter = beta_condition & peg_condition & short_condition
-    
-    # Then apply return filters
-    upside_condition = market_df['upside'] >= buy_criteria["BUY_MIN_UPSIDE"]
-    analyst_condition = market_df['buy_percentage'] >= buy_criteria["BUY_MIN_BUY_PERCENTAGE"]
-    
-    # PE condition - complex criteria with nullability handling
-    pe_condition = (
-        # PE Forward must be positive and not too high
-        (market_df['pe_forward'] > buy_criteria["BUY_MIN_FORWARD_PE"]) &
-        (market_df['pe_forward'] <= buy_criteria["BUY_MAX_FORWARD_PE"]) &
-        (
-            # PE Forward must be less than PE Trailing (improving)
-            ((market_df['pe_forward'] < market_df['pe_trailing']) & 
-             (market_df['pe_trailing'] > 0)) |
-            # Or PE Trailing must be negative or zero (growth case)
-            (market_df['pe_trailing'] <= 0)
-        )
-    )
-    
-    # Combine all criteria
-    buy_filter = (
-        confidence_condition &
-        risk_filter &
-        upside_condition &
-        analyst_condition &
-        pe_condition
-    )
-    
-    # Filter the dataframe
-    buy_opportunities = market_df[buy_filter].copy()
-    
-    return buy_opportunities
+    # We're using the same criteria and logic as filter_buy_opportunities,
+    # so we can just call that function directly
+    return filter_buy_opportunities(market_df)
 
 def calculate_market_metrics(market_df: pd.DataFrame) -> Dict[str, Any]:
     """
@@ -736,64 +706,44 @@ def calculate_market_metrics(market_df: pd.DataFrame) -> Dict[str, Any]:
     Returns:
         Dictionary with market metrics
     """
-    metrics = {}
+    # Create MarketMetrics object using the class method
+    analyzer = MarketAnalyzer()
+    metrics_obj = analyzer.calculate_market_metrics(market_df)
     
-    # Calculate average values for key metrics
-    numeric_columns = [
-        'upside', 'buy_percentage', 'beta', 
-        'pe_trailing', 'pe_forward', 'peg_ratio', 
-        'dividend_yield', 'short_float_pct'
-    ]
-    
-    for col in numeric_columns:
-        if col in market_df.columns:
-            valid_values = market_df[col].dropna()
-            if len(valid_values) > 0:
-                metrics[f'avg_{col}'] = valid_values.mean()
-                metrics[f'median_{col}'] = valid_values.median()
-                
-    # Count stocks by category
-    buy_opportunities = filter_buy_opportunities(market_df)
-    sell_candidates = filter_sell_candidates(market_df)
-    hold_candidates = filter_hold_candidates(market_df)
-    
-    metrics['buy_count'] = len(buy_opportunities)
-    metrics['sell_count'] = len(sell_candidates)
-    metrics['hold_count'] = len(hold_candidates)
-    metrics['total_count'] = len(market_df)
-    
-    # Calculate market breadth
-    if 'total_count' in metrics and metrics['total_count'] > 0:
-        metrics['buy_percentage'] = (metrics['buy_count'] / metrics['total_count']) * 100
-        metrics['sell_percentage'] = (metrics['sell_count'] / metrics['total_count']) * 100
-        metrics['hold_percentage'] = (metrics['hold_count'] / metrics['total_count']) * 100
+    # Convert to dictionary for backward compatibility
+    metrics_dict = {
+        # Average metrics
+        'avg_upside': metrics_obj.avg_upside,
+        'median_upside': metrics_obj.median_upside,
+        'avg_buy_percentage': metrics_obj.avg_buy_percentage,
+        'median_buy_percentage': metrics_obj.median_buy_percentage,
+        'avg_pe_ratio': metrics_obj.avg_pe_ratio,
+        'median_pe_ratio': metrics_obj.median_pe_ratio,
+        'avg_pe_forward': metrics_obj.avg_forward_pe,
+        'median_pe_forward': metrics_obj.median_forward_pe,
+        'avg_peg_ratio': metrics_obj.avg_peg_ratio,
+        'median_peg_ratio': metrics_obj.median_peg_ratio,
+        'avg_beta': metrics_obj.avg_beta,
+        'median_beta': metrics_obj.median_beta,
         
-        # Net breadth (buy - sell) as percentage of analyzed stocks
-        metrics['net_breadth'] = metrics['buy_percentage'] - metrics['sell_percentage']
-    
-    # Add sector breakdown if sector column exists
-    if 'sector' in market_df.columns:
-        sector_counts = market_df['sector'].value_counts()
-        metrics['sector_counts'] = sector_counts.to_dict()
+        # Count metrics
+        'buy_count': metrics_obj.buy_count,
+        'sell_count': metrics_obj.sell_count,
+        'hold_count': metrics_obj.hold_count,
+        'total_count': metrics_obj.total_count,
         
-        # Sector breadth - buy/sell ratio by sector
-        sector_breadth = {}
-        for sector in sector_counts.index:
-            sector_stocks = market_df[market_df['sector'] == sector]
-            sector_buys = len(filter_buy_opportunities(sector_stocks))
-            sector_sells = len(filter_sell_candidates(sector_stocks))
-            sector_total = len(sector_stocks)
-            
-            if sector_total > 0:
-                sector_breadth[sector] = {
-                    'buy_pct': (sector_buys / sector_total) * 100,
-                    'sell_pct': (sector_sells / sector_total) * 100,
-                    'net_breadth': ((sector_buys - sector_sells) / sector_total) * 100
-                }
+        # Percentage metrics
+        'buy_percentage': metrics_obj.buy_percentage,
+        'sell_percentage': metrics_obj.sell_percentage,
+        'hold_percentage': metrics_obj.hold_percentage,
+        'net_breadth': metrics_obj.net_breadth,
         
-        metrics['sector_breadth'] = sector_breadth
+        # Sector metrics
+        'sector_counts': metrics_obj.sector_counts,
+        'sector_breadth': metrics_obj.sector_breadth
+    }
     
-    return metrics
+    return metrics_dict
 
 def classify_stocks(market_df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -808,12 +758,7 @@ def classify_stocks(market_df: pd.DataFrame) -> pd.DataFrame:
     result_df = market_df.copy()
     
     # Define confidence condition
-    confidence_condition = (
-        market_df['analyst_count'].notna() & 
-        market_df['total_ratings'].notna() & 
-        (market_df['analyst_count'] >= TRADING_CRITERIA["CONFIDENCE"]["MIN_PRICE_TARGETS"]) &
-        (market_df['total_ratings'] >= TRADING_CRITERIA["CONFIDENCE"]["MIN_ANALYST_COUNT"])
-    )
+    confidence_condition = get_confidence_condition(market_df)
     
     # Initialize classification column as INCONCLUSIVE
     result_df['classification'] = 'INCONCLUSIVE'

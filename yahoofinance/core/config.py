@@ -33,10 +33,10 @@ RATE_LIMIT = {
     "MAX_DELAY": 30.0,
     
     # Number of items per batch
-    "BATCH_SIZE": 15,
+    "BATCH_SIZE": 20,
     
     # Delay between batches in seconds
-    "BATCH_DELAY": 15.0,
+    "BATCH_DELAY": 5.0,
     
     # Maximum retry attempts for API calls
     "MAX_RETRY_ATTEMPTS": 3,
@@ -45,7 +45,7 @@ RATE_LIMIT = {
     "API_TIMEOUT": 30,
     
     # Maximum concurrent API calls (for async)
-    "MAX_CONCURRENT_CALLS": 5,
+    "MAX_CONCURRENT_CALLS": 10,
     
     # Problematic tickers that should use longer delays
     "SLOW_TICKERS": set(),
