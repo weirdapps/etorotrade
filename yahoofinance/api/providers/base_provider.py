@@ -39,6 +39,22 @@ class FinanceDataProvider(ABC):
         pass
     
     @abstractmethod
+    def get_price_data(self, ticker: str) -> Dict[str, Any]:
+        """
+        Get current price data for a ticker.
+        
+        Args:
+            ticker: Stock ticker symbol
+            
+        Returns:
+            Dict containing price data including current price, target price, and upside potential
+            
+        Raises:
+            YFinanceError: When an error occurs while fetching data
+        """
+        pass
+    
+    @abstractmethod
     def get_historical_data(self, ticker: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
         """
         Get historical price data for a ticker.
@@ -167,7 +183,7 @@ class AsyncFinanceDataProvider(ABC):
     @abstractmethod
     async def get_ticker_info(self, ticker: str, skip_insider_metrics: bool = False) -> Dict[str, Any]:
         """
-        Get comprehensive information for a ticker.
+        Get comprehensive information for a ticker asynchronously.
         
         Args:
             ticker: Stock ticker symbol
@@ -175,6 +191,22 @@ class AsyncFinanceDataProvider(ABC):
             
         Returns:
             Dict containing stock information
+            
+        Raises:
+            YFinanceError: When an error occurs while fetching data
+        """
+        pass
+        
+    @abstractmethod
+    async def get_price_data(self, ticker: str) -> Dict[str, Any]:
+        """
+        Get current price data for a ticker asynchronously.
+        
+        Args:
+            ticker: Stock ticker symbol
+            
+        Returns:
+            Dict containing price data including current price, target price, and upside potential
             
         Raises:
             YFinanceError: When an error occurs while fetching data

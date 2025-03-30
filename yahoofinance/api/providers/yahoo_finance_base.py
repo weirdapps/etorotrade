@@ -48,7 +48,24 @@ class YahooFinanceBaseProvider(abc.ABC):
         """
         self.max_retries = max_retries
         self.retry_delay = retry_delay
-        self._ticker_cache = {}
+        
+    def _calculate_upside_potential(self, current_price, target_price):
+        """
+        Calculate the upside potential percentage between current price and target price.
+        
+        Args:
+            current_price: Current stock price
+            target_price: Analyst target price
+            
+        Returns:
+            float: Upside potential percentage or None if either price is None
+        """
+        try:
+            if current_price is not None and target_price is not None and current_price > 0:
+                return ((target_price / current_price) - 1) * 100
+            return None
+        except (TypeError, ZeroDivisionError):
+            return None
         
     @abc.abstractmethod
     def get_ticker_info(self, ticker: str, skip_insider_metrics: bool = False) -> Dict[str, Any]:

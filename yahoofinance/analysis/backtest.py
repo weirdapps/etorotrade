@@ -525,7 +525,7 @@ class Backtester:
         date: datetime,
         buy_pct_range: Tuple[float, float] = (60, 95),
         analyst_count_range: Tuple[int, int] = (5, 30),
-        upside_pct_scale: float = 2.0,
+        # Removed unused parameter: upside_pct_scale
         seed: Optional[int] = None,
         batch_size: int = 50  # Process tickers in batches of this size
     ) -> Dict[str, Dict[str, Any]]:
@@ -768,6 +768,159 @@ class Backtester:
         
         return results
     
+    def _prepare_ticker_selection(self, settings: BacktestSettings) -> List[str]:
+        """
+        Prepare the list of tickers for the backtest.
+        
+        Args:
+            settings: Backtest settings
+            
+        Returns:
+            List of selected tickers
+        """
+        # Load tickers if not provided
+        if not settings.tickers:
+            settings.tickers = self.load_tickers(settings.ticker_source)
+        
+        # Apply ticker limit if specified
+        if (settings.ticker_limit is not None and 
+            settings.ticker_limit > 0 and 
+            settings.ticker_limit < len(settings.tickers)):
+            
+            logger.info(f"Limiting backtest to {settings.ticker_limit} tickers (from {len(settings.tickers)})")
+            
+            # Use secrets module for cryptographically secure randomness
+            import secrets
+            sample_indices = set()
+            while len(sample_indices) < settings.ticker_limit:
+                sample_indices.add(secrets.randbelow(len(settings.tickers)))
+                
+            # Convert to list and sort for consistent ordering
+            return [settings.tickers[i] for i in sorted(sample_indices)]
+        else:
+            # No ticker limit - use all available tickers
+            logger.info(f"Using all {len(settings.tickers)} tickers for backtest")
+            return settings.tickers
+    
+    def _prepare_trading_criteria(self, settings: BacktestSettings) -> Dict[str, Any]:
+        """
+        Prepare trading criteria based on settings.
+        
+        Args:
+            settings: Backtest settings
+            
+        Returns:
+            Dictionary with trading criteria
+        """
+        # Copy default criteria
+        trading_criteria = copy.deepcopy(TRADING_CRITERIA)
+        
+        # Override with custom parameters if provided
+        if not settings.criteria_params:
+            return trading_criteria
+            
+        # Update criteria with custom parameters
+        for category, params in settings.criteria_params.items():
+            if category in trading_criteria:
+                for param_name, param_value in params.items():
+                    if param_name in trading_criteria[category]:
+                        trading_criteria[category][param_name] = param_value
+                        
+        return trading_criteria
+    
+    def _prepare_data_for_backtest(self, settings: BacktestSettings) -> Tuple[pd.Timestamp, pd.Timestamp, Dict[str, pd.DataFrame], Dict[str, Any]]:
+        """
+        Prepare all data needed for the backtest.
+        
+        Args:
+            settings: Backtest settings
+            
+        Returns:
+            Tuple of (start_date, end_date, ticker_data, trading_criteria)
+        """
+        # Prepare ticker list and trading criteria
+        settings.tickers = self._prepare_ticker_selection(settings)
+        trading_criteria = self._prepare_trading_criteria(settings)
+        
+        # Get historical data for all tickers
+        logger.info(f"Fetching historical data for {len(settings.tickers)} tickers")
+        
+        # Load historical data
+        ticker_data = self._load_historical_data(settings)
+        
+        # Analyze data availability
+        ticker_date_ranges = self._analyze_date_ranges(ticker_data)
+        
+        # Filter tickers if needed for better date range
+        start_date, end_date = self._filter_tickers_for_date_range(
+            ticker_date_ranges, 
+            ticker_data,
+            settings
+        )
+        
+        # Validate date range
+        start_date, end_date = self._validate_date_range(start_date, end_date)
+        
+        return start_date, end_date, ticker_data, trading_criteria
+    
+    def _process_results(
+        self,
+        portfolio_values: List[Dict[str, Any]],
+        all_trades: List[Dict[str, Any]],
+        start_date: pd.Timestamp,
+        end_date: pd.Timestamp,
+        settings: BacktestSettings,
+        trading_criteria: Dict[str, Any]
+    ) -> BacktestResult:
+        """
+        Process and create final backtest results.
+        
+        Args:
+            portfolio_values: List of portfolio values
+            all_trades: List of trades
+            start_date: Start date
+            end_date: End date
+            settings: Backtest settings
+            trading_criteria: Trading criteria
+            
+        Returns:
+            BacktestResult object
+        """
+        # Create portfolio values DataFrame
+        portfolio_df = pd.DataFrame(portfolio_values)
+        
+        # Handle timezone-aware datetimes
+        portfolio_df['date'] = pd.to_datetime(portfolio_df['date'], utc=True)
+        portfolio_df.set_index('date', inplace=True)
+        
+        # Calculate performance metrics
+        performance = self._calculate_performance_metrics(portfolio_df)
+        
+        # Calculate benchmark performance
+        benchmark_data = self._calculate_benchmark_performance(
+            start_date, 
+            end_date
+        )
+        
+        # Create result object
+        result = BacktestResult(
+            settings=settings,
+            portfolio_values=portfolio_df,
+            trades=all_trades,
+            performance=performance,
+            benchmark_performance=benchmark_data,
+            criteria_used=trading_criteria
+        )
+        
+        # Save the result and get paths
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        saved_paths = self._save_backtest_result(result, timestamp)
+        
+        # Attach paths to result for easy access
+        result.saved_paths = saved_paths
+        
+        return result
+    
     def run_backtest(
         self, 
         settings: Optional[BacktestSettings] = None
@@ -788,281 +941,419 @@ class Backtester:
         if settings is None:
             settings = BacktestSettings()
             
-        # Load tickers if not provided
-        if not settings.tickers:
-            settings.tickers = self.load_tickers(settings.ticker_source)
-        
-        # Apply ticker limit if specified
-        if settings.ticker_limit is not None and settings.ticker_limit > 0 and settings.ticker_limit < len(settings.tickers):
-            logger.info(f"Limiting backtest to {settings.ticker_limit} tickers (from {len(settings.tickers)})")
-            import secrets
-            # Use secrets module for cryptographically secure randomness
-            sample_indices = set()
-            while len(sample_indices) < settings.ticker_limit:
-                sample_indices.add(secrets.randbelow(len(settings.tickers)))
-            # Convert to list and sort for consistent ordering
-            settings.tickers = [settings.tickers[i] for i in sorted(sample_indices)]
-        else:
-            # No ticker limit - use all available tickers
-            logger.info(f"Using all {len(settings.tickers)} tickers for backtest")
-            
-        # Prepare trading criteria
-        trading_criteria = copy.deepcopy(TRADING_CRITERIA)
-        if settings.criteria_params:
-            # Override with custom parameters
-            for category, params in settings.criteria_params.items():
-                if category in trading_criteria:
-                    for param_name, param_value in params.items():
-                        if param_name in trading_criteria[category]:
-                            trading_criteria[category][param_name] = param_value
-        
         try:
-            # Get historical data for all tickers
-            logger.info(f"Fetching historical data for {len(settings.tickers)} tickers")
+            # Step 1: Prepare data
+            start_date, end_date, ticker_data, trading_criteria = self._prepare_data_for_backtest(settings)
             
-            # Check if we already have data for these tickers in the cache
-            if settings.tickers and all(ticker in self.ticker_data_cache for ticker in settings.tickers):
-                logger.info("Using cached historical data for all tickers")
-                ticker_data = {ticker: self.ticker_data_cache[ticker] for ticker in settings.tickers}
-            else:
-                ticker_data = self.prepare_backtest_data(
-                    settings.tickers, 
-                    settings.period,
-                    cache_max_age_days=settings.cache_max_age_days
-                )
-            
-            # Analyze data availability for all tickers
-            ticker_date_ranges = {}
-            global_earliest_end = None
-            global_latest_start = None
-            
-            for ticker, data in ticker_data.items():
-                if data.empty:
-                    continue
-                    
-                ticker_start = data.index.min()
-                ticker_end = data.index.max()
-                
-                # Store date range for this ticker
-                ticker_date_ranges[ticker] = {
-                    'start': ticker_start,
-                    'end': ticker_end,
-                    'days': (ticker_end - ticker_start).days
-                }
-                
-                # Track global latest start and earliest end dates
-                if global_latest_start is None or ticker_start > global_latest_start:
-                    global_latest_start = ticker_start
-                    
-                if global_earliest_end is None or ticker_end < global_earliest_end:
-                    global_earliest_end = ticker_end
-            
-            if not ticker_date_ranges:
-                raise YFinanceError("No valid data found for any tickers")
-                
-            # If using all tickers would result in less than 1 year of data,
-            # filter out tickers with limited history
-            if global_latest_start and global_earliest_end:
-                common_days = (global_earliest_end - global_latest_start).days
-                common_years = common_days / 365.25
-                
-                # Check if we need to filter tickers for better date range
-                target_years = {
-                    "1y": 1.0,
-                    "2y": 2.0,
-                    "3y": 3.0,
-                    "5y": 5.0,
-                    "max": 10.0  # For max, aim for at least 10 years if possible
-                }.get(settings.period, 3.0)
-                
-                logger.info(f"Common date range across all tickers: {common_years:.2f} years")
-                
-                if common_years < target_years and settings.data_coverage_threshold < 1.0:
-                    # We need to filter out some tickers to get a better date range
-                    logger.info(f"Common date range ({common_years:.2f} years) is less than target ({target_years:.2f} years)")
-                    logger.info(f"Filtering tickers using coverage threshold: {settings.data_coverage_threshold}")
-                    
-                    # Sort tickers by start date (ascending - earlier is better)
-                    sorted_tickers = sorted(
-                        ticker_date_ranges.items(),
-                        key=lambda x: x[1]['start']
-                    )
-                    
-                    # Calculate how many tickers to keep
-                    keep_count = max(int(len(sorted_tickers) * settings.data_coverage_threshold), 2)
-                    logger.info(f"Keeping {keep_count} of {len(sorted_tickers)} tickers ({settings.data_coverage_threshold:.0%})")
-                    
-                    # Keep only the tickers with earliest start dates
-                    kept_tickers = sorted_tickers[:keep_count]
-                    kept_ticker_symbols = [t[0] for t in kept_tickers]
-                    
-                    # Find the new common date range
-                    start_date = max(ticker_date_ranges[t]['start'] for t in kept_ticker_symbols)
-                    end_date = min(ticker_date_ranges[t]['end'] for t in kept_ticker_symbols)
-                    
-                    # Remove filtered tickers from ticker_data
-                    excluded_tickers = set(ticker_date_ranges.keys()) - set(kept_ticker_symbols)
-                    for ticker in excluded_tickers:
-                        del ticker_data[ticker]
-                        
-                    logger.info(f"Excluded {len(excluded_tickers)} tickers with limited history")
-                    excluded_list = ", ".join(list(excluded_tickers)[:10])
-                    if len(excluded_tickers) > 10:
-                        excluded_list += f"... and {len(excluded_tickers) - 10} more"
-                    logger.info(f"Excluded tickers: {excluded_list}")
-                else:
-                    # Use all tickers with their common date range
-                    start_date = global_latest_start
-                    end_date = global_earliest_end
-            else:
-                raise YFinanceError("Could not determine valid date range")
-                
-            # Make sure start_date is before end_date
-            if start_date > end_date:
-                # Swap them if they're in the wrong order
-                start_date, end_date = end_date, start_date
-                
-            # Verify dates are valid
-            if (end_date - start_date).days < 1:
-                raise YFinanceError(f"Invalid date range: {start_date.date()} to {end_date.date()} - too short for backtest")
-            
-            # Calculate and log final date range    
-            backtest_days = (end_date - start_date).days
-            backtest_years = backtest_days / 365.25
-            logger.info(f"Backtest date range: {start_date.date()} to {end_date.date()} ({backtest_years:.2f} years)")
-            
-            # Generate rebalance dates based on frequency
-            rebalance_dates = self._generate_rebalance_dates(
-                start_date, 
-                end_date, 
-                settings.rebalance_frequency
-            )
-            
-            # Initialize portfolio
-            portfolio = {
-                'cash': settings.initial_capital,
-                'positions': {},  # ticker -> BacktestPosition
-                'total_value': settings.initial_capital,
-                'timestamp': start_date
-            }
-            
-            # DataFrame to track portfolio values
-            portfolio_values = []
-            
-            # List to track all trades
-            all_trades = []
-            
-            # Set of currently held tickers
-            held_tickers = set()
-            
-            # Run the backtest through all rebalance dates
-            # Create a progress bar for backtest simulation
-            # Get total number of dates for more accurate progress reporting
-            rebalance_dates = list(rebalance_dates)  # Convert generator to list if needed
-            progress_bar = tqdm(
-                rebalance_dates,
-                desc="Simulating portfolio", 
-                unit="date",
-                leave=False,
-                dynamic_ncols=True,
-                colour="blue",
-                disable=self.disable_progress,
-                total=len(rebalance_dates)
-            )
-            
-            # Process each rebalance date
-            for i, date in enumerate(rebalance_dates):
-                # Update progress bar with current date
-                progress_bar.n = i
-                progress_bar.set_description(f"Simulating {date.strftime('%Y-%m-%d')}")
-                progress_bar.update(0)  # Force refresh
-                
-                # Get data for the current date
-                current_data = self.get_ticker_data_for_date(ticker_data, date)
-                
-                # Skip dates with no data
-                if not current_data:
-                    continue
-                
-                # Generate analyst metrics for the current date with batch processing
-                enhanced_data = self.generate_analyst_data(
-                    current_data, 
-                    date,
-                    batch_size=min(50, len(current_data))  # Adjust batch size based on data size
-                )
-                
-                # Calculate actions for each ticker
-                actions = self.calculate_actions(enhanced_data, settings.criteria_params)
-                
-                # Update portfolio based on actions
-                self._update_portfolio(
-                    portfolio,
-                    enhanced_data,
-                    actions,
-                    date,
-                    settings,
-                    all_trades,
-                    held_tickers
-                )
-                
-                # Record portfolio value
-                portfolio_values.append({
-                    'date': date,
-                    'cash': portfolio['cash'],
-                    'positions_value': portfolio['total_value'] - portfolio['cash'],
-                    'total_value': portfolio['total_value']
-                })
-                
-                # Update progress bar with portfolio value
-                progress_bar.set_postfix({
-                    "Value": f"${portfolio['total_value']:.2f}", 
-                    "Pos": len(portfolio['positions'])
-                })
-                
-                # Update portfolio timestamp
-                portfolio['timestamp'] = date
-            
-            # Close any remaining positions at the end
-            self._close_all_positions(portfolio, end_date, ticker_data, all_trades)
-            
-            # Create portfolio values DataFrame
-            portfolio_df = pd.DataFrame(portfolio_values)
-            
-            # Handle timezone-aware datetimes by converting to UTC
-            portfolio_df['date'] = pd.to_datetime(portfolio_df['date'], utc=True)
-            portfolio_df.set_index('date', inplace=True)
-            
-            # Calculate performance metrics
-            performance = self._calculate_performance_metrics(portfolio_df)
-            
-            # Calculate benchmark performance
-            benchmark_data = self._calculate_benchmark_performance(
-                start_date, 
+            # Step 2: Run simulation
+            portfolio, portfolio_values, all_trades = self._run_backtest_simulation(
+                start_date,
                 end_date,
-                portfolio_df
+                ticker_data,
+                settings
             )
             
-            # Create the result object
-            result = BacktestResult(
-                settings=settings,
-                portfolio_values=portfolio_df,
-                trades=all_trades,
-                performance=performance,
-                benchmark_performance=benchmark_data,
-                criteria_used=trading_criteria
+            # Step 3: Process results
+            result = self._process_results(
+                portfolio_values,
+                all_trades,
+                start_date,
+                end_date,
+                settings,
+                trading_criteria
             )
-            
-            # Save the result and get paths
-            saved_paths = self._save_backtest_result(result)
-            
-            # Attach paths to result for easy access
-            result.saved_paths = saved_paths
             
             return result
             
         except Exception as e:
             logger.error(f"Error during backtest: {str(e)}")
             raise YFinanceError(f"Backtest failed: {str(e)}")
+        
+    def _load_historical_data(self, settings: BacktestSettings) -> Dict[str, pd.DataFrame]:
+        """
+        Load historical data for tickers, using cache when possible.
+        
+        Args:
+            settings: Backtest settings
+            
+        Returns:
+            Dictionary of ticker data
+        """
+        logger.info(f"Fetching historical data for {len(settings.tickers)} tickers")
+        
+        # Check if all tickers are already in cache
+        if settings.tickers and all(ticker in self.ticker_data_cache for ticker in settings.tickers):
+            logger.info("Using cached historical data for all tickers")
+            return {ticker: self.ticker_data_cache[ticker] for ticker in settings.tickers}
+        
+        # Otherwise, prepare data (handles both cache and fresh fetches)
+        return self.prepare_backtest_data(
+            settings.tickers, 
+            settings.period,
+            cache_max_age_days=settings.cache_max_age_days
+        )
+    
+    def _analyze_date_ranges(self, ticker_data: Dict[str, pd.DataFrame]) -> Dict[str, Dict[str, Any]]:
+        """
+        Analyze data availability for all tickers.
+        
+        Args:
+            ticker_data: Dictionary of ticker data
+            
+        Returns:
+            Dictionary of ticker date range information
+        """
+        ticker_date_ranges = {}
+        global_earliest_end = None
+        global_latest_start = None
+        
+        for ticker, data in ticker_data.items():
+            if data.empty:
+                continue
+                
+            ticker_start = data.index.min()
+            ticker_end = data.index.max()
+            
+            # Store date range for this ticker
+            ticker_date_ranges[ticker] = {
+                'start': ticker_start,
+                'end': ticker_end,
+                'days': (ticker_end - ticker_start).days
+            }
+            
+            # Track global range boundaries
+            if global_latest_start is None or ticker_start > global_latest_start:
+                global_latest_start = ticker_start
+                
+            if global_earliest_end is None or ticker_end < global_earliest_end:
+                global_earliest_end = ticker_end
+        
+        # Store global dates in the result
+        if ticker_date_ranges:
+            ticker_date_ranges['__global__'] = {
+                'latest_start': global_latest_start,
+                'earliest_end': global_earliest_end
+            }
+        
+        return ticker_date_ranges
+    
+    def _filter_tickers_for_date_range(
+        self, 
+        ticker_date_ranges: Dict[str, Dict[str, Any]], 
+        ticker_data: Dict[str, pd.DataFrame],
+        settings: BacktestSettings
+    ) -> Tuple[pd.Timestamp, pd.Timestamp]:
+        """
+        Filter tickers to achieve better date range coverage.
+        
+        Args:
+            ticker_date_ranges: Dictionary of ticker date ranges
+            ticker_data: Dictionary of ticker data
+            settings: Backtest settings
+            
+        Returns:
+            Tuple of (start_date, end_date)
+            
+        Raises:
+            YFinanceError: If no valid date range can be determined
+        """
+        if not ticker_date_ranges:
+            raise YFinanceError("No valid data found for any tickers")
+        
+        # Get global range
+        global_info = ticker_date_ranges.get('__global__', {})
+        global_latest_start = global_info.get('latest_start')
+        global_earliest_end = global_info.get('earliest_end')
+        
+        if not (global_latest_start and global_earliest_end):
+            raise YFinanceError("Could not determine valid date range")
+        
+        # Calculate common date range
+        common_days = (global_earliest_end - global_latest_start).days
+        common_years = common_days / 365.25
+        
+        # Determine target years based on period
+        target_years = {
+            "1y": 1.0,
+            "2y": 2.0,
+            "3y": 3.0,
+            "5y": 5.0,
+            "max": 10.0  # For max, aim for at least 10 years if possible
+        }.get(settings.period, 3.0)
+        
+        logger.info(f"Common date range across all tickers: {common_years:.2f} years")
+        
+        # Check if filtering is needed
+        if common_years < target_years and settings.data_coverage_threshold < 1.0:
+            return self._apply_ticker_filtering(
+                ticker_date_ranges, 
+                ticker_data, 
+                settings,
+                common_years,
+                target_years
+            )
+        
+        # No filtering needed
+        return global_latest_start, global_earliest_end
+    
+    def _apply_ticker_filtering(
+        self,
+        ticker_date_ranges: Dict[str, Dict[str, Any]],
+        ticker_data: Dict[str, pd.DataFrame],
+        settings: BacktestSettings,
+        common_years: float,
+        target_years: float
+    ) -> Tuple[pd.Timestamp, pd.Timestamp]:
+        """
+        Apply ticker filtering to improve date range.
+        
+        Args:
+            ticker_date_ranges: Dictionary of ticker date ranges
+            ticker_data: Dictionary of ticker data
+            settings: Backtest settings
+            common_years: Current common years coverage
+            target_years: Target years coverage
+            
+        Returns:
+            Tuple of (start_date, end_date)
+        """
+        # Remove the __global__ entry before sorting
+        ticker_ranges = {k: v for k, v in ticker_date_ranges.items() if k != '__global__'}
+        
+        logger.info(f"Common range ({common_years:.2f} years) is less than target ({target_years:.2f} years)")
+        logger.info(f"Filtering tickers using coverage threshold: {settings.data_coverage_threshold}")
+        
+        # Sort tickers by start date (ascending - earlier is better)
+        sorted_tickers = sorted(
+            ticker_ranges.items(),
+            key=lambda x: x[1]['start']
+        )
+        
+        # Calculate how many tickers to keep
+        keep_count = max(int(len(sorted_tickers) * settings.data_coverage_threshold), 2)
+        logger.info(f"Keeping {keep_count} of {len(sorted_tickers)} tickers ({settings.data_coverage_threshold:.0%})")
+        
+        # Keep only the tickers with earliest start dates
+        kept_tickers = sorted_tickers[:keep_count]
+        kept_ticker_symbols = [t[0] for t in kept_tickers]
+        
+        # Find the new common date range
+        start_date = max(ticker_ranges[t]['start'] for t in kept_ticker_symbols)
+        end_date = min(ticker_ranges[t]['end'] for t in kept_ticker_symbols)
+        
+        # Remove filtered tickers from ticker_data
+        excluded_tickers = set(ticker_ranges.keys()) - set(kept_ticker_symbols)
+        for ticker in excluded_tickers:
+            del ticker_data[ticker]
+            
+        logger.info(f"Excluded {len(excluded_tickers)} tickers with limited history")
+        self._log_excluded_tickers(excluded_tickers)
+        
+        return start_date, end_date
+    
+    def _log_excluded_tickers(self, excluded_tickers: Set[str]) -> None:
+        """
+        Log information about excluded tickers.
+        
+        Args:
+            excluded_tickers: Set of excluded ticker symbols
+        """
+        excluded_list = ", ".join(list(excluded_tickers)[:10])
+        if len(excluded_tickers) > 10:
+            excluded_list += f"... and {len(excluded_tickers) - 10} more"
+        logger.info(f"Excluded tickers: {excluded_list}")
+    
+    def _validate_date_range(self, start_date: pd.Timestamp, end_date: pd.Timestamp) -> Tuple[pd.Timestamp, pd.Timestamp]:
+        """
+        Validate and ensure start_date is before end_date.
+        
+        Args:
+            start_date: Start date
+            end_date: End date
+            
+        Returns:
+            Tuple of validated (start_date, end_date)
+            
+        Raises:
+            YFinanceError: If date range is invalid
+        """
+        # Make sure start_date is before end_date
+        if start_date > end_date:
+            # Swap them if they're in the wrong order
+            start_date, end_date = end_date, start_date
+            
+        # Verify dates are valid
+        if (end_date - start_date).days < 1:
+            raise YFinanceError(f"Invalid date range: {start_date.date()} to {end_date.date()} - too short for backtest")
+        
+        # Calculate and log final date range    
+        backtest_days = (end_date - start_date).days
+        backtest_years = backtest_days / 365.25
+        logger.info(f"Backtest date range: {start_date.date()} to {end_date.date()} ({backtest_years:.2f} years)")
+        
+        return start_date, end_date
+        
+    def _initialize_portfolio(self, settings: BacktestSettings, start_date: pd.Timestamp) -> Dict[str, Any]:
+        """
+        Initialize portfolio for backtest.
+        
+        Args:
+            settings: Backtest settings
+            start_date: Start date of backtest
+            
+        Returns:
+            Initialized portfolio dictionary
+        """
+        return {
+            'cash': settings.initial_capital,
+            'positions': {},  # ticker -> BacktestPosition
+            'total_value': settings.initial_capital,
+            'timestamp': start_date
+        }
+        
+    def _create_progress_bar(self, rebalance_dates: List[datetime]) -> tqdm:
+        """
+        Create a progress bar for backtest simulation.
+        
+        Args:
+            rebalance_dates: List of rebalance dates
+            
+        Returns:
+            tqdm progress bar
+        """
+        return tqdm(
+            rebalance_dates,
+            desc="Simulating portfolio", 
+            unit="date",
+            leave=False,
+            dynamic_ncols=True,
+            colour="blue",
+            disable=self.disable_progress,
+            total=len(rebalance_dates)
+        )
+        
+    def _process_simulation_date(
+        self,
+        date: datetime,
+        ticker_data: Dict[str, pd.DataFrame],
+        portfolio: Dict[str, Any],
+        portfolio_values: List[Dict[str, Any]],
+        all_trades: List[Dict[str, Any]],
+        held_tickers: Set[str],
+        settings: BacktestSettings
+    ) -> None:
+        """
+        Process a single simulation date.
+        
+        Args:
+            date: Current date
+            ticker_data: Historical price data
+            portfolio: Portfolio state
+            portfolio_values: List of portfolio values
+            all_trades: List of trades
+            held_tickers: Set of held tickers
+            settings: Backtest settings
+        """
+        # Get data for the current date
+        current_data = self.get_ticker_data_for_date(ticker_data, date)
+        
+        # Skip dates with no data
+        if not current_data:
+            return
+        
+        # Generate analyst metrics for the current date with batch processing
+        enhanced_data = self.generate_analyst_data(
+            current_data, 
+            date,
+            batch_size=min(50, len(current_data))
+        )
+        
+        # Calculate actions for each ticker
+        actions = self.calculate_actions(enhanced_data, settings.criteria_params)
+        
+        # Update portfolio based on actions
+        self._update_portfolio(
+            portfolio,
+            enhanced_data,
+            actions,
+            date,
+            settings,
+            all_trades,
+            held_tickers
+        )
+        
+        # Record portfolio value
+        portfolio_values.append({
+            'date': date,
+            'cash': portfolio['cash'],
+            'positions_value': portfolio['total_value'] - portfolio['cash'],
+            'total_value': portfolio['total_value']
+        })
+        
+        # Update portfolio timestamp
+        portfolio['timestamp'] = date
+        
+    def _run_backtest_simulation(
+        self,
+        start_date: pd.Timestamp,
+        end_date: pd.Timestamp,
+        ticker_data: Dict[str, pd.DataFrame],
+        settings: BacktestSettings
+    ) -> Tuple[Dict[str, Any], List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """
+        Run the core backtest simulation.
+        
+        Args:
+            start_date: Start date of backtest
+            end_date: End date of backtest
+            ticker_data: Historical price data
+            settings: Backtest settings
+            
+        Returns:
+            Tuple of (portfolio, portfolio_values, all_trades)
+        """
+        # Generate rebalance dates based on frequency
+        rebalance_dates = list(self._generate_rebalance_dates(
+            start_date, 
+            end_date, 
+            settings.rebalance_frequency
+        ))
+        
+        # Initialize portfolio
+        portfolio = self._initialize_portfolio(settings, start_date)
+        
+        # Lists to track values and trades
+        portfolio_values = []
+        all_trades = []
+        
+        # Set of currently held tickers
+        held_tickers = set()
+        
+        # Create progress bar
+        progress_bar = self._create_progress_bar(rebalance_dates)
+        
+        # Process each rebalance date
+        for i, date in enumerate(rebalance_dates):
+            # Update progress bar
+            progress_bar.n = i
+            progress_bar.set_description(f"Simulating {date.strftime('%Y-%m-%d')}")
+            progress_bar.update(0)  # Force refresh
+            
+            # Process this date
+            self._process_simulation_date(
+                date,
+                ticker_data,
+                portfolio,
+                portfolio_values,
+                all_trades,
+                held_tickers,
+                settings
+            )
+            
+        # Final progress update
+        progress_bar.close()
+        
+        return portfolio, portfolio_values, all_trades
     
     def _generate_rebalance_dates(
         self, 
@@ -1281,7 +1572,8 @@ class Backtester:
                     market_cap_fmt = f"{market_cap/1_000_000:.2f}M"
                 else:
                     market_cap_fmt = f"{market_cap:.0f}"
-            except:
+            except Exception as e:
+                logger.debug(f"Error formatting market cap for {ticker}: {str(e)}")
                 market_cap_fmt = "unknown"
                 
             logger.debug(f"Allocating {weight:.2%} of portfolio to {ticker} (Market Cap: {market_cap_fmt}, EXRET: {original_exret:.2f})")
@@ -1431,7 +1723,7 @@ class Backtester:
         self, 
         start_date: pd.Timestamp, 
         end_date: pd.Timestamp,
-        portfolio_df: pd.DataFrame
+        # Removed unused parameter: portfolio_df
     ) -> Dict[str, float]:
         """
         Calculate benchmark performance metrics.
@@ -1546,18 +1838,20 @@ class Backtester:
                 'max_drawdown': 0
             }
     
-    def _save_backtest_result(self, result: BacktestResult) -> Dict[str, str]:
+    def _save_backtest_result(self, result: BacktestResult, timestamp: str = None) -> Dict[str, str]:
         """
         Save backtest result to file and generate HTML report.
         
         Args:
             result: BacktestResult object
+            timestamp: Optional timestamp for file naming
             
         Returns:
             Dictionary with paths to saved files
         """
-        # Create timestamp for unique filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # Create timestamp for unique filename if not provided
+        if timestamp is None:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
         # Save JSON result
         json_path = os.path.join(self.output_dir, f"backtest_{timestamp}.json")
@@ -1671,12 +1965,25 @@ class Backtester:
                     
                 # Get all relevant metrics
                 entry_price = position.entry_price
-                current_price = position.exit_price if not is_open and position.exit_price else enhanced_data[ticker].get('Close', entry_price)
+                
+                # Extract conditional logic for current price
+                if not is_open and position.exit_price:
+                    current_price = position.exit_price
+                else:
+                    current_price = enhanced_data[ticker].get('Close', entry_price)
                 market_cap = enhanced_data[ticker].get('market_cap', 0)
                 
                 # Calculate value and return
                 position_value = position.shares * current_price 
-                return_pct = position.pnl_pct if position.pnl_pct is not None else ((current_price / entry_price) - 1) * 100 if entry_price > 0 else 0
+                
+                # Extract the nested conditional into separate steps
+                if position.pnl_pct is not None:
+                    return_pct = position.pnl_pct
+                else:
+                    if entry_price > 0:
+                        return_pct = ((current_price / entry_price) - 1) * 100
+                    else:
+                        return_pct = 0
                 
                 # Format market cap
                 market_cap_fmt = "N/A"
@@ -1758,7 +2065,7 @@ class Backtester:
             
             # Create portfolio value chart with benchmark
             try:
-                fig, ax = plt.subplots(figsize=(12, 7))
+                _, ax = plt.subplots(figsize=(12, 7))  # Using _ for unused fig variable
                 
                 # Plot portfolio value
                 result.portfolio_values['total_value'].plot(
@@ -1994,7 +2301,9 @@ class Backtester:
                         
             except Exception as e:
                 logger.warning(f"Error generating buy criteria rows: {str(e)}")
-                buy_rows = "<tr><td colspan='2'>Error generating criteria</td></tr>"
+                # Define a constant for the error row
+                ERROR_CRITERIA_ROW = "<tr><td colspan='2'>Error generating criteria</td></tr>"
+                buy_rows = ERROR_CRITERIA_ROW
                 
             sell_rows = ""
             try:
@@ -2024,7 +2333,7 @@ class Backtester:
                         
             except Exception as e:
                 logger.warning(f"Error generating sell criteria rows: {str(e)}")
-                sell_rows = "<tr><td colspan='2'>Error generating criteria</td></tr>"
+                sell_rows = ERROR_CRITERIA_ROW
                 
             confidence_rows = ""
             try:
@@ -2032,7 +2341,7 @@ class Backtester:
                     confidence_rows += f"<tr><td>{param}</td><td>{value}</td></tr>"
             except Exception as e:
                 logger.warning(f"Error generating confidence criteria rows: {str(e)}")
-                confidence_rows = "<tr><td colspan='2'>Error generating criteria</td></tr>"
+                confidence_rows = ERROR_CRITERIA_ROW
             
             # Get performance metrics with safe defaults
             perf = template_vars.get('performance', {})

@@ -307,11 +307,9 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
         try:
             yticker = self._get_yticker(ticker)
             return yticker.history(period=period, interval=interval)
-        except (ValueError, TypeError) as e:
-            logger.error(f"Data format error getting historical data for {ticker}: {str(e)}")
-            return pd.DataFrame()
-        except pd.errors.EmptyDataError as e:
-            logger.error(f"Empty data error getting historical data for {ticker}: {str(e)}")
+        except (ValueError, TypeError, pd.errors.EmptyDataError) as e:
+            # Handle all data-related errors in one clause
+            logger.error(f"Data error getting historical data for {ticker}: {str(e)}")
             return pd.DataFrame()
         except Exception as e:
             logger.error(f"Unexpected error getting historical data for {ticker}: {str(e)}")

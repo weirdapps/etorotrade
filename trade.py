@@ -1133,7 +1133,7 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_
     new_opportunities = buy_opportunities[~buy_opportunities['ticker'].str.upper().isin(portfolio_tickers)]
     
     # Filter out stocks in notrade.csv if file exists
-    new_opportunities, notrade_tickers = _filter_notrade_tickers(new_opportunities, notrade_path)
+    new_opportunities, _ = _filter_notrade_tickers(new_opportunities, notrade_path)
     
     # Sort by ticker (ascending) as requested
     if not new_opportunities.empty:
@@ -1621,9 +1621,6 @@ async def _process_batch(provider, batch, batch_num, total_batches, processed_so
     """
     results = []
     
-    # Update progress bar description for new batch
-    pbar.set_description(f"BATCH {batch_num+1}/{total_batches} ({processed_so_far}/{len(pbar)})")
-    
     # Process each ticker in the batch
     for j, ticker in enumerate(batch):
         try:
@@ -1633,10 +1630,6 @@ async def _process_batch(provider, batch, batch_num, total_batches, processed_so
                 
             # Update progress after each ticker
             pbar.update(1)
-            
-            # Update description to show current progress
-            current_ticker = processed_so_far + j + 1
-            pbar.set_description(f"BATCH {batch_num+1}/{total_batches} ({current_ticker}/{len(pbar)})")
             
             # Add a small delay between individual ticker requests within a batch
             if j < len(batch) - 1:  # Don't delay after the last ticker in batch
@@ -1656,6 +1649,41 @@ class RateLimitException(Exception):
     """Exception raised when a rate limit is hit."""
     pass
 
+async def _create_progress_bar(total_tickers, total_batches):
+    """Create a progress bar for ticker processing
+    
+    Args:
+        total_tickers: Total number of tickers
+        total_batches: Total number of batches
+        
+    Returns:
+        tqdm: Progress bar
+    """
+    return tqdm(
+        total=total_tickers, 
+        desc="Fetching ticker data",
+        unit="ticker", 
+        bar_format='{desc}: {percentage:3.0f}%|{bar:40}| {n_fmt}/{total_fmt}'
+    )
+
+async def _handle_batch_delay(batch_num, total_batches, pbar):
+    """Handle delay between batches
+    
+    Args:
+        batch_num: Current batch number
+        total_batches: Total number of batches
+        pbar: Progress bar
+    """
+    # Skip delay for the last batch
+    if batch_num >= total_batches - 1:
+        return
+        
+    # Increased batch delay to avoid rate limiting
+    batch_delay = 10.0
+    
+    # Sleep without interrupting progress display
+    await asyncio.sleep(batch_delay)
+
 async def fetch_ticker_data(provider, tickers):
     """Fetch ticker data from provider
     
@@ -1667,46 +1695,31 @@ async def fetch_ticker_data(provider, tickers):
         pd.DataFrame: Dataframe with ticker data
     """
     results = []
-    # Calculate batch size and total batches for progress display
+    
+    # Calculate batch parameters
     total_tickers = len(tickers)
     batch_size = 10  # Reduced batch size to avoid rate limiting
     total_batches = (total_tickers - 1) // batch_size + 1
     
-    # Create a master progress bar for all tickers with explicit formatting
-    with tqdm(total=total_tickers, desc=f"BATCH 0/{total_batches} (0/{total_tickers} tickers)", 
-              unit="ticker", bar_format='{desc}: {percentage:3.0f}%|{bar:80}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as pbar:
-        
-        # Process tickers in batches for better display
+    # Create progress bar
+    with await _create_progress_bar(total_tickers, total_batches) as pbar:
+        # Process tickers in batches
         for batch_num, i in enumerate(range(0, total_tickers, batch_size)):
-            # Get current batch
+            # Get current batch and process it
             batch = tickers[i:i+batch_size]
             processed_so_far = i
             
-            # Process the batch
             batch_results = await _process_batch(provider, batch, batch_num, total_batches, processed_so_far, pbar)
             results.extend(batch_results)
             
-            # Add delay between batches (except for last batch)
-            if batch_num < total_batches - 1:
-                # Increased batch delay to avoid rate limiting
-                batch_delay = 10.0
-                
-                # Update progress bar to show waiting message
-                pbar.set_description(f"BATCH {batch_num+1}/{total_batches} - Waiting {batch_delay:.1f}s before next batch...")
-                
-                # Sleep without interrupting progress display
-                await asyncio.sleep(batch_delay)
-        
-        # Final progress update
-        pbar.set_description(f"COMPLETED - Processed {len(results)}/{total_tickers} tickers")
+            # Handle delay between batches
+            await _handle_batch_delay(batch_num, total_batches, pbar)
     
-    # Create a DataFrame from results and log counts
+    # Create DataFrame from results
     result_df = pd.DataFrame(results)
-    logger.info(f"Fetch completed: {len(result_df)} valid tickers out of {total_tickers} requested")
     
     # If the DataFrame is empty, add a placeholder row
     if result_df.empty:
-        logger.warning("No valid ticker data was returned. Using empty placeholder DataFrame.")
         result_df = _create_empty_ticker_dataframe()
     
     return result_df
@@ -1930,6 +1943,159 @@ def _sort_display_dataframe(display_df):
     # Already numeric, sort directly
     return display_df.sort_values('EXRET', ascending=False)
 
+def _prepare_ticker_data(display, tickers, source):
+    """Prepare ticker data for the report
+    
+    Args:
+        display: Display object for rendering
+        tickers: List of tickers to display
+        source: Source type ('P', 'M', 'E', 'I')
+        
+    Returns:
+        tuple: (result_df, output_file, report_title, report_source)
+    """
+    # Handle special case for eToro market
+    report_source = source
+    if source == ETORO_SOURCE:
+        report_source = MARKET_SOURCE  # Still save as market.csv for eToro tickers
+        print(f"Processing {len(tickers)} eToro tickers. This may take a while...")
+        
+    # Extract the provider
+    provider = display.provider
+    
+    # For manual input, parse tickers correctly
+    if source == MANUAL_SOURCE:
+        tickers = _handle_manual_tickers(tickers)
+    
+    # Fetch ticker data
+    print("\nFetching market data...")
+    result_df = asyncio.run(fetch_ticker_data(provider, tickers))
+    
+    # Set up output files
+    output_file, report_title = _setup_output_files(report_source)
+    
+    return result_df, output_file, report_title, report_source
+
+def _process_data_for_display(result_df):
+    """Process raw data for display
+    
+    Args:
+        result_df: Raw ticker data DataFrame
+        
+    Returns:
+        pd.DataFrame: Processed display DataFrame
+    """
+    # Format market caps
+    result_df = _prepare_market_caps(result_df)
+    
+    # Calculate action based on raw data
+    result_df = calculate_action(result_df)
+    
+    # Prepare for display
+    display_df = prepare_display_dataframe(result_df)
+    
+    # Sort and prepare
+    if not display_df.empty:
+        # Sort by EXRET
+        display_df = _sort_display_dataframe(display_df)
+        
+        # Update CAP from formatted value
+        if 'cap_formatted' in result_df.columns:
+            display_df['CAP'] = result_df['cap_formatted']
+        
+        # Apply formatting
+        display_df = format_display_dataframe(display_df)
+        
+        # Add ranking column
+        display_df.insert(0, "#", range(1, len(display_df) + 1))
+    
+    return display_df
+
+def _apply_color_coding(display_df, trading_criteria):
+    """Apply color coding to the display DataFrame
+    
+    Args:
+        display_df: Display DataFrame
+        trading_criteria: Trading criteria dictionary
+        
+    Returns:
+        pd.DataFrame: DataFrame with color coding applied
+    """
+    # Get confidence thresholds
+    min_analysts = trading_criteria["CONFIDENCE"]["MIN_ANALYST_COUNT"]
+    min_targets = trading_criteria["CONFIDENCE"]["MIN_PRICE_TARGETS"]
+    
+    if len(display_df) > 1000:
+        print(f"Applying color coding to {len(display_df)} rows...")
+    
+    colored_rows = []
+    
+    # Process each row
+    for _, row in display_df.iterrows():
+        colored_row = row.copy()
+        
+        try:
+            # Use ACTION if available
+            if 'ACTION' in row and pd.notna(row['ACTION']) and row['ACTION'] in ['B', 'S', 'H']:
+                colored_row = _process_color_based_on_action(colored_row, row['ACTION'])
+            # Otherwise use criteria-based coloring
+            elif all(col in row and pd.notna(row[col]) for col in ['EXRET', 'UPSIDE', DISPLAY_BUY_PERCENTAGE, 'SI', 'PEF', 'BETA']):
+                confidence_met, _, _ = _check_confidence_criteria(row, min_analysts, min_targets)
+                colored_row = _process_color_based_on_criteria(colored_row, confidence_met, trading_criteria)
+        except Exception as e:
+            logger.debug(f"Error applying color: {str(e)}")
+        
+        colored_rows.append(colored_row)
+    
+    return pd.DataFrame(colored_rows) if colored_rows else pd.DataFrame()
+
+def _print_action_classifications(display_df, min_analysts, min_targets):
+    """Print action classifications for debugging
+    
+    Args:
+        display_df: Display DataFrame
+        min_analysts: Minimum analyst count
+        min_targets: Minimum price targets
+    """
+    print("\nAction classifications:")
+    for i, row in display_df.iterrows():
+        ticker = row.get('TICKER', f"row_{i}")
+        action = row.get('ACTION', 'N/A')
+        
+        # Check confidence
+        confidence_met, analyst_count, price_targets = _check_confidence_criteria(row, min_analysts, min_targets)
+        
+        # Format confidence status
+        if confidence_met:
+            confidence_status = "\033[92mPASS\033[0m"
+        else:
+            confidence_status = f"\033[93mINCONCLUSIVE\033[0m (min: {min_analysts}A/{min_targets}T)"
+        
+        # Extract metrics
+        si_val = row.get('SI', '')
+        si = si_val.replace('%', '') if isinstance(si_val, str) else si_val
+        pef = row.get('PEF', 'N/A')
+        beta = row.get('BETA', 'N/A')
+        upside = row.get('UPSIDE', 'N/A')
+        buy_pct = row.get(DISPLAY_BUY_PERCENTAGE, 'N/A')
+        
+        # Print status
+        print(f"{ticker}: ACTION={action}, CONFIDENCE={confidence_status}, ANALYSTS={analyst_count}/{min_analysts}, "
+              f"TARGETS={price_targets}/{min_targets}, UPSIDE={upside}, BUY%={buy_pct}, SI={si}, PEF={pef}, BETA={beta}")
+
+def _display_color_key(min_analysts, min_targets):
+    """Display the color coding key
+    
+    Args:
+        min_analysts: Minimum analyst count
+        min_targets: Minimum price targets
+    """
+    print("\nColor coding key:")
+    print("\033[92mGreen\033[0m - BUY (meets all BUY criteria and confidence threshold)")
+    print("\033[91mRed\033[0m - SELL (meets at least one SELL criterion and confidence threshold)")
+    print("White - HOLD (meets confidence threshold but not BUY or SELL criteria)")
+    print(f"\033[93mYellow\033[0m - INCONCLUSIVE (fails confidence threshold: <{min_analysts} analysts or <{min_targets} price targets)")
+
 def display_report_for_source(display, tickers, source, verbose=False):
     """Display report for the selected source
     
@@ -1947,174 +2113,54 @@ def display_report_for_source(display, tickers, source, verbose=False):
         return
         
     try:
-        # Handle special case for eToro market
-        report_source = source
-        if source == ETORO_SOURCE:
-            report_source = MARKET_SOURCE  # Still save as market.csv for eToro tickers
-            # Log for eToro specifically since it has many tickers
-            print(f"Processing {len(tickers)} eToro tickers. This may take a while...")
-            print("All rows will be displayed when processing completes.")
-            
-        # Extract the provider from the display object (it's used internally)
-        provider = display.provider
+        # Step 1: Prepare ticker data
+        result_df, output_file, report_title, report_source = _prepare_ticker_data(display, tickers, source)
         
-        # For manual input, make sure we parse the tickers correctly
-        if source == MANUAL_SOURCE:
-            tickers = _handle_manual_tickers(tickers)
-        
-        # Use the provider directly to get ticker data
-        print("\nFetching market data...")
-        result_df = asyncio.run(fetch_ticker_data(provider, tickers))
-        
-        # Diagnostic info to understand what we've received
-        print(f"Received data for {len(result_df)} tickers")
-        if not result_df.empty:
-            print(f"Available columns: {', '.join(result_df.columns.tolist())}")
-            # Show first 2 tickers as diagnostic
-            sample_tickers = result_df['ticker'].head(2).tolist()
-            print(f"Sample tickers: {', '.join(sample_tickers)}")
-        
-        # Set up output files
-        output_file, report_title = _setup_output_files(report_source)
-        
-        # Save raw data to CSV
+        # Save raw data
         result_df.to_csv(output_file, index=False)
-        print(f"Raw data saved to {output_file}")
         
-        # Format market caps
-        result_df = _prepare_market_caps(result_df)
-        
-        # Before preparing for display, calculate action based on raw data
-        print("Calculating action classifications...")
-        result_df = calculate_action(result_df)
-        
-        # Now prepare data for display
-        print(f"Preparing display data for {len(result_df)} ticker results...")
-        display_df = prepare_display_dataframe(result_df)
-        
-        # Diagnostic info after prepare_display_dataframe
-        print(f"Display DataFrame contains {len(display_df)} rows")
-        if not display_df.empty:
-            print(f"Display columns: {', '.join(display_df.columns.tolist())}")
+        # Step 2: Process data for display
+        display_df = _process_data_for_display(result_df)
         
         # Check for empty display_df
         if display_df.empty:
             _display_empty_result(report_title)
             return
-            
-        # Sort by EXRET in descending order if available
-        display_df = _sort_display_dataframe(display_df)
         
-        # Update CAP directly from formatted value
-        if 'cap_formatted' in result_df.columns:
-            display_df['CAP'] = result_df['cap_formatted']
+        # Step 3: Apply color coding
+        colored_df = _apply_color_coding(display_df, TRADING_CRITERIA)
         
-        # Apply general formatting
-        display_df = format_display_dataframe(display_df)
-        
-        # Get proper column alignments
-        colalign = get_column_alignments(display_df)
-        
-        # Add ranking column
-        display_df.insert(0, "#", range(1, len(display_df) + 1))
-        
-        # Add color coding based on buy criteria
-        if len(display_df) > 1000:
-            print(f"Applying color coding to {len(display_df)} rows...")
-        
-        colored_rows = []
-        min_analysts = TRADING_CRITERIA["CONFIDENCE"]["MIN_ANALYST_COUNT"]
-        min_targets = TRADING_CRITERIA["CONFIDENCE"]["MIN_PRICE_TARGETS"]
-        
-        for _, row in display_df.iterrows():
-            colored_row = row.copy()
-            
-            try:
-                # Check if ACTION column is present and has a value
-                if 'ACTION' in row and pd.notna(row['ACTION']) and row['ACTION'] in ['B', 'S', 'H']:
-                    # Get color based on action
-                    colored_row = _process_color_based_on_action(colored_row, row['ACTION'])
-                    colored_rows.append(colored_row)
-                    continue
-                
-                # Fallback to simplified criteria for rows without ACTION
-                elif all(col in row and pd.notna(row[col]) for col in ['EXRET', 'UPSIDE', DISPLAY_BUY_PERCENTAGE, 'SI', 'PEF', 'BETA']):
-                    # Check confidence criteria
-                    confidence_met, _, _ = _check_confidence_criteria(row, min_analysts, min_targets)
-                    
-                    # Apply color based on criteria
-                    colored_row = _process_color_based_on_criteria(colored_row, confidence_met, TRADING_CRITERIA)
-            except Exception as e:
-                # If any error in color logic, use the original row
-                logger.debug(f"Error applying color: {str(e)}")
-            
-            colored_rows.append(colored_row)
-        
-        # Check for empty results
-        if not colored_rows:
+        # Check again for empty results
+        if colored_df.empty:
             _display_empty_result(report_title)
             return
-            
-        # Create DataFrame from colored rows
-        colored_df = pd.DataFrame(colored_rows)
         
-        # Display results header
+        # Step 4: Display results header
         print(f"\n{report_title}:")
         print(f"Generated at: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
         
-        # Display color coding key
-        print("\nColor coding key:")
-        print("\033[92mGreen\033[0m - BUY (meets all BUY criteria and confidence threshold)")
-        print("\033[91mRed\033[0m - SELL (meets at least one SELL criterion and confidence threshold)")
-        print("White - HOLD (meets confidence threshold but not BUY or SELL criteria)")
-        print(f"\033[93mYellow\033[0m - INCONCLUSIVE (fails confidence threshold: <{min_analysts} analysts or <{min_targets} price targets)")
-        
-        # Debug output for ACTION classifications
-        print("\nAction classifications:")
-        for i, row in display_df.iterrows():
-            ticker = row.get('TICKER', f"row_{i}")
-            action = row.get('ACTION', 'N/A')
-            
-            # Check confidence criteria
-            confidence_met, analyst_count, price_targets = _check_confidence_criteria(row, min_analysts, min_targets)
-            
-            # Format confidence status
-            if confidence_met:
-                confidence_status = "\033[92mPASS\033[0m"
-            else:
-                confidence_status = f"\033[93mINCONCLUSIVE\033[0m (min: {min_analysts}A/{min_targets}T)"
-            
-            # Extract key metrics
-            si_val = row.get('SI', '')
-            si = si_val.replace('%', '') if isinstance(si_val, str) else si_val
-            pef = row.get('PEF', 'N/A')
-            beta = row.get('BETA', 'N/A')
-            upside = row.get('UPSIDE', 'N/A')
-            buy_pct = row.get(DISPLAY_BUY_PERCENTAGE, 'N/A')
-            
-            # Print with clear confidence status
-            print(f"{ticker}: ACTION={action}, CONFIDENCE={confidence_status}, ANALYSTS={analyst_count}/{min_analysts}, TARGETS={price_targets}/{min_targets}, UPSIDE={upside}, BUY%={buy_pct}, SI={si}, PEF={pef}, BETA={beta}")
-        
-        # Make sure we have columns to display
+        # Step 7: Check for displayable columns
         if colored_df.empty or len(colored_df.columns) == 0:
             print("Error: No columns available for display.")
             return
         
-        # Display all rows
-        print(f"Displaying all {len(colored_df)} rows:")
+        # Step 8: Display the table
+        # Get alignments for each column
+        colalign = get_column_alignments(colored_df)
+        
+        # Display the table
         try:
             print(tabulate(
                 colored_df,
                 headers='keys',
                 tablefmt='fancy_grid',
                 showindex=False,
-                colalign=['right'] + colalign
+                colalign=colalign  # Use column alignments without adding extra right alignment
             ))
             print(f"\nTotal: {len(display_df)}")
         except Exception as e:
             # Fallback if tabulate fails
             print(f"Error displaying table: {str(e)}")
-            print("Using simplified display format:")
             print(colored_df.head(50).to_string())
             if len(colored_df) > 50:
                 print("... (additional rows not shown)")
@@ -2136,11 +2182,6 @@ def show_circuit_breaker_status():
     print("\n=== CIRCUIT BREAKER STATUS ===")
     for name, metrics in circuits.items():
         state = metrics.get("state", "UNKNOWN")
-        failure_rate = metrics.get("failure_rate", 0)
-        total_requests = metrics.get("total_requests", 0)
-        last_failure = metrics.get("last_failure_ago", "N/A")
-        if isinstance(last_failure, (int, float)):
-            last_failure = f"{last_failure:.1f}s ago"
         
         # Format color based on state
         if state == "CLOSED":
@@ -2152,7 +2193,8 @@ def show_circuit_breaker_status():
         else:
             state_colored = state
             
-        print(f"Circuit '{name}': {state_colored} (Failure rate: {failure_rate:.1f}%, Requests: {total_requests}, Last failure: {last_failure})")
+        # Only show essential information: name and state
+        print(f"Circuit '{name}': {state_colored}")
 
 def main_async():
     """Async-aware command line interface for market display"""
