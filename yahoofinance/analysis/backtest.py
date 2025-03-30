@@ -17,8 +17,9 @@ from typing import Dict, List, Optional, Any, Tuple, Set, Union
 from pathlib import Path
 import copy
 import itertools
+import time
+import pickle
 from tqdm.auto import tqdm
-import os
 
 from ..api import get_provider
 from ..core.config import TRADING_CRITERIA, PATHS, FILE_PATHS
@@ -60,6 +61,8 @@ class BacktestSettings:
         criteria_params: Trading criteria parameters to use (or None for default)
         tickers: List of tickers to backtest
         ticker_source: Source of tickers ("portfolio", "market", "etoro", "custom")
+        ticker_limit: Limit number of tickers to test (None means no limit)
+        cache_max_age_days: Maximum age of cached data in days (default: 1)
     """
     period: str = "3y"
     initial_capital: float = 100000.0
@@ -69,7 +72,10 @@ class BacktestSettings:
     rebalance_frequency: str = "monthly"  # daily, weekly, monthly
     criteria_params: Optional[Dict[str, Any]] = None
     tickers: List[str] = field(default_factory=list)
-    ticker_source: str = "portfolio"
+    ticker_source: str = "portfolio" 
+    ticker_limit: Optional[int] = None
+    cache_max_age_days: int = 1
+    data_coverage_threshold: float = 0.7  # Keep at least 70% of tickers (exclude up to 30% with shortest history)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert settings to dictionary."""
@@ -82,7 +88,10 @@ class BacktestSettings:
             "rebalance_frequency": self.rebalance_frequency,
             "tickers": self.tickers,
             "ticker_source": self.ticker_source,
-            "criteria_params": self.criteria_params
+            "criteria_params": self.criteria_params,
+            "ticker_limit": self.ticker_limit,
+            "cache_max_age_days": self.cache_max_age_days,
+            "data_coverage_threshold": self.data_coverage_threshold
         }
 
 
@@ -298,7 +307,8 @@ class Backtester:
         self, 
         tickers: List[str], 
         period: str = "3y",
-        interval: str = "1d"
+        interval: str = "1d",
+        cache_max_age_days: int = 1
     ) -> Dict[str, pd.DataFrame]:
         """
         Prepare data for backtesting multiple tickers.
@@ -307,6 +317,7 @@ class Backtester:
             tickers: List of ticker symbols
             period: Time period (e.g., "1y", "2y", "3y", "5y", "max")
             interval: Data interval (e.g., "1d", "1wk", "1mo")
+            cache_max_age_days: Maximum age of cache data in days (default: 1)
             
         Returns:
             Dictionary mapping ticker symbols to historical data DataFrames
@@ -316,6 +327,16 @@ class Backtester:
         """
         data = {}
         errors = []
+        cache_hits = 0
+        cache_misses = 0
+        
+        # Ensure the backtest cache directory exists
+        cache_dir = os.path.join(PATHS["OUTPUT_DIR"], "backtest", "cache")
+        os.makedirs(cache_dir, exist_ok=True)
+        
+        # Get current time for cache age check
+        current_time = time.time()
+        max_cache_age_seconds = cache_max_age_days * 86400  # Convert days to seconds
         
         # Fetch data for each ticker with progress bar
         progress_bar = tqdm(
@@ -332,22 +353,66 @@ class Backtester:
             try:
                 progress_bar.set_description(f"Loading {ticker}")
                 
-                history = self.get_historical_data(ticker, period)
+                # Check in-memory cache first
+                if ticker in self.ticker_data_cache:
+                    history = self.ticker_data_cache[ticker]
+                    cache_hits += 1
+                    progress_bar.set_description(f"Memory cache hit: {ticker}")
+                else:
+                    # Check disk cache
+                    cache_file = os.path.join(cache_dir, f"{ticker}_{period}.pkl")
+                    cache_valid = False
+                    
+                    if os.path.exists(cache_file):
+                        # Check if cache file is recent enough
+                        file_mtime = os.path.getmtime(cache_file)
+                        if (current_time - file_mtime) < max_cache_age_seconds:
+                            try:
+                                # Load from disk cache
+                                with open(cache_file, 'rb') as f:
+                                    history = pickle.load(f)
+                                cache_hits += 1
+                                cache_valid = True
+                                progress_bar.set_description(f"Disk cache hit: {ticker}")
+                            except Exception as e:
+                                logger.warning(f"Error loading cache for {ticker}: {str(e)}")
+                                cache_valid = False
+                    
+                    if not cache_valid:
+                        # Cache miss - fetch fresh data
+                        cache_misses += 1
+                        progress_bar.set_description(f"Downloading: {ticker}")
+                        history = self.get_historical_data(ticker, period)
+                        
+                        # Save to disk cache
+                        try:
+                            with open(cache_file, 'wb') as f:
+                                pickle.dump(history, f)
+                        except Exception as e:
+                            logger.warning(f"Error saving cache for {ticker}: {str(e)}")
                 
-                # Add ticker info to the DataFrame
-                history['ticker'] = ticker
+                # Add ticker info to the DataFrame if not already present
+                if 'ticker' not in history.columns:
+                    history['ticker'] = ticker
                 
-                # Calculate additional metrics needed for backtesting
-                history['pct_change'] = history['Close'].pct_change() * 100
-                history['sma_50'] = history['Close'].rolling(window=50).mean()
-                history['sma_200'] = history['Close'].rolling(window=200).mean()
+                # Calculate additional metrics needed for backtesting if not present
+                if 'pct_change' not in history.columns:
+                    history['pct_change'] = history['Close'].pct_change() * 100
+                if 'sma_50' not in history.columns:
+                    history['sma_50'] = history['Close'].rolling(window=50).mean()
+                if 'sma_200' not in history.columns:
+                    history['sma_200'] = history['Close'].rolling(window=200).mean()
                 
-                # Store in results and also in cache to avoid repeated API calls
+                # Store in results and also in memory cache
                 data[ticker] = history
                 self.ticker_data_cache[ticker] = history
                 
                 # Update progress bar
-                progress_bar.set_postfix({"Success": len(data), "Errors": len(errors)})
+                progress_bar.set_postfix({
+                    "Success": len(data), 
+                    "Errors": len(errors),
+                    "Cache hits": cache_hits
+                })
                 
             except Exception as e:
                 errors.append(f"{ticker}: {str(e)}")
@@ -361,8 +426,8 @@ class Backtester:
                     error_msg += f" and {len(errors) - 5} more errors"
             raise YFinanceError(error_msg)
             
-        # Log the number of tickers with data
-        logger.info(f"Prepared historical data for {len(data)} tickers")
+        # Log the number of tickers with data and cache statistics
+        logger.info(f"Prepared historical data for {len(data)} tickers (Cache hits: {cache_hits}, Misses: {cache_misses})")
         
         return data
         
@@ -587,6 +652,12 @@ class Backtester:
                     data['peg_ratio'] = np.random.normal(1.5, 0.5)
                     data['beta'] = np.random.normal(1.0, 0.5)
                     data['short_percent'] = np.random.uniform(0, 8)
+                    
+                    # Generate market cap data (large caps are more common than small caps in most indices)
+                    # Use a log-normal distribution to get a realistic market cap distribution
+                    # This generates values mostly in the billions with some trillions and millions
+                    market_cap_mean = np.random.lognormal(mean=23, sigma=1.5)  # Mean around $10B with wide variance
+                    data['market_cap'] = market_cap_mean
                         
                 except Exception as e:
                     logger.warning(f"Error generating analyst data for {ticker}: {str(e)}")
@@ -602,6 +673,7 @@ class Backtester:
                     data['peg_ratio'] = 1.5
                     data['beta'] = 1.0
                     data['short_percent'] = 2.0
+                    data['market_cap'] = 10000000000.0  # Default $10B market cap
                 
                 # Update progress bar
                 synthetic_progress.update(1)
@@ -684,11 +756,16 @@ class Backtester:
         # Load tickers if not provided
         if not settings.tickers:
             settings.tickers = self.load_tickers(settings.ticker_source)
-            
-        # Limit to a reasonable number of tickers for performance
-        if len(settings.tickers) > 100:
-            logger.warning(f"Limiting backtest to 100 tickers (from {len(settings.tickers)})")
-            settings.tickers = settings.tickers[:100]
+        
+        # Apply ticker limit if specified
+        if settings.ticker_limit is not None and settings.ticker_limit > 0 and settings.ticker_limit < len(settings.tickers):
+            logger.info(f"Limiting backtest to {settings.ticker_limit} tickers (from {len(settings.tickers)})")
+            import random
+            random.shuffle(settings.tickers)  # Randomize to get a representative sample
+            settings.tickers = settings.tickers[:settings.ticker_limit]
+        else:
+            # No ticker limit - use all available tickers
+            logger.info(f"Using all {len(settings.tickers)} tickers for backtest")
             
         # Prepare trading criteria
         trading_criteria = copy.deepcopy(TRADING_CRITERIA)
@@ -709,11 +786,16 @@ class Backtester:
                 logger.info("Using cached historical data for all tickers")
                 ticker_data = {ticker: self.ticker_data_cache[ticker] for ticker in settings.tickers}
             else:
-                ticker_data = self.prepare_backtest_data(settings.tickers, settings.period)
+                ticker_data = self.prepare_backtest_data(
+                    settings.tickers, 
+                    settings.period,
+                    cache_max_age_days=settings.cache_max_age_days
+                )
             
-            # Find common date range across all tickers
-            start_date = None
-            end_date = None
+            # Analyze data availability for all tickers
+            ticker_date_ranges = {}
+            global_earliest_end = None
+            global_latest_start = None
             
             for ticker, data in ticker_data.items():
                 if data.empty:
@@ -722,17 +804,80 @@ class Backtester:
                 ticker_start = data.index.min()
                 ticker_end = data.index.max()
                 
-                # Initialize or update start_date (earliest common start date)
-                if start_date is None or ticker_start > start_date:
-                    start_date = ticker_start
+                # Store date range for this ticker
+                ticker_date_ranges[ticker] = {
+                    'start': ticker_start,
+                    'end': ticker_end,
+                    'days': (ticker_end - ticker_start).days
+                }
+                
+                # Track global latest start and earliest end dates
+                if global_latest_start is None or ticker_start > global_latest_start:
+                    global_latest_start = ticker_start
                     
-                # Initialize or update end_date (latest common end date)
-                if end_date is None or ticker_end < end_date:
-                    end_date = ticker_end
+                if global_earliest_end is None or ticker_end < global_earliest_end:
+                    global_earliest_end = ticker_end
             
-            if start_date is None or end_date is None:
-                raise YFinanceError("No valid date range found across tickers")
-            
+            if not ticker_date_ranges:
+                raise YFinanceError("No valid data found for any tickers")
+                
+            # If using all tickers would result in less than 1 year of data,
+            # filter out tickers with limited history
+            if global_latest_start and global_earliest_end:
+                common_days = (global_earliest_end - global_latest_start).days
+                common_years = common_days / 365.25
+                
+                # Check if we need to filter tickers for better date range
+                target_years = {
+                    "1y": 1.0,
+                    "2y": 2.0,
+                    "3y": 3.0,
+                    "5y": 5.0,
+                    "max": 10.0  # For max, aim for at least 10 years if possible
+                }.get(settings.period, 3.0)
+                
+                logger.info(f"Common date range across all tickers: {common_years:.2f} years")
+                
+                if common_years < target_years and settings.data_coverage_threshold < 1.0:
+                    # We need to filter out some tickers to get a better date range
+                    logger.info(f"Common date range ({common_years:.2f} years) is less than target ({target_years:.2f} years)")
+                    logger.info(f"Filtering tickers using coverage threshold: {settings.data_coverage_threshold}")
+                    
+                    # Sort tickers by start date (ascending - earlier is better)
+                    sorted_tickers = sorted(
+                        ticker_date_ranges.items(),
+                        key=lambda x: x[1]['start']
+                    )
+                    
+                    # Calculate how many tickers to keep
+                    keep_count = max(int(len(sorted_tickers) * settings.data_coverage_threshold), 2)
+                    logger.info(f"Keeping {keep_count} of {len(sorted_tickers)} tickers ({settings.data_coverage_threshold:.0%})")
+                    
+                    # Keep only the tickers with earliest start dates
+                    kept_tickers = sorted_tickers[:keep_count]
+                    kept_ticker_symbols = [t[0] for t in kept_tickers]
+                    
+                    # Find the new common date range
+                    start_date = max(ticker_date_ranges[t]['start'] for t in kept_ticker_symbols)
+                    end_date = min(ticker_date_ranges[t]['end'] for t in kept_ticker_symbols)
+                    
+                    # Remove filtered tickers from ticker_data
+                    excluded_tickers = set(ticker_date_ranges.keys()) - set(kept_ticker_symbols)
+                    for ticker in excluded_tickers:
+                        del ticker_data[ticker]
+                        
+                    logger.info(f"Excluded {len(excluded_tickers)} tickers with limited history")
+                    excluded_list = ", ".join(list(excluded_tickers)[:10])
+                    if len(excluded_tickers) > 10:
+                        excluded_list += f"... and {len(excluded_tickers) - 10} more"
+                    logger.info(f"Excluded tickers: {excluded_list}")
+                else:
+                    # Use all tickers with their common date range
+                    start_date = global_latest_start
+                    end_date = global_earliest_end
+            else:
+                raise YFinanceError("Could not determine valid date range")
+                
             # Make sure start_date is before end_date
             if start_date > end_date:
                 # Swap them if they're in the wrong order
@@ -741,8 +886,11 @@ class Backtester:
             # Verify dates are valid
             if (end_date - start_date).days < 1:
                 raise YFinanceError(f"Invalid date range: {start_date.date()} to {end_date.date()} - too short for backtest")
-                
-            logger.info(f"Backtest date range: {start_date.date()} to {end_date.date()}")
+            
+            # Calculate and log final date range    
+            backtest_days = (end_date - start_date).days
+            backtest_years = backtest_days / 365.25
+            logger.info(f"Backtest date range: {start_date.date()} to {end_date.date()} ({backtest_years:.2f} years)")
             
             # Generate rebalance dates based on frequency
             rebalance_dates = self._generate_rebalance_dates(
@@ -840,7 +988,9 @@ class Backtester:
             
             # Create portfolio values DataFrame
             portfolio_df = pd.DataFrame(portfolio_values)
-            portfolio_df['date'] = pd.to_datetime(portfolio_df['date'])
+            
+            # Handle timezone-aware datetimes by converting to UTC
+            portfolio_df['date'] = pd.to_datetime(portfolio_df['date'], utc=True)
             portfolio_df.set_index('date', inplace=True)
             
             # Calculate performance metrics
@@ -1019,27 +1169,31 @@ class Backtester:
         available_positions = settings.max_positions - len(portfolio['positions'])
         buy_candidates = buy_candidates[:available_positions]
         
-        # Open new positions with EXRET-based weighting
+        # Open new positions with market cap-based weighting
         remaining_cash = portfolio['cash']
         
-        # First, calculate EXRET weights for all candidates
-        total_exret = 0
+        # First, calculate market cap weights for all candidates
+        total_market_cap = 0
         candidate_weights = []
         
-        # Get EXRET values for all candidates
+        # Get market cap values for all candidates
         for ticker, exret_value, current_price in buy_candidates:
             # Skip if we already hold this ticker
             if ticker in held_tickers:
                 continue
-                
-            # Use a minimum value of 1.0 for EXRET to avoid division issues
-            exret = max(1.0, exret_value)
-            total_exret += exret
-            candidate_weights.append((ticker, exret, exret_value, current_price))
+            
+            # Get market cap from ticker data
+            market_cap = ticker_data[ticker].get('market_cap', 10000000000.0)  # Default to $10B if missing
+            original_exret = exret_value  # Keep EXRET for logging
+            
+            # Use a minimum value for market cap to avoid division issues
+            market_cap = max(1000000.0, market_cap)  # Minimum $1M market cap
+            total_market_cap += market_cap
+            candidate_weights.append((ticker, market_cap, original_exret, current_price))
         
-        # Calculate proportional weights with min 5% and max 25% constraints
-        MIN_WEIGHT = 0.05  # 5% minimum weight
-        MAX_WEIGHT = 0.25  # 25% maximum weight
+        # Calculate proportional weights with min 1% and max 10% constraints
+        MIN_WEIGHT = 0.01  # 1% minimum weight
+        MAX_WEIGHT = 0.10  # 10% maximum weight
         
         # Skip the weighting if no valid candidates
         if not candidate_weights:
@@ -1047,9 +1201,9 @@ class Backtester:
             
         # Calculate initial proportional weights
         weighted_candidates = []
-        for ticker, exret, original_exret, current_price in candidate_weights:
-            # Calculate raw proportional weight
-            weight = exret / total_exret if total_exret > 0 else 1.0 / len(candidate_weights)
+        for ticker, market_cap, original_exret, current_price in candidate_weights:
+            # Calculate raw proportional weight based on market cap
+            weight = market_cap / total_market_cap if total_market_cap > 0 else 1.0 / len(candidate_weights)
             
             # Apply min/max constraints
             weight = max(MIN_WEIGHT, min(MAX_WEIGHT, weight))
@@ -1077,7 +1231,21 @@ class Backtester:
                 continue
                 
             # Log the allocation for debugging
-            logger.debug(f"Allocating {weight:.2%} of portfolio to {ticker} (EXRET: {original_exret:.2f})")
+            market_cap_fmt = None
+            try:
+                market_cap = ticker_data[ticker].get('market_cap', 0)
+                if market_cap >= 1_000_000_000_000:
+                    market_cap_fmt = f"{market_cap/1_000_000_000_000:.2f}T"
+                elif market_cap >= 1_000_000_000:
+                    market_cap_fmt = f"{market_cap/1_000_000_000:.2f}B"
+                elif market_cap >= 1_000_000:
+                    market_cap_fmt = f"{market_cap/1_000_000:.2f}M"
+                else:
+                    market_cap_fmt = f"{market_cap:.0f}"
+            except:
+                market_cap_fmt = "unknown"
+                
+            logger.debug(f"Allocating {weight:.2%} of portfolio to {ticker} (Market Cap: {market_cap_fmt}, EXRET: {original_exret:.2f})")
                 
             # Create new position
             position = BacktestPosition(
@@ -1094,7 +1262,7 @@ class Backtester:
             remaining_cash -= position_size
             
             logger.debug(f"Opened position for {ticker} at {current_price:.2f} "
-                       f"with {shares:.2f} shares (weight: {weight:.2%}, EXRET: {original_exret:.2f})")
+                       f"with {shares:.2f} shares (weight: {weight:.2%}, Market Cap: {market_cap_fmt})")
         
         # Update portfolio cash
         portfolio['cash'] = remaining_cash
@@ -1379,26 +1547,169 @@ class Backtester:
         ])
         trades_df.to_csv(trades_path, index=False)
         
+        # Save final portfolio synthesis CSV (if there's data for the last date)
+        final_date = result.portfolio_values.index.max()
+        last_date = final_date.to_pydatetime()
+        
+        try:
+            # Get data for last day to generate final portfolio snapshot
+            # This will be used in the HTML report
+            final_portfolio_data = self._get_final_portfolio_snapshot(result, last_date)
+            
+            # Save to CSV
+            final_path = os.path.join(self.output_dir, f"backtest_{timestamp}_final.csv")
+            final_df = pd.DataFrame(final_portfolio_data)
+            final_df.to_csv(final_path, index=False)
+        except Exception as e:
+            logger.warning(f"Failed to generate final portfolio snapshot: {str(e)}")
+            final_portfolio_data = []
+            final_path = None
+        
         # Generate HTML report
-        html_path = self._generate_backtest_html(result, timestamp)
+        html_path = self._generate_backtest_html(result, timestamp, final_portfolio_data)
         
         logger.info(f"Saved backtest results to {self.output_dir}/backtest_{timestamp}.*")
         
         # Return all paths
-        return {
+        paths = {
             'json': json_path,
             'csv': csv_path,
             'trades': trades_path,
             'html': html_path
         }
+        
+        if final_path:
+            paths['final'] = final_path
+            
+        return paths
     
-    def _generate_backtest_html(self, result: BacktestResult, timestamp: str) -> str:
+    def _get_final_portfolio_snapshot(self, result: BacktestResult, last_date: datetime) -> List[Dict[str, Any]]:
+        """
+        Generate final portfolio snapshot with all relevant metrics.
+        
+        Args:
+            result: BacktestResult object
+            last_date: Final date of the backtest
+            
+        Returns:
+            List of dictionaries with portfolio metrics for the last date
+        """
+        # Find either the open positions on the last date, or all closed positions
+        snapshot_data = []
+        
+        # First look for open positions at the end of the backtest
+        open_positions = [t for t in result.trades if t.is_open()]
+        
+        # Debug message
+        logger.info(f"Found {len(open_positions)} open positions for final portfolio synthesis")
+        
+        # Helper function for creating snapshot
+        def create_position_snapshot(position, is_open=True):
+            ticker = position.ticker
+            
+            try:
+                # Get ticker data on the last date or exit date for closed positions
+                target_date = last_date if is_open else position.exit_date
+                
+                # Get data for the position's ticker
+                current_data = self.get_ticker_data_for_date(
+                    {ticker: self.ticker_data_cache.get(ticker, pd.DataFrame())},
+                    target_date
+                )
+                
+                if not current_data or ticker not in current_data:
+                    return None
+                    
+                # Generate synthetic data for proper display
+                enhanced_data = self.generate_analyst_data(
+                    current_data,
+                    target_date,
+                    batch_size=1
+                )
+                
+                if ticker not in enhanced_data:
+                    return None
+                    
+                # Get all relevant metrics
+                entry_price = position.entry_price
+                current_price = position.exit_price if not is_open and position.exit_price else enhanced_data[ticker].get('Close', entry_price)
+                market_cap = enhanced_data[ticker].get('market_cap', 0)
+                
+                # Calculate value and return
+                position_value = position.shares * current_price 
+                return_pct = position.pnl_pct if position.pnl_pct is not None else ((current_price / entry_price) - 1) * 100 if entry_price > 0 else 0
+                
+                # Format market cap
+                market_cap_fmt = "N/A"
+                if market_cap:
+                    if market_cap >= 1_000_000_000_000:
+                        market_cap_fmt = f"{market_cap/1_000_000_000_000:.2f}T"
+                    elif market_cap >= 1_000_000_000:
+                        market_cap_fmt = f"{market_cap/1_000_000_000:.2f}B"
+                    elif market_cap >= 1_000_000:
+                        market_cap_fmt = f"{market_cap/1_000_000:.2f}M"
+                    else:
+                        market_cap_fmt = f"{market_cap:.0f}"
+                        
+                # Create snapshot entry with all metrics
+                snapshot = {
+                    'ticker': ticker,
+                    'position_value': position_value,
+                    'shares': position.shares,
+                    'entry_price': entry_price,
+                    'current_price': current_price,
+                    'return_pct': return_pct,
+                    'market_cap': market_cap,
+                    'market_cap_fmt': market_cap_fmt,
+                    'entry_date': position.entry_date.strftime("%Y-%m-%d"),
+                    'exit_date': position.exit_date.strftime("%Y-%m-%d") if position.exit_date else 'OPEN',
+                    'position_status': 'OPEN' if is_open else 'CLOSED',
+                    'holding_days': ((target_date - position.entry_date).days) if hasattr(target_date, 'days') else 0
+                }
+                
+                # Add all criteria metrics
+                for key, value in enhanced_data[ticker].items():
+                    if key not in snapshot and key not in ['Open', 'High', 'Low', 'Volume', 'Adj Close']:
+                        snapshot[key] = value
+                        
+                return snapshot
+                    
+            except Exception as e:
+                logger.warning(f"Error generating snapshot for {ticker}: {str(e)}")
+                return None
+        
+        # Process open positions first
+        if open_positions:
+            logger.info(f"Using {len(open_positions)} open positions for portfolio synthesis")
+            for position in open_positions:
+                snapshot = create_position_snapshot(position, is_open=True)
+                if snapshot:
+                    snapshot_data.append(snapshot)
+        else:
+            # If no open positions, use the most recent closed positions
+            logger.info("No open positions found, using most recent closed positions for synthesis")
+            # Sort trades by exit date, most recent first, take up to 5 positions
+            closed_positions = sorted(
+                [t for t in result.trades if not t.is_open()],
+                key=lambda x: x.exit_date if x.exit_date else datetime.min,
+                reverse=True
+            )[:5]  # Take at most 5 positions
+            
+            for position in closed_positions:
+                snapshot = create_position_snapshot(position, is_open=False)
+                if snapshot:
+                    snapshot_data.append(snapshot)
+                    
+        return snapshot_data
+    
+    def _generate_backtest_html(self, result: BacktestResult, timestamp: str, final_portfolio_data: List[Dict[str, Any]] = None) -> str:
         """
         Generate HTML report for backtest.
         
         Args:
             result: BacktestResult object
             timestamp: Timestamp string for filenames
+            final_portfolio_data: Optional final portfolio metrics data
             
         Returns:
             Path to the generated HTML file
@@ -1489,11 +1800,13 @@ class Backtester:
                 'portfolio_chart': chart_filename,
                 'portfolio_csv': f"backtest_{timestamp}_portfolio.csv",
                 'trades_csv': f"backtest_{timestamp}_trades.csv",
+                'final_portfolio_csv': f"backtest_{timestamp}_final.csv",
                 'criteria': result.criteria_used,
                 'trade_count': len(result.trades),
                 'start_date': start_date,
                 'end_date': end_date,
-                'allocation_strategy': 'EXRET-Proportional with 5-25% weight constraints'
+                'allocation_strategy': 'Market Cap-Proportional with 1-10% weight constraints',
+                'final_portfolio': final_portfolio_data or []
             }
             
             # Create HTML using template
@@ -1509,6 +1822,97 @@ class Backtester:
             # Return simple file path even if generation failed
             return os.path.join(self.output_dir, f"backtest_{timestamp}.html")
     
+    def _render_portfolio_synthesis_table(self, portfolio_data: List[Dict[str, Any]]) -> str:
+        """
+        Render the portfolio synthesis table HTML.
+        
+        Args:
+            portfolio_data: List of portfolio entries with metrics
+            
+        Returns:
+            HTML for the portfolio synthesis table or empty string if no data
+        """
+        if not portfolio_data:
+            return ""
+            
+        try:
+            # Start HTML section
+            html = """
+            <h2>Final Portfolio Synthesis</h2>
+            <div class="portfolio-synthesis">
+                <table>
+                    <tr>
+                        <th>Ticker</th>
+                        <th>Company</th>
+                        <th>Market Cap</th>
+                        <th>Position Value</th>
+                        <th>Return %</th>
+                        <th>Entry Date</th>
+                        <th>Status</th>
+                        <th>Days Held</th>
+                        <th>Upside %</th>
+                        <th>Buy %</th>
+                        <th>EXRET</th>
+                        <th>Beta</th>
+                        <th>P/E (F)</th>
+                        <th>PEG</th>
+                        <th>SI %</th>
+                    </tr>
+            """
+            
+            # Add rows for each position
+            for entry in portfolio_data:
+                ticker = entry.get('ticker', 'N/A')
+                company = entry.get('name', 'N/A')
+                market_cap = entry.get('market_cap_fmt', 'N/A')
+                position_value = f"${entry.get('position_value', 0):,.2f}"
+                return_pct = f"{entry.get('return_pct', 0):.2f}%"
+                entry_date = entry.get('entry_date', 'N/A')
+                days_held = entry.get('holding_days', 0)
+                buy_pct = f"{entry.get('buy_percentage', 0):.0f}%"
+                upside = f"{entry.get('upside', 0):.1f}%"
+                exret = f"{entry.get('EXRET', 0):.1f}"
+                beta = f"{entry.get('beta', 0):.2f}"
+                peg = f"{entry.get('peg_ratio', 0):.2f}"
+                pe_forward = f"{entry.get('pe_forward', 0):.1f}"
+                si = f"{entry.get('short_percent', 0):.1f}%"
+                
+                # Determine return class for color
+                return_class = "positive" if entry.get('return_pct', 0) >= 0 else "negative"
+                
+                # Add table row
+                html += f"""
+                <tr>
+                    <td>{ticker}</td>
+                    <td>{company}</td>
+                    <td>{market_cap}</td>
+                    <td>{position_value}</td>
+                    <td class="{return_class}">{return_pct}</td>
+                    <td>{entry_date}</td>
+                    <td>{entry.get('position_status', 'OPEN')}</td>
+                    <td>{days_held}</td>
+                    <td>{upside}</td>
+                    <td>{buy_pct}</td>
+                    <td>{exret}</td>
+                    <td>{beta}</td>
+                    <td>{pe_forward}</td>
+                    <td>{peg}</td>
+                    <td>{si}</td>
+                </tr>
+                """
+                
+            # Close the table
+            html += """
+                </table>
+            </div>
+            """
+            
+            return html
+            
+        except Exception as e:
+            logger.warning(f"Error rendering portfolio synthesis table: {str(e)}")
+            return f"<p>Error generating portfolio synthesis table: {str(e)}</p>"
+            
     def _render_backtest_template(self, template_vars: Dict[str, Any]) -> str:
         """
         Render HTML template for backtest report.
@@ -1523,16 +1927,62 @@ class Backtester:
             # Generate criteria rows with error handling
             buy_rows = ""
             try:
-                for param, value in template_vars.get('criteria', {}).get('BUY', {}).items():
-                    buy_rows += f"<tr><td>{param}</td><td>{value}</td></tr>"
+                # Define the order for buy criteria parameters
+                buy_param_order = [
+                    "BUY_MIN_UPSIDE", 
+                    "BUY_MIN_BUY_PERCENTAGE", 
+                    "BUY_MIN_EXRET", 
+                    "BUY_MIN_BETA", 
+                    "BUY_MAX_BETA", 
+                    "BUY_MIN_FORWARD_PE", 
+                    "BUY_MAX_FORWARD_PE", 
+                    "BUY_MAX_PEG", 
+                    "BUY_MAX_SHORT_INTEREST"
+                ]
+                
+                # Get the buy criteria
+                buy_criteria = template_vars.get('criteria', {}).get('BUY', {})
+                
+                # Add rows in the defined order
+                for param in buy_param_order:
+                    if param in buy_criteria:
+                        buy_rows += f"<tr><td>{param}</td><td>{buy_criteria[param]}</td></tr>"
+                
+                # Add any remaining parameters not in the defined order
+                for param, value in buy_criteria.items():
+                    if param not in buy_param_order:
+                        buy_rows += f"<tr><td>{param}</td><td>{value}</td></tr>"
+                        
             except Exception as e:
                 logger.warning(f"Error generating buy criteria rows: {str(e)}")
                 buy_rows = "<tr><td colspan='2'>Error generating criteria</td></tr>"
                 
             sell_rows = ""
             try:
-                for param, value in template_vars.get('criteria', {}).get('SELL', {}).items():
-                    sell_rows += f"<tr><td>{param}</td><td>{value}</td></tr>"
+                # Define the order for sell criteria parameters
+                sell_param_order = [
+                    "SELL_MAX_UPSIDE", 
+                    "SELL_MIN_BUY_PERCENTAGE", 
+                    "SELL_MAX_EXRET", 
+                    "SELL_MIN_BETA", 
+                    "SELL_MIN_FORWARD_PE", 
+                    "SELL_MIN_PEG", 
+                    "SELL_MIN_SHORT_INTEREST"
+                ]
+                
+                # Get the sell criteria
+                sell_criteria = template_vars.get('criteria', {}).get('SELL', {})
+                
+                # Add rows in the defined order
+                for param in sell_param_order:
+                    if param in sell_criteria:
+                        sell_rows += f"<tr><td>{param}</td><td>{sell_criteria[param]}</td></tr>"
+                
+                # Add any remaining parameters not in the defined order
+                for param, value in sell_criteria.items():
+                    if param not in sell_param_order:
+                        sell_rows += f"<tr><td>{param}</td><td>{value}</td></tr>"
+                        
             except Exception as e:
                 logger.warning(f"Error generating sell criteria rows: {str(e)}")
                 sell_rows = "<tr><td colspan='2'>Error generating criteria</td></tr>"
@@ -1773,10 +2223,15 @@ class Backtester:
                     </table>
                 </div>
                 
+                
+                <!-- Final Portfolio Synthesis Table -->
+                {self._render_portfolio_synthesis_table(template_vars.get('final_portfolio', []))}
+                
                 <h2>Data Downloads</h2>
                 <ul>
                     <li><a href="{template_vars.get('portfolio_csv', '#')}" download>Portfolio Values (CSV)</a></li>
                     <li><a href="{template_vars.get('trades_csv', '#')}" download>Trades (CSV)</a></li>
+                    {f'<li><a href="{template_vars.get("final_portfolio_csv", "#")}" download>Final Portfolio Synthesis (CSV)</a></li>' if template_vars.get('final_portfolio') else ''}
                 </ul>
             </body>
             </html>
@@ -1924,10 +2379,15 @@ class BacktestOptimizer:
         if not settings.tickers:
             settings.tickers = self.backtester.load_tickers(settings.ticker_source)
             
-        # Limit to a reasonable number of tickers for performance
-        if len(settings.tickers) > 100:
-            logger.warning(f"Limiting backtest to 100 tickers (from {len(settings.tickers)})")
-            settings.tickers = settings.tickers[:100]
+        # Apply ticker limit if specified
+        if settings.ticker_limit is not None and settings.ticker_limit > 0 and settings.ticker_limit < len(settings.tickers):
+            logger.info(f"Limiting optimization to {settings.ticker_limit} tickers (from {len(settings.tickers)})")
+            import random
+            random.shuffle(settings.tickers)  # Randomize to get a representative sample
+            settings.tickers = settings.tickers[:settings.ticker_limit]
+        else:
+            # No ticker limit - use all available tickers
+            logger.info(f"Using all {len(settings.tickers)} tickers for optimization")
         
         # Fetch historical data for all tickers
         logger.info(f"Preloading historical data for {len(settings.tickers)} tickers (will be cached)")
@@ -1986,7 +2446,7 @@ class BacktestOptimizer:
         # Patch the backtester's prepare_backtest_data method temporarily to use our cached data
         original_prepare_method = self.backtester.prepare_backtest_data
         
-        def patched_prepare_method(tickers, period=None, interval=None):
+        def patched_prepare_method(tickers, period=None, interval=None, cache_max_age_days=1):
             logger.info("Using preloaded data instead of making API calls")
             return preloaded_data
         
@@ -2185,7 +2645,7 @@ if __name__ == "__main__":
                         help='Backtest period')
     parser.add_argument('--tickers', type=str, default='',
                         help='Comma-separated list of tickers to backtest')
-    parser.add_argument('--source', choices=['portfolio', 'market', 'etoro', 'yfinance'], 
+    parser.add_argument('--source', choices=['portfolio', 'market', 'etoro', 'yfinance', 'usa', 'europe', 'china', 'usindex'], 
                         default='portfolio', help='Source of tickers')
     parser.add_argument('--capital', type=float, default=100000.0,
                         help='Initial capital')
@@ -2193,6 +2653,10 @@ if __name__ == "__main__":
                         help='Position size percentage')
     parser.add_argument('--rebalance', choices=['daily', 'weekly', 'monthly'], 
                         default='monthly', help='Rebalance frequency')
+    parser.add_argument('--ticker-limit', type=int, default=None,
+                        help='Limit number of tickers to test (for faster execution, None means use all tickers)')
+    parser.add_argument('--data-coverage-threshold', type=float, default=0.7,
+                        help='Data coverage threshold (0.0-1.0). Lower values allow longer backtests by excluding tickers with limited history.')
     
     args = parser.parse_args()
     
@@ -2209,7 +2673,9 @@ if __name__ == "__main__":
             initial_capital=args.capital,
             position_size_pct=args.position_size,
             rebalance_frequency=args.rebalance,
-            ticker_source=args.source
+            ticker_source=args.source,
+            ticker_limit=args.ticker_limit,
+            data_coverage_threshold=args.data_coverage_threshold
         )
         
         # Use tickers from command line if provided
@@ -2251,7 +2717,9 @@ if __name__ == "__main__":
             initial_capital=args.capital,
             position_size_pct=args.position_size,
             rebalance_frequency=args.rebalance,
-            ticker_source=args.source
+            ticker_source=args.source,
+            ticker_limit=args.ticker_limit,
+            data_coverage_threshold=args.data_coverage_threshold
         )
         
         # Use tickers from command line if provided
@@ -2280,3 +2748,15 @@ if __name__ == "__main__":
         print(f"Annualized Return: {best_result.performance['annualized_return']:.2f}%")
         print(f"Sharpe Ratio: {best_result.performance['sharpe_ratio']:.2f}")
         print(f"Max Drawdown: {best_result.performance['max_drawdown']:.2f}%")
+        
+        # Print all saved file paths
+        print("\nOptimization Results:")
+        print(f"  HTML Report: {best_result.saved_paths.get('html', 'Not available')}")
+        print(f"  JSON Results: {best_result.saved_paths.get('json', 'Not available')}")
+        print(f"  Portfolio CSV: {best_result.saved_paths.get('csv', 'Not available')}")
+        print(f"  Trades CSV: {best_result.saved_paths.get('trades', 'Not available')}")
+        
+        # Print optimized parameters in JSON format for easy copying
+        print("\nOptimized Trading Parameters JSON:")
+        import json
+        print(json.dumps(best_params, indent=2))
