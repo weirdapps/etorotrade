@@ -7,7 +7,8 @@ asynchronous Yahoo Finance provider implementations to reduce code duplication.
 
 import logging
 import time
-from typing import Dict, Any, Optional, List, Tuple, Union
+import abc
+from typing import Dict, Any, Optional, List, Tuple, Union, Set, TypeVar, Generic
 import pandas as pd
 import yfinance as yf
 from datetime import datetime
@@ -15,10 +16,15 @@ from datetime import datetime
 from ...core.errors import YFinanceError, APIError, ValidationError, RateLimitError
 from ...utils.market.ticker_utils import validate_ticker, is_us_ticker
 from ...core.config import COLUMN_NAMES
+from ...utils.data.format_utils import format_market_cap
 
 logger = logging.getLogger(__name__)
 
-class YahooFinanceBaseProvider:
+# Type variables for provider implementations
+T = TypeVar('T')  # Return type
+U = TypeVar('U')  # Input type
+
+class YahooFinanceBaseProvider(abc.ABC):
     """
     Base provider with shared functionality for Yahoo Finance data access.
     
@@ -43,6 +49,51 @@ class YahooFinanceBaseProvider:
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self._ticker_cache = {}
+        
+    @abc.abstractmethod
+    def get_ticker_info(self, ticker: str, skip_insider_metrics: bool = False) -> Dict[str, Any]:
+        """
+        Get ticker information for a single symbol.
+        Must be implemented by concrete provider classes.
+        
+        Args:
+            ticker: Stock ticker symbol
+            skip_insider_metrics: Whether to skip fetching insider trading metrics
+            
+        Returns:
+            Dictionary with ticker information
+        """
+        pass
+        
+    @abc.abstractmethod
+    def get_price_data(self, ticker: str) -> Dict[str, Any]:
+        """
+        Get current price data for a ticker.
+        Must be implemented by concrete provider classes.
+        
+        Args:
+            ticker: Stock ticker symbol
+            
+        Returns:
+            Dictionary with price data
+        """
+        pass
+        
+    @abc.abstractmethod
+    def get_historical_data(self, ticker: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
+        """
+        Get historical price data for a ticker.
+        Must be implemented by concrete provider classes.
+        
+        Args:
+            ticker: Stock ticker symbol
+            period: Time period to fetch (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max)
+            interval: Data interval (1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo)
+            
+        Returns:
+            DataFrame with historical price data
+        """
+        pass
 
     def _get_ticker_object(self, ticker: str) -> yf.Ticker:
         """
@@ -133,29 +184,8 @@ class YahooFinanceBaseProvider:
         Returns:
             Formatted market cap string with appropriate suffix
         """
-        if not market_cap:
-            return None
-            
-        # Convert to billions or trillions
-        if market_cap >= 1_000_000_000_000:  # Trillion
-            value = market_cap / 1_000_000_000_000
-            if value >= 10:
-                return f"{value:.1f}T"
-            else:
-                return f"{value:.2f}T"
-        elif market_cap >= 1_000_000_000:  # Billion
-            value = market_cap / 1_000_000_000
-            if value >= 100:
-                return f"{value:.0f}B"
-            elif value >= 10:
-                return f"{value:.1f}B"
-            else:
-                return f"{value:.2f}B"
-        elif market_cap >= 1_000_000:  # Million
-            value = market_cap / 1_000_000
-            return f"{value:.2f}M"
-        else:
-            return f"{market_cap:,.0f}"
+        # Use the canonical format_market_cap function from format_utils
+        return format_market_cap(market_cap)
             
     def get_cache_info(self) -> Dict[str, Any]:
         """
@@ -175,6 +205,55 @@ class YahooFinanceBaseProvider:
         """
         self._ticker_cache.clear()
         
+    def _extract_price_data(self, ticker: str, ticker_obj: yf.Ticker) -> Dict[str, Any]:
+        """
+        Extract price data from ticker object.
+        
+        This is a helper method to be used by all provider implementations.
+        
+        Args:
+            ticker: Stock ticker symbol
+            ticker_obj: yfinance Ticker object
+            
+        Returns:
+            Dictionary with price data
+            
+        Raises:
+            APIError: When price data can't be retrieved
+        """
+        try:
+            # Get fast info (contains price data)
+            info = ticker_obj.fast_info
+            if not info:
+                raise APIError(f"No price data found for {ticker}")
+                
+            # Extract current price
+            current_price = info.get('lastPrice', None)
+            if current_price is None:
+                current_price = info.get('regularMarketPrice', None)
+                
+            if current_price is None:
+                raise APIError(f"No price data available for {ticker}")
+                
+            # Get price targets
+            detailed_info = ticker_obj.info
+            target_price = detailed_info.get('targetMeanPrice', None)
+            
+            # Calculate upside potential
+            upside_potential = self.calculate_upside_potential(current_price, target_price)
+            
+            return {
+                'ticker': ticker,
+                'current_price': current_price,
+                'target_price': target_price,
+                'upside_potential': upside_potential,
+                'price_change': info.get('regularMarketDayHigh', 0) - info.get('regularMarketDayLow', 0),
+                'price_change_percentage': info.get('regularMarketDayChangePercent', 0)
+            }
+        except Exception as e:
+            logger.error(f"Error extracting price data for {ticker}: {str(e)}")
+            raise APIError(f"Failed to extract price data: {str(e)}")
+    
     def _process_ticker_info(self, ticker: str, ticker_obj: yf.Ticker, skip_insider_metrics: bool = False) -> Dict[str, Any]:
         """
         Process ticker information from a yfinance Ticker object.
@@ -197,41 +276,30 @@ class YahooFinanceBaseProvider:
             APIError: When data can't be retrieved from the ticker object
         """
         try:
-            # Get basic info
-            info = ticker_obj.fast_info
-            if not info:
-                raise APIError(f"No info data found for {ticker}")
-                
-            # Extract current price
-            current_price = info.get('lastPrice', None)
-            if current_price is None:
-                current_price = info.get('regularMarketPrice', None)
-                
+            # Get basic price data
+            price_data = self._extract_price_data(ticker, ticker_obj)
+            
             # Get detailed info (slower)
             detailed_info = ticker_obj.info
             
             # Get price targets and analyst consensus
             analyst_data = self._get_analyst_consensus(ticker_obj)
             
-            # Calculate upside
-            target_price = analyst_data.get('target_price')
-            upside = self.calculate_upside_potential(current_price, target_price)
-            
             # Build result
             result = {
                 'ticker': ticker,
                 'name': detailed_info.get('shortName', detailed_info.get('longName', ticker)),
                 'sector': detailed_info.get('sector', 'Unknown'),
-                'market_cap': detailed_info.get('marketCap', info.get('marketCap')),
+                'market_cap': detailed_info.get('marketCap', ticker_obj.fast_info.get('marketCap')),
                 'beta': detailed_info.get('beta', None),
                 'pe_trailing': detailed_info.get('trailingPE', None),
                 'pe_forward': detailed_info.get('forwardPE', None),
                 'dividend_yield': detailed_info.get('dividendYield', None),
-                'current_price': current_price,
-                'price_change': info.get('regularMarketDayHigh', 0) - info.get('regularMarketDayLow', 0),
-                'price_change_percentage': info.get('regularMarketDayChangePercent', 0),
-                'target_price': target_price,
-                'upside_potential': upside,
+                'current_price': price_data['current_price'],
+                'price_change': price_data['price_change'],
+                'price_change_percentage': price_data['price_change_percentage'],
+                'target_price': price_data['target_price'],
+                'upside_potential': price_data['upside_potential'],
                 'analyst_count': analyst_data.get('analyst_count', 0),
                 'buy_percentage': analyst_data.get('buy_percentage', None),
                 'total_ratings': analyst_data.get('total_ratings', 0),
@@ -349,3 +417,56 @@ class YahooFinanceBaseProvider:
         """
         logger.warning(f"Error getting data for {ticker}: {str(error)}")
         return {"symbol": ticker, "error": str(error)}
+        
+    def _extract_historical_data(self, ticker: str, ticker_obj: yf.Ticker, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
+        """
+        Extract historical price data from ticker object.
+        This is a common implementation that can be used by both sync and async providers.
+        
+        Args:
+            ticker: Stock ticker symbol
+            ticker_obj: yfinance Ticker object
+            period: Time period to fetch
+            interval: Data interval
+            
+        Returns:
+            DataFrame with historical price data
+            
+        Raises:
+            APIError: When historical data can't be retrieved
+        """
+        try:
+            # Validate ticker
+            validate_ticker(ticker)
+            
+            # Get history data
+            history = ticker_obj.history(period=period, interval=interval)
+            
+            # Process the result
+            if history.empty:
+                logger.warning(f"No historical data found for {ticker}")
+                return pd.DataFrame()
+                
+            # Return the data
+            return history
+        except Exception as e:
+            logger.error(f"Error getting historical data for {ticker}: {str(e)}")
+            if "Rate limit" in str(e) or "429" in str(e):
+                raise RateLimitError(f"Rate limit exceeded while fetching historical data for {ticker}")
+            raise APIError(f"Failed to get historical data: {str(e)}")
+            
+    def _get_price_data_from_obj(self, ticker: str, ticker_obj: yf.Ticker) -> Dict[str, Any]:
+        """
+        Get price data using a ticker object.
+        
+        Args:
+            ticker: Stock ticker symbol
+            ticker_obj: yfinance Ticker object
+            
+        Returns:
+            Dictionary with price data
+            
+        Raises:
+            APIError: When price data can't be retrieved
+        """
+        return self._extract_price_data(ticker, ticker_obj)

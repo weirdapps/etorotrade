@@ -70,6 +70,7 @@ This will test different parameter combinations and find the set that maximizes 
                         JSON file with parameter ranges for optimization
   --output OUTPUT       Output file for results (CSV)
   --quiet               Suppress progress bars and detailed output (for batch processing)
+  --clean-previous      Clean up previous backtest result files before running a new test
 ```
 
 ### Parameter Configuration
@@ -149,6 +150,11 @@ Here are some useful example commands:
    python scripts/optimize_criteria.py --mode optimize --metric sharpe_ratio --quiet --output results.json
    ```
 
+7. Clean up previous backtest files before running a new test:
+   ```bash
+   python scripts/optimize_criteria.py --mode backtest --clean-previous --period 3y
+   ```
+
 ### Progress Bars
 
 The backtester now features interactive progress bars showing:
@@ -172,7 +178,8 @@ The backtester includes several optimizations to reduce API calls and improve pe
 5. **Adaptive Batch Sizing**: Batch size automatically adjusts based on the number of tickers
 6. **Parallel Processing**: Tickers are processed in parallel batches for maximum efficiency
 7. **Smart Caching**: Each ticker's data is cached only once, regardless of how many times it's used
-8. **Progress Visualization**: Color-coded progress bars help monitor different stages of processing:
+8. **Results Cleanup**: Option to automatically clean up previous backtest files before running new tests
+9. **Progress Visualization**: Color-coded progress bars help monitor different stages of processing:
    - Cyan: Initial data loading
    - Magenta: Prefetching historical data
    - Yellow: Synthetic data generation

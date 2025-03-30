@@ -63,7 +63,7 @@ class TestAsyncRateLimiter:
         )
         assert limiter.window_size == 10
         assert limiter.max_calls == 30
-        assert limiter.base_delay == 0.02
+        assert abs(limiter.base_delay - 0.02) < 1e-10  # Use absolute difference for float comparison
         assert limiter.call_times == []
     
     @pytest.mark.asyncio
@@ -300,8 +300,9 @@ class TestProcessBatchAsync:
             # Should have called sleep between batches
             # With 10 items and batch size 3, there should be 4 batches
             # and 3 delays between batches
+            epsilon = 1e-10  # Small tolerance for floating point comparison
             batch_delay_calls = [call for call in mock_sleep.call_args_list 
-                              if call[0][0] == 0.5]
+                              if abs(call[0][0] - 0.5) < epsilon]
             assert len(batch_delay_calls) == 3
 
 

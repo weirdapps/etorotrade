@@ -19,6 +19,7 @@ import copy
 import itertools
 import time
 import pickle
+import glob
 from tqdm.auto import tqdm
 
 from ..api import get_provider
@@ -76,6 +77,7 @@ class BacktestSettings:
     ticker_limit: Optional[int] = None
     cache_max_age_days: int = 1
     data_coverage_threshold: float = 0.7  # Keep at least 70% of tickers (exclude up to 30% with shortest history)
+    clean_previous_results: bool = False  # Whether to clean up previous backtest results before running
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert settings to dictionary."""
@@ -91,7 +93,8 @@ class BacktestSettings:
             "criteria_params": self.criteria_params,
             "ticker_limit": self.ticker_limit,
             "cache_max_age_days": self.cache_max_age_days,
-            "data_coverage_threshold": self.data_coverage_threshold
+            "data_coverage_threshold": self.data_coverage_threshold,
+            "clean_previous_results": self.clean_previous_results
         }
 
 
@@ -189,24 +192,56 @@ class Backtester:
         html_generator: HTML generator for creating dashboards
     """
     
-    def __init__(self, output_dir: Optional[str] = None, disable_progress: bool = False):
+    def __init__(self, output_dir: Optional[str] = None, disable_progress: bool = False, 
+                 clean_previous_results: bool = False):
         """
         Initialize the Backtester.
         
         Args:
             output_dir: Directory for output files (defaults to config)
             disable_progress: Whether to disable progress bars
+            clean_previous_results: Whether to clean up previous backtest results before running new tests
         """
         self.provider = get_provider()
         self.output_dir = output_dir or os.path.join(PATHS["OUTPUT_DIR"], "backtest")
         self.html_generator = HTMLGenerator(output_dir=self.output_dir)
         self.disable_progress = disable_progress
+        self.clean_previous_results = clean_previous_results
         
         # Create output directory if it doesn't exist
         Path(self.output_dir).mkdir(parents=True, exist_ok=True)
         
         # Add cache for historical data to avoid repeated API calls
         self.ticker_data_cache: Dict[str, pd.DataFrame] = {}
+        
+        # Clean previous results if requested
+        if clean_previous_results:
+            self.cleanup_previous_results()
+            
+    def cleanup_previous_results(self) -> None:
+        """
+        Delete previous backtest result files from the output directory.
+        This includes HTML, CSV, JSON, and PNG files but preserves cache files.
+        """
+        logger.info(f"Cleaning up previous backtest results from {self.output_dir}")
+        
+        # Count deleted files
+        deleted_count = 0
+        
+        try:
+            # Delete files with specific extensions
+            for ext in ['html', 'csv', 'json', 'png']:
+                pattern = os.path.join(self.output_dir, f"backtest_*.{ext}")
+                for file_path in glob.glob(pattern):
+                    try:
+                        os.remove(file_path)
+                        deleted_count += 1
+                    except Exception as e:
+                        logger.warning(f"Error deleting file {file_path}: {str(e)}")
+            
+            logger.info(f"Deleted {deleted_count} previous backtest result files")
+        except Exception as e:
+            logger.error(f"Error during cleanup: {str(e)}")
     
     def load_tickers(self, source: str = "portfolio") -> List[str]:
         """
@@ -513,8 +548,8 @@ class Backtester:
         Returns:
             Dictionary with enhanced ticker data including analyst metrics
         """
-        if seed is not None:
-            np.random.seed(seed)
+        # Initialize numpy random generator
+        self.rng = np.random.default_rng(seed)
             
         result = copy.deepcopy(ticker_data)
         
@@ -601,7 +636,7 @@ class Backtester:
                         future_return = (future_price / current_price - 1) * 100
                         
                     # Generate synthetic metrics
-                    analyst_count = np.random.randint(analyst_count_range[0], analyst_count_range[1])
+                    analyst_count = self.rng.integers(analyst_count_range[0], analyst_count_range[1], endpoint=True)
                     
                     # Buy percentage influenced by future return
                     if future_return > 15:
@@ -622,17 +657,17 @@ class Backtester:
                         buy_pct_std = 10
                         
                     # Generate buy percentage with noise
-                    buy_pct = min(max(np.random.normal(buy_pct_mean, buy_pct_std), 
+                    buy_pct = min(max(self.rng.normal(buy_pct_mean, buy_pct_std), 
                                      buy_pct_range[0]), buy_pct_range[1])
                     
                     # Target price influenced by future price and current analytics
                     if future_price:
                         # Base target on future price with noise
-                        noise_factor = np.random.normal(1.0, 0.1)  # 10% std dev noise
+                        noise_factor = self.rng.normal(1.0, 0.1)  # 10% std dev noise
                         target_price = future_price * noise_factor
                     else:
                         # No future data, generate from current price
-                        upside_base = np.random.normal(buy_pct / 80 * 20, 10)  # Higher buy % = higher upside
+                        upside_base = self.rng.normal(buy_pct / 80 * 20, 10)  # Higher buy % = higher upside
                         target_price = current_price * (1 + upside_base / 100)
                     
                     # Calculate upside percentage
@@ -647,16 +682,16 @@ class Backtester:
                     data['EXRET'] = upside_pct * buy_pct / 100  # Expected return
                     
                     # Add other required fields
-                    data['pe_trailing'] = np.random.normal(25, 10)
-                    data['pe_forward'] = data['pe_trailing'] * np.random.normal(0.9, 0.1)  # Forward typically lower
-                    data['peg_ratio'] = np.random.normal(1.5, 0.5)
-                    data['beta'] = np.random.normal(1.0, 0.5)
-                    data['short_percent'] = np.random.uniform(0, 8)
+                    data['pe_trailing'] = self.rng.normal(25, 10)
+                    data['pe_forward'] = data['pe_trailing'] * self.rng.normal(0.9, 0.1)  # Forward typically lower
+                    data['peg_ratio'] = self.rng.normal(1.5, 0.5)
+                    data['beta'] = self.rng.normal(1.0, 0.5)
+                    data['short_percent'] = self.rng.uniform(0, 8)
                     
                     # Generate market cap data (large caps are more common than small caps in most indices)
                     # Use a log-normal distribution to get a realistic market cap distribution
                     # This generates values mostly in the billions with some trillions and millions
-                    market_cap_mean = np.random.lognormal(mean=23, sigma=1.5)  # Mean around $10B with wide variance
+                    market_cap_mean = self.rng.lognormal(mean=23, sigma=1.5)  # Mean around $10B with wide variance
                     data['market_cap'] = market_cap_mean
                         
                 except Exception as e:
@@ -760,9 +795,13 @@ class Backtester:
         # Apply ticker limit if specified
         if settings.ticker_limit is not None and settings.ticker_limit > 0 and settings.ticker_limit < len(settings.tickers):
             logger.info(f"Limiting backtest to {settings.ticker_limit} tickers (from {len(settings.tickers)})")
-            import random
-            random.shuffle(settings.tickers)  # Randomize to get a representative sample
-            settings.tickers = settings.tickers[:settings.ticker_limit]
+            import secrets
+            # Use secrets module for cryptographically secure randomness
+            sample_indices = set()
+            while len(sample_indices) < settings.ticker_limit:
+                sample_indices.add(secrets.randbelow(len(settings.tickers)))
+            # Convert to list and sort for consistent ordering
+            settings.tickers = [settings.tickers[i] for i in sorted(sample_indices)]
         else:
             # No ticker limit - use all available tickers
             logger.info(f"Using all {len(settings.tickers)} tickers for backtest")
@@ -2268,17 +2307,24 @@ class BacktestOptimizer:
         ticker_data_cache: Cache for historical ticker data to reduce API calls
     """
     
-    def __init__(self, output_dir: Optional[str] = None, disable_progress: bool = False):
+    def __init__(self, output_dir: Optional[str] = None, disable_progress: bool = False, 
+                 backtester: Optional[Backtester] = None):
         """
         Initialize the optimizer.
         
         Args:
             output_dir: Directory for output files (defaults to config)
             disable_progress: Whether to disable progress bars
+            backtester: A pre-configured Backtester instance (will create one if None)
         """
         self.output_dir = output_dir or os.path.join(PATHS["OUTPUT_DIR"], "backtest", "optimize")
         self.disable_progress = disable_progress
-        self.backtester = Backtester(output_dir=self.output_dir, disable_progress=disable_progress)
+        
+        # Use provided backtester or create a new one
+        if backtester:
+            self.backtester = backtester
+        else:
+            self.backtester = Backtester(output_dir=self.output_dir, disable_progress=disable_progress)
         
         # Create output directory if it doesn't exist
         Path(self.output_dir).mkdir(parents=True, exist_ok=True)
@@ -2382,9 +2428,13 @@ class BacktestOptimizer:
         # Apply ticker limit if specified
         if settings.ticker_limit is not None and settings.ticker_limit > 0 and settings.ticker_limit < len(settings.tickers):
             logger.info(f"Limiting optimization to {settings.ticker_limit} tickers (from {len(settings.tickers)})")
-            import random
-            random.shuffle(settings.tickers)  # Randomize to get a representative sample
-            settings.tickers = settings.tickers[:settings.ticker_limit]
+            import secrets
+            # Use secrets module for cryptographically secure randomness
+            sample_indices = set()
+            while len(sample_indices) < settings.ticker_limit:
+                sample_indices.add(secrets.randbelow(len(settings.tickers)))
+            # Convert to list and sort for consistent ordering
+            settings.tickers = [settings.tickers[i] for i in sorted(sample_indices)]
         else:
             # No ticker limit - use all available tickers
             logger.info(f"Using all {len(settings.tickers)} tickers for optimization")
@@ -2434,9 +2484,17 @@ class BacktestOptimizer:
         
         # Limit to max_combinations
         if len(param_grid) > max_combinations:
-            import random
-            random.shuffle(param_grid)
-            param_grid = param_grid[:max_combinations]
+            import secrets
+            # Use secrets module for cryptographically secure randomness
+            indices = list(range(len(param_grid)))
+            # Create a random sample of indices
+            sample_indices = []
+            while len(sample_indices) < max_combinations:
+                idx = secrets.randbelow(len(indices))
+                sample_indices.append(indices.pop(idx))
+            
+            # Use the random indices to select combinations
+            param_grid = [param_grid[i] for i in sample_indices]
             
         logger.info(f"Testing {len(param_grid)} parameter combinations")
         
@@ -2605,7 +2663,13 @@ def run_backtest(
     Returns:
         BacktestResult object with the results of the backtest
     """
-    backtester = Backtester(disable_progress=disable_progress)
+    # Get clean_previous_results setting from settings if available
+    clean_previous = settings.clean_previous_results if settings else False
+    
+    backtester = Backtester(
+        disable_progress=disable_progress,
+        clean_previous_results=clean_previous
+    )
     return backtester.run_backtest(settings)
 
 
@@ -2631,7 +2695,21 @@ def optimize_criteria(
     Returns:
         Tuple of (best_parameters, best_result)
     """
-    optimizer = BacktestOptimizer(disable_progress=disable_progress)
+    # Get clean_previous_results setting from settings if available
+    clean_previous = settings.clean_previous_results if settings else False
+    
+    # Initialize the backtester with clean_previous_results setting
+    backtester = Backtester(
+        disable_progress=disable_progress,
+        clean_previous_results=clean_previous
+    )
+    
+    # Create optimizer with the backtester
+    optimizer = BacktestOptimizer(
+        disable_progress=disable_progress,
+        backtester=backtester
+    )
+    
     return optimizer.optimize(parameter_ranges, settings, metric, max_combinations)
 
 
@@ -2657,6 +2735,8 @@ if __name__ == "__main__":
                         help='Limit number of tickers to test (for faster execution, None means use all tickers)')
     parser.add_argument('--data-coverage-threshold', type=float, default=0.7,
                         help='Data coverage threshold (0.0-1.0). Lower values allow longer backtests by excluding tickers with limited history.')
+    parser.add_argument('--clean-previous', action='store_true',
+                        help='Clean up previous backtest result files before running a new test')
     
     args = parser.parse_args()
     
@@ -2675,7 +2755,8 @@ if __name__ == "__main__":
             rebalance_frequency=args.rebalance,
             ticker_source=args.source,
             ticker_limit=args.ticker_limit,
-            data_coverage_threshold=args.data_coverage_threshold
+            data_coverage_threshold=args.data_coverage_threshold,
+            clean_previous_results=args.clean_previous
         )
         
         # Use tickers from command line if provided
@@ -2719,7 +2800,8 @@ if __name__ == "__main__":
             rebalance_frequency=args.rebalance,
             ticker_source=args.source,
             ticker_limit=args.ticker_limit,
-            data_coverage_threshold=args.data_coverage_threshold
+            data_coverage_threshold=args.data_coverage_threshold,
+            clean_previous_results=args.clean_previous
         )
         
         # Use tickers from command line if provided

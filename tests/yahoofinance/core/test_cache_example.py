@@ -4,32 +4,19 @@ Tests for the yahoofinance.core.cache module.
 This is an example of a well-organized test file in the new structure.
 """
 
-import unittest
 import os
-import shutil
-import json
 import pytest
-from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock
+from datetime import datetime
+from unittest.mock import MagicMock
 
-from yahoofinance.core.cache import Cache
+from .cache_test_base import BaseCacheTest
 from yahoofinance.core.errors import CacheError
 
 
 @pytest.mark.unit
-class TestCache(unittest.TestCase):
+class TestCache(BaseCacheTest):
     """Test cases for the Cache class."""
     
-    def setUp(self):
-        """Set up test cache directory."""
-        self.test_cache_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'fixtures', 'cache', 'test_cache')
-        self.cache = Cache(cache_dir=self.test_cache_dir, expiration_minutes=15)
-
-    def tearDown(self):
-        """Clean up test cache directory."""
-        if os.path.exists(self.test_cache_dir):
-            shutil.rmtree(self.test_cache_dir)
-
     def test_cache_directory_creation(self):
         """Test that cache directory is created if it doesn't exist."""
         self.assertTrue(os.path.exists(self.test_cache_dir))
@@ -50,17 +37,8 @@ class TestCache(unittest.TestCase):
         """Test that expired cache entries are not returned."""
         test_data = {"key": "value"}
         
-        # Set cache with expired timestamp
-        cache_path = self.cache._get_cache_path("test_key")
-        expired_time = datetime.now() - timedelta(minutes=20)
-        cache_data = {
-            'timestamp': expired_time.isoformat(),
-            'value': test_data
-        }
-        
-        os.makedirs(os.path.dirname(cache_path), exist_ok=True)
-        with open(cache_path, 'w') as f:
-            json.dump(cache_data, f)
+        # Set cache with expired timestamp using the helper method
+        cache_path = self.create_expired_cache_entry("test_key", test_data)
         
         # Verify expired data is not returned
         self.assertIsNone(self.cache.get("test_key"))
