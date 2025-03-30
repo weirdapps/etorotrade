@@ -291,6 +291,9 @@ class DisplayFormatter:
         Returns:
             Signal string ("BUY", "SELL", "HOLD", or "NEUTRAL")
         """
+        # Import TRADING_CRITERIA from config to ensure consistency
+        from yahoofinance.core.config import TRADING_CRITERIA
+        
         # Extract and convert relevant metrics
         upside = ticker_data.get('upside')
         buy_percentage = ticker_data.get('buy_percentage')
@@ -299,6 +302,10 @@ class DisplayFormatter:
         peg = ticker_data.get('peg_ratio')
         beta = ticker_data.get('beta')
         short_interest = ticker_data.get('short_float_pct')
+        
+        # Get the criteria values from the central config
+        sell_criteria = TRADING_CRITERIA["SELL"]
+        buy_criteria = TRADING_CRITERIA["BUY"]
         
         # Confidence check - require both analyst metrics to be present
         if (ticker_data.get('analyst_count') is None or 
@@ -312,29 +319,29 @@ class DisplayFormatter:
         
         # Check sell signals first (any trigger a sell)
         if any([
-            upside < 5,  # Low upside
-            buy_percentage < 65,  # Low buy rating
+            upside < sell_criteria["SELL_MAX_UPSIDE"],  # Low upside
+            buy_percentage < sell_criteria["SELL_MIN_BUY_PERCENTAGE"],  # Low buy rating
             # PE deteriorating (both positive, but forward > trailing)
             pe_forward is not None and pe_trailing is not None and pe_forward > 0 and pe_trailing > 0 and pe_forward > pe_trailing,
-            pe_forward is not None and pe_forward > 45,  # Extremely high forward PE
-            peg is not None and peg > 3.0,  # High PEG ratio
-            short_interest is not None and short_interest > 4.0,  # High short interest
-            beta is not None and beta > 3.0,  # Excessive volatility
-            expected_return < 10.0  # Low expected return (expected_return is calculated above and is not None)
+            pe_forward is not None and pe_forward > sell_criteria["SELL_MIN_FORWARD_PE"],  # Extremely high forward PE
+            peg is not None and peg > sell_criteria["SELL_MIN_PEG"],  # High PEG ratio
+            short_interest is not None and short_interest > sell_criteria["SELL_MIN_SHORT_INTEREST"],  # High short interest
+            beta is not None and beta > sell_criteria["SELL_MIN_BETA"],  # Excessive volatility
+            expected_return < sell_criteria["SELL_MAX_EXRET"]  # Low expected return
         ]):
             return "SELL"
         # Then check buy signals (all criteria must be met)
         elif all([
-            upside >= 20,  # Strong upside
-            buy_percentage >= 82,  # Strong buy consensus
-            beta is None or (beta > 0.2 and beta <= 3.0),  # Reasonable volatility
+            upside >= buy_criteria["BUY_MIN_UPSIDE"],  # Strong upside
+            buy_percentage >= buy_criteria["BUY_MIN_BUY_PERCENTAGE"],  # Strong buy consensus
+            beta is None or (beta > buy_criteria["BUY_MIN_BETA"] and beta <= buy_criteria["BUY_MAX_BETA"]),  # Reasonable volatility
             # PE improvement or negative trailing PE (growth stock)
             (pe_forward is None or pe_trailing is None or
              pe_forward <= 0 or  # Negative future earnings still allowed
-             (pe_forward > 0.5 and pe_forward <= 45.0 and  # Positive and reasonable forward PE
+             (pe_forward > buy_criteria["BUY_MIN_FORWARD_PE"] and pe_forward <= buy_criteria["BUY_MAX_FORWARD_PE"] and  # Positive and reasonable forward PE
               (pe_trailing <= 0 or pe_forward < pe_trailing))),  # Either negative trailing or improving ratio
-            peg is None or peg < 3.0,  # Reasonable PEG ratio
-            short_interest is None or short_interest <= 3.0  # Low short interest
+            peg is None or peg < buy_criteria["BUY_MAX_PEG"],  # Reasonable PEG ratio
+            short_interest is None or short_interest <= buy_criteria["BUY_MAX_SHORT_INTEREST"]  # Low short interest
         ]):
             return "BUY"
         else:
