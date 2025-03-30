@@ -1748,10 +1748,7 @@ class SimpleProgressTracker:
         self.cache_count = 0
         self.terminal_width = self._get_terminal_width()
         
-        # Print an initial empty line to make room for progress bar
-        print()
-        
-        # Initialize the display
+        # Initialize the display (no need for an empty line anymore)
         self._print_status()
     
     def _get_terminal_width(self):
@@ -1827,17 +1824,17 @@ class SimpleProgressTracker:
         else:
             ticker_time_str = "?s/ticker"
         
-        # Format timing information
-        time_info = f"{c['bold']}⏱ {c['cyan']}{elapsed_str}{c['reset']} < {c['magenta']}{remaining_str}{c['reset']}"
-        rate_info = f"{c['green']}{rate}{c['reset']} | {c['yellow']}{ticker_time_str}{c['reset']}"
+        # Format timing and rate information
+        time_info = f"{c['bold']}⏱ {c['cyan']}{elapsed_str}{c['reset']}/{c['magenta']}{remaining_str}{c['reset']}"
+        rate_info = f"{c['green']}{rate}{c['reset']}|{c['yellow']}{ticker_time_str}{c['reset']}"
         
-        # Clear the line and position the cursor
-        print(f"\033[1A\r{' ' * self.terminal_width}", end="\r", flush=True)
+        # Clear the current line (simpler now with single-line display)
+        print("\r", end="", flush=True)
         
-        # Build status line with spacing to keep consistent positioning
+        # Build a compact single-line status
         status = (
-            f"{c['bold']}⚡ {ticker_display} {batch_info} {progress_info} {c['reset']}\n\r"
-            f"{bar} {time_info} ({rate_info})"
+            f"{c['bold']}⚡ {ticker_display} {batch_info} {progress_info} "
+            f"{bar} {time_info} ({rate_info}){c['reset']}"
         )
         
         # Print the status
@@ -1902,8 +1899,8 @@ class SimpleProgressTracker:
     
     def close(self):
         """Clean up the progress tracker"""
-        # Add newlines for spacing after progress bar
-        print("\n")
+        # Add a newline after the progress bar is done
+        print()
         
         # Show final stats if we processed any items
         if self.n > 0:
@@ -2017,7 +2014,7 @@ async def fetch_ticker_data(provider, tickers):
     
     # Calculate batch parameters
     total_tickers = len(tickers)
-    batch_size = 10  # Reduced batch size to avoid rate limiting
+    batch_size = 25  # Increased batch size for better performance
     total_batches = (total_tickers - 1) // batch_size + 1
     
     # For debugging, process max 100 tickers at a time to avoid rate limits
