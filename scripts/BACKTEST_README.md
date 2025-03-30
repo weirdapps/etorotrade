@@ -94,10 +94,10 @@ You can specify parameter ranges to test in a JSON file. Here's an example of wh
     "BUY_MAX_PEG": [2.0, 2.5, 3.0],
     "BUY_MAX_SHORT_INTEREST": [1.0, 1.5, 2.0],
     "BUY_MIN_EXRET": [15.0, 20.0, 25.0],
-    "BUY_MIN_BETA": [0.2, 0.25, 0.3],
-    "BUY_MAX_BETA": [2.5, 3.0, 3.5],
-    "BUY_MIN_FORWARD_PE": [0.3, 0.5, 0.7],
-    "BUY_MAX_FORWARD_PE": [40.0, 45.0, 50.0]
+    "BUY_MIN_BETA": [0.2, 0.25, 0.3],          /* Primary required criterion */
+    "BUY_MAX_BETA": [2.5, 3.0, 3.5],           /* Primary required criterion */
+    "BUY_MIN_FORWARD_PE": [0.3, 0.5, 0.7],     /* Primary required criterion */
+    "BUY_MAX_FORWARD_PE": [40.0, 45.0, 50.0]   /* Primary required criterion */
   },
   "CONFIDENCE": {
     "MIN_ANALYST_COUNT": [3, 5, 7],
@@ -105,6 +105,21 @@ You can specify parameter ranges to test in a JSON file. Here's an example of wh
   }
 }
 ```
+
+#### Primary vs. Secondary Criteria
+
+The backtesting framework respects the distinction between primary and secondary criteria:
+
+1. **Primary Required Criteria**: These must be available for a stock to receive a BUY signal:
+   - **Beta**: Both BUY_MIN_BETA and BUY_MAX_BETA parameters apply
+   - **PE Forward (PEF)**: BUY_MIN_FORWARD_PE and BUY_MAX_FORWARD_PE parameters apply
+   - **PE Trailing (PET)**: Used to check if earnings outlook is improving
+
+2. **Secondary Criteria**: These are only checked if available and ignored if missing:
+   - **PEG Ratio**: BUY_MAX_PEG parameter applies only if PEG data is available
+   - **Short Interest (SI)**: BUY_MAX_SHORT_INTEREST parameter applies only if SI data is available
+
+In the backtesting simulation, stocks missing any primary criterion will automatically be classified as HOLD, even if they meet all other criteria.
 
 You can also test specific parameter ranges programmatically:
 

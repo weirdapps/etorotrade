@@ -379,20 +379,21 @@ class Backtester:
             desc="Loading stock data", 
             unit="ticker",
             leave=False,
-            dynamic_ncols=True,
+            ncols=100,
+            bar_format="{desc:<25}: {percentage:3.0f}%|{bar:30}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]",
             colour="cyan",
             disable=self.disable_progress
         )
         
         for ticker in progress_bar:
             try:
-                progress_bar.set_description(f"Loading {ticker}")
+                progress_bar.set_description(f"Loading {ticker}".ljust(25))
                 
                 # Check in-memory cache first
                 if ticker in self.ticker_data_cache:
                     history = self.ticker_data_cache[ticker]
                     cache_hits += 1
-                    progress_bar.set_description(f"Memory cache hit: {ticker}")
+                    progress_bar.set_description(f"Memory cache hit: {ticker}".ljust(25))
                 else:
                     # Check disk cache
                     cache_file = os.path.join(cache_dir, f"{ticker}_{period}.pkl")
@@ -408,7 +409,7 @@ class Backtester:
                                     history = pickle.load(f)
                                 cache_hits += 1
                                 cache_valid = True
-                                progress_bar.set_description(f"Disk cache hit: {ticker}")
+                                progress_bar.set_description(f"Disk cache hit: {ticker}".ljust(25))
                             except Exception as e:
                                 logger.warning(f"Error loading cache for {ticker}: {str(e)}")
                                 cache_valid = False
@@ -416,7 +417,7 @@ class Backtester:
                     if not cache_valid:
                         # Cache miss - fetch fresh data
                         cache_misses += 1
-                        progress_bar.set_description(f"Downloading: {ticker}")
+                        progress_bar.set_description(f"Downloading: {ticker}".ljust(25))
                         history = self.get_historical_data(ticker, period)
                         
                         # Save to disk cache
@@ -571,7 +572,8 @@ class Backtester:
                 desc="Prefetching historical data", 
                 unit="ticker",
                 leave=False,
-                dynamic_ncols=True,
+                ncols=100,
+                bar_format="{desc:<25}: {percentage:3.0f}%|{bar:30}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]",
                 colour="magenta",
                 disable=self.disable_progress
             )
@@ -601,7 +603,8 @@ class Backtester:
             desc="Generating synthetic data", 
             unit="ticker",
             leave=False,
-            dynamic_ncols=True,
+            ncols=100,
+            bar_format="{desc:<25}: {percentage:3.0f}%|{bar:30}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]",
             colour="yellow",
             disable=self.disable_progress
         )
@@ -1226,7 +1229,8 @@ class Backtester:
             desc="Simulating portfolio", 
             unit="date",
             leave=False,
-            dynamic_ncols=True,
+            ncols=100,
+            bar_format="{desc:<25}: {percentage:3.0f}%|{bar:30}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]",
             colour="blue",
             disable=self.disable_progress,
             total=len(rebalance_dates)
@@ -2835,15 +2839,16 @@ class BacktestOptimizer:
                 desc="Testing parameters", 
                 unit="combination", 
                 leave=True,
-                dynamic_ncols=True,
+                ncols=100,
+                bar_format="{desc:<25}: {percentage:3.0f}%|{bar:30}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]",
                 colour="green",
                 disable=self.disable_progress
             )
             
             for params in progress_bar:
                 try:
-                    # Update progress bar description with more details
-                    progress_bar.set_description(f"Testing parameter combo {progress_bar.n+1}/{len(param_grid)}")
+                    # Update progress bar description with fixed width
+                    progress_bar.set_description(f"Testing combo {progress_bar.n+1}/{len(param_grid)}".ljust(25))
                     
                     # Create settings with current parameters
                     test_settings = copy.deepcopy(settings)

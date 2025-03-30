@@ -470,41 +470,57 @@ def filter_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame:
     # Filter condition with confidence requirements
     confidence_condition = get_confidence_condition(market_df)
     
-    # Filter stocks based on upside and analyst consensus
-    upside_condition = market_df['upside'] >= buy_criteria["BUY_MIN_UPSIDE"]
-    analyst_condition = market_df['buy_percentage'] >= buy_criteria["BUY_MIN_BUY_PERCENTAGE"]
+    # PRIMARY CRITERIA - always check these (required fields and values)
+    # Beta, PET, and PEF are primary (required) criteria
+    primary_conditions = (
+        # Required fields must exist
+        market_df['upside'].notna() &
+        market_df['buy_percentage'].notna() &
+        market_df['pe_forward'].notna() &  # PE forward is required
+        market_df['pe_trailing'].notna() &  # PE trailing is required
+        market_df['beta'].notna() &  # Beta is required
+        
+        # Basic criteria must be met
+        (market_df['upside'] >= buy_criteria["BUY_MIN_UPSIDE"]) &
+        (market_df['buy_percentage'] >= buy_criteria["BUY_MIN_BUY_PERCENTAGE"])
+    )
     
-    # Beta criteria with nullability handling
+    # Calculate expected return
+    market_df_temp = market_df.copy()
+    market_df_temp['EXRET'] = market_df['upside'] * market_df['buy_percentage'] / 100
+    exret_condition = market_df_temp['EXRET'] >= buy_criteria["BUY_MIN_EXRET"]
+    
+    # PE condition - a primary criterion (required)
+    pe_basic_condition = (
+        # Within range
+        (market_df['pe_forward'] >= buy_criteria["BUY_MIN_FORWARD_PE"]) &
+        (market_df['pe_forward'] <= buy_criteria["BUY_MAX_FORWARD_PE"])
+    )
+    
+    pe_improvement_condition = (
+        # Either PE Forward less than PE Trailing (improving)
+        (market_df['pe_forward'] < market_df['pe_trailing']) |
+        # Or PE Trailing is negative or zero (growth case)
+        (market_df['pe_trailing'] <= 0)
+    )
+    
+    # Beta range check - a primary criterion (required)
     beta_condition = (
-        market_df['beta'].isna() |  # Ignore missing beta values
-        (
-            (market_df['beta'] > buy_criteria["BUY_MIN_BETA"]) &
-            (market_df['beta'] <= buy_criteria["BUY_MAX_BETA"])
-        )
+        (market_df['beta'] >= buy_criteria["BUY_MIN_BETA"]) &
+        (market_df['beta'] <= buy_criteria["BUY_MAX_BETA"])
     )
     
-    # PE condition - complex criteria with nullability handling
-    pe_condition = (
-        # PE Forward must be positive and not too high
-        (market_df['pe_forward'] > buy_criteria["BUY_MIN_FORWARD_PE"]) &
-        (market_df['pe_forward'] <= buy_criteria["BUY_MAX_FORWARD_PE"]) &
-        (
-            # PE Forward must be less than PE Trailing (improving)
-            ((market_df['pe_forward'] < market_df['pe_trailing']) & 
-             (market_df['pe_trailing'] > 0)) |
-            # Or PE Trailing must be negative or zero (growth case)
-            (market_df['pe_trailing'] <= 0)
-        )
-    )
+    # SECONDARY CRITERIA - only apply if data is available (optional)
     
-    # PEG Ratio criteria with nullability handling, also handle string values like '--'
+    # PEG Ratio criteria with nullability handling (optional secondary criterion)
     peg_condition = (
         market_df['peg_ratio'].isna() |  # Ignore missing PEG values
+        (market_df['peg_ratio'] == '--') |  # Ignore placeholder values
         pd.to_numeric(market_df['peg_ratio'], errors='coerce').isna() |  # Convert string values to NaN
         (pd.to_numeric(market_df['peg_ratio'], errors='coerce') < buy_criteria["BUY_MAX_PEG"])
     )
     
-    # Short interest criteria with nullability handling
+    # Short interest criteria with nullability handling (optional secondary criterion)
     short_condition = get_short_interest_condition(
         market_df, 
         buy_criteria["BUY_MAX_SHORT_INTEREST"],
@@ -514,10 +530,11 @@ def filter_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame:
     # Combine all criteria
     buy_filter = (
         confidence_condition &
-        upside_condition &
-        analyst_condition &
+        primary_conditions &
+        exret_condition &
+        pe_basic_condition &
+        pe_improvement_condition &
         beta_condition &
-        pe_condition &
         peg_condition &
         short_condition
     )
@@ -546,10 +563,10 @@ def filter_sell_candidates(portfolio_df: pd.DataFrame) -> pd.DataFrame:
     # Initialize filters list for each SELL criterion
     filters = []
     
-    # Add individual sell criteria with explicit reasons
+    # Primary criteria - always check these
     
     # Upside too low
-    if 'upside' in portfolio_df.columns and 'SELL_MAX_UPSIDE' in sell_criteria:
+    if 'upside' in portfolio_df.columns:
         upside_condition = (
             portfolio_df['upside'].notna() &
             (portfolio_df['upside'] < sell_criteria["SELL_MAX_UPSIDE"])
@@ -557,12 +574,31 @@ def filter_sell_candidates(portfolio_df: pd.DataFrame) -> pd.DataFrame:
         filters.append(upside_condition)
     
     # Analyst buy percentage too low
-    if 'buy_percentage' in portfolio_df.columns and 'SELL_MIN_BUY_PERCENTAGE' in sell_criteria:
+    if 'buy_percentage' in portfolio_df.columns:
         analyst_condition = (
             portfolio_df['buy_percentage'].notna() &
             (portfolio_df['buy_percentage'] < sell_criteria["SELL_MIN_BUY_PERCENTAGE"])
         )
         filters.append(analyst_condition)
+    
+    # Expected return too low
+    if 'EXRET' in portfolio_df.columns:
+        exret_condition = (
+            portfolio_df['EXRET'].notna() &
+            (portfolio_df['EXRET'] < sell_criteria["SELL_MAX_EXRET"])
+        )
+        filters.append(exret_condition)
+    elif 'upside' in portfolio_df.columns and 'buy_percentage' in portfolio_df.columns:
+        # Calculate EXRET on the fly if not present
+        portfolio_df_temp = portfolio_df.copy()
+        portfolio_df_temp['EXRET'] = portfolio_df['upside'] * portfolio_df['buy_percentage'] / 100
+        exret_condition = (
+            portfolio_df_temp['EXRET'].notna() &
+            (portfolio_df_temp['EXRET'] < sell_criteria["SELL_MAX_EXRET"])
+        )
+        filters.append(exret_condition)
+    
+    # Secondary criteria - only check if data exists
     
     # PE Forward higher than PE Trailing (worsening outlook)
     if 'pe_forward' in portfolio_df.columns and 'pe_trailing' in portfolio_df.columns:
@@ -576,7 +612,7 @@ def filter_sell_candidates(portfolio_df: pd.DataFrame) -> pd.DataFrame:
         filters.append(pe_condition)
     
     # Forward PE too high
-    if 'pe_forward' in portfolio_df.columns and 'SELL_MIN_FORWARD_PE' in sell_criteria:
+    if 'pe_forward' in portfolio_df.columns:
         pe_high_condition = (
             portfolio_df['pe_forward'].notna() &
             (portfolio_df['pe_forward'] > sell_criteria["SELL_MIN_FORWARD_PE"])
@@ -584,7 +620,7 @@ def filter_sell_candidates(portfolio_df: pd.DataFrame) -> pd.DataFrame:
         filters.append(pe_high_condition)
     
     # PEG ratio too high
-    if 'peg_ratio' in portfolio_df.columns and 'SELL_MIN_PEG' in sell_criteria:
+    if 'peg_ratio' in portfolio_df.columns:
         # Convert string values like '--' to NaN with pd.to_numeric
         numeric_peg = pd.to_numeric(portfolio_df['peg_ratio'], errors='coerce')
         peg_condition = (
@@ -594,37 +630,21 @@ def filter_sell_candidates(portfolio_df: pd.DataFrame) -> pd.DataFrame:
         filters.append(peg_condition)
     
     # Short interest too high
-    if 'SELL_MIN_SHORT_INTEREST' in sell_criteria:
-        short_condition = get_short_interest_condition(
-            portfolio_df, 
-            sell_criteria["SELL_MIN_SHORT_INTEREST"],
-            is_maximum=False
+    short_field = 'short_float_pct' if 'short_float_pct' in portfolio_df.columns else 'short_percent'
+    if short_field in portfolio_df.columns:
+        short_condition = (
+            portfolio_df[short_field].notna() &
+            (portfolio_df[short_field] > sell_criteria["SELL_MIN_SHORT_INTEREST"])
         )
         filters.append(short_condition)
     
     # Beta too high
-    if 'beta' in portfolio_df.columns and 'SELL_MIN_BETA' in sell_criteria:
+    if 'beta' in portfolio_df.columns:
         beta_condition = (
             portfolio_df['beta'].notna() &
             (portfolio_df['beta'] > sell_criteria["SELL_MIN_BETA"])
         )
         filters.append(beta_condition)
-    
-    # Expected return too low
-    if 'EXRET' in portfolio_df.columns and 'SELL_MAX_EXRET' in sell_criteria:
-        exret_condition = (
-            portfolio_df['EXRET'].notna() &
-            (portfolio_df['EXRET'] < sell_criteria["SELL_MAX_EXRET"])
-        )
-        filters.append(exret_condition)
-    elif 'upside' in portfolio_df.columns and 'buy_percentage' in portfolio_df.columns and 'SELL_MAX_EXRET' in sell_criteria:
-        # Calculate EXRET on the fly if not present
-        portfolio_df['EXRET'] = portfolio_df['upside'] * portfolio_df['buy_percentage'] / 100
-        exret_condition = (
-            portfolio_df['EXRET'].notna() &
-            (portfolio_df['EXRET'] < sell_criteria["SELL_MAX_EXRET"])
-        )
-        filters.append(exret_condition)
     
     # If no filters were created, return empty dataframe
     if not filters:
@@ -647,8 +667,10 @@ def filter_hold_candidates(market_df: pd.DataFrame) -> pd.DataFrame:
     """
     Filter out hold candidates from market data.
     
-    These are stocks that meet confidence requirements but
-    don't qualify as either buy or sell opportunities.
+    These are stocks that:
+    1. Pass the confidence threshold (sufficient analyst coverage)
+    2. Don't trigger any SELL criteria
+    3. Don't meet all BUY criteria
     
     Args:
         market_df: DataFrame with market data
@@ -656,24 +678,161 @@ def filter_hold_candidates(market_df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         DataFrame with hold candidates
     """
-    # Get buy opportunities
-    buy_opportunities = filter_buy_opportunities(market_df)
-    
-    # Get sell candidates
-    sell_candidates = filter_sell_candidates(market_df)
-    
-    # Filter for confidence condition
+    # Filter for confidence condition first - this is always checked
     confidence_condition = get_confidence_condition(market_df)
     
     # Get stocks with sufficient confidence
     confident_stocks = market_df[confidence_condition].copy()
     
-    # Get set of buy and sell tickers
-    buy_tickers = set(buy_opportunities['ticker'].str.upper())
-    sell_tickers = set(sell_candidates['ticker'].str.upper())
+    # Apply BUY criteria
+    buy_criteria = TRADING_CRITERIA["BUY"]
     
-    # Get hold candidates - those with sufficient confidence but not buy or sell
-    hold_filter = ~confident_stocks['ticker'].str.upper().isin(buy_tickers | sell_tickers)
+    # Apply SELL criteria
+    sell_criteria = TRADING_CRITERIA["SELL"]
+    
+    # For each confident stock, check sell criteria first
+    
+    # Create empty lists for each classification
+    sell_tickers = []
+    buy_tickers = []
+    hold_tickers = []
+    
+    # Process each ticker to match the formatter._calculate_signal logic
+    for _, row in confident_stocks.iterrows():
+        ticker = row['ticker']
+        
+        # Check sell signals first (any trigger a sell)
+        
+        # Primary sell criteria
+        upside = row.get('upside')
+        buy_percentage = row.get('buy_percentage')
+        expected_return = upside * buy_percentage / 100 if upside is not None and buy_percentage is not None else None
+        
+        # Check primary sell criteria
+        if upside is not None and upside < sell_criteria["SELL_MAX_UPSIDE"]:
+            sell_tickers.append(ticker)
+            continue
+            
+        if buy_percentage is not None and buy_percentage < sell_criteria["SELL_MIN_BUY_PERCENTAGE"]:
+            sell_tickers.append(ticker)
+            continue
+            
+        if expected_return is not None and expected_return < sell_criteria["SELL_MAX_EXRET"]:
+            sell_tickers.append(ticker)
+            continue
+        
+        # Secondary sell criteria - only check if data is available
+        pe_forward = row.get('pe_forward')
+        pe_trailing = row.get('pe_trailing')
+        peg = row.get('peg_ratio')
+        beta = row.get('beta')
+        short_interest = row.get('short_float_pct')
+        
+        # PE deteriorating
+        if (pe_forward is not None and pe_trailing is not None and 
+            pe_forward > 0 and pe_trailing > 0 and pe_forward > pe_trailing):
+            sell_tickers.append(ticker)
+            continue
+            
+        # Extremely high forward PE or negative forward PE
+        if pe_forward is not None and (pe_forward > sell_criteria["SELL_MIN_FORWARD_PE"] or pe_forward < 0):
+            sell_tickers.append(ticker)
+            continue
+            
+        # High PEG ratio (optional secondary criterion)
+        if peg is not None:
+            try:
+                peg_val = float(peg)
+                if peg_val > sell_criteria["SELL_MIN_PEG"]:
+                    sell_tickers.append(ticker)
+                    continue
+            except (ValueError, TypeError):
+                pass  # Ignore conversion errors
+                
+        # High short interest (optional secondary criterion)
+        if short_interest is not None:
+            try:
+                si_val = float(short_interest)
+                if si_val > sell_criteria["SELL_MIN_SHORT_INTEREST"]:
+                    sell_tickers.append(ticker)
+                    continue
+            except (ValueError, TypeError):
+                pass  # Ignore conversion errors
+                
+        # Excessive volatility
+        if beta is not None:
+            try:
+                beta_val = float(beta)
+                if beta_val > sell_criteria["SELL_MIN_BETA"]:
+                    sell_tickers.append(ticker)
+                    continue
+            except (ValueError, TypeError):
+                pass  # Ignore conversion errors
+        
+        # If we get here, it's not a sell - check buy criteria
+        
+        # PRIMARY CRITERIA - all must be present and valid
+        # Beta, PET, and PEF are now required primary criteria
+        if (upside is None or buy_percentage is None or 
+            pe_forward is None or pe_trailing is None or beta is None or 
+            upside < buy_criteria["BUY_MIN_UPSIDE"] or 
+            buy_percentage < buy_criteria["BUY_MIN_BUY_PERCENTAGE"] or
+            expected_return < buy_criteria["BUY_MIN_EXRET"]):
+            hold_tickers.append(ticker)
+            continue
+            
+        # PE condition (required - primary criterion)
+        if pe_forward < buy_criteria["BUY_MIN_FORWARD_PE"] or pe_forward > buy_criteria["BUY_MAX_FORWARD_PE"]:
+            hold_tickers.append(ticker)
+            continue
+            
+        # PE improvement condition (required - primary criterion)
+        if pe_trailing > 0:
+            if pe_forward >= pe_trailing:  # Not improving
+                hold_tickers.append(ticker)
+                continue
+        else:
+            # Trailing PE <= 0 (growth case) is acceptable
+            pass
+            
+        # Beta range check (required - primary criterion)
+        try:
+            beta_val = float(beta)
+            if not (beta_val >= buy_criteria["BUY_MIN_BETA"] and beta_val <= buy_criteria["BUY_MAX_BETA"]):
+                hold_tickers.append(ticker)
+                continue
+        except (ValueError, TypeError):
+            hold_tickers.append(ticker)
+            continue
+            
+        # SECONDARY CRITERIA - only check if available (optional)
+        
+        # PEG check (optional secondary criterion)
+        if peg is not None and peg != '--':
+            try:
+                peg_val = float(peg)
+                if peg_val > 0 and peg_val >= buy_criteria["BUY_MAX_PEG"]:
+                    hold_tickers.append(ticker)
+                    continue
+            except (ValueError, TypeError):
+                pass  # Ignore conversion errors
+            
+        # Short interest check (optional secondary criterion)
+        if short_interest is not None:
+            try:
+                si_val = float(short_interest)
+                if si_val > buy_criteria["BUY_MAX_SHORT_INTEREST"]:
+                    hold_tickers.append(ticker)
+                    continue
+            except (ValueError, TypeError):
+                pass  # Ignore conversion errors
+            
+        # If we got here, all criteria are met
+        buy_tickers.append(ticker)
+        continue
+    
+    # Filter for hold candidates only
+    hold_filter = confident_stocks['ticker'].isin(hold_tickers)
     
     hold_candidates = confident_stocks[hold_filter].copy()
     

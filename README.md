@@ -75,11 +75,13 @@ Triggered if ANY of these conditions are met:
 ALL of these conditions must be met:
 - 20% or more upside potential
 - 85% or more buy ratings from analysts
+- Beta data must be available (primary required criterion)
 - Acceptable volatility (0.25 < Beta ≤ 2.5)
+- PE Forward (PEF) and PE Trailing (PET) data must be available (primary required criteria)
 - Improving earnings outlook (PEF < PET) OR Negative trailing P/E
 - Positive earnings projection (0.5 < PEF ≤ 45.0)
-- Reasonable valuation relative to growth (PEG < 2.5)
-- Acceptable short interest (SI ≤ 1.5%)
+- Reasonable valuation relative to growth (PEG < 2.5) - if PEG data available (secondary criterion)
+- Acceptable short interest (SI ≤ 1.5%) - if SI data available (secondary criterion) 
 - Strong expected return (EXRET ≥ 15.0)
 
 ### ⚪ HOLD

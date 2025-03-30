@@ -88,9 +88,12 @@ def _check_pe_ratio_sell_criterion(row):
     return False, None
 
 def _check_forward_pe_sell_criterion(row, sell_criteria):
-    """Check if a stock has a forward PE that's too high."""
-    if 'pe_forward' in row and pd.notna(row['pe_forward']) and row['pe_forward'] > sell_criteria["SELL_MIN_FORWARD_PE"]:
-        return True, f"High forward P/E ({row['pe_forward']:.1f} > {sell_criteria['SELL_MIN_FORWARD_PE']})"
+    """Check if a stock has a forward PE that's too high or negative."""
+    if 'pe_forward' in row and pd.notna(row['pe_forward']):
+        if row['pe_forward'] < 0:
+            return True, f"Negative forward P/E ({row['pe_forward']:.1f} < 0)"
+        elif row['pe_forward'] > sell_criteria["SELL_MIN_FORWARD_PE"]:
+            return True, f"High forward P/E ({row['pe_forward']:.1f} > {sell_criteria['SELL_MIN_FORWARD_PE']})"
     return False, None
 
 def _check_peg_sell_criterion(row, sell_criteria):
@@ -191,12 +194,16 @@ def _check_buy_percentage_buy_criterion(row, buy_criteria):
 
 def _check_beta_buy_criterion(row, buy_criteria):
     """Check if a stock meets the beta criterion for buying."""
-    if 'beta' in row and pd.notna(row['beta']):
-        # Beta must be in valid range for buy
-        if row['beta'] <= buy_criteria["BUY_MIN_BETA"]:
-            return False, f"Beta too low ({row['beta']:.1f} ≤ {buy_criteria['BUY_MIN_BETA']})"
-        elif row['beta'] > buy_criteria["BUY_MAX_BETA"]:
-            return False, f"Beta too high ({row['beta']:.1f} > {buy_criteria['BUY_MAX_BETA']})"
+    # Beta is a primary required criterion - must exist and have a value
+    if 'beta' not in row or pd.isna(row['beta']):
+        return False, "Beta data not available (required for buy)"
+    
+    # Beta must be in valid range for buy
+    if row['beta'] <= buy_criteria["BUY_MIN_BETA"]:
+        return False, f"Beta too low ({row['beta']:.1f} ≤ {buy_criteria['BUY_MIN_BETA']})"
+    elif row['beta'] > buy_criteria["BUY_MAX_BETA"]:
+        return False, f"Beta too high ({row['beta']:.1f} > {buy_criteria['BUY_MAX_BETA']})"
+    
     return True, None
 
 def _check_peg_buy_criterion(row, buy_criteria):
@@ -274,29 +281,21 @@ def meets_buy_criteria(row, criteria, short_field=DEFAULT_SHORT_FIELD):
 
 def _is_forward_pe_in_range(row, criteria):
     """Check if forward P/E is in the target range."""
+    # We already checked if pe_forward exists in the calling function
     return (
-        'pe_forward' in row and 
-        pd.notna(row['pe_forward']) and 
         row['pe_forward'] > criteria["BUY_MIN_FORWARD_PE"] and 
         row['pe_forward'] <= criteria["BUY_MAX_FORWARD_PE"]
     )
 
 def _is_pe_improving(row):
     """Check if P/E is improving (forward < trailing and trailing > 0)."""
-    return (
-        'pe_trailing' in row and 
-        pd.notna(row['pe_trailing']) and 
-        row['pe_trailing'] > 0 and 
-        row['pe_forward'] < row['pe_trailing']
-    )
+    # We already checked if pe_trailing and pe_forward exist in the calling function
+    return row['pe_trailing'] > 0 and row['pe_forward'] < row['pe_trailing']
 
 def _is_growth_stock(row):
     """Check if the stock is a growth stock (trailing P/E <= 0)."""
-    return (
-        'pe_trailing' in row and 
-        pd.notna(row['pe_trailing']) and 
-        row['pe_trailing'] <= 0
-    )
+    # We already checked if pe_trailing exists in the calling function
+    return row['pe_trailing'] <= 0
 
 def check_pe_condition(row, criteria):
     """
@@ -313,7 +312,18 @@ def check_pe_condition(row, criteria):
     Returns:
         Boolean indicating if P/E condition is met
     """
-    # First check if forward P/E is in the target range
+    # PE Forward and Trailing are primary required criteria
+    if 'pe_forward' not in row or pd.isna(row['pe_forward']):
+        return False
+    
+    if 'pe_trailing' not in row or pd.isna(row['pe_trailing']):
+        return False
+    
+    # Negative forward P/E is not allowed for buy
+    if row['pe_forward'] < 0:
+        return False
+    
+    # Forward P/E must be in the target range
     if not _is_forward_pe_in_range(row, criteria):
         return False
         
