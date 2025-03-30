@@ -58,41 +58,11 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
         Returns:
             Dict with standardized ticker info
         """
-        # Extract relevant fields with proper fallbacks
-        result = {
-            "symbol": ticker_info.get("symbol", ""),
-            "name": ticker_info.get("longName", ticker_info.get("shortName", "")),
-            "sector": ticker_info.get("sector", ""),
-            "industry": ticker_info.get("industry", ""),
-            "price": ticker_info.get("currentPrice", ticker_info.get("regularMarketPrice")),
-            "currency": ticker_info.get("currency", "USD"),
-            "market_cap": ticker_info.get("marketCap"),
-            "pe_ratio": ticker_info.get("trailingPE"),
-            "forward_pe": ticker_info.get("forwardPE"),
-            "peg_ratio": ticker_info.get("pegRatio"),
-            "beta": ticker_info.get("beta"),
-            "fifty_day_avg": ticker_info.get("fiftyDayAverage"),
-            "two_hundred_day_avg": ticker_info.get("twoHundredDayAverage"),
-            "fifty_two_week_high": ticker_info.get("fiftyTwoWeekHigh"),
-            "fifty_two_week_low": ticker_info.get("fiftyTwoWeekLow"),
-            "target_price": ticker_info.get("targetMeanPrice"),
-            "dividend_yield": ticker_info.get("dividendYield", 0) * 100 if ticker_info.get("dividendYield") else None,
-            "short_percent": ticker_info.get("shortPercentOfFloat", 0) * 100 if ticker_info.get("shortPercentOfFloat") else None,
-            "country": ticker_info.get("country", ""),
-        }
+        # Import shared implementation from yahoo_finance_base
+        from yahoofinance.api.providers.yahoo_finance_base import YahooFinanceBaseProvider
         
-        # Add market cap formatted
-        result["market_cap_fmt"] = self._format_market_cap(result["market_cap"])
-        
-        # Calculate upside potential if possible
-        price = result.get("price")
-        target = result.get("target_price")
-        if price and target and price > 0:
-            result["upside"] = ((target / price) - 1) * 100
-        else:
-            result["upside"] = None
-        
-        return result
+        # Use the shared implementation
+        return YahooFinanceBaseProvider._extract_common_ticker_info(self, ticker_info)
         
     async def _check_rate_limit(self):
         """Check if we're within rate limits and wait if necessary"""
@@ -194,6 +164,9 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
     
     async def _process_buy_percentage(self, ticker: str, yticker, ticker_info: Dict[str, Any], info: Dict[str, Any]):
         """Process buy percentage data from recommendations"""
+        # Import the required utility functions
+        from yahoofinance.utils.network.provider_utils import safe_extract_value
+        
         if ticker_info.get("numberOfAnalystOpinions", 0) > 0:
             # First try to get recommendations data directly for more accurate percentage
             try:
@@ -202,12 +175,12 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
                     # Use the most recent recommendations (first row)
                     latest_recs = recommendations.iloc[0]
                     
-                    # Calculate buy percentage from recommendations
-                    strong_buy = int(latest_recs.get('strongBuy', 0))
-                    buy = int(latest_recs.get('buy', 0))
-                    hold = int(latest_recs.get('hold', 0))
-                    sell = int(latest_recs.get('sell', 0))
-                    strong_sell = int(latest_recs.get('strongSell', 0))
+                    # Calculate buy percentage from recommendations using safe_extract_value
+                    strong_buy = safe_extract_value(latest_recs, 'strongBuy', 0)
+                    buy = safe_extract_value(latest_recs, 'buy', 0)
+                    hold = safe_extract_value(latest_recs, 'hold', 0)
+                    sell = safe_extract_value(latest_recs, 'sell', 0)
+                    strong_sell = safe_extract_value(latest_recs, 'strongSell', 0)
                     
                     total = strong_buy + buy + hold + sell + strong_sell
                     if total > 0:
