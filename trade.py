@@ -40,6 +40,7 @@ warnings.filterwarnings("ignore", category=RuntimeWarning, message="invalid valu
 BUY_PERCENTAGE = COLUMN_NAMES["BUY_PERCENTAGE"]
 DIVIDEND_YIELD = 'DIV %'
 COMPANY_NAME = 'COMPANY NAME'
+DISPLAY_BUY_PERCENTAGE = '% BUY'  # Display column name for buy percentage
 
 # Define constants for market types
 PORTFOLIO_SOURCE = 'P'
@@ -369,6 +370,50 @@ def _format_company_names(working_df):
     
     return working_df
 
+def _format_trillion_value(val):
+    """Format a value in the trillions range.
+    
+    Args:
+        val: Market cap value in the trillions
+        
+    Returns:
+        str: Formatted market cap string
+    """
+    # Format with 1 decimal for values >= 10T, 2 decimals otherwise
+    return f"{val / 1e12:.1f}T" if val >= 10e12 else f"{val / 1e12:.2f}T"
+
+def _format_billion_value(val):
+    """Format a value in the billions range.
+    
+    Args:
+        val: Market cap value in the billions
+        
+    Returns:
+        str: Formatted market cap string
+    """
+    if val >= 100e9:
+        return f"{int(val / 1e9)}B"  # No decimals for >= 100B
+    elif val >= 10e9:
+        return f"{val / 1e9:.1f}B"   # 1 decimal for >= 10B
+    else:
+        return f"{val / 1e9:.2f}B"   # 2 decimals for < 10B
+
+def _format_million_value(val):
+    """Format a value in the millions range.
+    
+    Args:
+        val: Market cap value in the millions
+        
+    Returns:
+        str: Formatted market cap string
+    """
+    if val >= 100e6:
+        return f"{int(val / 1e6)}M"  # No decimals for >= 100M
+    elif val >= 10e6:
+        return f"{val / 1e6:.1f}M"   # 1 decimal for >= 10M
+    else:
+        return f"{val / 1e6:.2f}M"   # 2 decimals for < 10M
+
 def _format_market_cap_value(value):
     """Format a single market cap value according to size rules.
     
@@ -384,28 +429,14 @@ def _format_market_cap_value(value):
     try:
         # Convert to float to ensure proper handling
         val = float(value)
-        # Trillions
+        
+        # Choose the appropriate formatter based on the value's magnitude
         if val >= 1e12:
-            if val >= 10e12:
-                return f"{val / 1e12:.1f}T"
-            else:
-                return f"{val / 1e12:.2f}T"
-        # Billions
+            return _format_trillion_value(val)
         elif val >= 1e9:
-            if val >= 100e9:
-                return f"{int(val / 1e9)}B"
-            elif val >= 10e9:
-                return f"{val / 1e9:.1f}B"
-            else:
-                return f"{val / 1e9:.2f}B"
-        # Millions
+            return _format_billion_value(val)
         elif val >= 1e6:
-            if val >= 100e6:
-                return f"{int(val / 1e6)}M"
-            elif val >= 10e6:
-                return f"{val / 1e6:.1f}M"
-            else:
-                return f"{val / 1e6:.2f}M"
+            return _format_million_value(val)
         else:
             return f"{int(val):,}"
     except (ValueError, TypeError):
@@ -567,8 +598,9 @@ def _is_valid_iso_date_string(date_str):
     try:
         pd.to_datetime(date_str)
         return True
-    except (ValueError, TypeError, pd.errors.OutOfBoundsDatetime):
+    except (ValueError, TypeError):
         # Common date parsing exceptions
+        # Note: OutOfBoundsDatetime inherits from ValueError, so it's already caught
         return False
 
 def _format_date_string(date_str):
@@ -833,6 +865,64 @@ def _add_ranking_column(df):
     result_df.insert(0, "#", range(1, len(result_df) + 1))
     return result_df
 
+def _check_sell_criteria(upside, buy_pct, pef, si, beta, criteria):
+    """Check if a security meets the SELL criteria.
+    
+    Args:
+        upside: Upside potential value
+        buy_pct: Buy percentage value
+        pef: Forward P/E value
+        si: Short interest value
+        beta: Beta value
+        criteria: TRADING_CRITERIA["SELL"] dictionary
+        
+    Returns:
+        bool: True if security meets SELL criteria, False otherwise
+    """
+    # 1. Upside too low
+    if upside < criteria["MAX_UPSIDE"]:
+        return True
+    # 2. Buy percentage too low
+    if buy_pct < criteria["MIN_BUY_PERCENTAGE"]:
+        return True
+    # 3. PEF too high
+    if pef != '--' and pef > criteria["MAX_FORWARD_PE"]:
+        return True
+    # 4. SI too high
+    if si != '--' and si > criteria["MAX_SHORT_INTEREST"]:
+        return True
+    # 5. Beta too high
+    if beta != '--' and beta > criteria["MAX_BETA"]:
+        return True
+    return False
+
+def _check_buy_criteria(upside, buy_pct, beta, si, criteria):
+    """Check if a security meets the BUY criteria.
+    
+    Args:
+        upside: Upside potential value
+        buy_pct: Buy percentage value
+        beta: Beta value
+        si: Short interest value
+        criteria: TRADING_CRITERIA["BUY"] dictionary
+        
+    Returns:
+        bool: True if security meets BUY criteria, False otherwise
+    """
+    # 1. Sufficient upside
+    if upside < criteria["MIN_UPSIDE"]:
+        return False
+    # 2. Sufficient buy percentage
+    if buy_pct < criteria["MIN_BUY_PERCENTAGE"]:
+        return False
+    # 3. Beta in range
+    if beta == '--' or beta <= criteria["MIN_BETA"] or beta > criteria["MAX_BETA"]:
+        return False
+    # 4. Short interest not too high
+    if si != '--' and si > criteria["MAX_SHORT_INTEREST"]:
+        return False
+    return True
+
 def _prepare_csv_dataframe(display_df):
     """Prepare dataframe for CSV export.
     
@@ -959,6 +1049,71 @@ def process_market_data(market_df):
     
     return df
 
+def _filter_notrade_tickers(opportunities_df, notrade_path):
+    """Filter out tickers from the no-trade list.
+    
+    Args:
+        opportunities_df: DataFrame with opportunities
+        notrade_path: Path to no-trade file
+        
+    Returns:
+        Tuple of (filtered_dataframe, notrade_tickers_set)
+    """
+    notrade_tickers = set()
+    filtered_df = opportunities_df.copy()
+    
+    if notrade_path and os.path.exists(notrade_path):
+        try:
+            notrade_df = pd.read_csv(notrade_path)
+            # Find the ticker column in notrade.csv
+            ticker_column = None
+            for col in ['ticker', 'TICKER', 'symbol', 'SYMBOL']:
+                if col in notrade_df.columns:
+                    ticker_column = col
+                    break
+            
+            if ticker_column:
+                notrade_tickers = set(notrade_df[ticker_column].str.upper())
+                if notrade_tickers:
+                    # Filter out no-trade stocks
+                    filtered_df = filtered_df[~filtered_df['ticker'].str.upper().isin(notrade_tickers)]
+                    logger.info(f"Excluded {len(notrade_tickers)} stocks from notrade.csv")
+        except Exception as e:
+            logger.error(f"Error reading notrade.csv: {str(e)}")
+    
+    return filtered_df, notrade_tickers
+
+def _format_market_caps_in_display_df(display_df, opportunities_df):
+    """Format market cap values in the display dataframe.
+    
+    Args:
+        display_df: Display dataframe
+        opportunities_df: Original opportunities dataframe
+        
+    Returns:
+        Updated display dataframe
+    """
+    if 'CAP' not in display_df.columns:
+        return display_df
+    
+    # Convert CAP to string type first to avoid dtype incompatibility warning
+    display_df['CAP'] = display_df['CAP'].astype(str)
+    
+    # Use V2 formatter
+    formatter = DisplayFormatter()
+    
+    # First get the raw market cap value from the original dataframe
+    for idx, row in display_df.iterrows():
+        ticker = row['TICKER']
+        # Find the corresponding market cap in the original dataframe
+        if ticker in opportunities_df['ticker'].values:
+            orig_row = opportunities_df[opportunities_df['ticker'] == ticker].iloc[0]
+            if 'market_cap' in orig_row and not pd.isna(orig_row['market_cap']):
+                # Format the market cap value properly
+                display_df.at[idx, 'CAP'] = formatter.format_market_cap(orig_row['market_cap'])
+    
+    return display_df
+
 def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_path=None):
     """Process buy opportunities.
     
@@ -978,67 +1133,72 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_
     new_opportunities = buy_opportunities[~buy_opportunities['ticker'].str.upper().isin(portfolio_tickers)]
     
     # Filter out stocks in notrade.csv if file exists
-    notrade_tickers = set()
-    if notrade_path and os.path.exists(notrade_path):
-        try:
-            notrade_df = pd.read_csv(notrade_path)
-            # Find the ticker column in notrade.csv
-            ticker_column = None
-            for col in ['ticker', 'TICKER', 'symbol', 'SYMBOL']:
-                if col in notrade_df.columns:
-                    ticker_column = col
-                    break
-            
-            if ticker_column:
-                notrade_tickers = set(notrade_df[ticker_column].str.upper())
-                if notrade_tickers:
-                    # Filter out no-trade stocks
-                    new_opportunities = new_opportunities[~new_opportunities['ticker'].str.upper().isin(notrade_tickers)]
-                    logger.info(f"Excluded {len(notrade_tickers)} stocks from notrade.csv")
-        except Exception as e:
-            logger.error(f"Error reading notrade.csv: {str(e)}")
+    new_opportunities, notrade_tickers = _filter_notrade_tickers(new_opportunities, notrade_path)
     
     # Sort by ticker (ascending) as requested
     if not new_opportunities.empty:
         new_opportunities = new_opportunities.sort_values('ticker', ascending=True)
     
+    # Handle empty results case
     if new_opportunities.empty:
         print("\nNo new buy opportunities found matching criteria.")
         output_file = os.path.join(output_dir, BUY_CSV)
         create_empty_results_file(output_file)
-    else:
-        # Prepare and format dataframe for display
-        display_df = prepare_display_dataframe(new_opportunities)
+        return
+    
+    # Process data for display if we have opportunities
+    # Prepare display dataframe
+    display_df = prepare_display_dataframe(new_opportunities)
+    
+    # Format market cap values
+    display_df = _format_market_caps_in_display_df(display_df, new_opportunities)
+    
+    # Apply display formatting
+    display_df = format_display_dataframe(display_df)
+    
+    # Sort by TICKER (ascending) as requested
+    display_df = display_df.sort_values('TICKER', ascending=True)
+    
+    # Display and save results
+    output_file = os.path.join(output_dir, BUY_CSV)
+    display_and_save_results(
+        display_df, 
+        "New Buy Opportunities (not in current portfolio or notrade list)", 
+        output_file
+    )
+
+def _load_portfolio_data(output_dir):
+    """Load portfolio data from CSV file.
+    
+    Args:
+        output_dir: Output directory
         
-        # Format market cap values properly for display
-        if 'CAP' in display_df.columns:
-            # Convert CAP to string type first to avoid dtype incompatibility warning
-            display_df['CAP'] = display_df['CAP'].astype(str)
-            
-            # Use V2 formatter
-            formatter = DisplayFormatter()
-            # First get the raw market cap value from the original dataframe
-            for idx, row in display_df.iterrows():
-                ticker = row['TICKER']
-                # Find the corresponding market cap in the original dataframe
-                if ticker in new_opportunities['ticker'].values:
-                    orig_row = new_opportunities[new_opportunities['ticker'] == ticker].iloc[0]
-                    if 'market_cap' in orig_row and not pd.isna(orig_row['market_cap']):
-                        # Format the market cap value properly
-                        display_df.at[idx, 'CAP'] = formatter.format_market_cap(orig_row['market_cap'])
-        
-        display_df = format_display_dataframe(display_df)
-        
-        # Sort by TICKER (ascending) as requested
-        display_df = display_df.sort_values('TICKER', ascending=True)
-        
-        # Display and save results
-        output_file = os.path.join(output_dir, BUY_CSV)
-        display_and_save_results(
-            display_df, 
-            "New Buy Opportunities (not in current portfolio or notrade list)", 
-            output_file
-        )
+    Returns:
+        pd.DataFrame or None: Portfolio data or None if file not found
+    """
+    portfolio_output_path = f"{output_dir}/portfolio.csv"
+    
+    if not os.path.exists(portfolio_output_path):
+        print(f"\nPortfolio analysis file not found: {portfolio_output_path}")
+        print("Please run the portfolio analysis (P) first to generate sell recommendations.")
+        return None
+    
+    try:
+        # Read portfolio analysis data
+        return pd.read_csv(portfolio_output_path)
+    except Exception as e:
+        print(f"Error reading portfolio data: {str(e)}")
+        return None
+
+def _process_empty_sell_candidates(output_dir):
+    """Process the case when no sell candidates are found.
+    
+    Args:
+        output_dir: Output directory
+    """
+    print("\nNo sell candidates found matching criteria in your portfolio.")
+    output_file = os.path.join(output_dir, SELL_CSV)
+    create_empty_results_file(output_file)
 
 def process_sell_candidates(output_dir):
     """Process sell candidates from portfolio.
@@ -1046,56 +1206,37 @@ def process_sell_candidates(output_dir):
     Args:
         output_dir: Output directory
     """
-    portfolio_output_path = f"{output_dir}/portfolio.csv"
-    
-    if not os.path.exists(portfolio_output_path):
-        print(f"\nPortfolio analysis file not found: {portfolio_output_path}")
-        print("Please run the portfolio analysis (P) first to generate sell recommendations.")
+    # Load portfolio data
+    portfolio_analysis_df = _load_portfolio_data(output_dir)
+    if portfolio_analysis_df is None:
         return
-    
-    # Read portfolio analysis data
-    portfolio_analysis_df = pd.read_csv(portfolio_output_path)
     
     # Get sell candidates
     sell_candidates = filter_sell_candidates(portfolio_analysis_df)
     
     if sell_candidates.empty:
-        print("\nNo sell candidates found matching criteria in your portfolio.")
-        output_file = os.path.join(output_dir, SELL_CSV)
-        create_empty_results_file(output_file)
-    else:
-        # Prepare and format dataframe for display
-        display_df = prepare_display_dataframe(sell_candidates)
-        
-        # Format market cap values properly for display
-        if 'CAP' in display_df.columns:
-            # Convert CAP to string type first to avoid dtype incompatibility warning
-            display_df['CAP'] = display_df['CAP'].astype(str)
-            
-            # Use V2 formatter
-            formatter = DisplayFormatter()
-            # First get the raw market cap value from the original dataframe
-            for idx, row in display_df.iterrows():
-                ticker = row['TICKER']
-                # Find the corresponding market cap in the original dataframe
-                if ticker in sell_candidates['ticker'].values:
-                    orig_row = sell_candidates[sell_candidates['ticker'] == ticker].iloc[0]
-                    if 'market_cap' in orig_row and not pd.isna(orig_row['market_cap']):
-                        # Format the market cap value properly
-                        display_df.at[idx, 'CAP'] = formatter.format_market_cap(orig_row['market_cap'])
-        
-        display_df = format_display_dataframe(display_df)
-        
-        # Sort by TICKER (ascending) as requested
-        display_df = display_df.sort_values('TICKER', ascending=True)
-        
-        # Display and save results
-        output_file = os.path.join(output_dir, SELL_CSV)
-        display_and_save_results(
-            display_df,
-            "Sell Candidates in Your Portfolio",
-            output_file
-        )
+        _process_empty_sell_candidates(output_dir)
+        return
+    
+    # Prepare and format dataframe for display
+    display_df = prepare_display_dataframe(sell_candidates)
+    
+    # Format market cap values properly for display
+    display_df = _format_market_caps_in_display_df(display_df, sell_candidates)
+    
+    # Apply general formatting
+    display_df = format_display_dataframe(display_df)
+    
+    # Sort by TICKER (ascending) as requested
+    display_df = display_df.sort_values('TICKER', ascending=True)
+    
+    # Display and save results
+    output_file = os.path.join(output_dir, SELL_CSV)
+    display_and_save_results(
+        display_df,
+        "Sell Candidates in Your Portfolio",
+        output_file
+    )
 
 def _load_market_data(market_path):
     """Load market data from CSV file.
@@ -1128,39 +1269,19 @@ def _process_empty_hold_candidates(output_dir):
     output_file = os.path.join(output_dir, HOLD_CSV)
     create_empty_results_file(output_file)
 
-def _format_market_caps(display_df, hold_candidates):
+# This function is now deprecated, but kept for backward compatibility
+# Use _format_market_caps_in_display_df instead
+def _format_market_caps(display_df, candidates_df):
     """Format market cap values properly for display.
     
     Args:
         display_df: Display dataframe
-        hold_candidates: Original hold candidates dataframe
+        candidates_df: Original candidates dataframe
         
     Returns:
         pd.DataFrame: Dataframe with formatted market caps
     """
-    if 'CAP' not in display_df.columns:
-        return display_df
-        
-    # Make a copy to avoid modifying the original
-    result_df = display_df.copy()
-    
-    # Convert CAP to string type first to avoid dtype incompatibility warning
-    result_df['CAP'] = result_df['CAP'].astype(str)
-    
-    # Use V2 formatter
-    formatter = DisplayFormatter()
-    
-    # First get the raw market cap value from the original dataframe
-    for idx, row in result_df.iterrows():
-        ticker = row['TICKER']
-        # Find the corresponding market cap in the original dataframe
-        if ticker in hold_candidates['ticker'].values:
-            orig_row = hold_candidates[hold_candidates['ticker'] == ticker].iloc[0]
-            if 'market_cap' in orig_row and not pd.isna(orig_row['market_cap']):
-                # Format the market cap value properly
-                result_df.at[idx, 'CAP'] = formatter.format_market_cap(orig_row['market_cap'])
-    
-    return result_df
+    return _format_market_caps_in_display_df(display_df, candidates_df)
 
 def process_hold_candidates(output_dir):
     """Process hold candidates from market data.
@@ -1180,26 +1301,27 @@ def process_hold_candidates(output_dir):
     
     if hold_candidates.empty:
         _process_empty_hold_candidates(output_dir)
-    else:
-        # Prepare and format dataframe for display
-        display_df = prepare_display_dataframe(hold_candidates)
-        
-        # Format market cap values properly for display
-        display_df = _format_market_caps(display_df, hold_candidates)
-        
-        # Apply general formatting
-        display_df = format_display_dataframe(display_df)
-        
-        # Sort by TICKER (ascending) as requested
-        display_df = display_df.sort_values('TICKER', ascending=True)
-        
-        # Display and save results
-        output_file = os.path.join(output_dir, HOLD_CSV)
-        display_and_save_results(
-            display_df,
-            "Hold Candidates (neither buy nor sell)",
-            output_file
-        )
+        return
+    
+    # Prepare and format dataframe for display
+    display_df = prepare_display_dataframe(hold_candidates)
+    
+    # Format market cap values properly for display
+    display_df = _format_market_caps_in_display_df(display_df, hold_candidates)
+    
+    # Apply general formatting
+    display_df = format_display_dataframe(display_df)
+    
+    # Sort by TICKER (ascending) as requested
+    display_df = display_df.sort_values('TICKER', ascending=True)
+    
+    # Display and save results
+    output_file = os.path.join(output_dir, HOLD_CSV)
+    display_and_save_results(
+        display_df,
+        "Hold Candidates (neither buy nor sell)",
+        output_file
+    )
 
 def _setup_trade_recommendation_paths():
     """Set up paths for trade recommendation processing.
@@ -1431,16 +1553,124 @@ def handle_portfolio_download():
             return False
     return True
 
+async def _process_single_ticker(provider, ticker):
+    """Process a single ticker and return its info.
+    
+    Args:
+        provider: Data provider
+        ticker: Ticker symbol
+        
+    Returns:
+        dict: Ticker information or None if error
+    """
+    try:
+        # Get ticker info
+        info = await provider.get_ticker_info(ticker)
+        
+        # Make sure we have minimum required fields
+        if info and "ticker" in info:
+            # Ensure all required fields are present with default values
+            info.setdefault("price", None)
+            info.setdefault("target_price", None)
+            info.setdefault("market_cap", None)
+            info.setdefault("buy_percentage", None)
+            info.setdefault("total_ratings", 0)
+            info.setdefault("analyst_count", 0)
+            
+            # Calculate upside if price and target are available
+            if info.get("price") and info.get("target_price"):
+                try:
+                    upside = ((info["target_price"] / info["price"]) - 1) * 100
+                    info["upside"] = upside
+                except (TypeError, ZeroDivisionError):
+                    info["upside"] = None
+            else:
+                info["upside"] = None
+            
+            return info
+        else:
+            logger.warning(f"Skipping ticker {ticker}: Invalid or empty data")
+            return None
+    except Exception as e:
+        # Handle rate limit errors
+        if any(err_text in str(e).lower() for err_text in ["rate limit", "too many requests", "429"]):
+            logger.warning(f"Rate limit detected for {ticker}. Adding delay.")
+            # Record rate limit error in the provider
+            if hasattr(provider, '_rate_limiter'):
+                provider._rate_limiter["last_error_time"] = time.time()
+            # Add extra delay after rate limit errors (caller will handle sleep)
+            raise RateLimitException(f"Rate limit hit for {ticker}: {str(e)}")
+        
+        # Log error but continue with other tickers
+        logger.error(f"Error processing ticker {ticker}: {str(e)}")
+        return None
+
+async def _process_batch(provider, batch, batch_num, total_batches, processed_so_far, pbar):
+    """Process a batch of tickers.
+    
+    Args:
+        provider: Data provider
+        batch: List of tickers in batch
+        batch_num: Current batch number (0-based)
+        total_batches: Total number of batches
+        processed_so_far: Number of tickers processed before this batch
+        pbar: Progress bar instance
+        
+    Returns:
+        list: Processed ticker info for successful tickers
+    """
+    results = []
+    
+    # Update progress bar description for new batch
+    pbar.set_description(f"BATCH {batch_num+1}/{total_batches} ({processed_so_far}/{len(pbar)})")
+    
+    # Process each ticker in the batch
+    for j, ticker in enumerate(batch):
+        try:
+            info = await _process_single_ticker(provider, ticker)
+            if info:
+                results.append(info)
+                
+            # Update progress after each ticker
+            pbar.update(1)
+            
+            # Update description to show current progress
+            current_ticker = processed_so_far + j + 1
+            pbar.set_description(f"BATCH {batch_num+1}/{total_batches} ({current_ticker}/{len(pbar)})")
+            
+            # Add a small delay between individual ticker requests within a batch
+            if j < len(batch) - 1:  # Don't delay after the last ticker in batch
+                await asyncio.sleep(1.0)  # 1-second delay between ticker requests
+        except RateLimitException:
+            # Add extra delay after rate limit errors and update progress bar
+            pbar.update(1)
+            await asyncio.sleep(20.0)  # Wait 20 seconds after rate limit error
+        except Exception as e:
+            # Unexpected error, log and continue with next ticker
+            logger.error(f"Unexpected error for {ticker}: {str(e)}")
+            pbar.update(1)
+    
+    return results
+
+class RateLimitException(Exception):
+    """Exception raised when a rate limit is hit."""
+    pass
+
 async def fetch_ticker_data(provider, tickers):
-    """Fetch ticker data from provider"""
+    """Fetch ticker data from provider
+    
+    Args:
+        provider: Data provider
+        tickers: List of ticker symbols
+        
+    Returns:
+        pd.DataFrame: Dataframe with ticker data
+    """
     results = []
     # Calculate batch size and total batches for progress display
     total_tickers = len(tickers)
     batch_size = 10  # Reduced batch size to avoid rate limiting
     total_batches = (total_tickers - 1) // batch_size + 1
-    
-    # Track successfully processed tickers
-    processed_count = 0
     
     # Create a master progress bar for all tickers with explicit formatting
     with tqdm(total=total_tickers, desc=f"BATCH 0/{total_batches} (0/{total_tickers} tickers)", 
@@ -1452,66 +1682,9 @@ async def fetch_ticker_data(provider, tickers):
             batch = tickers[i:i+batch_size]
             processed_so_far = i
             
-            # Update progress bar description for new batch
-            pbar.set_description(f"BATCH {batch_num+1}/{total_batches} ({processed_so_far}/{total_tickers} tickers)")
-            
-            # Process each ticker in the batch
-            for j, ticker in enumerate(batch):
-                try:
-                    # Get ticker info
-                    info = await provider.get_ticker_info(ticker)
-                    
-                    # Make sure we have minimum required fields
-                    if info and "ticker" in info:
-                        # Ensure all required fields are present with default values
-                        info.setdefault("price", None)
-                        info.setdefault("target_price", None)
-                        info.setdefault("market_cap", None)
-                        info.setdefault("buy_percentage", None)
-                        info.setdefault("total_ratings", 0)
-                        info.setdefault("analyst_count", 0)
-                        
-                        # Calculate upside if price and target are available
-                        if info.get("price") and info.get("target_price"):
-                            try:
-                                upside = ((info["target_price"] / info["price"]) - 1) * 100
-                                info["upside"] = upside
-                            except (TypeError, ZeroDivisionError):
-                                info["upside"] = None
-                        else:
-                            info["upside"] = None
-                        
-                        # Add to results
-                        results.append(info)
-                        processed_count += 1
-                    else:
-                        logger.warning(f"Skipping ticker {ticker}: Invalid or empty data")
-                    
-                    # Update progress after each ticker
-                    pbar.update(1)
-                    
-                    # Update description to show current progress
-                    current_ticker = processed_so_far + j + 1
-                    pbar.set_description(f"BATCH {batch_num+1}/{total_batches} ({current_ticker}/{total_tickers} tickers)")
-                    
-                    # Add a small delay between individual ticker requests within a batch
-                    # This helps avoid rate limiting by spacing out the requests
-                    if j < len(batch) - 1:  # Don't delay after the last ticker in batch
-                        await asyncio.sleep(1.0)  # 1-second delay between ticker requests
-                except Exception as e:
-                    # Check if it's a rate limit error
-                    if any(err_text in str(e).lower() for err_text in ["rate limit", "too many requests", "429"]):
-                        logger.warning(f"Rate limit detected for {ticker}. Adding delay.")
-                        # Record rate limit error in the provider
-                        if hasattr(provider, '_rate_limiter'):
-                            provider._rate_limiter["last_error_time"] = time.time()
-                        # Add extra delay after rate limit errors
-                        await asyncio.sleep(20.0)  # Wait 20 seconds after rate limit error
-                    
-                    # Log error but continue with other tickers
-                    logger.error(f"Error processing ticker {ticker}: {str(e)}")
-                    # Still count this ticker in progress
-                    pbar.update(1)
+            # Process the batch
+            batch_results = await _process_batch(provider, batch, batch_num, total_batches, processed_so_far, pbar)
+            results.extend(batch_results)
             
             # Add delay between batches (except for last batch)
             if batch_num < total_batches - 1:
@@ -1525,7 +1698,7 @@ async def fetch_ticker_data(provider, tickers):
                 await asyncio.sleep(batch_delay)
         
         # Final progress update
-        pbar.set_description(f"COMPLETED - Processed {processed_count}/{total_tickers} tickers")
+        pbar.set_description(f"COMPLETED - Processed {len(results)}/{total_tickers} tickers")
     
     # Create a DataFrame from results and log counts
     result_df = pd.DataFrame(results)
@@ -1537,6 +1710,225 @@ async def fetch_ticker_data(provider, tickers):
         result_df = _create_empty_ticker_dataframe()
     
     return result_df
+
+def _handle_manual_tickers(tickers):
+    """Process manual ticker input.
+    
+    Args:
+        tickers: List of tickers or ticker string
+        
+    Returns:
+        list: Processed list of tickers
+    """
+    # Process the ticker string (it might be comma or space separated)
+    tickers_str = ' '.join(tickers)
+    tickers_list = []
+    
+    # Split by common separators (comma, space, semicolon)
+    for ticker in re.split(r'[,;\s]+', tickers_str):
+        ticker = ticker.strip().upper()
+        if ticker:  # Skip empty strings
+            tickers_list.append(ticker)
+            
+    print(f"Processing tickers: {', '.join(tickers_list)}")
+    return tickers_list
+
+def _setup_output_files(report_source):
+    """Set up output files based on source.
+    
+    Args:
+        report_source: Source type
+        
+    Returns:
+        tuple: (output_file, report_title)
+    """
+    output_dir = OUTPUT_DIR  # Use the constant from config
+    os.makedirs(output_dir, exist_ok=True)
+    
+    if report_source == MARKET_SOURCE:
+        output_file = FILE_PATHS["MARKET_OUTPUT"]
+        report_title = "Market Analysis"
+    elif report_source == PORTFOLIO_SOURCE:
+        output_file = FILE_PATHS["PORTFOLIO_OUTPUT"]
+        report_title = "Portfolio Analysis"
+    else:
+        output_file = FILE_PATHS["MANUAL_OUTPUT"]
+        report_title = "Manual Ticker Analysis"
+    
+    return output_file, report_title
+
+def _prepare_market_caps(result_df):
+    """Format market cap values in result dataframe.
+    
+    Args:
+        result_df: Result dataframe
+        
+    Returns:
+        pd.DataFrame: Dataframe with formatted market caps
+    """
+    # Make a copy to avoid modifying the original
+    df = result_df.copy()
+    
+    # Add a direct format for market cap in the result dataframe
+    if 'market_cap' in df.columns:
+        print("Formatting market cap values...")
+        # Create a direct CAP column in the source dataframe
+        df['cap_formatted'] = df['market_cap'].apply(
+            # Use a proper function to format market cap instead of nested conditionals
+            lambda mc: _format_market_cap_value(mc)
+        )
+    else:
+        print("Warning: 'market_cap' column not found in result data")
+        # Add a placeholder column to avoid errors
+        df['cap_formatted'] = "--"
+    
+    return df
+
+def _extract_and_format_numeric_count(row, column, default=None):
+    """Extract and format numeric count from a display row.
+    
+    Args:
+        row: DataFrame row
+        column: Column name
+        default: Default value if extraction fails
+        
+    Returns:
+        float or default: Extracted numeric value or default
+    """
+    if column in row and pd.notna(row[column]) and row[column] != '--':
+        try:
+            return float(str(row[column]).replace(',', ''))
+        except (ValueError, TypeError):
+            pass
+    return default
+
+def _check_confidence_criteria(row, min_analysts, min_targets):
+    """Check if confidence criteria are met.
+    
+    Args:
+        row: DataFrame row
+        min_analysts: Minimum number of analysts
+        min_targets: Minimum number of price targets
+        
+    Returns:
+        tuple: (confidence_met, analyst_count, price_targets)
+    """
+    # Get analyst and price target counts
+    analyst_count = _extract_and_format_numeric_count(row, '# A')
+    price_targets = _extract_and_format_numeric_count(row, '# T')
+    
+    # Check if we meet confidence threshold (matching ACTION behavior)
+    confidence_met = (
+        analyst_count is not None and 
+        price_targets is not None and 
+        analyst_count >= min_analysts and 
+        price_targets >= min_targets
+    )
+    
+    return confidence_met, analyst_count, price_targets
+
+def _apply_color_to_row(row, color_code):
+    """Apply color to all cells in a row.
+    
+    Args:
+        row: DataFrame row
+        color_code: ANSI color code
+        
+    Returns:
+        pd.Series: Row with colored values
+    """
+    colored_row = row.copy()
+    for col in colored_row.index:
+        val = colored_row[col]
+        colored_row[col] = f"\033[{color_code}m{val}\033[0m"  # Apply color
+    return colored_row
+
+def _process_color_based_on_action(row, action):
+    """Process row color based on action.
+    
+    Args:
+        row: DataFrame row
+        action: Action value ('B', 'S', 'H')
+        
+    Returns:
+        pd.Series: Row with color applied based on action
+    """
+    if action == 'B':
+        return _apply_color_to_row(row, "92")  # Green
+    elif action == 'S':
+        return _apply_color_to_row(row, "91")  # Red
+    # No color for HOLD (return as is)
+    return row
+
+def _process_color_based_on_criteria(row, confidence_met, trading_criteria):
+    """Process row color based on trading criteria.
+    
+    Args:
+        row: DataFrame row
+        confidence_met: Whether confidence criteria are met
+        trading_criteria: Trading criteria dict
+        
+    Returns:
+        pd.Series: Row with color applied based on criteria
+    """
+    if not confidence_met:
+        return _apply_color_to_row(row, "93")  # Yellow for INCONCLUSIVE
+    
+    # Handle string or numeric values
+    upside = float(row['UPSIDE'].rstrip('%')) if isinstance(row['UPSIDE'], str) else row['UPSIDE']
+    buy_pct = float(row[DISPLAY_BUY_PERCENTAGE].rstrip('%')) if isinstance(row[DISPLAY_BUY_PERCENTAGE], str) else row[DISPLAY_BUY_PERCENTAGE]
+    si = float(row['SI'].rstrip('%')) if isinstance(row['SI'], str) else row['SI']
+    pef = float(row['PEF']) if isinstance(row['PEF'], str) and row['PEF'] != '--' else row['PEF']
+    beta = float(row['BETA']) if isinstance(row['BETA'], str) and row['BETA'] != '--' else row['BETA']
+    
+    # Use helper function to check if the security meets SELL criteria
+    is_sell = _check_sell_criteria(upside, buy_pct, pef, si, beta, trading_criteria["SELL"])
+    
+    if is_sell:
+        return _apply_color_to_row(row, "91")  # Red
+    
+    # Check BUY criteria using helper function
+    is_buy = _check_buy_criteria(upside, buy_pct, beta, si, trading_criteria["BUY"])
+    
+    if is_buy:
+        return _apply_color_to_row(row, "92")  # Green
+    
+    # Otherwise, leave as default (HOLD)
+    return row
+
+def _display_empty_result(report_title):
+    """Display empty result message.
+    
+    Args:
+        report_title: Report title
+    """
+    print(f"\n{report_title}:")
+    print(f"Generated at: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("No data available to display. Data has been saved to CSV.")
+
+def _sort_display_dataframe(display_df):
+    """Sort display dataframe by EXRET if available.
+    
+    Args:
+        display_df: Display dataframe
+        
+    Returns:
+        pd.DataFrame: Sorted dataframe
+    """
+    if 'EXRET' not in display_df.columns:
+        return display_df
+    
+    # First convert EXRET to numeric if it's not
+    if not pd.api.types.is_numeric_dtype(display_df['EXRET']):
+        # Remove percentage signs and convert
+        display_df['EXRET_sort'] = pd.to_numeric(
+            display_df['EXRET'].astype(str).str.replace('%', '').str.replace('--', 'NaN'), 
+            errors='coerce'
+        )
+        return display_df.sort_values('EXRET_sort', ascending=False).drop('EXRET_sort', axis=1)
+    
+    # Already numeric, sort directly
+    return display_df.sort_values('EXRET', ascending=False)
 
 def display_report_for_source(display, tickers, source, verbose=False):
     """Display report for the selected source
@@ -1568,18 +1960,7 @@ def display_report_for_source(display, tickers, source, verbose=False):
         
         # For manual input, make sure we parse the tickers correctly
         if source == MANUAL_SOURCE:
-            # Process the ticker string (it might be comma or space separated)
-            tickers_str = ' '.join(tickers)
-            tickers_list = []
-            
-            # Split by common separators (comma, space, semicolon)
-            for ticker in re.split(r'[,;\s]+', tickers_str):
-                ticker = ticker.strip().upper()
-                if ticker:  # Skip empty strings
-                    tickers_list.append(ticker)
-                    
-            print(f"Processing tickers: {', '.join(tickers_list)}")
-            tickers = tickers_list
+            tickers = _handle_manual_tickers(tickers)
         
         # Use the provider directly to get ticker data
         print("\nFetching market data...")
@@ -1593,44 +1974,17 @@ def display_report_for_source(display, tickers, source, verbose=False):
             sample_tickers = result_df['ticker'].head(2).tolist()
             print(f"Sample tickers: {', '.join(sample_tickers)}")
         
-        # Save the data to the appropriate file
-        output_dir = OUTPUT_DIR  # Use the constant from config
-        os.makedirs(output_dir, exist_ok=True)
-        
-        if report_source == MARKET_SOURCE:
-            output_file = FILE_PATHS["MARKET_OUTPUT"]
-            report_title = "Market Analysis"
-        elif report_source == PORTFOLIO_SOURCE:
-            output_file = FILE_PATHS["PORTFOLIO_OUTPUT"]
-            report_title = "Portfolio Analysis"
-        else:
-            output_file = FILE_PATHS["MANUAL_OUTPUT"]
-            report_title = "Manual Ticker Analysis"
+        # Set up output files
+        output_file, report_title = _setup_output_files(report_source)
         
         # Save raw data to CSV
         result_df.to_csv(output_file, index=False)
         print(f"Raw data saved to {output_file}")
         
-        # Before preparing for display, make sure market_cap is available
-        # Add a direct format for market cap in the result dataframe
-        if 'market_cap' in result_df.columns:
-            print("Formatting market cap values...")
-            # Create a direct CAP column in the source dataframe
-            result_df['cap_formatted'] = result_df['market_cap'].apply(
-                lambda mc: 
-                    f"{mc / 1e12:.2f}T" if mc >= 1e12 and pd.notna(mc) else
-                    (f"{mc / 1e9:.2f}B" if mc >= 1e9 and pd.notna(mc) else 
-                    (f"{mc / 1e6:.2f}M" if mc >= 1e6 and pd.notna(mc) else 
-                     (f"{int(mc):,}" if pd.notna(mc) else "--")))
-            )
-            # Format market cap values for better display
-        else:
-            print("Warning: 'market_cap' column not found in result data")
-            # Add a placeholder column to avoid errors
-            result_df['cap_formatted'] = "--"
+        # Format market caps
+        result_df = _prepare_market_caps(result_df)
         
         # Before preparing for display, calculate action based on raw data
-        # This ensures we have upside and buy_percentage available for action calculation
         print("Calculating action classifications...")
         result_df = calculate_action(result_df)
         
@@ -1645,70 +1999,17 @@ def display_report_for_source(display, tickers, source, verbose=False):
         
         # Check for empty display_df
         if display_df.empty:
-            print(f"\n{report_title}:")
-            print(f"Generated at: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            print("No data available to display after processing. Data has been saved to CSV.")
+            _display_empty_result(report_title)
             return
             
         # Sort by EXRET in descending order if available
-        if 'EXRET' in display_df.columns:
-            # First convert EXRET to numeric if it's not
-            if not pd.api.types.is_numeric_dtype(display_df['EXRET']):
-                # Remove percentage signs and convert
-                display_df['EXRET_sort'] = pd.to_numeric(
-                    display_df['EXRET'].astype(str).str.replace('%', '').str.replace('--', 'NaN'), 
-                    errors='coerce'
-                )
-                display_df = display_df.sort_values('EXRET_sort', ascending=False).drop('EXRET_sort', axis=1)
-            else:
-                display_df = display_df.sort_values('EXRET', ascending=False)
+        display_df = _sort_display_dataframe(display_df)
         
-        # Update CAP directly
+        # Update CAP directly from formatted value
         if 'cap_formatted' in result_df.columns:
             display_df['CAP'] = result_df['cap_formatted']
         
-        # Post-process CAP column - ensure it's properly formatted before final display
-        # This fallback will only be used if the above direct assignment didn't work
-        elif 'CAP' in display_df.columns:
-            # Direct fix for market cap display - use market cap from any available column
-            def post_format_cap(row):
-                # Try different possible market cap column names
-                market_cap = None
-                for col in ['market_cap', 'marketCap', 'market_cap_value']:
-                    if col in row and not pd.isna(row[col]):
-                        market_cap = row[col]
-                        break
-                
-                if market_cap is not None:
-                    value = market_cap
-                    # Apply size-based formatting
-                    if value >= 1e12:
-                        if value >= 10e12:
-                            return f"{value / 1e12:.1f}T"
-                        else:
-                            return f"{value / 1e12:.2f}T"
-                    elif value >= 1e9:
-                        if value >= 100e9:
-                            return f"{int(value / 1e9)}B"
-                        elif value >= 10e9:
-                            return f"{value / 1e9:.1f}B"
-                        else:
-                            return f"{value / 1e9:.2f}B"
-                    elif value >= 1e6:
-                        if value >= 100e6:
-                            return f"{int(value / 1e6)}M"
-                        elif value >= 10e6:
-                            return f"{value / 1e6:.1f}M"
-                        else:
-                            return f"{value / 1e6:.2f}M"
-                    else:
-                        return f"{int(value):,}"
-                return "--"
-                
-            # Apply the market cap formatting directly as the last step
-            display_df['CAP'] = display_df.apply(post_format_cap, axis=1)
-        
-        # Continue with the rest of the formatting
+        # Apply general formatting
         display_df = format_display_dataframe(display_df)
         
         # Get proper column alignments
@@ -1717,161 +2018,47 @@ def display_report_for_source(display, tickers, source, verbose=False):
         # Add ranking column
         display_df.insert(0, "#", range(1, len(display_df) + 1))
         
-        # Add color coding based on buy criteria (similar to original trade.py)
+        # Add color coding based on buy criteria
         if len(display_df) > 1000:
             print(f"Applying color coding to {len(display_df)} rows...")
+        
         colored_rows = []
+        min_analysts = TRADING_CRITERIA["CONFIDENCE"]["MIN_ANALYST_COUNT"]
+        min_targets = TRADING_CRITERIA["CONFIDENCE"]["MIN_PRICE_TARGETS"]
+        
         for _, row in display_df.iterrows():
             colored_row = row.copy()
             
-            # Use the ACTION column to determine color (which uses the full criteria)
             try:
                 # Check if ACTION column is present and has a value
                 if 'ACTION' in row and pd.notna(row['ACTION']) and row['ACTION'] in ['B', 'S', 'H']:
-                    action = row['ACTION']
-                    
-                    # Green for BUY recommendations
-                    if action == 'B':
-                        # Apply green to all cells
-                        for col in colored_row.index:
-                            val = colored_row[col]
-                            colored_row[col] = f"\033[92m{val}\033[0m"  # Green
-                    
-                    # Red for SELL recommendations
-                    elif action == 'S':
-                        # Apply red to all cells
-                        for col in colored_row.index:
-                            val = colored_row[col]
-                            colored_row[col] = f"\033[91m{val}\033[0m"  # Red
-                            
-                    # No color for HOLD recommendations (leaving as default)
-                    
-                    # We've applied coloring based on ACTION, skip fallback logic
+                    # Get color based on action
+                    colored_row = _process_color_based_on_action(colored_row, row['ACTION'])
                     colored_rows.append(colored_row)
                     continue
+                
+                # Fallback to simplified criteria for rows without ACTION
+                elif all(col in row and pd.notna(row[col]) for col in ['EXRET', 'UPSIDE', DISPLAY_BUY_PERCENTAGE, 'SI', 'PEF', 'BETA']):
+                    # Check confidence criteria
+                    confidence_met, _, _ = _check_confidence_criteria(row, min_analysts, min_targets)
                     
-                # Fallback to simplified criteria for rows without ACTION column
-                elif ('EXRET' in row and pd.notna(row['EXRET']) and 
-                      'UPSIDE' in row and pd.notna(row['UPSIDE']) and 
-                      '% BUY' in row and pd.notna(row['% BUY']) and
-                      'SI' in row and pd.notna(row['SI']) and
-                      'PEF' in row and pd.notna(row['PEF']) and
-                      'BETA' in row and pd.notna(row['BETA'])):
-                    
-                    # Import criteria for consistency with filter functions
-                    from yahoofinance.core.config import TRADING_CRITERIA
-                    
-                    # First check confidence criteria to match ACTION behavior
-                    # Get analyst and price target counts
-                    analyst_count = None
-                    if '# A' in row and pd.notna(row['# A']) and row['# A'] != '--':
-                        try:
-                            analyst_count = float(str(row['# A']).replace(',', ''))
-                        except (ValueError, TypeError):
-                            pass
-                            
-                    price_targets = None
-                    if '# T' in row and pd.notna(row['# T']) and row['# T'] != '--':
-                        try:
-                            price_targets = float(str(row['# T']).replace(',', ''))
-                        except (ValueError, TypeError):
-                            pass
-                            
-                    # Skip coloring if confidence criteria aren't met
-                    min_analysts = TRADING_CRITERIA["CONFIDENCE"]["MIN_ANALYST_COUNT"]
-                    min_targets = TRADING_CRITERIA["CONFIDENCE"]["MIN_PRICE_TARGETS"]
-                    
-                    # Check if we meet confidence threshold (matching ACTION behavior)
-                    confidence_met = (
-                        analyst_count is not None and 
-                        price_targets is not None and 
-                        analyst_count >= min_analysts and 
-                        price_targets >= min_targets
-                    )
-                    
-                    # Only apply coloring if confidence criteria are met
-                    if confidence_met:
-                        # Handle string or numeric values
-                        upside = float(row['UPSIDE'].rstrip('%')) if isinstance(row['UPSIDE'], str) else row['UPSIDE']
-                        buy_pct = float(row['% BUY'].rstrip('%')) if isinstance(row['% BUY'], str) else row['% BUY']
-                        si = float(row['SI'].rstrip('%')) if isinstance(row['SI'], str) else row['SI']
-                        pef = float(row['PEF']) if isinstance(row['PEF'], str) and row['PEF'] != '--' else row['PEF']
-                        beta = float(row['BETA']) if isinstance(row['BETA'], str) and row['BETA'] != '--' else row['BETA']
-                        
-                        # Check SELL criteria first (just like in calculate_action function)
-                        is_sell = False
-                        
-                        # 1. Upside too low
-                        if upside < TRADING_CRITERIA["SELL"]["MAX_UPSIDE"]:
-                            is_sell = True
-                        # 2. Buy percentage too low
-                        elif buy_pct < TRADING_CRITERIA["SELL"]["MIN_BUY_PERCENTAGE"]:
-                            is_sell = True
-                        # 3. PEF too high
-                        elif pef != '--' and pef > TRADING_CRITERIA["SELL"]["MAX_FORWARD_PE"]:
-                            is_sell = True
-                        # 4. SI too high
-                        elif si != '--' and si > TRADING_CRITERIA["SELL"]["MAX_SHORT_INTEREST"]:
-                            is_sell = True
-                        # 5. Beta too high
-                        elif beta != '--' and beta > TRADING_CRITERIA["SELL"]["MAX_BETA"]:
-                            is_sell = True
-                        
-                        if is_sell:
-                            # Apply red to all cells (SELL)
-                            for col in colored_row.index:
-                                val = colored_row[col]
-                                colored_row[col] = f"\033[91m{val}\033[0m"  # Red
-                        else:
-                            # Check BUY criteria
-                            is_buy = True
-                            
-                            # 1. Sufficient upside
-                            if upside < TRADING_CRITERIA["BUY"]["MIN_UPSIDE"]:
-                                is_buy = False
-                            # 2. Sufficient buy percentage
-                            elif buy_pct < TRADING_CRITERIA["BUY"]["MIN_BUY_PERCENTAGE"]:
-                                is_buy = False
-                            # 3. Beta in range
-                            elif beta == '--' or beta <= TRADING_CRITERIA["BUY"]["MIN_BETA"] or beta > TRADING_CRITERIA["BUY"]["MAX_BETA"]:
-                                is_buy = False
-                            # 4. Short interest not too high
-                            elif si != '--' and si > TRADING_CRITERIA["BUY"]["MAX_SHORT_INTEREST"]:
-                                is_buy = False
-                                
-                            if is_buy:
-                                # Apply green to all cells (BUY)
-                                for col in colored_row.index:
-                                    val = colored_row[col]
-                                    colored_row[col] = f"\033[92m{val}\033[0m"  # Green
-                            # Otherwise, leave as default (HOLD)
-                    # If confidence criteria not met, mark as yellow (INCONCLUSIVE)
-                    else:
-                        # Apply yellow to all cells (INCONCLUSIVE)
-                        for col in colored_row.index:
-                            val = colored_row[col]
-                            colored_row[col] = f"\033[93m{val}\033[0m"  # Yellow
+                    # Apply color based on criteria
+                    colored_row = _process_color_based_on_criteria(colored_row, confidence_met, TRADING_CRITERIA)
             except Exception as e:
                 # If any error in color logic, use the original row
                 logger.debug(f"Error applying color: {str(e)}")
-                
-            colored_rows.append(colored_row)
             
-        # Debug print only for large datasets
-        if len(colored_rows) > 1000:
-            print(f"Color coding complete. Preparing to display {len(colored_rows)} rows...")
+            colored_rows.append(colored_row)
         
         # Check for empty results
         if not colored_rows:
-            print(f"\n{report_title}:")
-            print(f"Generated at: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            print("No data available to display. Data has been saved to CSV.")
+            _display_empty_result(report_title)
             return
             
         # Create DataFrame from colored rows
         colored_df = pd.DataFrame(colored_rows)
         
-        # Display results using tabulate with proper formatting
+        # Display results header
         print(f"\n{report_title}:")
         print(f"Generated at: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
         
@@ -1880,63 +2067,40 @@ def display_report_for_source(display, tickers, source, verbose=False):
         print("\033[92mGreen\033[0m - BUY (meets all BUY criteria and confidence threshold)")
         print("\033[91mRed\033[0m - SELL (meets at least one SELL criterion and confidence threshold)")
         print("White - HOLD (meets confidence threshold but not BUY or SELL criteria)")
-        print(f"\033[93mYellow\033[0m - INCONCLUSIVE (fails confidence threshold: <{TRADING_CRITERIA['CONFIDENCE']['MIN_ANALYST_COUNT']} analysts or <{TRADING_CRITERIA['CONFIDENCE']['MIN_PRICE_TARGETS']} price targets)")
+        print(f"\033[93mYellow\033[0m - INCONCLUSIVE (fails confidence threshold: <{min_analysts} analysts or <{min_targets} price targets)")
         
-        # Debug output for ACTION column with confidence information
+        # Debug output for ACTION classifications
         print("\nAction classifications:")
         for i, row in display_df.iterrows():
             ticker = row.get('TICKER', f"row_{i}")
             action = row.get('ACTION', 'N/A')
             
-            # Add confidence details
-            analyst_count = None
-            if '# A' in row and pd.notna(row['# A']) and row['# A'] != '--':
-                try:
-                    analyst_count = float(str(row['# A']).replace(',', ''))
-                except (ValueError, TypeError):
-                    analyst_count = "Invalid"
+            # Check confidence criteria
+            confidence_met, analyst_count, price_targets = _check_confidence_criteria(row, min_analysts, min_targets)
             
-            price_targets = None
-            if '# T' in row and pd.notna(row['# T']) and row['# T'] != '--':
-                try:
-                    price_targets = float(str(row['# T']).replace(',', ''))
-                except (ValueError, TypeError):
-                    price_targets = "Invalid"
-                    
-            min_analysts = TRADING_CRITERIA["CONFIDENCE"]["MIN_ANALYST_COUNT"]
-            min_targets = TRADING_CRITERIA["CONFIDENCE"]["MIN_PRICE_TARGETS"]
-            
-            confidence_met = (
-                analyst_count is not None and 
-                price_targets is not None and 
-                not isinstance(analyst_count, str) and
-                not isinstance(price_targets, str) and
-                analyst_count >= min_analysts and 
-                price_targets >= min_targets
-            )
-            
+            # Format confidence status
             if confidence_met:
                 confidence_status = "\033[92mPASS\033[0m"
             else:
                 confidence_status = f"\033[93mINCONCLUSIVE\033[0m (min: {min_analysts}A/{min_targets}T)"
             
-            # Also check for key metrics affecting classifications
+            # Extract key metrics
             si_val = row.get('SI', '')
             si = si_val.replace('%', '') if isinstance(si_val, str) else si_val
             pef = row.get('PEF', 'N/A')
             beta = row.get('BETA', 'N/A')
             upside = row.get('UPSIDE', 'N/A')
-            buy_pct = row.get('% BUY', 'N/A')
+            buy_pct = row.get(DISPLAY_BUY_PERCENTAGE, 'N/A')
             
             # Print with clear confidence status
             print(f"{ticker}: ACTION={action}, CONFIDENCE={confidence_status}, ANALYSTS={analyst_count}/{min_analysts}, TARGETS={price_targets}/{min_targets}, UPSIDE={upside}, BUY%={buy_pct}, SI={si}, PEF={pef}, BETA={beta}")
-            
+        
         # Make sure we have columns to display
         if colored_df.empty or len(colored_df.columns) == 0:
             print("Error: No columns available for display.")
             return
         
-        # Display all rows, regardless of dataset size
+        # Display all rows
         print(f"Displaying all {len(colored_df)} rows:")
         try:
             print(tabulate(

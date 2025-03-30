@@ -218,21 +218,15 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
     
     def _process_recommendation_key(self, ticker_info: Dict[str, Any], info: Dict[str, Any]):
         """Process recommendation key as fallback for buy percentage"""
-        rec_key = ticker_info.get("recommendationKey", "").lower()
-        if rec_key == "strong_buy":
-            info["buy_percentage"] = 95
-        elif rec_key == "buy":
-            info["buy_percentage"] = 85
-        elif rec_key == "hold":
-            info["buy_percentage"] = 65
-        elif rec_key == "sell":
-            info["buy_percentage"] = 30
-        elif rec_key == "strong_sell":
-            info["buy_percentage"] = 10
-        else:
-            info["buy_percentage"] = 50
+        # Import shared implementation from yahoo_finance_base
+        from yahoofinance.api.providers.yahoo_finance_base import YahooFinanceBaseProvider
         
-        info["total_ratings"] = ticker_info.get("numberOfAnalystOpinions", 0)
+        # Get result from the base provider implementation
+        result = YahooFinanceBaseProvider._process_recommendation_key(self, ticker_info)
+        
+        # Update the info dictionary with results
+        info["buy_percentage"] = result["buy_percentage"]
+        info["total_ratings"] = result["total_ratings"]
     
     async def _process_earnings_ratings(self, ticker: str, yticker, info: Dict[str, Any]):
         """Process post-earnings ratings if available"""
@@ -478,20 +472,11 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
             
     def _calculate_peg_ratio(self, ticker_info):
         """Calculate PEG ratio from available financial metrics"""
-        # Using the same approach as the original code in yahoofinance/api/providers/yahoo_finance.py
-        # Get the trailingPegRatio directly from Yahoo Finance's API
-        peg_ratio = ticker_info.get('trailingPegRatio')
+        # Import the shared implementation from yahoo_finance_base
+        from yahoofinance.api.providers.yahoo_finance_base import YahooFinanceBaseProvider
         
-        # Format PEG ratio to ensure consistent precision (one decimal place)
-        if peg_ratio is not None:
-            try:
-                # Round to 1 decimal place for consistency
-                peg_ratio = round(float(peg_ratio), 1)
-            except (ValueError, TypeError):
-                # Keep original value if conversion fails
-                pass
-                
-        return peg_ratio
+        # Use the shared implementation
+        return YahooFinanceBaseProvider._calculate_peg_ratio(self, ticker_info)
         
     def _has_post_earnings_ratings(self, ticker: str, yticker) -> bool:
         """
@@ -603,81 +588,22 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
         Returns:
             str: The last earnings date in YYYY-MM-DD format, or None if not available
         """
-        try:
-            # Try calendar approach first - it usually has the most recent past earnings
-            calendar = yticker.calendar
-            if isinstance(calendar, dict) and COLUMN_NAMES["EARNINGS_DATE"] in calendar:
-                earnings_date_list = calendar[COLUMN_NAMES["EARNINGS_DATE"]]
-                if isinstance(earnings_date_list, list) and len(earnings_date_list) > 0:
-                    # Look for the most recent PAST earnings date, not future ones
-                    today = pd.Timestamp.now().date()
-                    past_earnings = [date for date in earnings_date_list if date < today]
-                    
-                    if past_earnings:
-                        return max(past_earnings).strftime('%Y-%m-%d')
-        except (AttributeError, KeyError, ValueError, TypeError) as e:
-            logger.debug(f"Error getting earnings date from calendar: {e}")
+        # Import the shared implementation from yahoo_finance_base
+        from yahoofinance.api.providers.yahoo_finance_base import YahooFinanceBaseProvider
         
-        # Try earnings_dates approach if we didn't get a past earnings date
-        try:
-            earnings_dates = yticker.earnings_dates if hasattr(yticker, 'earnings_dates') else None
-            if earnings_dates is not None and not earnings_dates.empty:
-                # Handle timezone-aware dates
-                today = pd.Timestamp.now()
-                if hasattr(earnings_dates.index, 'tz') and earnings_dates.index.tz is not None:
-                    today = pd.Timestamp.now(tz=earnings_dates.index.tz)
-                
-                # Find past dates for last earnings
-                past_dates = [date for date in earnings_dates.index if date < today]
-                if past_dates:
-                    return max(past_dates).strftime('%Y-%m-%d')
-        except (AttributeError, ValueError, TypeError, IndexError, pd.errors.EmptyDataError) as e:
-            logger.debug(f"Error getting earnings date from earnings_dates: {e}")
-        
-        return None
+        # Use the shared implementation
+        return YahooFinanceBaseProvider._get_last_earnings_date(self, yticker)
     
     def _is_us_ticker(self, ticker: str) -> bool:
         """Check if a ticker is a US ticker based on suffix"""
-        # Some special cases of US stocks with dots in the ticker
-        if ticker in ["BRK.A", "BRK.B", "BF.A", "BF.B"]:
-            return True
-            
-        # Most US tickers don't have a suffix
-        if "." not in ticker:
-            return True
-            
-        # Handle .US suffix
-        if ticker.endswith(".US"):
-            return True
-            
-        return False
+        # Import the shared implementation from yahoo_finance_base
+        from yahoofinance.api.providers.yahoo_finance_base import YahooFinanceBaseProvider
+        
+        # Use the shared implementation
+        return YahooFinanceBaseProvider._is_us_ticker(self, ticker)
     
     def _format_market_cap(self, value):
         """Format market cap value with appropriate suffix (T, B, M)"""
-        if value is None:
-            return None
-            
-        # Trillions
-        if value >= 1e12:
-            if value >= 10e12:
-                return f"{value / 1e12:.1f}T"
-            else:
-                return f"{value / 1e12:.2f}T"
-        # Billions
-        elif value >= 1e9:
-            if value >= 100e9:
-                return f"{int(value / 1e9)}B"
-            elif value >= 10e9:
-                return f"{value / 1e9:.1f}B"
-            else:
-                return f"{value / 1e9:.2f}B"
-        # Millions
-        elif value >= 1e6:
-            if value >= 100e6:
-                return f"{int(value / 1e6)}M"
-            elif value >= 10e6:
-                return f"{value / 1e6:.1f}M"
-            else:
-                return f"{value / 1e6:.2f}M"
-        else:
-            return f"{int(value):,}"
+        # Import the canonical market cap formatter from format_utils
+        from yahoofinance.utils.data.format_utils import format_market_cap
+        return format_market_cap(value)
