@@ -82,6 +82,8 @@ def format_market_cap(value: Optional[float]) -> Optional[str]:
     """
     Format market cap value with appropriate suffix.
     
+    This is the unified market cap formatter used throughout the application.
+    
     Args:
         value: Market capitalization value
         

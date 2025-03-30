@@ -9,6 +9,7 @@ percentage formatting, and coloring of financial metrics.
 from enum import Enum
 from typing import Optional, Any, Union, Dict, List, Tuple
 from dataclasses import dataclass
+from ..utils.data.format_utils import format_market_cap as utils_format_market_cap
 
 class Color(Enum):
     """Color constants for terminal output."""
@@ -57,51 +58,16 @@ class DisplayFormatter:
         """
         Format market cap value with appropriate suffix (T, B, M).
         
+        Uses the canonical market cap formatter from utils.data.format_utils.
+        
         Args:
             value: Market cap value
             
         Returns:
             Formatted market cap string or None if value is None
         """
-        if value is None:
-            return None
-        
-        # Trillions
-        if value >= 1e12:
-            if value >= 10e12:
-                # Above 10T, use 1 decimal place
-                return f"{value / 1e12:.1f}T"
-            else:
-                # Below 10T, use 2 decimal places
-                return f"{value / 1e12:.2f}T"
-        
-        # Billions
-        elif value >= 1e9:
-            if value >= 100e9:
-                # Above 100B, use no decimals
-                return f"{int(value / 1e9)}B"
-            elif value >= 10e9:
-                # Above 10B but below 100B, use 1 decimal place
-                return f"{value / 1e9:.1f}B"
-            else:
-                # Below 10B, use 2 decimal places
-                return f"{value / 1e9:.2f}B"
-        
-        # Millions
-        elif value >= 1e6:
-            if value >= 100e6:
-                # Above 100M, use no decimals
-                return f"{int(value / 1e6)}M"
-            elif value >= 10e6:
-                # Above 10M but below 100M, use 1 decimal place
-                return f"{value / 1e6:.1f}M"
-            else:
-                # Below 10M, use 2 decimal places
-                return f"{value / 1e6:.2f}M"
-        
-        # Less than a million, format with commas
-        else:
-            return f"{int(value):,}"
+        # Use the canonical format_market_cap function from format_utils
+        return utils_format_market_cap(value)
     
     def format_price(self, value: Optional[float], decimals: int = 2) -> str:
         """

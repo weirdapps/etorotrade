@@ -27,134 +27,154 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+def _process_ticker_data(ticker, i, total_count, provider, period):
+    """Process data for a single ticker and return results."""
+    try:
+        # Get historical data
+        history = provider.get_historical_data(ticker, period=period)
+        
+        # Process results
+        if not history.empty:
+            start = history.index.min()
+            end = history.index.max()
+            days = (end - start).days
+            result = {
+                "ticker": ticker,
+                "start_date": start.date(),
+                "end_date": end.date(),
+                "days_available": days,
+                "data_points": len(history),
+                "has_error": False,
+                "error_message": ""
+            }
+            # Print progress with data for this ticker
+            print(f"[{i+1}/{total_count}] {ticker}: {start.date()} to {end.date()}, {days} days, {len(history)} data points")
+        else:
+            # Empty dataframe
+            result = {
+                "ticker": ticker,
+                "start_date": None,
+                "end_date": None,
+                "days_available": 0,
+                "data_points": 0,
+                "has_error": True,
+                "error_message": "Empty dataset"
+            }
+            print(f"[{i+1}/{total_count}] {ticker}: No data available")
+    except Exception as e:
+        # Handle errors
+        result = {
+            "ticker": ticker,
+            "start_date": None,
+            "end_date": None,
+            "days_available": 0,
+            "data_points": 0,
+            "has_error": True,
+            "error_message": str(e)
+        }
+        print(f"[{i+1}/{total_count}] {ticker}: ERROR - {str(e)}")
+    
+    return result
+
+
+def _print_summary_stats(valid_data, all_tickers_count, df):
+    """Print summary statistics for the ticker data."""
+    earliest_start = valid_data["start_date"].min()
+    latest_start = valid_data["start_date"].max()
+    earliest_end = valid_data["end_date"].min()
+    latest_end = valid_data["end_date"].max()
+    
+    # Calculate common date range
+    common_start = latest_start if latest_start is not None else None
+    common_end = earliest_end if earliest_end is not None else None
+    
+    # If we have a valid common range
+    common_days = (common_end - common_start).days if (common_start and common_end) else 0
+        
+    # Print summary
+    print("\n=== Summary ===")
+    print(f"Total tickers: {all_tickers_count}")
+    print(f"Tickers with valid data: {len(valid_data)}")
+    print(f"Tickers with errors: {df['has_error'].sum()}")
+    
+    print("\n=== Date Ranges ===")
+    print(f"Earliest start date across all tickers: {earliest_start}")
+    print(f"Latest start date across all tickers: {latest_start}")
+    print(f"Earliest end date across all tickers: {earliest_end}")
+    print(f"Latest end date across all tickers: {latest_end}")
+    
+    print("\n=== Common Date Range ===")
+    print(f"Common start date (latest start): {common_start}")
+    print(f"Common end date (earliest end): {common_end}")
+    print(f"Common date range in days: {common_days}")
+    print(f"Common date range in years: {common_days/365.25:.2f}")
+
+
+def _analyze_period_availability(valid_data):
+    """Analyze availability of data for different time periods."""
+    reference_date = datetime.now().date()
+    
+    # Generate lookback dates
+    lookback_periods = {
+        "1y": reference_date - timedelta(days=365),
+        "2y": reference_date - timedelta(days=365*2),
+        "3y": reference_date - timedelta(days=365*3),
+        "5y": reference_date - timedelta(days=365*5)
+    }
+    
+    # Calculate availability for each period
+    valid_counts = {}
+    for period_name, period_date in lookback_periods.items():
+        valid_counts[period_name] = valid_data[valid_data["start_date"] <= period_date]
+    
+    # Print results
+    print("\n=== Ticker Availability By Period ===")
+    total_valid = len(valid_data)
+    for period_name, period_data in valid_counts.items():
+        period_count = len(period_data)
+        percentage = (period_count / total_valid * 100) if total_valid > 0 else 0
+        print(f"Tickers with at least {period_name} of data: {period_count} of {total_valid} ({percentage:.1f}%)")
+    
+    # List tickers limiting the 5-year backtest
+    if len(valid_counts["5y"]) < total_valid:
+        limiting_tickers = valid_data[valid_data["start_date"] > lookback_periods["5y"]].sort_values(by="start_date", ascending=False)
+        print("\n=== Tickers Limiting 5-Year Backtest ===")
+        for _, row in limiting_tickers.iterrows():
+            print(f"{row['ticker']}: data starts {row['start_date']}, {row['days_available']} days available")
+
+
 def check_ticker_date_ranges(tickers, period="5y"):
     """Check historical data availability for a list of tickers."""
     provider = get_provider()
     
-    # Results container
-    results = {
-        "ticker": [],
-        "start_date": [],
-        "end_date": [],
-        "days_available": [],
-        "data_points": [],
-        "has_error": [],
-        "error_message": []
-    }
-    
     # Start time for overall process
     start_time = time.time()
     
+    # Create results list
     print(f"Checking {len(tickers)} tickers for historical data...")
+    results_list = []
+    
+    # Process each ticker
     for i, ticker in enumerate(tickers):
-        try:
-            # Get historical data
-            history = provider.get_historical_data(ticker, period=period)
-            
-            # Process results
-            results["ticker"].append(ticker)
-            if not history.empty:
-                start = history.index.min()
-                end = history.index.max()
-                days = (end - start).days
-                results["start_date"].append(start.date())
-                results["end_date"].append(end.date())
-                results["days_available"].append(days)
-                results["data_points"].append(len(history))
-                results["has_error"].append(False)
-                results["error_message"].append("")
-                
-                # Print progress with data for this ticker
-                print(f"[{i+1}/{len(tickers)}] {ticker}: {start.date()} to {end.date()}, {days} days, {len(history)} data points")
-            else:
-                # Empty dataframe
-                results["start_date"].append(None)
-                results["end_date"].append(None)
-                results["days_available"].append(0)
-                results["data_points"].append(0)
-                results["has_error"].append(True)
-                results["error_message"].append("Empty dataset")
-                print(f"[{i+1}/{len(tickers)}] {ticker}: No data available")
-                
-        except Exception as e:
-            # Handle errors
-            results["ticker"].append(ticker)
-            results["start_date"].append(None)
-            results["end_date"].append(None)
-            results["days_available"].append(0)
-            results["data_points"].append(0)
-            results["has_error"].append(True)
-            results["error_message"].append(str(e))
-            print(f"[{i+1}/{len(tickers)}] {ticker}: ERROR - {str(e)}")
-            
+        result = _process_ticker_data(ticker, i, len(tickers), provider, period)
+        results_list.append(result)
+        
         # Add a small delay to avoid API rate limits
         if i < len(tickers) - 1:
             time.sleep(0.5)
     
     # Create DataFrame from results
-    df = pd.DataFrame(results)
+    df = pd.DataFrame(results_list)
     
     # Calculate summary statistics for non-error tickers
     valid_data = df[~df["has_error"]]
     
     if not valid_data.empty:
-        earliest_start = valid_data["start_date"].min()
-        latest_start = valid_data["start_date"].max()
-        earliest_end = valid_data["end_date"].min()
-        latest_end = valid_data["end_date"].max()
+        # Print summary stats
+        _print_summary_stats(valid_data, len(tickers), df)
         
-        # Calculate common date range
-        common_start = latest_start if latest_start is not None else None
-        common_end = earliest_end if earliest_end is not None else None
-        
-        # If we have a valid common range
-        if common_start is not None and common_end is not None:
-            common_days = (common_end - common_start).days
-        else:
-            common_days = 0
-            
-        # Print summary
-        print("\n=== Summary ===")
-        print(f"Total tickers: {len(tickers)}")
-        print(f"Tickers with valid data: {len(valid_data)}")
-        print(f"Tickers with errors: {df['has_error'].sum()}")
-        
-        print("\n=== Date Ranges ===")
-        print(f"Earliest start date across all tickers: {earliest_start}")
-        print(f"Latest start date across all tickers: {latest_start}")
-        print(f"Earliest end date across all tickers: {earliest_end}")
-        print(f"Latest end date across all tickers: {latest_end}")
-        
-        print("\n=== Common Date Range ===")
-        print(f"Common start date (latest start): {common_start}")
-        print(f"Common end date (earliest end): {common_end}")
-        print(f"Common date range in days: {common_days}")
-        print(f"Common date range in years: {common_days/365.25:.2f}")
-        
-        # Calculate how many tickers would be valid for longer periods
-        one_year_ago = datetime.now().date() - timedelta(days=365)
-        two_years_ago = datetime.now().date() - timedelta(days=365*2)
-        three_years_ago = datetime.now().date() - timedelta(days=365*3)
-        five_years_ago = datetime.now().date() - timedelta(days=365*5)
-        
-        valid_1y = valid_data[valid_data["start_date"] <= one_year_ago]
-        valid_2y = valid_data[valid_data["start_date"] <= two_years_ago]
-        valid_3y = valid_data[valid_data["start_date"] <= three_years_ago]
-        valid_5y = valid_data[valid_data["start_date"] <= five_years_ago]
-        
-        print("\n=== Ticker Availability By Period ===")
-        print(f"Tickers with at least 1 year of data: {len(valid_1y)} of {len(valid_data)} ({len(valid_1y)/len(valid_data)*100:.1f}%)")
-        print(f"Tickers with at least 2 years of data: {len(valid_2y)} of {len(valid_data)} ({len(valid_2y)/len(valid_data)*100:.1f}%)")
-        print(f"Tickers with at least 3 years of data: {len(valid_3y)} of {len(valid_data)} ({len(valid_3y)/len(valid_data)*100:.1f}%)")
-        print(f"Tickers with at least 5 years of data: {len(valid_5y)} of {len(valid_data)} ({len(valid_5y)/len(valid_data)*100:.1f}%)")
-        
-        # List tickers limiting the 5-year backtest
-        if len(valid_5y) < len(valid_data):
-            limiting_tickers = valid_data[valid_data["start_date"] > five_years_ago].sort_values(by="start_date", ascending=False)
-            print("\n=== Tickers Limiting 5-Year Backtest ===")
-            for _, row in limiting_tickers.iterrows():
-                print(f"{row['ticker']}: data starts {row['start_date']}, {row['days_available']} days available")
-                
+        # Analyze period availability
+        _analyze_period_availability(valid_data)
     else:
         print("\nNo valid data found for any ticker.")
     

@@ -102,9 +102,13 @@ def create_settings(args: argparse.Namespace) -> BacktestSettings:
         # Apply ticker limit for faster testing if specified
         if args.ticker_limit is not None and args.ticker_limit > 0 and args.ticker_limit < len(all_tickers):
             logging.info(f"Limiting tickers to {args.ticker_limit} (from {len(all_tickers)})")
-            import random
-            random.shuffle(all_tickers)  # Randomize to get a representative sample
-            tickers = all_tickers[:args.ticker_limit]
+            import secrets
+            # Use secrets module for cryptographically secure randomness
+            sample_indices = set()
+            while len(sample_indices) < args.ticker_limit:
+                sample_indices.add(secrets.randbelow(len(all_tickers)))
+            # Convert to list and sort for consistent ordering
+            tickers = [all_tickers[i] for i in sorted(sample_indices)]
         else:
             # Use all tickers
             logging.info(f"Using all {len(all_tickers)} tickers from {args.source}")
@@ -122,27 +126,32 @@ def create_settings(args: argparse.Namespace) -> BacktestSettings:
         ticker_source=args.source,
         ticker_limit=args.ticker_limit,  # Pass the ticker limit to settings
         cache_max_age_days=args.cache_days,  # Pass cache age limit
-        data_coverage_threshold=args.data_coverage_threshold  # Pass data coverage threshold
+        data_coverage_threshold=args.data_coverage_threshold,  # Pass data coverage threshold
+        clean_previous_results=args.clean_previous  # Pass cleanup flag
     )
     
     return settings
 
-def main():
-    """Main function for the script."""
-    # Configure logging
+def _configure_logging():
+    """Configure logging for the script."""
+    log_file = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), 
+        'logs', 
+        f'backtest_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
+    )
+    
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
             logging.StreamHandler(),
-            logging.FileHandler(os.path.join(
-                os.path.dirname(os.path.dirname(__file__)), 
-                'logs', 
-                f'backtest_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
-            ))
+            logging.FileHandler(log_file)
         ]
     )
-    # Define command-line arguments
+
+
+def _setup_argument_parser():
+    """Set up and return the argument parser."""
     parser = argparse.ArgumentParser(description='Run backtests and optimize trading criteria')
     
     # Mode options
@@ -194,6 +203,159 @@ def main():
     parser.add_argument('--data-coverage-threshold', type=float, default=0.7,
                        help='Data coverage threshold (0.0-1.0). Lower values allow longer backtests by excluding tickers with limited history.')
     
+    # Cleanup settings
+    parser.add_argument('--clean-previous', action='store_true',
+                       help='Clean up previous backtest result files before running a new test')
+    
+    return parser
+
+
+def _run_backtest_mode(args, settings):
+    """Run backtest mode and print results."""
+    print(f"Running backtest with {args.period} period and {args.rebalance} rebalancing...")
+    
+    # Run backtest with quiet mode if specified
+    result = run_backtest(settings, disable_progress=args.quiet)
+    
+    # Print results
+    print("\nBacktest Performance:")
+    print(f"Period: {result.portfolio_values.index.min().date()} to "
+         f"{result.portfolio_values.index.max().date()}")
+    print(f"Total Return: {result.performance['total_return']:.2f}%")
+    print(f"Annualized Return: {result.performance['annualized_return']:.2f}%")
+    print(f"Sharpe Ratio: {result.performance['sharpe_ratio']:.2f}")
+    print(f"Max Drawdown: {result.performance['max_drawdown']:.2f}%")
+    print(f"Benchmark (S&P 500) Return: {result.benchmark_performance['total_return']:.2f}%")
+    print(f"Number of Trades: {len(result.trades)}")
+    
+    # Print all saved file paths
+    print("\nBacktest Files:")
+    print(f"  HTML Report: {result.saved_paths.get('html', 'Not available')}")
+    print(f"  JSON Results: {result.saved_paths.get('json', 'Not available')}")
+    print(f"  Portfolio CSV: {result.saved_paths.get('csv', 'Not available')}")
+    print(f"  Trades CSV: {result.saved_paths.get('trades', 'Not available')}")
+    
+    # Save trades to CSV if output specified
+    _save_trades_to_csv(result.trades, args.output)
+    
+    return result
+
+
+def _save_trades_to_csv(trades, output_file):
+    """Save trades to CSV if output file is specified."""
+    if not output_file:
+        return
+        
+    # Create trades DataFrame
+    trades_df = pd.DataFrame([
+        {
+            'ticker': t.ticker,
+            'entry_date': t.entry_date.strftime("%Y-%m-%d"),
+            'entry_price': t.entry_price,
+            'shares': t.shares,
+            'exit_date': t.exit_date.strftime("%Y-%m-%d") if t.exit_date else 'OPEN',
+            'exit_price': t.exit_price if t.exit_price is not None else 0,
+            'action': t.action,
+            'pnl': t.pnl if t.pnl is not None else 0,
+            'pnl_pct': t.pnl_pct if t.pnl_pct is not None else 0
+        }
+        for t in trades
+    ])
+    
+    # Save to CSV
+    trades_df.to_csv(output_file, index=False)
+    print(f"Saved trades to {output_file}")
+
+
+def _run_optimize_mode(args, settings):
+    """Run optimization mode and print results."""
+    # Parse parameter ranges
+    parameter_ranges = parse_parameters(args.param_file)
+    
+    # Run optimization
+    print(f"Running optimization with {args.period} period and {args.rebalance} rebalancing...")
+    print(f"Optimizing for {args.metric} with up to {args.max_combinations} combinations...\n")
+    
+    # For cleaner progress bar display
+    import time
+    time.sleep(0.5)  # Brief pause for user to read the message
+    
+    # Report if running in quiet mode
+    if args.quiet:
+        print("Running in quiet mode (progress bars disabled)")
+    
+    best_params, best_result = optimize_criteria(
+        parameter_ranges, 
+        settings,
+        metric=args.metric,
+        max_combinations=args.max_combinations,
+        disable_progress=args.quiet
+    )
+    
+    # Display results
+    _print_optimization_results(best_params, best_result)
+    
+    # Save parameters if output specified
+    _save_parameters_to_json(best_params, best_result, args.metric, args.output)
+    
+    return best_params, best_result
+
+
+def _print_optimization_results(best_params, best_result):
+    """Print optimization results in a readable format."""
+    # Add a blank line after progress bars complete
+    print()
+    
+    # Print best parameters
+    print("\nBest Parameters:")
+    for category, params in best_params.items():
+        print(f"  {category}:")
+        for param, value in params.items():
+            print(f"    {param}: {value}")
+            
+    # Print best results
+    print("\nBest Result Performance:")
+    print(f"Total Return: {best_result.performance['total_return']:.2f}%")
+    print(f"Annualized Return: {best_result.performance['annualized_return']:.2f}%")
+    print(f"Sharpe Ratio: {best_result.performance['sharpe_ratio']:.2f}")
+    print(f"Max Drawdown: {best_result.performance['max_drawdown']:.2f}%")
+    print(f"Number of Trades: {len(best_result.trades)}")
+    print(f"Benchmark (S&P 500) Return: {best_result.benchmark_performance['total_return']:.2f}%")
+    
+    # Print all saved file paths
+    print("\nOptimization Files:")
+    print(f"  HTML Report: {best_result.saved_paths.get('html', 'Not available')}")
+    print(f"  JSON Results: {best_result.saved_paths.get('json', 'Not available')}")
+    print(f"  Portfolio CSV: {best_result.saved_paths.get('csv', 'Not available')}")
+    print(f"  Trades CSV: {best_result.saved_paths.get('trades', 'Not available')}")
+    
+    # Print optimized parameters in JSON format for easy copying
+    print("\nOptimized Trading Parameters JSON:")
+    print(json.dumps(best_params, indent=2))
+
+
+def _save_parameters_to_json(best_params, best_result, metric, output_file):
+    """Save best parameters to JSON if output file is specified."""
+    if not output_file:
+        return
+        
+    with open(output_file, 'w') as f:
+        json.dump({
+            'best_params': best_params,
+            'metric': metric,
+            'performance': best_result.performance,
+            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }, f, indent=2)
+    print(f"Saved best parameters to {output_file}")
+
+
+def main():
+    """Main function for the script."""
+    # Configure logging
+    _configure_logging()
+    
+    # Set up argument parser
+    parser = _setup_argument_parser()
     args = parser.parse_args()
     
     # Create backtest settings
@@ -201,117 +363,9 @@ def main():
     
     try:
         if args.mode == 'backtest':
-            # Run a single backtest
-            print(f"Running backtest with {args.period} period and {args.rebalance} rebalancing...")
-            
-            # Run backtest with quiet mode if specified
-            result = run_backtest(settings, disable_progress=args.quiet)
-            
-            # Print results
-            print("\nBacktest Performance:")
-            print(f"Period: {result.portfolio_values.index.min().date()} to "
-                 f"{result.portfolio_values.index.max().date()}")
-            print(f"Total Return: {result.performance['total_return']:.2f}%")
-            print(f"Annualized Return: {result.performance['annualized_return']:.2f}%")
-            print(f"Sharpe Ratio: {result.performance['sharpe_ratio']:.2f}")
-            print(f"Max Drawdown: {result.performance['max_drawdown']:.2f}%")
-            print(f"Benchmark (S&P 500) Return: {result.benchmark_performance['total_return']:.2f}%")
-            print(f"Number of Trades: {len(result.trades)}")
-            
-            # Print all saved file paths
-            print("\nBacktest Files:")
-            print(f"  HTML Report: {result.saved_paths.get('html', 'Not available')}")
-            print(f"  JSON Results: {result.saved_paths.get('json', 'Not available')}")
-            print(f"  Portfolio CSV: {result.saved_paths.get('csv', 'Not available')}")
-            print(f"  Trades CSV: {result.saved_paths.get('trades', 'Not available')}")
-            
-            # Save trades to CSV if output specified
-            if args.output:
-                # Create trades DataFrame
-                trades_df = pd.DataFrame([
-                    {
-                        'ticker': t.ticker,
-                        'entry_date': t.entry_date.strftime("%Y-%m-%d"),
-                        'entry_price': t.entry_price,
-                        'shares': t.shares,
-                        'exit_date': t.exit_date.strftime("%Y-%m-%d") if t.exit_date else 'OPEN',
-                        'exit_price': t.exit_price if t.exit_price is not None else 0,
-                        'action': t.action,
-                        'pnl': t.pnl if t.pnl is not None else 0,
-                        'pnl_pct': t.pnl_pct if t.pnl_pct is not None else 0
-                    }
-                    for t in result.trades
-                ])
-                
-                # Save to CSV
-                trades_df.to_csv(args.output, index=False)
-                print(f"Saved trades to {args.output}")
-                
+            _run_backtest_mode(args, settings)
         elif args.mode == 'optimize':
-            # Parse parameter ranges
-            parameter_ranges = parse_parameters(args.param_file)
-            
-            # Run optimization
-            print(f"Running optimization with {args.period} period and {args.rebalance} rebalancing...")
-            print(f"Optimizing for {args.metric} with up to {args.max_combinations} combinations...\n")
-            
-            # For cleaner progress bar display
-            import time
-            time.sleep(0.5)  # Brief pause for user to read the message
-            
-            # Report if running in quiet mode
-            if args.quiet:
-                print("Running in quiet mode (progress bars disabled)")
-            
-            best_params, best_result = optimize_criteria(
-                parameter_ranges, 
-                settings,
-                metric=args.metric,
-                max_combinations=args.max_combinations,
-                disable_progress=args.quiet
-            )
-            
-            # Add a blank line after progress bars complete
-            print()
-            
-            # Print best parameters
-            print("\nBest Parameters:")
-            for category, params in best_params.items():
-                print(f"  {category}:")
-                for param, value in params.items():
-                    print(f"    {param}: {value}")
-                    
-            # Print best results
-            print("\nBest Result Performance:")
-            print(f"Total Return: {best_result.performance['total_return']:.2f}%")
-            print(f"Annualized Return: {best_result.performance['annualized_return']:.2f}%")
-            print(f"Sharpe Ratio: {best_result.performance['sharpe_ratio']:.2f}")
-            print(f"Max Drawdown: {best_result.performance['max_drawdown']:.2f}%")
-            print(f"Number of Trades: {len(best_result.trades)}")
-            print(f"Benchmark (S&P 500) Return: {best_result.benchmark_performance['total_return']:.2f}%")
-            
-            # Print all saved file paths
-            print("\nOptimization Files:")
-            print(f"  HTML Report: {best_result.saved_paths.get('html', 'Not available')}")
-            print(f"  JSON Results: {best_result.saved_paths.get('json', 'Not available')}")
-            print(f"  Portfolio CSV: {best_result.saved_paths.get('csv', 'Not available')}")
-            print(f"  Trades CSV: {best_result.saved_paths.get('trades', 'Not available')}")
-            
-            # Print optimized parameters in JSON format for easy copying
-            print("\nOptimized Trading Parameters JSON:")
-            print(json.dumps(best_params, indent=2))
-            
-            # Save best parameters to JSON if output specified
-            if args.output:
-                with open(args.output, 'w') as f:
-                    json.dump({
-                        'best_params': best_params,
-                        'metric': args.metric,
-                        'performance': best_result.performance,
-                        'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    }, f, indent=2)
-                print(f"Saved best parameters to {args.output}")
-                
+            _run_optimize_mode(args, settings)
     except Exception as e:
         print(f"Error: {str(e)}")
         sys.exit(1)
