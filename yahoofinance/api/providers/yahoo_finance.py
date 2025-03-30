@@ -245,99 +245,51 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         Raises:
             YFinanceError: When an error occurs while fetching data
         """
-        ticker_obj = self._get_ticker_object(ticker)
-        
-        # Skip analyst ratings for non-US tickers
+        # Skip analyst ratings for non-US tickers using the base method
         if not is_us_ticker(ticker):
-            logger.debug(f"Skipping analyst ratings for non-US ticker {ticker}")
-            return {
-                "symbol": ticker,
-                "recommendations": 0,
-                "buy_percentage": None,
-                "strong_buy": 0,
-                "buy": 0,
-                "hold": 0,
-                "sell": 0,
-                "strong_sell": 0,
-                "date": None
-            }
+            return self._get_empty_analyst_data(ticker)
+        
+        ticker_obj = self._get_ticker_object(ticker)
         
         for attempt in range(self.max_retries):
             try:
-                # Get recommendations
+                # Get analyst consensus data using the enhanced base method
+                consensus = self._get_analyst_consensus(ticker_obj, ticker)
+                
+                # Get the recommendations
                 recommendations = ticker_obj.recommendations
                 
-                # Handle cases where recommendations might be None or empty
-                if recommendations is None or recommendations.empty:
-                    logger.debug(f"No analyst ratings found for {ticker}")
-                    return {
-                        "symbol": ticker,
-                        "recommendations": 0,
-                        "buy_percentage": None,
-                        "strong_buy": 0,
-                        "buy": 0,
-                        "hold": 0,
-                        "sell": 0,
-                        "strong_sell": 0,
-                        "date": None
-                    }
+                # Add symbol and date if available
+                result = {"symbol": ticker}
                 
-                # Get the most recent recommendations
-                latest_date = recommendations.index.max()
-                latest_recs = recommendations.loc[latest_date]
-                
-                # Handle DataFrame or Series
-                if hasattr(latest_recs, 'sum'):
-                    try:
-                        # Try to sum the values (for Series)
-                        total_recs = latest_recs.sum()
-                    except Exception:
-                        # If summing fails, count the entries
-                        total_recs = len(latest_recs)
+                # Add date if we have recommendations
+                if recommendations is not None and not recommendations.empty:
+                    latest_date = recommendations.index.max()
+                    result["date"] = self.format_date(latest_date)
                 else:
-                    # Handle case where it's a single value
-                    total_recs = 1 if latest_recs is not None else 0
+                    result["date"] = None
                 
-                # Safely extract values with fallbacks
-                try:
-                    strong_buy = float(latest_recs.get('strongBuy', 0))
-                except (ValueError, TypeError, AttributeError):
-                    strong_buy = 0
-                    
-                try:
-                    buy = float(latest_recs.get('buy', 0))
-                except (ValueError, TypeError, AttributeError):
-                    buy = 0
-                    
-                try:
-                    hold = float(latest_recs.get('hold', 0))
-                except (ValueError, TypeError, AttributeError):
-                    hold = 0
-                    
-                try:
-                    sell = float(latest_recs.get('sell', 0))
-                except (ValueError, TypeError, AttributeError):
-                    sell = 0
-                    
-                try:
-                    strong_sell = float(latest_recs.get('strongSell', 0))
-                except (ValueError, TypeError, AttributeError):
-                    strong_sell = 0
+                # Add recommendation count
+                result["recommendations"] = consensus["total_ratings"]
                 
-                # Calculate buy percentage with safety check
-                buy_percentage = ((strong_buy + buy) / total_recs * 100) if total_recs > 0 else 0
+                # Add buy percentage
+                result["buy_percentage"] = consensus["buy_percentage"]
                 
-                return {
-                    "symbol": ticker,
-                    "recommendations": total_recs,
-                    "buy_percentage": buy_percentage,
-                    "strong_buy": strong_buy,
-                    "buy": buy,
-                    "hold": hold,
-                    "sell": sell,
-                    "strong_sell": strong_sell,
-                    "date": self.format_date(latest_date)
-                }
+                # Add individual counts
+                if "recommendations" in consensus and consensus["recommendations"]:
+                    result["strong_buy"] = consensus["recommendations"].get("strong_buy", 0)
+                    result["buy"] = consensus["recommendations"].get("buy", 0)
+                    result["hold"] = consensus["recommendations"].get("hold", 0)
+                    result["sell"] = consensus["recommendations"].get("sell", 0)
+                    result["strong_sell"] = consensus["recommendations"].get("strong_sell", 0)
+                else:
+                    result["strong_buy"] = 0
+                    result["buy"] = 0
+                    result["hold"] = 0
+                    result["sell"] = 0
+                    result["strong_sell"] = 0
+                
+                return result
                 
             except RateLimitError:
                 # Specific handling for rate limits - just re-raise
