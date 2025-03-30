@@ -370,50 +370,6 @@ def _format_company_names(working_df):
     
     return working_df
 
-def _format_trillion_value(val):
-    """Format a value in the trillions range.
-    
-    Args:
-        val: Market cap value in the trillions
-        
-    Returns:
-        str: Formatted market cap string
-    """
-    # Format with 1 decimal for values >= 10T, 2 decimals otherwise
-    return f"{val / 1e12:.1f}T" if val >= 10e12 else f"{val / 1e12:.2f}T"
-
-def _format_billion_value(val):
-    """Format a value in the billions range.
-    
-    Args:
-        val: Market cap value in the billions
-        
-    Returns:
-        str: Formatted market cap string
-    """
-    if val >= 100e9:
-        return f"{int(val / 1e9)}B"  # No decimals for >= 100B
-    elif val >= 10e9:
-        return f"{val / 1e9:.1f}B"   # 1 decimal for >= 10B
-    else:
-        return f"{val / 1e9:.2f}B"   # 2 decimals for < 10B
-
-def _format_million_value(val):
-    """Format a value in the millions range.
-    
-    Args:
-        val: Market cap value in the millions
-        
-    Returns:
-        str: Formatted market cap string
-    """
-    if val >= 100e6:
-        return f"{int(val / 1e6)}M"  # No decimals for >= 100M
-    elif val >= 10e6:
-        return f"{val / 1e6:.1f}M"   # 1 decimal for >= 10M
-    else:
-        return f"{val / 1e6:.2f}M"   # 2 decimals for < 10M
-
 def _format_market_cap_value(value):
     """Format a single market cap value according to size rules.
     
@@ -430,15 +386,9 @@ def _format_market_cap_value(value):
         # Convert to float to ensure proper handling
         val = float(value)
         
-        # Choose the appropriate formatter based on the value's magnitude
-        if val >= 1e12:
-            return _format_trillion_value(val)
-        elif val >= 1e9:
-            return _format_billion_value(val)
-        elif val >= 1e6:
-            return _format_million_value(val)
-        else:
-            return f"{int(val):,}"
+        # Format using the standard formatter from the yahoofinance library
+        formatter = DisplayFormatter()
+        return formatter.format_market_cap(val)
     except (ValueError, TypeError):
         return "--"
 
@@ -815,19 +765,33 @@ def _format_cap_column(display_df):
     
     # Use V2 formatter
     formatter = DisplayFormatter()
-    for idx, val in enumerate(formatted_df['CAP']):
-        try:
-            # Only process if it looks like a number in scientific notation or large integer
-            if val.replace('.', '', 1).isdigit() or ('e' in val.lower()):
-                numeric_val = float(val.replace(',', ''))
-                formatted_cap = formatter.format_market_cap(numeric_val)
-                # Now safe to assign string to string
-                formatted_df.loc[formatted_df.index[idx], 'CAP'] = formatted_cap
-        except (ValueError, TypeError):
-            # Keep original value if conversion fails
-            pass
+    
+    # Apply formatter to each value that can be converted to a number
+    formatted_df['CAP'] = formatted_df['CAP'].apply(
+        lambda val: _try_format_market_cap(val, formatter)
+    )
             
     return formatted_df
+
+def _try_format_market_cap(val, formatter):
+    """Attempt to format a market cap value, preserving the original if it fails.
+    
+    Args:
+        val: The value to format
+        formatter: DisplayFormatter instance
+        
+    Returns:
+        str: Formatted market cap or original value if formatting fails
+    """
+    try:
+        # Only process if it looks like a number in scientific notation or large integer
+        if isinstance(val, str) and (val.replace('.', '', 1).isdigit() or ('e' in val.lower())):
+            numeric_val = float(val.replace(',', ''))
+            return formatter.format_market_cap(numeric_val)
+        return val
+    except (ValueError, TypeError):
+        # Keep original value if conversion fails
+        return val
 
 def _apply_color_to_dataframe(display_df, color_code):
     """Apply color formatting to an entire dataframe.
@@ -1366,11 +1330,8 @@ def _process_hold_action(market_path, output_dir, output_files):
         logger.error(f"Market file not found: {market_path}")
         print("Please run the market analysis (M) first to generate data.")
         return False
-        
-    print("Processing HOLD candidates...")
-    process_hold_candidates(output_dir)
-    print(f"HOLD recommendations saved to {output_files['hold']}")
-    return True
+    
+    return _process_trade_action('H', output_dir=output_dir, output_files=output_files)
 
 def _load_data_files(market_path, portfolio_path):
     """Load market and portfolio data files.
@@ -1429,58 +1390,71 @@ def _extract_portfolio_tickers(portfolio_df):
         print(f"Error extracting portfolio tickers: {str(e)}")
         return None
 
-def _process_buy_action(market_df, portfolio_tickers, output_dir, notrade_path, output_file):
-    """Process buy action type.
+def _process_trade_action(action_type, market_df=None, portfolio_tickers=None, output_dir=None, notrade_path=None, output_files=None):
+    """Process a trade action type (buy, sell, or hold).
     
     Args:
-        market_df: Market dataframe
-        portfolio_tickers: Set of portfolio tickers
-        output_dir: Output directory
-        notrade_path: Path to notrade file
-        output_file: Path to output file
-    """
-    print("Processing BUY opportunities...")
-    process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_path)
-    print(f"BUY recommendations saved to {output_file}")
-
-def _process_sell_action(output_dir, output_file):
-    """Process sell action type.
-    
-    Args:
-        output_dir: Output directory
-        output_file: Path to output file
-    """
-    print("Processing SELL candidates from portfolio...")
-    process_sell_candidates(output_dir)
-    print(f"SELL recommendations saved to {output_file}")
-
-def _process_buy_or_sell_action(action_type, market_df, portfolio_tickers, output_dir, notrade_path, output_files):
-    """Process buy or sell action type.
-    
-    Args:
-        action_type: 'N' for buy, 'E' for sell
-        market_df: Market dataframe
-        portfolio_tickers: Set of portfolio tickers
-        output_dir: Output directory
-        notrade_path: Path to notrade file
-        output_files: Dictionary of output file paths
+        action_type: 'N' for buy, 'E' for sell, 'H' for hold
+        market_df: Market dataframe (required for buy and hold)
+        portfolio_tickers: Set of portfolio tickers (required for buy)
+        output_dir: Output directory (required for all)
+        notrade_path: Path to notrade file (required for buy)
+        output_files: Dictionary of output file paths (required for all)
         
     Returns:
         bool: True if successful, False otherwise
     """
-    # Use a dictionary to map action types to their respective processing functions
-    action_processors = {
-        'N': lambda: _process_buy_action(market_df, portfolio_tickers, output_dir, notrade_path, output_files['buy']),
-        'E': lambda: _process_sell_action(output_dir, output_files['sell'])
+    action_data = {
+        'N': {
+            'name': 'BUY',
+            'message': 'Processing BUY opportunities...',
+            'processor': lambda: process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_path),
+            'output_key': 'buy'
+        },
+        'E': {
+            'name': 'SELL',
+            'message': 'Processing SELL candidates from portfolio...',
+            'processor': lambda: process_sell_candidates(output_dir),
+            'output_key': 'sell'
+        },
+        'H': {
+            'name': 'HOLD',
+            'message': 'Processing HOLD candidates...',
+            'processor': lambda: process_hold_candidates(output_dir),
+            'output_key': 'hold'
+        }
     }
     
-    # Execute the appropriate action processor if available
-    processor = action_processors.get(action_type)
-    if processor:
-        processor()
-        return True
+    # Check if action type is supported
+    if action_type not in action_data:
+        return False
     
-    return False
+    # Get action data
+    action = action_data[action_type]
+    
+    # Display processing message
+    print(action['message'])
+    
+    # Execute the processor function
+    action['processor']()
+    
+    # Display completion message
+    if output_files and action['output_key'] in output_files:
+        print(f"{action['name']} recommendations saved to {output_files[action['output_key']]}")
+    
+    return True
+
+# Alias functions for backward compatibility
+def _process_buy_action(market_df, portfolio_tickers, output_dir, notrade_path, output_file):
+    return _process_trade_action('N', market_df, portfolio_tickers, output_dir, notrade_path, {'buy': output_file})
+
+def _process_sell_action(output_dir, output_file):
+    return _process_trade_action('E', output_dir=output_dir, output_files={'sell': output_file})
+
+def _process_buy_or_sell_action(action_type, market_df, portfolio_tickers, output_dir, notrade_path, output_files):
+    if action_type not in ['N', 'E']:
+        return False
+    return _process_trade_action(action_type, market_df, portfolio_tickers, output_dir, notrade_path, output_files)
 
 def generate_trade_recommendations(action_type):
     """Generate trade recommendations based on analysis.
@@ -1564,8 +1538,29 @@ async def _process_single_ticker(provider, ticker):
         dict: Ticker information or None if error
     """
     try:
+        # Get ticker info and check if it came from cache
+        start_time = time.time()
+        
+        # First, check if the provider already tells us if data is from cache
+        has_cache_aware_provider = hasattr(provider, 'cache_info')
+        
         # Get ticker info
         info = await provider.get_ticker_info(ticker)
+        request_time = time.time() - start_time
+        
+        # Detect cache hits based on:
+        # 1. Provider directly supports cache info
+        # 2. Request time (very fast responses are likely from cache)
+        # 3. Provider might have set "from_cache" already
+        is_cache_hit = False
+        
+        if has_cache_aware_provider and hasattr(provider, 'last_cache_hit'):
+            is_cache_hit = provider.last_cache_hit
+        elif info and "from_cache" in info:
+            is_cache_hit = info["from_cache"]
+        else:
+            # Fallback to timing-based detection
+            is_cache_hit = request_time < 0.05  # Typically cache responses are very fast
         
         # Make sure we have minimum required fields
         if info and "ticker" in info:
@@ -1576,6 +1571,9 @@ async def _process_single_ticker(provider, ticker):
             info.setdefault("buy_percentage", None)
             info.setdefault("total_ratings", 0)
             info.setdefault("analyst_count", 0)
+            
+            # Record if this was a cache hit
+            info["from_cache"] = is_cache_hit
             
             # Calculate upside if price and target are available
             if info.get("price") and info.get("target_price"):
@@ -1605,7 +1603,7 @@ async def _process_single_ticker(provider, ticker):
         logger.error(f"Error processing ticker {ticker}: {str(e)}")
         return None
 
-async def _process_batch(provider, batch, batch_num, total_batches, processed_so_far, pbar):
+async def _process_batch(provider, batch, batch_num, total_batches, processed_so_far, pbar, counters=None):
     """Process a batch of tickers.
     
     Args:
@@ -1614,21 +1612,58 @@ async def _process_batch(provider, batch, batch_num, total_batches, processed_so
         batch_num: Current batch number (0-based)
         total_batches: Total number of batches
         processed_so_far: Number of tickers processed before this batch
-        pbar: Progress bar instance
+        pbar: Progress tracker instance
+        counters: Dictionary with counters for tracking statistics
         
     Returns:
-        list: Processed ticker info for successful tickers
+        tuple: (results, counters) - Processed ticker info and updated counters
     """
+    # Initialize counters if not provided
+    if counters is None:
+        counters = {
+            'success': 0,
+            'errors': 0,
+            'cache_hits': 0
+        }
+    
     results = []
+    success_count = 0
+    error_count = 0
+    cache_hits = 0
+    batch_start_time = time.time()
+    
+    # Update batch number in progress tracker
+    pbar.set_postfix(batch=batch_num+1)
     
     # Process each ticker in the batch
     for j, ticker in enumerate(batch):
         try:
+            tick_start = time.time()
             info = await _process_single_ticker(provider, ticker)
+            tick_time = time.time() - tick_start
+            
             if info:
                 results.append(info)
+                success_count += 1
+                counters['success'] += 1
                 
-            # Update progress after each ticker
+                # Check if this was a cache hit
+                if info.get("from_cache", False):
+                    cache_hits += 1
+                    counters['cache_hits'] += 1
+                    
+                # Add processing time info to progress description
+                if tick_time < 0.1:
+                    pbar.set_description(f"Fetching {ticker} (cache)")
+                else:
+                    pbar.set_description(f"Fetching {ticker} ({tick_time:.1f}s)")
+            else:
+                # Missing info counts as an error
+                error_count += 1
+                counters['errors'] += 1
+                pbar.set_description(f"Error fetching {ticker}")
+            
+            # Update progress counter
             pbar.update(1)
             
             # Add a small delay between individual ticker requests within a batch
@@ -1636,18 +1671,266 @@ async def _process_batch(provider, batch, batch_num, total_batches, processed_so
                 await asyncio.sleep(1.0)  # 1-second delay between ticker requests
         except RateLimitException:
             # Add extra delay after rate limit errors and update progress bar
+            error_count += 1
+            counters['errors'] += 1
+            pbar.set_description(f"Rate limit hit for {ticker}")
             pbar.update(1)
+            print(f"Rate limit hit for {ticker}. Adding 20s delay...")
             await asyncio.sleep(20.0)  # Wait 20 seconds after rate limit error
         except Exception as e:
             # Unexpected error, log and continue with next ticker
             logger.error(f"Unexpected error for {ticker}: {str(e)}")
+            error_count += 1
+            counters['errors'] += 1
+            pbar.set_description(f"Error for {ticker}: {str(e)[:30]}...")
             pbar.update(1)
     
-    return results
+    # Calculate batch time
+    batch_time = time.time() - batch_start_time
+    
+    # Update counters in the progress tracker if available
+    if hasattr(pbar, 'success_count'):
+        pbar.success_count += success_count
+        pbar.error_count += error_count
+        pbar.cache_count += cache_hits
+    
+    # Store batch summary info but don't print it (to keep progress bar stationary)
+    batch_summary = f"Batch {batch_num+1}/{total_batches} complete in {batch_time:.1f}s: " \
+                   f"{success_count} successful, {error_count} errors, {cache_hits} from cache"
+    
+    # We'll log it but not display to the user to avoid disrupting the progress bar
+    logger.info(batch_summary)
+    
+    return results, counters
 
 class RateLimitException(Exception):
     """Exception raised when a rate limit is hit."""
     pass
+
+class SimpleProgressTracker:
+    """Custom progress tracker as a replacement for tqdm to avoid AttributeError issues.
+    This class provides a beautiful progress tracking mechanism that prints progress 
+    information directly to the console with consistent spacing and visual elements.
+    """
+    
+    # ANSI color codes for colored output
+    COLORS = {
+        'green': '\033[92m',
+        'yellow': '\033[93m',
+        'blue': '\033[94m',
+        'magenta': '\033[95m',
+        'cyan': '\033[96m',
+        'white': '\033[97m',
+        'red': '\033[91m',
+        'bold': '\033[1m',
+        'reset': '\033[0m'
+    }
+    
+    def __init__(self, total, desc="Processing", total_batches=1):
+        """Initialize the progress tracker
+        
+        Args:
+            total: Total number of items to process
+            desc: Description of what's being processed
+            total_batches: Total number of batches
+        """
+        self.total = total
+        self.desc = desc
+        self.n = 0
+        self.start_time = time.time()
+        self.last_print_time = time.time()
+        self.batch = 1
+        self.total_batches = total_batches
+        self.current_ticker = ""
+        self.ticker_time = ""
+        self.success_count = 0
+        self.error_count = 0
+        self.cache_count = 0
+        self.terminal_width = self._get_terminal_width()
+        
+        # Print an initial empty line to make room for progress bar
+        print()
+        
+        # Initialize the display
+        self._print_status()
+    
+    def _get_terminal_width(self):
+        """Get the terminal width or default to 80 columns"""
+        try:
+            import shutil
+            columns, _ = shutil.get_terminal_size()
+            return columns
+        except:
+            return 100  # Default width if we can't determine it
+    
+    def update(self, n=1):
+        """Update progress by n items
+        
+        Args:
+            n: Number of items to increment progress by
+        """
+        self.n += n
+        
+        # Limit how often we print updates (every 0.2 seconds)
+        current_time = time.time()
+        if current_time - self.last_print_time > 0.2:
+            self._print_status()
+            self.last_print_time = current_time
+    
+    def _print_status(self):
+        """Print the current status with beautiful formatting"""
+        # Calculate elapsed and remaining time
+        elapsed = time.time() - self.start_time
+        elapsed_str = self._format_time(elapsed)
+        
+        # Only calculate remaining time if we've made some progress
+        if self.n > 0:
+            items_per_sec = self.n / elapsed
+            remaining = (self.total - self.n) / items_per_sec if items_per_sec > 0 else 0
+            remaining_str = self._format_time(remaining)
+            rate = f"{items_per_sec:.1f}/s"
+        else:
+            remaining_str = "?"
+            rate = "?"
+        
+        # Calculate percentage
+        percentage = (self.n / self.total * 100) if self.total > 0 else 0
+        
+        # Create a beautiful progress bar visualization
+        bar_length = 30
+        filled_length = int(bar_length * self.n // self.total) if self.total > 0 else 0
+        
+        # Choose bar colors and style
+        c = self.COLORS
+        # Use gradient colors for the progress bar
+        bar = f"{c['green']}{'━' * filled_length}{c['white']}{'╺' * (bar_length - filled_length)}{c['reset']}"
+        
+        # Format ticker with fixed width (8 chars) and add processing time if available
+        ticker_display = ""
+        if self.current_ticker:
+            ticker_display = f"{c['cyan']}{self.current_ticker:<8}{c['reset']}"
+            if self.ticker_time:
+                ticker_display += f" {c['yellow']}({self.ticker_time}){c['reset']}"
+            else:
+                ticker_display += "          "  # Add space for timing info
+        else:
+            ticker_display = " " * 20  # Placeholder space when no ticker
+            
+        # Format batch and progress counters
+        batch_info = f"{c['bold']}Batch {c['blue']}{self.batch:2d}/{self.total_batches:2d}{c['reset']}"
+        progress_info = f"{c['bold']}Ticker {c['blue']}{self.n:3d}/{self.total:3d} {c['yellow']}{percentage:3.0f}%{c['reset']}"
+        
+        # Calculate time per ticker
+        if self.n > 0:
+            time_per_ticker = elapsed / self.n
+            ticker_time_str = f"{time_per_ticker:.2f}s/ticker"
+        else:
+            ticker_time_str = "?s/ticker"
+        
+        # Format timing information
+        time_info = f"{c['bold']}⏱ {c['cyan']}{elapsed_str}{c['reset']} < {c['magenta']}{remaining_str}{c['reset']}"
+        rate_info = f"{c['green']}{rate}{c['reset']} | {c['yellow']}{ticker_time_str}{c['reset']}"
+        
+        # Clear the line and position the cursor
+        print(f"\033[1A\r{' ' * self.terminal_width}", end="\r", flush=True)
+        
+        # Build status line with spacing to keep consistent positioning
+        status = (
+            f"{c['bold']}⚡ {ticker_display} {batch_info} {progress_info} {c['reset']}\n\r"
+            f"{bar} {time_info} ({rate_info})"
+        )
+        
+        # Print the status
+        print(status, end="", flush=True)
+        
+    def _format_time(self, seconds):
+        """Format seconds into a human-readable time string
+        
+        Args:
+            seconds: Number of seconds
+            
+        Returns:
+            str: Formatted time string (e.g., "1m 23s")
+        """
+        minutes, seconds = divmod(int(seconds), 60)
+        hours, minutes = divmod(minutes, 60)
+        
+        if hours > 0:
+            return f"{hours}h {minutes}m {seconds}s"
+        elif minutes > 0:
+            return f"{minutes}m {seconds}s"
+        else:
+            return f"{seconds}s"
+    
+    def set_description(self, desc):
+        """Set the description text and extract ticker information
+        
+        Args:
+            desc: New description
+        """
+        # Extract ticker from description like "Fetching AAPL (0.5s)"
+        self.current_ticker = ""
+        self.ticker_time = ""
+        
+        if desc.startswith("Fetching "):
+            # Parse "Fetching AAPL (0.5s)" format
+            parts = desc.split(" ", 2)
+            if len(parts) > 1:
+                ticker_part = parts[1].split(" ")[0]  # Get just the ticker
+                self.current_ticker = ticker_part.rstrip(":")
+                
+                # Extract timing information if available
+                if len(parts) > 2 and "(" in parts[2] and ")" in parts[2]:
+                    time_part = parts[2].strip()
+                    if time_part.startswith("(") and time_part.endswith(")"):
+                        self.ticker_time = time_part
+                
+                if "cache" in desc.lower():
+                    self.cache_count += 1
+        
+        self._print_status()
+    
+    def set_postfix(self, **kwargs):
+        """Set postfix information (only batch is used)
+        
+        Args:
+            **kwargs: Keyword arguments containing postfix data
+        """
+        if 'batch' in kwargs:
+            self.batch = kwargs['batch']
+        self._print_status()
+    
+    def close(self):
+        """Clean up the progress tracker"""
+        # Add newlines for spacing after progress bar
+        print("\n")
+        
+        # Show final stats if we processed any items
+        if self.n > 0:
+            c = self.COLORS
+            elapsed = time.time() - self.start_time
+            elapsed_str = self._format_time(elapsed)
+            if self.n > 0:
+                rate = f"{self.n / elapsed:.1f}"
+            else:
+                rate = "0.0"
+                
+            # Calculate time per ticker
+            if self.n > 0:
+                time_per_ticker = elapsed / self.n
+                ticker_time_str = f"{time_per_ticker:.2f}s/ticker"
+            else:
+                ticker_time_str = "0s/ticker"
+                
+            summary = (
+                f"{c['bold']}Progress Summary:{c['reset']} "
+                f"Processed {c['cyan']}{self.n}{c['reset']} tickers in "
+                f"{c['yellow']}{elapsed_str}{c['reset']} "
+                f"({c['green']}{rate}{c['reset']} tickers/sec | "
+                f"{c['yellow']}{ticker_time_str}{c['reset']})"
+            )
+            print(summary)
+
 
 async def _create_progress_bar(total_tickers, total_batches):
     """Create a progress bar for ticker processing
@@ -1657,32 +1940,59 @@ async def _create_progress_bar(total_tickers, total_batches):
         total_batches: Total number of batches
         
     Returns:
-        tqdm: Progress bar
+        SimpleProgressTracker: Progress tracker
     """
-    return tqdm(
+    # Create our custom progress tracker instead of tqdm
+    progress_tracker = SimpleProgressTracker(
         total=total_tickers, 
         desc="Fetching ticker data",
-        unit="ticker", 
-        bar_format='{desc}: {percentage:3.0f}%|{bar:40}| {n_fmt}/{total_fmt}'
+        total_batches=total_batches
     )
+    
+    return progress_tracker
 
 async def _handle_batch_delay(batch_num, total_batches, pbar):
-    """Handle delay between batches
+    """Handle delay between batches without disrupting the progress display
     
     Args:
         batch_num: Current batch number
         total_batches: Total number of batches
-        pbar: Progress bar
+        pbar: Progress tracker
     """
     # Skip delay for the last batch
     if batch_num >= total_batches - 1:
         return
-        
-    # Increased batch delay to avoid rate limiting
-    batch_delay = 10.0
     
-    # Sleep without interrupting progress display
-    await asyncio.sleep(batch_delay)
+    # Get batch delay from config
+    from yahoofinance.core.config import RATE_LIMIT
+    batch_delay = RATE_LIMIT["BATCH_DELAY"]
+    
+    try:
+        # Update batch number in progress bar for next batch
+        next_batch = batch_num + 2  # Display 1-based batch number 
+        if pbar:
+            # Update the progress display
+            pbar.set_description(f"Waiting for batch {next_batch}")
+        
+        # Show countdown in the progress bar description
+        interval = 1.0  # Update every second
+        remaining = batch_delay
+        while remaining > 0:
+            if pbar:
+                pbar.set_description(f"Waiting {int(remaining)}s for batch {next_batch}")
+            
+            # Sleep for the interval or the remaining time, whichever is smaller
+            sleep_time = min(interval, remaining)
+            await asyncio.sleep(sleep_time)
+            remaining -= sleep_time
+        
+        # Reset description for next batch
+        if pbar:
+            pbar.set_description("Fetching ticker data")
+    except Exception as e:
+        logger.error(f"Error in batch delay handler: {str(e)}")
+        # Still wait even if there's an error with the progress display
+        await asyncio.sleep(batch_delay)
 
 async def fetch_ticker_data(provider, tickers):
     """Fetch ticker data from provider
@@ -1694,33 +2004,148 @@ async def fetch_ticker_data(provider, tickers):
     Returns:
         pd.DataFrame: Dataframe with ticker data
     """
+    start_time = time.time()
     results = []
+    all_tickers = tickers.copy()  # Keep a copy of all tickers
+    
+    # Initialize counters
+    counters = {
+        'success': 0,
+        'errors': 0,
+        'cache_hits': 0
+    }
     
     # Calculate batch parameters
     total_tickers = len(tickers)
     batch_size = 10  # Reduced batch size to avoid rate limiting
     total_batches = (total_tickers - 1) // batch_size + 1
     
+    # For debugging, process max 100 tickers at a time to avoid rate limits
+    if total_tickers > 100:
+        print(f"Warning: Processing only the first 100 tickers for rate limiting protection")
+        tickers = tickers[:100]
+        total_tickers = len(tickers)
+        total_batches = (total_tickers - 1) // batch_size + 1
+    
+    print(f"\nProcessing {total_tickers} tickers in {total_batches} batches (batch size: {batch_size})")
+    
     # Create progress bar
-    with await _create_progress_bar(total_tickers, total_batches) as pbar:
+    pbar = None
+    try:
+        # Create progress bar
+        pbar = await _create_progress_bar(total_tickers, total_batches)
+        
+        # Process all batches
+        batch_info = []  # For debugging
+        
         # Process tickers in batches
         for batch_num, i in enumerate(range(0, total_tickers, batch_size)):
-            # Get current batch and process it
-            batch = tickers[i:i+batch_size]
-            processed_so_far = i
+            try:
+                # Don't print starting batch message - let progress bar handle it
+                
+                # Get current batch and process it
+                batch = tickers[i:i+batch_size]
+                processed_so_far = i
+                
+                # Process batch and update counters
+                batch_results, updated_counters = await _process_batch(
+                    provider, batch, batch_num, total_batches, processed_so_far, pbar, counters
+                )
+                results.extend(batch_results)
+                counters = updated_counters  # Update counters with the returned values
+                
+                # Track batch info for debugging
+                batch_info.append({
+                    'batch_num': batch_num + 1,
+                    'size': len(batch),
+                    'results': len(batch_results),
+                    'success': updated_counters.get('success', 0) - (counters.get('success', 0) - len(batch_results)),
+                    'errors': updated_counters.get('errors', 0) - (counters.get('errors', 0) - (len(batch) - len(batch_results)))
+                })
+                
+                # Handle delay between batches
+                if batch_num < total_batches - 1:
+                    # Don't print message - let progress bar handle it
+                    await _handle_batch_delay(batch_num, total_batches, pbar)
             
-            batch_results = await _process_batch(provider, batch, batch_num, total_batches, processed_so_far, pbar)
-            results.extend(batch_results)
-            
-            # Handle delay between batches
-            await _handle_batch_delay(batch_num, total_batches, pbar)
+            except Exception as e:
+                print(f"ERROR in batch {batch_num+1}: {str(e)}")
+                logger.error(f"Error in batch {batch_num+1}: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                
+                # Continue with next batch despite errors
+                continue
+    
+    except Exception as e:
+        print(f"ERROR in fetch_ticker_data: {str(e)}")
+        logger.error(f"Error in fetch_ticker_data: {str(e)}")
+        import traceback
+        traceback.print_exc()
+    
+    finally:
+        # Make sure we close the progress bar properly
+        if pbar:
+            try:
+                pbar.close()
+            except Exception:
+                # Suppress any errors during progress bar cleanup
+                pass
+    
+    # Calculate processing stats
+    elapsed_time = time.time() - start_time
+    minutes, seconds = divmod(elapsed_time, 60)
     
     # Create DataFrame from results
     result_df = pd.DataFrame(results)
     
+    # Format a beautiful batch summary
+    c = SimpleProgressTracker.COLORS
+    print(f"\n{c['bold']}📊 Batch Processing Summary:{c['reset']}")
+    
+    # Create a table-like view for batch info
+    print(f"{c['bold']}┌───────┬─────────┬─────────┬───────────┬─────────┐{c['reset']}")
+    print(f"{c['bold']}│ Batch │ Tickers │ Results │ Successes │ Errors  │{c['reset']}")
+    print(f"{c['bold']}├───────┼─────────┼─────────┼───────────┼─────────┤{c['reset']}")
+    
+    for info in batch_info:
+        batch_num = info['batch_num']
+        size = info['size']
+        results = info['results']
+        success = info.get('success', 0)
+        errors = info.get('errors', 0)
+        
+        # Use colors for the data
+        print(f"{c['bold']}│{c['reset']} {c['cyan']}{batch_num:^5}{c['reset']} │ "
+              f"{c['white']}{size:^7}{c['reset']} │ "
+              f"{c['green']}{results:^7}{c['reset']} │ "
+              f"{c['green']}{success:^9}{c['reset']} │ "
+              f"{c['red']}{errors:^7}{c['reset']} │")
+    
+    print(f"{c['bold']}└───────┴─────────┴─────────┴───────────┴─────────┘{c['reset']}")
+        
     # If the DataFrame is empty, add a placeholder row
     if result_df.empty:
+        print(f"\n{c['bold']}{c['red']}⚠️  WARNING: No results obtained from any batch!{c['reset']}")
         result_df = _create_empty_ticker_dataframe()
+    
+    # Calculate time per ticker for the summary
+    if total_tickers > 0 and elapsed_time > 0:
+        tickers_per_sec = total_tickers / elapsed_time
+        time_per_ticker = elapsed_time / total_tickers
+        rate_str = f"{tickers_per_sec:.2f}/s | {time_per_ticker:.2f}s per ticker"
+    else:
+        rate_str = "N/A"
+    
+    # Print a beautiful summary with the counter values
+    print(f"\n{c['bold']}🏁 Processing Summary:{c['reset']}")
+    print(f"├─ {c['cyan']}Time:{c['reset']} {c['yellow']}{int(minutes)}m {int(seconds)}s{c['reset']}")
+    print(f"├─ {c['cyan']}Rate:{c['reset']} {c['green']}{rate_str}{c['reset']}")
+    print(f"├─ {c['cyan']}Tickers:{c['reset']} {c['white']}{len(tickers)}/{len(all_tickers)}{c['reset']}")
+    print(f"├─ {c['cyan']}Results:{c['reset']} {c['green']}{len(result_df)}{c['reset']} valid results")
+    print(f"└─ {c['cyan']}Stats:{c['reset']} {c['green']}{counters['success']}{c['reset']} successful, "
+          f"{c['red']}{counters['errors']}{c['reset']} errors, "
+          f"{c['yellow']}{counters['cache_hits']}{c['reset']} from cache")
     
     return result_df
 

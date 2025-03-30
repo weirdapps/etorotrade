@@ -5,7 +5,7 @@ This module provides functions for formatting data for display in
 tables, HTML, CSV, and other formats.
 """
 
-from typing import Any, Dict, List, Union, Optional
+from typing import Any, Dict, List, Union, Optional, Callable, Tuple
 import math
 
 
@@ -160,6 +160,79 @@ def format_market_metrics(metrics: Dict[str, Any], include_pct_signs: bool = Tru
     return formatted
 
 
+def _apply_formatter(value: Any, formatter: Optional[Dict[str, Any]] = None) -> str:
+    """
+    Apply formatter rules to a value.
+    
+    Args:
+        value: The value to format
+        formatter: Dictionary with formatting options
+        
+    Returns:
+        Formatted string value
+    """
+    if value is None:
+        return "N/A"
+        
+    if formatter:
+        precision = formatter.get("precision", 2)
+        as_percentage = formatter.get("as_percentage", False)
+        include_sign = formatter.get("include_sign", False)
+        abbreviate = formatter.get("abbreviate", False)
+        
+        return format_number(
+            value,
+            precision=precision,
+            as_percentage=as_percentage,
+            include_sign=include_sign,
+            abbreviate=abbreviate
+        )
+    
+    # Default formatting if no formatter provided
+    return str(value) if value is not None else "N/A"
+
+
+def process_tabular_data(
+    data: List[Dict[str, Any]], 
+    columns: Optional[List[str]] = None, 
+    formatters: Optional[Dict[str, Dict[str, Any]]] = None
+) -> Tuple[List[str], List[List[Any]]]:
+    """
+    Process tabular data with column formatting.
+    
+    Args:
+        data: List of data dictionaries
+        columns: List of column names to include (if None, use all keys from first item)
+        formatters: Dictionary mapping column names to formatter dictionaries
+        
+    Returns:
+        Tuple of (columns list, formatted rows list)
+    """
+    if not data:
+        return [], []
+    
+    # Use all columns if not specified
+    if columns is None:
+        columns = list(data[0].keys())
+    
+    # Ensure formatters dictionary exists
+    if formatters is None:
+        formatters = {}
+    
+    # Format each row
+    rows = []
+    for item in data:
+        row = []
+        for col in columns:
+            value = item.get(col, "")
+            formatter = formatters.get(col)
+            row.append(_apply_formatter(value, formatter))
+        
+        rows.append(row)
+    
+    return columns, rows
+
+
 def format_table(data: List[Dict[str, Any]], columns: List[str], formatters: Optional[Dict[str, Dict[str, Any]]] = None) -> List[List[str]]:
     """
     Format tabular data with column-specific formatting.
@@ -175,43 +248,10 @@ def format_table(data: List[Dict[str, Any]], columns: List[str], formatters: Opt
     if not data:
         return []
     
-    # Ensure formatters dictionary exists
-    if formatters is None:
-        formatters = {}
+    cols, rows = process_tabular_data(data, columns, formatters)
     
-    # Create table header row
-    table = [columns]
-    
-    # Format each row
-    for item in data:
-        row = []
-        for col in columns:
-            value = item.get(col, "")
-            
-            # Apply column-specific formatter if available
-            if col in formatters:
-                formatter = formatters[col]
-                precision = formatter.get("precision", 2)
-                as_percentage = formatter.get("as_percentage", False)
-                include_sign = formatter.get("include_sign", False)
-                abbreviate = formatter.get("abbreviate", False)
-                
-                formatted_value = format_number(
-                    value,
-                    precision=precision,
-                    as_percentage=as_percentage,
-                    include_sign=include_sign,
-                    abbreviate=abbreviate
-                )
-            else:
-                # Default formatting
-                formatted_value = str(value) if value is not None else "N/A"
-            
-            row.append(formatted_value)
-        
-        table.append(row)
-    
-    return table
+    # Add header row
+    return [cols] + rows
 
 
 def generate_market_html(data: List[Dict[str, Any]], title: str, 
@@ -231,9 +271,7 @@ def generate_market_html(data: List[Dict[str, Any]], title: str,
     if not data:
         return "<p>No data available</p>"
     
-    # Use all columns if not specified
-    if columns is None:
-        columns = list(data[0].keys())
+    cols, rows = process_tabular_data(data, columns, formatters)
     
     # Start HTML
     html = f"<h2>{title}</h2>\n"
@@ -241,36 +279,15 @@ def generate_market_html(data: List[Dict[str, Any]], title: str,
     
     # Table header
     html += "  <tr>\n"
-    for col in columns:
+    for col in cols:
         html += f"    <th>{col}</th>\n"
     html += "  </tr>\n"
     
     # Table rows
-    for item in data:
+    for row in rows:
         html += "  <tr>\n"
-        for col in columns:
-            value = item.get(col, "")
-            
-            # Apply column-specific formatter if available
-            if formatters and col in formatters:
-                formatter = formatters[col]
-                precision = formatter.get("precision", 2)
-                as_percentage = formatter.get("as_percentage", False)
-                include_sign = formatter.get("include_sign", False)
-                abbreviate = formatter.get("abbreviate", False)
-                
-                formatted_value = format_number(
-                    value,
-                    precision=precision,
-                    as_percentage=as_percentage,
-                    include_sign=include_sign,
-                    abbreviate=abbreviate
-                )
-            else:
-                # Default formatting
-                formatted_value = str(value) if value is not None else "N/A"
-            
-            html += f"    <td>{formatted_value}</td>\n"
+        for value in row:
+            html += f"    <td>{value}</td>\n"
         html += "  </tr>\n"
     
     html += "</table>\n"

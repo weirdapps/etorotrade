@@ -344,10 +344,12 @@ async def process_batch_async(
     processor: Callable[[T], Coroutine[Any, Any, R]],
     batch_size: int = None,
     concurrency: int = None,
-    delay_between_batches: float = None
+    delay_between_batches: float = None,
+    description: str = "Processing items",
+    show_progress: bool = True
 ) -> Dict[T, R]:
     """
-    Process a batch of items asynchronously with rate limiting.
+    Process a batch of items asynchronously with rate limiting and enhanced progress reporting.
     
     Args:
         items: List of items to process
@@ -355,6 +357,8 @@ async def process_batch_async(
         batch_size: Number of items per batch (default from config)
         concurrency: Maximum concurrent tasks (default from config)
         delay_between_batches: Delay between batches in seconds (default from config)
+        description: Description for the progress bar
+        show_progress: Whether to show a progress bar
     
     Returns:
         Dictionary mapping input items to their results
@@ -365,11 +369,47 @@ async def process_batch_async(
     delay_between_batches = delay_between_batches or RATE_LIMIT["BATCH_DELAY"]
     
     results: Dict[T, R] = {}
+    total_items = len(items)
+    total_batches = (total_items + batch_size - 1) // batch_size
+    start_time = time.time()
+    success_count = 0
+    error_count = 0
+    cache_hits = 0
+    
+    # Initialize progress bar if enabled
+    if show_progress:
+        from tqdm import tqdm
+        progress_bar = tqdm(
+            total=total_items,
+            desc=description,
+            unit="item",
+            bar_format="{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} "
+                      "[{elapsed}<{remaining}, {rate_fmt}]"
+        )
     
     # Process items in batches
-    for i in range(0, len(items), batch_size):
+    for i in range(0, total_items, batch_size):
         batch = items[i:i+batch_size]
-        logger.debug(f"Processing batch {i//batch_size + 1}/{(len(items) + batch_size - 1)//batch_size} ({len(batch)} items)")
+        batch_num = i // batch_size + 1
+        
+        # Update progress bar description
+        if show_progress:
+            elapsed = time.time() - start_time
+            items_per_second = max((success_count + error_count) / max(elapsed, 0.1), 0.01)
+            remaining_items = total_items - (success_count + error_count)
+            estimated_remaining = remaining_items / items_per_second
+            
+            progress_bar.set_description(
+                f"Batch {batch_num}/{total_batches} "
+                f"[Success={success_count}, Errors={error_count}, Cache={cache_hits}]"
+            )
+            
+            # Also update postfix with rate and ETA
+            progress_bar.set_postfix_str(
+                f"{items_per_second:.2f} item/s, ETA: {time.strftime('%M:%S', time.gmtime(estimated_remaining))}"
+            )
+        
+        logger.debug(f"Processing batch {batch_num}/{total_batches} ({len(batch)} items)")
         
         # Process batch with concurrency limit
         batch_coroutines = [processor(item) for item in batch]
@@ -377,12 +417,40 @@ async def process_batch_async(
         
         # Map results back to original items
         for item, result in zip(batch, batch_results):
-            results[item] = result
+            if result is not None:
+                results[item] = result
+                success_count += 1
+                
+                # Check if this was a cache hit
+                if isinstance(result, dict) and result.get('_cache_hit') is True:
+                    cache_hits += 1
+            else:
+                error_count += 1
+        
+        # Update progress bar
+        if show_progress:
+            progress_bar.update(len(batch))
         
         # Delay between batches (except for the last batch)
-        if i + batch_size < len(items) and delay_between_batches > 0:
+        if i + batch_size < total_items and delay_between_batches > 0:
+            if show_progress:
+                progress_bar.set_description(
+                    f"Waiting {delay_between_batches:.1f}s before next batch... "
+                    f"[Success={success_count}, Errors={error_count}, Cache={cache_hits}]"
+                )
+            
             logger.debug(f"Waiting {delay_between_batches}s between batches")
             await asyncio.sleep(delay_between_batches)
+    
+    # Close progress bar if used
+    if show_progress:
+        progress_bar.close()
+        
+        # Print final summary
+        elapsed = time.time() - start_time
+        items_per_second = total_items / max(elapsed, 0.1)
+        print(f"Processed {total_items} items in {elapsed:.1f}s ({items_per_second:.2f}/s) - "
+              f"Success: {success_count}, Errors: {error_count}, Cache hits: {cache_hits}")
     
     return results
 
