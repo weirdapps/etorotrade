@@ -30,7 +30,48 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
     Attributes:
         max_retries: Maximum number of retry attempts for API calls
         retry_delay: Base delay in seconds between retries
+        _ticker_cache: Cache of ticker information to avoid repeated fetches
     """
+    
+    def __init__(self, max_retries: int = 3, retry_delay: float = 1.0):
+        """
+        Initialize the Yahoo Finance provider.
+        
+        Args:
+            max_retries: Maximum number of retry attempts for failed API calls
+            retry_delay: Base delay in seconds between retries
+        """
+        super().__init__(max_retries=max_retries, retry_delay=retry_delay)
+        self._ticker_cache = {}
+    
+    @rate_limited
+    def get_price_data(self, ticker: str) -> Dict[str, Any]:
+        """
+        Get price data for a ticker.
+        
+        Args:
+            ticker: Stock ticker symbol
+            
+        Returns:
+            Dict containing price data
+            
+        Raises:
+            YFinanceError: When an error occurs while fetching data
+        """
+        logger.debug(f"Getting price data for {ticker}")
+        info = self.get_ticker_info(ticker)
+        
+        # Extract price-related fields
+        return {
+            "ticker": ticker,
+            "current_price": info.get("price"),
+            "target_price": info.get("target_price"),
+            "upside": self._calculate_upside_potential(info.get("price"), info.get("target_price")),
+            "fifty_two_week_high": info.get("fifty_two_week_high"),
+            "fifty_two_week_low": info.get("fifty_two_week_low"),
+            "fifty_day_avg": info.get("fifty_day_avg"),
+            "two_hundred_day_avg": info.get("two_hundred_day_avg")
+        }
     
     @rate_limited
     def get_ticker_info(self, ticker: str, skip_insider_metrics: bool = False) -> Dict[str, Any]:

@@ -1538,10 +1538,10 @@ if __name__ == "__main__":
         period_type = "weekly"
         asyncio.run(track_performance_async(period_type=period_type))
     else:
-        print(f"Usage: python -m yahoofinance.analysis.performance [option]")
-        print(f"Options:")
-        print(f"  weekly (w)    - Track weekly market performance")
-        print(f"  monthly (m)   - Track monthly market performance")
-        print(f"  portfolio (p) - Track portfolio performance")
-        print(f"  all (a)       - Track both weekly market and portfolio performance")
-        print(f"If no option is provided, portfolio performance is tracked by default.")
+        print("Usage: python -m yahoofinance.analysis.performance [option]")
+        print("Options:")
+        print("  weekly (w)    - Track weekly market performance")
+        print("  monthly (m)   - Track monthly market performance")
+        print("  portfolio (p) - Track portfolio performance")
+        print("  all (a)       - Track both weekly market and portfolio performance")
+        print("If no option is provided, portfolio performance is tracked by default.")
