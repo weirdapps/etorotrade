@@ -2326,12 +2326,34 @@ def _process_color_based_on_criteria(row, confidence_met, trading_criteria):
     if not confidence_met:
         return _apply_color_to_row(row, "93")  # Yellow for INCONCLUSIVE
     
-    # Handle string or numeric values
+    # Handle string or numeric values for upside and buy_pct
     upside = float(row['UPSIDE'].rstrip('%')) if isinstance(row['UPSIDE'], str) else row['UPSIDE']
     buy_pct = float(row[DISPLAY_BUY_PERCENTAGE].rstrip('%')) if isinstance(row[DISPLAY_BUY_PERCENTAGE], str) else row[DISPLAY_BUY_PERCENTAGE]
-    si = float(row['SI'].rstrip('%')) if isinstance(row['SI'], str) else row['SI']
-    pef = float(row['PEF']) if isinstance(row['PEF'], str) and row['PEF'] != '--' else row['PEF']
-    beta = float(row['BETA']) if isinstance(row['BETA'], str) and row['BETA'] != '--' else row['BETA']
+    
+    # Check if required primary criteria are present and valid
+    # Beta, PEF (pe_forward), and PET (pe_trailing) are now required primary criteria
+    if (row['BETA'] == '--' or row['PEF'] == '--' or row['PET'] == '--'):
+        # Missing required primary criteria, cannot be a BUY
+        # Process for SELL or default to HOLD
+        si = float(row['SI'].rstrip('%')) if isinstance(row['SI'], str) and row['SI'] != '--' else None
+        pef = float(row['PEF']) if isinstance(row['PEF'], str) and row['PEF'] != '--' else None
+        beta = float(row['BETA']) if isinstance(row['BETA'], str) and row['BETA'] != '--' else None
+        
+        # Only check sell criteria if we have basic metrics
+        if upside is not None and buy_pct is not None:
+            is_sell = _check_sell_criteria(upside, buy_pct, pef, si, beta, trading_criteria["SELL"])
+            if is_sell:
+                return _apply_color_to_row(row, "91")  # Red
+        
+        # Not a sell, default to HOLD
+        return row
+    
+    # All required primary criteria are present, proceed with full evaluation
+    # Parse the values to correct types
+    si = float(row['SI'].rstrip('%')) if isinstance(row['SI'], str) and row['SI'] != '--' else None
+    pef = float(row['PEF']) if isinstance(row['PEF'], str) and row['PEF'] != '--' else None
+    pet = float(row['PET']) if isinstance(row['PET'], str) and row['PET'] != '--' else None
+    beta = float(row['BETA']) if isinstance(row['BETA'], str) and row['BETA'] != '--' else None
     
     # Use helper function to check if the security meets SELL criteria
     is_sell = _check_sell_criteria(upside, buy_pct, pef, si, beta, trading_criteria["SELL"])
@@ -2469,6 +2491,9 @@ def _apply_color_coding(display_df, trading_criteria):
     
     colored_rows = []
     
+    # Define required columns for proper evaluation
+    required_columns = ['EXRET', 'UPSIDE', DISPLAY_BUY_PERCENTAGE]
+    
     # Process each row
     for _, row in display_df.iterrows():
         colored_row = row.copy()
@@ -2478,7 +2503,8 @@ def _apply_color_coding(display_df, trading_criteria):
             if 'ACTION' in row and pd.notna(row['ACTION']) and row['ACTION'] in ['B', 'S', 'H']:
                 colored_row = _process_color_based_on_action(colored_row, row['ACTION'])
             # Otherwise use criteria-based coloring
-            elif all(col in row and pd.notna(row[col]) for col in ['EXRET', 'UPSIDE', DISPLAY_BUY_PERCENTAGE, 'SI', 'PEF', 'BETA']):
+            # Check if all required columns exist
+            elif all(col in row and pd.notna(row[col]) for col in required_columns):
                 confidence_met, _, _ = _check_confidence_criteria(row, min_analysts, min_targets)
                 colored_row = _process_color_based_on_criteria(colored_row, confidence_met, trading_criteria)
         except Exception as e:

@@ -302,50 +302,124 @@ class DisplayFormatter:
         peg = ticker_data.get('peg_ratio')
         beta = ticker_data.get('beta')
         short_interest = ticker_data.get('short_float_pct')
+        analyst_count = ticker_data.get('analyst_count')
+        total_ratings = ticker_data.get('total_ratings')
         
         # Get the criteria values from the central config
         sell_criteria = TRADING_CRITERIA["SELL"]
         buy_criteria = TRADING_CRITERIA["BUY"]
+        confidence = TRADING_CRITERIA["CONFIDENCE"]
         
-        # Confidence check - require both analyst metrics to be present
-        if (ticker_data.get('analyst_count') is None or 
-            ticker_data.get('total_ratings') is None or
-            upside is None or 
-            buy_percentage is None):
+        # Confidence check - require both analyst metrics to be present with minimum values
+        if (analyst_count is None or total_ratings is None or
+            upside is None or buy_percentage is None or
+            analyst_count < confidence["MIN_ANALYST_COUNT"] or
+            total_ratings < confidence["MIN_PRICE_TARGETS"]):
             return "NEUTRAL"
         
         # Calculate expected return
-        expected_return = (upside * buy_percentage / 100) # upside and buy_percentage are confirmed not None in the condition above
+        expected_return = (upside * buy_percentage / 100)
         
         # Check sell signals first (any trigger a sell)
-        if any([
-            upside < sell_criteria["SELL_MAX_UPSIDE"],  # Low upside
-            buy_percentage < sell_criteria["SELL_MIN_BUY_PERCENTAGE"],  # Low buy rating
-            # PE deteriorating (both positive, but forward > trailing)
-            pe_forward is not None and pe_trailing is not None and pe_forward > 0 and pe_trailing > 0 and pe_forward > pe_trailing,
-            pe_forward is not None and pe_forward > sell_criteria["SELL_MIN_FORWARD_PE"],  # Extremely high forward PE
-            peg is not None and peg > sell_criteria["SELL_MIN_PEG"],  # High PEG ratio
-            short_interest is not None and short_interest > sell_criteria["SELL_MIN_SHORT_INTEREST"],  # High short interest
-            beta is not None and beta > sell_criteria["SELL_MIN_BETA"],  # Excessive volatility
-            expected_return < sell_criteria["SELL_MAX_EXRET"]  # Low expected return
-        ]):
+        # Each condition checks if the metric exists before applying criteria
+        sell_signals = []
+        
+        # Primary criteria - always check these
+        sell_signals.append(upside < sell_criteria["SELL_MAX_UPSIDE"])
+        sell_signals.append(buy_percentage < sell_criteria["SELL_MIN_BUY_PERCENTAGE"])
+        sell_signals.append(expected_return < sell_criteria["SELL_MAX_EXRET"])
+        
+        # Secondary criteria - only check if the data is available
+        # PE deteriorating (both positive, but forward > trailing)
+        if pe_forward is not None and pe_trailing is not None and pe_forward > 0 and pe_trailing > 0:
+            sell_signals.append(pe_forward > pe_trailing)
+        
+        # Extremely high forward PE or negative forward PE
+        if pe_forward is not None:
+            sell_signals.append(pe_forward > sell_criteria["SELL_MIN_FORWARD_PE"] or pe_forward < 0)
+        
+        # High PEG ratio (optional secondary criterion)
+        if peg is not None:
+            try:
+                peg_val = float(peg)
+                sell_signals.append(peg_val > sell_criteria["SELL_MIN_PEG"])
+            except (ValueError, TypeError):
+                pass  # Ignore conversion errors
+        
+        # High short interest (optional secondary criterion)
+        if short_interest is not None:
+            try:
+                si_val = float(short_interest)
+                sell_signals.append(si_val > sell_criteria["SELL_MIN_SHORT_INTEREST"])
+            except (ValueError, TypeError):
+                pass  # Ignore conversion errors
+        
+        # Excessive volatility
+        if beta is not None:
+            try:
+                beta_val = float(beta)
+                sell_signals.append(beta_val > sell_criteria["SELL_MIN_BETA"])
+            except (ValueError, TypeError):
+                pass  # Ignore conversion errors
+        
+        if any(sell_signals):
             return "SELL"
-        # Then check buy signals (all criteria must be met)
-        elif all([
-            upside >= buy_criteria["BUY_MIN_UPSIDE"],  # Strong upside
-            buy_percentage >= buy_criteria["BUY_MIN_BUY_PERCENTAGE"],  # Strong buy consensus
-            beta is None or (beta > buy_criteria["BUY_MIN_BETA"] and beta <= buy_criteria["BUY_MAX_BETA"]),  # Reasonable volatility
-            # PE improvement or negative trailing PE (growth stock)
-            (pe_forward is None or pe_trailing is None or
-             pe_forward <= 0 or  # Negative future earnings still allowed
-             (pe_forward > buy_criteria["BUY_MIN_FORWARD_PE"] and pe_forward <= buy_criteria["BUY_MAX_FORWARD_PE"] and  # Positive and reasonable forward PE
-              (pe_trailing <= 0 or pe_forward < pe_trailing))),  # Either negative trailing or improving ratio
-            peg is None or peg < buy_criteria["BUY_MAX_PEG"],  # Reasonable PEG ratio
-            short_interest is None or short_interest <= buy_criteria["BUY_MAX_SHORT_INTEREST"]  # Low short interest
-        ]):
-            return "BUY"
+        
+        # Then check buy signals
+        
+        # PRIMARY CRITERIA - Check if required fields are present and valid
+        # Beta, PET, and PEF are primary (required) criteria
+        if (upside is None or buy_percentage is None or 
+            pe_forward is None or pe_trailing is None or beta is None or
+            upside < buy_criteria["BUY_MIN_UPSIDE"] or
+            buy_percentage < buy_criteria["BUY_MIN_BUY_PERCENTAGE"] or
+            expected_return < buy_criteria["BUY_MIN_EXRET"]):
+            return "HOLD"  # Missing required data or basic criteria not met
+            
+        # Check PE condition (required - primary criterion)
+        pe_condition = False
+        if pe_forward < buy_criteria["BUY_MIN_FORWARD_PE"] or pe_forward > buy_criteria["BUY_MAX_FORWARD_PE"]:
+            return "HOLD"  # PE outside acceptable range
+        
+        # Check trailing PE condition (required - primary criterion)
+        if pe_trailing > 0:
+            pe_condition = (pe_forward < pe_trailing)  # Improving PE
         else:
-            return "HOLD"
+            pe_condition = True  # Trailing is negative/zero (growth case)
+            
+        if not pe_condition:
+            return "HOLD"  # PE condition not met
+            
+        # Beta range check (required - primary criterion)
+        try:
+            beta_val = float(beta)
+            if not (beta_val >= buy_criteria["BUY_MIN_BETA"] and beta_val <= buy_criteria["BUY_MAX_BETA"]):
+                return "HOLD"  # Beta outside acceptable range
+        except (ValueError, TypeError):
+            return "HOLD"  # Invalid beta value
+        
+        # SECONDARY CRITERIA - only check if available (optional)
+        
+        # PEG check (optional secondary criterion)
+        if peg is not None and peg != '--':
+            try:
+                peg_val = float(peg)
+                if peg_val > 0 and peg_val >= buy_criteria["BUY_MAX_PEG"]:
+                    return "HOLD"  # PEG too high
+            except (ValueError, TypeError):
+                pass  # Ignore conversion errors
+        
+        # Short interest check (optional secondary criterion)
+        if short_interest is not None:
+            try:
+                si_val = float(short_interest)
+                if si_val > buy_criteria["BUY_MAX_SHORT_INTEREST"]:
+                    return "HOLD"  # Short interest too high
+            except (ValueError, TypeError):
+                pass  # Ignore conversion errors
+        
+        # If we got here, all criteria are met
+        return "BUY"
     
     def color_by_signal(self, ticker_data: Dict[str, Any]) -> Dict[str, str]:
         """

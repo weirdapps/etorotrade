@@ -208,12 +208,13 @@ class MarketDisplay:
         total_batches = (total_tickers - 1) // batch_size + 1
         start_time = time.time()
         
-        # Create master progress bar with enhanced formatting
+        # Create master progress bar with enhanced formatting and fixed width
         with tqdm(total=total_tickers, 
                   desc=f"Processing tickers", 
                   unit="ticker",
-                  bar_format="{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} "
-                             "[{elapsed}<{remaining}, {rate_fmt}]") as pbar:
+                  bar_format="{desc:<25}: {percentage:3.0f}%|{bar:30}| {n_fmt}/{total_fmt} "
+                             "[{elapsed}<{remaining}, {rate_fmt}]",
+                  ncols=100) as pbar:
             
             # Update progress bar with detailed stats
             def update_progress_desc():
@@ -222,10 +223,10 @@ class MarketDisplay:
                 remaining_tickers = total_tickers - (success_count + error_count)
                 estimated_remaining = remaining_tickers / max(tickers_per_second, 0.1)
                 
-                # Format the description with comprehensive information
+                # Format the description with comprehensive information (fixed width)
                 pbar.set_description(
-                    f"Batch {batch_num+1}/{total_batches} "
-                    f"[Success={success_count}, Errors={error_count}, Cache hits={cache_hits}]"
+                    f"Batch {batch_num+1}/{total_batches}" +
+                    f" [{success_count}/{error_count}/{cache_hits}]"
                 )
                 
                 # Also update postfix with ETA
@@ -279,10 +280,10 @@ class MarketDisplay:
                 if batch_num < total_batches - 1:
                     batch_delay = self.rate_limiter.get_batch_delay()
                     
-                    # Update description to show waiting status
+                    # Update description to show waiting status (fixed width)
                     pbar.set_description(
-                        f"Waiting {batch_delay:.1f}s before next batch... "
-                        f"[Success={success_count}, Errors={error_count}, Cache hits={cache_hits}]"
+                        f"Waiting {batch_delay:.1f}s" +
+                        f" [{success_count}/{error_count}/{cache_hits}]"
                     )
                     
                     time.sleep(batch_delay)
@@ -360,10 +361,10 @@ class MarketDisplay:
     def _display_color_key(self) -> None:
         """Display color key legend for interpreting the table"""
         print("\nColor Key:")
-        print(f"{Color.GREEN.value}■{Color.RESET.value} GREEN: BUY - Strong outlook, meets all criteria (upside ≥20%, buy rating ≥82%, PEF ≤45.0, etc.)")
+        print(f"{Color.GREEN.value}■{Color.RESET.value} GREEN: BUY - Strong outlook, meets all criteria (requires beta, PEF, PET data + upside ≥20%, etc.)")
         print(f"{Color.RED.value}■{Color.RESET.value} RED: SELL - Risk flags present (ANY of: upside <5%, buy rating <65%, PEF >45.0, etc.)")
         print(f"{Color.YELLOW.value}■{Color.RESET.value} YELLOW: LOW CONFIDENCE - Insufficient analyst coverage (<5 price targets or <5 ratings)")
-        print(f"{Color.RESET.value}■ WHITE: HOLD - Passes confidence threshold but doesn't meet buy or sell criteria)")
+        print(f"{Color.RESET.value}■ WHITE: HOLD - Passes confidence threshold but doesn't meet buy or sell criteria, or missing primary criteria data)")
         
     def save_to_csv(self, 
                    data: List[Dict[str, Any]], 
