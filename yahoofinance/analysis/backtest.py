@@ -3087,6 +3087,10 @@ if __name__ == "__main__":
         print(f"Benchmark (S&P 500) Return: {result.benchmark_performance['total_return']:.2f}%")
         print(f"Number of Trades: {len(result.trades)}")
         
+        # Display link to HTML report
+        if hasattr(result, 'saved_paths') and 'html' in result.saved_paths:
+            print(f"\nHTML Report: file://{os.path.abspath(result.saved_paths['html'])}")
+        
     elif args.mode == 'optimize':
         # Define parameter ranges to test
         parameter_ranges = {

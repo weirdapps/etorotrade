@@ -2502,6 +2502,42 @@ def main_async():
             async def get_ticker_analysis(self, ticker: str) -> Dict[str, Any]:
                 # Just use get_ticker_info as it already contains all the needed data
                 return await self.get_ticker_info(ticker)
+            
+            async def get_price_data(self, ticker: str) -> Dict[str, Any]:
+                """
+                Get price data for a ticker asynchronously.
+                
+                Args:
+                    ticker: Stock ticker symbol
+                    
+                Returns:
+                    Dict containing price data
+                    
+                Raises:
+                    YFinanceError: When an error occurs while fetching data
+                """
+                logger.debug(f"Getting price data for {ticker}")
+                info = await self.get_ticker_info(ticker)
+                
+                # Calculate upside potential
+                upside = None
+                if info.get("price") is not None and info.get("target_price") is not None and info.get("price") > 0:
+                    try:
+                        upside = ((info["target_price"] / info["price"]) - 1) * 100
+                    except (TypeError, ZeroDivisionError):
+                        pass
+                
+                # Extract price-related fields
+                return {
+                    "ticker": ticker,
+                    "current_price": info.get("price"),
+                    "target_price": info.get("target_price"),
+                    "upside": upside,
+                    "fifty_two_week_high": info.get("fifty_two_week_high"),
+                    "fifty_two_week_low": info.get("fifty_two_week_low"),
+                    "fifty_day_avg": info.get("fifty_day_avg"),
+                    "two_hundred_day_avg": info.get("two_hundred_day_avg")
+                }
                 
             async def get_historical_data(self, ticker: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
                 """Get historical price data"""
