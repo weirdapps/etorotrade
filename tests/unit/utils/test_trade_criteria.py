@@ -32,7 +32,7 @@ def trading_criteria():
         },
         "BUY": {
             "BUY_MIN_UPSIDE": 20.0,
-            "BUY_MIN_BUY_PERCENTAGE": 82.0,
+            "BUY_MIN_BUY_PERCENTAGE": 85.0,  # Updated to match config.py
             "BUY_MIN_BETA": 0.2,
             "BUY_MAX_BETA": 3.0,
             "BUY_MIN_FORWARD_PE": 0.5,
@@ -50,7 +50,7 @@ def test_data():
         "buy_stock": {
             "ticker": "BUY",
             "upside": 25.0,
-            "buy_percentage": 85.0,
+            "buy_percentage": 90.0,  # Increased to pass the new 85% threshold
             "pe_trailing": 20.0,
             "pe_forward": 15.0,
             "peg_ratio": 1.2,
@@ -58,7 +58,7 @@ def test_data():
             "short_percent": 2.0,
             "analyst_count": 10,
             "total_ratings": 8,
-            "EXRET": 21.25  # 25 * 0.85
+            "EXRET": 22.5  # 25 * 0.9
         },
         "sell_stock_low_upside": {
             "ticker": "SELL1",
