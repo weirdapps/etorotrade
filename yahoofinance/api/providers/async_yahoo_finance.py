@@ -131,8 +131,10 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
                 if not info:
                     raise APIError(f"Failed to retrieve info for {ticker}")
                 
-                # Extract key metrics using the base class helper
-                result = self._extract_common_ticker_info(info)
+                # Use shared _process_ticker_info method from base class but with async adjustment for insider data
+                result = await self._run_sync_in_executor(
+                    lambda: self._extract_common_ticker_info(info)
+                )
                 result["symbol"] = ticker  # Ensure the symbol is set correctly
                 
                 # Additional metrics for US stocks
@@ -157,12 +159,9 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
                 # Specific handling for rate limits - just re-raise
                 raise
             except Exception as e:
-                if attempt < self.max_retries - 1:
-                    delay = self.retry_delay * (2 ** attempt)
-                    logger.warning(f"Attempt {attempt+1}/{self.max_retries} failed for {ticker}: {str(e)}. Retrying in {delay:.2f}s")
-                    await asyncio.sleep(delay)
-                else:
-                    raise APIError(f"Failed to get ticker info for {ticker} after {self.max_retries} attempts: {str(e)}")
+                # Use the shared retry logic handler from the base class but with async sleep
+                delay = self._handle_retry_logic(e, attempt, ticker, "ticker info")
+                await asyncio.sleep(delay)
         
         return result
     
@@ -186,22 +185,18 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
         
         for attempt in range(self.max_retries):
             try:
+                # Use the shared extraction method but run in executor
                 history = await self._run_sync_in_executor(
-                    lambda: ticker_obj.history(period=period, interval=interval)
+                    lambda: self._extract_historical_data(ticker, ticker_obj, period, interval)
                 )
-                if history.empty:
-                    raise APIError(f"No historical data returned for {ticker}")
                 return history
             except RateLimitError:
                 # Specific handling for rate limits - just re-raise
                 raise
             except Exception as e:
-                if attempt < self.max_retries - 1:
-                    delay = self.retry_delay * (2 ** attempt)
-                    logger.warning(f"Attempt {attempt+1}/{self.max_retries} failed for {ticker} historical data: {str(e)}. Retrying in {delay:.2f}s")
-                    await asyncio.sleep(delay)
-                else:
-                    raise APIError(f"Failed to get historical data for {ticker} after {self.max_retries} attempts: {str(e)}")
+                # Use the shared retry logic handler from the base class but with async sleep
+                delay = self._handle_retry_logic(e, attempt, ticker, "historical data")
+                await asyncio.sleep(delay)
     
     @async_rate_limited
     async def get_earnings_dates(self, ticker: str) -> Tuple[Optional[str], Optional[str]]:
