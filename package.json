@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.8.0",
-    "@modelcontextprotocol/server-github": "^2025.3.28"
-  }
-}
