@@ -48,6 +48,52 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
             "last_error_time": 0
         }
         
+    def _extract_common_ticker_info(self, ticker_info: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Extract common ticker information from Yahoo Finance data.
+        
+        Args:
+            ticker_info: Raw ticker info dictionary from Yahoo Finance API
+            
+        Returns:
+            Dict with standardized ticker info
+        """
+        # Extract relevant fields with proper fallbacks
+        result = {
+            "symbol": ticker_info.get("symbol", ""),
+            "name": ticker_info.get("longName", ticker_info.get("shortName", "")),
+            "sector": ticker_info.get("sector", ""),
+            "industry": ticker_info.get("industry", ""),
+            "price": ticker_info.get("currentPrice", ticker_info.get("regularMarketPrice")),
+            "currency": ticker_info.get("currency", "USD"),
+            "market_cap": ticker_info.get("marketCap"),
+            "pe_ratio": ticker_info.get("trailingPE"),
+            "forward_pe": ticker_info.get("forwardPE"),
+            "peg_ratio": ticker_info.get("pegRatio"),
+            "beta": ticker_info.get("beta"),
+            "fifty_day_avg": ticker_info.get("fiftyDayAverage"),
+            "two_hundred_day_avg": ticker_info.get("twoHundredDayAverage"),
+            "fifty_two_week_high": ticker_info.get("fiftyTwoWeekHigh"),
+            "fifty_two_week_low": ticker_info.get("fiftyTwoWeekLow"),
+            "target_price": ticker_info.get("targetMeanPrice"),
+            "dividend_yield": ticker_info.get("dividendYield", 0) * 100 if ticker_info.get("dividendYield") else None,
+            "short_percent": ticker_info.get("shortPercentOfFloat", 0) * 100 if ticker_info.get("shortPercentOfFloat") else None,
+            "country": ticker_info.get("country", ""),
+        }
+        
+        # Add market cap formatted
+        result["market_cap_fmt"] = self._format_market_cap(result["market_cap"])
+        
+        # Calculate upside potential if possible
+        price = result.get("price")
+        target = result.get("target_price")
+        if price and target and price > 0:
+            result["upside"] = ((target / price) - 1) * 100
+        else:
+            result["upside"] = None
+        
+        return result
+        
     async def _check_rate_limit(self):
         """Check if we're within rate limits and wait if necessary"""
         now = time.time()
@@ -106,45 +152,24 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
             yticker = self._get_yticker(mapped_ticker)
             ticker_info = yticker.info
             
-            # Extract all needed data
-            info = {
-                "symbol": ticker,
-                "ticker": ticker,
-                "name": ticker_info.get("longName", ticker_info.get("shortName", "")),
-                "company": ticker_info.get("longName", ticker_info.get("shortName", ""))[:14].upper(),
-                "sector": ticker_info.get("sector", ""),
-                "industry": ticker_info.get("industry", ""),
-                "country": ticker_info.get("country", ""),
-                "website": ticker_info.get("website", ""),
-                "current_price": ticker_info.get("regularMarketPrice", None),
-                "price": ticker_info.get("regularMarketPrice", None),
-                "currency": ticker_info.get("currency", ""),
-                "market_cap": ticker_info.get("marketCap", None),
-                "cap": self._format_market_cap(ticker_info.get("marketCap", None)),
-                "exchange": ticker_info.get("exchange", ""),
-                "quote_type": ticker_info.get("quoteType", ""),
-                "pe_trailing": ticker_info.get("trailingPE", None),
-                "dividend_yield": ticker_info.get("dividendYield", None) if ticker_info.get("dividendYield", None) is not None else None,
-                "beta": ticker_info.get("beta", None),
-                "pe_forward": ticker_info.get("forwardPE", None),
-                # Calculate PEG ratio manually if not available
-                "peg_ratio": self._calculate_peg_ratio(ticker_info),
-                "short_percent": ticker_info.get("shortPercentOfFloat", None) * 100 if ticker_info.get("shortPercentOfFloat", None) is not None else None,
-                "target_price": ticker_info.get("targetMeanPrice", None),
-                "recommendation": ticker_info.get("recommendationMean", None),
-                "analyst_count": ticker_info.get("numberOfAnalystOpinions", 0),
-                # For testing, assign 'E' to AAPL and MSFT, 'A' to others
-                "A": "E" if ticker in ['AAPL', 'MSFT'] else "A"
-            }
+            # Start with the standardized info fields using the base implementation
+            info = self._extract_common_ticker_info(ticker_info)
+            
+            # Add custom fields specific to this provider
+            info["symbol"] = ticker  # Ensure correct symbol is used
+            info["ticker"] = ticker  # Duplicate for compatibility
+            info["company"] = info["name"][:14].upper() if info["name"] else ""
+            info["current_price"] = info["price"]  # Duplicate for compatibility
+            info["cap"] = info["market_cap_fmt"]   # Duplicate for compatibility
+            info["website"] = ticker_info.get("website", "")
+            info["exchange"] = ticker_info.get("exchange", "")
+            info["quote_type"] = ticker_info.get("quoteType", "")
+            info["recommendation"] = ticker_info.get("recommendationMean", None)
+            info["analyst_count"] = ticker_info.get("numberOfAnalystOpinions", 0)
+            info["A"] = "E" if ticker in ['AAPL', 'MSFT'] else "A"
             
             # Process buy percentage from recommendations
             await self._process_buy_percentage(ticker, yticker, ticker_info, info)
-            
-            # Calculate upside potential
-            if info.get("current_price") and info.get("target_price"):
-                info["upside"] = ((info["target_price"] / info["current_price"]) - 1) * 100
-            else:
-                info["upside"] = None
             
             # Calculate EXRET - this will be recalculated below if we have post-earnings ratings
             if info.get("upside") is not None and info.get("buy_percentage") is not None:
@@ -164,13 +189,8 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
             
         except Exception as e:
             logger.error(f"Error getting ticker info for {ticker}: {str(e)}")
-            # Return a minimal info object
-            return {
-                "symbol": ticker,
-                "ticker": ticker,
-                "company": ticker,
-                "error": str(e)
-            }
+            # Return a minimal info object with standardized error format
+            return self._process_error_for_batch(ticker, e)
     
     async def _process_buy_percentage(self, ticker: str, yticker, ticker_info: Dict[str, Any], info: Dict[str, Any]):
         """Process buy percentage data from recommendations"""
@@ -455,18 +475,33 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
         for ticker in tickers:
             try:
                 results[ticker] = await self.get_ticker_info(ticker, skip_insider_metrics)
-            except (ValueError, TypeError) as e:
-                logger.error(f"Data format error processing ticker {ticker}: {str(e)}")
-                results[ticker] = {"symbol": ticker, "ticker": ticker, "company": ticker, "error": str(e)}
             except Exception as e:
-                logger.error(f"Unexpected error processing ticker {ticker}: {str(e)}")
-                results[ticker] = {"symbol": ticker, "ticker": ticker, "company": ticker, "error": str(e)}
+                results[ticker] = self._process_error_for_batch(ticker, e)
         return results
             
     async def close(self) -> None:
         """Close any resources"""
         # No need to close anything with yfinance
         pass
+        
+    def _process_error_for_batch(self, ticker: str, error: Exception) -> Dict[str, Any]:
+        """
+        Process an error for batch operations, providing a standardized error response.
+        
+        Args:
+            ticker: The ticker symbol that caused the error
+            error: The exception that occurred
+            
+        Returns:
+            Dict with error information
+        """
+        logger.warning(f"Error getting data for {ticker}: {str(error)}")
+        return {
+            "symbol": ticker,
+            "error": str(error),
+            "ticker": ticker,
+            "company": ticker
+        }
             
     def _calculate_peg_ratio(self, ticker_info):
         """Calculate PEG ratio from available financial metrics"""
