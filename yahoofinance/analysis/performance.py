@@ -536,6 +536,58 @@ class PerformanceTracker:
         except ValueError:
             return None
     
+    def _process_performance_data(self, summary_data: Dict[str, Any], performance: PortfolioPerformance) -> None:
+        """
+        Process performance data and update the performance object.
+        
+        This is a shared method used by both sync and async versions to reduce code duplication.
+        
+        Args:
+            summary_data: Dictionary of scraped data
+            performance: PortfolioPerformance object to update
+        """
+        # Map the scraped data fields to performance fields
+        field_mapping = {
+            THIS_MONTH: 'this_month',
+            'MTD': 'this_month',
+            'Today': 'this_month',
+            YEAR_TO_DATE: 'year_to_date',
+            'YTD': 'year_to_date',
+            TWO_YEARS: 'two_years',
+            '2YR': 'two_years',
+            'Beta': 'beta',
+            JENSENS_ALPHA: 'alpha',
+            'Alpha': 'alpha',
+            'Sharpe': 'sharpe',
+            'Sharpe Ratio': 'sharpe',
+            'Sortino': 'sortino',
+            'Sortino Ratio': 'sortino',
+            'Cash': 'cash'
+        }
+        
+        # Process each data item
+        for key, value in summary_data.items():
+            # Find matching field in performance object
+            for pattern, field_name in field_mapping.items():
+                if pattern in key:
+                    # Parse the value
+                    if isinstance(value, str) and '%' in value:
+                        # Convert percentage string to float
+                        parsed_value = self._format_percentage_value(value)
+                        if parsed_value is not None:
+                            setattr(performance, field_name, parsed_value)
+                    else:
+                        # Try to convert to float
+                        try:
+                            parsed_value = float(value)
+                            setattr(performance, field_name, parsed_value)
+                        except (ValueError, TypeError):
+                            # Keep as string if conversion fails
+                            setattr(performance, field_name, value)
+                    
+                    # Found a match, move to next item
+                    break
+    
     @circuit_protected("web_scraping")
     def get_portfolio_performance_web(self, url: str = DEFAULT_PORTFOLIO_URL) -> PortfolioPerformance:
         """
@@ -557,47 +609,8 @@ class PerformanceTracker:
             # Extract summary metrics (TODAY, MTD, YTD, 2YR)
             summary_data = self._extract_summary_data(soup)
             
-            # Map the scraped data fields to performance fields
-            field_mapping = {
-                THIS_MONTH: 'this_month',
-                'MTD': 'this_month',
-                'Today': 'this_month',
-                YEAR_TO_DATE: 'year_to_date',
-                'YTD': 'year_to_date',
-                TWO_YEARS: 'two_years',
-                '2YR': 'two_years',
-                'Beta': 'beta',
-                JENSENS_ALPHA: 'alpha',
-                'Alpha': 'alpha',
-                'Sharpe': 'sharpe',
-                'Sharpe Ratio': 'sharpe',
-                'Sortino': 'sortino',
-                'Sortino Ratio': 'sortino',
-                'Cash': 'cash'
-            }
-            
-            # Process each data item
-            for key, value in summary_data.items():
-                # Find matching field in performance object
-                for pattern, field_name in field_mapping.items():
-                    if pattern in key:
-                        # Parse the value
-                        if isinstance(value, str) and '%' in value:
-                            # Convert percentage string to float
-                            parsed_value = self._format_percentage_value(value)
-                            if parsed_value is not None:
-                                setattr(performance, field_name, parsed_value)
-                        else:
-                            # Try to convert to float
-                            try:
-                                parsed_value = float(value)
-                                setattr(performance, field_name, parsed_value)
-                            except (ValueError, TypeError):
-                                # Keep as string if conversion fails
-                                setattr(performance, field_name, value)
-                        
-                        # Found a match, move to next item
-                        break
+            # Process the data using the shared _process_performance_data method
+            self._process_performance_data(summary_data, performance)
             
             return performance
             
@@ -627,47 +640,8 @@ class PerformanceTracker:
             # Extract summary metrics (TODAY, MTD, YTD, 2YR)
             summary_data = self._extract_summary_data(soup)
             
-            # Map the scraped data fields to performance fields
-            field_mapping = {
-                THIS_MONTH: 'this_month',
-                'MTD': 'this_month',
-                'Today': 'this_month',
-                YEAR_TO_DATE: 'year_to_date',
-                'YTD': 'year_to_date',
-                TWO_YEARS: 'two_years',
-                '2YR': 'two_years',
-                'Beta': 'beta',
-                JENSENS_ALPHA: 'alpha',
-                'Alpha': 'alpha',
-                'Sharpe': 'sharpe',
-                'Sharpe Ratio': 'sharpe',
-                'Sortino': 'sortino',
-                'Sortino Ratio': 'sortino',
-                'Cash': 'cash'
-            }
-            
-            # Process each data item
-            for key, value in summary_data.items():
-                # Find matching field in performance object
-                for pattern, field_name in field_mapping.items():
-                    if pattern in key:
-                        # Parse the value
-                        if isinstance(value, str) and '%' in value:
-                            # Convert percentage string to float
-                            parsed_value = self._format_percentage_value(value)
-                            if parsed_value is not None:
-                                setattr(performance, field_name, parsed_value)
-                        else:
-                            # Try to convert to float
-                            try:
-                                parsed_value = float(value)
-                                setattr(performance, field_name, parsed_value)
-                            except (ValueError, TypeError):
-                                # Keep as string if conversion fails
-                                setattr(performance, field_name, value)
-                        
-                        # Found a match, move to next item
-                        break
+            # Process the data using the shared _process_performance_data method
+            self._process_performance_data(summary_data, performance)
             
             return performance
             
@@ -886,10 +860,7 @@ class PerformanceTracker:
             Tuple of ('Cash', value) or None if not found
         """
         # Use the generic method with Cash metric
-        results = self._extract_metrics_from_soup(soup, {"Cash": "Cash"})
-        if "Cash" in results:
-            return "Cash", results["Cash"]
-        return None
+        return self._extract_metric(soup, "Cash", "Cash")
     
     def generate_index_performance_html(self, performances: List[IndexPerformance], title: str = "Market Performance") -> Optional[str]:
         """

@@ -123,16 +123,13 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                         logger.warning(f"Failed to get insider data for {ticker}: {str(e)}")
                 
                 break
-            except RateLimitError:
-                # Specific handling for rate limits - just re-raise
+            except RateLimitError as e:
+                # Use the shared retry logic handler from the base class
                 raise
             except Exception as e:
-                if attempt < self.max_retries - 1:
-                    delay = self.retry_delay * (2 ** attempt)
-                    logger.warning(f"Attempt {attempt+1}/{self.max_retries} failed for {ticker}: {str(e)}. Retrying in {delay:.2f}s")
-                    time.sleep(delay)
-                else:
-                    raise APIError(f"Failed to get ticker info for {ticker} after {self.max_retries} attempts: {str(e)}")
+                # Use the shared retry logic handler from the base class
+                delay = self._handle_retry_logic(e, attempt, ticker, "ticker info")
+                time.sleep(delay)
         
         return result
     
@@ -156,20 +153,15 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         
         for attempt in range(self.max_retries):
             try:
-                history = ticker_obj.history(period=period, interval=interval)
-                if history.empty:
-                    raise APIError(f"No historical data returned for {ticker}")
-                return history
+                # Use the shared _extract_historical_data method from the base class
+                return self._extract_historical_data(ticker, ticker_obj, period, interval)
             except RateLimitError:
                 # Specific handling for rate limits - just re-raise
                 raise
             except Exception as e:
-                if attempt < self.max_retries - 1:
-                    delay = self.retry_delay * (2 ** attempt)
-                    logger.warning(f"Attempt {attempt+1}/{self.max_retries} failed for {ticker} historical data: {str(e)}. Retrying in {delay:.2f}s")
-                    time.sleep(delay)
-                else:
-                    raise APIError(f"Failed to get historical data for {ticker} after {self.max_retries} attempts: {str(e)}")
+                # Use the shared retry logic handler from the base class
+                delay = self._handle_retry_logic(e, attempt, ticker, "historical data")
+                time.sleep(delay)
     
     @rate_limited
     def get_earnings_dates(self, ticker: str) -> Tuple[Optional[str], Optional[str]]:
