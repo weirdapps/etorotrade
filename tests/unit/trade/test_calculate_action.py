@@ -14,14 +14,15 @@ def sample_data():
         {
             'ticker': 'BUY',
             'upside': 25.0,
-            'buy_percentage': 85.0,
+            'buy_percentage': 90.0,  # Increased to ensure it meets criteria
             'pe_trailing': 20.0,
             'pe_forward': 15.0,
             'peg_ratio': 1.2,
             'beta': 1.5,
-            'short_percent': 2.0,
+            'short_percent': 1.0,  # Changed to be below BUY_MAX_SHORT_INTEREST (1.5)
             'analyst_count': 10,
-            'total_ratings': 8
+            'total_ratings': 8,
+            'EXRET': 22.5  # Added to ensure it's above BUY_MIN_EXRET (15.0)
         },
         {
             'ticker': 'SELL',
@@ -43,10 +44,10 @@ def sample_data():
             'pe_forward': 16.0,
             'peg_ratio': 1.5,
             'beta': 1.2,
-            'short_percent': 2.5,
+            'short_percent': 1.5,  # At BUY_MAX_SHORT_INTEREST, below SELL_MIN_SHORT_INTEREST
             'analyst_count': 6,
             'total_ratings': 5,
-            'EXRET': 8.0  # Manually setting to trigger SELL due to low EXRET (below BUY_MIN_EXRET)
+            'EXRET': 8.0  # Between SELL_MAX_EXRET (5.0) and BUY_MIN_EXRET (15.0)
         },
         {
             'ticker': 'LOWCONF',
@@ -72,5 +73,5 @@ def test_calculate_action(sample_data):
     # Check specific tickers got correct actions
     assert result.loc[result['ticker'] == 'BUY', 'ACTION'].iloc[0] == 'B'
     assert result.loc[result['ticker'] == 'SELL', 'ACTION'].iloc[0] == 'S'
-    assert result.loc[result['ticker'] == 'HOLD', 'ACTION'].iloc[0] == 'S'  # Due to EXRET < 10
+    assert result.loc[result['ticker'] == 'HOLD', 'ACTION'].iloc[0] == 'H'  # EXRET = 8.0 is between SELL_MAX_EXRET (5.0) and BUY_MIN_EXRET (15.0)
     assert result.loc[result['ticker'] == 'LOWCONF', 'ACTION'].iloc[0] == ''  # No recommendation due to low confidence

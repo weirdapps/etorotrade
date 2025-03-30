@@ -189,7 +189,7 @@ class MarketDisplay:
                               process_fn: callable,
                               batch_size: int = 10) -> List[Dict[str, Any]]:
         """
-        Process a list of tickers with progress bar and rate limiting.
+        Process a list of tickers with enhanced progress bar and rate limiting.
         
         Args:
             tickers: List of ticker symbols
@@ -200,37 +200,77 @@ class MarketDisplay:
             List of processed results
         """
         results = []
+        success_count = 0
+        error_count = 0
+        cache_hits = 0
         unique_tickers = sorted(set(tickers))
         total_tickers = len(unique_tickers)
         total_batches = (total_tickers - 1) // batch_size + 1
+        start_time = time.time()
         
-        # Create master progress bar
+        # Create master progress bar with enhanced formatting
         with tqdm(total=total_tickers, 
-                  desc=f"Processing tickers (Batch 1/{total_batches})", 
-                  unit="ticker") as pbar:
+                  desc=f"Processing tickers", 
+                  unit="ticker",
+                  bar_format="{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} "
+                             "[{elapsed}<{remaining}, {rate_fmt}]") as pbar:
+            
+            # Update progress bar with detailed stats
+            def update_progress_desc():
+                elapsed = time.time() - start_time
+                tickers_per_second = (success_count + error_count) / max(elapsed, 0.1)
+                remaining_tickers = total_tickers - (success_count + error_count)
+                estimated_remaining = remaining_tickers / max(tickers_per_second, 0.1)
+                
+                # Format the description with comprehensive information
+                pbar.set_description(
+                    f"Batch {batch_num+1}/{total_batches} "
+                    f"[Success={success_count}, Errors={error_count}, Cache hits={cache_hits}]"
+                )
+                
+                # Also update postfix with ETA
+                pbar.set_postfix_str(
+                    f"{tickers_per_second:.2f} ticker/s, ETA: {time.strftime('%M:%S', time.gmtime(estimated_remaining))}"
+                )
             
             for batch_num, i in enumerate(range(0, total_tickers, batch_size)):
                 # Get current batch
                 batch = unique_tickers[i:i + batch_size]
                 
-                # Update progress bar description
-                pbar.set_description(f"Processing tickers (Batch {batch_num+1}/{total_batches})")
+                # Update progress bar with initial batch info
+                update_progress_desc()
                 
                 # Process each ticker in batch
                 batch_results = []
                 for ticker in batch:
                     # Apply rate limiting delay
-                    time.sleep(self.rate_limiter.get_delay(ticker))
+                    delay = self.rate_limiter.get_delay(ticker)
+                    time.sleep(delay)
                     
                     # Process ticker and track API call
                     self.rate_limiter.add_call()
-                    result = process_fn(ticker)
                     
-                    if result:
-                        batch_results.append(result)
+                    try:
+                        # If ticker was processed successfully
+                        result = process_fn(ticker)
+                        
+                        if result:
+                            batch_results.append(result)
+                            
+                            # Determine if this was a cache hit (assuming cache info in result)
+                            if isinstance(result, dict) and result.get('_cache_hit') is True:
+                                cache_hits += 1
+                                
+                            success_count += 1
+                    except Exception as e:
+                        # If processing failed
+                        error_count += 1
+                        self.rate_limiter.add_error(e, ticker)
+                        logging.warning(f"Error processing {ticker}: {str(e)}")
                     
-                    # Update progress
+                    # Update progress and description with latest stats
                     pbar.update(1)
+                    update_progress_desc()
                 
                 # Add batch results to overall results
                 results.extend(batch_results)
@@ -238,8 +278,20 @@ class MarketDisplay:
                 # Add delay between batches (except for last batch)
                 if batch_num < total_batches - 1:
                     batch_delay = self.rate_limiter.get_batch_delay()
-                    pbar.set_description(f"Waiting {batch_delay:.1f}s before next batch...")
+                    
+                    # Update description to show waiting status
+                    pbar.set_description(
+                        f"Waiting {batch_delay:.1f}s before next batch... "
+                        f"[Success={success_count}, Errors={error_count}, Cache hits={cache_hits}]"
+                    )
+                    
                     time.sleep(batch_delay)
+        
+        # Final summary
+        elapsed = time.time() - start_time
+        tickers_per_second = total_tickers / max(elapsed, 0.1)
+        print(f"Processed {total_tickers} tickers in {elapsed:.1f}s ({tickers_per_second:.2f}/s) - "
+              f"Success: {success_count}, Errors: {error_count}, Cache hits: {cache_hits}")
         
         return results
     
@@ -509,24 +561,31 @@ class MarketDisplay:
             report_type: Type of report ('M' for market, 'P' for portfolio)
         """
         from ..utils.async_utils.enhanced import process_batch_async
+        from ..core.config import RATE_LIMIT
         
         print(MESSAGES["INFO_PROCESSING_TICKERS"].format(count=len(tickers)))
         
-        # Use batch processing for async provider
+        # Generate title for progress tracking
+        report_type_name = "Portfolio" if report_type == 'P' else "Market"
+        
+        # Use batch processing for async provider with enhanced progress
         results_dict = await process_batch_async(
             tickers,
             self.provider.get_ticker_analysis,  # type: ignore (we know it's async)
-            batch_size=15,
-            concurrency=5
+            batch_size=RATE_LIMIT["BATCH_SIZE"],
+            concurrency=RATE_LIMIT["MAX_CONCURRENT_CALLS"],
+            delay_between_batches=RATE_LIMIT["BATCH_DELAY"],
+            description=f"Processing {report_type_name} tickers",
+            show_progress=True
         )
         
-        # Convert dict to list
-        results = list(results_dict.values())
+        # Convert dict to list, filtering out None values
+        results = [result for result in results_dict.values() if result is not None]
         
         # Display results
         if results:
             # Determine report title
-            title = "Portfolio Analysis" if report_type == 'P' else "Market Analysis"
+            title = f"{report_type_name} Analysis"
             
             # Display table
             self.display_stock_table(results, title)
@@ -535,5 +594,6 @@ class MarketDisplay:
             if report_type:
                 filename = "portfolio.csv" if report_type == 'P' else "market.csv"
                 self.save_to_csv(results, filename)
+                print(f"Results saved to output/{filename}")
         else:
             print(MESSAGES["NO_RESULTS_AVAILABLE"])
