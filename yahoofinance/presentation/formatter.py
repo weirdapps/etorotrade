@@ -278,92 +278,12 @@ class DisplayFormatter:
                 return f"{Color.PURPLE.value}{value}{Color.RESET.value}"
             return value
     
-    def color_by_signal(self, ticker_data: Dict[str, Any]) -> Dict[str, str]:
+    def _calculate_signal(self, ticker_data: Dict[str, Any]) -> str:
         """
-        Determine the overall buy/sell/hold signal color based on analysis.
+        Calculate the trading signal (BUY, SELL, HOLD, NEUTRAL) based on financial metrics.
         
-        Args:
-            ticker_data: Dictionary of ticker data
-            
-        Returns:
-            Dictionary mapping column names to colored values
-        """
-        colored_data = {}
-        
-        # Extract and convert relevant metrics
-        upside = ticker_data.get('upside')
-        buy_percentage = ticker_data.get('buy_percentage')
-        pe_forward = ticker_data.get('pe_forward')
-        pe_trailing = ticker_data.get('pe_trailing')
-        peg = ticker_data.get('peg_ratio')
-        beta = ticker_data.get('beta')
-        short_interest = ticker_data.get('short_float_pct')
-        
-        # Confidence check - require both analyst metrics to be present
-        if (ticker_data.get('analyst_count') is None or 
-            ticker_data.get('total_ratings') is None or
-            upside is None or 
-            buy_percentage is None):
-            signal = "NEUTRAL"
-        else:
-            # Calculate expected return
-            expected_return = (upside * buy_percentage / 100) if upside is not None and buy_percentage is not None else None
-            
-            # Check sell signals first (any trigger a sell)
-            if any([
-                upside < 5,  # Low upside (upside is already confirmed not None above)
-                buy_percentage < 65,  # Low buy rating (buy_percentage is already confirmed not None above)
-                # PE deteriorating (both positive, but forward > trailing)
-                pe_forward is not None and pe_trailing is not None and pe_forward > 0 and pe_trailing > 0 and pe_forward > pe_trailing,
-                pe_forward is not None and pe_forward > 45,  # Extremely high forward PE
-                peg is not None and peg > 3.0,  # High PEG ratio
-                short_interest is not None and short_interest > 4.0,  # High short interest
-                beta is not None and beta > 3.0,  # Excessive volatility
-                expected_return is not None and expected_return < 10.0  # Low expected return
-            ]):
-                signal = "SELL"
-            # Then check buy signals (all criteria must be met)
-            elif all([
-                upside >= 20,  # Strong upside (upside is already confirmed not None above)
-                buy_percentage >= 82,  # Strong buy consensus (buy_percentage is already confirmed not None above)
-                beta is None or (beta > 0.2 and beta <= 3.0),  # Reasonable volatility
-                # PE improvement or negative trailing PE (growth stock)
-                (pe_forward is None or pe_trailing is None or
-                 pe_forward <= 0 or  # Negative future earnings still allowed
-                 (pe_forward > 0.5 and pe_forward <= 45.0 and  # Positive and reasonable forward PE
-                  (pe_trailing <= 0 or pe_forward < pe_trailing))),  # Either negative trailing or improving ratio
-                peg is None or peg < 3.0,  # Reasonable PEG ratio
-                short_interest is None or short_interest <= 3.0  # Low short interest
-            ]):
-                signal = "BUY"
-            else:
-                signal = "HOLD"
-        
-        # Apply color based on signal
-        for key, value in ticker_data.items():
-            if value is None:
-                colored_data[key] = "--"
-                continue
-                
-            # Convert to string representation
-            str_value = str(value)
-            
-            # Apply signal-based coloring
-            if signal == "BUY":
-                colored_data[key] = f"{Color.GREEN.value}{str_value}{Color.RESET.value}"
-            elif signal == "SELL":
-                colored_data[key] = f"{Color.RED.value}{str_value}{Color.RESET.value}"
-            elif signal == "HOLD":
-                colored_data[key] = f"{Color.YELLOW.value}{str_value}{Color.RESET.value}"
-            else:
-                colored_data[key] = str_value
-        
-        # Return colored data
-        return colored_data
-    
-    def get_signal(self, ticker_data: Dict[str, Any]) -> str:
-        """
-        Determine the overall buy/sell/hold signal based on analysis.
+        This shared method is used by both get_signal and color_by_signal to ensure consistent
+        signal determination and reduce code duplication.
         
         Args:
             ticker_data: Dictionary of ticker data
@@ -419,3 +339,53 @@ class DisplayFormatter:
             return "BUY"
         else:
             return "HOLD"
+    
+    def color_by_signal(self, ticker_data: Dict[str, Any]) -> Dict[str, str]:
+        """
+        Determine the overall buy/sell/hold signal color based on analysis.
+        
+        Args:
+            ticker_data: Dictionary of ticker data
+            
+        Returns:
+            Dictionary mapping column names to colored values
+        """
+        colored_data = {}
+        
+        # Get signal using shared method
+        signal = self._calculate_signal(ticker_data)
+        
+        # Apply color based on signal
+        for key, value in ticker_data.items():
+            if value is None:
+                colored_data[key] = "--"
+                continue
+                
+            # Convert to string representation
+            str_value = str(value)
+            
+            # Apply signal-based coloring
+            if signal == "BUY":
+                colored_data[key] = f"{Color.GREEN.value}{str_value}{Color.RESET.value}"
+            elif signal == "SELL":
+                colored_data[key] = f"{Color.RED.value}{str_value}{Color.RESET.value}"
+            elif signal == "HOLD":
+                colored_data[key] = f"{Color.YELLOW.value}{str_value}{Color.RESET.value}"
+            else:
+                colored_data[key] = str_value
+        
+        # Return colored data
+        return colored_data
+    
+    def get_signal(self, ticker_data: Dict[str, Any]) -> str:
+        """
+        Determine the overall buy/sell/hold signal based on analysis.
+        
+        Args:
+            ticker_data: Dictionary of ticker data
+            
+        Returns:
+            Signal string ("BUY", "SELL", "HOLD", or "NEUTRAL")
+        """
+        # Use the shared signal calculation method
+        return self._calculate_signal(ticker_data)
