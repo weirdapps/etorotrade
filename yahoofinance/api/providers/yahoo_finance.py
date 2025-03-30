@@ -7,6 +7,7 @@ appropriate rate limiting, caching, and error handling.
 """
 
 import logging
+import time
 from typing import Dict, Any, Optional, List, Tuple, cast
 import pandas as pd
 import yfinance as yf
