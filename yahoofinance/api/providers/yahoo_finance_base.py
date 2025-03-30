@@ -17,6 +17,7 @@ from ...core.errors import YFinanceError, APIError, ValidationError, RateLimitEr
 from ...utils.market.ticker_utils import validate_ticker, is_us_ticker
 from ...core.config import COLUMN_NAMES
 from ...utils.data.format_utils import format_market_cap
+from ...utils.network.provider_utils import is_rate_limit_error, safe_extract_value
 
 logger = logging.getLogger(__name__)
 
@@ -259,13 +260,15 @@ class YahooFinanceBaseProvider(abc.ABC):
             # Calculate upside potential
             upside_potential = self.calculate_upside_potential(current_price, target_price)
             
+            # Use safe_extract_value for numerical values with proper defaults
             return {
                 'ticker': ticker,
                 'current_price': current_price,
                 'target_price': target_price,
                 'upside_potential': upside_potential,
-                'price_change': info.get('regularMarketDayHigh', 0) - info.get('regularMarketDayLow', 0),
-                'price_change_percentage': info.get('regularMarketDayChangePercent', 0)
+                'price_change': safe_extract_value(info, 'regularMarketDayHigh', 0) - 
+                               safe_extract_value(info, 'regularMarketDayLow', 0),
+                'price_change_percentage': safe_extract_value(info, 'regularMarketDayChangePercent', 0)
             }
         except Exception as e:
             logger.error(f"Error extracting price data for {ticker}: {str(e)}")
@@ -300,18 +303,19 @@ class YahooFinanceBaseProvider(abc.ABC):
             detailed_info = ticker_obj.info
             
             # Get price targets and analyst consensus
-            analyst_data = self._get_analyst_consensus(ticker_obj)
+            analyst_data = self._get_analyst_consensus(ticker_obj, ticker)
             
-            # Build result
+            # Build result using safe_extract_value for numerical values to avoid errors
             result = {
                 'ticker': ticker,
                 'name': detailed_info.get('shortName', detailed_info.get('longName', ticker)),
                 'sector': detailed_info.get('sector', 'Unknown'),
-                'market_cap': detailed_info.get('marketCap', ticker_obj.fast_info.get('marketCap')),
-                'beta': detailed_info.get('beta', None),
-                'pe_trailing': detailed_info.get('trailingPE', None),
-                'pe_forward': detailed_info.get('forwardPE', None),
-                'dividend_yield': detailed_info.get('dividendYield', None),
+                'market_cap': safe_extract_value(detailed_info, 'marketCap', 
+                              safe_extract_value(ticker_obj.fast_info, 'marketCap')),
+                'beta': safe_extract_value(detailed_info, 'beta', None),
+                'pe_trailing': safe_extract_value(detailed_info, 'trailingPE', None),
+                'pe_forward': safe_extract_value(detailed_info, 'forwardPE', None),
+                'dividend_yield': safe_extract_value(detailed_info, 'dividendYield', None),
                 'current_price': price_data['current_price'],
                 'price_change': price_data['price_change'],
                 'price_change_percentage': price_data['price_change_percentage'],
@@ -320,8 +324,9 @@ class YahooFinanceBaseProvider(abc.ABC):
                 'analyst_count': analyst_data.get('analyst_count', 0),
                 'buy_percentage': analyst_data.get('buy_percentage', None),
                 'total_ratings': analyst_data.get('total_ratings', 0),
-                'peg_ratio': detailed_info.get('pegRatio', None),
-                'short_float_pct': detailed_info.get('shortPercentOfFloat', None) * 100 if detailed_info.get('shortPercentOfFloat') else None,
+                'peg_ratio': safe_extract_value(detailed_info, 'pegRatio', None),
+                'short_float_pct': safe_extract_value(detailed_info, 'shortPercentOfFloat', None) * 100 
+                                 if detailed_info.get('shortPercentOfFloat') else None,
             }
             
             # Add earnings dates if available
@@ -336,21 +341,28 @@ class YahooFinanceBaseProvider(abc.ABC):
             logger.error(f"Error processing ticker info for {ticker}: {str(e)}")
             raise APIError(f"Failed to process ticker data: {str(e)}")
     
-    def _get_analyst_consensus(self, ticker_obj: yf.Ticker) -> Dict[str, Any]:
+    def _get_analyst_consensus(self, ticker_obj: yf.Ticker, ticker: str = None) -> Dict[str, Any]:
         """
         Extract analyst consensus and price target from a ticker object.
         
         Args:
             ticker_obj: yfinance Ticker object
+            ticker: Optional ticker symbol for logging
             
         Returns:
             Dict with analyst consensus data
         """
+        # Skip analyst ratings for non-US tickers if ticker is provided
+        if ticker and not is_us_ticker(ticker):
+            logger.debug(f"Skipping analyst ratings for non-US ticker {ticker}")
+            return self._get_empty_analyst_data(ticker)
+            
         result = {
             'buy_percentage': None,
             'analyst_count': 0,
             'total_ratings': 0,
-            'target_price': None
+            'target_price': None,
+            'recommendations': {}
         }
         
         try:
@@ -360,19 +372,29 @@ class YahooFinanceBaseProvider(abc.ABC):
                 # Get most recent recommendation summary
                 recent = recommendations.iloc[-1]
                 
-                # Calculate buy percentage
-                total = sum([
-                    recent.get('strongBuy', 0),
-                    recent.get('buy', 0),
-                    recent.get('hold', 0),
-                    recent.get('sell', 0),
-                    recent.get('strongSell', 0)
-                ])
+                # Extract recommendation counts safely using imported safe_extract_value
+                strong_buy = safe_extract_value(recent, 'strongBuy')
+                buy = safe_extract_value(recent, 'buy')
+                hold = safe_extract_value(recent, 'hold')
+                sell = safe_extract_value(recent, 'sell')
+                strong_sell = safe_extract_value(recent, 'strongSell')
+                
+                # Calculate total
+                total = strong_buy + buy + hold + sell + strong_sell
                 
                 if total > 0:
-                    buys = recent.get('strongBuy', 0) + recent.get('buy', 0)
+                    buys = strong_buy + buy
                     result['buy_percentage'] = (buys / total) * 100
                     result['total_ratings'] = total
+                    
+                    # Store individual counts
+                    result['recommendations'] = {
+                        'strong_buy': strong_buy,
+                        'buy': buy,
+                        'hold': hold,
+                        'sell': sell,
+                        'strong_sell': strong_sell
+                    }
             
             # Get price targets
             price_targets = ticker_obj.info.get('targetMeanPrice')
@@ -384,6 +406,37 @@ class YahooFinanceBaseProvider(abc.ABC):
         except Exception as e:
             logger.warning(f"Error getting analyst consensus: {str(e)}")
             return result
+        
+    # Removed _safe_extract_value method since we're now using the imported utility function
+            
+    def _get_empty_analyst_data(self, ticker: str = None) -> Dict[str, Any]:
+        """
+        Get empty analyst data structure for cases where data isn't available.
+        
+        Args:
+            ticker: Optional ticker symbol to include
+            
+        Returns:
+            Dict with empty analyst data
+        """
+        result = {
+            "recommendations": 0,
+            "buy_percentage": None,
+            "strong_buy": 0,
+            "buy": 0,
+            "hold": 0,
+            "sell": 0,
+            "strong_sell": 0,
+            "date": None,
+            "total_ratings": 0,
+            "analyst_count": 0
+        }
+        
+        # Add symbol if ticker is provided
+        if ticker:
+            result["symbol"] = ticker
+            
+        return result
             
     def _process_recommendation_key(self, ticker_info: Dict[str, Any]) -> Dict[str, Any]:
         """Process recommendation key as fallback for buy percentage
@@ -528,6 +581,50 @@ class YahooFinanceBaseProvider(abc.ABC):
             
         return False
         
+    def _handle_retry_logic(self, exception: Exception, attempt: int, ticker: str, retry_msg: str) -> float:
+        """
+        Handle retry logic for API calls, with consistent pattern.
+        
+        Args:
+            exception: The exception that occurred
+            attempt: Current attempt number (0-based)
+            ticker: Ticker symbol for logging
+            retry_msg: Type of operation being retried (for logging)
+            
+        Returns:
+            float: Delay to wait before next attempt
+            
+        Raises:
+            RateLimitError: If the exception is a rate limit error
+            APIError: If this was the last attempt
+        """
+        if isinstance(exception, RateLimitError) or is_rate_limit_error(exception):
+            # Special handling for rate limits - always re-raise
+            raise RateLimitError(f"Rate limit exceeded for {ticker}")
+    
+        if attempt < self.max_retries - 1:
+            # Calculate delay with exponential backoff
+            delay = self.retry_delay * (2 ** attempt)
+            logger.warning(f"Attempt {attempt+1}/{self.max_retries} failed for {ticker} {retry_msg}: {str(exception)}. Retrying in {delay:.2f}s")
+            return delay
+        else:
+            # Last attempt failed - raise an error
+            raise APIError(f"Failed to get {retry_msg} for {ticker} after {self.max_retries} attempts: {str(exception)}")
+
+    # Helper function for rate limit detection that uses the imported function
+    def _check_rate_limit_error(self, error: Exception) -> bool:
+        """
+        Check if an error is related to rate limiting.
+        Uses the imported is_rate_limit_error utility function.
+        
+        Args:
+            error: Exception to check
+            
+        Returns:
+            bool: True if it's a rate limit error
+        """
+        return is_rate_limit_error(error)
+        
     def _calculate_peg_ratio(self, ticker_info: Dict[str, Any]) -> Optional[float]:
         """
         Calculate PEG ratio from available financial metrics.
@@ -538,14 +635,14 @@ class YahooFinanceBaseProvider(abc.ABC):
         Returns:
             float: PEG ratio or None if not available
         """
-        # Get the trailingPegRatio directly from Yahoo Finance's API
-        peg_ratio = ticker_info.get('trailingPegRatio')
+        # Get the trailingPegRatio directly from Yahoo Finance's API using safe_extract_value
+        peg_ratio = safe_extract_value(ticker_info, 'trailingPegRatio', None)
         
         # Format PEG ratio to ensure consistent precision (one decimal place)
         if peg_ratio is not None:
             try:
                 # Round to 1 decimal place for consistency
-                peg_ratio = round(float(peg_ratio), 1)
+                peg_ratio = round(peg_ratio, 1)
             except (ValueError, TypeError):
                 # Keep original value if conversion fails
                 pass
@@ -563,26 +660,29 @@ class YahooFinanceBaseProvider(abc.ABC):
         Returns:
             Dict with standardized ticker info
         """
-        # Extract relevant fields with proper fallbacks
+        # Extract relevant fields with proper fallbacks using safe_extract_value for numerical fields
         result = {
             "symbol": ticker_info.get("symbol", ""),
             "name": ticker_info.get("longName", ticker_info.get("shortName", "")),
             "sector": ticker_info.get("sector", ""),
             "industry": ticker_info.get("industry", ""),
-            "price": ticker_info.get("currentPrice", ticker_info.get("regularMarketPrice")),
+            "price": safe_extract_value(ticker_info, "currentPrice", 
+                     safe_extract_value(ticker_info, "regularMarketPrice")),
             "currency": ticker_info.get("currency", "USD"),
-            "market_cap": ticker_info.get("marketCap"),
-            "pe_ratio": ticker_info.get("trailingPE"),
-            "forward_pe": ticker_info.get("forwardPE"),
-            "peg_ratio": ticker_info.get("pegRatio"),
-            "beta": ticker_info.get("beta"),
-            "fifty_day_avg": ticker_info.get("fiftyDayAverage"),
-            "two_hundred_day_avg": ticker_info.get("twoHundredDayAverage"),
-            "fifty_two_week_high": ticker_info.get("fiftyTwoWeekHigh"),
-            "fifty_two_week_low": ticker_info.get("fiftyTwoWeekLow"),
-            "target_price": ticker_info.get("targetMeanPrice"),
-            "dividend_yield": ticker_info.get("dividendYield", 0) * 100 if ticker_info.get("dividendYield") else None,
-            "short_percent": ticker_info.get("shortPercentOfFloat", 0) * 100 if ticker_info.get("shortPercentOfFloat") else None,
+            "market_cap": safe_extract_value(ticker_info, "marketCap"),
+            "pe_ratio": safe_extract_value(ticker_info, "trailingPE"),
+            "forward_pe": safe_extract_value(ticker_info, "forwardPE"),
+            "peg_ratio": safe_extract_value(ticker_info, "pegRatio"),
+            "beta": safe_extract_value(ticker_info, "beta"),
+            "fifty_day_avg": safe_extract_value(ticker_info, "fiftyDayAverage"),
+            "two_hundred_day_avg": safe_extract_value(ticker_info, "twoHundredDayAverage"),
+            "fifty_two_week_high": safe_extract_value(ticker_info, "fiftyTwoWeekHigh"),
+            "fifty_two_week_low": safe_extract_value(ticker_info, "fiftyTwoWeekLow"),
+            "target_price": safe_extract_value(ticker_info, "targetMeanPrice"),
+            "dividend_yield": safe_extract_value(ticker_info, "dividendYield", 0) * 100 
+                             if ticker_info.get("dividendYield") else None,
+            "short_percent": safe_extract_value(ticker_info, "shortPercentOfFloat", 0) * 100 
+                           if ticker_info.get("shortPercentOfFloat") else None,
             "country": ticker_info.get("country", ""),
         }
         
