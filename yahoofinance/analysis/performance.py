@@ -228,34 +228,43 @@ class PerformanceTracker:
         """
         Calculate the dates for weekly performance comparison.
         
-        If the current week is complete (today is after Friday market close),
-        returns previous week and the week before.
-        Otherwise, returns the week before the previous week and the previous week.
+        Returns the most recent completed week and the week before.
+        
+        Example: If today is March 31st, 2025 (Monday):
+        - The most recent completed week is March 24-28 (ending on March 28, 2025)
+        - The previous week is March 17-21 (ending on March 21, 2025)
+        
+        If today is after Friday market close or weekend:
+        - The most recent completed week is the week ending on the past Friday
+        - The previous week is the week before that
         
         Returns:
-            Tuple of (older_friday, newer_friday)
+            Tuple of (older_friday, newer_friday) - the Friday of each week
         """
         today = datetime.today()
         
-        # Determine if current week is complete (today is past Friday)
-        is_after_friday = today.weekday() > 4  # Friday is 4
-        is_friday_after_market_close = today.weekday() == 4 and today.hour >= 16  # 4pm market close
-        current_week_complete = is_after_friday or is_friday_after_market_close
-        
-        # Calculate the most recent completed Friday
+        # Find the most recent Friday (in the past)
         days_since_friday = (today.weekday() - 4) % 7
-        latest_friday = today - timedelta(days=days_since_friday)
+        last_friday = today - timedelta(days=days_since_friday)
         
-        # If we're still in the current week's trading window, 
-        # move back to the previous completed week
-        if not current_week_complete:
-            latest_friday = latest_friday - timedelta(days=7)
-            
-        # Get previous Friday
-        previous_friday = latest_friday - timedelta(days=7)
+        # If today is a Friday, we need to determine if it's after market close
+        if today.weekday() == 4:  # Friday
+            if today.hour >= 16:  # After market close (4pm)
+                # Use today as the last Friday
+                last_friday = today
+            else:
+                # Use the previous Friday
+                last_friday = today - timedelta(days=7)
         
-        return previous_friday.replace(hour=0, minute=0, second=0, microsecond=0), \
-               latest_friday.replace(hour=0, minute=0, second=0, microsecond=0)
+        # Now we have the correct last Friday, the most recent completed week ends on this Friday
+        newest_friday = last_friday
+        
+        # The previous week ended one week before
+        oldest_friday = newest_friday - timedelta(days=7)
+        
+        # Set time to midnight for consistency
+        return oldest_friday.replace(hour=0, minute=0, second=0, microsecond=0), \
+               newest_friday.replace(hour=0, minute=0, second=0, microsecond=0)
     
     @staticmethod
     def calculate_monthly_dates() -> Tuple[datetime, datetime]:
@@ -1035,29 +1044,46 @@ def track_index_performance(period_type: str = "weekly"):
         # Get index performance
         performances = tracker.get_index_performance(period_type=period_type)
         
-        # Determine what periods we're showing based on current date
-        today = datetime.today()
+        # Get the date ranges directly from the performance data
+        newest_end_date = None
+        oldest_start_date = None
+        for perf in performances:
+            if perf.end_date and (newest_end_date is None or perf.end_date > newest_end_date):
+                newest_end_date = perf.end_date
+            if perf.start_date and (oldest_start_date is None or perf.start_date < oldest_start_date):
+                oldest_start_date = perf.start_date
         
-        # For weekly display
+        # Format the date ranges for display with full week ranges (Monday-Friday)
+        newest_week_str = ""
+        oldest_week_str = ""
+        
+        if newest_end_date:
+            # For the latest week, Friday is the end date
+            newest_friday = newest_end_date
+            # Calculate Monday (4 days before)
+            newest_monday = newest_friday - timedelta(days=4)  # Friday to Monday is 4 days back
+            newest_week_str = f"{newest_monday.strftime('%b %d')} - {newest_friday.strftime('%b %d')}"
+        
+        if oldest_start_date:
+            # For the older week, Friday is the end date
+            oldest_friday = oldest_start_date
+            # Calculate Monday (4 days before)
+            oldest_monday = oldest_friday - timedelta(days=4)  # Friday to Monday is 4 days back
+            oldest_week_str = f"{oldest_monday.strftime('%b %d')} - {oldest_friday.strftime('%b %d')}"
+        
+        
+        # For weekly display with more descriptive period ranges
         if period_type.lower() == 'weekly':
-            # Check if we're past Friday market close
-            is_after_friday = today.weekday() > 4  # Friday is 4
-            is_friday_after_market_close = today.weekday() == 4 and today.hour >= 16  # 4pm market close
-            current_week_complete = is_after_friday or is_friday_after_market_close
-            
-            if current_week_complete:
-                period_desc = "Last Week vs. Previous Week"
+            if newest_week_str and oldest_week_str:
+                period_desc = f"Week of {newest_week_str} vs. Week of {oldest_week_str}"
             else:
-                period_desc = "Previous Week vs. Week Before"
+                period_desc = "Recent Completed Week vs. Previous Week"
         # For monthly display
         else:
-            # Check if we're in a new month (past day 1)
-            current_month_complete = today.day > 1
-            
-            if current_month_complete:
-                period_desc = "Last Month vs. Previous Month"
+            if newest_end_date and oldest_start_date:
+                period_desc = f"{newest_end_date.strftime('%B %Y')} vs. {oldest_start_date.strftime('%B %Y')}"
             else:
-                period_desc = "Previous Month vs. Month Before"
+                period_desc = "Recent Completed Month vs. Previous Month"
                 
         # Display in console with clear period indication
         print(f"\n{period_type.capitalize()} Market Performance: {period_desc}")
@@ -1386,26 +1412,43 @@ async def track_performance_async(period_type: str = "weekly", portfolio_url: st
             # Determine what periods we're showing based on current date
             today = datetime.today()
             
+            # Get the date ranges directly from a sample performance
+            newest_end_date = None
+            oldest_start_date = None
+            for perf in index_perf:
+                if perf.end_date and (newest_end_date is None or perf.end_date > newest_end_date):
+                    newest_end_date = perf.end_date
+                if perf.start_date and (oldest_start_date is None or perf.start_date < oldest_start_date):
+                    oldest_start_date = perf.start_date
+            
+            # Format the date ranges for display with full week ranges (Monday-Friday)
+            newest_week_str = ""
+            oldest_week_str = ""
+            
+            if newest_end_date:
+                # For the latest week, assume Friday and calculate Monday (4 days before)
+                newest_friday = newest_end_date
+                newest_monday = newest_friday - timedelta(days=4)  # Friday to Monday is 4 days back
+                newest_week_str = f"{newest_monday.strftime('%b %d')} - {newest_friday.strftime('%b %d')}"
+            
+            if oldest_start_date:
+                # For the older week, assume Friday and calculate Monday
+                oldest_friday = oldest_start_date
+                oldest_monday = oldest_friday - timedelta(days=4)  # Friday to Monday is 4 days back
+                oldest_week_str = f"{oldest_monday.strftime('%b %d')} - {oldest_friday.strftime('%b %d')}"
+            
             # For weekly display
             if period_type.lower() == 'weekly':
-                # Check if we're past Friday market close
-                is_after_friday = today.weekday() > 4  # Friday is 4
-                is_friday_after_market_close = today.weekday() == 4 and today.hour >= 16  # 4pm market close
-                current_week_complete = is_after_friday or is_friday_after_market_close
-                
-                if current_week_complete:
-                    period_desc = "Last Week vs. Previous Week"
+                if newest_week_str and oldest_week_str:
+                    period_desc = f"Week of {newest_week_str} vs. Week of {oldest_week_str}"
                 else:
-                    period_desc = "Previous Week vs. Week Before"
+                    period_desc = "Recent Completed Week vs. Previous Week"
             # For monthly display
             else:
-                # Check if we're in a new month (past day 1)
-                current_month_complete = today.day > 1
-                
-                if current_month_complete:
-                    period_desc = "Last Month vs. Previous Month"
+                if newest_end_date and oldest_start_date:
+                    period_desc = f"{newest_end_date.strftime('%B %Y')} vs. {oldest_start_date.strftime('%B %Y')}"
                 else:
-                    period_desc = "Previous Month vs. Month Before"
+                    period_desc = "Recent Completed Month vs. Previous Month"
             
             tracker.generate_index_performance_html(
                 index_perf,

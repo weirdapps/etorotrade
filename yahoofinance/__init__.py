@@ -55,7 +55,7 @@ from .core.errors import (
 # Import and re-export key utility functions
 from .utils.market import is_us_ticker, normalize_hk_ticker
 
-__version__ = "1.0.0"
+__version__ = "1.0.0"  # When removing compat folder, update to "2.0.0" to indicate breaking change
 __author__ = "Roo"
 
 __all__ = [

@@ -1,200 +1,124 @@
-# Test Migration Status
+# Migration Status
 
-This file tracks the status of test migrations to the new structure.
+This document tracks the status of migrating from the old v1 API to the new v2 API with provider pattern.
 
-## Code Duplication Resolution Plan
+## Completed Tasks
 
-The following duplication issues have been identified and need to be addressed:
+- [x] Implemented provider pattern with both synchronous and asynchronous variants
+- [x] Created comprehensive test suite for provider-based implementations
+- [x] Enhanced rate limiting with adaptive delays and batch processing
+- [x] Added resilient circuit breaker pattern for API requests
+- [x] Implemented caching with size limits and TTL configuration
+- [x] Eliminated duplicate code in utility modules
+- [x] Restructured compatibility layer to import from canonical sources
+- [x] Updated tests to use canonical sources directly when possible
+- [x] Created test fixtures for consistent test data
+- [x] Documented code with comprehensive docstrings
+- [x] Created configuration for trading criteria and network settings
 
-| Duplication Pattern | Duplication % | Status |
-|---------------------|--------------|---------|
-| Fixture files (`tests/yahoofinance/fixtures/` vs `tests/fixtures/`) | 100% | In Progress |
-| Async utilities (`utils/async/` vs `utils/async_utils/`) | ~40% | Planned |
-| Provider implementations (`yahoo_finance.py` vs `async_yahoo_finance.py`) | ~35% | Planned |
-| Rate limiter implementations (async vs sync) | ~18% | Planned |
+## Phase Out of Compatibility Layer
 
-### Fixture Files Migration
+The `compat` folder is now ready for removal through the following steps:
 
-1. ✅ Update `conftest.py` to register fixtures from canonical location
-2. ⏱️ Add deprecation warnings to duplicate fixture modules
-3. ⏱️ Remove duplicated fixture files once all tests are migrated
+1. **Phase 1: Consolidation (Completed)**
+   - Compatibility classes now import from canonical sources
+   - Duplicate code has been eliminated
+   - Core modules no longer have direct dependencies on compat modules
 
-### Async Utilities Consolidation
+2. **Phase 2: Migration Path (Completed)**
+   - Test files have been updated to import directly from canonical modules
+   - End-to-end tests have been updated to use the provider pattern
+   - Main application code already uses the provider pattern or canonical modules
 
-1. ⏱️ Design unified interfaces for async operations
-2. ⏱️ Create base classes for shared functionality
-3. ⏱️ Update all consumers to use the new unified API
+3. **Phase 3: Deprecation (Completed)**
+   - Added deprecation warnings to all imports from the compat folder
+   - Updated all remaining tests to use canonical sources
+   - Documented recommended replacement imports in docstrings
 
-### Provider Implementations
+4. **Phase 4: Removal (Ready)**
+   - All tests pass with the compat folder temporarily renamed
+   - The codebase has been verified to work correctly without the compat folder
+   - The TestProviderMigration class has been created to replace TestProviderCompatibility
+   - Final removal will be done with a major version bump to indicate breaking change
+   - NEXT STEP: Remove compat folder and create v2.0.0 release
 
-1. ⏱️ Extract common behavior to base classes
-2. ⏱️ Use mixins for specialized features (async, batching)
-3. ⏱️ Use template method pattern for async/sync differences
+## Usage Instructions for Canonical Sources
 
-## Migration Update
+### Analyst Data
 
-All test files have been migrated to the new structure, and most of the critical tests are now passing. The integration tests for both API and Async API have been fixed and are now passing, along with the end-to-end tests.
+**Old import (deprecated):**
+```python
+from yahoofinance.compat.analyst import AnalystData
+```
 
-### Current Focus
+**New import:**
+```python
+from yahoofinance.analysis.analyst import CompatAnalystData
+```
 
-- Finishing fixes for the circuit breaker integration tests
-- Updating import paths in remaining test files to match new module structure
-- Ensuring class imports reflect new locations
+### Earnings Calendar
 
-### Recent Progress
+**Old import (deprecated):**
+```python
+from yahoofinance.compat.earnings import EarningsCalendar, format_earnings_table
+```
 
-- 🛠️ tests/e2e/test_trade_workflows.py - Fixed and all tests now passing
-- 🛠️ tests/integration/api/test_api_integration.py - All tests now passing
-- 🛠️ tests/integration/api/test_async_api.py - All tests now passing
-- 🛠️ tests/unit/utils/async/test_enhanced.py - All tests now passing (no more skipped tests)
-- ✅ tests/unit/utils/network/test_async_circuit_breaker.py - All tests passing
-- ✅ tests/unit/utils/network/test_circuit_breaker.py - All tests passing
-- 🛠️ Added compatibility layers in yahoofinance/compat/ for smooth transition
+**New import:**
+```python
+from yahoofinance.analysis.earnings import EarningsCalendar, format_earnings_table
+```
 
-- Formal tests are now organized in a hierarchical structure that mirrors the package organization
-- Manual testing scripts from the root directory have been moved to the `scripts/` directory
-- Compatibility layers ensure backward compatibility while moving to the new structure
+### Client
 
-## Core Module Tests
+**Old import (deprecated):**
+```python
+from yahoofinance.compat.client import YFinanceClient
+```
 
-| Test File | Status | Notes |
-|-----------|--------|-------|
-| test_cache.py | ✅ Migrated | Successfully migrated and tested |
-| test_client.py | ✅ Migrated | |
-| test_errors.py | ✅ Migrated | |
-| test_types.py | ✅ Migrated | |
-| test_error_handling.py | ✅ Migrated | |
+**New import (using provider pattern):**
+```python
+from yahoofinance.api import get_provider
+provider = get_provider()  # Use provider.get_ticker_info() etc.
+```
 
-## API Module Tests
+### Display Formatting
 
-| Test File | Status | Notes |
-|-----------|--------|-------|
-| test_async_providers.py | ✅ Migrated | Moved to yahoofinance/api/providers/ |
-| unit/api/test_providers.py | ✅ Migrated | Moved to yahoofinance/api/providers/ |
+**Old import (deprecated):**
+```python
+from yahoofinance.compat.formatting import DisplayFormatter, DisplayConfig
+```
 
-## Analysis Module Tests
+**New import:**
+```python
+from yahoofinance.presentation.formatter import DisplayFormatter, DisplayConfig
+```
 
-| Test File | Status | Notes |
-|-----------|--------|-------|
-| test_analyst.py | ✅ Migrated | |
-| test_pricing.py | ✅ Migrated | |
-| test_earnings.py | ✅ Migrated | |
-| test_news.py | ✅ Migrated | |
-| test_holders.py | ✅ Migrated | |
-| test_insiders.py | ✅ Migrated | |
-| test_metrics.py | ✅ Migrated | |
-| test_monthly.py | ✅ Migrated | |
-| test_weekly.py | ✅ Migrated | |
-| test_index.py | ✅ Migrated | |
-| test_econ.py | ✅ Migrated | |
-| test_portfolio.py | ✅ Migrated | Moved to yahoofinance/analysis/ |
+### Market Display
 
-## Utility Module Tests
+**Old import (deprecated):**
+```python
+from yahoofinance.compat.display import MarketDisplay
+```
 
-| Test File | Status | Notes |
-|-----------|--------|-------|
-| test_async.py | ✅ Migrated | Moved to yahoofinance/utils/async/ |
-| test_format_utils.py | ✅ Migrated | Moved to yahoofinance/utils/data/ |
-| test_formatting.py | ✅ Migrated | Moved to yahoofinance/utils/data/ |
-| test_market_utils.py | ✅ Migrated | Moved to yahoofinance/utils/market/ |
-| utils/market/test_filter_utils.py | ✅ Migrated | Moved to yahoofinance/utils/market/ |
-| test_pagination_utils.py | ✅ Migrated | Renamed to test_pagination.py in yahoofinance/utils/network/ |
-| test_rate.py | ✅ Migrated | Moved to yahoofinance/utils/network/ |
-| test_rate_limiter.py | ✅ Migrated | Moved to yahoofinance/utils/network/ |
-| unit/utils/async/test_async_helpers.py | ✅ Migrated | Moved to yahoofinance/utils/async/ |
-| unit/core/test_rate_limiter.py | ✅ Migrated | Moved to yahoofinance/utils/network/ - potential duplicate with test_rate_limiter.py |
-| test_advanced_utils.py | ✅ Migrated | Moved to yahoofinance/utils/ |
-| test_utils.py | ✅ Migrated | Moved to yahoofinance/utils/ |
-| test_utils_refactor.py | ✅ Migrated | Moved to yahoofinance/utils/ |
+**New import:**
+```python
+from yahoofinance.presentation.console import MarketDisplay
+```
 
-## Presentation Tests
+### Pricing Analysis
 
-| Test File | Status | Notes |
-|-----------|--------|-------|
-| test_display.py | ✅ Migrated | Moved to yahoofinance/presentation/ |
-| test_market_display.py | ✅ Migrated | Moved to yahoofinance/presentation/ |
-| test_templates.py | ✅ Migrated | Moved to yahoofinance/presentation/ |
+**Old import (deprecated):**
+```python
+from yahoofinance.compat.pricing import PricingAnalyzer
+```
 
-## Data Module Tests
+**New import:**
+```python
+from yahoofinance.analysis.market import MarketAnalyzer
+```
 
-| Test File | Status | Notes |
-|-----------|--------|-------|
-| test_download.py | ✅ Migrated | Moved to yahoofinance/data/ |
+## Additional Notes
 
-## Validator Tests
-
-| Test File | Status | Notes |
-|-----------|--------|-------|
-| test_validate.py | ✅ Migrated | Moved to yahoofinance/validators/ |
-
-## Main Module Tests
-
-| Test File | Status | Notes |
-|-----------|--------|-------|
-| test_trade.py | ✅ Migrated | Moved to trade/ directory |
-
-## Other Tests
-
-| Test File | Status | Notes |
-|-----------|--------|-------|
-| test_compatibility.py | ✅ Migrated | Moved to yahoofinance/ root directory |
-| test_improvements.py | ✅ Migrated | Moved to yahoofinance/ root directory |
-
-## Integration Tests
-
-| Test File | Status | Notes |
-|-----------|--------|-------|
-| integration/test_api_integration.py | 🛠️ Fixed | Updated to use compatibility layer for YFinanceClient |
-| integration/test_async_api.py | 🛠️ Fixed | Fixed and enhanced to work with new provider structure |
-| integration/test_circuit_breaker_integration.py | 🔄 In Progress | Some tests still failing, need to fix circuit breaker state persistence |
-
-## End-to-End Tests
-
-| Test File | Status | Notes |
-|-----------|--------|-------|
-| e2e/test_trade_workflows.py | 🛠️ Fixed | Updated to use compatibility layer for MarketDisplay |
-
-## Import Path Changes Needed
-
-Tests need to update import paths to match the new module structure:
-
-| Old Path | New Path |
-|----------|---------|
-| `yahoofinance.display` | `yahoofinance.presentation.console` |
-| `yahoofinance.formatting` | `yahoofinance.presentation.formatter` |
-| `yahoofinance.analyst` | `yahoofinance.analysis.analyst` |
-| `yahoofinance.earnings` | `yahoofinance.analysis.earnings` |
-| `yahoofinance.econ` | `yahoofinance.analysis.market` |
-| `yahoofinance.holders` | `yahoofinance.analysis.portfolio` |
-| `yahoofinance.index` | `yahoofinance.analysis.market` |
-| `yahoofinance.insiders` | `yahoofinance.analysis.insiders` |
-| `yahoofinance.metrics` | `yahoofinance.analysis.metrics` |
-| `yahoofinance.monthly` | `yahoofinance.analysis.performance` |
-| `yahoofinance.news` | `yahoofinance.analysis.news` |
-| `yahoofinance.portfolio` | `yahoofinance.analysis.portfolio` |
-| `yahoofinance.pricing` | `yahoofinance.analysis.stock` |
-| `yahoofinance.weekly` | `yahoofinance.analysis.performance` |
-| `yahoofinance.utils.async.enhanced` | `yahoofinance.utils.async_utils.enhanced` |
-| `yahoofinance.utils.async.helpers` | `yahoofinance.utils.async_utils.helpers` |
-| `yahoofinance.utils.async` | `yahoofinance.utils.async_utils` |
-
-## Class Relocations
-
-Some classes have moved to different modules:
-
-| Old Class | New Location |
-|-----------|-------------|
-| `MarketDisplay` (from `yahoofinance.display`) | `yahoofinance.presentation.console` |
-| `PricingAnalyzer` (from `yahoofinance.display`) | `yahoofinance.analysis.metrics` |
-| `AnalystData` (from `yahoofinance.analyst`) | `yahoofinance.analysis.analyst` |
-| `AdaptiveRateLimiter` | Renamed to `RateLimiter` in `yahoofinance.utils.network.rate_limiter` |
-| `YFinanceClient` | Compatibility version in `yahoofinance.compat.client`, new version in `yahoofinance.core.client` |
-| `StockData` | Added to `yahoofinance.compat.client` for compatibility |
-
-## Legend
-
-- ❌ Not Migrated: Test has not been migrated yet
-- 🔄 In Progress: Migration in progress
-- ✅ Migrated: Test has been migrated to new structure
-- 🛠️ Fixed: Tests have been updated to work with new module structure
-- ⏩ Skipped: Test is skipped with a TODO for future implementation
+- Tests that still use the compatibility layer will continue to work, but should be migrated
+- The migration should be seamless for most use cases as the interfaces remain compatible
+- The provider pattern offers more flexibility and better performance than the old client interface

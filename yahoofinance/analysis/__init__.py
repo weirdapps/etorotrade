@@ -12,8 +12,8 @@ This package contains modules for analyzing financial data including:
 - Backtest: Backtesting and optimization of trading strategies
 """
 
-from .analyst import AnalystData
-from .earnings import EarningsAnalyzer
+from .analyst import AnalystData, CompatAnalystData
+from .earnings import EarningsAnalyzer, EarningsCalendar, format_earnings_table
 from .insiders import InsiderAnalyzer
 from .market import MarketAnalyzer, MarketMetrics, SectorAnalysis
 from .metrics import PricingAnalyzer, PriceTarget, PriceData
@@ -27,9 +27,12 @@ from .backtest import (
 __all__ = [
     # Analyst
     'AnalystData',
+    'CompatAnalystData',  # For compatibility
     
     # Earnings
     'EarningsAnalyzer',
+    'EarningsCalendar',   # For compatibility
+    'format_earnings_table',  # For compatibility
     
     # Insiders
     'InsiderAnalyzer',

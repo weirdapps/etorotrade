@@ -2,7 +2,7 @@ import pytest
 from datetime import datetime, timedelta
 import pandas as pd
 from unittest.mock import Mock, patch
-from yahoofinance.compat.analyst import AnalystData
+from yahoofinance.analysis.analyst import CompatAnalystData
 from yahoofinance.core.config import POSITIVE_GRADES
 from yahoofinance.core.errors import ValidationError, YFinanceError
 
@@ -12,7 +12,7 @@ def mock_client():
 
 @pytest.fixture
 def analyst_data(mock_client):
-    return AnalystData(mock_client)
+    return CompatAnalystData(mock_client)
 
 @pytest.fixture
 def sample_ratings_df():
