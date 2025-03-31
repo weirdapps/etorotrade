@@ -51,9 +51,21 @@ def check_confidence_criteria(row, criteria):
     Returns:
         Boolean indicating if confidence criteria are met
     """
-    # Check analyst and targets count against minimums
-    analyst_count = row.get(ANALYST_COUNT, None)
-    total_ratings = row.get(TOTAL_RATINGS, None)
+    # If row is not already normalized, normalize it
+    # (This enables the function to work whether called directly or through calculate_action_for_row)
+    if not (ANALYST_COUNT in row or TOTAL_RATINGS in row) and ('# T' in row or '# A' in row):
+        # Only normalize if it appears to have display column names but not internal names
+        column_mapping = {
+            '# T': ANALYST_COUNT,
+            '# A': TOTAL_RATINGS
+        }
+        normalized_row = normalize_row_columns(row, column_mapping)
+    else:
+        normalized_row = row
+    
+    # Now extract the analyst counts using the normalized column names
+    analyst_count = normalized_row.get(ANALYST_COUNT)
+    total_ratings = normalized_row.get(TOTAL_RATINGS)
     
     min_analysts = criteria["CONFIDENCE"]["MIN_ANALYST_COUNT"]
     min_targets = criteria["CONFIDENCE"]["MIN_PRICE_TARGETS"]
@@ -343,22 +355,111 @@ def calculate_action_for_row(row, criteria, short_field=DEFAULT_SHORT_FIELD):
     Returns:
         Tuple containing (action, reason)
     """
+    # Create column mapping with proper short interest field
+    column_mapping = {
+        'UPSIDE': UPSIDE,
+        '% BUY': BUY_PERCENTAGE_COL,
+        'BETA': BETA,
+        'PET': PE_TRAILING,
+        'PEF': PE_FORWARD,
+        'PEG': PEG_RATIO,
+        'SI': short_field,
+        '# T': ANALYST_COUNT,
+        '# A': TOTAL_RATINGS
+    }
+    
+    # Normalize row to ensure consistent column names and data types
+    normalized_row = normalize_row_columns(row, column_mapping)
+    
     # Check confidence criteria first
-    if not check_confidence_criteria(row, criteria):
+    if not check_confidence_criteria(normalized_row, criteria):
         return NO_ACTION, MSG_INSUFFICIENT_COVERAGE
     
     # Check SELL criteria (any one can trigger a SELL)
-    is_sell, sell_reason = meets_sell_criteria(row, criteria, short_field)
+    is_sell, sell_reason = meets_sell_criteria(normalized_row, criteria, short_field)
     if is_sell:
         return SELL_ACTION, sell_reason
     
     # Check BUY criteria (all must be met)
-    is_buy, buy_reason = meets_buy_criteria(row, criteria, short_field)
+    is_buy, buy_reason = meets_buy_criteria(normalized_row, criteria, short_field)
     if is_buy:
         return BUY_ACTION, MSG_MEETS_BUY
     
     # Default to HOLD with the reason from buy criteria (if available)
     return HOLD_ACTION, buy_reason if buy_reason else MSG_NO_BUY_SELL
+
+
+def normalize_row_columns(row, column_mapping=None):
+    """
+    Normalize a row's column names and values, handling both uppercase and lowercase column names.
+    
+    Args:
+        row: Dictionary-like object with row data
+        column_mapping: Optional mapping from display columns to internal columns.
+                      If None, a default mapping is used.
+                      
+    Returns:
+        Dictionary with normalized column names and values
+    """
+    if column_mapping is None:
+        # Default mapping from display (uppercase) to internal (lowercase) columns
+        column_mapping = {
+            'UPSIDE': UPSIDE,
+            '% BUY': BUY_PERCENTAGE_COL,
+            'BETA': BETA,
+            'PET': PE_TRAILING,
+            'PEF': PE_FORWARD,
+            'PEG': PEG_RATIO,
+            'SI': DEFAULT_SHORT_FIELD,
+            '# T': ANALYST_COUNT,
+            '# A': TOTAL_RATINGS,
+            'DIV %': 'dividend_yield'
+        }
+    
+    normalized_row = {}
+    
+    # First copy display columns with conversion
+    for display_col, internal_col in column_mapping.items():
+        if display_col in row:
+            value = row[display_col]
+            # Convert percentage strings to numeric values
+            if isinstance(value, str) and '%' in value:
+                try:
+                    value = float(value.replace('%', ''))
+                except (ValueError, TypeError):
+                    value = None
+            # Convert other numeric strings to float
+            elif isinstance(value, str) and display_col in ['BETA', 'PET', 'PEF', 'PEG', '# T', '# A']:
+                try:
+                    value = float(value)
+                except (ValueError, TypeError):
+                    value = None
+            normalized_row[internal_col] = value
+    
+    # Then copy internal columns that don't already exist
+    internal_cols = list(column_mapping.values()) + ['EXRET']
+    for internal_col in internal_cols:
+        if internal_col in row and internal_col not in normalized_row:
+            normalized_row[internal_col] = row[internal_col]
+    
+    # Process EXRET specially
+    if 'EXRET' in row:
+        value = row['EXRET']
+        if isinstance(value, str) and '%' in value:
+            try:
+                value = float(value.replace('%', ''))
+            except (ValueError, TypeError):
+                value = None
+        normalized_row['EXRET'] = value
+    
+    # Calculate EXRET if missing but we have upside and buy_percentage
+    if 'EXRET' not in normalized_row and UPSIDE in normalized_row and BUY_PERCENTAGE_COL in normalized_row:
+        upside = normalized_row[UPSIDE]
+        buy_pct = normalized_row[BUY_PERCENTAGE_COL]
+        if upside is not None and buy_pct is not None:
+            normalized_row['EXRET'] = upside * buy_pct / 100
+    
+    return normalized_row
 
 
 def format_numeric_values(df, numeric_columns):
