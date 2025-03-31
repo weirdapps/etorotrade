@@ -56,6 +56,15 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
         self.max_concurrency = max_concurrency
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_concurrency)
         
+    async def _handle_delay(self, delay: float):
+        """
+        Handle delaying execution for retry logic using asynchronous asyncio.sleep().
+        
+        Args:
+            delay: Delay time in seconds
+        """
+        await asyncio.sleep(delay)
+        
     # These methods are now inherited from YahooFinanceBaseProvider
     
     async def _run_sync_in_executor(self, func: Callable[..., T], *args, **kwargs) -> T:

@@ -37,6 +37,7 @@ class YahooFinanceBaseProvider(abc.ABC):
     Attributes:
         max_retries: Maximum number of retry attempts for API calls
         retry_delay: Base delay in seconds between retries
+        _ticker_cache: Cache of ticker objects to avoid repeated creation
     """
     
     def __init__(self, max_retries: int = 3, retry_delay: float = 1.0):
@@ -49,6 +50,7 @@ class YahooFinanceBaseProvider(abc.ABC):
         """
         self.max_retries = max_retries
         self.retry_delay = retry_delay
+        self._ticker_cache = {}
         
     def _calculate_upside_potential(self, current_price, target_price):
         """
@@ -610,6 +612,8 @@ class YahooFinanceBaseProvider(abc.ABC):
         else:
             # Last attempt failed - raise an error
             raise APIError(f"Failed to get {retry_msg} for {ticker} after {self.max_retries} attempts: {str(exception)}")
+            
+# This method will be added in a future refactoring
 
     # Helper function for rate limit detection that uses the imported function
     def _check_rate_limit_error(self, error: Exception) -> bool:

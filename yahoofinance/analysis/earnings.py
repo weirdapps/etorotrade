@@ -17,6 +17,7 @@ from dataclasses import dataclass
 
 from ..api import get_provider, FinanceDataProvider, AsyncFinanceDataProvider
 from ..core.errors import YFinanceError, ValidationError
+from .base_analysis import BaseAnalysisService
 
 logger = logging.getLogger(__name__)
 
@@ -325,7 +326,7 @@ class EarningsData:
             self.earnings_history = []
 
 
-class EarningsAnalyzer:
+class EarningsAnalyzer(BaseAnalysisService):
     """
     Service for retrieving and analyzing earnings data.
     
@@ -336,20 +337,6 @@ class EarningsAnalyzer:
         provider: Data provider (sync or async)
         is_async: Whether the provider is async or sync
     """
-    
-    def __init__(self, provider: Optional[Union[FinanceDataProvider, AsyncFinanceDataProvider]] = None):
-        """
-        Initialize the EarningsAnalyzer.
-        
-        Args:
-            provider: Data provider (sync or async), if None, a default provider is created
-        """
-        self.provider = provider if provider is not None else get_provider()
-        
-        # Check if the provider is async
-        self.is_async = hasattr(self.provider, 'get_earnings_dates') and \
-                        callable(self.provider.get_earnings_dates) and \
-                        hasattr(self.provider.get_earnings_dates, '__await__')
     
     def get_earnings_data(self, ticker: str) -> EarningsData:
         """
@@ -365,8 +352,7 @@ class EarningsAnalyzer:
             ValidationError: When input validation fails
             YFinanceError: When API call fails
         """
-        if self.is_async:
-            raise TypeError("Cannot use sync method with async provider. Use get_earnings_data_async instead.")
+        self._verify_sync_provider("get_earnings_data_async")
         
         try:
             # Fetch earnings dates
@@ -396,8 +382,7 @@ class EarningsAnalyzer:
             ValidationError: When input validation fails
             YFinanceError: When API call fails
         """
-        if not self.is_async:
-            raise TypeError("Cannot use async method with sync provider. Use get_earnings_data instead.")
+        self._verify_async_provider("get_earnings_data")
         
         try:
             # Fetch earnings dates asynchronously
@@ -427,8 +412,7 @@ class EarningsAnalyzer:
             ValidationError: When input validation fails
             YFinanceError: When API call fails
         """
-        if self.is_async:
-            raise TypeError("Cannot use sync method with async provider. Use get_earnings_batch_async instead.")
+        self._verify_sync_provider("get_earnings_batch_async")
         
         results = {}
         
@@ -455,8 +439,7 @@ class EarningsAnalyzer:
             ValidationError: When input validation fails
             YFinanceError: When API call fails
         """
-        if not self.is_async:
-            raise TypeError("Cannot use async method with sync provider. Use get_earnings_batch instead.")
+        self._verify_async_provider("get_earnings_batch")
         
         import asyncio
         
@@ -595,8 +578,7 @@ class EarningsAnalyzer:
             ValidationError: When input validation fails
             YFinanceError: When API call fails
         """
-        if self.is_async:
-            raise TypeError("Cannot use sync method with async provider. Use calculate_earnings_trend_async instead.")
+        self._verify_sync_provider("calculate_earnings_trend_async")
         
         try:
             # Get earnings data
@@ -624,8 +606,7 @@ class EarningsAnalyzer:
             ValidationError: When input validation fails
             YFinanceError: When API call fails
         """
-        if not self.is_async:
-            raise TypeError("Cannot use async method with sync provider. Use calculate_earnings_trend instead.")
+        self._verify_async_provider("calculate_earnings_trend")
         
         try:
             # Get earnings data asynchronously

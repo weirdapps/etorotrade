@@ -43,7 +43,15 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             retry_delay: Base delay in seconds between retries
         """
         super().__init__(max_retries=max_retries, retry_delay=retry_delay)
-        self._ticker_cache = {}
+        
+    def _handle_delay(self, delay: float):
+        """
+        Handle delaying execution for retry logic using synchronous time.sleep().
+        
+        Args:
+            delay: Delay time in seconds
+        """
+        time.sleep(delay)
     
     @rate_limited
     def get_price_data(self, ticker: str) -> Dict[str, Any]:
