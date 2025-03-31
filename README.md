@@ -4,6 +4,7 @@ A powerful Python-based analysis system that provides actionable trading recomme
 
 ![eToro Trade Analysis Tool](assets/etorotrade.png)
 
+
 ## What's This Tool For?
 
 etoroTRADE helps you:
