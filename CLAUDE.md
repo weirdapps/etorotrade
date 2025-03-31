@@ -474,12 +474,24 @@ All backtest results are saved to the `yahoofinance/output/backtest/` directory.
   - CSS styles for metrics and data visualization
   - JavaScript for dynamic content
 - **Dashboard Types**:
-  - Market dashboard (index.html)
+  - Market dashboard (market.html)
   - Portfolio dashboard (portfolio.html)
+  - Trade reports (buy.html, sell.html, hold.html)
+  - Manual ticker analysis (manual.html)
+- **Standardized Column Order**:
+  - All HTML outputs use the same standardized column order defined in `STANDARD_DISPLAY_COLUMNS`
+  - This ensures consistency across all views (market, portfolio, trades)
+  - The `#` column is always included first, followed by ticker, company name, and metrics
+  - HTML column order matches the console display for consistency
+- **Row Coloring**:
+  - Buy recommendations (ACTION="B") are highlighted with light green background
+  - Sell recommendations (ACTION="S") are highlighted with light red background
+  - Hold recommendations (ACTION="H") use the default background
 - **Update Process**:
   - Data retrieved through API or from CSVs
   - Formatted using FormatUtils for consistent presentation
-  - Inserted into templates
+  - Columns standardized to match `STANDARD_DISPLAY_COLUMNS`
+  - HTML generated with consistent styling and coloring
   - Written to output directory
 
 ## Performance Optimizations
@@ -627,6 +639,14 @@ The codebase has been reorganized to eliminate duplications:
 
 ## Recently Completed Improvements
 
+- **HTML Output Standardization**:
+  - Added standardized column order with `STANDARD_DISPLAY_COLUMNS` for all views
+  - Fixed inconsistent HTML columns between trade commands (t > b/s/h) and other views
+  - Ensured the '#' ranking column is consistently shown as the first column
+  - Improved row coloring for buy/sell/hold recommendations
+  - Reduced debug output by setting appropriate logging levels
+  - Fixed f-string syntax issues in HTML generation
+
 - **Full Provider Integration**:
   - Added provider pattern as the main access method for finance data
   - Updated MarketDisplay class to support both provider and direct client instantiation
@@ -639,6 +659,7 @@ The codebase has been reorganized to eliminate duplications:
   - Added compatibility tests to ensure consistent behavior between client and provider
 
 - **Documentation Updates**:
+  - Enhanced HTML dashboard documentation with column standardization details
   - Created comprehensive async_api.md documentation
   - Included detailed examples for both sync and async usage
   - Added section on creating custom providers
