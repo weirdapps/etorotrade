@@ -18,6 +18,10 @@ import numpy as np
 import yfinance as yf
 import asyncio
 import re
+
+# Configure logging - set to WARNING by default to suppress debug and info messages
+logging.basicConfig(level=logging.CRITICAL, 
+                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 import time
 import datetime
 from tabulate import tabulate
@@ -42,6 +46,13 @@ DIVIDEND_YIELD = 'DIV %'
 COMPANY_NAME = 'COMPANY NAME'
 DISPLAY_BUY_PERCENTAGE = '% BUY'  # Display column name for buy percentage
 
+# Define the standard display columns in the correct order
+STANDARD_DISPLAY_COLUMNS = [
+    '#', 'TICKER', 'COMPANY', 'CAP', 'PRICE', 'TARGET', 'UPSIDE', 
+    '# T', '% BUY', '# A', 'A', 'EXRET', 'BETA', 'PET', 'PEF', 'PEG', 
+    'DIV %', 'SI', 'EARNINGS', 'ACTION'
+]
+
 # Define constants for market types
 PORTFOLIO_SOURCE = 'P'
 MARKET_SOURCE = 'M'
@@ -63,6 +74,10 @@ logging.basicConfig(
 
 # Configure loggers
 logger = logging.getLogger(__name__)
+
+# Set logger levels
+logger.setLevel(logging.CRITICAL)  # Main logger
+logging.getLogger('yahoofinance').setLevel(logging.CRITICAL)  # Yahoo Finance loggers
 
 # Set all loggers to CRITICAL level
 for logger_name in logging.root.manager.loggerDict:
@@ -200,7 +215,11 @@ def filter_sell_candidates(portfolio_df):
     """
     # Import the filter function from v2 analysis
     from yahoofinance.analysis.market import filter_sell_candidates as filter_sell
-    return filter_sell(portfolio_df)
+    
+    logger.debug(f"Filtering sell candidates from DataFrame with columns: {portfolio_df.columns.tolist()}")
+    result = filter_sell(portfolio_df)
+    logger.debug(f"Found {len(result)} sell candidates")
+    return result
 
 def filter_hold_candidates(market_df):
     """Filter hold candidates from market data.
@@ -213,7 +232,11 @@ def filter_hold_candidates(market_df):
     """
     # Import the filter function from v2 analysis
     from yahoofinance.analysis.market import filter_hold_candidates as filter_hold
-    return filter_hold(market_df)
+    
+    logger.debug(f"Filtering hold candidates from DataFrame with columns: {market_df.columns.tolist()}")
+    result = filter_hold(market_df)
+    logger.debug(f"Found {len(result)} hold candidates")
+    return result
 
 def calculate_exret(df):
     """Calculate EXRET (Expected Return) if not already present.
@@ -319,13 +342,24 @@ def get_columns_to_select():
     """Get columns to select for display.
     
     Returns:
-        list: Columns to select
+        list: Columns to select, including both uppercase and lowercase variants
     """
+    # Include both lowercase (internal) and uppercase (display) column names
+    # The _select_and_rename_columns function will only select columns that exist
     return [
+        # Internal names (lowercase)
         'ticker', 'company', 'market_cap', 'price', 'target_price', 'upside', 'analyst_count',
-        'buy_percentage', 'total_ratings', 'A', 'EXRET', 'beta',
+        'buy_percentage', 'total_ratings', 'beta', 
         'pe_trailing', 'pe_forward', 'peg_ratio', 'dividend_yield',
-        'short_percent', 'last_earnings', 'ACTION'  # Include ACTION column
+        'short_percent', 'last_earnings',
+        
+        # Display names (uppercase)
+        'TICKER', 'COMPANY', 'CAP', 'PRICE', 'TARGET', 'UPSIDE', '# T', 
+        '% BUY', '# A', 'A', 'EXRET', 'BETA',
+        'PET', 'PEF', 'PEG', 'DIV %', 'SI', 'EARNINGS', 
+        
+        # Always include the action column in both formats
+        'action', 'ACTION'
     ]
 
 def _create_empty_display_dataframe():
@@ -352,21 +386,52 @@ def _format_company_names(working_df):
     Returns:
         pd.DataFrame: Dataframe with formatted company names
     """
+    # Check for company column in either case
+    company_col = None
+    ticker_col = None
+    
+    # First check for company column
+    if 'company' in working_df.columns:
+        company_col = 'company'
+    elif 'COMPANY' in working_df.columns:
+        company_col = 'COMPANY'
+    
+    # Now check for ticker column
+    if 'ticker' in working_df.columns:
+        ticker_col = 'ticker'
+    elif 'TICKER' in working_df.columns:
+        ticker_col = 'TICKER'
+    
     # Make sure company column exists
-    if 'company' not in working_df.columns:
-        print("Warning: 'company' column not found, using ticker as company name")
-        working_df['company'] = working_df['ticker']
+    if company_col is None:
+        if ticker_col is None:
+            print("Error: Neither 'ticker' nor 'TICKER' column found in dataframe")
+            print(f"Available columns: {working_df.columns.tolist()}")
+            # Create a placeholder company column
+            working_df['company'] = 'UNKNOWN'
+            return working_df
+        
+        logger.debug(f"Neither 'company' nor 'COMPANY' column found, using {ticker_col} as company name")
+        working_df['company'] = working_df[ticker_col]
     
     # Normalize company name to 14 characters for display and convert to ALL CAPS
     try:
-        working_df['company'] = working_df.apply(
-            lambda row: str(row.get('company', '')).upper()[:14] if row.get('company') != row.get('ticker') else "",
-            axis=1
-        )
+        if company_col and ticker_col:
+            # Use proper column names for comparison
+            working_df['company'] = working_df.apply(
+                lambda row: str(row.get(company_col, '')).upper()[:14] if row.get(company_col) != row.get(ticker_col) else "",
+                axis=1
+            )
+        else:
+            # Simple formatting if we don't have both columns
+            working_df['company'] = working_df[company_col].astype(str).str.upper().str[:14]
     except Exception as e:
         print(f"Error formatting company names: {str(e)}")
         # Fallback formatting
-        working_df['company'] = working_df['company'].astype(str).str.upper().str[:14]
+        if company_col:
+            working_df['company'] = working_df[company_col].astype(str).str.upper().str[:14]
+        else:
+            working_df['company'] = 'UNKNOWN'
     
     return working_df
 
@@ -406,11 +471,11 @@ def _add_market_cap_column(working_df):
         working_df['cap'] = working_df['cap_formatted']
     # Format market cap according to size rules
     elif 'market_cap' in working_df.columns:
-        print("Formatting market cap for display...")
+        logger.debug("Formatting market cap for display...")
         # Create cap column as string type to prevent dtype warnings
         working_df['cap'] = working_df['market_cap'].apply(_format_market_cap_value)
     else:
-        print("Warning: No market cap column found for formatting")
+        logger.debug("No market cap column found for formatting")
         working_df['cap'] = "--"  # Default placeholder
     
     return working_df
@@ -424,7 +489,7 @@ def _select_and_rename_columns(working_df):
     Returns:
         pd.DataFrame: Dataframe with selected and renamed columns
     """
-    # Select and rename columns
+    # Get all potential columns to select
     columns_to_select = get_columns_to_select()
     column_mapping = get_column_mapping()
     
@@ -433,18 +498,79 @@ def _select_and_rename_columns(working_df):
     requested_set = set(columns_to_select)
     missing_columns = requested_set - available_set
     if missing_columns:
-        print(f"Warning: Missing requested columns: {', '.join(missing_columns)}")
+        logger.debug(f"Missing columns: {', '.join(missing_columns)}")
     
-    # Select only columns that exist in the dataframe
+    # Select columns that exist in the dataframe
     available_columns = [col for col in columns_to_select if col in working_df.columns]
     if not available_columns:
         print("Error: No requested columns found in dataframe")
+        # Return the original dataframe in this case to prevent data loss
+        print("Preserving original columns for display instead")
         return working_df
         
+    # Create display dataframe with available columns, but ensure we don't have duplicates
+    # First check for duplicates in available_columns
+    if len(available_columns) != len(set(available_columns)):
+        logger.debug("Duplicate columns detected. Removing duplicates...")
+        # Find and remove duplicates - keep only the first occurrence
+        unique_columns = []
+        for col in available_columns:
+            if col not in unique_columns:
+                unique_columns.append(col)
+        available_columns = unique_columns
+        
+    # Now create the dataframe with unique columns
     display_df = working_df[available_columns].copy()
     
-    # Rename columns according to mapping
-    display_df.rename(columns={col: column_mapping[col] for col in available_columns if col in column_mapping}, inplace=True)
+    # Create a more selective mapping dict that only includes columns we need to rename
+    # and excludes display names that should remain the same
+    display_names = {'TICKER', 'COMPANY', 'CAP', 'PRICE', 'TARGET', 'UPSIDE', '# T', 
+                    '% BUY', '# A', 'A', 'EXRET', 'BETA', 'PET', 'PEF', 'PEG', 
+                    'DIV %', 'SI', 'EARNINGS', 'ACTION'}
+    
+    # Only rename columns that are NOT already in display format
+    columns_to_rename = {col: column_mapping[col] for col in available_columns 
+                         if col in column_mapping and col not in display_names}
+    
+    # Rename columns
+    if columns_to_rename:
+        display_df.rename(columns=columns_to_rename, inplace=True)
+    
+    # Check if we have enough columns for meaningful display (at least ticker and one data column)
+    if len(display_df.columns) < 2:
+        logger.debug("Very few columns selected. Adding remaining columns to ensure useful display.")
+        # Add any important columns that might be missing
+        for col in working_df.columns:
+            if col not in display_df.columns:
+                display_df[col] = working_df[col]
+    
+    # Final check for duplicate columns after renaming
+    if len(display_df.columns) != len(set(display_df.columns)):
+        logger.debug("Duplicate columns found after renaming. Removing duplicates...")
+        
+        # First remove any duplicate columns (keep first occurrence)
+        display_df = display_df.loc[:, ~display_df.columns.duplicated()]
+        
+        # Use the standard display columns defined at the top of the file
+        standard_columns = STANDARD_DISPLAY_COLUMNS.copy()
+        
+        # Check which standard columns are available
+        available_cols = [col for col in standard_columns if col in display_df.columns]
+        
+        # If we have most of the standard columns, reorder them
+        if len(available_cols) >= 10:  # Arbitrary threshold - we want most standard columns
+            # Get other columns that are not in the standard list but exist in the dataframe
+            other_cols = [col for col in display_df.columns if col not in standard_columns]
+            
+            # Create a new column order with standard columns first, then others
+            new_order = [col for col in standard_columns if col in display_df.columns] + other_cols
+            
+            # Reindex the dataframe with the new column order
+            display_df = display_df[new_order]
+            logger.debug(f"Reordered columns to standard format")
+        
+        return display_df
+    
     return display_df
 
 def prepare_display_dataframe(df):
@@ -458,15 +584,18 @@ def prepare_display_dataframe(df):
     """
     # Check if dataframe is empty
     if df.empty:
-        print("Warning: Empty dataframe passed to prepare_display_dataframe")
+        logger.warning("Empty dataframe passed to prepare_display_dataframe")
         return _create_empty_display_dataframe()
+    
+    # Print input column names for debugging
+    logger.debug(f"Input columns: {df.columns.tolist()}")
     
     # Create a copy to avoid modifying the original
     working_df = df.copy()
     
     # Add concise debug log for input size
     if len(working_df) > 1000:
-        print(f"Formatting {len(working_df)} rows for display...")
+        logger.debug(f"Formatting {len(working_df)} rows")
     
     # Format company names
     working_df = _format_company_names(working_df)
@@ -480,11 +609,16 @@ def prepare_display_dataframe(df):
     # Select and rename columns
     display_df = _select_and_rename_columns(working_df)
     
+    # Ensure all standard display columns are available
+    for column in STANDARD_DISPLAY_COLUMNS:
+        if column not in display_df.columns and column != '#':  # Skip # column which is added later
+            display_df[column] = '--'  # Add missing columns with placeholder
+    
     # Check if we have any rows left
     if display_df.empty:
-        print("Warning: Display DataFrame is empty after column selection")
+        logger.warning("Display DataFrame is empty after column selection")
     else:
-        print(f"Successfully created display DataFrame with {len(display_df)} rows and {len(display_df.columns)} columns")
+        logger.debug(f"Created display DataFrame: {len(display_df)} rows, {len(display_df.columns)} columns")
     
     return display_df
 
@@ -501,18 +635,55 @@ def format_numeric_columns(display_df, columns, format_str):
     """
     for col in columns:
         if col in display_df.columns:
+            # Convert column to proper numeric format first
+            try:
+                # Try to convert to numeric, but keep original if it fails
+                numeric_col = pd.to_numeric(display_df[col], errors='coerce')
+                # Replace the column only if conversion was successful
+                display_df[col] = numeric_col.where(numeric_col.notna(), display_df[col])
+            except:
+                # Just continue with the original values
+                pass
+                
             # Check if format string contains a percentage sign
             if format_str.endswith('%'):
                 # Handle percentage format separately
                 base_format = format_str.rstrip('%')
-                display_df[col] = display_df[col].apply(
-                    lambda x, fmt=base_format: f"{x:{fmt}}%" if pd.notnull(x) else "--"
-                )
+                # Use a safer formatting function
+                def safe_pct_format(x, fmt=base_format):
+                    if pd.isnull(x) or x == "--":
+                        return "--"
+                    try:
+                        if isinstance(x, (int, float)):
+                            return f"{float(x):{fmt}}%"
+                        elif isinstance(x, str):
+                            # Remove percentage sign if present
+                            clean_x = x.replace('%', '').strip()
+                            if clean_x and clean_x != "--":
+                                return f"{float(clean_x):{fmt}}%"
+                    except:
+                        pass
+                    return str(x)  # Return original as string if all else fails
+                
+                display_df[col] = display_df[col].apply(safe_pct_format)
             else:
-                # Regular format
-                display_df[col] = display_df[col].apply(
-                    lambda x: f"{x:{format_str}}" if pd.notnull(x) else "--"
-                )
+                # Regular format with safety
+                def safe_num_format(x, fmt=format_str):
+                    if pd.isnull(x) or x == "--":
+                        return "--"
+                    try:
+                        if isinstance(x, (int, float)):
+                            return f"{float(x):{fmt}}"
+                        elif isinstance(x, str):
+                            # Remove percentage and comma if present
+                            clean_x = x.replace('%', '').replace(',', '').strip()
+                            if clean_x and clean_x != "--":
+                                return f"{float(clean_x):{fmt}}"
+                    except:
+                        pass
+                    return str(x)  # Return original as string if all else fails
+                
+                display_df[col] = display_df[col].apply(safe_num_format)
     return display_df
 
 def _is_empty_date(date_str):
@@ -843,21 +1014,53 @@ def _check_sell_criteria(upside, buy_pct, pef, si, beta, criteria):
     Returns:
         bool: True if security meets SELL criteria, False otherwise
     """
-    # 1. Upside too low
-    if upside < criteria["MAX_UPSIDE"]:
-        return True
-    # 2. Buy percentage too low
-    if buy_pct < criteria["MIN_BUY_PERCENTAGE"]:
-        return True
-    # 3. PEF too high
-    if pef != '--' and pef > criteria["MAX_FORWARD_PE"]:
-        return True
-    # 4. SI too high
-    if si != '--' and si > criteria["MAX_SHORT_INTEREST"]:
-        return True
-    # 5. Beta too high
-    if beta != '--' and beta > criteria["MAX_BETA"]:
-        return True
+    try:
+        # Ensure we're working with numeric values
+        upside_val = float(upside) if upside is not None and upside != '--' else 0
+        buy_pct_val = float(buy_pct) if buy_pct is not None and buy_pct != '--' else 0
+        
+        # 1. Upside too low
+        if upside_val < criteria["MAX_UPSIDE"]:
+            return True
+        # 2. Buy percentage too low
+        if buy_pct_val < criteria["MIN_BUY_PERCENTAGE"]:
+            return True
+            
+        # Handle potentially non-numeric fields
+        # 3. PEF too high - Only check if PEF is valid and not '--'
+        if pef is not None and pef != '--':
+            try:
+                pef_val = float(pef)
+                if pef_val > criteria["MAX_FORWARD_PE"]:
+                    return True
+            except (ValueError, TypeError):
+                pass  # Skip this criterion if conversion fails
+            
+        # 4. SI too high - Only check if SI is valid and not '--'
+        if si is not None and si != '--':
+            try:
+                si_val = float(si)
+                if si_val > criteria["MAX_SHORT_INTEREST"]:
+                    return True
+            except (ValueError, TypeError):
+                pass  # Skip this criterion if conversion fails
+            
+        # 5. Beta too high - Only check if Beta is valid and not '--'
+        if beta is not None and beta != '--':
+            try:
+                beta_val = float(beta)
+                if beta_val > criteria["MAX_BETA"]:
+                    return True
+            except (ValueError, TypeError):
+                pass  # Skip this criterion if conversion fails
+                
+    except (ValueError, TypeError) as e:
+        # If any error occurs in the main criteria checks, log it
+        print(f"Error in _check_sell_criteria: {e}")
+        print(f"Values: upside={upside}, buy_pct={buy_pct}, pef={pef}, si={si}, beta={beta}")
+        # Default to False if we can't properly evaluate
+        return False
+        
     return False
 
 def _check_buy_criteria(upside, buy_pct, beta, si, criteria):
@@ -873,19 +1076,51 @@ def _check_buy_criteria(upside, buy_pct, beta, si, criteria):
     Returns:
         bool: True if security meets BUY criteria, False otherwise
     """
-    # 1. Sufficient upside
-    if upside < criteria["MIN_UPSIDE"]:
+    try:
+        # Ensure we're working with numeric values for the main criteria
+        upside_val = float(upside) if upside is not None and upside != '--' else 0
+        buy_pct_val = float(buy_pct) if buy_pct is not None and buy_pct != '--' else 0
+        
+        # 1. Sufficient upside
+        if upside_val < criteria["MIN_UPSIDE"]:
+            return False
+            
+        # 2. Sufficient buy percentage
+        if buy_pct_val < criteria["MIN_BUY_PERCENTAGE"]:
+            return False
+            
+        # 3. Beta in range (required criterion)
+        beta_in_range = False
+        if beta is not None and beta != '--':
+            try:
+                beta_val = float(beta)
+                if beta_val > criteria["MIN_BETA"] and beta_val <= criteria["MAX_BETA"]:
+                    beta_in_range = True
+                else:
+                    return False  # Beta out of range
+            except (ValueError, TypeError):
+                return False  # Required criterion missing or invalid
+        else:
+            return False  # Required criterion missing
+            
+        # 4. Short interest not too high (if available)
+        if si is not None and si != '--':
+            try:
+                si_val = float(si)
+                if si_val > criteria["MAX_SHORT_INTEREST"]:
+                    return False
+            except (ValueError, TypeError):
+                pass  # Skip this secondary criterion if invalid
+                
+        # All criteria passed
+        return True
+        
+    except (ValueError, TypeError) as e:
+        # If any error occurs in the main criteria checks, log it
+        print(f"Error in _check_buy_criteria: {e}")
+        print(f"Values: upside={upside}, buy_pct={buy_pct}, beta={beta}, si={si}")
+        # Default to False if we can't properly evaluate
         return False
-    # 2. Sufficient buy percentage
-    if buy_pct < criteria["MIN_BUY_PERCENTAGE"]:
-        return False
-    # 3. Beta in range
-    if beta == '--' or beta <= criteria["MIN_BETA"] or beta > criteria["MAX_BETA"]:
-        return False
-    # 4. Short interest not too high
-    if si != '--' and si > criteria["MAX_SHORT_INTEREST"]:
-        return False
-    return True
 
 def _prepare_csv_dataframe(display_df):
     """Prepare dataframe for CSV export.
@@ -899,16 +1134,36 @@ def _prepare_csv_dataframe(display_df):
     # Add extra columns for CSV output
     csv_df = display_df.copy()
     
+    # Ensure all standard display columns are available
+    for column in STANDARD_DISPLAY_COLUMNS:
+        if column not in csv_df.columns and column != '#':  # Skip # column which is added later
+            csv_df[column] = '--'  # Add missing columns with placeholder
+    
+    # Reorder the columns to match the standard display order
+    standard_columns = STANDARD_DISPLAY_COLUMNS.copy()
+    
+    # Get columns that are available in both standard list and dataframe
+    available_cols = [col for col in standard_columns if col in csv_df.columns]
+    
+    # Get any other columns in the dataframe not in the standard list
+    # But exclude the extra SI-related columns we add later to avoid duplicates
+    other_cols = [col for col in csv_df.columns if col not in standard_columns 
+                 and col not in ['% SI', 'SI_value']]
+    
     # Add ranking column to CSV output
     csv_df = _add_ranking_column(csv_df)
     
-    # Add % SI column (same as SI but explicitly named for clarity in CSV)
+    # Add % SI column for CSV only (same as SI but explicitly named for clarity)
     if 'SI' in csv_df.columns:
         csv_df['% SI'] = csv_df['SI']
         
-    # Add SI column (no percentage symbol)
+    # Add SI_value column for CSV only (no percentage symbol)
     if 'SI' in csv_df.columns:
         csv_df['SI_value'] = csv_df['SI'].apply(_clean_si_value)
+    
+    # Reorder the columns - standard columns first, then others
+    if len(available_cols) > 0:
+        csv_df = csv_df[available_cols + other_cols]
         
     return csv_df
 
@@ -951,6 +1206,19 @@ def display_and_save_results(display_df, title, output_file):
     # Add ranking column
     colored_df = _add_ranking_column(colored_df)
     
+    # Reorder the columns to match the standard display order
+    standard_columns = STANDARD_DISPLAY_COLUMNS.copy()
+    
+    # Get columns that are available in both standard list and dataframe
+    available_cols = [col for col in standard_columns if col in colored_df.columns]
+    
+    # Get any other columns in the dataframe not in the standard list
+    other_cols = [col for col in colored_df.columns if col not in standard_columns]
+    
+    # Reorder the columns - standard columns first, then others
+    if len(available_cols) > 0:
+        colored_df = colored_df[available_cols + other_cols]
+    
     # Get column alignments for display
     colalign = ['right'] + get_column_alignments(display_df)
     
@@ -980,11 +1248,23 @@ def display_and_save_results(display_df, title, output_file):
         output_dir = os.path.dirname(output_file)
         base_filename = os.path.splitext(os.path.basename(output_file))[0]
         
+        # Make sure the dataframe has the ranking column before converting to dict
+        if '#' not in csv_df.columns:
+            csv_df = _add_ranking_column(csv_df)
+            
         # Convert dataframe to list of dictionaries for HTMLGenerator
         stocks_data = csv_df.to_dict(orient='records')
         
-        # Get the list of columns in the order they appear in the dataframe
-        column_order = list(csv_df.columns)
+        # Use the standardized column order for HTML - ONLY standard columns
+        column_order = [col for col in STANDARD_DISPLAY_COLUMNS if col in csv_df.columns]
+        
+        # Make sure the '#' column comes first
+        if '#' in column_order and column_order[0] != '#':
+            column_order.remove('#')
+            column_order.insert(0, '#')
+        
+        # Exclude the % SI and SI_value columns from HTML to match other views
+        # These are only needed for CSV export
         
         # Create HTML generator and generate HTML file
         html_generator = HTMLGenerator(output_dir=output_dir)
@@ -1005,9 +1285,16 @@ def create_empty_results_file(output_file):
     Args:
         output_file: Path to the output file
     """
-    empty_df = pd.DataFrame(columns=['#', 'TICKER', 'COMPANY', 'CAP', 'PRICE', 'TARGET', 'UPSIDE', '# T', 
-                         BUY_PERCENTAGE, '# A', 'A', 'EXRET', 'BETA', 'PET', 'PEF', 
-                         'PEG', DIVIDEND_YIELD, 'SI', '% SI', 'SI_value', 'EARNINGS'])
+    # Use the standardized column order for consistency
+    columns = STANDARD_DISPLAY_COLUMNS.copy()
+    
+    # Add additional columns used in CSV export
+    if 'SI' in columns and '% SI' not in columns:
+        columns.append('% SI')
+    if 'SI' in columns and 'SI_value' not in columns:
+        columns.append('SI_value')
+        
+    empty_df = pd.DataFrame(columns=columns)
     
     # Save to CSV
     empty_df.to_csv(output_file, index=False)
@@ -1021,16 +1308,36 @@ def create_empty_results_file(output_file):
         output_dir = os.path.dirname(output_file)
         base_filename = os.path.splitext(os.path.basename(output_file))[0]
         
+        # Create a dummy row to ensure HTML is generated
+        dummy_row = {col: '--' for col in empty_df.columns}
+        if 'TICKER' in dummy_row:
+            dummy_row['TICKER'] = 'NO_RESULTS'
+        if 'COMPANY' in dummy_row:
+            dummy_row['COMPANY'] = 'NO RESULTS FOUND'
+        if 'ACTION' in dummy_row:
+            dummy_row['ACTION'] = 'H'  # Default action
+        
+        # Add the dummy row to the empty DataFrame
+        empty_df = pd.DataFrame([dummy_row], columns=empty_df.columns)
+        
         # Convert dataframe to list of dictionaries for HTMLGenerator
         stocks_data = empty_df.to_dict(orient='records')
         
         # Create HTML generator and generate empty HTML file
         html_generator = HTMLGenerator(output_dir=output_dir)
+        
+        # Use only standard columns for HTML display
+        html_columns = [col for col in STANDARD_DISPLAY_COLUMNS if col in empty_df.columns or col == '#']
+        
+        # Make sure the '#' column is always there (it gets added by the _add_ranking_column function)
+        if '#' not in html_columns:
+            html_columns.insert(0, '#')
+        
         html_path = html_generator.generate_stock_table(
             stocks_data=stocks_data,
-            title=f"No results found for {base_filename}",
+            title=f"No results found for {base_filename.title()}",
             output_filename=base_filename,
-            include_columns=list(empty_df.columns)
+            include_columns=html_columns
         )
         if html_path:
             print(f"Empty HTML dashboard created at {html_path}")
@@ -1093,8 +1400,10 @@ def _filter_notrade_tickers(opportunities_df, notrade_path):
             if ticker_column:
                 notrade_tickers = set(notrade_df[ticker_column].str.upper())
                 if notrade_tickers:
+                    # First check which column name exists in filtered_df: 'ticker' or 'TICKER'
+                    filtered_ticker_col = 'TICKER' if 'TICKER' in filtered_df.columns else 'ticker'
                     # Filter out no-trade stocks
-                    filtered_df = filtered_df[~filtered_df['ticker'].str.upper().isin(notrade_tickers)]
+                    filtered_df = filtered_df[~filtered_df[filtered_ticker_col].str.upper().isin(notrade_tickers)]
                     logger.info(f"Excluded {len(notrade_tickers)} stocks from notrade.csv")
         except Exception as e:
             logger.error(f"Error reading notrade.csv: {str(e)}")
@@ -1120,15 +1429,51 @@ def _format_market_caps_in_display_df(display_df, opportunities_df):
     # Use V2 formatter
     formatter = DisplayFormatter()
     
+    # Check for ticker column in original dataframe
+    orig_ticker_col = None
+    if 'ticker' in opportunities_df.columns:
+        orig_ticker_col = 'ticker'
+    elif 'TICKER' in opportunities_df.columns:
+        orig_ticker_col = 'TICKER'
+    
+    # Check for market cap column in original dataframe
+    orig_cap_col = None
+    if 'market_cap' in opportunities_df.columns:
+        orig_cap_col = 'market_cap'
+    elif 'CAP' in opportunities_df.columns:
+        orig_cap_col = 'CAP'
+        
+    # If we can't find either column, return the display_df unmodified
+    if orig_ticker_col is None:
+        logger.debug(f"No ticker column found in opportunities dataframe. Cannot format market caps.")
+        logger.debug(f"Available columns in opportunities df: {opportunities_df.columns.tolist()}")
+        return display_df
+        
+    if orig_cap_col is None:
+        logger.debug(f"No market cap column found in opportunities dataframe")
+        return display_df
+    
+    # Check if TICKER column exists in display dataframe
+    if 'TICKER' not in display_df.columns:
+        logger.debug(f"No TICKER column in display dataframe. Cannot format market caps.")
+        return display_df
+    
     # First get the raw market cap value from the original dataframe
     for idx, row in display_df.iterrows():
         ticker = row['TICKER']
+        
         # Find the corresponding market cap in the original dataframe
-        if ticker in opportunities_df['ticker'].values:
-            orig_row = opportunities_df[opportunities_df['ticker'] == ticker].iloc[0]
-            if 'market_cap' in orig_row and not pd.isna(orig_row['market_cap']):
-                # Format the market cap value properly
-                display_df.at[idx, 'CAP'] = formatter.format_market_cap(orig_row['market_cap'])
+        if ticker in opportunities_df[orig_ticker_col].values:
+            orig_row = opportunities_df[opportunities_df[orig_ticker_col] == ticker].iloc[0]
+            
+            if orig_cap_col in orig_row and not pd.isna(orig_row[orig_cap_col]):
+                try:
+                    # Format the market cap value properly
+                    cap_value = orig_row[orig_cap_col]
+                    if isinstance(cap_value, (int, float)):
+                        display_df.at[idx, 'CAP'] = formatter.format_market_cap(cap_value)
+                except Exception as e:
+                    print(f"Error formatting market cap for {ticker}: {e}")
     
     return display_df
 
@@ -1147,19 +1492,22 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_
     # Get buy opportunities with risk management priority
     buy_opportunities = filter_risk_first_buy_opportunities(market_df)
     
+    # First check which column name exists: 'ticker' or 'TICKER'
+    ticker_col = 'TICKER' if 'TICKER' in buy_opportunities.columns else 'ticker'
     # Filter out stocks already in portfolio
-    new_opportunities = buy_opportunities[~buy_opportunities['ticker'].str.upper().isin(portfolio_tickers)]
+    new_opportunities = buy_opportunities[~buy_opportunities[ticker_col].str.upper().isin(portfolio_tickers)]
     
     # Filter out stocks in notrade.csv if file exists
     new_opportunities, _ = _filter_notrade_tickers(new_opportunities, notrade_path)
     
     # Sort by ticker (ascending) as requested
     if not new_opportunities.empty:
-        new_opportunities = new_opportunities.sort_values('ticker', ascending=True)
+        # Use the same ticker_col that we determined earlier
+        new_opportunities = new_opportunities.sort_values(ticker_col, ascending=True)
     
     # Handle empty results case
     if new_opportunities.empty:
-        print("\nNo new buy opportunities found matching criteria.")
+        logger.info("No new buy opportunities found matching criteria.")
         output_file = os.path.join(output_dir, BUY_CSV)
         create_empty_results_file(output_file)
         return
@@ -1174,8 +1522,13 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_
     # Apply display formatting
     display_df = format_display_dataframe(display_df)
     
-    # Sort by TICKER (ascending) as requested
-    display_df = display_df.sort_values('TICKER', ascending=True)
+    # Sort by ticker column if possible, otherwise by row number
+    if 'TICKER' in display_df.columns:
+        # Sort by ticker column (ascending)
+        display_df = display_df.sort_values('TICKER', ascending=True)
+    elif '#' in display_df.columns:
+        # Sort by row number as fallback
+        display_df = display_df.sort_values('#', ascending=True)
     
     # Display and save results
     output_file = os.path.join(output_dir, BUY_CSV)
@@ -1184,6 +1537,35 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_
         "New Buy Opportunities (not in current portfolio or notrade list)", 
         output_file
     )
+
+def _convert_percentage_columns(df):
+    """Convert percentage strings to numeric values.
+    
+    Args:
+        df: DataFrame with potential percentage columns
+        
+    Returns:
+        DataFrame with numeric values
+    """
+    # Make a copy to avoid modifying the original
+    result_df = df.copy()
+    
+    # List of columns that might contain percentage values
+    pct_columns = ['UPSIDE', 'upside', '% BUY', 'buy_percentage', 'EXRET', 'exret', 
+                  'SI', 'short_float_pct', 'DIV %']
+    
+    for col in pct_columns:
+        if col in result_df.columns:
+            try:
+                # Convert percentage strings to numeric values
+                result_df[col] = pd.to_numeric(
+                    result_df[col].astype(str).str.replace('%', ''), 
+                    errors='coerce'
+                )
+            except Exception as err:
+                logger.debug(f"Could not convert {col} column to numeric: {err}")
+    
+    return result_df
 
 def _load_portfolio_data(output_dir):
     """Load portfolio data from CSV file.
@@ -1203,7 +1585,13 @@ def _load_portfolio_data(output_dir):
     
     try:
         # Read portfolio analysis data
-        return pd.read_csv(portfolio_output_path)
+        portfolio_df = pd.read_csv(portfolio_output_path)
+        
+        # Convert percentage strings to numeric
+        portfolio_df = _convert_percentage_columns(portfolio_df)
+        
+        print(f"Loaded {len(portfolio_df)} portfolio ticker records")
+        return portfolio_df
     except Exception as e:
         print(f"Error reading portfolio data: {str(e)}")
         return None
@@ -1245,8 +1633,13 @@ def process_sell_candidates(output_dir):
     # Apply general formatting
     display_df = format_display_dataframe(display_df)
     
-    # Sort by TICKER (ascending) as requested
-    display_df = display_df.sort_values('TICKER', ascending=True)
+    # Sort by ticker column if possible, otherwise by row number
+    if 'TICKER' in display_df.columns:
+        # Sort by ticker column (ascending)
+        display_df = display_df.sort_values('TICKER', ascending=True)
+    elif '#' in display_df.columns:
+        # Sort by row number as fallback
+        display_df = display_df.sort_values('#', ascending=True)
     
     # Display and save results
     output_file = os.path.join(output_dir, SELL_CSV)
@@ -1272,7 +1665,13 @@ def _load_market_data(market_path):
     
     try:
         # Read market analysis data
-        return pd.read_csv(market_path)
+        market_df = pd.read_csv(market_path)
+        
+        # Convert percentage strings to numeric
+        market_df = _convert_percentage_columns(market_df)
+        
+        print(f"Loaded {len(market_df)} market ticker records")
+        return market_df
     except Exception as e:
         print(f"Error reading market data: {str(e)}")
         return None
@@ -1316,6 +1715,7 @@ def process_hold_candidates(output_dir):
     
     # Get hold candidates
     hold_candidates = filter_hold_candidates(market_df)
+    logger.info(f"Found {len(hold_candidates)} hold candidates")
     
     if hold_candidates.empty:
         _process_empty_hold_candidates(output_dir)
@@ -1330,8 +1730,13 @@ def process_hold_candidates(output_dir):
     # Apply general formatting
     display_df = format_display_dataframe(display_df)
     
-    # Sort by TICKER (ascending) as requested
-    display_df = display_df.sort_values('TICKER', ascending=True)
+    # Sort by ticker column if possible, otherwise by row number
+    if 'TICKER' in display_df.columns:
+        # Sort by ticker column (ascending)
+        display_df = display_df.sort_values('TICKER', ascending=True)
+    elif '#' in display_df.columns:
+        # Sort by row number as fallback
+        display_df = display_df.sort_values('#', ascending=True)
     
     # Display and save results
     output_file = os.path.join(output_dir, HOLD_CSV)
@@ -1437,7 +1842,7 @@ def _extract_portfolio_tickers(portfolio_df):
     # Get portfolio tickers
     try:
         portfolio_tickers = set(portfolio_df[ticker_column].str.upper())
-        print(f"Found {len(portfolio_tickers)} unique tickers in portfolio")
+        logger.debug(f"Found {len(portfolio_tickers)} unique tickers in portfolio")
         return portfolio_tickers
     except Exception as e:
         logger.error(f"Error extracting portfolio tickers: {str(e)}")
@@ -2277,14 +2682,14 @@ def _prepare_market_caps(result_df):
     
     # Add a direct format for market cap in the result dataframe
     if 'market_cap' in df.columns:
-        print("Formatting market cap values...")
+        logger.debug("Formatting market cap values")
         # Create a direct CAP column in the source dataframe
         df['cap_formatted'] = df['market_cap'].apply(
             # Use a proper function to format market cap instead of nested conditionals
             lambda mc: _format_market_cap_value(mc)
         )
     else:
-        print("Warning: 'market_cap' column not found in result data")
+        logger.warning("'market_cap' column not found in result data")
         # Add a placeholder column to avoid errors
         df['cap_formatted'] = "--"
     
@@ -2703,16 +3108,58 @@ def display_report_for_source(display, tickers, source, verbose=False):
                 stocks_data = clean_df.to_dict(orient='records')
                 
                 # Create HTML generator and generate HTML file
-                html_generator = HTMLGenerator(output_dir=output_dir)
-                html_path = html_generator.generate_stock_table(
-                    stocks_data=stocks_data,
-                    title=report_title,
-                    output_filename=base_filename
-                )
+                logger.info("Starting HTML generation...")
+                
+                try:
+                    # Measure timing
+                    import time
+                    start_time = time.time()
+                    
+                    html_generator = HTMLGenerator(output_dir=output_dir)
+                    # Ensure the output directory exists
+                    os.makedirs(output_dir, exist_ok=True)
+                    logger.debug(f"Using output directory: {output_dir}")
+                    
+                    # Use the standard column order for consistent display
+                    column_list = [col for col in STANDARD_DISPLAY_COLUMNS if col in clean_df.columns]
+                    
+                    # Add any additional columns that might not be in the standard list
+                    extra_cols = [col for col in clean_df.columns if col not in STANDARD_DISPLAY_COLUMNS]
+                    if extra_cols:
+                        column_list.extend(extra_cols)
+                        
+                    logger.debug(f"HTML generation for {base_filename} with {len(stocks_data)} records")
+                    
+                    # Convert any None or NaN values to strings to avoid issues
+                    for record in stocks_data:
+                        for key, value in list(record.items()):
+                            if value is None or (pd.isna(value) if hasattr(pd, 'isna') else False):
+                                record[key] = "--"
+                    
+                    # Generate the HTML table
+                    html_path = html_generator.generate_stock_table(
+                        stocks_data=stocks_data,
+                        title=report_title,
+                        output_filename=base_filename,
+                        include_columns=column_list  # Explicitly provide columns
+                    )
+                    
+                    elapsed = time.time() - start_time
+                    logger.debug(f"HTML generation completed in {elapsed:.2f} seconds")
+                    
+                except Exception as e:
+                    print(f"Error during HTML generation: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
+                    raise e
                 if html_path:
-                    print(f"HTML dashboard saved to {html_path}")
+                    logger.info(f"HTML dashboard saved to {html_path}")
             except Exception as e:
                 print(f"Failed to generate HTML: {str(e)}")
+                # Add detailed error information
+                import traceback
+                print(f"Detailed error information:")
+                traceback.print_exc()
         except Exception as e:
             # Fallback if tabulate fails
             print(f"Error displaying table: {str(e)}")
@@ -2725,6 +3172,403 @@ def display_report_for_source(display, tickers, source, verbose=False):
         logger.error(f"Error processing numeric values: {str(e)}")
     except Exception as e:
         logger.error(f"Error displaying report: {str(e)}", exc_info=True)
+    
+    # Generate HTML for all source types
+    try:
+        # Always generate a fresh HTML file
+        logger.debug("Generating fresh HTML file")
+        
+        # Load the data from the CSV file that was just created
+        result_df = pd.read_csv(output_file)
+        
+        # Format the dataframe for better display
+        from yahoofinance.presentation.formatter import DisplayFormatter
+        formatter = DisplayFormatter()
+        
+        from yahoofinance.presentation.html import HTMLGenerator
+        
+        # Get output directory and base filename
+        output_dir = os.path.dirname(output_file)
+        base_filename = os.path.splitext(os.path.basename(output_file))[0]
+        
+        # Ensure we have valid data to work with
+        if not result_df.empty:
+            # Process data for display consistency
+            clean_df = result_df.copy()
+            
+            # Make sure we have the same columns as console display
+            display_columns = get_columns_to_select()
+            column_mapping = get_column_mapping()
+            
+            # Rename columns to match display format
+            clean_df.rename(columns={col: column_mapping.get(col, col) for col in clean_df.columns 
+                                    if col in column_mapping}, inplace=True)
+            
+            # Format numeric values for consistency
+            try:
+                # Format percentage columns with % symbol
+                for col in ['UPSIDE', 'SI', 'EXRET']:
+                    if col in clean_df.columns:
+                        clean_df[col] = clean_df[col].apply(
+                            lambda x: f"{float(x):.1f}%" if isinstance(x, (int, float)) or 
+                            (isinstance(x, str) and x.replace('.', '', 1).replace('-', '', 1).isdigit()) else x
+                        )
+                
+                # Format buy percentage with 0 decimal places and % symbol
+                if BUY_PERCENTAGE in clean_df.columns:
+                    clean_df[BUY_PERCENTAGE] = clean_df[BUY_PERCENTAGE].apply(
+                        lambda x: f"{float(x):.0f}%" if isinstance(x, (int, float)) or 
+                        (isinstance(x, str) and x.replace('.', '', 1).isdigit()) else x
+                    )
+                
+                # Format price columns with 1 decimal place
+                for col in ['PRICE', 'TARGET', 'BETA', 'PET', 'PEF', 'PEG']:
+                    if col in clean_df.columns:
+                        clean_df[col] = clean_df[col].apply(
+                            lambda x: f"{float(x):.1f}" if isinstance(x, (int, float)) or 
+                            (isinstance(x, str) and x.replace('.', '', 1).replace('-', '', 1).isdigit()) else x
+                        )
+            except Exception as e:
+                print(f"Warning: Error formatting numeric values: {str(e)}")
+            
+            # Add ranking column if not present
+            if '#' not in clean_df.columns:
+                clean_df.insert(0, '#', range(1, len(clean_df) + 1))
+            
+            # Convert dataframe to list of dictionaries for HTMLGenerator
+            stocks_data = clean_df.to_dict(orient='records')
+            
+            # Clean up any None/NaN values and apply appropriate coloring
+            for record in stocks_data:
+                for key, value in list(record.items()):
+                    if value is None or (pd.isna(value) if hasattr(pd, 'isna') else False):
+                        record[key] = "--"
+                
+                # Add action if not already present (for color coding)
+                if 'ACTION' not in record:
+                    try:
+                        # More comprehensive action calculation using utils.trade_criteria
+                        from yahoofinance.utils.trade_criteria import calculate_action_for_row
+                        from yahoofinance.core.config import TRADING_CRITERIA
+                        
+                        # Create a row dictionary with the correct field names expected by calculate_action_for_row
+                        criteria_row = {}
+                        
+                        # Map record keys to the expected column names in trade_criteria
+                        field_mapping = {
+                            'UPSIDE': 'upside',
+                            BUY_PERCENTAGE: 'buy_percentage',
+                            'BETA': 'beta',
+                            'PET': 'pe_trailing',
+                            'PEF': 'pe_forward',
+                            'PEG': 'peg_ratio',
+                            'SI': 'short_percent',
+                            'EXRET': 'EXRET',
+                            '# T': 'analyst_count',
+                            '# A': 'total_ratings'
+                        }
+                        
+                        # Convert record values to the format expected by calculate_action_for_row
+                        for display_col, internal_col in field_mapping.items():
+                            if display_col in record:
+                                value = record[display_col]
+                                
+                                # Remove percentage signs and convert to float where needed
+                                if isinstance(value, str) and '%' in value:
+                                    try:
+                                        criteria_row[internal_col] = float(value.replace('%', ''))
+                                    except ValueError:
+                                        criteria_row[internal_col] = None
+                                elif display_col in ['BETA', 'PET', 'PEF', 'PEG'] and isinstance(value, str):
+                                    try:
+                                        criteria_row[internal_col] = float(value)
+                                    except ValueError:
+                                        criteria_row[internal_col] = None
+                                else:
+                                    criteria_row[internal_col] = value
+                        
+                        # Calculate action using the comprehensive logic
+                        action, _ = calculate_action_for_row(criteria_row, TRADING_CRITERIA)
+                        
+                        if action:  # If action is not empty
+                            record['ACTION'] = action
+                        else:
+                            # Fallback to simplified logic if comprehensive calculation fails
+                            if 'UPSIDE' in record and BUY_PERCENTAGE in record:
+                                upside = float(str(record.get('UPSIDE', '0')).replace('%', ''))
+                                buy_pct = float(str(record.get(BUY_PERCENTAGE, '0')).replace('%', ''))
+                                
+                                # Simplified action calculation based on key criteria
+                                if upside >= TRADING_CRITERIA['BUY']['BUY_MIN_UPSIDE'] and buy_pct >= TRADING_CRITERIA['BUY']['BUY_MIN_BUY_PERCENTAGE']:
+                                    record['ACTION'] = 'B'  # Buy
+                                elif upside <= TRADING_CRITERIA['SELL']['SELL_MAX_UPSIDE'] or buy_pct <= TRADING_CRITERIA['SELL']['SELL_MIN_BUY_PERCENTAGE']:
+                                    record['ACTION'] = 'S'  # Sell
+                                else:
+                                    record['ACTION'] = 'H'  # Hold
+                            else:
+                                record['ACTION'] = 'H'  # Default to hold
+                    except Exception as e:
+                        # Default to hold if calculation fails, and log the error
+                        print(f"Warning: Action calculation failed: {str(e)}")
+                        record['ACTION'] = 'H'
+            
+            # Create HTML generator and generate the file
+            html_generator = HTMLGenerator(output_dir=output_dir)
+            
+            # Set HTML generator logging to warning level
+            import logging
+            logging.getLogger('yahoofinance.presentation.html').setLevel(logging.WARNING)
+            
+            # Use the standard display columns defined at the top of the file
+            standard_columns = STANDARD_DISPLAY_COLUMNS.copy()
+            
+            # Add ACTION column to standard columns if not already there
+            if 'ACTION' not in standard_columns:
+                standard_columns.append('ACTION')
+                
+            # Ensure ACTION column exists in the DataFrame
+            if 'ACTION' not in clean_df.columns:
+                logger.debug("Adding ACTION column to DataFrame")
+                clean_df['ACTION'] = 'H'  # Default to HOLD
+                
+                # Now recalculate action values based on the current columns
+                try:
+                    # Get criteria from config for consistency
+                    from yahoofinance.core.config import TRADING_CRITERIA
+                    
+                    # Process each row
+                    for idx, row in clean_df.iterrows():
+                        # Get upside and buy percentage values
+                        upside = row.get('UPSIDE')
+                        if isinstance(upside, str) and '%' in upside:
+                            upside = float(upside.replace('%', ''))
+                            
+                        buy_pct = row.get(BUY_PERCENTAGE) or row.get('% BUY')
+                        if isinstance(buy_pct, str) and '%' in buy_pct:
+                            buy_pct = float(buy_pct.replace('%', ''))
+                            
+                        # Only calculate if we have valid upside and buy percentage
+                        if upside is not None and buy_pct is not None:
+                            # Simple criteria for demonstration based on TRADING_CRITERIA
+                            if upside >= TRADING_CRITERIA['BUY']['BUY_MIN_UPSIDE'] and buy_pct >= TRADING_CRITERIA['BUY']['BUY_MIN_BUY_PERCENTAGE']:
+                                clean_df.at[idx, 'ACTION'] = 'B'  # Buy
+                            elif upside <= TRADING_CRITERIA['SELL']['SELL_MAX_UPSIDE'] or buy_pct <= TRADING_CRITERIA['SELL']['SELL_MIN_BUY_PERCENTAGE']:
+                                clean_df.at[idx, 'ACTION'] = 'S'  # Sell
+                            else:
+                                clean_df.at[idx, 'ACTION'] = 'H'  # Hold
+                except Exception as e:
+                    print(f"Error during action calculation: {e}")
+                
+            # Use the standardized column order for consistent display
+            column_list = [col for col in STANDARD_DISPLAY_COLUMNS if col in clean_df.columns]
+            
+            # Add any additional columns that might not be in the standard list
+            extra_cols = [col for col in clean_df.columns if col not in STANDARD_DISPLAY_COLUMNS]
+            if extra_cols:
+                column_list.extend(extra_cols)
+            
+            # Make sure ACTION is in the column list even if it wasn't in the original data
+            if 'ACTION' in clean_df.columns and 'ACTION' not in column_list:
+                logger.debug("Adding ACTION column to display list")
+                column_list.append('ACTION')
+            
+            logger.debug(f"Using columns: {', '.join(column_list)}")
+            
+            # Create a title based on the source and filename
+            if source == PORTFOLIO_SOURCE:
+                title = "Portfolio Analysis"
+            elif source == MANUAL_SOURCE:
+                title = "Manual Ticker Analysis"
+            elif source == MARKET_SOURCE or (source == ETORO_SOURCE and report_source == MARKET_SOURCE):
+                title = "Market Analysis"
+                if "china" in base_filename.lower():
+                    title = "China Market Analysis"
+                elif "europe" in base_filename.lower():
+                    title = "Europe Market Analysis"
+                elif "usa" in base_filename.lower():
+                    title = "USA Market Analysis"
+                elif "etoro" in base_filename.lower():
+                    title = "eToro Market Analysis"
+            
+            # Debug: Check columns and action counts for coloring
+            logger.debug(f"Dataset columns: {list(clean_df.columns)}")
+            
+            # Force add ACTION column if it doesn't exist
+            if 'ACTION' not in clean_df.columns:
+                logger.debug("Adding missing ACTION column")
+                clean_df['ACTION'] = 'H'  # Default to HOLD
+                
+                # Calculate actions based on the data
+                from yahoofinance.utils.trade_criteria import calculate_action_for_row
+                from yahoofinance.core.config import TRADING_CRITERIA
+                
+                # Add action for each row based on criteria
+                for idx, row in clean_df.iterrows():
+                    try:
+                        row_dict = row.to_dict()
+                        # Convert ALL values to their proper types
+                        for col, val in row_dict.items():
+                            # Skip empty values
+                            if val == '' or val == '--' or val is None:
+                                continue
+                                
+                            # Handle percentage values 
+                            if isinstance(val, str) and '%' in val:
+                                try:
+                                    row_dict[col] = float(val.replace('%', ''))
+                                except ValueError:
+                                    row_dict[col] = None
+                            # Handle numeric strings (for BETA, PET, PEF, etc.)
+                            elif col in ['BETA', 'PET', 'PEF', 'PEG', '# T', '# A', 'PRICE', 'TARGET']:
+                                try:
+                                    if isinstance(val, str):
+                                        row_dict[col] = float(val)
+                                    else:
+                                        row_dict[col] = float(val) if isinstance(val, (int, float)) else None
+                                except (ValueError, TypeError):
+                                    row_dict[col] = None
+                        
+                        # Map displayed column names to internal names
+                        column_map = {
+                            'UPSIDE': 'upside',
+                            BUY_PERCENTAGE: 'buy_percentage',
+                            'BETA': 'beta',
+                            'PET': 'pe_trailing',
+                            'PEF': 'pe_forward',
+                            'PEG': 'peg_ratio',
+                            'SI': 'short_percent',
+                            'EXRET': 'EXRET',
+                            '# T': 'analyst_count',
+                            '# A': 'total_ratings'
+                        }
+                        
+                        # Create a row with internal names, converting types again for safety
+                        internal_row = {}
+                        for display_col, internal_col in column_map.items():
+                            if display_col in row_dict:
+                                val = row_dict[display_col]
+                                # Ensure numeric values for comparison operations
+                                if val is not None and display_col in ['BETA', 'PET', 'PEF', 'PEG', '# T', '# A', 'UPSIDE', BUY_PERCENTAGE, 'SI', 'EXRET']:
+                                    try:
+                                        if isinstance(val, str):
+                                            # Remove percentage sign if present
+                                            if '%' in val:
+                                                val = float(val.replace('%', ''))
+                                            else:
+                                                val = float(val)
+                                        elif isinstance(val, (int, float)):
+                                            val = float(val)
+                                        else:
+                                            val = None
+                                    except (ValueError, TypeError):
+                                        val = None
+                                        
+                                # Debug problematic values (every 50th row)
+                                if idx % 50 == 0 and display_col in ['BETA', 'PET', 'PEF']:
+                                    print(f"Debug {display_col}={val} (original={row_dict.get(display_col)}) for row {idx}")
+                                internal_row[internal_col] = val
+                        
+                        # Perform extended action calculation
+                        if 'upside' in internal_row and 'buy_percentage' in internal_row:
+                            # Use the trade criteria utility to calculate action
+                            try:
+                                from yahoofinance.utils.trade_criteria import calculate_action_for_row
+                                # Debug info for specific rows to help identify issues
+                                if idx % 50 == 0:  # Show debug info for every 50th row
+                                    print(f"Debug row {idx} - TICKER: {row.get('TICKER', 'N/A')}")
+                                    print(f"  upside: {internal_row.get('upside')} ({type(internal_row.get('upside')).__name__})")
+                                    print(f"  buy_percentage: {internal_row.get('buy_percentage')} ({type(internal_row.get('buy_percentage')).__name__})")
+                                    print(f"  beta: {internal_row.get('beta')} ({type(internal_row.get('beta')).__name__})")
+                                    print(f"  pe_trailing: {internal_row.get('pe_trailing')} ({type(internal_row.get('pe_trailing')).__name__})")
+                                    print(f"  pe_forward: {internal_row.get('pe_forward')} ({type(internal_row.get('pe_forward')).__name__})")
+                                
+                                action, _ = calculate_action_for_row(internal_row, TRADING_CRITERIA)
+                                if action:  # If valid action returned
+                                    clean_df.at[idx, 'ACTION'] = action
+                            except Exception as e:
+                                print(f"Error calculating action for row {idx}: {e}")
+                                print(f"Problem values: upside={internal_row.get('upside')}, "
+                                      f"buy_pct={internal_row.get('buy_percentage')}, "
+                                      f"beta={internal_row.get('beta')}, "
+                                      f"pe_trailing={internal_row.get('pe_trailing')}, "
+                                      f"pe_forward={internal_row.get('pe_forward')}")
+                                
+                                # Fall back to simplified criteria
+                                upside = internal_row.get('upside', 0)
+                                buy_pct = internal_row.get('buy_percentage', 0)
+                                
+                                if upside >= TRADING_CRITERIA['BUY']['BUY_MIN_UPSIDE'] and buy_pct >= TRADING_CRITERIA['BUY']['BUY_MIN_BUY_PERCENTAGE']:
+                                    clean_df.at[idx, 'ACTION'] = 'B'  # Buy
+                                elif upside <= TRADING_CRITERIA['SELL']['SELL_MAX_UPSIDE'] or buy_pct <= TRADING_CRITERIA['SELL']['SELL_MIN_BUY_PERCENTAGE']:
+                                    clean_df.at[idx, 'ACTION'] = 'S'  # Sell
+                    except Exception as e:
+                        print(f"Error processing row {idx}: {e}")
+                
+                # Update the stocks_data list with the new ACTION values
+                stocks_data = clean_df.to_dict(orient='records')
+            
+            # DEBUG: Verify ACTION column exists
+            logger.debug(f"HTML columns: {clean_df.columns.tolist()}")
+            
+            # Make absolutely sure ACTION is in the column list 
+            if 'ACTION' not in clean_df.columns:
+                logger.warning("ACTION column missing before HTML generation")
+                
+                # Force add it again if somehow it got lost
+                clean_df['ACTION'] = 'H'  # Default to HOLD
+                
+                # Recalculate actions using simplified criteria
+                for idx, row in clean_df.iterrows():
+                    upside = row.get('UPSIDE', 0)
+                    if isinstance(upside, str) and '%' in upside:
+                        upside = float(upside.replace('%', ''))
+                    
+                    buy_pct = row.get('% BUY', 0)
+                    if isinstance(buy_pct, str) and '%' in buy_pct:
+                        buy_pct = float(buy_pct.replace('%', ''))
+                    
+                    # Simple criteria for demonstration
+                    if upside >= 20 and buy_pct >= 85:
+                        clean_df.at[idx, 'ACTION'] = 'B'  # Buy
+                    elif upside <= 5 or buy_pct <= 65:
+                        clean_df.at[idx, 'ACTION'] = 'S'  # Sell
+                    else:
+                        clean_df.at[idx, 'ACTION'] = 'H'  # Hold
+                
+                # Update stocks_data again
+                stocks_data = clean_df.to_dict(orient='records')
+                print("ACTION column added and populated")
+                
+            # Check action counts for coloring
+            action_counts = {}
+            for record in stocks_data:
+                action = record.get('ACTION', 'NONE')
+                action_counts[action] = action_counts.get(action, 0) + 1
+            
+            logger.debug(f"Action counts: {action_counts}")
+            
+            # Log sample data at debug level
+            if stocks_data and len(stocks_data) > 0:
+                logger.debug(f"First record: {stocks_data[0].get('TICKER', 'unknown')} ({stocks_data[0].get('ACTION', 'MISSING')})")
+            
+            # Generate the HTML file with original filenames based on source
+            html_path = html_generator.generate_stock_table(
+                stocks_data=stocks_data,
+                title=title,
+                output_filename=base_filename,  # Keep original filenames (market.html, portfolio.html, etc.)
+                include_columns=column_list
+            )
+            
+            if html_path:
+                print(f"HTML dashboard successfully created at {html_path}")
+            else:
+                print("Failed to create HTML dashboard")
+        else:
+            print("No data available to generate HTML")
+    except Exception as e:
+        print(f"Error generating HTML file: {str(e)}")
+        import traceback
+        traceback.print_exc()
 
 def show_circuit_breaker_status():
     """Display the current status of all circuit breakers"""
