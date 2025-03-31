@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hold Candidates (neither buy nor sell)</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f7;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .table-container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+            overflow: auto;
+            padding: 5px;
+        }
+        
+        .stock-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        
+        .stock-table th {
+            background-color: #f8f8f8;
+            color: #444;
+            font-weight: 600;
+            padding: 12px 8px;
+            border-bottom: 2px solid #e0e0e0;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .stock-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .stock-table tr:hover {
+            background-color: #f9f9f9;
+        }
+        
+        .stock-table tr:nth-child(even) {
+            background-color: #f5f5f5;
+        }
+        
+        /* Special row styling for buy/sell - higher specificity to override even/odd */
+        .stock-table tr.buy-row,
+        .stock-table tr.buy-row:nth-child(even) {
+            background-color: #f0fff0 !important;  /* Very light green background */
+        }
+        
+        .stock-table tr.buy-row:hover,
+        .stock-table tr.buy-row:nth-child(even):hover {
+            background-color: #e0ffe0 !important;  /* Slightly darker green on hover */
+        }
+        
+        .stock-table tr.sell-row,
+        .stock-table tr.sell-row:nth-child(even) {
+            background-color: #fff0f0 !important;  /* Very light red background */
+        }
+        
+        .stock-table tr.sell-row:hover,
+        .stock-table tr.sell-row:nth-child(even):hover {
+            background-color: #ffe0e0 !important;  /* Slightly darker red on hover */
+        }
+        
+        .sort-header {
+            cursor: pointer;
+        }
+        
+        .sort-header:after {
+            content: ' ↕';
+            font-size: 12px;
+            color: #999;
+        }
+        
+        .sort-header.asc:after {
+            content: ' ↓';
+            color: #333;
+        }
+        
+        .sort-header.desc:after {
+            content: ' ↑';
+            color: #333;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .stock-table {
+                font-size: 12px;
+            }
+            
+            .stock-table th,
+            .stock-table td {
+                padding: 8px 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Hold Candidates (neither buy nor sell)</h1>
+        <div class="table-container">
+            
+            <table class="stock-table" border="0">
+                <thead>
+                    <tr><th class="sort-header">#</th><th class="sort-header">TICKER</th><th class="sort-header">COMPANY</th><th class="sort-header">CAP</th><th class="sort-header">PRICE</th><th class="sort-header">TARGET</th><th class="sort-header">UPSIDE</th><th class="sort-header"># T</th><th class="sort-header">% BUY</th><th class="sort-header"># A</th><th class="sort-header">A</th><th class="sort-header">EXRET</th><th class="sort-header">BETA</th><th class="sort-header">PET</th><th class="sort-header">PEF</th><th class="sort-header">PEG</th><th class="sort-header">DIV %</th><th class="sort-header">SI</th><th class="sort-header">EARNINGS</th><th class="sort-header">ACTION</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td style="text-align: right;">1</td><td style="text-align: left;">0016.HK</td><td style="text-align: left;">SHK PPT</td><td style="text-align: right;">216B</td><td style="text-align: right;">73.9</td><td style="text-align: right;">90.3</td><td style="text-align: right;">22.2%</td><td style="text-align: right;">15</td><td style="text-align: right;">73%</td><td style="text-align: right;">15</td><td style="text-align: right;">A</td><td style="text-align: right;">16.3%</td><td style="text-align: right;">0.5</td><td style="text-align: right;">12.3</td><td style="text-align: right;">8.8</td><td style="text-align: right;">0.4</td><td style="text-align: right;">5.07%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-02-27</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">2</td><td style="text-align: left;">0019.HK</td><td style="text-align: left;">SWIRE PACIFIC </td><td style="text-align: right;">86.1B</td><td style="text-align: right;">68.6</td><td style="text-align: right;">76.1</td><td style="text-align: right;">10.9%</td><td style="text-align: right;">8</td><td style="text-align: right;">75%</td><td style="text-align: right;">8</td><td style="text-align: right;">A</td><td style="text-align: right;">8.2%</td><td style="text-align: right;">0.9</td><td style="text-align: right;">22.4</td><td style="text-align: right;">9.1</td><td style="text-align: right;">0.3</td><td style="text-align: right;">4.88%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-13</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">3</td><td style="text-align: left;">0135.HK</td><td style="text-align: left;">KUNLUN ENERGY</td><td style="text-align: right;">67.4B</td><td style="text-align: right;">7.6</td><td style="text-align: right;">8.9</td><td style="text-align: right;">17.0%</td><td style="text-align: right;">14</td><td style="text-align: right;">88%</td><td style="text-align: right;">17</td><td style="text-align: right;">A</td><td style="text-align: right;">15.0%</td><td style="text-align: right;">0.7</td><td style="text-align: right;">10.3</td><td style="text-align: right;">8.8</td><td style="text-align: right;">--</td><td style="text-align: right;">8.47%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-25</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">4</td><td style="text-align: left;">0241.HK</td><td style="text-align: left;">ALI HEALTH</td><td style="text-align: right;">77.2B</td><td style="text-align: right;">4.7</td><td style="text-align: right;">5.0</td><td style="text-align: right;">6.7%</td><td style="text-align: right;">17</td><td style="text-align: right;">76%</td><td style="text-align: right;">17</td><td style="text-align: right;">A</td><td style="text-align: right;">5.1%</td><td style="text-align: right;">1.5</td><td style="text-align: right;">58.9</td><td style="text-align: right;">27.7</td><td style="text-align: right;">1.3</td><td style="text-align: right;">--</td><td style="text-align: right;">--</td><td style="text-align: right;">2024-11-13</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">5</td><td style="text-align: left;">0388.HK</td><td style="text-align: left;">HKEX</td><td style="text-align: right;">446B</td><td style="text-align: right;">344.8</td><td style="text-align: right;">402.0</td><td style="text-align: right;">16.6%</td><td style="text-align: right;">15</td><td style="text-align: right;">90%</td><td style="text-align: right;">20</td><td style="text-align: right;">A</td><td style="text-align: right;">14.9%</td><td style="text-align: right;">0.9</td><td style="text-align: right;">33.5</td><td style="text-align: right;">32.4</td><td style="text-align: right;">2.1</td><td style="text-align: right;">2.84%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-02-27</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">6</td><td style="text-align: left;">0390.HK</td><td style="text-align: left;">CHINA RAILWAY</td><td style="text-align: right;">135B</td><td style="text-align: right;">3.4</td><td style="text-align: right;">5.1</td><td style="text-align: right;">48.4%</td><td style="text-align: right;">6</td><td style="text-align: right;">100%</td><td style="text-align: right;">7</td><td style="text-align: right;">A</td><td style="text-align: right;">48.4%</td><td style="text-align: right;">--</td><td style="text-align: right;">3.0</td><td style="text-align: right;">2.3</td><td style="text-align: right;">--</td><td style="text-align: right;">6.71%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-28</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">7</td><td style="text-align: left;">0688.HK</td><td style="text-align: left;">CHINA OVERSEAS</td><td style="text-align: right;">154B</td><td style="text-align: right;">13.9</td><td style="text-align: right;">16.3</td><td style="text-align: right;">17.4%</td><td style="text-align: right;">18</td><td style="text-align: right;">83%</td><td style="text-align: right;">24</td><td style="text-align: right;">A</td><td style="text-align: right;">14.5%</td><td style="text-align: right;">0.3</td><td style="text-align: right;">9.1</td><td style="text-align: right;">6.2</td><td style="text-align: right;">0.9</td><td style="text-align: right;">4.32%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-31</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">8</td><td style="text-align: left;">0728.HK</td><td style="text-align: left;">CHINA TELECOM</td><td style="text-align: right;">733B</td><td style="text-align: right;">5.8</td><td style="text-align: right;">6.4</td><td style="text-align: right;">9.9%</td><td style="text-align: right;">13</td><td style="text-align: right;">100%</td><td style="text-align: right;">15</td><td style="text-align: right;">A</td><td style="text-align: right;">9.9%</td><td style="text-align: right;">0.6</td><td style="text-align: right;">15.0</td><td style="text-align: right;">13.9</td><td style="text-align: right;">2.3</td><td style="text-align: right;">4.81%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-25</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">9</td><td style="text-align: left;">0762.HK</td><td style="text-align: left;">CHINA UNICOM</td><td style="text-align: right;">265B</td><td style="text-align: right;">8.7</td><td style="text-align: right;">9.6</td><td style="text-align: right;">10.0%</td><td style="text-align: right;">10</td><td style="text-align: right;">80%</td><td style="text-align: right;">10</td><td style="text-align: right;">A</td><td style="text-align: right;">8.0%</td><td style="text-align: right;">0.7</td><td style="text-align: right;">12.1</td><td style="text-align: right;">11.0</td><td style="text-align: right;">--</td><td style="text-align: right;">5.04%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-18</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">10</td><td style="text-align: left;">0823.HK</td><td style="text-align: left;">LINK REIT</td><td style="text-align: right;">94.0B</td><td style="text-align: right;">36.4</td><td style="text-align: right;">43.0</td><td style="text-align: right;">18.2%</td><td style="text-align: right;">16</td><td style="text-align: right;">100%</td><td style="text-align: right;">16</td><td style="text-align: right;">A</td><td style="text-align: right;">18.2%</td><td style="text-align: right;">0.8</td><td style="text-align: right;">--</td><td style="text-align: right;">13.6</td><td style="text-align: right;">--</td><td style="text-align: right;">7.38%</td><td style="text-align: right;">--</td><td style="text-align: right;">--</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">11</td><td style="text-align: left;">0902.HK</td><td style="text-align: left;">HUANENG POWER</td><td style="text-align: right;">95.7B</td><td style="text-align: right;">4.5</td><td style="text-align: right;">5.1</td><td style="text-align: right;">12.1%</td><td style="text-align: right;">12</td><td style="text-align: right;">75%</td><td style="text-align: right;">12</td><td style="text-align: right;">A</td><td style="text-align: right;">9.1%</td><td style="text-align: right;">0.6</td><td style="text-align: right;">9.2</td><td style="text-align: right;">5.9</td><td style="text-align: right;">--</td><td style="text-align: right;">4.89%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-25</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">12</td><td style="text-align: left;">0914.HK</td><td style="text-align: left;">CONCH CEMENT</td><td style="text-align: right;">127B</td><td style="text-align: right;">22.0</td><td style="text-align: right;">26.2</td><td style="text-align: right;">19.0%</td><td style="text-align: right;">14</td><td style="text-align: right;">93%</td><td style="text-align: right;">15</td><td style="text-align: right;">A</td><td style="text-align: right;">17.8%</td><td style="text-align: right;">0.7</td><td style="text-align: right;">14.1</td><td style="text-align: right;">10.1</td><td style="text-align: right;">2.0</td><td style="text-align: right;">4.79%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-24</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">13</td><td style="text-align: left;">0916.HK</td><td style="text-align: left;">CHINA LONGYUAN</td><td style="text-align: right;">104B</td><td style="text-align: right;">6.2</td><td style="text-align: right;">7.6</td><td style="text-align: right;">22.5%</td><td style="text-align: right;">17</td><td style="text-align: right;">74%</td><td style="text-align: right;">19</td><td style="text-align: right;">A</td><td style="text-align: right;">16.6%</td><td style="text-align: right;">--</td><td style="text-align: right;">8.4</td><td style="text-align: right;">6.2</td><td style="text-align: right;">0.4</td><td style="text-align: right;">4.09%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-28</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">14</td><td style="text-align: left;">0939.HK</td><td style="text-align: left;">CCB</td><td style="text-align: right;">1.69T</td><td style="text-align: right;">6.9</td><td style="text-align: right;">7.9</td><td style="text-align: right;">14.4%</td><td style="text-align: right;">18</td><td style="text-align: right;">100%</td><td style="text-align: right;">18</td><td style="text-align: right;">A</td><td style="text-align: right;">14.4%</td><td style="text-align: right;">0.3</td><td style="text-align: right;">4.9</td><td style="text-align: right;">4.7</td><td style="text-align: right;">1.9</td><td style="text-align: right;">9.47%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-28</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">15</td><td style="text-align: left;">0966.HK</td><td style="text-align: left;">CHINA TAIPING</td><td style="text-align: right;">42.5B</td><td style="text-align: right;">11.8</td><td style="text-align: right;">14.9</td><td style="text-align: right;">26.0%</td><td style="text-align: right;">10</td><td style="text-align: right;">69%</td><td style="text-align: right;">13</td><td style="text-align: right;">A</td><td style="text-align: right;">18.0%</td><td style="text-align: right;">1.0</td><td style="text-align: right;">5.7</td><td style="text-align: right;">4.6</td><td style="text-align: right;">--</td><td style="text-align: right;">2.96%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-24</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">16</td><td style="text-align: left;">0968.HK</td><td style="text-align: left;">XINYI SOLAR</td><td style="text-align: right;">28.3B</td><td style="text-align: right;">3.0</td><td style="text-align: right;">4.3</td><td style="text-align: right;">43.0%</td><td style="text-align: right;">20</td><td style="text-align: right;">74%</td><td style="text-align: right;">23</td><td style="text-align: right;">A</td><td style="text-align: right;">31.8%</td><td style="text-align: right;">1.5</td><td style="text-align: right;">27.3</td><td style="text-align: right;">6.1</td><td style="text-align: right;">--</td><td style="text-align: right;">6.67%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-02-28</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">17</td><td style="text-align: left;">0992.HK</td><td style="text-align: left;">LENOVO GROUP</td><td style="text-align: right;">130B</td><td style="text-align: right;">10.5</td><td style="text-align: right;">14.5</td><td style="text-align: right;">38.8%</td><td style="text-align: right;">18</td><td style="text-align: right;">82%</td><td style="text-align: right;">22</td><td style="text-align: right;">A</td><td style="text-align: right;">31.8%</td><td style="text-align: right;">1.0</td><td style="text-align: right;">14.4</td><td style="text-align: right;">9.6</td><td style="text-align: right;">0.6</td><td style="text-align: right;">3.55%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-02-20</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">18</td><td style="text-align: left;">1038.HK</td><td style="text-align: left;">CKI HOLDINGS</td><td style="text-align: right;">118B</td><td style="text-align: right;">46.6</td><td style="text-align: right;">59.9</td><td style="text-align: right;">28.5%</td><td style="text-align: right;">14</td><td style="text-align: right;">71%</td><td style="text-align: right;">14</td><td style="text-align: right;">A</td><td style="text-align: right;">20.3%</td><td style="text-align: right;">0.8</td><td style="text-align: right;">13.7</td><td style="text-align: right;">13.1</td><td style="text-align: right;">1.8</td><td style="text-align: right;">7.98%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-19</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">19</td><td style="text-align: left;">1114.HK</td><td style="text-align: left;">BRILLIANCE CHI</td><td style="text-align: right;">13.1B</td><td style="text-align: right;">2.6</td><td style="text-align: right;">3.9</td><td style="text-align: right;">49.2%</td><td style="text-align: right;">7</td><td style="text-align: right;">71%</td><td style="text-align: right;">7</td><td style="text-align: right;">A</td><td style="text-align: right;">35.1%</td><td style="text-align: right;">0.3</td><td style="text-align: right;">3.9</td><td style="text-align: right;">2.4</td><td style="text-align: right;">0.5</td><td style="text-align: right;">--</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-21</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">20</td><td style="text-align: left;">1177.HK</td><td style="text-align: left;">SINO BIOPHARM</td><td style="text-align: right;">68.2B</td><td style="text-align: right;">3.8</td><td style="text-align: right;">4.4</td><td style="text-align: right;">18.4%</td><td style="text-align: right;">22</td><td style="text-align: right;">92%</td><td style="text-align: right;">24</td><td style="text-align: right;">A</td><td style="text-align: right;">16.9%</td><td style="text-align: right;">0.8</td><td style="text-align: right;">34.1</td><td style="text-align: right;">20.8</td><td style="text-align: right;">2.9</td><td style="text-align: right;">1.87%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-20</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">21</td><td style="text-align: left;">1211.HK</td><td style="text-align: left;">BYD COMPANY</td><td style="text-align: right;">1.19T</td><td style="text-align: right;">392.8</td><td style="text-align: right;">461.1</td><td style="text-align: right;">17.4%</td><td style="text-align: right;">28</td><td style="text-align: right;">89%</td><td style="text-align: right;">28</td><td style="text-align: right;">A</td><td style="text-align: right;">15.5%</td><td style="text-align: right;">0.6</td><td style="text-align: right;">27.5</td><td style="text-align: right;">22.7</td><td style="text-align: right;">1.0</td><td style="text-align: right;">0.84%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-25</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">22</td><td style="text-align: left;">1398.HK</td><td style="text-align: left;">ICBC</td><td style="text-align: right;">2.33T</td><td style="text-align: right;">5.5</td><td style="text-align: right;">5.9</td><td style="text-align: right;">7.1%</td><td style="text-align: right;">18</td><td style="text-align: right;">88%</td><td style="text-align: right;">17</td><td style="text-align: right;">A</td><td style="text-align: right;">6.3%</td><td style="text-align: right;">0.2</td><td style="text-align: right;">5.3</td><td style="text-align: right;">5.1</td><td style="text-align: right;">2.1</td><td style="text-align: right;">12.05%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-28</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">23</td><td style="text-align: left;">1585.HK</td><td style="text-align: left;">YADEA</td><td style="text-align: right;">47.7B</td><td style="text-align: right;">15.1</td><td style="text-align: right;">17.3</td><td style="text-align: right;">14.5%</td><td style="text-align: right;">13</td><td style="text-align: right;">94%</td><td style="text-align: right;">16</td><td style="text-align: right;">A</td><td style="text-align: right;">13.6%</td><td style="text-align: right;">1.1</td><td style="text-align: right;">33.6</td><td style="text-align: right;">20.1</td><td style="text-align: right;">--</td><td style="text-align: right;">1.46%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-25</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">24</td><td style="text-align: left;">1810.HK</td><td style="text-align: left;">XIAOMI-W</td><td style="text-align: right;">1.28T</td><td style="text-align: right;">49.2</td><td style="text-align: right;">57.5</td><td style="text-align: right;">16.9%</td><td style="text-align: right;">31</td><td style="text-align: right;">86%</td><td style="text-align: right;">35</td><td style="text-align: right;">A</td><td style="text-align: right;">14.5%</td><td style="text-align: right;">1.2</td><td style="text-align: right;">49.7</td><td style="text-align: right;">43.5</td><td style="text-align: right;">1.4</td><td style="text-align: right;">--</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-18</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">25</td><td style="text-align: left;">1833.HK</td><td style="text-align: left;">PA GOODDOCTOR</td><td style="text-align: right;">15.2B</td><td style="text-align: right;">7.0</td><td style="text-align: right;">8.8</td><td style="text-align: right;">25.5%</td><td style="text-align: right;">12</td><td style="text-align: right;">67%</td><td style="text-align: right;">12</td><td style="text-align: right;">A</td><td style="text-align: right;">17.0%</td><td style="text-align: right;">0.9</td><td style="text-align: right;">100.0</td><td style="text-align: right;">35.0</td><td style="text-align: right;">--</td><td style="text-align: right;">--</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-12</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">26</td><td style="text-align: left;">2319.HK</td><td style="text-align: left;">CHINA MENGNIU </td><td style="text-align: right;">76.0B</td><td style="text-align: right;">19.2</td><td style="text-align: right;">22.7</td><td style="text-align: right;">18.2%</td><td style="text-align: right;">25</td><td style="text-align: right;">96%</td><td style="text-align: right;">27</td><td style="text-align: right;">A</td><td style="text-align: right;">17.5%</td><td style="text-align: right;">0.5</td><td style="text-align: right;">640.0</td><td style="text-align: right;">13.5</td><td style="text-align: right;">2.6</td><td style="text-align: right;">2.84%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-26</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">27</td><td style="text-align: left;">2333.HK</td><td style="text-align: left;">GREAT WALL MOT</td><td style="text-align: right;">197B</td><td style="text-align: right;">13.6</td><td style="text-align: right;">17.2</td><td style="text-align: right;">26.7%</td><td style="text-align: right;">24</td><td style="text-align: right;">80%</td><td style="text-align: right;">25</td><td style="text-align: right;">A</td><td style="text-align: right;">21.3%</td><td style="text-align: right;">1.0</td><td style="text-align: right;">8.5</td><td style="text-align: right;">7.8</td><td style="text-align: right;">2.2</td><td style="text-align: right;">2.43%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-28</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">28</td><td style="text-align: left;">2338.HK</td><td style="text-align: left;">WEICHAI POWER </td><td style="text-align: right;">143B</td><td style="text-align: right;">16.4</td><td style="text-align: right;">18.9</td><td style="text-align: right;">15.3%</td><td style="text-align: right;">18</td><td style="text-align: right;">94%</td><td style="text-align: right;">18</td><td style="text-align: right;">A</td><td style="text-align: right;">14.4%</td><td style="text-align: right;">1.1</td><td style="text-align: right;">12.0</td><td style="text-align: right;">10.0</td><td style="text-align: right;">--</td><td style="text-align: right;">4.85%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-27</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">29</td><td style="text-align: left;">2382.HK</td><td style="text-align: left;">SUNNY OPTICAL </td><td style="text-align: right;">79.1B</td><td style="text-align: right;">71.3</td><td style="text-align: right;">93.6</td><td style="text-align: right;">31.2%</td><td style="text-align: right;">30</td><td style="text-align: right;">82%</td><td style="text-align: right;">34</td><td style="text-align: right;">A</td><td style="text-align: right;">25.7%</td><td style="text-align: right;">1.0</td><td style="text-align: right;">26.9</td><td style="text-align: right;">24.3</td><td style="text-align: right;">1.0</td><td style="text-align: right;">0.75%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-24</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">30</td><td style="text-align: left;">2688.HK</td><td style="text-align: left;">ENN ENERGY HOL</td><td style="text-align: right;">71.3B</td><td style="text-align: right;">64.2</td><td style="text-align: right;">71.0</td><td style="text-align: right;">10.6%</td><td style="text-align: right;">18</td><td style="text-align: right;">81%</td><td style="text-align: right;">21</td><td style="text-align: right;">A</td><td style="text-align: right;">8.6%</td><td style="text-align: right;">0.8</td><td style="text-align: right;">11.2</td><td style="text-align: right;">8.9</td><td style="text-align: right;">1.2</td><td style="text-align: right;">4.67%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-26</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">31</td><td style="text-align: left;">3323.HK</td><td style="text-align: left;">CHINA NATIONAL</td><td style="text-align: right;">30.6B</td><td style="text-align: right;">4.0</td><td style="text-align: right;">4.7</td><td style="text-align: right;">16.7%</td><td style="text-align: right;">9</td><td style="text-align: right;">100%</td><td style="text-align: right;">9</td><td style="text-align: right;">A</td><td style="text-align: right;">16.7%</td><td style="text-align: right;">1.0</td><td style="text-align: right;">13.4</td><td style="text-align: right;">9.5</td><td style="text-align: right;">--</td><td style="text-align: right;">4.22%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-27</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">32</td><td style="text-align: left;">3908.HK</td><td style="text-align: left;">CHINA INTERNAT</td><td style="text-align: right;">130B</td><td style="text-align: right;">14.5</td><td style="text-align: right;">19.7</td><td style="text-align: right;">35.8%</td><td style="text-align: right;">11</td><td style="text-align: right;">100%</td><td style="text-align: right;">12</td><td style="text-align: right;">A</td><td style="text-align: right;">35.8%</td><td style="text-align: right;">--</td><td style="text-align: right;">13.1</td><td style="text-align: right;">9.4</td><td style="text-align: right;">--</td><td style="text-align: right;">2.03%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-28</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">33</td><td style="text-align: left;">3968.HK</td><td style="text-align: left;">CHINA MERCHANT</td><td style="text-align: right;">1.10T</td><td style="text-align: right;">45.9</td><td style="text-align: right;">51.4</td><td style="text-align: right;">12.0%</td><td style="text-align: right;">20</td><td style="text-align: right;">80%</td><td style="text-align: right;">20</td><td style="text-align: right;">A</td><td style="text-align: right;">9.6%</td><td style="text-align: right;">0.9</td><td style="text-align: right;">7.6</td><td style="text-align: right;">7.1</td><td style="text-align: right;">1.2</td><td style="text-align: right;">4.71%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-25</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">34</td><td style="text-align: left;">6030.HK</td><td style="text-align: left;">CITIC SECURITI</td><td style="text-align: right;">381B</td><td style="text-align: right;">20.2</td><td style="text-align: right;">25.8</td><td style="text-align: right;">27.4%</td><td style="text-align: right;">11</td><td style="text-align: right;">67%</td><td style="text-align: right;">12</td><td style="text-align: right;">A</td><td style="text-align: right;">18.3%</td><td style="text-align: right;">0.9</td><td style="text-align: right;">13.4</td><td style="text-align: right;">10.9</td><td style="text-align: right;">--</td><td style="text-align: right;">3.86%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-26</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">35</td><td style="text-align: left;">6862.HK</td><td style="text-align: left;">HAIDILAO INTER</td><td style="text-align: right;">97.6B</td><td style="text-align: right;">17.6</td><td style="text-align: right;">19.5</td><td style="text-align: right;">11.0%</td><td style="text-align: right;">27</td><td style="text-align: right;">78%</td><td style="text-align: right;">32</td><td style="text-align: right;">A</td><td style="text-align: right;">8.6%</td><td style="text-align: right;">0.6</td><td style="text-align: right;">18.9</td><td style="text-align: right;">17.2</td><td style="text-align: right;">1.4</td><td style="text-align: right;">9.81%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-25</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">36</td><td style="text-align: left;">6881.HK</td><td style="text-align: left;">CHINA GALAXY S</td><td style="text-align: right;">152B</td><td style="text-align: right;">7.7</td><td style="text-align: right;">8.8</td><td style="text-align: right;">13.3%</td><td style="text-align: right;">9</td><td style="text-align: right;">78%</td><td style="text-align: right;">9</td><td style="text-align: right;">A</td><td style="text-align: right;">10.4%</td><td style="text-align: right;">0.7</td><td style="text-align: right;">8.9</td><td style="text-align: right;">8.7</td><td style="text-align: right;">--</td><td style="text-align: right;">4.29%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-28</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">37</td><td style="text-align: left;">6886.HK</td><td style="text-align: left;">HUATAI SECURIT</td><td style="text-align: right;">152B</td><td style="text-align: right;">12.5</td><td style="text-align: right;">17.4</td><td style="text-align: right;">39.2%</td><td style="text-align: right;">11</td><td style="text-align: right;">75%</td><td style="text-align: right;">12</td><td style="text-align: right;">A</td><td style="text-align: right;">29.4%</td><td style="text-align: right;">--</td><td style="text-align: right;">7.2</td><td style="text-align: right;">7.1</td><td style="text-align: right;">--</td><td style="text-align: right;">5.10%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-03-28</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">38</td><td style="text-align: left;">9988.HK</td><td style="text-align: left;">ALIBABA GROUP </td><td style="text-align: right;">2.49T</td><td style="text-align: right;">128.0</td><td style="text-align: right;">153.3</td><td style="text-align: right;">19.8%</td><td style="text-align: right;">25</td><td style="text-align: right;">91%</td><td style="text-align: right;">33</td><td style="text-align: right;">A</td><td style="text-align: right;">18.0%</td><td style="text-align: right;">0.3</td><td style="text-align: right;">19.6</td><td style="text-align: right;">13.6</td><td style="text-align: right;">0.7</td><td style="text-align: right;">0.75%</td><td style="text-align: right;">--</td><td style="text-align: right;">2025-02-20</td><td style="text-align: right;">H</td></tr>
+                </tbody>
+            </table>
+            
+        </div>
+        <div class="footer">
+            <p>Generated on 2025-04-01 01:17:39</p>
+        </div>
+    </div>
+    <script src="script.js"></script>
+    <script>
+        // Enhanced sorting functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const table = document.querySelector('.stock-table');
+            const headers = table.querySelectorAll('th');
+            
+            headers.forEach((header, index) => {
+                header.classList.add('sort-header');
+                header.addEventListener('click', () => {
+                    sortTable(index);
+                });
+            });
+            
+            function sortTable(columnIndex) {
+                const tbody = table.querySelector('tbody');
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                
+                // Get current sort direction
+                const header = headers[columnIndex];
+                const isAscending = header.classList.contains('asc');
+                
+                // Reset all headers
+                headers.forEach(h => {
+                    h.classList.remove('asc');
+                    h.classList.remove('desc');
+                });
+                
+                // Set new sort direction
+                if (isAscending) {
+                    header.classList.add('desc');
+                } else {
+                    header.classList.add('asc');
+                }
+                
+                const direction = isAscending ? -1 : 1;
+                
+                rows.sort((a, b) => {
+                    let aValue = a.cells[columnIndex].textContent.trim();
+                    let bValue = b.cells[columnIndex].textContent.trim();
+                    
+                    // Handle percentage values
+                    if (aValue.endsWith('%')) aValue = aValue.replace('%', '');
+                    if (bValue.endsWith('%')) bValue = bValue.replace('%', '');
+                    
+                    // Handle market cap values (e.g., 2.5T, 145.8B)
+                    if (/^[0-9]+(\.[0-9]+)?[TB]$/.test(aValue)) {
+                        const aNum = parseFloat(aValue.replace(/[TB]$/, ''));
+                        const bNum = parseFloat(bValue.replace(/[TB]$/, ''));
+                        const aMultiplier = aValue.endsWith('T') ? 1e12 : 1e9;
+                        const bMultiplier = bValue.endsWith('T') ? 1e12 : 1e9;
+                        return direction * ((aNum * aMultiplier) - (bNum * bMultiplier));
+                    }
+                    
+                    // Try to compare as numbers first
+                    const aNum = parseFloat(aValue);
+                    const bNum = parseFloat(bValue);
+                    
+                    if (!isNaN(aNum) && !isNaN(bNum)) {
+                        return direction * (aNum - bNum);
+                    }
+                    
+                    // Fall back to string comparison
+                    return direction * aValue.localeCompare(bValue);
+                });
+                
+                // Re-add rows in sorted order
+                rows.forEach(row => tbody.appendChild(row));
+            }
+        });
+    </script>
+</body>
+</html>

@@ -19,6 +19,8 @@ from pathlib import Path
 from ..core.config import FILE_PATHS
 
 logger = logging.getLogger(__name__)
+# Set default level to WARNING to suppress debug and info messages
+logger.setLevel(logging.WARNING)
 
 class FormatUtils:
     """Utilities for formatting HTML output and market metrics."""
@@ -321,8 +323,8 @@ class HTMLGenerator:
                 sections=sections
             )
             
-            # Write to file
-            output_path = f"{self.output_dir}/market_dashboard.html"
+            # Write to file with standardized name 'performance.html'
+            output_path = f"{self.output_dir}/performance.html"
             with open(output_path, 'w') as f:
                 f.write(html_content)
                 
@@ -426,6 +428,12 @@ class HTMLGenerator:
             
         Returns:
             Path to generated HTML file or None if failed
+            
+        Note:
+            This function will apply color coding based on the 'ACTION' column:
+            - 'B' values for BUY will be colored green
+            - 'S' values for SELL will be colored red
+            - 'H' values for HOLD will be left as default text color
         """
         try:
             if not stocks_data:
@@ -453,19 +461,82 @@ class HTMLGenerator:
                 header_row += f'<th class="sort-header">{col}</th>'
             header_row += "</tr>"
             
+            # Debug: check for ACTION column
+            logger.debug(f"Columns available for HTML generation: {df.columns.tolist()}")
+            if 'ACTION' not in df.columns:
+                logger.warning("ACTION column is missing from the dataframe!")
+                
+                # Force add it with default HOLD values
+                df['ACTION'] = 'H'
+                logger.debug("Added default ACTION column with 'H' values")
+            
+            # Debug: Count actions in the dataframe
+            action_counts = df['ACTION'].value_counts().to_dict()
+            logger.debug(f"Action counts in HTML generation: {action_counts}")
+                
             # Create data rows with appropriate styling
             for idx, row in df.iterrows():
                 action = row.get('ACTION') if 'ACTION' in row else None
                 
-                # Determine row color
-                row_color = ""
-                if action == 'B':  # Buy
-                    row_color = ' style="color: green;"'
-                elif action == 'S':  # Sell
-                    row_color = ' style="color: red;"'
+                # Determine row color based on ACTION
+                row_class = ""
+                text_color = ""
                 
-                # Start row
-                row_html = f"<tr{row_color}>"
+                # Print debug info for the first 5 rows to see what actions look like
+                if idx < 10:
+                    ticker_val = row.get('TICKER', 'unknown')
+                    logger.debug(f"Row {idx} action: '{action}' (type: {type(action).__name__}) for ticker {ticker_val}")
+                
+                # Make sure ACTION is properly compared as a string
+                # Convert to string first to ensure consistent comparison
+                action_str = str(action) if action is not None else ""
+                
+                # Log each row's action for the first 10 rows
+                if idx < 10:
+                    ticker_val = row.get('TICKER', '')
+                    logger.debug(f"Row {idx}, ACTION = '{action_str}', TICKER = '{ticker_val}'")
+                
+                # Apply coloring based on standardized action string
+                # Use direct string comparison for more reliability
+                if action_str.strip() == 'B':  # Buy
+                    row_class = ' class="buy-row"'
+                    text_color = 'color: #008800;'  # Darker green for better visibility
+                    ticker_val = row.get('TICKER', '')
+                    logger.debug(f"Applied BUY styling to row {idx}: {ticker_val}")
+                elif action_str.strip() == 'S':  # Sell
+                    row_class = ' class="sell-row"'
+                    text_color = 'color: #CC0000;'  # Darker red for better visibility
+                    ticker_val = row.get('TICKER', '')
+                    logger.debug(f"Applied SELL styling to row {idx}: {ticker_val}")
+                
+                # Make sure ACTION value is valid by forcing specific valid values
+                if action_str.strip() not in ['B', 'S', 'H', '']:
+                    logger.warning(f"Invalid action value '{action_str}' converted to 'H' (hold)")
+                    action = 'H'
+                
+                # ===== CRITICAL FIX =====
+                # Always use direct inline styles for row coloring
+                # This is the most reliable approach across browsers
+                
+                bg_color = ""
+                # Apply coloring based on exact string comparison
+                if action_str.strip() == 'B':
+                    bg_color = "#f0fff0"  # Very light green background
+                    ticker_val = row.get('TICKER', '')
+                    logger.debug(f"Applying BUY styling to row {idx}: {ticker_val}")
+                elif action_str.strip() == 'S':
+                    bg_color = "#fff0f0"  # Very light red background
+                    ticker_val = row.get('TICKER', '')
+                    logger.debug(f"Applying SELL styling to row {idx}: {ticker_val}")
+                
+                # Always use direct inline style + class for maximum reliability
+                if bg_color:
+                    row_html = f'<tr style="background-color: {bg_color} !important;"{row_class}>'
+                    # Log for debugging
+                    if idx < 5:
+                        logger.debug(f"Row {idx} HTML start: {row_html}")
+                else:
+                    row_html = f"<tr{row_class}>"
                 
                 # Add columns with proper alignment
                 for col in df.columns:
@@ -474,12 +545,20 @@ class HTMLGenerator:
                     # Determine cell alignment
                     align = 'left' if col in ['TICKER', 'COMPANY'] else 'right'
                     
-                    # Create the cell with appropriate alignment
-                    if col == 'ACTION' and action in ['B', 'S']:
-                        # Make ACTION column bold
-                        row_html += f'<td style="text-align: {align}; font-weight: bold;">{value}</td>'
+                    # Add color styling if action is set
+                    style = f"text-align: {align};"
+                    
+                    # Use the action_str variable we already standardized above
+                    action_str = str(action) if action is not None else ""
+                    if text_color and action_str in ['B', 'S']:
+                        style += f" {text_color}"
+                    
+                    # Create the cell with appropriate alignment and color
+                    if col == 'ACTION' and action_str in ['B', 'S']:
+                        # Make ACTION column bold and colored
+                        row_html += f'<td style="{style} font-weight: bold;">{value}</td>'
                     else:
-                        row_html += f'<td style="text-align: {align};">{value}</td>'
+                        row_html += f'<td style="{style}">{value}</td>'
                 
                 # End row
                 row_html += "</tr>"
@@ -563,6 +642,27 @@ class HTMLGenerator:
         
         .stock-table tr:nth-child(even) {{
             background-color: #f5f5f5;
+        }}
+        
+        /* Special row styling for buy/sell - higher specificity to override even/odd */
+        .stock-table tr.buy-row,
+        .stock-table tr.buy-row:nth-child(even) {{
+            background-color: #f0fff0 !important;  /* Very light green background */
+        }}
+        
+        .stock-table tr.buy-row:hover,
+        .stock-table tr.buy-row:nth-child(even):hover {{
+            background-color: #e0ffe0 !important;  /* Slightly darker green on hover */
+        }}
+        
+        .stock-table tr.sell-row,
+        .stock-table tr.sell-row:nth-child(even) {{
+            background-color: #fff0f0 !important;  /* Very light red background */
+        }}
+        
+        .stock-table tr.sell-row:hover,
+        .stock-table tr.sell-row:nth-child(even):hover {{
+            background-color: #ffe0e0 !important;  /* Slightly darker red on hover */
         }}
         
         .sort-header {{
@@ -686,7 +786,7 @@ class HTMLGenerator:
             # Write CSV file with same columns and order
             csv_path = f"{self.output_dir}/{output_filename}.csv"
             df.to_csv(csv_path, index=False)
-            logger.info(f"Generated CSV file at {csv_path}")
+            logger.debug(f"Generated CSV file at {csv_path}")
             
             # Write HTML file
             html_path = f"{self.output_dir}/{output_filename}.html"
@@ -696,7 +796,7 @@ class HTMLGenerator:
             # Copy default CSS and JS if they don't exist
             self._ensure_assets_exist()
                 
-            logger.info(f"Generated HTML table at {html_path}")
+            logger.debug(f"Generated HTML table at {html_path}")
             return html_path
             
         except Exception as e:

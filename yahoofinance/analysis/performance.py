@@ -1318,12 +1318,13 @@ def track_index_performance(period_type: str = "weekly"):
             else:
                 title = "Market Performance - Monthly Report"
             
+        # Generate HTML with standardized filename
         tracker.generate_index_performance_html(
             performances,
             title=title
         )
         
-        # Save performance data with consistent naming convention
+        # Save performance data with standardized filename
         tracker.save_performance_data(
             performances,
             file_name="performance.json"
@@ -1383,13 +1384,13 @@ def track_portfolio_performance(url: str = DEFAULT_PORTFOLIO_URL):
         print(tabulate(data, headers=['Metric', 'Value'], tablefmt='fancy_grid', showindex=False))
         print(f"\nLast updated: {performance.last_updated.strftime('%Y-%m-%d %H:%M') if performance.last_updated else 'N/A'}")
         
-        # Generate HTML with better title
+        # Generate HTML with better title and standardized filename
         tracker.generate_portfolio_performance_html(
             performance, 
             title="Portfolio Performance Summary"
         )
         
-        # Save performance data with consistent naming convention
+        # Save performance data with standardized filename
         tracker.save_performance_data(
             performance,
             file_name="performance.json"
@@ -1482,10 +1483,12 @@ async def track_performance_async(period_type: str = "weekly", portfolio_url: st
                 else:
                     title = "Market Performance - Monthly Report"
                 
+            # Generate HTML with standardized filename
             tracker.generate_index_performance_html(
                 index_perf,
                 title=title
             )
+            # Save performance data with standardized filename
             tracker.save_performance_data(
                 index_perf,
                 file_name="performance.json"
@@ -1536,11 +1539,12 @@ async def track_performance_async(period_type: str = "weekly", portfolio_url: st
             logger.error(f"Error getting portfolio performance: {str(portfolio_perf)}")
             print(f"Error getting portfolio performance: {str(portfolio_perf)}")
         else:
-            # Generate HTML with better title
+            # Generate HTML with better title and standardized filename
             tracker.generate_portfolio_performance_html(
                 portfolio_perf,
                 title="Portfolio Performance Summary"
             )
+            # Save performance data with standardized filename
             tracker.save_performance_data(
                 portfolio_perf,
                 file_name="performance.json"
