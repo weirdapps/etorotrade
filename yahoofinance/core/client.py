@@ -8,9 +8,42 @@ with appropriate error handling and configuration.
 
 import logging
 from typing import Dict, Any, List, Optional, Union
+from dataclasses import dataclass
 
 from .config import RATE_LIMIT
 from .errors import YFinanceError, ValidationError
+
+@dataclass
+class StockData:
+    """
+    Data container for stock information.
+    
+    This class provides a structured way to store stock data
+    and is used by both the core client and providers.
+    """
+    ticker: str
+    name: Optional[str] = None
+    price: Optional[float] = None
+    price_change: Optional[float] = None
+    price_change_percentage: Optional[float] = None
+    market_cap: Optional[float] = None
+    analyst_count: Optional[int] = None
+    target_price: Optional[float] = None
+    pe_trailing: Optional[float] = None
+    pe_forward: Optional[float] = None
+    peg_ratio: Optional[float] = None
+    dividend_yield: Optional[float] = None
+    beta: Optional[float] = None
+    short_float_pct: Optional[float] = None
+    last_earnings: Optional[str] = None
+    insider_buy_pct: Optional[float] = None
+    insider_transactions: Optional[int] = None
+    total_ratings: Optional[int] = None
+    hold_pct: Optional[float] = None
+    buy_pct: Optional[float] = None
+    upside: Optional[float] = None
+    sector: Optional[str] = None
+    recommendation: Optional[str] = None
 
 # Set up logging
 logger = logging.getLogger(__name__)

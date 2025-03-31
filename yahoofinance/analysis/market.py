@@ -3,10 +3,13 @@ Market analysis module for financial data.
 
 This module provides functions for analyzing market data,
 identifying trading opportunities, and applying trading criteria.
+
+When run directly, this module performs market analysis on a default set of tickers.
 """
 
 import pandas as pd
 import logging
+import sys
 from typing import Dict, List, Optional, Any, Union, Set, Tuple
 from dataclasses import dataclass, field
 
@@ -855,6 +858,42 @@ def filter_risk_first_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame
     # so we can just call that function directly
     return filter_buy_opportunities(market_df)
 
+def classify_stocks(market_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Classify stocks as BUY, SELL, HOLD, or INCONCLUSIVE.
+    
+    Args:
+        market_df: DataFrame with market data
+        
+    Returns:
+        DataFrame with classification column added
+    """
+    result_df = market_df.copy()
+    
+    # Define confidence condition
+    confidence_condition = get_confidence_condition(market_df)
+    
+    # Initialize classification column as INCONCLUSIVE
+    result_df['classification'] = 'INCONCLUSIVE'
+    
+    # Filter for BUY stocks
+    buy_opportunities = filter_buy_opportunities(market_df)
+    buy_tickers = set(buy_opportunities['ticker'].str.upper())
+    result_df.loc[result_df['ticker'].str.upper().isin(buy_tickers), 'classification'] = 'BUY'
+    
+    # Filter for SELL stocks
+    sell_candidates = filter_sell_candidates(market_df)
+    sell_tickers = set(sell_candidates['ticker'].str.upper())
+    result_df.loc[result_df['ticker'].str.upper().isin(sell_tickers), 'classification'] = 'SELL'
+    
+    # Filter for HOLD stocks (confident but neither BUY nor SELL)
+    confident_stocks = market_df[confidence_condition]
+    hold_tickers = set(confident_stocks['ticker'].str.upper()) - buy_tickers - sell_tickers
+    result_df.loc[result_df['ticker'].str.upper().isin(hold_tickers), 'classification'] = 'HOLD'
+    
+    return result_df
+
+
 def calculate_market_metrics(market_df: pd.DataFrame) -> Dict[str, Any]:
     """
     Calculate overall market metrics from market data.
@@ -904,37 +943,57 @@ def calculate_market_metrics(market_df: pd.DataFrame) -> Dict[str, Any]:
     
     return metrics_dict
 
-def classify_stocks(market_df: pd.DataFrame) -> pd.DataFrame:
+
+if __name__ == "__main__":
     """
-    Classify stocks as BUY, SELL, HOLD, or INCONCLUSIVE.
+    When run directly, perform market analysis on a default set of tickers.
     
-    Args:
-        market_df: DataFrame with market data
+    This provides a simple CLI interface for quickly analyzing market data.
+    """
+    logging.basicConfig(level=logging.INFO)
+    
+    # Create analyzer and provider
+    analyzer = MarketAnalyzer()
+    
+    # Default tickers to analyze if none provided
+    default_tickers = ["AAPL", "MSFT", "GOOG", "AMZN", "META"]
+    
+    # Allow command-line parameters for tickers
+    tickers = sys.argv[1:] if len(sys.argv) > 1 else default_tickers
+    
+    print(f"Analyzing market data for {len(tickers)} tickers: {', '.join(tickers)}")
+    try:
+        # Use synchronous API for simplicity in command-line usage
+        result_df = analyzer.analyze_market(tickers)
         
-    Returns:
-        DataFrame with classification column added
-    """
-    result_df = market_df.copy()
-    
-    # Define confidence condition
-    confidence_condition = get_confidence_condition(market_df)
-    
-    # Initialize classification column as INCONCLUSIVE
-    result_df['classification'] = 'INCONCLUSIVE'
-    
-    # Filter for BUY stocks
-    buy_opportunities = filter_buy_opportunities(market_df)
-    buy_tickers = set(buy_opportunities['ticker'].str.upper())
-    result_df.loc[result_df['ticker'].str.upper().isin(buy_tickers), 'classification'] = 'BUY'
-    
-    # Filter for SELL stocks
-    sell_candidates = filter_sell_candidates(market_df)
-    sell_tickers = set(sell_candidates['ticker'].str.upper())
-    result_df.loc[result_df['ticker'].str.upper().isin(sell_tickers), 'classification'] = 'SELL'
-    
-    # Filter for HOLD stocks (confident but neither BUY nor SELL)
-    confident_stocks = market_df[confidence_condition]
-    hold_tickers = set(confident_stocks['ticker'].str.upper()) - buy_tickers - sell_tickers
-    result_df.loc[result_df['ticker'].str.upper().isin(hold_tickers), 'classification'] = 'HOLD'
-    
-    return result_df
+        # Calculate metrics - this returns a MarketMetrics object
+        metrics_obj = analyzer.calculate_market_metrics(result_df)
+        
+        # Access object attributes instead of dictionary keys
+        print("\nMarket Analysis Results:")
+        print(f"Total stocks analyzed: {metrics_obj.total_count}")
+        
+        # Handle potentially None values for metrics
+        buy_pct = metrics_obj.buy_percentage if metrics_obj.buy_percentage is not None else 0
+        sell_pct = metrics_obj.sell_percentage if metrics_obj.sell_percentage is not None else 0
+        hold_pct = metrics_obj.hold_percentage if metrics_obj.hold_percentage is not None else 0
+        net_breadth = metrics_obj.net_breadth if metrics_obj.net_breadth is not None else 0
+        
+        print(f"Buy candidates: {metrics_obj.buy_count} ({buy_pct:.1f}%)")
+        print(f"Sell candidates: {metrics_obj.sell_count} ({sell_pct:.1f}%)")
+        print(f"Hold candidates: {metrics_obj.hold_count} ({hold_pct:.1f}%)")
+        print(f"Market breadth: {net_breadth:.1f}%")
+        
+        # Display the dataframe with classifications
+        pd.set_option('display.max_rows', 50)
+        pd.set_option('display.max_columns', 20)
+        pd.set_option('display.width', 160)
+        print("\nDetailed Analysis:")
+        if 'classification' in result_df.columns:
+            print(result_df[['ticker', 'price', 'upside', 'buy_percentage', 'classification']].head(10))
+        else:
+            print(result_df[['ticker', 'price', 'upside', 'buy_percentage']].head(10))
+        
+    except Exception as e:
+        print(f"Error analyzing market data: {str(e)}")
+        sys.exit(1)

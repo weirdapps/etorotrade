@@ -1,12 +1,12 @@
 {
-  "this_month": -0.12,
-  "year_to_date": -0.32,
-  "two_years": 55.92,
+  "this_month": -2.43,
+  "year_to_date": -2.61,
+  "two_years": 52.33,
   "beta": 0.82,
   "sharpe": 1.62,
   "alpha": 6.82,
   "sortino": 4.36,
-  "cash": 28.1,
+  "cash": 22.91,
   "source": "https://bullaware.com/etoro/plessas",
-  "last_updated": "2025-03-28T15:09:13.118039"
+  "last_updated": "2025-03-31T14:04:04.025929"
 }

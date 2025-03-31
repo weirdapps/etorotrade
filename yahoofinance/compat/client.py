@@ -3,11 +3,24 @@ Compatibility module for YFinanceClient from v1.
 
 This module provides a YFinanceClient class that mirrors the interface of
 the v1 client but uses the v2 provider implementation under the hood.
+
+DEPRECATION WARNING: This module is deprecated and will be removed in a future version.
+Use the canonical import path instead:
+from yahoofinance.api import get_provider
 """
 
 import logging
+import warnings
 from typing import Dict, List, Optional, Any, Union
 from dataclasses import dataclass
+
+# Show deprecation warning
+warnings.warn(
+    "The yahoofinance.compat.client module is deprecated and will be removed in a future version. "
+    "Use 'from yahoofinance.api import get_provider' instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 from ..api import get_provider, FinanceDataProvider
 from ..core.config import CACHE_CONFIG
