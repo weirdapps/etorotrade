@@ -85,9 +85,9 @@ def test_error_recovery_integration():
     result1 = provider.get_ticker_info('AAPL')
     assert result1 is not None
     
-    # Test invalid ticker (should return None in the compatibility layer)
+    # Test invalid ticker
     with pytest.raises(Exception):
-        # The provider doesn't gracefully handle invalid tickers like the compatibility layer
+        # The provider doesn't gracefully handle invalid tickers (throws an exception)
         provider.get_ticker_info('INVALID_TICKER_THAT_DOES_NOT_EXIST_12345')
 
 
