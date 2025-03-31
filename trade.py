@@ -971,6 +971,33 @@ def display_and_save_results(display_df, title, output_file):
     # Save to CSV
     csv_df.to_csv(output_file, index=False)
     print(f"Results saved to {output_file}")
+    
+    # Generate HTML with the same columns and format
+    try:
+        from yahoofinance.presentation.html import HTMLGenerator
+        
+        # Get output directory and base filename
+        output_dir = os.path.dirname(output_file)
+        base_filename = os.path.splitext(os.path.basename(output_file))[0]
+        
+        # Convert dataframe to list of dictionaries for HTMLGenerator
+        stocks_data = csv_df.to_dict(orient='records')
+        
+        # Get the list of columns in the order they appear in the dataframe
+        column_order = list(csv_df.columns)
+        
+        # Create HTML generator and generate HTML file
+        html_generator = HTMLGenerator(output_dir=output_dir)
+        html_path = html_generator.generate_stock_table(
+            stocks_data=stocks_data,
+            title=title,
+            output_filename=base_filename,
+            include_columns=column_order
+        )
+        if html_path:
+            print(f"HTML dashboard saved to {html_path}")
+    except Exception as e:
+        print(f"Failed to generate HTML: {str(e)}")
 
 def create_empty_results_file(output_file):
     """Create an empty results file when no candidates are found.
@@ -978,10 +1005,37 @@ def create_empty_results_file(output_file):
     Args:
         output_file: Path to the output file
     """
-    pd.DataFrame(columns=['#', 'TICKER', 'COMPANY', 'CAP', 'PRICE', 'TARGET', 'UPSIDE', '# T', 
+    empty_df = pd.DataFrame(columns=['#', 'TICKER', 'COMPANY', 'CAP', 'PRICE', 'TARGET', 'UPSIDE', '# T', 
                          BUY_PERCENTAGE, '# A', 'A', 'EXRET', 'BETA', 'PET', 'PEF', 
-                         'PEG', DIVIDEND_YIELD, 'SI', '% SI', 'SI_value', 'EARNINGS']).to_csv(output_file, index=False)
+                         'PEG', DIVIDEND_YIELD, 'SI', '% SI', 'SI_value', 'EARNINGS'])
+    
+    # Save to CSV
+    empty_df.to_csv(output_file, index=False)
     print(f"Empty results file created at {output_file}")
+    
+    # Create empty HTML file
+    try:
+        from yahoofinance.presentation.html import HTMLGenerator
+        
+        # Get output directory and base filename
+        output_dir = os.path.dirname(output_file)
+        base_filename = os.path.splitext(os.path.basename(output_file))[0]
+        
+        # Convert dataframe to list of dictionaries for HTMLGenerator
+        stocks_data = empty_df.to_dict(orient='records')
+        
+        # Create HTML generator and generate empty HTML file
+        html_generator = HTMLGenerator(output_dir=output_dir)
+        html_path = html_generator.generate_stock_table(
+            stocks_data=stocks_data,
+            title=f"No results found for {base_filename}",
+            output_filename=base_filename,
+            include_columns=list(empty_df.columns)
+        )
+        if html_path:
+            print(f"Empty HTML dashboard created at {html_path}")
+    except Exception as e:
+        print(f"Failed to generate empty HTML: {str(e)}")
 
 def process_market_data(market_df):
     """Process market data to extract technical indicators when analyst data is insufficient.
@@ -2378,7 +2432,7 @@ def _display_empty_result(report_title):
     """
     print(f"\n{report_title}:")
     print(f"Generated at: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("No data available to display. Data has been saved to CSV.")
+    print("No data available to display. Data has been saved to CSV and HTML files.")
 
 def _sort_display_dataframe(display_df):
     """Sort display dataframe by EXRET if available.
@@ -2584,6 +2638,8 @@ def display_report_for_source(display, tickers, source, verbose=False):
         # Save raw data
         result_df.to_csv(output_file, index=False)
         
+        # We'll generate the HTML file after formatting the data properly
+        
         # Step 2: Process data for display
         display_df = _process_data_for_display(result_df)
         
@@ -2623,6 +2679,40 @@ def display_report_for_source(display, tickers, source, verbose=False):
                 colalign=colalign  # Use column alignments without adding extra right alignment
             ))
             print(f"\nTotal: {len(display_df)}")
+            
+            # Generate HTML file from formatted data
+            try:
+                from yahoofinance.presentation.html import HTMLGenerator
+                
+                # Get output directory and base filename
+                output_dir = os.path.dirname(output_file)
+                base_filename = os.path.splitext(os.path.basename(output_file))[0]
+                
+                # Use original display_df which doesn't have ANSI color codes
+                clean_df = display_df.copy()
+                
+                # Add ranking column for display if not present
+                if '#' not in clean_df.columns:
+                    clean_df.insert(0, '#', range(1, len(clean_df) + 1))
+                
+                # Add ACTION column to indicate trade action
+                if 'action' in display_df.columns and 'ACTION' not in clean_df.columns:
+                    clean_df['ACTION'] = display_df['action']
+                
+                # Convert dataframe to list of dictionaries for HTMLGenerator
+                stocks_data = clean_df.to_dict(orient='records')
+                
+                # Create HTML generator and generate HTML file
+                html_generator = HTMLGenerator(output_dir=output_dir)
+                html_path = html_generator.generate_stock_table(
+                    stocks_data=stocks_data,
+                    title=report_title,
+                    output_filename=base_filename
+                )
+                if html_path:
+                    print(f"HTML dashboard saved to {html_path}")
+            except Exception as e:
+                print(f"Failed to generate HTML: {str(e)}")
         except Exception as e:
             # Fallback if tabulate fails
             print(f"Error displaying table: {str(e)}")
