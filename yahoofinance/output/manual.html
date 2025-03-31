@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual Ticker Analysis</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f7;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .table-container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+            overflow: auto;
+            padding: 5px;
+        }
+        
+        .stock-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        
+        .stock-table th {
+            background-color: #f8f8f8;
+            color: #444;
+            font-weight: 600;
+            padding: 12px 8px;
+            border-bottom: 2px solid #e0e0e0;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .stock-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .stock-table tr:hover {
+            background-color: #f9f9f9;
+        }
+        
+        .stock-table tr:nth-child(even) {
+            background-color: #f5f5f5;
+        }
+        
+        .sort-header {
+            cursor: pointer;
+        }
+        
+        .sort-header:after {
+            content: ' ↕';
+            font-size: 12px;
+            color: #999;
+        }
+        
+        .sort-header.asc:after {
+            content: ' ↓';
+            color: #333;
+        }
+        
+        .sort-header.desc:after {
+            content: ' ↑';
+            color: #333;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .stock-table {
+                font-size: 12px;
+            }
+            
+            .stock-table th,
+            .stock-table td {
+                padding: 8px 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Manual Ticker Analysis</h1>
+        <div class="table-container">
+            
+            <table class="stock-table" border="0">
+                <thead>
+                    <tr><th class="sort-header">#</th><th class="sort-header">TICKER</th><th class="sort-header">COMPANY</th><th class="sort-header">CAP</th><th class="sort-header">PRICE</th><th class="sort-header">TARGET</th><th class="sort-header">UPSIDE</th><th class="sort-header"># T</th><th class="sort-header">% BUY</th><th class="sort-header"># A</th><th class="sort-header">A</th><th class="sort-header">EXRET</th><th class="sort-header">BETA</th><th class="sort-header">PET</th><th class="sort-header">PEF</th><th class="sort-header">PEG</th><th class="sort-header">DIV %</th><th class="sort-header">SI</th><th class="sort-header">EARNINGS</th><th class="sort-header">ACTION</th></tr>
+                </thead>
+                <tbody>
+                    <tr style="color: green;"><td style="text-align: right;">1</td><td style="text-align: left;">NVDA</td><td style="text-align: left;">NVIDIA CORPORA</td><td style="text-align: right;">2.58T</td><td style="text-align: right;">105.5</td><td style="text-align: right;">171.0</td><td style="text-align: right;">62.0%</td><td style="text-align: right;">55</td><td style="text-align: right;">89%</td><td style="text-align: right;">18</td><td style="text-align: right;">E</td><td style="text-align: right;">55.2%</td><td style="text-align: right;">1.8</td><td style="text-align: right;">35.9</td><td style="text-align: right;">25.6</td><td style="text-align: right;">1.1</td><td style="text-align: right;">0.04%</td><td style="text-align: right;">1.1%</td><td style="text-align: right;">2025-02-25</td><td style="text-align: right; font-weight: bold;">B</td></tr><tr style="color: green;"><td style="text-align: right;">2</td><td style="text-align: left;">AMZN</td><td style="text-align: left;">AMAZON.COM, IN</td><td style="text-align: right;">2.00T</td><td style="text-align: right;">188.2</td><td style="text-align: right;">264.6</td><td style="text-align: right;">40.6%</td><td style="text-align: right;">65</td><td style="text-align: right;">91%</td><td style="text-align: right;">22</td><td style="text-align: right;">E</td><td style="text-align: right;">36.9%</td><td style="text-align: right;">1.2</td><td style="text-align: right;">34.0</td><td style="text-align: right;">30.6</td><td style="text-align: right;">1.6</td><td style="text-align: right;">--</td><td style="text-align: right;">0.8%</td><td style="text-align: right;">2025-02-05</td><td style="text-align: right; font-weight: bold;">B</td></tr><tr style="color: green;"><td style="text-align: right;">3</td><td style="text-align: left;">MSFT</td><td style="text-align: left;">MICROSOFT CORP</td><td style="text-align: right;">2.76T</td><td style="text-align: right;">371.6</td><td style="text-align: right;">503.5</td><td style="text-align: right;">35.5%</td><td style="text-align: right;">51</td><td style="text-align: right;">92%</td><td style="text-align: right;">12</td><td style="text-align: right;">E</td><td style="text-align: right;">32.5%</td><td style="text-align: right;">0.9</td><td style="text-align: right;">29.9</td><td style="text-align: right;">24.9</td><td style="text-align: right;">1.7</td><td style="text-align: right;">0.88%</td><td style="text-align: right;">0.9%</td><td style="text-align: right;">2025-01-28</td><td style="text-align: right; font-weight: bold;">B</td></tr><tr style="color: green;"><td style="text-align: right;">4</td><td style="text-align: left;">META</td><td style="text-align: left;">META PLATFORMS</td><td style="text-align: right;">1.45T</td><td style="text-align: right;">570.6</td><td style="text-align: right;">765.1</td><td style="text-align: right;">34.1%</td><td style="text-align: right;">58</td><td style="text-align: right;">87%</td><td style="text-align: right;">63</td><td style="text-align: right;">A</td><td style="text-align: right;">29.8%</td><td style="text-align: right;">1.2</td><td style="text-align: right;">23.9</td><td style="text-align: right;">22.6</td><td style="text-align: right;">1.2</td><td style="text-align: right;">0.36%</td><td style="text-align: right;">1.1%</td><td style="text-align: right;">2025-01-28</td><td style="text-align: right; font-weight: bold;">B</td></tr><tr><td style="text-align: right;">5</td><td style="text-align: left;">GOOGL</td><td style="text-align: left;">ALPHABET INC.</td><td style="text-align: right;">1.88T</td><td style="text-align: right;">153.8</td><td style="text-align: right;">217.5</td><td style="text-align: right;">41.4%</td><td style="text-align: right;">49</td><td style="text-align: right;">67%</td><td style="text-align: right;">12</td><td style="text-align: right;">E</td><td style="text-align: right;">27.6%</td><td style="text-align: right;">1.0</td><td style="text-align: right;">19.1</td><td style="text-align: right;">17.2</td><td style="text-align: right;">1.1</td><td style="text-align: right;">0.52%</td><td style="text-align: right;">1.2%</td><td style="text-align: right;">2025-02-03</td><td style="text-align: right;">H</td></tr><tr><td style="text-align: right;">6</td><td style="text-align: left;">AAPL</td><td style="text-align: left;">APPLE INC.</td><td style="text-align: right;">3.32T</td><td style="text-align: right;">220.8</td><td style="text-align: right;">252.6</td><td style="text-align: right;">14.4%</td><td style="text-align: right;">39</td><td style="text-align: right;">79%</td><td style="text-align: right;">14</td><td style="text-align: right;">E</td><td style="text-align: right;">11.3%</td><td style="text-align: right;">1.2</td><td style="text-align: right;">35.0</td><td style="text-align: right;">26.6</td><td style="text-align: right;">2.0</td><td style="text-align: right;">0.46%</td><td style="text-align: right;">0.9%</td><td style="text-align: right;">2025-01-29</td><td style="text-align: right;">H</td></tr>
+                </tbody>
+            </table>
+            
+        </div>
+        <div class="footer">
+            <p>Generated on 2025-03-31 19:27:14</p>
+        </div>
+    </div>
+    <script src="script.js"></script>
+    <script>
+        // Enhanced sorting functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const table = document.querySelector('.stock-table');
+            const headers = table.querySelectorAll('th');
+            
+            headers.forEach((header, index) => {
+                header.classList.add('sort-header');
+                header.addEventListener('click', () => {
+                    sortTable(index);
+                });
+            });
+            
+            function sortTable(columnIndex) {
+                const tbody = table.querySelector('tbody');
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                
+                // Get current sort direction
+                const header = headers[columnIndex];
+                const isAscending = header.classList.contains('asc');
+                
+                // Reset all headers
+                headers.forEach(h => {
+                    h.classList.remove('asc');
+                    h.classList.remove('desc');
+                });
+                
+                // Set new sort direction
+                if (isAscending) {
+                    header.classList.add('desc');
+                } else {
+                    header.classList.add('asc');
+                }
+                
+                const direction = isAscending ? -1 : 1;
+                
+                rows.sort((a, b) => {
+                    let aValue = a.cells[columnIndex].textContent.trim();
+                    let bValue = b.cells[columnIndex].textContent.trim();
+                    
+                    // Handle percentage values
+                    if (aValue.endsWith('%')) aValue = aValue.replace('%', '');
+                    if (bValue.endsWith('%')) bValue = bValue.replace('%', '');
+                    
+                    // Handle market cap values (e.g., 2.5T, 145.8B)
+                    if (/^[0-9]+(\.[0-9]+)?[TB]$/.test(aValue)) {
+                        const aNum = parseFloat(aValue.replace(/[TB]$/, ''));
+                        const bNum = parseFloat(bValue.replace(/[TB]$/, ''));
+                        const aMultiplier = aValue.endsWith('T') ? 1e12 : 1e9;
+                        const bMultiplier = bValue.endsWith('T') ? 1e12 : 1e9;
+                        return direction * ((aNum * aMultiplier) - (bNum * bMultiplier));
+                    }
+                    
+                    // Try to compare as numbers first
+                    const aNum = parseFloat(aValue);
+                    const bNum = parseFloat(bValue);
+                    
+                    if (!isNaN(aNum) && !isNaN(bNum)) {
+                        return direction * (aNum - bNum);
+                    }
+                    
+                    // Fall back to string comparison
+                    return direction * aValue.localeCompare(bValue);
+                });
+                
+                // Re-add rows in sorted order
+                rows.forEach(row => tbody.appendChild(row));
+            }
+        });
+    </script>
+</body>
+</html>

@@ -922,8 +922,8 @@ class PerformanceTracker:
                 sections=sections
             )
             
-            # Write to file with the requested name 'markets.html'
-            output_path = os.path.join(self.output_dir, "markets.html")
+            # Write to file with standardized name 'performance.html'
+            output_path = os.path.join(self.output_dir, "performance.html")
             with open(output_path, 'w', encoding='utf-8') as file:
                 file.write(html_content)
                 
@@ -934,12 +934,13 @@ class PerformanceTracker:
             logger.error(f"Error generating index performance HTML: {str(e)}")
             return None
     
-    def generate_portfolio_performance_html(self, performance: PortfolioPerformance) -> Optional[str]:
+    def generate_portfolio_performance_html(self, performance: PortfolioPerformance, title: str = "Portfolio Dashboard") -> Optional[str]:
         """
         Generate HTML for portfolio performance.
         
         Args:
             performance: PortfolioPerformance object
+            title: Title for the HTML page (defaults to "Portfolio Dashboard")
             
         Returns:
             Path to generated HTML file or None if failed
@@ -965,7 +966,8 @@ class PerformanceTracker:
             # Generate HTML using the HTML generator
             output_path = self.html_generator.generate_portfolio_dashboard(
                 performance_metrics=perf_metrics,
-                risk_metrics=risk_metrics
+                risk_metrics=risk_metrics,
+                title=title
             )
             
             return output_path
@@ -1302,16 +1304,29 @@ def track_index_performance(period_type: str = "weekly"):
                      showindex=False))
         print(f"\nCurrent time in Athens: {datetime.now(athens_tz).strftime('%Y-%m-%d %H:%M')}")
         
-        # Generate HTML
+        # Generate HTML with simplified title format
+        if period_type.lower() == 'weekly':
+            # Format: "Market Performance - Week of March 21-28, 2025"
+            if newest_end_date and newest_monday:
+                title = f"Market Performance - Week of {newest_monday.strftime('%B %d')}-{newest_friday.strftime('%d, %Y')}"
+            else:
+                title = "Market Performance - Weekly Report"
+        else:  # monthly
+            # Format: "Market Performance - Month of February, 2025"
+            if newest_end_date:
+                title = f"Market Performance - Month of {newest_end_date.strftime('%B, %Y')}"
+            else:
+                title = "Market Performance - Monthly Report"
+            
         tracker.generate_index_performance_html(
             performances,
-            title=f"{period_type.capitalize()} Market Performance: {period_desc}"
+            title=title
         )
         
         # Save performance data with consistent naming convention
         tracker.save_performance_data(
             performances,
-            file_name="markets.json"
+            file_name="performance.json"
         )
         
     except Exception as e:
@@ -1368,13 +1383,16 @@ def track_portfolio_performance(url: str = DEFAULT_PORTFOLIO_URL):
         print(tabulate(data, headers=['Metric', 'Value'], tablefmt='fancy_grid', showindex=False))
         print(f"\nLast updated: {performance.last_updated.strftime('%Y-%m-%d %H:%M') if performance.last_updated else 'N/A'}")
         
-        # Generate HTML
-        tracker.generate_portfolio_performance_html(performance)
+        # Generate HTML with better title
+        tracker.generate_portfolio_performance_html(
+            performance, 
+            title="Portfolio Performance Summary"
+        )
         
         # Save performance data with consistent naming convention
         tracker.save_performance_data(
             performance,
-            file_name="portfolio.json"
+            file_name="performance.json"
         )
         
     except Exception as e:
@@ -1450,13 +1468,27 @@ async def track_performance_async(period_type: str = "weekly", portfolio_url: st
                 else:
                     period_desc = "Recent Completed Month vs. Previous Month"
             
+            # Generate HTML with simplified title format
+            if period_type.lower() == 'weekly':
+                # Format: "Market Performance - Week of March 21-28, 2025"
+                if newest_end_date and newest_monday:
+                    title = f"Market Performance - Week of {newest_monday.strftime('%B %d')}-{newest_friday.strftime('%d, %Y')}"
+                else:
+                    title = "Market Performance - Weekly Report"
+            else:  # monthly
+                # Format: "Market Performance - Month of February, 2025"
+                if newest_end_date:
+                    title = f"Market Performance - Month of {newest_end_date.strftime('%B, %Y')}"
+                else:
+                    title = "Market Performance - Monthly Report"
+                
             tracker.generate_index_performance_html(
                 index_perf,
-                title=f"{period_type.capitalize()} Market Performance: {period_desc}"
+                title=title
             )
             tracker.save_performance_data(
                 index_perf,
-                file_name="markets.json"
+                file_name="performance.json"
             )
             
             # Display in console
@@ -1504,11 +1536,14 @@ async def track_performance_async(period_type: str = "weekly", portfolio_url: st
             logger.error(f"Error getting portfolio performance: {str(portfolio_perf)}")
             print(f"Error getting portfolio performance: {str(portfolio_perf)}")
         else:
-            # Generate HTML and save data with consistent naming
-            tracker.generate_portfolio_performance_html(portfolio_perf)
+            # Generate HTML with better title
+            tracker.generate_portfolio_performance_html(
+                portfolio_perf,
+                title="Portfolio Performance Summary"
+            )
             tracker.save_performance_data(
                 portfolio_perf,
-                file_name="portfolio.json"
+                file_name="performance.json"
             )
             
             # Display in console

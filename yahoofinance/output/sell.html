@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sell Candidates in Your Portfolio</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .stock-table tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .stock-table td {
+            padding: 8px;
+        }
+        .sort-header {
+            cursor: pointer;
+        }
+        .sort-header:after {
+            content: ' ↕';
+            font-size: 12px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Sell Candidates in Your Portfolio</h1>
+        <div class="table-container">
+            <style type="text/css">
+#T_69b92_row0_col7, #T_69b92_row0_col9, #T_69b92_row0_col12, #T_69b92_row0_col14, #T_69b92_row0_col15 {
+  color: green;
+}
+#T_69b92_row0_col20 {
+  color: red;
+  font-weight: bold;
+}
+</style>
+<table id="T_69b92">
+  <thead>
+    <tr>
+      <th class="blank level0" >&nbsp;</th>
+      <th id="T_69b92_level0_col0" class="col_heading level0 col0" >#</th>
+      <th id="T_69b92_level0_col1" class="col_heading level0 col1" >TICKER</th>
+      <th id="T_69b92_level0_col2" class="col_heading level0 col2" >COMPANY</th>
+      <th id="T_69b92_level0_col3" class="col_heading level0 col3" >CAP</th>
+      <th id="T_69b92_level0_col4" class="col_heading level0 col4" >PRICE</th>
+      <th id="T_69b92_level0_col5" class="col_heading level0 col5" >TARGET</th>
+      <th id="T_69b92_level0_col6" class="col_heading level0 col6" >UPSIDE</th>
+      <th id="T_69b92_level0_col7" class="col_heading level0 col7" ># T</th>
+      <th id="T_69b92_level0_col8" class="col_heading level0 col8" >% BUY</th>
+      <th id="T_69b92_level0_col9" class="col_heading level0 col9" ># A</th>
+      <th id="T_69b92_level0_col10" class="col_heading level0 col10" >A</th>
+      <th id="T_69b92_level0_col11" class="col_heading level0 col11" >EXRET</th>
+      <th id="T_69b92_level0_col12" class="col_heading level0 col12" >BETA</th>
+      <th id="T_69b92_level0_col13" class="col_heading level0 col13" >PET</th>
+      <th id="T_69b92_level0_col14" class="col_heading level0 col14" >PEF</th>
+      <th id="T_69b92_level0_col15" class="col_heading level0 col15" >PEG</th>
+      <th id="T_69b92_level0_col16" class="col_heading level0 col16" >DIV %</th>
+      <th id="T_69b92_level0_col17" class="col_heading level0 col17" >SI</th>
+      <th id="T_69b92_level0_col18" class="col_heading level0 col18" >EARNINGS</th>
+      <th id="T_69b92_level0_col19" class="col_heading level0 col19" >% SI</th>
+      <th id="T_69b92_level0_col20" class="col_heading level0 col20" >SI_value</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th id="T_69b92_level0_row0" class="row_heading level0 row0" >0</th>
+      <td id="T_69b92_row0_col0" class="data row0 col0" >1</td>
+      <td id="T_69b92_row0_col1" class="data row0 col1" >C</td>
+      <td id="T_69b92_row0_col2" class="data row0 col2" >CITIGROUP INC.</td>
+      <td id="T_69b92_row0_col3" class="data row0 col3" >131B</td>
+      <td id="T_69b92_row0_col4" class="data row0 col4" >69.8</td>
+      <td id="T_69b92_row0_col5" class="data row0 col5" >90.3</td>
+      <td id="T_69b92_row0_col6" class="data row0 col6" >29.4%</td>
+      <td id="T_69b92_row0_col7" class="data row0 col7" >19</td>
+      <td id="T_69b92_row0_col8" class="data row0 col8" >92%</td>
+      <td id="T_69b92_row0_col9" class="data row0 col9" >12</td>
+      <td id="T_69b92_row0_col10" class="data row0 col10" >E</td>
+      <td id="T_69b92_row0_col11" class="data row0 col11" >27.0%</td>
+      <td id="T_69b92_row0_col12" class="data row0 col12" >1.4</td>
+      <td id="T_69b92_row0_col13" class="data row0 col13" >11.7</td>
+      <td id="T_69b92_row0_col14" class="data row0 col14" >9.7</td>
+      <td id="T_69b92_row0_col15" class="data row0 col15" >1.0</td>
+      <td id="T_69b92_row0_col16" class="data row0 col16" >3.18%</td>
+      <td id="T_69b92_row0_col17" class="data row0 col17" >2.0%</td>
+      <td id="T_69b92_row0_col18" class="data row0 col18" >2025-01-14</td>
+      <td id="T_69b92_row0_col19" class="data row0 col19" >2.0%</td>
+      <td id="T_69b92_row0_col20" class="data row0 col20" >2.000000</td>
+    </tr>
+  </tbody>
+</table>
+
+        </div>
+    </div>
+    <script src="script.js"></script>
+    <script>
+        // Add sorting functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const table = document.querySelector('.stock-table');
+            const headers = table.querySelectorAll('th');
+            
+            headers.forEach((header, index) => {
+                header.classList.add('sort-header');
+                header.addEventListener('click', () => {
+                    sortTable(index);
+                });
+            });
+            
+            function sortTable(columnIndex) {
+                const tbody = table.querySelector('tbody');
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                
+                const direction = headers[columnIndex].getAttribute('data-sort') === 'asc' ? -1 : 1;
+                
+                // Reset all headers
+                headers.forEach(h => h.removeAttribute('data-sort'));
+                
+                // Set new sort direction
+                headers[columnIndex].setAttribute('data-sort', direction === 1 ? 'asc' : 'desc');
+                
+                rows.sort((a, b) => {
+                    const aValue = a.cells[columnIndex].textContent;
+                    const bValue = b.cells[columnIndex].textContent;
+                    
+                    // Try to compare as numbers first
+                    const aNum = parseFloat(aValue);
+                    const bNum = parseFloat(bValue);
+                    
+                    if (!isNaN(aNum) && !isNaN(bNum)) {
+                        return direction * (aNum - bNum);
+                    }
+                    
+                    // Fall back to string comparison
+                    return direction * aValue.localeCompare(bValue);
+                });
+                
+                // Re-add rows in sorted order
+                rows.forEach(row => tbody.appendChild(row));
+            }
+        });
+    </script>
+</body>
+</html>
