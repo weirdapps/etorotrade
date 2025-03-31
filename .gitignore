@@ -110,3 +110,6 @@ reports/
 # AI assist
 .claude/
 
+.DS_Store
+claude.md
+future_improvements.md
