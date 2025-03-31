@@ -3,12 +3,25 @@ Compatibility module for MarketDisplay from v1.
 
 This module provides a MarketDisplay class that mirrors the interface of
 the v1 display class but uses the v2 presentation implementation under the hood.
+
+DEPRECATION WARNING: This module is deprecated and will be removed in a future version.
+Use the canonical import path instead:
+from yahoofinance.presentation.console import MarketDisplay
 """
 
 import logging
+import warnings
 from typing import Dict, List, Optional, Any, Tuple
 import pandas as pd
 from datetime import datetime
+
+# Show deprecation warning
+warnings.warn(
+    "The yahoofinance.compat.display module is deprecated and will be removed in a future version. "
+    "Use 'from yahoofinance.presentation.console import MarketDisplay' instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 from ..presentation.console import MarketDisplay as V2MarketDisplay
 from ..presentation.formatter import DisplayFormatter as V2Formatter

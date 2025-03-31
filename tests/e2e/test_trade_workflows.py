@@ -10,7 +10,7 @@ import os
 import pandas as pd
 from unittest.mock import patch, MagicMock
 
-from yahoofinance.compat.display import MarketDisplay
+from yahoofinance.presentation.console import MarketDisplay
 from yahoofinance.api import get_provider
 
 
@@ -284,14 +284,17 @@ def mock_provider():
     """Create a mock provider with predefined responses."""
     provider = MagicMock()
     
+    # Mock get_ticker_analysis responses
+    provider.get_ticker_analysis = MagicMock(side_effect=lambda ticker: STOCK_REPORTS.get(ticker))
+    
     # Mock ticker info responses
-    provider.get_ticker_info.side_effect = lambda ticker: TICKERS[ticker]
+    provider.get_ticker_info = MagicMock(side_effect=lambda ticker: TICKERS.get(ticker))
     
     # Mock price data responses
-    provider.get_price_data.side_effect = lambda ticker: PRICE_DATA[ticker]
+    provider.get_price_data = MagicMock(side_effect=lambda ticker: PRICE_DATA.get(ticker))
     
     # Mock analyst ratings responses
-    provider.get_analyst_ratings.side_effect = lambda ticker: ANALYST_RATINGS[ticker]
+    provider.get_analyst_ratings = MagicMock(side_effect=lambda ticker: ANALYST_RATINGS.get(ticker))
     
     return provider
 
@@ -300,11 +303,10 @@ def mock_provider():
 class TestPortfolioWorkflow:
     """Test portfolio analysis workflow from data loading to recommendation."""
     
-    @patch("yahoofinance.compat.display.MarketDisplay.generate_stock_report")
-    @patch("yahoofinance.compat.display.MarketDisplay.load_tickers")
+    @patch("yahoofinance.presentation.console.MarketDisplay.load_tickers")
     @patch("yahoofinance.api.get_provider")
     def test_portfolio_analysis_workflow(self, mock_get_provider, mock_load_tickers, 
-                                        mock_generate_report, sample_portfolio_data, mock_provider):
+                                        sample_portfolio_data, mock_provider):
         """Test complete workflow for portfolio analysis."""
         # Set up the mock provider
         mock_get_provider.return_value = mock_provider
@@ -312,54 +314,37 @@ class TestPortfolioWorkflow:
         # Mock loading tickers from file
         mock_load_tickers.return_value = sample_portfolio_data['symbol'].tolist()
         
-        # Mock stock reports for each ticker
-        mock_generate_report.side_effect = lambda ticker: STOCK_REPORTS[ticker]
-        
-        # Create a mock to_csv method and DataFrame for the result
+        # Create a mock to_csv method
         mock_to_csv = MagicMock()
-        expected_result = pd.DataFrame([
-            mock_generate_report("AAPL"),
-            mock_generate_report("MSFT"),
-            mock_generate_report("AMZN")
-        ])
-        expected_result.to_csv = mock_to_csv
         
-        # Create a patch for analyze_portfolio
-        with patch.object(MarketDisplay, 'analyze_portfolio') as mock_analyze_portfolio:
-            mock_analyze_portfolio.return_value = expected_result
-            
-            # Create display instance and run portfolio analysis
-            display = MarketDisplay()
-            result = display.analyze_portfolio()
-            
-            # Verify the workflow executed correctly
-            # Debug info (can be removed later)
-            # print(f"mock_load_tickers.called: {mock_load_tickers.called}")
-            # print(f"mock_generate_report.called: {mock_generate_report.called}")
-            
-            # Skip assertions for mocks that aren't actually being called
-            # assert mock_load_tickers.called
-            # assert mock_generate_report.called
-            
-            # Verify result contains expected data structure
-            assert isinstance(result, pd.DataFrame)
-            assert "ticker" in result.columns
-            assert "recommendation" in result.columns
-            assert len(result) == 3
-            
-            # Verify at least one ticker has a BUY recommendation
-            assert "BUY" in result["recommendation"].values
+        # Create a patch for MarketDisplay._sync_display_report
+        with patch.object(MarketDisplay, '_sync_display_report') as mock_sync_display:
+            with patch.object(MarketDisplay, 'save_to_csv') as mock_save_csv:
+                mock_save_csv.return_value = "/path/to/output.csv"
+                
+                # Create display instance and run portfolio analysis
+                display = MarketDisplay(provider=mock_provider)
+                display.display_report(sample_portfolio_data['symbol'].tolist(), 'P')
+                
+                # Verify the workflow executed correctly
+                assert mock_load_tickers.called or mock_sync_display.called
+                
+                # Verify proper parameters were passed to sync_display
+                if mock_sync_display.called:
+                    args, kwargs = mock_sync_display.call_args
+                    assert args[0] == sample_portfolio_data['symbol'].tolist()
+                    assert args[1] == 'P'
+                
 
 
 @pytest.mark.e2e
 class TestTradeWorkflow:
     """Test trade recommendation workflow."""
     
-    @patch("yahoofinance.compat.display.MarketDisplay.generate_stock_report")
-    @patch("yahoofinance.compat.display.MarketDisplay.load_tickers")
+    @patch("yahoofinance.presentation.console.MarketDisplay.load_tickers")
     @patch("yahoofinance.api.get_provider")
     def test_buy_recommendations_workflow(self, mock_get_provider, mock_load_tickers, 
-                                         mock_generate_report, sample_market_data, mock_provider):
+                                        sample_market_data, mock_provider):
         """Test complete workflow for generating buy recommendations."""
         # Set up the mock provider
         mock_get_provider.return_value = mock_provider
@@ -367,41 +352,36 @@ class TestTradeWorkflow:
         # Mock loading tickers from file
         mock_load_tickers.return_value = sample_market_data['symbol'].tolist()
         
-        # Mock stock reports for each ticker
-        mock_generate_report.side_effect = lambda ticker: STOCK_REPORTS[ticker]
-        
-        # Create a mock for the DataFrame.to_csv method
-        mock_to_csv = MagicMock()
-        
-        # Create a patch for get_buy_recommendations
-        with patch.object(MarketDisplay, 'get_buy_recommendations') as mock_get_buy:
-            # Set up the mock to return a dataframe with BUY recommendations
-            buy_df = pd.DataFrame([
-                mock_generate_report("AMZN"),
-                mock_generate_report("GOOGL"),
-                mock_generate_report("META")
-            ])
-            buy_df.to_csv = mock_to_csv
-            mock_get_buy.return_value = buy_df
-            
-            # Create display instance and run buy recommendations
-            display = MarketDisplay()
-            result = display.get_buy_recommendations()
-            
-            # Verify the workflow executed correctly
-            # Debug info (can be removed later)
-            # print(f"mock_load_tickers.called: {mock_load_tickers.called}")
-            # print(f"mock_generate_report.called: {mock_generate_report.called}")
-            
-            # Skip assertions for mocks that aren't actually being called
-            # assert mock_load_tickers.called
-            # assert mock_generate_report.called
-            
-            # Verify result contains only BUY recommendations
-            assert isinstance(result, pd.DataFrame)
-            assert len(result) == 3  # AMZN, GOOGL, META should be BUY
-            assert set(result["recommendation"]) == {"BUY"}
-            assert set(result["ticker"]) == {"AMZN", "GOOGL", "META"}
-            
-            # Skipping to_csv assertion since we're not actually calling it
-            # assert mock_to_csv.called
+        # Create patches for _process_tickers_with_progress and display_stock_table
+        with patch.object(MarketDisplay, '_process_tickers_with_progress') as mock_process:
+            with patch.object(MarketDisplay, 'display_stock_table') as mock_display:
+                with patch.object(MarketDisplay, 'save_to_csv') as mock_save:
+                    # Set up the mock to process tickers
+                    # Return only BUY recommendations
+                    mock_process.return_value = [
+                        STOCK_REPORTS["AMZN"],
+                        STOCK_REPORTS["GOOGL"],
+                        STOCK_REPORTS["META"]
+                    ]
+                    
+                    # Create display instance and run market analysis
+                    display = MarketDisplay(provider=mock_provider)
+                    display._sync_display_report(sample_market_data['symbol'].tolist(), 'M')
+                    
+                    # Verify the workflow executed correctly
+                    assert mock_process.called
+                    assert mock_display.called
+                    
+                    # Verify display was called with the BUY recommendations
+                    if mock_display.called:
+                        args, _ = mock_display.call_args
+                        recommendations = args[0]
+                        assert len(recommendations) == 3
+                        # Verify recommendations all have BUY status
+                        for rec in recommendations:
+                            assert rec["recommendation"] == "BUY"
+                            
+                    # Verify save_to_csv was called with the right filename
+                    if mock_save.called:
+                        args, _ = mock_save.call_args
+                        assert args[1] == "market.csv"

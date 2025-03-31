@@ -3,10 +3,23 @@ Compatibility module for pricing analyzer from v1.
 
 This module provides the PricingAnalyzer class that mirrors the interface of
 the v1 pricing analyzer but uses the v2 implementation under the hood.
+
+DEPRECATION WARNING: This module is deprecated and will be removed in a future version.
+Use the canonical import path instead:
+from yahoofinance.analysis.market import MarketAnalyzer
 """
 
 import logging
+import warnings
 from typing import Dict, List, Optional, Any, Union
+
+# Show deprecation warning
+warnings.warn(
+    "The yahoofinance.compat.pricing module is deprecated and will be removed in a future version. "
+    "Use 'from yahoofinance.analysis.market import MarketAnalyzer' instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 from ..api import get_provider
 

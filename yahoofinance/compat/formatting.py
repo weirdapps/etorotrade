@@ -3,11 +3,24 @@ Compatibility module for display formatting classes from v1.
 
 This module provides the DisplayFormatter and DisplayConfig classes that mirror
 the interface of the v1 formatting classes but use the v2 implementation.
+
+DEPRECATION WARNING: This module is deprecated and will be removed in a future version.
+Use the canonical import path instead:
+from yahoofinance.presentation.formatter import DisplayFormatter, DisplayConfig
 """
 
 import logging
+import warnings
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Any, Union
+
+# Show deprecation warning
+warnings.warn(
+    "The yahoofinance.compat.formatting module is deprecated and will be removed in a future version. "
+    "Use 'from yahoofinance.presentation.formatter import DisplayFormatter, DisplayConfig' instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 from ..presentation.formatter import DisplayFormatter as V2Formatter
 from ..presentation.formatter import DisplayConfig as V2Config
