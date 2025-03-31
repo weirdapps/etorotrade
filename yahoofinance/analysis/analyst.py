@@ -264,7 +264,9 @@ class AnalystData:
     analyst_count: Optional[int] = None
 
 
-class AnalystRatingsService:
+from .base_analysis import BaseAnalysisService
+
+class AnalystRatingsService(BaseAnalysisService):
     """
     Service for retrieving and analyzing analyst ratings data.
     
@@ -275,20 +277,6 @@ class AnalystRatingsService:
         provider: Data provider (sync or async)
         is_async: Whether the provider is async or sync
     """
-    
-    def __init__(self, provider: Optional[Union[FinanceDataProvider, AsyncFinanceDataProvider]] = None):
-        """
-        Initialize the AnalystRatingsService.
-        
-        Args:
-            provider: Data provider (sync or async), if None, a default provider is created
-        """
-        self.provider = provider if provider is not None else get_provider()
-        
-        # Check if the provider is async
-        self.is_async = hasattr(self.provider, 'get_analyst_ratings') and \
-                        callable(self.provider.get_analyst_ratings) and \
-                        hasattr(self.provider.get_analyst_ratings, '__await__')
     
     def get_ratings(self, ticker: str) -> AnalystData:
         """

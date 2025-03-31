@@ -15,12 +15,29 @@ import pandas as pd
 from yahoofinance.api.providers.enhanced_async_yahoo_finance import EnhancedAsyncYahooFinanceProvider
 from yahoofinance.utils.network.circuit_breaker import CircuitOpenError, CircuitState
 from yahoofinance.core.errors import APIError, ValidationError, RateLimitError, NetworkError, YFinanceError
+from yahoofinance.api.providers.base_provider import AsyncFinanceDataProvider
+
+# Create a mockable class that implements the abstract methods
+class MockableEnhancedAsyncYahooFinanceProvider(EnhancedAsyncYahooFinanceProvider):
+    """A mockable version of the provider for testing."""
+    
+    async def get_price_data(self, ticker: str):
+        """Mock implementation for testing."""
+        return {"ticker": ticker, "price": 100.0}
+        
+    async def get_historical_data(self, ticker: str, period: str = "1y", interval: str = "1d"):
+        """Mock implementation for testing."""
+        return pd.DataFrame({"Close": [100.0, 101.0, 102.0]}, index=[1, 2, 3])
+        
+    async def get_earnings_history(self, ticker: str):
+        """Mock implementation for testing."""
+        return [{"date": "2023-01-01", "estimate": 1.0, "actual": 1.1}]
 
 
 @pytest.fixture
 async def enhanced_provider():
     """Create test provider with disabled circuit breaker for most tests"""
-    provider = EnhancedAsyncYahooFinanceProvider(
+    provider = MockableEnhancedAsyncYahooFinanceProvider(
         max_retries=1,
         retry_delay=0.01,
         max_concurrency=2,
@@ -36,7 +53,7 @@ async def enhanced_provider():
 @pytest.fixture
 async def enhanced_provider_with_circuit_breaker():
     """Create test provider with enabled circuit breaker"""
-    provider = EnhancedAsyncYahooFinanceProvider(
+    provider = MockableEnhancedAsyncYahooFinanceProvider(
         max_retries=1,
         retry_delay=0.01,
         max_concurrency=2,
@@ -52,7 +69,7 @@ async def enhanced_provider_with_circuit_breaker():
 @pytest.mark.asyncio
 async def test_ensure_session():
     """Test that _ensure_session creates a session when needed"""
-    provider = EnhancedAsyncYahooFinanceProvider()
+    provider = MockableEnhancedAsyncYahooFinanceProvider()
     assert provider._session is None
     
     # First call should create a session
@@ -324,7 +341,7 @@ async def test_batch_get_ticker_info(enhanced_provider):
 async def test_circuit_breaker_integration_retry_after():
     """Test that CircuitOpenError is translated with proper retry_after"""
     # Create a new provider specifically for this test
-    provider = EnhancedAsyncYahooFinanceProvider(enable_circuit_breaker=True)
+    provider = MockableEnhancedAsyncYahooFinanceProvider(enable_circuit_breaker=True)
     
     try:
         # Create a direct mock for get_ticker_info that raises APIError with
