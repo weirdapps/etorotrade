@@ -15,6 +15,7 @@ etoroTRADE helps you:
 - **Follow insider transactions** and institutional activity
 - **Generate actionable trade recommendations** based on comprehensive criteria
 - **Backtest trading strategies** to optimize criteria parameters
+- **Track performance** of market indices and your portfolio
 
 ## Trade.py - Main Application
 
@@ -29,28 +30,28 @@ python trade.py
 - **P: Portfolio Analysis**
   - Analyzes your current holdings from portfolio.csv
   - Shows performance metrics, risk factors, and recommendations
-  - Outputs to yahoofinance/output/portfolio.csv and console
+  - Outputs to yahoofinance/output/portfolio.csv and HTML dashboard
 
 - **M: Market Analysis**
   - Prompts for market selection (USA, Europe, China, or Manual)
   - Analyzes selected market for investment opportunities
-  - Outputs to yahoofinance/output/market.csv and console
+  - Outputs to yahoofinance/output/market.csv and HTML dashboard
 
 - **E: eToro Market Analysis**
   - Analyzes tickers available on eToro platform
   - Perfect for eToro users to find opportunities within available assets
-  - Outputs to yahoofinance/output/market.csv and console
+  - Outputs to yahoofinance/output/market.csv and HTML dashboard
 
 - **T: Trade Analysis**
   - Provides actionable trading recommendations with sub-options:
     - **B: Buy Opportunities** - New stocks to consider purchasing
     - **S: Sell Candidates** - Portfolio stocks to consider selling
     - **H: Hold Candidates** - Stocks with neutral outlook
-  - Outputs to yahoofinance/output/buy.csv, sell.csv, or hold.csv
+  - Outputs to yahoofinance/output/buy.csv, sell.csv, or hold.csv with HTML dashboards
 
 - **I: Manual Ticker Input**
   - Analyze specific tickers entered manually
-  - Outputs to yahoofinance/output/manual.csv and console
+  - Outputs to yahoofinance/output/manual.csv and HTML dashboard
 
 ## Trading Classification Criteria
 
@@ -160,6 +161,59 @@ python scripts/optimize_criteria.py --mode optimize --param-file scripts/sample_
 python scripts/optimize_criteria.py --mode backtest --tickers AAPL,MSFT,GOOGL,AMZN --rebalance weekly
 ```
 
+## Architecture & Design
+
+etorotrade follows a modern provider-based architecture with five key layers:
+
+1. **Provider Layer**: Abstract interfaces and implementations for data access
+   - Standardized interfaces for both synchronous and asynchronous operations
+   - Multiple provider implementations (Yahoo Finance, Enhanced Async, etc.)
+   - Factory function for obtaining provider instances: `get_provider()`
+
+2. **Core Layer**: Fundamental services and definitions
+   - Error handling hierarchy for consistent error management
+   - Centralized configuration for application settings
+   - Type definitions and logging configuration
+
+3. **Analysis Layer**: Domain-specific processing modules
+   - Stock data analysis and market intelligence
+   - Portfolio performance tracking
+   - Trading recommendations based on configurable criteria
+
+4. **Utilities Layer**: Reusable components with specialized functionality
+   - Network utilities with rate limiting and circuit breaker patterns
+   - Data formatting utilities for consistent presentation
+   - Market utilities for ticker validation and normalization
+
+5. **Presentation Layer**: Output formatting and display
+   - Consistent console output with standardized formatting
+   - HTML dashboard generation with responsive design
+   - Visual indicators for buy/sell/hold recommendations
+
+### Provider Pattern
+
+The provider pattern abstracts data access behind consistent interfaces:
+
+```python
+# Using the provider pattern (recommended)
+from yahoofinance import get_provider
+
+# Get synchronous provider
+provider = get_provider()
+ticker_info = provider.get_ticker_info("AAPL")
+
+# Get asynchronous provider
+async_provider = get_provider(async_mode=True)
+ticker_info = await async_provider.get_ticker_info("MSFT")
+
+# Batch processing with async provider
+batch_results = await async_provider.batch_get_ticker_info(["AAPL", "MSFT", "GOOG"])
+```
+
+All providers implement the same interface, ensuring consistent usage regardless of the underlying implementation. This design allows for easy testing, mocking, and future expansion to other data sources.
+
+For more details on the codebase architecture, see [CLAUDE.md](CLAUDE.md).
+
 ## Setup Instructions
 
 ### Installation
@@ -233,6 +287,11 @@ etorotrade/
     │   └── backtest/     # Backtesting results
     ├── presentation/     # Display formatting
     └── utils/            # Utility modules
+        ├── async_utils/  # Enhanced async utilities
+        ├── data/         # Data formatting utilities
+        ├── date/         # Date handling utilities
+        ├── market/       # Market-specific utilities
+        └── network/      # Network utilities (rate limiting, circuit breaker)
 ```
 
 ## Real-World Investment Performance
