@@ -182,6 +182,46 @@ The backtester now features interactive progress bars showing:
 
 To disable progress bars for automated or background processing, use the `--quiet` flag.
 
+### Performance Metrics
+
+The framework calculates several key performance metrics for each backtest:
+
+- **Total Return**: Percentage return over the entire period
+- **Annualized Return**: Return normalized to yearly rate
+- **Sharpe Ratio**: Risk-adjusted return (return / volatility)
+- **Max Drawdown**: Largest peak-to-trough decline
+- **Volatility**: Standard deviation of returns
+- **Hit Rate**: Percentage of profitable trades
+- **Win/Loss Ratio**: Average gain / average loss
+- **Alpha**: Excess return relative to benchmark
+- **Beta**: Sensitivity to market movements
+- **Correlation**: Correlation with benchmark index
+
+These metrics are displayed in the HTML reports and can be used for optimization.
+
+### Position Allocation
+
+The backtest uses a market cap-based position weighting system:
+- Positions are weighted proportionally to their market capitalization
+- Minimum position weight: 1% of portfolio
+- Maximum position weight: 10% of portfolio
+- Weights are normalized to ensure full capital deployment
+- This approach creates realistic portfolio allocation mimicking how diversified funds typically invest
+
+### HTML Reports
+
+The framework automatically generates HTML reports with:
+- Performance metrics and comparison to benchmark
+- Portfolio value chart over the backtest period
+- Trade list with P&L information
+- Detailed portfolio synthesis table showing:
+  - Ticker and company name
+  - Market cap and position weight
+  - Entry/exit dates and holding period
+  - Return percentage
+  - Key metrics used in trading decisions (beta, PEG, PE, etc.)
+- Parameter settings and test configuration
+
 ### Performance Optimizations
 
 The backtester includes several optimizations to reduce API calls and improve performance:
@@ -207,3 +247,47 @@ With these optimizations, backtesting performance has improved significantly:
 - Improved performance for synthetic data generation
 - Better visibility into progress with detailed, color-coded progress bars
 - Maximized backtesting periods by intelligently filtering out tickers with limited data
+
+### Synthetic Data Generation
+
+Since historical analyst ratings aren't available, the backtest uses a synthetic data generation approach that:
+- Uses real historical price data
+- Creates synthetic analyst ratings and targets based on forward price movements
+- Calculates all metrics needed for trading decisions
+- Allows for realistic simulation of the trading strategy
+
+This approach maintains the core methodology of the trading system while enabling rigorous backtesting against historical data.
+
+## Implementation Details
+
+The backtesting framework is implemented in `backtest.py` with these key components:
+
+1. **Backtester**: Core class that runs backtest simulations
+2. **BacktestOptimizer**: Utility for finding optimal trading criteria parameters
+3. **BacktestSettings**: Configuration for backtests (period, capital, position size, etc.)
+4. **BacktestPosition**: Represents a position held during the simulation
+5. **BacktestResult**: Contains complete backtest results with performance metrics
+
+All backtest results are saved to the `yahoofinance/output/backtest/` directory.
+
+## Integration with Provider Pattern
+
+The backtesting framework is fully integrated with the provider pattern architecture:
+
+```python
+from yahoofinance import get_provider
+from yahoofinance.analysis.backtest import Backtester, BacktestSettings
+
+# Create backtester using the provider pattern
+provider = get_provider()
+settings = BacktestSettings(period="2y", initial_capital=100000)
+backtester = Backtester(provider=provider, settings=settings)
+
+# Run backtest
+result = backtester.run(tickers=["AAPL", "MSFT", "GOOG"])
+
+# Generate report
+backtester.generate_html_report(result)
+```
+
+For advanced usage, you can customize the backtesting process programmatically by extending the core classes.
