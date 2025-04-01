@@ -35,6 +35,13 @@ class DisplayConfig:
     max_columns: Optional[int] = None
     sort_column: Optional[str] = None
     reverse_sort: bool = False
+    # Standard column order that should be used for all displays
+    reorder_columns: List[str] = None
+    
+    def __post_init__(self):
+        # Import here to avoid circular import
+        from ..core.config import STANDARD_DISPLAY_COLUMNS
+        self.reorder_columns = STANDARD_DISPLAY_COLUMNS
 
 class DisplayFormatter:
     """
@@ -53,6 +60,7 @@ class DisplayFormatter:
             compact_mode: Use more compact formatting (fewer decimals)
         """
         self.compact_mode = compact_mode
+        self.config = DisplayConfig()
     
     def format_market_cap(self, value: Optional[float]) -> Optional[str]:
         """
