@@ -136,16 +136,19 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
             info["quote_type"] = ticker_info.get("quoteType", "")
             info["recommendation"] = ticker_info.get("recommendationMean", None)
             info["analyst_count"] = ticker_info.get("numberOfAnalystOpinions", 0)
-            info["A"] = "E" if ticker in ['AAPL', 'MSFT'] else "A"
+            
+            # Use "rating_type" which maps to "A" column, NOT "A" directly
+            # This ensures proper column ordering in the display
+            info["rating_type"] = "E" if ticker in ['AAPL', 'MSFT'] else "A"
             
             # Process buy percentage from recommendations
             await self._process_buy_percentage(ticker, yticker, ticker_info, info)
             
-            # Calculate EXRET - this will be recalculated below if we have post-earnings ratings
+            # Calculate expected_return (which maps to EXRET) - will be recalculated below if we have post-earnings ratings
             if info.get("upside") is not None and info.get("buy_percentage") is not None:
-                info["EXRET"] = info["upside"] * info["buy_percentage"] / 100
+                info["expected_return"] = info["upside"] * info["buy_percentage"] / 100
             else:
-                info["EXRET"] = None
+                info["expected_return"] = None
                 
             # Check if we have post-earnings ratings
             await self._process_earnings_ratings(ticker, yticker, info)
@@ -231,16 +234,16 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
                 ratings_data = self._ratings_cache[ticker]
                 info["buy_percentage"] = ratings_data["buy_percentage"]
                 info["total_ratings"] = ratings_data["total_ratings"]
-                info["A"] = "E"  # Earnings-based ratings
+                info["rating_type"] = "E"  # Earnings-based ratings
                 logger.debug(f"Using post-earnings ratings for {ticker}: buy_pct={ratings_data['buy_percentage']:.1f}%, total={ratings_data['total_ratings']}")
                 
-                # Recalculate EXRET with the updated buy_percentage
+                # Recalculate expected_return with the updated buy_percentage
                 if info.get("upside") is not None:
-                    info["EXRET"] = info["upside"] * info["buy_percentage"] / 100
+                    info["expected_return"] = info["upside"] * info["buy_percentage"] / 100
             else:
-                info["A"] = "A"  # All-time ratings
+                info["rating_type"] = "A"  # All-time ratings
         else:
-            info["A"] = "A" if info.get("total_ratings", 0) > 0 else ""
+            info["rating_type"] = "A" if info.get("total_ratings", 0) > 0 else ""
     
     async def _process_earnings_date(self, ticker: str, yticker, info: Dict[str, Any]):
         """Process earnings date information"""

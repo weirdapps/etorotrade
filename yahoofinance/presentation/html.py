@@ -842,6 +842,16 @@ class HTMLGenerator:
         for old_col, new_col in column_mapping.items():
             if old_col in formatted_df.columns:
                 formatted_df.rename(columns={old_col: new_col}, inplace=True)
+                
+        # Import standard column order
+        from ..core.config import STANDARD_DISPLAY_COLUMNS
+        
+        # Reorder columns to match the standard display order
+        display_cols = [col for col in STANDARD_DISPLAY_COLUMNS if col in formatted_df.columns]
+        other_cols = [col for col in formatted_df.columns if col not in STANDARD_DISPLAY_COLUMNS]
+        
+        if display_cols:
+            formatted_df = formatted_df[display_cols + other_cols]
         
         # Define formatting rules for different column types
         for col in formatted_df.columns:
