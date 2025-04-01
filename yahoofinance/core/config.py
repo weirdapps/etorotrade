@@ -367,6 +367,14 @@ COLUMN_NAMES = {
     "RANKING": "#",
 }
 
+# Standard display column order for all views
+# This is the canonical column order that must be used for all displays
+STANDARD_DISPLAY_COLUMNS = [
+    "#", "TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE",
+    "# T", "% BUY", "# A", "A", "EXRET", "BETA", "PET", "PEF", "PEG",
+    "DIV %", "SI", "EARNINGS", "ACTION"
+]
+
 # Load environment variables if needed
 def load_env_config() -> Dict[str, Any]:
     """

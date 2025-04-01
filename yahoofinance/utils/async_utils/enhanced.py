@@ -383,8 +383,7 @@ async def process_batch_async(
             total=total_items,
             desc=description,
             unit="item",
-            bar_format="{desc:<25}: {percentage:3.0f}%|{bar:30}| {n_fmt}/{total_fmt} "
-                      "[{elapsed}<{remaining}, {rate_fmt}]",
+            bar_format="{desc} {percentage:3.0f}% |{bar:30}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]",
             ncols=100
         )
     
@@ -400,10 +399,10 @@ async def process_batch_async(
             remaining_items = total_items - (success_count + error_count)
             estimated_remaining = remaining_items / items_per_second
             
-            progress_bar.set_description(
-                f"Batch {batch_num}/{total_batches}" +
-                f" [{success_count}/{error_count}/{cache_hits}]"
-            )
+            # Show the last item being processed in the description
+            current_item = batch[-1] if batch else ""
+            item_str = f"{current_item:<10}" if current_item else ""
+            progress_bar.set_description(f"⚡ {item_str} Batch {batch_num:2d}/{total_batches:2d}")
             
             # Also update postfix with rate and ETA
             progress_bar.set_postfix_str(
@@ -435,10 +434,7 @@ async def process_batch_async(
         # Delay between batches (except for the last batch)
         if i + batch_size < total_items and delay_between_batches > 0:
             if show_progress:
-                progress_bar.set_description(
-                    f"Waiting {delay_between_batches:.1f}s" +
-                    f" [{success_count}/{error_count}/{cache_hits}]"
-                )
+                progress_bar.set_description(f"⏳ Waiting {delay_between_batches:.1f}s")
             
             logger.debug(f"Waiting {delay_between_batches}s between batches")
             await asyncio.sleep(delay_between_batches)

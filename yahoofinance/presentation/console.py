@@ -212,9 +212,8 @@ class MarketDisplay:
         with tqdm(total=total_tickers, 
                   desc=f"Processing tickers", 
                   unit="ticker",
-                  bar_format="{desc} {percentage:3.0f}% |{bar:30}| {n_fmt}/{total_fmt} "
-                             "[{elapsed}<{remaining}, {rate_fmt}]",
-                  ncols=120) as pbar:
+                  bar_format="{desc} {percentage:3.0f}% |{bar:30}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]",
+                  ncols=100) as pbar:
             
             # Update progress bar with detailed stats
             def update_progress_desc():
@@ -224,9 +223,9 @@ class MarketDisplay:
                 estimated_remaining = remaining_tickers / max(tickers_per_second, 0.1)
                 
                 # Format the description with comprehensive information using fixed width
-                batch_info = f"Batch {batch_num+1}/{total_batches}"
-                stats_info = f"[{success_count}/{error_count}/{cache_hits}]"
-                description = f"{batch_info:<15} {stats_info:<15}"
+                ticker_info = batch[-1] if batch else ""  # Get the last processed ticker
+                ticker_str = f"{ticker_info:<10}" if ticker_info else ""
+                description = f"⚡ {ticker_str} Batch {batch_num+1:2d}/{total_batches:2d}"
                 pbar.set_description(description)
                 
                 # Also update postfix with ETA
@@ -281,9 +280,7 @@ class MarketDisplay:
                     batch_delay = self.rate_limiter.get_batch_delay()
                     
                     # Update description to show waiting status using fixed width
-                    wait_info = f"Waiting {batch_delay:.1f}s"
-                    stats_info = f"[{success_count}/{error_count}/{cache_hits}]"
-                    description = f"{wait_info:<15} {stats_info:<15}"
+                    description = f"⏳ Waiting {batch_delay:.1f}s"
                     pbar.set_description(description)
                     
                     time.sleep(batch_delay)
@@ -313,47 +310,53 @@ class MarketDisplay:
         # Convert to DataFrame
         df = pd.DataFrame(stock_data)
         
-        # Standard column ordering for compatibility with trade.py
-        standard_cols = [
-            "#", "TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE",
-            "# T", COLUMN_NAMES["BUY_PERCENTAGE"], "# A", "A", "EXRET", "BETA", "PET", "PEF", "PEG",
-            "DIV %", "SI", "EARNINGS"
-        ]
-        
         # Sort data 
         df = self._sort_market_data(df)
         
         # Format for display
         df = self._format_dataframe(df)
         
-        # Define column alignment
-        column_list = list(df.columns)
-        colalign = []
+        # Get the standard column order
+        from ..core.config import STANDARD_DISPLAY_COLUMNS
+        standard_cols = [col for col in STANDARD_DISPLAY_COLUMNS if col in df.columns]
         
-        for i, col in enumerate(column_list):
-            if i == 0:  # First column (index/number)
-                colalign.append("right")
-            elif col == "TICKER" or col == "COMPANY":
+        # Reorder columns according to standard order
+        # Only include columns that actually exist in the DataFrame
+        existing_cols = [col for col in standard_cols if col in df.columns]
+        
+        # Check if any columns exist in df but not in standard_cols
+        extra_cols = [col for col in df.columns if col not in standard_cols]
+        if extra_cols:
+            # Add them to the end of the order list
+            final_col_order = existing_cols + extra_cols
+        else:
+            final_col_order = existing_cols
+            
+        # Reorder the DataFrame
+        df = df[final_col_order]
+        
+        # Define column alignment based on content type
+        colalign = []
+        for col in df.columns:
+            if col in ["TICKER", "COMPANY"]:
                 colalign.append("left")
+            elif col == "#":
+                colalign.append("right")
             else:
                 colalign.append("right")
-        
-        # Reorder columns to match the original implementation if they exist
-        existing_cols = [col for col in standard_cols if col in df.columns]
-        if existing_cols:
-            # Only reorder if we have at least some of the standard columns
-            df = df[existing_cols]
-        
+                
         # Display the table
         print(f"\n{title}")
         print(f"Generated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print(tabulate(
-            df,
-            headers='keys',
-            tablefmt="fancy_grid",
-            showindex=False,
+        
+        # Use tabulate for display with the defined alignment and fancy_grid format
+        table = tabulate(
+            df.values, 
+            headers=df.columns, 
+            tablefmt="fancy_grid", 
             colalign=colalign
-        ))
+        )
+        print(table)
         
         # Add color key
         self._display_color_key()

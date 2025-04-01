@@ -47,11 +47,39 @@ COMPANY_NAME = 'COMPANY NAME'
 DISPLAY_BUY_PERCENTAGE = '% BUY'  # Display column name for buy percentage
 
 # Define the standard display columns in the correct order
+# IMPORTANT: THIS IS THE CANONICAL SOURCE OF TRUTH FOR THE COLUMN ORDER
+# The user requires the columns to be exactly in this order
 STANDARD_DISPLAY_COLUMNS = [
     '#', 'TICKER', 'COMPANY', 'CAP', 'PRICE', 'TARGET', 'UPSIDE', 
     '# T', '% BUY', '# A', 'A', 'EXRET', 'BETA', 'PET', 'PEF', 'PEG', 
     'DIV %', 'SI', 'EARNINGS', 'ACTION'
 ]
+
+# Map internal field names to display column names for custom display ordering
+INTERNAL_TO_DISPLAY_MAP = {
+    '#': '#',
+    'ticker': 'TICKER',
+    'company': 'COMPANY',
+    'cap': 'CAP',
+    'market_cap': 'CAP',
+    'price': 'PRICE',
+    'current_price': 'PRICE',
+    'target_price': 'TARGET',
+    'upside': 'UPSIDE',
+    'analyst_count': '# T',
+    'buy_percentage': '% BUY',
+    'total_ratings': '# A',
+    'rating_type': 'A',
+    'expected_return': 'EXRET',
+    'beta': 'BETA',
+    'pe_trailing': 'PET',
+    'pe_forward': 'PEF',
+    'peg_ratio': 'PEG',
+    'dividend_yield': 'DIV %',
+    'short_float_pct': 'SI',
+    'last_earnings': 'EARNINGS',
+    'action': 'ACTION'
+}
 
 # Define constants for market types
 PORTFOLIO_SOURCE = 'P'
@@ -1139,19 +1167,9 @@ def _prepare_csv_dataframe(display_df):
         if column not in csv_df.columns and column != '#':  # Skip # column which is added later
             csv_df[column] = '--'  # Add missing columns with placeholder
     
-    # Reorder the columns to match the standard display order
-    standard_columns = STANDARD_DISPLAY_COLUMNS.copy()
-    
-    # Get columns that are available in both standard list and dataframe
-    available_cols = [col for col in standard_columns if col in csv_df.columns]
-    
-    # Get any other columns in the dataframe not in the standard list
-    # But exclude the extra SI-related columns we add later to avoid duplicates
-    other_cols = [col for col in csv_df.columns if col not in standard_columns 
-                 and col not in ['% SI', 'SI_value']]
-    
-    # Add ranking column to CSV output
-    csv_df = _add_ranking_column(csv_df)
+    # Add ranking column to CSV output if not already present
+    if '#' not in csv_df.columns:
+        csv_df = _add_ranking_column(csv_df)
     
     # Add % SI column for CSV only (same as SI but explicitly named for clarity)
     if 'SI' in csv_df.columns:
@@ -1161,9 +1179,43 @@ def _prepare_csv_dataframe(display_df):
     if 'SI' in csv_df.columns:
         csv_df['SI_value'] = csv_df['SI'].apply(_clean_si_value)
     
-    # Reorder the columns - standard columns first, then others
-    if len(available_cols) > 0:
-        csv_df = csv_df[available_cols + other_cols]
+    # Ensure the columns are in the exact standard order
+    # First get the standard columns that exist in the dataframe
+    standard_cols = [col for col in STANDARD_DISPLAY_COLUMNS if col in csv_df.columns]
+    
+    # Then get any extra columns that aren't in the standard list
+    extra_cols = [col for col in csv_df.columns if col not in STANDARD_DISPLAY_COLUMNS]
+    
+    # Ensure that A and EXRET come in the correct positions (right after # A and before BETA)
+    # This is the core fix for the column order issue
+    if 'A' in standard_cols and 'EXRET' in standard_cols and 'BETA' in standard_cols:
+        # These columns need to be in a specific order
+        a_index = standard_cols.index('A')
+        exret_index = standard_cols.index('EXRET')
+        beta_index = standard_cols.index('BETA')
+        
+        # Check if A is already right after # A
+        num_a_index = standard_cols.index('# A') if '# A' in standard_cols else -1
+        
+        if num_a_index >= 0 and (a_index != num_a_index + 1 or exret_index != a_index + 1 or beta_index != exret_index + 1):
+            # Columns are not in the right order, rearrange them
+            # Remove A, EXRET, and BETA from their current positions
+            for col in ['A', 'EXRET', 'BETA']:
+                if col in standard_cols:
+                    standard_cols.remove(col)
+            
+            # Insert them in the correct order right after # A
+            if '# A' in standard_cols:
+                insert_pos = standard_cols.index('# A') + 1
+                standard_cols.insert(insert_pos, 'A')
+                standard_cols.insert(insert_pos + 1, 'EXRET')
+                standard_cols.insert(insert_pos + 2, 'BETA')
+    
+    # Create the final column order with the standard columns followed by any extra columns
+    final_col_order = standard_cols + extra_cols
+    
+    # Reorder the DataFrame
+    csv_df = csv_df[final_col_order]
         
     return csv_df
 
@@ -1206,32 +1258,51 @@ def display_and_save_results(display_df, title, output_file):
     # Add ranking column
     colored_df = _add_ranking_column(colored_df)
     
-    # Reorder the columns to match the standard display order
-    standard_columns = STANDARD_DISPLAY_COLUMNS.copy()
-    
-    # Get columns that are available in both standard list and dataframe
-    available_cols = [col for col in standard_columns if col in colored_df.columns]
-    
-    # Get any other columns in the dataframe not in the standard list
-    other_cols = [col for col in colored_df.columns if col not in standard_columns]
-    
-    # Reorder the columns - standard columns first, then others
-    if len(available_cols) > 0:
-        colored_df = colored_df[available_cols + other_cols]
-    
-    # Get column alignments for display
-    colalign = ['right'] + get_column_alignments(display_df)
-    
-    # Display results in console
-    print(f"\n{title}:")
-    print(tabulate(
-        colored_df,
-        headers='keys',
-        tablefmt='fancy_grid',
-        showindex=False,
-        colalign=colalign
-    ))
-    print(f"\nTotal: {len(display_df)}")
+    # Instead of using tabulate directly, use the MarketDisplay class
+    # from yahoofinance.presentation.console which has the fixed column ordering
+    try:
+        from yahoofinance.presentation.console import MarketDisplay
+        
+        # Convert DataFrame back to list of dictionaries
+        stocks_data = colored_df.to_dict(orient='records')
+        
+        # Create MarketDisplay instance
+        display = MarketDisplay()
+        
+        # Use the display_stock_table method which handles column ordering correctly
+        display.display_stock_table(stocks_data, title)
+        
+        print(f"\nTotal: {len(display_df)}")
+    except Exception as e:
+        # Fallback to tabulate if MarketDisplay fails
+        print(f"Warning: Using fallback display method: {str(e)}")
+        
+        # Reorder the columns to match the standard display order
+        standard_columns = STANDARD_DISPLAY_COLUMNS.copy()
+        
+        # Get columns that are available in both standard list and dataframe
+        available_cols = [col for col in standard_columns if col in colored_df.columns]
+        
+        # Get any other columns in the dataframe not in the standard list
+        other_cols = [col for col in colored_df.columns if col not in standard_columns]
+        
+        # Reorder the columns - standard columns first, then others
+        if len(available_cols) > 0:
+            colored_df = colored_df[available_cols + other_cols]
+        
+        # Get column alignments for display
+        colalign = ['right'] + get_column_alignments(display_df)
+        
+        # Display results in console
+        print(f"\n{title}:")
+        print(tabulate(
+            colored_df,
+            headers='keys',
+            tablefmt='fancy_grid',
+            showindex=False,
+            colalign=colalign
+        ))
+        print(f"\nTotal: {len(display_df)}")
     
     # Prepare dataframe for CSV export
     csv_df = _prepare_csv_dataframe(display_df)
@@ -1275,7 +1346,7 @@ def display_and_save_results(display_df, title, output_file):
             include_columns=column_order
         )
         if html_path:
-            print(f"HTML dashboard saved to {html_path}")
+            print(f"HTML dashboard successfully created at {html_path}")
     except Exception as e:
         print(f"Failed to generate HTML: {str(e)}")
 
@@ -3071,18 +3142,14 @@ def display_report_for_source(display, tickers, source, verbose=False):
             return
         
         # Step 8: Display the table
-        # Get alignments for each column
-        colalign = get_column_alignments(colored_df)
-        
-        # Display the table
+        # Use MarketDisplay class for consistent column ordering
         try:
-            print(tabulate(
-                colored_df,
-                headers='keys',
-                tablefmt='fancy_grid',
-                showindex=False,
-                colalign=colalign  # Use column alignments without adding extra right alignment
-            ))
+            # Convert DataFrame to list of dictionaries
+            stocks_data = colored_df.to_dict(orient='records')
+            
+            # Use the existing MarketDisplay instance passed into this function
+            display.display_stock_table(stocks_data, report_title)
+            
             print(f"\nTotal: {len(display_df)}")
             
             # Generate HTML file from formatted data
