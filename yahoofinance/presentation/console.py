@@ -212,9 +212,9 @@ class MarketDisplay:
         with tqdm(total=total_tickers, 
                   desc=f"Processing tickers", 
                   unit="ticker",
-                  bar_format="{desc:<25}: {percentage:3.0f}%|{bar:30}| {n_fmt}/{total_fmt} "
+                  bar_format="{desc} {percentage:3.0f}% |{bar:30}| {n_fmt}/{total_fmt} "
                              "[{elapsed}<{remaining}, {rate_fmt}]",
-                  ncols=100) as pbar:
+                  ncols=120) as pbar:
             
             # Update progress bar with detailed stats
             def update_progress_desc():
@@ -223,11 +223,11 @@ class MarketDisplay:
                 remaining_tickers = total_tickers - (success_count + error_count)
                 estimated_remaining = remaining_tickers / max(tickers_per_second, 0.1)
                 
-                # Format the description with comprehensive information (fixed width)
-                pbar.set_description(
-                    f"Batch {batch_num+1}/{total_batches}" +
-                    f" [{success_count}/{error_count}/{cache_hits}]"
-                )
+                # Format the description with comprehensive information using fixed width
+                batch_info = f"Batch {batch_num+1}/{total_batches}"
+                stats_info = f"[{success_count}/{error_count}/{cache_hits}]"
+                description = f"{batch_info:<15} {stats_info:<15}"
+                pbar.set_description(description)
                 
                 # Also update postfix with ETA
                 pbar.set_postfix_str(
@@ -280,11 +280,11 @@ class MarketDisplay:
                 if batch_num < total_batches - 1:
                     batch_delay = self.rate_limiter.get_batch_delay()
                     
-                    # Update description to show waiting status (fixed width)
-                    pbar.set_description(
-                        f"Waiting {batch_delay:.1f}s" +
-                        f" [{success_count}/{error_count}/{cache_hits}]"
-                    )
+                    # Update description to show waiting status using fixed width
+                    wait_info = f"Waiting {batch_delay:.1f}s"
+                    stats_info = f"[{success_count}/{error_count}/{cache_hits}]"
+                    description = f"{wait_info:<15} {stats_info:<15}"
+                    pbar.set_description(description)
                     
                     time.sleep(batch_delay)
         
