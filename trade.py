@@ -1593,6 +1593,19 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_
     # Apply display formatting
     display_df = format_display_dataframe(display_df)
     
+    # CRITICAL FIX: Ensure ACTION column is present and only include BUY stocks
+    # This fixes the mismatch between coloring and ACTION
+    if 'ACTION' in display_df.columns:
+        # Only show stocks with ACTION='B' (BUY) in the buy opportunities view
+        display_df = display_df[display_df['ACTION'] == 'B']
+        
+        # Handle case where we filtered out all rows
+        if display_df.empty:
+            logger.info("No stocks with ACTION='B' found after filtering.")
+            output_file = os.path.join(output_dir, BUY_CSV)
+            create_empty_results_file(output_file)
+            return
+    
     # Sort by ticker column if possible, otherwise by row number
     if 'TICKER' in display_df.columns:
         # Sort by ticker column (ascending)
