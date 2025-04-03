@@ -89,6 +89,7 @@ yahoofinance/cache/
 yahoofinance/output/backtest/
 yahoofinance/output/backtest/cache/
 yahoofinance/output/optimization/
+yahoofinance/output/*.html
 
 
 # Logs
