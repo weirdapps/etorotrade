@@ -11,6 +11,9 @@ from .providers.base_provider import FinanceDataProvider, AsyncFinanceDataProvid
 from .providers.yahoo_finance import YahooFinanceProvider
 from .providers.async_yahoo_finance import AsyncYahooFinanceProvider
 from .providers.enhanced_async_yahoo_finance import EnhancedAsyncYahooFinanceProvider
+from .providers.yahooquery_provider import YahooQueryProvider
+from .providers.async_yahooquery_provider import AsyncYahooQueryProvider
+from .providers.hybrid_provider import HybridProvider
 
 # Factory function to get appropriate provider
 def get_provider(
@@ -34,7 +37,9 @@ def get_provider(
     Raises:
         ValueError: When provider_type is invalid
     """
-    if provider_type.lower() == "yahoo":
+    provider_type = provider_type.lower()
+    
+    if provider_type == "yahoo":
         if async_mode:
             if enhanced:
                 return EnhancedAsyncYahooFinanceProvider(**kwargs)
@@ -42,6 +47,13 @@ def get_provider(
                 return AsyncYahooFinanceProvider(**kwargs)
         else:
             return YahooFinanceProvider(**kwargs)
+    elif provider_type == "yahooquery":
+        if async_mode:
+            return AsyncYahooQueryProvider(**kwargs)
+        else:
+            return YahooQueryProvider(**kwargs)
+    elif provider_type == "hybrid":
+        return HybridProvider(**kwargs)
     else:
         raise ValueError(f"Unknown provider type: {provider_type}")
 
@@ -53,4 +65,7 @@ __all__ = [
     'YahooFinanceProvider',
     'AsyncYahooFinanceProvider',
     'EnhancedAsyncYahooFinanceProvider',
+    'YahooQueryProvider',
+    'AsyncYahooQueryProvider',
+    'HybridProvider',
 ]

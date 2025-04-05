@@ -2,41 +2,41 @@
   {
     "index_name": "DJI30",
     "ticker": "^DJI",
-    "current_value": 43840.91015625,
-    "previous_value": 44544.66015625,
-    "change_percent": -1.5798751130470974,
-    "start_date": "2025-01-31T00:00:00",
-    "end_date": "2025-02-28T00:00:00",
-    "period_type": "monthly"
+    "current_value": 38314.859375,
+    "previous_value": 41583.8984375,
+    "change_percent": -7.861309750487484,
+    "start_date": "2025-03-28T00:00:00",
+    "end_date": "2025-04-04T00:00:00",
+    "period_type": "weekly"
   },
   {
     "index_name": "SP500",
     "ticker": "^GSPC",
-    "current_value": 5954.5,
-    "previous_value": 6040.52978515625,
-    "change_percent": -1.4242092699825115,
-    "start_date": "2025-01-31T00:00:00",
-    "end_date": "2025-02-28T00:00:00",
-    "period_type": "monthly"
+    "current_value": 5074.080078125,
+    "previous_value": 5580.93994140625,
+    "change_percent": -9.081980250687568,
+    "start_date": "2025-03-28T00:00:00",
+    "end_date": "2025-04-04T00:00:00",
+    "period_type": "weekly"
   },
   {
     "index_name": "NQ100",
     "ticker": "^NDX",
-    "current_value": 20884.41015625,
-    "previous_value": 21478.05078125,
-    "change_percent": -2.763940876414348,
-    "start_date": "2025-01-31T00:00:00",
-    "end_date": "2025-02-28T00:00:00",
-    "period_type": "monthly"
+    "current_value": 17397.6953125,
+    "previous_value": 19281.400390625,
+    "change_percent": -9.769544949862121,
+    "start_date": "2025-03-28T00:00:00",
+    "end_date": "2025-04-04T00:00:00",
+    "period_type": "weekly"
   },
   {
     "index_name": "VIX",
     "ticker": "^VIX",
-    "current_value": 19.6299991607666,
-    "previous_value": 16.43000030517578,
-    "change_percent": 19.47655992789456,
-    "start_date": "2025-01-31T00:00:00",
-    "end_date": "2025-02-28T00:00:00",
-    "period_type": "monthly"
+    "current_value": 44.15999984741211,
+    "previous_value": 21.649999618530273,
+    "change_percent": 103.9722892633009,
+    "start_date": "2025-03-28T00:00:00",
+    "end_date": "2025-04-04T00:00:00",
+    "period_type": "weekly"
   }
 ]

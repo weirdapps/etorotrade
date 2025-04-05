@@ -80,6 +80,7 @@ ALL of these conditions must be met:
 - Beta data must be available (primary required criterion)
 - Acceptable volatility (0.25 < Beta ≤ 2.5)
 - PE Forward (PEF) and PE Trailing (PET) data must be available (primary required criteria)
+  - The hybrid provider ensures PEF data is available for 90%+ international stocks
 - Improving earnings outlook (PEF < PET) OR Negative trailing P/E
 - Positive earnings projection (0.5 < PEF ≤ 45.0)
 - Reasonable valuation relative to growth (PEG < 2.5) - if PEG data available (secondary criterion)
@@ -167,8 +168,9 @@ etorotrade follows a modern provider-based architecture with five key layers:
 
 1. **Provider Layer**: Abstract interfaces and implementations for data access
    - Standardized interfaces for both synchronous and asynchronous operations
-   - Multiple provider implementations (Yahoo Finance, Enhanced Async, etc.)
+   - Multiple provider implementations (Yahoo Finance, YahooQuery, Hybrid, Enhanced Async)
    - Factory function for obtaining provider instances: `get_provider()`
+   - Default hybrid provider uses YahooFinance + YahooQuery for optimal data completeness
 
 2. **Core Layer**: Fundamental services and definitions
    - Error handling hierarchy for consistent error management
@@ -184,6 +186,7 @@ etorotrade follows a modern provider-based architecture with five key layers:
    - Network utilities with rate limiting and circuit breaker patterns
    - Data formatting utilities for consistent presentation
    - Market utilities for ticker validation and normalization
+   - Advanced hybrid data provider that combines YFinance with YahooQuery for optimal data quality
 
 5. **Presentation Layer**: Output formatting and display
    - Consistent console output with standardized formatting
@@ -198,12 +201,16 @@ The provider pattern abstracts data access behind consistent interfaces:
 # Using the provider pattern (recommended)
 from yahoofinance import get_provider
 
-# Get synchronous provider
+# Get the default hybrid provider (combines YahooFinance + YahooQuery for best data)
 provider = get_provider()
 ticker_info = provider.get_ticker_info("AAPL")
 
+# Specify a particular provider implementation if needed
+yf_provider = get_provider(provider_name='yahoo')
+yq_provider = get_provider(provider_name='yahooquery')
+
 # Get asynchronous provider
-async_provider = get_provider(async_mode=True)
+async_provider = get_provider(async_api=True)
 ticker_info = await async_provider.get_ticker_info("MSFT")
 
 # Batch processing with async provider
