@@ -26,6 +26,9 @@ from .base_provider import (
 from .yahoo_finance_base import YahooFinanceBaseProvider
 from .yahoo_finance import YahooFinanceProvider
 from .async_yahoo_finance import AsyncYahooFinanceProvider
+from .yahooquery_provider import YahooQueryProvider
+from .async_yahooquery_provider import AsyncYahooQueryProvider
+from .hybrid_provider import HybridProvider
 
 __all__ = [
     'get_provider',
@@ -34,11 +37,17 @@ __all__ = [
     'YahooFinanceBaseProvider',
     'YahooFinanceProvider',
     'AsyncYahooFinanceProvider',
+    'YahooQueryProvider',
+    'AsyncYahooQueryProvider',
+    'HybridProvider',
 ]
 
 _PROVIDERS = {
     'yahoo': YahooFinanceProvider,
     'yahoo_async': AsyncYahooFinanceProvider,
+    'yahooquery': YahooQueryProvider,
+    'yahooquery_async': AsyncYahooQueryProvider,
+    'hybrid': HybridProvider,
 }
 
 def get_provider(
