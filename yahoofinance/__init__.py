@@ -28,7 +28,18 @@ if not logging.root.handlers:
     logging.getLogger("yfinance").setLevel(logging.WARNING)
 
 # Import and re-export the main API components
-from .api import get_provider, FinanceDataProvider, AsyncFinanceDataProvider
+from .api import get_provider as _original_get_provider
+from .api import FinanceDataProvider, AsyncFinanceDataProvider
+
+def get_provider(*args, **kwargs):
+    """
+    Get an instance of a provider, using the hybrid provider by default.
+    
+    This override makes the hybrid provider the default for all code
+    that imports get_provider from the top-level module.
+    """
+    # Use the hybrid provider by default
+    return _original_get_provider('hybrid', *args[1:] if args and len(args) > 1 else [], **kwargs)
 
 # Import and re-export key analysis components
 from .analysis import StockAnalyzer, AnalysisResults

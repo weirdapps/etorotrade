@@ -1707,6 +1707,20 @@ def process_sell_candidates(output_dir):
     if sell_candidates.empty:
         _process_empty_sell_candidates(output_dir)
         return
+        
+    # Ensure ACTION column is populated
+    if 'ACTION' not in sell_candidates.columns:
+        sell_candidates = calculate_action(sell_candidates)
+        
+    # Filter to ensure only rows with ACTION='S' are included
+    # This fixes mismatches between ticker filtering and ACTION values
+    sell_candidates = sell_candidates[sell_candidates['ACTION'] == 'S']
+    logger.info(f"After ACTION filtering: {len(sell_candidates)} sell candidates")
+    
+    # Handle case where we filtered out all rows
+    if sell_candidates.empty:
+        _process_empty_sell_candidates(output_dir)
+        return
     
     # Prepare and format dataframe for display
     display_df = prepare_display_dataframe(sell_candidates)
@@ -1800,6 +1814,19 @@ def process_hold_candidates(output_dir):
     # Get hold candidates
     hold_candidates = filter_hold_candidates(market_df)
     logger.info(f"Found {len(hold_candidates)} hold candidates")
+    
+    if hold_candidates.empty:
+        _process_empty_hold_candidates(output_dir)
+        return
+        
+    # Ensure ACTION column is populated
+    if 'ACTION' not in hold_candidates.columns:
+        hold_candidates = calculate_action(hold_candidates)
+        
+    # Filter to ensure only rows with ACTION='H' are included
+    # This fixes mismatches between ticker filtering and ACTION values
+    hold_candidates = hold_candidates[hold_candidates['ACTION'] == 'H']
+    logger.info(f"After ACTION filtering: {len(hold_candidates)} hold candidates")
     
     if hold_candidates.empty:
         _process_empty_hold_candidates(output_dir)

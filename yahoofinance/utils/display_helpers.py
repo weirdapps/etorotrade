@@ -10,10 +10,10 @@ import logging
 import pandas as pd
 from typing import Dict, Any, List, Tuple
 from yahoofinance.utils.trade_criteria import (
-    meets_sell_criteria as tc_meets_sell_criteria,
-    meets_buy_criteria as tc_meets_buy_criteria
+    calculate_action_for_row,
+    normalize_row_columns
 )
-from yahoofinance.core.config import COLUMN_NAMES
+from yahoofinance.core.config import COLUMN_NAMES, TRADING_CRITERIA
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -203,26 +203,17 @@ def _color_based_on_criteria(row, colored_row, trading_criteria):
     Returns:
         Colored row
     """
-    # Check confidence threshold
-    confidence_met = check_confidence_threshold(row, trading_criteria)
+    # Use the centralized action calculation
+    action = get_action_from_row(row)
     
-    if not confidence_met:
-        # INCONCLUSIVE (yellow) - doesn't meet confidence threshold
+    if not action:  # Empty action means insufficient confidence/data
+        # INCONCLUSIVE (yellow)
         return _apply_color_to_row(colored_row, YELLOW_COLOR)
     
-    # Parse values
-    values = parse_row_values(row)
-    
-    # Check SELL criteria first
-    if meets_sell_criteria(values['upside'], values['buy_pct'], values['pef'], 
-                          values['si'], values['beta'], trading_criteria):
-        # SELL - Red
+    if action == 'S':  # SELL
         return _apply_color_to_row(colored_row, RED_COLOR)
     
-    # Then check BUY criteria
-    if meets_buy_criteria(values['upside'], values['buy_pct'], values['beta'], 
-                         values['si'], trading_criteria):
-        # BUY - Green
+    if action == 'B':  # BUY
         return _apply_color_to_row(colored_row, GREEN_COLOR)
     
     # Default is HOLD - no color changes
@@ -356,60 +347,20 @@ def parse_row_values(row):
     }
 
 
-def meets_sell_criteria(upside, buy_pct, pef, si, beta, trading_criteria):
+def get_action_from_row(row, short_field='short_percent'):
     """
-    Check if a row meets SELL criteria.
+    Get action (B/S/H) from a row using the official trade criteria.
     
     Args:
-        upside: Upside potential value
-        buy_pct: Buy percentage value
-        pef: Forward PE value
-        si: Short interest value
-        beta: Beta value
-        trading_criteria: Trading criteria from config
+        row: DataFrame row with metrics
+        short_field: Name of the field containing short interest data
         
     Returns:
-        Boolean indicating if sell criteria are met
+        String action code ('B', 'S', 'H', or '')
     """
-    # Create a row-like dictionary to use with the more comprehensive function
-    row = {
-        'upside': upside,
-        'buy_percentage': buy_pct,  # trade_criteria uses 'buy_percentage'
-        'pe_forward': pef,          # trade_criteria uses 'pe_forward'
-        'short_percent': si,         # assuming this matches the default short_field
-        'beta': beta
-    }
-    
-    # Use the more comprehensive function from trade_criteria
-    is_sell, _ = tc_meets_sell_criteria(row, trading_criteria)
-    return is_sell
-
-
-def meets_buy_criteria(upside, buy_pct, beta, si, trading_criteria):
-    """
-    Check if a row meets BUY criteria.
-    
-    Args:
-        upside: Upside potential value
-        buy_pct: Buy percentage value
-        beta: Beta value
-        si: Short interest value
-        trading_criteria: Trading criteria from config
-        
-    Returns:
-        Boolean indicating if buy criteria are met
-    """
-    # Create a row-like dictionary to use with the more comprehensive function
-    row = {
-        'upside': upside,
-        'buy_percentage': buy_pct,  # trade_criteria uses 'buy_percentage'
-        'beta': beta,
-        'short_percent': si          # assuming this matches the default short_field
-    }
-    
-    # Use the more comprehensive function from trade_criteria
-    is_buy, _ = tc_meets_buy_criteria(row, trading_criteria)
-    return is_buy
+    # Use the central criteria calculation function
+    action, _ = calculate_action_for_row(row, TRADING_CRITERIA, short_field)
+    return action
 
 
 # Constants for status messages
