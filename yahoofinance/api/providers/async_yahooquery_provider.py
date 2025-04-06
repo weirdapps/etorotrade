@@ -73,7 +73,8 @@ class AsyncYahooQueryProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvider
             None, lambda: func(*args, **kwargs)
         )
     
-    @async_rate_limited
+    # Temporarily remove decorator for debugging
+    # @async_rate_limited
     async def get_ticker_info(self, ticker: str, skip_insider_metrics: bool = False) -> Dict[str, Any]:
         """
         Get comprehensive information for a ticker asynchronously.
