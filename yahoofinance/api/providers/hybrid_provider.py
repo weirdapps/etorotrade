@@ -44,8 +44,24 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             retry_delay: Base delay in seconds between retries
         """
         super().__init__(max_retries=max_retries, retry_delay=retry_delay)
+        
+        # Import config to check yahooquery status
+        from ...core.config import PROVIDER_CONFIG
+        
+        # Check if yahooquery is enabled
+        self.enable_yahooquery = PROVIDER_CONFIG.get("ENABLE_YAHOOQUERY", False)
+        
+        # Initialize underlying providers
         self.yf_provider = YahooFinanceProvider(max_retries=max_retries, retry_delay=retry_delay)
-        self.yq_provider = YahooQueryProvider(max_retries=max_retries, retry_delay=retry_delay)
+        
+        # Log whether yahooquery is enabled or disabled
+        if self.enable_yahooquery:
+            logger.info("HybridProvider initialized with yahooquery supplementation ENABLED")
+            self.yq_provider = YahooQueryProvider(max_retries=max_retries, retry_delay=retry_delay)
+        else:
+            logger.info("HybridProvider initialized with yahooquery supplementation DISABLED")
+            # Still create the provider instance but we won't use it unless config changes at runtime
+            self.yq_provider = YahooQueryProvider(max_retries=max_retries, retry_delay=retry_delay)
     
     def _handle_delay(self, delay: float):
         """
@@ -67,6 +83,11 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         Returns:
             Dict containing the combined data
         """
+        # First check if yahooquery is enabled
+        if not self.enable_yahooquery:
+            logger.debug(f"Skipping yahooquery supplement for {ticker}, yahooquery is disabled")
+            return yf_data
+            
         # Skip if YFinance data is already complete
         needs_supplement = False
         supplemental_fields = ['pe_forward', 'peg_ratio', 'beta', 'short_percent', 'dividend_yield']
@@ -399,23 +420,28 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             # Track tickers that need supplementing
             supplemented_count = 0
             
-            # Supplement with YahooQuery if needed
-            # YahooQuery's batch is more efficient, so we'll gather all tickers needing supplements
+            # Check if yahooquery supplementation is enabled
             tickers_to_supplement = []
-            for ticker, data in yf_results.items():
-                # Check if we need to supplement this ticker
-                needs_supplement = False
-                key_fields = ['pe_forward', 'peg_ratio', 'beta', 'short_percent', 'buy_percentage']
-                
-                for field in key_fields:
-                    if field not in data or data[field] is None:
-                        needs_supplement = True
-                        break
-                
-                if needs_supplement:
-                    tickers_to_supplement.append(ticker)
             
-            # If we have tickers to supplement, get them all at once
+            if self.enable_yahooquery:
+                # Supplement with YahooQuery if needed
+                # YahooQuery's batch is more efficient, so we'll gather all tickers needing supplements
+                for ticker, data in yf_results.items():
+                    # Check if we need to supplement this ticker
+                    needs_supplement = False
+                    key_fields = ['pe_forward', 'peg_ratio', 'beta', 'short_percent', 'buy_percentage']
+                    
+                    for field in key_fields:
+                        if field not in data or data[field] is None:
+                            needs_supplement = True
+                            break
+                    
+                    if needs_supplement:
+                        tickers_to_supplement.append(ticker)
+            else:
+                logger.debug("Skipping yahooquery supplementation for batch (disabled in config)")
+            
+            # If we have tickers to supplement and yahooquery is enabled, get them all at once
             if tickers_to_supplement:
                 logger.debug(f"Supplementing {len(tickers_to_supplement)} tickers with YahooQuery")
                 

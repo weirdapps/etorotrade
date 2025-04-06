@@ -29,6 +29,8 @@ from .async_yahoo_finance import AsyncYahooFinanceProvider
 from .yahooquery_provider import YahooQueryProvider
 from .async_yahooquery_provider import AsyncYahooQueryProvider
 from .hybrid_provider import HybridProvider
+from .async_hybrid_provider import AsyncHybridProvider
+from .optimized_async_yfinance import OptimizedAsyncYFinanceProvider
 
 __all__ = [
     'get_provider',
@@ -40,6 +42,8 @@ __all__ = [
     'YahooQueryProvider',
     'AsyncYahooQueryProvider',
     'HybridProvider',
+    'AsyncHybridProvider',
+    'OptimizedAsyncYFinanceProvider',
 ]
 
 _PROVIDERS = {
@@ -48,10 +52,12 @@ _PROVIDERS = {
     'yahooquery': YahooQueryProvider,
     'yahooquery_async': AsyncYahooQueryProvider,
     'hybrid': HybridProvider,
+    'hybrid_async': AsyncHybridProvider,
+    'optimized': OptimizedAsyncYFinanceProvider,
 }
 
 def get_provider(
-    provider_name: str = 'yahoo',
+    provider_name: str = 'hybrid',  # Updated default to hybrid
     async_api: bool = False,
     **kwargs
 ) -> Union[FinanceDataProvider, AsyncFinanceDataProvider]:
@@ -59,7 +65,7 @@ def get_provider(
     Get an instance of a finance data provider.
     
     Args:
-        provider_name: Name of the provider to use (default: 'yahoo')
+        provider_name: Name of the provider to use (default: 'hybrid')
         async_api: Whether to return an async provider
         **kwargs: Additional arguments to pass to the provider constructor
         
@@ -70,10 +76,19 @@ def get_provider(
         ValueError: If an invalid provider name is provided
     """
     if async_api:
-        key = f"{provider_name}_async"
-        if key not in _PROVIDERS:
-            raise ValueError(f"Async provider '{provider_name}' not found")
-        return _PROVIDERS[key](**kwargs)
+        # Check if there's a direct async provider first
+        if f"{provider_name}_async" in _PROVIDERS:
+            return _PROVIDERS[f"{provider_name}_async"](**kwargs)
+        # For special case of hybrid_async
+        elif provider_name == 'hybrid':
+            return _PROVIDERS["hybrid_async"](**kwargs)
+        # For other cases, try to find a matching async provider
+        else:
+            # Try alternative registrations
+            if provider_name == 'optimized':
+                return _PROVIDERS['optimized'](**kwargs)
+            else:
+                raise ValueError(f"Async provider '{provider_name}' not found")
     
     if provider_name not in _PROVIDERS:
         raise ValueError(f"Provider '{provider_name}' not found")
