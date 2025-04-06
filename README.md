@@ -25,6 +25,11 @@ The primary interface is `trade.py`, which provides several analysis options:
 python trade.py
 ```
 
+> **Note:** To run non-interactively (e.g., in scripts), you can pipe the menu selections. For example, to run Portfolio Analysis (P) using the existing file (E):
+> ```bash
+> echo "p\ne" | python trade.py
+> ```
+
 ### Menu Options
 
 - **P: Portfolio Analysis**
@@ -218,6 +223,26 @@ batch_results = await async_provider.batch_get_ticker_info(["AAPL", "MSFT", "GOO
 ```
 
 All providers implement the same interface, ensuring consistent usage regardless of the underlying implementation. This design allows for easy testing, mocking, and future expansion to other data sources.
+
+### YahooQuery Integration Toggle
+
+By default, the hybrid provider uses both YahooFinance (yfinance) and YahooQuery (yahooquery) libraries to provide the most complete data, especially for PEG ratios and P/E Forward values. However, in case of Yahoo Finance API changes or to reduce API rate limiting issues, you can disable YahooQuery integration with a configuration flag:
+
+```python
+# In yahoofinance/core/config.py
+PROVIDER_CONFIG = {
+    # Enable yahooquery supplementation in hybrid provider
+    "ENABLE_YAHOOQUERY": False,  # Set to False to disable yahooquery and prevent crumb errors
+}
+```
+
+Setting `ENABLE_YAHOOQUERY` to `False` will prevent all yahooquery API calls and rely solely on yfinance data. This can be useful when:
+
+1. You encounter "Failed to obtain crumb" errors from yahooquery
+2. You need to reduce API call volume
+3. Yahoo Finance makes API changes that temporarily break yahooquery
+
+The providers still maintain the same interface and functionality, but certain fields like PEG ratio might be less available for some tickers when yahooquery is disabled.
 
 For more details on the codebase architecture, see [CLAUDE.md](CLAUDE.md).
 

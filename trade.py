@@ -11,6 +11,7 @@ This version uses the enhanced components from yahoofinance:
 
 import logging
 import sys
+import sys
 import os
 import warnings
 import pandas as pd
@@ -22,6 +23,8 @@ import re
 # Configure logging - set to WARNING by default to suppress debug and info messages
 logging.basicConfig(level=logging.CRITICAL, 
                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# Suppress CRITICAL messages from yahooquery.utils about crumbs
+logging.getLogger('yahooquery.utils').setLevel(logging.ERROR)
 import time
 import datetime
 from tabulate import tabulate
@@ -29,12 +32,21 @@ from tqdm import tqdm
 
 try:
     from yahoofinance.api import get_provider
+    # Import the specific base class needed for type checking if required
+    from yahoofinance.api.providers.base_provider import AsyncFinanceDataProvider
+    # Import the new Async Hybrid provider
+    from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
     from yahoofinance.presentation.formatter import DisplayFormatter
     from yahoofinance.presentation.console import MarketDisplay
     from yahoofinance.utils.network.circuit_breaker import get_all_circuits
-    from yahoofinance.core.config import FILE_PATHS, PATHS, COLUMN_NAMES
+    from yahoofinance.core.config import FILE_PATHS, PATHS, COLUMN_NAMES, STANDARD_DISPLAY_COLUMNS
+    from yahoofinance.utils.market.ticker_utils import validate_ticker # Needed by the moved provider code
 except ImportError as e:
+    # Use print for guaranteed visibility during startup issues
+    print(f"FATAL IMPORT ERROR: {str(e)}", file=sys.stderr)
     logging.error(f"Error importing yahoofinance modules: {str(e)}")
+    import traceback
+    traceback.print_exc(file=sys.stderr) # Print traceback as well
     sys.exit(1)
 
 # Filter out pandas-specific warnings about invalid values
@@ -49,11 +61,7 @@ DISPLAY_BUY_PERCENTAGE = '% BUY'  # Display column name for buy percentage
 # Define the standard display columns in the correct order
 # IMPORTANT: THIS IS THE CANONICAL SOURCE OF TRUTH FOR THE COLUMN ORDER
 # The user requires the columns to be exactly in this order
-STANDARD_DISPLAY_COLUMNS = [
-    '#', 'TICKER', 'COMPANY', 'CAP', 'PRICE', 'TARGET', 'UPSIDE', 
-    '# T', '% BUY', '# A', 'A', 'EXRET', 'BETA', 'PET', 'PEF', 'PEG', 
-    'DIV %', 'SI', 'EARNINGS', 'ACTION'
-]
+# STANDARD_DISPLAY_COLUMNS definition removed, will be imported from config
 
 # Map internal field names to display column names for custom display ordering
 INTERNAL_TO_DISPLAY_MAP = {
@@ -96,7 +104,7 @@ EXISTING_PORTFOLIO = 'E'
 
 # Set up logging configuration
 logging.basicConfig(
-    level=logging.CRITICAL,  # Only show CRITICAL notifications
+    level=logging.CRITICAL,  # Only show CRITICAL notifications by default
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
@@ -331,6 +339,9 @@ def calculate_action(df):
         action, _ = calculate_action_for_row(row, TRADING_CRITERIA, short_field)
         working_df.at[idx, 'ACTION'] = action
     
+    # Replace any empty string actions with 'H' for consistency
+    working_df['ACTION'] = working_df['ACTION'].replace('', 'H').fillna('H')
+    
     # Transfer ACTION column to the original DataFrame
     df['ACTION'] = working_df['ACTION']
     
@@ -343,7 +354,8 @@ def get_column_mapping():
         dict: Mapping of internal column names to display names
     """
     return {
-        'ticker': 'TICKER',
+        'ticker': 'TICKER', # Keep for potential compatibility
+        'symbol': 'TICKER', # Add mapping for the actual key returned by providers
         'company': 'COMPANY',
         'cap': 'CAP',
         'market_cap': 'CAP',  # Add market_cap field mapping
@@ -352,7 +364,7 @@ def get_column_mapping():
         'upside': 'UPSIDE',
         'analyst_count': '# T',
         'buy_percentage': BUY_PERCENTAGE,
-        'total_ratings': '# A',
+        'total_ratings': '# A', # Already present, just confirming
         'A': 'A',  # A column shows ratings type (A/E for All-time/Earnings-based)
         'EXRET': 'EXRET',
         'beta': 'BETA',
@@ -376,14 +388,14 @@ def get_columns_to_select():
     # The _select_and_rename_columns function will only select columns that exist
     return [
         # Internal names (lowercase)
-        'ticker', 'company', 'market_cap', 'price', 'target_price', 'upside', 'analyst_count',
-        'buy_percentage', 'total_ratings', 'beta', 
+        'symbol', 'ticker', 'company', 'market_cap', 'price', 'target_price', 'upside', 'analyst_count', # Add 'symbol'
+        'buy_percentage', 'total_ratings', 'A', 'beta', # Add 'A' to internal names list
         'pe_trailing', 'pe_forward', 'peg_ratio', 'dividend_yield',
         'short_percent', 'last_earnings',
         
         # Display names (uppercase)
         'TICKER', 'COMPANY', 'CAP', 'PRICE', 'TARGET', 'UPSIDE', '# T', 
-        '% BUY', '# A', 'A', 'EXRET', 'BETA',
+        '% BUY', '# A', 'A', 'EXRET', 'BETA', # Already present, just confirming
         'PET', 'PEF', 'PEG', 'DIV %', 'SI', 'EARNINGS', 
         
         # Always include the action column in both formats
@@ -486,26 +498,20 @@ def _format_market_cap_value(value):
         return "--"
 
 def _add_market_cap_column(working_df):
-    """Add formatted market cap column to dataframe.
-    
-    Args:
-        working_df: Dataframe with market cap data
-        
-    Returns:
-        pd.DataFrame: Dataframe with formatted market cap column
-    """
-    # Use cap_formatted if available
-    if 'cap_formatted' in working_df.columns:
-        working_df['cap'] = working_df['cap_formatted']
-    # Format market cap according to size rules
+    """Add formatted market cap column ('cap') using provider's formatted value if available."""
+    # Check if the provider already gave us a formatted string
+    if 'market_cap_fmt' in working_df.columns:
+        # Use the pre-formatted value from the provider, fill missing with '--'
+        working_df['cap'] = working_df['market_cap_fmt'].fillna('--')
     elif 'market_cap' in working_df.columns:
-        logger.debug("Formatting market cap for display...")
-        # Create cap column as string type to prevent dtype warnings
+        # Fallback: format manually if only raw market_cap exists
+        logger.debug("Formatting market cap manually...")
         working_df['cap'] = working_df['market_cap'].apply(_format_market_cap_value)
+    # Removed check for uppercase 'CAP' as it's less likely and covered by mapping now
     else:
-        logger.debug("No market cap column found for formatting")
-        working_df['cap'] = "--"  # Default placeholder
-    
+        # Add placeholder if no cap data found
+        logger.debug("No market cap data found, using placeholder.")
+        working_df['cap'] = '--'
     return working_df
 
 def _select_and_rename_columns(working_df):
@@ -632,7 +638,10 @@ def prepare_display_dataframe(df):
     working_df = _add_market_cap_column(working_df)
     
     # Calculate EXRET if needed
-    working_df = calculate_exret(working_df)
+    working_df = calculate_exret(working_df) # Calculate EXRET first if needed
+    
+    # Calculate ACTION column based on criteria
+    working_df = calculate_action(working_df)
     
     # Select and rename columns
     display_df = _select_and_rename_columns(working_df)
@@ -683,11 +692,15 @@ def format_numeric_columns(display_df, columns, format_str):
                         return "--"
                     try:
                         if isinstance(x, (int, float)):
+                            # Format as float, then add % sign
+                            # Format as float, then add % sign
                             return f"{float(x):{fmt}}%"
                         elif isinstance(x, str):
                             # Remove percentage sign if present
                             clean_x = x.replace('%', '').strip()
                             if clean_x and clean_x != "--":
+                                # Format as float, then add % sign
+                                # Format as float, then add % sign
                                 return f"{float(clean_x):{fmt}}%"
                     except:
                         pass
@@ -830,6 +843,8 @@ def format_display_dataframe(display_df):
     
     # Format dividend yield with 2 decimal places
     if DIVIDEND_YIELD in display_df.columns:
+        # Format dividend yield as number with 2 decimal places (column name implies %)
+        # Use the correct format string with '%' to trigger percentage formatting
         display_df = format_numeric_columns(display_df, [DIVIDEND_YIELD], '.2f%')
     
     # Format date columns
@@ -1165,7 +1180,9 @@ def _prepare_csv_dataframe(display_df):
     # Ensure all standard display columns are available
     for column in STANDARD_DISPLAY_COLUMNS:
         if column not in csv_df.columns and column != '#':  # Skip # column which is added later
-            csv_df[column] = '--'  # Add missing columns with placeholder
+            # Use 'H' for missing ACTION, '--' for others
+            default_value = 'H' if column == 'ACTION' else '--'
+            csv_df[column] = default_value  # Add missing columns with appropriate placeholder
     
     # Add ranking column to CSV output if not already present
     if '#' not in csv_df.columns:
@@ -1258,51 +1275,54 @@ def display_and_save_results(display_df, title, output_file):
     # Add ranking column
     colored_df = _add_ranking_column(colored_df)
     
-    # Instead of using tabulate directly, use the MarketDisplay class
-    # from yahoofinance.presentation.console which has the fixed column ordering
-    try:
-        from yahoofinance.presentation.console import MarketDisplay
+    # Use tabulate directly for console display
+    # try:
+    #     from yahoofinance.presentation.console import MarketDisplay
         
-        # Convert DataFrame back to list of dictionaries
-        stocks_data = colored_df.to_dict(orient='records')
+    #     # Convert DataFrame back to list of dictionaries
+    #     stocks_data = colored_df.to_dict(orient='records')
         
-        # Create MarketDisplay instance
-        display = MarketDisplay()
+    #     # Create MarketDisplay instance
+    #     display = MarketDisplay()
         
-        # Use the display_stock_table method which handles column ordering correctly
-        display.display_stock_table(stocks_data, title)
+    #     # Use the display_stock_table method which handles column ordering correctly
+    #     display.display_stock_table(stocks_data, title)
         
-        print(f"\nTotal: {len(display_df)}")
-    except Exception as e:
-        # Fallback to tabulate if MarketDisplay fails
-        print(f"Warning: Using fallback display method: {str(e)}")
+    #     print(f"\nTotal: {len(display_df)}")
+    # except Exception as e:
+    #     # Fallback to tabulate if MarketDisplay fails
+    #     print(f"Warning: Using fallback display method: {str(e)}")
         
         # Reorder the columns to match the standard display order
-        standard_columns = STANDARD_DISPLAY_COLUMNS.copy()
-        
-        # Get columns that are available in both standard list and dataframe
-        available_cols = [col for col in standard_columns if col in colored_df.columns]
-        
-        # Get any other columns in the dataframe not in the standard list
-        other_cols = [col for col in colored_df.columns if col not in standard_columns]
-        
-        # Reorder the columns - standard columns first, then others
-        if len(available_cols) > 0:
-            colored_df = colored_df[available_cols + other_cols]
-        
-        # Get column alignments for display
-        colalign = ['right'] + get_column_alignments(display_df)
-        
-        # Display results in console
-        print(f"\n{title}:")
-        print(tabulate(
-            colored_df,
-            headers='keys',
-            tablefmt='fancy_grid',
-            showindex=False,
-            colalign=colalign
-        ))
-        print(f"\nTotal: {len(display_df)}")
+    # DEBUG: Check DataFrame length before column reordering/filtering
+    print(f"DEBUG: Length of DataFrame before column reordering: {len(colored_df)}")
+    standard_columns = STANDARD_DISPLAY_COLUMNS.copy()
+    
+    # Get columns that are available in both standard list and dataframe
+    available_cols = [col for col in standard_columns if col in colored_df.columns]
+    
+    # Get any other columns in the dataframe not in the standard list
+    other_cols = [col for col in colored_df.columns if col not in standard_columns]
+    
+    # Reorder the columns - standard columns first, then others
+    if len(available_cols) > 0:
+        colored_df = colored_df[available_cols + other_cols]
+    
+    # Get column alignments for display
+    colalign = ['right'] + get_column_alignments(display_df)
+    
+    # Display results in console
+    print(f"\n{title}:")
+    # Try printing tabulate output to stdout explicitly, redirecting stderr
+    table_output = tabulate(
+        colored_df,
+        headers='keys',
+        tablefmt='fancy_grid',
+        showindex=False,
+        colalign=colalign
+    )
+    print(table_output, file=sys.stdout)
+    print(f"\nTotal: {len(display_df)}")
     
     # Prepare dataframe for CSV export
     csv_df = _prepare_csv_dataframe(display_df)
@@ -2205,55 +2225,40 @@ async def _process_batch(provider, batch, batch_num, total_batches, processed_so
     # Update batch number in progress tracker
     pbar.set_postfix(batch=batch_num+1)
     
-    # Process each ticker in the batch
-    for j, ticker in enumerate(batch):
-        try:
-            tick_start = time.time()
-            info = await _process_single_ticker(provider, ticker)
-            tick_time = time.time() - tick_start
-            
-            if info:
+    # Call the provider's batch method directly
+    try:
+        # Update progress description before the batch call
+        pbar.set_description(f"Fetching batch {batch_num+1}/{total_batches} ({len(batch)} tickers)")
+
+        # Make one call to the provider's batch method for the entire batch
+        batch_results_dict = await provider.batch_get_ticker_info(batch)
+
+        # Process the results dictionary
+        for ticker in batch: # Iterate through the original batch list to maintain order if needed
+            info = batch_results_dict.get(ticker)
+            if info and not info.get("error"):
                 results.append(info)
                 success_count += 1
                 counters['success'] += 1
-                
-                # Check if this was a cache hit
+                # Check for cache hits if the provider adds that info
                 if info.get("from_cache", False):
-                    cache_hits += 1
-                    counters['cache_hits'] += 1
-                    
-                # Add processing time info to progress description
-                if tick_time < 0.1:
-                    pbar.set_description(f"Fetching {ticker} (cache)")
-                else:
-                    pbar.set_description(f"Fetching {ticker} ({tick_time:.1f}s)")
+                     cache_hits += 1
+                     counters['cache_hits'] += 1
             else:
-                # Missing info counts as an error
                 error_count += 1
                 counters['errors'] += 1
-                pbar.set_description(f"Error fetching {ticker}")
-            
-            # Update progress counter
+                error_msg = info.get("error", "Unknown error") if info else "No data returned"
+                logger.warning(f"Error processing {ticker} in batch: {error_msg}")
+
+            # Update progress bar for each ticker processed in the batch result
             pbar.update(1)
-            
-            # Add a small delay between individual ticker requests within a batch
-            if j < len(batch) - 1:  # Don't delay after the last ticker in batch
-                await asyncio.sleep(1.0)  # 1-second delay between ticker requests
-        except RateLimitException:
-            # Add extra delay after rate limit errors and update progress bar
-            error_count += 1
-            counters['errors'] += 1
-            pbar.set_description(f"Rate limit hit for {ticker}")
-            pbar.update(1)
-            print(f"Rate limit hit for {ticker}. Adding 20s delay...")
-            await asyncio.sleep(20.0)  # Wait 20 seconds after rate limit error
-        except Exception as e:
-            # Unexpected error, log and continue with next ticker
-            logger.error(f"Unexpected error for {ticker}: {str(e)}")
-            error_count += 1
-            counters['errors'] += 1
-            pbar.set_description(f"Error for {ticker}: {str(e)[:30]}...")
-            pbar.update(1)
+
+    except Exception as e:
+        # Handle errors during the batch call itself
+        logger.error(f"Error processing batch {batch_num+1}: {str(e)}")
+        error_count += len(batch) # Assume all tickers in the batch failed
+        counters['errors'] += len(batch)
+        pbar.update(len(batch)) # Update progress bar for all tickers in the failed batch
     
     # Calculate batch time
     batch_time = time.time() - batch_start_time
@@ -2590,7 +2595,7 @@ async def fetch_ticker_data(provider, tickers):
         tickers: List of ticker symbols
         
     Returns:
-        pd.DataFrame: Dataframe with ticker data
+        tuple: (pd.DataFrame with ticker data, dict with processing stats)
     """
     start_time = time.time()
     results = []
@@ -2605,7 +2610,7 @@ async def fetch_ticker_data(provider, tickers):
     
     # Calculate batch parameters
     total_tickers = len(tickers)
-    batch_size = 25  # Increased batch size for better performance
+    batch_size = 10  # Match provider concurrency limit
     total_batches = (total_tickers - 1) // batch_size + 1
     
     # Process all tickers (no limit)
@@ -2680,38 +2685,42 @@ async def fetch_ticker_data(provider, tickers):
     elapsed_time = time.time() - start_time
     minutes, seconds = divmod(elapsed_time, 60)
     
-    # Create DataFrame from results
-    result_df = pd.DataFrame(results)
+    # Create DataFrame from all results (including potential errors)
+    all_results_df = pd.DataFrame(results)
+
+    # Create a DataFrame with just the original tickers to ensure all are included
+    initial_tickers_df = pd.DataFrame({'symbol': all_tickers})
+
+    # Merge the results with the initial list, keeping all initial tickers
+    # Use 'symbol' as the key, assuming providers return 'symbol'
+    if not all_results_df.empty and 'symbol' in all_results_df.columns:
+         # Prioritize results_df, fill missing from initial_tickers_df
+         result_df = pd.merge(initial_tickers_df, all_results_df, on='symbol', how='left')
+    else:
+         # If results are empty or missing 'symbol', just use the initial list
+         result_df = initial_tickers_df
+         # Add an error column if results were expected but empty
+         if not all_results_df.empty:
+              result_df['error'] = 'Processing error or missing symbol in results'
+         else:
+              result_df['error'] = 'No data fetched'
+
+    # Fill missing company names for tickers that had errors
+    if 'company' not in result_df.columns:
+        result_df['company'] = result_df['symbol'] # Add company column if missing
+    result_df['company'] = result_df['company'].fillna(result_df['symbol'])
     
-    # Format a beautiful batch summary
+    # Skip batch summary display
     c = SimpleProgressTracker.COLORS
-    print(f"\n{c['bold']}📊 Batch Processing Summary:{c['reset']}")
-    
-    # Create a table-like view for batch info
-    print(f"{c['bold']}┌───────┬─────────┬─────────┬───────────┬─────────┐{c['reset']}")
-    print(f"{c['bold']}│ Batch │ Tickers │ Results │ Successes │ Errors  │{c['reset']}")
-    print(f"{c['bold']}├───────┼─────────┼─────────┼───────────┼─────────┤{c['reset']}")
-    
-    for info in batch_info:
-        batch_num = info['batch_num']
-        size = info['size']
-        results = info['results']
-        success = info.get('success', 0)
-        errors = info.get('errors', 0)
-        
-        # Use colors for the data
-        print(f"{c['bold']}│{c['reset']} {c['cyan']}{batch_num:^5}{c['reset']} │ "
-              f"{c['white']}{size:^7}{c['reset']} │ "
-              f"{c['green']}{results:^7}{c['reset']} │ "
-              f"{c['green']}{success:^9}{c['reset']} │ "
-              f"{c['red']}{errors:^7}{c['reset']} │")
-    
-    print(f"{c['bold']}└───────┴─────────┴─────────┴───────────┴─────────┘{c['reset']}")
         
     # If the DataFrame is empty, add a placeholder row
-    if result_df.empty:
-        print(f"\n{c['bold']}{c['red']}⚠️  WARNING: No results obtained from any batch!{c['reset']}")
-        result_df = _create_empty_ticker_dataframe()
+    # Check if the merged DataFrame is effectively empty (only contains initial tickers with no data)
+    # Check if all columns except 'symbol', 'ticker', 'company', 'error' are NaN
+    data_columns = [col for col in result_df.columns if col not in ['symbol', 'ticker', 'company', 'error']]
+    if result_df.empty or (data_columns and result_df[data_columns].isnull().all().all()):
+        print(f"\n{c['bold']}{c['red']}⚠️  WARNING: No valid data obtained for any ticker!{c['reset']}")
+        # Don't replace with empty placeholder, keep the list of tickers with NaNs
+        # result_df = _create_empty_ticker_dataframe() # Keep the ticker list
     
     # Calculate time per ticker for the summary
     if total_tickers > 0 and elapsed_time > 0:
@@ -2721,17 +2730,36 @@ async def fetch_ticker_data(provider, tickers):
     else:
         rate_str = "N/A"
     
-    # Print a beautiful summary with the counter values
-    print(f"\n{c['bold']}🏁 Processing Summary:{c['reset']}")
-    print(f"├─ {c['cyan']}Time:{c['reset']} {c['yellow']}{int(minutes)}m {int(seconds)}s{c['reset']}")
-    print(f"├─ {c['cyan']}Rate:{c['reset']} {c['green']}{rate_str}{c['reset']}")
-    print(f"├─ {c['cyan']}Tickers:{c['reset']} {c['white']}{len(tickers)}/{len(all_tickers)}{c['reset']}")
-    print(f"├─ {c['cyan']}Results:{c['reset']} {c['green']}{len(result_df)}{c['reset']} valid results")
-    print(f"└─ {c['cyan']}Stats:{c['reset']} {c['green']}{counters['success']}{c['reset']} successful, "
-          f"{c['red']}{counters['errors']}{c['reset']} errors, "
-          f"{c['yellow']}{counters['cache_hits']}{c['reset']} from cache")
+    # Count valid results (rows where 'error' is not present or NaN)
+    valid_results_count = len(result_df[result_df['error'].isna()]) if 'error' in result_df.columns else len(result_df)
+
+    # Prepare stats dictionary to return
+    tickers_per_sec = total_tickers / elapsed_time if total_tickers > 0 and elapsed_time > 0 else 0
+    time_per_ticker = elapsed_time / total_tickers if total_tickers > 0 and elapsed_time > 0 else 0
+    processing_stats = {
+        "total_time_sec": elapsed_time,
+        "tickers_per_sec": tickers_per_sec,
+        "time_per_ticker_sec": time_per_ticker,
+        "total_tickers": total_tickers,
+        "success_count": counters['success'],
+        "error_count": counters['errors'],
+        "cache_hits": counters['cache_hits'],
+        "valid_results_count": valid_results_count
+    }
+
+    # Just one return at the end with the properly formatted stats
+    processing_stats = {
+        "total_time_sec": elapsed_time,
+        "tickers_per_sec": tickers_per_sec if total_tickers > 0 and elapsed_time > 0 else 0,
+        "time_per_ticker_sec": time_per_ticker if total_tickers > 0 and elapsed_time > 0 else 0,
+        "total_tickers": total_tickers,
+        "success_count": counters['success'],
+        "error_count": counters['errors'],
+        "cache_hits": counters['cache_hits'],
+        "valid_results_count": valid_results_count
+    }
     
-    return result_df
+    return result_df, processing_stats
 
 def _handle_manual_tickers(tickers):
     """Process manual ticker input.
@@ -2983,7 +3011,7 @@ def _prepare_ticker_data(display, tickers, source):
         source: Source type ('P', 'M', 'E', 'I')
         
     Returns:
-        tuple: (result_df, output_file, report_title, report_source)
+        tuple: (result_df, output_file, report_title, report_source, processing_stats)
     """
     # Handle special case for eToro market
     report_source = source
@@ -3000,12 +3028,12 @@ def _prepare_ticker_data(display, tickers, source):
     
     # Fetch ticker data
     print("\nFetching market data...")
-    result_df = asyncio.run(fetch_ticker_data(provider, tickers))
+    result_df, processing_stats = asyncio.run(fetch_ticker_data(provider, tickers))
     
     # Set up output files
     output_file, report_title = _setup_output_files(report_source)
     
-    return result_df, output_file, report_title, report_source
+    return result_df, output_file, report_title, report_source, processing_stats
 
 def _process_data_for_display(result_df):
     """Process raw data for display
@@ -3125,11 +3153,11 @@ def _display_color_key(min_analysts, min_targets):
         min_analysts: Minimum analyst count
         min_targets: Minimum price targets
     """
-    print("\nColor coding key:")
-    print("\033[92mGreen\033[0m - BUY (meets all BUY criteria and confidence threshold)")
-    print("\033[91mRed\033[0m - SELL (meets at least one SELL criterion and confidence threshold)")
-    print("White - HOLD (meets confidence threshold but not BUY or SELL criteria)")
-    print(f"\033[93mYellow\033[0m - INCONCLUSIVE (fails confidence threshold: <{min_analysts} analysts or <{min_targets} price targets)")
+    print("\nColor Key:")
+    print("\033[92m■\033[0m GREEN: BUY - Strong outlook, meets all criteria (requires beta, PEF, PET data + upside ≥20%, etc.)")
+    print("\033[91m■\033[0m RED: SELL - Risk flags present (ANY of: upside <5%, buy rating <65%, PEF >45.0, etc.)")
+    print(f"\033[93m■\033[0m YELLOW: LOW CONFIDENCE - Insufficient analyst coverage (<{min_analysts} analysts or <{min_targets} price targets)")
+    print("\033[0m■ WHITE: HOLD - Passes confidence threshold but doesn't meet buy or sell criteria, or missing primary criteria data)")
 
 def display_report_for_source(display, tickers, source, verbose=False):
     """Display report for the selected source
@@ -3148,8 +3176,12 @@ def display_report_for_source(display, tickers, source, verbose=False):
         return
         
     try:
+        # Import trading criteria for confidence thresholds
+        min_analysts = TRADING_CRITERIA["CONFIDENCE"]["MIN_ANALYST_COUNT"]
+        min_targets = TRADING_CRITERIA["CONFIDENCE"]["MIN_PRICE_TARGETS"]
+        
         # Step 1: Prepare ticker data
-        result_df, output_file, report_title, report_source = _prepare_ticker_data(display, tickers, source)
+        result_df, output_file, report_title, report_source, processing_stats = _prepare_ticker_data(display, tickers, source)
         
         # Save raw data
         result_df.to_csv(output_file, index=False)
@@ -3172,109 +3204,129 @@ def display_report_for_source(display, tickers, source, verbose=False):
             _display_empty_result(report_title)
             return
         
-        # Step 4: Display results header
-        print(f"\n{report_title}:")
-        print(f"Generated at: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        
         # Step 7: Check for displayable columns
         if colored_df.empty or len(colored_df.columns) == 0:
             print("Error: No columns available for display.")
             return
         
         # Step 8: Display the table
+        # --- Simplified Console Output for Debugging ---
         # Use MarketDisplay class for consistent column ordering
         try:
-            # Convert DataFrame to list of dictionaries
-            stocks_data = colored_df.to_dict(orient='records')
+            # Convert *uncolored* DataFrame to list of dictionaries for MarketDisplay
+            stocks_data = display_df.to_dict(orient='records')
             
             # Use the existing MarketDisplay instance passed into this function
             display.display_stock_table(stocks_data, report_title)
             
             print(f"\nTotal: {len(display_df)}")
             
-            # Generate HTML file from formatted data
-            try:
-                from yahoofinance.presentation.html import HTMLGenerator
-                
-                # Get output directory and base filename
-                output_dir = os.path.dirname(output_file)
-                base_filename = os.path.splitext(os.path.basename(output_file))[0]
-                
-                # Use original display_df which doesn't have ANSI color codes
-                clean_df = display_df.copy()
-                
-                # Add ranking column for display if not present
-                if '#' not in clean_df.columns:
-                    clean_df.insert(0, '#', range(1, len(clean_df) + 1))
-                
-                # Add ACTION column to indicate trade action
-                if 'action' in display_df.columns and 'ACTION' not in clean_df.columns:
-                    clean_df['ACTION'] = display_df['action']
-                
-                # Convert dataframe to list of dictionaries for HTMLGenerator
-                stocks_data = clean_df.to_dict(orient='records')
-                
-                # Create HTML generator and generate HTML file
-                logger.info("Starting HTML generation...")
-                
-                try:
-                    # Measure timing
-                    import time
-                    start_time = time.time()
-                    
-                    html_generator = HTMLGenerator(output_dir=output_dir)
-                    # Ensure the output directory exists
-                    os.makedirs(output_dir, exist_ok=True)
-                    logger.debug(f"Using output directory: {output_dir}")
-                    
-                    # Use the standard column order for consistent display
-                    column_list = [col for col in STANDARD_DISPLAY_COLUMNS if col in clean_df.columns]
-                    
-                    # Add any additional columns that might not be in the standard list
-                    extra_cols = [col for col in clean_df.columns if col not in STANDARD_DISPLAY_COLUMNS]
-                    if extra_cols:
-                        column_list.extend(extra_cols)
-                        
-                    logger.debug(f"HTML generation for {base_filename} with {len(stocks_data)} records")
-                    
-                    # Convert any None or NaN values to strings to avoid issues
-                    for record in stocks_data:
-                        for key, value in list(record.items()):
-                            if value is None or (pd.isna(value) if hasattr(pd, 'isna') else False):
-                                record[key] = "--"
-                    
-                    # Generate the HTML table
-                    html_path = html_generator.generate_stock_table(
-                        stocks_data=stocks_data,
-                        title=report_title,
-                        output_filename=base_filename,
-                        include_columns=column_list  # Explicitly provide columns
-                    )
-                    
-                    elapsed = time.time() - start_time
-                    logger.debug(f"HTML generation completed in {elapsed:.2f} seconds")
-                    
-                except Exception as e:
-                    print(f"Error during HTML generation: {str(e)}")
-                    import traceback
-                    traceback.print_exc()
-                    raise e
-                if html_path:
-                    logger.info(f"HTML dashboard saved to {html_path}")
-            except Exception as e:
-                print(f"Failed to generate HTML: {str(e)}")
-                # Add detailed error information
-                import traceback
-                print(f"Detailed error information:")
-                traceback.print_exc()
         except Exception as e:
-            # Fallback if tabulate fails
-            print(f"Error displaying table: {str(e)}")
-            print(colored_df.head(50).to_string())
-            if len(colored_df) > 50:
-                print("... (additional rows not shown)")
-            print(f"\nTotal: {len(colored_df)}")
-        
+            # Fallback if MarketDisplay fails
+            print(f"Warning: Using fallback display method (tabulate): {str(e)}")
+            # Reorder the columns to match the standard display order
+            standard_columns = STANDARD_DISPLAY_COLUMNS.copy()
+            # Get columns that are available in both standard list and dataframe
+            available_cols = [col for col in standard_columns if col in colored_df.columns]
+            # Get any other columns in the dataframe not in the standard list
+            other_cols = [col for col in colored_df.columns if col not in standard_columns]
+            # Reorder the columns - standard columns first, then others
+            if len(available_cols) > 0:
+                colored_df = colored_df[available_cols + other_cols] # Use colored_df here for fallback
+            # Get column alignments for display
+            colalign = ['right'] + get_column_alignments(display_df) # Use original display_df for alignment
+            # Display results in console using tabulate
+            print(f"\n{title}:")
+            table_output = tabulate(
+                colored_df, # Use colored_df for fallback display
+                headers='keys',
+                tablefmt='fancy_grid',
+                showindex=False,
+                colalign=colalign
+            )
+            print(table_output, file=sys.stdout)
+            print(f"\nTotal: {len(display_df)}") # Use original display_df for total count
+
+        # Generate HTML file (This section remains unchanged)
+        try:
+            from yahoofinance.presentation.html import HTMLGenerator
+            
+            # Get output directory and base filename
+            output_dir = os.path.dirname(output_file)
+            base_filename = os.path.splitext(os.path.basename(output_file))[0]
+            
+            # Use original display_df which doesn't have ANSI color codes
+            clean_df = display_df.copy()
+            
+            # Add ranking column for display if not present
+            if '#' not in clean_df.columns:
+                clean_df.insert(0, '#', range(1, len(clean_df) + 1))
+            
+            # Add ACTION column to indicate trade action
+            if 'action' in display_df.columns and 'ACTION' not in clean_df.columns:
+                clean_df['ACTION'] = display_df['action']
+            elif 'ACTION' not in clean_df.columns: # Ensure ACTION exists
+                 clean_df['ACTION'] = 'H' # Default if missing
+
+            # Convert dataframe to list of dictionaries for HTMLGenerator
+            stocks_data = clean_df.to_dict(orient='records')
+            
+            # Create HTML generator and generate HTML file
+            logger.info("Starting HTML generation...")
+            
+            try:
+                # Measure timing
+                import time
+                start_time = time.time()
+                
+                # No longer need to debug processing_stats
+                
+                html_generator = HTMLGenerator(output_dir=output_dir)
+                # Ensure the output directory exists
+                os.makedirs(output_dir, exist_ok=True)
+                logger.debug(f"Using output directory: {output_dir}")
+                
+                # Use the standard column order for consistent display
+                column_list = [col for col in STANDARD_DISPLAY_COLUMNS if col in clean_df.columns]
+                
+                # Add any additional columns that might not be in the standard list
+                extra_cols = [col for col in clean_df.columns if col not in STANDARD_DISPLAY_COLUMNS]
+                if extra_cols:
+                    column_list.extend(extra_cols)
+                    
+                logger.debug(f"HTML generation for {base_filename} with {len(stocks_data)} records")
+                
+                # Convert any None or NaN values to strings to avoid issues
+                for record in stocks_data:
+                    for key, value in list(record.items()):
+                        if value is None or (pd.isna(value) if hasattr(pd, 'isna') else False):
+                            record[key] = "--"
+                
+                # Generate the HTML table
+                html_path = html_generator.generate_stock_table(
+                    stocks_data=stocks_data,
+                    title=report_title,
+                    output_filename=base_filename,
+                    include_columns=column_list,  # Explicitly provide columns
+                    processing_stats=processing_stats  # Include processing stats for footer
+                )
+                
+                elapsed = time.time() - start_time
+                logger.debug(f"HTML generation completed in {elapsed:.2f} seconds")
+                
+            except Exception as e:
+                print(f"Error during HTML generation: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                raise e
+            if html_path:
+                logger.info(f"HTML dashboard saved to {html_path}")
+        except Exception as e:
+            print(f"Failed to generate HTML: {str(e)}")
+            # Add detailed error information
+            import traceback
+            print(f"Detailed error information:")
+            traceback.print_exc()
     except ValueError as e:
         logger.error(f"Error processing numeric values: {str(e)}")
     except Exception as e:
@@ -3663,7 +3715,8 @@ def display_report_for_source(display, tickers, source, verbose=False):
                 stocks_data=stocks_data,
                 title=title,
                 output_filename=base_filename,  # Keep original filenames (market.html, portfolio.html, etc.)
-                include_columns=column_list
+                include_columns=column_list,
+                processing_stats=processing_stats  # Include processing stats for full footer display
             )
             
             if html_path:
@@ -3672,6 +3725,27 @@ def display_report_for_source(display, tickers, source, verbose=False):
                 print("Failed to create HTML dashboard")
         else:
             print("No data available to generate HTML")
+            
+        # Display processing summary at the end
+        # Display a one-line summary with title and timestamp at the end
+        c = SimpleProgressTracker.COLORS
+        timestamp = pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        if processing_stats:
+            elapsed_time = processing_stats.get("total_time_sec", 0)
+            minutes, seconds = divmod(elapsed_time, 60)
+            total_tickers = processing_stats.get("total_tickers", 0)
+            success_count = processing_stats.get("success_count", 0)
+            error_count = processing_stats.get("error_count", 0)
+            cache_hits = processing_stats.get("cache_hits", 0)
+            valid_results = processing_stats.get("valid_results_count", 0)
+            
+            # Single-line format that combines title, timestamp and processing summary
+            print(f"\n{c['bold']}{report_title}{c['reset']} | {c['cyan']}Generated:{c['reset']} {c['yellow']}{timestamp}{c['reset']} | {c['cyan']}Time:{c['reset']} {c['yellow']}{int(minutes)}m {int(seconds)}s{c['reset']} | {c['cyan']}Tickers:{c['reset']} {c['white']}{total_tickers}/{success_count}/{error_count}{c['reset']} | {c['cyan']}Results:{c['reset']} {c['green']}{valid_results}{c['reset']}")
+        else:
+            # If no processing stats, just show title and timestamp
+            print(f"\n{c['bold']}{report_title}{c['reset']} | {c['cyan']}Generated:{c['reset']} {c['yellow']}{timestamp}{c['reset']}")
+            
     except Exception as e:
         print(f"Error generating HTML file: {str(e)}")
         import traceback
@@ -3712,676 +3786,16 @@ def main_async():
         from typing import Dict, Any, List
         
         # Define a custom provider that uses yfinance directly
-        class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
-            def __init__(self):
-                self._ticker_cache = {}
-                self._stock_cache = {}  # Cache for yfinance Ticker objects
-                self._ratings_cache = {}  # Cache for post-earnings ratings calculations
-                
-                # Special ticker mappings for commodities and assets that need standardized formats
-                self._ticker_mappings = {
-                    "BTC": "BTC-USD",
-                    "ETH": "ETH-USD",
-                    "OIL": "CL=F",    # Crude oil futures
-                    "GOLD": "GC=F",   # Gold futures
-                    "SILVER": "SI=F"  # Silver futures
-                }
-                
-                # Define positive grades to match the original code in core/config.py
-                self.POSITIVE_GRADES = ["Buy", "Overweight", "Outperform", "Strong Buy", "Long-Term Buy", "Positive", "Market Outperform", "Add", "Sector Outperform"]
-                
-                # Initialize rate limiter for API calls
-                # Create a simple rate limiter to track API calls
-                # We're using a more conservative window size and max calls to avoid hitting rate limits
-                self._rate_limiter = {
-                    "window_size": 60,  # 60 seconds window
-                    "max_calls": 50,    # Maximum 50 calls per minute
-                    "call_timestamps": [],
-                    "last_error_time": 0
-                }
-                
-            async def _check_rate_limit(self):
-                """Check if we're within rate limits and wait if necessary"""
-                now = time.time()
-                
-                # Clean up old timestamps outside the window
-                self._rate_limiter["call_timestamps"] = [
-                    ts for ts in self._rate_limiter["call_timestamps"]
-                    if now - ts <= self._rate_limiter["window_size"]
-                ]
-                
-                # Check if we had a recent rate limit error (within the last 2 minutes)
-                if self._rate_limiter["last_error_time"] > 0 and now - self._rate_limiter["last_error_time"] < 120:
-                    # Add additional delay after recent rate limit error
-                    extra_wait = 5.0
-                    logger.warning(f"Recent rate limit error detected. Adding {extra_wait}s additional delay.")
-                    await asyncio.sleep(extra_wait)
-                
-                # Check if we're over the limit
-                if len(self._rate_limiter["call_timestamps"]) >= self._rate_limiter["max_calls"]:
-                    # Calculate time to wait
-                    oldest_timestamp = min(self._rate_limiter["call_timestamps"])
-                    wait_time = oldest_timestamp + self._rate_limiter["window_size"] - now
-                    
-                    if wait_time > 0:
-                        logger.warning(f"Rate limit would be exceeded. Waiting {wait_time:.2f}s")
-                        await asyncio.sleep(wait_time + 1)  # Add 1 second buffer
-                
-                # Record this call
-                self._rate_limiter["call_timestamps"].append(time.time())
-            
-            def _get_yticker(self, ticker: str):
-                """Get or create yfinance Ticker object"""
-                # Apply ticker mapping if available
-                mapped_ticker = self._ticker_mappings.get(ticker, ticker)
-                
-                if mapped_ticker not in self._stock_cache:
-                    self._stock_cache[mapped_ticker] = yf.Ticker(mapped_ticker)
-                return self._stock_cache[mapped_ticker]
-                
-            async def get_ticker_info(self, ticker: str, skip_insider_metrics: bool = False) -> Dict[str, Any]:
-                # Validate the ticker format
-                validate_ticker(ticker)
-                
-                # Check cache first
-                if ticker in self._ticker_cache:
-                    return self._ticker_cache[ticker]
-                    
-                # Apply ticker mapping if available
-                mapped_ticker = self._ticker_mappings.get(ticker, ticker)
-                
-                # Check rate limit before making API call
-                await self._check_rate_limit()
-                    
-                try:
-                    # Use yfinance library directly
-                    yticker = self._get_yticker(mapped_ticker)
-                    ticker_info = yticker.info
-                    
-                    # Extract all needed data
-                    info = {
-                        "symbol": ticker,
-                        "ticker": ticker,
-                        "name": ticker_info.get("longName", ticker_info.get("shortName", "")),
-                        "company": ticker_info.get("longName", ticker_info.get("shortName", ""))[:14].upper(),
-                        "sector": ticker_info.get("sector", ""),
-                        "industry": ticker_info.get("industry", ""),
-                        "country": ticker_info.get("country", ""),
-                        "website": ticker_info.get("website", ""),
-                        "current_price": ticker_info.get("regularMarketPrice", None),
-                        "price": ticker_info.get("regularMarketPrice", None),
-                        "currency": ticker_info.get("currency", ""),
-                        "market_cap": ticker_info.get("marketCap", None),
-                        "cap": self._format_market_cap(ticker_info.get("marketCap", None)),
-                        "exchange": ticker_info.get("exchange", ""),
-                        "quote_type": ticker_info.get("quoteType", ""),
-                        "pe_trailing": ticker_info.get("trailingPE", None),
-                        "dividend_yield": ticker_info.get("dividendYield", None) if ticker_info.get("dividendYield", None) is not None else None,
-                        "beta": ticker_info.get("beta", None),
-                        "pe_forward": ticker_info.get("forwardPE", None),
-                        # Calculate PEG ratio manually if not available
-                        "peg_ratio": self._calculate_peg_ratio(ticker_info),
-                        "short_percent": ticker_info.get("shortPercentOfFloat", None) * 100 if ticker_info.get("shortPercentOfFloat", None) is not None else None,
-                        "target_price": ticker_info.get("targetMeanPrice", None),
-                        "recommendation": ticker_info.get("recommendationMean", None),
-                        "analyst_count": ticker_info.get("numberOfAnalystOpinions", 0),
-                        # For testing, assign 'E' to AAPL and MSFT, 'A' to others
-                        "A": "E" if ticker in ['AAPL', 'MSFT'] else "A"
-                    }
-                    
-                    # Map recommendation to buy percentage
-                    if ticker_info.get("numberOfAnalystOpinions", 0) > 0:
-                        # First try to get recommendations data directly for more accurate percentage
-                        try:
-                            recommendations = yticker.recommendations
-                            if recommendations is not None and not recommendations.empty:
-                                # Use the most recent recommendations (first row)
-                                latest_recs = recommendations.iloc[0]
-                                
-                                # Calculate buy percentage from recommendations
-                                strong_buy = int(latest_recs.get('strongBuy', 0))
-                                buy = int(latest_recs.get('buy', 0))
-                                hold = int(latest_recs.get('hold', 0))
-                                sell = int(latest_recs.get('sell', 0))
-                                strong_sell = int(latest_recs.get('strongSell', 0))
-                                
-                                total = strong_buy + buy + hold + sell + strong_sell
-                                if total > 0:
-                                    # Calculate percentage of buy/strong buy recommendations
-                                    buy_count = strong_buy + buy
-                                    buy_percentage = (buy_count / total) * 100
-                                    info["buy_percentage"] = buy_percentage
-                                    info["total_ratings"] = total
-                                    logger.debug(f"Using recommendations data for {ticker}: {buy_count}/{total} = {buy_percentage:.1f}%")
-                                else:
-                                    # Fallback to recommendationKey if total is zero
-                                    rec_key = ticker_info.get("recommendationKey", "").lower()
-                                    if rec_key == "strong_buy":
-                                        info["buy_percentage"] = 95
-                                    elif rec_key == "buy":
-                                        info["buy_percentage"] = 85
-                                    elif rec_key == "hold":
-                                        info["buy_percentage"] = 65
-                                    elif rec_key == "sell":
-                                        info["buy_percentage"] = 30
-                                    elif rec_key == "strong_sell":
-                                        info["buy_percentage"] = 10
-                                    else:
-                                        info["buy_percentage"] = 50
-                                    
-                                    info["total_ratings"] = ticker_info.get("numberOfAnalystOpinions", 0)
-                            else:
-                                # Fallback to recommendationKey if recommendations is empty
-                                rec_key = ticker_info.get("recommendationKey", "").lower()
-                                if rec_key == "strong_buy":
-                                    info["buy_percentage"] = 95
-                                elif rec_key == "buy":
-                                    info["buy_percentage"] = 85
-                                elif rec_key == "hold":
-                                    info["buy_percentage"] = 65
-                                elif rec_key == "sell":
-                                    info["buy_percentage"] = 30
-                                elif rec_key == "strong_sell":
-                                    info["buy_percentage"] = 10
-                                else:
-                                    info["buy_percentage"] = 50
-                                
-                                info["total_ratings"] = ticker_info.get("numberOfAnalystOpinions", 0)
-                        except Exception as e:
-                            # If we failed to get recommendations, fall back to recommendation key
-                            logger.debug(f"Error getting recommendations for {ticker}: {e}, falling back to recommendationKey")
-                            rec_key = ticker_info.get("recommendationKey", "").lower()
-                            if rec_key == "strong_buy":
-                                info["buy_percentage"] = 95
-                            elif rec_key == "buy":
-                                info["buy_percentage"] = 85
-                            elif rec_key == "hold":
-                                info["buy_percentage"] = 65
-                            elif rec_key == "sell":
-                                info["buy_percentage"] = 30
-                            elif rec_key == "strong_sell":
-                                info["buy_percentage"] = 10
-                            else:
-                                info["buy_percentage"] = 50
-                            
-                            info["total_ratings"] = ticker_info.get("numberOfAnalystOpinions", 0)
-                        
-                        # The A column value is set after we calculate the ratings metrics
-                    else:
-                        info["buy_percentage"] = None
-                        info["total_ratings"] = 0
-                        info["A"] = ""
-                    
-                    # Calculate upside potential
-                    if info.get("current_price") and info.get("target_price"):
-                        info["upside"] = ((info["target_price"] / info["current_price"]) - 1) * 100
-                    else:
-                        info["upside"] = None
-                    
-                    # Calculate EXRET - this will be recalculated below if we have post-earnings ratings
-                    if info.get("upside") is not None and info.get("buy_percentage") is not None:
-                        info["EXRET"] = info["upside"] * info["buy_percentage"] / 100
-                    else:
-                        info["EXRET"] = None
-                        
-                    # Check if we have post-earnings ratings - do this before getting earnings date
-                    # to make sure we have the A column properly set
-                    if self._is_us_ticker(ticker) and info.get("total_ratings", 0) > 0:
-                        has_post_earnings = self._has_post_earnings_ratings(ticker, yticker)
-                        
-                        # If we have post-earnings ratings in the cache, use those values
-                        if has_post_earnings and ticker in self._ratings_cache:
-                            ratings_data = self._ratings_cache[ticker]
-                            info["buy_percentage"] = ratings_data["buy_percentage"]
-                            info["total_ratings"] = ratings_data["total_ratings"]
-                            info["A"] = "E"  # Earnings-based ratings
-                            logger.debug(f"Using post-earnings ratings for {ticker}: buy_pct={ratings_data['buy_percentage']:.1f}%, total={ratings_data['total_ratings']}")
-                            
-                            # Recalculate EXRET with the updated buy_percentage
-                            if info.get("upside") is not None:
-                                info["EXRET"] = info["upside"] * info["buy_percentage"] / 100
-                        else:
-                            info["A"] = "A"  # All-time ratings
-                    else:
-                        info["A"] = "A" if info.get("total_ratings", 0) > 0 else ""
-                    
-                    # Get earnings date for display (use the LAST/MOST RECENT earnings date, not the next one)
-                    try:
-                        last_earnings_date = None
-                        
-                        # Get earnings dates from the earnings_dates attribute if available
-                        try:
-                            if hasattr(yticker, 'earnings_dates') and yticker.earnings_dates is not None and not yticker.earnings_dates.empty:
-                                # Get now in the same timezone as earnings dates
-                                today = pd.Timestamp.now()
-                                if hasattr(yticker.earnings_dates.index, 'tz') and yticker.earnings_dates.index.tz is not None:
-                                    today = pd.Timestamp.now(tz=yticker.earnings_dates.index.tz)
-                                
-                                # Find past dates for last earnings
-                                past_dates = [date for date in yticker.earnings_dates.index if date < today]
-                                if past_dates:
-                                    last_earnings_date = max(past_dates)
-                        except Exception:
-                            pass
-                            
-                        # Fall back to calendar if needed
-                        if last_earnings_date is None:
-                            try:
-                                calendar = yticker.calendar
-                                if isinstance(calendar, dict) and COLUMN_NAMES["EARNINGS_DATE"] in calendar:
-                                    earnings_date_list = calendar[COLUMN_NAMES["EARNINGS_DATE"]]
-                                    if isinstance(earnings_date_list, list) and len(earnings_date_list) > 0:
-                                        # Check which dates are past
-                                        today_date = datetime.datetime.now().date()
-                                        past_dates = [date for date in earnings_date_list if date < today_date]
-                                        if past_dates:
-                                            last_earnings_date = max(past_dates)
-                            except Exception:
-                                pass
-                        
-                        # Format and store the display date (last earnings) - this will be shown in the EARNINGS column
-                        if last_earnings_date is not None:
-                            if hasattr(last_earnings_date, 'strftime'):
-                                info["last_earnings"] = last_earnings_date.strftime("%Y-%m-%d")
-                            else:
-                                info["last_earnings"] = str(last_earnings_date)
-                    except Exception as e:
-                        logger.debug(f"Failed to get earnings date for {ticker}: {str(e)}")
-                        # Ensure we have a fallback
-                        if "last_earnings" not in info:
-                            info["last_earnings"] = None
-                    
-                    # Add to cache
-                    self._ticker_cache[ticker] = info
-                    return info
-                    
-                except Exception as e:
-                    logger.error(f"Error getting ticker info for {ticker}: {str(e)}")
-                    # Return a minimal info object
-                    return {
-                        "symbol": ticker,
-                        "ticker": ticker,
-                        "company": ticker,
-                        "error": str(e)
-                    }
-                
-            async def get_ticker_analysis(self, ticker: str) -> Dict[str, Any]:
-                # Just use get_ticker_info as it already contains all the needed data
-                return await self.get_ticker_info(ticker)
-            
-            async def get_price_data(self, ticker: str) -> Dict[str, Any]:
-                """
-                Get price data for a ticker asynchronously.
-                
-                Args:
-                    ticker: Stock ticker symbol
-                    
-                Returns:
-                    Dict containing price data
-                    
-                Raises:
-                    YFinanceError: When an error occurs while fetching data
-                """
-                logger.debug(f"Getting price data for {ticker}")
-                info = await self.get_ticker_info(ticker)
-                
-                # Calculate upside potential
-                upside = None
-                if info.get("price") is not None and info.get("target_price") is not None and info.get("price") > 0:
-                    try:
-                        upside = ((info["target_price"] / info["price"]) - 1) * 100
-                    except (TypeError, ZeroDivisionError):
-                        pass
-                
-                # Extract price-related fields
-                return {
-                    "ticker": ticker,
-                    "current_price": info.get("price"),
-                    "target_price": info.get("target_price"),
-                    "upside": upside,
-                    "fifty_two_week_high": info.get("fifty_two_week_high"),
-                    "fifty_two_week_low": info.get("fifty_two_week_low"),
-                    "fifty_day_avg": info.get("fifty_day_avg"),
-                    "two_hundred_day_avg": info.get("two_hundred_day_avg")
-                }
-                
-            async def get_historical_data(self, ticker: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
-                """Get historical price data"""
-                validate_ticker(ticker)
-                try:
-                    yticker = self._get_yticker(ticker)
-                    return yticker.history(period=period, interval=interval)
-                except Exception as e:
-                    logger.error(f"Error getting historical data for {ticker}: {str(e)}")
-                    return pd.DataFrame()
-                    
-            async def get_earnings_data(self, ticker: str) -> Dict[str, Any]:
-                """Get earnings data"""
-                validate_ticker(ticker)
-                try:
-                    yticker = self._get_yticker(ticker)
-                    info = await self.get_ticker_info(ticker)
-                    
-                    earnings_data = {
-                        "symbol": ticker,
-                        "earnings_dates": [],
-                        "earnings_history": []
-                    }
-                    
-                    # Get earnings dates using multiple possible approaches
-                    # First try earnings_dates attribute (most reliable)
-                    try:
-                        next_earnings = yticker.earnings_dates.head(1) if hasattr(yticker, 'earnings_dates') else None
-                        if next_earnings is not None and not next_earnings.empty:
-                            date_val = next_earnings.index[0]
-                            if pd.notna(date_val):
-                                formatted_date = date_val.strftime("%Y-%m-%d")
-                                earnings_data["earnings_dates"].append(formatted_date)
-                    except Exception:
-                        # Fall back to other methods if this fails
-                        pass
-                    
-                    # If we still don't have earnings dates, try calendar attribute
-                    if not earnings_data["earnings_dates"]:
-                        try:
-                            calendar = yticker.calendar
-                            if calendar is not None:
-                                if isinstance(calendar, pd.DataFrame) and not calendar.empty:
-                                    # For DataFrame calendar format
-                                    if COLUMN_NAMES["EARNINGS_DATE"] in calendar.columns:
-                                        earnings_col = calendar[COLUMN_NAMES["EARNINGS_DATE"]]
-                                        if isinstance(earnings_col, pd.Series) and not earnings_col.empty:
-                                            date_val = earnings_col.iloc[0]
-                                            if pd.notna(date_val):
-                                                formatted_date = date_val.strftime("%Y-%m-%d")
-                                                earnings_data["earnings_dates"].append(formatted_date)
-                                elif isinstance(calendar, dict):
-                                    # For dict calendar format
-                                    if COLUMN_NAMES["EARNINGS_DATE"] in calendar:
-                                        date_val = calendar[COLUMN_NAMES["EARNINGS_DATE"]]
-                                        # Handle both scalar and array cases
-                                        if isinstance(date_val, (list, np.ndarray)):
-                                            # Take the first non-null value if it's an array
-                                            for val in date_val:
-                                                if pd.notna(val):
-                                                    date_val = val
-                                                    break
-                                        
-                                        if pd.notna(date_val):
-                                            # Convert to datetime if string
-                                            if isinstance(date_val, str):
-                                                date_val = pd.to_datetime(date_val)
-                                            
-                                            # Format based on type
-                                            formatted_date = date_val.strftime("%Y-%m-%d") if hasattr(date_val, 'strftime') else str(date_val)
-                                            earnings_data["earnings_dates"].append(formatted_date)
-                        except Exception as e:
-                            logger.debug(f"Error processing earnings dates from calendar: {e}")
-                        
-                    # Add earnings data from ticker info
-                    if "last_earnings" in info and info["last_earnings"]:
-                        if not earnings_data["earnings_dates"]:
-                            earnings_data["earnings_dates"].append(info["last_earnings"])
-                            
-                    return earnings_data
-                except Exception as e:
-                    logger.error(f"Error getting earnings data for {ticker}: {str(e)}")
-                    return {"symbol": ticker, "earnings_dates": [], "earnings_history": []}
-                    
-            async def get_earnings_dates(self, ticker: str) -> List[str]:
-                """Get earnings dates"""
-                validate_ticker(ticker)
-                try:
-                    earnings_data = await self.get_earnings_data(ticker)
-                    return earnings_data.get("earnings_dates", [])
-                except Exception as e:
-                    logger.error(f"Error getting earnings dates for {ticker}: {str(e)}")
-                    return []
-                    
-            async def get_analyst_ratings(self, ticker: str) -> Dict[str, Any]:
-                """Get analyst ratings"""
-                info = await self.get_ticker_info(ticker)
-                
-                ratings_data = {
-                    "symbol": ticker,
-                    "recommendations": info.get("total_ratings", 0),
-                    "buy_percentage": info.get("buy_percentage", None),
-                    "positive_percentage": info.get("buy_percentage", None),
-                    "total_ratings": info.get("total_ratings", 0),
-                    "ratings_type": info.get("A", "A"),  # Use the A column value (E or A) from the info
-                    "date": None
-                }
-                
-                return ratings_data
-                
-            async def get_insider_transactions(self, ticker: str) -> List[Dict[str, Any]]:
-                """Get insider transactions"""
-                validate_ticker(ticker)
-                # Most users won't need insider data, so return empty list
-                return []
-                
-            async def search_tickers(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
-                """Search for tickers"""
-                # This is just for interface compatibility, not needed for our use case
-                return []
-                
-            async def batch_get_ticker_info(self, tickers: List[str], skip_insider_metrics: bool = False) -> Dict[str, Dict[str, Any]]:
-                """Process multiple tickers"""
-                results = {}
-                for ticker in tickers:
-                    results[ticker] = await self.get_ticker_info(ticker, skip_insider_metrics)
-                return results
-                
-            async def close(self) -> None:
-                # No need to close anything with yfinance
-                pass
-                
-            def _calculate_peg_ratio(self, ticker_info):
-                """Calculate PEG ratio from available financial metrics"""
-                # Using the same approach as the original code in yahoofinance/api/providers/yahoo_finance.py
-                # Get the trailingPegRatio directly from Yahoo Finance's API
-                peg_ratio = ticker_info.get('trailingPegRatio')
-                
-                # Format PEG ratio to ensure consistent precision (one decimal place)
-                if peg_ratio is not None:
-                    try:
-                        # Round to 1 decimal place for consistency
-                        peg_ratio = round(float(peg_ratio), 1)
-                    except (ValueError, TypeError):
-                        # Keep original value if conversion fails
-                        pass
-                        
-                return peg_ratio
-                
-            def _has_post_earnings_ratings(self, ticker: str, yticker) -> bool:
-                """
-                Check if there are ratings available since the last earnings date.
-                This determines whether to show 'E' (Earnings-based) or 'A' (All-time) in the A column.
-                
-                Args:
-                    ticker: The ticker symbol
-                    yticker: The yfinance Ticker object
-                    
-                Returns:
-                    bool: True if post-earnings ratings are available, False otherwise
-                """
-                try:
-                    # First check if this is a US ticker - we only try to get earnings-based ratings for US stocks
-                    is_us = self._is_us_ticker(ticker)
-                    if not is_us:
-                        return False
-                    
-                    # Get the last earnings date using the same approach as the original code
-                    last_earnings = None
-                    
-                    # Try to get last earnings date from the ticker info
-                    try:
-                        # This is the same approach as the original AnalystData._process_earnings_date
-                        # where it accesses stock_info.last_earnings
-                        earnings_date = self._get_last_earnings_date(yticker)
-                        if earnings_date:
-                            last_earnings = earnings_date
-                    except Exception:
-                        pass
-                    
-                    # If we couldn't get an earnings date, we can't do earnings-based ratings
-                    if last_earnings is None:
-                        return False
-                    
-                    # Try to get the upgrades/downgrades data
-                    try:
-                        upgrades_downgrades = yticker.upgrades_downgrades
-                        if upgrades_downgrades is None or upgrades_downgrades.empty:
-                            return False
-                        
-                        # Always convert to DataFrame with reset_index() to match original code
-                        # The original code always uses reset_index() and then filters on GradeDate column
-                        if hasattr(upgrades_downgrades, 'reset_index'):
-                            df = upgrades_downgrades.reset_index()
-                        else:
-                            df = upgrades_downgrades
-                        
-                        # Ensure GradeDate is a column
-                        if "GradeDate" not in df.columns and hasattr(upgrades_downgrades, 'index') and isinstance(upgrades_downgrades.index, pd.DatetimeIndex):
-                            # The date was the index, now added as a column after reset_index
-                            pass
-                        elif "GradeDate" not in df.columns:
-                            # No grade date - can't filter by earnings date
-                            return False
-                        
-                        # Convert GradeDate to datetime exactly like the original code
-                        df["GradeDate"] = pd.to_datetime(df["GradeDate"])
-                        
-                        # Format earnings date for comparison
-                        earnings_date = pd.to_datetime(last_earnings)
-                        
-                        # Filter ratings exactly like the original code does
-                        post_earnings_df = df[df["GradeDate"] >= earnings_date]
-                        
-                        # If we have post-earnings ratings, calculate buy percentage from them
-                        if not post_earnings_df.empty:
-                            # Count total and positive ratings
-                            total_ratings = len(post_earnings_df)
-                            positive_ratings = post_earnings_df[post_earnings_df["ToGrade"].isin(self.POSITIVE_GRADES)].shape[0]
-                            
-                            # Original code doesn't have a minimum rating requirement,
-                            # so we'll follow that approach
-                            
-                            # Calculate the percentage and update the parent info dict
-                            # Store these updated values for later use in get_ticker_info
-                            self._ratings_cache = {
-                                ticker: {
-                                    "buy_percentage": (positive_ratings / total_ratings * 100),
-                                    "total_ratings": total_ratings,
-                                    "ratings_type": "E"
-                                }
-                            }
-                            
-                            return True
-                        
-                        return False
-                    except Exception as e:
-                        # If there's an error, log it and default to all-time ratings
-                        logger.debug(f"Error getting post-earnings ratings for {ticker}: {e}")
-                    
-                    return False
-                except Exception as e:
-                    # In case of any error, default to all-time ratings
-                    logger.debug(f"Exception in _has_post_earnings_ratings for {ticker}: {e}")
-                    return False
-            
-            def _get_last_earnings_date(self, yticker):
-                """
-                Get the last earnings date, matching the format used in the original code.
-                In the original code, AnalystData._process_earnings_date gets this from stock_info.last_earnings.
-                
-                Args:
-                    yticker: The yfinance Ticker object
-                
-                Returns:
-                    str: The last earnings date in YYYY-MM-DD format, or None if not available
-                """
-                try:
-                    # Try calendar approach first - it usually has the most recent past earnings
-                    calendar = yticker.calendar
-                    if isinstance(calendar, dict) and COLUMN_NAMES["EARNINGS_DATE"] in calendar:
-                        earnings_date_list = calendar[COLUMN_NAMES["EARNINGS_DATE"]]
-                        if isinstance(earnings_date_list, list) and len(earnings_date_list) > 0:
-                            # Look for the most recent PAST earnings date, not future ones
-                            today = pd.Timestamp.now().date()
-                            past_earnings = [date for date in earnings_date_list if date < today]
-                            
-                            if past_earnings:
-                                return max(past_earnings).strftime('%Y-%m-%d')
-                except Exception:
-                    pass
-                
-                # Try earnings_dates approach if we didn't get a past earnings date
-                try:
-                    earnings_dates = yticker.earnings_dates if hasattr(yticker, 'earnings_dates') else None
-                    if earnings_dates is not None and not earnings_dates.empty:
-                        # Handle timezone-aware dates
-                        today = pd.Timestamp.now()
-                        if hasattr(earnings_dates.index, 'tz') and earnings_dates.index.tz is not None:
-                            today = pd.Timestamp.now(tz=earnings_dates.index.tz)
-                        
-                        # Find past dates for last earnings
-                        past_dates = [date for date in earnings_dates.index if date < today]
-                        if past_dates:
-                            return max(past_dates).strftime('%Y-%m-%d')
-                except Exception:
-                    pass
-                
-                return None
-            
-            def _is_us_ticker(self, ticker: str) -> bool:
-                """Check if a ticker is a US ticker based on suffix"""
-                # Some special cases of US stocks with dots in the ticker
-                if ticker in ["BRK.A", "BRK.B", "BF.A", "BF.B"]:
-                    return True
-                    
-                # Most US tickers don't have a suffix
-                if "." not in ticker:
-                    return True
-                    
-                # Handle .US suffix
-                if ticker.endswith(".US"):
-                    return True
-                    
-                return False
-            
-            def _format_market_cap(self, value):
-                if value is None:
-                    return None
-                    
-                # Trillions
-                if value >= 1e12:
-                    if value >= 10e12:
-                        return f"{value / 1e12:.1f}T"
-                    else:
-                        return f"{value / 1e12:.2f}T"
-                # Billions
-                elif value >= 1e9:
-                    if value >= 100e9:
-                        return f"{int(value / 1e9)}B"
-                    elif value >= 10e9:
-                        return f"{value / 1e9:.1f}B"
-                    else:
-                        return f"{value / 1e9:.2f}B"
-                # Millions
-                elif value >= 1e6:
-                    if value >= 100e6:
-                        return f"{int(value / 1e6)}M"
-                    elif value >= 10e6:
-                        return f"{value / 1e6:.1f}M"
-                    else:
-                        return f"{value / 1e6:.2f}M"
-                else:
-                    return f"{int(value):,}"
+        # Internal CustomYahooFinanceProvider class removed (lines 3715-4380)
+        # Its logic is now in yahoofinance/api/providers/optimized_async_yfinance.py
         
         # Create our custom provider
         logger.info("Creating custom YahooFinance provider...")
-        provider = CustomYahooFinanceProvider()
+        # Instantiate the new, optimized provider from the external file
+        # Instantiate the Enhanced provider
+        # Instantiate the Async Hybrid provider
+        # Instantiate the Async Hybrid provider with increased concurrency
+        provider = AsyncHybridProvider(max_concurrency=10)
         logger.info("Provider created successfully")
         
         logger.info("Creating MarketDisplay instance...")
@@ -4448,8 +3862,21 @@ def main():
     v1_input_dir = INPUT_DIR
     if os.path.exists(v1_input_dir):
         logger.debug(f"Using input files from legacy directory: {v1_input_dir}")
-        
-    # Run the async main function
+    
+    # Handle command line arguments if provided
+    if len(sys.argv) > 1:
+        # Basic argument handling for "trade.py i nvda" format
+        source = sys.argv[1].upper()
+        if source == 'I' and len(sys.argv) > 2:
+            tickers = sys.argv[2:]
+            # Create a mock MarketDisplay with our provider
+            provider = AsyncHybridProvider(max_concurrency=10)
+            display = MarketDisplay(provider=provider)
+            # Display report directly
+            display_report_for_source(display, tickers, 'I', verbose=True)
+            return
+    
+    # Run the async main function with interactive input
     main_async()
 
 if __name__ == "__main__":

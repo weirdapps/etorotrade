@@ -416,7 +416,8 @@ class HTMLGenerator:
             return None
             
     def generate_stock_table(self, stocks_data: List[Dict[str, Any]], title: str = "Stock Analysis", 
-                         output_filename: str = "stock_analysis", include_columns: List[str] = None) -> Optional[str]:
+                         output_filename: str = "stock_analysis", include_columns: List[str] = None,
+                         processing_stats: Optional[Dict[str, Any]] = None) -> Optional[str]:
         """
         Generate HTML table for stock analysis results.
         
@@ -425,6 +426,7 @@ class HTMLGenerator:
             title: Title for the HTML page
             output_filename: Base name for output files (without extension)
             include_columns: List of columns to include, in order (None for all columns)
+            processing_stats: Optional processing statistics to display in the footer
             
         Returns:
             Path to generated HTML file or None if failed
@@ -442,6 +444,15 @@ class HTMLGenerator:
                 
             # Convert to DataFrame for easier manipulation
             df = pd.DataFrame(stocks_data)
+            
+            # Sanitize ACTION column immediately after DataFrame creation
+            if 'ACTION' in df.columns:
+                valid_actions = ['B', 'S', 'H']
+                # Replace any value not in valid_actions (including NaN, None, '', '--') with 'H'
+                df['ACTION'] = df['ACTION'].apply(lambda x: x if x in valid_actions else 'H')
+            else:
+                # If ACTION column is missing entirely, add it and fill with 'H'
+                df['ACTION'] = 'H'
             
             # Filter and order columns if specified
             if include_columns:
@@ -508,11 +519,28 @@ class HTMLGenerator:
                     text_color = 'color: #CC0000;'  # Darker red for better visibility
                     ticker_val = row.get('TICKER', '')
                     logger.debug(f"Applied SELL styling to row {idx}: {ticker_val}")
+                elif action_str.strip() == 'I':  # Inconclusive
+                    row_class = ' class="inconclusive-row"'
+                    text_color = 'color: #CC7700;'  # Darker yellow/amber for better visibility
+                    ticker_val = row.get('TICKER', '')
+                    logger.debug(f"Applied INCONCLUSIVE styling to row {idx}: {ticker_val}")
                 
                 # Make sure ACTION value is valid by forcing specific valid values
-                if action_str.strip() not in ['B', 'S', 'H', '']:
+                if action_str.strip() not in ['B', 'S', 'H', 'I', '']:
                     logger.warning(f"Invalid action value '{action_str}' converted to 'H' (hold)")
                     action = 'H'
+                
+                # Debug the action value for CLOV ticker
+                if row.get('TICKER') == 'CLOV':
+                    logger.info(f"CLOV action: {action_str}")
+                    
+                # Force 'I' action for tickers with low analyst coverage
+                if (row.get('# T') and row.get('# A') and 
+                    (pd.to_numeric(row.get('# T'), errors='coerce') < 5 or 
+                     pd.to_numeric(row.get('# A'), errors='coerce') < 5)):
+                    action = 'I'
+                    action_str = 'I'
+                    logger.info(f"Forcing INCONCLUSIVE for {row.get('TICKER')} due to low coverage: T={row.get('# T')}, A={row.get('# A')}")
                 
                 # ===== CRITICAL FIX =====
                 # Always use direct inline styles for row coloring
@@ -528,6 +556,10 @@ class HTMLGenerator:
                     bg_color = "#fff0f0"  # Very light red background
                     ticker_val = row.get('TICKER', '')
                     logger.debug(f"Applying SELL styling to row {idx}: {ticker_val}")
+                elif action_str.strip() == 'I':
+                    bg_color = "#fffadd"  # Very light yellow background
+                    ticker_val = row.get('TICKER', '')
+                    logger.debug(f"Applying INCONCLUSIVE styling to row {idx}: {ticker_val}")
                 
                 # Always use direct inline style + class for maximum reliability
                 if bg_color:
@@ -550,13 +582,17 @@ class HTMLGenerator:
                     
                     # Use the action_str variable we already standardized above
                     action_str = str(action) if action is not None else ""
-                    if text_color and action_str in ['B', 'S']:
+                    if text_color and action_str in ['B', 'S', 'I']:
                         style += f" {text_color}"
                     
                     # Create the cell with appropriate alignment and color
-                    if col == 'ACTION' and action_str in ['B', 'S']:
-                        # Make ACTION column bold and colored
-                        row_html += f'<td style="{style} font-weight: bold;">{value}</td>'
+                    if col == 'ACTION':
+                        # Use the actual action that should be displayed
+                        if action_str in ['B', 'S', 'I']:
+                            # Make ACTION column bold and colored with the current action
+                            row_html += f'<td style="{style} font-weight: bold;">{action_str}</td>'
+                        else:
+                            row_html += f'<td style="{style}">{value}</td>'
                     else:
                         row_html += f'<td style="{style}">{value}</td>'
                 
@@ -641,7 +677,7 @@ class HTMLGenerator:
         }}
         
         .stock-table tr:nth-child(even) {{
-            background-color: #f5f5f5;
+            background-color: #ffffff;  /* Make all rows white by default */
         }}
         
         /* Special row styling for buy/sell - higher specificity to override even/odd */
@@ -663,6 +699,16 @@ class HTMLGenerator:
         .stock-table tr.sell-row:hover,
         .stock-table tr.sell-row:nth-child(even):hover {{
             background-color: #ffe0e0 !important;  /* Slightly darker red on hover */
+        }}
+        
+        .stock-table tr.inconclusive-row,
+        .stock-table tr.inconclusive-row:nth-child(even) {{
+            background-color: #fffadd !important;  /* Very light yellow background */
+        }}
+        
+        .stock-table tr.inconclusive-row:hover,
+        .stock-table tr.inconclusive-row:nth-child(even):hover {{
+            background-color: #fff5c0 !important;  /* Slightly darker yellow on hover */
         }}
         
         .sort-header {{
@@ -696,6 +742,21 @@ class HTMLGenerator:
                 padding: 8px 4px;
             }}
         }}
+        
+        .footer {{
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            text-align: center;
+            color: #555;
+            font-size: 14px;
+        }}
+        
+        .footer p {{
+            margin: 0;
+            padding: 0;
+        }}
     </style>
 </head>
 <body>
@@ -705,7 +766,7 @@ class HTMLGenerator:
             {table_html}
         </div>
         <div class="footer">
-            <p>Generated on {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p>{self._generate_footer_text(title, processing_stats)}</p>
         </div>
     </div>
     <script src="script.js"></script>
@@ -803,6 +864,33 @@ class HTMLGenerator:
             logger.error(f"Error generating stock table: {str(e)}")
             return None
             
+    def _generate_footer_text(self, title: str, processing_stats: Optional[Dict[str, Any]] = None) -> str:
+        """Generate the footer text with processing statistics if available.
+        
+        Args:
+            title: The report title
+            processing_stats: Optional processing statistics
+            
+        Returns:
+            str: Formatted footer text
+        """
+        timestamp = pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        if not processing_stats:
+            return f"{title} | Generated: {timestamp}"
+            
+        # Extract stats
+        elapsed_time = processing_stats.get("total_time_sec", 0)
+        minutes, seconds = divmod(elapsed_time, 60)
+        total_tickers = processing_stats.get("total_tickers", 0)
+        success_count = processing_stats.get("success_count", 0)
+        error_count = processing_stats.get("error_count", 0)
+        valid_results = processing_stats.get("valid_results_count", 0)
+        time_per_ticker = processing_stats.get("time_per_ticker_sec", 0)
+        
+        # Format as a single line
+        return f"{title} | Generated: {timestamp} | Time: {int(minutes)}m {int(seconds)}s | Tickers: {total_tickers}/{success_count}/{error_count} | Results: {valid_results} | {time_per_ticker:.2f}s per ticker"
+        
     def _format_numeric_values(self, df: pd.DataFrame) -> pd.DataFrame:
         """Format numeric values in DataFrame for consistent display.
         

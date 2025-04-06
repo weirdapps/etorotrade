@@ -15,6 +15,12 @@ POSITIVE_GRADES = {
     "Add", "Conviction Buy", "Top Pick", "Positive"
 }
 
+# Provider configuration
+PROVIDER_CONFIG = {
+    # Enable yahooquery supplementation in hybrid provider
+    "ENABLE_YAHOOQUERY": False,  # Set to False to disable yahooquery and prevent crumb errors
+}
+
 # Rate limiting configuration
 RATE_LIMIT = {
     # Time window for rate limiting in seconds
@@ -36,7 +42,7 @@ RATE_LIMIT = {
     "BATCH_SIZE": 20,
     
     # Delay between batches in seconds (reduced for better performance)
-    "BATCH_DELAY": 3.0,
+    "BATCH_DELAY": 0.5, # Reduced delay
     
     # Maximum retry attempts for API calls
     "MAX_RETRY_ATTEMPTS": 3,

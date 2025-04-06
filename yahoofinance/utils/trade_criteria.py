@@ -28,6 +28,7 @@ DEFAULT_SHORT_FIELD = 'short_percent'  # Default field name for short interest
 SELL_ACTION = 'S'
 BUY_ACTION = 'B'
 HOLD_ACTION = 'H'
+INCONCLUSIVE_ACTION = 'I'  # For insufficient data/confidence
 NO_ACTION = ''  # For insufficient data
 
 # Message constants
@@ -67,69 +68,205 @@ def check_confidence_criteria(row, criteria):
     analyst_count = normalized_row.get(ANALYST_COUNT)
     total_ratings = normalized_row.get(TOTAL_RATINGS)
     
+    # Bail out if values are missing
+    if not (pd.notna(analyst_count) and pd.notna(total_ratings)):
+        return False
+    
+    # Convert to float/int if they're strings (with error handling)
+    try:
+        if isinstance(analyst_count, str):
+            # Skip comparison for '--' values or other non-numeric strings
+            if analyst_count == '--' or not analyst_count.replace('.', '', 1).isdigit():
+                return False
+            analyst_count = float(analyst_count)
+            
+        if isinstance(total_ratings, str):
+            # Skip comparison for '--' values or other non-numeric strings
+            if total_ratings == '--' or not total_ratings.replace('.', '', 1).isdigit():
+                return False
+            total_ratings = float(total_ratings)
+    except (ValueError, TypeError):
+        # If conversion fails, don't count as passing confidence criteria
+        return False
+    
     min_analysts = criteria["CONFIDENCE"]["MIN_ANALYST_COUNT"]
     min_targets = criteria["CONFIDENCE"]["MIN_PRICE_TARGETS"]
     
-    return (
-        pd.notna(analyst_count) and 
-        pd.notna(total_ratings) and 
-        analyst_count >= min_targets and 
-        total_ratings >= min_analysts
-    )
+    # Compare numeric values
+    return analyst_count >= min_targets and total_ratings >= min_analysts
 
 
 def _check_upside_sell_criterion(row, sell_criteria):
     """Check if a stock fails the upside criterion for selling."""
-    if UPSIDE in row and pd.notna(row[UPSIDE]) and row[UPSIDE] < sell_criteria["SELL_MAX_UPSIDE"]:
-        return True, f"Low upside ({row[UPSIDE]:.1f}% < {sell_criteria['SELL_MAX_UPSIDE']}%)"
+    if UPSIDE in row and pd.notna(row[UPSIDE]):
+        # Safe conversion handling special values
+        try:
+            if isinstance(row[UPSIDE], str):
+                # Skip comparison for '--' values or other non-numeric strings
+                if row[UPSIDE] == '--' or not row[UPSIDE].replace('.', '', 1).replace('%', '', 1).replace('-', '', 1).isdigit():
+                    return False, None
+                upside_value = float(row[UPSIDE].replace('%', ''))
+            else:
+                upside_value = float(row[UPSIDE])
+                
+            if upside_value < sell_criteria["SELL_MAX_UPSIDE"]:
+                return True, f"Low upside ({upside_value:.1f}% < {sell_criteria['SELL_MAX_UPSIDE']}%)"
+        except (ValueError, TypeError):
+            # If conversion fails, skip this criterion
+            return False, None
     return False, None
 
 def _check_buy_percentage_sell_criterion(row, sell_criteria):
     """Check if a stock fails the buy percentage criterion for selling."""
-    if BUY_PERCENTAGE_COL in row and pd.notna(row[BUY_PERCENTAGE_COL]) and row[BUY_PERCENTAGE_COL] < sell_criteria["SELL_MIN_BUY_PERCENTAGE"]:
-        return True, f"Low buy percentage ({row[BUY_PERCENTAGE_COL]:.1f}% < {sell_criteria['SELL_MIN_BUY_PERCENTAGE']}%)"
+    if BUY_PERCENTAGE_COL in row and pd.notna(row[BUY_PERCENTAGE_COL]):
+        # Safe conversion handling special values
+        try:
+            if isinstance(row[BUY_PERCENTAGE_COL], str):
+                # Skip comparison for '--' values or other non-numeric strings
+                if row[BUY_PERCENTAGE_COL] == '--' or not row[BUY_PERCENTAGE_COL].replace('.', '', 1).replace('%', '', 1).isdigit():
+                    return False, None
+                buy_pct = float(row[BUY_PERCENTAGE_COL].replace('%', ''))
+            else:
+                buy_pct = float(row[BUY_PERCENTAGE_COL])
+                
+            if buy_pct < sell_criteria["SELL_MIN_BUY_PERCENTAGE"]:
+                return True, f"Low buy percentage ({buy_pct:.1f}% < {sell_criteria['SELL_MIN_BUY_PERCENTAGE']}%)"
+        except (ValueError, TypeError):
+            # If conversion fails, skip this criterion
+            return False, None
     return False, None
 
 def _check_pe_ratio_sell_criterion(row):
     """Check if a stock has a worsening PE ratio (forward > trailing)."""
     if (PE_FORWARD in row and PE_TRAILING in row and 
-        pd.notna(row[PE_FORWARD]) and pd.notna(row[PE_TRAILING]) and 
-        row[PE_FORWARD] > 0 and row[PE_TRAILING] > 0 and 
-        row[PE_FORWARD] > row[PE_TRAILING]):
-        return True, f"Worsening P/E ratio (Forward {row[PE_FORWARD]:.1f} > Trailing {row[PE_TRAILING]:.1f})"
+        pd.notna(row[PE_FORWARD]) and pd.notna(row[PE_TRAILING])):
+        # Safe conversion handling special values
+        try:
+            # Handle PE_FORWARD
+            if isinstance(row[PE_FORWARD], str):
+                # Skip comparison for '--' values or other non-numeric strings
+                if row[PE_FORWARD] == '--' or not row[PE_FORWARD].replace('.', '', 1).replace('-', '', 1).isdigit():
+                    return False, None
+                pe_forward = float(row[PE_FORWARD])
+            else:
+                pe_forward = float(row[PE_FORWARD])
+                
+            # Handle PE_TRAILING
+            if isinstance(row[PE_TRAILING], str):
+                # Skip comparison for '--' values or other non-numeric strings
+                if row[PE_TRAILING] == '--' or not row[PE_TRAILING].replace('.', '', 1).replace('-', '', 1).isdigit():
+                    return False, None
+                pe_trailing = float(row[PE_TRAILING])
+            else:
+                pe_trailing = float(row[PE_TRAILING])
+            
+            if pe_forward > 0 and pe_trailing > 0 and pe_forward > pe_trailing:
+                return True, f"Worsening P/E ratio (Forward {pe_forward:.1f} > Trailing {pe_trailing:.1f})"
+        except (ValueError, TypeError):
+            # If conversion fails, skip this criterion
+            return False, None
     return False, None
 
 def _check_forward_pe_sell_criterion(row, sell_criteria):
     """Check if a stock has a forward PE that's too high or negative."""
     if 'pe_forward' in row and pd.notna(row['pe_forward']):
-        if row['pe_forward'] < 0:
-            return True, f"Negative forward P/E ({row['pe_forward']:.1f} < 0)"
-        elif row['pe_forward'] > sell_criteria["SELL_MIN_FORWARD_PE"]:
-            return True, f"High forward P/E ({row['pe_forward']:.1f} > {sell_criteria['SELL_MIN_FORWARD_PE']})"
+        # Safe conversion handling special values
+        try:
+            if isinstance(row['pe_forward'], str):
+                # Skip comparison for '--' values or other non-numeric strings
+                if row['pe_forward'] == '--' or not row['pe_forward'].replace('.', '', 1).replace('-', '', 1).isdigit():
+                    return False, None
+                pe_forward = float(row['pe_forward'])
+            else:
+                pe_forward = float(row['pe_forward'])
+                
+            if pe_forward < 0:
+                return True, f"Negative forward P/E ({pe_forward:.1f} < 0)"
+            elif pe_forward > sell_criteria["SELL_MIN_FORWARD_PE"]:
+                return True, f"High forward P/E ({pe_forward:.1f} > {sell_criteria['SELL_MIN_FORWARD_PE']})"
+        except (ValueError, TypeError):
+            # If conversion fails, skip this criterion
+            return False, None
     return False, None
 
 def _check_peg_sell_criterion(row, sell_criteria):
     """Check if a stock has a PEG ratio that's too high."""
-    if 'peg_ratio' in row and pd.notna(row['peg_ratio']) and row['peg_ratio'] > sell_criteria["SELL_MIN_PEG"]:
-        return True, f"High PEG ratio ({row['peg_ratio']:.1f} > {sell_criteria['SELL_MIN_PEG']})"
+    if 'peg_ratio' in row and pd.notna(row['peg_ratio']):
+        # Safe conversion handling special values
+        try:
+            if isinstance(row['peg_ratio'], str):
+                # Skip comparison for '--' values or other non-numeric strings
+                if row['peg_ratio'] == '--' or not row['peg_ratio'].replace('.', '', 1).replace('-', '', 1).isdigit():
+                    return False, None
+                peg_value = float(row['peg_ratio'])
+            else:
+                peg_value = float(row['peg_ratio'])
+                
+            if peg_value > sell_criteria["SELL_MIN_PEG"]:
+                return True, f"High PEG ratio ({peg_value:.1f} > {sell_criteria['SELL_MIN_PEG']})"
+        except (ValueError, TypeError):
+            # If conversion fails, skip this criterion
+            return False, None
     return False, None
 
 def _check_short_interest_sell_criterion(row, sell_criteria, short_field):
     """Check if a stock has a short interest that's too high."""
-    if short_field in row and pd.notna(row[short_field]) and row[short_field] > sell_criteria["SELL_MIN_SHORT_INTEREST"]:
-        return True, f"High short interest ({row[short_field]:.1f}% > {sell_criteria['SELL_MIN_SHORT_INTEREST']}%)"
+    if short_field in row and pd.notna(row[short_field]):
+        # Safe conversion with special handling for '--' values
+        try:
+            if isinstance(row[short_field], str):
+                # Skip comparison for '--' values or other non-numeric strings
+                if row[short_field] == '--' or not row[short_field].replace('.', '', 1).replace('%', '', 1).isdigit():
+                    return False, None
+                short_value = float(row[short_field].replace('%', ''))
+            else:
+                short_value = float(row[short_field])
+                
+            if short_value > sell_criteria["SELL_MIN_SHORT_INTEREST"]:
+                return True, f"High short interest ({short_value:.1f}% > {sell_criteria['SELL_MIN_SHORT_INTEREST']}%)"
+        except (ValueError, TypeError):
+            # If conversion fails, skip this criterion
+            return False, None
     return False, None
 
 def _check_beta_sell_criterion(row, sell_criteria):
     """Check if a stock has a beta that's too high."""
-    if 'beta' in row and pd.notna(row['beta']) and row['beta'] > sell_criteria["SELL_MIN_BETA"]:
-        return True, f"High beta ({row['beta']:.1f} > {sell_criteria['SELL_MIN_BETA']})"
+    if 'beta' in row and pd.notna(row['beta']):
+        # Safe conversion handling special values
+        try:
+            if isinstance(row['beta'], str):
+                # Skip comparison for '--' values or other non-numeric strings
+                if row['beta'] == '--' or not row['beta'].replace('.', '', 1).replace('-', '', 1).isdigit():
+                    return False, None
+                beta_value = float(row['beta'])
+            else:
+                beta_value = float(row['beta'])
+                
+            if beta_value > sell_criteria["SELL_MIN_BETA"]:
+                return True, f"High beta ({beta_value:.1f} > {sell_criteria['SELL_MIN_BETA']})"
+        except (ValueError, TypeError):
+            # If conversion fails, skip this criterion
+            return False, None
     return False, None
 
 def _check_expected_return_sell_criterion(row, sell_criteria):
     """Check if a stock has an expected return that's too low."""
-    if 'EXRET' in row and pd.notna(row['EXRET']) and row['EXRET'] < sell_criteria["SELL_MAX_EXRET"]:
-        return True, f"Low expected return ({row['EXRET']:.1f}% < {sell_criteria['SELL_MAX_EXRET']}%)"
+    if 'EXRET' in row and pd.notna(row['EXRET']):
+        # Safe conversion handling special values
+        try:
+            if isinstance(row['EXRET'], str):
+                # Skip comparison for '--' values or other non-numeric strings
+                if row['EXRET'] == '--' or not row['EXRET'].replace('.', '', 1).replace('%', '', 1).replace('-', '', 1).isdigit():
+                    return False, None
+                exret_value = float(row['EXRET'].replace('%', ''))
+            else:
+                exret_value = float(row['EXRET'])
+                
+            if exret_value < sell_criteria["SELL_MAX_EXRET"]:
+                return True, f"Low expected return ({exret_value:.1f}% < {sell_criteria['SELL_MAX_EXRET']}%)"
+        except (ValueError, TypeError):
+            # If conversion fails, skip this criterion
+            return False, None
     return False, None
 
 def meets_sell_criteria(row, criteria, short_field=DEFAULT_SHORT_FIELD):
@@ -192,16 +329,48 @@ def meets_sell_criteria(row, criteria, short_field=DEFAULT_SHORT_FIELD):
 
 def _check_upside_buy_criterion(row, buy_criteria):
     """Check if a stock meets the upside criterion for buying."""
-    if UPSIDE not in row or pd.isna(row[UPSIDE]) or row[UPSIDE] < buy_criteria["BUY_MIN_UPSIDE"]:
-        upside_value = row.get(UPSIDE, NA_VALUE) if pd.notna(row.get(UPSIDE, None)) else NA_VALUE
-        return False, f"Insufficient upside ({upside_value}% < {buy_criteria['BUY_MIN_UPSIDE']}%)"
+    if UPSIDE not in row or pd.isna(row[UPSIDE]):
+        return False, f"Upside data not available (required for buy)"
+        
+    # Safe conversion handling special values
+    try:
+        if isinstance(row[UPSIDE], str):
+            # Skip comparison for '--' values or other non-numeric strings
+            if row[UPSIDE] == '--' or not row[UPSIDE].replace('.', '', 1).replace('%', '', 1).replace('-', '', 1).isdigit():
+                return False, f"Invalid upside value: {row[UPSIDE]}"
+            upside_value = float(row[UPSIDE].replace('%', ''))
+        else:
+            upside_value = float(row[UPSIDE])
+            
+        if upside_value < buy_criteria["BUY_MIN_UPSIDE"]:
+            return False, f"Insufficient upside ({upside_value:.1f}% < {buy_criteria['BUY_MIN_UPSIDE']}%)"
+    except (ValueError, TypeError):
+        # If conversion fails, skip this criterion
+        return False, f"Invalid upside value: {row.get(UPSIDE, NA_VALUE)}"
+        
     return True, None
 
 def _check_buy_percentage_buy_criterion(row, buy_criteria):
     """Check if a stock meets the buy percentage criterion for buying."""
-    if BUY_PERCENTAGE_COL not in row or pd.isna(row[BUY_PERCENTAGE_COL]) or row[BUY_PERCENTAGE_COL] < buy_criteria["BUY_MIN_BUY_PERCENTAGE"]:
-        pct_value = row.get(BUY_PERCENTAGE_COL, NA_VALUE) if pd.notna(row.get(BUY_PERCENTAGE_COL, None)) else NA_VALUE
-        return False, f"Insufficient buy percentage ({pct_value}% < {buy_criteria['BUY_MIN_BUY_PERCENTAGE']}%)"
+    if BUY_PERCENTAGE_COL not in row or pd.isna(row[BUY_PERCENTAGE_COL]):
+        return False, f"Buy percentage data not available (required for buy)"
+        
+    # Safe conversion handling special values
+    try:
+        if isinstance(row[BUY_PERCENTAGE_COL], str):
+            # Skip comparison for '--' values or other non-numeric strings
+            if row[BUY_PERCENTAGE_COL] == '--' or not row[BUY_PERCENTAGE_COL].replace('.', '', 1).replace('%', '', 1).isdigit():
+                return False, f"Invalid buy percentage value: {row[BUY_PERCENTAGE_COL]}"
+            buy_pct = float(row[BUY_PERCENTAGE_COL].replace('%', ''))
+        else:
+            buy_pct = float(row[BUY_PERCENTAGE_COL])
+            
+        if buy_pct < buy_criteria["BUY_MIN_BUY_PERCENTAGE"]:
+            return False, f"Insufficient buy percentage ({buy_pct:.1f}% < {buy_criteria['BUY_MIN_BUY_PERCENTAGE']}%)"
+    except (ValueError, TypeError):
+        # If conversion fails, skip this criterion
+        return False, f"Invalid buy percentage value: {row.get(BUY_PERCENTAGE_COL, NA_VALUE)}"
+        
     return True, None
 
 def _check_beta_buy_criterion(row, buy_criteria):
@@ -210,30 +379,85 @@ def _check_beta_buy_criterion(row, buy_criteria):
     if 'beta' not in row or pd.isna(row['beta']):
         return False, "Beta data not available (required for buy)"
     
-    # Beta must be in valid range for buy
-    if row['beta'] <= buy_criteria["BUY_MIN_BETA"]:
-        return False, f"Beta too low ({row['beta']:.1f} ≤ {buy_criteria['BUY_MIN_BETA']})"
-    elif row['beta'] > buy_criteria["BUY_MAX_BETA"]:
-        return False, f"Beta too high ({row['beta']:.1f} > {buy_criteria['BUY_MAX_BETA']})"
+    # Safe conversion handling special values
+    try:
+        if isinstance(row['beta'], str):
+            # Skip comparison for '--' values or other non-numeric strings
+            if row['beta'] == '--' or not row['beta'].replace('.', '', 1).replace('-', '', 1).isdigit():
+                return False, f"Invalid beta value: {row['beta']}"
+            beta_value = float(row['beta'])
+        else:
+            beta_value = float(row['beta'])
+        
+        # Beta must be in valid range for buy
+        if beta_value <= buy_criteria["BUY_MIN_BETA"]:
+            return False, f"Beta too low ({beta_value:.1f} ≤ {buy_criteria['BUY_MIN_BETA']})"
+        elif beta_value > buy_criteria["BUY_MAX_BETA"]:
+            return False, f"Beta too high ({beta_value:.1f} > {buy_criteria['BUY_MAX_BETA']})"
+    except (ValueError, TypeError):
+        # If conversion fails, skip this criterion
+        return False, f"Invalid beta value: {row.get('beta', NA_VALUE)}"
     
     return True, None
 
 def _check_peg_buy_criterion(row, buy_criteria):
     """Check if a stock meets the PEG ratio criterion for buying."""
-    if 'peg_ratio' in row and pd.notna(row['peg_ratio']) and row['peg_ratio'] >= buy_criteria["BUY_MAX_PEG"]:
-        return False, f"PEG ratio too high ({row['peg_ratio']:.1f} ≥ {buy_criteria['BUY_MAX_PEG']})"
+    if 'peg_ratio' in row and pd.notna(row['peg_ratio']):
+        # Safe conversion handling special values
+        try:
+            if isinstance(row['peg_ratio'], str):
+                # Skip comparison for '--' values or other non-numeric strings
+                if row['peg_ratio'] == '--' or not row['peg_ratio'].replace('.', '', 1).replace('-', '', 1).isdigit():
+                    return True, None  # Not a numeric value, so we can't compare - secondary criterion
+                peg_value = float(row['peg_ratio'])
+            else:
+                peg_value = float(row['peg_ratio'])
+                
+            if peg_value >= buy_criteria["BUY_MAX_PEG"]:
+                return False, f"PEG ratio too high ({peg_value:.1f} ≥ {buy_criteria['BUY_MAX_PEG']})"
+        except (ValueError, TypeError):
+            # If conversion fails, skip this criterion (it's a secondary criterion)
+            return True, None
     return True, None
 
 def _check_short_interest_buy_criterion(row, buy_criteria, short_field):
     """Check if a stock meets the short interest criterion for buying."""
-    if short_field in row and pd.notna(row[short_field]) and row[short_field] > buy_criteria["BUY_MAX_SHORT_INTEREST"]:
-        return False, f"Short interest too high ({row[short_field]:.1f}% > {buy_criteria['BUY_MAX_SHORT_INTEREST']}%)"
+    if short_field in row and pd.notna(row[short_field]):
+        # Safe conversion handling special values
+        try:
+            if isinstance(row[short_field], str):
+                # Skip comparison for '--' values or other non-numeric strings
+                if row[short_field] == '--' or not row[short_field].replace('.', '', 1).replace('%', '', 1).isdigit():
+                    return True, None  # Not a numeric value, so we can't compare - secondary criterion
+                short_value = float(row[short_field].replace('%', ''))
+            else:
+                short_value = float(row[short_field])
+                
+            if short_value > buy_criteria["BUY_MAX_SHORT_INTEREST"]:
+                return False, f"Short interest too high ({short_value:.1f}% > {buy_criteria['BUY_MAX_SHORT_INTEREST']}%)"
+        except (ValueError, TypeError):
+            # If conversion fails, skip this criterion (it's a secondary criterion)
+            return True, None
     return True, None
 
 def _check_exret_buy_criterion(row, buy_criteria):
     """Check if a stock meets the expected return criterion for buying."""
-    if 'EXRET' in row and pd.notna(row['EXRET']) and row['EXRET'] < buy_criteria.get("BUY_MIN_EXRET", 0):
-        return False, f"Expected return too low ({row['EXRET']:.1f}% < {buy_criteria.get('BUY_MIN_EXRET', 0)}%)"
+    if 'EXRET' in row and pd.notna(row['EXRET']):
+        # Safe conversion handling special values
+        try:
+            if isinstance(row['EXRET'], str):
+                # Skip comparison for '--' values or other non-numeric strings
+                if row['EXRET'] == '--' or not row['EXRET'].replace('.', '', 1).replace('%', '', 1).replace('-', '', 1).isdigit():
+                    return False, f"Invalid expected return value: {row['EXRET']}"
+                exret_value = float(row['EXRET'].replace('%', ''))
+            else:
+                exret_value = float(row['EXRET'])
+                
+            if exret_value < buy_criteria.get("BUY_MIN_EXRET", 0):
+                return False, f"Expected return too low ({exret_value:.1f}% < {buy_criteria.get('BUY_MIN_EXRET', 0)}%)"
+        except (ValueError, TypeError):
+            # If conversion fails, skip this criterion
+            return False, f"Invalid expected return value: {row.get('EXRET', NA_VALUE)}"
     return True, None
 
 def meets_buy_criteria(row, criteria, short_field=DEFAULT_SHORT_FIELD):
@@ -373,7 +597,7 @@ def calculate_action_for_row(row, criteria, short_field=DEFAULT_SHORT_FIELD):
     
     # Check confidence criteria first
     if not check_confidence_criteria(normalized_row, criteria):
-        return NO_ACTION, MSG_INSUFFICIENT_COVERAGE
+        return INCONCLUSIVE_ACTION, MSG_INSUFFICIENT_COVERAGE
     
     # Check SELL criteria (any one can trigger a SELL)
     is_sell, sell_reason = meets_sell_criteria(normalized_row, criteria, short_field)

@@ -335,6 +335,23 @@ class MarketDisplay:
         # Reorder the DataFrame
         df = df[final_col_order]
         
+        # Apply color coding based on ACTION column
+        colored_data = []
+        for _, row in df.iterrows():
+            colored_row = row.copy()
+            
+            # Apply color based on ACTION value
+            action = row.get('ACTION', '')
+            if action == 'B':  # BUY
+                colored_row = {k: f"\033[92m{v}\033[0m" for k, v in colored_row.items()}  # Green
+            elif action == 'S':  # SELL
+                colored_row = {k: f"\033[91m{v}\033[0m" for k, v in colored_row.items()}  # Red
+            elif action == 'I':  # INCONCLUSIVE 
+                colored_row = {k: f"\033[93m{v}\033[0m" for k, v in colored_row.items()}  # Yellow
+            
+            # Keep column order
+            colored_data.append([colored_row.get(col, '') for col in df.columns])
+        
         # Define column alignment based on content type
         colalign = []
         for col in df.columns:
@@ -345,21 +362,18 @@ class MarketDisplay:
             else:
                 colalign.append("right")
                 
-        # Display the table
-        print(f"\n{title}")
-        print(f"Generated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        # Display the table without title/generation time
         
         # Use tabulate for display with the defined alignment and fancy_grid format
         table = tabulate(
-            df.values, 
+            colored_data if colored_data else df.values,
             headers=df.columns, 
             tablefmt="fancy_grid", 
             colalign=colalign
         )
         print(table)
         
-        # Add color key
-        self._display_color_key()
+        # No color key display
     
     def _display_color_key(self) -> None:
         """Display color key legend for interpreting the table"""

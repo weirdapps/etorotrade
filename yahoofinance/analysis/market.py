@@ -147,11 +147,15 @@ def get_confidence_condition(df: pd.DataFrame) -> pd.Series:
         return pd.Series(True, index=df.index)
     
     # Use the found column names
+    # Convert to numeric first to handle string values
+    analyst_counts = pd.to_numeric(df[analyst_count_col], errors='coerce')
+    total_ratings = pd.to_numeric(df[total_ratings_col], errors='coerce')
+    
     return (
-        df[analyst_count_col].notna() & 
-        df[total_ratings_col].notna() & 
-        (df[analyst_count_col] >= TRADING_CRITERIA["CONFIDENCE"]["MIN_PRICE_TARGETS"]) &
-        (df[total_ratings_col] >= TRADING_CRITERIA["CONFIDENCE"]["MIN_ANALYST_COUNT"])
+        analyst_counts.notna() & 
+        total_ratings.notna() & 
+        (analyst_counts >= TRADING_CRITERIA["CONFIDENCE"]["MIN_PRICE_TARGETS"]) &
+        (total_ratings >= TRADING_CRITERIA["CONFIDENCE"]["MIN_ANALYST_COUNT"])
     )
 
 
@@ -550,9 +554,14 @@ def filter_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame:
     # Helper function to convert percentage strings to floats
     def convert_pct_to_float(series):
         if series.dtype == 'object':
-            # Convert percentage strings to float
-            # First convert to string, then remove % character, then convert to float
-            return pd.to_numeric(series.astype(str).str.replace('%', ''), errors='coerce')
+            # First convert to string
+            str_series = series.astype(str)
+            
+            # Replace '--' with NaN and % with empty string
+            cleaned_series = str_series.str.replace('--', 'NaN').str.replace('%', '')
+            
+            # Convert to numeric, forcing non-numeric values to NaN
+            return pd.to_numeric(cleaned_series, errors='coerce')
         return series
         
     # PRIMARY CRITERIA - always check these (required fields and values)
