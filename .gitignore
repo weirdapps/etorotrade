@@ -86,10 +86,12 @@ Thumbs.db
 
 # Project specific
 yahoofinance/cache/
+yahoofinance/data/cache/
 yahoofinance/output/backtest/
 yahoofinance/output/backtest/cache/
 yahoofinance/output/optimization/
 yahoofinance/output/*.html
+**/*.cache
 
 
 # Logs
