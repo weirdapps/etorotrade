@@ -518,20 +518,42 @@ def meets_buy_criteria(row, criteria, short_field=DEFAULT_SHORT_FIELD):
 def _is_forward_pe_in_range(row, criteria):
     """Check if forward P/E is in the target range."""
     # We already checked if pe_forward exists in the calling function
-    return (
-        row['pe_forward'] > criteria["BUY_MIN_FORWARD_PE"] and 
-        row['pe_forward'] <= criteria["BUY_MAX_FORWARD_PE"]
-    )
+    try:
+        # Handle string values - convert to float first
+        pe_forward = float(row['pe_forward']) if isinstance(row['pe_forward'], str) else row['pe_forward']
+        
+        return (
+            pe_forward > criteria["BUY_MIN_FORWARD_PE"] and 
+            pe_forward <= criteria["BUY_MAX_FORWARD_PE"]
+        )
+    except (ValueError, TypeError):
+        # If conversion fails, cannot meet criteria
+        return False
 
 def _is_pe_improving(row):
     """Check if P/E is improving (forward < trailing and trailing > 0)."""
     # We already checked if pe_trailing and pe_forward exist in the calling function
-    return row['pe_trailing'] > 0 and row['pe_forward'] < row['pe_trailing']
+    try:
+        # Handle string values - convert to float first
+        pe_trailing = float(row['pe_trailing']) if isinstance(row['pe_trailing'], str) else row['pe_trailing']
+        pe_forward = float(row['pe_forward']) if isinstance(row['pe_forward'], str) else row['pe_forward']
+        
+        return pe_trailing > 0 and pe_forward < pe_trailing
+    except (ValueError, TypeError):
+        # If conversion fails, cannot meet criteria
+        return False
 
 def _is_growth_stock(row):
     """Check if the stock is a growth stock (trailing P/E <= 0)."""
     # We already checked if pe_trailing exists in the calling function
-    return row['pe_trailing'] <= 0
+    try:
+        # Handle string values - convert to float first
+        pe_trailing = float(row['pe_trailing']) if isinstance(row['pe_trailing'], str) else row['pe_trailing']
+        
+        return pe_trailing <= 0
+    except (ValueError, TypeError):
+        # If conversion fails, cannot meet criteria
+        return False
 
 def check_pe_condition(row, criteria):
     """
@@ -556,7 +578,12 @@ def check_pe_condition(row, criteria):
         return False
     
     # Negative forward P/E is not allowed for buy
-    if row['pe_forward'] < 0:
+    try:
+        pe_forward = float(row['pe_forward']) if isinstance(row['pe_forward'], str) else row['pe_forward']
+        if pe_forward < 0:
+            return False
+    except (ValueError, TypeError):
+        # If conversion fails, cannot meet criteria
         return False
     
     # Forward P/E must be in the target range
@@ -589,7 +616,8 @@ def calculate_action_for_row(row, criteria, short_field=DEFAULT_SHORT_FIELD):
         'PEG': PEG_RATIO,
         'SI': short_field,
         '# T': ANALYST_COUNT,
-        '# A': TOTAL_RATINGS
+        '# A': TOTAL_RATINGS,
+        'EXRET': 'EXRET'  # Include EXRET explicitly in the mapping
     }
     
     # Normalize row to ensure consistent column names and data types
@@ -637,51 +665,96 @@ def normalize_row_columns(row, column_mapping=None):
             'SI': DEFAULT_SHORT_FIELD,
             '# T': ANALYST_COUNT,
             '# A': TOTAL_RATINGS,
-            'DIV %': 'dividend_yield'
+            'DIV %': 'dividend_yield',
+            'EXRET': 'EXRET'  # Include EXRET explicitly in the mapping
         }
     
     normalized_row = {}
+    
+    # Define numeric fields that need type conversion
+    numeric_fields = ['BETA', 'PET', 'PEF', 'PEG', '# T', '# A', 'UPSIDE', '% BUY', 'SI', 'EXRET', 'DIV %']
     
     # First copy display columns with conversion
     for display_col, internal_col in column_mapping.items():
         if display_col in row:
             value = row[display_col]
+            
+            # Handle placeholder values consistently
+            if value == '--' or pd.isna(value) or (isinstance(value, str) and not value.strip()):
+                normalized_row[internal_col] = None
+                continue
+                
             # Convert percentage strings to numeric values
             if isinstance(value, str) and '%' in value:
                 try:
                     value = float(value.replace('%', ''))
                 except (ValueError, TypeError):
                     value = None
-            # Convert other numeric strings to float
-            elif isinstance(value, str) and display_col in ['BETA', 'PET', 'PEF', 'PEG', '# T', '# A']:
+            # Convert other numeric strings to float for numeric fields
+            elif isinstance(value, str) and display_col in numeric_fields:
                 try:
-                    value = float(value)
+                    # Clean the string: remove commas, percent signs
+                    clean_value = value.replace(',', '').replace('%', '')
+                    value = float(clean_value)
                 except (ValueError, TypeError):
                     value = None
+                    
             normalized_row[internal_col] = value
     
     # Then copy internal columns that don't already exist
-    internal_cols = list(column_mapping.values()) + ['EXRET']
+    internal_cols = list(column_mapping.values())
     for internal_col in internal_cols:
         if internal_col in row and internal_col not in normalized_row:
-            normalized_row[internal_col] = row[internal_col]
+            value = row[internal_col]
+            
+            # Handle placeholder values consistently
+            if value == '--' or pd.isna(value) or (isinstance(value, str) and not value.strip()):
+                normalized_row[internal_col] = None
+                continue
+                
+            # Convert numeric strings to float for all numeric internal columns
+            if isinstance(value, str) and internal_col in ['beta', 'pe_trailing', 'pe_forward', 'peg_ratio', 
+                                                          'upside', 'buy_percentage', 'EXRET']:
+                try:
+                    # Clean the string: remove commas, percent signs
+                    clean_value = value.replace(',', '').replace('%', '')
+                    value = float(clean_value)
+                except (ValueError, TypeError):
+                    value = None
+                    
+            normalized_row[internal_col] = value
     
-    # Process EXRET specially
-    if 'EXRET' in row:
+    # Process EXRET if not already processed
+    if 'EXRET' not in normalized_row and 'EXRET' in row:
         value = row['EXRET']
-        if isinstance(value, str) and '%' in value:
+        
+        # Handle placeholder values consistently
+        if value == '--' or pd.isna(value) or (isinstance(value, str) and not value.strip()):
+            normalized_row['EXRET'] = None
+        elif isinstance(value, str) and '%' in value:
             try:
                 value = float(value.replace('%', ''))
+                normalized_row['EXRET'] = value
             except (ValueError, TypeError):
-                value = None
-        normalized_row['EXRET'] = value
+                normalized_row['EXRET'] = None
+        elif isinstance(value, str):
+            try:
+                normalized_row['EXRET'] = float(value)
+            except (ValueError, TypeError):
+                normalized_row['EXRET'] = None
+        else:
+            normalized_row['EXRET'] = value
     
     # Calculate EXRET if missing but we have upside and buy_percentage
-    if 'EXRET' not in normalized_row and UPSIDE in normalized_row and BUY_PERCENTAGE_COL in normalized_row:
+    if ('EXRET' not in normalized_row or normalized_row['EXRET'] is None) and \
+       UPSIDE in normalized_row and BUY_PERCENTAGE_COL in normalized_row:
         upside = normalized_row[UPSIDE]
         buy_pct = normalized_row[BUY_PERCENTAGE_COL]
         if upside is not None and buy_pct is not None:
-            normalized_row['EXRET'] = upside * buy_pct / 100
+            try:
+                normalized_row['EXRET'] = float(upside) * float(buy_pct) / 100
+            except (ValueError, TypeError):
+                normalized_row['EXRET'] = None
     
     return normalized_row
 
