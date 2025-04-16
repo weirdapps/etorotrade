@@ -163,10 +163,15 @@ def _color_based_on_action(row, colored_row):
     Returns:
         Colored row or None if no action found
     """
-    if ACTION_COL not in row or pd.isna(row[ACTION_COL]) or row[ACTION_COL] not in [BUY_ACTION, SELL_ACTION, HOLD_ACTION]:
+    # Check for both ACT and ACTION columns
+    action = None
+    
+    if 'ACT' in row and not pd.isna(row['ACT']) and row['ACT'] in [BUY_ACTION, SELL_ACTION, HOLD_ACTION]:
+        action = row['ACT']
+    elif ACTION_COL in row and not pd.isna(row[ACTION_COL]) and row[ACTION_COL] in [BUY_ACTION, SELL_ACTION, HOLD_ACTION]:
+        action = row[ACTION_COL]
+    else:
         return None
-        
-    action = row[ACTION_COL]
     
     if action == BUY_ACTION:  # BUY - Green
         return _apply_color_to_row(colored_row, GREEN_COLOR)

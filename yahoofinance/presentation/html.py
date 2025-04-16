@@ -472,22 +472,31 @@ class HTMLGenerator:
                 header_row += f'<th class="sort-header">{col}</th>'
             header_row += "</tr>"
             
-            # Debug: check for ACTION column
+            # Debug: check for ACTION or ACT column
             logger.debug(f"Columns available for HTML generation: {df.columns.tolist()}")
-            if 'ACTION' not in df.columns:
-                logger.warning("ACTION column is missing from the dataframe!")
-                
-                # Force add it with default HOLD values
-                df['ACTION'] = 'H'
-                logger.debug("Added default ACTION column with 'H' values")
+            # First check if we have ACT column
+            if 'ACT' in df.columns:
+                # If we don't have ACTION column, we don't need to do anything
+                pass
+            # If we only have ACTION column, rename it to ACT
+            elif 'ACTION' in df.columns:
+                logger.debug("Renaming ACTION column to ACT")
+                df.rename(columns={'ACTION': 'ACT'}, inplace=True)
+            # If neither column exists, add default values
+            else:
+                logger.warning("Neither ACTION nor ACT column found in the dataframe!")
+                # Force add ACT with default HOLD values
+                df['ACT'] = 'H'
+                logger.debug("Added default ACT column with 'H' values")
             
             # Debug: Count actions in the dataframe
-            action_counts = df['ACTION'].value_counts().to_dict()
-            logger.debug(f"Action counts in HTML generation: {action_counts}")
+            if 'ACT' in df.columns:
+                action_counts = df['ACT'].value_counts().to_dict()
+                logger.debug(f"ACT counts in HTML generation: {action_counts}")
                 
             # Create data rows with appropriate styling
             for idx, row in df.iterrows():
-                action = row.get('ACTION') if 'ACTION' in row else None
+                action = row.get('ACT') if 'ACT' in row else row.get('ACTION')
                 
                 # Determine row color based on ACTION
                 row_class = ""
@@ -930,6 +939,14 @@ class HTMLGenerator:
         for old_col, new_col in column_mapping.items():
             if old_col in formatted_df.columns:
                 formatted_df.rename(columns={old_col: new_col}, inplace=True)
+                
+        # Update ACTION to ACT for consistent display
+        if 'ACTION' in formatted_df.columns:
+            formatted_df.rename(columns={'ACTION': 'ACT'}, inplace=True)
+            
+        # Remove duplicate ACT column if both exist
+        if 'ACT' in formatted_df.columns and formatted_df.columns.duplicated().any():
+            formatted_df = formatted_df.loc[:, ~formatted_df.columns.duplicated()]
                 
         # Import standard column order
         from ..core.config import STANDARD_DISPLAY_COLUMNS

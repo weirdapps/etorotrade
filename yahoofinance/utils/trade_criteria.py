@@ -19,7 +19,7 @@ PE_FORWARD = 'pe_forward'  # Internal column name for forward P/E
 PE_TRAILING = 'pe_trailing'  # Internal column name for trailing P/E
 PEG_RATIO = 'peg_ratio'  # Internal column name for PEG ratio
 BETA = 'beta'  # Internal column name for beta
-EXRET = COLUMN_NAMES["EXPECTED_RETURN"]  # Column name for expected return
+EXRET = 'EXRET'  # Column name for expected return
 ANALYST_COUNT = 'analyst_count'  # Internal column name for analyst count
 TOTAL_RATINGS = 'total_ratings'  # Internal column name for total ratings
 DEFAULT_SHORT_FIELD = 'short_percent'  # Default field name for short interest
@@ -251,16 +251,16 @@ def _check_beta_sell_criterion(row, sell_criteria):
 
 def _check_expected_return_sell_criterion(row, sell_criteria):
     """Check if a stock has an expected return that's too low."""
-    if 'EXRET' in row and pd.notna(row['EXRET']):
+    if EXRET in row and pd.notna(row[EXRET]):
         # Safe conversion handling special values
         try:
-            if isinstance(row['EXRET'], str):
+            if isinstance(row[EXRET], str):
                 # Skip comparison for '--' values or other non-numeric strings
-                if row['EXRET'] == '--' or not row['EXRET'].replace('.', '', 1).replace('%', '', 1).replace('-', '', 1).isdigit():
+                if row[EXRET] == '--' or not row[EXRET].replace('.', '', 1).replace('%', '', 1).replace('-', '', 1).isdigit():
                     return False, None
-                exret_value = float(row['EXRET'].replace('%', ''))
+                exret_value = float(row[EXRET].replace('%', ''))
             else:
-                exret_value = float(row['EXRET'])
+                exret_value = float(row[EXRET])
                 
             if exret_value < sell_criteria["SELL_MAX_EXRET"]:
                 return True, f"Low expected return ({exret_value:.1f}% < {sell_criteria['SELL_MAX_EXRET']}%)"
@@ -442,22 +442,22 @@ def _check_short_interest_buy_criterion(row, buy_criteria, short_field):
 
 def _check_exret_buy_criterion(row, buy_criteria):
     """Check if a stock meets the expected return criterion for buying."""
-    if 'EXRET' in row and pd.notna(row['EXRET']):
+    if EXRET in row and pd.notna(row[EXRET]):
         # Safe conversion handling special values
         try:
-            if isinstance(row['EXRET'], str):
+            if isinstance(row[EXRET], str):
                 # Skip comparison for '--' values or other non-numeric strings
-                if row['EXRET'] == '--' or not row['EXRET'].replace('.', '', 1).replace('%', '', 1).replace('-', '', 1).isdigit():
-                    return False, f"Invalid expected return value: {row['EXRET']}"
-                exret_value = float(row['EXRET'].replace('%', ''))
+                if row[EXRET] == '--' or not row[EXRET].replace('.', '', 1).replace('%', '', 1).replace('-', '', 1).isdigit():
+                    return False, f"Invalid expected return value: {row[EXRET]}"
+                exret_value = float(row[EXRET].replace('%', ''))
             else:
-                exret_value = float(row['EXRET'])
+                exret_value = float(row[EXRET])
                 
             if exret_value < buy_criteria.get("BUY_MIN_EXRET", 0):
                 return False, f"Expected return too low ({exret_value:.1f}% < {buy_criteria.get('BUY_MIN_EXRET', 0)}%)"
         except (ValueError, TypeError):
             # If conversion fails, skip this criterion
-            return False, f"Invalid expected return value: {row.get('EXRET', NA_VALUE)}"
+            return False, f"Invalid expected return value: {row.get(EXRET, NA_VALUE)}"
     return True, None
 
 def meets_buy_criteria(row, criteria, short_field=DEFAULT_SHORT_FIELD):
