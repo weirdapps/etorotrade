@@ -86,7 +86,8 @@ INTERNAL_TO_DISPLAY_MAP = {
     'dividend_yield': 'DIV %',
     'short_float_pct': 'SI',
     'last_earnings': 'EARNINGS',
-    'action': 'ACTION'
+    'position_size': 'SIZE',
+    'action': 'ACT'
 }
 
 # Define constants for market types
@@ -315,8 +316,8 @@ def calculate_action(df):
     # Create a working copy to prevent modifying the original
     working_df = df.copy()
     
-    # Initialize ACTION column as empty strings
-    working_df['ACTION'] = ''
+    # Initialize action column as empty strings
+    working_df['action'] = ''
     
     # Define numeric columns to format
     numeric_columns = ['upside', 'buy_percentage', 'pe_trailing', 'pe_forward', 
@@ -337,13 +338,17 @@ def calculate_action(df):
     # Process each row and calculate action
     for idx, row in working_df.iterrows():
         action, _ = calculate_action_for_row(row, TRADING_CRITERIA, short_field)
-        working_df.at[idx, 'ACTION'] = action
+        working_df.at[idx, 'action'] = action
     
     # Replace any empty string actions with 'H' for consistency
-    working_df['ACTION'] = working_df['ACTION'].replace('', 'H').fillna('H')
+    working_df['action'] = working_df['action'].replace('', 'H').fillna('H')
     
-    # Transfer ACTION column to the original DataFrame
-    df['ACTION'] = working_df['ACTION']
+    # For backward compatibility, also update ACTION column
+    working_df['ACTION'] = working_df['action']
+    
+    # Transfer action columns to the original DataFrame
+    df['action'] = working_df['action']
+    df['ACTION'] = working_df['action']
     
     return df
 
@@ -375,7 +380,9 @@ def get_column_mapping():
         'short_float_pct': 'SI',
         'short_percent': 'SI',  # V2 naming
         'last_earnings': 'EARNINGS',
-        'ACTION': 'ACTION'  # Include ACTION column in the mapping
+        'position_size': 'SIZE',  # Add position size mapping
+        'action': 'ACT',  # Update ACTION to ACT
+        'ACTION': 'ACT'   # Update ACTION to ACT (for backward compatibility)
     }
 
 def get_columns_to_select():
@@ -391,15 +398,15 @@ def get_columns_to_select():
         'symbol', 'ticker', 'company', 'market_cap', 'price', 'target_price', 'upside', 'analyst_count', # Add 'symbol'
         'buy_percentage', 'total_ratings', 'A', 'beta', # Add 'A' to internal names list
         'pe_trailing', 'pe_forward', 'peg_ratio', 'dividend_yield',
-        'short_percent', 'last_earnings',
+        'short_percent', 'last_earnings', 'position_size',
         
         # Display names (uppercase)
         'TICKER', 'COMPANY', 'CAP', 'PRICE', 'TARGET', 'UPSIDE', '# T', 
         '% BUY', '# A', 'A', 'EXRET', 'BETA', # Already present, just confirming
-        'PET', 'PEF', 'PEG', 'DIV %', 'SI', 'EARNINGS', 
+        'PET', 'PEF', 'PEG', 'DIV %', 'SI', 'EARNINGS', 'SIZE',
         
         # Always include the action column in both formats
-        'action', 'ACTION'
+        'action', 'ACT'
     ]
 
 def _create_empty_display_dataframe():
@@ -512,6 +519,23 @@ def _add_market_cap_column(working_df):
         # Add placeholder if no cap data found
         logger.debug("No market cap data found, using placeholder.")
         working_df['cap'] = '--'
+    return working_df
+
+
+def _add_position_size_column(working_df):
+    """Add position size column based on market cap value."""
+    # Import the position size calculation function
+    from yahoofinance.utils.data.format_utils import calculate_position_size
+    
+    # Check if we have market cap data
+    if 'market_cap' in working_df.columns:
+        logger.debug("Calculating position size from market cap...")
+        # Calculate position size based on market cap
+        working_df['position_size'] = working_df['market_cap'].apply(calculate_position_size)
+    else:
+        # Add placeholder if no market cap data found
+        logger.debug("No market cap data found, using placeholder for position size.")
+        working_df['position_size'] = '--'
     return working_df
 
 def _select_and_rename_columns(working_df):
@@ -636,6 +660,9 @@ def prepare_display_dataframe(df):
     
     # Add formatted market cap column
     working_df = _add_market_cap_column(working_df)
+    
+    # Calculate position size based on market cap
+    working_df = _add_position_size_column(working_df)
     
     # Calculate EXRET if needed
     working_df = calculate_exret(working_df) # Calculate EXRET first if needed
@@ -1181,7 +1208,7 @@ def _prepare_csv_dataframe(display_df):
     for column in STANDARD_DISPLAY_COLUMNS:
         if column not in csv_df.columns and column != '#':  # Skip # column which is added later
             # Use 'H' for missing ACTION, '--' for others
-            default_value = 'H' if column == 'ACTION' else '--'
+            default_value = 'H' if column == 'ACT' else '--'
             csv_df[column] = default_value  # Add missing columns with appropriate placeholder
     
     # Add ranking column to CSV output if not already present
@@ -1613,15 +1640,18 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_
     # Apply display formatting
     display_df = format_display_dataframe(display_df)
     
-    # CRITICAL FIX: Ensure ACTION column is present and only include BUY stocks
-    # This fixes the mismatch between coloring and ACTION
-    if 'ACTION' in display_df.columns:
-        # Only show stocks with ACTION='B' (BUY) in the buy opportunities view
-        display_df = display_df[display_df['ACTION'] == 'B']
+    # CRITICAL FIX: Ensure ACT column is present and only include BUY stocks
+    # This fixes the mismatch between coloring and ACT/ACTION
+    if 'ACT' in display_df.columns or 'ACTION' in display_df.columns:
+        # Only show stocks with ACT='B' or ACTION='B' (BUY) in the buy opportunities view
+        if 'ACT' in display_df.columns:
+            display_df = display_df[display_df['ACT'] == 'B']
+        elif 'ACTION' in display_df.columns:  # Backward compatibility
+            display_df = display_df[display_df['ACTION'] == 'B']
         
         # Handle case where we filtered out all rows
         if display_df.empty:
-            logger.info("No stocks with ACTION='B' found after filtering.")
+            logger.info("No stocks with ACT='B' found after filtering.")
             output_file = os.path.join(output_dir, BUY_CSV)
             create_empty_results_file(output_file)
             return
@@ -1728,14 +1758,17 @@ def process_sell_candidates(output_dir):
         _process_empty_sell_candidates(output_dir)
         return
         
-    # Ensure ACTION column is populated
-    if 'ACTION' not in sell_candidates.columns:
+    # Ensure action columns are populated
+    if 'action' not in sell_candidates.columns and 'ACTION' not in sell_candidates.columns:
         sell_candidates = calculate_action(sell_candidates)
         
-    # Filter to ensure only rows with ACTION='S' are included
-    # This fixes mismatches between ticker filtering and ACTION values
-    sell_candidates = sell_candidates[sell_candidates['ACTION'] == 'S']
-    logger.info(f"After ACTION filtering: {len(sell_candidates)} sell candidates")
+    # Filter to ensure only rows with ACT='S' or ACTION='S' are included
+    # This fixes mismatches between ticker filtering and ACT values
+    if 'ACT' in sell_candidates.columns:
+        sell_candidates = sell_candidates[sell_candidates['ACT'] == 'S']
+    elif 'ACTION' in sell_candidates.columns:
+        sell_candidates = sell_candidates[sell_candidates['ACTION'] == 'S']
+    logger.info(f"After ACTION/ACT filtering: {len(sell_candidates)} sell candidates")
     
     # Handle case where we filtered out all rows
     if sell_candidates.empty:
@@ -1839,14 +1872,17 @@ def process_hold_candidates(output_dir):
         _process_empty_hold_candidates(output_dir)
         return
         
-    # Ensure ACTION column is populated
-    if 'ACTION' not in hold_candidates.columns:
+    # Ensure action columns are populated
+    if 'action' not in hold_candidates.columns and 'ACTION' not in hold_candidates.columns:
         hold_candidates = calculate_action(hold_candidates)
         
-    # Filter to ensure only rows with ACTION='H' are included
-    # This fixes mismatches between ticker filtering and ACTION values
-    hold_candidates = hold_candidates[hold_candidates['ACTION'] == 'H']
-    logger.info(f"After ACTION filtering: {len(hold_candidates)} hold candidates")
+    # Filter to ensure only rows with ACT='H' or ACTION='H' are included
+    # This fixes mismatches between ticker filtering and ACT values
+    if 'ACT' in hold_candidates.columns:
+        hold_candidates = hold_candidates[hold_candidates['ACT'] == 'H']
+    elif 'ACTION' in hold_candidates.columns:
+        hold_candidates = hold_candidates[hold_candidates['ACTION'] == 'H']
+    logger.info(f"After ACTION/ACT filtering: {len(hold_candidates)} hold candidates")
     
     if hold_candidates.empty:
         _process_empty_hold_candidates(output_dir)
