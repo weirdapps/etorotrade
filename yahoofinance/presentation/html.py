@@ -476,17 +476,27 @@ class HTMLGenerator:
             logger.debug(f"Columns available for HTML generation: {df.columns.tolist()}")
             # First check if we have ACT column
             if 'ACT' in df.columns:
-                # If we don't have ACTION column, we don't need to do anything
-                pass
+                # Make sure all SELL values are properly set to 'S' in the display
+                sell_mask = df['BuySell'] == 'SELL' if 'BuySell' in df.columns else None
+                if sell_mask is not None and not sell_mask.empty:
+                    df.loc[sell_mask, 'ACT'] = 'S'
             # If we only have ACTION column, rename it to ACT
             elif 'ACTION' in df.columns:
                 logger.debug("Renaming ACTION column to ACT")
                 df.rename(columns={'ACTION': 'ACT'}, inplace=True)
+                # Also make sure all SELL values are properly set
+                sell_mask = df['BuySell'] == 'SELL' if 'BuySell' in df.columns else None
+                if sell_mask is not None and not sell_mask.empty:
+                    df.loc[sell_mask, 'ACT'] = 'S'
             # If neither column exists, add default values
             else:
                 logger.warning("Neither ACTION nor ACT column found in the dataframe!")
                 # Force add ACT with default HOLD values
                 df['ACT'] = 'H'
+                # Set appropriate sell values based on BuySell column if it exists
+                sell_mask = df['BuySell'] == 'SELL' if 'BuySell' in df.columns else None
+                if sell_mask is not None and not sell_mask.empty:
+                    df.loc[sell_mask, 'ACT'] = 'S'
                 logger.debug("Added default ACT column with 'H' values")
             
             # Debug: Count actions in the dataframe
@@ -932,7 +942,8 @@ class HTMLGenerator:
             'short_float_pct': 'SI',
             'short_percent': 'SI',
             'last_earnings': 'EARNINGS',
-            'action': 'ACTION'
+            'action': 'ACTION',
+            'position_size': 'SIZE'
         }
         
         # Rename columns to match display format
@@ -958,6 +969,9 @@ class HTMLGenerator:
         if display_cols:
             formatted_df = formatted_df[display_cols + other_cols]
         
+        # Import the position size formatter
+        from ..utils.data.format_utils import format_position_size
+        
         # Define formatting rules for different column types
         for col in formatted_df.columns:
             # Skip non-numeric columns and specifically formatted columns
@@ -968,8 +982,16 @@ class HTMLGenerator:
             if col == 'CAP':
                 continue
                 
+            # Format SIZE column with position size formatting
+            elif col == 'SIZE':
+                formatted_df[col] = formatted_df[col].apply(
+                    lambda x: format_position_size(x) if isinstance(x, (int, float)) or 
+                               (isinstance(x, str) and x not in ['--', ''] and x.replace('.', '', 1).isdigit()) 
+                               else x
+                )
+                
             # Format UPSIDE with 1 decimal place and % symbol
-            if col == 'UPSIDE':
+            elif col == 'UPSIDE':
                 formatted_df[col] = formatted_df[col].apply(
                     lambda x: f"{float(x):.1f}%" if isinstance(x, (int, float)) or (isinstance(x, str) and x.replace('.', '', 1).replace('-', '', 1).isdigit()) else x
                 )

@@ -168,18 +168,29 @@ def _color_based_on_action(row, colored_row):
     
     if 'ACT' in row and not pd.isna(row['ACT']) and row['ACT'] in [BUY_ACTION, SELL_ACTION, HOLD_ACTION]:
         action = row['ACT']
+        # Make a copy so we don't modify the original row
+        colored_row_copy = colored_row.copy()
+        # Ensure ACT column shows the correct value in display
+        if 'ACT' in colored_row_copy:
+            colored_row_copy['ACT'] = action
+        
     elif ACTION_COL in row and not pd.isna(row[ACTION_COL]) and row[ACTION_COL] in [BUY_ACTION, SELL_ACTION, HOLD_ACTION]:
         action = row[ACTION_COL]
+        # Make a copy so we don't modify the original row
+        colored_row_copy = colored_row.copy()
+        # Ensure ACTION column shows the correct value in display
+        if ACTION_COL in colored_row_copy:
+            colored_row_copy[ACTION_COL] = action
     else:
         return None
     
     if action == BUY_ACTION:  # BUY - Green
-        return _apply_color_to_row(colored_row, GREEN_COLOR)
+        return _apply_color_to_row(colored_row_copy, GREEN_COLOR)
     elif action == SELL_ACTION:  # SELL - Red
-        return _apply_color_to_row(colored_row, RED_COLOR)
+        return _apply_color_to_row(colored_row_copy, RED_COLOR)
     
     # HOLD - no color changes
-    return colored_row
+    return colored_row_copy
 
 
 def _has_required_metrics(row):

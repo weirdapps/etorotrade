@@ -361,7 +361,8 @@ COLUMN_NAMES = {
     "UPSIDE": "UPSIDE",
     "ANALYST_COUNT": "# T",
     "TOTAL_RATINGS": "# A",
-    "ACTION": "ACTION",
+    "ACTION": "ACT",
+    "POSITION_SIZE": "SIZE",
     "RATING_TYPE": "A",
     "EXPECTED_RETURN": "EXRET",
     "BETA": "BETA",
@@ -378,7 +379,7 @@ COLUMN_NAMES = {
 STANDARD_DISPLAY_COLUMNS = [
     "#", "TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE",
     "# T", "% BUY", "# A", "A", "EXRET", "BETA", "PET", "PEF", "PEG",
-    "DIV %", "SI", "EARNINGS", "ACTION"
+    "DIV %", "SI", "EARNINGS", "SIZE", "ACT"
 ]
 
 # Load environment variables if needed

@@ -116,6 +116,71 @@ def format_market_cap(value: Optional[float]) -> Optional[str]:
         return f"{int(value):,}"
 
 
+def calculate_position_size(market_cap: Optional[float]) -> Optional[float]:
+    """
+    Calculate position size based on market cap value.
+    
+    Args:
+        market_cap: Market capitalization value
+        
+    Returns:
+        Position size as a percentage of portfolio or None if below threshold
+    """
+    if market_cap is None:
+        return None
+    
+    # If market cap is over 1 trillion, calculate as market cap / 100,000,000 rounded to nearest 1,000
+    if market_cap >= 1_000_000_000_000:  # 1 trillion
+        position_size = market_cap / 100_000_000
+        # Round to nearest 1,000
+        return round(position_size / 1000) * 1000
+    
+    # If market cap is between 1 billion and 1 trillion, return fixed 2,500
+    elif market_cap >= 1_000_000_000:  # 1 billion
+        return 2500
+    
+    # If market cap is between 500 million and 1 billion, return fixed 1,000
+    elif market_cap >= 500_000_000:  # 500 million
+        return 1000
+    
+    # If market cap is below 500 million, return None (will display as "--")
+    return None
+
+
+def format_position_size(value: Optional[float]) -> str:
+    """
+    Format position size value with 'k' suffix for thousands.
+    
+    Args:
+        value: Position size value
+        
+    Returns:
+        Formatted position size string with 'k' suffix
+    """
+    if value is None or (isinstance(value, float) and (math.isnan(value) or value == 0)):
+        return "--"
+    
+    try:
+        # Convert to float if it's a string
+        if isinstance(value, str):
+            if value.strip() == '' or value.strip() == '--':
+                return '--'
+            value = float(value)
+        
+        # Format as X.Xk with one decimal place (divide by 1000)
+        # For 2500 -> "2.5k"
+        # Check if the result has a decimal portion
+        divided = value / 1000
+        if divided == int(divided):
+            # No decimal portion (e.g., 1000 -> "1k")
+            return f"{int(divided)}k"
+        else:
+            # Has decimal portion (e.g., 2500 -> "2.5k")
+            return f"{divided:.1f}k"
+    except (ValueError, TypeError):
+        return "--"
+
+
 def format_market_metrics(metrics: Dict[str, Any], include_pct_signs: bool = True) -> Dict[str, str]:
     """
     Format market metrics for display.
@@ -145,7 +210,9 @@ def format_market_metrics(metrics: Dict[str, Any], include_pct_signs: bool = Tru
     
     # Apply formatting to each metric
     for key, value in metrics.items():
-        if key in formatting_rules:
+        if key == "position_size" and value is not None:
+            formatted[key] = format_position_size(value)
+        elif key in formatting_rules:
             rules = formatting_rules[key]
             formatted[key] = format_number(
                 value, 
