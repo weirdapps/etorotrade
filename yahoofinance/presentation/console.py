@@ -340,8 +340,8 @@ class MarketDisplay:
         for _, row in df.iterrows():
             colored_row = row.copy()
             
-            # Apply color based on ACTION value
-            action = row.get('ACTION', '')
+            # Apply color based on ACTION or ACT value
+            action = row.get('ACT', '') if 'ACT' in row else row.get('ACTION', '')
             if action == 'B':  # BUY
                 colored_row = {k: f"\033[92m{v}\033[0m" for k, v in colored_row.items()}  # Green
             elif action == 'S':  # SELL
