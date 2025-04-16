@@ -305,52 +305,78 @@ def calculate_action(df):
     Returns:
         pd.DataFrame: Dataframe with action classifications added
     """
-    # Import trading criteria from the same source used by filter functions
-    from yahoofinance.core.config import TRADING_CRITERIA
-    # Import trade criteria utilities
-    from yahoofinance.utils.trade_criteria import (
-        format_numeric_values,
-        calculate_action_for_row
-    )
-    
-    # Create a working copy to prevent modifying the original
-    working_df = df.copy()
-    
-    # Initialize action column as empty strings
-    working_df['action'] = ''
-    
-    # Define numeric columns to format
-    numeric_columns = ['upside', 'buy_percentage', 'pe_trailing', 'pe_forward', 
-                       'peg_ratio', 'beta', 'analyst_count', 'total_ratings']
-                       
-    # Handle 'short_percent' or 'short_float_pct' - use whichever is available
-    short_field = 'short_percent' if 'short_percent' in working_df.columns else 'short_float_pct'
-    if short_field in working_df.columns:
-        numeric_columns.append(short_field)
-    
-    # Format numeric values
-    working_df = format_numeric_values(working_df, numeric_columns)
-    
-    # Calculate EXRET if not already present
-    if 'EXRET' not in working_df.columns and 'upside' in working_df.columns and 'buy_percentage' in working_df.columns:
-        working_df['EXRET'] = working_df['upside'] * working_df['buy_percentage'] / 100
-    
-    # Process each row and calculate action
-    for idx, row in working_df.iterrows():
-        action, _ = calculate_action_for_row(row, TRADING_CRITERIA, short_field)
-        working_df.at[idx, 'action'] = action
-    
-    # Replace any empty string actions with 'H' for consistency
-    working_df['action'] = working_df['action'].replace('', 'H').fillna('H')
-    
-    # For backward compatibility, also update ACTION column
-    working_df['ACTION'] = working_df['action']
-    
-    # Transfer action columns to the original DataFrame
-    df['action'] = working_df['action']
-    df['ACTION'] = working_df['action']
-    
-    return df
+    try:
+        # Import trading criteria from the same source used by filter functions
+        from yahoofinance.core.config import TRADING_CRITERIA
+        # Import trade criteria utilities
+        from yahoofinance.utils.trade_criteria import (
+            format_numeric_values,
+            calculate_action_for_row
+        )
+        
+        # Create a working copy to prevent modifying the original
+        working_df = df.copy()
+        
+        # Initialize action column as empty strings
+        working_df['action'] = ''
+        
+        # Define numeric columns to format
+        numeric_columns = ['upside', 'buy_percentage', 'pe_trailing', 'pe_forward', 
+                         'peg_ratio', 'beta', 'analyst_count', 'total_ratings']
+                         
+        # Handle 'short_percent' or 'short_float_pct' - use whichever is available
+        short_field = 'short_percent' if 'short_percent' in working_df.columns else 'short_float_pct'
+        if short_field in working_df.columns:
+            numeric_columns.append(short_field)
+        
+        # Format numeric values
+        working_df = format_numeric_values(working_df, numeric_columns)
+        
+        # Calculate EXRET if not already present
+        if 'EXRET' not in working_df.columns and 'upside' in working_df.columns and 'buy_percentage' in working_df.columns:
+            # Make sure we convert values to float before multiplying
+            def safe_calc_exret(row):
+                try:
+                    if pd.isna(row['upside']) or pd.isna(row['buy_percentage']):
+                        return None
+                        
+                    # Convert to float if needed
+                    upside = float(row['upside']) if isinstance(row['upside'], str) else row['upside']
+                    buy_pct = float(row['buy_percentage']) if isinstance(row['buy_percentage'], str) else row['buy_percentage']
+                    
+                    return upside * buy_pct / 100
+                except (TypeError, ValueError):
+                    return None
+                    
+            working_df['EXRET'] = working_df.apply(safe_calc_exret, axis=1)
+        
+        # Process each row and calculate action
+        for idx, row in working_df.iterrows():
+            try:
+                action, _ = calculate_action_for_row(row, TRADING_CRITERIA, short_field)
+                working_df.at[idx, 'action'] = action
+            except Exception as e:
+                # Handle any errors during action calculation for individual rows
+                print(f"Error calculating action for row {idx}: {str(e)}")
+                working_df.at[idx, 'action'] = 'H'  # Default to HOLD if there's an error
+        
+        # Replace any empty string actions with 'H' for consistency
+        working_df['action'] = working_df['action'].replace('', 'H').fillna('H')
+        
+        # For backward compatibility, also update ACTION column
+        working_df['ACTION'] = working_df['action']
+        
+        # Transfer action columns to the original DataFrame
+        df['action'] = working_df['action']
+        df['ACTION'] = working_df['action']
+        
+        return df
+    except Exception as e:
+        print(f"Error during action calculation: {str(e)}")
+        # Initialize action columns as HOLD ('H') if calculation fails
+        df['action'] = 'H'
+        df['ACTION'] = 'H'
+        return df
 
 def get_column_mapping():
     """Get the column mapping for display.
@@ -380,7 +406,7 @@ def get_column_mapping():
         'short_float_pct': 'SI',
         'short_percent': 'SI',  # V2 naming
         'last_earnings': 'EARNINGS',
-        'position_size': 'SIZE',  # Add position size mapping
+        'position_size': 'SIZE',  # Position size mapping
         'action': 'ACT',  # Update ACTION to ACT
         'ACTION': 'ACT'   # Update ACTION to ACT (for backward compatibility)
     }
@@ -530,12 +556,80 @@ def _add_position_size_column(working_df):
     # Check if we have market cap data
     if 'market_cap' in working_df.columns:
         logger.debug("Calculating position size from market cap...")
-        # Calculate position size based on market cap
-        working_df['position_size'] = working_df['market_cap'].apply(calculate_position_size)
+        
+        # Debug - show market_cap values
+        print("Market cap values before calculation:", working_df['market_cap'].head())
+        
+        # Calculate position size based on market cap - use a safer version
+        def safe_calculate_position_size(mc):
+            try:
+                if mc is None or pd.isna(mc) or (isinstance(mc, str) and (mc == '--' or not mc.strip())):
+                    return None
+                    
+                # Convert string to float if needed
+                if isinstance(mc, str):
+                    mc = float(mc.replace(',', ''))
+                    
+                return calculate_position_size(mc)
+            except Exception as e:
+                print(f"Error calculating position size for {mc}: {str(e)}")
+                return None
+        
+        # Use the safe version for calculation
+        working_df['position_size'] = working_df['market_cap'].apply(safe_calculate_position_size)
+        
+        # Replace NaN values with None for consistent display
+        working_df['position_size'] = working_df['position_size'].apply(
+            lambda x: None if pd.isna(x) else x
+        )
+        
+        # Debug - show calculated position_size values
+        print("Position size values after calculation:", working_df['position_size'].head())
+        
+        # For portfolio mode, ensure position sizes are always correct - use direct knowledge
+        # Market cap > 1T: variable calculated value
+        # Market cap 1B-1T: 2500
+        # Market cap 500M-1B: 1000
+        # Market cap < 500M: None (displayed as --)
+        if 'position_size' in working_df.columns:
+            def direct_position_size(row):
+                # Don't recalculate if it's already correct
+                if pd.notna(row.get('position_size')) and row['position_size'] in [1000, 2500]:
+                    return row['position_size']
+                    
+                mc = row.get('market_cap')
+                if mc is None or pd.isna(mc) or (isinstance(mc, str) and (mc == '--' or not mc.strip())):
+                    return None
+                    
+                try:
+                    # Convert string to float if needed
+                    if isinstance(mc, str):
+                        mc = float(mc.replace(',', ''))
+                        
+                    # Market cap tiers with explicit values
+                    if mc >= 1_000_000_000_000:  # 1 trillion+
+                        position_size = mc / 100_000_000
+                        return round(position_size / 1000) * 1000
+                    elif mc >= 1_000_000_000:  # 1 billion to 1 trillion
+                        return 2500
+                    elif mc >= 500_000_000:  # 500 million to 1 billion
+                        return 1000
+                    else:
+                        return None
+                except Exception as e:
+                    print(f"Error in direct_position_size for {mc}: {str(e)}")
+                    return None
+            
+            # Create a temporary column with the correct types for apply with axis=1
+            working_df['position_size'] = working_df.apply(direct_position_size, axis=1)
+            
+            # Debug - show final position_size values
+            print("Final position size values:", working_df['position_size'].head())
     else:
         # Add placeholder if no market cap data found
         logger.debug("No market cap data found, using placeholder for position size.")
-        working_df['position_size'] = '--'
+        working_df['position_size'] = None
+        
     return working_df
 
 def _select_and_rename_columns(working_df):
@@ -672,6 +766,18 @@ def prepare_display_dataframe(df):
     
     # Select and rename columns
     display_df = _select_and_rename_columns(working_df)
+    
+    # Format SIZE column directly after column selection/renaming
+    if 'SIZE' in display_df.columns:
+        # Import the formatter
+        from yahoofinance.utils.data.format_utils import format_position_size
+        
+        # Apply formatting directly to SIZE column values
+        display_df['SIZE'] = display_df['SIZE'].apply(
+            lambda x: format_position_size(float(x)) if isinstance(x, (int, float)) or 
+                     (isinstance(x, str) and x not in ['--', ''] and x.replace('.', '', 1).isdigit()) 
+                     else (x if isinstance(x, str) else "--")
+        )
     
     # Ensure all standard display columns are available
     for column in STANDARD_DISPLAY_COLUMNS:
@@ -986,31 +1092,83 @@ def _get_color_by_title(title):
     else:
         return ""  # Neutral for hold
 
-def _format_cap_column(display_df):
-    """Format market cap column to use T/B/M suffixes.
+def _format_special_columns(display_df):
+    """Format special columns with appropriate formatters.
+    
+    This function handles various column-specific formatting:
+    - CAP column: Uses market cap formatter (T/B/M suffixes)
+    - SIZE column: Uses position size formatter (k suffix)
+    - Other columns can be added here as needed
     
     Args:
-        display_df: Dataframe with market cap data
+        display_df: Dataframe with columns to format
         
     Returns:
-        pd.DataFrame: Dataframe with formatted market cap column
+        pd.DataFrame: Dataframe with formatted columns
     """
-    if 'CAP' not in display_df.columns:
-        return display_df
-        
     # Make a copy to avoid modifying the original
     formatted_df = display_df.copy()
     
-    # Convert CAP to string type first to avoid dtype incompatibility warning
-    formatted_df['CAP'] = formatted_df['CAP'].astype(str)
+    # Format CAP column with market cap formatter
+    if 'CAP' in formatted_df.columns:
+        # Convert CAP to string type first to avoid dtype incompatibility warning
+        formatted_df['CAP'] = formatted_df['CAP'].astype(str)
+        
+        # Use V2 formatter
+        formatter = DisplayFormatter()
+        
+        # Apply formatter to each value that can be converted to a number
+        formatted_df['CAP'] = formatted_df['CAP'].apply(
+            lambda val: _try_format_market_cap(val, formatter)
+        )
     
-    # Use V2 formatter
-    formatter = DisplayFormatter()
-    
-    # Apply formatter to each value that can be converted to a number
-    formatted_df['CAP'] = formatted_df['CAP'].apply(
-        lambda val: _try_format_market_cap(val, formatter)
-    )
+    # Format SIZE column with position size formatter
+    if 'SIZE' in formatted_df.columns:
+        # Import the position size formatting function
+        from yahoofinance.utils.data.format_utils import format_position_size
+        
+        # Directly handle known position size values - this is the most reliable approach
+        def direct_format_position_size(x):
+            # Handle None, NaN, placeholders
+            if x is None or pd.isna(x) or x == '--' or (isinstance(x, str) and not x.strip()):
+                return "--"
+                
+            # Already formatted with 'k' suffix
+            if isinstance(x, str) and 'k' in x:
+                return x
+                
+            # Handle the common known values specifically
+            try:
+                # Try to convert to float for comparison
+                if isinstance(x, str):
+                    # Remove commas and other formatting
+                    clean_x = x.replace(',', '').replace('%', '')
+                    if clean_x.strip() == '--' or not clean_x.strip():
+                        return '--'
+                    x_float = float(clean_x)
+                else:
+                    x_float = float(x)
+                
+                # Common specific position sizes
+                if abs(x_float - 2500) < 1:  # Allow small floating point differences
+                    return "2.5k"
+                elif abs(x_float - 1000) < 1:
+                    return "1k"
+                
+                # For other values, use standard division by 1000
+                divided = x_float / 1000
+                if divided == int(divided):
+                    # No decimal portion
+                    return f"{int(divided)}k"
+                else:
+                    # Has decimal portion
+                    return f"{divided:.1f}k"
+            except (ValueError, TypeError) as e:
+                print(f"Error formatting SIZE value {x}: {str(e)}")
+                return "--"
+        
+        # Apply our direct formatter
+        formatted_df['SIZE'] = formatted_df['SIZE'].apply(direct_format_position_size)
             
     return formatted_df
 
@@ -1293,8 +1451,8 @@ def display_and_save_results(display_df, title, output_file):
     # Get appropriate color code based on title
     color_code = _get_color_by_title(title)
     
-    # Format CAP column to use T/B suffixes
-    formatted_df = _format_cap_column(display_df)
+    # Format special columns (CAP, SIZE, etc.) with appropriate formatters
+    formatted_df = _format_special_columns(display_df)
     
     # Apply coloring to values
     colored_df = _apply_color_to_dataframe(formatted_df, color_code)
@@ -1353,6 +1511,40 @@ def display_and_save_results(display_df, title, output_file):
     
     # Prepare dataframe for CSV export
     csv_df = _prepare_csv_dataframe(display_df)
+    
+    # Format SIZE column for CSV export with appropriate formatting
+    if 'SIZE' in csv_df.columns:
+        # Helper function to format position size for CSV (without 'k' suffix)
+        def format_position_for_csv(x):
+            # Special handling for None, NaN, or placeholder values
+            if x is None or pd.isna(x) or x == '--' or (isinstance(x, str) and not x.strip()):
+                return '--'
+                
+            # Handle pre-formatted strings with 'k' suffix - extract the numeric part
+            if isinstance(x, str) and 'k' in x:
+                try:
+                    # Parse the number before the 'k' (e.g., "2.5k" -> "2.5")
+                    return x.replace('k', '')
+                except Exception:
+                    return '--'
+            
+            # For raw position size values, apply the standard position size conversion
+            try:
+                # Convert string to float if needed
+                if isinstance(x, str) and x.replace('.', '', 1).isdigit():
+                    x = float(x)
+                
+                # Only process numeric values
+                if isinstance(x, (int, float)):
+                    # Handle standard values (divide by 1000 to match the display format)
+                    return f"{x/1000:.1f}"
+                    
+                return '--'  # Default for unhandled cases
+            except (ValueError, TypeError):
+                return '--'
+        
+        # Apply the CSV formatting function to the SIZE column
+        csv_df['SIZE'] = csv_df['SIZE'].apply(format_position_for_csv)
     
     # Save to CSV
     csv_df.to_csv(output_file, index=False)
@@ -1630,9 +1822,67 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_
         create_empty_results_file(output_file)
         return
     
+    # Make sure 'market_cap' and 'CAP' columns are properly populated before preparing display dataframe
+    from yahoofinance.utils.data.format_utils import calculate_position_size, format_position_size
+    
+    # If market_cap is missing but CAP exists, try to convert CAP to market_cap
+    if 'market_cap' not in new_opportunities.columns and 'CAP' in new_opportunities.columns:
+        try:
+            # Convert market cap strings (like '561B') to numeric values
+            def parse_market_cap(cap_str):
+                if not cap_str or cap_str == '--':
+                    return None
+                
+                cap_str = str(cap_str).upper().strip()
+                multiplier = 1
+                
+                if 'T' in cap_str:
+                    multiplier = 1_000_000_000_000
+                    cap_str = cap_str.replace('T', '')
+                elif 'B' in cap_str:
+                    multiplier = 1_000_000_000
+                    cap_str = cap_str.replace('B', '')
+                elif 'M' in cap_str:
+                    multiplier = 1_000_000
+                    cap_str = cap_str.replace('M', '')
+                elif 'K' in cap_str:
+                    multiplier = 1_000
+                    cap_str = cap_str.replace('K', '')
+                
+                try:
+                    return float(cap_str) * multiplier
+                except (ValueError, TypeError):
+                    return None
+            
+            new_opportunities['market_cap'] = new_opportunities['CAP'].apply(parse_market_cap)
+            logger.debug("Added market_cap values based on CAP strings")
+        except Exception as e:
+            logger.error(f"Error converting CAP to market_cap: {e}")
+    
+    # Calculate SIZE directly before preparing the display dataframe
+    if 'market_cap' in new_opportunities.columns:
+        try:
+            # First calculate numeric position size based on market cap
+            new_opportunities['position_size'] = new_opportunities['market_cap'].apply(calculate_position_size)
+            
+            # Replace NaN values with None for consistent handling
+            new_opportunities['position_size'] = new_opportunities['position_size'].apply(
+                lambda x: None if pd.isna(x) else x
+            )
+            
+            # Then format it for display with 'k' suffix with one decimal place (X.Xk)
+            new_opportunities['SIZE'] = new_opportunities['position_size'].apply(format_position_size)
+            logger.debug("Direct SIZE calculation applied before display preparation")
+        except Exception as e:
+            logger.error(f"Error calculating SIZE values: {e}")
+    
     # Process data for display if we have opportunities
     # Prepare display dataframe
     display_df = prepare_display_dataframe(new_opportunities)
+    
+    # Make sure SIZE column is properly copied from new_opportunities if it exists there
+    if 'SIZE' in new_opportunities.columns and 'SIZE' not in display_df.columns:
+        display_df['SIZE'] = new_opportunities['SIZE']
     
     # Format market cap values
     display_df = _format_market_caps_in_display_df(display_df, new_opportunities)
@@ -1766,8 +2016,12 @@ def process_sell_candidates(output_dir):
     # This fixes mismatches between ticker filtering and ACT values
     if 'ACT' in sell_candidates.columns:
         sell_candidates = sell_candidates[sell_candidates['ACT'] == 'S']
+        # Force set the display value to 'S' to ensure it shows correctly in output
+        sell_candidates['ACT'] = 'S'
     elif 'ACTION' in sell_candidates.columns:
         sell_candidates = sell_candidates[sell_candidates['ACTION'] == 'S']
+        # Force set the display value to 'S' to ensure it shows correctly in output
+        sell_candidates['ACTION'] = 'S'
     logger.info(f"After ACTION/ACT filtering: {len(sell_candidates)} sell candidates")
     
     # Handle case where we filtered out all rows
@@ -1775,8 +2029,72 @@ def process_sell_candidates(output_dir):
         _process_empty_sell_candidates(output_dir)
         return
     
+    # Make sure 'market_cap' and 'CAP' columns are properly populated before preparing display dataframe
+    from yahoofinance.utils.data.format_utils import calculate_position_size, format_position_size
+    
+    # If market_cap is missing but CAP exists, try to convert CAP to market_cap
+    if 'market_cap' not in sell_candidates.columns and 'CAP' in sell_candidates.columns:
+        try:
+            # Convert market cap strings (like '561B') to numeric values
+            def parse_market_cap(cap_str):
+                if not cap_str or cap_str == '--':
+                    return None
+                
+                cap_str = str(cap_str).upper().strip()
+                multiplier = 1
+                
+                if 'T' in cap_str:
+                    multiplier = 1_000_000_000_000
+                    cap_str = cap_str.replace('T', '')
+                elif 'B' in cap_str:
+                    multiplier = 1_000_000_000
+                    cap_str = cap_str.replace('B', '')
+                elif 'M' in cap_str:
+                    multiplier = 1_000_000
+                    cap_str = cap_str.replace('M', '')
+                elif 'K' in cap_str:
+                    multiplier = 1_000
+                    cap_str = cap_str.replace('K', '')
+                
+                try:
+                    return float(cap_str) * multiplier
+                except (ValueError, TypeError):
+                    return None
+            
+            sell_candidates['market_cap'] = sell_candidates['CAP'].apply(parse_market_cap)
+            logger.debug("Added market_cap values based on CAP strings")
+        except Exception as e:
+            logger.error(f"Error converting CAP to market_cap: {e}")
+    
+    # Calculate SIZE directly before preparing the display dataframe
+    if 'market_cap' in sell_candidates.columns:
+        try:
+            # First calculate numeric position size based on market cap
+            sell_candidates['position_size'] = sell_candidates['market_cap'].apply(calculate_position_size)
+            
+            # Replace NaN values with None for consistent handling
+            sell_candidates['position_size'] = sell_candidates['position_size'].apply(
+                lambda x: None if pd.isna(x) else x
+            )
+            
+            # Then format it for display with 'k' suffix with one decimal place (X.Xk)
+            sell_candidates['SIZE'] = sell_candidates['position_size'].apply(format_position_size)
+            logger.debug("Direct SIZE calculation applied before display preparation")
+        except Exception as e:
+            logger.error(f"Error calculating SIZE values: {e}")
+    
     # Prepare and format dataframe for display
     display_df = prepare_display_dataframe(sell_candidates)
+    
+    # Force set ACT to 'S' in display_df after preparation
+    if 'ACT' in display_df.columns:
+        display_df['ACT'] = 'S'
+    elif 'ACTION' in display_df.columns:
+        display_df['ACTION'] = 'S'
+    
+    # Make sure SIZE column is properly copied from sell_candidates if it exists there
+    if 'SIZE' in sell_candidates.columns and 'SIZE' not in display_df.columns:
+        display_df['SIZE'] = sell_candidates['SIZE']
     
     # Format market cap values properly for display
     display_df = _format_market_caps_in_display_df(display_df, sell_candidates)
@@ -1888,8 +2206,66 @@ def process_hold_candidates(output_dir):
         _process_empty_hold_candidates(output_dir)
         return
     
+    # Make sure 'market_cap' and 'CAP' columns are properly populated before preparing display dataframe
+    from yahoofinance.utils.data.format_utils import calculate_position_size, format_position_size
+    
+    # If market_cap is missing but CAP exists, try to convert CAP to market_cap
+    if 'market_cap' not in hold_candidates.columns and 'CAP' in hold_candidates.columns:
+        try:
+            # Convert market cap strings (like '561B') to numeric values
+            def parse_market_cap(cap_str):
+                if not cap_str or cap_str == '--':
+                    return None
+                
+                cap_str = str(cap_str).upper().strip()
+                multiplier = 1
+                
+                if 'T' in cap_str:
+                    multiplier = 1_000_000_000_000
+                    cap_str = cap_str.replace('T', '')
+                elif 'B' in cap_str:
+                    multiplier = 1_000_000_000
+                    cap_str = cap_str.replace('B', '')
+                elif 'M' in cap_str:
+                    multiplier = 1_000_000
+                    cap_str = cap_str.replace('M', '')
+                elif 'K' in cap_str:
+                    multiplier = 1_000
+                    cap_str = cap_str.replace('K', '')
+                
+                try:
+                    return float(cap_str) * multiplier
+                except (ValueError, TypeError):
+                    return None
+            
+            hold_candidates['market_cap'] = hold_candidates['CAP'].apply(parse_market_cap)
+            logger.debug("Added market_cap values based on CAP strings")
+        except Exception as e:
+            logger.error(f"Error converting CAP to market_cap: {e}")
+    
+    # Calculate SIZE directly before preparing the display dataframe
+    if 'market_cap' in hold_candidates.columns:
+        try:
+            # First calculate numeric position size based on market cap
+            hold_candidates['position_size'] = hold_candidates['market_cap'].apply(calculate_position_size)
+            
+            # Replace NaN values with None for consistent handling
+            hold_candidates['position_size'] = hold_candidates['position_size'].apply(
+                lambda x: None if pd.isna(x) else x
+            )
+            
+            # Then format it for display with 'k' suffix with one decimal place (X.Xk)
+            hold_candidates['SIZE'] = hold_candidates['position_size'].apply(format_position_size)
+            logger.debug("Direct SIZE calculation applied before display preparation")
+        except Exception as e:
+            logger.error(f"Error calculating SIZE values: {e}")
+    
     # Prepare and format dataframe for display
     display_df = prepare_display_dataframe(hold_candidates)
+    
+    # Make sure SIZE column is properly copied from hold_candidates if it exists there
+    if 'SIZE' in hold_candidates.columns and 'SIZE' not in display_df.columns:
+        display_df['SIZE'] = hold_candidates['SIZE']
     
     # Format market cap values properly for display
     display_df = _format_market_caps_in_display_df(display_df, hold_candidates)

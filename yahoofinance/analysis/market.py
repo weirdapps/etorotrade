@@ -706,6 +706,13 @@ def filter_sell_candidates(portfolio_df: pd.DataFrame) -> pd.DataFrame:
     # Filter condition with confidence requirements
     confidence_condition = get_confidence_condition(portfolio_df)
     
+    # Debug log rows with 'ACT' or 'ACTION' = 'S'
+    if 'ACT' in portfolio_df.columns:
+        act_sells = portfolio_df[portfolio_df['ACT'] == 'S']
+        print(f"Found {len(act_sells)} rows with ACT='S' before filtering")
+        if not act_sells.empty:
+            print(f"Tickers with ACT='S': {', '.join(act_sells['TICKER'].tolist())}")
+    
     # Initialize filters list for each SELL criterion
     filters = []
     
@@ -882,6 +889,12 @@ def filter_sell_candidates(portfolio_df: pd.DataFrame) -> pd.DataFrame:
     # Final filter includes confidence threshold and at least one sell criterion
     sell_filter = confidence_condition & sell_criteria_filter
     
+    # Also directly use ACT column if available
+    if 'ACT' in portfolio_df.columns:
+        direct_act_filter = portfolio_df['ACT'] == 'S'
+        # Combine with OR - either meets criteria or already has ACT='S'
+        sell_filter = sell_filter | direct_act_filter
+        
     # Filter the dataframe
     sell_candidates = portfolio_df[sell_filter].copy()
     
