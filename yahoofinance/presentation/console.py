@@ -348,6 +348,7 @@ class MarketDisplay:
                 colored_row = {k: f"\033[91m{v}\033[0m" for k, v in colored_row.items()}  # Red
             elif action == 'I':  # INCONCLUSIVE 
                 colored_row = {k: f"\033[93m{v}\033[0m" for k, v in colored_row.items()}  # Yellow
+            # No special coloring for HOLD ('H')
             
             # Keep column order
             colored_data.append([colored_row.get(col, '') for col in df.columns])
