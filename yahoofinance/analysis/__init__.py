@@ -10,6 +10,7 @@ This package contains modules for analyzing financial data including:
 - Portfolio: Portfolio analysis and tracking
 - Stock: Comprehensive stock analysis with trading recommendations
 - Backtest: Backtesting and optimization of trading strategies
+- Optimize: Portfolio optimization using Modern Portfolio Theory
 """
 
 from .analyst import AnalystData, CompatAnalystData
@@ -23,6 +24,7 @@ from .backtest import (
     BacktestSettings, BacktestResult, BacktestPosition,
     Backtester, BacktestOptimizer, run_backtest, optimize_criteria
 )
+from .optimize import PortfolioOptimizer, optimize_portfolio
 
 __all__ = [
     # Analyst
@@ -64,4 +66,8 @@ __all__ = [
     'BacktestOptimizer',
     'run_backtest',
     'optimize_criteria',
+    
+    # Portfolio Optimization
+    'PortfolioOptimizer',
+    'optimize_portfolio',
 ]
