@@ -492,6 +492,9 @@ class MarketDisplay:
                 for row in reader:
                     ticker = row.get(found_column, "").strip()
                     if ticker:
+                        # Special case: convert BSX.US to BSX
+                        if ticker == "BSX.US":
+                            ticker = "BSX"
                         tickers.append(ticker)
             
             print(MESSAGES["INFO_TICKERS_LOADED"].format(count=len(tickers), file_path=file_path))
