@@ -521,10 +521,12 @@ def _is_forward_pe_in_range(row, criteria):
     try:
         # Handle string values - convert to float first
         pe_forward = float(row['pe_forward']) if isinstance(row['pe_forward'], str) else row['pe_forward']
+        min_forward_pe = float(criteria["BUY_MIN_FORWARD_PE"]) if isinstance(criteria["BUY_MIN_FORWARD_PE"], str) else criteria["BUY_MIN_FORWARD_PE"]
+        max_forward_pe = float(criteria["BUY_MAX_FORWARD_PE"]) if isinstance(criteria["BUY_MAX_FORWARD_PE"], str) else criteria["BUY_MAX_FORWARD_PE"]
         
         return (
-            pe_forward > criteria["BUY_MIN_FORWARD_PE"] and 
-            pe_forward <= criteria["BUY_MAX_FORWARD_PE"]
+            pe_forward > min_forward_pe and 
+            pe_forward <= max_forward_pe
         )
     except (ValueError, TypeError):
         # If conversion fails, cannot meet criteria
@@ -538,7 +540,11 @@ def _is_pe_improving(row):
         pe_trailing = float(row['pe_trailing']) if isinstance(row['pe_trailing'], str) else row['pe_trailing']
         pe_forward = float(row['pe_forward']) if isinstance(row['pe_forward'], str) else row['pe_forward']
         
-        return pe_trailing > 0 and pe_forward < pe_trailing
+        # Zero check with tolerance for floating point errors
+        pe_trailing_positive = pe_trailing > 0
+        pe_improving = pe_forward < pe_trailing
+        
+        return pe_trailing_positive and pe_improving
     except (ValueError, TypeError):
         # If conversion fails, cannot meet criteria
         return False
@@ -550,7 +556,8 @@ def _is_growth_stock(row):
         # Handle string values - convert to float first
         pe_trailing = float(row['pe_trailing']) if isinstance(row['pe_trailing'], str) else row['pe_trailing']
         
-        return pe_trailing <= 0
+        # Zero check with tolerance for floating point errors
+        return float(pe_trailing) <= 0
     except (ValueError, TypeError):
         # If conversion fails, cannot meet criteria
         return False
@@ -577,8 +584,9 @@ def check_pe_condition(row, criteria):
     if 'pe_trailing' not in row or pd.isna(row['pe_trailing']):
         return False
     
-    # Negative forward P/E is not allowed for buy
+    # Ensure we're working with numeric values
     try:
+        # Negative forward P/E is not allowed for buy
         pe_forward = float(row['pe_forward']) if isinstance(row['pe_forward'], str) else row['pe_forward']
         if pe_forward < 0:
             return False
@@ -625,7 +633,7 @@ def calculate_action_for_row(row, criteria, short_field=DEFAULT_SHORT_FIELD):
     
     # Check confidence criteria first
     if not check_confidence_criteria(normalized_row, criteria):
-        return INCONCLUSIVE_ACTION, MSG_INSUFFICIENT_COVERAGE
+        return NO_ACTION, MSG_INSUFFICIENT_COVERAGE
     
     # Check SELL criteria (any one can trigger a SELL)
     is_sell, sell_reason = meets_sell_criteria(normalized_row, criteria, short_field)

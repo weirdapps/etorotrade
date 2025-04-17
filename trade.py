@@ -20,11 +20,20 @@ import yfinance as yf
 import asyncio
 import re
 
-# Configure logging - set to WARNING by default to suppress debug and info messages
+# Completely suppress all logging output
 logging.basicConfig(level=logging.CRITICAL, 
                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-# Suppress CRITICAL messages from yahooquery.utils about crumbs
-logging.getLogger('yahooquery.utils').setLevel(logging.ERROR)
+
+# Set ALL loggers to CRITICAL level to ensure nothing is output
+for name in logging.root.manager.loggerDict:
+    logging.getLogger(name).setLevel(logging.CRITICAL)
+
+# Suppress warnings
+warnings.filterwarnings("ignore")
+
+# Silence stdout for specific libraries
+import os
+os.environ['PYTHONWARNINGS'] = 'ignore'
 import time
 import datetime
 from tabulate import tabulate
@@ -45,12 +54,14 @@ except ImportError as e:
     # Use print for guaranteed visibility during startup issues
     print(f"FATAL IMPORT ERROR: {str(e)}", file=sys.stderr)
     logging.error(f"Error importing yahoofinance modules: {str(e)}")
-    import traceback
-    traceback.print_exc(file=sys.stderr) # Print traceback as well
+    # Import error is critical so we should exit
     sys.exit(1)
 
-# Filter out pandas-specific warnings about invalid values
-warnings.filterwarnings("ignore", category=RuntimeWarning, message="invalid value encountered in cast")
+# Filter out warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # Define constants for column names
 BUY_PERCENTAGE = COLUMN_NAMES["BUY_PERCENTAGE"]
@@ -103,7 +114,7 @@ HOLD_ACTION = 'H'
 NEW_BUY_OPPORTUNITIES = 'N'
 EXISTING_PORTFOLIO = 'E'
 
-# Set up logging configuration
+# Set up logging configuration - this overrides the earlier basic config
 logging.basicConfig(
     level=logging.CRITICAL,  # Only show CRITICAL notifications by default
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -112,17 +123,20 @@ logging.basicConfig(
 # Configure loggers
 logger = logging.getLogger(__name__)
 
-# Set logger levels
+# Set logger levels - be extremely strict about suppressing log messages
 logger.setLevel(logging.CRITICAL)  # Main logger
 logging.getLogger('yahoofinance').setLevel(logging.CRITICAL)  # Yahoo Finance loggers
 
-# Set all loggers to CRITICAL level
+# Set ALL loggers to CRITICAL level
 for logger_name in logging.root.manager.loggerDict:
     logging.getLogger(logger_name).setLevel(logging.CRITICAL)
 
-# Allow rate limiter and circuit breaker warnings to pass through
+# Set specific loggers that might produce warnings
 rate_limiter_logger = logging.getLogger('yahoofinance.utils.network')
-rate_limiter_logger.setLevel(logging.WARNING)
+rate_limiter_logger.setLevel(logging.CRITICAL)  # Also suppress rate limiter messages
+logging.getLogger('yfinance').setLevel(logging.CRITICAL)
+logging.getLogger('requests').setLevel(logging.CRITICAL)
+logging.getLogger('urllib3').setLevel(logging.CRITICAL)
 
 # Define constants for file paths - use values from config if available, else fallback
 OUTPUT_DIR = PATHS["OUTPUT_DIR"]
@@ -357,7 +371,8 @@ def calculate_action(df):
                 working_df.at[idx, 'action'] = action
             except Exception as e:
                 # Handle any errors during action calculation for individual rows
-                print(f"Error calculating action for row {idx}: {str(e)}")
+                # Suppress error message
+                pass
                 working_df.at[idx, 'action'] = 'H'  # Default to HOLD if there's an error
         
         # Replace any empty string actions with 'H' for consistency
@@ -372,7 +387,7 @@ def calculate_action(df):
         
         return df
     except Exception as e:
-        print(f"Error during action calculation: {str(e)}")
+        # Suppress error message
         # Initialize action columns as HOLD ('H') if calculation fails
         df['action'] = 'H'
         df['ACTION'] = 'H'
@@ -478,8 +493,7 @@ def _format_company_names(working_df):
     # Make sure company column exists
     if company_col is None:
         if ticker_col is None:
-            print("Error: Neither 'ticker' nor 'TICKER' column found in dataframe")
-            print(f"Available columns: {working_df.columns.tolist()}")
+            # Suppress error message - use default behavior for missing columns
             # Create a placeholder company column
             working_df['company'] = 'UNKNOWN'
             return working_df
@@ -499,7 +513,7 @@ def _format_company_names(working_df):
             # Simple formatting if we don't have both columns
             working_df['company'] = working_df[company_col].astype(str).str.upper().str[:14]
     except Exception as e:
-        print(f"Error formatting company names: {str(e)}")
+        # Suppress error message
         # Fallback formatting
         if company_col:
             working_df['company'] = working_df[company_col].astype(str).str.upper().str[:14]
@@ -558,7 +572,7 @@ def _add_position_size_column(working_df):
         logger.debug("Calculating position size from market cap...")
         
         # Debug - show market_cap values
-        print("Market cap values before calculation:", working_df['market_cap'].head())
+        # Removed debug print
         
         # Calculate position size based on market cap - use a safer version
         def safe_calculate_position_size(mc):
@@ -572,7 +586,7 @@ def _add_position_size_column(working_df):
                     
                 return calculate_position_size(mc)
             except Exception as e:
-                print(f"Error calculating position size for {mc}: {str(e)}")
+                # Suppress error message
                 return None
         
         # Use the safe version for calculation
@@ -584,7 +598,7 @@ def _add_position_size_column(working_df):
         )
         
         # Debug - show calculated position_size values
-        print("Position size values after calculation:", working_df['position_size'].head())
+        # Debug output removed
         
         # For portfolio mode, ensure position sizes are always correct - use direct knowledge
         # Market cap > 1T: variable calculated value
@@ -617,14 +631,14 @@ def _add_position_size_column(working_df):
                     else:
                         return None
                 except Exception as e:
-                    print(f"Error in direct_position_size for {mc}: {str(e)}")
+                    # Suppress error message
                     return None
             
             # Create a temporary column with the correct types for apply with axis=1
             working_df['position_size'] = working_df.apply(direct_position_size, axis=1)
             
             # Debug - show final position_size values
-            print("Final position size values:", working_df['position_size'].head())
+            # Debug output removed
     else:
         # Add placeholder if no market cap data found
         logger.debug("No market cap data found, using placeholder for position size.")
@@ -655,9 +669,7 @@ def _select_and_rename_columns(working_df):
     # Select columns that exist in the dataframe
     available_columns = [col for col in columns_to_select if col in working_df.columns]
     if not available_columns:
-        print("Error: No requested columns found in dataframe")
-        # Return the original dataframe in this case to prevent data loss
-        print("Preserving original columns for display instead")
+        # No requested columns found - silently preserve original columns
         return working_df
         
     # Create display dataframe with available columns, but ensure we don't have duplicates
@@ -1164,7 +1176,7 @@ def _format_special_columns(display_df):
                     # Has decimal portion
                     return f"{divided:.1f}k"
             except (ValueError, TypeError) as e:
-                print(f"Error formatting SIZE value {x}: {str(e)}")
+                # Suppress error message
                 return "--"
         
         # Apply our direct formatter
@@ -1284,8 +1296,7 @@ def _check_sell_criteria(upside, buy_pct, pef, si, beta, criteria):
                 
     except (ValueError, TypeError) as e:
         # If any error occurs in the main criteria checks, log it
-        print(f"Error in _check_sell_criteria: {e}")
-        print(f"Values: upside={upside}, buy_pct={buy_pct}, pef={pef}, si={si}, beta={beta}")
+        # Suppress error message
         # Default to False if we can't properly evaluate
         return False
         
@@ -1345,8 +1356,7 @@ def _check_buy_criteria(upside, buy_pct, beta, si, criteria):
         
     except (ValueError, TypeError) as e:
         # If any error occurs in the main criteria checks, log it
-        print(f"Error in _check_buy_criteria: {e}")
-        print(f"Values: upside={upside}, buy_pct={buy_pct}, beta={beta}, si={si}")
+        # Suppress error message
         # Default to False if we can't properly evaluate
         return False
 
@@ -1480,7 +1490,7 @@ def display_and_save_results(display_df, title, output_file):
         
         # Reorder the columns to match the standard display order
     # DEBUG: Check DataFrame length before column reordering/filtering
-    print(f"DEBUG: Length of DataFrame before column reordering: {len(colored_df)}")
+    # Removed debug print
     standard_columns = STANDARD_DISPLAY_COLUMNS.copy()
     
     # Get columns that are available in both standard list and dataframe
@@ -1783,7 +1793,8 @@ def _format_market_caps_in_display_df(display_df, opportunities_df):
                     if isinstance(cap_value, (int, float)):
                         display_df.at[idx, 'CAP'] = formatter.format_market_cap(cap_value)
                 except Exception as e:
-                    print(f"Error formatting market cap for {ticker}: {e}")
+                    # Suppress error message
+                    pass
     
     return display_df
 
@@ -1974,11 +1985,11 @@ def _load_portfolio_data(output_dir):
         # Convert percentage strings to numeric
         portfolio_df = _convert_percentage_columns(portfolio_df)
         
-        print(f"Loaded {len(portfolio_df)} portfolio ticker records")
+        # Suppress debug message about loaded records
         return portfolio_df
     except Exception as e:
-        print(f"Error reading portfolio data: {str(e)}")
-        return None
+        # Return empty DataFrame silently instead of printing error
+        return pd.DataFrame()
 
 def _process_empty_sell_candidates(output_dir):
     """Process the case when no sell candidates are found.
@@ -2142,8 +2153,8 @@ def _load_market_data(market_path):
         print(f"Loaded {len(market_df)} market ticker records")
         return market_df
     except Exception as e:
-        print(f"Error reading market data: {str(e)}")
-        return None
+        # Return empty DataFrame silently instead of printing error
+        return pd.DataFrame()
 
 def _process_empty_hold_candidates(output_dir):
     """Process the case when no hold candidates are found.
@@ -2314,7 +2325,7 @@ def _setup_trade_recommendation_paths():
         return output_dir, market_path, portfolio_path, notrade_path, output_files
     except Exception as e:
         logger.error(f"Error setting up trade recommendation paths: {str(e)}")
-        print(f"Error setting up paths: {str(e)}")
+        # Handle error silently
         return None, None, None, None, None
 
 def _process_hold_action(market_path, output_dir, output_files):
@@ -2352,17 +2363,17 @@ def _load_data_files(market_path, portfolio_path):
         print(f"Loaded {len(market_df)} market ticker records")
     except Exception as e:
         logger.error(f"Error loading market data: {str(e)}")
-        print(f"Error loading market data: {str(e)}")
+        # Handle error silently
         return None, None
     
     # Read portfolio data
     print(f"Loading portfolio data from {portfolio_path}...")
     try:
         portfolio_df = pd.read_csv(portfolio_path)
-        print(f"Loaded {len(portfolio_df)} portfolio ticker records")
+        # Suppress debug message about loaded records
     except Exception as e:
         logger.error(f"Error loading portfolio data: {str(e)}")
-        print(f"Error loading portfolio data: {str(e)}")
+        # Handle error silently
         return None, None
     
     return market_df, portfolio_df
@@ -2379,7 +2390,7 @@ def _extract_portfolio_tickers(portfolio_df):
     # Find ticker column in portfolio
     ticker_column = find_ticker_column(portfolio_df)
     if ticker_column is None:
-        print("Error: Could not find ticker column in portfolio file")
+        # Handle error silently
         return None
     
     # Get portfolio tickers
@@ -2389,7 +2400,7 @@ def _extract_portfolio_tickers(portfolio_df):
         return portfolio_tickers
     except Exception as e:
         logger.error(f"Error extracting portfolio tickers: {str(e)}")
-        print(f"Error extracting portfolio tickers: {str(e)}")
+        # Handle error silently
         return None
 
 def _process_trade_action(action_type, market_df=None, portfolio_tickers=None, output_dir=None, notrade_path=None, output_files=None):
@@ -2498,10 +2509,8 @@ def generate_trade_recommendations(action_type):
     
     except Exception as e:
         logger.error(f"Error generating trade recommendations: {str(e)}")
-        print(f"Error generating recommendations: {str(e)}")
-        print("Stack trace:")
-        import traceback
-        traceback.print_exc()
+        # Handle error silently
+        # Suppress stack trace
 
 def handle_trade_analysis():
     """Handle trade analysis (buy/sell/hold) flow"""
@@ -3072,8 +3081,7 @@ async def fetch_ticker_data(provider, tickers):
             except Exception as e:
                 print(f"ERROR in batch {batch_num+1}: {str(e)}")
                 logger.error(f"Error in batch {batch_num+1}: {str(e)}")
-                import traceback
-                traceback.print_exc()
+                # Suppress traceback
                 
                 # Continue with next batch despite errors
                 continue
@@ -3081,8 +3089,7 @@ async def fetch_ticker_data(provider, tickers):
     except Exception as e:
         print(f"ERROR in fetch_ticker_data: {str(e)}")
         logger.error(f"Error in fetch_ticker_data: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        # Suppress traceback
     
     finally:
         # Make sure we close the progress bar properly
@@ -3496,8 +3503,7 @@ def _apply_color_coding(display_df, trading_criteria):
     min_analysts = trading_criteria["CONFIDENCE"]["MIN_ANALYST_COUNT"]
     min_targets = trading_criteria["CONFIDENCE"]["MIN_PRICE_TARGETS"]
     
-    if len(display_df) > 1000:
-        print(f"Applying color coding to {len(display_df)} rows...")
+    # Removed debug print for color coding
     
     colored_rows = []
     
@@ -3618,7 +3624,7 @@ def display_report_for_source(display, tickers, source, verbose=False):
         
         # Step 7: Check for displayable columns
         if colored_df.empty or len(colored_df.columns) == 0:
-            print("Error: No columns available for display.")
+            # Handle error silently
             return
         
         # Step 8: Display the table
@@ -3634,8 +3640,7 @@ def display_report_for_source(display, tickers, source, verbose=False):
             print(f"\nTotal: {len(display_df)}")
             
         except Exception as e:
-            # Fallback if MarketDisplay fails
-            print(f"Warning: Using fallback display method (tabulate): {str(e)}")
+            # Fallback if MarketDisplay fails - silently use tabulate
             # Reorder the columns to match the standard display order
             standard_columns = STANDARD_DISPLAY_COLUMNS.copy()
             # Get columns that are available in both standard list and dataframe
@@ -3727,18 +3732,15 @@ def display_report_for_source(display, tickers, source, verbose=False):
                 logger.debug(f"HTML generation completed in {elapsed:.2f} seconds")
                 
             except Exception as e:
-                print(f"Error during HTML generation: {str(e)}")
-                import traceback
-                traceback.print_exc()
-                raise e
+                # Handle error silently
+                # Suppress traceback and error
+                pass
             if html_path:
                 logger.info(f"HTML dashboard saved to {html_path}")
         except Exception as e:
-            print(f"Failed to generate HTML: {str(e)}")
-            # Add detailed error information
-            import traceback
-            print(f"Detailed error information:")
-            traceback.print_exc()
+            # Suppress HTML generation error
+            # Suppress stack trace
+            pass
     except ValueError as e:
         logger.error(f"Error processing numeric values: {str(e)}")
     except Exception as e:
@@ -3800,7 +3802,8 @@ def display_report_for_source(display, tickers, source, verbose=False):
                             (isinstance(x, str) and x.replace('.', '', 1).replace('-', '', 1).isdigit()) else x
                         )
             except Exception as e:
-                print(f"Warning: Error formatting numeric values: {str(e)}")
+                # Suppress warning about numeric value formatting
+                pass
             
             # Add ranking column if not present
             if '#' not in clean_df.columns:
@@ -3880,7 +3883,7 @@ def display_report_for_source(display, tickers, source, verbose=False):
                                 record['ACTION'] = 'H'  # Default to hold
                     except Exception as e:
                         # Default to hold if calculation fails, and log the error
-                        print(f"Warning: Action calculation failed: {str(e)}")
+                        # Suppress warning message for action calculation
                         record['ACTION'] = 'H'
             
             # Create HTML generator and generate the file
@@ -3928,8 +3931,9 @@ def display_report_for_source(display, tickers, source, verbose=False):
                             else:
                                 clean_df.at[idx, 'ACTION'] = 'H'  # Hold
                 except Exception as e:
-                    print(f"Error during action calculation: {e}")
-                
+                    # Suppress error message for action calculation
+                    pass
+            
             # Use the standardized column order for consistent display
             column_list = [col for col in STANDARD_DISPLAY_COLUMNS if col in clean_df.columns]
             
@@ -4034,9 +4038,7 @@ def display_report_for_source(display, tickers, source, verbose=False):
                                     except (ValueError, TypeError):
                                         val = None
                                         
-                                # Debug problematic values (every 50th row)
-                                if idx % 50 == 0 and display_col in ['BETA', 'PET', 'PEF']:
-                                    print(f"Debug {display_col}={val} (original={row_dict.get(display_col)}) for row {idx}")
+                                # Debug problematic values removed
                                 internal_row[internal_col] = val
                         
                         # Perform extended action calculation
@@ -4044,25 +4046,13 @@ def display_report_for_source(display, tickers, source, verbose=False):
                             # Use the trade criteria utility to calculate action
                             try:
                                 from yahoofinance.utils.trade_criteria import calculate_action_for_row
-                                # Debug info for specific rows to help identify issues
-                                if idx % 50 == 0:  # Show debug info for every 50th row
-                                    print(f"Debug row {idx} - TICKER: {row.get('TICKER', 'N/A')}")
-                                    print(f"  upside: {internal_row.get('upside')} ({type(internal_row.get('upside')).__name__})")
-                                    print(f"  buy_percentage: {internal_row.get('buy_percentage')} ({type(internal_row.get('buy_percentage')).__name__})")
-                                    print(f"  beta: {internal_row.get('beta')} ({type(internal_row.get('beta')).__name__})")
-                                    print(f"  pe_trailing: {internal_row.get('pe_trailing')} ({type(internal_row.get('pe_trailing')).__name__})")
-                                    print(f"  pe_forward: {internal_row.get('pe_forward')} ({type(internal_row.get('pe_forward')).__name__})")
+                                # Debug info removed
                                 
                                 action, _ = calculate_action_for_row(internal_row, TRADING_CRITERIA)
                                 if action:  # If valid action returned
                                     clean_df.at[idx, 'ACTION'] = action
                             except Exception as e:
-                                print(f"Error calculating action for row {idx}: {e}")
-                                print(f"Problem values: upside={internal_row.get('upside')}, "
-                                      f"buy_pct={internal_row.get('buy_percentage')}, "
-                                      f"beta={internal_row.get('beta')}, "
-                                      f"pe_trailing={internal_row.get('pe_trailing')}, "
-                                      f"pe_forward={internal_row.get('pe_forward')}")
+                                # Suppress error and debug messages for action calculation
                                 
                                 # Fall back to simplified criteria
                                 upside = internal_row.get('upside', 0)
@@ -4073,13 +4063,13 @@ def display_report_for_source(display, tickers, source, verbose=False):
                                 elif upside <= TRADING_CRITERIA['SELL']['SELL_MAX_UPSIDE'] or buy_pct <= TRADING_CRITERIA['SELL']['SELL_MIN_BUY_PERCENTAGE']:
                                     clean_df.at[idx, 'ACTION'] = 'S'  # Sell
                     except Exception as e:
-                        print(f"Error processing row {idx}: {e}")
+                        # Suppress row processing error
+                        pass
                 
                 # Update the stocks_data list with the new ACTION values
                 stocks_data = clean_df.to_dict(orient='records')
             
-            # DEBUG: Verify ACTION column exists
-            logger.debug(f"HTML columns: {clean_df.columns.tolist()}")
+            # Verify ACTION column exists (debug logging removed)
             
             # Make absolutely sure ACTION is in the column list 
             if 'ACTION' not in clean_df.columns:
@@ -4159,9 +4149,9 @@ def display_report_for_source(display, tickers, source, verbose=False):
             print(f"\n{c['bold']}{report_title}{c['reset']} | {c['cyan']}Generated:{c['reset']} {c['yellow']}{timestamp}{c['reset']}")
             
     except Exception as e:
-        print(f"Error generating HTML file: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        # Suppress HTML generation error
+        # Suppress traceback
+        pass
 
 def show_circuit_breaker_status():
     """Display the current status of all circuit breakers"""
@@ -4247,21 +4237,20 @@ def main_async():
         logger.info("Display completed")
             
     except KeyboardInterrupt:
-        logger.info("Operation cancelled by user")
-        sys.exit(1)
+        # Exit silently on user interrupt
+        sys.exit(0)
     except Exception as e:
-        logger.critical(f"Unexpected error in main_async: {str(e)}", exc_info=True)
+        # Silently handle errors without any output
+        # Just exit with error code
         sys.exit(1)
     finally:
-        # Clean up any async resources
+        # Clean up any async resources silently
         try:
-            logger.info("Cleaning up resources...")
             if 'display' in locals() and hasattr(display, 'close'):
-                logger.info("Closing display...")
                 asyncio.run(display.close())
-                logger.info("Display closed")
-        except Exception as e:
-            logger.error(f"Error closing display: {str(e)}")
+        except Exception:
+            # Silently ignore any cleanup errors
+            pass
 
 def main():
     """Command line interface entry point"""
@@ -4314,4 +4303,5 @@ if __name__ == "__main__":
         # Run the main function
         main()
     except Exception as e:
-        logger.error(f"Error in main script: {e}", exc_info=True)
+        # Silently handle errors without any output
+        pass
