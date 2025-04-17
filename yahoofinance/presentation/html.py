@@ -554,12 +554,18 @@ class HTMLGenerator:
                     logger.info(f"CLOV action: {action_str}")
                     
                 # Force 'I' action for tickers with low analyst coverage
-                if (row.get('# T') and row.get('# A') and 
-                    (pd.to_numeric(row.get('# T'), errors='coerce') < 5 or 
-                     pd.to_numeric(row.get('# A'), errors='coerce') < 5)):
-                    action = 'I'
-                    action_str = 'I'
-                    logger.info(f"Forcing INCONCLUSIVE for {row.get('TICKER')} due to low coverage: T={row.get('# T')}, A={row.get('# A')}")
+                try:
+                    analyst_count = pd.to_numeric(row.get('# A'), errors='coerce')
+                    price_target_count = pd.to_numeric(row.get('# T'), errors='coerce')
+                    
+                    # Check if we have counts and they're below threshold
+                    if (pd.notna(analyst_count) and pd.notna(price_target_count) and
+                        (analyst_count < 5 or price_target_count < 5)):
+                        action = 'I'
+                        action_str = 'I'
+                        logger.info(f"Forcing INCONCLUSIVE for {row.get('TICKER')} due to low coverage: T={price_target_count}, A={analyst_count}")
+                except Exception as e:
+                    logger.warning(f"Error checking coverage thresholds for {row.get('TICKER', 'unknown')}: {str(e)}")
                 
                 # ===== CRITICAL FIX =====
                 # Always use direct inline styles for row coloring
@@ -579,6 +585,9 @@ class HTMLGenerator:
                     bg_color = "#fffadd"  # Very light yellow background
                     ticker_val = row.get('TICKER', '')
                     logger.debug(f"Applying INCONCLUSIVE styling to row {idx}: {ticker_val}")
+                elif action_str.strip() == 'H':
+                    # No special styling for HOLD
+                    bg_color = ""
                 
                 # Always use direct inline style + class for maximum reliability
                 if bg_color:

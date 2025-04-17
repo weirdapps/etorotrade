@@ -92,8 +92,15 @@ def check_confidence_criteria(row, criteria):
     min_analysts = criteria["CONFIDENCE"]["MIN_ANALYST_COUNT"]
     min_targets = criteria["CONFIDENCE"]["MIN_PRICE_TARGETS"]
     
-    # Compare numeric values
-    return analyst_count >= min_targets and total_ratings >= min_analysts
+    # Compare numeric values - make sure we have enough analysts and price targets
+    has_enough_coverage = (analyst_count >= min_analysts and total_ratings >= min_targets)
+    
+    # Log diagnostic information for stocks failing confidence check
+    if not has_enough_coverage:
+        ticker = normalized_row.get('ticker', '') or normalized_row.get('TICKER', 'unknown')
+        logger.debug(f"Stock {ticker} fails confidence check: analysts={analyst_count}/{min_analysts}, targets={total_ratings}/{min_targets}")
+    
+    return has_enough_coverage
 
 
 def _check_upside_sell_criterion(row, sell_criteria):
@@ -631,9 +638,13 @@ def calculate_action_for_row(row, criteria, short_field=DEFAULT_SHORT_FIELD):
     # Normalize row to ensure consistent column names and data types
     normalized_row = normalize_row_columns(row, column_mapping)
     
+    # Get ticker for logging
+    ticker = normalized_row.get('ticker', '') or normalized_row.get('TICKER', '') or row.get('TICKER', 'unknown')
+    
     # Check confidence criteria first
     if not check_confidence_criteria(normalized_row, criteria):
-        return NO_ACTION, MSG_INSUFFICIENT_COVERAGE
+        logger.debug(f"Stock {ticker} marked INCONCLUSIVE due to insufficient coverage")
+        return INCONCLUSIVE_ACTION, MSG_INSUFFICIENT_COVERAGE
     
     # Check SELL criteria (any one can trigger a SELL)
     is_sell, sell_reason = meets_sell_criteria(normalized_row, criteria, short_field)
