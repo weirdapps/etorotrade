@@ -3,40 +3,40 @@
     "index_name": "DJI30",
     "ticker": "^DJI",
     "current_value": 39142.23046875,
-    "previous_value": 42544.21875,
-    "change_percent": -7.996358568107446,
-    "start_date": "2024-12-31T00:00:00",
+    "previous_value": 42001.76171875,
+    "change_percent": -6.808122166750633,
+    "start_date": "2025-03-31T00:00:00",
     "end_date": "2025-04-17T00:00:00",
-    "period_type": "yeartodate"
+    "period_type": "monthtodate"
   },
   {
     "index_name": "SP500",
     "ticker": "^GSPC",
     "current_value": 5282.7001953125,
-    "previous_value": 5881.6298828125,
-    "change_percent": -10.183056387995661,
-    "start_date": "2024-12-31T00:00:00",
+    "previous_value": 5611.85009765625,
+    "change_percent": -5.865265404740892,
+    "start_date": "2025-03-31T00:00:00",
     "end_date": "2025-04-17T00:00:00",
-    "period_type": "yeartodate"
+    "period_type": "monthtodate"
   },
   {
     "index_name": "NQ100",
     "ticker": "^NDX",
     "current_value": 18258.091796875,
-    "previous_value": 21012.169921875,
-    "change_percent": -13.107061932393904,
-    "start_date": "2024-12-31T00:00:00",
+    "previous_value": 19278.44921875,
+    "change_percent": -5.292735999131154,
+    "start_date": "2025-03-31T00:00:00",
     "end_date": "2025-04-17T00:00:00",
-    "period_type": "yeartodate"
+    "period_type": "monthtodate"
   },
   {
     "index_name": "VIX",
     "ticker": "^VIX",
     "current_value": 29.649999618530273,
-    "previous_value": 17.350000381469727,
-    "change_percent": 70.8933658018664,
-    "start_date": "2024-12-31T00:00:00",
+    "previous_value": 22.280000686645508,
+    "change_percent": 33.07898880049091,
+    "start_date": "2025-03-31T00:00:00",
     "end_date": "2025-04-17T00:00:00",
-    "period_type": "yeartodate"
+    "period_type": "monthtodate"
   }
 ]

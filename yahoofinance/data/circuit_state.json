@@ -5,10 +5,10 @@
     "success_count": 0,
     "last_state_change": 1744924173.360713,
     "last_failure_time": 0,
-    "last_success_time": 1744924247.132153,
+    "last_success_time": 1744925404.9164412,
     "total_failures": 0,
-    "total_successes": 2,
-    "total_requests": 2,
+    "total_successes": 3,
+    "total_requests": 3,
     "failure_timestamps": [],
     "consecutive_failures": 0
   }

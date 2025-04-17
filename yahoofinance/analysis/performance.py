@@ -318,6 +318,33 @@ class PerformanceTracker:
         
         return year_start.replace(hour=0, minute=0, second=0, microsecond=0), \
                current_date.replace(hour=0, minute=0, second=0, microsecond=0)
+               
+    @staticmethod
+    def calculate_monthtodate_dates() -> Tuple[datetime, datetime]:
+        """
+        Calculate dates for month-to-date performance comparison.
+        
+        Returns the last day of the previous month and the current date.
+        
+        Returns:
+            Tuple of (month_start, current_date)
+        """
+        today = datetime.today()
+        
+        # Month start is the LAST day of the PREVIOUS month (not the first day of current month)
+        if today.month == 1:  # January
+            # If current month is January, go to December of previous year
+            month_start = datetime(today.year - 1, 12, 31)
+        else:
+            # Otherwise, get the last day of the previous month
+            # First day of current month minus one day
+            month_start = datetime(today.year, today.month, 1) - timedelta(days=1)
+        
+        # Use yesterday as the current date to ensure market data is available
+        current_date = today - timedelta(days=1)
+        
+        return month_start.replace(hour=0, minute=0, second=0, microsecond=0), \
+               current_date.replace(hour=0, minute=0, second=0, microsecond=0)
     
     def get_previous_trading_day_close(self, ticker: str, date: datetime) -> Tuple[float, datetime]:
         """
@@ -423,7 +450,7 @@ class PerformanceTracker:
         Get performance of market indices for the specified period.
         
         Args:
-            period_type: 'weekly', 'monthly', or 'yeartodate'
+            period_type: 'weekly', 'monthly', 'yeartodate', or 'monthtodate'
             
         Returns:
             List of IndexPerformance objects
@@ -439,8 +466,11 @@ class PerformanceTracker:
         elif period_type.lower() in ["yeartodate", "ytd"]:
             start_date, end_date = self.calculate_yeartodate_dates()
             period_type = "yeartodate"  # Normalize the period type
+        elif period_type.lower() in ["monthtodate", "mtd"]:
+            start_date, end_date = self.calculate_monthtodate_dates()
+            period_type = "monthtodate"  # Normalize the period type
         else:
-            raise ValueError(f"Invalid period_type: {period_type}. Must be 'weekly', 'monthly', or 'yeartodate'.")
+            raise ValueError(f"Invalid period_type: {period_type}. Must be 'weekly', 'monthly', 'yeartodate', or 'monthtodate'.")
         
         # Get performance for each index
         performances = []
@@ -483,7 +513,7 @@ class PerformanceTracker:
         Get performance of market indices for the specified period asynchronously.
         
         Args:
-            period_type: 'weekly', 'monthly', or 'yeartodate'
+            period_type: 'weekly', 'monthly', 'yeartodate', or 'monthtodate'
             
         Returns:
             List of IndexPerformance objects
@@ -499,8 +529,11 @@ class PerformanceTracker:
         elif period_type.lower() in ["yeartodate", "ytd"]:
             start_date, end_date = self.calculate_yeartodate_dates()
             period_type = "yeartodate"  # Normalize the period type
+        elif period_type.lower() in ["monthtodate", "mtd"]:
+            start_date, end_date = self.calculate_monthtodate_dates()
+            period_type = "monthtodate"  # Normalize the period type
         else:
-            raise ValueError(f"Invalid period_type: {period_type}. Must be 'weekly', 'monthly', or 'yeartodate'.")
+            raise ValueError(f"Invalid period_type: {period_type}. Must be 'weekly', 'monthly', 'yeartodate', or 'monthtodate'.")
         
         # Create tasks for getting each index's performance
         tasks = []
@@ -1127,9 +1160,21 @@ def track_index_performance(period_type: str = "weekly"):
                 period_desc = f"{oldest_start_date.strftime('%b %d, %Y')} to {newest_end_date.strftime('%b %d, %Y')}"
             else:
                 period_desc = "Year start to present"
+        # For month-to-date display
+        elif period_type.lower() in ['monthtodate', 'mtd']:
+            if newest_end_date and oldest_start_date:
+                period_desc = f"{oldest_start_date.strftime('%b %d, %Y')} to {newest_end_date.strftime('%b %d, %Y')}"
+            else:
+                period_desc = "Previous month end to present"
                 
         # Display in console with clear period indication
-        period_display = period_type.capitalize() if period_type.lower() != "yeartodate" else "Year-to-Date"
+        if period_type.lower() == "yeartodate":
+            period_display = "Year-to-Date"
+        elif period_type.lower() == "monthtodate":
+            period_display = "Month-to-Date"
+        else:
+            period_display = period_type.capitalize()
+        
         print(f"\n{period_display} Market Performance: {period_desc}")
         
         # Convert to DataFrame for display
@@ -1153,6 +1198,9 @@ def track_index_performance(period_type: str = "weekly"):
                 curr_key = f'Month-1 ({perf.end_date.strftime("%Y-%m-%d") if perf.end_date else "N/A"})'
             elif period_type.lower() in ['yeartodate', 'ytd']:
                 prev_key = f'Year Start ({perf.start_date.strftime("%Y-%m-%d") if perf.start_date else "N/A"})'
+                curr_key = f'Current ({perf.end_date.strftime("%Y-%m-%d") if perf.end_date else "N/A"})'
+            elif period_type.lower() in ['monthtodate', 'mtd']:
+                prev_key = f'Prev Month End ({perf.start_date.strftime("%Y-%m-%d") if perf.start_date else "N/A"})'
                 curr_key = f'Current ({perf.end_date.strftime("%Y-%m-%d") if perf.end_date else "N/A"})'
                 
             # For display purposes, we need consistent columns
@@ -1368,6 +1416,12 @@ def track_index_performance(period_type: str = "weekly"):
                 title = f"Year-to-Date Market Performance - {newest_end_date.strftime('%Y')}"
             else:
                 title = "Year-to-Date Market Performance"
+        elif period_type.lower() in ['monthtodate', 'mtd']:
+            # Format: "Month-to-Date Market Performance - April 2025"
+            if newest_end_date:
+                title = f"Month-to-Date Market Performance - {newest_end_date.strftime('%B %Y')}"
+            else:
+                title = "Month-to-Date Market Performance"
             
         # Generate HTML with standardized filename
         tracker.generate_index_performance_html(
@@ -1463,7 +1517,7 @@ async def track_performance_async(period_type: str = "weekly", portfolio_url: st
     Track both index and portfolio performance asynchronously.
     
     Args:
-        period_type: 'weekly', 'monthly', or 'yeartodate'
+        period_type: 'weekly', 'monthly', 'yeartodate', or 'monthtodate'
         portfolio_url: URL to scrape for portfolio performance data
     """
     try:
@@ -1531,6 +1585,12 @@ async def track_performance_async(period_type: str = "weekly", portfolio_url: st
                     period_desc = f"{oldest_start_date.strftime('%b %d, %Y')} to {newest_end_date.strftime('%b %d, %Y')}"
                 else:
                     period_desc = "Year start to present"
+            # For month-to-date display
+            elif period_type.lower() in ['monthtodate', 'mtd']:
+                if newest_end_date and oldest_start_date:
+                    period_desc = f"{oldest_start_date.strftime('%b %d, %Y')} to {newest_end_date.strftime('%b %d, %Y')}"
+                else:
+                    period_desc = "Previous month end to present"
             
             # Generate HTML with simplified title format
             if period_type.lower() == 'weekly':
@@ -1551,6 +1611,12 @@ async def track_performance_async(period_type: str = "weekly", portfolio_url: st
                     title = f"Year-to-Date Market Performance - {newest_end_date.strftime('%Y')}"
                 else:
                     title = "Year-to-Date Market Performance"
+            elif period_type.lower() in ['monthtodate', 'mtd']:
+                # Format: "Month-to-Date Market Performance - April 2025"
+                if newest_end_date:
+                    title = f"Month-to-Date Market Performance - {newest_end_date.strftime('%B %Y')}"
+                else:
+                    title = "Month-to-Date Market Performance"
                 
             # Generate HTML with standardized filename
             html_path = tracker.generate_index_performance_html(
@@ -1569,7 +1635,13 @@ async def track_performance_async(period_type: str = "weekly", portfolio_url: st
             )
             
             # Display in console with better formatting
-            period_display = period_type.capitalize() if period_type.lower() != "yeartodate" else "Year-to-Date"
+            if period_type.lower() == "yeartodate":
+                period_display = "Year-to-Date"
+            elif period_type.lower() == "monthtodate":
+                period_display = "Month-to-Date"
+            else:
+                period_display = period_type.capitalize()
+            
             print(f"\n{period_display} Market Performance: {period_desc}")
             data = []
             for perf in index_perf:
@@ -1586,9 +1658,15 @@ async def track_performance_async(period_type: str = "weekly", portfolio_url: st
                 if period_type.lower() == 'weekly':
                     prev_key = f'Week-2 ({perf.start_date.strftime("%Y-%m-%d") if perf.start_date else "N/A"})'
                     curr_key = f'Week-1 ({perf.end_date.strftime("%Y-%m-%d") if perf.end_date else "N/A"})'
-                else:
+                elif period_type.lower() == 'monthly':
                     prev_key = f'Month-2 ({perf.start_date.strftime("%Y-%m-%d") if perf.start_date else "N/A"})'
                     curr_key = f'Month-1 ({perf.end_date.strftime("%Y-%m-%d") if perf.end_date else "N/A"})'
+                elif period_type.lower() in ['yeartodate', 'ytd']:
+                    prev_key = f'Year Start ({perf.start_date.strftime("%Y-%m-%d") if perf.start_date else "N/A"})'
+                    curr_key = f'Current ({perf.end_date.strftime("%Y-%m-%d") if perf.end_date else "N/A"})'
+                elif period_type.lower() in ['monthtodate', 'mtd']:
+                    prev_key = f'Prev Month End ({perf.start_date.strftime("%Y-%m-%d") if perf.start_date else "N/A"})'
+                    curr_key = f'Current ({perf.end_date.strftime("%Y-%m-%d") if perf.end_date else "N/A"})'
                 
                 # Create row data with proper titles for previous period comparison
                 row_data = {
@@ -1687,6 +1765,9 @@ if __name__ == "__main__":
     elif option in ["yeartodate", "ytd", "y"]:
         print("Tracking year-to-date market performance...")
         track_index_performance(period_type="yeartodate")
+    elif option in ["monthtodate", "mtd", "md"]:
+        print("Tracking month-to-date market performance...")
+        track_index_performance(period_type="monthtodate")
     elif option in ["portfolio", "p"]:
         print("Tracking portfolio performance...")
         track_portfolio_performance()
@@ -1703,6 +1784,8 @@ if __name__ == "__main__":
                 period_type = "monthly"
             elif second_arg in ["yeartodate", "ytd", "y"]:
                 period_type = "yeartodate"
+            elif second_arg in ["monthtodate", "mtd", "md"]:
+                period_type = "monthtodate"
         
         print(f"Tracking both market ({period_type}) and portfolio performance asynchronously...")
         asyncio.run(track_performance_async(period_type=period_type))
@@ -1712,7 +1795,8 @@ if __name__ == "__main__":
         print("  weekly (w)        - Track weekly market performance")
         print("  monthly (m)       - Track monthly market performance")
         print("  yeartodate (y/ytd)- Track year-to-date market performance")
+        print("  monthtodate (mtd) - Track month-to-date market performance")
         print("  portfolio (p)     - Track portfolio performance")
         print("  all (a) [period]  - Track both market and portfolio performance asynchronously")
-        print("                       [period] is optional: weekly(default), monthly, or yeartodate")
+        print("                       [period] is optional: weekly(default), monthly, yeartodate, or monthtodate")
         print("If no option is provided, portfolio performance is tracked by default.")

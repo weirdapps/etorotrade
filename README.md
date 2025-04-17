@@ -113,9 +113,18 @@ python -m yahoofinance.analysis.metrics
 # Portfolio performance metrics
 python -m yahoofinance.analysis.portfolio
 
-# Market and portfolio performance tracking
-python -m yahoofinance.analysis.performance
+# Market performance tracking - multiple time periods available
+python -m yahoofinance.analysis.performance weekly    # Week-over-week comparison
+python -m yahoofinance.analysis.performance monthly   # Month-over-month comparison
+python -m yahoofinance.analysis.performance ytd       # Year-to-date (Dec 31 to now)
+python -m yahoofinance.analysis.performance mtd       # Month-to-date (prev month end to now)
+python -m yahoofinance.analysis.performance portfolio # Portfolio metrics
+
+# Track both market and portfolio performance together
+python -m yahoofinance.analysis.performance all
 ```
+
+For detailed documentation on the performance module, see [yahoofinance/analysis/PERFORMANCE_README.md](yahoofinance/analysis/PERFORMANCE_README.md).
 
 ### Analyst & Earnings
 ```bash
