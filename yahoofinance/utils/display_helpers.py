@@ -151,6 +151,7 @@ HOLD_ACTION = 'H'
 GREEN_COLOR = '92'
 RED_COLOR = '91'
 YELLOW_COLOR = '93'
+# No color code for HOLD - it stays default
 
 def _color_based_on_action(row, colored_row):
     """
@@ -166,15 +167,17 @@ def _color_based_on_action(row, colored_row):
     # Check for both ACT and ACTION columns
     action = None
     
-    if 'ACT' in row and not pd.isna(row['ACT']) and row['ACT'] in [BUY_ACTION, SELL_ACTION, HOLD_ACTION]:
+    # Check ACT column first
+    if 'ACT' in row and not pd.isna(row['ACT']) and row['ACT'] in [BUY_ACTION, SELL_ACTION, HOLD_ACTION, 'I']:
         action = row['ACT']
         # Make a copy so we don't modify the original row
         colored_row_copy = colored_row.copy()
         # Ensure ACT column shows the correct value in display
         if 'ACT' in colored_row_copy:
             colored_row_copy['ACT'] = action
-        
-    elif ACTION_COL in row and not pd.isna(row[ACTION_COL]) and row[ACTION_COL] in [BUY_ACTION, SELL_ACTION, HOLD_ACTION]:
+    
+    # Check ACTION column next    
+    elif ACTION_COL in row and not pd.isna(row[ACTION_COL]) and row[ACTION_COL] in [BUY_ACTION, SELL_ACTION, HOLD_ACTION, 'I']:
         action = row[ACTION_COL]
         # Make a copy so we don't modify the original row
         colored_row_copy = colored_row.copy()
@@ -184,10 +187,13 @@ def _color_based_on_action(row, colored_row):
     else:
         return None
     
+    # Apply coloring based on the action
     if action == BUY_ACTION:  # BUY - Green
         return _apply_color_to_row(colored_row_copy, GREEN_COLOR)
     elif action == SELL_ACTION:  # SELL - Red
         return _apply_color_to_row(colored_row_copy, RED_COLOR)
+    elif action == 'I':  # INCONCLUSIVE - Yellow
+        return _apply_color_to_row(colored_row_copy, YELLOW_COLOR)
     
     # HOLD - no color changes
     return colored_row_copy
