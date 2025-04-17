@@ -1,12 +1,42 @@
-{
-  "this_month": -5.43,
-  "year_to_date": -7.67,
-  "two_years": 43.47,
-  "beta": 0.78,
-  "sharpe": 1.44,
-  "alpha": 8.39,
-  "sortino": 3.67,
-  "cash": 10.13,
-  "source": "https://bullaware.com/etoro/plessas",
-  "last_updated": "2025-04-08T16:26:10.251549"
-}
+[
+  {
+    "index_name": "DJI30",
+    "ticker": "^DJI",
+    "current_value": 39142.23046875,
+    "previous_value": 42544.21875,
+    "change_percent": -7.996358568107446,
+    "start_date": "2024-12-31T00:00:00",
+    "end_date": "2025-04-17T00:00:00",
+    "period_type": "yeartodate"
+  },
+  {
+    "index_name": "SP500",
+    "ticker": "^GSPC",
+    "current_value": 5282.7001953125,
+    "previous_value": 5881.6298828125,
+    "change_percent": -10.183056387995661,
+    "start_date": "2024-12-31T00:00:00",
+    "end_date": "2025-04-17T00:00:00",
+    "period_type": "yeartodate"
+  },
+  {
+    "index_name": "NQ100",
+    "ticker": "^NDX",
+    "current_value": 18258.091796875,
+    "previous_value": 21012.169921875,
+    "change_percent": -13.107061932393904,
+    "start_date": "2024-12-31T00:00:00",
+    "end_date": "2025-04-17T00:00:00",
+    "period_type": "yeartodate"
+  },
+  {
+    "index_name": "VIX",
+    "ticker": "^VIX",
+    "current_value": 29.649999618530273,
+    "previous_value": 17.350000381469727,
+    "change_percent": 70.8933658018664,
+    "start_date": "2024-12-31T00:00:00",
+    "end_date": "2025-04-17T00:00:00",
+    "period_type": "yeartodate"
+  }
+]
