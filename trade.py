@@ -2633,11 +2633,19 @@ async def handle_trade_analysis(get_provider=None, app_logger=None):
         get_provider: Injected provider factory function
         app_logger: Injected logger component
     """
+    # Create provider instance if needed
     provider = None
     if get_provider:
-        provider = get_provider(async_mode=True)
-        if app_logger:
-            app_logger.info(f"Using injected provider: {provider.__class__.__name__}")
+        # Check if it's already a provider instance or a factory function
+        if callable(get_provider):
+            provider = get_provider(async_mode=True)
+            if app_logger:
+                app_logger.info(f"Using injected provider from factory: {provider.__class__.__name__}")
+        else:
+            # It's already a provider instance
+            provider = get_provider
+            if app_logger:
+                app_logger.info(f"Using injected provider instance: {provider.__class__.__name__}")
     action = input("Do you want to identify BUY (B), SELL (S), or HOLD (H) opportunities? ").strip().upper()
     if action == BUY_ACTION:
         if app_logger:
@@ -2677,18 +2685,27 @@ async def handle_portfolio_download(get_provider=None, app_logger=None):
     Returns:
         bool: True if portfolio is available, False otherwise
     """
+    # Create provider instance if needed
     provider = None
     if get_provider:
-        provider = get_provider(async_mode=True)
-        if app_logger:
-            app_logger.info(f"Using injected provider: {provider.__class__.__name__}")
+        # Check if it's already a provider instance or a factory function
+        if callable(get_provider):
+            provider = get_provider(async_mode=True)
+            if app_logger:
+                app_logger.info(f"Using injected provider from factory: {provider.__class__.__name__}")
+        else:
+            # It's already a provider instance
+            provider = get_provider
+            if app_logger:
+                app_logger.info(f"Using injected provider instance: {provider.__class__.__name__}")
     use_existing = input("Use existing portfolio file (E) or download new one (N)? ").strip().upper()
     if use_existing == 'N':
         from yahoofinance.data import download_portfolio
         try:
-            # Use provider we got from injection, or resolve it via registry
-            if not provider and get_provider:
-                provider = get_provider(async_mode=True)
+            # Make sure we have a provider
+            if not provider:
+                app_logger.warning("No provider available for portfolio download")
+                return False
             
             # Call download_portfolio with provider
             result = await download_portfolio(provider=provider)
@@ -3797,9 +3814,16 @@ async def display_report_for_source(display, tickers, source, verbose=False, get
     # Create provider instance if needed
     provider = None
     if get_provider:
-        provider = get_provider(async_mode=True)
-        if app_logger:
-            app_logger.info(f"Using injected provider: {provider.__class__.__name__}")
+        # Check if it's already a provider instance or a factory function
+        if callable(get_provider):
+            provider = get_provider(async_mode=True)
+            if app_logger:
+                app_logger.info(f"Using injected provider from factory: {provider.__class__.__name__}")
+        else:
+            # It's already a provider instance
+            provider = get_provider
+            if app_logger:
+                app_logger.info(f"Using injected provider instance: {provider.__class__.__name__}")
     
     if not tickers:
         if app_logger:
@@ -4419,9 +4443,16 @@ async def main_async(get_provider=None, app_logger=None):
     display = None
     try:
         # Ensure we have the required dependencies
+        provider = None
         if get_provider:
-            provider = get_provider(async_mode=True, max_concurrency=10)
-            app_logger.info(f"Using injected provider: {provider.__class__.__name__}")
+            # Check if it's already a provider instance or a factory function
+            if callable(get_provider):
+                provider = get_provider(async_mode=True, max_concurrency=10)
+                app_logger.info(f"Using injected provider from factory: {provider.__class__.__name__}")
+            else:
+                # It's already a provider instance
+                provider = get_provider
+                app_logger.info(f"Using injected provider instance: {provider.__class__.__name__}")
         else:
             app_logger.error("Provider not injected, creating default provider")
             provider = AsyncHybridProvider(max_concurrency=10)
@@ -4529,15 +4560,9 @@ def main(app_logger=None):
             display = MarketDisplay(provider=provider)
             
             # Display report directly
-            # Run as async
-            provider_factory = None
-            try:
-                provider_factory = registry.resolve('get_provider')
-            except:
-                pass
-                
+            # Run as async - pass provider directly
             asyncio.run(display_report_for_source(display, tickers, 'I', verbose=True,
-                                                get_provider=provider_factory, app_logger=app_logger))
+                                                get_provider=provider, app_logger=app_logger))
             return
     
     # Run the async main function with interactive input
