@@ -829,3 +829,33 @@ def format_numeric_values(df, numeric_columns):
             result_df[col] = pd.to_numeric(result_df[col], errors='coerce')
     
     return result_df
+
+
+def evaluate_trade_criteria(ticker_data: dict) -> str:
+    """
+    Evaluate trading criteria for a ticker to determine action.
+    
+    This function applies the standard trading rules to determine
+    if a ticker should be bought, sold, or held based on its metrics.
+    
+    Args:
+        ticker_data: Dictionary containing ticker metrics
+        
+    Returns:
+        String action code: 'BUY', 'SELL', 'HOLD', or 'NEUTRAL'
+    """
+    from yahoofinance.core.config import TRADING_CRITERIA
+    
+    # Use the calculate_action_for_row function, which is more comprehensive
+    action, _ = calculate_action_for_row(ticker_data, TRADING_CRITERIA)
+    
+    # Convert action codes to full strings
+    action_mapping = {
+        BUY_ACTION: 'BUY',
+        SELL_ACTION: 'SELL',
+        HOLD_ACTION: 'HOLD',
+        INCONCLUSIVE_ACTION: 'NEUTRAL',
+        NO_ACTION: 'NEUTRAL'
+    }
+    
+    return action_mapping.get(action, 'NEUTRAL')

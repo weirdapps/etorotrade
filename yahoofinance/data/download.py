@@ -5,6 +5,7 @@ This module provides functions for downloading data from various sources.
 """
 
 import os
+from typing import List, Dict, Any, Optional, Union
 
 from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
 from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
@@ -435,6 +436,111 @@ def download_portfolio():
             driver.quit()
 
 @with_retry
+def download_market_data(
+    tickers: List[str], 
+    include_analyst_data: bool = True,
+    include_price_data: bool = True,
+    include_financial_data: bool = True,
+    provider_name: str = None
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Download comprehensive market data for a list of tickers.
+    
+    This function provides a centralized way to download comprehensive
+    market data for multiple tickers in an efficient manner. It leverages
+    the provider system to fetch the data.
+    
+    Args:
+        tickers: List of ticker symbols to download data for
+        include_analyst_data: Whether to include analyst recommendations
+        include_price_data: Whether to include price and volume data
+        include_financial_data: Whether to include financial metrics
+        provider_name: Optional provider name to use (defaults to hybrid)
+        
+    Returns:
+        Dictionary mapping ticker symbols to their market data
+        
+    Raises:
+        APIError: If there's an error fetching data from the API
+        ValidationError: If the input parameters are invalid
+    """
+    from yahoofinance import get_provider
+    import asyncio
+    from yahoofinance.core.logging_config import get_logger
+    from yahoofinance.core.errors import YFinanceError, APIError
+    
+    logger = get_logger(__name__)
+    
+    # Validate input
+    if not tickers:
+        logger.warning("No tickers provided to download_market_data")
+        return {}
+        
+    # Initialize provider (async for better performance)
+    provider = get_provider(async_api=True, provider_name=provider_name)
+    
+    # Define the data download function
+    async def fetch_all_data():
+        results = {}
+        
+        try:
+            # Batch fetch ticker info for all tickers
+            logger.info(f"Downloading market data for {len(tickers)} tickers")
+            
+            # Fetch basic ticker info (always included)
+            info_results = await provider.batch_get_ticker_info(tickers)
+            
+            # Initialize results dictionary with basic info
+            for ticker, info in info_results.items():
+                if info:
+                    results[ticker] = info
+                    # Add source information
+                    results[ticker]['data_source'] = getattr(provider, 'name', 'unknown')
+            
+            # Fetch additional data based on flags
+            if include_analyst_data:
+                logger.info("Fetching analyst data...")
+                analyst_results = await provider.batch_get_analyst_data(tickers)
+                # Merge analyst data into results
+                for ticker, data in analyst_results.items():
+                    if ticker in results and data:
+                        results[ticker].update(data)
+            
+            if include_price_data:
+                logger.info("Fetching price data...")
+                price_results = await provider.batch_get_price_data(tickers)
+                # Merge price data into results
+                for ticker, data in price_results.items():
+                    if ticker in results and data:
+                        results[ticker].update(data)
+            
+            if include_financial_data:
+                logger.info("Fetching financial data...")
+                financial_results = await provider.batch_get_financial_data(tickers)
+                # Merge financial data into results
+                for ticker, data in financial_results.items():
+                    if ticker in results and data:
+                        results[ticker].update(data)
+            
+            logger.info(f"Successfully downloaded data for {len(results)} tickers")
+            return results
+            
+        except APIError as e:
+            logger.error(f"API error while downloading market data: {str(e)}")
+            raise
+        except YFinanceError as e:
+            logger.error(f"Error downloading market data: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error downloading market data: {str(e)}")
+            raise APIError(f"Unexpected error downloading market data: {str(e)}")
+    
+    # Run the async function
+    try:
+        return asyncio.run(fetch_all_data())
+    except Exception as e:
+        logger.error(f"Error in download_market_data: {str(e)}")
+        raise
 
 
 def fallback_portfolio_download():
