@@ -2837,7 +2837,14 @@ async def _process_batch(provider, batch, batch_num, total_batches, processed_so
         pbar.set_description(f"Fetching batch {batch_num+1}/{total_batches} ({len(batch)} tickers)")
 
         # Make one call to the provider's batch method for the entire batch
-        batch_results_dict = await provider.batch_get_ticker_info(batch)
+        # Handle both awaitable and non-awaitable results
+        batch_result = provider.batch_get_ticker_info(batch)
+        if isinstance(batch_result, dict):
+            # Provider returned a dict directly (synchronous implementation)
+            batch_results_dict = batch_result
+        else:
+            # Provider returned an awaitable (asynchronous implementation)
+            batch_results_dict = await batch_result
 
         # Process the results dictionary
         for ticker in batch: # Iterate through the original batch list to maintain order if needed
