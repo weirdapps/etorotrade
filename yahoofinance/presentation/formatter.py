@@ -481,3 +481,74 @@ class DisplayFormatter:
         """
         # Use the shared signal calculation method
         return self._calculate_signal(ticker_data)
+
+
+def create_formatter(
+    output_format: str = 'console',
+    compact_mode: bool = False,
+    show_colors: bool = True,
+    **kwargs
+) -> Union[DisplayFormatter, Any]:
+    """
+    Factory function to create an appropriate formatter based on output format.
+    
+    This function creates and returns a formatter appropriate for the
+    specified output format. It's designed to be used with the dependency
+    injection system.
+    
+    Args:
+        output_format: The desired output format ('console', 'html', etc.)
+        compact_mode: Whether to use compact formatting
+        show_colors: Whether to include colors in output
+        **kwargs: Additional keyword arguments passed to formatter constructor
+        
+    Returns:
+        An appropriate formatter instance for the specified format
+        
+    Raises:
+        ValidationError: When the output format is invalid or not supported
+    """
+    from yahoofinance.core.errors import ValidationError
+    from yahoofinance.core.logging_config import get_logger
+    
+    logger = get_logger(__name__)
+    
+    try:
+        if output_format == 'console':
+            # Return standard display formatter for console output
+            formatter = DisplayFormatter(compact_mode=compact_mode)
+            # Apply additional configuration
+            formatter.config.show_colors = show_colors
+            for key, value in kwargs.items():
+                if hasattr(formatter.config, key):
+                    setattr(formatter.config, key, value)
+            return formatter
+            
+        elif output_format == 'html':
+            # Import HTML formatter dynamically to avoid circular imports
+            try:
+                from yahoofinance.presentation.html import HTMLFormatter
+                return HTMLFormatter(compact_mode=compact_mode, **kwargs)
+            except ImportError:
+                logger.error("HTML formatter not available")
+                raise ValidationError("HTML formatter not available")
+                
+        elif output_format == 'json':
+            # Import JSON formatter dynamically to avoid circular imports
+            # This is a placeholder for potential JSON formatting
+            try:
+                from yahoofinance.presentation.json_format import JSONFormatter
+                return JSONFormatter(**kwargs)
+            except ImportError:
+                logger.error("JSON formatter not available")
+                raise ValidationError("JSON formatter not available")
+                
+        else:
+            logger.error(f"Invalid output format: {output_format}")
+            raise ValidationError(f"Invalid output format: {output_format}")
+            
+    except Exception as e:
+        logger.error(f"Error creating formatter: {str(e)}")
+        # Fall back to basic formatter if possible
+        logger.info("Falling back to basic display formatter")
+        return DisplayFormatter(compact_mode=compact_mode)

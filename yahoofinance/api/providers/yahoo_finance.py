@@ -343,7 +343,7 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                     transaction = {
                         "name": row.get("Holder", ""),
                         "shares": row.get("Shares", 0),
-                        "date": self.format_date(row.get("Date Reported", None)),
+                        "date": str(row.get("Date Reported", "")),
                         "value": row.get("Value", 0),
                         "pct_out": row.get("% Out", 0) * 100 if row.get("% Out") else 0,
                     }

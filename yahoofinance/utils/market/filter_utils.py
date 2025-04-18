@@ -6,6 +6,7 @@ various criteria such as market cap, sector, and performance.
 """
 
 from typing import List, Dict, Any, Union, Optional, Tuple, Set
+from ..trade_criteria import evaluate_trade_criteria
 
 
 def filter_by_market_cap(
@@ -153,3 +154,79 @@ def filter_by_performance(
         filtered.append(stock)
     
     return filtered
+
+
+def filter_tickers_by_criteria(
+    tickers_data: List[Dict[str, Any]],
+    action_filter: Optional[str] = None,
+    min_upside: Optional[float] = None,
+    min_buy_percentage: Optional[float] = None,
+    max_pe: Optional[float] = None,
+    min_market_cap: Optional[float] = None
+) -> List[Dict[str, Any]]:
+    """
+    Filter tickers based on specified trading criteria and additional filters.
+    
+    This function first evaluates trading criteria for each ticker using the
+    standard trading rules defined in the system, and then applies additional
+    filters specified as parameters.
+    
+    Args:
+        tickers_data: List of ticker data dictionaries
+        action_filter: Filter by action type ('BUY', 'SELL', 'HOLD', 'NEUTRAL', None for all)
+        min_upside: Minimum upside potential percentage
+        min_buy_percentage: Minimum analyst buy percentage
+        max_pe: Maximum P/E ratio
+        min_market_cap: Minimum market capitalization
+        
+    Returns:
+        Filtered list of tickers that match all specified criteria
+    """
+    # First apply the standard trading criteria
+    results = []
+    
+    for ticker_data in tickers_data:
+        # Skip tickers without basic required data
+        if not ticker_data:
+            continue
+            
+        # Evaluate trading criteria to determine action
+        action = evaluate_trade_criteria(ticker_data)
+        
+        # Add action to ticker data
+        ticker_data['action'] = action
+        
+        # Filter by action if specified
+        if action_filter and action != action_filter:
+            continue
+            
+        # Apply additional filters
+        
+        # Upside filter
+        if min_upside is not None:
+            upside = ticker_data.get('upside')
+            if upside is None or upside < min_upside:
+                continue
+                
+        # Buy percentage filter
+        if min_buy_percentage is not None:
+            buy_pct = ticker_data.get('buy_percentage')
+            if buy_pct is None or buy_pct < min_buy_percentage:
+                continue
+                
+        # P/E filter
+        if max_pe is not None:
+            pe = ticker_data.get('pe_forward', ticker_data.get('pe_trailing'))
+            if pe is not None and pe > max_pe:
+                continue
+                
+        # Market cap filter
+        if min_market_cap is not None:
+            market_cap = ticker_data.get('market_cap')
+            if market_cap is None or market_cap < min_market_cap:
+                continue
+                
+        # Ticker passed all filters
+        results.append(ticker_data)
+        
+    return results

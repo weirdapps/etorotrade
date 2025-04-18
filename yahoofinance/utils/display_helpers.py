@@ -406,6 +406,52 @@ def _format_color_text(text, color_code):
     return f"\033[{color_code}m{text}\033[0m"
 
 @with_retry
+def create_display(output_format='console', **kwargs):
+    """
+    Factory function to create an appropriate display instance.
+    
+    This function creates and returns a display appropriate for the
+    specified output format. It acts as a bridge to the formatter system.
+    
+    Args:
+        output_format: The desired output format ('console', 'html', etc.)
+        **kwargs: Additional keyword arguments passed to display constructor
+        
+    Returns:
+        An appropriate display instance for the specified format
+        
+    Raises:
+        ValidationError: When the output format is invalid or not supported
+    """
+    from yahoofinance.core.errors import ValidationError
+    from yahoofinance.core.logging_config import get_logger
+    
+    logger = get_logger(__name__)
+    
+    try:
+        if output_format == 'console':
+            # Import console display dynamically to avoid circular imports
+            from yahoofinance.presentation.console import ConsoleDisplay
+            return ConsoleDisplay(**kwargs)
+            
+        elif output_format == 'html':
+            # Import HTML display dynamically to avoid circular imports
+            from yahoofinance.presentation.html import HTMLDisplay
+            return HTMLDisplay(**kwargs)
+            
+        else:
+            logger.error(f"Invalid display format: {output_format}")
+            raise ValidationError(f"Invalid display format: {output_format}")
+            
+    except Exception as e:
+        logger.error(f"Error creating display: {str(e)}")
+        # Fall back to basic display if possible
+        try:
+            from yahoofinance.presentation.console import ConsoleDisplay
+            logger.info("Falling back to console display")
+            return ConsoleDisplay(**kwargs)
+        except Exception:
+            raise ValidationError(f"Could not create any display: {str(e)}")
 
 
 def _get_confidence_status(analyst_count, price_targets, min_analysts, min_targets):
