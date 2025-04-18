@@ -211,8 +211,16 @@ def handle_password_submit(driver, password_input, password):
     
     # List of different button selectors to try
     button_selectors = [
+        # Exact match for the specific button class from pi-screener
+        (By.CSS_SELECTOR, "button.firebaseui-id-submit"),
+        (By.CSS_SELECTOR, "button.mdl-button--colored[type='submit']"),
+        (By.CSS_SELECTOR, "button.firebaseui-button"),
+        (By.CSS_SELECTOR, "button.mdl-button--raised"),
+        # More general selectors as fallbacks
+        (By.XPATH, "//button[@type='submit']"),
         (By.XPATH, "//button[contains(text(), 'Sign in')]"),
         (By.XPATH, "//button[contains(text(), 'SIGN IN')]"),
+        (By.XPATH, "//button[contains(text(), 'Sign In')]"),
         (By.XPATH, "//button[contains(text(), 'Login')]"),
         (By.XPATH, "//button[contains(text(), 'Log in')]"),
         (By.XPATH, "//button[contains(@class, 'signin')]"),
