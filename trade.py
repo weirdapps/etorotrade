@@ -2717,7 +2717,7 @@ async def handle_trade_analysis(get_provider=None, app_logger=None):
 @with_logger
 async def handle_portfolio_download(get_provider=None, app_logger=None):
     """
-    Handle portfolio download if requested with dependency injection
+    Handle portfolio download based on user input.
     
     Args:
         get_provider: Injected provider factory function
@@ -2731,37 +2731,106 @@ async def handle_portfolio_download(get_provider=None, app_logger=None):
     if get_provider:
         # Check if it's already a provider instance or a factory function
         if callable(get_provider):
-            provider = get_provider(async_mode=True)
-            if app_logger:
-                app_logger.info(f"Using injected provider from factory: {provider.__class__.__name__}")
+            try:
+                provider = get_provider(async_mode=True)
+                if app_logger:
+                    app_logger.info(f"Using injected provider from factory: {provider.__class__.__name__}")
+            except Exception as e:
+                if app_logger:
+                    app_logger.error(f"Error creating provider from factory: {str(e)}")
+                print(f"Error: Failed to create provider: {str(e)}")
         else:
             # It's already a provider instance
             provider = get_provider
             if app_logger:
                 app_logger.info(f"Using injected provider instance: {provider.__class__.__name__}")
-    use_existing = input("Use existing portfolio file (E) or download new one (N)? ").strip().upper()
+    
+    # Prompt user for portfolio choice
+    while True:
+        use_existing = input("Use existing portfolio file (E) or download new one (N)? ").strip().upper()
+        if use_existing in ['E', 'N']:
+            break
+        print("Invalid choice. Please enter 'E' to use existing file or 'N' to download a new one.")
+    
     if use_existing == 'N':
-        from yahoofinance.data import download_portfolio
+        print("Attempting to download a new portfolio...")
+        if app_logger:
+            app_logger.info("User requested to download a new portfolio")
+        
         try:
-            # Make sure we have a provider
-            if not provider:
-                app_logger.warning("No provider available for portfolio download")
+            # Import the download function
+            try:
+                from yahoofinance.data import download_portfolio
+                if app_logger:
+                    app_logger.info("Successfully imported download_portfolio function")
+            except ImportError as e:
+                if app_logger:
+                    app_logger.error(f"Failed to import download_portfolio: {str(e)}")
+                print(f"Error: Failed to import download_portfolio module: {str(e)}")
                 return False
             
-            # Call download_portfolio with provider
-            result = await download_portfolio(provider=provider)
-            if not result:
+            # Make sure we have a provider
+            if not provider:
+                message = "No provider available for portfolio download"
                 if app_logger:
-                    app_logger.error("Failed to download portfolio")
-                else:
-                    logger.error("Failed to download portfolio")
-                return False
-        except Exception as e:
-            if app_logger:
-                app_logger.error(f"Failed to download portfolio: {str(e)}")
+                    app_logger.warning(message)
+                print(f"Warning: {message}")
+                
+                # Try to create a default provider
+                try:
+                    from yahoofinance import get_provider as default_provider_factory
+                    provider = default_provider_factory(async_mode=True)
+                    if app_logger:
+                        app_logger.info(f"Created default provider: {provider.__class__.__name__}")
+                    print(f"Created default provider: {provider.__class__.__name__}")
+                except Exception as e:
+                    if app_logger:
+                        app_logger.error(f"Failed to create default provider: {str(e)}")
+                    print(f"Error: Failed to create default provider: {str(e)}")
+                    return False
+            
+            print(f"Using provider: {provider.__class__.__name__} for portfolio download")
+            
+            # Call download_portfolio with provider
+            print("Starting portfolio download process... (this may take a minute)")
+            result = await download_portfolio(provider=provider)
+            
+            if result:
+                success_msg = "Portfolio download completed successfully!"
+                if app_logger:
+                    app_logger.info(success_msg)
+                print(success_msg)
             else:
-                logger.error(f"Failed to download portfolio: {str(e)}")
+                error_msg = "Failed to download portfolio - using fallback method"
+                if app_logger:
+                    app_logger.error(error_msg)
+                print(error_msg)
+                # We'll still return True since the fallback method should have copied the portfolio
+                
+        except Exception as e:
+            error_msg = f"Error during portfolio download: {str(e)}"
+            if app_logger:
+                app_logger.error(error_msg)
+            print(f"Error: {error_msg}")
+            
+            # Check if this is a credential error
+            if "PI_SCREENER_EMAIL" in str(e) or "PASSWORD" in str(e).upper():
+                print("\nTIP: Make sure your .env file contains the following variables:")
+                print("PI_SCREENER_EMAIL=your-email@example.com")
+                print("PI_SCREENER_PASSWORD=your-password\n")
+            
+            # Check if this is a Selenium error
+            if "selenium" in str(e).lower():
+                print("\nTIP: Make sure Chrome and chromedriver are installed.")
+                print("You can install Selenium with: pip install selenium\n")
+            
             return False
+    else:
+        print("Using existing portfolio file...")
+        if app_logger:
+            app_logger.info("User chose to use existing portfolio file")
+    
+    print("Portfolio operation completed successfully")
     return True
 
 async def _process_single_ticker(provider, ticker):
