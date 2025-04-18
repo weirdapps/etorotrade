@@ -7,11 +7,13 @@ This version uses the enhanced components from yahoofinance:
 - Circuit breaker pattern for improved reliability
 - Disk-based caching for better performance
 - Provider pattern for data access abstraction
-- Dependency injection for improved testability and maintainability
 """
 
 import sys
 import logging
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import os
 import warnings
 import pandas as pd
@@ -23,22 +25,6 @@ import time
 import datetime
 from tabulate import tabulate
 from tqdm import tqdm
-from typing import Dict, Any, List, Optional, Union, Set
-
-# Import dependency injection system first
-from yahoofinance.di_container import (
-    initialize, 
-    with_provider, 
-    with_analyzer, 
-    with_portfolio_analyzer,
-    with_display,
-    with_logger
-)
-from yahoofinance.utils.dependency_injection import registry, inject
-
-# Import error handling system
-from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
-from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 from yahoofinance.core.logging_config import get_logger, configure_logging
 
 # Use standardized logging configuration
@@ -56,23 +42,21 @@ configure_logging(
 # Create a logger for this module
 logger = get_logger(__name__)
 
-# Initialize the dependency injection system
-initialize()
-
 # Suppress warnings that might clutter the CLI
 warnings.filterwarnings("ignore")
 os.environ['PYTHONWARNINGS'] = 'ignore'
 
 try:
-    # Use dependency injection to get components when possible
     from yahoofinance.api import get_provider
+    # Import the specific base class needed for type checking if required
     from yahoofinance.api.providers.base_provider import AsyncFinanceDataProvider
+    # Import the new Async Hybrid provider
     from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
     from yahoofinance.presentation.formatter import DisplayFormatter
     from yahoofinance.presentation.console import MarketDisplay
     from yahoofinance.utils.network.circuit_breaker import get_all_circuits
     from yahoofinance.core.config import FILE_PATHS, PATHS, COLUMN_NAMES, STANDARD_DISPLAY_COLUMNS
-    from yahoofinance.utils.market.ticker_utils import validate_ticker
+    from yahoofinance.utils.market.ticker_utils import validate_ticker # Needed by the moved provider code
 except ImportError as e:
     # Use print for guaranteed visibility during startup issues
     print(f"FATAL IMPORT ERROR: {str(e)}", file=sys.stderr)
@@ -119,9 +103,7 @@ INTERNAL_TO_DISPLAY_MAP = {
     'peg_ratio': 'PEG',
     'dividend_yield': 'DIV %',
     'short_float_pct': 'SI',
-    'short_percent': 'SI',  # V2 naming
     'last_earnings': 'EARNINGS',
-    'earnings_date': 'EARNINGS',  # Add mapping for earnings_date
     'position_size': 'SIZE',
     'action': 'ACT'
 }
@@ -785,45 +767,6 @@ def prepare_display_dataframe(df):
     # Add concise debug log for input size
     if len(working_df) > 1000:
         logger.debug(f"Formatting {len(working_df)} rows")
-        
-    # Ensure dividend yield is in the expected format for display (same raw value from provider)
-    # The formatter will multiply by 100 for display, so we leave the values as is
-    logger.debug(f"Preserving dividend yield format for {len(working_df)} rows")
-    
-    # Debug all column values for first row
-    if not working_df.empty:
-        first_row = working_df.iloc[0]
-        logger.debug(f"First row column values for debugging:")
-        for col in sorted(first_row.index):
-            logger.debug(f"  {col}: {first_row[col]}")
-    
-    # Process short interest data - make sure it's properly formatted and available in the SI column
-    if 'short_percent' in working_df.columns:
-        logger.debug(f"Processing short interest data from short_percent: {working_df['short_percent'].head(2).tolist()}")
-        # Always use the short_percent column directly for SI values
-        working_df['SI'] = working_df['short_percent']
-        # Make sure it's a float and formatted properly
-        working_df['SI'] = working_df['SI'].apply(
-            lambda x: float(x) if pd.notnull(x) and x != "--" else 0.0
-        )
-    
-    # Make sure PEG ratio is properly mapped and formatted
-    if 'peg_ratio' in working_df.columns:
-        logger.debug(f"Processing PEG ratio data: {working_df['peg_ratio'].head(2).tolist()}")
-        # Always use peg_ratio column directly
-        working_df['PEG'] = working_df['peg_ratio']
-        # Improved handling for edge cases to ensure proper conversion
-        working_df['PEG'] = working_df['PEG'].apply(
-            lambda x: float(x) if pd.notnull(x) and x != "--" and str(x).strip() != "" and not pd.isna(x) else "--"
-        )
-        logger.debug(f"PEG values after processing: {working_df['PEG'].head(2).tolist()}")
-        
-    # Process earnings date data if available
-    if 'earnings_date' in working_df.columns:
-        logger.debug(f"Processing earnings date data: {working_df['earnings_date'].head(2).tolist()}")
-        # Map earnings_date to EARNINGS column
-        working_df['EARNINGS'] = working_df['earnings_date']
-        logger.debug(f"EARNINGS values after processing: {working_df['EARNINGS'].head(2).tolist()}")
     
     # Format company names
     working_df = _format_company_names(working_df)
@@ -902,13 +845,13 @@ def format_numeric_columns(display_df, columns, format_str):
                         return "--"
                     try:
                         if isinstance(x, (int, float)):
-                            # Format directly with % sign - values are already in the right format
+                            # Format as float, then add % sign
                             return f"{float(x):{fmt}}%"
                         elif isinstance(x, str):
                             # Remove percentage sign if present
                             clean_x = x.replace('%', '').strip()
                             if clean_x and clean_x != "--":
-                                # Format as float, then add % sign - for strings we assume it's already a percentage
+                                # Format as float, then add % sign
                                 return f"{float(clean_x):{fmt}}%"
                     except Exception as e:
                         # Just continue with original value on error
@@ -1053,8 +996,8 @@ def format_display_dataframe(display_df):
     
     # Format dividend yield with 2 decimal places
     if DIVIDEND_YIELD in display_df.columns:
-        # Just format the raw value directly with 2 decimal places and % sign
-        # No conversion needed - let format_numeric_columns handle it
+        # Format dividend yield as number with 2 decimal places (column name implies %)
+        # Use the correct format string with '%' to trigger percentage formatting
         display_df = format_numeric_columns(display_df, [DIVIDEND_YIELD], '.2f%')
     
     # Format date columns
@@ -2438,31 +2381,23 @@ def _setup_trade_recommendation_paths():
         # Handle error silently
         return None, None, None, None, None
 
-@with_logger
-async def _process_hold_action(market_path, output_dir, output_files, provider=None, app_logger=None):
-    """
-    Process hold action type with dependency injection
+def _process_hold_action(market_path, output_dir, output_files):
+    """Process hold action type.
     
     Args:
         market_path: Path to market data file
         output_dir: Output directory
         output_files: Dictionary of output file paths
-        provider: Injected provider component
-        app_logger: Injected logger component
         
     Returns:
         bool: True if successful, False otherwise
     """
     if not os.path.exists(market_path):
-        if app_logger:
-            app_logger.error(f"Market file not found: {market_path}")
-        else:
-            logger.error(f"Market file not found: {market_path}")
+        logger.error(f"Market file not found: {market_path}")
         print("Please run the market analysis (M) first to generate data.")
         return False
     
-    return await _process_trade_action('H', output_dir=output_dir, output_files=output_files, 
-                                      provider=provider, app_logger=app_logger)
+    return _process_trade_action('H', output_dir=output_dir, output_files=output_files)
 
 def _load_data_files(market_path, portfolio_path):
     """Load market and portfolio data files.
@@ -2521,10 +2456,8 @@ def _extract_portfolio_tickers(portfolio_df):
         # Handle error silently
         return None
 
-@with_logger
-async def _process_trade_action(action_type, market_df=None, portfolio_tickers=None, output_dir=None, notrade_path=None, output_files=None, provider=None, app_logger=None):
-    """
-    Process a trade action type (buy, sell, or hold) with dependency injection
+def _process_trade_action(action_type, market_df=None, portfolio_tickers=None, output_dir=None, notrade_path=None, output_files=None):
+    """Process a trade action type (buy, sell, or hold).
     
     Args:
         action_type: 'N' for buy, 'E' for sell, 'H' for hold
@@ -2533,8 +2466,6 @@ async def _process_trade_action(action_type, market_df=None, portfolio_tickers=N
         output_dir: Output directory (required for all)
         notrade_path: Path to notrade file (required for buy)
         output_files: Dictionary of output file paths (required for all)
-        provider: Injected provider component
-        app_logger: Injected logger component
         
     Returns:
         bool: True if successful, False otherwise
@@ -2543,29 +2474,25 @@ async def _process_trade_action(action_type, market_df=None, portfolio_tickers=N
         'N': {
             'name': 'BUY',
             'message': 'Processing BUY opportunities...',
-            'processor': lambda: process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_path, provider=provider),
+            'processor': lambda: process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_path),
             'output_key': 'buy'
         },
         'E': {
             'name': 'SELL',
             'message': 'Processing SELL candidates from portfolio...',
-            'processor': lambda: process_sell_candidates(output_dir, provider=provider),
+            'processor': lambda: process_sell_candidates(output_dir),
             'output_key': 'sell'
         },
         'H': {
             'name': 'HOLD',
             'message': 'Processing HOLD candidates...',
-            'processor': lambda: process_hold_candidates(output_dir, provider=provider),
+            'processor': lambda: process_hold_candidates(output_dir),
             'output_key': 'hold'
         }
     }
     
     # Check if action type is supported
     if action_type not in action_data:
-        if app_logger:
-            app_logger.error(f"Unsupported action type: {action_type}")
-        else:
-            logger.error(f"Unsupported action type: {action_type}")
         return False
     
     # Get action data
@@ -2590,38 +2517,16 @@ def _process_buy_action(market_df, portfolio_tickers, output_dir, notrade_path, 
 def _process_sell_action(output_dir, output_file):
     return _process_trade_action('E', output_dir=output_dir, output_files={'sell': output_file})
 
-@with_logger
-async def _process_buy_or_sell_action(action_type, market_df, portfolio_tickers, output_dir, notrade_path, output_files, provider=None, app_logger=None):
-    """
-    Process buy or sell action with dependency injection
-    
-    Args:
-        action_type: Action type ('N' or 'E')
-        market_df: Market dataframe
-        portfolio_tickers: Set of portfolio tickers
-        output_dir: Output directory
-        notrade_path: Path to notrade file
-        output_files: Dictionary of output file paths
-        provider: Injected provider component
-        app_logger: Injected logger component
-        
-    Returns:
-        bool: True if successful, False otherwise
-    """
+def _process_buy_or_sell_action(action_type, market_df, portfolio_tickers, output_dir, notrade_path, output_files):
     if action_type not in ['N', 'E']:
         return False
-    return await _process_trade_action(action_type, market_df, portfolio_tickers, output_dir, notrade_path, output_files,
-                                      provider=provider, app_logger=app_logger)
+    return _process_trade_action(action_type, market_df, portfolio_tickers, output_dir, notrade_path, output_files)
 
-@with_logger
-async def generate_trade_recommendations(action_type, provider=None, app_logger=None):
-    """
-    Generate trade recommendations based on analysis with dependency injection
+def generate_trade_recommendations(action_type):
+    """Generate trade recommendations based on analysis.
     
     Args:
         action_type: 'N' for new buy opportunities, 'E' for existing portfolio (sell), 'H' for hold candidates
-        provider: Injected provider component
-        app_logger: Injected logger component
     """
     try:
         # Set up paths
@@ -2635,7 +2540,7 @@ async def generate_trade_recommendations(action_type, provider=None, app_logger=
         
         # For hold candidates, we only need the market file
         if action_type == 'H':
-            await _process_hold_action(market_path, output_dir, output_files, provider=provider, app_logger=app_logger)
+            _process_hold_action(market_path, output_dir, output_files)
             return
         
         # For buy/sell, check if required files exist
@@ -2653,114 +2558,36 @@ async def generate_trade_recommendations(action_type, provider=None, app_logger=
             return
         
         # Process according to action type
-        await _process_buy_or_sell_action(action_type, market_df, portfolio_tickers, output_dir, notrade_path, output_files, 
-                                          provider=provider, app_logger=app_logger)
+        _process_buy_or_sell_action(action_type, market_df, portfolio_tickers, output_dir, notrade_path, output_files)
     
     except YFinanceError as e:
-        if app_logger:
-            app_logger.error(f"Error generating trade recommendations: {str(e)}")
-        else:
-            logger.error(f"Error generating trade recommendations: {str(e)}")
+        logger.error(f"Error generating trade recommendations: {str(e)}")
         # Handle error silently
         # Suppress stack trace
 
-@with_provider
-@with_logger
-async def handle_trade_analysis(get_provider=None, app_logger=None):
-    """
-    Handle trade analysis (buy/sell/hold) flow with dependency injection
-    
-    Args:
-        get_provider: Injected provider factory function
-        app_logger: Injected logger component
-    """
-    # Create provider instance if needed
-    provider = None
-    if get_provider:
-        # Check if it's already a provider instance or a factory function
-        if callable(get_provider):
-            provider = get_provider(async_mode=True)
-            if app_logger:
-                app_logger.info(f"Using injected provider from factory: {provider.__class__.__name__}")
-        else:
-            # It's already a provider instance
-            provider = get_provider
-            if app_logger:
-                app_logger.info(f"Using injected provider instance: {provider.__class__.__name__}")
+def handle_trade_analysis():
+    """Handle trade analysis (buy/sell/hold) flow"""
     action = input("Do you want to identify BUY (B), SELL (S), or HOLD (H) opportunities? ").strip().upper()
     if action == BUY_ACTION:
-        if app_logger:
-            app_logger.info("User selected BUY analysis")
-        else:
-            logger.info("User selected BUY analysis")
-        await generate_trade_recommendations(NEW_BUY_OPPORTUNITIES, provider=provider, app_logger=app_logger)  # 'N' for new buy opportunities
+        logger.info("User selected BUY analysis")
+        generate_trade_recommendations(NEW_BUY_OPPORTUNITIES)  # 'N' for new buy opportunities
     elif action == SELL_ACTION:
-        if app_logger:
-            app_logger.info("User selected SELL analysis")
-        else:
-            logger.info("User selected SELL analysis")
-        await generate_trade_recommendations(EXISTING_PORTFOLIO, provider=provider, app_logger=app_logger)  # 'E' for existing portfolio (sell)
+        logger.info("User selected SELL analysis")
+        generate_trade_recommendations(EXISTING_PORTFOLIO)  # 'E' for existing portfolio (sell)
     elif action == HOLD_ACTION:
-        if app_logger:
-            app_logger.info("User selected HOLD analysis")
-        else:
-            logger.info("User selected HOLD analysis")
-        await generate_trade_recommendations(HOLD_ACTION, provider=provider, app_logger=app_logger)  # 'H' for hold candidates
+        logger.info("User selected HOLD analysis")
+        generate_trade_recommendations(HOLD_ACTION)  # 'H' for hold candidates
     else:
-        if app_logger:
-            app_logger.warning(f"Invalid option: {action}")
-        else:
-            logger.warning(f"Invalid option: {action}")
+        logger.warning(f"Invalid option: {action}")
         print(f"Invalid option. Please select '{BUY_ACTION}', '{SELL_ACTION}', or '{HOLD_ACTION}'.")
 
-@with_provider
-@with_logger
-async def handle_portfolio_download(get_provider=None, app_logger=None):
-    """
-    Handle portfolio download if requested with dependency injection
-    
-    Args:
-        get_provider: Injected provider factory function
-        app_logger: Injected logger component
-        
-    Returns:
-        bool: True if portfolio is available, False otherwise
-    """
-    # Create provider instance if needed
-    provider = None
-    if get_provider:
-        # Check if it's already a provider instance or a factory function
-        if callable(get_provider):
-            provider = get_provider(async_mode=True)
-            if app_logger:
-                app_logger.info(f"Using injected provider from factory: {provider.__class__.__name__}")
-        else:
-            # It's already a provider instance
-            provider = get_provider
-            if app_logger:
-                app_logger.info(f"Using injected provider instance: {provider.__class__.__name__}")
+def handle_portfolio_download():
+    """Handle portfolio download if requested"""
     use_existing = input("Use existing portfolio file (E) or download new one (N)? ").strip().upper()
     if use_existing == 'N':
         from yahoofinance.data import download_portfolio
-        try:
-            # Make sure we have a provider
-            if not provider:
-                app_logger.warning("No provider available for portfolio download")
-                return False
-            
-            # Call download_portfolio with provider
-            result = await download_portfolio(provider=provider)
-            if not result:
-                if app_logger:
-                    app_logger.error("Failed to download portfolio")
-                else:
-                    logger.error("Failed to download portfolio")
-                return False
-        except Exception as e:
-            if app_logger:
-                app_logger.error(f"Failed to download portfolio: {str(e)}")
-            else:
-                logger.error(f"Failed to download portfolio: {str(e)}")
+        if not download_portfolio():
+            logger.error("Failed to download portfolio")
             return False
     return True
 
@@ -2862,8 +2689,6 @@ async def _process_batch(provider, batch, batch_num, total_batches, processed_so
             'errors': 0,
             'cache_hits': 0
         }
-        
-    # Provider is ready to use
     
     results = []
     success_count = 0
@@ -2880,21 +2705,12 @@ async def _process_batch(provider, batch, batch_num, total_batches, processed_so
         pbar.set_description(f"Fetching batch {batch_num+1}/{total_batches} ({len(batch)} tickers)")
 
         # Make one call to the provider's batch method for the entire batch
-        # Handle both awaitable and non-awaitable results
-        batch_result = provider.batch_get_ticker_info(batch)
-        if isinstance(batch_result, dict):
-            # Provider returned a dict directly (synchronous implementation)
-            batch_results_dict = batch_result
-        else:
-            # Provider returned an awaitable (asynchronous implementation)
-            batch_results_dict = await batch_result
+        batch_results_dict = await provider.batch_get_ticker_info(batch)
 
         # Process the results dictionary
         for ticker in batch: # Iterate through the original batch list to maintain order if needed
             info = batch_results_dict.get(ticker)
             if info and not info.get("error"):
-                # Batch processing with this ticker
-                
                 results.append(info)
                 success_count += 1
                 counters['success'] += 1
@@ -3255,13 +3071,10 @@ async def fetch_ticker_data(provider, tickers):
     Args:
         provider: Data provider
         tickers: List of ticker symbols
-    
+        
     Returns:
         tuple: (pd.DataFrame with ticker data, dict with processing stats)
     """
-    # Debug logging
-    logger.debug(f"fetch_ticker_data called with provider={provider.__class__.__name__}")
-    logger.debug(f"tickers: {tickers[:3] if tickers else []}")
     start_time = time.time()
     results = []
     all_tickers = tickers.copy()  # Keep a copy of all tickers
@@ -3307,40 +3120,6 @@ async def fetch_ticker_data(provider, tickers):
                 batch_results, updated_counters = await _process_batch(
                     provider, batch, batch_num, total_batches, processed_so_far, pbar, counters
                 )
-                # Debug logging for batch results
-                if logger.isEnabledFor(logging.DEBUG):
-                    logger.debug(f"batch_results type: {type(batch_results)}")
-                    if isinstance(batch_results, list) and len(batch_results) > 0:
-                        logger.debug(f"batch_results[0] keys: {list(batch_results[0].keys())[:5]}")
-                    elif isinstance(batch_results, dict) and len(batch_results) > 0:
-                        first_key = list(batch_results.keys())[0]
-                        logger.debug(f"batch_results[{first_key}] keys: {list(batch_results[first_key].keys())[:5]}")
-                
-                # Log batch results data for debugging if needed
-                if batch_results and logger.isEnabledFor(logging.DEBUG):
-                    # Extract first result for logging purposes
-                    first_result = {}
-                    ticker = "unknown"
-                    
-                    if isinstance(batch_results, list) and len(batch_results) > 0:
-                        first_result = batch_results[0]
-                        ticker = first_result.get('symbol', first_result.get('ticker', 'unknown'))
-                    elif isinstance(batch_results, dict) and len(batch_results) > 0:
-                        ticker = list(batch_results.keys())[0]
-                        first_result = batch_results[ticker]
-                    else:
-                        logger.debug("batch_results has unexpected structure")
-                    
-                    # Log key data fields at debug level (won't show in production)
-                    debug_fields = ['analyst_count', 'total_ratings', 'buy_percentage', 
-                                   'peg_ratio', 'short_percent', 'earnings_date', 'dividend_yield',
-                                   'target_price', 'upside', 'data_source', 'pe_forward', 'pe_trailing']
-                    
-                    log_data = {field: first_result.get(field) for field in debug_fields 
-                                if field in first_result and first_result.get(field) is not None}
-                    
-                    logger.debug(f"Data for {ticker}: {log_data}")
-                
                 results.extend(batch_results)
                 counters = updated_counters  # Update counters with the returned values
                 
@@ -3727,9 +3506,8 @@ def _sort_display_dataframe(display_df):
     # Already numeric, sort directly
     return display_df.sort_values('EXRET', ascending=False)
 
-async def _prepare_ticker_data(display, tickers, source):
-    """
-    Prepare ticker data for the report
+def _prepare_ticker_data(display, tickers, source):
+    """Prepare ticker data for the report
     
     Args:
         display: Display object for rendering
@@ -3754,7 +3532,7 @@ async def _prepare_ticker_data(display, tickers, source):
     
     # Fetch ticker data
     print("\nFetching market data...")
-    result_df, processing_stats = await fetch_ticker_data(provider, tickers)
+    result_df, processing_stats = asyncio.run(fetch_ticker_data(provider, tickers))
     
     # Set up output files
     output_file, report_title = _setup_output_files(report_source)
@@ -3884,46 +3662,20 @@ def _display_color_key(min_analysts, min_targets):
     print(f"\033[93m■\033[0m YELLOW: LOW CONFIDENCE - Insufficient analyst coverage (<{min_analysts} analysts or <{min_targets} price targets)")
     print("\033[0m■ WHITE: HOLD - Passes confidence threshold but doesn't meet buy or sell criteria, or missing primary criteria data)")
 
-@with_provider
-@with_logger
-async def display_report_for_source(display, tickers, source, verbose=False, get_provider=None, app_logger=None):
-    """
-    Display report for the selected source with dependency injection
+def display_report_for_source(display, tickers, source, verbose=False):
+    """Display report for the selected source
     
     Args:
         display: Display object for rendering
         tickers: List of tickers to display
         source: Source type ('P', 'M', 'E', 'I')
         verbose: Enable verbose logging for debugging
-        get_provider: Injected provider factory function
-        app_logger: Injected logger component
     """
-    # Optional debugging for source and tickers
-    if app_logger:
-        app_logger.debug(f"display_report_for_source called with source={source}")
-        app_logger.debug(f"tickers: {tickers[:3] if tickers else []}")
     # Import trading criteria for consistent display
     from yahoofinance.core.config import TRADING_CRITERIA
     
-    # Create provider instance if needed
-    provider = None
-    if get_provider:
-        # Check if it's already a provider instance or a factory function
-        if callable(get_provider):
-            provider = get_provider(async_mode=True)
-            if app_logger:
-                app_logger.info(f"Using injected provider from factory: {provider.__class__.__name__}")
-        else:
-            # It's already a provider instance
-            provider = get_provider
-            if app_logger:
-                app_logger.info(f"Using injected provider instance: {provider.__class__.__name__}")
-    
     if not tickers:
-        if app_logger:
-            app_logger.error("No valid tickers provided")
-        else:
-            logger.error("No valid tickers provided")
+        logger.error("No valid tickers provided")
         return
         
     try:
@@ -3932,7 +3684,7 @@ async def display_report_for_source(display, tickers, source, verbose=False, get
         min_targets = TRADING_CRITERIA["CONFIDENCE"]["MIN_PRICE_TARGETS"]
         
         # Step 1: Prepare ticker data
-        result_df, output_file, report_title, report_source, processing_stats = await _prepare_ticker_data(display, tickers, source)
+        result_df, output_file, report_title, report_source, processing_stats = _prepare_ticker_data(display, tickers, source)
         
         # Save raw data
         result_df.to_csv(output_file, index=False)
@@ -4524,41 +4276,31 @@ def show_circuit_breaker_status():
         # Only show essential information: name and state
         print(f"Circuit '{name}': {state_colored}")
 
-@with_provider
-@with_logger
-async def main_async(get_provider=None, app_logger=None):
-    """
-    Async-aware command line interface for market display with dependency injection
-    
-    Args:
-        get_provider: Injected provider factory function
-        app_logger: Injected logger component
-    """
-    display = None
+def main_async():
+    """Async-aware command line interface for market display"""
     try:
-        # Ensure we have the required dependencies
-        provider = None
-        if get_provider:
-            # Check if it's already a provider instance or a factory function
-            if callable(get_provider):
-                provider = get_provider(async_mode=True, max_concurrency=10)
-                app_logger.info(f"Using injected provider from factory: {provider.__class__.__name__}")
-            else:
-                # It's already a provider instance
-                provider = get_provider
-                app_logger.info(f"Using injected provider instance: {provider.__class__.__name__}")
-        else:
-            app_logger.error("Provider not injected, creating default provider")
-            provider = AsyncHybridProvider(max_concurrency=10)
-            
-        # Override provider with AsyncHybridProvider for consistency with command line mode
-        if not isinstance(provider, AsyncHybridProvider):
-            app_logger.info(f"Switching from {provider.__class__.__name__} to AsyncHybridProvider for consistency")
-            provider = AsyncHybridProvider(max_concurrency=10)
+        # Create our own CustomYahooFinanceProvider class that uses yfinance directly
+        # This bypasses any circuit breaker issues by directly using the original library
+        from yahoofinance.api.providers.base_provider import AsyncFinanceDataProvider
+        from yahoofinance.utils.market.ticker_utils import validate_ticker, is_us_ticker
+        from typing import Dict, Any, List
         
-        app_logger.info("Creating MarketDisplay instance...")
+        # Define a custom provider that uses yfinance directly
+        # Internal CustomYahooFinanceProvider class removed (lines 3715-4380)
+        # Its logic is now in yahoofinance/api/providers/optimized_async_yfinance.py
+        
+        # Create our custom provider
+        logger.info("Creating custom YahooFinance provider...")
+        # Instantiate the new, optimized provider from the external file
+        # Instantiate the Enhanced provider
+        # Instantiate the Async Hybrid provider
+        # Instantiate the Async Hybrid provider with increased concurrency
+        provider = AsyncHybridProvider(max_concurrency=10)
+        logger.info("Provider created successfully")
+        
+        logger.info("Creating MarketDisplay instance...")
         display = MarketDisplay(provider=provider)
-        app_logger.info("MarketDisplay created successfully")
+        logger.info("MarketDisplay created successfully")
         
         try:
             source = input("Load tickers for Portfolio (P), Market (M), eToro Market (E), Trade Analysis (T) or Manual Input (I)? ").strip().upper()
@@ -4566,65 +4308,55 @@ async def main_async(get_provider=None, app_logger=None):
             # For testing in non-interactive environments, default to Manual Input
             print("Non-interactive environment detected, defaulting to Manual Input (I)")
             source = "I"
-        app_logger.info(f"User selected option: {source}")
+        logger.info(f"User selected option: {source}")
         
         # Handle trade analysis separately
         if source == 'T':
-            app_logger.info("Handling trade analysis...")
-            await handle_trade_analysis(get_provider=get_provider, app_logger=app_logger)
+            logger.info("Handling trade analysis...")
+            handle_trade_analysis()
             return
         
         # Handle portfolio download if needed
         if source == 'P':
-            app_logger.info("Handling portfolio download...")
-            if not await handle_portfolio_download(get_provider=get_provider, app_logger=app_logger):
-                app_logger.error("Portfolio download failed, returning...")
+            logger.info("Handling portfolio download...")
+            if not handle_portfolio_download():
+                logger.error("Portfolio download failed, returning...")
                 return
-            app_logger.info("Portfolio download completed successfully")
+            logger.info("Portfolio download completed successfully")
         
         # Load tickers and display report
-        app_logger.info(f"Loading tickers for source: {source}...")
+        logger.info(f"Loading tickers for source: {source}...")
         tickers = display.load_tickers(source)
-        app_logger.info(f"Loaded {len(tickers)} tickers")
+        logger.info(f"Loaded {len(tickers)} tickers")
         
-        app_logger.info("Displaying report...")
-        # Pass verbose=True flag for eToro source and Manual Input due to special processing requirements
-        verbose = (source == 'E' or source == 'I')
-        await display_report_for_source(display, tickers, source, verbose=verbose, 
-                                        get_provider=get_provider, app_logger=app_logger)
+        logger.info("Displaying report...")
+        # Pass verbose=True flag for eToro source due to large dataset
+        verbose = (source == 'E')
+        display_report_for_source(display, tickers, source, verbose=verbose)
         
         # Show circuit breaker status
-        app_logger.info("Showing circuit breaker status...")
+        logger.info("Showing circuit breaker status...")
         show_circuit_breaker_status()
-        app_logger.info("Display completed")
+        logger.info("Display completed")
             
     except KeyboardInterrupt:
         # Exit silently on user interrupt
         sys.exit(0)
     except YFinanceError as e:
-        # Log error and exit with error code
-        if app_logger:
-            app_logger.error(f"Error in main_async: {str(e)}")
+        # Silently handle errors without any output
+        # Just exit with error code
         sys.exit(1)
     finally:
-        # Clean up any async resources
+        # Clean up any async resources silently
         try:
-            if display and hasattr(display, 'close'):
-                await display.close()
-        except YFinanceError as e:
-            # Log cleanup errors
-            if app_logger:
-                app_logger.debug(f"Error during cleanup: {str(e)}")
+            if 'display' in locals() and hasattr(display, 'close'):
+                asyncio.run(display.close())
+        except YFinanceError:
+            # Silently ignore any cleanup errors
             pass
 
-@with_logger
-def main(app_logger=None):
-    """
-    Command line interface entry point with dependency injection
-    
-    Args:
-        app_logger: Injected logger component
-    """
+def main():
+    """Command line interface entry point"""
     # Ensure output directories exist
     output_dir, input_dir, _, _, _ = get_file_paths()
     os.makedirs(output_dir, exist_ok=True)
@@ -4633,10 +4365,7 @@ def main(app_logger=None):
     # Use inputs from v1 directory if available
     v1_input_dir = INPUT_DIR
     if os.path.exists(v1_input_dir):
-        if app_logger:
-            app_logger.debug(f"Using input files from legacy directory: {v1_input_dir}")
-        else:
-            logger.debug(f"Using input files from legacy directory: {v1_input_dir}")
+        logger.debug(f"Using input files from legacy directory: {v1_input_dir}")
     
     # Handle command line arguments if provided
     if len(sys.argv) > 1:
@@ -4644,28 +4373,15 @@ def main(app_logger=None):
         source = sys.argv[1].upper()
         if source == 'I' and len(sys.argv) > 2:
             tickers = sys.argv[2:]
-            
-            # Get provider using dependency injection
-            try:
-                provider = registry.resolve('get_provider')(async_mode=True, max_concurrency=10)
-                if app_logger:
-                    app_logger.info(f"Using injected provider for manual input: {provider.__class__.__name__}")
-            except Exception as e:
-                if app_logger:
-                    app_logger.error(f"Failed to resolve provider, using default: {str(e)}")
-                # Fallback to direct instantiation
-                provider = AsyncHybridProvider(max_concurrency=10)
-            
+            # Create a mock MarketDisplay with our provider
+            provider = AsyncHybridProvider(max_concurrency=10)
             display = MarketDisplay(provider=provider)
-            
             # Display report directly
-            # Run as async - pass provider directly
-            asyncio.run(display_report_for_source(display, tickers, 'I', verbose=True,
-                                                get_provider=provider, app_logger=app_logger))
+            display_report_for_source(display, tickers, 'I', verbose=True)
             return
     
     # Run the async main function with interactive input
-    asyncio.run(main_async())
+    main_async()
 
 if __name__ == "__main__":
     try:

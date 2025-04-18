@@ -169,6 +169,22 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             # Record total processing time
             combined_data['processing_time'] = time.time() - start_time
             
+            # Ensure dividend yield is a valid number but don't modify the value
+            if "dividend_yield" in combined_data and combined_data["dividend_yield"] is not None:
+                try:
+                    # Just make sure it's a float
+                    combined_data["dividend_yield"] = float(combined_data["dividend_yield"])
+                    logger.debug(f"Processed dividend yield for {ticker}: {combined_data['dividend_yield']}")
+                except (TypeError, ValueError) as e:
+                    logger.warning(f"Error processing dividend yield for {ticker}: {e}")
+            
+            # Calculate EXRET if missing
+            if ("EXRET" not in combined_data or combined_data.get("EXRET") is None) and \
+               "upside" in combined_data and combined_data["upside"] is not None and \
+               combined_data.get("buy_percentage") is not None:
+                combined_data["EXRET"] = combined_data["upside"] * combined_data["buy_percentage"] / 100
+                logger.debug(f"Calculated EXRET for {ticker}: {combined_data['EXRET']}")
+            
             return combined_data
         except YFinanceError as e:
             # If YFinance fails completely, try YahooQuery as a fallback
@@ -178,6 +194,11 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 yq_data = self.yq_provider.get_ticker_info(ticker, skip_insider_metrics)
                 yq_data['data_source'] = 'YahooQuery'
                 yq_data['processing_time'] = time.time() - start_time
+                
+                # We don't need hardcoded test values anymore since we get analyst data directly
+                # Instead, let's just log that we're in fallback mode
+                logger.info(f"Using YahooQuery fallback for {ticker} with data source: {yq_data.get('data_source', 'unknown')}")
+                
                 return yq_data
             except YFinanceError as yq_error:
                 # If both fail, raise the original error
@@ -472,6 +493,41 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             processing_time = time.time() - start_time
             logger.debug(f"Hybrid batch completed in {processing_time:.2f}s, supplemented {supplemented_count}/{len(tickers)} tickers")
             
+            # Process all tickers to fix dividend yield and calculate EXRET
+            for ticker, data in yf_results.items():
+                # Ensure dividend yield is in raw format (0.0234 for 2.34%)
+                if "dividend_yield" in data and data["dividend_yield"] is not None:
+                    try:
+                        # First convert to float
+                        dividend_yield = float(data["dividend_yield"])
+                        
+                        # Check if it's already a large value (multiplied by 100)
+                        if dividend_yield > 1:
+                            # Typical dividend yields are 0-10%, rarely above 15%
+                            # If it's above 15%, it's likely already multiplied by 100
+                            if dividend_yield > 15:
+                                dividend_yield = dividend_yield / 100
+                                logger.debug(f"Adjusted large dividend yield to decimal for {ticker}: {dividend_yield}")
+                        
+                        data["dividend_yield"] = dividend_yield
+                    except (TypeError, ValueError) as e:
+                        logger.warning(f"Error processing dividend yield for {ticker}: {e}")
+                
+                # Calculate EXRET if missing but we have the necessary components
+                if ("EXRET" not in data or data.get("EXRET") is None) and \
+                   "upside" in data and data["upside"] is not None and \
+                   data.get("buy_percentage") is not None:
+                    try:
+                        data["EXRET"] = data["upside"] * data["buy_percentage"] / 100
+                        logger.debug(f"Calculated EXRET for {ticker}: {data['EXRET']}")
+                    except (TypeError, ValueError) as e:
+                        logger.warning(f"Error calculating EXRET for {ticker}: {e}")
+                
+                # Ensure rating type has a default value if missing
+                if "A" not in data or data["A"] is None:
+                    if data.get("total_ratings", 0) > 0:
+                        data["A"] = "A"  # Default to all-time ratings if we have any ratings
+            
             return yf_results
         except YFinanceError as e:
             # If YFinance batch fails completely, try YahooQuery as a fallback
@@ -483,6 +539,32 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 # Mark data source for each result
                 for ticker, data in yq_results.items():
                     data['data_source'] = 'YahooQuery'
+                
+                # Process all tickers to fix dividend yield and calculate EXRET
+                for ticker, data in yq_results.items():
+                    # Ensure dividend yield is a valid number but don't modify the value
+                    if "dividend_yield" in data and data["dividend_yield"] is not None:
+                        try:
+                            # Just make sure it's a float
+                            data["dividend_yield"] = float(data["dividend_yield"])
+                            logger.debug(f"Processed dividend yield for {ticker} in fallback: {data['dividend_yield']}")
+                        except (TypeError, ValueError) as e:
+                            logger.warning(f"Error processing dividend yield for {ticker} in fallback: {e}")
+                    
+                    # Calculate EXRET if missing but we have the necessary components
+                    if ("EXRET" not in data or data.get("EXRET") is None) and \
+                       "upside" in data and data["upside"] is not None and \
+                       data.get("buy_percentage") is not None:
+                        try:
+                            data["EXRET"] = data["upside"] * data["buy_percentage"] / 100
+                            logger.debug(f"Calculated EXRET for {ticker} in fallback: {data['EXRET']}")
+                        except (TypeError, ValueError) as e:
+                            logger.warning(f"Error calculating EXRET for {ticker} in fallback: {e}")
+                    
+                    # Ensure rating type has a default value if missing
+                    if "A" not in data or data["A"] is None:
+                        if data.get("total_ratings", 0) > 0:
+                            data["A"] = "A"  # Default to all-time ratings if we have any ratings
                 
                 return yq_results
             except YFinanceError as yq_error:

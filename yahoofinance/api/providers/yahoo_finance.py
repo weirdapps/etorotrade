@@ -139,6 +139,23 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                     except YFinanceError as e:
                         logger.warning(f"Failed to get insider data for {ticker}: {str(e)}")
                 
+                # Add analyst data for all tickers (both US and non-US)
+                try:
+                    analyst_data = self.get_analyst_ratings(ticker)
+                    if analyst_data:
+                        # Transfer key analyst fields to ticker info
+                        result["analyst_count"] = analyst_data.get("recommendations", 0)
+                        result["total_ratings"] = analyst_data.get("recommendations", 0) 
+                        result["buy_percentage"] = analyst_data.get("buy_percentage")
+                        
+                        # Also set the rating type if we have analyst data
+                        if result["total_ratings"] > 0:
+                            result["A"] = "A"  # Default to all-time ratings
+                        
+                        logger.debug(f"Added analyst data for {ticker}: {result['total_ratings']} ratings, {result['buy_percentage']}% buy")
+                except YFinanceError as e:
+                    logger.warning(f"Error fetching analyst data for {ticker}: {str(e)}")
+                
                 break
             except RateLimitError as rate_error:
                 # Use the shared retry logic handler from the base class
@@ -206,7 +223,28 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 
                 # Handle cases where calendar might be None or not have earnings date
                 if calendar is None or COLUMN_NAMES['EARNINGS_DATE'] not in calendar:
-                    logger.debug(f"No earnings dates found for {ticker}")
+                    logger.debug(f"No earnings dates found for {ticker} in calendar")
+                    # Try to get earnings date from info
+                    try:
+                        info = ticker_obj.info
+                        if 'earningsDate' in info:
+                            earnings_date = info['earningsDate']
+                            logger.debug(f"Found earnings date in info for {ticker}: {earnings_date}")
+                            # If it's just a single value, turn it into a list
+                            if not isinstance(earnings_date, list):
+                                earnings_date = [earnings_date]
+                            # Format dates
+                            formatted_dates = [self._format_date(date) for date in earnings_date if date is not None]
+                            # Sort dates in descending order
+                            formatted_dates.sort(reverse=True)
+                            # Return the dates we have
+                            if len(formatted_dates) >= 2:
+                                return formatted_dates[0], formatted_dates[1]
+                            elif len(formatted_dates) == 1:
+                                return formatted_dates[0], None
+                    except Exception as e:
+                        logger.debug(f"Error getting earnings date from info for {ticker}: {str(e)}")
+                    
                     return None, None
                     
                 earnings_date = calendar[COLUMN_NAMES['EARNINGS_DATE']]
@@ -254,9 +292,9 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         Raises:
             YFinanceError: When an error occurs while fetching data
         """
-        # Skip analyst ratings for non-US tickers using the base method
-        if not is_us_ticker(ticker):
-            return self._get_empty_analyst_data(ticker)
+        # We used to skip analyst ratings for non-US tickers, but this is no longer necessary
+        # Many international stocks have analyst coverage, so we'll try to get it for all tickers
+        # We'll only return empty data if we can't find any
         
         ticker_obj = self._get_ticker_object(ticker)
         
@@ -274,7 +312,7 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 # Add date if we have recommendations
                 if recommendations is not None and not recommendations.empty:
                     latest_date = recommendations.index.max()
-                    result["date"] = self.format_date(latest_date)
+                    result["date"] = self._format_date(latest_date)
                 else:
                     result["date"] = None
                 

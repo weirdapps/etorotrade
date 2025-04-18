@@ -96,6 +96,13 @@ class YahooFinanceBaseProvider(ABC):
                 dt = pd.to_datetime(dt)
             except ValueError:
                 return dt  # Return original string if parsing fails
+        
+        # Handle timestamps (sometimes Yahoo Finance returns Unix timestamps)
+        if isinstance(dt, (int, float)) and dt > 1000000000:  # Check if it could be a timestamp (over ~1973)
+            try:
+                dt = datetime.fromtimestamp(dt)
+            except Exception:
+                pass
                 
         if isinstance(dt, (datetime, pd.Timestamp)):
             return dt.strftime('%Y-%m-%d')
@@ -104,6 +111,56 @@ class YahooFinanceBaseProvider(ABC):
             
         # Return string representation as a fallback
         return str(dt)
+        
+    def _extract_earnings_date(self, info: Dict[str, Any]) -> Optional[str]:
+        """
+        Extract earnings date from info dictionary handling different formats.
+        
+        Args:
+            info: Dictionary with ticker info
+            
+        Returns:
+            Earnings date in YYYY-MM-DD format or None
+        """
+        # Try different possible field names
+        for field in ['earningsDate', 'earnings_date', 'next_earnings_date']:
+            value = safe_extract_value(info, field)
+            if value is not None:
+                logger.debug(f"Found earnings date in field '{field}': {value} (type: {type(value)})")
+                
+                # Handle different formats
+                if isinstance(value, list):
+                    # Some providers return a list of dates - use the first one (newest)
+                    # Filter out any None values
+                    valid_dates = [date for date in value if date is not None]
+                    if valid_dates:
+                        # Sort by date (assuming they're all timestamps or date objects)
+                        try:
+                            # Convert all to datetime objects for comparison
+                            dates = []
+                            for d in valid_dates:
+                                if isinstance(d, (int, float)):
+                                    dates.append(datetime.fromtimestamp(d))
+                                else:
+                                    parsed_date = pd.to_datetime(d, errors='coerce')
+                                    if pd.notna(parsed_date):
+                                        dates.append(parsed_date)
+                            
+                            # Sort and take the latest
+                            if dates:
+                                dates.sort(reverse=True)  # Latest first
+                                return self._format_date(dates[0])
+                        except Exception as e:
+                            logger.debug(f"Error sorting earnings dates: {str(e)}")
+                        
+                        # If sorting fails, just use the first one
+                        return self._format_date(valid_dates[0])
+                else:
+                    # Single value
+                    return self._format_date(value)
+        
+        # None of the fields found or had valid data
+        return None
     
     def _extract_common_ticker_info(self, info: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -173,13 +230,20 @@ class YahooFinanceBaseProvider(ABC):
                 "two_hundred_day_avg": safe_extract_value(info, 'twoHundredDayAverage'),
                 "exchange": safe_extract_value(info, 'exchange'),
                 "country": safe_extract_value(info, 'country'),
+                "short_percent": safe_extract_value(info, 'shortPercentOfFloat'),  # Short interest
+                
+                # Extract and format earnings date - handle different possible field names and formats
+                "earnings_date": self._extract_earnings_date(info),  # Next earnings date
+                
                 "data_source": "yfinance",
             }
             
-            # Convert dividend yield to percentage if available
+            # Yahoo Finance returns dividend yield numbers correctly
+            # We don't modify them as the display formatter will handle properly
             if result["dividend_yield"] is not None:
                 try:
-                    result["dividend_yield"] = float(result["dividend_yield"]) * 100
+                    # Just make sure it's a float
+                    result["dividend_yield"] = float(result["dividend_yield"])
                 except (ValueError, TypeError):
                     pass
             
@@ -434,50 +498,131 @@ class YahooFinanceBaseProvider(ABC):
         Returns:
             Dict containing analyst consensus information
         """
+        # Default values
+        result = {
+            "total_ratings": 0,
+            "buy_percentage": None,
+            "analyst_count": 0,
+            "recommendations": None
+        }
+        
         try:
-            recommendations = ticker_obj.recommendations
-            
-            # Default values
-            result = {
-                "total_ratings": 0,
-                "buy_percentage": 0.0,
-                "recommendations": None
-            }
-            
-            # Check if we have data
-            if recommendations is None or recommendations.empty:
-                logger.debug(f"No analyst ratings available for {ticker}")
-                return result
+            # Try to get data directly from info first (faster and more reliable)
+            try:
+                ticker_info = ticker_obj.info
+                if ticker_info and isinstance(ticker_info, dict):
+                    # Get number of analysts
+                    number_of_analysts = ticker_info.get("numberOfAnalystOpinions", 0)
+                    if number_of_analysts > 0:
+                        result["total_ratings"] = number_of_analysts
+                        result["analyst_count"] = number_of_analysts
+                        
+                        # Try to get recommendation key
+                        rec_key = ticker_info.get("recommendationKey", "").lower()
+                        if rec_key:
+                            # Map recommendation key to buy percentage
+                            if rec_key in ["buy", "strongbuy"]:
+                                result["buy_percentage"] = 85.0
+                                logger.debug(f"Using recommendationKey '{rec_key}' for {ticker}: 85%")
+                            elif rec_key in ["outperform"]:
+                                result["buy_percentage"] = 75.0
+                                logger.debug(f"Using recommendationKey '{rec_key}' for {ticker}: 75%")
+                            elif rec_key in ["hold"]:
+                                result["buy_percentage"] = 50.0
+                                logger.debug(f"Using recommendationKey '{rec_key}' for {ticker}: 50%")
+                            elif rec_key in ["underperform"]:
+                                result["buy_percentage"] = 25.0
+                                logger.debug(f"Using recommendationKey '{rec_key}' for {ticker}: 25%")
+                            elif rec_key in ["sell"]:
+                                result["buy_percentage"] = 15.0
+                                logger.debug(f"Using recommendationKey '{rec_key}' for {ticker}: 15%")
+                        
+                        # If no key but we have mean, estimate percentage that way
+                        if result["buy_percentage"] is None:
+                            rec_mean = ticker_info.get("recommendationMean", None)
+                            if rec_mean is not None:
+                                # Convert 1-5 scale to percentage (1=Strong Buy, 5=Sell)
+                                # 1 = 90%, 3 = 50%, 5 = 10%
+                                result["buy_percentage"] = max(0, min(100, 110 - (rec_mean * 20)))
+                                logger.debug(f"Used recommendationMean ({rec_mean}) to estimate buy percentage for {ticker}: {result['buy_percentage']:.1f}%")
                 
-            # Get the most recent date
-            latest_date = recommendations.index.max()
+                # If we got analyst count but no buy percentage, try to get it from recommendations
+                if result["analyst_count"] > 0 and result["buy_percentage"] is None:
+                    logger.debug(f"Got analyst count but no buy percentage from info for {ticker}, trying recommendations")
+            except Exception as e:
+                logger.warning(f"Error extracting analyst data from info for {ticker}: {str(e)}")
             
-            # Filter for the most recent recommendations
-            latest_recommendations = recommendations[recommendations.index == latest_date]
+            # Try to get data from recommendations attribute
+            try:
+                recommendations = ticker_obj.recommendations
+                
+                # Skip if no data
+                if recommendations is None or recommendations.empty:
+                    if result["total_ratings"] == 0:
+                        logger.debug(f"No analyst ratings available for {ticker}")
+                    return result
+                    
+                # Get the most recent date
+                latest_date = recommendations.index.max()
+                
+                # Filter for the most recent recommendations
+                latest_recommendations = recommendations[recommendations.index == latest_date]
+                
+                # Count the recommendations by grade
+                recommendation_counts = {}
+                
+                for col in ['strongBuy', 'buy', 'hold', 'sell', 'strongSell']:
+                    if col in latest_recommendations.columns:
+                        value = latest_recommendations[col].sum()
+                        if not pd.isna(value) and value > 0:
+                            recommendation_counts[col.lower()] = int(value)
+                
+                total_ratings = sum(recommendation_counts.values())
+                
+                # If we have recommendation counts, use them preferentially
+                if total_ratings > 0:
+                    # Calculate buy percentage
+                    buy_ratings = recommendation_counts.get('strongbuy', 0) + recommendation_counts.get('buy', 0)
+                    buy_percentage = (buy_ratings / total_ratings * 100)
+                    
+                    # Update result
+                    result["total_ratings"] = total_ratings
+                    result["analyst_count"] = total_ratings
+                    result["buy_percentage"] = buy_percentage
+                    result["recommendations"] = recommendation_counts
+                    
+                    logger.debug(f"Used recommendations data for {ticker}: {buy_ratings}/{total_ratings} analysts recommend buy ({buy_percentage:.1f}%)")
+            except Exception as e:
+                logger.warning(f"Error getting recommendations for {ticker}: {str(e)}")
             
-            # Count the recommendations by grade
-            recommendation_counts = {}
+            # If we still don't have buy percentage but have total ratings, try one more approach
+            if result["total_ratings"] > 0 and result["buy_percentage"] is None:
+                try:
+                    # Try to get upgrades_downgrades as a last resort
+                    upgrades_downgrades = getattr(ticker_obj, 'upgrades_downgrades', None)
+                    if upgrades_downgrades is not None and not upgrades_downgrades.empty:
+                        # Count positive grades
+                        positive_grades = ["Buy", "Overweight", "Outperform", "Strong Buy", 
+                                          "Long-Term Buy", "Positive", "Market Outperform", "Add", 
+                                          "Sector Outperform"]
+                        
+                        # Count positive grades in ToGrade column
+                        if 'ToGrade' in upgrades_downgrades.columns:
+                            total_grades = len(upgrades_downgrades)
+                            positive_count = upgrades_downgrades[upgrades_downgrades['ToGrade'].isin(positive_grades)].shape[0]
+                            
+                            if total_grades > 0:
+                                buy_percentage = (positive_count / total_grades) * 100
+                                result["buy_percentage"] = buy_percentage
+                                logger.debug(f"Used upgrades_downgrades for {ticker}: {positive_count}/{total_grades} positive grades ({buy_percentage:.1f}%)")
+                except Exception as e:
+                    logger.warning(f"Error analyzing upgrades_downgrades for {ticker}: {str(e)}")
             
-            for col in ['strongBuy', 'buy', 'hold', 'sell', 'strongSell']:
-                if col in latest_recommendations.columns:
-                    value = latest_recommendations[col].sum()
-                    if not pd.isna(value) and value > 0:
-                        recommendation_counts[col.lower()] = int(value)
-            
-            total_ratings = sum(recommendation_counts.values())
-            
-            # Calculate buy percentage
-            buy_ratings = recommendation_counts.get('strongbuy', 0) + recommendation_counts.get('buy', 0)
-            buy_percentage = (buy_ratings / total_ratings * 100) if total_ratings > 0 else 0
-            
-            return {
-                "total_ratings": total_ratings,
-                "buy_percentage": buy_percentage,
-                "recommendations": recommendation_counts
-            }
-        except YFinanceError as e:
+            return result
+        except Exception as e:
             logger.warning(f"Error getting analyst consensus for {ticker}: {str(e)}")
-            raise e
+            # Return what we have so far rather than raising
+            return result
     
     def _get_empty_analyst_data(self, ticker: str) -> Dict[str, Any]:
         """

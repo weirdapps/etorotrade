@@ -179,9 +179,9 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             info["exchange"] = ticker_info.get("exchange", "")
             info["quote_type"] = ticker_info.get("quoteType", "")
             info["pe_trailing"] = ticker_info.get("trailingPE", None)
+            # Keep dividend_yield in decimal format (0.XX rather than XX%)
+            # This allows downstream processors to handle formatting consistently
             info["dividend_yield"] = ticker_info.get("dividendYield", None)
-            if info["dividend_yield"] is not None:
-                info["dividend_yield"] = info["dividend_yield"] * 100
             info["beta"] = ticker_info.get("beta", None)
             info["fifty_two_week_high"] = ticker_info.get("fiftyTwoWeekHigh", None)
             info["fifty_two_week_low"] = ticker_info.get("fiftyTwoWeekLow", None)
@@ -192,42 +192,167 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 info["short_percent"] = info["short_percent"] * 100
             info["target_price"] = ticker_info.get("targetMeanPrice", None)
             info["recommendation"] = ticker_info.get("recommendationMean", None)
+            
+            # Add analyst data directly to reduce extra API calls
+            number_of_analysts = ticker_info.get("numberOfAnalystOpinions", 0)
+            info["analyst_count"] = number_of_analysts
+            info["total_ratings"] = number_of_analysts
+            
+            # Get recommendations data
+            try:
+                # First check if we have any recommendation data
+                if number_of_analysts > 0:
+                    try:
+                        # Try to directly get buy percentage from recommendationKey
+                        rec_key = ticker_info.get("recommendationKey", "").lower()
+                        if rec_key in ["buy", "strongbuy"]:
+                            info["buy_percentage"] = 85.0
+                        elif rec_key in ["outperform"]:
+                            info["buy_percentage"] = 75.0
+                        elif rec_key in ["hold"]:
+                            info["buy_percentage"] = 50.0
+                        elif rec_key in ["underperform"]:
+                            info["buy_percentage"] = 25.0
+                        elif rec_key in ["sell"]:
+                            info["buy_percentage"] = 15.0
+                        else:
+                            # Use recommendationMean to estimate buy percentage if available
+                            rec_mean = ticker_info.get("recommendationMean", None)
+                            if rec_mean is not None:
+                                # Convert 1-5 scale to percentage (1=Strong Buy, 5=Sell)
+                                # 1 = 90%, 3 = 50%, 5 = 10%
+                                info["buy_percentage"] = max(0, min(100, 110 - (rec_mean * 20)))
+                            else:
+                                info["buy_percentage"] = None
+                    except Exception as e:
+                        logger.warning(f"Error getting recommendation data for {ticker}: {e}")
+                        info["buy_percentage"] = None
+                else:
+                    # No analysts covering
+                    info["buy_percentage"] = None
+            except Exception as e:
+                logger.warning(f"Error processing recommendations for {ticker}: {e}")
+                info["buy_percentage"] = None
+            
+            # Rating type - default to "A" for all-time
+            info["A"] = "A"
 
-            # --- Start: Reinstated Recommendations Logic ---
-            if ticker_info.get("numberOfAnalystOpinions", 0) > 0:
-                try:
-                    recommendations_df = getattr(yticker, 'recommendations', None)
-                    if recommendations_df is not None and not recommendations_df.empty:
-                        latest_recs = recommendations_df.iloc[0]
+            # --- Start: Improved Recommendations Logic ---
+            # Ensure default values are set
+            info["analyst_count"] = 0
+            info["total_ratings"] = 0
+            info["buy_percentage"] = None
+            
+            try:
+                # First check if ticker_info has analyst data
+                number_of_analysts = ticker_info.get("numberOfAnalystOpinions", 0)
+                if number_of_analysts > 0:
+                    info["analyst_count"] = number_of_analysts
+                    info["total_ratings"] = number_of_analysts
+                    
+                    # Try to get recommendation key first
+                    rec_key = ticker_info.get("recommendationKey", "").lower()
+                    rec_mean = ticker_info.get("recommendationMean", None)
+                    
+                    # If we have a recommendation key, map it to a buy percentage
+                    if rec_key:
+                        if rec_key in ["buy", "strongbuy"]:
+                            info["buy_percentage"] = 85.0
+                            logger.debug(f"Using recommendationKey '{rec_key}' to set buy_percentage=85.0 for {ticker}")
+                        elif rec_key in ["outperform"]:
+                            info["buy_percentage"] = 75.0
+                            logger.debug(f"Using recommendationKey '{rec_key}' to set buy_percentage=75.0 for {ticker}")
+                        elif rec_key in ["hold"]:
+                            info["buy_percentage"] = 50.0
+                            logger.debug(f"Using recommendationKey '{rec_key}' to set buy_percentage=50.0 for {ticker}")
+                        elif rec_key in ["underperform"]:
+                            info["buy_percentage"] = 25.0
+                            logger.debug(f"Using recommendationKey '{rec_key}' to set buy_percentage=25.0 for {ticker}")
+                        elif rec_key in ["sell"]:
+                            info["buy_percentage"] = 15.0
+                            logger.debug(f"Using recommendationKey '{rec_key}' to set buy_percentage=15.0 for {ticker}")
+                    # If no key but we have recommendation mean, use it to estimate buy percentage
+                    elif rec_mean is not None:
+                        # Convert 1-5 scale to percentage (1=Strong Buy, 5=Sell)
+                        # 1 = 90%, 3 = 50%, 5 = 10%
+                        info["buy_percentage"] = max(0, min(100, 110 - (rec_mean * 20)))
+                        logger.debug(f"Using recommendationMean {rec_mean} to set buy_percentage={info['buy_percentage']} for {ticker}")
+                
+                # Try to get detailed recommendations from recommendations DataFrame
+                recommendations_df = getattr(yticker, 'recommendations', None)
+                if recommendations_df is not None and not recommendations_df.empty:
+                    try:
+                        # Get the most recent recommendations
+                        latest_date = recommendations_df.index.max()
+                        latest_recs = recommendations_df.loc[latest_date]
+                        
+                        # Extract counts
                         strong_buy = int(latest_recs.get('strongBuy', 0))
                         buy = int(latest_recs.get('buy', 0))
                         hold = int(latest_recs.get('hold', 0))
                         sell = int(latest_recs.get('sell', 0))
                         strong_sell = int(latest_recs.get('strongSell', 0))
+                        
+                        # Calculate the total
                         total = strong_buy + buy + hold + sell + strong_sell
+                        
+                        # Only update if we have valid data
                         if total > 0:
                             buy_count = strong_buy + buy
                             buy_percentage = (buy_count / total) * 100
+                            
+                            # This is the most accurate source of data, always update
                             info["buy_percentage"] = buy_percentage
                             info["total_ratings"] = total
                             info["analyst_count"] = total
-                        else:
-                            info["buy_percentage"] = None
-                            info["total_ratings"] = ticker_info.get("numberOfAnalystOpinions", 0)
-                            info["analyst_count"] = info["total_ratings"]
-                    else:
-                         info["buy_percentage"] = None
-                         info["total_ratings"] = ticker_info.get("numberOfAnalystOpinions", 0)
-                         info["analyst_count"] = info["total_ratings"]
-                except YFinanceError as e:
-                    logger.warning(f"Error processing recommendations for {ticker}: {e}. Using fallback.", exc_info=False)
+                            
+                            logger.debug(f"Using recommendations DataFrame to set analyst data for {ticker}: "
+                                        f"buy_percentage={buy_percentage}, total_ratings={total}")
+                    except (IndexError, KeyError, ValueError, TypeError) as e:
+                        logger.warning(f"Error extracting recommendations data for {ticker}: {e}. Using fallback values.")
+                        
+                # Fall back to analyzing upgrades_downgrades if needed
+                if info["buy_percentage"] is None:
+                    try:
+                        upgrades_downgrades = getattr(yticker, 'upgrades_downgrades', None)
+                        if upgrades_downgrades is not None and not upgrades_downgrades.empty:
+                            # Count grades
+                            positive_grades = ["Buy", "Overweight", "Outperform", "Strong Buy", 
+                                            "Long-Term Buy", "Positive", "Market Outperform", "Add", 
+                                            "Sector Outperform"]
+                            
+                            # Count positive grades in ToGrade column
+                            if 'ToGrade' in upgrades_downgrades.columns:
+                                total_grades = len(upgrades_downgrades)
+                                positive_count = upgrades_downgrades[upgrades_downgrades['ToGrade'].isin(positive_grades)].shape[0]
+                                
+                                if total_grades > 0:
+                                    buy_percentage = (positive_count / total_grades) * 100
+                                    info["buy_percentage"] = buy_percentage
+                                    info["total_ratings"] = total_grades
+                                    info["analyst_count"] = total_grades
+                                    
+                                    logger.debug(f"Using upgrades_downgrades to set analyst data for {ticker}: "
+                                                f"buy_percentage={buy_percentage}, total_ratings={total_grades}")
+                    except Exception as e:
+                        logger.warning(f"Error analyzing upgrades_downgrades for {ticker}: {e}. Using fallback values.")
+                
+                # If we still don't have a buy percentage but have analyst count, 
+                # use recommendationMean as a last resort
+                if info["analyst_count"] > 0 and info["buy_percentage"] is None and rec_mean is not None:
+                    # Convert 1-5 scale to percentage (1=Strong Buy, 5=Sell)
+                    info["buy_percentage"] = max(0, min(100, 110 - (rec_mean * 20)))
+                    logger.debug(f"Final fallback: Using recommendationMean {rec_mean} to set buy_percentage={info['buy_percentage']} for {ticker}")
+                
+            except Exception as e:
+                logger.warning(f"Error processing analyst data for {ticker}: {e}", exc_info=False)
+                # Ensure default values if all attempts fail
+                if info.get("analyst_count") is None:
+                    info["analyst_count"] = 0
+                if info.get("total_ratings") is None:
+                    info["total_ratings"] = 0
+                if info.get("buy_percentage") is None:
                     info["buy_percentage"] = None
-                    info["total_ratings"] = ticker_info.get("numberOfAnalystOpinions", 0)
-                    info["analyst_count"] = info["total_ratings"]
-            else:
-                info["analyst_count"] = 0
-                info["total_ratings"] = 0
-                info["buy_percentage"] = None
 
             # Determine Rating Type ('A' or 'E')
             if self._is_us_ticker(ticker) and info.get("total_ratings", 0) > 0:
@@ -257,8 +382,9 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 info["last_earnings"] = None
             # --- End: Reinstated Earnings Date Logic ---
 
-            # Re-add missing PEG and fix Dividend Yield extraction from initial block
-            info["dividend_yield"] = ticker_info.get("dividendYield", None) # Get raw value
+            # Re-add missing PEG and ensure Dividend Yield has the original raw value
+            info["dividend_yield"] = ticker_info.get("dividendYield", None) # Get raw value - no modification
+                
             info["peg_ratio"] = ticker_info.get("trailingPegRatio", None) # Use trailingPegRatio
 
             # Format market cap
