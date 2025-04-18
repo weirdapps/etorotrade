@@ -7,7 +7,10 @@ It provides significantly improved performance and reliability compared to
 the thread-pool based implementation.
 """
 
-import logging
+from ...core.logging_config import get_logger
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import asyncio
 import time
 import random
@@ -30,7 +33,7 @@ from ...utils.async_utils.enhanced import (
     gather_with_concurrency
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 T = TypeVar('T')  # Return type for async functions
 
@@ -98,14 +101,17 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             )
         return self._session
 
-    async def _fetch_json(self, url: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async @with_retry 
+def _fetch_json(self, url: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Fetch JSON data from a URL with proper error handling.
         """
         @enhanced_async_rate_limited(
             circuit_name=self._circuit_name if self.enable_circuit_breaker else None,
             max_retries=self.max_retries,
-            rate_limiter=self._rate_limiter
+    @with_retry
+    
+def _do_fetch(imiter=self._rate_limiter
         )
         async def _do_fetch() -> Dict[str, Any]:
             session = await self._ensure_session()
@@ -117,11 +123,11 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                         retry_after = int(response.headers.get("Retry-After", "60"))
                         raise RateLimitError(f"Yahoo Finance API rate limit exceeded. Retry after {retry_after} seconds", retry_after=retry_after)
                     elif response.status == 404:
-                        raise ValidationError(f"Resource not found at {url}")
+                        raise e
                     else:
                         text = await response.text()
                         details = {"status_code": response.status, "response_text": text[:100]}
-                        raise APIError(f"Yahoo Finance API error: {response.status} - {text[:100]}", details=details)
+                        raise e
             except aiohttp.ClientError as e:
                 raise NetworkError(f"Network error while fetching {url}: {str(e)}")
 
@@ -130,7 +136,7 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         except CircuitOpenError as e:
             retry_after = e.retry_after
             details = {"status_code": 503, "retry_after": retry_after}
-            raise APIError(f"Yahoo Finance API is currently unavailable. Please try again in {retry_after} seconds", details=details)
+            raise e
 
     @enhanced_async_rate_limited(max_retries=0)
     async def get_ticker_info(self, ticker: str, skip_insider_metrics: bool = False) -> Dict[str, Any]:
@@ -204,7 +210,7 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                          info["buy_percentage"] = None
                          info["total_ratings"] = ticker_info.get("numberOfAnalystOpinions", 0)
                          info["analyst_count"] = info["total_ratings"]
-                except Exception as e:
+                except YFinanceError as e:
                     logger.warning(f"Error processing recommendations for {ticker}: {e}. Using fallback.", exc_info=False)
                     info["buy_percentage"] = None
                     info["total_ratings"] = ticker_info.get("numberOfAnalystOpinions", 0)
@@ -237,7 +243,7 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             try:
                 last_earnings_date = self._get_last_earnings_date(yticker)
                 info["last_earnings"] = last_earnings_date
-            except Exception as e:
+            except YFinanceError as e:
                 logger.warning(f"Failed to get earnings date for {ticker}: {str(e)}", exc_info=False)
                 info["last_earnings"] = None
             # --- End: Reinstated Earnings Date Logic ---
@@ -252,7 +258,7 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             try:
                 last_earnings_date = self._get_last_earnings_date(yticker)
                 info["last_earnings"] = last_earnings_date
-            except Exception as e:
+            except YFinanceError as e:
                 logger.warning(f"Failed to get earnings date for {ticker}: {str(e)}", exc_info=False)
                 info["last_earnings"] = None
             # --- End: Reinstated Earnings Date Logic ---
@@ -277,9 +283,9 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             return info
 
         except (APIError, ValidationError, RateLimitError, NetworkError):
-            raise
-        except Exception as e:
-            raise APIError(f"Failed to get ticker info for {ticker}: {str(e)}")
+            raise e
+        except YFinanceError as e:
+            raise e
 
     @enhanced_async_rate_limited(max_retries=0)
     async def get_historical_data(self, ticker: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
@@ -299,11 +305,11 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 df.rename(columns={'open': 'Open', 'high': 'High', 'low': 'Low', 'close': 'Close', 'volume': 'Volume'}, inplace=True)
             return df
         except (ValueError, KeyError, TypeError, AttributeError, pd.errors.EmptyDataError, ImportError, ModuleNotFoundError, RuntimeError, MemoryError) as e:
-            raise APIError(f"Failed to process historical data for {ticker}: {str(e)}")
+            raise e
         except (IOError, ConnectionError, aiohttp.ClientError) as e:
             raise NetworkError(f"Network error when fetching historical data for {ticker}: {str(e)}")
         except (APIError, ValidationError, RateLimitError, NetworkError):
-            raise
+            raise e
 
     @enhanced_async_rate_limited(max_retries=0)
     async def get_earnings_data(self, ticker: str) -> Dict[str, Any]:
@@ -322,7 +328,7 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                     earnings_date = calendar[EARNINGS_DATE_COL].iloc[0]
                     if pd.notna(earnings_date):
                         earnings_data["earnings_dates"].append(earnings_date.strftime("%Y-%m-%d"))
-            except Exception as e:
+            except YFinanceError as e:
                 logger.warning(f"Failed to get earnings calendar for {ticker}: {str(e)}")
             # Get earnings history
             try:
@@ -331,7 +337,7 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                     for idx, row in earnings_hist.iterrows():
                         quarter_data = {"date": idx.strftime("%Y-%m-%d") if hasattr(idx, "strftime") else str(idx), "reported_eps": row.get("Reported EPS", None), "estimated_eps": row.get("Estimated EPS", None), "surprise": row.get("Surprise(%)", None)}
                         earnings_data["earnings_history"].append(quarter_data)
-            except Exception as e:
+            except YFinanceError as e:
                 logger.warning(f"Failed to get earnings history for {ticker}: {str(e)}")
             # Get earnings estimate from info
             try:
@@ -342,15 +348,15 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                     from datetime import datetime
                     last_fiscal = datetime.fromtimestamp(ticker_info["lastFiscalYearEnd"])
                     earnings_data["quarter_end"] = last_fiscal.strftime("%Y-%m-%d")
-            except Exception as e:
+            except YFinanceError as e:
                 logger.warning(f"Failed to get earnings estimates for {ticker}: {str(e)}")
             return earnings_data
         except (ValueError, KeyError, TypeError, AttributeError, pd.errors.EmptyDataError, ImportError, ModuleNotFoundError, RuntimeError, MemoryError) as e:
-            raise APIError(f"Failed to process earnings data for {ticker}: {str(e)}")
+            raise e
         except (IOError, ConnectionError, aiohttp.ClientError) as e:
             raise NetworkError(f"Network error when fetching earnings data for {ticker}: {str(e)}")
         except (APIError, ValidationError, RateLimitError, NetworkError):
-            raise
+            raise e
 
     @enhanced_async_rate_limited(max_retries=0)
     async def get_earnings_dates(self, ticker: str) -> List[str]:
@@ -364,7 +370,7 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             # Ensure the key exists and the value is iterable before returning
             dates = earnings_data.get("earnings_dates")
             return dates if isinstance(dates, list) else []
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Unexpected error getting earnings dates for {ticker}: {str(e)}")
             return []
 
@@ -401,7 +407,7 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         try:
             data = await self._fetch_json(url, params)
             if not data or "quoteSummary" not in data or "result" not in data["quoteSummary"] or not data["quoteSummary"]["result"]:
-                raise APIError(f"Invalid response from Yahoo Finance API for {ticker} insider transactions")
+                raise e
             result = data["quoteSummary"]["result"][0]
             transactions = []
             if "insiderTransactions" in result and "transactions" in result["insiderTransactions"]:
@@ -410,11 +416,11 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                     transactions.append(tx)
             return transactions
         except (ValueError, KeyError, TypeError, AttributeError, pd.errors.EmptyDataError, ModuleNotFoundError, RuntimeError, MemoryError) as e:
-            raise APIError(f"Failed to process insider transactions data for {ticker}: {str(e)}")
+            raise e
         except (IOError, ConnectionError, aiohttp.ClientError) as e:
             raise NetworkError(f"Network error when fetching insider transactions for {ticker}: {str(e)}")
         except (APIError, ValidationError, RateLimitError, NetworkError):
-            raise
+            raise e
 
     @enhanced_async_rate_limited(max_retries=0)
     async def search_tickers(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
@@ -422,7 +428,7 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         Search for tickers matching a query asynchronously.
         """
         if not query or not query.strip():
-            raise ValidationError("Search query cannot be empty")
+            raise e
         base_url = "https://query1.finance.yahoo.com/v1/finance/search"
         params = {"q": query, "quotesCount": limit, "newsCount": 0, "enableFuzzyQuery": "true", "enableEnhancedTrivialQuery": "true"}
         try:
@@ -434,11 +440,11 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 results.append(result)
             return results
         except (ValueError, KeyError, TypeError, AttributeError, ModuleNotFoundError, RuntimeError, MemoryError) as e:
-            raise APIError(f"Failed to process search results for '{query}': {str(e)}")
+            raise e
         except (IOError, ConnectionError, aiohttp.ClientError) as e:
             raise NetworkError(f"Network error when searching tickers for '{query}': {str(e)}")
         except (APIError, ValidationError, RateLimitError, NetworkError):
-            raise
+            raise e
 
     @enhanced_async_rate_limited(max_retries=0)
     async def get_price_data(self, ticker: str) -> Dict[str, Any]:
@@ -484,7 +490,7 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 try:
                     df["GradeDate"] = pd.to_datetime(df["GradeDate"], errors='coerce')
                     df.dropna(subset=["GradeDate"], inplace=True)
-                except Exception as date_err:
+                except YFinanceError as date_err:
                      logger.warning(f"Error converting GradeDate for {ticker}: {date_err}")
                      return False
                 earnings_date = pd.to_datetime(last_earnings)
@@ -499,11 +505,13 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                     }
                     return True
                 return False
-            except Exception as e:
+            except YFinanceError as e:
                 logger.warning(f"Error getting post-earnings ratings for {ticker}: {e}", exc_info=False)
             return False
-        except Exception as e:
-            logger.warning(f"Exception in _has_post_earnings_ratings for {ticker}: {e}", exc_info=False)
+        except YFinanceError as e:
+       @with_retry
+       
+def _get_last_earnings_date(ion in _has_post_earnings_ratings for {ticker}: {e}", exc_info=False)
             return False
 
     def _get_last_earnings_date(self, yticker):
@@ -516,7 +524,7 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                     today = pd.Timestamp.now().date()
                     past_earnings = [d for d in earnings_date_list if isinstance(d, datetime.date) and d < today]
                     if past_earnings: return max(past_earnings).strftime('%Y-%m-%d')
-        except Exception as e:
+        except YFinanceError as e:
              logger.debug(f"Error getting earnings from calendar for {yticker.ticker}: {e}", exc_info=False)
         try: # Try earnings_dates attribute
             earnings_dates = getattr(yticker, 'earnings_dates', None)
@@ -525,14 +533,14 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 tz = earnings_dates.index.tz
                 if tz and today.tzinfo is None:
                     try: today = today.tz_localize('UTC').tz_convert(tz)
-                    except Exception as tz_err:
+                    except YFinanceError as tz_err:
                          logger.warning(f"Could not localize 'today' timestamp for {yticker.ticker}: {tz_err}")
                          today = pd.Timestamp.now()
                 elif tz is None and today.tzinfo is not None:
                      today = today.tz_localize(None)
                 past_dates = [date for date in earnings_dates.index if date < today]
                 if past_dates: return max(past_dates).strftime('%Y-%m-%d')
-        except Exception as e:
+        except YFinanceError as e:
              logger.debug(f"Error getting earnings from earnings_dates for {yticker.ticker}: {e}", exc_info=False)
         return None
 
@@ -572,7 +580,13 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         if isinstance(date, str): return date[:10]
         if hasattr(date, 'strftime'): return date.strftime('%Y-%m-%d')
         try: return str(date)[:10]
-        except: return None
+        except Exception as e:
+        # Translate standard exception to our error hierarchy
+        error_context = {"location": __name__}
+        custom_error = translate_error(e, context=error_context)@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def batch_get_ticker_info(r
+        custom_error = translate_error(e, context={"location": __name__})
+        raise custom_error return None
     # --- End: Added Helper Methods ---
 
     async def batch_get_ticker_info(self, tickers: List[str], skip_insider_metrics: bool = False) -> Dict[str, Dict[str, Any]]:
@@ -586,7 +600,7 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             """Wrapper to fetch info for a single ticker and handle errors."""
             try:
                 return await self.get_ticker_info(ticker, skip_insider_metrics)
-            except Exception as e:
+            except YFinanceError as e:
                 logger.error(f"Error fetching batch data for {ticker}: {e}")
                 return {"symbol": ticker, "ticker": ticker, "company": ticker, "error": str(e)}
 

@@ -5,7 +5,10 @@ This module provides common utility functions used by provider implementations
 to reduce duplication and promote consistent behavior across providers.
 """
 
-import logging
+from ...core.logging_config import get_logger
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import re
 from typing import Dict, Any, List, Tuple, Optional, Union, Callable
 import pandas as pd
@@ -13,7 +16,7 @@ import numpy as np
 
 from ...core.errors import ValidationError, APIError, RateLimitError
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 def is_rate_limit_error(error: Exception) -> bool:
     """
@@ -36,6 +39,10 @@ def is_rate_limit_error(error: Exception) -> bool:
     return any(pattern in error_str for pattern in rate_limit_patterns)
 
 
+@with_retry
+
+
+
 def handle_api_error(func_name: str, ticker: str, error: Exception) -> None:
     """
     Handle API errors consistently across providers.
@@ -56,7 +63,7 @@ def handle_api_error(func_name: str, ticker: str, error: Exception) -> None:
         raise RateLimitError(f"Rate limit exceeded for {ticker}")
     else:
         logger.error(error_msg)
-        raise APIError(f"API error for {ticker}: {str(error)}")
+        raise e
 
 
 def process_analyst_ratings(ratings_df: pd.DataFrame) -> Dict[str, Any]:
@@ -101,7 +108,7 @@ def process_analyst_ratings(ratings_df: pd.DataFrame) -> Dict[str, Any]:
                 'sell': sell_count
             }
         }
-    except Exception as e:
+    except YFinanceError as e:
         logger.warning(f"Error processing analyst ratings: {str(e)}")
         return {
             'buy_percentage': None,

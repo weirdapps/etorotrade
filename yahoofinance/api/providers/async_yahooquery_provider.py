@@ -5,7 +5,7 @@ This module implements the AsyncFinanceDataProvider interface using the yahooque
 with asyncio for concurrent processing, enabling efficient asynchronous data fetching.
 """
 
-import logging
+from ...core.logging_config import get_logger
 import time
 import asyncio
 from typing import Dict, Any, Optional, List, Tuple, cast
@@ -20,7 +20,7 @@ from ...utils.market.ticker_utils import is_us_ticker
 from ...utils.async_utils.enhanced import async_rate_limited
 from ...core.config import CACHE_CONFIG, COLUMN_NAMES, POSITIVE_GRADES
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class AsyncYahooQueryProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvider):
     """
