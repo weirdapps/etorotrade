@@ -3638,8 +3638,9 @@ def _sort_display_dataframe(display_df):
     # Already numeric, sort directly
     return display_df.sort_values('EXRET', ascending=False)
 
-def _prepare_ticker_data(display, tickers, source):
-    """Prepare ticker data for the report
+async def _prepare_ticker_data(display, tickers, source):
+    """
+    Prepare ticker data for the report
     
     Args:
         display: Display object for rendering
@@ -3664,7 +3665,7 @@ def _prepare_ticker_data(display, tickers, source):
     
     # Fetch ticker data
     print("\nFetching market data...")
-    result_df, processing_stats = asyncio.run(fetch_ticker_data(provider, tickers))
+    result_df, processing_stats = await fetch_ticker_data(provider, tickers)
     
     # Set up output files
     output_file, report_title = _setup_output_files(report_source)
@@ -3838,7 +3839,7 @@ async def display_report_for_source(display, tickers, source, verbose=False, get
         min_targets = TRADING_CRITERIA["CONFIDENCE"]["MIN_PRICE_TARGETS"]
         
         # Step 1: Prepare ticker data
-        result_df, output_file, report_title, report_source, processing_stats = _prepare_ticker_data(display, tickers, source)
+        result_df, output_file, report_title, report_source, processing_stats = await _prepare_ticker_data(display, tickers, source)
         
         # Save raw data
         result_df.to_csv(output_file, index=False)
