@@ -108,10 +108,15 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         
         for attempt in range(self.max_retries):
             try:
-                # Get basic info
-                info = ticker_obj.info
-                if not info:
-                    raise DataError(f"No information found for ticker {ticker}")
+                # Get basic info - handle potential None result or AttributeError
+                try:
+                    info = ticker_obj.info
+                    if not info:
+                        raise DataError(f"No information found for ticker {ticker}")
+                except (AttributeError, TypeError) as e:
+                    logger.warning(f"Error accessing ticker info for {ticker}: {str(e)}")
+                    # Provide fallback minimal info
+                    info = {"symbol": ticker}
                 
                 # Extract key metrics using the base class helper
                 result = self._extract_common_ticker_info(info)
@@ -435,9 +440,38 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         results = {}
         for ticker in tickers:
             try:
-                results[ticker] = self.get_ticker_info(ticker, skip_insider_metrics)
+                # Get info with robust error handling
+                ticker_info = self.get_ticker_info(ticker, skip_insider_metrics)
+                results[ticker] = ticker_info
             except YFinanceError as e:
-                results[ticker] = self._process_error_for_batch(ticker, e)
+                # Create error result with minimal data
+                error_result = self._process_error_for_batch(ticker, e)
+                # Ensure at least basic info is present
+                if isinstance(error_result, dict):
+                    error_result.update({
+                        "symbol": ticker,
+                        "ticker": ticker,
+                        "company": ticker.upper(),
+                        "error": str(e)
+                    })
+                    results[ticker] = error_result
+                else:
+                    # Fallback if _process_error_for_batch returned non-dict
+                    results[ticker] = {
+                        "symbol": ticker,
+                        "ticker": ticker,
+                        "company": ticker.upper(),
+                        "error": str(e)
+                    }
+            except Exception as e:
+                # Handle any unexpected exceptions
+                logger.error(f"Unexpected error processing ticker {ticker}: {str(e)}")
+                results[ticker] = {
+                    "symbol": ticker,
+                    "ticker": ticker,
+                    "company": ticker.upper(),
+                    "error": f"Unexpected error: {str(e)}"
+                }
         
         return results
     
