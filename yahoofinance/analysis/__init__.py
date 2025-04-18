@@ -11,8 +11,12 @@ This package contains modules for analyzing financial data including:
 - Stock: Comprehensive stock analysis with trading recommendations
 - Backtest: Backtesting and optimization of trading strategies
 - Optimize: Portfolio optimization using Modern Portfolio Theory
+
+This package also provides factory functions for creating and managing analyzers
+with dependency injection, making it easier to test and maintain the codebase.
 """
 
+# Direct imports of analysis classes
 from .analyst import AnalystData, CompatAnalystData
 from .earnings import EarningsAnalyzer, EarningsCalendar, format_earnings_table
 from .insiders import InsiderAnalyzer
@@ -25,6 +29,12 @@ from .backtest import (
     Backtester, BacktestOptimizer, run_backtest, optimize_criteria
 )
 from .optimize import PortfolioOptimizer, optimize_portfolio
+
+# Import factory functions for dependency injection
+from .analyzer_factory import (
+    create_stock_analyzer, with_analyzer,
+    create_portfolio_analyzer, with_portfolio_analyzer
+)
 
 __all__ = [
     # Analyst
@@ -70,4 +80,10 @@ __all__ = [
     # Portfolio Optimization
     'PortfolioOptimizer',
     'optimize_portfolio',
+    
+    # Factory Functions (Dependency Injection)
+    'create_stock_analyzer',
+    'with_analyzer',
+    'create_portfolio_analyzer',
+    'with_portfolio_analyzer',
 ]

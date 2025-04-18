@@ -5,12 +5,15 @@ This module provides utilities for date handling including validation,
 formatting, and range generation.
 """
 
-import logging
 import datetime
 from typing import Tuple, List, Optional, Union
 import pandas as pd
 
-logger = logging.getLogger(__name__)
+from ...core.logging_config import get_logger
+from ...core.errors import YFinanceError, APIError, ValidationError, DataError
+from ..error_handling import translate_error, enrich_error_context, with_retry, safe_operation
+
+logger = get_logger(__name__)
 
 def validate_date_format(date_str: str, fmt: str = '%Y-%m-%d') -> bool:
     """
@@ -83,6 +86,10 @@ def get_date_range(
         raise ValueError(f"Start date ({start_date}) is after end date ({end_date})")
     
     return start_date, end_date
+
+
+@with_retry
+
 
 
 def format_date_for_api(date_obj: Union[datetime.date, pd.Timestamp]) -> str:

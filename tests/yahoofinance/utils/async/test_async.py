@@ -10,7 +10,7 @@ This test file verifies:
 
 import asyncio
 import unittest
-import logging
+from ..core.logging_config import get_logger
 from unittest.mock import patch
 
 from yahoofinance.utils.network.pagination import PaginatedResults, paginated_request, bulk_fetch
@@ -30,7 +30,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class TestPagination(unittest.TestCase):

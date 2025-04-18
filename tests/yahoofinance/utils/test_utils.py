@@ -10,7 +10,7 @@ This test file verifies the functionality of utility modules including:
 
 import unittest
 import time
-import logging
+from ..core.logging_config import get_logger
 from unittest.mock import patch, MagicMock
 
 from yahoofinance.utils.market_utils import is_us_ticker, normalize_hk_ticker
@@ -23,7 +23,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class TestMarketUtils(unittest.TestCase):

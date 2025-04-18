@@ -10,7 +10,7 @@ This test file verifies core rate limiting utilities that protect against API th
 
 import time
 import unittest
-import logging
+from ..core.logging_config import get_logger
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch, MagicMock
@@ -28,7 +28,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class TestRateLimiterConfiguration(unittest.TestCase):

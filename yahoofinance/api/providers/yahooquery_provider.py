@@ -87,7 +87,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             
             # Check if any data was returned - if all are empty, raise error
             if not any([summary_data, price_data, quote_type]):
-                raise e
+                raise YFinanceError("An error occurred")
             
             # Get company name
             company_name = price_data.get('shortName') or quote_type.get('shortName')
@@ -237,7 +237,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             financial_data = yq_ticker.financial_data.get(ticker, {})
             
             if not price_data:
-                raise e
+                raise YFinanceError("An error occurred")
             
             # Create price info dict
             price_info = {

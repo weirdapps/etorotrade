@@ -135,7 +135,7 @@ def _get_context_for_ticker_op(self, ticker: str, operation: str, **kwargs) -> D
         """
         # Validate ticker
         if not ticker or not isinstance(ticker, str):
-            raise e
+            raise YFinanceError("An error occurred")
         
         if self.circuit and not self.circuit.allow_request():
             # Use our error enhancing utility to add context

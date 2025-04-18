@@ -63,7 +63,7 @@ def handle_api_error(func_name: str, ticker: str, error: Exception) -> None:
         raise RateLimitError(f"Rate limit exceeded for {ticker}")
     else:
         logger.error(error_msg)
-        raise e
+        raise YFinanceError("An error occurred")
 
 
 def process_analyst_ratings(ratings_df: pd.DataFrame) -> Dict[str, Any]:

@@ -6,7 +6,10 @@ Modern Portfolio Theory to maximize Sharpe ratio under specified constraints.
 """
 
 import os
-import logging
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
+from ..core.logging_config import get_logger
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Optional, Tuple, Set, Union, Any
@@ -23,7 +26,7 @@ from ..api import get_provider, FinanceDataProvider
 from ..core.errors import YFinanceError, ValidationError, RateLimitError
 from ..utils.network.rate_limiter import RateLimiter, rate_limited
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class PortfolioOptimizer:
     """
@@ -109,14 +112,14 @@ class PortfolioOptimizer:
                 tickers = df['ticker'].unique().tolist()
                 self.tickers = tickers
             else:
-                raise ValidationError("Portfolio CSV must contain a 'ticker' column")
+                raise ValidationError("No ticker column found in portfolio file")
                 
             logger.info(f"Loaded {len(self.tickers)} tickers from portfolio")
             self.portfolio_df = df
             return df
             
-        except Exception as e:
-            raise ValidationError(f"Error loading portfolio from {self.portfolio_path}: {str(e)}")
+        except YFinanceError as e:
+            raise e
     
     def get_historical_data(self) -> Tuple[pd.DataFrame, Set[str]]:
         """
@@ -178,11 +181,11 @@ class PortfolioOptimizer:
                     # Record successful API call
                     self.rate_limiter.record_call()
                     self.rate_limiter.record_success()
-                except Exception as e:
+                except YFinanceError as e:
                     # Record failed API call
                     is_rate_limit = "rate limit" in str(e).lower() or "too many requests" in str(e).lower()
                     self.rate_limiter.record_failure(is_rate_limit=is_rate_limit)
-                    raise
+                    raise e
                 
                 # Handle single ticker case
                 if len(batch_tickers) == 1:
@@ -214,7 +217,7 @@ class PortfolioOptimizer:
                             else:
                                 all_data = pd.concat([all_data, prices_df[valid_batch_tickers]], axis=1)
             
-            except Exception as e:
+            except YFinanceError as e:
                 logger.warning(f"Error fetching data for batch {batch_num}/{total_batches}: {str(e)}")
                 continue
         
@@ -312,7 +315,7 @@ class PortfolioOptimizer:
                 logger.info(f"Calculated returns for {period}-year period with {len(daily_returns)} data points")
                 print(f"Successfully calculated returns for {period}-year period with {len(daily_returns)} data points")
                 
-            except Exception as e:
+            except YFinanceError as e:
                 logger.warning(f"Error calculating returns for {period}-year period: {str(e)}")
                 print(f"Error calculating returns for {period}-year period: {str(e)}")
                 continue
@@ -522,7 +525,7 @@ class PortfolioOptimizer:
                 # Record successful API call
                 self.rate_limiter.record_success()
                 
-            except Exception as e:
+            except YFinanceError as e:
                 # Record failed API call
                 is_rate_limit = "rate limit" in str(e).lower() or "too many requests" in str(e).lower()
                 self.rate_limiter.record_failure(is_rate_limit=is_rate_limit)
@@ -582,7 +585,7 @@ class PortfolioOptimizer:
             
             return historical_data, valid_tickers
             
-        except Exception as e:
+        except YFinanceError as e:
             raise ValueError(f"Error loading data from cache: {str(e)}")
     
     def load_prices_from_cache(self) -> Dict[str, float]:
@@ -618,7 +621,7 @@ class PortfolioOptimizer:
             
             return prices
             
-        except Exception as e:
+        except YFinanceError as e:
             raise ValueError(f"Error loading prices from cache: {str(e)}")
     
     def run_optimization(self) -> Dict[int, Dict]:
@@ -806,9 +809,9 @@ class PortfolioOptimizer:
             results = self.run_optimization()
             self.display_results(results)
             return results
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Portfolio optimization failed: {str(e)}")
-            raise
+            raise e
 
 
 def optimize_portfolio(

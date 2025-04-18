@@ -6,8 +6,11 @@ the configured trading criteria on historical data and evaluating performance.
 """
 
 import os
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import json
-import logging
+from ..core.logging_config import get_logger
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -29,7 +32,7 @@ from ..utils.trade_criteria import SELL_ACTION, BUY_ACTION, HOLD_ACTION, NO_ACTI
 from ..core.errors import YFinanceError, ValidationError
 from ..presentation.html import HTMLGenerator, FormatUtils
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Period options for backtesting (years)
 BACKTEST_PERIODS = {
@@ -236,11 +239,11 @@ class Backtester:
                     try:
                         os.remove(file_path)
                         deleted_count += 1
-                    except Exception as e:
+                    except YFinanceError as e:
                         logger.warning(f"Error deleting file {file_path}: {str(e)}")
             
             logger.info(f"Deleted {deleted_count} previous backtest result files")
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error during cleanup: {str(e)}")
     
     def load_tickers(self, source: str = "portfolio") -> List[str]:
@@ -272,8 +275,7 @@ class Backtester:
         }
         
         if source not in source_map:
-            raise ValidationError(f"Invalid ticker source: {source}. Must be one of: "
-                                 f"{', '.join(source_map.keys())}")
+            raise ValueError(f"Unknown source: {source}")
                                  
         file_path = source_map[source]
         try:
@@ -289,22 +291,21 @@ class Backtester:
                     
             if ticker_col is None:
                 cols = ', '.join(df.columns)
-                raise ValidationError(f"Ticker column not found in {file_path}. "
-                                     f"Expected one of: symbol, ticker. Found: {cols}")
+                raise YFinanceError("An error occurred")
             
             # Extract and clean tickers
             tickers = df[ticker_col].tolist()
             tickers = [t.strip() for t in tickers if isinstance(t, str) and t.strip()]
             
             if not tickers:
-                raise ValidationError(f"No tickers found in {file_path}")
+                raise YFinanceError("An error occurred")
                 
             return tickers
             
-        except Exception as e:
+        except YFinanceError as e:
             if isinstance(e, ValidationError):
-                raise
-            raise ValidationError(f"Error loading tickers from {file_path}: {str(e)}")
+                raise e
+            raise e
     
     def get_historical_data(self, ticker: str, period: str = "3y") -> pd.DataFrame:
         """
@@ -334,7 +335,7 @@ class Backtester:
                 
             return history
             
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error getting historical data for {ticker}: {str(e)}")
             raise YFinanceError(f"Failed to get historical data for {ticker}: {str(e)}")
     
@@ -410,7 +411,7 @@ class Backtester:
                                 cache_hits += 1
                                 cache_valid = True
                                 progress_bar.set_description(f"Disk cache hit: {ticker}".ljust(25))
-                            except Exception as e:
+                            except YFinanceError as e:
                                 logger.warning(f"Error loading cache for {ticker}: {str(e)}")
                                 cache_valid = False
                     
@@ -424,7 +425,7 @@ class Backtester:
                         try:
                             with open(cache_file, 'wb') as f:
                                 pickle.dump(history, f)
-                        except Exception as e:
+                        except YFinanceError as e:
                             logger.warning(f"Error saving cache for {ticker}: {str(e)}")
                 
                 # Add ticker info to the DataFrame if not already present
@@ -450,7 +451,7 @@ class Backtester:
                     "Cache hits": cache_hits
                 })
                 
-            except Exception as e:
+            except YFinanceError as e:
                 errors.append(f"{ticker}: {str(e)}")
                 logger.warning(f"Skipping {ticker} due to error: {str(e)}")
         
@@ -589,7 +590,7 @@ class Backtester:
                             history = self.provider.get_historical_data(ticker, period="max")
                             self.ticker_data_cache[ticker] = history
                         prefetch_progress.update(1)
-                    except Exception as e:
+                    except YFinanceError as e:
                         logger.warning(f"Failed to fetch history for {ticker}: {str(e)}")
                         # Create an empty DataFrame as fallback
                         self.ticker_data_cache[ticker] = pd.DataFrame()
@@ -697,7 +698,7 @@ class Backtester:
                     market_cap_mean = self.rng.lognormal(mean=23, sigma=1.5)  # Mean around $10B with wide variance
                     data['market_cap'] = market_cap_mean
                         
-                except Exception as e:
+                except YFinanceError as e:
                     logger.warning(f"Error generating analyst data for {ticker}: {str(e)}")
                     # Set default values for missing data
                     data['target_price'] = data.get('Close', 0) * 1.1
@@ -765,7 +766,7 @@ class Backtester:
                 
                 results[ticker] = (action, reason)
                 
-            except Exception as e:
+            except YFinanceError as e:
                 logger.warning(f"Error calculating action for {ticker}: {str(e)}")
                 results[ticker] = (NO_ACTION, f"Error: {str(e)}")
         
@@ -968,7 +969,7 @@ class Backtester:
             
             return result
             
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error during backtest: {str(e)}")
             raise YFinanceError(f"Backtest failed: {str(e)}")
         
@@ -1576,7 +1577,7 @@ class Backtester:
                     market_cap_fmt = f"{market_cap/1_000_000:.2f}M"
                 else:
                     market_cap_fmt = f"{market_cap:.0f}"
-            except Exception as e:
+            except YFinanceError as e:
                 logger.debug(f"Error formatting market cap for {ticker}: {str(e)}")
                 market_cap_fmt = "unknown"
                 
@@ -1660,7 +1661,7 @@ class Backtester:
                 logger.debug(f"Closed end position for {ticker} at {exit_price:.2f} "
                            f"with P&L: {position.pnl:.2f} ({position.pnl_pct:.2f}%)")
                            
-            except Exception as e:
+            except YFinanceError as e:
                 logger.error(f"Error closing position for {ticker}: {str(e)}")
         
         # Clear positions
@@ -1750,7 +1751,7 @@ class Backtester:
                     benchmark_ticker,
                     period="max"
                 )
-            except Exception as e:
+            except YFinanceError as e:
                 logger.warning(f"Failed to get benchmark data for {benchmark_ticker}: {str(e)}")
                 # Fall back to a safer alternative if SPY fails
                 try:
@@ -1766,9 +1767,9 @@ class Backtester:
                                 benchmark_ticker = backup
                                 logger.info(f"Using {backup} as benchmark")
                                 break
-                        except Exception:
+                        except YFinanceError:
                             continue
-                except Exception as e2:
+                except YFinanceError as e2:
                     logger.error(f"All benchmark alternatives failed: {str(e2)}")
                     benchmark_data = pd.DataFrame()
             
@@ -1832,7 +1833,7 @@ class Backtester:
             
             return metrics
             
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error calculating benchmark performance: {str(e)}")
             return {
                 'total_return': 0,
@@ -1897,7 +1898,7 @@ class Backtester:
             final_path = os.path.join(self.output_dir, f"backtest_{timestamp}_final.csv")
             final_df = pd.DataFrame(final_portfolio_data)
             final_df.to_csv(final_path, index=False)
-        except Exception as e:
+        except YFinanceError as e:
             logger.warning(f"Failed to generate final portfolio snapshot: {str(e)}")
             final_portfolio_data = []
             final_path = None
@@ -1920,6 +1921,7 @@ class Backtester:
             
         return paths
     
+    @with_retry
     def _get_final_portfolio_snapshot(self, result: BacktestResult, last_date: datetime) -> List[Dict[str, Any]]:
         """
         Generate final portfolio snapshot with all relevant metrics.
@@ -2024,7 +2026,7 @@ class Backtester:
                         
                 return snapshot
                     
-            except Exception as e:
+            except YFinanceError as e:
                 logger.warning(f"Error generating snapshot for {ticker}: {str(e)}")
                 return None
         
@@ -2107,7 +2109,7 @@ class Backtester:
                                 linestyle='--',
                                 linewidth=2
                             )
-                except Exception as e:
+                except YFinanceError as e:
                     logger.warning(f"Error creating benchmark series: {str(e)}")
                 
                 # Style the plot
@@ -2127,7 +2129,7 @@ class Backtester:
                 plt.savefig(chart_path, dpi=100, bbox_inches='tight')
                 plt.close()
                 chart_filename = f"backtest_{timestamp}_chart.png"
-            except Exception as e:
+            except YFinanceError as e:
                 logger.warning(f"Failed to create portfolio chart: {str(e)}")
                 chart_filename = ""
             
@@ -2135,7 +2137,7 @@ class Backtester:
             try:
                 start_date = result.portfolio_values.index.min().strftime("%Y-%m-%d")
                 end_date = result.portfolio_values.index.max().strftime("%Y-%m-%d")
-            except Exception:
+            except YFinanceError:
                 # Use fallback dates if formatting fails
                 start_date = "N/A"
                 end_date = "N/A"
@@ -2167,7 +2169,7 @@ class Backtester:
                 f.write(html_content)
                 
             return html_path
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Failed to generate HTML report: {str(e)}")
             # Return simple file path even if generation failed
             return os.path.join(self.output_dir, f"backtest_{timestamp}.html")
@@ -2259,7 +2261,7 @@ class Backtester:
             
             return html
             
-        except Exception as e:
+        except YFinanceError as e:
             logger.warning(f"Error rendering portfolio synthesis table: {str(e)}")
             return f"<p>Error generating portfolio synthesis table: {str(e)}</p>"
             
@@ -2303,7 +2305,7 @@ class Backtester:
                     if param not in buy_param_order:
                         buy_rows += f"<tr><td>{param}</td><td>{value}</td></tr>"
                         
-            except Exception as e:
+            except YFinanceError as e:
                 logger.warning(f"Error generating buy criteria rows: {str(e)}")
                 # Define a constant for the error row
                 ERROR_CRITERIA_ROW = "<tr><td colspan='2'>Error generating criteria</td></tr>"
@@ -2335,7 +2337,7 @@ class Backtester:
                     if param not in sell_param_order:
                         sell_rows += f"<tr><td>{param}</td><td>{value}</td></tr>"
                         
-            except Exception as e:
+            except YFinanceError as e:
                 logger.warning(f"Error generating sell criteria rows: {str(e)}")
                 sell_rows = ERROR_CRITERIA_ROW
                 
@@ -2343,7 +2345,7 @@ class Backtester:
             try:
                 for param, value in template_vars.get('criteria', {}).get('CONFIDENCE', {}).items():
                     confidence_rows += f"<tr><td>{param}</td><td>{value}</td></tr>"
-            except Exception as e:
+            except YFinanceError as e:
                 logger.warning(f"Error generating confidence criteria rows: {str(e)}")
                 confidence_rows = ERROR_CRITERIA_ROW
             
@@ -2591,7 +2593,7 @@ class Backtester:
             
             return html
             
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error rendering template: {str(e)}")
             # Return a simple fallback template
             return f"""
@@ -2877,7 +2879,7 @@ class BacktestOptimizer:
                         'performance': result.performance
                     })
                     
-                except Exception as e:
+                except YFinanceError as e:
                     logger.error(f"Error testing combination {progress_bar.n+1}: {str(e)}")
         finally:
             # Restore the original method to avoid side effects

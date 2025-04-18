@@ -275,7 +275,23 @@ source myenv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
+
+# For development, install development dependencies
+pip install -r dev-requirements.txt
+
+# Set up pre-commit hooks for development
+pre-commit install
 ```
+
+### Environment Variables
+
+You can configure the application behavior using environment variables:
+
+- `ETOROTRADE_LOG_LEVEL`: Set logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`)
+- `ETOROTRADE_LOG_FILE`: Path to log file (defaults to `logs/yahoofinance.log`)
+- `ETOROTRADE_DEBUG`: Set to `true` to enable debug mode with more verbose logging
+- `YAHOOFINANCE_LOG_LEVEL`: Set logging level for the yahoofinance package
+- `YAHOOFINANCE_DEBUG`: Set to `true` to enable debug mode for the yahoofinance package
 
 ### Required Input Files
 

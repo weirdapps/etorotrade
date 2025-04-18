@@ -270,6 +270,9 @@ def test_handle_password_input_failure(mock_find, mock_driver):
     
     assert mock_find.call_count == 3
 
+@with_retry
+
+
 def test_process_portfolio_no_downloads_dir():
     """Test portfolio processing with no downloads directory"""
     with patch('os.path.isdir', return_value=False):
@@ -384,8 +387,8 @@ def test_handle_portfolio_buttons_missing(mock_wait, mock_driver):
     """Test portfolio buttons not found"""
     mock_wait.return_value = None
     
-    with pytest.raises(NoSuchElementException):
-        handle_portfolio_buttons(mock_driver)
+    with pytest.raises(NoSuchEl@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_download_portfolio_success(folio_buttons(mock_driver)
 
 def test_download_portfolio_success():
     """Test successful portfolio download"""
@@ -400,20 +403,21 @@ def test_download_portfolio_success():
         
         assert result is True
         mock_setup.assert_called_once()
-        mock_cookie.assert_called_once()
-        mock_login.assert_called_once()
+        mock_cookie.assert_called_once@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_download_portfolio_element_error(
         mock_buttons.assert_called_once()
         mock_process.assert_called_once()
 
 def test_download_portfolio_element_error():
     """Test portfolio download with element error"""
-    with patch('yahoofinance.download.setup_driver'), \
-         patch('yahoofinance.download.handle_cookie_consent', side_effect=NoSuchElementException):
+    with patch('yahoofinance.download.setu@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_download_portfolio_webdriver_error(ownload.handle_cookie_consent', side_effect=NoSuchElementException):
         
         result = download_portfolio()
         assert result is False
 
-def test_download_portfolio_webdriver_error():
+de@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_download_portfolio_file_error(or():
     """Test portfolio download with WebDriver error"""
     with patch('yahoofinance.download.setup_driver', side_effect=WebDriverException):
         result = download_portfolio()

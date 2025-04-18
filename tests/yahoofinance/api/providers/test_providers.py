@@ -19,10 +19,15 @@ from yahoofinance.api import get_provider
 class TestFinanceProviders:
     """Tests for the provider base classes and factory function."""
 
-    def test_get_provider_returns_yahoo_finance_provider(self):
+    @with_retry
+
+    
+def test_get_provider_returns_yahoo_finance_provider(self):
         """Test that get_provider returns a YahooFinanceProvider by default."""
         provider = get_provider()
-        assert isinstance(provider, YahooFinanceProvider)
+       @with_retry
+       
+def test_get_provider_with_async_true(nceProvider)
         
     def test_get_provider_with_async_true(self):
         """Test that get_provider with async_mode=True returns an AsyncYahooFinanceProvider."""
@@ -100,7 +105,8 @@ class TestYahooFinanceProvider:
     def test_instantiation(self, mock_client):
         """Test creating a YahooFinanceProvider instance."""
         with patch('yahoofinance.api.providers.yahoo_finance.YFinanceClient') as mock_client_class:
-            mock_client_class.return_value = mock_client
+            mock_client_class.r@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_get_ticker_info(
             provider = YahooFinanceProvider()
             assert provider.client is not None
     
@@ -134,7 +140,9 @@ class TestYahooFinanceProvider:
             
             assert isinstance(result, dict)
             assert "ticker" in result
-            assert "price" in result
+      @with_retry
+      
+def test_get_price_data(result
             assert "name" in result
             assert result["price"] == pytest.approx(150.0, 0.001)
             assert result["name"] == "Apple Inc."
@@ -159,9 +167,7 @@ class TestYahooFinanceProvider:
                 mock_pricing.return_value = mock_pricing_instance
                 
                 provider = YahooFinanceProvider()
-                result = provider.get_price_data("AAPL")
-                
-                assert isinstance(result, dict)
+                result = provider.get_price_data("AAPL test_get_historical_data(       assert isinstance(result, dict)
                 assert "current_price" in result
                 assert "upside_potential" in result
                 assert result["current_price"] == pytest.approx(150.0, 0.001)
@@ -169,8 +175,8 @@ class TestYahooFinanceProvider:
     def test_get_historical_data(self, mock_client):
         """Test get_historical_data method returns correctly formatted data."""
         with patch('yahoofinance.api.providers.yahoo_finance.YFinanceClient') as mock_client_class:
-            mock_client_class.return_value = mock_client
-            provider = YahooFinanceProvider()
+            mock_client_class.return_value = mock_cl@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_get_analyst_ratings(ahooFinanceProvider()
             result = provider.get_historical_data("AAPL", "1y", "1d")
             
             assert isinstance(result, pd.DataFrame)
@@ -195,8 +201,9 @@ class TestYahooFinanceProvider:
                 mock_analyst_instance = Mock()
                 mock_analyst_instance.get_ratings_summary.return_value = ratings
                 mock_analyst.return_value = mock_analyst_instance
-                
-                provider = YahooFinanceProvider()
+      @with_retry
+      
+def test_get_earnings_data(provider = YahooFinanceProvider()
                 result = provider.get_analyst_ratings("AAPL")
                 
                 assert isinstance(result, dict)

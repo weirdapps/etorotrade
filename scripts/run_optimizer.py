@@ -7,9 +7,12 @@ It allows configuring minimum and maximum position sizes and time periods.
 """
 
 import os
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import sys
 import argparse
-import logging
+from ..core.logging_config import get_logger
 
 # Add parent directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -140,7 +143,7 @@ def main():
     except KeyboardInterrupt:
         print("\nOptimization interrupted by user.")
         sys.exit(1)
-    except Exception as e:
+    except YFinanceError as e:
         print(f"\nError: {str(e)}")
         sys.exit(1)
 

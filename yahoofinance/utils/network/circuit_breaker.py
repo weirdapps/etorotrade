@@ -11,13 +11,15 @@ requests through during recovery.
 import os
 import json
 import time
-import logging
 import threading
 import random
 from enum import Enum
 from typing import Dict, Any, Optional, Callable, TypeVar, List, Tuple
 from functools import wraps
 from datetime import datetime, timedelta
+
+from ...core.errors import YFinanceError, APIError, ValidationError, DataError
+from ...core.logging_config import get_logger
 
 from ...core.config import CIRCUIT_BREAKER
 
@@ -26,7 +28,7 @@ T = TypeVar('T')
 R = TypeVar('R')
 
 # Set up logging
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class CircuitState(Enum):
     """Circuit breaker states"""
@@ -145,7 +147,7 @@ class CircuitBreaker:
                     self.state = CircuitState.CLOSED
                     
             logger.debug(f"Loaded circuit breaker state for '{self.name}': {self.state.value}")
-        except Exception as e:
+        except YFinanceError as e:
             logger.warning(f"Failed to load circuit breaker state: {str(e)}")
             # Ensure we default to CLOSED state for safety
             self.state = CircuitState.CLOSED
@@ -169,7 +171,7 @@ class CircuitBreaker:
                         except json.JSONDecodeError:
                             # File exists but is not valid JSON, create empty state data
                             state_data = {}
-                except Exception as e:
+                except YFinanceError as e:
                     logger.warning(f"Error reading state file: {str(e)}, creating new state file")
             
             # Update with current state
@@ -192,7 +194,7 @@ class CircuitBreaker:
                 json.dump(state_data, f, indent=2)
                 
             logger.debug(f"Saved circuit breaker state for '{self.name}'")
-        except Exception as e:
+        except YFinanceError as e:
             logger.warning(f"Failed to save circuit breaker state: {str(e)}")
     
     def _clean_old_failures(self) -> None:
@@ -395,7 +397,7 @@ class CircuitBreaker:
             result = func(*args, **kwargs)
             self.record_success()
             return result
-        except Exception as e:
+        except YFinanceError as e:
             self.record_failure()
             raise e
 
@@ -451,7 +453,7 @@ class AsyncCircuitBreaker(CircuitBreaker):
             result = await func(*args, **kwargs)
             self.record_success()
             return result
-        except Exception as e:
+        except YFinanceError as e:
             self.record_failure()
             raise e
 
@@ -546,7 +548,7 @@ def reset_all_circuits() -> None:
             with open(state_file, 'w') as f:
                 f.write('{}')
             logger.info(f"Cleared circuit breaker state file: {state_file}")
-        except Exception as e:
+        except YFinanceError as e:
             logger.warning(f"Failed to clear circuit breaker state file: {str(e)}")
 
 def get_all_circuits() -> Dict[str, Dict[str, Any]]:

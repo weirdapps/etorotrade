@@ -5,7 +5,6 @@ This module provides tools for analyzing portfolios of stocks, including
 performance tracking, allocation analysis, and risk assessment.
 """
 
-import logging
 import os
 import csv
 import datetime
@@ -13,14 +12,18 @@ from typing import Dict, List, Optional, Tuple, Union, Any
 import pandas as pd
 from dataclasses import dataclass, field
 
+from ..core.logging_config import get_logger
+from ..core.errors import YFinanceError, APIError, ValidationError, DataError
+from ..utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 from ..api import get_provider, FinanceDataProvider, AsyncFinanceDataProvider
-from ..core.errors import YFinanceError, ValidationError
+from ..utils.dependency_injection import registry
 from .stock import StockAnalyzer, AnalysisResults
+from .analyzer_factory import with_analyzer
 
 # Constants
 GAIN_LOSS_PCT = 'Gain/Loss %'
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 @dataclass
 class PortfolioHolding:
@@ -160,8 +163,7 @@ class PortfolioAnalyzer:
                 required_columns = {'symbol', 'shares', 'cost'}
                 if not required_columns.issubset(set(reader.fieldnames or [])):
                     raise ValidationError(
-                        f"Portfolio CSV is missing required columns. "
-                        f"Required: {required_columns}, Found: {set(reader.fieldnames or [])}"
+                        f"Portfolio CSV file is missing required columns: {required_columns}"
                     )
                 
                 # Process each row
@@ -181,8 +183,8 @@ class PortfolioAnalyzer:
                     except ValueError as e:
                         logger.warning(f"Error parsing row for {ticker}: {str(e)}")
                         continue
-        except Exception as e:
-            raise ValidationError(f"Error loading portfolio from {file_path}: {str(e)}")
+        except (OSError, IOError) as e:
+            raise ValidationError(f"Error reading portfolio file: {str(e)}")
         
         self.holdings = holdings
         return holdings
@@ -232,7 +234,7 @@ class PortfolioAnalyzer:
             
             return self.summary
             
-        except Exception as e:
+        except YFinanceError as e:
             raise YFinanceError(f"Error analyzing portfolio: {str(e)}")
     
     async def analyze_portfolio_async(self) -> PortfolioSummary:
@@ -280,7 +282,7 @@ class PortfolioAnalyzer:
             
             return self.summary
             
-        except Exception as e:
+        except YFinanceError as e:
             raise YFinanceError(f"Error analyzing portfolio: {str(e)}")
     
     def _calculate_summary(self) -> None:

@@ -5,9 +5,12 @@ This module provides functions for downloading data from various sources.
 """
 
 import os
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import pandas as pd
 import time
-import logging
+from ..core.logging_config import get_logger
 import shutil
 from dotenv import load_dotenv
 from selenium import webdriver
@@ -24,7 +27,7 @@ from selenium.common.exceptions import (
 
 from ..core.config import PATHS, FILE_PATHS
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 def fix_hk_ticker(ticker):
     """
@@ -77,10 +80,10 @@ def safe_click(driver, element, description="element"):
         return True
     except ElementClickInterceptedException as e:
         logger.error(f"Click intercepted for {description}: {str(e)}")
-        raise
+        raise e
     except WebDriverException as e:
         logger.error(f"WebDriver error clicking {description}: {str(e)}")
-        raise
+        raise e
 
 def setup_driver():
     """Setup Chrome WebDriver with appropriate options"""
@@ -107,7 +110,7 @@ def wait_and_find_element(driver, by, value, timeout=10, check_visibility=True):
                 EC.presence_of_element_located((by, value))
             )
         return element
-    except Exception as e:
+    except YFinanceError as e:
         logger.error(f"Error finding element {value}: {str(e)}")
         return None
 
@@ -123,10 +126,10 @@ def find_sign_in_button(driver):
         return None
     except NoSuchElementException as e:
         logger.error(f"Sign-in button not found: {str(e)}")
-        raise
+        raise e
     except WebDriverException as e:
         logger.error(f"WebDriver error finding sign-in button: {str(e)}")
-        raise
+        raise e
 
 def handle_email_sign_in(driver):
     """Handle the email sign-in process"""
@@ -419,7 +422,7 @@ def download_portfolio():
         logger.error(f"WebDriver error: {str(e)}")
         print(f"WebDriver error: {str(e)}")
         return fallback_portfolio_download()
-    except Exception as e:
+    except YFinanceError as e:
         logger.error(f"Unexpected error: {str(e)}")
         print(f"Unexpected error: {str(e)}")
         import traceback
@@ -430,6 +433,9 @@ def download_portfolio():
             logger.info("Closing Chrome...")
             print("Closing Chrome...")
             driver.quit()
+
+@with_retry
+
 
 def fallback_portfolio_download():
     """
@@ -461,7 +467,7 @@ def fallback_portfolio_download():
         print(f"Portfolio copied from {src_path} to {dest_path}")
         
         return True
-    except Exception as e:
+    except YFinanceError as e:
         logger.error(f"Error in fallback portfolio download: {str(e)}")
         print(f"Error in fallback portfolio download: {str(e)}")
         return False

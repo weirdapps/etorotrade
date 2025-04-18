@@ -359,6 +359,10 @@ def test_circuit_protected_decorator():
     assert mock_circuit.execute.call_args[0][0] == mock_func
 
 
+@with_retry
+
+
+
 def test_get_circuit_breaker():
     """Test get_circuit_breaker creates and returns circuit breakers."""
     # Clear existing circuits

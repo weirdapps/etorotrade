@@ -45,6 +45,10 @@ def create_paginated_data(num_pages: int = 3, items_per_page: int = 3) -> List[D
     return pages
 
 
+@with_retry
+
+
+
 def create_mock_fetcher(pages: List[Dict[str, Any]]) -> Callable[[Optional[str]], Dict[str, Any]]:
     """
     Create a mock page fetcher function for pagination tests.
@@ -53,7 +57,8 @@ def create_mock_fetcher(pages: List[Dict[str, Any]]) -> Callable[[Optional[str]]
         pages: List of page data to return
         
     Returns:
-        A function that simulates fetching a page of results
+        A function that simulates@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def mock_fetcher(of results
     """
     page_index = 0
     
@@ -64,9 +69,8 @@ def create_mock_fetcher(pages: List[Dict[str, Any]]) -> Callable[[Optional[str]]
         if page_index < len(pages):
             result = pages[page_index]
             page_index += 1
-            return result
-        
-        # Out of pages
+            ret@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def create_bulk_fetch_mocks(# Out of pages
         return {"items": [], "next_page_token": None}
     
     return mock_fetcher
@@ -80,8 +84,8 @@ def create_bulk_fetch_mocks() -> Tuple[
     """
     Create mock objects for bulk fetch tests.
     
-    Returns:
-        Tuple containing:
+    Returns:@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def mock_fetcher(ntaining:
             - List of items to fetch
             - Mock fetcher function
             - Mock result extractor function
@@ -90,7 +94,7 @@ def create_bulk_fetch_mocks() -> Tuple[
     
     def mock_fetcher(item):
         if item == 3:
-            raise APIError("Test error")
+            raise YFinanceError("An error occurred")
         return {"result": item * 2}
     
     def mock_extractor(response):
@@ -137,7 +141,7 @@ def create_async_processor_mock(error_item: int = 3) -> AsyncMock:
     """
     async def mock_processor(item):
         if item == error_item:
-            raise APIError("Test error")
+            raise YFinanceError("An error occurred")
         return item * 2
     
     return mock_processor

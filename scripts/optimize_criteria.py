@@ -8,11 +8,14 @@ combination.
 """
 
 import os
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import sys
 import argparse
 import json
 import pandas as pd
-import logging
+from ..core.logging_config import get_logger
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 
@@ -366,7 +369,7 @@ def main():
             _run_backtest_mode(args, settings)
         elif args.mode == 'optimize':
             _run_optimize_mode(args, settings)
-    except Exception as e:
+    except YFinanceError as e:
         print(f"Error: {str(e)}")
         sys.exit(1)
 
