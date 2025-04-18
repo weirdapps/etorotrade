@@ -6,7 +6,10 @@ AsyncYahooQueryProvider (yahooquery) to maximize data coverage,
 especially for metrics like PEG ratio.
 """
 import asyncio
-import logging
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
+from ...core.logging_config import get_logger
 import pandas as pd # Add pandas import
 from typing import Dict, Any, List, Optional, Tuple, Union
 
@@ -16,7 +19,7 @@ from .async_yahooquery_provider import AsyncYahooQueryProvider
 from ...core.errors import YFinanceError
 from ...utils.async_utils.enhanced import gather_with_concurrency # Use the same concurrency helper
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class AsyncHybridProvider(AsyncFinanceDataProvider):
     """
@@ -77,7 +80,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
             if yf_data.get("error"):
                 errors.append(f"yfinance: {yf_data['error']}")
                 yf_data = {} # Clear data if error occurred
-        except Exception as e:
+        except YFinanceError as e:
             errors.append(f"yfinance provider error for {mapped_ticker}: {str(e)}")
             logger.warning(f"Error fetching yfinance data for {ticker}: {e}", exc_info=False)
 
@@ -104,7 +107,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
                 if yq_data.get("error"):
                     errors.append(f"yahooquery: {yq_data['error']}")
                     yq_data = {} # Clear data if error occurred
-            except Exception as e:
+            except YFinanceError as e:
                 errors.append(f"yahooquery provider error for {mapped_ticker}: {str(e)}")
                 # Simplify logging to avoid duplicate messages
                 logger.warning(f"Error fetching yahooquery data for {mapped_ticker} (original: {ticker}): {e}", exc_info=False)
@@ -189,7 +192,8 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
 
         return merged_data
 
-    async def batch_get_ticker_info(self, tickers: List[str], skip_insider_metrics: bool = False) -> Dict[str, Dict[str, Any]]:
+    async @with_retry 
+def batch_get_ticker_info(self, tickers: List[str], skip_insider_metrics: bool = False) -> Dict[str, Dict[str, Any]]:
         """
         Process multiple tickers concurrently using the hybrid get_ticker_info.
         """
@@ -213,7 +217,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
                         logger.warning(f"Missing PEG ratio for NVDA, setting to default")
                         result["peg_ratio"] = 1.7
                 return result
-            except Exception as e:
+            except YFinanceError as e:
                 # Use ticker variable since original_ticker isn't defined in this scope
                 logger.error(f"Error in hybrid batch fetch for {ticker}: {e}")
                 return {"symbol": ticker, "ticker": ticker, "company": ticker, "error": str(e)}
@@ -235,7 +239,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
         # Primarily use yf_provider, could supplement if needed
         try:
             return await self.yf_provider.get_price_data(ticker)
-        except Exception as e:
+        except YFinanceError as e:
             logger.warning(f"Hybrid: Error in yf get_price_data for {ticker}: {e}. Returning error dict.")
             return {"ticker": ticker, "error": str(e)}
 
@@ -244,7 +248,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
         # Primarily use yf_provider
         try:
             return await self.yf_provider.get_historical_data(ticker, period, interval)
-        except Exception as e:
+        except YFinanceError as e:
             logger.warning(f"Hybrid: Error in yf get_historical_data for {ticker}: {e}. Returning empty DataFrame.")
             return pd.DataFrame()
 
@@ -252,7 +256,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
          # Primarily use yf_provider
         try:
             return await self.yf_provider.get_earnings_data(ticker)
-        except Exception as e:
+        except YFinanceError as e:
             logger.warning(f"Hybrid: Error in yf get_earnings_data for {ticker}: {e}. Returning error dict.")
             return {"symbol": ticker, "earnings_dates": [], "earnings_history": [], "error": str(e)}
 
@@ -261,7 +265,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
          # Primarily use yf_provider
         try:
             return await self.yf_provider.get_earnings_dates(ticker)
-        except Exception as e:
+        except YFinanceError as e:
             logger.warning(f"Hybrid: Error in yf get_earnings_dates for {ticker}: {e}. Returning empty list.")
             return []
 
@@ -269,7 +273,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
          # Primarily use yf_provider
         try:
             return await self.yf_provider.get_analyst_ratings(ticker)
-        except Exception as e:
+        except YFinanceError as e:
             logger.warning(f"Hybrid: Error in yf get_analyst_ratings for {ticker}: {e}. Returning error dict.")
             return {"symbol": ticker, "error": str(e)}
 
@@ -278,7 +282,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
          # Primarily use yf_provider
         try:
             return await self.yf_provider.get_insider_transactions(ticker)
-        except Exception as e:
+        except YFinanceError as e:
             logger.warning(f"Hybrid: Error in yf get_insider_transactions for {ticker}: {e}. Returning empty list.")
             return []
 
@@ -286,7 +290,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
          # Primarily use yf_provider
         try:
             return await self.yf_provider.search_tickers(query, limit)
-        except Exception as e:
+        except YFinanceError as e:
             logger.warning(f"Hybrid: Error in yf search_tickers for {query}: {e}. Returning empty list.")
             return []
 

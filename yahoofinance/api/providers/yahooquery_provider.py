@@ -6,7 +6,10 @@ It provides a consistent API for retrieving financial information with
 appropriate rate limiting, caching, and error handling.
 """
 
-import logging
+from ...core.logging_config import get_logger
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import time
 from typing import Dict, Any, Optional, List, Tuple, cast
 import pandas as pd
@@ -19,7 +22,7 @@ from ...utils.market.ticker_utils import is_us_ticker
 from ...utils.network.rate_limiter import rate_limited
 from ...core.config import CACHE_CONFIG, COLUMN_NAMES, POSITIVE_GRADES
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
     """
@@ -84,7 +87,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             
             # Check if any data was returned - if all are empty, raise error
             if not any([summary_data, price_data, quote_type]):
-                raise APIError(f"No data returned for ticker {ticker}")
+                raise e
             
             # Get company name
             company_name = price_data.get('shortName') or quote_type.get('shortName')
@@ -126,7 +129,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                         'total_ratings': total_ratings,
                         'analyst_count': total_ratings,  # Use total ratings as analyst count
                     })
-            except Exception as e:
+            except YFinanceError as e:
                 logger.debug(f"Error fetching recommendations for {ticker}: {str(e)}")
                 # Set defaults for these fields
                 info.update({
@@ -143,7 +146,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                     most_recent = earnings_dates[0].get('earnings_date')
                     if most_recent:
                         info['earnings_date'] = pd.Timestamp(most_recent).strftime('%Y-%m-%d')
-            except Exception as e:
+            except YFinanceError as e:
                 logger.debug(f"Error fetching earnings dates for {ticker}: {str(e)}")
             
             # Get insider transactions unless skipped
@@ -153,7 +156,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                     if isinstance(insider_data, list) and insider_data:
                         # Process insider transactions
                         info['insider_transactions'] = self._process_insider_transactions(insider_data)
-                except Exception as e:
+                except YFinanceError as e:
                     logger.debug(f"Error fetching insider data for {ticker}: {str(e)}")
                     info['insider_transactions'] = []
             
@@ -171,14 +174,14 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             
             return info
         
-        except Exception as e:
+        except YFinanceError as e:
             # Check for rate limit related errors
             if "rate limit" in str(e).lower() or "too many requests" in str(e).lower():
                 raise RateLimitError(f"Rate limit exceeded for ticker {ticker}: {str(e)}")
             
             # Check for ticker not found errors
             if "no data found" in str(e).lower() or "not found" in str(e).lower():
-                raise ValidationError(f"Ticker {ticker} not found or invalid")
+                raise e
             
             # Generic error handler
             raise YFinanceError(f"Error fetching data for ticker {ticker}: {str(e)}")
@@ -234,7 +237,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             financial_data = yq_ticker.financial_data.get(ticker, {})
             
             if not price_data:
-                raise APIError(f"No price data returned for ticker {ticker}")
+                raise e
             
             # Create price info dict
             price_info = {
@@ -257,7 +260,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             
             return price_info
         
-        except Exception as e:
+        except YFinanceError as e:
             # Check for rate limit related errors
             if "rate limit" in str(e).lower() or "too many requests" in str(e).lower():
                 raise RateLimitError(f"Rate limit exceeded for ticker {ticker}: {str(e)}")
@@ -315,7 +318,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             
             return hist_data
         
-        except Exception as e:
+        except YFinanceError as e:
             # Check for rate limit related errors
             if "rate limit" in str(e).lower() or "too many requests" in str(e).lower():
                 raise RateLimitError(f"Rate limit exceeded for ticker {ticker}: {str(e)}")
@@ -370,7 +373,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             
             return most_recent_date, previous_date
         
-        except Exception as e:
+        except YFinanceError as e:
             # Check for rate limit related errors
             if "rate limit" in str(e).lower() or "too many requests" in str(e).lower():
                 raise RateLimitError(f"Rate limit exceeded for ticker {ticker}: {str(e)}")
@@ -441,7 +444,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             
             return ratings
         
-        except Exception as e:
+        except YFinanceError as e:
             # Check for rate limit related errors
             if "rate limit" in str(e).lower() or "too many requests" in str(e).lower():
                 raise RateLimitError(f"Rate limit exceeded for ticker {ticker}: {str(e)}")
@@ -478,7 +481,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             
             return self._process_insider_transactions(insider_data)
         
-        except Exception as e:
+        except YFinanceError as e:
             # Check for rate limit related errors
             if "rate limit" in str(e).lower() or "too many requests" in str(e).lower():
                 raise RateLimitError(f"Rate limit exceeded for ticker {ticker}: {str(e)}")
@@ -511,7 +514,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             logger.warning("Ticker search not implemented in yahooquery provider")
             return []
             
-        except Exception as e:
+        except YFinanceError as e:
             # Check for rate limit related errors
             if "rate limit" in str(e).lower() or "too many requests" in str(e).lower():
                 raise RateLimitError(f"Rate limit exceeded for ticker search: {str(e)}")
@@ -647,7 +650,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                                 results[ticker]['insider_transactions'] = self._process_insider_transactions(insider_data)
                             else:
                                 results[ticker]['insider_transactions'] = []
-                        except Exception as e:
+                        except YFinanceError as e:
                             logger.debug(f"Error fetching insider data for {ticker}: {str(e)}")
                             results[ticker]['insider_transactions'] = []
             
@@ -657,7 +660,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             
             return results
         
-        except Exception as e:
+        except YFinanceError as e:
             # Check for rate limit related errors
             if "rate limit" in str(e).lower() or "too many requests" in str(e).lower():
                 raise RateLimitError(f"Rate limit exceeded for batch ticker info: {str(e)}")

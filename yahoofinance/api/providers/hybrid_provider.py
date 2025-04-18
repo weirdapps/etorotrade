@@ -6,7 +6,10 @@ data source and supplements any missing data with YahooQuery to provide
 the most complete and accurate data possible.
 """
 
-import logging
+from ...core.logging_config import get_logger
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import time
 from typing import Dict, Any, Optional, List, Tuple, cast
 import pandas as pd
@@ -18,7 +21,7 @@ from .yahooquery_provider import YahooQueryProvider
 from ...core.errors import YFinanceError, APIError, ValidationError, RateLimitError
 from ...utils.network.rate_limiter import rate_limited
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
     """
@@ -130,7 +133,7 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                         pass
             
             return yf_data
-        except Exception as e:
+        except YFinanceError as e:
             # Log the error but don't fail - return the original YFinance data
             logger.warning(f"Error supplementing {ticker} with YahooQuery: {str(e)}")
             return yf_data
@@ -167,7 +170,7 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             combined_data['processing_time'] = time.time() - start_time
             
             return combined_data
-        except Exception as e:
+        except YFinanceError as e:
             # If YFinance fails completely, try YahooQuery as a fallback
             logger.warning(f"YFinance failed for {ticker}, trying YahooQuery as fallback: {str(e)}")
             
@@ -176,7 +179,7 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 yq_data['data_source'] = 'YahooQuery'
                 yq_data['processing_time'] = time.time() - start_time
                 return yq_data
-            except Exception as yq_error:
+            except YFinanceError as yq_error:
                 # If both fail, raise the original error
                 logger.error(f"Both providers failed for {ticker}: {str(yq_error)}")
                 raise YFinanceError(f"Error fetching data for ticker {ticker}: {str(e)}")
@@ -200,7 +203,7 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             price_data = self.yf_provider.get_price_data(ticker)
             price_data['data_source'] = 'YFinance'
             return price_data
-        except Exception as e:
+        except YFinanceError as e:
             # If YFinance fails, try YahooQuery as a fallback
             logger.warning(f"YFinance failed for price data of {ticker}, trying YahooQuery: {str(e)}")
             
@@ -208,7 +211,7 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 price_data = self.yq_provider.get_price_data(ticker)
                 price_data['data_source'] = 'YahooQuery'
                 return price_data
-            except Exception as yq_error:
+            except YFinanceError as yq_error:
                 # If both fail, raise the original error
                 logger.error(f"Both providers failed for price data of {ticker}: {str(yq_error)}")
                 raise YFinanceError(f"Error fetching price data for ticker {ticker}: {str(e)}")
@@ -233,14 +236,14 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             # First try with YFinance
             hist_data = self.yf_provider.get_historical_data(ticker, period, interval)
             return hist_data
-        except Exception as e:
+        except YFinanceError as e:
             # If YFinance fails, try YahooQuery as a fallback
             logger.warning(f"YFinance failed for historical data of {ticker}, trying YahooQuery: {str(e)}")
             
             try:
                 hist_data = self.yq_provider.get_historical_data(ticker, period, interval)
                 return hist_data
-            except Exception as yq_error:
+            except YFinanceError as yq_error:
                 # If both fail, raise the original error
                 logger.error(f"Both providers failed for historical data of {ticker}: {str(yq_error)}")
                 raise YFinanceError(f"Error fetching historical data for ticker {ticker}: {str(e)}")
@@ -273,13 +276,13 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             # Otherwise try YahooQuery
             logger.debug(f"No earnings dates from YFinance for {ticker}, trying YahooQuery")
             return self.yq_provider.get_earnings_dates(ticker)
-        except Exception as e:
+        except YFinanceError as e:
             # If YFinance fails, try YahooQuery as a fallback
             logger.warning(f"YFinance failed for earnings dates of {ticker}, trying YahooQuery: {str(e)}")
             
             try:
                 return self.yq_provider.get_earnings_dates(ticker)
-            except Exception as yq_error:
+            except YFinanceError as yq_error:
                 # If both fail, raise the original error
                 logger.error(f"Both providers failed for earnings dates of {ticker}: {str(yq_error)}")
                 raise YFinanceError(f"Error fetching earnings dates for ticker {ticker}: {str(e)}")
@@ -319,11 +322,11 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                         if field not in ratings or ratings[field] is None or ratings[field] == 0:
                             if field in yq_ratings and yq_ratings[field] is not None and yq_ratings[field] > 0:
                                 ratings[field] = yq_ratings[field]
-                except Exception as yq_error:
+                except YFinanceError as yq_error:
                     logger.debug(f"YahooQuery supplement failed for {ticker} ratings: {str(yq_error)}")
             
             return ratings
-        except Exception as e:
+        except YFinanceError as e:
             # If YFinance fails, try YahooQuery as a fallback
             logger.warning(f"YFinance failed for ratings of {ticker}, trying YahooQuery: {str(e)}")
             
@@ -331,7 +334,7 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 ratings = self.yq_provider.get_analyst_ratings(ticker)
                 ratings['data_source'] = 'YahooQuery'
                 return ratings
-            except Exception as yq_error:
+            except YFinanceError as yq_error:
                 # If both fail, raise the original error
                 logger.error(f"Both providers failed for ratings of {ticker}: {str(yq_error)}")
                 raise YFinanceError(f"Error fetching analyst ratings for ticker {ticker}: {str(e)}")
@@ -361,13 +364,13 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             # Otherwise try YahooQuery
             logger.debug(f"No insider transactions from YFinance for {ticker}, trying YahooQuery")
             return self.yq_provider.get_insider_transactions(ticker)
-        except Exception as e:
+        except YFinanceError as e:
             # If YFinance fails, try YahooQuery as a fallback
             logger.warning(f"YFinance failed for insider transactions of {ticker}, trying YahooQuery: {str(e)}")
             
             try:
                 return self.yq_provider.get_insider_transactions(ticker)
-            except Exception as yq_error:
+            except YFinanceError as yq_error:
                 # If both fail, raise the original error
                 logger.error(f"Both providers failed for insider transactions of {ticker}: {str(yq_error)}")
                 raise YFinanceError(f"Error fetching insider transactions for ticker {ticker}: {str(e)}")
@@ -462,7 +465,7 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                             # Mark as hybrid data source
                             yf_results[ticker]['data_source'] = 'YFinance+YahooQuery'
                             supplemented_count += 1
-                except Exception as e:
+                except YFinanceError as e:
                     logger.warning(f"YahooQuery batch supplement failed: {str(e)}")
             
             # Add processing time and stats
@@ -470,7 +473,7 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             logger.debug(f"Hybrid batch completed in {processing_time:.2f}s, supplemented {supplemented_count}/{len(tickers)} tickers")
             
             return yf_results
-        except Exception as e:
+        except YFinanceError as e:
             # If YFinance batch fails completely, try YahooQuery as a fallback
             logger.warning(f"YFinance batch failed, trying YahooQuery as fallback: {str(e)}")
             
@@ -482,7 +485,7 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                     data['data_source'] = 'YahooQuery'
                 
                 return yq_results
-            except Exception as yq_error:
+            except YFinanceError as yq_error:
                 # If both fail, raise the original error
                 logger.error(f"Both providers failed for batch ticker info: {str(yq_error)}")
                 raise YFinanceError(f"Error fetching batch ticker info: {str(e)}")

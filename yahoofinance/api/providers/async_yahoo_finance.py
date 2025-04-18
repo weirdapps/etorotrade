@@ -6,7 +6,10 @@ It provides a consistent async API for retrieving financial information with
 appropriate rate limiting, caching, and error handling.
 """
 
-import logging
+from ...core.logging import get_logger
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError, RateLimitError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import asyncio
 import time
 from typing import Dict, Any, Optional, List, Tuple, cast, TypeVar, Callable, Awaitable, Union
@@ -18,12 +21,11 @@ from datetime import datetime
 
 from .base_provider import AsyncFinanceDataProvider
 from .yahoo_finance_base import YahooFinanceBaseProvider
-from ...core.errors import YFinanceError, APIError, ValidationError, RateLimitError
 from ...utils.market.ticker_utils import validate_ticker, is_us_ticker
 from ...utils.async_utils.helpers import async_rate_limited, gather_with_concurrency
 from ...core.config import CACHE_CONFIG, COLUMN_NAMES
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 T = TypeVar('T')  # Return type for async functions
 
@@ -84,6 +86,7 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
             lambda: func(*args, **kwargs)
         )
     
+    @with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
     async def _get_ticker_object(self, ticker: str) -> yf.Ticker:
         """
         Get a yfinance Ticker object for the given symbol with caching.
@@ -109,8 +112,8 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
             ticker_obj = await self._run_sync_in_executor(yf.Ticker, ticker)
             self._ticker_cache[ticker] = ticker_obj
             return ticker_obj
-        except Exception as e:
-            raise ValidationError(f"Failed to create ticker object for {ticker}: {str(e)}")
+        except YFinanceError as e:
+            raise e
     
     @async_rate_limited
     async def get_ticker_info(self, ticker: str, skip_insider_metrics: bool = False) -> Dict[str, Any]:
@@ -138,7 +141,7 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
                 # Get basic info
                 info = await self._run_sync_in_executor(lambda: ticker_obj.info)
                 if not info:
-                    raise APIError(f"Failed to retrieve info for {ticker}")
+                    raise DataError(f"No information available for {ticker}")
                 
                 # Use shared _process_ticker_info method from base class but with async adjustment for insider data
                 result = await self._run_sync_in_executor(
@@ -160,14 +163,14 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
                             result["insider_buys"] = total_buys
                             result["insider_sells"] = total_sells
                             result["insider_ratio"] = total_buys / (total_buys + total_sells) if (total_buys + total_sells) > 0 else 0
-                    except Exception as e:
+                    except YFinanceError as e:
                         logger.warning(f"Failed to get insider data for {ticker}: {str(e)}")
                 
                 break
             except RateLimitError:
-                # Specific handling for rate limits - just re-raise
-                raise
-            except Exception as e:
+                # Specific handling for rate limits - just re-raise e
+                raise e
+            except YFinanceError as e:
                 # Use the shared retry logic handler from the base class but with async sleep
                 delay = self._handle_retry_logic(e, attempt, ticker, "ticker info")
                 await asyncio.sleep(delay)
@@ -200,9 +203,9 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
                 )
                 return history
             except RateLimitError:
-                # Specific handling for rate limits - just re-raise
-                raise
-            except Exception as e:
+                # Specific handling for rate limits - just re-raise e
+                raise e
+            except YFinanceError as e:
                 # Use the shared retry logic handler from the base class but with async sleep
                 delay = self._handle_retry_logic(e, attempt, ticker, "historical data")
                 await asyncio.sleep(delay)
@@ -257,15 +260,15 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
                     return None, None
                     
             except RateLimitError:
-                # Specific handling for rate limits - just re-raise
-                raise
-            except Exception as e:
+                # Specific handling for rate limits - just re-raise e
+                raise e
+            except YFinanceError as e:
                 if attempt < self.max_retries - 1:
                     delay = self.retry_delay * (2 ** attempt)
                     logger.warning(f"Attempt {attempt+1}/{self.max_retries} failed for {ticker} earnings dates: {str(e)}. Retrying in {delay:.2f}s")
                     await asyncio.sleep(delay)
                 else:
-                    raise APIError(f"Failed to get earnings dates for {ticker} after {self.max_retries} attempts: {str(e)}")
+                    raise e
     
     @async_rate_limited
     async def get_analyst_ratings(self, ticker: str) -> Dict[str, Any]:
@@ -331,15 +334,15 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
                 return result
                 
             except RateLimitError:
-                # Specific handling for rate limits - just re-raise
-                raise
-            except Exception as e:
+                # Specific handling for rate limits - just re-raise e
+                raise e
+            except YFinanceError as e:
                 if attempt < self.max_retries - 1:
                     delay = self.retry_delay * (2 ** attempt)
                     logger.warning(f"Attempt {attempt+1}/{self.max_retries} failed for {ticker} analyst ratings: {str(e)}. Retrying in {delay:.2f}s")
                     await asyncio.sleep(delay)
                 else:
-                    raise APIError(f"Failed to get analyst ratings for {ticker} after {self.max_retries} attempts: {str(e)}")
+                    raise e
     
     @async_rate_limited
     async def get_insider_transactions(self, ticker: str) -> List[Dict[str, Any]]:
@@ -387,15 +390,15 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
                 return result
                 
             except RateLimitError:
-                # Specific handling for rate limits - just re-raise
-                raise
-            except Exception as e:
+                # Specific handling for rate limits - just re-raise e
+                raise e
+            except YFinanceError as e:
                 if attempt < self.max_retries - 1:
                     delay = self.retry_delay * (2 ** attempt)
                     logger.warning(f"Attempt {attempt+1}/{self.max_retries} failed for {ticker} insider transactions: {str(e)}. Retrying in {delay:.2f}s")
                     await asyncio.sleep(delay)
                 else:
-                    raise APIError(f"Failed to get insider transactions for {ticker} after {self.max_retries} attempts: {str(e)}")
+                    raise e
     
     @async_rate_limited
     async def search_tickers(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
@@ -440,15 +443,15 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
                 return results
                 
             except RateLimitError:
-                # Specific handling for rate limits - just re-raise
-                raise
-            except Exception as e:
+                # Specific handling for rate limits - just re-raise e
+                raise e
+            except YFinanceError as e:
                 if attempt < self.max_retries - 1:
                     delay = self.retry_delay * (2 ** attempt)
                     logger.warning(f"Attempt {attempt+1}/{self.max_retries} failed for search query '{query}': {str(e)}. Retrying in {delay:.2f}s")
                     await asyncio.sleep(delay)
                 else:
-                    raise APIError(f"Failed to search tickers for '{query}' after {self.max_retries} attempts: {str(e)}")
+                    raise e
     
     @async_rate_limited
     async def get_price_data(self, ticker: str) -> Dict[str, Any]:
@@ -500,7 +503,7 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
             try:
                 info = await self.get_ticker_info(ticker, skip_insider_metrics)
                 return ticker, info
-            except Exception as e:
+            except YFinanceError as e:
                 return ticker, self._process_error_for_batch(ticker, e)
         
         # Process tickers with controlled concurrency

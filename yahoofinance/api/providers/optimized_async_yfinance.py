@@ -3,8 +3,11 @@ Optimized Asynchronous Yahoo Finance Provider using yfinance library directly.
 Includes concurrency, caching, and adaptive rate limiting.
 """
 import time
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import asyncio
-import logging
+from ...core.logging_config import get_logger
 import pandas as pd
 import numpy as np
 import datetime
@@ -21,7 +24,7 @@ from ...core.errors import YFinanceError
 from ...data.cache import CacheManager
 # Removed incorrect import: from ...utils.async_utils.rate_limiter import async_adaptive_rate_limited
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class OptimizedAsyncYFinanceProvider(AsyncFinanceDataProvider):
     """
@@ -81,7 +84,11 @@ class OptimizedAsyncYFinanceProvider(AsyncFinanceDataProvider):
         self._rate_limiter["call_timestamps"].append(time.time())
 
 
-    def _get_yticker(self, ticker: str):
+    @with_retry
+
+
+    
+def _get_yticker(self, ticker: str):
         """Get or create yfinance Ticker object"""
         mapped_ticker = self._ticker_mappings.get(ticker, ticker)
         if mapped_ticker not in self._stock_cache:
@@ -168,7 +175,7 @@ class OptimizedAsyncYFinanceProvider(AsyncFinanceDataProvider):
                          # ... (original fallback logic based on rec_key) ...
                          info["buy_percentage"] = 50 # Simplified example
                          info["total_ratings"] = ticker_info.get("numberOfAnalystOpinions", 0)
-                except Exception as e: # Fallback
+                except YFinanceError as e: # Fallback
                     logger.debug(f"Error getting recommendations for {ticker}: {e}, falling back to recommendationKey")
                     rec_key = ticker_info.get("recommendationKey", "").lower()
                     # ... (original fallback logic based on rec_key) ...
@@ -218,7 +225,7 @@ class OptimizedAsyncYFinanceProvider(AsyncFinanceDataProvider):
                 if last_earnings_date is not None:
                      info["last_earnings"] = last_earnings_date # Already formatted in helper
                 else: info["last_earnings"] = None
-            except Exception as e:
+            except YFinanceError as e:
                 logger.debug(f"Failed to get earnings date for {ticker}: {str(e)}")
                 info["last_earnings"] = None
 
@@ -226,7 +233,7 @@ class OptimizedAsyncYFinanceProvider(AsyncFinanceDataProvider):
             self.cache_manager.set(cache_key, info)
             return info
 
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error getting ticker info for {ticker}: {str(e)}")
             # Return a minimal info object consistent with batch error handling
             return { "symbol": ticker, "ticker": ticker, "company": ticker, "error": str(e) }
@@ -270,7 +277,7 @@ class OptimizedAsyncYFinanceProvider(AsyncFinanceDataProvider):
         try:
             yticker = self._get_yticker(ticker)
             return yticker.history(period=period, interval=interval)
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error getting historical data for {ticker}: {str(e)}")
             return pd.DataFrame() # Return empty DataFrame on error
 
@@ -290,7 +297,7 @@ class OptimizedAsyncYFinanceProvider(AsyncFinanceDataProvider):
                 "earnings_dates": earnings_dates,
                 "earnings_history": [] # Original didn't populate this
             }
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error getting earnings data for {ticker}: {str(e)}")
             return {"symbol": ticker, "earnings_dates": [], "earnings_history": [], "error": str(e)}
 
@@ -300,7 +307,7 @@ class OptimizedAsyncYFinanceProvider(AsyncFinanceDataProvider):
         try:
             earnings_data = await self.get_earnings_data(ticker)
             return earnings_data.get("earnings_dates", [])
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error getting earnings dates for {ticker}: {str(e)}")
             return []
 
@@ -325,7 +332,8 @@ class OptimizedAsyncYFinanceProvider(AsyncFinanceDataProvider):
         return []
 
     async def search_tickers(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
-        """Search for tickers (returns empty list as before)."""
+        """Search for tickers @with_retry 
+def batch_get_ticker_info(ore)."""
         return []
 
     async def batch_get_ticker_info(self, tickers: List[str], skip_insider_metrics: bool = False) -> Dict[str, Dict[str, Any]]:
@@ -415,11 +423,11 @@ class OptimizedAsyncYFinanceProvider(AsyncFinanceDataProvider):
                     }
                     return True
                 return False
-            except Exception as e:
+            except YFinanceError as e:
                 logger.debug(f"Error getting post-earnings ratings for {ticker}: {e}")
             return False
-        except Exception as e:
-            logger.debug(f"Exception in _has_post_earnings_ratings for {ticker}: {e}")
+        except YFinanceE@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def _get_last_earnings_date(r.debug(f"Exception in _has_post_earnings_ratings for {ticker}: {e}")
             return False
 
     def _get_last_earnings_date(self, yticker):
@@ -433,7 +441,7 @@ class OptimizedAsyncYFinanceProvider(AsyncFinanceDataProvider):
                     today = pd.Timestamp.now().date()
                     past_earnings = [d for d in earnings_date_list if isinstance(d, datetime.date) and d < today] # Ensure date objects
                     if past_earnings: return max(past_earnings).strftime('%Y-%m-%d')
-        except Exception: pass
+        except YFinanceError: pass
 
         try: # Try earnings_dates attribute
             earnings_dates = yticker.earnings_dates if hasattr(yticker, 'earnings_dates') else None
@@ -443,7 +451,7 @@ class OptimizedAsyncYFinanceProvider(AsyncFinanceDataProvider):
                 if tz: today = today.tz_localize(tz) # Match timezone if index has one
                 past_dates = [date for date in earnings_dates.index if date < today]
                 if past_dates: return max(past_dates).strftime('%Y-%m-%d')
-        except Exception: pass
+        except YFinanceError: pass
         return None
 
     def _is_us_ticker(self, ticker: str) -> bool:
