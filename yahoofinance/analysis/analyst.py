@@ -6,9 +6,12 @@ recommendations, and price targets for stocks.
 """
 
 from typing import Dict, Any, List, Optional, Union, Tuple
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import pandas as pd
 from datetime import datetime, timedelta
-import logging
+from ..core.logging_config import get_logger
 from dataclasses import dataclass
 
 from ..api import get_provider, FinanceDataProvider, AsyncFinanceDataProvider
@@ -16,7 +19,7 @@ from ..core.errors import YFinanceError, ValidationError
 from ..core.config import POSITIVE_GRADES
 from ..utils.market import is_us_ticker
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # The AnalystData class below is used for modern API
 # The legacy CompatAnalystData class is provided for backward compatibility
@@ -51,7 +54,7 @@ class CompatAnalystData:
         try:
             datetime.strptime(date_str, '%Y-%m-%d')
         except ValueError:
-            raise ValidationError(f"Invalid date format: {date_str}. Expected format: YYYY-MM-DD")
+            raise YFinanceError("An error occurred")
     
     def _safe_float_conversion(self, value: Any) -> Optional[float]:
         """
@@ -107,7 +110,7 @@ class CompatAnalystData:
                 df = df[df['GradeDate'] >= pd.to_datetime(start_date)]
                 
             return df
-        except Exception as e:
+        except YFinanceError as e:
             raise YFinanceError(f"Error fetching ratings data for {ticker}: {str(e)}")
     
     def get_ratings_summary(self, ticker: str, start_date: Optional[str] = None, 
@@ -170,7 +173,7 @@ class CompatAnalystData:
                     'sell': sell_count
                 }
             }
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error getting ratings summary for {ticker}: {str(e)}")
             return {
                 'positive_percentage': None,
@@ -193,7 +196,7 @@ class CompatAnalystData:
             ValidationError: If days parameter is invalid
         """
         if not isinstance(days, int) or days <= 0:
-            raise ValidationError("Days must be a positive integer")
+            raise YFinanceError("An error occurred")
             
         try:
             # Get all ratings data
@@ -224,7 +227,7 @@ class CompatAnalystData:
                 })
             
             return changes
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error getting recent changes for {ticker}: {str(e)}")
             return []
 
@@ -307,7 +310,7 @@ class AnalystRatingsService(BaseAnalysisService):
             # Process the data into AnalystData object
             return self._process_ratings_data(ratings_data)
         
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error fetching analyst ratings for {ticker}: {str(e)}")
             return AnalystData()
     
@@ -340,7 +343,7 @@ class AnalystRatingsService(BaseAnalysisService):
             # Process the data into AnalystData object
             return self._process_ratings_data(ratings_data)
         
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error fetching analyst ratings for {ticker}: {str(e)}")
             return AnalystData()
     
@@ -366,7 +369,7 @@ class AnalystRatingsService(BaseAnalysisService):
         for ticker in tickers:
             try:
                 results[ticker] = self.get_ratings(ticker)
-            except Exception as e:
+            except YFinanceError as e:
                 logger.error(f"Error fetching analyst ratings for {ticker}: {str(e)}")
                 results[ticker] = AnalystData()
         
@@ -465,7 +468,7 @@ class AnalystRatingsService(BaseAnalysisService):
             raise TypeError("Cannot use sync method with async provider. Use get_recent_changes_async instead.")
         
         if not isinstance(days, int) or days < 1:
-            raise ValidationError("Days must be a positive integer")
+            raise YFinanceError("An error occurred")
         
         try:
             # Skip API call for non-US tickers to avoid unnecessary errors
@@ -481,7 +484,7 @@ class AnalystRatingsService(BaseAnalysisService):
             
             return self._process_changes_data(changes_data)
         
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error fetching recent changes for {ticker}: {str(e)}")
             return []
     
@@ -504,7 +507,7 @@ class AnalystRatingsService(BaseAnalysisService):
             raise TypeError("Cannot use async method with sync provider. Use get_recent_changes instead.")
         
         if not isinstance(days, int) or days < 1:
-            raise ValidationError("Days must be a positive integer")
+            raise YFinanceError("An error occurred")
         
         try:
             # Skip API call for non-US tickers to avoid unnecessary errors
@@ -520,7 +523,7 @@ class AnalystRatingsService(BaseAnalysisService):
             
             return self._process_changes_data(changes_data)
         
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error fetching recent changes for {ticker}: {str(e)}")
             return []
     

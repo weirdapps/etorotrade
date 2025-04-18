@@ -11,7 +11,10 @@ related async rate limiting functionality.
 """
 
 import asyncio
-import logging
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
+from ...core.logging import get_logger
 import time
 import random
 from typing import TypeVar, List, Dict, Any, Callable, Optional, Tuple, Set, Union, Coroutine
@@ -30,7 +33,7 @@ T = TypeVar('T')
 R = TypeVar('R')
 
 # Set up logging
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class AsyncRateLimiter:
     """
@@ -233,7 +236,7 @@ async def retry_async_with_backoff(
                     # Explicitly record success
                     circuit.record_success()
                     return result
-                except Exception as e:
+                except YFinanceError as e:
                     # Explicitly record failure
                     circuit.record_failure()
                     # Re-raise for retry logic
@@ -298,7 +301,7 @@ def async_rate_limited(rate_limiter: Optional[AsyncRateLimiter] = None):
                 
                 return result
                 
-            except Exception as e:
+            except YFinanceError as e:
                 # Record failure (check if it's a rate limit error)
                 is_rate_limit = any(
                     err_text in str(e).lower() 
@@ -336,8 +339,28 @@ async def gather_with_concurrency(
     # Wrap all coroutines with the semaphore
     tasks = [run_with_semaphore(coro) for coro in coros]
     
-    # Run all tasks and return results
-    return await asyncio.gather(*tasks)
+    # Run all tasks and return results, with return_exceptions=True to prevent one failure from stopping all
+    # This ensures we get a result for each input, even if it's an exception
+    try:
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Process results to handle exceptions
+        processed_results = []
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                # Log the exception
+                logger.error(f"Task {i} failed with exception: {type(result).__name__}: {result}")
+                # Return a placeholder value instead of the exception
+                processed_results.append(None)
+            else:
+                processed_results.append(result)
+                
+        return processed_results
+    except Exception as e:
+        # Catch any other unexpected errors in gather itself
+        logger.error(f"Unexpected error in gather_with_concurrency: {e}")
+        # Return list of None values matching the input length
+        return [None] * len(coros)
 
 async def process_batch_async(
     items: List[T],

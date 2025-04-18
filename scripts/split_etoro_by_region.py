@@ -11,6 +11,9 @@ The original etoro.csv file is preserved.
 """
 
 import os
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import pandas as pd
 import re
 
@@ -32,7 +35,7 @@ def split_etoro_by_region():
     try:
         df = pd.read_csv(etoro_path)
         print(f"Successfully read {len(df)} tickers from etoro.csv")
-    except Exception as e:
+    except YFinanceError as e:
         print(f"Error reading CSV: {str(e)}")
         return False
     

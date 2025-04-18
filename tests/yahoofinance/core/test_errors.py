@@ -9,7 +9,7 @@ This test file verifies:
 - Error handling in client operations
 """
 
-import logging
+from ..core.logging_config import get_logger
 import requests
 import unittest
 from unittest.mock import patch, MagicMock
@@ -27,7 +27,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class TestErrorHierarchy(unittest.TestCase):

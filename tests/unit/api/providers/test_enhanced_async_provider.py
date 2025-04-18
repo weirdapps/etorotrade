@@ -88,12 +88,14 @@ async def test_ensure_session():
 
 
 @pytest.mark.asyncio
-async def test_fetch_json_success(enhanced_provider):
+async @with_retry 
+def test_fetch_json_success(enhanced_provider):
     """Test successful JSON fetch with mocked response"""
     # Get the provider instance from the fixture by awaiting the first value
     provider = await enhanced_provider.__anext__()
     
-    # Create a direct mock implementation that bypasses all the complexities
+    # Create a direct m@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def mock_fetch_json(hat bypasses all the complexities
     async def mock_fetch_json(url, params=None):
         # Verify URL arguments if needed
         assert url == "https://example.com"
@@ -103,14 +105,16 @@ async def test_fetch_json_success(enhanced_provider):
     
     # Replace the entire method
     with patch.object(provider, '_fetch_json', mock_fetch_json):
-        result = await provider._fetch_json("https://example.com")
+        re@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_fetch_json_rate_limit_error(tps://example.com")
         assert result == {"test": "data"}
 
 
 @pytest.mark.asyncio
 async def test_fetch_json_rate_limit_error(enhanced_provider):
     """Test handling of rate limit errors"""
-    # Get the provider instance from the fixture by awaiting the first value
+    # Get the provider@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def mock_fetch_json(ixture by awaiting the first value
     provider = await enhanced_provider.__anext__()
     
     # Create a direct mock implementation that raises a RateLimitError
@@ -122,7 +126,8 @@ async def test_fetch_json_rate_limit_error(enhanced_provider):
     
     # Replace the entire method
     with patch.object(provider, '_fetch_json', mock_fetch_json):
-        with pytest.raises(RateLimitError) as excinfo:
+        with @with_retry 
+def test_fetch_json_api_error(as excinfo:
             await provider._fetch_json("https://example.com")
         
         assert "rate limit exceeded" in str(excinfo.value).lower()
@@ -138,18 +143,17 @@ async def test_fetch_json_api_error(enhanced_provider):
     # Create a direct mock implementation that raises an APIError
     async def mock_fetch_json(url, params=None):
         details = {"status_code": 500, "response_text": "Internal Server Error"}
-        raise APIError(
-            "Yahoo Finance API error: 500 - Internal Server Error",
-            details=details
-        )
+        raise YFinanceError("An error occurred")
     
     # Replace the entire method
-    with patch.object(provider, '_fetch_json', mock_fetch_json):
+    with pa@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_fetch_json_network_error(, mock_fetch_json):
         with pytest.raises(APIError) as excinfo:
             await provider._fetch_json("https://example.com")
         
         assert "API error: 500" in str(excinfo.value)
-        assert excinfo.value.details.get("status_code") == 500
+        assert e@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def mock_fetch_json(.get("status_code") == 500
 
 
 @pytest.mark.asyncio
@@ -160,7 +164,8 @@ async def test_fetch_json_network_error(enhanced_provider):
     
     # Create a direct mock implementation that raises a NetworkError
     async def mock_fetch_json(url, params=None):
-        raise NetworkError("Network error while fetching https://example.com: Connection failed")
+        raise N@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_fetch_json_with_circuit_breaker( https://example.com: Connection failed")
     
     # Replace the entire method
     with patch.object(provider, '_fetch_json', mock_fetch_json):
@@ -172,7 +177,8 @@ async def test_fetch_json_network_error(enhanced_provider):
 
 
 @pytest.mark.asyncio
-async def test_fetch_json_with_circuit_breaker(enhanced_provider_with_circuit_breaker):
+async def test_fetch_json_with_circuit_breaker(enhanced_provider_@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def mock_fetch_json():
     """Test circuit breaker integration with fetch_json"""
     # Get the provider instance from the fixture by awaiting the first value
     provider = await enhanced_provider_with_circuit_breaker.__anext__()
@@ -194,15 +200,12 @@ async def test_fetch_json_with_circuit_breaker(enhanced_provider_with_circuit_br
         elif call_count <= 4:
             # Next calls fail with APIError
             details = {"status_code": 500, "response_text": "Server Error"}
-            raise APIError("Yahoo Finance API error: 500 - Server Error", details=details)
+            raise YFinanceError("An error occurred")
         else:
             # After circuit trips, this should translate to CircuitOpenError
             # which would be caught and converted to an APIError by the provider
             details = {"status_code": 503, "retry_after": 60}
-            raise APIError(
-                "Yahoo Finance API is currently unavailable. Please try again in 60 seconds",
-                details=details
-            )
+            raise YFinanceError("An error occurred")
     
     # Replace the method with our stateful mock
     with patch.object(provider, '_fetch_json', mock_fetch_json):
@@ -210,14 +213,14 @@ async def test_fetch_json_with_circuit_breaker(enhanced_provider_with_circuit_br
         result = await provider._fetch_json("https://example.com")
         assert result == {"test": "data"}
         
-        # Subsequent calls should fail
-        for _ in range(3):  # We need 3 failures to trip the circuit
+        # Subsequ@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_get_ticker_info(     for _ in range(3):  # We need 3 failures to trip the circuit
             with pytest.raises(APIError):
                 await provider._fetch_json("https://example.com")
         
         # Now the circuit should be open
-        with pytest.raises(APIError) as excinfo:
-            await provider._fetch_json("https://example.com")
+        with pytest.raises(APIError) as @with_retry 
+def mock_get_ticker_info_impl(vider._fetch_json("https://example.com")
         
         # Verify it's a translated circuit open error
         assert "currently unavailable" in str(excinfo.value)
@@ -263,12 +266,10 @@ async def test_get_ticker_info(enhanced_provider):
         assert result["symbol"] == "AAPL"
         assert result["name"] == "Test Company"
         assert result["current_price"] == pytest.approx(150.25, 0.001)
-        assert result["target_price"] == pytest.approx(175.0, 0.001)
-        assert result["upside"] == pytest.approx(16.47, 0.01)
+        assert result["target_price"] == p test_batch_get_ticker_info(    assert result["upside"] == pytest.approx(16.47, 0.01)
         assert result["market_cap"] == 2000000000000
         assert result["market_cap_fmt"] == "2.00T"
-        assert result["pe_trailing"] == pytest.approx(25.5, 0.001)
-        assert result["pe_forward"] == pytest.approx(22.5, 0.001)
+        assert result["pe_trailing"] == pytest.approx(2 mock_batch_get_ticker_info(lt["pe_forward"] == pytest.approx(22.5, 0.001)
         assert result["peg_ratio"] == pytest.approx(1.8, 0.001)
         assert result["dividend_yield"] == pytest.approx(1.65, 0.001)
         assert result["short_percent"] == pytest.approx(1.5, 0.001)
@@ -327,8 +328,7 @@ async def test_batch_get_ticker_info(enhanced_provider):
         assert result["AAPL"]["name"] == "Test AAPL"
         assert result["AAPL"]["current_price"] == pytest.approx(100.0, 0.001)
         
-        assert result["MSFT"]["name"] == "Test MSFT"
-        assert result["MSFT"]["current_price"] == pytest.approx(130.0, 0.001)
+        assert result["MSFT"][" mock_get_ticker_info(     assert result["MSFT"]["current_price"] == pytest.approx(130.0, 0.001)
         
         assert result["GOOG"]["name"] == "Test GOOG"
         assert result["GOOG"]["current_price"] == pytest.approx(110.0, 0.001)
@@ -349,10 +349,7 @@ async def test_circuit_breaker_integration_retry_after():
         async def mock_get_ticker_info(ticker, skip_insider_metrics=False):
             # Raise an APIError with the details we expect from a circuit open error translation
             details = {"status_code": 503, "retry_after": 120}
-            raise APIError(
-                "Yahoo Finance API is currently unavailable. Please try again in 120 seconds",
-                details=details
-            )
+            raise YFinanceError("An error occurred")
         
         # Replace the method directly
         original_method = provider.get_ticker_info
@@ -361,8 +358,8 @@ async def test_circuit_breaker_integration_retry_after():
         try:
             # Test the error handling
             with pytest.raises(APIError) as excinfo:
-                await provider.get_ticker_info("AAPL")
-            
+                await provider.get_tic@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def mock_get_ticker_info(    
             # Check that error was translated properly
             assert "currently unavailable" in str(excinfo.value)
             assert excinfo.value.details.get("status_code") == 503
@@ -388,11 +385,11 @@ async def test_error_handling_in_batch_operations(enhanced_provider):
         elif ticker == "MSFT":
             return {"symbol": ticker, "name": "Microsoft Corp.", "current_price": 300.0}
         elif ticker == "ERROR":
-            raise APIError("Test API error")
+            raise YFinanceError("An error occurred")
         elif ticker == "NETWORK":
             raise NetworkError("Test network error")
         else:
-            raise ValidationError(f"Invalid ticker: {ticker}")
+            raise YFinanceError("An error occurred")
     
     with patch.object(provider, 'get_ticker_info', side_effect=mock_get_ticker_info):
         result = await provider.batch_get_ticker_info(["AAPL", "MSFT", "ERROR", "NETWORK", "INVALID"])

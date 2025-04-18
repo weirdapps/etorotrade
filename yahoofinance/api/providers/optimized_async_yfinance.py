@@ -85,10 +85,7 @@ class OptimizedAsyncYFinanceProvider(AsyncFinanceDataProvider):
 
 
     @with_retry
-
-
-    
-def _get_yticker(self, ticker: str):
+    def _get_yticker(self, ticker: str):
         """Get or create yfinance Ticker object"""
         mapped_ticker = self._ticker_mappings.get(ticker, ticker)
         if mapped_ticker not in self._stock_cache:
@@ -332,8 +329,7 @@ def _get_yticker(self, ticker: str):
         return []
 
     async def search_tickers(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
-        """Search for tickers @with_retry 
-def batch_get_ticker_info(ore)."""
+        """Search for tickers (not implemented)."""
         return []
 
     async def batch_get_ticker_info(self, tickers: List[str], skip_insider_metrics: bool = False) -> Dict[str, Dict[str, Any]]:
@@ -426,8 +422,8 @@ def batch_get_ticker_info(ore)."""
             except YFinanceError as e:
                 logger.debug(f"Error getting post-earnings ratings for {ticker}: {e}")
             return False
-        except YFinanceE@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
-def _get_last_earnings_date(r.debug(f"Exception in _has_post_earnings_ratings for {ticker}: {e}")
+        except YFinanceError as e:
+            logger.debug(f"Exception in _has_post_earnings_ratings for {ticker}: {e}")
             return False
 
     def _get_last_earnings_date(self, yticker):

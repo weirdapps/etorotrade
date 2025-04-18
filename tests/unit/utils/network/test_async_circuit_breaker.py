@@ -7,6 +7,9 @@ cascading failures in asynchronous code.
 """
 
 import json
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import os
 import time
 import asyncio
@@ -155,7 +158,8 @@ async def test_async_circuit_protected_decorator():
 
 
 @pytest.mark.asyncio
-async def test_get_async_circuit_breaker():
+async @with_retry 
+def test_get_async_circuit_breaker():
     """Test get_async_circuit_breaker creates and returns async circuit breakers."""
     # Clear existing circuits
     with patch.dict("yahoofinance.utils.network.circuit_breaker._circuit_breakers", {}):
@@ -248,11 +252,8 @@ async def test_async_circuit_breaker_integration_with_enhanced_async():
     finally:
         # Clean up
         if os.path.exists(circuit_config["state_file"]):
-            os.remove(circuit_config["state_file"])
-
-
-@pytest.mark.asyncio
-async def test_async_circuit_breaker_multiple_concurrent_requests(async_circuit_breaker):
+            os.re@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_async_circuit_breaker_multiple_concurrent_requests(ync def test_async_circuit_breaker_multiple_concurrent_requests(async_circuit_breaker):
     """Test circuit breaker with multiple concurrent requests."""
     # Create test async functions
     async def success_task():

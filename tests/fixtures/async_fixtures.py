@@ -47,7 +47,7 @@ def create_async_processor_mock(error_item: int = 3) -> AsyncMock:
     """
     async def mock_processor(item):
         if item == error_item:
-            raise APIError("Test error")
+            raise YFinanceError("An error occurred")
         return item * 2
     
     return mock_processor

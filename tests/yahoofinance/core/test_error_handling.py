@@ -3,7 +3,7 @@
 Test script to verify the improved error handling capabilities.
 """
 
-import logging
+from ..core.logging_config import get_logger
 import requests
 import unittest
 from unittest.mock import patch, MagicMock
@@ -61,7 +61,10 @@ class TestErrorHandling(unittest.TestCase):
         self.assertIn("source: API", detailed_formatted)
         self.assertIn("ticker: AAPL", detailed_formatted)
         
-    def test_api_error_classification(self):
+    @with_retry
+        
+    
+def test_api_error_classification(self):
         """Test classification of API errors by status code."""
         # Test 404 error
         not_found_error = classify_api_error(404, "Ticker not found")

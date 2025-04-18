@@ -10,15 +10,18 @@ Key components:
 - Templates: HTML templates for various report types
 """
 
-import logging
-from typing import Dict, Any, List, Optional, Union
 import json
+import logging
 import pandas as pd
 from pathlib import Path
+from typing import Dict, Any, List, Optional, Union
 
+from ..core.logging_config import get_logger
 from ..core.config import FILE_PATHS
+from ..core.errors import YFinanceError, APIError, ValidationError, DataError
+from ..utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 # Set default level to WARNING to suppress debug and info messages
 logger.setLevel(logging.WARNING)
 
@@ -127,7 +130,7 @@ class FormatUtils:
             # Sort by key
             formatted.sort(key=lambda x: x.get('key', ''))
             
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error formatting market metrics: {str(e)}")
             
         return formatted
@@ -287,7 +290,7 @@ class HTMLGenerator:
             # Return generated HTML
             return html
             
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error generating market HTML: {str(e)}")
             return f"<html><body><h1>Error</h1><p>{str(e)}</p></body></html>"
     
@@ -334,7 +337,7 @@ class HTMLGenerator:
             logger.info(f"Generated market dashboard at {output_path}")
             return output_path
             
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error generating market dashboard: {str(e)}")
             return None
     
@@ -411,7 +414,7 @@ class HTMLGenerator:
             logger.info(f"Generated portfolio dashboard at {output_path}")
             return output_path
             
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error generating portfolio dashboard: {str(e)}")
             return None
             
@@ -564,7 +567,7 @@ class HTMLGenerator:
                         action = 'I'
                         action_str = 'I'
                         logger.info(f"Forcing INCONCLUSIVE for {row.get('TICKER')} due to low coverage: T={price_target_count}, A={analyst_count}")
-                except Exception as e:
+                except YFinanceError as e:
                     logger.warning(f"Error checking coverage thresholds for {row.get('TICKER', 'unknown')}: {str(e)}")
                 
                 # ===== CRITICAL FIX =====
@@ -888,7 +891,7 @@ class HTMLGenerator:
             logger.debug(f"Generated HTML table at {html_path}")
             return html_path
             
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error generating stock table: {str(e)}")
             return None
             

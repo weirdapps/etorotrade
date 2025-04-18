@@ -6,10 +6,10 @@ from financial data. Templates are organized by category (market, portfolio, etc
 and can be customized with parameters.
 """
 
-import logging
+from ..core.logging_config import get_logger
 from typing import Dict, Any
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class Templates:
     """Container for HTML templates"""

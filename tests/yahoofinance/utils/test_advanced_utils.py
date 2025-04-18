@@ -7,7 +7,7 @@ These tests verify the proper integration between different utility modules.
 
 import unittest
 import pytest
-import logging
+from ..core.logging_config import get_logger
 from unittest.mock import patch
 
 from yahoofinance.utils.network.rate_limiter import global_rate_limiter

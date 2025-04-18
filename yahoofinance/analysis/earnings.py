@@ -10,16 +10,19 @@ across both APIs through private helper methods like _calculate_trend_metrics.
 """
 
 from typing import Dict, Any, List, Optional, Union, Tuple
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import pandas as pd
 from datetime import datetime, timedelta
-import logging
+from ..core.logging_config import get_logger
 from dataclasses import dataclass
 
 from ..api import get_provider, FinanceDataProvider, AsyncFinanceDataProvider
 from ..core.errors import YFinanceError, ValidationError
 from .base_analysis import BaseAnalysisService
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # The EarningsCalendar class below provides backward compatibility with the v1 API
 class EarningsCalendar:
@@ -238,7 +241,7 @@ class EarningsCalendar:
                             processed_row = self._process_earnings_row(ticker, date, row, info)
                             earnings_data.append(processed_row)
                             
-                except Exception as e:
+                except YFinanceError as e:
                     logger.error(f"Error processing {ticker}: {str(e)}")
                     continue
             
@@ -257,7 +260,7 @@ class EarningsCalendar:
             
             return df
             
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error fetching earnings calendar: {str(e)}")
             return None
 
@@ -364,7 +367,7 @@ class EarningsAnalyzer(BaseAnalysisService):
             # Process the data into EarningsData object
             return self._process_earnings_data(earnings_dates, earnings_history)
         
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error fetching earnings data for {ticker}: {str(e)}")
             return EarningsData()
     
@@ -394,7 +397,7 @@ class EarningsAnalyzer(BaseAnalysisService):
             # Process the data into EarningsData object
             return self._process_earnings_data(earnings_dates, earnings_history)
         
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error fetching earnings data for {ticker}: {str(e)}")
             return EarningsData()
     
@@ -419,7 +422,7 @@ class EarningsAnalyzer(BaseAnalysisService):
         for ticker in tickers:
             try:
                 results[ticker] = self.get_earnings_data(ticker)
-            except Exception as e:
+            except YFinanceError as e:
                 logger.error(f"Error fetching earnings data for {ticker}: {str(e)}")
                 results[ticker] = EarningsData()
         
@@ -587,7 +590,7 @@ class EarningsAnalyzer(BaseAnalysisService):
             # Calculate trend metrics using the shared helper method
             return self._calculate_trend_metrics(earnings_data, ticker, quarters)
         
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error calculating earnings trend for {ticker}: {str(e)}")
             return None
     
@@ -615,6 +618,6 @@ class EarningsAnalyzer(BaseAnalysisService):
             # Calculate trend metrics using the shared helper method
             return self._calculate_trend_metrics(earnings_data, ticker, quarters)
         
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error calculating earnings trend for {ticker}: {str(e)}")
             return None

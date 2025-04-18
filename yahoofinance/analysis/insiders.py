@@ -6,16 +6,19 @@ including buys, sells, and net activity.
 """
 
 from typing import Dict, Any, List, Optional, Union, Tuple
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import pandas as pd
 from datetime import datetime, timedelta
-import logging
+from ..core.logging_config import get_logger
 from dataclasses import dataclass
 
 from ..api import get_provider, FinanceDataProvider, AsyncFinanceDataProvider
 from ..core.errors import YFinanceError, ValidationError
 from ..utils.market import is_us_ticker
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 @dataclass
 class InsiderTransaction:
@@ -130,7 +133,7 @@ class InsiderAnalyzer:
             # Process the data into InsiderSummary object
             return self._process_transactions_data(transactions_data)
         
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error fetching insider transactions for {ticker}: {str(e)}")
             return InsiderSummary()
     
@@ -165,7 +168,7 @@ class InsiderAnalyzer:
             # Process the data into InsiderSummary object
             return self._process_transactions_data(transactions_data)
         
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error fetching insider transactions for {ticker}: {str(e)}")
             return InsiderSummary()
     
@@ -196,7 +199,7 @@ class InsiderAnalyzer:
         for ticker in us_tickers:
             try:
                 results[ticker] = self.get_transactions(ticker, days)
-            except Exception as e:
+            except YFinanceError as e:
                 logger.error(f"Error fetching insider transactions for {ticker}: {str(e)}")
                 results[ticker] = InsiderSummary()
         
@@ -385,7 +388,7 @@ class InsiderAnalyzer:
             # Calculate sentiment metrics using the shared method
             return self._calculate_sentiment_metrics(summary, days)
         
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error analyzing insider sentiment for {ticker}: {str(e)}")
             return {
                 "sentiment": "UNKNOWN",
@@ -418,7 +421,7 @@ class InsiderAnalyzer:
             # Calculate sentiment metrics using the shared method
             return self._calculate_sentiment_metrics(summary, days)
         
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error analyzing insider sentiment for {ticker}: {str(e)}")
             return {
                 "sentiment": "UNKNOWN",

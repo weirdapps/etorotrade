@@ -85,10 +85,10 @@ class YFinanceClient:
             ValidationError: If ticker format is invalid
         """
         if not ticker or not isinstance(ticker, str):
-            raise ValidationError("Ticker must be a non-empty string")
+            raise YFinanceError("An error occurred")
             
         # Basic validation - more complex validation happens in providers
         if len(ticker) > 20:
-            raise ValidationError(f"Ticker '{ticker}' exceeds maximum length of 20 characters")
+            raise YFinanceError("An error occurred")
             
         return True

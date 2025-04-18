@@ -5,16 +5,18 @@ This module provides utilities for processing API requests in batches
 to improve performance while respecting rate limits.
 """
 
-import logging
 import time
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Any, TypeVar, Callable, Generic, Iterable
 
+from ...core.logging_config import get_logger
+from ...core.errors import YFinanceError, APIError, ValidationError, DataError
 from ...core.config import RATE_LIMIT
+from ..error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 from .rate_limiter import global_rate_limiter
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Define generic type variables
 T = TypeVar('T')  # Type of input items
@@ -100,7 +102,7 @@ class BatchProcessor(Generic[T, R]):
                     result = self.process_func(item)
                     # Store the result
                     results[offset + index] = result
-                except Exception as e:
+                except YFinanceError as e:
                     logger.error(f"Error processing item {item}: {str(e)}")
                     # Store the error in the results
                     results[offset + index] = None
@@ -202,6 +204,10 @@ def batch_process(
     return processor.process(items)
 
 
+@with_retry
+
+
+
 def bulk_fetch(
     items: Iterable[T],
     fetch_func: Callable[[T], R],
@@ -243,7 +249,7 @@ def bulk_fetch(
             result = fetch_func(item)
             # Store the result
             results[item] = result
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error fetching data for {item}: {str(e)}")
             # Store None as the result
             results[item] = None

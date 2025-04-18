@@ -6,11 +6,15 @@ values with appropriate scale indicators (T, B, M) and precision based on
 the magnitude of the value.
 """
 
-import logging
 from typing import Optional, Union, Dict, Any
 
-logger = logging.getLogger(__name__)
+from ...core.logging_config import get_logger
+from ..error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 
+logger = get_logger(__name__)
+
+
+@with_retry
 def _get_scale_info(
     value: float, 
     config: Dict[str, Any]
@@ -74,6 +78,7 @@ def _get_scale_info(
         "precision": precision
     }
 
+@with_retry
 def _format_with_scale(
     value: float, 
     scale_info: Dict[str, Any]
@@ -88,6 +93,7 @@ def _format_with_scale(
     Returns:
         Formatted string
     """
+
     divisor = scale_info["divisor"]
     suffix = scale_info["suffix"]
     precision = scale_info["precision"]
@@ -97,6 +103,7 @@ def _format_with_scale(
     else:
         return f"{value / divisor:.{precision}f}{suffix}"
 
+@with_retry
 def format_market_cap_advanced(
     value: Optional[Union[int, float]],
     config: Optional[Dict[str, Any]] = None
@@ -127,6 +134,7 @@ def format_market_cap_advanced(
     Returns:
         Formatted market cap string or None if value is None
     """
+
     if value is None:
         return None
     

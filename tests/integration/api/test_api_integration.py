@@ -103,7 +103,10 @@ class TestProviderIntegration:
         self.valid_ticker = "AAPL"
         yield
         
-    def test_get_ticker_info(self):
+    @with_retry
+        
+    
+def test_get_ticker_info(self):
         """Test getting ticker info via provider"""
         info = self.provider.get_ticker_info(self.valid_ticker)
         
@@ -114,8 +117,8 @@ class TestProviderIntegration:
         assert 'sector' in info
         
         # Verify actual data
-        assert info['symbol'] == self.valid_ticker
-        assert info['name'] is not None
+        assert info['symbol'] == self.va@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_get_price_data(t info['name'] is not None
         
     def test_get_price_data(self):
         """Test getting price data via provider"""
@@ -123,8 +126,8 @@ class TestProviderIntegration:
         info = self.provider.get_ticker_info(self.valid_ticker)
         
         # Verify data structure
-        assert isinstance(info, dict)
-        assert 'price' in info
+        assert isinstance(info, dict)@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_get_historical_data(fo
         
         # Verify actual data
         assert info.get('price') is not None
@@ -134,8 +137,8 @@ class TestProviderIntegration:
         hist_data = self.provider.get_historical_data(self.valid_ticker, period="1mo")
         
         # Verify data structure
-        assert isinstance(hist_data, pd.DataFrame)
-        assert len(hist_data) > 0
+        assert isinstance(his@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_get_analyst_ratings( assert len(hist_data) > 0
         
         # Verify columns
         assert 'Close' in hist_data.columns

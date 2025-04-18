@@ -10,16 +10,17 @@ CANONICAL SOURCE: This module is now the canonical source for synchronous rate l
 For asynchronous rate limiting, use yahoofinance.utils.async.rate_limiter.
 """
 
-import logging
 import time
 import threading
 from functools import wraps
 from typing import Dict, Any, Optional, Callable, TypeVar, cast
 
-from ...core.config import RATE_LIMIT
-from ...core.errors import RateLimitError
+from ...core.logging_config import get_logger
+from ...core.errors import YFinanceError, APIError, ValidationError, DataError, RateLimitError
 
-logger = logging.getLogger(__name__)
+from ...core.config import RATE_LIMIT
+
+logger = get_logger(__name__)
 
 # Define a generic type variable for the return type
 T = TypeVar('T')
@@ -313,13 +314,13 @@ def rate_limited(
                 limiter.record_success(ticker)
                 
                 return result
-            except Exception as e:
+            except YFinanceError as e:
                 # Record failure
                 is_rate_limit = isinstance(e, RateLimitError)
                 limiter.record_failure(ticker, is_rate_limit)
                 
                 # Re-raise the exception
-                raise
+                raise e
         
         return cast(Callable[..., T], wrapper)
     

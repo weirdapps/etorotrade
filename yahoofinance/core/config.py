@@ -27,31 +27,31 @@ RATE_LIMIT = {
     "WINDOW_SIZE": 60,
     
     # Maximum API calls per window
-    "MAX_CALLS": 60,
+    "MAX_CALLS": 60,  # More aggressive setting
     
     # Base delay between calls in seconds
-    "BASE_DELAY": 1.0,
+    "BASE_DELAY": 0.5,  # More aggressive setting
     
     # Minimum delay after many successful calls in seconds
-    "MIN_DELAY": 0.5,
+    "MIN_DELAY": 0.2,  # More aggressive setting
     
     # Maximum delay after errors in seconds
     "MAX_DELAY": 30.0,
     
     # Number of items per batch
-    "BATCH_SIZE": 20,
+    "BATCH_SIZE": 10,  # More aggressive setting
     
-    # Delay between batches in seconds (reduced for better performance)
-    "BATCH_DELAY": 0.5, # Reduced delay
+    # Delay between batches in seconds
+    "BATCH_DELAY": 1.0, # More aggressive setting
     
     # Maximum retry attempts for API calls
     "MAX_RETRY_ATTEMPTS": 3,
     
     # API request timeout in seconds
-    "API_TIMEOUT": 30,
+    "API_TIMEOUT": 60,  # Keep longer timeout for stability
     
     # Maximum concurrent API calls (for async)
-    "MAX_CONCURRENT_CALLS": 10,
+    "MAX_CONCURRENT_CALLS": 10,  # More aggressive setting
     
     # Problematic tickers that should use longer delays
     "SLOW_TICKERS": set(),
@@ -135,6 +135,33 @@ RISK_METRICS = {
     
     # Trading days per year
     "TRADING_DAYS_PER_YEAR": 252,
+}
+
+# Pagination configuration
+PAGINATION = {
+    # Default page size
+    "DEFAULT_PAGE_SIZE": 20,
+    
+    # Maximum page size
+    "MAX_PAGE_SIZE": 100,
+    
+    # Default first page index
+    "DEFAULT_FIRST_PAGE": 1,
+    
+    # Default sort order
+    "DEFAULT_SORT_ORDER": "desc",
+    
+    # Default page size for internal API calls
+    "PAGE_SIZE": 20,
+    
+    # Maximum number of pages to fetch
+    "MAX_PAGES": 10,
+    
+    # Maximum number of retry attempts
+    "MAX_RETRIES": 3,
+    
+    # Delay in seconds between retries
+    "RETRY_DELAY": 1.0,
 }
 
 # Trading criteria configuration

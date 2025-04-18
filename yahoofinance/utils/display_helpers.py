@@ -6,7 +6,10 @@ in the main trade.py module, particularly for display_report_for_source function
 """
 
 import re
-import logging
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
+from ..core.logging_config import get_logger
 import pandas as pd
 from typing import Dict, Any, List, Tuple
 from yahoofinance.utils.trade_criteria import (
@@ -16,7 +19,7 @@ from yahoofinance.utils.trade_criteria import (
 from yahoofinance.core.config import COLUMN_NAMES, TRADING_CRITERIA
 
 # Configure logger
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Constants for column names
 BUY_PERCENTAGE = COLUMN_NAMES["BUY_PERCENTAGE"]
@@ -265,7 +268,7 @@ def apply_color_formatting(row, trading_criteria):
         if _has_required_metrics(row):
             return _color_based_on_criteria(row, colored_row, trading_criteria)
             
-    except Exception as e:
+    except YFinanceError as e:
         # If any error in color logic, use the original row
         logger.debug(f"Error applying color: {str(e)}")
         
@@ -402,6 +405,9 @@ def _format_color_text(text, color_code):
     """
     return f"\033[{color_code}m{text}\033[0m"
 
+@with_retry
+
+
 def _get_confidence_status(analyst_count, price_targets, min_analysts, min_targets):
     """
     Determine the confidence status based on analyst and price target counts.
@@ -469,14 +475,14 @@ def print_confidence_details(row, i, trading_criteria):
         analyst_count = _extract_numeric_value(row, '# A')
         if analyst_count is None:
             analyst_count = "Invalid"
-    except Exception:
+    except YFinanceError:
         analyst_count = "Invalid"
     
     try:
         price_targets = _extract_numeric_value(row, '# T')
         if price_targets is None:
             price_targets = "Invalid"
-    except Exception:
+    except YFinanceError:
         price_targets = "Invalid"
     
     # Get confidence thresholds
@@ -548,7 +554,7 @@ def generate_html_dashboard(result_df, display_df, report_source, output_dir):
                 print(f"\nGenerating HTML dashboard: {output_path}")
                 generate_dashboard(result_df, output_path, title, is_portfolio=True)
                 print(f"Dashboard generated: {output_path}")
-    except Exception as e:
+    except YFinanceError as e:
         logger.error(f"Error generating HTML dashboard: {str(e)}")
 
 
@@ -609,7 +615,7 @@ def display_tabulate_results(colored_df, colalign):
             colalign=column_alignments
         ))
             
-    except Exception as e:
+    except YFinanceError as e:
         # Fall back to basic display if tabulate fails
         logger.error(f"Error in tabulate display: {str(e)}")
         print(colored_df.to_string())

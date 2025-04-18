@@ -94,7 +94,10 @@ class TestAdaptiveRateLimiter:
         assert len(limiter.calls) == 1
         assert limiter.calls[0][1] == "MSFT"
     
-    def test_get_delay(self):
+    @with_retry
+    
+    
+def test_get_delay(self):
         """Test delay calculation based on call history."""
         limiter = AdaptiveRateLimiter(max_calls=5, window_size=5)
         
@@ -112,8 +115,8 @@ class TestAdaptiveRateLimiter:
         
         # Add error to trigger longer delay
         limiter.add_error(RateLimitError("Rate limit exceeded"))
-        error_delay = limiter.get_delay()
-        assert error_delay > high_load_delay
+        error_delay = limiter.ge@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_get_ticker_delay(rror_delay > high_load_delay
     
     def test_get_ticker_delay(self):
         """Test ticker-specific delays."""

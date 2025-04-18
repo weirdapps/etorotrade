@@ -12,14 +12,17 @@ while maintaining the same functionality.
 """
 
 from typing import Dict, Any, List, Optional, Union, Tuple
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import pandas as pd
-import logging
+from ..core.logging_config import get_logger
 from dataclasses import dataclass
 
 from ..api import get_provider, FinanceDataProvider, AsyncFinanceDataProvider
 from ..core.errors import YFinanceError, ValidationError
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 @dataclass
 class PriceData:
@@ -123,7 +126,7 @@ class PricingAnalyzer:
             # Process the data into PriceData object
             return self._process_price_data(ticker_info)
         
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error fetching price data for {ticker}: {str(e)}")
             return PriceData()
     
@@ -151,10 +154,11 @@ class PricingAnalyzer:
             # Process the data into PriceData object
             return self._process_price_data(ticker_info)
         
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error fetching price data for {ticker}: {str(e)}")
             return PriceData()
     
+    @with_retry
     def get_price_target(self, ticker: str) -> PriceTarget:
         """
         Get price target data for a ticker.
@@ -179,7 +183,7 @@ class PricingAnalyzer:
             # Process the data into PriceTarget object
             return self._process_price_target(ticker_info)
         
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error fetching price target for {ticker}: {str(e)}")
             return PriceTarget()
     
@@ -207,7 +211,7 @@ class PricingAnalyzer:
             # Process the data into PriceTarget object
             return self._process_price_target(ticker_info)
         
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error fetching price target for {ticker}: {str(e)}")
             return PriceTarget()
     
@@ -296,7 +300,7 @@ class PricingAnalyzer:
             # Extract metrics using shared helper method
             return self._extract_all_metrics(ticker_info)
         
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error fetching metrics for {ticker}: {str(e)}")
             return {}
     
@@ -324,7 +328,7 @@ class PricingAnalyzer:
             # Extract metrics using shared helper method
             return self._extract_all_metrics(ticker_info)
         
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error fetching metrics for {ticker}: {str(e)}")
             return {}
     
@@ -359,7 +363,7 @@ class PricingAnalyzer:
             
             return results
         
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error fetching metrics batch: {str(e)}")
             return {ticker: {} for ticker in tickers}
     
@@ -394,7 +398,7 @@ class PricingAnalyzer:
             
             return results
         
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error fetching metrics batch asynchronously: {str(e)}")
             return {ticker: {} for ticker in tickers}
     

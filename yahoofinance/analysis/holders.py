@@ -5,7 +5,10 @@ This module provides functions to analyze institutional ownership of stocks,
 including retrieving and formatting data about major holders and institutional investors.
 """
 
-import logging
+from ..core.logging_config import get_logger
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import argparse
 import sys
 import pandas as pd
@@ -17,7 +20,7 @@ from ..core.errors import YFinanceError
 
 # Set locale for proper number formatting
 locale.setlocale(locale.LC_ALL, '')
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 def format_percentage(value: float) -> str:
     """
@@ -111,7 +114,7 @@ def analyze_holders(ticker: str) -> None:
         else:
             print("No institutional holders information available")
             
-    except Exception as e:
+    except YFinanceError as e:
         logger.error(f"Error analyzing holders for {ticker}: {str(e)}")
         print(f"Error: {str(e)}")
 
@@ -138,7 +141,7 @@ def main() -> None:
             try:
                 analyze_holders(ticker)
                 print("\n" + "-" * 50)
-            except Exception as e:
+            except YFinanceError as e:
                 logger.error(f"Error processing {ticker}: {str(e)}")
                 print(f"Error processing {ticker}: {str(e)}")
 

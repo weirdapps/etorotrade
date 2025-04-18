@@ -7,8 +7,11 @@ to demonstrate the functionality more quickly.
 """
 
 import os
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import sys
-import logging
+from ..core.logging_config import get_logger
 import pandas as pd
 
 # Add parent directory to Python path
@@ -57,7 +60,7 @@ def main():
     # Run optimization
     try:
         optimizer.run()
-    except Exception as e:
+    except YFinanceError as e:
         print(f"Error: {str(e)}")
         sys.exit(1)
 

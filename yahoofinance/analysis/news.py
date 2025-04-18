@@ -5,7 +5,10 @@ This module provides functionality to fetch and analyze news for tickers,
 including sentiment analysis using VADER.
 """
 
-import logging
+from ..core.logging_config import get_logger
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import asyncio
 from datetime import datetime
 import textwrap
@@ -22,7 +25,7 @@ from ..core.config import PATHS, FILE_PATHS, MESSAGES
 from ..utils.network.circuit_breaker import circuit_protected, async_circuit_protected
 
 # Configure logger
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ANSI color codes
 class Colors:
@@ -258,7 +261,7 @@ def format_yahoo_news(news, ticker, limit=5):
             print(f"   {Colors.BLUE}Link:{Colors.ENDC} {Colors.YELLOW}{url}{Colors.ENDC}")
             print("-" * 50)
             
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(MESSAGES["ERROR_PROCESSING_NEWS"].format(error=str(e)))
             print(MESSAGES["ERROR_PROCESSING_NEWS"].format(error=str(e)))
             continue
@@ -279,7 +282,7 @@ def get_portfolio_tickers():
             return []
             
         return [ticker for ticker in tickers if not str(ticker).endswith('USD')]
-    except Exception as e:
+    except YFinanceError as e:
         logger.error(MESSAGES["ERROR_READING_PORTFOLIO"].format(error=str(e)))
         print(MESSAGES["ERROR_READING_PORTFOLIO"].format(error=str(e)))
         return []
@@ -318,7 +321,7 @@ def fetch_yahoo_news(ticker):
             format_yahoo_news(news, ticker, limit=5)
         else:
             print(f"\n{MESSAGES['NO_NEWS_FOUND_TICKER'].format(ticker=ticker)}")
-    except Exception as e:
+    except YFinanceError as e:
         logger.error(MESSAGES["ERROR_FETCHING_NEWS"].format(ticker=ticker, error=str(e)))
         print(f"\n{MESSAGES['ERROR_FETCHING_NEWS'].format(ticker=ticker, error=str(e))}")
 
@@ -338,7 +341,7 @@ async def fetch_yahoo_news_async(ticker):
             format_yahoo_news(news, ticker, limit=5)
         else:
             print(f"\n{MESSAGES['NO_NEWS_FOUND_TICKER'].format(ticker=ticker)}")
-    except Exception as e:
+    except YFinanceError as e:
         logger.error(MESSAGES["ERROR_FETCHING_NEWS_ASYNC"].format(ticker=ticker, error=str(e)))
         print(f"\n{MESSAGES['ERROR_FETCHING_NEWS_ASYNC'].format(ticker=ticker, error=str(e))}")
 

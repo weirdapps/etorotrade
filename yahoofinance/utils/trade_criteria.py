@@ -5,8 +5,10 @@ This module provides functions for evaluating trading criteria
 and calculating buy/sell/hold recommendations.
 """
 
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
+
 import pandas as pd
-import logging
+from ..core.logging_config import get_logger
 from yahoofinance.core.config import COLUMN_NAMES
 
 # Constants for column names from config
@@ -39,7 +41,7 @@ MSG_INSUFFICIENT_COVERAGE = "Insufficient analyst coverage"
 MSG_PE_CONDITION_NOT_MET = "P/E ratio condition not met"
 
 # Standard logging
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 def check_confidence_criteria(row, criteria):
     """
@@ -52,6 +54,7 @@ def check_confidence_criteria(row, criteria):
     Returns:
         Boolean indicating if confidence criteria are met
     """
+
     # If row is not already normalized, normalize it
     # (This enables the function to work whether called directly or through calculate_action_for_row)
     if not (ANALYST_COUNT in row or TOTAL_RATINGS in row) and ('# T' in row or '# A' in row):
@@ -105,6 +108,7 @@ def check_confidence_criteria(row, criteria):
 
 def _check_upside_sell_criterion(row, sell_criteria):
     """Check if a stock fails the upside criterion for selling."""
+
     if UPSIDE in row and pd.notna(row[UPSIDE]):
         # Safe conversion handling special values
         try:
@@ -125,6 +129,7 @@ def _check_upside_sell_criterion(row, sell_criteria):
 
 def _check_buy_percentage_sell_criterion(row, sell_criteria):
     """Check if a stock fails the buy percentage criterion for selling."""
+
     if BUY_PERCENTAGE_COL in row and pd.notna(row[BUY_PERCENTAGE_COL]):
         # Safe conversion handling special values
         try:
@@ -145,6 +150,7 @@ def _check_buy_percentage_sell_criterion(row, sell_criteria):
 
 def _check_pe_ratio_sell_criterion(row):
     """Check if a stock has a worsening PE ratio (forward > trailing)."""
+
     if (PE_FORWARD in row and PE_TRAILING in row and 
         pd.notna(row[PE_FORWARD]) and pd.notna(row[PE_TRAILING])):
         # Safe conversion handling special values
@@ -176,6 +182,7 @@ def _check_pe_ratio_sell_criterion(row):
 
 def _check_forward_pe_sell_criterion(row, sell_criteria):
     """Check if a stock has a forward PE that's too high or negative."""
+
     if 'pe_forward' in row and pd.notna(row['pe_forward']):
         # Safe conversion handling special values
         try:
@@ -198,6 +205,7 @@ def _check_forward_pe_sell_criterion(row, sell_criteria):
 
 def _check_peg_sell_criterion(row, sell_criteria):
     """Check if a stock has a PEG ratio that's too high."""
+
     if 'peg_ratio' in row and pd.notna(row['peg_ratio']):
         # Safe conversion handling special values
         try:
@@ -218,6 +226,7 @@ def _check_peg_sell_criterion(row, sell_criteria):
 
 def _check_short_interest_sell_criterion(row, sell_criteria, short_field):
     """Check if a stock has a short interest that's too high."""
+
     if short_field in row and pd.notna(row[short_field]):
         # Safe conversion with special handling for '--' values
         try:
@@ -238,6 +247,7 @@ def _check_short_interest_sell_criterion(row, sell_criteria, short_field):
 
 def _check_beta_sell_criterion(row, sell_criteria):
     """Check if a stock has a beta that's too high."""
+
     if 'beta' in row and pd.notna(row['beta']):
         # Safe conversion handling special values
         try:
@@ -258,6 +268,7 @@ def _check_beta_sell_criterion(row, sell_criteria):
 
 def _check_expected_return_sell_criterion(row, sell_criteria):
     """Check if a stock has an expected return that's too low."""
+
     if EXRET in row and pd.notna(row[EXRET]):
         # Safe conversion handling special values
         try:
@@ -288,6 +299,7 @@ def meets_sell_criteria(row, criteria, short_field=DEFAULT_SHORT_FIELD):
     Returns:
         Boolean indicating if any sell criteria are met, and a reason string
     """
+
     sell_criteria = criteria["SELL"]
     
     # Check each sell criterion - any criterion that's met causes a sell signal
@@ -336,6 +348,7 @@ def meets_sell_criteria(row, criteria, short_field=DEFAULT_SHORT_FIELD):
 
 def _check_upside_buy_criterion(row, buy_criteria):
     """Check if a stock meets the upside criterion for buying."""
+
     if UPSIDE not in row or pd.isna(row[UPSIDE]):
         return False, f"Upside data not available (required for buy)"
         
@@ -359,6 +372,7 @@ def _check_upside_buy_criterion(row, buy_criteria):
 
 def _check_buy_percentage_buy_criterion(row, buy_criteria):
     """Check if a stock meets the buy percentage criterion for buying."""
+
     if BUY_PERCENTAGE_COL not in row or pd.isna(row[BUY_PERCENTAGE_COL]):
         return False, f"Buy percentage data not available (required for buy)"
         
@@ -382,6 +396,7 @@ def _check_buy_percentage_buy_criterion(row, buy_criteria):
 
 def _check_beta_buy_criterion(row, buy_criteria):
     """Check if a stock meets the beta criterion for buying."""
+
     # Beta is a primary required criterion - must exist and have a value
     if 'beta' not in row or pd.isna(row['beta']):
         return False, "Beta data not available (required for buy)"
@@ -409,6 +424,7 @@ def _check_beta_buy_criterion(row, buy_criteria):
 
 def _check_peg_buy_criterion(row, buy_criteria):
     """Check if a stock meets the PEG ratio criterion for buying."""
+
     if 'peg_ratio' in row and pd.notna(row['peg_ratio']):
         # Safe conversion handling special values
         try:
@@ -429,6 +445,7 @@ def _check_peg_buy_criterion(row, buy_criteria):
 
 def _check_short_interest_buy_criterion(row, buy_criteria, short_field):
     """Check if a stock meets the short interest criterion for buying."""
+
     if short_field in row and pd.notna(row[short_field]):
         # Safe conversion handling special values
         try:
@@ -449,6 +466,7 @@ def _check_short_interest_buy_criterion(row, buy_criteria, short_field):
 
 def _check_exret_buy_criterion(row, buy_criteria):
     """Check if a stock meets the expected return criterion for buying."""
+
     if EXRET in row and pd.notna(row[EXRET]):
         # Safe conversion handling special values
         try:
@@ -479,6 +497,7 @@ def meets_buy_criteria(row, criteria, short_field=DEFAULT_SHORT_FIELD):
     Returns:
         Boolean indicating if all buy criteria are met, and a reason string if not
     """
+
     buy_criteria = criteria["BUY"]
     
     # Check each buy criterion - all criteria must be met for a buy signal
@@ -524,6 +543,7 @@ def meets_buy_criteria(row, criteria, short_field=DEFAULT_SHORT_FIELD):
 
 def _is_forward_pe_in_range(row, criteria):
     """Check if forward P/E is in the target range."""
+
     # We already checked if pe_forward exists in the calling function
     try:
         # Handle string values - convert to float first
@@ -541,6 +561,7 @@ def _is_forward_pe_in_range(row, criteria):
 
 def _is_pe_improving(row):
     """Check if P/E is improving (forward < trailing and trailing > 0)."""
+
     # We already checked if pe_trailing and pe_forward exist in the calling function
     try:
         # Handle string values - convert to float first
@@ -558,6 +579,7 @@ def _is_pe_improving(row):
 
 def _is_growth_stock(row):
     """Check if the stock is a growth stock (trailing P/E <= 0)."""
+
     # We already checked if pe_trailing exists in the calling function
     try:
         # Handle string values - convert to float first
@@ -584,6 +606,7 @@ def check_pe_condition(row, criteria):
     Returns:
         Boolean indicating if P/E condition is met
     """
+
     # PE Forward and Trailing are primary required criteria
     if 'pe_forward' not in row or pd.isna(row['pe_forward']):
         return False
@@ -621,6 +644,7 @@ def calculate_action_for_row(row, criteria, short_field=DEFAULT_SHORT_FIELD):
     Returns:
         Tuple containing (action, reason)
     """
+
     # Create column mapping with proper short interest field
     column_mapping = {
         'UPSIDE': UPSIDE,
@@ -672,6 +696,7 @@ def normalize_row_columns(row, column_mapping=None):
     Returns:
         Dictionary with normalized column names and values
     """
+
     if column_mapping is None:
         # Default mapping from display (uppercase) to internal (lowercase) columns
         column_mapping = {
@@ -789,6 +814,7 @@ def format_numeric_values(df, numeric_columns):
     Returns:
         DataFrame with formatted numeric values
     """
+
     result_df = df.copy()
     
     # Convert all numeric columns to float, handle percentages and missing values

@@ -7,6 +7,8 @@ This package provides various utilities organized by category:
 - date: Date handling utilities 
 - market: Market-specific utilities
 - network: Network and rate limiting utilities
+- error_handling: Standardized error handling utilities
+- imports: Utilities for resolving import dependencies
 """
 
 # Re-export commonly used components for convenience
@@ -40,6 +42,25 @@ from .date import (
     format_date_for_display,
 )
 
+# New error handling utilities
+from .error_handling import (
+    enrich_error_context,
+    translate_error,
+    with_error_context,
+    with_retry,
+    safe_operation,
+)
+
+# New import utilities for resolving circular dependencies
+from .imports import (
+    LazyImport,
+    DependencyProvider,
+    import_module_or_object,
+    local_import,
+    delayed_import,
+    dependencies,
+)
+
 __all__ = [
     # Rate limiting and network utilities
     'global_rate_limiter',
@@ -66,4 +87,19 @@ __all__ = [
     'get_date_range',
     'format_date_for_api',
     'format_date_for_display',
+    
+    # Error handling utilities
+    'enrich_error_context',
+    'translate_error',
+    'with_error_context',
+    'with_retry',
+    'safe_operation',
+    
+    # Import utilities
+    'LazyImport',
+    'DependencyProvider',
+    'import_module_or_object',
+    'local_import',
+    'delayed_import',
+    'dependencies',
 ]

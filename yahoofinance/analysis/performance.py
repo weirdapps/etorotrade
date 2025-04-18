@@ -14,7 +14,10 @@ JENSENS_ALPHA = "Jensen's Alpha"
 DEFAULT_PORTFOLIO_URL = "https://bullaware.com/etoro/plessas"
 HTML_PARSER = "html.parser"
 
-import logging
+from ..core.logging_config import get_logger
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import asyncio
 import pytz
 import os
@@ -35,7 +38,7 @@ from ..core.config import FILE_PATHS, PATHS
 from ..presentation.html import HTMLGenerator, FormatUtils
 from ..utils.network.circuit_breaker import circuit_protected, async_circuit_protected
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Define the indices to track with carets (^)
 INDICES = {
@@ -388,7 +391,7 @@ class PerformanceTracker:
                 # Increment attempts
                 attempts += 1
                 
-            except Exception as e:
+            except YFinanceError as e:
                 logger.error(f"Error getting previous trading day close for {ticker}: {str(e)}")
                 raise YFinanceError(f"Failed to get previous trading day close: {str(e)}")
     
@@ -441,7 +444,7 @@ class PerformanceTracker:
                 # Increment attempts
                 attempts += 1
                 
-            except Exception as e:
+            except YFinanceError as e:
                 logger.error(f"Error getting previous trading day close async for {ticker}: {str(e)}")
                 raise YFinanceError(f"Failed to get previous trading day close async: {str(e)}")
     
@@ -497,7 +500,7 @@ class PerformanceTracker:
                 
                 performances.append(performance)
                 
-            except Exception as e:
+            except YFinanceError as e:
                 logger.error(f"Error getting {period_type} performance for {name} ({ticker}): {str(e)}")
                 # Still include the index with None values
                 performances.append(IndexPerformance(
@@ -553,7 +556,8 @@ class PerformanceTracker:
             
         return result
     
-    async def _get_index_performance_single_async(
+    async @with_retry 
+def _get_index_performance_single_async(
         self,
         name: str,
         ticker: str,
@@ -594,7 +598,7 @@ class PerformanceTracker:
                 period_type=period_type
             )
             
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error getting {period_type} performance for {name} ({ticker}): {str(e)}")
             # Return index with None values on error
             return IndexPerformance(
@@ -691,7 +695,7 @@ class PerformanceTracker:
             
             return performance
             
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error getting portfolio performance from web: {str(e)}")
             # Return empty performance object on error
             return PortfolioPerformance(source=url, last_updated=datetime.now())
@@ -722,10 +726,11 @@ class PerformanceTracker:
             
             return performance
             
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error getting portfolio performance from web async: {str(e)}")
             # Return empty performance object on error
-            return PortfolioPerformance(source=url, last_updated=datetime.now())
+            return Portfol@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def _get_soup(source=url, last_updated=datetime.now())
     
     def _get_soup(self, url: str) -> BeautifulSoup:
         """
@@ -772,7 +777,9 @@ class PerformanceTracker:
             # SSL errors indicate certificate validation problems that should be addressed properly
             raise NetworkError(f"SSL certificate validation failed for {url}. This could indicate a security issue: {str(e)}")
         except requests.exceptions.RequestException as e:
-            raise NetworkError(f"Failed to fetch data from {url}: {str(e)}")
+         @with_retry
+         
+def _get_soup_async(r(f"Failed to fetch data from {url}: {str(e)}")
         finally:
             session.close()
     
@@ -998,7 +1005,7 @@ class PerformanceTracker:
             logger.info(f"Generated index performance HTML at {output_path}")
             return output_path
             
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error generating index performance HTML: {str(e)}")
             return None
     
@@ -1040,7 +1047,7 @@ class PerformanceTracker:
             
             return output_path
             
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error generating portfolio performance HTML: {str(e)}")
             return None
     
@@ -1095,7 +1102,7 @@ class PerformanceTracker:
             logger.info(f"Saved performance data to {output_path}")
             return output_path
             
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error saving performance data: {str(e)}")
             return None
 
@@ -1227,7 +1234,7 @@ def track_index_performance(period_type: str = "weekly"):
                     if not latest.empty:
                         # Log the direct value but don't use it directly
                         logger.debug(f"Direct VIX value: {float(latest['Close'].iloc[-1])}")
-                except Exception as e:
+                except YFinanceError as e:
                     logger.warning(f"Could not get VIX data directly: {str(e)}")
             
             # For all other tickers, or if VIX direct lookup failed:
@@ -1369,7 +1376,7 @@ def track_index_performance(period_type: str = "weekly"):
                             calculated_val = prev_val * (1 + change_pct/100)
                             df.at[idx, std_curr_col] = f"{calculated_val:,.2f}"
                             logger.info(f"Fixed VIX display with calculated value: {calculated_val:.2f}")
-                        except Exception as e:
+                        except YFinanceError as e:
                             logger.warning(f"Cannot calculate VIX value: {str(e)}")
         
             # Create standardized column list
@@ -1435,7 +1442,7 @@ def track_index_performance(period_type: str = "weekly"):
             file_name="performance.json"
         )
         
-    except Exception as e:
+    except YFinanceError as e:
         logger.error(f"Error tracking index performance: {str(e)}")
         print(f"Error: {str(e)}")
 
@@ -1507,7 +1514,7 @@ def track_portfolio_performance(url: str = DEFAULT_PORTFOLIO_URL):
         
         # Note: The save_performance_data method already logs the path
         
-    except Exception as e:
+    except YFinanceError as e:
         logger.error(f"Error tracking portfolio performance: {str(e)}")
         print(f"Error: {str(e)}")
 
@@ -1737,7 +1744,7 @@ async def track_performance_async(period_type: str = "weekly", portfolio_url: st
         
         print(f"\nCurrent time in Athens: {datetime.now(athens_tz).strftime('%Y-%m-%d %H:%M')}")
         
-    except Exception as e:
+    except YFinanceError as e:
         logger.error(f"Error tracking performance asynchronously: {str(e)}")
         print(f"Error: {str(e)}")
     finally:

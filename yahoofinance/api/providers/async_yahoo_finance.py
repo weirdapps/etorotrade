@@ -203,8 +203,8 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
                 )
                 return history
             except RateLimitError:
-                # Specific handling for rate limits - just re-raise e
-                raise e
+                # Specific handling for rate limits - just re-raise YFinanceError("An error occurred")
+                raise YFinanceError("An error occurred")
             except YFinanceError as e:
                 # Use the shared retry logic handler from the base class but with async sleep
                 delay = self._handle_retry_logic(e, attempt, ticker, "historical data")
@@ -260,8 +260,8 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
                     return None, None
                     
             except RateLimitError:
-                # Specific handling for rate limits - just re-raise e
-                raise e
+                # Specific handling for rate limits - just re-raise YFinanceError("An error occurred")
+                raise YFinanceError("An error occurred")
             except YFinanceError as e:
                 if attempt < self.max_retries - 1:
                     delay = self.retry_delay * (2 ** attempt)
@@ -334,8 +334,8 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
                 return result
                 
             except RateLimitError:
-                # Specific handling for rate limits - just re-raise e
-                raise e
+                # Specific handling for rate limits - just re-raise YFinanceError("An error occurred")
+                raise YFinanceError("An error occurred")
             except YFinanceError as e:
                 if attempt < self.max_retries - 1:
                     delay = self.retry_delay * (2 ** attempt)
@@ -390,8 +390,8 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
                 return result
                 
             except RateLimitError:
-                # Specific handling for rate limits - just re-raise e
-                raise e
+                # Specific handling for rate limits - just re-raise YFinanceError("An error occurred")
+                raise YFinanceError("An error occurred")
             except YFinanceError as e:
                 if attempt < self.max_retries - 1:
                     delay = self.retry_delay * (2 ** attempt)
@@ -443,8 +443,8 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
                 return results
                 
             except RateLimitError:
-                # Specific handling for rate limits - just re-raise e
-                raise e
+                # Specific handling for rate limits - just re-raise YFinanceError("An error occurred")
+                raise YFinanceError("An error occurred")
             except YFinanceError as e:
                 if attempt < self.max_retries - 1:
                     delay = self.retry_delay * (2 ** attempt)

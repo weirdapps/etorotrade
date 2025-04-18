@@ -1,4 +1,7 @@
 import unittest
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 from yahoofinance.utils.market_utils import is_us_ticker, normalize_hk_ticker
 
 class TestMarketUtils(unittest.TestCase):
@@ -52,7 +55,7 @@ class TestMarketUtils(unittest.TestCase):
                 try:
                     result = is_us_ticker(ticker)
                     self.assertEqual(result, expected, f"Unexpected result for {ticker}")
-                except Exception as e:
+                except YFinanceError as e:
                     if expected is not False:  # If we expected something other than False
                         self.fail(f"Unexpected exception for {ticker}: {str(e)}")
     
@@ -98,7 +101,7 @@ class TestMarketUtils(unittest.TestCase):
                 try:
                     result = normalize_hk_ticker(ticker)
                     self.assertEqual(result, expected)
-                except Exception as e:
+                except YFinanceError as e:
                     self.fail(f"Unexpected exception for {ticker}: {str(e)}")
 
 if __name__ == '__main__':

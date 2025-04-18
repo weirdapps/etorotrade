@@ -9,7 +9,10 @@ The AsyncRateLimiter class has been moved to enhanced.py, and this module
 now imports it from there to maintain backward compatibility.
 """
 
-import logging
+from ...core.logging import get_logger
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import asyncio
 import time
 from typing import List, TypeVar, Any, Callable, Coroutine, Dict, Optional, Set, Union
@@ -24,7 +27,7 @@ from .enhanced import (
     process_batch_async as enhanced_process_batch_async
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Define a generic type variable for the return type
 T = TypeVar('T')
@@ -65,6 +68,7 @@ async def gather_with_semaphore(
     )
 
 
+@with_retry
 async def async_bulk_fetch(
     items: List[Any],
     fetch_func: Callable[[Any], Coroutine[Any, Any, T]],
@@ -135,7 +139,7 @@ async def async_retry(
     for attempt in range(max_retries + 1):
         try:
             return await func(*args, **kwargs)
-        except Exception as e:
+        except YFinanceError as e:
             last_exception = e
             
             if attempt < max_retries:

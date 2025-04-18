@@ -9,7 +9,7 @@ DEPRECATED: This module is deprecated. The canonical implementation is now in
 yahoofinance.utils.async_utils.enhanced.
 """
 
-import logging
+from ..core.logging_config import get_logger
 import warnings
 from typing import Dict, Any, Optional, Callable, TypeVar, cast, Coroutine
 
@@ -21,7 +21,7 @@ from ..async_utils.enhanced import (
     global_async_rate_limiter as enhanced_global_rate_limiter
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Issue deprecation warning
 warnings.warn(

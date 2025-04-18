@@ -6,8 +6,11 @@ and improved cache implementation without hitting rate limits.
 """
 
 import os
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import time
-import logging
+from ..core.logging_config import get_logger
 from yahoofinance.utils.market_utils import is_us_ticker, normalize_hk_ticker
 from yahoofinance.core.config import CACHE, RISK_METRICS, POSITIVE_GRADES, RATE_LIMIT
 from yahoofinance.core.cache import market_cache, news_cache, earnings_cache
@@ -98,7 +101,7 @@ def main():
         logger.info("🎉 All tests passed successfully! The improvements are working as expected.")
     except AssertionError as e:
         logger.error(f"❌ Test failed: {str(e)}")
-    except Exception as e:
+    except YFinanceError as e:
         logger.error(f"❌ Unexpected error: {str(e)}")
 
 if __name__ == "__main__":

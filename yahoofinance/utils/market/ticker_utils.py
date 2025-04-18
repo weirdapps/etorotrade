@@ -6,6 +6,9 @@ to ensure they are properly formatted for API calls.
 """
 
 import re
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 from typing import List, Set, Optional, Dict, Any
 
 from ...core.errors import ValidationError
@@ -26,15 +29,15 @@ def validate_ticker(ticker: str) -> bool:
         ValidationError: If ticker format is invalid
     """
     if not ticker or not isinstance(ticker, str):
-        raise ValidationError("Ticker must be a non-empty string")
+        raise ValidationError(f"Invalid ticker: {ticker} - must be a non-empty string")
     
     # Check basic ticker format
     if len(ticker) > 20:
-        raise ValidationError(f"Ticker '{ticker}' exceeds maximum length of 20 characters")
+        raise ValidationError(f"Invalid ticker: {ticker} - length exceeds 20 characters")
     
     # Check for invalid characters
     if re.search(r'[^\w\.\-]', ticker):
-        raise ValidationError(f"Ticker '{ticker}' contains invalid characters")
+        raise ValidationError(f"Invalid ticker: {ticker} - contains invalid characters")
     
     return True
 

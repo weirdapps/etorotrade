@@ -28,6 +28,7 @@ from yahoofinance.utils.async_utils.enhanced import (
 )
 from yahoofinance.api.providers.enhanced_async_yahoo_finance import EnhancedAsyncYahooFinanceProvider
 from yahoofinance.core.errors import APIError, ValidationError, RateLimitError, NetworkError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 
 
 @pytest.fixture
@@ -349,7 +350,7 @@ class TestCircuitBreakerIntegration:
                     result = await func(success_param)
                     async_circuit_breaker.record_success()
                     return result
-                except Exception as e:
+                except YFinanceError as e:
                     last_exception = e
                     async_circuit_breaker.record_failure()
                     if attempt >= max_retries:
@@ -484,7 +485,8 @@ class TestCircuitBreakerIntegration:
         call_count = 0
         
         # Define a mock API function that uses our circuit breaker
-        async def mock_api_call():
+        async @with_retry 
+def mock_api_call():
             # Check circuit state first
             if circuit.state == CircuitState.OPEN:
                 raise CircuitOpenError(

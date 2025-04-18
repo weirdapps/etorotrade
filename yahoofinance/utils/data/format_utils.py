@@ -8,6 +8,12 @@ tables, HTML, CSV, and other formats.
 from typing import Any, Dict, List, Union, Optional, Callable, Tuple
 import math
 
+from ...core.logging_config import get_logger
+from ..error_handling import translate_error, enrich_error_context, with_retry, safe_operation
+
+# Set up logging
+logger = get_logger(__name__)
+
 
 def format_number(value: Any, precision: int = 2, as_percentage: bool = False,
                  include_sign: bool = False, abbreviate: bool = False) -> str:
@@ -24,6 +30,7 @@ def format_number(value: Any, precision: int = 2, as_percentage: bool = False,
     Returns:
         Formatted string representation
     """
+
     if value is None or value == '':
         return 'N/A'
     
@@ -64,6 +71,7 @@ def _abbreviate_number(value: float, precision: int = 2) -> str:
     Returns:
         Abbreviated number string
     """
+
     abs_value = abs(value)
     
     if abs_value >= 1e12:  # Trillion
@@ -90,6 +98,7 @@ def format_market_cap(value: Optional[float]) -> Optional[str]:
     Returns:
         Formatted market cap string
     """
+
     if value is None:
         return None
         
@@ -126,6 +135,7 @@ def calculate_position_size(market_cap: Optional[float]) -> Optional[float]:
     Returns:
         Position size as a percentage of portfolio or None if below threshold
     """
+
     if market_cap is None:
         return None
     
@@ -157,6 +167,7 @@ def format_position_size(value: Optional[float]) -> str:
     Returns:
         Formatted position size string with 'k' suffix
     """
+
     if value is None or (isinstance(value, float) and (math.isnan(value) or value == 0)):
         return "--"
     
@@ -192,6 +203,7 @@ def format_market_metrics(metrics: Dict[str, Any], include_pct_signs: bool = Tru
     Returns:
         Dictionary of formatted metric strings
     """
+
     formatted = {}
     
     # Define formatting rules for different metrics
@@ -238,6 +250,7 @@ def _apply_formatter(value: Any, formatter: Optional[Dict[str, Any]] = None) -> 
     Returns:
         Formatted string value
     """
+
     if value is None:
         return "N/A"
         
@@ -275,6 +288,7 @@ def process_tabular_data(
     Returns:
         Tuple of (columns list, formatted rows list)
     """
+
     if not data:
         return [], []
     
@@ -312,6 +326,7 @@ def format_table(data: List[Dict[str, Any]], columns: List[str], formatters: Opt
     Returns:
         List of rows with formatted values
     """
+
     if not data:
         return []
     
@@ -335,6 +350,7 @@ def generate_market_html(data: List[Dict[str, Any]], title: str,
     Returns:
         HTML table string
     """
+
     if not data:
         return "<p>No data available</p>"
     
@@ -372,6 +388,7 @@ def format_for_csv(data: List[Dict[str, Any]], columns: List[str] = None) -> Lis
     Returns:
         List of rows with formatted values
     """
+
     if not data:
         return []
     

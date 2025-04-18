@@ -7,6 +7,9 @@ percentage formatting, and coloring of financial metrics.
 """
 
 from enum import Enum
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 from typing import Optional, Any, Union, Dict, List, Tuple
 from dataclasses import dataclass
 from ..utils.data.format_utils import format_market_cap as utils_format_market_cap

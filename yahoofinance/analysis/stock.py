@@ -5,18 +5,20 @@ This module provides detailed analysis of individual stocks by combining data
 from multiple sources and applying a consistent set of metrics and criteria.
 """
 
-import logging
 from typing import Dict, Any, List, Optional, Union, Tuple
 import pandas as pd
 from dataclasses import dataclass
 
-from ..api import get_provider, FinanceDataProvider, AsyncFinanceDataProvider
+from ..core.logging_config import get_logger
 from ..core.errors import YFinanceError, APIError, NetworkError, ValidationError, DataError
 from ..core.types import StockData
 from ..core.config import MESSAGES
 from ..utils.market import is_us_ticker
+from ..utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
+from ..api import get_provider, FinanceDataProvider, AsyncFinanceDataProvider
+from ..utils.dependency_injection import registry
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 @dataclass
 class AnalysisResults:
@@ -155,11 +157,11 @@ class StockAnalyzer:
             earnings_dates = self.provider.get_earnings_dates(ticker)
         except APIError as e:
             # Re-raise API errors directly with original context
-            raise
+            raise e
         except ValidationError as e:
             # Handle data validation errors
-            raise DataError(MESSAGES["ERROR_FETCHING_DATA"].format(ticker=ticker, error=str(e)))
-        except Exception as e:
+            raise enrich_error_context(e, {"ticker": ticker})
+        except YFinanceError as e:
             # Handle unexpected errors
             raise YFinanceError(MESSAGES["ERROR_FETCHING_DATA"].format(ticker=ticker, error=str(e)))
         
@@ -189,11 +191,11 @@ class StockAnalyzer:
             earnings_dates = await self.provider.get_earnings_dates(ticker)
         except APIError as e:
             # Re-raise API errors directly with original context
-            raise
+            raise e
         except ValidationError as e:
             # Handle data validation errors
-            raise DataError(MESSAGES["ERROR_FETCHING_DATA"].format(ticker=ticker, error=str(e)))
-        except Exception as e:
+            raise enrich_error_context(e, {"ticker": ticker})
+        except YFinanceError as e:
             # Handle unexpected errors
             raise YFinanceError(MESSAGES["ERROR_FETCHING_DATA"].format(ticker=ticker, error=str(e)))
         
@@ -231,7 +233,7 @@ class StockAnalyzer:
                     analyst_ratings = self.provider.get_analyst_ratings(ticker)
                     earnings_dates = self.provider.get_earnings_dates(ticker)
                     results[ticker] = self._process_analysis(ticker, ticker_info_batch[ticker], analyst_ratings, earnings_dates)
-                except Exception as e:
+                except YFinanceError as e:
                     logger.error(MESSAGES["ERROR_ANALYZING_TICKER"].format(ticker=ticker, error=str(e)))
                     results[ticker] = AnalysisResults(
                         ticker=ticker,
@@ -241,11 +243,11 @@ class StockAnalyzer:
                     )
         except APIError as e:
             # Re-raise API errors directly with original context
-            raise
+            raise e
         except ValidationError as e:
             # Handle data validation errors
-            raise DataError(MESSAGES["ERROR_BATCH_FETCH"].format(error=str(e)))
-        except Exception as e:
+            raise enrich_error_context(e, {"ticker": ticker})
+        except YFinanceError as e:
             # Handle unexpected errors
             raise YFinanceError(MESSAGES["ERROR_BATCH_FETCH"].format(error=str(e)))
         
@@ -295,16 +297,17 @@ class StockAnalyzer:
                     logger.error(f"Error in async batch analysis: {str(item)}")
         except APIError as e:
             # Re-raise API errors directly with original context
-            raise
+            raise e
         except ValidationError as e:
             # Handle data validation errors
-            raise DataError(MESSAGES["ERROR_BATCH_FETCH_ASYNC"].format(error=str(e)))
-        except Exception as e:
+            raise enrich_error_context(e, {"ticker": ticker})
+        except YFinanceError as e:
             # Handle unexpected errors
             raise YFinanceError(MESSAGES["ERROR_BATCH_FETCH_ASYNC"].format(error=str(e)))
         
         return results
     
+    @with_retry
     async def _fetch_and_analyze_async(self, ticker: str, ticker_info: Dict[str, Any]) -> Tuple[str, AnalysisResults]:
         """
         Helper method to fetch additional data and analyze a stock asynchronously.
@@ -339,7 +342,7 @@ class StockAnalyzer:
                 price=ticker_info.get('price', 0.0),
                 warning=f"Validation error: {str(e)}"
             )
-        except Exception as e:
+        except YFinanceError as e:
             # Log unexpected errors
             logger.error(MESSAGES["ERROR_ANALYZING_TICKER"].format(ticker=ticker, error=str(e)))
             return ticker, AnalysisResults(
