@@ -2,8 +2,11 @@
 Custom Yahoo Finance Provider implementation that directly uses yfinance
 """
 import time
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import asyncio
-import logging
+from ...core.logging_config import get_logger
 import pandas as pd
 import numpy as np
 import datetime
@@ -14,7 +17,7 @@ from yahoofinance.api.providers.base_provider import AsyncFinanceDataProvider
 from yahoofinance.utils.market.ticker_utils import validate_ticker, is_us_ticker
 from yahoofinance.core.config import COLUMN_NAMES
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
     """
@@ -94,7 +97,10 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
         # Record this call
         self._rate_limiter["call_timestamps"].append(time.time())
     
-    def _get_yticker(self, ticker: str):
+    @with_retry
+    
+    
+def _get_yticker(self, ticker: str):
         """Get or create yfinance Ticker object"""
         # Apply ticker mapping if available
         mapped_ticker = self._ticker_mappings.get(ticker, ticker)
@@ -160,7 +166,7 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
             self._ticker_cache[ticker] = info
             return info
             
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error getting ticker info for {ticker}: {str(e)}")
             # Return a minimal info object with standardized error format
             return self._process_error_for_batch(ticker, e)
@@ -203,7 +209,7 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
                 # If we failed to get recommendations due to data issues, fall back to recommendation key
                 logger.debug(f"Error getting recommendations for {ticker}: {e}, falling back to recommendationKey")
                 self._process_recommendation_key(ticker_info, info)
-            except Exception as e:
+            except YFinanceError as e:
                 # For any other unexpected errors, fall back but log it differently
                 logger.warning(f"Unexpected error getting recommendations for {ticker}: {e}, falling back to recommendationKey")
                 self._process_recommendation_key(ticker_info, info)
@@ -286,7 +292,7 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
                     info["last_earnings"] = last_earnings_date.strftime("%Y-%m-%d")
                 else:
                     info["last_earnings"] = str(last_earnings_date)
-        except Exception as e:
+        except YFinanceError as e:
             logger.debug(f"Failed to get earnings date for {ticker}: {str(e)}")
             # Ensure we have a fallback
             if "last_earnings" not in info:
@@ -307,7 +313,7 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
             # Handle all data-related errors in one clause
             logger.error(f"Data error getting historical data for {ticker}: {str(e)}")
             return pd.DataFrame()
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Unexpected error getting historical data for {ticker}: {str(e)}")
             return pd.DataFrame()
                 
@@ -342,7 +348,7 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
                     self._process_calendar_earnings(yticker, earnings_data)
                 except (AttributeError, KeyError, ValueError, TypeError) as e:
                     logger.debug(f"Error processing calendar earnings for {ticker}: {e}")
-                except Exception as e:
+                except YFinanceError as e:
                     logger.debug(f"Unexpected error processing calendar earnings for {ticker}: {e}")
             
             # Add earnings data from ticker info
@@ -354,7 +360,7 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
         except (ValueError, TypeError) as e:
             logger.error(f"Data format error getting earnings data for {ticker}: {str(e)}")
             return {"symbol": ticker, "earnings_dates": [], "earnings_history": []}
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Unexpected error getting earnings data for {ticker}: {str(e)}")
             return {"symbol": ticker, "earnings_dates": [], "earnings_history": []}
     
@@ -401,7 +407,7 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
         except (ValueError, TypeError) as e:
             logger.error(f"Data format error getting earnings dates for {ticker}: {str(e)}")
             return []
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Unexpected error getting earnings dates for {ticker}: {str(e)}")
             return []
                 
@@ -425,7 +431,7 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
             logger.error(f"Data format error getting analyst ratings for {ticker}: {str(e)}")
             return {"symbol": ticker, "recommendations": 0, "buy_percentage": None, 
                     "positive_percentage": None, "total_ratings": 0, "ratings_type": "A", "date": None}
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Unexpected error getting analyst ratings for {ticker}: {str(e)}")
             return {"symbol": ticker, "recommendations": 0, "buy_percentage": None, 
                     "positive_percentage": None, "total_ratings": 0, "ratings_type": "A", "date": None}
@@ -441,9 +447,8 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
         try:
             # This is just for interface compatibility, not needed for our use case
             return []
-        except Exception as e:
-            logger.error(f"Error searching tickers: {str(e)}")
-            return []
+        except YFinanceError as e:
+            logger.error(f"Error searching t batch_get_ticker_info(     return []
             
     async def batch_get_ticker_info(self, tickers: List[str], skip_insider_metrics: bool = False) -> Dict[str, Dict[str, Any]]:
         """Process multiple tickers"""
@@ -451,7 +456,7 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
         for ticker in tickers:
             try:
                 results[ticker] = await self.get_ticker_info(ticker, skip_insider_metrics)
-            except Exception as e:
+            except YFinanceError as e:
                 results[ticker] = self._process_error_for_batch(ticker, e)
         return results
             
@@ -576,14 +581,14 @@ class CustomYahooFinanceProvider(AsyncFinanceDataProvider):
             except (ValueError, TypeError, KeyError, AttributeError, IndexError) as e:
                 # If there's an error accessing specific data, log it and default to all-time ratings
                 logger.debug(f"Error getting post-earnings ratings for {ticker}: {e}")
-            except Exception as e:
+            except YFinanceError as e:
                 # For any other unexpected error, log it differently
                 logger.warning(f"Unexpected error getting post-earnings ratings for {ticker}: {e}")
             
             return False
-        except Exception as e:
-            # In case of any error, default to all-time ratings
-            logger.debug(f"Exception in _has_post_earnings_ratings for {ticker}: {e}")
+        except YFinanceError as e:
+            # In case of any error, default to all-time r@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def _get_last_earnings_date(bug(f"Exception in _has_post_earnings_ratings for {ticker}: {e}")
             return False
     
     def _get_last_earnings_date(self, yticker):
