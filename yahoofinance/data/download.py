@@ -186,26 +186,113 @@ def find_password_input(driver, timeout=5):
 def handle_password_submit(driver, password_input, password):
     """Handle password submission and final sign in"""
     logger.info("Found password input, entering password...")
+    print("DEBUG: Found password input, entering password...")
+    
+    # Take a screenshot before password entry to help with debugging
+    try:
+        screenshot_path = os.path.expanduser("~/Downloads/login_before_password.png")
+        driver.save_screenshot(screenshot_path)
+        print(f"DEBUG: Saved screenshot before password entry to {screenshot_path}")
+    except Exception as e:
+        print(f"DEBUG: Failed to save screenshot: {str(e)}")
+    
+    # Clear any existing text in the password field
     time.sleep(1)
     password_input.clear()
+    
+    # Enter password
     password_input.send_keys(password)
+    print(f"DEBUG: Entered password (length: {len(password)})")
     time.sleep(2)
 
-    # Try to find sign in button
-    sign_in_button = wait_and_find_element(
-        driver,
-        By.XPATH,
-        "//button[contains(text(), 'Sign in') or contains(text(), 'SIGN IN')]",
-        timeout=5
-    )
+    # Try multiple different selectors for the sign-in button
+    print("DEBUG: Looking for sign-in button after password entry...")
+    sign_in_button = None
+    
+    # List of different button selectors to try
+    button_selectors = [
+        (By.XPATH, "//button[contains(text(), 'Sign in')]"),
+        (By.XPATH, "//button[contains(text(), 'SIGN IN')]"),
+        (By.XPATH, "//button[contains(text(), 'Login')]"),
+        (By.XPATH, "//button[contains(text(), 'Log in')]"),
+        (By.XPATH, "//button[contains(@class, 'signin')]"),
+        (By.XPATH, "//button[contains(@class, 'login')]"),
+        (By.XPATH, "//input[@type='submit']"),
+        (By.CSS_SELECTOR, "button.sign-in"),
+        (By.CSS_SELECTOR, "button.login"),
+        (By.CSS_SELECTOR, "input[type='submit']"),
+        # Try finding buttons with role='button'
+        (By.XPATH, "//div[@role='button' and contains(text(), 'Sign in')]"),
+        (By.XPATH, "//div[@role='button' and contains(text(), 'Login')]"),
+    ]
+    
+    # Take a screenshot to help with debugging
+    try:
+        screenshot_path = os.path.expanduser("~/Downloads/login_after_password.png")
+        driver.save_screenshot(screenshot_path)
+        print(f"DEBUG: Saved screenshot after password entry to {screenshot_path}")
+    except Exception as e:
+        print(f"DEBUG: Failed to save screenshot: {str(e)}")
+    
+    # Try each selector
+    for selector_type, selector in button_selectors:
+        try:
+            print(f"DEBUG: Trying selector: {selector}")
+            button = driver.find_element(selector_type, selector)
+            if button:
+                sign_in_button = button
+                print(f"DEBUG: Found sign-in button with selector: {selector}")
+                break
+        except NoSuchElementException:
+            continue
+    
+    # Click the sign-in button if found
     if sign_in_button:
-        safe_click(driver, sign_in_button, "Sign in button")
+        print("DEBUG: Attempting to click sign-in button")
+        try:
+            # First try with safe_click
+            safe_click(driver, sign_in_button, "Sign in button")
+        except Exception as e:
+            print(f"DEBUG: Error with safe_click: {str(e)}, trying direct click")
+            try:
+                # Then try direct click if JavaScript click fails
+                sign_in_button.click()
+                print("DEBUG: Direct click succeeded")
+            except Exception as e2:
+                print(f"DEBUG: Direct click failed: {str(e2)}, trying Enter key")
+                password_input.send_keys(Keys.RETURN)
     else:
-        logger.info("No Sign in button found, submitting form...")
-        password_input.send_keys(Keys.RETURN)
-        logger.info("Sent RETURN key to password input")
+        # Try looking for a form instead and submit it
+        print("DEBUG: No sign-in button found, looking for form to submit...")
+        try:
+            form = driver.find_element(By.TAG_NAME, "form")
+            if form:
+                print("DEBUG: Found form, submitting with JavaScript")
+                try:
+                    driver.execute_script("arguments[0].submit();", form)
+                    print("DEBUG: Form submitted successfully")
+                except Exception as e:
+                    print(f"DEBUG: Error submitting form with JavaScript: {str(e)}")
+                    print("DEBUG: Trying to submit with Enter key instead")
+                    password_input.send_keys(Keys.RETURN)
+            else:
+                print("DEBUG: No form found, submitting with Enter key")
+                password_input.send_keys(Keys.RETURN)
+        except NoSuchElementException:
+            print("DEBUG: No form found, submitting with Enter key")
+            password_input.send_keys(Keys.RETURN)
 
-    time.sleep(10)  # Wait longer for login to complete
+    print("DEBUG: Waiting for login to complete...")
+    # Take a final screenshot to verify login status
+    try:
+        time.sleep(3)  # Short wait for UI update
+        screenshot_path = os.path.expanduser("~/Downloads/login_after_submit.png")
+        driver.save_screenshot(screenshot_path)
+        print(f"DEBUG: Saved screenshot after submission to {screenshot_path}")
+    except Exception as e:
+        print(f"DEBUG: Failed to save screenshot: {str(e)}")
+    
+    time.sleep(15)  # Wait longer for login to complete
 
 def handle_password_input(driver, password, max_attempts=3):
     """Handle the password input and final sign in process"""
@@ -346,7 +433,7 @@ def handle_portfolio_buttons(driver):
         raise NoSuchElementException("Could not find 'Export Portfolio' link")
     safe_click(driver, export_link, "'Export Portfolio' link")
 
-def download_portfolio():
+async def download_portfolio(provider=None):
     """
     Download portfolio data from pi-screener.com.
     
@@ -357,83 +444,171 @@ def download_portfolio():
     4. Processing the downloaded file to standardize tickers
     5. Saving the processed file to yahoofinance/input
     
+    Args:
+        provider: Optional provider instance (not used, but required for compatibility)
+    
     Returns:
         bool: True if successful, False otherwise
     """
+    print("DEBUG: Inside download_portfolio function")
+    
+    # Create a unique run ID for this download attempt to track related logs
+    run_id = f"download_{int(time.time())}"
+    print(f"DEBUG: Download run ID: {run_id}")
+    logger.info(f"Starting portfolio download (run ID: {run_id})")
+    
     # Get credentials from environment variables
     pi_screener_email = os.getenv('PI_SCREENER_EMAIL')
     pi_screener_password = os.getenv('PI_SCREENER_PASSWORD')
 
     if not pi_screener_email or not pi_screener_password:
-        logger.error("Error: PI_SCREENER_EMAIL and PI_SCREENER_PASSWORD must be set in .env file")
-        print("Error: PI_SCREENER_EMAIL and PI_SCREENER_PASSWORD must be set in .env file")
+        error_msg = "Error: PI_SCREENER_EMAIL and PI_SCREENER_PASSWORD must be set in .env file"
+        logger.error(f"[{run_id}] {error_msg}")
+        print(error_msg)
         return False
 
     # Check if selenium is available
     try:
         import selenium
+        logger.info(f"[{run_id}] Selenium is available (version: {selenium.__version__})")
     except ImportError:
-        logger.error("Selenium is not installed. Using fallback method.")
+        logger.error(f"[{run_id}] Selenium is not installed. Using fallback method.")
         print("Selenium is not installed. Using fallback method.")
-        return fallback_portfolio_download()
+        return await fallback_portfolio_download()
 
     driver = None
     try:
         # Setup and navigate
-        logger.info("Setting up Chrome driver...")
+        logger.info(f"[{run_id}] Setting up Chrome driver...")
         print("Setting up Chrome driver...")
         driver = setup_driver()
         
-        logger.info("Navigating to pi-screener.com...")
+        # Take a screenshot of the browser right after setup
+        try:
+            screenshot_path = os.path.expanduser(f"~/Downloads/chrome_setup_{run_id}.png")
+            driver.save_screenshot(screenshot_path)
+            logger.info(f"[{run_id}] Saved initial browser screenshot to {screenshot_path}")
+        except Exception as e:
+            logger.warning(f"[{run_id}] Failed to save initial screenshot: {str(e)}")
+        
+        logger.info(f"[{run_id}] Navigating to pi-screener.com...")
         print("Navigating to pi-screener.com...")
         driver.get("https://app.pi-screener.com/")
         time.sleep(10)  # Wait longer for initial page load
+        
+        # Take a screenshot after initial page load
+        try:
+            screenshot_path = os.path.expanduser(f"~/Downloads/initial_page_{run_id}.png")
+            driver.save_screenshot(screenshot_path)
+            logger.info(f"[{run_id}] Saved page load screenshot to {screenshot_path}")
+        except Exception as e:
+            logger.warning(f"[{run_id}] Failed to save page screenshot: {str(e)}")
         
         # Handle initial page setup
         handle_cookie_consent(driver)
         
         print("Logging in to pi-screener.com...")
+        logger.info(f"[{run_id}] Attempting to log in with email: {pi_screener_email[:3]}***")
         login(driver, pi_screener_email, pi_screener_password)
         
         # Wait for page to load after login
-        logger.info("Waiting for page to load after login...")
+        logger.info(f"[{run_id}] Waiting for page to load after login...")
         print("Waiting for page to load after login...")
         time.sleep(20)
         
+        # Take a screenshot after login
+        try:
+            screenshot_path = os.path.expanduser(f"~/Downloads/post_login_{run_id}.png")
+            driver.save_screenshot(screenshot_path)
+            logger.info(f"[{run_id}] Saved post-login screenshot to {screenshot_path}")
+        except Exception as e:
+            logger.warning(f"[{run_id}] Failed to save post-login screenshot: {str(e)}")
+        
+        # Check if login was successful
+        current_url = driver.current_url
+        logger.info(f"[{run_id}] Current URL after login: {current_url}")
+        print(f"DEBUG: Current URL after login: {current_url}")
+        
+        if "login" in current_url.lower() or "signin" in current_url.lower() or "auth" in current_url.lower():
+            logger.error(f"[{run_id}] Login appears to have failed. Still on login page: {current_url}")
+            print("DEBUG: Login appears to have failed. Still on login page.")
+            return await fallback_portfolio_download()
+        
         # Handle portfolio operations
         print("Accessing portfolio...")
+        logger.info(f"[{run_id}] Accessing portfolio features...")
         handle_portfolio_buttons(driver)
         
         # Process download
-        logger.info("Waiting for download...")
+        logger.info(f"[{run_id}] Waiting for download...")
         print("Waiting for download...")
         time.sleep(5)
+        
         if process_portfolio():
-            print("Portfolio successfully downloaded and processed.")
+            success_msg = "Portfolio successfully downloaded and processed."
+            logger.info(f"[{run_id}] {success_msg}")
+            print(success_msg)
             return True
         else:
-            print("Failed to process downloaded portfolio.")
-            return fallback_portfolio_download()
+            failure_msg = "Failed to process downloaded portfolio."
+            logger.warning(f"[{run_id}] {failure_msg} Trying fallback method.")
+            print(failure_msg)
+            return await fallback_portfolio_download()
         
-    except (NoSuchElementException, ElementClickInterceptedException) as e:
-        logger.error(f"Element interaction error: {str(e)}")
-        print(f"Error interacting with web elements: {str(e)}")
-        return fallback_portfolio_download()
+    except NoSuchElementException as e:
+        error_msg = f"Element not found: {str(e)}"
+        logger.error(f"[{run_id}] {error_msg}")
+        print(f"Error: {error_msg}")
+        # Save DOM page source to help debugging
+        if driver:
+            try:
+                page_source_path = os.path.expanduser(f"~/Downloads/page_source_{run_id}.html")
+                with open(page_source_path, 'w') as f:
+                    f.write(driver.page_source)
+                logger.info(f"[{run_id}] Saved page source to {page_source_path}")
+            except Exception as e:
+                logger.warning(f"[{run_id}] Failed to save page source: {str(e)}")
+        return await fallback_portfolio_download()
+    
+    except ElementClickInterceptedException as e:
+        error_msg = f"Click intercepted: {str(e)}"
+        logger.error(f"[{run_id}] {error_msg}")
+        print(f"Error: {error_msg}")
+        # Take a screenshot of the page where the click was intercepted
+        if driver:
+            try:
+                screenshot_path = os.path.expanduser(f"~/Downloads/click_intercepted_{run_id}.png")
+                driver.save_screenshot(screenshot_path)
+                logger.info(f"[{run_id}] Saved click interception screenshot to {screenshot_path}")
+            except Exception as e:
+                logger.warning(f"[{run_id}] Failed to save screenshot: {str(e)}")
+        return await fallback_portfolio_download()
+    
     except WebDriverException as e:
-        logger.error(f"WebDriver error: {str(e)}")
-        print(f"WebDriver error: {str(e)}")
-        return fallback_portfolio_download()
-    except YFinanceError as e:
-        logger.error(f"Unexpected error: {str(e)}")
-        print(f"Unexpected error: {str(e)}")
+        error_msg = f"WebDriver error: {str(e)}"
+        logger.error(f"[{run_id}] {error_msg}")
+        print(f"Error: {error_msg}")
+        return await fallback_portfolio_download()
+    
+    except Exception as e:
+        error_msg = f"Unexpected error: {str(e)}"
+        logger.error(f"[{run_id}] {error_msg}")
+        print(f"Error: {error_msg}")
         import traceback
-        traceback.print_exc()
-        return fallback_portfolio_download()
+        trace = traceback.format_exc()
+        logger.error(f"[{run_id}] Traceback: {trace}")
+        return await fallback_portfolio_download()
+    
     finally:
         if driver:
-            logger.info("Closing Chrome...")
+            logger.info(f"[{run_id}] Closing Chrome...")
             print("Closing Chrome...")
-            driver.quit()
+            try:
+                driver.quit()
+                logger.info(f"[{run_id}] Chrome closed successfully")
+            except Exception as e:
+                logger.warning(f"[{run_id}] Error while closing Chrome: {str(e)}")
+                print(f"Warning: Error while closing Chrome: {str(e)}")
 
 @with_retry
 def download_market_data(
@@ -543,7 +718,7 @@ def download_market_data(
         raise
 
 
-def fallback_portfolio_download():
+async def fallback_portfolio_download():
     """
     Fallback method that copies the existing portfolio 
     from the original location to yahoofinance/input
@@ -551,33 +726,121 @@ def fallback_portfolio_download():
     Returns:
         bool: True if successful, False otherwise
     """
+    # Create a unique ID for this fallback operation
+    fallback_id = f"fallback_{int(time.time())}"
+    logger.info(f"[{fallback_id}] Starting fallback portfolio download method")
+    print("Using fallback portfolio download method...")
+    
     try:
-        print("Using fallback portfolio download method...")
         # Define source and destination paths
         src_path = FILE_PATHS["PORTFOLIO_FILE"]
         dest_dir = PATHS["INPUT_DIR"]
         dest_path = FILE_PATHS["PORTFOLIO_FILE"]
         
+        logger.info(f"[{fallback_id}] Source path: {src_path}")
+        logger.info(f"[{fallback_id}] Destination path: {dest_path}")
+        
         # Ensure destination directory exists
         os.makedirs(dest_dir, exist_ok=True)
+        logger.info(f"[{fallback_id}] Ensured destination directory exists: {dest_dir}")
         
-        # Check if source file exists
+        # Check if source file exists and is readable
         if not os.path.exists(src_path):
-            logger.error(f"Source portfolio file not found: {src_path}")
-            print(f"Source portfolio file not found: {src_path}")
-            return False
+            error_msg = f"Source portfolio file not found: {src_path}"
+            logger.error(f"[{fallback_id}] {error_msg}")
+            print(error_msg)
+            
+            # Try to list available files in the input directory
+            try:
+                input_dir = os.path.dirname(src_path)
+                if os.path.exists(input_dir):
+                    files = os.listdir(input_dir)
+                    logger.info(f"[{fallback_id}] Available files in {input_dir}: {files}")
+                    print(f"Available files in {input_dir}: {files}")
+                    
+                    # If any CSV files exist, try to use the most recent one
+                    csv_files = [f for f in files if f.endswith('.csv')]
+                    if csv_files:
+                        most_recent = max(csv_files, key=lambda f: os.path.getmtime(os.path.join(input_dir, f)))
+                        alt_src_path = os.path.join(input_dir, most_recent)
+                        logger.info(f"[{fallback_id}] Trying to use alternative file: {alt_src_path}")
+                        print(f"Trying to use alternative file: {most_recent}")
+                        
+                        if os.path.isfile(alt_src_path):
+                            src_path = alt_src_path
+                            logger.info(f"[{fallback_id}] Using alternative source file: {src_path}")
+                            print(f"Using alternative source file: {most_recent}")
+                        else:
+                            logger.error(f"[{fallback_id}] Alternative file is not valid: {alt_src_path}")
+                            return False
+                    else:
+                        logger.error(f"[{fallback_id}] No CSV files found in {input_dir}")
+                        return False
+            except Exception as e:
+                logger.error(f"[{fallback_id}] Error checking alternative files: {str(e)}")
+                return False
+        
+        # Check file size and readability
+        try:
+            file_size = os.path.getsize(src_path)
+            logger.info(f"[{fallback_id}] Source file size: {file_size} bytes")
+            
+            if file_size == 0:
+                logger.warning(f"[{fallback_id}] Source file is empty: {src_path}")
+                print(f"Warning: Source file is empty: {src_path}")
+                # Continue anyway as we'll copy the empty file
+            
+            # Try to read the first few lines to verify file is readable
+            with open(src_path, 'r', encoding='utf-8') as f:
+                header = f.readline().strip()
+                logger.info(f"[{fallback_id}] File header: {header}")
+        except Exception as e:
+            logger.error(f"[{fallback_id}] Error checking source file: {str(e)}")
+            print(f"Error checking source file: {str(e)}")
+            # Continue anyway, as the copy operation might still succeed
         
         # Copy the file
         shutil.copy2(src_path, dest_path)
-        logger.info(f"Portfolio copied from {src_path} to {dest_path}")
+        logger.info(f"[{fallback_id}] Portfolio copied from {src_path} to {dest_path}")
         print(f"Portfolio copied from {src_path} to {dest_path}")
         
+        # Verify the copy was successful
+        if os.path.exists(dest_path):
+            copy_size = os.path.getsize(dest_path)
+            logger.info(f"[{fallback_id}] Copied file size: {copy_size} bytes")
+            
+            if copy_size == 0 and file_size > 0:
+                logger.error(f"[{fallback_id}] Copy failed: destination file is empty")
+                print("Error: Copy failed - destination file is empty")
+                return False
+            
+            # Try to read the copied file
+            try:
+                df = pd.read_csv(dest_path)
+                row_count = len(df)
+                col_count = len(df.columns)
+                logger.info(f"[{fallback_id}] Copied file has {row_count} rows and {col_count} columns")
+                print(f"Copied portfolio file has {row_count} rows and {col_count} columns")
+                
+                # Check for critical columns
+                if 'ticker' not in df.columns:
+                    logger.warning(f"[{fallback_id}] Warning: 'ticker' column missing from portfolio file")
+                    print("Warning: 'ticker' column missing from portfolio file")
+            except Exception as e:
+                logger.error(f"[{fallback_id}] Error reading copied file: {str(e)}")
+                print(f"Error reading copied file: {str(e)}")
+                # This is not fatal as long as the file was copied
+        
         return True
-    except YFinanceError as e:
-        logger.error(f"Error in fallback portfolio download: {str(e)}")
+    except Exception as e:
+        logger.error(f"[{fallback_id}] Error in fallback portfolio download: {str(e)}")
         print(f"Error in fallback portfolio download: {str(e)}")
+        import traceback
+        trace = traceback.format_exc()
+        logger.error(f"[{fallback_id}] Traceback: {trace}")
         return False
 
 # Test function
 if __name__ == "__main__":
-    download_portfolio()
+    import asyncio
+    asyncio.run(download_portfolio())
