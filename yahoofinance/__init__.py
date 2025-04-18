@@ -11,35 +11,45 @@ This package features:
 - Provider pattern for data access abstraction
 """
 
-# Import only the core components needed for the package interface
-from .core.logging import setup_logging, get_logger
+# Import standard libraries
 import os
 import logging
+import sys
+
+# Import our new standardized logging configuration
+from .core.logging_config import (
+    configure_logging, 
+    get_logger, 
+    set_log_level, 
+    enable_debug_for_module,
+    get_ticker_logger
+)
+
+# Backward compatibility for existing code
+from .core.logging import setup_logging as old_setup_logging
 
 # Set up default logging if not already configured
 if not logging.root.handlers:
+    # Determine log level from environment or use INFO as default
+    log_level = os.environ.get('YAHOOFINANCE_LOG_LEVEL', 'INFO')
+    
+    # Determine log file path from config or use default
     log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs", "yahoofinance.log")
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
-    setup_logging(log_level=logging.INFO, log_file=log_path)
     
-    # Reduce noise from third-party libraries
-    logging.getLogger("requests").setLevel(logging.WARNING)
-    logging.getLogger("urllib3").setLevel(logging.WARNING)
-    logging.getLogger("yfinance").setLevel(logging.WARNING)
+    # Configure logging using our new standardized configuration
+    configure_logging(
+        level=log_level,
+        log_file=log_path,
+        console=False,  # Default to no console output for library usage
+        debug=os.environ.get('YAHOOFINANCE_DEBUG', '').lower() == 'true'
+    )
 
 # Import and re-export the main API components
-from .api import get_provider as _original_get_provider
+from .api import get_provider, get_default_provider, get_all_providers
 from .api import FinanceDataProvider, AsyncFinanceDataProvider
 
-def get_provider(*args, **kwargs):
-    """
-    Get an instance of a provider, using the hybrid provider by default.
-    
-    This override makes the hybrid provider the default for all code
-    that imports get_provider from the top-level module.
-    """
-    # Use the hybrid provider by default
-    return _original_get_provider('hybrid', *args[1:] if args and len(args) > 1 else [], **kwargs)
+# The provider_registry already defaults to hybrid provider
 
 # Import and re-export key analysis components
 from .analysis import StockAnalyzer, AnalysisResults
@@ -72,6 +82,8 @@ __author__ = "Roo"
 __all__ = [
     # Provider API
     'get_provider',
+    'get_default_provider',
+    'get_all_providers',
     'FinanceDataProvider',
     'AsyncFinanceDataProvider',
     
@@ -101,6 +113,11 @@ __all__ = [
     'normalize_hk_ticker',
     
     # Logging
-    'setup_logging',
-    'get_logger'
+    'configure_logging',
+    'get_logger',
+    'set_log_level',
+    'enable_debug_for_module',
+    'get_ticker_logger',
+    # For backward compatibility
+    'old_setup_logging as setup_logging'
 ]

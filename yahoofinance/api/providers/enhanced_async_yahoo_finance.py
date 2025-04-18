@@ -101,17 +101,15 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             )
         return self._session
 
-    async @with_retry 
-def _fetch_json(self, url: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    @with_retry
+    async def _fetch_json(self, url: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Fetch JSON data from a URL with proper error handling.
         """
         @enhanced_async_rate_limited(
             circuit_name=self._circuit_name if self.enable_circuit_breaker else None,
             max_retries=self.max_retries,
-    @with_retry
-    
-def _do_fetch(imiter=self._rate_limiter
+            rate_limiter=self._rate_limiter
         )
         async def _do_fetch() -> Dict[str, Any]:
             session = await self._ensure_session()
@@ -123,11 +121,11 @@ def _do_fetch(imiter=self._rate_limiter
                         retry_after = int(response.headers.get("Retry-After", "60"))
                         raise RateLimitError(f"Yahoo Finance API rate limit exceeded. Retry after {retry_after} seconds", retry_after=retry_after)
                     elif response.status == 404:
-                        raise e
+                        raise YFinanceError("An error occurred")
                     else:
                         text = await response.text()
                         details = {"status_code": response.status, "response_text": text[:100]}
-                        raise e
+                        raise YFinanceError("An error occurred")
             except aiohttp.ClientError as e:
                 raise NetworkError(f"Network error while fetching {url}: {str(e)}")
 
@@ -153,7 +151,18 @@ def _do_fetch(imiter=self._rate_limiter
         try:
             import yfinance as yf
             yticker = yf.Ticker(ticker)
-            ticker_info = yticker.info
+            
+            # Handle potential NoneType errors with info
+            try:
+                ticker_info = yticker.info
+                # Check if ticker_info returns None
+                if ticker_info is None:
+                    logger.warning(f"Received None response for ticker {ticker} info. Using fallback empty dict.")
+                    ticker_info = {}
+            except AttributeError as ae:
+                logger.warning(f"AttributeError for ticker {ticker}: {str(ae)}. Using fallback empty dict.")
+                ticker_info = {}
+                
             info: Dict[str, Any] = {"symbol": ticker}
 
             # Extract key fields
@@ -283,7 +292,7 @@ def _do_fetch(imiter=self._rate_limiter
             return info
 
         except (APIError, ValidationError, RateLimitError, NetworkError):
-            raise e
+            raise YFinanceError("An error occurred")
         except YFinanceError as e:
             raise e
 
@@ -407,7 +416,7 @@ def _do_fetch(imiter=self._rate_limiter
         try:
             data = await self._fetch_json(url, params)
             if not data or "quoteSummary" not in data or "result" not in data["quoteSummary"] or not data["quoteSummary"]["result"]:
-                raise e
+                raise YFinanceError("An error occurred")
             result = data["quoteSummary"]["result"][0]
             transactions = []
             if "insiderTransactions" in result and "transactions" in result["insiderTransactions"]:
@@ -509,9 +518,7 @@ def _do_fetch(imiter=self._rate_limiter
                 logger.warning(f"Error getting post-earnings ratings for {ticker}: {e}", exc_info=False)
             return False
         except YFinanceError as e:
-       @with_retry
-       
-def _get_last_earnings_date(ion in _has_post_earnings_ratings for {ticker}: {e}", exc_info=False)
+            logger.warning(f"Error in _has_post_earnings_ratings for {ticker}: {e}", exc_info=False)
             return False
 
     def _get_last_earnings_date(self, yticker):
@@ -581,12 +588,11 @@ def _get_last_earnings_date(ion in _has_post_earnings_ratings for {ticker}: {e}"
         if hasattr(date, 'strftime'): return date.strftime('%Y-%m-%d')
         try: return str(date)[:10]
         except Exception as e:
-        # Translate standard exception to our error hierarchy
-        error_context = {"location": __name__}
-        custom_error = translate_error(e, context=error_context)@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
-def batch_get_ticker_info(r
-        custom_error = translate_error(e, context={"location": __name__})
-        raise custom_error return None
+            # Translate standard exception to our error hierarchy
+            error_context = {"location": __name__}
+            custom_error = translate_error(e, context={"location": __name__})
+            raise custom_error
+        return None
     # --- End: Added Helper Methods ---
 
     async def batch_get_ticker_info(self, tickers: List[str], skip_insider_metrics: bool = False) -> Dict[str, Dict[str, Any]]:

@@ -1,59 +1,71 @@
 """
-Pagination utilities for Yahoo Finance API.
+Pagination utilities for API requests.
 
-This module provides utilities for handling paginated API results,
-allowing for efficient retrieval of large result sets while respecting
-rate limits.
+This module provides utilities for handling paginated API responses, including
+automatic page fetching, rate limiting, and result aggregation.
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Callable, Generator, TypeVar, Generic, Union
+import time
+from typing import Dict, Any, Optional, Callable, List, Union, Iterator, TypeVar, Generic
 
-from .rate_limiter import RateLimiter, global_rate_limiter, rate_limited
+from ...core.logging_config import get_logger
+from ...core.errors import YFinanceError, APIError, ValidationError, DataError
+from ...core.config import PAGINATION
 
-logger = logging.getLogger(__name__)
+# Set up logging
+logger = get_logger(__name__)
 
-# Define a generic type variable for the item type
-T = TypeVar('T')
+# Define type variables for generic types
+T = TypeVar('T')  # Return type for page fetching
+R = TypeVar('R')  # Return type for result processing
 
-class PaginatedResults(Generic[T]):
+class PaginatedResults:
     """
-    Handle paginated API results.
+    Handler for paginated API results.
     
-    This class provides a way to handle paginated API results, with
-    automatic rate limiting and error handling.
+    This class provides utilities for fetching paginated results from an API,
+    with automatic rate limiting and result aggregation.
     
     Attributes:
         fetch_page_func: Function to fetch a page of results
-        parse_items_func: Function to parse items from a page
+        process_results_func: Function to process results
         get_next_page_token_func: Function to get the next page token
-        rate_limiter: Rate limiter to use
         page_size: Number of items per page
+        max_pages: Maximum number of pages to fetch
+        max_retries: Maximum number of retry attempts
+        retry_delay: Delay in seconds between retries
     """
     
     def __init__(
         self,
         fetch_page_func: Callable[[Optional[str]], Dict[str, Any]],
-        parse_items_func: Callable[[Dict[str, Any]], List[T]],
+        process_results_func: Callable[[Dict[str, Any]], List[T]],
         get_next_page_token_func: Callable[[Dict[str, Any]], Optional[str]],
-        rate_limiter: RateLimiter = None,
-        page_size: int = 100
+        page_size: int = None,
+        max_pages: int = None,
+        max_retries: int = None,
+        retry_delay: float = None
     ):
         """
         Initialize the paginated results handler.
         
         Args:
             fetch_page_func: Function to fetch a page of results
-            parse_items_func: Function to parse items from a page
+            process_results_func: Function to process results
             get_next_page_token_func: Function to get the next page token
-            rate_limiter: Rate limiter to use
-            page_size: Number of items per page
+            page_size: Number of items per page (default: from config)
+            max_pages: Maximum number of pages to fetch (default: from config)
+            max_retries: Maximum number of retry attempts (default: from config)
+            retry_delay: Delay in seconds between retries (default: from config)
         """
         self.fetch_page_func = fetch_page_func
-        self.parse_items_func = parse_items_func
+        self.process_results_func = process_results_func
         self.get_next_page_token_func = get_next_page_token_func
-        self.rate_limiter = rate_limiter or global_rate_limiter
-        self.page_size = page_size
+        self.page_size = page_size or PAGINATION["PAGE_SIZE"]
+        self.max_pages = max_pages or PAGINATION["MAX_PAGES"]
+        self.max_retries = max_retries or PAGINATION["MAX_RETRIES"]
+        self.retry_delay = retry_delay or PAGINATION["RETRY_DELAY"]
         
         logger.debug(f"Initialized paginated results handler with page_size={page_size}")
     
@@ -65,245 +77,162 @@ class PaginatedResults(Generic[T]):
             page_token: Token for the page to fetch
             
         Returns:
-            Page of results
+            Page response
             
         Raises:
-            Any exception raised by the fetch_page_func
+            APIError: When a page fetch fails after retries
         """
-        # Wait if needed to avoid exceeding rate limit
-        self.rate_limiter.wait_if_needed()
-        
-        # Record the call
-        self.rate_limiter.record_call()
-        
-        try:
-            # Fetch the page
-            page = self.fetch_page_func(page_token)
-            
-            # Record success
-            self.rate_limiter.record_success()
-            
-            return page
-        except Exception as e:
-            # Record failure
-            from ...core.errors import RateLimitError
-            is_rate_limit = isinstance(e, RateLimitError)
-            self.rate_limiter.record_failure(None, is_rate_limit)
-            
-            # Re-raise the exception
-            raise
+        for attempt in range(self.max_retries):
+            try:
+                page_response = self.fetch_page_func(page_token)
+                return page_response
+            except YFinanceError as e:
+                if attempt < self.max_retries - 1:
+                    delay = self.retry_delay * (2 ** attempt)
+                    logger.warning(f"Attempt {attempt+1}/{self.max_retries} failed to fetch page: {str(e)}. Retrying in {delay:.2f}s")
+                    time.sleep(delay)
+                else:
+                    logger.error(f"All {self.max_retries} attempts failed to fetch page: {str(e)}")
+                    raise APIError(f"Failed to fetch page after {self.max_retries} attempts: {str(e)}")
     
-    def get_page(self, page_token: Optional[str] = None) -> tuple[List[T], Optional[str]]:
+    def fetch_all(self) -> List[T]:
         """
-        Get a page of results.
+        Fetch all pages of results.
         
-        Args:
-            page_token: Token for the page to fetch
-            
         Returns:
-            Tuple containing:
-                - List of items in the page
-                - Token for the next page, or None if there are no more pages
-        """
-        # Fetch the page
-        page = self._fetch_page_with_rate_limiting(page_token)
-        
-        # Parse items from the page
-        items = self.parse_items_func(page)
-        
-        # Get the next page token
-        next_page_token = self.get_next_page_token_func(page)
-        
-        return items, next_page_token
-    
-    def get_all(self, max_pages: Optional[int] = None) -> List[T]:
-        """
-        Get all results.
-        
-        Args:
-            max_pages: Maximum number of pages to fetch
+            List of processed results
             
-        Returns:
-            List of all items
+        Raises:
+            APIError: When a page fetch fails after retries
         """
-        all_items: List[T] = []
-        page_token = None
+        all_results = []
+        next_page_token = None
         page_count = 0
         
-        while True:
-            # Check if we've reached the maximum number of pages
-            if max_pages is not None and page_count >= max_pages:
-                logger.info(f"Reached maximum number of pages ({max_pages})")
-                break
+        while page_count < self.max_pages:
+            # Fetch the next page
+            logger.debug(f"Fetching page {page_count + 1} with token: {next_page_token}")
+            page_response = self._fetch_page_with_rate_limiting(next_page_token)
             
-            # Get a page of results
-            try:
-                items, next_page_token = self.get_page(page_token)
-            except Exception as e:
-                logger.error(f"Error fetching page {page_count}: {str(e)}")
-                break
+            # Process the results
+            page_results = self.process_results_func(page_response)
+            all_results.extend(page_results)
             
-            # Add items to the result list
-            all_items.extend(items)
-            
-            # Check if there are more pages
-            if not next_page_token:
-                break
-            
-            # Update page token and increment page count
-            page_token = next_page_token
+            # Get the next page token
+            next_page_token = self.get_next_page_token_func(page_response)
             page_count += 1
             
-            logger.debug(f"Fetched page {page_count} with {len(items)} items")
+            # Stop if there are no more pages
+            if not next_page_token:
+                logger.debug(f"No more pages to fetch after page {page_count}")
+                break
+                
+            # Check if we've reached the maximum number of pages
+            if page_count >= self.max_pages:
+                logger.warning(f"Reached maximum number of pages ({self.max_pages})")
+                break
         
-        logger.info(f"Fetched {len(all_items)} items from {page_count + 1} pages")
-        return all_items
+        logger.debug(f"Fetched {page_count} pages with {len(all_results)} total results")
+        return all_results
     
-    def iter_pages(self, max_pages: Optional[int] = None) -> Generator[List[T], None, None]:
+    def fetch_first_page(self) -> List[T]:
         """
-        Iterate through pages of results.
+        Fetch only the first page of results.
         
-        Args:
-            max_pages: Maximum number of pages to fetch
+        Returns:
+            List of processed results from the first page
             
-        Yields:
-            Lists of items, one page at a time
+        Raises:
+            APIError: When the page fetch fails after retries
         """
-        page_token = None
+        logger.debug("Fetching first page only")
+        page_response = self._fetch_page_with_rate_limiting(None)
+        page_results = self.process_results_func(page_response)
+        logger.debug(f"Fetched first page with {len(page_results)} results")
+        return page_results
+    
+    def iter_pages(self) -> Iterator[List[T]]:
+        """
+        Iterator for pages of results.
+        
+        Yields:
+            List of processed results for each page
+            
+        Raises:
+            APIError: When a page fetch fails after retries
+        """
+        next_page_token = None
         page_count = 0
         
-        while True:
-            # Check if we've reached the maximum number of pages
-            if max_pages is not None and page_count >= max_pages:
-                logger.info(f"Reached maximum number of pages ({max_pages})")
-                break
+        while page_count < self.max_pages:
+            # Fetch the next page
+            logger.debug(f"Fetching page {page_count + 1} with token: {next_page_token}")
+            page_response = self._fetch_page_with_rate_limiting(next_page_token)
             
-            # Get a page of results
-            try:
-                items, next_page_token = self.get_page(page_token)
-            except Exception as e:
-                logger.error(f"Error fetching page {page_count}: {str(e)}")
-                break
+            # Process the results
+            page_results = self.process_results_func(page_response)
+            yield page_results
             
-            # Yield the items
-            yield items
-            
-            # Check if there are more pages
-            if not next_page_token:
-                break
-            
-            # Update page token and increment page count
-            page_token = next_page_token
+            # Get the next page token
+            next_page_token = self.get_next_page_token_func(page_response)
             page_count += 1
             
-            logger.debug(f"Fetched page {page_count} with {len(items)} items")
-        
-        logger.info(f"Fetched {page_count + 1} pages")
-    
-    def iter_items(self, max_pages: Optional[int] = None) -> Generator[T, None, None]:
-        """
-        Iterate through items in all pages.
-        
-        Args:
-            max_pages: Maximum number of pages to fetch
-            
-        Yields:
-            Items one at a time
-        """
-        for page in self.iter_pages(max_pages):
-            for item in page:
-                yield item
+            # Stop if there are no more pages
+            if not next_page_token:
+                logger.debug(f"No more pages to fetch after page {page_count}")
+                break
+                
+            # Check if we've reached the maximum number of pages
+            if page_count >= self.max_pages:
+                logger.warning(f"Reached maximum number of pages ({self.max_pages})")
+                break
 
-
-@rate_limited
-def paginated_request(
-    url: str,
-    params: Dict[str, Any],
-    page_param: str = 'page',
-    items_key: str = 'items',
-    next_page_key: Optional[str] = None,
-    total_pages_key: Optional[str] = None,
-    rate_limiter: RateLimiter = None,
-    max_pages: Optional[int] = None,
-    session = None
-) -> List[Dict[str, Any]]:
+def paginate(
+    fetch_page_func: Callable[[Optional[str]], Dict[str, Any]],
+    process_results_func: Callable[[Dict[str, Any]], List[T]],
+    get_next_page_token_func: Callable[[Dict[str, Any]], Optional[str]],
+    page_size: int = None,
+    max_pages: int = None,
+    max_retries: int = None,
+    retry_delay: float = None,
+    first_page_only: bool = False
+) -> List[T]:
     """
-    Make a paginated API request.
+    Fetch paginated results from an API.
     
-    This function makes a paginated API request, fetching all pages
-    and combining the results.
+    This is a convenience function for fetching paginated results from an API,
+    with automatic rate limiting and result aggregation.
     
     Args:
-        url: URL to request
-        params: Request parameters
-        page_param: Parameter name for the page number
-        items_key: Key for the items in the response
-        next_page_key: Key for the next page token in the response
-        total_pages_key: Key for the total number of pages in the response
-        rate_limiter: Rate limiter to use
-        max_pages: Maximum number of pages to fetch
-        session: Requests session to use
+        fetch_page_func: Function to fetch a page of results
+        process_results_func: Function to process results
+        get_next_page_token_func: Function to get the next page token
+        page_size: Number of items per page (default: from config)
+        max_pages: Maximum number of pages to fetch (default: from config)
+        max_retries: Maximum number of retry attempts (default: from config)
+        retry_delay: Delay in seconds between retries (default: from config)
+        first_page_only: If True, fetch only the first page
         
     Returns:
-        List of all items from all pages
+        List of processed results
+        
+    Raises:
+        APIError: When a page fetch fails after retries
     """
-    # Import here to avoid circular imports
-    import requests
-    
-    # Create a session if not provided
-    if session is None:
-        session = requests.Session()
-    
-    # Define the fetch_page function
-    def fetch_page(page_token: Optional[str] = None) -> Dict[str, Any]:
-        # Update parameters with page token or number
-        page_params = params.copy()
-        if page_token is not None:
-            if next_page_key is not None:
-                # Token-based pagination
-                page_params[page_param] = page_token
-            else:
-                # Page number-based pagination
-                page_params[page_param] = int(page_token)
-        
-        # Make the request
-        response = session.get(url, params=page_params)
-        response.raise_for_status()
-        
-        # Parse the response
-        return response.json()
-    
-    # Define the parse_items function
-    def parse_items(page: Dict[str, Any]) -> List[Dict[str, Any]]:
-        # Get the items from the page
-        if items_key in page:
-            return page[items_key]
-        return []
-    
-    # Define the get_next_page_token function
-    def get_next_page_token(page: Dict[str, Any]) -> Optional[str]:
-        if next_page_key is not None:
-            # Token-based pagination
-            return page.get(next_page_key)
-        elif total_pages_key is not None:
-            # Page number-based pagination with total pages
-            current_page = int(params.get(page_param, 1))
-            total_pages = int(page.get(total_pages_key, 0))
-            if current_page < total_pages:
-                return str(current_page + 1)
-        elif items_key in page and len(page[items_key]) >= params.get('limit', 100):
-            # Assume there might be more pages if items limit was reached
-            current_page = int(params.get(page_param, 1))
-            return str(current_page + 1)
-        return None
-    
-    # Create paginated results handler
     paginator = PaginatedResults(
-        fetch_page_func=fetch_page,
-        parse_items_func=parse_items,
-        get_next_page_token_func=get_next_page_token,
-        rate_limiter=rate_limiter
+        fetch_page_func=fetch_page_func,
+        process_results_func=process_results_func,
+        get_next_page_token_func=get_next_page_token_func,
+        page_size=page_size,
+        max_pages=max_pages,
+        max_retries=max_retries,
+        retry_delay=retry_delay
     )
     
-    # Get all results
-    return paginator.get_all(max_pages)
+    if first_page_only:
+        return paginator.fetch_first_page()
+    else:
+        return paginator.fetch_all()
+
+# Legacy alias for backwards compatibility
+paginated_request = paginate

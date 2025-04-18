@@ -9,9 +9,11 @@ This version uses the enhanced components from yahoofinance:
 - Provider pattern for data access abstraction
 """
 
+import sys
 import logging
-import sys
-import sys
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import os
 import warnings
 import pandas as pd
@@ -19,25 +21,30 @@ import numpy as np
 import yfinance as yf
 import asyncio
 import re
-
-# Completely suppress all logging output
-logging.basicConfig(level=logging.CRITICAL, 
-                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-# Set ALL loggers to CRITICAL level to ensure nothing is output
-for name in logging.root.manager.loggerDict:
-    logging.getLogger(name).setLevel(logging.CRITICAL)
-
-# Suppress warnings
-warnings.filterwarnings("ignore")
-
-# Silence stdout for specific libraries
-import os
-os.environ['PYTHONWARNINGS'] = 'ignore'
 import time
 import datetime
 from tabulate import tabulate
 from tqdm import tqdm
+from yahoofinance.core.logging_config import get_logger, configure_logging
+
+# Use standardized logging configuration
+# By default, configure logging to be quiet for the CLI
+# Users can enable more verbose logging by setting the ETOROTRADE_LOG_LEVEL environment variable
+log_level = os.environ.get('ETOROTRADE_LOG_LEVEL', 'WARNING')
+configure_logging(
+    level=log_level,
+    console=True,
+    console_level=log_level,
+    log_file=os.environ.get('ETOROTRADE_LOG_FILE', None),
+    debug=os.environ.get('ETOROTRADE_DEBUG', '').lower() == 'true'
+)
+
+# Create a logger for this module
+logger = get_logger(__name__)
+
+# Suppress warnings that might clutter the CLI
+warnings.filterwarnings("ignore")
+os.environ['PYTHONWARNINGS'] = 'ignore'
 
 try:
     from yahoofinance.api import get_provider
@@ -369,7 +376,7 @@ def calculate_action(df):
             try:
                 action, _ = calculate_action_for_row(row, TRADING_CRITERIA, short_field)
                 working_df.at[idx, 'action'] = action
-            except Exception as e:
+            except YFinanceError as e:
                 # Handle any errors during action calculation for individual rows
                 # Suppress error message
                 pass
@@ -386,7 +393,7 @@ def calculate_action(df):
         df['ACTION'] = working_df['action']
         
         return df
-    except Exception as e:
+    except YFinanceError as e:
         # Suppress error message
         # Initialize action columns as HOLD ('H') if calculation fails
         df['action'] = 'H'
@@ -512,7 +519,7 @@ def _format_company_names(working_df):
         else:
             # Simple formatting if we don't have both columns
             working_df['company'] = working_df[company_col].astype(str).str.upper().str[:14]
-    except Exception as e:
+    except YFinanceError as e:
         # Suppress error message
         # Fallback formatting
         if company_col:
@@ -585,7 +592,7 @@ def _add_position_size_column(working_df):
                     mc = float(mc.replace(',', ''))
                     
                 return calculate_position_size(mc)
-            except Exception as e:
+            except YFinanceError as e:
                 # Suppress error message
                 return None
         
@@ -630,7 +637,7 @@ def _add_position_size_column(working_df):
                         return 1000
                     else:
                         return None
-                except Exception as e:
+                except YFinanceError as e:
                     # Suppress error message
                     return None
             
@@ -823,8 +830,9 @@ def format_numeric_columns(display_df, columns, format_str):
                 numeric_col = pd.to_numeric(display_df[col], errors='coerce')
                 # Replace the column only if conversion was successful
                 display_df[col] = numeric_col.where(numeric_col.notna(), display_df[col])
-            except:
+            except Exception as e:
                 # Just continue with the original values
+                logger.debug(f"Error converting column {col} to numeric: {str(e)}")
                 pass
                 
             # Check if format string contains a percentage sign
@@ -838,17 +846,16 @@ def format_numeric_columns(display_df, columns, format_str):
                     try:
                         if isinstance(x, (int, float)):
                             # Format as float, then add % sign
-                            # Format as float, then add % sign
                             return f"{float(x):{fmt}}%"
                         elif isinstance(x, str):
                             # Remove percentage sign if present
                             clean_x = x.replace('%', '').strip()
                             if clean_x and clean_x != "--":
                                 # Format as float, then add % sign
-                                # Format as float, then add % sign
                                 return f"{float(clean_x):{fmt}}%"
-                    except:
-                        pass
+                    except Exception as e:
+                        # Just continue with original value on error
+                        logger.debug(f"Error formatting percentage value: {str(e)}")
                     return str(x)  # Return original as string if all else fails
                 
                 display_df[col] = display_df[col].apply(safe_pct_format)
@@ -865,8 +872,9 @@ def format_numeric_columns(display_df, columns, format_str):
                             clean_x = x.replace('%', '').replace(',', '').strip()
                             if clean_x and clean_x != "--":
                                 return f"{float(clean_x):{fmt}}"
-                    except:
-                        pass
+                    except Exception as e:
+                        # Just continue with original value on error
+                        logger.debug(f"Error formatting numeric value: {str(e)}")
                     return str(x)  # Return original as string if all else fails
                 
                 display_df[col] = display_df[col].apply(safe_num_format)
@@ -938,7 +946,7 @@ def _format_date_string(date_str):
             # If conversion resulted in NaT, return placeholder
             return '--'
             
-    except Exception as e:
+    except YFinanceError as e:
         logger.debug(f"Error formatting earnings date: {str(e)}")
         # Fall back to original string if any unexpected error
         return str(date_str) if date_str and not pd.isna(date_str) else '--'
@@ -1088,6 +1096,9 @@ def apply_color_to_row(row, color_code):
     
     return colored_row
 
+@with_retry
+
+
 def _get_color_by_title(title):
     """Get the appropriate color code based on title.
     
@@ -1221,7 +1232,7 @@ def _apply_color_to_dataframe(display_df, color_code):
             # Apply color to row
             colored_row = apply_color_to_row(row, color_code)
             colored_values.append(colored_row)
-        except Exception:
+        except YFinanceError:
             # Fall back to original row if any error
             colored_values.append(row)
     
@@ -1254,16 +1265,34 @@ def _check_sell_criteria(upside, buy_pct, pef, si, beta, criteria):
     Returns:
         bool: True if security meets SELL criteria, False otherwise
     """
+    # Create a mapping between the criteria keys expected in the function and the actual keys in config
+    criteria_mapping = {
+        "MAX_UPSIDE": "SELL_MAX_UPSIDE",
+        "MIN_BUY_PERCENTAGE": "SELL_MIN_BUY_PERCENTAGE",
+        "MAX_FORWARD_PE": "SELL_MIN_FORWARD_PE",  # In config it's SELL_MIN_FORWARD_PE
+        "MAX_SHORT_INTEREST": "SELL_MIN_SHORT_INTEREST",  # In config it's SELL_MIN_SHORT_INTEREST
+        "MAX_BETA": "SELL_MIN_BETA",  # In config it's SELL_MIN_BETA
+        "MIN_EXRET": "SELL_MAX_EXRET",  # In config it's SELL_MAX_EXRET
+    }
+    
+    # Helper function to get criteria value with appropriate mapping
+    def get_criteria_value(key):
+        mapped_key = criteria_mapping.get(key, key)
+        return criteria.get(mapped_key, criteria.get(key))
+    
     try:
         # Ensure we're working with numeric values
         upside_val = float(upside) if upside is not None and upside != '--' else 0
         buy_pct_val = float(buy_pct) if buy_pct is not None and buy_pct != '--' else 0
         
         # 1. Upside too low
-        if upside_val < criteria["MAX_UPSIDE"]:
+        max_upside = get_criteria_value("MAX_UPSIDE")
+        if max_upside is not None and upside_val < max_upside:
             return True
+            
         # 2. Buy percentage too low
-        if buy_pct_val < criteria["MIN_BUY_PERCENTAGE"]:
+        min_buy_pct = get_criteria_value("MIN_BUY_PERCENTAGE")
+        if min_buy_pct is not None and buy_pct_val < min_buy_pct:
             return True
             
         # Handle potentially non-numeric fields
@@ -1271,7 +1300,8 @@ def _check_sell_criteria(upside, buy_pct, pef, si, beta, criteria):
         if pef is not None and pef != '--':
             try:
                 pef_val = float(pef)
-                if pef_val > criteria["MAX_FORWARD_PE"]:
+                max_forward_pe = get_criteria_value("MAX_FORWARD_PE")
+                if max_forward_pe is not None and pef_val > max_forward_pe:
                     return True
             except (ValueError, TypeError):
                 pass  # Skip this criterion if conversion fails
@@ -1280,7 +1310,8 @@ def _check_sell_criteria(upside, buy_pct, pef, si, beta, criteria):
         if si is not None and si != '--':
             try:
                 si_val = float(si)
-                if si_val > criteria["MAX_SHORT_INTEREST"]:
+                max_short_interest = get_criteria_value("MAX_SHORT_INTEREST")
+                if max_short_interest is not None and si_val > max_short_interest:
                     return True
             except (ValueError, TypeError):
                 pass  # Skip this criterion if conversion fails
@@ -1289,7 +1320,8 @@ def _check_sell_criteria(upside, buy_pct, pef, si, beta, criteria):
         if beta is not None and beta != '--':
             try:
                 beta_val = float(beta)
-                if beta_val > criteria["MAX_BETA"]:
+                max_beta = get_criteria_value("MAX_BETA")
+                if max_beta is not None and beta_val > max_beta:
                     return True
             except (ValueError, TypeError):
                 pass  # Skip this criterion if conversion fails
@@ -1315,17 +1347,33 @@ def _check_buy_criteria(upside, buy_pct, beta, si, criteria):
     Returns:
         bool: True if security meets BUY criteria, False otherwise
     """
+    # Create a mapping between the criteria keys expected in the function and the actual keys in config
+    criteria_mapping = {
+        "MIN_UPSIDE": "BUY_MIN_UPSIDE",
+        "MIN_BUY_PERCENTAGE": "BUY_MIN_BUY_PERCENTAGE",
+        "MIN_BETA": "BUY_MIN_BETA",
+        "MAX_BETA": "BUY_MAX_BETA",
+        "MAX_SHORT_INTEREST": "BUY_MAX_SHORT_INTEREST",
+    }
+    
+    # Helper function to get criteria value with appropriate mapping
+    def get_criteria_value(key):
+        mapped_key = criteria_mapping.get(key, key)
+        return criteria.get(mapped_key, criteria.get(key))
+    
     try:
         # Ensure we're working with numeric values for the main criteria
         upside_val = float(upside) if upside is not None and upside != '--' else 0
         buy_pct_val = float(buy_pct) if buy_pct is not None and buy_pct != '--' else 0
         
         # 1. Sufficient upside
-        if upside_val < criteria["MIN_UPSIDE"]:
+        min_upside = get_criteria_value("MIN_UPSIDE")
+        if min_upside is not None and upside_val < min_upside:
             return False
             
         # 2. Sufficient buy percentage
-        if buy_pct_val < criteria["MIN_BUY_PERCENTAGE"]:
+        min_buy_pct = get_criteria_value("MIN_BUY_PERCENTAGE")
+        if min_buy_pct is not None and buy_pct_val < min_buy_pct:
             return False
             
         # 3. Beta in range (required criterion)
@@ -1333,7 +1381,11 @@ def _check_buy_criteria(upside, buy_pct, beta, si, criteria):
         if beta is not None and beta != '--':
             try:
                 beta_val = float(beta)
-                if beta_val > criteria["MIN_BETA"] and beta_val <= criteria["MAX_BETA"]:
+                min_beta = get_criteria_value("MIN_BETA")
+                max_beta = get_criteria_value("MAX_BETA")
+                if (min_beta is None or max_beta is None):
+                    beta_in_range = True  # If criteria missing, consider this check passed
+                elif beta_val > min_beta and beta_val <= max_beta:
                     beta_in_range = True
                 else:
                     return False  # Beta out of range
@@ -1346,7 +1398,8 @@ def _check_buy_criteria(upside, buy_pct, beta, si, criteria):
         if si is not None and si != '--':
             try:
                 si_val = float(si)
-                if si_val > criteria["MAX_SHORT_INTEREST"]:
+                max_short_interest = get_criteria_value("MAX_SHORT_INTEREST")
+                if max_short_interest is not None and si_val > max_short_interest:
                     return False
             except (ValueError, TypeError):
                 pass  # Skip this secondary criterion if invalid
@@ -1484,7 +1537,7 @@ def display_and_save_results(display_df, title, output_file):
     #     display.display_stock_table(stocks_data, title)
         
     #     print(f"\nTotal: {len(display_df)}")
-    # except Exception as e:
+    # except YFinanceError as e:
     #     # Fallback to tabulate if MarketDisplay fails
     #     print(f"Warning: Using fallback display method: {str(e)}")
         
@@ -1535,7 +1588,7 @@ def display_and_save_results(display_df, title, output_file):
                 try:
                     # Parse the number before the 'k' (e.g., "2.5k" -> "2.5")
                     return x.replace('k', '')
-                except Exception:
+                except YFinanceError:
                     return '--'
             
             # For raw position size values, apply the standard position size conversion
@@ -1596,7 +1649,7 @@ def display_and_save_results(display_df, title, output_file):
         )
         if html_path:
             print(f"HTML dashboard successfully created at {html_path}")
-    except Exception as e:
+    except YFinanceError as e:
         print(f"Failed to generate HTML: {str(e)}")
 
 def create_empty_results_file(output_file):
@@ -1661,7 +1714,7 @@ def create_empty_results_file(output_file):
         )
         if html_path:
             print(f"Empty HTML dashboard created at {html_path}")
-    except Exception as e:
+    except YFinanceError as e:
         print(f"Failed to generate empty HTML: {str(e)}")
 
 def process_market_data(market_df):
@@ -1725,7 +1778,7 @@ def _filter_notrade_tickers(opportunities_df, notrade_path):
                     # Filter out no-trade stocks
                     filtered_df = filtered_df[~filtered_df[filtered_ticker_col].str.upper().isin(notrade_tickers)]
                     logger.info(f"Excluded {len(notrade_tickers)} stocks from notrade.csv")
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error reading notrade.csv: {str(e)}")
     
     return filtered_df, notrade_tickers
@@ -1792,7 +1845,7 @@ def _format_market_caps_in_display_df(display_df, opportunities_df):
                     cap_value = orig_row[orig_cap_col]
                     if isinstance(cap_value, (int, float)):
                         display_df.at[idx, 'CAP'] = formatter.format_market_cap(cap_value)
-                except Exception as e:
+                except YFinanceError as e:
                     # Suppress error message
                     pass
     
@@ -1867,7 +1920,7 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_
             
             new_opportunities['market_cap'] = new_opportunities['CAP'].apply(parse_market_cap)
             logger.debug("Added market_cap values based on CAP strings")
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error converting CAP to market_cap: {e}")
     
     # Calculate SIZE directly before preparing the display dataframe
@@ -1884,7 +1937,7 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_
             # Then format it for display with 'k' suffix with one decimal place (X.Xk)
             new_opportunities['SIZE'] = new_opportunities['position_size'].apply(format_position_size)
             logger.debug("Direct SIZE calculation applied before display preparation")
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error calculating SIZE values: {e}")
     
     # Process data for display if we have opportunities
@@ -1957,7 +2010,7 @@ def _convert_percentage_columns(df):
                     result_df[col].astype(str).str.replace('%', ''), 
                     errors='coerce'
                 )
-            except Exception as err:
+            except YFinanceError as err:
                 logger.debug(f"Could not convert {col} column to numeric: {err}")
     
     return result_df
@@ -1987,7 +2040,7 @@ def _load_portfolio_data(output_dir):
         
         # Suppress debug message about loaded records
         return portfolio_df
-    except Exception as e:
+    except YFinanceError as e:
         # Return empty DataFrame silently instead of printing error
         return pd.DataFrame()
 
@@ -2074,7 +2127,7 @@ def process_sell_candidates(output_dir):
             
             sell_candidates['market_cap'] = sell_candidates['CAP'].apply(parse_market_cap)
             logger.debug("Added market_cap values based on CAP strings")
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error converting CAP to market_cap: {e}")
     
     # Calculate SIZE directly before preparing the display dataframe
@@ -2091,7 +2144,7 @@ def process_sell_candidates(output_dir):
             # Then format it for display with 'k' suffix with one decimal place (X.Xk)
             sell_candidates['SIZE'] = sell_candidates['position_size'].apply(format_position_size)
             logger.debug("Direct SIZE calculation applied before display preparation")
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error calculating SIZE values: {e}")
     
     # Prepare and format dataframe for display
@@ -2152,7 +2205,7 @@ def _load_market_data(market_path):
         
         print(f"Loaded {len(market_df)} market ticker records")
         return market_df
-    except Exception as e:
+    except YFinanceError as e:
         # Return empty DataFrame silently instead of printing error
         return pd.DataFrame()
 
@@ -2251,7 +2304,7 @@ def process_hold_candidates(output_dir):
             
             hold_candidates['market_cap'] = hold_candidates['CAP'].apply(parse_market_cap)
             logger.debug("Added market_cap values based on CAP strings")
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error converting CAP to market_cap: {e}")
     
     # Calculate SIZE directly before preparing the display dataframe
@@ -2268,7 +2321,7 @@ def process_hold_candidates(output_dir):
             # Then format it for display with 'k' suffix with one decimal place (X.Xk)
             hold_candidates['SIZE'] = hold_candidates['position_size'].apply(format_position_size)
             logger.debug("Direct SIZE calculation applied before display preparation")
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error calculating SIZE values: {e}")
     
     # Prepare and format dataframe for display
@@ -2323,7 +2376,7 @@ def _setup_trade_recommendation_paths():
         }
         
         return output_dir, market_path, portfolio_path, notrade_path, output_files
-    except Exception as e:
+    except YFinanceError as e:
         logger.error(f"Error setting up trade recommendation paths: {str(e)}")
         # Handle error silently
         return None, None, None, None, None
@@ -2361,7 +2414,7 @@ def _load_data_files(market_path, portfolio_path):
     try:
         market_df = pd.read_csv(market_path)
         print(f"Loaded {len(market_df)} market ticker records")
-    except Exception as e:
+    except YFinanceError as e:
         logger.error(f"Error loading market data: {str(e)}")
         # Handle error silently
         return None, None
@@ -2371,7 +2424,7 @@ def _load_data_files(market_path, portfolio_path):
     try:
         portfolio_df = pd.read_csv(portfolio_path)
         # Suppress debug message about loaded records
-    except Exception as e:
+    except YFinanceError as e:
         logger.error(f"Error loading portfolio data: {str(e)}")
         # Handle error silently
         return None, None
@@ -2398,7 +2451,7 @@ def _extract_portfolio_tickers(portfolio_df):
         portfolio_tickers = set(portfolio_df[ticker_column].str.upper())
         logger.debug(f"Found {len(portfolio_tickers)} unique tickers in portfolio")
         return portfolio_tickers
-    except Exception as e:
+    except YFinanceError as e:
         logger.error(f"Error extracting portfolio tickers: {str(e)}")
         # Handle error silently
         return None
@@ -2507,7 +2560,7 @@ def generate_trade_recommendations(action_type):
         # Process according to action type
         _process_buy_or_sell_action(action_type, market_df, portfolio_tickers, output_dir, notrade_path, output_files)
     
-    except Exception as e:
+    except YFinanceError as e:
         logger.error(f"Error generating trade recommendations: {str(e)}")
         # Handle error silently
         # Suppress stack trace
@@ -2526,7 +2579,7 @@ def handle_trade_analysis():
         generate_trade_recommendations(HOLD_ACTION)  # 'H' for hold candidates
     else:
         logger.warning(f"Invalid option: {action}")
-        print(f"Invalid option. Please enter '{BUY_ACTION}', '{SELL_ACTION}', or '{HOLD_ACTION}'.")
+        print(f"Invalid option. Please select '{BUY_ACTION}', '{SELL_ACTION}', or '{HOLD_ACTION}'.")
 
 def handle_portfolio_download():
     """Handle portfolio download if requested"""
@@ -2600,7 +2653,7 @@ async def _process_single_ticker(provider, ticker):
         else:
             logger.warning(f"Skipping ticker {ticker}: Invalid or empty data")
             return None
-    except Exception as e:
+    except YFinanceError as e:
         # Handle rate limit errors
         if any(err_text in str(e).lower() for err_text in ["rate limit", "too many requests", "429"]):
             logger.warning(f"Rate limit detected for {ticker}. Adding delay.")
@@ -2674,7 +2727,7 @@ async def _process_batch(provider, batch, batch_num, total_batches, processed_so
             # Update progress bar for each ticker processed in the batch result
             pbar.update(1)
 
-    except Exception as e:
+    except YFinanceError as e:
         # Handle errors during the batch call itself
         logger.error(f"Error processing batch {batch_num+1}: {str(e)}")
         error_count += len(batch) # Assume all tickers in the batch failed
@@ -2745,18 +2798,20 @@ class SimpleProgressTracker:
         self.error_count = 0
         self.cache_count = 0
         self.terminal_width = self._get_terminal_width()
-        
         # Initialize the display (no need for an empty line anymore)
         self._print_status()
     
+    @with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
     def _get_terminal_width(self):
         """Get the terminal width or default to 80 columns"""
         try:
             import shutil
             columns, _ = shutil.get_terminal_size()
             return columns
-        except:
-            return 100  # Default width if we can't determine it
+        except Exception as e:
+            # Default to 80 columns on error
+            logger.debug(f"Error getting terminal width: {str(e)}")
+            return 80
     
     def update(self, n=1):
         """Update progress by n items
@@ -2899,7 +2954,9 @@ class SimpleProgressTracker:
                         if match:
                             seconds, batch = match.groups()
                             self.ticker_time = f"{seconds}s → {batch}"
-                    except:
+                    except Exception as e:
+                        # Just log the error and continue
+                        logger.debug(f"Error parsing progress description: {str(e)}")
                         pass
         
         self._print_status()
@@ -3003,7 +3060,7 @@ async def _handle_batch_delay(batch_num, total_batches, pbar):
         # Reset description for next batch
         if pbar:
             pbar.set_description("Fetching ticker data")
-    except Exception as e:
+    except YFinanceError as e:
         logger.error(f"Error in batch delay handler: {str(e)}")
         # Still wait even if there's an error with the progress display
         await asyncio.sleep(batch_delay)
@@ -3031,7 +3088,9 @@ async def fetch_ticker_data(provider, tickers):
     
     # Calculate batch parameters
     total_tickers = len(tickers)
-    batch_size = 10  # Match provider concurrency limit
+    # Get batch size from config
+    from yahoofinance.core.config import RATE_LIMIT
+    batch_size = RATE_LIMIT["BATCH_SIZE"]  # Use batch size from config
     total_batches = (total_tickers - 1) // batch_size + 1
     
     # Process all tickers (no limit)
@@ -3078,7 +3137,7 @@ async def fetch_ticker_data(provider, tickers):
                     # Don't print message - let progress bar handle it
                     await _handle_batch_delay(batch_num, total_batches, pbar)
             
-            except Exception as e:
+            except YFinanceError as e:
                 print(f"ERROR in batch {batch_num+1}: {str(e)}")
                 logger.error(f"Error in batch {batch_num+1}: {str(e)}")
                 # Suppress traceback
@@ -3086,7 +3145,7 @@ async def fetch_ticker_data(provider, tickers):
                 # Continue with next batch despite errors
                 continue
     
-    except Exception as e:
+    except YFinanceError as e:
         print(f"ERROR in fetch_ticker_data: {str(e)}")
         logger.error(f"Error in fetch_ticker_data: {str(e)}")
         # Suppress traceback
@@ -3096,7 +3155,7 @@ async def fetch_ticker_data(provider, tickers):
         if pbar:
             try:
                 pbar.close()
-            except Exception:
+            except YFinanceError:
                 # Suppress any errors during progress bar cleanup
                 pass
     
@@ -3344,8 +3403,18 @@ def _process_color_based_on_criteria(row, confidence_met, trading_criteria):
         return _apply_color_to_row(row, "93")  # Yellow for INCONCLUSIVE
     
     # Handle string or numeric values for upside and buy_pct
-    upside = float(row['UPSIDE'].rstrip('%')) if isinstance(row['UPSIDE'], str) else row['UPSIDE']
-    buy_pct = float(row[DISPLAY_BUY_PERCENTAGE].rstrip('%')) if isinstance(row[DISPLAY_BUY_PERCENTAGE], str) else row[DISPLAY_BUY_PERCENTAGE]
+    # Ensure proper float conversion regardless of format (with or without % symbol)
+    try:
+        upside = float(row['UPSIDE'].replace('%', '')) if isinstance(row['UPSIDE'], str) else float(row['UPSIDE'])
+    except (ValueError, TypeError):
+        # Default to 0 if conversion fails
+        upside = 0.0
+        
+    try:
+        buy_pct = float(row[DISPLAY_BUY_PERCENTAGE].replace('%', '')) if isinstance(row[DISPLAY_BUY_PERCENTAGE], str) else float(row[DISPLAY_BUY_PERCENTAGE])
+    except (ValueError, TypeError):
+        # Default to 0 if conversion fails
+        buy_pct = 0.0
     
     # Check if required primary criteria are present and valid
     # Beta, PEF (pe_forward), and PET (pe_trailing) are now required primary criteria
@@ -3357,6 +3426,7 @@ def _process_color_based_on_criteria(row, confidence_met, trading_criteria):
         beta = float(row['BETA']) if isinstance(row['BETA'], str) and row['BETA'] != '--' else None
         
         # Only check sell criteria if we have basic metrics
+        # Upside and buy_pct are already handled with try/except blocks earlier in the function
         if upside is not None and buy_pct is not None:
             is_sell = _check_sell_criteria(upside, buy_pct, pef, si, beta, trading_criteria["SELL"])
             if is_sell:
@@ -3366,11 +3436,26 @@ def _process_color_based_on_criteria(row, confidence_met, trading_criteria):
         return row
     
     # All required primary criteria are present, proceed with full evaluation
-    # Parse the values to correct types
-    si = float(row['SI'].rstrip('%')) if isinstance(row['SI'], str) and row['SI'] != '--' else None
-    pef = float(row['PEF']) if isinstance(row['PEF'], str) and row['PEF'] != '--' else None
-    pet = float(row['PET']) if isinstance(row['PET'], str) and row['PET'] != '--' else None
-    beta = float(row['BETA']) if isinstance(row['BETA'], str) and row['BETA'] != '--' else None
+    # Parse the values to correct types using safe conversion methods
+    try:
+        si = float(row['SI'].replace('%', '')) if isinstance(row['SI'], str) and row['SI'] != '--' else None
+    except (ValueError, TypeError):
+        si = None
+        
+    try:
+        pef = float(row['PEF']) if isinstance(row['PEF'], str) and row['PEF'] != '--' else None
+    except (ValueError, TypeError):
+        pef = None
+        
+    try:
+        pet = float(row['PET']) if isinstance(row['PET'], str) and row['PET'] != '--' else None
+    except (ValueError, TypeError):
+        pet = None
+        
+    try:
+        beta = float(row['BETA']) if isinstance(row['BETA'], str) and row['BETA'] != '--' else None
+    except (ValueError, TypeError):
+        beta = None
     
     # Use helper function to check if the security meets SELL criteria
     is_sell = _check_sell_criteria(upside, buy_pct, pef, si, beta, trading_criteria["SELL"])
@@ -3523,7 +3608,7 @@ def _apply_color_coding(display_df, trading_criteria):
             elif all(col in row and pd.notna(row[col]) for col in required_columns):
                 confidence_met, _, _ = _check_confidence_criteria(row, min_analysts, min_targets)
                 colored_row = _process_color_based_on_criteria(colored_row, confidence_met, trading_criteria)
-        except Exception as e:
+        except YFinanceError as e:
             logger.debug(f"Error applying color: {str(e)}")
         
         colored_rows.append(colored_row)
@@ -3639,7 +3724,7 @@ def display_report_for_source(display, tickers, source, verbose=False):
             
             print(f"\nTotal: {len(display_df)}")
             
-        except Exception as e:
+        except YFinanceError as e:
             # Fallback if MarketDisplay fails - silently use tabulate
             # Reorder the columns to match the standard display order
             standard_columns = STANDARD_DISPLAY_COLUMNS.copy()
@@ -3731,19 +3816,19 @@ def display_report_for_source(display, tickers, source, verbose=False):
                 elapsed = time.time() - start_time
                 logger.debug(f"HTML generation completed in {elapsed:.2f} seconds")
                 
-            except Exception as e:
+            except YFinanceError as e:
                 # Handle error silently
                 # Suppress traceback and error
                 pass
             if html_path:
                 logger.info(f"HTML dashboard saved to {html_path}")
-        except Exception as e:
+        except YFinanceError as e:
             # Suppress HTML generation error
             # Suppress stack trace
             pass
     except ValueError as e:
         logger.error(f"Error processing numeric values: {str(e)}")
-    except Exception as e:
+    except YFinanceError as e:
         logger.error(f"Error displaying report: {str(e)}", exc_info=True)
     
     # Generate HTML for all source types
@@ -3801,7 +3886,7 @@ def display_report_for_source(display, tickers, source, verbose=False):
                             lambda x: f"{float(x):.1f}" if isinstance(x, (int, float)) or 
                             (isinstance(x, str) and x.replace('.', '', 1).replace('-', '', 1).isdigit()) else x
                         )
-            except Exception as e:
+            except YFinanceError as e:
                 # Suppress warning about numeric value formatting
                 pass
             
@@ -3881,7 +3966,7 @@ def display_report_for_source(display, tickers, source, verbose=False):
                                     record['ACTION'] = 'H'  # Hold
                             else:
                                 record['ACTION'] = 'H'  # Default to hold
-                    except Exception as e:
+                    except YFinanceError as e:
                         # Default to hold if calculation fails, and log the error
                         # Suppress warning message for action calculation
                         record['ACTION'] = 'H'
@@ -3912,25 +3997,38 @@ def display_report_for_source(display, tickers, source, verbose=False):
                     
                     # Process each row
                     for idx, row in clean_df.iterrows():
-                        # Get upside and buy percentage values
-                        upside = row.get('UPSIDE')
-                        if isinstance(upside, str) and '%' in upside:
-                            upside = float(upside.replace('%', ''))
-                            
-                        buy_pct = row.get(BUY_PERCENTAGE) or row.get('% BUY')
-                        if isinstance(buy_pct, str) and '%' in buy_pct:
-                            buy_pct = float(buy_pct.replace('%', ''))
-                            
-                        # Only calculate if we have valid upside and buy percentage
-                        if upside is not None and buy_pct is not None:
-                            # Simple criteria for demonstration based on TRADING_CRITERIA
-                            if upside >= TRADING_CRITERIA['BUY']['BUY_MIN_UPSIDE'] and buy_pct >= TRADING_CRITERIA['BUY']['BUY_MIN_BUY_PERCENTAGE']:
-                                clean_df.at[idx, 'ACTION'] = 'B'  # Buy
-                            elif upside <= TRADING_CRITERIA['SELL']['SELL_MAX_UPSIDE'] or buy_pct <= TRADING_CRITERIA['SELL']['SELL_MIN_BUY_PERCENTAGE']:
-                                clean_df.at[idx, 'ACTION'] = 'S'  # Sell
+                        # Get upside and buy percentage values and ensure they're floats
+                        try:
+                            upside = row.get('UPSIDE')
+                            # Convert string to float if necessary, handling percentage symbols
+                            if isinstance(upside, str):
+                                upside = float(upside.replace('%', ''))
                             else:
-                                clean_df.at[idx, 'ACTION'] = 'H'  # Hold
-                except Exception as e:
+                                # If it's not a string, try to convert it to float directly
+                                upside = float(upside) if upside is not None else None
+                                
+                            buy_pct = row.get(BUY_PERCENTAGE) or row.get('% BUY')
+                            # Convert string to float if necessary, handling percentage symbols
+                            if isinstance(buy_pct, str):
+                                buy_pct = float(buy_pct.replace('%', ''))
+                            else:
+                                # If it's not a string, try to convert it to float directly
+                                buy_pct = float(buy_pct) if buy_pct is not None else None
+                                
+                            # Only calculate if we have valid upside and buy percentage
+                            if upside is not None and buy_pct is not None:
+                                # Simple criteria for demonstration based on TRADING_CRITERIA
+                                if upside >= TRADING_CRITERIA['BUY']['BUY_MIN_UPSIDE'] and buy_pct >= TRADING_CRITERIA['BUY']['BUY_MIN_BUY_PERCENTAGE']:
+                                    clean_df.at[idx, 'ACTION'] = 'B'  # Buy
+                                elif upside <= TRADING_CRITERIA['SELL']['SELL_MAX_UPSIDE'] or buy_pct <= TRADING_CRITERIA['SELL']['SELL_MIN_BUY_PERCENTAGE']:
+                                    clean_df.at[idx, 'ACTION'] = 'S'  # Sell
+                                else:
+                                    clean_df.at[idx, 'ACTION'] = 'H'  # Hold
+                        except (ValueError, TypeError) as e:
+                            # If conversion fails, default to Hold
+                            clean_df.at[idx, 'ACTION'] = 'H'  # Hold
+                            logger.debug(f"Error converting values for ACTION calculation: {e}")
+                except YFinanceError as e:
                     # Suppress error message for action calculation
                     pass
             
@@ -4051,7 +4149,7 @@ def display_report_for_source(display, tickers, source, verbose=False):
                                 action, _ = calculate_action_for_row(internal_row, TRADING_CRITERIA)
                                 if action:  # If valid action returned
                                     clean_df.at[idx, 'ACTION'] = action
-                            except Exception as e:
+                            except YFinanceError as e:
                                 # Suppress error and debug messages for action calculation
                                 
                                 # Fall back to simplified criteria
@@ -4062,7 +4160,7 @@ def display_report_for_source(display, tickers, source, verbose=False):
                                     clean_df.at[idx, 'ACTION'] = 'B'  # Buy
                                 elif upside <= TRADING_CRITERIA['SELL']['SELL_MAX_UPSIDE'] or buy_pct <= TRADING_CRITERIA['SELL']['SELL_MIN_BUY_PERCENTAGE']:
                                     clean_df.at[idx, 'ACTION'] = 'S'  # Sell
-                    except Exception as e:
+                    except YFinanceError as e:
                         # Suppress row processing error
                         pass
                 
@@ -4148,7 +4246,7 @@ def display_report_for_source(display, tickers, source, verbose=False):
             # If no processing stats, just show title and timestamp
             print(f"\n{c['bold']}{report_title}{c['reset']} | {c['cyan']}Generated:{c['reset']} {c['yellow']}{timestamp}{c['reset']}")
             
-    except Exception as e:
+    except YFinanceError as e:
         # Suppress HTML generation error
         # Suppress traceback
         pass
@@ -4204,7 +4302,12 @@ def main_async():
         display = MarketDisplay(provider=provider)
         logger.info("MarketDisplay created successfully")
         
-        source = input("Load tickers for Portfolio (P), Market (M), eToro Market (E), Trade Analysis (T) or Manual Input (I)? ").strip().upper()
+        try:
+            source = input("Load tickers for Portfolio (P), Market (M), eToro Market (E), Trade Analysis (T) or Manual Input (I)? ").strip().upper()
+        except EOFError:
+            # For testing in non-interactive environments, default to Manual Input
+            print("Non-interactive environment detected, defaulting to Manual Input (I)")
+            source = "I"
         logger.info(f"User selected option: {source}")
         
         # Handle trade analysis separately
@@ -4239,7 +4342,7 @@ def main_async():
     except KeyboardInterrupt:
         # Exit silently on user interrupt
         sys.exit(0)
-    except Exception as e:
+    except YFinanceError as e:
         # Silently handle errors without any output
         # Just exit with error code
         sys.exit(1)
@@ -4248,7 +4351,7 @@ def main_async():
         try:
             if 'display' in locals() and hasattr(display, 'close'):
                 asyncio.run(display.close())
-        except Exception:
+        except YFinanceError:
             # Silently ignore any cleanup errors
             pass
 
@@ -4302,6 +4405,6 @@ if __name__ == "__main__":
         
         # Run the main function
         main()
-    except Exception as e:
+    except YFinanceError as e:
         # Silently handle errors without any output
         pass

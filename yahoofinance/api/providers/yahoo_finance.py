@@ -6,7 +6,10 @@ It provides a consistent API for retrieving financial information with
 appropriate rate limiting, caching, and error handling.
 """
 
-import logging
+from ...core.logging_config import get_logger
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import time
 from typing import Dict, Any, Optional, List, Tuple, cast
 import pandas as pd
@@ -19,7 +22,7 @@ from ...utils.market.ticker_utils import is_us_ticker
 from ...utils.network.rate_limiter import rate_limited
 from ...core.config import CACHE_CONFIG, COLUMN_NAMES
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
     """
@@ -108,7 +111,7 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 # Get basic info
                 info = ticker_obj.info
                 if not info:
-                    raise APIError(f"Failed to retrieve info for {ticker}")
+                    raise DataError(f"No information found for ticker {ticker}")
                 
                 # Extract key metrics using the base class helper
                 result = self._extract_common_ticker_info(info)
@@ -128,14 +131,14 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                             result["insider_buys"] = total_buys
                             result["insider_sells"] = total_sells
                             result["insider_ratio"] = total_buys / (total_buys + total_sells) if (total_buys + total_sells) > 0 else 0
-                    except Exception as e:
+                    except YFinanceError as e:
                         logger.warning(f"Failed to get insider data for {ticker}: {str(e)}")
                 
                 break
-            except RateLimitError as e:
+            except RateLimitError as rate_error:
                 # Use the shared retry logic handler from the base class
-                raise
-            except Exception as e:
+                raise rate_error
+            except YFinanceError as e:
                 # Use the shared retry logic handler from the base class
                 delay = self._handle_retry_logic(e, attempt, ticker, "ticker info")
                 time.sleep(delay)
@@ -164,10 +167,10 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             try:
                 # Use the shared _extract_historical_data method from the base class
                 return self._extract_historical_data(ticker, ticker_obj, period, interval)
-            except RateLimitError:
-                # Specific handling for rate limits - just re-raise
-                raise
-            except Exception as e:
+            except RateLimitError as rate_error:
+                # Specific handling for rate limits - just re-raise YFinanceError("An error occurred")
+                raise rate_error
+            except YFinanceError as e:
                 # Use the shared retry logic handler from the base class
                 delay = self._handle_retry_logic(e, attempt, ticker, "historical data")
                 time.sleep(delay)
@@ -221,16 +224,16 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 else:
                     return None, None
                     
-            except RateLimitError:
-                # Specific handling for rate limits - just re-raise
-                raise
-            except Exception as e:
+            except RateLimitError as rate_error:
+                # Specific handling for rate limits - just re-raise YFinanceError("An error occurred")
+                raise rate_error
+            except YFinanceError as e:
                 if attempt < self.max_retries - 1:
                     delay = self.retry_delay * (2 ** attempt)
                     logger.warning(f"Attempt {attempt+1}/{self.max_retries} failed for {ticker} earnings dates: {str(e)}. Retrying in {delay:.2f}s")
                     time.sleep(delay)
                 else:
-                    raise APIError(f"Failed to get earnings dates for {ticker} after {self.max_retries} attempts: {str(e)}")
+                    raise YFinanceError(f"Failed to get data after {self.max_retries} attempts")
     
     @rate_limited
     def get_analyst_ratings(self, ticker: str) -> Dict[str, Any]:
@@ -292,16 +295,16 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 
                 return result
                 
-            except RateLimitError:
-                # Specific handling for rate limits - just re-raise
-                raise
-            except Exception as e:
+            except RateLimitError as rate_error:
+                # Specific handling for rate limits - just re-raise YFinanceError("An error occurred")
+                raise rate_error
+            except YFinanceError as e:
                 if attempt < self.max_retries - 1:
                     delay = self.retry_delay * (2 ** attempt)
                     logger.warning(f"Attempt {attempt+1}/{self.max_retries} failed for {ticker} analyst ratings: {str(e)}. Retrying in {delay:.2f}s")
                     time.sleep(delay)
                 else:
-                    raise APIError(f"Failed to get analyst ratings for {ticker} after {self.max_retries} attempts: {str(e)}")
+                    raise YFinanceError(f"Failed to get data after {self.max_retries} attempts")
     
     @rate_limited
     def get_insider_transactions(self, ticker: str) -> List[Dict[str, Any]]:
@@ -348,16 +351,16 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 
                 return result
                 
-            except RateLimitError:
-                # Specific handling for rate limits - just re-raise
-                raise
-            except Exception as e:
+            except RateLimitError as rate_error:
+                # Specific handling for rate limits - just re-raise YFinanceError("An error occurred")
+                raise rate_error
+            except YFinanceError as e:
                 if attempt < self.max_retries - 1:
                     delay = self.retry_delay * (2 ** attempt)
                     logger.warning(f"Attempt {attempt+1}/{self.max_retries} failed for {ticker} insider transactions: {str(e)}. Retrying in {delay:.2f}s")
                     time.sleep(delay)
                 else:
-                    raise APIError(f"Failed to get insider transactions for {ticker} after {self.max_retries} attempts: {str(e)}")
+                    raise YFinanceError(f"Failed to get data after {self.max_retries} attempts")
     
     @rate_limited
     def search_tickers(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
@@ -400,17 +403,18 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 
                 return results
                 
-            except RateLimitError:
-                # Specific handling for rate limits - just re-raise
-                raise
-            except Exception as e:
+            except RateLimitError as rate_error:
+                # Specific handling for rate limits - just re-raise YFinanceError("An error occurred")
+                raise rate_error
+            except YFinanceError as e:
                 if attempt < self.max_retries - 1:
                     delay = self.retry_delay * (2 ** attempt)
                     logger.warning(f"Attempt {attempt+1}/{self.max_retries} failed for search query '{query}': {str(e)}. Retrying in {delay:.2f}s")
                     time.sleep(delay)
                 else:
-                    raise APIError(f"Failed to search tickers for '{query}' after {self.max_retries} attempts: {str(e)}")
+                    raise YFinanceError(f"Failed to get data after {self.max_retries} attempts")
     
+    @with_retry
     def batch_get_ticker_info(self, tickers: List[str], skip_insider_metrics: bool = False) -> Dict[str, Dict[str, Any]]:
         """
         Get ticker information for multiple tickers in a batch.
@@ -432,7 +436,7 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         for ticker in tickers:
             try:
                 results[ticker] = self.get_ticker_info(ticker, skip_insider_metrics)
-            except Exception as e:
+            except YFinanceError as e:
                 results[ticker] = self._process_error_for_batch(ticker, e)
         
         return results

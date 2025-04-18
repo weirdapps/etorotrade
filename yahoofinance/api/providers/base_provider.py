@@ -5,13 +5,13 @@ This module defines the abstract base classes that all providers must implement,
 ensuring a consistent interface regardless of the underlying data source.
 """
 
-import logging
+from ...core.logging_config import get_logger
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List, Tuple, Union
 import pandas as pd
 from ...core.errors import YFinanceError
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class FinanceDataProvider(ABC):
     """

@@ -1,4 +1,7 @@
 import unittest
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 from unittest.mock import Mock
 import yfinance as yf
 from yahoofinance.core.types import YFinanceError, APIError, ValidationError, StockData
@@ -30,7 +33,7 @@ class TestExceptions(unittest.TestCase):
             try:
                 raise original_error
             except ValueError as e:
-                raise APIError("API error") from e
+                raise from e
         except APIError as e:
             self.assertIs(e.__cause__, original_error)
 

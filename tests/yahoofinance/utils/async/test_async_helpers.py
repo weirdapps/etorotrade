@@ -19,6 +19,7 @@ from yahoofinance.utils.async_utils import (
     global_async_rate_limiter as global_async_limiter
 )
 from yahoofinance.core.errors import RateLimitError, APIError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 
 
 # Helper functions for testing
@@ -239,7 +240,7 @@ class TestGatherWithRateLimit:
                     async_identity(3),
                     return_exceptions=True
                 )
-        except Exception:
+        except YFinanceError:
             pytest.fail("Should not have raised with return_exceptions=True")
 
 

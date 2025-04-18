@@ -192,8 +192,8 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
 
         return merged_data
 
-    async @with_retry 
-def batch_get_ticker_info(self, tickers: List[str], skip_insider_metrics: bool = False) -> Dict[str, Dict[str, Any]]:
+    @with_retry
+    async def batch_get_ticker_info(self, tickers: List[str], skip_insider_metrics: bool = False) -> Dict[str, Dict[str, Any]]:
         """
         Process multiple tickers concurrently using the hybrid get_ticker_info.
         """
@@ -217,20 +217,81 @@ def batch_get_ticker_info(self, tickers: List[str], skip_insider_metrics: bool =
                         logger.warning(f"Missing PEG ratio for NVDA, setting to default")
                         result["peg_ratio"] = 1.7
                 return result
-            except YFinanceError as e:
+            except Exception as e:
+                # Catch any exception to prevent the entire batch from failing
                 # Use ticker variable since original_ticker isn't defined in this scope
                 logger.error(f"Error in hybrid batch fetch for {ticker}: {e}")
-                return {"symbol": ticker, "ticker": ticker, "company": ticker, "error": str(e)}
+                return {
+                    "symbol": ticker, 
+                    "ticker": ticker, 
+                    "company": ticker.upper(), 
+                    "error": str(e),
+                    "price": None,
+                    "current_price": None,
+                    "forward_pe": None,
+                    "trailing_pe": None,
+                    "peg_ratio": None,
+                    "beta": None,
+                    "dividend_yield": None,
+                    "market_cap": None,
+                    "data_source": "error",
+                    "_not_found": True
+                }
 
         tasks_to_run = [get_hybrid_info(ticker) for ticker in tickers]
         results_list = await gather_with_concurrency(tasks_to_run, limit=self.max_concurrency)
 
         processed_results = {}
-        for result in results_list:
-             if isinstance(result, dict) and "symbol" in result:
-                 processed_results[result["symbol"]] = result
-             else:
-                 logger.error(f"Unexpected result type in hybrid batch processing: {type(result)}")
+        for i, result in enumerate(results_list):
+            try:
+                if isinstance(result, dict) and "symbol" in result:
+                    processed_results[result["symbol"]] = result
+                elif isinstance(result, dict):
+                    # If we have a dict without a symbol, try to recover using the original ticker list
+                    if i < len(tickers):
+                        fallback_ticker = tickers[i]
+                        logger.warning(f"Result missing symbol key, using fallback ticker: {fallback_ticker}")
+                        result["symbol"] = fallback_ticker
+                        result["ticker"] = fallback_ticker
+                        result["company"] = fallback_ticker.upper()
+                        result["_not_found"] = True
+                        result["data_source"] = "error"
+                        processed_results[fallback_ticker] = result
+                    else:
+                        logger.error(f"Cannot recover result without symbol: {result}")
+                else:
+                    # Handle completely unexpected result (not a dict)
+                    logger.error(f"Unexpected result type in hybrid batch processing: {type(result)}")
+                    if i < len(tickers):
+                        fallback_ticker = tickers[i]
+                        logger.warning(f"Creating fallback result for ticker: {fallback_ticker}")
+                        processed_results[fallback_ticker] = {
+                            "symbol": fallback_ticker,
+                            "ticker": fallback_ticker,
+                            "company": fallback_ticker.upper(),
+                            "error": f"Invalid result: {str(result)[:100]}",
+                            "price": None,
+                            "current_price": None,
+                            "data_source": "error",
+                            "_not_found": True
+                        }
+            except Exception as e:
+                # Ultimate fallback - if anything goes wrong in processing an individual result,
+                # don't let it crash the entire batch
+                logger.error(f"Error processing batch result: {e}")
+                if i < len(tickers):
+                    fallback_ticker = tickers[i]
+                    processed_results[fallback_ticker] = {
+                        "symbol": fallback_ticker,
+                        "ticker": fallback_ticker,
+                        "company": fallback_ticker.upper(),
+                        "error": f"Processing error: {str(e)}",
+                        "price": None,
+                        "current_price": None,
+                        "data_source": "error",
+                        "_not_found": True
+                    }
+                
         return processed_results
 
     # --- Delegate other methods primarily to yf_provider (or add specific hybrid logic) ---

@@ -5,10 +5,13 @@ This module provides utilities for providers to reduce duplication
 and promote consistent behavior.
 """
 
-import logging
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
+
+
+from ..core.logging_config import get_logger
 from typing import Dict, Any, List, Tuple, Optional, Union, Callable
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 def is_rate_limit_error(error: Exception) -> bool:
     """
@@ -20,6 +23,9 @@ def is_rate_limit_error(error: Exception) -> bool:
     Returns:
         True if error is related to rate limiting, False otherwise
     """
+
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
+
     error_str = str(error).lower()
     rate_limit_patterns = [
         "rate limit", 
@@ -43,6 +49,9 @@ def safe_extract_value(obj: Any, key: str, default: Any = 0) -> Any:
     Returns:
         Extracted value or default
     """
+
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
+
     try:
         if hasattr(obj, 'get'):
             value = obj.get(key, default)
@@ -73,6 +82,9 @@ def merge_ticker_results(
     Returns:
         Dictionary mapping all tickers to their results or errors
     """
+
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
+
     # Start with successful results
     merged = {ticker: data for ticker, data in results.items()}
     

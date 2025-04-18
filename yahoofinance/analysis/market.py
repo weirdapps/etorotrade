@@ -8,7 +8,10 @@ When run directly, this module performs market analysis on a default set of tick
 """
 
 import pandas as pd
-import logging
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
+from ..core.logging_config import get_logger
 import sys
 from typing import Dict, List, Optional, Any, Union, Set, Tuple
 from dataclasses import dataclass, field
@@ -17,7 +20,7 @@ from ..api import get_provider, FinanceDataProvider, AsyncFinanceDataProvider
 from ..core.config import TRADING_CRITERIA
 from ..core.errors import YFinanceError
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 @dataclass
 class MarketMetrics:
@@ -228,7 +231,7 @@ def get_short_interest_condition(df: pd.DataFrame, short_interest_threshold: flo
                 clean_values = no_pct_values.replace('nan', float('NaN'))
                 # Convert to numeric, coercing errors to NaN
                 si_values = pd.to_numeric(clean_values, errors='coerce')
-            except Exception as e:
+            except YFinanceError as e:
                 logger.debug(f"Error converting short interest values: {e}")
                 # Return safe default
                 return pd.Series(True if is_maximum else False, index=df.index)
@@ -347,7 +350,7 @@ class MarketAnalyzer:
             market_df = pd.DataFrame(market_data)
             return classify_stocks(market_df)
         
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error analyzing market: {str(e)}")
             raise YFinanceError(f"Failed to analyze market: {str(e)}")
     
@@ -378,7 +381,7 @@ class MarketAnalyzer:
             market_df = pd.DataFrame(market_data)
             return classify_stocks(market_df)
         
-        except Exception as e:
+        except YFinanceError as e:
             logger.error(f"Error analyzing market asynchronously: {str(e)}")
             raise YFinanceError(f"Failed to analyze market asynchronously: {str(e)}")
     
@@ -1299,6 +1302,6 @@ if __name__ == "__main__":
         else:
             print(result_df[['ticker', 'price', 'upside', 'buy_percentage']].head(10))
         
-    except Exception as e:
+    except YFinanceError as e:
         print(f"Error analyzing market data: {str(e)}")
         sys.exit(1)

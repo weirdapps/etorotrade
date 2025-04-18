@@ -8,11 +8,11 @@ to reduce code duplication.
 """
 
 from typing import Optional, Union
-import logging
+from ..core.logging_config import get_logger
 
 from ..api import get_provider, FinanceDataProvider, AsyncFinanceDataProvider
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class BaseAnalysisService:
     """

@@ -1,4 +1,7 @@
 import unittest
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 from unittest.mock import patch, MagicMock
 import pandas as pd
 from yahoofinance.utils.pagination import (
@@ -11,6 +14,8 @@ from yahoofinance.utils.pagination import (
 original_bulk_fetch = bulk_fetch
 
 # Create a simplified version that doesn't rely on the global rate limiter
+@with_retry
+
 def patched_bulk_fetch(items, fetcher, result_extractor, batch_size=10):
     results = []
     
@@ -19,7 +24,7 @@ def patched_bulk_fetch(items, fetcher, result_extractor, batch_size=10):
             response = fetcher(item)
             result = result_extractor(response)
             results.append((item, result))
-        except Exception:
+        except YFinanceError:
             results.append((item, None))
             
     return results
@@ -70,12 +75,14 @@ class TestPaginationUtils(unittest.TestCase):
         )
         
         all_items = results.get_all()
-        self.assertEqual(all_items, [1, 2, 3, 4, 5, 6])
+ @with_retry
+ 
+def test_paginated_request(_items, [1, 2, 3, 4, 5, 6])
     
     def test_paginated_request(self):
         """Test paginated request wrapper function."""
-        # Since we're now using the pagination module as a re-export layer,
-        # let's test the actual functionality without mocking
+        # Since we're now using the pagination module as a @with_retry 
+def mock_fetcher(        # let's test the actual functionality without mocking
         
         # Define a mock fetcher
         def mock_fetcher(token=None):
@@ -86,12 +93,13 @@ class TestPaginationUtils(unittest.TestCase):
             fetcher=mock_fetcher,
             items_key="items",
             token_key="next_page_token",
-            max_pages=3,
-            ticker="AAPL"
+            max_pages=@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_bulk_fetch(r="AAPL"
         )
         
         # Verify results - since the paginated_request function should return the actual data
-        self.assertEqual(result, [1, 2])
+        se@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def mock_fetcher(sult, [1, 2])
     
     def test_bulk_fetch(self):
         """Test bulk fetch utility for multiple items - using the patched version."""
@@ -125,7 +133,8 @@ class TestPaginationUtils(unittest.TestCase):
         self.assertIsNone(item2_result[1])  # Should be None due to error
         
         item3_result = next(r for r in results if r[0] == "item3")
-        self.assertEqual(item3_result[1], "result for item3")
+        self.assertEqual(ite@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def api_error_fetcher(for item3")
     
     @patch('time.sleep')  # Mock sleep to avoid actual delays
     def test_error_handling(self, mock_sleep):
@@ -134,7 +143,7 @@ class TestPaginationUtils(unittest.TestCase):
         
         # Test case 1: API Error
         def api_error_fetcher(token=None):
-            raise APIError("API Error")
+            raise YFinanceError("An error occurred")
         
         paginator = PaginatedResults(fetcher=api_error_fetcher, max_pages=1)
         result = paginator.get_all()

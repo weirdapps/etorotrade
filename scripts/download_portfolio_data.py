@@ -9,7 +9,7 @@ and saves it to a cache file for faster portfolio optimization.
 import os
 import sys
 import argparse
-import logging
+from ..core.logging_config import get_logger
 import time
 import pandas as pd
 import yfinance as yf
@@ -22,6 +22,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from yahoofinance.utils.network.rate_limiter import RateLimiter
 from yahoofinance.core.errors import YFinanceError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 
 def parse_args():
     """Parse command-line arguments."""
@@ -193,7 +194,7 @@ def fetch_historical_data(tickers, max_years, batch_size, base_delay):
                         else:
                             all_data = pd.concat([all_data, prices_df[valid_batch_tickers]], axis=1)
         
-        except Exception as e:
+        except YFinanceError as e:
             # Record failed API call
             is_rate_limit = "rate limit" in str(e).lower() or "too many requests" in str(e).lower()
             rate_limiter.record_failure(batch_tickers[0] if batch_tickers else None, is_rate_limit)
@@ -266,7 +267,7 @@ def fetch_current_prices(tickers, batch_size, base_delay):
                         current_prices[ticker] = info['currentPrice']
                     elif 'previousClose' in info and info['previousClose'] is not None:
                         current_prices[ticker] = info['previousClose']
-                except Exception as e:
+                except YFinanceError as e:
                     logging.warning(f"Error fetching price for {ticker}: {str(e)}")
             
             # Record successful API call
@@ -276,7 +277,7 @@ def fetch_current_prices(tickers, batch_size, base_delay):
             # Add a small delay between batches
             time.sleep(0.5)
             
-        except Exception as e:
+        except YFinanceError as e:
             # Record failed API call
             is_rate_limit = "rate limit" in str(e).lower() or "too many requests" in str(e).lower()
             rate_limiter.record_failure(batch_tickers[0] if batch_tickers else None, is_rate_limit)
@@ -393,7 +394,7 @@ def main():
     except KeyboardInterrupt:
         print("\nData collection interrupted by user.")
         sys.exit(1)
-    except Exception as e:
+    except YFinanceError as e:
         print(f"\nError: {str(e)}")
         sys.exit(1)
 

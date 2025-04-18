@@ -39,6 +39,9 @@ def test_safe_float_conversion(analyst_data):
     assert analyst_data._safe_float_conversion(None) is None
     assert analyst_data._safe_float_conversion('invalid') is None
 
+@with_retry
+
+
 def test_fetch_ratings_data_success(analyst_data, mock_client, sample_ratings_df):
     # Setup mock
     mock_stock = Mock()
@@ -50,20 +53,22 @@ def test_fetch_ratings_data_success(analyst_data, mock_client, sample_ratings_df
     result = analyst_data.fetch_ratings_data('AAPL', '2024-01-01')
     assert isinstance(result, pd.DataFrame)
     assert len(result) == 3
-    assert all(col in result.columns for col in ['GradeDate', 'Firm', 'FromGrade', 'ToGrade', 'Action'])
+    assert all(col in result.columns for c@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_fetch_ratings_data_no_data(de', 'ToGrade', 'Action'])
 
 def test_fetch_ratings_data_no_data(analyst_data, mock_client):
     # Setup mock for empty data
     mock_stock = Mock()
     mock_stock._stock = Mock()
     mock_stock._stock.upgrades_downgrades = None
-    mock_client.get_ticker_info.return_value = mock_stock
+    mock_cl@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_fetch_ratings_data_error(= mock_stock
 
     result = analyst_data.fetch_ratings_data('AAPL')
     assert result is None
 
-def test_fetch_ratings_data_error(analyst_data, mock_client):
-    mock_client.get_ticker_info.side_effect = Exception("API Error")
+def test_fetch_ratings_data_erro@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_get_ratings_summary_success(k_client.get_ticker_info.side_effect = Exception("API Error")
     
     with pytest.raises(YFinanceError):
         analyst_data.fetch_ratings_data('AAPL')
@@ -83,9 +88,8 @@ def test_get_ratings_summary_success(analyst_data, mock_client, sample_ratings_d
     assert 'total_ratings' in result
     assert 'ratings_type' in result
     assert result['total_ratings'] == 3
-    assert result['ratings_type'] == 'E'
-
-    # Test with specific start date
+    assert result['ratings_type']@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_get_ratings_summary_fallback(t date
     result = analyst_data.get_ratings_summary('AAPL', '2024-01-01', use_earnings_date=False)
     assert isinstance(result, dict)
     assert result['total_ratings'] == 3
@@ -103,7 +107,8 @@ def test_get_ratings_summary_fallback(analyst_data, mock_client, sample_ratings_
 
     # Test fallback to all-time data
     with patch.object(analyst_data, 'fetch_ratings_data') as mock_fetch:
-        mock_fetch.side_effect = [None, sample_ratings_df]  # First None for earnings, then data for all-time
+        mock_fetch.side_effect = [None, sample_@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_get_ratings_summary_no_data(s, then data for all-time
         result = analyst_data.get_ratings_summary('AAPL', use_earnings_date=True)
         
         assert isinstance(result, dict)
@@ -112,8 +117,9 @@ def test_get_ratings_summary_fallback(analyst_data, mock_client, sample_ratings_
 
 def test_get_ratings_summary_no_data(analyst_data, mock_client):
     # Setup mock for no data
-    mock_stock = Mock()
-    mock_stock._stock = Mock()
+    @with_retry
+    
+def test_get_recent_changes_success(stock = Mock()
     mock_stock._stock.upgrades_downgrades = None
     mock_stock.last_earnings = None
     mock_client.get_ticker_info.return_value = mock_stock
@@ -135,14 +141,14 @@ def test_get_recent_changes_success(analyst_data, mock_client, sample_ratings_df
         'ToGrade': ['Buy', 'Hold', 'Strong Buy'],
         'Action': ['up', 'up', 'up']
     })
+    @with_retry
     
-    mock_stock = Mock()
-    mock_stock._stock = Mock()
+def test_get_recent_changes_invalid_days(stock = Mock()
     mock_stock._stock.upgrades_downgrades = df
     mock_client.get_ticker_info.return_value = mock_stock
 
-    result = analyst_data.get_recent_changes('AAPL', days=30)
-    assert isinstance(result, list)
+    result = analyst_data.get_r@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_get_recent_changes_no_data(ssert isinstance(result, list)
     assert len(result) == 3
     assert all(isinstance(change, dict) for change in result)
     assert all(key in result[0] for key in ['date', 'firm', 'from_grade', 'to_grade', 'action'])

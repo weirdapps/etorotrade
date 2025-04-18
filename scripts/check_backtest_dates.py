@@ -6,7 +6,7 @@ to understand backtesting period limitations.
 
 import os
 import sys
-import logging
+from ..core.logging_config import get_logger
 import pandas as pd
 from datetime import datetime, timedelta
 import time
@@ -19,13 +19,14 @@ sys.path.insert(0, project_root)
 from yahoofinance.api import get_provider
 from yahoofinance.core.config import FILE_PATHS
 from yahoofinance.core.errors import YFinanceError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 def _process_ticker_data(ticker, i, total_count, provider, period):
     """Process data for a single ticker and return results."""
@@ -61,7 +62,7 @@ def _process_ticker_data(ticker, i, total_count, provider, period):
                 "error_message": "Empty dataset"
             }
             print(f"[{i+1}/{total_count}] {ticker}: No data available")
-    except Exception as e:
+    except YFinanceError as e:
         # Handle errors
         result = {
             "ticker": ticker,
@@ -206,7 +207,7 @@ def main():
         results.to_csv(output_file, index=False)
         print(f"\nSaved detailed results to {output_file}")
         
-    except Exception as e:
+    except YFinanceError as e:
         logger.error(f"Error: {str(e)}")
         sys.exit(1)
 

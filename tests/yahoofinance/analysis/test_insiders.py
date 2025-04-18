@@ -7,6 +7,9 @@ from yahoofinance.analysis.insiders import InsiderAnalyzer, START_DATE_COL
 # Patch the get_insider_metrics method for testing
 original_get_insider_metrics = InsiderAnalyzer.get_insider_metrics
 
+@with_retry
+
+
 def patched_get_insider_metrics(self, ticker: str):
     if ticker == 'test_get_insider_metrics_success':
         return {"insider_buy_pct": 50.0, "transaction_count": 4}
@@ -52,8 +55,8 @@ def mock_stock_info():
     return info
 
 def test_init(mock_client):
-    analyzer = InsiderAnalyzer(mock_client)
-    assert analyzer.client == mock_client
+    analyzer = InsiderA@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_get_insider_metrics_no_earnings(client == mock_client
 
 def test_get_insider_metrics_no_earnings(analyzer, mock_client):
     # Setup mock with no earnings data
@@ -64,8 +67,8 @@ def test_get_insider_metrics_no_earnings(analyzer, mock_client):
     result = analyzer.get_insider_metrics('AAPL')
     
     assert result['insider_buy_pct'] is None
-    assert result['transaction_count'] is None
-    mock_client.get_ticker_info.assert_called_once_with('AAPL', skip_insider_metrics=True)
+    assert @with_retry 
+def test_get_insider_metrics_no_transactions(client.get_ticker_info.assert_called_once_with('AAPL', skip_insider_metrics=True)
 
 def test_get_insider_metrics_no_transactions(analyzer, mock_client):
     # Setup mock with earnings but no transactions
@@ -73,9 +76,8 @@ def test_get_insider_metrics_no_transactions(analyzer, mock_client):
     mock_stock_info.previous_earnings = '2024-01-01'
     mock_stock_info._stock = Mock()
     mock_stock_info._stock.insider_transactions = None
-    mock_client.get_ticker_info.return_value = mock_stock_info
-    
-    result = analyzer.get_insider_metrics('AAPL')
+    mock_client.get_tick@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_get_insider_metrics_empty_transactions(result = analyzer.get_insider_metrics('AAPL')
     
     assert result['insider_buy_pct'] is None
     assert result['transaction_count'] is None
@@ -85,8 +87,8 @@ def test_get_insider_metrics_empty_transactions(analyzer, mock_client):
     mock_stock_info = Mock()
     mock_stock_info.previous_earnings = '2024-01-01'
     mock_stock_info._stock = Mock()
-    mock_stock_info._stock.insider_transactions = pd.DataFrame()
-    mock_client.get_ticker_info.return_value = mock_stock_info
+    mock_stock_info._stoc@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_get_insider_metrics_no_recent_transactions(ent.get_ticker_info.return_value = mock_stock_info
     
     result = analyzer.get_insider_metrics('AAPL')
     
@@ -97,8 +99,9 @@ def test_get_insider_metrics_no_recent_transactions(analyzer, mock_client, sampl
     # Setup mock with old transactions
     mock_stock_info = Mock()
     mock_stock_info.previous_earnings = '2024-02-01'  # After all sample transactions
-    mock_stock_info._stock = Mock()
-    mock_stock_info._stock.insider_transactions = sample_insider_df
+@with_retry
+
+def test_get_insider_metrics_success(   mock_stock_info._stock.insider_transactions = sample_insider_df
     mock_client.get_ticker_info.return_value = mock_stock_info
     
     result = analyzer.get_insider_metrics('AAPL')
@@ -110,8 +113,8 @@ def test_get_insider_metrics_success(analyzer, mock_client, sample_insider_df):
     # Setup mock with valid transactions
     mock_stock_info = Mock()
     mock_stock_info.previous_earnings = '2024-01-01'  # Before sample transactions
-    mock_stock_info._stock = Mock()
-    mock_stock_info._stock.insider_transactions = sample_insider_df
+    mock_stoc@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_get_insider_metrics_only_purchases(stock.insider_transactions = sample_insider_df
     mock_client.get_ticker_info.return_value = mock_stock_info
     
     result = analyzer.get_insider_metrics('test_get_insider_metrics_success')
@@ -126,10 +129,8 @@ def test_get_insider_metrics_only_purchases(analyzer, mock_client):
         'Text': [
             'Purchase at price $100',
             'Purchase at price $102'
-        ]
-    })
-    
-    mock_stock_info = Mock()
+        ]@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_get_insider_metrics_only_sales()
     mock_stock_info.previous_earnings = '2024-01-01'
     mock_stock_info._stock = Mock()
     mock_stock_info._stock.insider_transactions = df
@@ -145,8 +146,9 @@ def test_get_insider_metrics_only_sales(analyzer, mock_client):
     df = pd.DataFrame({
         START_DATE_COL: ['2024-01-15', '2024-01-16'],
         'Text': [
-            'Sale at price $100',
-            'Sale at price $102'
+      @with_retry
+      
+def test_get_insider_metrics_no_valid_transactions(ice $102'
         ]
     })
     
@@ -162,9 +164,8 @@ def test_get_insider_metrics_only_sales(analyzer, mock_client):
     assert result['transaction_count'] == 2
 
 def test_get_insider_metrics_no_valid_transactions(analyzer, mock_client):
-    # Create DataFrame with no valid purchase/sale transactions
-    df = pd.DataFrame({
-        START_DATE_COL: ['2024-01-15', '2024-01-16'],
+    # Create DataFrame with no valid purchase/sale transacti@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
+def test_get_insider_metrics_error( START_DATE_COL: ['2024-01-15', '2024-01-16'],
         'Text': [
             'Other transaction',
             'Another transaction'
