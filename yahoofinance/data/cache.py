@@ -9,7 +9,10 @@ API calls and improve performance. It includes:
 - Size management to prevent unbounded growth
 """
 
-import logging
+from ..core.logging_config import get_logger
+
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import os
 import json
 import time
@@ -23,7 +26,7 @@ import hashlib
 
 from ..core.config import CACHE_CONFIG
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class CacheKeyGenerator:
     """Generates consistent cache keys for different types of arguments"""
@@ -212,12 +215,12 @@ class DiskCache:
         self.default_ttl = default_ttl
         self.index_path = self.cache_dir / "index.json"
         
+        # Create lock for thread safety - must be created before calling methods
+        self.lock = threading.RLock()
+        
         # Create or load index
         self.index: Dict[str, Dict[str, Any]] = {}
         self._load_index()
-        
-        # Create lock for thread safety
-        self.lock = threading.RLock()
     
     def _load_index(self) -> None:
         """Load cache index from disk"""
@@ -228,7 +231,7 @@ class DiskCache:
                 
                 # Clean up expired entries on load
                 self._cleanup()
-        except Exception as e:
+        except YFinanceError as e:
             logger.warning(f"Failed to load cache index: {str(e)}")
             self.index = {}
     
@@ -237,9 +240,10 @@ class DiskCache:
         try:
             with open(self.index_path, 'w') as f:
                 json.dump(self.index, f)
-        except Exception as e:
+        except YFinanceError as e:
             logger.warning(f"Failed to save cache index: {str(e)}")
     
+    @with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
     def _get_file_path(self, key: str) -> Path:
         """Get file path for a cache key"""
         # Use a hash of the key for the filename to avoid invalid characters
@@ -319,7 +323,7 @@ class DiskCache:
                     # File missing but in index, clean up
                     self.remove(key)
                     return None
-            except Exception as e:
+            except YFinanceError as e:
                 logger.warning(f"Failed to read cache file {file_path}: {str(e)}")
                 self.remove(key)
                 return None
@@ -361,7 +365,7 @@ class DiskCache:
                 if self._get_cache_size() > self.max_size_bytes:
                     self._cleanup()
                     
-            except Exception as e:
+            except YFinanceError as e:
                 logger.warning(f"Failed to write cache file {file_path}: {str(e)}")
     
     def remove(self, key: str) -> bool:
@@ -381,7 +385,7 @@ class DiskCache:
                 try:
                     if file_path.exists():
                         file_path.unlink()
-                except Exception as e:
+                except YFinanceError as e:
                     logger.warning(f"Failed to delete cache file {file_path}: {str(e)}")
                 
                 # Remove from index
