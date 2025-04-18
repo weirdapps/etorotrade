@@ -482,24 +482,44 @@ class CacheManager:
             
             # Specific TTLs by data type
             "ticker_info": {
-                "memory": CACHE_CONFIG.get("TICKER_INFO_MEMORY_TTL", 300),  # 5 minutes
-                "disk": CACHE_CONFIG.get("TICKER_INFO_DISK_TTL", 3600)      # 1 hour
+                "memory": CACHE_CONFIG.get("TICKER_INFO_MEMORY_TTL", 86400),     # 1 day
+                "disk": CACHE_CONFIG.get("TICKER_INFO_DISK_TTL", 604800)         # 1 week
             },
             "market_data": {
-                "memory": CACHE_CONFIG.get("MARKET_DATA_MEMORY_TTL", 60),   # 1 minute
-                "disk": CACHE_CONFIG.get("MARKET_DATA_DISK_TTL", 1800)      # 30 minutes
+                "memory": CACHE_CONFIG.get("MARKET_DATA_MEMORY_TTL", 60),        # 1 minute
+                "disk": CACHE_CONFIG.get("MARKET_DATA_DISK_TTL", 180)            # 3 minutes
             },
             "fundamentals": {
-                "memory": CACHE_CONFIG.get("FUNDAMENTALS_MEMORY_TTL", 3600),   # 1 hour
-                "disk": CACHE_CONFIG.get("FUNDAMENTALS_DISK_TTL", 86400)       # 1 day
+                "memory": CACHE_CONFIG.get("FUNDAMENTALS_MEMORY_TTL", 60),       # 1 minute
+                "disk": CACHE_CONFIG.get("FUNDAMENTALS_DISK_TTL", 180)           # 3 minutes
             },
             "news": {
-                "memory": CACHE_CONFIG.get("NEWS_MEMORY_TTL", 900),         # 15 minutes
-                "disk": CACHE_CONFIG.get("NEWS_DISK_TTL", 7200)             # 2 hours
+                "memory": CACHE_CONFIG.get("NEWS_MEMORY_TTL", 600),              # 10 minutes
+                "disk": CACHE_CONFIG.get("NEWS_DISK_TTL", 1200)                  # 20 minutes
             },
             "analysis": {
-                "memory": CACHE_CONFIG.get("ANALYSIS_MEMORY_TTL", 1800),    # 30 minutes
-                "disk": CACHE_CONFIG.get("ANALYSIS_DISK_TTL", 14400)        # 4 hours
+                "memory": CACHE_CONFIG.get("ANALYSIS_MEMORY_TTL", 600),          # 10 minutes
+                "disk": CACHE_CONFIG.get("ANALYSIS_DISK_TTL", 1200)              # 20 minutes
+            },
+            "historical_data": {
+                "memory": CACHE_CONFIG.get("HISTORICAL_DATA_MEMORY_TTL", 86400), # 1 day
+                "disk": CACHE_CONFIG.get("HISTORICAL_DATA_DISK_TTL", 172800)     # 2 days
+            },
+            "earnings_data": {
+                "memory": CACHE_CONFIG.get("EARNINGS_DATA_MEMORY_TTL", 600),     # 10 minutes
+                "disk": CACHE_CONFIG.get("EARNINGS_DATA_DISK_TTL", 1200)         # 20 minutes
+            },
+            "insider_trades": {
+                "memory": CACHE_CONFIG.get("INSIDER_TRADES_MEMORY_TTL", 86400),  # 1 day
+                "disk": CACHE_CONFIG.get("INSIDER_TRADES_DISK_TTL", 172800)      # 2 days
+            },
+            "dividend_data": {
+                "memory": CACHE_CONFIG.get("DIVIDEND_DATA_MEMORY_TTL", 86400),   # 1 day
+                "disk": CACHE_CONFIG.get("DIVIDEND_DATA_DISK_TTL", 172800)       # 2 days
+            },
+            "target_price": {
+                "memory": CACHE_CONFIG.get("TARGET_PRICE_MEMORY_TTL", 600),      # 10 minutes
+                "disk": CACHE_CONFIG.get("TARGET_PRICE_DISK_TTL", 1200)          # 20 minutes
             }
         }
     
