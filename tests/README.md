@@ -34,8 +34,14 @@ Tests are organized in a hierarchical structure mirroring the package:
       - `async_utils/`: Tests for async network utilities
   - `validators/`: Tests for validation functions
 - `trade/`: Tests for main trade module functionality
+- `debug/`: Scripts for debugging issues (previously scattered in project root)
 - `e2e/`: End-to-end tests for complete workflows
 - `integration/`: Integration tests for component interactions
+- `unit/`: Unit tests organized by module
+  - `api/`: Unit tests for API components
+  - `core/`: Unit tests for core functionality
+  - `trade/`: Unit tests for trade functionality
+  - `utils/`: Unit tests for utility modules
 - `fixtures/`: Shared test fixtures
 - `conftest.py`: Pytest configuration and global fixtures
 
