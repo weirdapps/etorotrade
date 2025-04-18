@@ -115,44 +115,91 @@ class YahooFinanceBaseProvider(ABC):
         Returns:
             Dictionary containing extracted ticker information
         """
-        # Helper function to safely extract values
-        def safe_extract_value(data, key, default=None):
-            if key in data and data[key] is not None:
-                return data[key]
-            return default
-            
-        # Extract the common fields
-        result = {
-            "name": safe_extract_value(info, 'shortName', safe_extract_value(info, 'longName', '')).upper(),
-            "price": safe_extract_value(info, 'regularMarketPrice'),
-            "change": safe_extract_value(info, 'regularMarketChange'),
-            "change_percent": safe_extract_value(info, 'regularMarketChangePercent'),
-            "market_cap": safe_extract_value(info, 'marketCap'),
-            "volume": safe_extract_value(info, 'regularMarketVolume'),
-            "avg_volume": safe_extract_value(info, 'averageVolume'),
-            "pe_ratio": safe_extract_value(info, 'trailingPE'),
-            "forward_pe": safe_extract_value(info, 'forwardPE'),
-            "dividend_yield": safe_extract_value(info, 'dividendYield'),
-            "target_price": safe_extract_value(info, 'targetMeanPrice'),
-            "beta": safe_extract_value(info, 'beta'),
-            "eps": safe_extract_value(info, 'trailingEps'),
-            "forward_eps": safe_extract_value(info, 'forwardEps'),
-            "peg_ratio": safe_extract_value(info, 'pegRatio'),
-            "sector": safe_extract_value(info, 'sector'),
-            "industry": safe_extract_value(info, 'industry'),
-            "fifty_two_week_high": safe_extract_value(info, 'fiftyTwoWeekHigh'),
-            "fifty_two_week_low": safe_extract_value(info, 'fiftyTwoWeekLow'),
-            "fifty_day_avg": safe_extract_value(info, 'fiftyDayAverage'),
-            "two_hundred_day_avg": safe_extract_value(info, 'twoHundredDayAverage'),
-            "exchange": safe_extract_value(info, 'exchange'),
-            "country": safe_extract_value(info, 'country'),
-            "data_source": "yfinance",
-        }
+        # Check if info is a valid dictionary - if not, provide minimal result
+        if not isinstance(info, dict):
+            logger.warning(f"Invalid info object type: {type(info)}. Using empty info.")
+            info = {"symbol": info.get("symbol", "unknown") if hasattr(info, "get") else "unknown"}
         
-        # Add calculated fields
-        result['upside_potential'] = self._calculate_upside_potential(result['price'], result['target_price'])
+        # Helper function to safely extract values with type checking
+        def safe_extract_value(data, key, default=None):
+            try:
+                if isinstance(data, dict) and key in data and data[key] is not None:
+                    return data[key]
+            except (TypeError, AttributeError, KeyError) as e:
+                logger.debug(f"Error extracting {key}: {str(e)}")
+            return default
+        
+        # Get ticker symbol for logging
+        symbol = safe_extract_value(info, 'symbol', safe_extract_value(info, 'ticker', 'unknown'))
+        
+        try:
+            # Get name safely (multiple fallbacks)
+            name = safe_extract_value(info, 'shortName', safe_extract_value(info, 'longName', symbol))
+            if name:
+                try:
+                    name = name.upper()
+                except (AttributeError, TypeError):
+                    name = str(name).upper()
+            else:
+                name = symbol.upper()
+                
+            # Extract the common fields
+            result = {
+                "symbol": symbol,
+                "name": name,
+                "company": name,  # Match both formats
+                "price": safe_extract_value(info, 'regularMarketPrice'),
+                "current_price": safe_extract_value(info, 'regularMarketPrice'),  # Match both formats
+                "change": safe_extract_value(info, 'regularMarketChange'),
+                "change_percent": safe_extract_value(info, 'regularMarketChangePercent'),
+                "market_cap": safe_extract_value(info, 'marketCap'),
+                "volume": safe_extract_value(info, 'regularMarketVolume'),
+                "avg_volume": safe_extract_value(info, 'averageVolume'),
+                "pe_trailing": safe_extract_value(info, 'trailingPE'),  # Match both formats
+                "pe_ratio": safe_extract_value(info, 'trailingPE'),
+                "pe_forward": safe_extract_value(info, 'forwardPE'),  # Match both formats
+                "forward_pe": safe_extract_value(info, 'forwardPE'),
+                "dividend_yield": safe_extract_value(info, 'dividendYield'),
+                "target_price": safe_extract_value(info, 'targetMeanPrice'),
+                "beta": safe_extract_value(info, 'beta'),
+                "eps": safe_extract_value(info, 'trailingEps'),
+                "forward_eps": safe_extract_value(info, 'forwardEps'),
+                "peg_ratio": safe_extract_value(info, 'pegRatio'),
+                "sector": safe_extract_value(info, 'sector'),
+                "industry": safe_extract_value(info, 'industry'),
+                "fifty_two_week_high": safe_extract_value(info, 'fiftyTwoWeekHigh'),
+                "fifty_two_week_low": safe_extract_value(info, 'fiftyTwoWeekLow'),
+                "fifty_day_avg": safe_extract_value(info, 'fiftyDayAverage'),
+                "two_hundred_day_avg": safe_extract_value(info, 'twoHundredDayAverage'),
+                "exchange": safe_extract_value(info, 'exchange'),
+                "country": safe_extract_value(info, 'country'),
+                "data_source": "yfinance",
+            }
             
-        return result
+            # Convert dividend yield to percentage if available
+            if result["dividend_yield"] is not None:
+                try:
+                    result["dividend_yield"] = float(result["dividend_yield"]) * 100
+                except (ValueError, TypeError):
+                    pass
+            
+            # Add calculated fields
+            result['upside'] = self._calculate_upside_potential(result['price'], result['target_price'])
+            # Also add original field name for compatibility
+            result['upside_potential'] = result['upside']
+                
+            return result
+            
+        except Exception as e:
+            # Provide minimal info in case of unexpected error
+            logger.warning(f"Error extracting info for {symbol}: {str(e)}. Returning minimal info.")
+            return {
+                "symbol": symbol,
+                "name": symbol.upper(),
+                "company": symbol.upper(),
+                "data_source": "yfinance",
+                "error": f"Error extracting data: {str(e)}"
+            }
         
     def _calculate_upside_potential(self, current_price, target_price):
         """
