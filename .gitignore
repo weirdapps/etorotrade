@@ -92,7 +92,20 @@ yahoofinance/output/backtest/cache/
 yahoofinance/output/optimization/
 yahoofinance/output/*.html
 **/*.cache
+**/*.bak
+**/*.orig
+**/*.old
+**/*.tmp
 
+# Utility scripts that are no longer needed
+error_handling_stats.py
+fix_raise_errors.py
+fix_decorator_errors.py
+simple_error_test.py
+test_error_handling.py
+update_error_handling.py
+update_logger.py
+update_root_logger.py
 
 # Logs
 logs/
