@@ -2623,15 +2623,21 @@ async def generate_trade_recommendations(action_type, provider=None, app_logger=
         # Handle error silently
         # Suppress stack trace
 
+@with_provider
 @with_logger
-async def handle_trade_analysis(provider=None, app_logger=None):
+async def handle_trade_analysis(get_provider=None, app_logger=None):
     """
     Handle trade analysis (buy/sell/hold) flow with dependency injection
     
     Args:
-        provider: Injected provider component
+        get_provider: Injected provider factory function
         app_logger: Injected logger component
     """
+    provider = None
+    if get_provider:
+        provider = get_provider(async_mode=True)
+        if app_logger:
+            app_logger.info(f"Using injected provider: {provider.__class__.__name__}")
     action = input("Do you want to identify BUY (B), SELL (S), or HOLD (H) opportunities? ").strip().upper()
     if action == BUY_ACTION:
         if app_logger:
@@ -2658,25 +2664,31 @@ async def handle_trade_analysis(provider=None, app_logger=None):
             logger.warning(f"Invalid option: {action}")
         print(f"Invalid option. Please select '{BUY_ACTION}', '{SELL_ACTION}', or '{HOLD_ACTION}'.")
 
+@with_provider
 @with_logger
-async def handle_portfolio_download(provider=None, app_logger=None):
+async def handle_portfolio_download(get_provider=None, app_logger=None):
     """
     Handle portfolio download if requested with dependency injection
     
     Args:
-        provider: Injected provider component
+        get_provider: Injected provider factory function
         app_logger: Injected logger component
         
     Returns:
         bool: True if portfolio is available, False otherwise
     """
+    provider = None
+    if get_provider:
+        provider = get_provider(async_mode=True)
+        if app_logger:
+            app_logger.info(f"Using injected provider: {provider.__class__.__name__}")
     use_existing = input("Use existing portfolio file (E) or download new one (N)? ").strip().upper()
     if use_existing == 'N':
         from yahoofinance.data import download_portfolio
         try:
-            # Get provider from DI system if not provided
-            if not provider:
-                provider = registry.resolve('get_provider')(async_mode=True)
+            # Use provider we got from injection, or resolve it via registry
+            if not provider and get_provider:
+                provider = get_provider(async_mode=True)
             
             # Call download_portfolio with provider
             result = await download_portfolio(provider=provider)
@@ -3767,7 +3779,7 @@ def _display_color_key(min_analysts, min_targets):
 
 @with_provider
 @with_logger
-async def display_report_for_source(display, tickers, source, verbose=False, provider=None, app_logger=None):
+async def display_report_for_source(display, tickers, source, verbose=False, get_provider=None, app_logger=None):
     """
     Display report for the selected source with dependency injection
     
@@ -3776,11 +3788,18 @@ async def display_report_for_source(display, tickers, source, verbose=False, pro
         tickers: List of tickers to display
         source: Source type ('P', 'M', 'E', 'I')
         verbose: Enable verbose logging for debugging
-        provider: Injected provider component
+        get_provider: Injected provider factory function
         app_logger: Injected logger component
     """
     # Import trading criteria for consistent display
     from yahoofinance.core.config import TRADING_CRITERIA
+    
+    # Create provider instance if needed
+    provider = None
+    if get_provider:
+        provider = get_provider(async_mode=True)
+        if app_logger:
+            app_logger.info(f"Using injected provider: {provider.__class__.__name__}")
     
     if not tickers:
         if app_logger:
@@ -4389,18 +4408,21 @@ def show_circuit_breaker_status():
 
 @with_provider
 @with_logger
-async def main_async(provider=None, app_logger=None):
+async def main_async(get_provider=None, app_logger=None):
     """
     Async-aware command line interface for market display with dependency injection
     
     Args:
-        provider: Injected async provider component
+        get_provider: Injected provider factory function
         app_logger: Injected logger component
     """
     display = None
     try:
         # Ensure we have the required dependencies
-        if not provider:
+        if get_provider:
+            provider = get_provider(async_mode=True, max_concurrency=10)
+            app_logger.info(f"Using injected provider: {provider.__class__.__name__}")
+        else:
             app_logger.error("Provider not injected, creating default provider")
             provider = AsyncHybridProvider(max_concurrency=10)
         
@@ -4419,13 +4441,13 @@ async def main_async(provider=None, app_logger=None):
         # Handle trade analysis separately
         if source == 'T':
             app_logger.info("Handling trade analysis...")
-            handle_trade_analysis()
+            await handle_trade_analysis(get_provider=get_provider, app_logger=app_logger)
             return
         
         # Handle portfolio download if needed
         if source == 'P':
             app_logger.info("Handling portfolio download...")
-            if not handle_portfolio_download():
+            if not await handle_portfolio_download(get_provider=get_provider, app_logger=app_logger):
                 app_logger.error("Portfolio download failed, returning...")
                 return
             app_logger.info("Portfolio download completed successfully")
@@ -4438,7 +4460,8 @@ async def main_async(provider=None, app_logger=None):
         app_logger.info("Displaying report...")
         # Pass verbose=True flag for eToro source due to large dataset
         verbose = (source == 'E')
-        display_report_for_source(display, tickers, source, verbose=verbose)
+        await display_report_for_source(display, tickers, source, verbose=verbose, 
+                                        get_provider=get_provider, app_logger=app_logger)
         
         # Show circuit breaker status
         app_logger.info("Showing circuit breaker status...")
@@ -4507,7 +4530,14 @@ def main(app_logger=None):
             
             # Display report directly
             # Run as async
-            asyncio.run(display_report_for_source(display, tickers, 'I', verbose=True))
+            provider_factory = None
+            try:
+                provider_factory = registry.resolve('get_provider')
+            except:
+                pass
+                
+            asyncio.run(display_report_for_source(display, tickers, 'I', verbose=True,
+                                                get_provider=provider_factory, app_logger=app_logger))
             return
     
     # Run the async main function with interactive input
