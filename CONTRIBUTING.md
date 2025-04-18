@@ -19,14 +19,14 @@ Thank you for considering contributing to etorotrade! This document outlines the
    source myenv/bin/activate
    ```
 
-3. **Install dependencies**:
+3. **Set up development environment**:
    ```bash
+   # Quick setup (installs dependencies and sets up pre-commit hooks)
+   python scripts/setup_dev_environment.py
+   
+   # Or manually:
    pip install -r requirements.txt
    pip install -r dev-requirements.txt
-   ```
-
-4. **Set up pre-commit hooks**:
-   ```bash
    pre-commit install
    ```
 
@@ -83,14 +83,26 @@ We follow these coding standards:
 
 3. **Run tests and linting**:
    ```bash
-   # Run tests
+   # Makefile commands (recommended)
+   make lint        # Run all code quality checks
+   make lint-fix    # Auto-fix code quality issues
+   make test        # Run tests
+   make test-coverage # Run tests with coverage report
+   
+   # Alternatively, use the provided scripts
+   python scripts/run_code_checks.py        # Run all checks
+   python scripts/run_code_checks.py --fix  # Fix issues
+   
+   # Bash script is also available
+   ./scripts/lint.sh      # Run checks
+   ./scripts/lint.sh fix  # Fix issues
+   
+   # Run individual tools manually
    pytest tests/
-   
-   # Check code style
-   pre-commit run --all-files
-   
-   # Run type checking
-   mypy yahoofinance/
+   black yahoofinance trade.py tests
+   isort yahoofinance trade.py tests
+   flake8 yahoofinance trade.py tests
+   mypy yahoofinance trade.py tests
    ```
 
 4. **Submit a pull request**:

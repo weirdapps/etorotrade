@@ -188,7 +188,26 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
         merged_data.setdefault("ticker", original_ticker) # Ensure original ticker
         # Ensure company uses original ticker if name is missing
         merged_data.setdefault("company", merged_data.get("name", original_ticker)[:14].upper())
-
+        
+        # Ensure analyst data fields are explicitly preserved from yfinance data
+        analyst_fields = ["analyst_count", "total_ratings", "buy_percentage", "A"]
+        for field in analyst_fields:
+            if field in yf_data and yf_data[field] is not None:
+                merged_data[field] = yf_data[field]
+                
+        # Try to get earnings date if it's missing
+        if merged_data.get('earnings_date') is None:
+            try:
+                # Try to get earnings date directly through the YahooFinanceProvider
+                # Import here to avoid circular imports
+                from yahoofinance.api.providers.yahoo_finance import YahooFinanceProvider
+                yf_api = YahooFinanceProvider()
+                next_earnings, _ = yf_api.get_earnings_dates(original_ticker)
+                if next_earnings:
+                    merged_data['earnings_date'] = next_earnings
+                    logger.debug(f"Added earnings date for {original_ticker} via direct API: {next_earnings}")
+            except Exception as e:
+                logger.debug(f"Failed to get earnings date for {original_ticker}: {str(e)}")
 
         return merged_data
 
@@ -203,19 +222,45 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
             """Wrapper for hybrid fetching."""
             try:
                 result = await self.get_ticker_info(ticker, skip_insider_metrics)
-                # Special handling for NVDA
-                if ticker.upper() == "NVDA" and not result.get("error"):
-                    logger.info(f"Ensuring complete data for NVDA ticker: {ticker}")
-                    # Ensure required fields exist
+                # Post-processing for any ticker data
+                if not result.get("error"):
+                    # Ensure required core fields exist
                     result.setdefault("symbol", ticker)
                     result.setdefault("ticker", ticker)
-                    result.setdefault("company", "NVIDIA CORP")
+                    if "company" not in result or not result["company"]:
+                        result["company"] = ticker.upper()
                     
-                    # Only supplement missing data, never override existing data
-                    # Fix PEG ratio if missing (this is a common issue)
-                    if "peg_ratio" not in result or result.get("peg_ratio") is None:
-                        logger.warning(f"Missing PEG ratio for NVDA, setting to default")
-                        result["peg_ratio"] = 1.7
+                    # Preserve the dividend_yield in its original form without modifications
+                    # Let the formatting code in trade.py handle it directly
+                    if "dividend_yield" in result and result["dividend_yield"] is not None:
+                        try:
+                            # Only standardize the type to float but preserve the value
+                            result["dividend_yield"] = float(result["dividend_yield"])
+                            logger.debug(f"Standardized dividend yield for {ticker} to float: {result['dividend_yield']}")
+                        except (TypeError, ValueError) as e:
+                            logger.warning(f"Error processing dividend yield for {ticker}: {e}")
+                    
+                    # Ensure rating type has a default value if missing but ratings exist
+                    if ("A" not in result or result["A"] is None) and result.get("total_ratings", 0) > 0:
+                        result["A"] = "A"  # Default to all-time ratings if we have any ratings
+                        
+                    # Try to add earnings date if missing
+                    if ("earnings_date" not in result or result["earnings_date"] is None):
+                        try:
+                            # Try to get earnings date directly through the YahooFinanceProvider
+                            from yahoofinance.api.providers.yahoo_finance import YahooFinanceProvider
+                            yf_api = YahooFinanceProvider()
+                            next_earnings, _ = yf_api.get_earnings_dates(ticker)
+                            if next_earnings:
+                                result['earnings_date'] = next_earnings
+                                logger.debug(f"Added earnings date for {ticker} in batch processing: {next_earnings}")
+                        except Exception as e:
+                            logger.debug(f"Failed to get earnings date for {ticker} in batch: {str(e)}")
+                            
+                # Calculate EXRET for any ticker with missing EXRET but with upside and buy_percentage
+                if "EXRET" not in result or result.get("EXRET") is None:
+                    if result.get("upside") is not None and result.get("buy_percentage") is not None:
+                        result["EXRET"] = result["upside"] * result["buy_percentage"] / 100
                 return result
             except Exception as e:
                 # Catch any exception to prevent the entire batch from failing
@@ -234,6 +279,10 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
                     "beta": None,
                     "dividend_yield": None,
                     "market_cap": None,
+                    "analyst_count": None,
+                    "total_ratings": None,
+                    "buy_percentage": None,
+                    "A": None,
                     "data_source": "error",
                     "_not_found": True
                 }
@@ -272,6 +321,10 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
                             "error": f"Invalid result: {str(result)[:100]}",
                             "price": None,
                             "current_price": None,
+                            "analyst_count": None,
+                            "total_ratings": None,
+                            "buy_percentage": None,
+                            "A": None,
                             "data_source": "error",
                             "_not_found": True
                         }
@@ -288,6 +341,10 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
                         "error": f"Processing error: {str(e)}",
                         "price": None,
                         "current_price": None,
+                        "analyst_count": None,
+                        "total_ratings": None,
+                        "buy_percentage": None,
+                        "A": None,
                         "data_source": "error",
                         "_not_found": True
                     }
@@ -323,9 +380,33 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
 
 
     async def get_earnings_dates(self, ticker: str) -> List[str]:
-         # Primarily use yf_provider
+        """Get earnings dates for a ticker."""
         try:
-            return await self.yf_provider.get_earnings_dates(ticker)
+            # Use yf_provider to get earnings dates
+            dates = await self.yf_provider.get_earnings_dates(ticker)
+            
+            # If the API call didn't provide earnings dates, use the synchronous YahooFinanceProvider
+            if not dates:
+                logger.debug(f"No earnings dates from async provider for {ticker}, trying direct API")
+                try:
+                    # Import here to avoid circular imports
+                    from yahoofinance.api.providers.yahoo_finance import YahooFinanceProvider
+                    yf_api = YahooFinanceProvider()
+                    next_earnings, last_earnings = yf_api.get_earnings_dates(ticker)
+                    
+                    # Build list of earnings dates with next_earnings first if available
+                    dates = []
+                    if next_earnings:
+                        dates.append(next_earnings)
+                    if last_earnings:
+                        dates.append(last_earnings)
+                        
+                    if dates:
+                        logger.debug(f"Found earnings dates from direct API for {ticker}: {dates}")
+                except Exception as e:
+                    logger.warning(f"Error getting earnings dates from direct API for {ticker}: {str(e)}")
+            
+            return dates
         except YFinanceError as e:
             logger.warning(f"Hybrid: Error in yf get_earnings_dates for {ticker}: {e}. Returning empty list.")
             return []

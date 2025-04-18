@@ -45,10 +45,6 @@ def create_paginated_data(num_pages: int = 3, items_per_page: int = 3) -> List[D
     return pages
 
 
-@with_retry
-
-
-
 def create_mock_fetcher(pages: List[Dict[str, Any]]) -> Callable[[Optional[str]], Dict[str, Any]]:
     """
     Create a mock page fetcher function for pagination tests.
@@ -69,9 +65,10 @@ def mock_fetcher(of results
         if page_index < len(pages):
             result = pages[page_index]
             page_index += 1
-            ret@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
-def create_bulk_fetch_mocks(# Out of pages
-        return {"items": [], "next_page_token": None}
+            return result
+        else:
+            # Out of pages
+            return {"items": [], "next_page_token": None}
     
     return mock_fetcher
 

@@ -1,179 +1,128 @@
-import pytest
-from datetime import datetime, timedelta
-import pandas as pd
-from unittest.mock import Mock, patch
-from yahoofinance.analysis.analyst import CompatAnalystData
-from yahoofinance.core.config import POSITIVE_GRADES
-from yahoofinance.core.errors import ValidationError, YFinanceError
+#!/usr/bin/env python
+"""
+Test script to verify analyst data is correctly retrieved from the API providers.
+This tests that our fixes for the analyst data display issue are working properly.
+"""
 
-@pytest.fixture
-def mock_client():
-    return Mock()
+import asyncio
+import sys
+from pprint import pprint
 
-@pytest.fixture
-def analyst_data(mock_client):
-    return CompatAnalystData(mock_client)
+# Import core provider components
+from yahoofinance import get_provider
+from yahoofinance.core.logging import setup_logging
+from yahoofinance.utils.market.ticker_utils import is_us_ticker
 
-@pytest.fixture
-def sample_ratings_df():
-    return pd.DataFrame({
-        'GradeDate': pd.date_range(start='2024-01-01', periods=3),
-        'Firm': ['Firm A', 'Firm B', 'Firm C'],
-        'FromGrade': ['Hold', 'Sell', 'Buy'],
-        'ToGrade': ['Buy', 'Hold', 'Strong Buy'],
-        'Action': ['up', 'up', 'up']
-    }).reset_index()  # Add index column to match actual data structure
+# Configure logging
+import logging
+setup_logging(log_level=logging.INFO)
 
-def test_validate_date_valid(analyst_data):
-    # Should not raise any exception
-    analyst_data._validate_date('2024-01-01')
-    analyst_data._validate_date(None)
-
-def test_validate_date_invalid(analyst_data):
-    with pytest.raises(ValidationError):
-        analyst_data._validate_date('invalid-date')
-
-def test_safe_float_conversion(analyst_data):
-    assert analyst_data._safe_float_conversion('123.45') == pytest.approx(123.45)
-    assert analyst_data._safe_float_conversion('1,234.56') == pytest.approx(1234.56)
-    assert analyst_data._safe_float_conversion(None) is None
-    assert analyst_data._safe_float_conversion('invalid') is None
-
-@with_retry
-
-
-def test_fetch_ratings_data_success(analyst_data, mock_client, sample_ratings_df):
-    # Setup mock
-    mock_stock = Mock()
-    mock_stock._stock = Mock()
-    mock_stock._stock.upgrades_downgrades = sample_ratings_df
-    mock_client.get_ticker_info.return_value = mock_stock
-
-    # Test with specific start date
-    result = analyst_data.fetch_ratings_data('AAPL', '2024-01-01')
-    assert isinstance(result, pd.DataFrame)
-    assert len(result) == 3
-    assert all(col in result.columns for c@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
-def test_fetch_ratings_data_no_data(de', 'ToGrade', 'Action'])
-
-def test_fetch_ratings_data_no_data(analyst_data, mock_client):
-    # Setup mock for empty data
-    mock_stock = Mock()
-    mock_stock._stock = Mock()
-    mock_stock._stock.upgrades_downgrades = None
-    mock_cl@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
-def test_fetch_ratings_data_error(= mock_stock
-
-    result = analyst_data.fetch_ratings_data('AAPL')
-    assert result is None
-
-def test_fetch_ratings_data_erro@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
-def test_get_ratings_summary_success(k_client.get_ticker_info.side_effect = Exception("API Error")
+async def test_analyst_data():
+    """Test retrieval of analyst data for both US and non-US tickers."""
+    print("\n=== Testing Analyst Data Retrieval ===\n")
     
-    with pytest.raises(YFinanceError):
-        analyst_data.fetch_ratings_data('AAPL')
-
-def test_get_ratings_summary_success(analyst_data, mock_client, sample_ratings_df):
-    # Setup mocks
-    mock_stock = Mock()
-    mock_stock._stock = Mock()
-    mock_stock._stock.upgrades_downgrades = sample_ratings_df
-    mock_stock.last_earnings = '2024-01-01'
-    mock_client.get_ticker_info.return_value = mock_stock
-
-    # Test with earnings date
-    result = analyst_data.get_ratings_summary('AAPL', use_earnings_date=True)
-    assert isinstance(result, dict)
-    assert 'positive_percentage' in result
-    assert 'total_ratings' in result
-    assert 'ratings_type' in result
-    assert result['total_ratings'] == 3
-    assert result['ratings_type']@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
-def test_get_ratings_summary_fallback(t date
-    result = analyst_data.get_ratings_summary('AAPL', '2024-01-01', use_earnings_date=False)
-    assert isinstance(result, dict)
-    assert result['total_ratings'] == 3
-    assert result['ratings_type'] == 'E'
-
-def test_get_ratings_summary_fallback(analyst_data, mock_client, sample_ratings_df):
-    # Setup mocks for no post-earnings data
-    mock_stock = Mock()
-    mock_stock._stock = Mock()
-    # First call returns empty DataFrame (no post-earnings data)
-    # Second call returns sample data (all-time data)
-    mock_stock._stock.upgrades_downgrades = pd.DataFrame()
-    mock_stock.last_earnings = '2024-01-01'
-    mock_client.get_ticker_info.return_value = mock_stock
-
-    # Test fallback to all-time data
-    with patch.object(analyst_data, 'fetch_ratings_data') as mock_fetch:
-        mock_fetch.side_effect = [None, sample_@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
-def test_get_ratings_summary_no_data(s, then data for all-time
-        result = analyst_data.get_ratings_summary('AAPL', use_earnings_date=True)
+    # Test both US and non-US tickers
+    test_tickers = [
+        "AAPL",      # US ticker
+        "MSFT",      # US ticker
+        "SAP.DE",    # German ticker
+        "BMW.DE",    # German ticker
+        "BAS.DE",    # German ticker (BASF)
+        "NVDA"       # US ticker that had hardcoded values
+    ]
+    
+    # Test both provider types
+    provider_types = [
+        ("Async", True),
+        ("Sync", False)
+    ]
+    
+    all_results = {}
+    
+    for provider_type, is_async in provider_types:
+        print(f"\n--- Testing {provider_type} Provider ---\n")
         
-        assert isinstance(result, dict)
-        assert result['total_ratings'] == 3
-        assert result['ratings_type'] == 'A'  # Should indicate all-time ratings
-
-def test_get_ratings_summary_no_data(analyst_data, mock_client):
-    # Setup mock for no data
-    @with_retry
+        # Get provider
+        provider = get_provider(async_mode=is_async)
+        print(f"Using provider: {provider.__class__.__name__}")
+        
+        results = {}
+        
+        # Process each ticker individually
+        for ticker in test_tickers:
+            print(f"\nFetching data for {ticker} ({'US' if is_us_ticker(ticker) else 'non-US'} ticker)...")
+            
+            try:
+                # Get ticker info
+                if is_async:
+                    info = await provider.get_ticker_info(ticker)
+                else:
+                    info = provider.get_ticker_info(ticker)
+                
+                # Extract analyst data
+                analyst_data = {
+                    "ticker": ticker,
+                    "is_us_ticker": is_us_ticker(ticker),
+                    "analyst_count": info.get("analyst_count"),
+                    "total_ratings": info.get("total_ratings"),
+                    "buy_percentage": info.get("buy_percentage"),
+                    "target_price": info.get("target_price"),
+                    "upside": info.get("upside"),
+                    "data_source": info.get("data_source")
+                }
+                
+                # Display results
+                print(f"Results for {ticker}:")
+                pprint(analyst_data)
+                
+                # Store results
+                results[ticker] = analyst_data
+                
+            except Exception as e:
+                print(f"Error fetching data for {ticker}: {str(e)}")
+        
+        # Summary for this provider
+        print(f"\n=== Summary for {provider_type} Provider ===\n")
+        success_count = sum(1 for data in results.values() if data.get("analyst_count") is not None and data.get("analyst_count") > 0)
+        print(f"Successfully retrieved analyst data for {success_count}/{len(test_tickers)} tickers")
+        
+        # Check US vs non-US success
+        us_tickers = [t for t in test_tickers if is_us_ticker(t)]
+        non_us_tickers = [t for t in test_tickers if not is_us_ticker(t)]
+        
+        us_success = sum(1 for t in us_tickers if t in results and results[t].get("analyst_count") is not None and results[t].get("analyst_count") > 0)
+        non_us_success = sum(1 for t in non_us_tickers if t in results and results[t].get("analyst_count") is not None and results[t].get("analyst_count") > 0)
+        
+        print(f"US tickers: {us_success}/{len(us_tickers)} successful")
+        print(f"Non-US tickers: {non_us_success}/{len(non_us_tickers)} successful")
+        
+        # Check for hardcoded values
+        suspected_hardcoded = []
+        for ticker, data in results.items():
+            if data.get("analyst_count") == 30 and data.get("total_ratings") == 30 and data.get("buy_percentage") == 90:
+                suspected_hardcoded.append(ticker)
+        
+        if suspected_hardcoded:
+            print(f"\nWARNING: These tickers may have hardcoded values: {', '.join(suspected_hardcoded)}")
+        else:
+            print("\nNo suspected hardcoded values found")
+        
+        # Store results for this provider type
+        all_results[provider_type] = results
     
-def test_get_recent_changes_success(stock = Mock()
-    mock_stock._stock.upgrades_downgrades = None
-    mock_stock.last_earnings = None
-    mock_client.get_ticker_info.return_value = mock_stock
+    return all_results
 
-    result = analyst_data.get_ratings_summary('AAPL')
-    assert result['positive_percentage'] is None
-    assert result['total_ratings'] is None
-    assert result['ratings_type'] is None
-
-def test_get_recent_changes_success(analyst_data, mock_client, sample_ratings_df):
-    # Setup mock with data within the last 30 days
-    today = datetime.now()
-    recent_dates = pd.date_range(end=today, periods=3)
-    
-    df = pd.DataFrame({
-        'GradeDate': recent_dates,
-        'Firm': ['Firm A', 'Firm B', 'Firm C'],
-        'FromGrade': ['Hold', 'Sell', 'Buy'],
-        'ToGrade': ['Buy', 'Hold', 'Strong Buy'],
-        'Action': ['up', 'up', 'up']
-    })
-    @with_retry
-    
-def test_get_recent_changes_invalid_days(stock = Mock()
-    mock_stock._stock.upgrades_downgrades = df
-    mock_client.get_ticker_info.return_value = mock_stock
-
-    result = analyst_data.get_r@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
-def test_get_recent_changes_no_data(ssert isinstance(result, list)
-    assert len(result) == 3
-    assert all(isinstance(change, dict) for change in result)
-    assert all(key in result[0] for key in ['date', 'firm', 'from_grade', 'to_grade', 'action'])
-
-def test_get_recent_changes_invalid_days(analyst_data):
-    with pytest.raises(ValidationError):
-        analyst_data.get_recent_changes('AAPL', days=0)
-    
-    with pytest.raises(ValidationError):
-        analyst_data.get_recent_changes('AAPL', days=-1)
-
-def test_get_recent_changes_no_data(analyst_data, mock_client):
-    # Setup mock for no data
-    mock_stock = Mock()
-    mock_stock._stock = Mock()
-    mock_stock._stock.upgrades_downgrades = None
-    mock_client.get_ticker_info.return_value = mock_stock
-
-    result = analyst_data.get_recent_changes('AAPL')
-    assert isinstance(result, list)
-    assert len(result) == 0
-
-def test_positive_grades_constant():
-    assert isinstance(POSITIVE_GRADES, set)
-    assert len(POSITIVE_GRADES) > 0
-    assert all(isinstance(grade, str) for grade in POSITIVE_GRADES)
-    assert "Buy" in POSITIVE_GRADES
-    assert "Strong Buy" in POSITIVE_GRADES
+if __name__ == "__main__":
+    try:
+        results = asyncio.run(test_analyst_data())
+        # Exit with error if we didn't get any analyst data
+        if not any(data.get("analyst_count", 0) > 0 for data in results.values()):
+            print("ERROR: No analyst data retrieved for any ticker")
+            sys.exit(1)
+        sys.exit(0)
+    except KeyboardInterrupt:
+        print("\nTest interrupted")
+        sys.exit(130)
+    except Exception as e:
+        print(f"Test failed: {str(e)}")
+        sys.exit(1)

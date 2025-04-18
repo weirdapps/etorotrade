@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added .flake8 configuration
   - Added pre-commit configuration
   - Added dev-requirements.txt for development dependencies
+  - Created scripts/run_code_checks.py for running all code quality checks
+  - Created scripts/setup_dev_environment.py for setting up the development environment
+  - Added scripts/lint.sh as a bash alternative for running linters
+  - Created Makefile with standardized commands for development tasks
+  - Created .github/PULL_REQUEST_TEMPLATE.md for PR quality checklist
 - New standardized logging system:
   - Created logging_config.py with modern logging configuration
   - Added environment variable control for logging levels
@@ -31,18 +36,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added CONTRIBUTING.md with guidelines for contributors
   - Added setup.py for proper package installation
   - Created CHANGELOG.md to track changes
-  - Added OPTIMIZATION_PLAN.md with roadmap for improvements
+  - Added optimization plan with roadmap for improvements
 
 ### Changed
 - Refactored logging in trade.py to use new standardized configuration
 - Updated yahoofinance.__init__.py to use new logging configuration
 - Updated README.md with new setup instructions and environment variables
 - Enhanced utils/__init__.py to include new utility modules
+- Updated CONTRIBUTING.md with code quality information and workflow improvements
+- Consolidated all technical documentation into CLAUDE.md as a single comprehensive reference
+- Simplified README.md to be more user-friendly with less technical detail
 
 ### Improved
 - Added comprehensive tests for error handling utilities
 - Added comprehensive tests for import utilities 
 - Created example of improved provider implementation with enhanced error handling
+- Reorganized test structure by moving scattered test and debug files into proper test directories
+- Created dedicated debug/ directory under tests/ for debug scripts
+- Updated tests README.md with improved documentation on test structure
 
 ### Fixed
 - Removed duplicate imports in trade.py
