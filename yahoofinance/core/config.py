@@ -116,16 +116,45 @@ CACHE_CONFIG = {
     ),
     
     # TTL settings by data type (seconds)
-    "TICKER_INFO_MEMORY_TTL": 300,      # 5 minutes
-    "TICKER_INFO_DISK_TTL": 3600,       # 1 hour
+    # Basic company information
+    "TICKER_INFO_MEMORY_TTL": 86400,    # 1 day
+    "TICKER_INFO_DISK_TTL": 604800,     # 1 week
+    
+    # Current price, volume data
     "MARKET_DATA_MEMORY_TTL": 60,       # 1 minute
-    "MARKET_DATA_DISK_TTL": 1800,       # 30 minutes
-    "FUNDAMENTALS_MEMORY_TTL": 3600,    # 1 hour
-    "FUNDAMENTALS_DISK_TTL": 86400,     # 1 day
-    "NEWS_MEMORY_TTL": 900,             # 15 minutes
-    "NEWS_DISK_TTL": 7200,              # 2 hours
-    "ANALYSIS_MEMORY_TTL": 1800,        # 30 minutes
-    "ANALYSIS_DISK_TTL": 14400,         # 4 hours
+    "MARKET_DATA_DISK_TTL": 180,        # 3 minutes
+    
+    # PE ratios, PEG, financial metrics
+    "FUNDAMENTALS_MEMORY_TTL": 60,      # 1 minute
+    "FUNDAMENTALS_DISK_TTL": 180,       # 3 minutes
+    
+    # News articles and headlines
+    "NEWS_MEMORY_TTL": 600,             # 10 minutes
+    "NEWS_DISK_TTL": 1200,              # 20 minutes
+    
+    # Analyst ratings and recommendations
+    "ANALYSIS_MEMORY_TTL": 600,         # 10 minutes
+    "ANALYSIS_DISK_TTL": 1200,          # 20 minutes
+    
+    # Historical price data
+    "HISTORICAL_DATA_MEMORY_TTL": 86400,    # 1 day
+    "HISTORICAL_DATA_DISK_TTL": 172800,     # 2 days
+    
+    # Earnings dates and data
+    "EARNINGS_DATA_MEMORY_TTL": 600,    # 10 minutes
+    "EARNINGS_DATA_DISK_TTL": 1200,     # 20 minutes
+    
+    # Insider trading information
+    "INSIDER_TRADES_MEMORY_TTL": 86400, # 1 day
+    "INSIDER_TRADES_DISK_TTL": 172800,  # 2 days
+    
+    # Dividend information
+    "DIVIDEND_DATA_MEMORY_TTL": 86400,  # 1 day
+    "DIVIDEND_DATA_DISK_TTL": 172800,   # 2 days
+    
+    # Target price information
+    "TARGET_PRICE_MEMORY_TTL": 600,     # 10 minutes
+    "TARGET_PRICE_DISK_TTL": 1200,      # 20 minutes
 }
 
 # Risk metrics configuration

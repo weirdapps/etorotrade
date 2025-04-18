@@ -19,6 +19,7 @@ from abc import ABC, abstractmethod
 from ...core.errors import YFinanceError, ValidationError, APIError, DataError, ResourceNotFoundError
 from ...utils.market.ticker_utils import validate_ticker, is_us_ticker
 from ...utils.error_handling import with_retry, translate_error
+from ...data.cache import default_cache_manager, cached
 
 # Set up logging
 logger = get_logger(__name__)
@@ -327,14 +328,28 @@ class YahooFinanceBaseProvider(ABC):
         # Validate the ticker format
         validate_ticker(ticker)
         
-        # Return cached ticker object if available
+        # Use cache key based on ticker
+        cache_key = f"ticker_obj:{ticker}"
+        
+        # Check in global cache first
+        cached_obj = default_cache_manager.get(cache_key, data_type="ticker_info")
+        if cached_obj is not None:
+            logger.debug(f"Using cached ticker object for {ticker} from global cache")
+            return cached_obj
+        
+        # Check in local cache next
         if ticker in self._ticker_cache:
+            logger.debug(f"Using cached ticker object for {ticker} from local cache")
             return self._ticker_cache[ticker]
         
         # Create new ticker object
         try:
             ticker_obj = yf.Ticker(ticker)
+            
+            # Store in both caches
             self._ticker_cache[ticker] = ticker_obj
+            default_cache_manager.set(cache_key, ticker_obj, data_type="ticker_info")
+            
             return ticker_obj
         except YFinanceError as e:
             raise e

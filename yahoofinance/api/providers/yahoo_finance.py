@@ -101,6 +101,15 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             YFinanceError: When an error occurs while fetching data
         """
         logger.debug(f"Getting ticker info for {ticker}")
+        
+        # Check cache for ticker info
+        cache_key = f"ticker_info:{ticker}"
+        cached_info = default_cache_manager.get(cache_key, data_type="ticker_info")
+        if cached_info is not None:
+            logger.debug(f"Using cached ticker info for {ticker}")
+            return cached_info
+            
+        # Get ticker object (which might be cached)
         ticker_obj = self._get_ticker_object(ticker)
         
         # Basic information with proper rate limiting
@@ -156,6 +165,10 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 except YFinanceError as e:
                     logger.warning(f"Error fetching analyst data for {ticker}: {str(e)}")
                 
+                # Cache the result before returning
+                default_cache_manager.set(cache_key, result, data_type="ticker_info")
+                logger.debug(f"Cached ticker info for {ticker}")
+                
                 break
             except RateLimitError as rate_error:
                 # Use the shared retry logic handler from the base class
@@ -183,12 +196,26 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         Raises:
             YFinanceError: When an error occurs while fetching data
         """
+        # Check cache first
+        cache_key = f"historical_data:{ticker}:{period}:{interval}"
+        cached_data = default_cache_manager.get(cache_key, data_type="historical_data")
+        if cached_data is not None:
+            logger.debug(f"Using cached historical data for {ticker} (period={period}, interval={interval})")
+            return cached_data
+        
+        # Get data from API if not in cache
         ticker_obj = self._get_ticker_object(ticker)
         
         for attempt in range(self.max_retries):
             try:
                 # Use the shared _extract_historical_data method from the base class
-                return self._extract_historical_data(ticker, ticker_obj, period, interval)
+                data = self._extract_historical_data(ticker, ticker_obj, period, interval)
+                
+                # Cache the result
+                default_cache_manager.set(cache_key, data, data_type="historical_data")
+                logger.debug(f"Cached historical data for {ticker} (period={period}, interval={interval})")
+                
+                return data
             except RateLimitError as rate_error:
                 # Specific handling for rate limits - just re-raise YFinanceError("An error occurred")
                 raise rate_error
@@ -214,6 +241,13 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         Raises:
             YFinanceError: When an error occurs while fetching data
         """
+        # Check cache first
+        cache_key = f"earnings_dates:{ticker}"
+        cached_data = default_cache_manager.get(cache_key, data_type="earnings_data")
+        if cached_data is not None:
+            logger.debug(f"Using cached earnings dates for {ticker}")
+            return cached_data
+            
         ticker_obj = self._get_ticker_object(ticker)
         
         for attempt in range(self.max_retries):
@@ -239,13 +273,22 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                             formatted_dates.sort(reverse=True)
                             # Return the dates we have
                             if len(formatted_dates) >= 2:
-                                return formatted_dates[0], formatted_dates[1]
+                                result = (formatted_dates[0], formatted_dates[1])
+                                default_cache_manager.set(cache_key, result, data_type="earnings_data")
+                                logger.debug(f"Cached earnings dates for {ticker}")
+                                return result
                             elif len(formatted_dates) == 1:
-                                return formatted_dates[0], None
+                                result = (formatted_dates[0], None)
+                                default_cache_manager.set(cache_key, result, data_type="earnings_data")
+                                logger.debug(f"Cached earnings dates for {ticker}")
+                                return result
                     except Exception as e:
                         logger.debug(f"Error getting earnings date from info for {ticker}: {str(e)}")
                     
-                    return None, None
+                    result = (None, None)
+                    default_cache_manager.set(cache_key, result, data_type="earnings_data")
+                    logger.debug(f"Cached empty earnings dates for {ticker}")
+                    return result
                     
                 earnings_date = calendar[COLUMN_NAMES['EARNINGS_DATE']]
                 
@@ -261,11 +304,20 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 
                 # Return the last two earnings dates
                 if len(formatted_dates) >= 2:
-                    return formatted_dates[0], formatted_dates[1]
+                    result = (formatted_dates[0], formatted_dates[1])
+                    default_cache_manager.set(cache_key, result, data_type="earnings_data")
+                    logger.debug(f"Cached earnings dates for {ticker}")
+                    return result
                 elif len(formatted_dates) == 1:
-                    return formatted_dates[0], None
+                    result = (formatted_dates[0], None)
+                    default_cache_manager.set(cache_key, result, data_type="earnings_data")
+                    logger.debug(f"Cached earnings dates for {ticker}")
+                    return result
                 else:
-                    return None, None
+                    result = (None, None)
+                    default_cache_manager.set(cache_key, result, data_type="earnings_data")
+                    logger.debug(f"Cached empty earnings dates for {ticker}")
+                    return result
                     
             except RateLimitError as rate_error:
                 # Specific handling for rate limits - just re-raise YFinanceError("An error occurred")
@@ -292,6 +344,13 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         Raises:
             YFinanceError: When an error occurs while fetching data
         """
+        # Check cache first
+        cache_key = f"analyst_ratings:{ticker}"
+        cached_data = default_cache_manager.get(cache_key, data_type="analysis")
+        if cached_data is not None:
+            logger.debug(f"Using cached analyst ratings for {ticker}")
+            return cached_data
+            
         # We used to skip analyst ratings for non-US tickers, but this is no longer necessary
         # Many international stocks have analyst coverage, so we'll try to get it for all tickers
         # We'll only return empty data if we can't find any
@@ -335,6 +394,10 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                     result["hold"] = 0
                     result["sell"] = 0
                     result["strong_sell"] = 0
+                
+                # Cache the result
+                default_cache_manager.set(cache_key, result, data_type="analysis")
+                logger.debug(f"Cached analyst ratings for {ticker}")
                 
                 return result
                 
