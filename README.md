@@ -206,6 +206,38 @@ pip install -r dev-requirements.txt
 pre-commit install
 ```
 
+### CI/CD and Testing Tools
+
+We've implemented a lightweight CI/CD approach suitable for locally-run projects with GitHub integration:
+
+```bash
+# Run all tests and benchmarks
+./run_tests.sh --all
+
+# Run specific test types
+./run_tests.sh --unit        # Run unit tests
+./run_tests.sh --integration # Run integration tests
+./run_tests.sh --memory      # Run memory leak tests
+./run_tests.sh --performance # Run performance benchmarks
+./run_tests.sh --priority    # Test priority rate limiting
+```
+
+#### Version Management
+
+```bash
+# Tag a new version
+./tag_version.sh 1.0.0 "Initial stable release"
+```
+
+#### GitHub Integration
+
+The repository includes:
+- GitHub Actions workflow for automated testing
+- Issue and feature request templates
+- Pre-commit hooks configuration
+
+See [CI_CD.md](CI_CD.md) for complete documentation on the CI/CD setup.
+
 ### Code Quality Tools
 
 ```bash
