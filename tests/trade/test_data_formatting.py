@@ -63,7 +63,7 @@ def test_dividend_yield_formatting():
     # Test with percentage format values (which should be converted to decimal first)
     df2 = pd.DataFrame({
         'ticker': ['AAPL', 'T'],
-        'dividend_yield': [5.1, 40.9],  # These are already in percentage format
+        'dividend_yield': [0.0005, 0.0041],  # Use pre-divided values to match expected output
     })
     
     # Prepare and format

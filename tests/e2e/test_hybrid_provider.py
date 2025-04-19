@@ -108,6 +108,8 @@ class TestHybridProviderE2E:
         hybrid_provider = HybridProvider()
         hybrid_provider.yf_provider = yf_provider
         hybrid_provider.yq_provider = yq_provider
+        # Force yahooquery to be enabled for the test
+        hybrid_provider.enable_yahooquery = True
         
         test_ticker = "0700.HK"
         
@@ -124,7 +126,8 @@ class TestHybridProviderE2E:
         
         # Verify it's marked as hybrid source
         assert hybrid_data.get("data_source") == "YFinance"
-        assert hybrid_data.get("hybrid_source") == "YFinance+YahooQuery"
+        assert hybrid_data.get("hybrid_source") == "YFinance+YahooQuery" 
+        # Note: The provider in implementation also uses 'data_source' = 'YFinance+YahooQuery' in some places
         
         # Verify YFinance and YahooQuery providers were both called
         assert yf_provider.get_ticker_info.call_count >= 1
@@ -147,6 +150,8 @@ class TestHybridProviderE2E:
         hybrid_provider = HybridProvider()
         hybrid_provider.yf_provider = yf_provider
         hybrid_provider.yq_provider = yq_provider
+        # Force yahooquery to be enabled for the test
+        hybrid_provider.enable_yahooquery = True
         
         test_ticker = "0700.HK"
         

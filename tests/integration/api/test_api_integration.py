@@ -15,6 +15,7 @@ from unittest.mock import patch, Mock
 from yahoofinance.api import get_provider, FinanceDataProvider
 from yahoofinance.utils.network.rate_limiter import global_rate_limiter, RateLimiter
 from yahoofinance.core.errors import RateLimitError, APIError, ValidationError
+from yahoofinance.utils.error_handling import with_retry
 
 
 @pytest.mark.integration
@@ -104,9 +105,7 @@ class TestProviderIntegration:
         yield
         
     @with_retry
-        
-    
-def test_get_ticker_info(self):
+    def test_get_ticker_info(self):
         """Test getting ticker info via provider"""
         info = self.provider.get_ticker_info(self.valid_ticker)
         
@@ -117,33 +116,35 @@ def test_get_ticker_info(self):
         assert 'sector' in info
         
         # Verify actual data
-        assert info['symbol'] == self.va@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
-def test_get_price_data(t info['name'] is not None
-        
+        assert info['symbol'] == self.valid_ticker
+        assert info['name'] is not None
+    
+    @with_retry
     def test_get_price_data(self):
         """Test getting price data via provider"""
         # Get full ticker info which includes price data
         info = self.provider.get_ticker_info(self.valid_ticker)
         
         # Verify data structure
-        assert isinstance(info, dict)@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
-def test_get_historical_data(fo
+        assert isinstance(info, dict)
         
         # Verify actual data
         assert info.get('price') is not None
         
+    @with_retry
     def test_get_historical_data(self):
         """Test getting historical data via provider"""
         hist_data = self.provider.get_historical_data(self.valid_ticker, period="1mo")
         
         # Verify data structure
-        assert isinstance(his@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
-def test_get_analyst_ratings( assert len(hist_data) > 0
+        assert isinstance(hist_data, pd.DataFrame)
+        assert len(hist_data) > 0
         
         # Verify columns
         assert 'Close' in hist_data.columns
         assert 'Volume' in hist_data.columns
         
+    @with_retry
     def test_get_analyst_ratings(self):
         """Test getting analyst ratings via provider"""
         ratings = self.provider.get_analyst_ratings(self.valid_ticker)
