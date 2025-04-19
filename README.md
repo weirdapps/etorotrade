@@ -206,6 +206,21 @@ pip install -r dev-requirements.txt
 pre-commit install
 ```
 
+#### Docker Development Environment
+
+For a consistent development environment, you can use Docker:
+
+```bash
+# Build and run the application
+docker-compose up etorotrade
+
+# Run tests in Docker
+docker-compose up tests
+
+# Run a specific command in the Docker container
+docker-compose run etorotrade python -m yahoofinance.analysis.portfolio
+```
+
 ### CI/CD and Testing Tools
 
 We've implemented a lightweight CI/CD approach suitable for locally-run projects with GitHub integration:
