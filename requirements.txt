@@ -5,6 +5,7 @@ matplotlib>=3.4.0,<4.0.0
 yfinance>=0.2.12
 yahooquery>=2.3.7
 requests>=2.25.0,<3.0.0
+scipy>=1.10.0  # For optimization algorithms
 
 # Output formatting
 tabulate>=0.8.9
@@ -22,6 +23,7 @@ mypy>=0.910
 
 # Date handling
 python-dateutil>=2.8.0
+pytz>=2021.1  # For timezone handling
 
 # Development tools
 black>=22.3.0

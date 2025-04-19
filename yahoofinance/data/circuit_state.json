@@ -1,1 +1,15 @@
-{}
+{
+  "test_circuit": {
+    "state": "CLOSED",
+    "failure_count": 0,
+    "success_count": 0,
+    "last_state_change": 1745029822.376034,
+    "last_failure_time": 0,
+    "last_success_time": 1745029822.3761768,
+    "total_failures": 0,
+    "total_successes": 1,
+    "total_requests": 1,
+    "failure_timestamps": [],
+    "consecutive_failures": 0
+  }
+}
