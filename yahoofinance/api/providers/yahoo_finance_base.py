@@ -179,6 +179,7 @@ class YahooFinanceBaseProvider(ABC):
             info = {"symbol": info.get("symbol", "unknown") if hasattr(info, "get") else "unknown"}
         
         # Helper function to safely extract values with type checking
+        global safe_extract_value
         def safe_extract_value(data, key, default=None):
             try:
                 if isinstance(data, dict) and key in data and data[key] is not None:
@@ -238,6 +239,26 @@ class YahooFinanceBaseProvider(ABC):
                 
                 "data_source": "yfinance",
             }
+            
+            # Process special fields
+
+            # Process short interest - convert to percentage
+            if result.get("short_percent") is not None:
+                try:
+                    result["short_float_pct"] = float(result["short_percent"]) * 100
+                except (ValueError, TypeError):
+                    result["short_float_pct"] = None
+                    
+            # Validate PEG ratio - sometimes YFinance returns extreme values that aren't usable
+            if result.get("peg_ratio") is not None:
+                try:
+                    peg = float(result["peg_ratio"])
+                    # Check if the PEG is in a reasonable range
+                    if peg < 0 or peg > 50:
+                        logger.debug(f"Invalid PEG ratio for {symbol}: {peg} - setting to None")
+                        result["peg_ratio"] = None
+                except (ValueError, TypeError):
+                    result["peg_ratio"] = None
             
             # Yahoo Finance returns dividend yield numbers correctly
             # We don't modify them as the display formatter will handle properly
