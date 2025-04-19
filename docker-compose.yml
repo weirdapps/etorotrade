@@ -1,0 +1,22 @@
+version: '3'
+
+services:
+  etorotrade:
+    build: .
+    volumes:
+      - ./yahoofinance/input:/app/yahoofinance/input
+      - ./yahoofinance/output:/app/yahoofinance/output
+      - ./logs:/app/logs
+      - ./benchmarks:/app/benchmarks
+    environment:
+      - ETOROTRADE_LOG_LEVEL=INFO
+      - PYTHONPATH=/app
+    ports:
+      - "8000:8000"  # For potential web dashboard in the future
+    command: python trade.py
+  
+  tests:
+    build: .
+    volumes:
+      - ./:/app
+    command: ./run_tests.sh --all
