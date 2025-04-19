@@ -8,6 +8,7 @@ This is the canonical location for async utilities. Code in yahoofinance.utils.a
 is deprecated and will be removed in a future version.
 """
 
+# Import from enhanced module - these are the canonical implementations
 from .enhanced import (
     AsyncRateLimiter,
     async_rate_limited,
@@ -15,13 +16,18 @@ from .enhanced import (
     gather_with_concurrency,
     process_batch_async,
     retry_async_with_backoff,
-    enhanced_async_rate_limited
+    enhanced_async_rate_limited,
+    global_priority_rate_limiter,
+    PriorityAsyncRateLimiter
 )
 
+# Import helper functions
 from .helpers import (
     gather_with_semaphore,
     async_bulk_fetch,
-    async_retry
+    async_retry,
+    prioritized_batch_process,
+    adaptive_fetch
 )
 
 # For backward compatibility, alias some functions
@@ -31,8 +37,10 @@ retry_async = async_retry
 __all__ = [
     # Rate limiting
     'AsyncRateLimiter',
+    'PriorityAsyncRateLimiter',
     'async_rate_limited',
     'global_async_rate_limiter',
+    'global_priority_rate_limiter',
     'enhanced_async_rate_limited',
     
     # Helper functions
@@ -44,4 +52,6 @@ __all__ = [
     'retry_async',  # Alias for compatibility
     'retry_async_with_backoff',
     'async_retry',
+    'prioritized_batch_process',
+    'adaptive_fetch'
 ]
