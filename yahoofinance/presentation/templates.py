@@ -6,10 +6,26 @@ from financial data. Templates are organized by category (market, portfolio, etc
 and can be customized with parameters.
 """
 
-from ..core.logging_config import get_logger
 from typing import Dict, Any
+from yahoofinance.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+def get_template(template_key: str, default: str = "") -> str:
+    """
+    Get a template by key from the Templates class.
+    
+    Args:
+        template_key: The key of the template to get
+        default: Default value if the template key doesn't exist
+        
+    Returns:
+        Template string
+    """
+    if hasattr(Templates, template_key):
+        return getattr(Templates, template_key)
+    else:
+        return default
 
 class Templates:
     """Container for HTML templates"""

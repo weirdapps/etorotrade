@@ -57,6 +57,11 @@ python trade.py
   - Analyze specific tickers entered manually
   - Outputs to yahoofinance/output/manual.csv and HTML dashboard
 
+- **O: Monitoring Dashboard**
+  - Launch the monitoring and observability dashboard
+  - Real-time metrics, health checks, and performance stats
+  - Visual charts for request rates, response times, and memory usage
+
 ## Trading Classification Criteria
 
 The system uses these criteria to classify stocks into four categories:
@@ -136,6 +141,26 @@ python -m yahoofinance.analysis.earnings
 python -m yahoofinance.analysis.insiders
 ```
 
+### Monitoring & Observability
+```bash
+# Start the monitoring dashboard (with timeout to prevent hanging)
+python scripts/run_monitoring.py --timeout 60 --max-updates 5
+
+# Generate example monitoring data (simplified version)
+python scripts/monitoring_examples_limited.py
+
+# Generate simple test data
+python scripts/simple_monitoring_test.py
+
+# Static dashboard generation (no server)
+python scripts/simple_dashboard.py
+
+# Custom dashboard options
+python scripts/run_monitoring.py --port 8080 --refresh 15 --export-interval 30 --timeout 120 --max-updates 10
+```
+
+For detailed documentation on the monitoring system, see [scripts/MONITORING_README.md](scripts/MONITORING_README.md).
+
 ### Backtesting & Optimization
 ```bash
 # Run a backtest with default settings
@@ -170,6 +195,28 @@ python scripts/optimize_criteria.py --mode optimize --param-file scripts/sample_
 # Test specific tickers with weekly rebalancing
 python scripts/optimize_criteria.py --mode backtest --tickers AAPL,MSFT,GOOGL,AMZN --rebalance weekly
 ```
+
+## Monitoring and Observability System
+
+The application includes a comprehensive monitoring system that provides visibility into:
+
+- **API Performance**: Request rates, response times, and error rates
+- **Component Health**: System and component health status
+- **Resource Usage**: Memory and CPU tracking
+- **Circuit Breakers**: API failure detection and protection
+- **Alerts**: Threshold-based alerting for key metrics
+
+The monitoring dashboard provides real-time visualization of these metrics, making it easy to identify issues and track system performance.
+
+```bash
+# Launch the monitoring dashboard (with timeout)
+python scripts/run_monitoring.py --timeout 60 --max-updates 5
+
+# View in browser at http://localhost:8000/dashboard.html
+# Or view directly at yahoofinance/output/monitoring/dashboard.html
+```
+
+**Note:** The dashboard is designed to run for a limited time to prevent resource exhaustion, then can be accessed statically. For long-running monitoring, consider using the script with appropriate timeout values or the simpler alternatives described in the [Monitoring README](scripts/MONITORING_README.md).
 
 ## Setup Instructions
 
@@ -235,6 +282,7 @@ We've implemented a lightweight CI/CD approach suitable for locally-run projects
 ./run_tests.sh --memory      # Run memory leak tests
 ./run_tests.sh --performance # Run performance benchmarks
 ./run_tests.sh --priority    # Test priority rate limiting
+./run_tests.sh --monitoring  # Test monitoring components
 ```
 
 #### Version Management
@@ -272,6 +320,8 @@ You can configure the application behavior using environment variables:
 - `ETOROTRADE_DEBUG`: Set to `true` to enable debug mode with more verbose logging
 - `YAHOOFINANCE_LOG_LEVEL`: Set logging level for the yahoofinance package
 - `YAHOOFINANCE_DEBUG`: Set to `true` to enable debug mode for the yahoofinance package
+- `YAHOOFINANCE_MONITORING_ENABLED`: Set to `true` to enable monitoring system (default: true)
+- `YAHOOFINANCE_MONITORING_EXPORT_INTERVAL`: Set export interval in seconds (default: 60)
 
 ### Required Input Files
 
@@ -301,6 +351,7 @@ For comprehensive technical documentation on the architecture, design patterns, 
 
 - [CLAUDE.md](CLAUDE.md) - Technical reference for developers
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
+- [scripts/MONITORING_README.md](scripts/MONITORING_README.md) - Monitoring system documentation
 
 ## Real-World Investment Performance
 

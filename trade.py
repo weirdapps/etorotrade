@@ -1908,7 +1908,7 @@ def _format_market_caps_in_display_df(display_df, opportunities_df):
     
     return display_df
 
-def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_path=None):
+def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_path=None, provider=None):
     """Process buy opportunities.
     
     Args:
@@ -1916,6 +1916,7 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_
         portfolio_tickers: Set of portfolio tickers
         output_dir: Output directory
         notrade_path: Path to no-trade tickers file
+        provider: Optional data provider to use
     """
     # Use the v2 implementation to filter buy opportunities
     from yahoofinance.analysis.market import filter_risk_first_buy_opportunities
@@ -2111,11 +2112,12 @@ def _process_empty_sell_candidates(output_dir):
     output_file = os.path.join(output_dir, SELL_CSV)
     create_empty_results_file(output_file)
 
-def process_sell_candidates(output_dir):
+def process_sell_candidates(output_dir, provider=None):
     """Process sell candidates from portfolio.
     
     Args:
         output_dir: Output directory
+        provider: Optional data provider to use
     """
     # Load portfolio data
     portfolio_analysis_df = _load_portfolio_data(output_dir)
@@ -2290,11 +2292,12 @@ def _format_market_caps(display_df, candidates_df):
     """
     return _format_market_caps_in_display_df(display_df, candidates_df)
 
-def process_hold_candidates(output_dir):
+def process_hold_candidates(output_dir, provider=None):
     """Process hold candidates from market data.
     
     Args:
         output_dir: Output directory
+        provider: Optional data provider to use
     """
     market_path = f"{output_dir}/market.csv"
     

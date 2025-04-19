@@ -139,6 +139,10 @@ class ConfigError(YFinanceError):
     """Error related to configuration issues."""
     pass
 
+class MonitoringError(YFinanceError):
+    """Error related to monitoring system operations."""
+    pass
+
 def format_error_details(error: Exception) -> str:
     """
     Format error details for logging.

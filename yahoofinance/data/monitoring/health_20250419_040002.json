@@ -1,0 +1,22 @@
+{
+  "system": {
+    "component": "system",
+    "status": "healthy",
+    "details": "Based on 2 component checks",
+    "timestamp": 1745024402.680833
+  },
+  "components": [
+    {
+      "component": "api",
+      "status": "healthy",
+      "details": "Error rate: 0.00%",
+      "timestamp": 1745024372.6853068
+    },
+    {
+      "component": "memory",
+      "status": "healthy",
+      "details": "Memory usage: 0.12%",
+      "timestamp": 1745024372.685759
+    }
+  ]
+}

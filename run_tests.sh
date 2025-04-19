@@ -15,6 +15,7 @@ display_help() {
     echo "  --performance     Run performance benchmarks"
     echo "  --memory          Run memory leak tests"
     echo "  --priority        Run priority limiter tests"
+    echo "  --monitoring      Run monitoring system tests"
     echo "  --help            Display this help message"
     echo ""
 }
@@ -47,6 +48,9 @@ while [ $# -gt 0 ]; do
         --priority)
             run_priority=true
             ;;
+        --monitoring)
+            run_monitoring=true
+            ;;
         --help)
             display_help
             exit 0
@@ -67,6 +71,7 @@ if [ "$run_all" = true ]; then
     run_performance=true
     run_memory=true
     run_priority=true
+    run_monitoring=true
 fi
 
 # Execute tests based on flags
@@ -108,6 +113,17 @@ if [ "$run_priority" = true ]; then
     echo "===== Running priority limiter tests ====="
     python benchmarks/test_priority_limiter.py
     echo "===== Priority limiter tests completed ====="
+    echo ""
+fi
+
+# Monitoring system tests
+if [ "$run_monitoring" = true ]; then
+    echo "===== Running monitoring system tests ====="
+    python -m pytest tests/unit/core/test_monitoring.py -v
+    python -m pytest tests/unit/api/middleware/test_monitoring_middleware.py -v
+    # Generate example monitoring data
+    python scripts/monitoring_examples.py
+    echo "===== Monitoring system tests completed ====="
     echo ""
 fi
 
