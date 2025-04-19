@@ -1,0 +1,13 @@
+[
+  {
+    "name": "test_alert",
+    "severity": "info",
+    "message": "Test alert message",
+    "value": 75.0,
+    "threshold": 70.0,
+    "timestamp": 1745024746.416438,
+    "tags": {
+      "test": "true"
+    }
+  }
+]
