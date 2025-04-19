@@ -724,9 +724,23 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
     async def batch_get_ticker_info(self, tickers: List[str], skip_insider_metrics: bool = False) -> Dict[str, Dict[str, Any]]:
         """
         Get ticker information for multiple tickers in a batch asynchronously.
-        Uses gather_with_concurrency for controlled parallelism.
+        Uses optimized async processing with prioritization and proper error handling.
         """
         if not tickers: return {}
+
+        # Identify high-priority tickers (important US stocks)
+        from ...utils.market.ticker_utils import is_us_ticker
+        high_priority_tickers = [ticker for ticker in tickers if is_us_ticker(ticker)]
+        
+        # Get known high-priority tickers from VIP_TICKERS in config
+        from ...core.config import RATE_LIMIT
+        vip_tickers = RATE_LIMIT.get("VIP_TICKERS", set())
+        if vip_tickers:
+            # Add any VIP tickers that are in our request list to the high priority list
+            priority_set = set(high_priority_tickers)
+            for ticker in tickers:
+                if ticker in vip_tickers and ticker not in priority_set:
+                    high_priority_tickers.append(ticker)
 
         async def get_info_for_ticker(ticker: str) -> Dict[str, Any]:
             """Wrapper to fetch info for a single ticker and handle errors."""
@@ -736,23 +750,33 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 logger.error(f"Error fetching batch data for {ticker}: {e}")
                 return {"symbol": ticker, "ticker": ticker, "company": ticker, "error": str(e)}
 
-        # Create a list of coroutine objects first
-        tasks_to_run = [get_info_for_ticker(ticker) for ticker in tickers]
-
-        # Pass the unpacked list of coroutines to the gather utility
-        # Pass the list of coroutines directly as the first argument
-        # The second argument is the concurrency limit
-        results_list = await gather_with_concurrency(
-            tasks_to_run,
-            limit=self.max_concurrency
+        # Use the new process_batch_async with prioritization from async_utils.enhanced
+        from ...utils.async_utils.enhanced import process_batch_async
+        
+        batch_results = await process_batch_async(
+            items=tickers,
+            processor=get_info_for_ticker,
+            batch_size=min(15, len(tickers)),  # Reasonably sized batches
+            concurrency=self.max_concurrency,
+            priority_items=high_priority_tickers,
+            description=f"Processing {len(tickers)} tickers"
         )
 
+        # Ensure all results have the expected format
         processed_results = {}
-        for result in results_list:
-             if isinstance(result, dict) and "symbol" in result:
-                 processed_results[result["symbol"]] = result
-             else:
-                 logger.error(f"Unexpected result type in batch processing: {type(result)}")
+        for ticker, result in batch_results.items():
+            if isinstance(result, dict) and "symbol" in result:
+                processed_results[result["symbol"]] = result
+            elif isinstance(ticker, str):
+                # Create a fallback result for unexpected return types
+                logger.warning(f"Unexpected result type for {ticker}: {type(result)}")
+                processed_results[ticker] = {
+                    "symbol": ticker, 
+                    "ticker": ticker, 
+                    "company": ticker,
+                    "error": "Invalid result format received"
+                }
+                
         return processed_results
 
     async def close(self) -> None:

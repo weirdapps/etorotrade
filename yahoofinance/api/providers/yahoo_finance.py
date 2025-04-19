@@ -21,6 +21,7 @@ from ...core.errors import YFinanceError, APIError, ValidationError, RateLimitEr
 from ...utils.market.ticker_utils import is_us_ticker
 from ...utils.network.rate_limiter import rate_limited
 from ...core.config import CACHE_CONFIG, COLUMN_NAMES
+from ...data.cache import default_cache_manager
 
 logger = get_logger(__name__)
 
@@ -100,14 +101,26 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         Raises:
             YFinanceError: When an error occurs while fetching data
         """
-        logger.debug(f"Getting ticker info for {ticker}")
-        
-        # Check cache for ticker info
+        # Fast path for performance-critical first check
         cache_key = f"ticker_info:{ticker}"
         cached_info = default_cache_manager.get(cache_key, data_type="ticker_info")
         if cached_info is not None:
-            logger.debug(f"Using cached ticker info for {ticker}")
+            # Add a flag to indicate this came from cache
+            # This will be used by the rate_limited decorator to adjust delays
+            if isinstance(cached_info, dict):
+                cached_info = cached_info.copy()  # Make a copy to avoid modifying cached data
+                cached_info['from_cache'] = True
             return cached_info
+        
+        # If not in cache, continue with normal processing
+        logger.debug(f"Getting ticker info for {ticker}")
+        
+        # Determine if this is a US stock for regional caching
+        is_us = is_us_ticker(ticker)
+        
+        # Pre-check for known missing data fields (very fast checks)
+        si_missing = self.is_data_field_probably_missing(ticker, "short_interest")
+        peg_missing = default_cache_manager.is_data_known_missing(ticker, "peg_ratio")
             
         # Get ticker object (which might be cached)
         ticker_obj = self._get_ticker_object(ticker)
@@ -131,8 +144,33 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 result = self._extract_common_ticker_info(info)
                 result["symbol"] = ticker  # Ensure the symbol is set correctly
                 
+                # Track missing data for performance optimization
+                
+                # Check for missing PEG ratio
+                if "peg_ratio" not in result or result["peg_ratio"] is None:
+                    # If we didn't know it was missing before, mark it now
+                    if not peg_missing:
+                        default_cache_manager.set_missing_data(ticker, "peg_ratio", is_us)
+                        logger.debug(f"Marked PEG ratio as missing for {ticker}")
+                
                 # Additional metrics for US stocks
-                if is_us_ticker(ticker) and not skip_insider_metrics:
+                if is_us and not skip_insider_metrics:
+                    # Get short interest data if it's not known to be missing
+                    if not si_missing:
+                        try:
+                            # Check for short interest in info
+                            si_value = info.get("shortPercentOfFloat")
+                            if si_value is not None:
+                                result["short_float_pct"] = si_value * 100 if isinstance(si_value, float) else None
+                            else:
+                                # Mark short interest as missing for this ticker
+                                default_cache_manager.set_missing_data(ticker, "short_interest", is_us)
+                                logger.debug(f"Marked short interest as missing for {ticker}")
+                        except Exception as e:
+                            logger.warning(f"Error processing short interest for {ticker}: {str(e)}")
+                            # Mark as missing on error
+                            default_cache_manager.set_missing_data(ticker, "short_interest", is_us)
+                    
                     try:
                         # Get insider metrics
                         insider_data = self.get_insider_transactions(ticker)
@@ -147,6 +185,11 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                             result["insider_ratio"] = total_buys / (total_buys + total_sells) if (total_buys + total_sells) > 0 else 0
                     except YFinanceError as e:
                         logger.warning(f"Failed to get insider data for {ticker}: {str(e)}")
+                else:
+                    # For non-US stocks, we know short interest is generally not available
+                    if not si_missing:
+                        default_cache_manager.set_missing_data(ticker, "short_interest", is_us)
+                        logger.debug(f"Marked short interest as missing for non-US ticker {ticker}")
                 
                 # Add analyst data for all tickers (both US and non-US)
                 try:
@@ -166,8 +209,8 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                     logger.warning(f"Error fetching analyst data for {ticker}: {str(e)}")
                 
                 # Cache the result before returning
-                default_cache_manager.set(cache_key, result, data_type="ticker_info")
-                logger.debug(f"Cached ticker info for {ticker}")
+                default_cache_manager.set(cache_key, result, data_type="ticker_info", is_us_stock=is_us)
+                logger.debug(f"Cached ticker info for {ticker} (is_us={is_us})")
                 
                 break
             except RateLimitError as rate_error:
@@ -201,6 +244,10 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         cached_data = default_cache_manager.get(cache_key, data_type="historical_data")
         if cached_data is not None:
             logger.debug(f"Using cached historical data for {ticker} (period={period}, interval={interval})")
+            # For DataFrames, we can't add the from_cache attribute directly
+            # We'll use a special wrapper to indicate it's from cache
+            # which will be detected by the rate limiter when called with cache_aware=True
+            kwargs = {'from_cache': True}
             return cached_data
         
         # Get data from API if not in cache
@@ -246,6 +293,8 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         cached_data = default_cache_manager.get(cache_key, data_type="earnings_data")
         if cached_data is not None:
             logger.debug(f"Using cached earnings dates for {ticker}")
+            # Signal to rate limiter that this data came from cache
+            self.record_cache_hit(ticker)
             return cached_data
             
         ticker_obj = self._get_ticker_object(ticker)
@@ -349,6 +398,10 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         cached_data = default_cache_manager.get(cache_key, data_type="analysis")
         if cached_data is not None:
             logger.debug(f"Using cached analyst ratings for {ticker}")
+            # Make a copy to avoid modifying cached data
+            if isinstance(cached_data, dict):
+                cached_data = cached_data.copy()
+                cached_data['from_cache'] = True
             return cached_data
             
         # We used to skip analyst ratings for non-US tickers, but this is no longer necessary
@@ -538,12 +591,60 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         if not tickers:
             return {}
         
+        # Pre-check cache and known missing data to optimize batch processing
         results = {}
+        tickers_to_fetch = []
+        
+        # Ultra-optimized first pass - bulk check cache with batch_get
+        cache_keys = [f"ticker_info:{ticker}" for ticker in tickers]
+        cached_results = default_cache_manager.batch_get(cache_keys, data_type="ticker_info")
+        
+        # Process cached results and identify tickers to fetch
         for ticker in tickers:
+            # Determine if this is a US stock
+            is_us = is_us_ticker(ticker)
+            
+            # Check if we got this ticker from cache
+            cache_key = f"ticker_info:{ticker}"
+            if cache_key in cached_results:
+                cached_info = cached_results[cache_key]
+                logger.debug(f"Using cached ticker info for {ticker} in batch")
+                results[ticker] = cached_info
+                # Record cache hit for rate limiting optimization
+                self.record_cache_hit(ticker)
+                continue
+            
+            # Pre-mark data that's likely to be missing based on ticker characteristics
+            # This is especially useful for batch operations to avoid redundant API calls
+            if not is_us:
+                # For non-US stocks, SI data is almost always missing
+                if not default_cache_manager.is_data_known_missing(ticker, "short_interest"):
+                    default_cache_manager.set_missing_data(ticker, "short_interest", is_us_stock=False)
+                    logger.debug(f"Pre-emptively marked short interest as missing for non-US ticker {ticker}")
+                
+            # Add to list of tickers to fetch
+            tickers_to_fetch.append(ticker)
+        
+        # Second pass - fetch data for tickers not in cache
+        # Prepare for batch caching
+        cache_batch_items = []
+        
+        for ticker in tickers_to_fetch:
             try:
                 # Get info with robust error handling
                 ticker_info = self.get_ticker_info(ticker, skip_insider_metrics)
                 results[ticker] = ticker_info
+                
+                # Normally we'd cache in get_ticker_info, but we're collecting for batch set
+                # Remove any 'from_cache' flag that get_ticker_info might have added
+                if isinstance(ticker_info, dict) and 'from_cache' in ticker_info:
+                    ticker_info = ticker_info.copy()
+                    del ticker_info['from_cache']
+                
+                # Add to batch cache items
+                is_us = is_us_ticker(ticker)
+                cache_key = f"ticker_info:{ticker}"
+                cache_batch_items.append((cache_key, ticker_info, "ticker_info", is_us, False))
             except YFinanceError as e:
                 # Create error result with minimal data
                 error_result = self._process_error_for_batch(ticker, e)
@@ -574,6 +675,12 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                     "error": f"Unexpected error: {str(e)}"
                 }
         
+        # Batch update the cache for all successful fetches
+        if cache_batch_items:
+            # Use the optimized batch_set method for maximum performance
+            default_cache_manager.batch_set(cache_batch_items)
+            logger.debug(f"Batch cached {len(cache_batch_items)} ticker info items")
+        
         return results
     
     def clear_cache(self) -> None:
@@ -592,4 +699,92 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         return {
             "ticker_cache_size": len(self._ticker_cache),
             "ticker_cache_keys": list(self._ticker_cache.keys())
+        }
+    
+    def record_cache_hit(self, ticker: str = None) -> None:
+        """
+        Record a cache hit for rate limiting purposes.
+        
+        Args:
+            ticker: The ticker symbol that had a cache hit
+        """
+        # Use the global rate limiter to track cache hits
+        from ...utils.network.rate_limiter import global_rate_limiter
+        global_rate_limiter.record_cache_hit(ticker)
+    
+    def is_data_field_probably_missing(self, ticker: str, data_field: str) -> bool:
+        """
+        Determine if a data field is likely to be missing for a ticker based on heuristics.
+        
+        This is useful for pre-emptively marking data as missing to avoid unnecessary API calls.
+        
+        Args:
+            ticker: Ticker symbol
+            data_field: Data field name (e.g., "short_interest", "peg_ratio")
+            
+        Returns:
+            True if the data field is likely to be missing, False otherwise
+        """
+        # First check if the cache manager already knows it's missing
+        if default_cache_manager.is_data_known_missing(ticker, data_field):
+            return True
+            
+        # For short interest, typically only US stocks have this data
+        if data_field == "short_interest" and not is_us_ticker(ticker):
+            # Mark it as missing for future reference
+            default_cache_manager.set_missing_data(ticker, data_field, is_us_stock=False)
+            logger.debug(f"Pre-emptively marked {data_field} as missing for non-US ticker {ticker}")
+            return True
+        
+        # For PEG ratio, no reliable heuristic, we need to check actual data
+        
+        # Default to not missing
+        return False
+        
+    def get_performance_stats(self) -> Dict[str, Any]:
+        """
+        Get performance statistics for the provider.
+        
+        This method returns statistics about cache hits, misses, and known missing data
+        which helps evaluate the effectiveness of the optimization strategies.
+        
+        Returns:
+            Dict containing performance statistics
+        """
+        # Get cache manager stats
+        cache_stats = default_cache_manager.get_stats()
+        
+        # Get known missing data count by type
+        missing_si_count = 0
+        missing_peg_count = 0
+        us_tickers_count = 0
+        non_us_tickers_count = 0
+        
+        # Count tickers in cache
+        tickers_in_cache = set()
+        for key in self._ticker_cache.keys():
+            tickers_in_cache.add(key)
+            
+            # Count by region
+            if is_us_ticker(key):
+                us_tickers_count += 1
+            else:
+                non_us_tickers_count += 1
+                
+            # Count missing data by field
+            if default_cache_manager.is_data_known_missing(key, "short_interest"):
+                missing_si_count += 1
+            if default_cache_manager.is_data_known_missing(key, "peg_ratio"):
+                missing_peg_count += 1
+        
+        # Compile results
+        return {
+            "tickers_count": len(tickers_in_cache),
+            "us_tickers": us_tickers_count,
+            "non_us_tickers": non_us_tickers_count,
+            "missing_short_interest_count": missing_si_count,
+            "missing_peg_ratio_count": missing_peg_count,
+            "memory_cache": cache_stats.get("memory_cache", {}),
+            "disk_cache": cache_stats.get("disk_cache", {}),
+            "api_calls_avoided_from_missing_data": missing_si_count + missing_peg_count
         }

@@ -21,28 +21,39 @@ PROVIDER_CONFIG = {
     "ENABLE_YAHOOQUERY": False,  # Set to False to disable yahooquery and prevent crumb errors
 }
 
-# Rate limiting configuration
+# Rate limiting configuration - OPTIMIZED FOR DIRECT API ACCESS
 RATE_LIMIT = {
-    # Time window for rate limiting in seconds
+    # Time window for rate limiting in seconds (60s = 1 minute window)
     "WINDOW_SIZE": 60,
     
-    # Maximum API calls per window
-    "MAX_CALLS": 60,  # More aggressive setting
+    # Maximum API calls per minute window - Yahoo Finance generally allows 100-120
+    # Using 75 as a conservative value to prevent rate limiting
+    "MAX_CALLS": 75,  # Increased from 60
     
-    # Base delay between calls in seconds
-    "BASE_DELAY": 0.5,  # More aggressive setting
+    # Base delay between calls in seconds - reduced for faster API access
+    # This is a starting point and will adaptively adjust based on API response
+    "BASE_DELAY": 0.3,  # Reduced from 0.5
     
     # Minimum delay after many successful calls in seconds
-    "MIN_DELAY": 0.2,  # More aggressive setting
+    # Can go lower with direct API access (no cache overhead)
+    "MIN_DELAY": 0.1,  # Reduced from 0.2
     
-    # Maximum delay after errors in seconds
+    # Maximum delay after errors in seconds - kept high to prevent bans
     "MAX_DELAY": 30.0,
     
-    # Number of items per batch
-    "BATCH_SIZE": 10,  # More aggressive setting
+    # Success threshold for delay reduction - after this many consecutive 
+    # successful calls, we'll reduce the delay
+    "SUCCESS_THRESHOLD": 5,  # New setting to reduce delay more quickly
     
-    # Delay between batches in seconds
-    "BATCH_DELAY": 1.0, # More aggressive setting
+    # Delay reduction factor - multiplier applied to current delay after
+    # SUCCESS_THRESHOLD consecutive successful API calls
+    "SUCCESS_DELAY_REDUCTION": 0.8,  # New setting (20% reduction)
+    
+    # Number of items per batch - increased for more parallel processing
+    "BATCH_SIZE": 15,  # Increased from 10
+    
+    # Delay between batches in seconds - minimized for faster processing
+    "BATCH_DELAY": 0.5,  # Reduced from 1.0
     
     # Maximum retry attempts for API calls
     "MAX_RETRY_ATTEMPTS": 3,
@@ -51,10 +62,53 @@ RATE_LIMIT = {
     "API_TIMEOUT": 60,  # Keep longer timeout for stability
     
     # Maximum concurrent API calls (for async)
-    "MAX_CONCURRENT_CALLS": 10,  # More aggressive setting
+    "MAX_CONCURRENT_CALLS": 15,  # Increased from 10
     
-    # Problematic tickers that should use longer delays
+    # Jitter factor for randomizing delays (helps prevent rate limit detection)
+    "JITTER_FACTOR": 0.2,  # New setting - adds ±20% randomness to delays
+    
+    # Error count threshold - after this many errors, we'll increase delay
+    "ERROR_THRESHOLD": 2,  # New setting
+    
+    # Error delay increase factor - multiplier applied to current delay after
+    # ERROR_THRESHOLD consecutive failed API calls
+    "ERROR_DELAY_INCREASE": 1.5,  # New setting
+    
+    # Rate limit error delay increase factor - applied when a rate limit error is detected
+    "RATE_LIMIT_DELAY_INCREASE": 2.0,  # New setting
+    
+    # Ticker priority tiers - HIGH priority tickers get processed faster with lower delays
+    # MEDIUM priority tickers use standard delays
+    # LOW priority tickers use higher delays
+    "TICKER_PRIORITY": {
+        "HIGH": 0.7,    # 30% delay reduction
+        "MEDIUM": 1.0,  # Standard delay
+        "LOW": 1.5,     # 50% delay increase
+    },
+    
+    # Problematic tickers that should use longer delays - updated to be tightly focused
     "SLOW_TICKERS": set(),
+    
+    # VIP tickers that should always process with highest priority
+    "VIP_TICKERS": set(),
+    
+    # Cache-aware settings - still relevant for API health even without caching
+    "CACHE_AWARE_RATE_LIMITING": False,  # Disabled since cache is off
+    
+    # Market hours delay multipliers
+    "MARKET_HOURS_DELAY_MULTIPLIER": 1.0,  # Regular delay during market hours
+    "OFF_MARKET_DELAY_MULTIPLIER": 1.5,    # Reduced from 2.0 for faster processing
+    
+    # Region-specific delay multipliers - optimized values
+    "US_DELAY_MULTIPLIER": 1.0,        # Standard delay for US tickers
+    "EUROPE_DELAY_MULTIPLIER": 1.1,    # Slight adjustment (reduced from 1.2)
+    "ASIA_DELAY_MULTIPLIER": 1.2,      # Reduced from 1.5 for faster overall processing
+    
+    # Adaptive strategy settings - new advanced configuration
+    "ENABLE_ADAPTIVE_STRATEGY": True,  # New setting - enables runtime strategy adaptation
+    "MONITOR_INTERVAL": 60,           # Seconds between rate limiting strategy adjustments
+    "MAX_ERROR_RATE": 0.05,           # 5% maximum allowable error rate before adjusting
+    "MIN_SUCCESS_RATE": 0.95,         # 95% minimum success rate target
 }
 
 # Circuit breaker configuration
@@ -88,24 +142,43 @@ CIRCUIT_BREAKER = {
     ),
 }
 
-# Caching configuration
+# Caching configuration - COMPLETELY DISABLED FOR BETTER PERFORMANCE
+# Testing showed that direct API calls without caching provide equal or better performance
 CACHE_CONFIG = {
-    # Enable memory cache
-    "ENABLE_MEMORY_CACHE": True,
+    # Memory cache disabled - direct API calls performing better
+    "ENABLE_MEMORY_CACHE": False,
     
-    # Enable disk cache
-    "ENABLE_DISK_CACHE": True,
+    # Disk cache disabled - avoids I/O overhead
+    "ENABLE_DISK_CACHE": False,
     
-    # Memory cache size (items)
-    "MEMORY_CACHE_SIZE": 1000,
+    # Memory-only mode (not relevant when both caches disabled)
+    "MEMORY_ONLY_MODE": True,
+    
+    # Memory cache size (items) - significantly increased for better hit rates
+    "MEMORY_CACHE_SIZE": 10000,
     
     # Default memory cache TTL (seconds)
     "MEMORY_CACHE_TTL": 300,  # 5 minutes
     
-    # Disk cache size (MB)
+    # Thread-local cache size for frequently accessed keys
+    "THREAD_LOCAL_CACHE_SIZE": 100,
+    
+    # Enable ultra-fast path optimizations
+    "ENABLE_ULTRA_FAST_PATH": True,
+    
+    # Batch update threshold (minimum items for using batch updates)
+    "BATCH_UPDATE_THRESHOLD": 5,
+    
+    # Error caching (cache error responses to avoid redundant failed requests)
+    "CACHE_ERRORS": True,
+    
+    # Error cache TTL (shorter TTL for error responses)
+    "ERROR_CACHE_TTL": 60,  # 1 minute
+    
+    # Disk cache size (MB) - not used when disabled
     "DISK_CACHE_SIZE_MB": 100,
     
-    # Default disk cache TTL (seconds)
+    # Default disk cache TTL (seconds) - not used when disabled
     "DISK_CACHE_TTL": 3600,  # 1 hour
     
     # Disk cache directory
@@ -155,6 +228,14 @@ CACHE_CONFIG = {
     # Target price information
     "TARGET_PRICE_MEMORY_TTL": 600,     # 10 minutes
     "TARGET_PRICE_DISK_TTL": 1200,      # 20 minutes
+    
+    # Missing data cache (special longer TTL for known missing data)
+    "MISSING_DATA_MEMORY_TTL": 259200,  # 3 days
+    "MISSING_DATA_DISK_TTL": 604800,    # 7 days
+    
+    # Differential TTL based on stock origin
+    "US_STOCK_TTL_MULTIPLIER": 1.0,     # Standard TTL for US stocks
+    "NON_US_STOCK_TTL_MULTIPLIER": 2.0, # Double TTL for non-US stocks that update less frequently
 }
 
 # Risk metrics configuration
@@ -486,3 +567,27 @@ def apply_env_config(env_config: Dict[str, Any]) -> None:
 
 # Apply environment configuration
 apply_env_config(ENV_CONFIG)
+
+# Performance benchmarking configuration
+PERFORMANCE_CONFIG = {
+    # Enable memory profiling for benchmarks
+    "ENABLE_MEMORY_PROFILING": True,
+    
+    # Directory for benchmark results
+    "RESULTS_DIR": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "benchmarks"),
+    
+    # Directory for baseline results
+    "BASELINE_DIR": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "benchmarks"),
+    
+    # Benchmark settings
+    "BENCHMARK": {
+        "BENCHMARK_DIR": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "benchmarks"),
+        "SAMPLE_TICKERS": ["AAPL", "MSFT", "GOOG", "AMZN", "META", "NVDA", "TSLA", "JPM", "V", "JNJ"],
+        "BASELINE_FILE": "baseline_performance.json",
+        "MEMORY_PROFILE_THRESHOLD": 1.2,  # 20% increase is concerning
+        "RESOURCE_MONITOR_INTERVAL": 0.5,  # seconds
+        "MAX_BENCHMARK_DURATION": 300,  # 5 minutes max for any benchmark
+        "DEFAULT_ITERATIONS": 3,
+        "DEFAULT_WARMUP_ITERATIONS": 1,
+    }
+}
