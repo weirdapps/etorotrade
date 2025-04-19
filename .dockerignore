@@ -1,0 +1,44 @@
+# Git
+.git
+.github
+.gitignore
+
+# Virtual environment
+myenv/
+venv/
+env/
+.env
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Testing and coverage files
+.coverage
+htmlcov/
+
+# Logs
+logs/*
+*.log
+
+# Benchmark results
+benchmarks/*
+
+# Editor specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS specific files
+.DS_Store
+Thumbs.db

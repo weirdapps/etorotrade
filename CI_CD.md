@@ -102,6 +102,36 @@ Possible enhancements to this CI/CD setup:
 4. Code coverage requirements
 5. Security scanning
 
+## Docker Support
+
+Docker support has been added to provide a consistent development and testing environment:
+
+### Using Docker
+
+```bash
+# Build and start the application
+docker-compose up etorotrade
+
+# Run all tests in Docker
+docker-compose up tests
+
+# Build a fresh image
+docker-compose build
+```
+
+### Docker Configuration
+
+- **Dockerfile**: Defines the application environment
+- **docker-compose.yml**: Defines services for both the application and tests
+- **.dockerignore**: Excludes unnecessary files from the Docker build context
+
+### Benefits of Docker
+
+1. **Consistent Environment**: Same environment for development and testing
+2. **Dependency Management**: All dependencies installed in the container
+3. **Isolation**: Application runs isolated from the host system
+4. **Portability**: Run on any system with Docker installed
+
 ## Troubleshooting
 
 If you encounter issues with the CI/CD setup:
@@ -109,3 +139,4 @@ If you encounter issues with the CI/CD setup:
 1. **Pre-commit Hooks Failing**: Fix the issues reported or temporarily bypass with `git commit --no-verify` (not recommended)
 2. **GitHub Actions Failing**: Check the GitHub Actions tab for detailed error messages
 3. **Test Script Issues**: Make sure `run_tests.sh` has execution permissions (`chmod +x run_tests.sh`)
+4. **Docker Issues**: Try rebuilding the image with `docker-compose build --no-cache`
