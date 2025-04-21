@@ -111,7 +111,7 @@ def wait_and_find_element(driver, by, value, timeout=10, check_visibility=True):
                 EC.presence_of_element_located((by, value))
             )
         return element
-    except YFinanceError as e:
+    except (YFinanceError, TimeoutException, NoSuchElementException) as e:
         logger.error(f"Error finding element {value}: {str(e)}")
         return None
 

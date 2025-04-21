@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import Mock, patch
 from yahoofinance.core.client import YFinanceClient
 from yahoofinance.core.errors import ValidationError
+from yahoofinance.core.config import RATE_LIMIT
 
 class TestYFinanceClient(unittest.TestCase):
     def setUp(self):
@@ -12,8 +13,9 @@ class TestYFinanceClient(unittest.TestCase):
         """Test client initialization with default and custom values."""
         # Test default values
         client = YFinanceClient()
-        self.assertEqual(client.max_retries, 3)  # Default from RATE_LIMIT
-        self.assertEqual(client.timeout, 30)     # Default from RATE_LIMIT
+        # Use the actual values from the config rather than hardcoded values
+        self.assertEqual(client.max_retries, RATE_LIMIT["MAX_RETRY_ATTEMPTS"])
+        self.assertEqual(client.timeout, RATE_LIMIT["API_TIMEOUT"])
         
         # Test custom values
         custom_client = YFinanceClient(max_retries=5, timeout=60)

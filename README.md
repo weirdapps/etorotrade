@@ -1,361 +1,196 @@
-# etorotrade - Market Analysis & Portfolio Management
+# etoroTRADE 📈 Smart Investment Analysis
 
-A powerful Python-based analysis system that provides actionable trading recommendations for stocks, portfolios, and market intelligence using Yahoo Finance data. The tool features sophisticated rate limiting, intelligent caching, and multiple output formats to help you make informed investment decisions.
+**Data-driven investment decisions powered by analyst consensus and financial metrics**
 
 ![eToro Trade Analysis Tool](assets/etorotrade.png)
 
-## What's This Tool For?
+etoroTRADE is a Python-based investment analysis system that helps you make smarter trading decisions by analyzing financial data, analyst ratings, and technical indicators from Yahoo Finance. Whether you're managing a portfolio or searching for new opportunities, etoroTRADE provides actionable insights with clear BUY, SELL, or HOLD recommendations.
 
-etoroTRADE helps you:
-- **Analyze your portfolio** for potential sell candidates
-- **Discover new buy opportunities** based on upside potential and analyst consensus
-- **Monitor market conditions** across US, European, and Chinese markets
-- **Track news sentiment** to stay ahead of market-moving events
-- **Follow insider transactions** and institutional activity
-- **Generate actionable trade recommendations** based on comprehensive criteria
-- **Backtest trading strategies** to optimize criteria parameters
-- **Track performance** of market indices and your portfolio
+## 🚀 Features
 
-## Main Application
+- **Portfolio Analysis**: Identify risks and opportunities in your current holdings
+- **Market Screening**: Discover promising stocks across US, European, and Chinese markets
+- **Trade Recommendations**: Get clear BUY, SELL, or HOLD guidance with detailed reasoning
+- **News & Sentiment**: Track market-moving news and sentiment analysis
+- **Insider Activity**: Follow institutional and insider transactions
+- **Backtesting**: Test your strategies against historical data to optimize performance
+- **Performance Tracking**: Monitor how your portfolio and markets are performing
 
-The primary interface is `trade.py`, which provides several analysis options:
+## 🏁 Quick Start
 
 ```bash
+# Clone and setup
+git clone https://github.com/yourusername/etorotrade
+cd etorotrade
+python -m venv myenv
+source myenv/bin/activate  # On Windows: myenv\Scripts\activate
+pip install -r requirements.txt
+
+# Run the main application
 python trade.py
 ```
 
-> **Note:** To run non-interactively (e.g., in scripts), you can pipe the menu selections. For example, to run Portfolio Analysis (P) using the existing file (E):
-> ```bash
-> echo "p\ne" | python trade.py
-> ```
+After running, you'll be prompted to select an analysis type:
 
-### Menu Options
-
-- **P: Portfolio Analysis**
-  - Analyzes your current holdings from portfolio.csv
-  - Shows performance metrics, risk factors, and recommendations
-  - Outputs to yahoofinance/output/portfolio.csv and HTML dashboard
-
-- **M: Market Analysis**
-  - Prompts for market selection (USA, Europe, China, or Manual)
-  - Analyzes selected market for investment opportunities
-  - Outputs to yahoofinance/output/market.csv and HTML dashboard
-
-- **E: eToro Market Analysis**
-  - Analyzes tickers available on eToro platform
-  - Perfect for eToro users to find opportunities within available assets
-  - Outputs to yahoofinance/output/market.csv and HTML dashboard
-
-- **T: Trade Analysis**
-  - Provides actionable trading recommendations with sub-options:
-    - **B: Buy Opportunities** - New stocks to consider purchasing
-    - **S: Sell Candidates** - Portfolio stocks to consider selling
-    - **H: Hold Candidates** - Stocks with neutral outlook
-  - Outputs to yahoofinance/output/buy.csv, sell.csv, or hold.csv with HTML dashboards
-
-- **I: Manual Ticker Input**
-  - Analyze specific tickers entered manually
-  - Outputs to yahoofinance/output/manual.csv and HTML dashboard
-
-- **O: Monitoring Dashboard**
-  - Launch the monitoring and observability dashboard
-  - Real-time metrics, health checks, and performance stats
-  - Visual charts for request rates, response times, and memory usage
-
-## Trading Classification Criteria
-
-The system uses these criteria to classify stocks into four categories:
-
-### 🟡 INCONCLUSIVE
-- Low confidence due to insufficient analyst coverage (< 5 price targets or < 5 analyst ratings)
-
-### 🔴 SELL (Risk Management)
-Triggered if ANY of these conditions are met:
-- Less than 5% upside potential
-- Less than 65% buy ratings from analysts
-- Forward P/E (PEF) > Trailing P/E (PET) - deteriorating earnings outlook
-- Forward P/E (PEF) > 50.0 (extremely high valuation)
-- PEG ratio > 3.0 (overvalued relative to growth)
-- Short Interest (SI) > 2% (high short interest)
-- Beta > 3.0 (excessive volatility)
-- Expected Return (EXRET) < 5.0 (insufficient potential return)
-
-### 🟢 BUY (Growth Opportunity)
-ALL of these conditions must be met:
-- 20% or more upside potential
-- 85% or more buy ratings from analysts
-- Beta data available: 0.25 < Beta ≤ 2.5
-- PE Forward (PEF) and PE Trailing (PET) data available
-- Improving earnings outlook (PEF < PET) OR Negative trailing P/E
-- Positive earnings projection (0.5 < PEF ≤ 45.0)
-- Reasonable valuation relative to growth (PEG < 2.5) - if PEG data available
-- Acceptable short interest (SI ≤ 1.5%) - if SI data available
-- Strong expected return (EXRET ≥ 15.0)
-
-### ⚪ HOLD
-- Stocks that pass confidence threshold
-- Don't meet SELL criteria
-- Don't meet BUY criteria
-
-## Analysis Modules
-
-### News & Market Intelligence
-```bash
-# News with sentiment analysis
-python -m yahoofinance.analysis.news
-
-# Economic indicators and metrics
-python -m yahoofinance.analysis.metrics
+```
+Load tickers for Portfolio (P), Market (M), eToro Market (E), Trade Analysis (T) or Manual Input (I)?
 ```
 
-### Performance Tracking
-```bash
-# Portfolio performance metrics
-python -m yahoofinance.analysis.portfolio
+Simply enter the letter that corresponds to your desired analysis type.
 
-# Market performance tracking - multiple time periods available
-python -m yahoofinance.analysis.performance weekly    # Week-over-week comparison
-python -m yahoofinance.analysis.performance monthly   # Month-over-month comparison
-python -m yahoofinance.analysis.performance ytd       # Year-to-date (Dec 31 to now)
-python -m yahoofinance.analysis.performance mtd       # Month-to-date (prev month end to now)
-python -m yahoofinance.analysis.performance portfolio # Portfolio metrics
+## 📊 Smart Trading Criteria
 
-# Track both market and portfolio performance together
-python -m yahoofinance.analysis.performance all
+etoroTRADE uses a sophisticated classification system based on financial metrics, analyst consensus, and technical indicators:
+
+### 🟢 BUY Recommendations
+A stock must meet ALL of these criteria:
+- **Strong Upside**: 20%+ potential upside
+- **Analyst Consensus**: 85%+ buy ratings
+- **Reasonable Volatility**: Beta between 0.25 and 2.5
+- **Attractive Valuation**: 
+  - Improving earnings outlook (Forward P/E < Trailing P/E)
+  - Reasonable Forward P/E (0.5 < PEF ≤ 45.0)
+  - Good growth-adjusted value (PEG < 2.5)
+- **Limited Risk Factors**: 
+  - Low short interest (≤ 1.5%)
+  - Strong expected return (≥ 15.0)
+
+### 🔴 SELL Signals
+A stock triggers a SELL if ANY of these warning signs appear:
+- **Limited Upside**: Less than 5% upside potential
+- **Weak Analyst Support**: Less than 65% buy ratings
+- **Deteriorating Earnings**: Forward P/E > Trailing P/E
+- **Overvaluation**: Forward P/E > 50.0 or PEG > 3.0
+- **High Risk Factors**: Short interest > 2% or Beta > 3.0
+- **Poor Expected Return**: EXRET < 5.0
+
+### ⚪ HOLD Recommendations
+- Passes confidence thresholds but doesn't meet full BUY or SELL criteria
+- May have mixed signals or be fairly valued at current price
+
+### 🟡 INCONCLUSIVE Classification
+- Insufficient analyst coverage (< 5 price targets or < 5 analyst ratings)
+- Not enough data for confident decision-making
+
+## 📁 Input Files
+
+Create or edit these CSV files in the `yahoofinance/input/` directory:
+
+```
+# portfolio.csv - Your current holdings
+symbol,shares,cost,date
+AAPL,10,150.25,2022-03-15
+MSFT,5,280.75,2022-04-20
+
+# market.csv - General market watchlist
+symbol,sector
+AAPL,Technology
+MSFT,Technology
 ```
 
-For detailed documentation on the performance module, see [yahoofinance/analysis/PERFORMANCE_README.md](yahoofinance/analysis/PERFORMANCE_README.md).
+Pre-populated files include:
+- `etoro.csv`: Tickers available on eToro
+- `usa.csv`, `europe.csv`, `china.csv`: Regional market lists
+- `notrade.csv`: Tickers to exclude from recommendations
 
-### Analyst & Earnings
+## 🧰 Analysis Tools
+
+### Portfolio Analysis
+```bash
+# Interactive analysis
+python trade.py  # Then select "P" for Portfolio Analysis
+
+# Non-interactive for scripts/automation
+echo "p\ne" | python trade.py  # P for portfolio, E for existing file
+```
+
+### Market Screening
+```bash
+# Find opportunities in specific markets
+python trade.py  # Then select "M" and choose a market
+
+# Or analyze eToro-available stocks
+python trade.py  # Then select "E" for eToro Market Analysis
+```
+
+### Trade Recommendations
+```bash
+# Get actionable BUY/SELL/HOLD guidance
+python trade.py  # Then select "T" and choose recommendation type
+
+# Run directly from command line (for BUY recommendations)
+echo "t\nb" | python trade.py
+```
+
+### Monitoring Dashboard
+```bash
+# Start the monitoring dashboard with a timeout
+python scripts/run_monitoring.py --timeout 60 --max-updates 5
+
+# Use this script directly instead of from the main application
+```
+
+### Specialized Analysis
 ```bash
 # Analyst ratings and recommendations
 python -m yahoofinance.analysis.analyst
 
-# Upcoming earnings dates and surprises
-python -m yahoofinance.analysis.earnings
-```
+# News with sentiment analysis
+python -m yahoofinance.analysis.news
 
-### Insider Transactions
-```bash
-# Insider transactions analysis
+# Insider transactions
 python -m yahoofinance.analysis.insiders
+
+# Performance tracking
+python -m yahoofinance.analysis.performance weekly    # Week-over-week
+python -m yahoofinance.analysis.performance monthly   # Month-over-month
+python -m yahoofinance.analysis.performance portfolio # Portfolio metrics
+
+# Backtesting and strategy optimization
+python scripts/optimize_criteria.py --mode backtest --period 2y
 ```
 
-### Monitoring & Observability
-```bash
-# Start the monitoring dashboard (with timeout to prevent hanging)
-python scripts/run_monitoring.py --timeout 60 --max-updates 5
+## 📊 Output Examples
 
-# Generate example monitoring data (simplified version)
-python scripts/monitoring_examples_limited.py
+The analysis generates both CSV files and interactive HTML dashboards:
 
-# Generate simple test data
-python scripts/simple_monitoring_test.py
+- **Portfolio Analysis**: `yahoofinance/output/portfolio.csv` + HTML dashboard
+- **Market Analysis**: `yahoofinance/output/market.csv` + HTML dashboard
+- **Trade Recommendations**: 
+  - `yahoofinance/output/buy.csv`
+  - `yahoofinance/output/sell.csv`
+  - `yahoofinance/output/hold.csv`
 
-# Static dashboard generation (no server)
-python scripts/simple_dashboard.py
+## 🚢 Docker Support
 
-# Custom dashboard options
-python scripts/run_monitoring.py --port 8080 --refresh 15 --export-interval 30 --timeout 120 --max-updates 10
-```
-
-For detailed documentation on the monitoring system, see [scripts/MONITORING_README.md](scripts/MONITORING_README.md).
-
-### Backtesting & Optimization
-```bash
-# Run a backtest with default settings
-python scripts/optimize_criteria.py --mode backtest
-
-# Optimize trading criteria parameters
-python scripts/optimize_criteria.py --mode optimize --metric sharpe_ratio
-```
-
-## Backtesting Framework
-
-The backtesting framework allows you to:
-
-1. Test your trading criteria against historical data
-2. Optimize criteria parameters to find the best performing combination
-3. Generate performance reports comparing to benchmark indices
-4. Perform what-if analysis with different market conditions
-5. Use market cap-based position weighting (1% to 10% per position) for realistic portfolio allocation
-6. Analyze detailed portfolio synthesis tables with complete metrics for each position
-
-For detailed instructions on using the backtesting framework, see [scripts/BACKTEST_README.md](scripts/BACKTEST_README.md).
-
-### Basic Examples
+For a consistent environment or deployment:
 
 ```bash
-# Run a 2-year backtest on your portfolio
-python scripts/optimize_criteria.py --mode backtest --period 2y --source portfolio
-
-# Optimize sell criteria parameters for maximum Sharpe ratio
-python scripts/optimize_criteria.py --mode optimize --param-file scripts/sample_parameters.json
-
-# Test specific tickers with weekly rebalancing
-python scripts/optimize_criteria.py --mode backtest --tickers AAPL,MSFT,GOOGL,AMZN --rebalance weekly
-```
-
-## Monitoring and Observability System
-
-The application includes a comprehensive monitoring system that provides visibility into:
-
-- **API Performance**: Request rates, response times, and error rates
-- **Component Health**: System and component health status
-- **Resource Usage**: Memory and CPU tracking
-- **Circuit Breakers**: API failure detection and protection
-- **Alerts**: Threshold-based alerting for key metrics
-
-The monitoring dashboard provides real-time visualization of these metrics, making it easy to identify issues and track system performance.
-
-```bash
-# Launch the monitoring dashboard (with timeout)
-python scripts/run_monitoring.py --timeout 60 --max-updates 5
-
-# View in browser at http://localhost:8000/dashboard.html
-# Or view directly at yahoofinance/output/monitoring/dashboard.html
-```
-
-**Note:** The dashboard is designed to run for a limited time to prevent resource exhaustion, then can be accessed statically. For long-running monitoring, consider using the script with appropriate timeout values or the simpler alternatives described in the [Monitoring README](scripts/MONITORING_README.md).
-
-## Setup Instructions
-
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/weirdapps/etorotrade
-cd etorotrade
-
-# Create and activate virtual environment
-python -m venv myenv
-
-# On Windows
-myenv\Scripts\activate
-
-# On macOS/Linux
-source myenv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-### Development Setup
-
-For development, we provide tools to ensure code quality and consistency:
-
-```bash
-# Quick setup for development environment 
-python scripts/setup_dev_environment.py
-
-# Or set up manually:
-pip install -r dev-requirements.txt
-pre-commit install
-```
-
-#### Docker Development Environment
-
-For a consistent development environment, you can use Docker:
-
-```bash
-# Build and run the application
+# Run the application in Docker
 docker-compose up etorotrade
 
-# Run tests in Docker
-docker-compose up tests
-
-# Run a specific command in the Docker container
+# Run a specific analysis in Docker
 docker-compose run etorotrade python -m yahoofinance.analysis.portfolio
 ```
 
-### CI/CD and Testing Tools
+## 🔍 Configuration
 
-We've implemented a lightweight CI/CD approach suitable for locally-run projects with GitHub integration:
-
-```bash
-# Run all tests and benchmarks
-./run_tests.sh --all
-
-# Run specific test types
-./run_tests.sh --unit        # Run unit tests
-./run_tests.sh --integration # Run integration tests
-./run_tests.sh --memory      # Run memory leak tests
-./run_tests.sh --performance # Run performance benchmarks
-./run_tests.sh --priority    # Test priority rate limiting
-./run_tests.sh --monitoring  # Test monitoring components
-```
-
-#### Version Management
+Customize behavior with environment variables:
 
 ```bash
-# Tag a new version
-./tag_version.sh 1.0.0 "Initial stable release"
+# Set log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+export ETOROTRADE_LOG_LEVEL=DEBUG
+
+# Enable debug mode
+export ETOROTRADE_DEBUG=true
+
+# Configure log file location
+export ETOROTRADE_LOG_FILE=logs/custom.log
 ```
 
-#### GitHub Integration
+## 🌟 Real-World Results
 
-The repository includes:
-- GitHub Actions workflow for automated testing
-- Issue and feature request templates
-- Pre-commit hooks configuration
-
-See [CI_CD.md](CI_CD.md) for complete documentation on the CI/CD setup.
-
-### Code Quality Tools
-
-```bash
-# Run all code quality checks
-make lint
-
-# Auto-fix issues where possible
-make lint-fix
-```
-
-### Environment Variables
-
-You can configure the application behavior using environment variables:
-
-- `ETOROTRADE_LOG_LEVEL`: Set logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`)
-- `ETOROTRADE_LOG_FILE`: Path to log file (defaults to `logs/yahoofinance.log`)
-- `ETOROTRADE_DEBUG`: Set to `true` to enable debug mode with more verbose logging
-- `YAHOOFINANCE_LOG_LEVEL`: Set logging level for the yahoofinance package
-- `YAHOOFINANCE_DEBUG`: Set to `true` to enable debug mode for the yahoofinance package
-- `YAHOOFINANCE_MONITORING_ENABLED`: Set to `true` to enable monitoring system (default: true)
-- `YAHOOFINANCE_MONITORING_EXPORT_INTERVAL`: Set export interval in seconds (default: 60)
-
-### Required Input Files
-
-Create/modify these files in the yahoofinance/input/ directory:
-
-1. **portfolio.csv** - Your current holdings
-   ```
-   symbol,shares,cost,date
-   AAPL,10,150.25,2022-03-15
-   MSFT,5,280.75,2022-04-20
-   ```
-
-2. **market.csv** - General market watchlist
-   ```
-   symbol,sector
-   AAPL,Technology
-   MSFT,Technology
-   ```
-
-3. **etoro.csv** - Tickers available on eToro (pre-populated)
-4. **usa.csv**, **europe.csv**, **china.csv** - Regional ticker lists (pre-populated)
-5. **notrade.csv** - Tickers to exclude from trading recommendations
-
-## Technical Documentation
-
-For comprehensive technical documentation on the architecture, design patterns, and implementation details, please refer to:
-
-- [CLAUDE.md](CLAUDE.md) - Technical reference for developers
-- [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
-- [scripts/MONITORING_README.md](scripts/MONITORING_README.md) - Monitoring system documentation
-
-## Real-World Investment Performance
-
-I personally use this script to power my eToro investment decisions. For real-world results and validation of this approach, you can follow or copy my eToro portfolio:
+I personally use this tool to power my own eToro investment decisions. For real-world validation of this approach, you can follow or copy my eToro portfolio:
 
 👉 [@plessas on eToro](https://www.etoro.com/people/plessas)
 

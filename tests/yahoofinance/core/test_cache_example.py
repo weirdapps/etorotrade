@@ -1,16 +1,17 @@
 """
-Tests for the yahoofinance.core.cache module.
+Tests for the yahoofinance.data.cache module.
 
 This is an example of a well-organized test file in the new structure.
 """
 
 import os
 import pytest
+import time
 from datetime import datetime
 from unittest.mock import MagicMock
 
 from .cache_test_base import BaseCacheTest
-from yahoofinance.core.errors import CacheError
+from yahoofinance.core.errors import YFinanceError, DataError
 
 
 @pytest.mark.unit
@@ -46,16 +47,18 @@ class TestCache(BaseCacheTest):
         # Verify cache file is cleaned up
         self.assertFalse(os.path.exists(cache_path))
 
-    @pytest.mark.parametrize("key,value", [
-        ("simple_key", "value1"),
-        ("key/with/slashes", "value2"),
-        ("key with spaces", "value3"),
-        ("key_with_symbols!@#$%", "value4")
-    ])
-    def test_cache_key_handling(self, key, value):
+    def test_cache_key_handling(self):
         """Test that cache keys are properly handled."""
-        self.cache.set(key, value)
-        self.assertEqual(self.cache.get(key), value)
+        test_cases = [
+            ("simple_key", "value1"),
+            ("key/with/slashes", "value2"),
+            ("key with spaces", "value3"),
+            ("key_with_symbols!@#$%", "value4")
+        ]
+        
+        for test_key, test_value in test_cases:
+            self.cache.set(test_key, test_value)
+            self.assertEqual(self.cache.get(test_key), test_value)
 
     @pytest.mark.slow
     def test_large_cache_performance(self):

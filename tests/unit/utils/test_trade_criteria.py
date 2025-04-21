@@ -195,9 +195,9 @@ def test_calculate_action_for_row(trading_criteria, test_data):
     assert action == 'S'
     assert "expected return" in reason.lower()
     
-    # Should have empty action due to insufficient confidence
+    # Should have 'I' action due to insufficient confidence
     action, reason = calculate_action_for_row(test_data["insufficient_confidence"], trading_criteria)
-    assert action == ''
+    assert action == 'I'  # Updated to match INCONCLUSIVE_ACTION
     assert "insufficient" in reason.lower()
 
 def test_format_numeric_values():

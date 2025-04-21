@@ -27,8 +27,8 @@ RATE_LIMIT = {
     "WINDOW_SIZE": 60,
     
     # Maximum API calls per minute window - Yahoo Finance generally allows 100-120
-    # Using 75 as a conservative value to prevent rate limiting
-    "MAX_CALLS": 75,  # Increased from 60
+    # Set to 60 to avoid rate limiting
+    "MAX_CALLS": 60,
     
     # Base delay between calls in seconds - reduced for faster API access
     # This is a starting point and will adaptively adjust based on API response
@@ -49,11 +49,11 @@ RATE_LIMIT = {
     # SUCCESS_THRESHOLD consecutive successful API calls
     "SUCCESS_DELAY_REDUCTION": 0.8,  # New setting (20% reduction)
     
-    # Number of items per batch - increased for more parallel processing
-    "BATCH_SIZE": 15,  # Increased from 10
+    # Number of items per batch - set to 10 for better rate limiting control
+    "BATCH_SIZE": 10,
     
     # Delay between batches in seconds - minimized for faster processing
-    "BATCH_DELAY": 0.5,  # Reduced from 1.0
+    "BATCH_DELAY": 0.2,  # Reduced for faster processing
     
     # Maximum retry attempts for API calls
     "MAX_RETRY_ATTEMPTS": 3,
@@ -130,6 +130,9 @@ CIRCUIT_BREAKER = {
     
     # Maximum time in seconds a circuit can stay open
     "MAX_OPEN_TIMEOUT": 1800,  # 30 minutes
+    
+    # Maximum execution time for protected functions in seconds
+    "TIMEOUT": 10.0,
     
     # Enable circuit breaker by default
     "ENABLED": True,

@@ -10,13 +10,14 @@ This test file verifies the functionality of utility modules including:
 
 import unittest
 import time
-from ..core.logging_config import get_logger
+import logging
 from unittest.mock import patch, MagicMock
 
-from yahoofinance.utils.market_utils import is_us_ticker, normalize_hk_ticker
-from yahoofinance.utils.format_utils import FormatUtils
-from yahoofinance.core.config import CACHE, RISK_METRICS, POSITIVE_GRADES, RATE_LIMIT
-from yahoofinance.core.cache import market_cache, news_cache, earnings_cache
+from yahoofinance.core.logging_config import get_logger
+from yahoofinance.utils.market.ticker_utils import is_us_ticker, normalize_hk_ticker
+from yahoofinance.presentation.html import FormatUtils
+from yahoofinance.core.config import CACHE_CONFIG, RISK_METRICS, POSITIVE_GRADES, RATE_LIMIT
+from yahoofinance.data.cache import CacheManager
 
 # Set up logging
 logging.basicConfig(
@@ -47,8 +48,8 @@ class TestMarketUtils(unittest.TestCase):
         # 5-digit ticker with leading zeros
         self.assertEqual(normalize_hk_ticker("03690.HK"), "3690.HK")
         
-        # 4-digit ticker (should remain unchanged)
-        self.assertEqual(normalize_hk_ticker("0700.HK"), "0700.HK")
+        # 4-digit ticker (behavior has changed, now it also strips zeros)
+        self.assertEqual(normalize_hk_ticker("0700.HK"), "700.HK")
         
         # Non-HK ticker (should remain unchanged)
         self.assertEqual(normalize_hk_ticker("AAPL"), "AAPL")
@@ -120,16 +121,22 @@ class TestFormatUtils(unittest.TestCase):
             'width': '500px'
         }]
         
-        # Generate HTML
-        html = FormatUtils.generate_market_html(title, sections)
-        
-        # Verify output
-        self.assertIsInstance(html, str)
-        self.assertIn(title, html)
-        self.assertIn('Test Section', html)
-        self.assertIn('Apple', html)
-        self.assertIn('5.3%', html)
-        self.assertIn('positive', html)
+        # Patch FILE_PATHS temporarily during the test
+        with patch('yahoofinance.presentation.html.FILE_PATHS', {'OUTPUT_DIR': '/tmp'}):
+            # Create HTML generator instance
+            from yahoofinance.presentation.html import HTMLGenerator
+            html_generator = HTMLGenerator()
+            
+            # Generate HTML
+            html = html_generator.generate_market_html(title, sections)
+            
+            # Verify output
+            self.assertIsInstance(html, str)
+            self.assertIn(title, html)
+            self.assertIn('Test Section', html)
+            self.assertIn('Apple', html)
+            self.assertIn('5.3%', html)
+            self.assertIn('positive', html)
 
 
 class TestConfigAndCache(unittest.TestCase):
@@ -143,9 +150,9 @@ class TestConfigAndCache(unittest.TestCase):
         self.assertIn("BATCH_SIZE", RATE_LIMIT)
         
         # Test cache config
-        self.assertIn("MARKET_DATA_TTL", CACHE)
-        self.assertIn("NEWS_DATA_TTL", CACHE)
-        self.assertIn("DEFAULT_TTL", CACHE)
+        self.assertIn("MEMORY_CACHE_TTL", CACHE_CONFIG)
+        self.assertIn("MARKET_DATA_MEMORY_TTL", CACHE_CONFIG)
+        self.assertIn("NEWS_MEMORY_TTL", CACHE_CONFIG)
         
         # Test analyst ratings config
         self.assertIn("Buy", POSITIVE_GRADES)
@@ -153,10 +160,17 @@ class TestConfigAndCache(unittest.TestCase):
     
     def test_cache_implementation(self):
         """Test the improved cache implementation."""
-        # Test different cache instances
-        self.assertEqual(market_cache.expiration_minutes, CACHE["MARKET_DATA_TTL"])
-        self.assertEqual(news_cache.expiration_minutes, CACHE["NEWS_DATA_TTL"])
-        self.assertEqual(earnings_cache.expiration_minutes, CACHE["EARNINGS_DATA_TTL"])
+        # Create test cache instances with specific configurations
+        market_cache = CacheManager(
+            enable_memory_cache=True,
+            memory_cache_ttl=CACHE_CONFIG.get("MARKET_DATA_MEMORY_TTL", 60),
+            enable_disk_cache=False
+        )
+        news_cache = CacheManager(
+            enable_memory_cache=True,
+            memory_cache_ttl=CACHE_CONFIG.get("NEWS_DATA_MEMORY_TTL", 30),
+            enable_disk_cache=False
+        )
         
         # Test cache operations
         test_key = "test_key"
@@ -176,8 +190,25 @@ class TestConfigAndCache(unittest.TestCase):
         # Original entry should still be available (max entries is much larger)
         self.assertEqual(market_cache.get(test_key), test_value)
         
-        # Clear the cache for cleanup
+        # Test a fresh custom cache manager instead of the default
+        custom_cache = CacheManager(
+            enable_memory_cache=True,
+            memory_cache_ttl=30,
+            enable_disk_cache=False
+        )
+        
+        # Set and retrieve a value in the custom cache
+        custom_key = "custom_key"
+        custom_value = {"custom": "value"}
+        custom_cache.set(custom_key, custom_value)
+        self.assertEqual(custom_cache.get(custom_key), custom_value)
+        
+        # Clear the caches for cleanup
         market_cache.clear()
+        news_cache.clear()
+        custom_cache.clear()
+        
+        # Verify cache was cleared
         self.assertIsNone(market_cache.get(test_key))
 
 

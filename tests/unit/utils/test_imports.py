@@ -117,10 +117,7 @@ class TestLazyImport:
 class TestDependencyProvider:
     """Tests for the DependencyProvider class."""
     
-    @with_retry
-    
-    
-def test_register_and_get_dependency(self):
+    def test_register_and_get_dependency(self):
         """Test registering and getting a dependency."""
         # Create a dependency provider
         provider = DependencyProvider()
@@ -184,8 +181,8 @@ def test_register_and_get_dependency(self):
         # Call the function
         result = process_data(False)
         
-        # Verify the result (False + True = True)
-        assert result is True
+        # Verify the result (False + True = 1, which is truthy but not identical to True)
+        assert result == True  # Use equality instead of identity
         
         # Verify the logger was called with the expected arguments
         provider.get('logger').info.assert_called_once_with(
@@ -243,7 +240,9 @@ class TestImportModuleOrObject:
         
         # Verify it's the correct function
         assert callable(sleep)
-        assert sleep.__module__ == 'time'
+        # Check function directly from time module for comparison
+        import time as time_module
+        assert sleep == time_module.sleep
     
     def test_import_error_handling(self):
         """Test error handling for imports."""

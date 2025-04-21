@@ -9,7 +9,7 @@ import pandas as pd
 from pathlib import Path
 import yfinance as yf
 import concurrent.futures
-from yahoofinance.validate import (
+from yahoofinance.validators.validate import (
     is_valid_ticker,
     validate_tickers_batch,
     save_valid_tickers,
@@ -19,7 +19,7 @@ from yahoofinance.validate import (
 class TestValidate(unittest.TestCase):
     """Test cases for the validate module."""
 
-    @patch('yahoofinance.validate.yf.Ticker')
+    @patch('yahoofinance.validators.validate.yf.Ticker')
     def test_is_valid_ticker_valid(self, mock_ticker):
         """Test validation of a valid ticker."""
         # Setup mock
@@ -36,7 +36,7 @@ class TestValidate(unittest.TestCase):
         mock_ticker.assert_called_once_with('AAPL')
         mock_ticker_instance.history.assert_called_once()
 
-    @patch('yahoofinance.validate.yf.Ticker')
+    @patch('yahoofinance.validators.validate.yf.Ticker')
     def test_is_valid_ticker_empty_info(self, mock_ticker):
         """Test validation of a ticker with empty info."""
         # Setup mock
@@ -52,7 +52,7 @@ class TestValidate(unittest.TestCase):
         self.assertFalse(result)
         mock_ticker.assert_called_once_with('INVALID')
 
-    @patch('yahoofinance.validate.yf.Ticker')
+    @patch('yahoofinance.validators.validate.yf.Ticker')
     def test_is_valid_ticker_no_history(self, mock_ticker):
         """Test validation of a ticker with no price history."""
         # Setup mock
@@ -69,7 +69,7 @@ class TestValidate(unittest.TestCase):
         mock_ticker.assert_called_once_with('TEST')
         mock_ticker_instance.history.assert_called_once()
 
-    @patch('yahoofinance.validate.yf.Ticker')
+    @patch('yahoofinance.validators.validate.yf.Ticker')
     def test_is_valid_ticker_exception(self, mock_ticker):
         """Test validation of a ticker that raises an exception."""
         # Setup mock
@@ -82,8 +82,8 @@ class TestValidate(unittest.TestCase):
         self.assertFalse(result)
         mock_ticker.assert_called_once_with('ERROR')
 
-    @patch('yahoofinance.validate.concurrent.futures.ThreadPoolExecutor')
-    @patch('yahoofinance.validate.is_valid_ticker')
+    @patch('yahoofinance.validators.validate.concurrent.futures.ThreadPoolExecutor')
+    @patch('yahoofinance.validators.validate.is_valid_ticker')
     def test_validate_tickers_batch(self, mock_is_valid, mock_executor):
         """Test batch validation of tickers."""
         # Setup mocks
@@ -103,7 +103,7 @@ class TestValidate(unittest.TestCase):
         mock_executor.return_value = mock_executor_instance
         
         # Mock as_completed to return futures in order
-        with patch('yahoofinance.validate.concurrent.futures.as_completed', 
+        with patch('yahoofinance.validators.validate.concurrent.futures.as_completed', 
                   return_value=[mock_future1, mock_future2, mock_future3]):
             
             # Test
@@ -126,9 +126,9 @@ class TestValidate(unittest.TestCase):
         mock_mkdir.assert_called_once_with(exist_ok=True)
         mock_to_csv.assert_called_once()
 
-    @patch('yahoofinance.validate.input', return_value='AAPL,MSFT,GOOGL')
-    @patch('yahoofinance.validate.validate_tickers_batch')
-    @patch('yahoofinance.validate.save_valid_tickers')
+    @patch('yahoofinance.validators.validate.input', return_value='AAPL,MSFT,GOOGL')
+    @patch('yahoofinance.validators.validate.validate_tickers_batch')
+    @patch('yahoofinance.validators.validate.save_valid_tickers')
     def test_main_success(self, mock_save, mock_validate, mock_input):
         """Test main function with successful flow."""
         # Setup mocks
@@ -143,9 +143,9 @@ class TestValidate(unittest.TestCase):
         mock_validate.assert_called_once_with(['AAPL', 'MSFT', 'GOOGL'])
         mock_save.assert_called_once_with(['AAPL', 'MSFT'])
 
-    @patch('yahoofinance.validate.input', return_value='')
-    @patch('yahoofinance.validate.validate_tickers_batch')
-    @patch('yahoofinance.validate.save_valid_tickers')
+    @patch('yahoofinance.validators.validate.input', return_value='')
+    @patch('yahoofinance.validators.validate.validate_tickers_batch')
+    @patch('yahoofinance.validators.validate.save_valid_tickers')
     def test_main_no_tickers(self, mock_save, mock_validate, mock_input):
         """Test main function with no tickers."""
         # Test
@@ -157,7 +157,7 @@ class TestValidate(unittest.TestCase):
         mock_validate.assert_not_called()
         mock_save.assert_not_called()
         
-    @patch('yahoofinance.validate.concurrent.futures.ThreadPoolExecutor')
+    @patch('yahoofinance.validators.validate.concurrent.futures.ThreadPoolExecutor')
     def test_validate_tickers_batch_exception(self, mock_executor):
         """Test batch validation with an exception."""
         # Setup mock
@@ -169,7 +169,7 @@ class TestValidate(unittest.TestCase):
         mock_executor.return_value = mock_executor_instance
         
         # Mock as_completed to return futures in order
-        with patch('yahoofinance.validate.concurrent.futures.as_completed', 
+        with patch('yahoofinance.validators.validate.concurrent.futures.as_completed', 
                   return_value=[mock_future]):
             
             # Test
