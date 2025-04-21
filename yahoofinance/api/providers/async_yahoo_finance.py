@@ -112,8 +112,8 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
             ticker_obj = await self._run_sync_in_executor(yf.Ticker, ticker)
             self._ticker_cache[ticker] = ticker_obj
             return ticker_obj
-        except YFinanceError as e:
-            raise e
+        except YFinanceError:
+            raise
     
     @async_rate_limited
     async def get_ticker_info(self, ticker: str, skip_insider_metrics: bool = False) -> Dict[str, Any]:
@@ -426,9 +426,22 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
                 
                 # Handle case where there are no search results
                 if not search_results or 'quotes' not in search_results or not search_results['quotes']:
-                    logger.debug(f"No search results found for query '{query}'")
+                    # If no results, it's not necessarily an error, just no match
                     return []
                 
+                # Return the search results
+                return search_results.get('quotes', [])
+            except Exception as e:
+                # Log the error and retry if attempts remain
+                self.logger.warning(f"Search attempt {attempt + 1} failed for query '{query}': {e}")
+                if attempt < self.max_retries - 1:
+                    await asyncio.sleep(self.retry_delay * (self.backoff_factor ** attempt))
+                else:
+                    # If last attempt failed, raise the exception
+                    raise APIError(f"Failed to search for ticker '{query}' after {self.max_retries} attempts: {e}") from e
+
+        # Should not reach here if max_retries > 0
+        return []
                 # Format results
                 results = []
                 for quote in search_results['quotes'][:limit]:
@@ -441,17 +454,27 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
                     results.append(result)
                 
                 return results
-                
-            except RateLimitError:
-                # Specific handling for rate limits - just re-raise YFinanceError("An error occurred")
-                raise YFinanceError("An error occurred")
-            except YFinanceError as e:
+            except RateLimitError as e:
+                # Specific handling for rate limits
+                self.logger.warning(f"Rate limit hit for search query '{query}': {e}")
                 if attempt < self.max_retries - 1:
-                    delay = self.retry_delay * (2 ** attempt)
-                    logger.warning(f"Attempt {attempt+1}/{self.max_retries} failed for search query '{query}': {str(e)}. Retrying in {delay:.2f}s")
+                    delay = self.retry_delay * (self.backoff_factor ** attempt)
+                    self.logger.warning(f"Retrying search for '{query}' in {delay:.2f}s...")
                     await asyncio.sleep(delay)
                 else:
-                    raise e
+                    raise APIError(f"Rate limit exceeded for search query '{query}' after {self.max_retries} attempts") from e
+            except Exception as e:
+                # Handle other exceptions
+                self.logger.warning(f"Search attempt {attempt + 1} failed for query '{query}': {e}")
+                if attempt < self.max_retries - 1:
+                    delay = self.retry_delay * (self.backoff_factor ** attempt)
+                    self.logger.warning(f"Retrying search for '{query}' in {delay:.2f}s...")
+                    await asyncio.sleep(delay)
+                else:
+                    raise APIError(f"Failed to search for ticker '{query}' after {self.max_retries} attempts: {e}") from e
+
+        # Should not reach here if max_retries > 0
+        return []
     
     @async_rate_limited
     async def get_price_data(self, ticker: str) -> Dict[str, Any]:

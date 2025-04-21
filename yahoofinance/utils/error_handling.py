@@ -274,7 +274,7 @@ def with_retry(
                     delay *= backoff_factor
                 except YFinanceError as e:
                     # For non-retryable errors, re-raise immediately
-                    raise e
+                    raise
         return wrapper
     return decorator
 

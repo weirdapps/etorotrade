@@ -210,6 +210,6 @@ async def test_get_price_data(provider):
     
     # Check the results
     assert result['ticker'] == "AAPL"
-    assert abs(result['current_price'] - 150.25) < 1e-9
-    assert abs(result['target_price'] - 175.0) < 1e-9
-    assert abs(result['upside'] - 16.47) < 1e-9
+    assert result['current_price'] == pytest.approx(150.25)
+    assert result['target_price'] == pytest.approx(175.0)
+    assert result['upside'] == pytest.approx(16.47)

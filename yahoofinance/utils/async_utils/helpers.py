@@ -281,7 +281,6 @@ async def adaptive_fetch(
     # Performance tracking
     concurrency = initial_concurrency
     success_count = 0
-    failure_count = 0
     start_time = time.time()
     last_adjustment_time = start_time
     items_since_adjustment = 0

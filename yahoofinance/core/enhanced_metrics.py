@@ -523,7 +523,7 @@ def track_performance_decorator(operation: str) -> Callable:
                 result = func(*args, **kwargs)
                 metrics.stop()
                 return result
-            except Exception as e:
+            except Exception:
                 metrics.stop()
                 raise
         

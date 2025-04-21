@@ -294,7 +294,6 @@ class RateLimiter:
             rate_limit_rate = self.metrics["rate_limited_calls"] / total_calls if total_calls > 0 else 0.0
             
             # Calculate average delay and response time
-            avg_delay = self.metrics["total_delay_time"] / total_calls if total_calls > 0 else self.delay
             avg_response_time = self.metrics["total_response_time"] / total_calls if total_calls > 0 else 0
             
             # Store current delay for comparison

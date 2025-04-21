@@ -84,7 +84,7 @@ class MonitoringMiddleware:
                     )
                 
                 return result
-            except Exception as e:
+            except Exception:
                 # Record error and update circuit breaker if registered
                 if circuit_breaker_monitor._states.get(endpoint):
                     state = circuit_breaker_monitor.get_state(endpoint)
@@ -127,7 +127,7 @@ class MonitoringMiddleware:
                     )
                 
                 return result
-            except Exception as e:
+            except Exception:
                 # Record error and update circuit breaker if registered
                 if circuit_breaker_monitor._states.get(endpoint):
                     state = circuit_breaker_monitor.get_state(endpoint)
@@ -144,7 +144,7 @@ class MonitoringMiddleware:
         # Register circuit breaker for this endpoint
         try:
             circuit_breaker_monitor.register_breaker(endpoint)
-        except Exception as e:
+        except Exception:
             # Handle exceptions during registration, which might occur in tests
             pass
         

@@ -242,7 +242,7 @@ class TestMetricsRegistry:
         assert gauge.name == "test_gauge"
         assert gauge.type == MetricType.GAUGE
         assert gauge.description == "Test gauge description"
-        assert abs(gauge.value - 0.0) < 1e-9
+        assert gauge.value == pytest.approx(0.0)
         
         # It should be in the registry
         all_metrics = registry.get_all_metrics()

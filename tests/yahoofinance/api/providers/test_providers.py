@@ -194,7 +194,7 @@ class TestYahooFinanceProvider:
             assert isinstance(result, dict)
             assert result['symbol'] == 'AAPL'
             assert result['recommendations'] == 35
-            assert abs(result['buy_percentage'] - 85.0) < 1e-9
+            assert result['buy_percentage'] == pytest.approx(85.0)
             assert result['strong_buy'] == 15
     
     def test_get_earnings_data(self, mock_client):
