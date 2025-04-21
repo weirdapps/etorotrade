@@ -53,11 +53,10 @@ configure_logging(
     debug=os.environ.get('ETOROTRADE_DEBUG', '').lower() == 'true'
 )
 
-# Create a logger for this module
-logger = get_logger(__name__)
-
 # Initialize the dependency injection system
 initialize()
+
+# Logger will be created later after imports
 
 # Suppress warnings that might clutter the CLI
 warnings.filterwarnings("ignore")
@@ -139,29 +138,16 @@ HOLD_ACTION = 'H'
 NEW_BUY_OPPORTUNITIES = 'N'
 EXISTING_PORTFOLIO = 'E'
 
-# Set up logging configuration - this overrides the earlier basic config
-logging.basicConfig(
-    level=logging.CRITICAL,  # Only show CRITICAL notifications by default
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Get logger for this module
+# Note: We're using the configured logger from earlier (configure_logging)
+logger = get_logger(__name__)
 
-# Configure loggers
-logger = logging.getLogger(__name__)
-
-# Set logger levels - be extremely strict about suppressing log messages
-logger.setLevel(logging.CRITICAL)  # Main logger
-logging.getLogger('yahoofinance').setLevel(logging.CRITICAL)  # Yahoo Finance loggers
-
-# Set ALL loggers to CRITICAL level
-for logger_name in logging.root.manager.loggerDict:
-    logging.getLogger(logger_name).setLevel(logging.CRITICAL)
-
-# Set specific loggers that might produce warnings
-rate_limiter_logger = logging.getLogger('yahoofinance.utils.network')
-rate_limiter_logger.setLevel(logging.CRITICAL)  # Also suppress rate limiter messages
-logging.getLogger('yfinance').setLevel(logging.CRITICAL)
-logging.getLogger('requests').setLevel(logging.CRITICAL)
-logging.getLogger('urllib3').setLevel(logging.CRITICAL)
+# Set third-party loggers to WARNING by default unless overridden by ETOROTRADE_LOG_LEVEL
+if not os.environ.get('ETOROTRADE_LOG_LEVEL'):
+    # Only set these defaults if user hasn't specified a log level
+    logging.getLogger('yfinance').setLevel(logging.WARNING)
+    logging.getLogger('requests').setLevel(logging.WARNING)
+    logging.getLogger('urllib3').setLevel(logging.WARNING)
 
 # Define constants for file paths - use values from config if available, else fallback
 OUTPUT_DIR = PATHS["OUTPUT_DIR"]
@@ -396,9 +382,20 @@ def calculate_action(df):
                 working_df.at[idx, 'action'] = action
             except YFinanceError as e:
                 # Handle any errors during action calculation for individual rows
-                # Suppress error message
-                pass
-                working_df.at[idx, 'action'] = 'H'  # Default to HOLD if there's an error
+                # Use error enrichment to add context
+                error_context = {
+                    'ticker': row.get('ticker', 'UNKNOWN'),
+                    'operation': 'calculate_action_for_row',
+                    'step': 'action_calculation',
+                    'row_index': idx
+                }
+                enriched_error = enrich_error_context(e, error_context)
+                
+                # Log the enriched error
+                logger.debug(f"Error calculating action: {enriched_error}")
+                
+                # Default to HOLD if there's an error
+                working_df.at[idx, 'action'] = 'H'
         
         # Replace any empty string actions with 'H' for consistency
         working_df['action'] = working_df['action'].replace('', 'H').fillna('H')
@@ -542,7 +539,17 @@ def _format_company_names(working_df):
             # Simple formatting if we don't have both columns
             working_df['company'] = working_df[company_col].astype(str).str.upper().str[:14]
     except Exception as e:
-        # Broader exception catching for tests
+        # Translate generic exception to our error hierarchy
+        error_context = {
+            'operation': 'format_company_names',
+            'company_col': company_col,
+            'ticker_col': ticker_col
+        }
+        custom_error = translate_error(e, "Error formatting company names", error_context)
+        
+        # Log the translated error
+        logger.debug(f"Error formatting company names: {custom_error}")
+        
         # Fallback formatting - just use ticker names
         if ticker_col and ticker_col in working_df.columns:
             working_df['company'] = working_df[ticker_col]
@@ -954,9 +961,18 @@ def format_numeric_columns(display_df, columns, format_str):
                 # Replace the column only if conversion was successful
                 display_df[col] = numeric_col.where(numeric_col.notna(), display_df[col])
             except Exception as e:
-                # Just continue with the original values
-                logger.debug(f"Error converting column {col} to numeric: {str(e)}")
-                pass
+                # Translate generic exception to our error hierarchy and add context
+                error_context = {
+                    'operation': 'format_numeric_columns',
+                    'column': col,
+                    'step': 'numeric_conversion'
+                }
+                custom_error = translate_error(e, f"Error converting column {col} to numeric", error_context)
+                
+                # Log the translated error
+                logger.debug(f"Error converting column {col} to numeric: {custom_error}")
+                
+                # Continue with original values
                 
             # Check if format string contains a percentage sign
             if format_str.endswith('%'):
@@ -3723,8 +3739,17 @@ def _extract_and_format_numeric_count(row, column, default=None):
     if column in row and pd.notna(row[column]) and row[column] != '--':
         try:
             return float(str(row[column]).replace(',', ''))
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as e:
+            # Translate error and add context
+            error_context = {
+                'operation': 'extract_numeric_value',
+                'column': column,
+                'value': row[column]
+            }
+            custom_error = translate_error(e, f"Error extracting numeric value from '{row[column]}'", error_context)
+            
+            # Log for debugging
+            logger.debug(f"Failed to convert {column} value: {custom_error}")
     return default
 
 def _check_confidence_criteria(row, min_analysts, min_targets):

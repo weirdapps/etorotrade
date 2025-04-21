@@ -1,217 +1,277 @@
 import pytest
+import asyncio
 from datetime import datetime
 from unittest.mock import Mock, patch
 import pandas as pd
-from yahoofinance.analysis.stock import (
+from yahoofinance.analysis.metrics import (
     PricingAnalyzer,
     PriceTarget,
-    PriceData,
-    YFinanceError,
-    ValidationError
+    PriceData
 )
+from yahoofinance.core.errors import YFinanceError, ValidationError
 
 @pytest.fixture
-def mock_client():
-    return Mock()
+def mock_provider():
+    provider = Mock()
+    return provider
 
 @pytest.fixture
-def analyzer(mock_client):
-    return PricingAnalyzer(mock_client)
+def analyzer(mock_provider):
+    return PricingAnalyzer(provider=mock_provider)
 
 @pytest.fixture
-def mock_stock_info():
-    info = Mock()
-    info.current_price = 100.0
-    info.target_price = 120.0
-    info.analyst_count = 10
-    info._stock = Mock()
-    return info
+def sample_ticker_info():
+    """Create sample ticker info for testing."""
+    return {
+        'price': 100.0,
+        'target_price': 120.0,
+        'highest_target_price': 140.0,
+        'lowest_target_price': 90.0,
+        'median_target_price': 115.0,
+        'upside': 20.0,
+        'analyst_count': 10,
+        'symbol': 'AAPL',
+        'change': 2.5,
+        'change_percent': 2.5,
+        'volume': 1000000,
+        'average_volume': 1200000,
+        'high_52week': 150.0,
+        'low_52week': 80.0,
+        'from_high': -33.3,
+        'from_low': 25.0
+    }
 
-def test_init(mock_client):
-    analyzer = PricingAnalyzer(mock_client)
-    assert analyzer.client == mock_client
+def test_init(mock_provider):
+    """Test that the analyzer initializes correctly."""
+    analyzer = PricingAnalyzer(provider=mock_provider)
+    assert analyzer.provider == mock_provider
 
-def test_safe_float_conversion(analyzer):
-    assert analyzer._safe_float_conversion("123.45") == pytest.approx(123.45)
-    assert analyzer._safe_float_conversion("1,234.56") == pytest.approx(1234.56)
-    assert analyzer._safe_float_conversion(None) is None
-    assert analyzer._safe_float_conversion("invalid") is None
-    assert analyzer._safe_float_conversion(100) == pytest.approx(100.0)
+def test_get_price_data(analyzer, mock_provider, sample_ticker_info):
+    """Test getting price data."""
+    # Set mock provider to return sample data
+    mock_provider.get_ticker_info.return_value = sample_ticker_info
+    
+    # Call method
+    price_data = analyzer.get_price_data("AAPL")
+    
+    # Verify result
+    assert price_data.price == 100.0
+    assert price_data.change == 2.5
+    assert price_data.change_percent == 2.5
+    assert price_data.volume == 1000000
+    assert price_data.average_volume == 1200000
+    assert price_data.volume_ratio == 1000000 / 1200000
+    assert price_data.high_52week == 150.0
+    assert price_data.low_52week == 80.0
+    assert price_data.from_high == -33.3
+    assert price_data.from_low == 25.0
+    
+    # Verify provider was called correctly
+    mock_provider.get_ticker_info.assert_called_once_with("AAPL")
 
-@with_retry
+def test_get_price_data_error(analyzer, mock_provider):
+    """Test handling errors when getting price data."""
+    # Set mock provider to raise a YFinanceError
+    mock_provider.get_ticker_info.side_effect = YFinanceError("API Error")
+    
+    # Call method - should not raise but return empty object
+    price_data = analyzer.get_price_data("AAPL")
+    
+    # Verify result is an empty PriceData object
+    assert isinstance(price_data, PriceData)
+    assert price_data.price is None
+    assert price_data.change is None
+    
+    # Verify provider was called correctly
+    mock_provider.get_ticker_info.assert_called_once_with("AAPL")
 
+@pytest.mark.asyncio
+async def test_get_price_data_async(analyzer, mock_provider, sample_ticker_info):
+    """Test getting price data asynchronously."""
+    # Set analyzer to use async provider
+    analyzer.is_async = True
+    
+    # Set mock provider to return sample data
+    mock_provider.get_ticker_info = Mock()
+    mock_provider.get_ticker_info.return_value = asyncio.Future()
+    mock_provider.get_ticker_info.return_value.set_result(sample_ticker_info)
+    
+    # Call method
+    price_data = await analyzer.get_price_data_async("AAPL")
+    
+    # Verify result
+    assert price_data.price == 100.0
+    assert price_data.change == 2.5
+    assert price_data.volume == 1000000
+    
+    # Verify provider was called correctly
+    mock_provider.get_ticker_info.assert_called_once_with("AAPL")
 
-def test_get_current_price_success(analyzer, mock_client, mock_stock_info):
-    mock_client.get_ticker_info.return_value = mock_stock_info
+def test_get_price_target(analyzer, mock_provider, sample_ticker_info):
+    """Test getting price target data."""
+    # Set mock provider to return sample data
+    mock_provider.get_ticker_info.return_value = sample_ticker_info
     
-    price = analyzer.get_current_price("AAPL")
-    assert price == pytest.approx(100.0)
- @with_retry
- 
-def test_get_current_price_none(ssert_called_once_with("AAPL")
+    # Call method
+    price_target = analyzer.get_price_target("AAPL")
+    
+    # Verify result
+    assert price_target.average == 120.0
+    assert price_target.median == 115.0
+    assert price_target.high == 140.0
+    assert price_target.low == 90.0
+    assert price_target.upside == 20.0
+    assert price_target.analyst_count == 10
+    
+    # Verify provider was called correctly
+    mock_provider.get_ticker_info.assert_called_once_with("AAPL")
 
-def test_get_current_price_none(analyzer, mock_client):
-    mock_stock_info = Mock()
-    mock_stock_info.current_price = None
-    mock_clie@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
-def test_get_current_price_error( mock_stock_info
+def test_get_price_target_missing_data(analyzer, mock_provider):
+    """Test getting price target with missing data."""
+    # Set mock provider to return data with missing values
+    ticker_info = {
+        'price': 100.0,
+        'analyst_count': 0
+    }
+    mock_provider.get_ticker_info.return_value = ticker_info
     
-    price = analyzer.get_current_price("AAPL")
-    assert price is None
+    # Call method
+    price_target = analyzer.get_price_target("AAPL")
+    
+    # Verify result
+    assert price_target.average is None
+    assert price_target.median is None
+    assert price_target.high is None
+    assert price_target.low is None
+    assert price_target.upside is None
+    assert price_target.analyst_count == 0
 
-def test_get_current_p@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
-def test_get_historical_prices_success(mock_client.get_ticker_info.side_effect = Exception("API Error")
+def test_get_price_target_error(analyzer, mock_provider):
+    """Test handling errors when getting price target."""
+    # Set mock provider to raise a YFinanceError
+    mock_provider.get_ticker_info.side_effect = YFinanceError("API Error")
     
-    with pytest.raises(YFinanceError):
-        analyzer.get_current_price("AAPL")
+    # Call method - should not raise but return empty object
+    price_target = analyzer.get_price_target("AAPL")
+    
+    # Verify result is an empty PriceTarget object
+    assert isinstance(price_target, PriceTarget)
+    assert price_target.average is None
+    assert price_target.median is None
 
-def test_get_historical_prices_success(analyzer, mock_client):
-    # Create sample historical data
-    hist_data = pd.DataFrame({
-        "Open": [100.0, 101.0],
-        "High": [102.0, 103.0],
-        "Low": [99.0, 98.0],
-        "Close": [101.0, 102.0],
-        "Volume": [1000000, 1100000]
-    }, index=[datetime(2024, 1, 1), datetime(2024, 1, 2)])
+@pytest.mark.asyncio
+async def test_get_price_target_async(analyzer, mock_provider, sample_ticker_info):
+    """Test getting price target asynchronously."""
+    # Set analyzer to use async provider
+    analyzer.is_async = True
     
-    mock_stock = Mock()
-    mock_stock.history.return_value = hist_data
-    mock_stock_info = Mock()
-    mock_stock_info._stock = mock_stock
-    mock_client.get_ticker_info.return_value = mock_stock_info
+    # Set mock provider to return sample data
+    mock_provider.get_ticker_info = Mock()
+    mock_provider.get_ticker_info.return_value = asyncio.Future()
+    mock_provider.get_ticker_info.return_value.set_result(sample_ticker_info)
     
-    prices = analyzer.get_histor@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
-def test_get_historical_prices_empty(ssert len(prices) == 2
-    assert isinstance(prices[0], PriceData)
-    assert prices[0].date == datetime(2024, 1, 1)
-    assert prices[0].open == pytest.approx(100.0)
-    assert prices[0].close == pytest.approx(101.0)
+    # Call method
+    price_target = await analyzer.get_price_target_async("AAPL")
+    
+    # Verify result
+    assert price_target.average == 120.0
+    assert price_target.median == 115.0
+    assert price_target.analyst_count == 10
+    
+    # Verify provider was called correctly
+    mock_provider.get_ticker_info.assert_called_once_with("AAPL")
 
-def test_get_historical_prices_empty@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
-def test_get_historical_prices_invalid_period(()
-    mock_stock.history.return_value = pd.Dat@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
-def test_get_historical_prices_error(
-    mock_stock_info._stock = mock_stock
-    mock_client.get_ticker_info.return_value = mock_stock_info
+def test_get_all_metrics(analyzer, mock_provider, sample_ticker_info):
+    """Test getting all metrics."""
+    # Set mock provider to return sample data
+    mock_provider.get_ticker_info.return_value = sample_ticker_info
     
-    prices =@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
-def test_get_price_targets_success(PL")
-    assert len(prices) == 0
+    # Call method
+    metrics = analyzer.get_all_metrics("AAPL")
+    
+    # Verify result
+    assert metrics["price"] == 100.0
+    assert metrics["target_price"] == 120.0
+    assert metrics["analyst_count"] == 10
+    assert metrics["high_52week"] == 150.0
+    
+    # Verify provider was called correctly
+    mock_provider.get_ticker_info.assert_called_once_with("AAPL")
 
-def test_get_historical_prices_invalid_period(analyzer):
-    with pytest.raises(ValidationError):
-        analyzer.get_historical_prices("AAPL", "invalid")
+def test_get_all_metrics_error(analyzer, mock_provider):
+    """Test handling errors when getting all metrics."""
+    # Set mock provider to raise a YFinanceError
+    mock_provider.get_ticker_info.side_effect = YFinanceError("API Error")
+    
+    # Call method - should not raise but return empty dict
+    metrics = analyzer.get_all_metrics("AAPL")
+    
+    # Verify result is an empty dict
+    assert isinstance(metrics, dict)
+    assert len(metrics) == 0
+    
+    # Verify provider was called correctly
+    mock_provider.get_ticker_info.assert_called_once_with("AAPL")
 
-def test_get_historical_prices_error(analyzer, mock_client):
-    mock_client.get_ticker_info.side_effect = Exception("API Error")
+@pytest.mark.asyncio
+async def test_get_all_metrics_async(analyzer, mock_provider, sample_ticker_info):
+    """Test getting all metrics asynchronously."""
+    # Set analyzer to use async provider
+    analyzer.is_async = True
     
-    with pytes@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
-def test_get_price_targets_no_data(alyzer.get_historical_prices("AAPL")
-
-def test_get_price_targets_success(analyzer, mock_client, mock_stock_info):
-    mock_client.get_ticker_info.return_value = mock_stock_info
+    # Set mock provider to return sample data
+    mock_provider.get_ticker_info = Mock()
+    mock_provider.get_ticker_info.return_value = asyncio.Future()
+    mock_provider.get_ticker_info.return_value.set_result(sample_ticker_info)
     
-    targets = analyzer.get_price_targets("AAPL")
+    # Call method
+    metrics = await analyzer.get_all_metrics_async("AAPL")
     
-    assert isinstance(targets, PriceTarget)
-    assert targets.mean ==@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
-def test_get_price_targets_error(targets.num_analysts == 10
-    assert targets.high is None  # Not implemented yet
-    assert targets.low is None   # Not implemented yet
-
-def test_get_price_targets_no_data(analyzer, mock_client):
-    mock_stock_info = Mock()
-    mock_stock_info.target_price = None
-    mock_stock_info.analyst_count = None
-    mock_client.get_ticker_info.return_value = mock_stock_info
+    # Verify result
+    assert metrics["price"] == 100.0
+    assert metrics["target_price"] == 120.0
     
-    targets = analyzer.get_price_targets("AAPL")
-    
-    assert isinstance(targets, PriceTarget)
-    assert targets.mean is None
-    assert targets.num_analysts == 0
-
-def test_get_price_targets_error(analyzer, mock_client):
-    mock_client.get_ticker_info.side_effect = Exception("API Error")
-    
-    with pytest.raises(YFinanceError):
-        analyzer.get_price_targets("AAPL")
-
-def test_calculate_price_metrics_success(analyzer, mock_client, mock_stock_info):
-    mock_client.get_ticker_info.return_value = mock_stock_info
-    
-    metrics = analyzer.calculate_price_metrics("AAPL")
-    
-    assert metrics["current_price"] == pytest.approx(100.0)
-    assert metrics["target_price"] == p test_calculate_price_metrics_no_target(ide_potential"] == pytest.approx(20.0, rel=1e-9)  # Use approx for floating point comparison
-
-def test_calculate_price_metrics_no_current_price(analyzer, mock_client):
-    mock_stock_info = Mock()
-    mock_stock_info.current_price = None
-    mock_stock_info.target_price = 120.0
-    mock_stock_info.analyst_count = 10
-    mock_client.get_ticker_info.return_value = mock_stock_info
-    
-    metrics = analyzer.calculate_price_metrics("AAPL")
-    
-    assert metrics["current_price"] is None
-    assert metrics["target_price"] == pytest.approx(120.0)
-    assert metrics["upside_potential"] is None
-
-def test_calculate_price_metrics_no_target(analyzer, mock_client):
-    mock_stock_info = Mock()
-    mock_stock_info.current_price = 100.0
-    mock_stock_info.target_price = None
-    mock_stock_info.analyst_count = 0
-    mock_client.get_ticker_info.return_value = mock_stock_info
-    
-    metrics = analyzer.calculate_price_metrics("AAPL")
-    
-    assert metrics["current_price"] == pytest.approx(100.0)
-    assert metrics["target_price"] is None
-    assert metrics["upside_potential"] is None
-
-def test_calculate_price_metrics_zero_price(analyzer, mock_c@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
-def test_price_target_namedtuple(k()
-    mock_stock_info.current_price = 0.0
-    mock_stock_info.target_price = 120.0
-    mock_stock_info.analyst_count = 10
-    mock_client.get_ticker_info.return_value = mock_stock_info
-    
-    metrics = analyzer.calculate_price_metrics("AAPL")
-    
-    assert metrics["current_price"] == pytest.approx(0.0)
-    assert metrics["target_price"] == pytest.approx(120.0)
-    assert metrics["upside_potential"] is None  # Division by zero handled
-
-def test_calculate_price_metrics_error(analyzer, mock_client):
-    mock_client.get_ticker_info.side_effect = Exception("API Error")
-    
-    with pytest.raises(YFinanceError):
-        analyzer.calculate_price_metrics("AAPL")
-
-def test_price_target_namedtuple():
-    target = PriceTarget(mean=100.0, high=120.0, low=80.0, num_analysts=10)
-    assert target.mean == pytest.approx(100.0)
-    assert target.high == pytest.approx(120.0)
-    assert target.low == pytest.approx(80.0)
-    assert target.num_analysts == 10
+    # Verify provider was called correctly
+    mock_provider.get_ticker_info.assert_called_once_with("AAPL")
 
 def test_price_data_namedtuple():
+    """Test that PriceData class works correctly."""
     data = PriceData(
-        date=datetime(2024, 1, 1),
-        open=100.0,
-        high=105.0,
-        low=95.0,
-        close=102.0,
+        price=100.0,
+        change=2.5,
+        change_percent=2.5,
         volume=1000000,
-        adjusted_close=102.0
+        average_volume=1200000,
+        volume_ratio=0.83,
+        high_52week=150.0,
+        low_52week=80.0,
+        from_high=-33.3,
+        from_low=25.0
     )
-    assert data.date == datetime(2024, 1, 1)
-    assert data.open == pytest.approx(100.0)
-    assert data.high == pytest.approx(105.0)
-    assert data.low == pytest.approx(95.0)
-    assert data.close == pytest.approx(102.0)
-    assert data.volume == 1000000  # Integer, no need for approx
-    assert data.adjusted_close == pytest.approx(102.0)
+    assert data.price == 100.0
+    assert data.change == 2.5
+    assert data.change_percent == 2.5
+    assert data.volume == 1000000
+    assert data.average_volume == 1200000
+    assert data.volume_ratio == 0.83
+    assert data.high_52week == 150.0
+    assert data.low_52week == 80.0
+    assert data.from_high == -33.3
+    assert data.from_low == 25.0
+
+def test_price_target_namedtuple():
+    """Test that PriceTarget class works correctly."""
+    target = PriceTarget(
+        average=120.0,
+        median=115.0,
+        high=140.0,
+        low=90.0,
+        upside=20.0,
+        analyst_count=10
+    )
+    assert target.average == 120.0
+    assert target.median == 115.0
+    assert target.high == 140.0
+    assert target.low == 90.0
+    assert target.upside == 20.0
+    assert target.analyst_count == 10

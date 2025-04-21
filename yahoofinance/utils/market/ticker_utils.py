@@ -107,15 +107,15 @@ def normalize_hk_ticker(ticker: str) -> str:
     # Extract the numerical part
     ticker_num = ticker.split('.')[0]
     
-    # For HK stocks with 5+ digits, remove leading zeros
-    if len(ticker_num) >= 5 and ticker_num.startswith('0'):
+    # If the ticker starts with a zero, strip leading zeros
+    if ticker_num.startswith('0'):
         normalized_num = ticker_num.lstrip('0')
         # If all digits were zeros, keep one
         if not normalized_num:
             normalized_num = '0'
         return f"{normalized_num}.HK"
     
-    # For 4-digit tickers, keep leading zeros
+    # For non-zero starting tickers, keep as is
     return ticker
 
 

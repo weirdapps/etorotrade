@@ -5,10 +5,12 @@ Test script for verifying portfolio processing
 import asyncio
 import os
 import pandas as pd
+import pytest
 import time
 from yahoofinance import get_provider
 from yahoofinance.utils.async_utils.enhanced import process_batch_async
 
+@pytest.mark.asyncio
 async def test_portfolio():
     """Run a test with portfolio option"""
     print("Testing portfolio processing...")
@@ -35,9 +37,11 @@ async def test_portfolio():
                 # Print the first 5 to verify
                 print(f"Sample tickers: {', '.join(str(t) for t in tickers[:5])}")
                 
-                # Test retrieving data for a larger set of tickers to verify our error handling
-                await test_batch_processing(tickers[:20])  # Use first 20 tickers
-                return True
+                # Create a copy of the first 20 tickers and pass them to test_batch_processing
+                test_tickers = tickers[:20] if len(tickers) >= 20 else tickers
+                # Use await to properly wait for the coroutine to complete
+                result = await test_batch_processing(test_tickers)
+                return result
             else:
                 print(f"Could not find ticker column in {portfolio_file}")
                 print(f"Available columns: {', '.join(df.columns)}")
@@ -49,53 +53,86 @@ async def test_portfolio():
         print(f"Portfolio file not found: {portfolio_file}")
         return False
 
-async def test_batch_processing(tickers):
-    """Test batch processing with robust error handling"""
-    print(f"\nTesting batch processing for {len(tickers)} tickers...")
+@pytest.mark.asyncio  # Mark this as an asyncio test
+async def test_batch_processing(tickers=None):
+    """Test batch processing with robust error handling
     
-    # Get the async provider directly
+    Args:
+        tickers: Optional list of tickers to test with.
+                If None, defaults to a standard test set.
+    """
+    # Use provided tickers or fall back to a fixed set of sample tickers
+    sample_tickers = tickers if tickers is not None else ["AAPL", "MSFT", "GOOGL", "AMZN", "META"]
+    print(f"\nTesting batch processing for {len(sample_tickers)} tickers...")
+    
+    # Use the get_provider function to create a provider
     try:
-        from yahoofinance.api.providers.enhanced_async_yahoo_finance import EnhancedAsyncYahooFinanceProvider
-        provider = EnhancedAsyncYahooFinanceProvider()
-        print(f"Using provider: {provider.__class__.__name__}")
+        # Get async provider using the standard factory function
+        provider = get_provider(async_api=True)
+        print(f"Using provider from factory: {provider.__class__.__name__}")
     except Exception as e:
-        print(f"Error initializing provider: {str(e)}")
-        # Fallback to simpler provider
-        from yahoofinance.api.providers.async_yahoo_finance import AsyncYahooFinanceProvider
-        provider = AsyncYahooFinanceProvider()
-        print(f"Using fallback provider: {provider.__class__.__name__}")
+        print(f"Error initializing provider through factory: {str(e)}")
+        # Try direct initialization as fallback
+        try:
+            from yahoofinance.api.providers.async_yahoo_finance import AsyncYahooFinanceProvider
+            provider = AsyncYahooFinanceProvider()
+            print(f"Using fallback provider: {provider.__class__.__name__}")
+        except Exception as e2:
+            print(f"Error initializing fallback provider: {str(e2)}")
+            # This will cause the test to fail correctly
+            raise
     
     start_time = time.time()
     
+    # Store any task that needs to be properly awaited before returning
+    task_to_cancel = None
+    
     try:
+        # Use our predefined sample tickers
+        print(f"Testing with sample tickers: {', '.join(sample_tickers)}")
+        
         # Process batch of tickers
         print("Testing batch_get_ticker_info method...")
-        batch_results = await provider.batch_get_ticker_info(tickers)
+        batch_results = await provider.batch_get_ticker_info(sample_tickers)
         
         # Display results
         print(f"Successfully processed {len(batch_results)} tickers in {time.time() - start_time:.2f} seconds")
         
         # Count errors vs successes
-        errors = [ticker for ticker, data in batch_results.items() if data and 'error' in data]
-        successes = [ticker for ticker, data in batch_results.items() if data and 'error' not in data]
+        errors = [ticker for ticker, data in batch_results.items() if data and isinstance(data, dict) and 'error' in data]
+        successes = [ticker for ticker, data in batch_results.items() if data and isinstance(data, dict) and 'error' not in data]
         
-        print(f"Successful tickers: {len(successes)}/{len(tickers)}")
-        print(f"Error tickers: {len(errors)}/{len(tickers)}")
+        print(f"Successful tickers: {len(successes)}/{len(sample_tickers)}")
+        print(f"Error tickers: {len(errors)}/{len(sample_tickers)}")
         
-        if errors:
+        if errors and errors[0] in batch_results:
             print(f"Tickers with errors: {', '.join(errors)}")
-            # Show first error details
+            # Show first error details if available
             first_error = errors[0]
-            print(f"Sample error for {first_error}: {batch_results[first_error].get('error', 'Unknown error')}")
+            if isinstance(batch_results[first_error], dict):
+                print(f"Sample error for {first_error}: {batch_results[first_error].get('error', 'Unknown error')}")
         
         return True
     except Exception as e:
         print(f"Error in batch processing: {str(e)}")
+        # Cancel any pending tasks on error to avoid unawaited coroutine warnings
+        current_task = asyncio.current_task()
+        if current_task:
+            for task in asyncio.all_tasks():
+                if task is not current_task and not task.done() and not task.cancelled():
+                    task.cancel()
         return False
     finally:
         # Clean up
         if hasattr(provider, 'close') and callable(provider.close):
-            await provider.close()
+            try:
+                # Create and execute a cleanup task to ensure proper closure
+                cleanup_task = provider.close()
+                if cleanup_task is not None and asyncio.iscoroutine(cleanup_task):
+                    await cleanup_task
+            except Exception as e:
+                print(f"Error during provider cleanup: {str(e)}")
+                # Don't raise here to allow test to complete
 
 # Run the test
 if __name__ == "__main__":

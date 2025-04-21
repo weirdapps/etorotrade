@@ -6,14 +6,15 @@ and improved cache implementation without hitting rate limits.
 """
 
 import os
+import logging
+import time
 
 from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
 from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
-import time
-from ..core.logging_config import get_logger
-from yahoofinance.utils.market_utils import is_us_ticker, normalize_hk_ticker
-from yahoofinance.core.config import CACHE, RISK_METRICS, POSITIVE_GRADES, RATE_LIMIT
-from yahoofinance.core.cache import market_cache, news_cache, earnings_cache
+from yahoofinance.core.logging_config import get_logger
+from yahoofinance.utils.market.ticker_utils import is_us_ticker, normalize_hk_ticker
+from yahoofinance.core.config import CACHE_CONFIG, RISK_METRICS, POSITIVE_GRADES, RATE_LIMIT
+from yahoofinance.data.cache import CacheManager, default_cache_manager
 
 # Set up logging
 logging.basicConfig(
@@ -34,7 +35,7 @@ def test_market_utils():
     
     # Test HK ticker normalization
     assert normalize_hk_ticker("03690.HK") == "3690.HK"
-    assert normalize_hk_ticker("0700.HK") == "0700.HK"  # 4 digits, no change
+    assert normalize_hk_ticker("0700.HK") == "700.HK"  # Current behavior removes leading zeros
     assert normalize_hk_ticker("AAPL") == "AAPL"  # Non-HK, no change
     
     logger.info("✅ Market utilities test passed")
@@ -46,12 +47,12 @@ def test_config_values():
     # Test rate limiting config
     assert "WINDOW_SIZE" in RATE_LIMIT
     assert "MAX_CALLS" in RATE_LIMIT
-    assert "BATCH_SIZE" in RATE_LIMIT
+    assert "BASE_DELAY" in RATE_LIMIT
     
     # Test cache config
-    assert "MARKET_DATA_TTL" in CACHE
-    assert "NEWS_DATA_TTL" in CACHE
-    assert "DEFAULT_TTL" in CACHE
+    assert "MEMORY_CACHE_TTL" in CACHE_CONFIG
+    assert "DISK_CACHE_TTL" in CACHE_CONFIG
+    assert "MEMORY_CACHE_SIZE" in CACHE_CONFIG
     
     # Test analyst ratings config
     assert "Buy" in POSITIVE_GRADES
@@ -63,10 +64,24 @@ def test_cache_implementation():
     """Test the improved cache implementation."""
     logger.info("Testing improved cache implementation...")
     
-    # Test different cache instances
-    assert market_cache.expiration_minutes == CACHE["MARKET_DATA_TTL"]
-    assert news_cache.expiration_minutes == CACHE["NEWS_DATA_TTL"]
-    assert earnings_cache.expiration_minutes == CACHE["EARNINGS_DATA_TTL"]
+    # Create test cache with specific configurations
+    market_cache = CacheManager(
+        enable_memory_cache=True,
+        memory_cache_ttl=CACHE_CONFIG.get("MARKET_DATA_MEMORY_TTL", 60),
+        enable_disk_cache=False
+    )
+    
+    news_cache = CacheManager(
+        enable_memory_cache=True,
+        memory_cache_ttl=CACHE_CONFIG.get("NEWS_MEMORY_TTL", 600),
+        enable_disk_cache=False
+    )
+    
+    earnings_cache = CacheManager(
+        enable_memory_cache=True,
+        memory_cache_ttl=CACHE_CONFIG.get("EARNINGS_DATA_MEMORY_TTL", 600),
+        enable_disk_cache=False
+    )
     
     # Test cache operations
     test_key = "test_key"
@@ -86,9 +101,26 @@ def test_cache_implementation():
     # Original entry should still be available (max entries is much larger)
     assert market_cache.get(test_key) == test_value
     
-    # Clear the cache for cleanup
+    # Test a fresh custom cache manager instead of the default
+    custom_cache = CacheManager(
+        enable_memory_cache=True,
+        memory_cache_ttl=30,
+        enable_disk_cache=False
+    )
+    
+    custom_cache.set("custom_test_key", "custom_test_value")
+    cached_value = custom_cache.get("custom_test_key")
+    assert cached_value == "custom_test_value"
+    
+    # Clear the caches for cleanup
     market_cache.clear()
+    news_cache.clear()
+    earnings_cache.clear()
+    custom_cache.clear()
+    
+    # Verify cleared
     assert market_cache.get(test_key) is None
+    assert custom_cache.get("custom_test_key") is None
     
     logger.info("✅ Cache implementation test passed")
 

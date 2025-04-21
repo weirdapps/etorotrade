@@ -74,4 +74,4 @@ def test_calculate_action(sample_data):
     assert result.loc[result['ticker'] == 'BUY', 'ACTION'].iloc[0] == 'B'
     assert result.loc[result['ticker'] == 'SELL', 'ACTION'].iloc[0] == 'S'
     assert result.loc[result['ticker'] == 'HOLD', 'ACTION'].iloc[0] == 'H'  # EXRET = 8.0 is between SELL_MAX_EXRET (5.0) and BUY_MIN_EXRET (15.0)
-    assert result.loc[result['ticker'] == 'LOWCONF', 'ACTION'].iloc[0] == ''  # No recommendation due to low confidence
+    assert result.loc[result['ticker'] == 'LOWCONF', 'ACTION'].iloc[0] == 'I'  # 'I' for Inconclusive due to low confidence

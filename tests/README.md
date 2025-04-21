@@ -4,7 +4,7 @@ This directory contains the test suite for the etorotrade application. The tests
 
 ## Test Organization
 
-Tests are structured to mirror the main package organization for easy navigation and maintenance. This update:
+Tests are structured to mirror the main package organization for easy navigation and maintenance. This structure:
 
 1. Makes it easier to find tests for specific components
 2. Clarifies the scope and relationships between tests
@@ -12,42 +12,28 @@ Tests are structured to mirror the main package organization for easy navigation
 4. Establishes a standard pattern for adding new tests
 5. Simplifies navigation between implementation and tests
 
-### New Structure
+### Structure
 
 Tests are organized in a hierarchical structure mirroring the package:
 
 - `yahoofinance/`: Tests for the yahoofinance package components
   - `analysis/`: Tests for market analysis modules
-    - `market/`: Tests for market-specific analysis
-  - `api/`: Tests for API interfaces
-    - `providers/`: Tests for data providers (Yahoo Finance, etc.)
-  - `core/`: Tests for core functionality
-    - Cache system, client, error handling, types, config
+  - `api/`: Tests for API interfaces and providers
+  - `core/`: Tests for core functionality (cache, client, errors, types)
   - `data/`: Tests for data handling
   - `presentation/`: Tests for output formatting and display
   - `utils/`: Tests for utility modules
-    - `async/`: Tests for async utilities and rate limiting
-    - `data/`: Tests for data formatting utilities
-    - `date/`: Tests for date utilities
-    - `market/`: Tests for market-specific utilities
-    - `network/`: Tests for network operations
-      - `async_utils/`: Tests for async network utilities
-  - `validators/`: Tests for validation functions
+    - `network/`: Tests for network operations, rate limiting, and circuit breakers
 - `trade/`: Tests for main trade module functionality
-- `debug/`: Scripts for debugging issues (previously scattered in project root)
 - `e2e/`: End-to-end tests for complete workflows
 - `integration/`: Integration tests for component interactions
 - `unit/`: Unit tests organized by module
-  - `api/`: Unit tests for API components
-  - `core/`: Unit tests for core functionality
-  - `trade/`: Unit tests for trade functionality
-  - `utils/`: Unit tests for utility modules
 - `fixtures/`: Shared test fixtures
 - `conftest.py`: Pytest configuration and global fixtures
 
 ### Categorization
 
-Tests are also categorized by type using pytest markers:
+Tests are categorized by type using pytest markers:
 
 - `@pytest.mark.unit`: Unit tests for isolated components
 - `@pytest.mark.integration`: Tests verifying component interactions
@@ -55,13 +41,11 @@ Tests are also categorized by type using pytest markers:
 - `@pytest.mark.api`: Tests requiring API access
 - `@pytest.mark.slow`: Tests that take longer to run
 - `@pytest.mark.network`: Tests requiring network connectivity
-- `@pytest.mark.asyncio`: Tests for async functionality
-
-**Migration Status**: This restructuring is in progress. New tests should follow this pattern, and existing tests are being gradually migrated.
+- `@pytest.mark.asyncio`: Tests for async functionality (requires pytest-asyncio plugin)
 
 ## Test Naming Conventions
 
-- Test files: `test_<module>_<component>.py`
+- Test files: `test_<module>.py` or `test_<module>_<component>.py`
 - Test classes: `Test<Component><Functionality>`
 - Test methods: `test_<functionality>_<scenario>`
 
@@ -109,14 +93,8 @@ pytest -m integration
 # Run end-to-end tests
 pytest -m e2e
 
-# Run slow tests
-pytest -m slow
-
-# Run tests that require API access
-pytest -m api
-
-# Run tests that require network connectivity
-pytest -m network
+# Run asyncio tests
+pytest -m asyncio
 ```
 
 ## Test Fixtures
@@ -131,22 +109,41 @@ The test suite uses fixtures to provide reusable test data and objects. Fixtures
 - `mock_client`: A mock YFinanceClient object
 - `mock_stock_data`: Mock stock data with reasonable defaults
 - `test_dataframe`: A test DataFrame with market data
-- Market scenario fixtures:
-  - `bull_market_data`, `bear_market_data`, `volatile_market_data`: Different market conditions
-  - `bull_market_provider_data`, `bear_market_provider_data`, `volatile_market_provider_data`: Provider response versions
 
 ## Test Best Practices
 
-1. **Test Isolation**: Ensure tests don't depend on global state
-2. **Clear Intent**: Each test should have a clear purpose described in its docstring
-3. **Arrange-Act-Assert**: Structure tests with setup, action, and verification phases
-4. **Appropriate Mocking**: Mock external dependencies but not the functionality under test
-5. **Descriptive Names**: Use clear, descriptive names for test methods
-6. **Comprehensive Assertions**: Verify all relevant aspects of the expected outcome
-7. **Edge Cases**: Include tests for edge cases and error conditions
-8. **Performance**: Keep tests fast, using appropriate markers for slow tests
+Based on our experience building and maintaining this test suite, we recommend these critical practices:
 
-## Common Test Patterns
+1. **Test Isolation**: Ensure tests don't affect global state or other tests
+   - Reset global variables before and after tests
+   - Use unique resource names for each test
+   - Clean up all resources in finally blocks
+   - Use pytest fixtures with proper setup/teardown
+
+2. **Thread Safety**: Ensure thread-safe access to shared resources
+   - Use locks when accessing shared mutable data
+   - Add delays between operations to avoid race conditions
+   - Use thread-safe data structures
+
+3. **Async Testing**: Properly test async code
+   - Use the `pytest.mark.asyncio` decorator for async tests
+   - Make sure all coroutines are properly awaited
+   - Cancel remaining tasks when tests complete
+   - Explicitly close resources with `await resource.close()`
+
+4. **Mocking**: Use appropriate mocking techniques
+   - Mock external dependencies but not the code under test
+   - Ensure mocks have all required attributes/methods
+   - Consider using real objects instead of mocks for complex behavior
+   - Reset mocks between tests
+
+5. **Global State Management**: Properly handle components with global state
+   - Make copies of global state before modifying
+   - Restore original state after tests
+   - Use unique identifiers to prevent test interference
+   - Register and clean up global resources explicitly
+
+## Common Patterns
 
 ### Testing API Components
 
@@ -162,64 +159,123 @@ def test_api_function(mock_client):
     assert result["processed_key"] == "processed_value"
 ```
 
-### Testing Provider Pattern Components
+### Testing Global State Components
 
 ```python
-def test_provider_function(mock_provider):
-    # Arrange: Set up mock provider responses
-    mock_provider.get_ticker_info.return_value = {
-        "ticker": "AAPL",
-        "price": 150.0,
-        "name": "Apple Inc."
-    }
+def test_with_global_state():
+    # Save original state
+    original_state = dict(global_registry)
     
-    # Act: Call the function under test with provider
-    result = function_using_provider(mock_provider)
-    
-    # Assert: Verify the result
-    assert result["ticker_name"] == "Apple Inc."
-    assert result["price_formatted"] == "$150.00"
+    try:
+        # Clear for this test
+        global_registry.clear()
+        
+        # Create test instance with unique name
+        instance_name = f"test_instance_{uuid.uuid4()}"
+        instance = TestClass(instance_name)
+        
+        # Register in global registry
+        global_registry[instance_name] = instance
+        
+        # Test logic
+        assert instance_name in global_registry
+        assert global_registry[instance_name] is instance
+        
+    finally:
+        # Clean up this test's data
+        if instance_name in global_registry:
+            del global_registry[instance_name]
+            
+        # Restore original state
+        global_registry.clear()
+        global_registry.update(original_state)
 ```
 
-### Testing Error Handling
+### Testing Async Components
 
 ```python
-def test_error_handling(mock_client):
-    # Arrange: Set up mock to raise an exception
-    mock_client.get_data.side_effect = APIError("Test error")
+@pytest.mark.asyncio
+async def test_async_function(event_loop):
+    # Arrange
+    provider = get_provider(async_api=True)
     
-    # Act & Assert: Verify exception handling
-    with pytest.raises(APIError):
-        function_using_api(mock_client)
+    try:
+        # Act
+        result = await provider.get_ticker_info("AAPL")
+        
+        # Assert
+        assert result is not None
+        assert "symbol" in result
+        assert result["symbol"] == "AAPL"
+        
+    finally:
+        # Clean up resources
+        if hasattr(provider, 'close') and callable(provider.close()):
+            cleanup_task = provider.close()
+            if cleanup_task is not None and asyncio.iscoroutine(cleanup_task):
+                await cleanup_task
 ```
 
-### Testing Retry Logic
+### Testing Rate Limiting
 
 ```python
-def test_retry_logic(mock_provider):
-    # Arrange: Set up mock to fail twice then succeed
-    mock_provider.get_ticker_info.side_effect = [
-        RateLimitError("Rate limit exceeded", retry_after=1),
-        ConnectionError("Network failure"),
-        {"ticker": "AAPL", "price": 150.0}
-    ]
+def test_rate_limiter():
+    # Create isolated rate limiter for testing
+    test_limiter = RateLimiter(window_size=10, max_calls=100)
     
-    # Act: Call the function that should implement retries
-    result = get_data_with_retries(mock_provider, "AAPL")
+    # Reset to clean state with thread safety
+    with test_limiter.lock:
+        test_limiter.call_timestamps = []
+        test_limiter.success_streak = 0
+        test_limiter.failure_streak = 0
+        test_limiter.delay = test_limiter.base_delay
     
-    # Assert: Verify final success
-    assert result["ticker"] == "AAPL"
-    assert result["price"] == 150.0
-    assert mock_provider.get_ticker_info.call_count == 3
+    # Define function with rate limiter
+    @rate_limited(limiter=test_limiter)
+    def test_function(x):
+        return x * 2
+    
+    # Test with small delays to avoid rate limiting during tests
+    results = []
+    for i in range(5):
+        results.append(test_function(i))
+        time.sleep(0.01)
+    
+    # Verify results
+    assert results == [0, 2, 4, 6, 8]
 ```
 
-### Testing with Parametrization
+### Testing Circuit Breakers
 
 ```python
-@pytest.mark.parametrize("input_data,expected", [
-    ({"ticker": "AAPL", "price": 150}, True),
-    ({"ticker": "MSFT", "price": 250}, False),
-])
-def test_parameterized_function(input_data, expected):
-    assert evaluate_condition(input_data) == expected
+def test_circuit_breaker():
+    # Use a unique circuit name with UUID to avoid conflicts
+    circuit_name = f"test_circuit_{uuid.uuid4()}"
+    
+    try:
+        # Create isolated circuit breaker
+        cb = CircuitBreaker(circuit_name, failure_threshold=2)
+        circuit_breakers[circuit_name] = cb
+        
+        # Test function that fails
+        test_func = MagicMock(side_effect=APIError("test error"))
+        
+        # First failure - circuit stays closed
+        with pytest.raises(APIError):
+            cb.execute(test_func)
+        
+        assert cb.state == CircuitBreakerState.CLOSED
+        assert cb.failure_count == 1
+        
+        # Second failure - circuit opens
+        with pytest.raises(APIError):
+            cb.execute(test_func)
+            
+        assert cb.state == CircuitBreakerState.OPEN
+        assert cb.failure_count == 2
+        
+    finally:
+        # Clean up to prevent affecting other tests
+        if circuit_name in circuit_breakers:
+            del circuit_breakers[circuit_name]
 ```
