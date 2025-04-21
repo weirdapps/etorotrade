@@ -492,7 +492,7 @@ COLUMN_NAMES = {
     # Display column names
     "EARNINGS_DATE": "Earnings Date",
     "BUY_PERCENTAGE": "% BUY",
-    "DIVIDEND_YIELD": "DIV %",
+    "DIVIDEND_YIELD_DISPLAY": "DIV %",
     "COMPANY_NAME": "COMPANY",
     "TICKER": "TICKER",
     "MARKET_CAP": "CAP",

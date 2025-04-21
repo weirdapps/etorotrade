@@ -51,7 +51,7 @@ def provider():
     
     # Create a mock for the internal implementation
     async def get_ticker_info_impl(ticker, skip_insider_metrics=False):
-        ticker_obj = await provider._get_ticker_object(ticker)
+        await provider._get_ticker_object(ticker)
         info = await provider._run_sync_in_executor(lambda: {})
         result = provider._extract_common_ticker_info(info)
         result["symbol"] = ticker
@@ -104,7 +104,7 @@ async def test_get_ticker_info_basic(provider):
     assert result.get("symbol") == test_ticker
     assert result.get("name") == "Apple Inc."
     assert result.get("sector") == "Technology"
-    assert result.get("current_price") == 150.25
+    assert result.get("current_price") == pytest.approx(150.25, abs=1e-9)
 
 
 @pytest.mark.asyncio

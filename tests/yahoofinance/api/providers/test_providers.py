@@ -66,7 +66,6 @@ class TestYahooFinanceProvider:
         """Test creating a YahooFinanceProvider instance."""
         # Don't patch _ticker_cache directly as it's an instance attribute
         provider = YahooFinanceProvider()
-        assert provider is not None
     
     def test_get_ticker_info(self, mock_client):
         """Test get_ticker_info method returns correctly formatted data."""
@@ -118,7 +117,7 @@ class TestYahooFinanceProvider:
                     assert isinstance(result, dict)
                     assert result['ticker'] == 'AAPL'
                     assert result['name'] == 'Apple Inc.'
-                    assert result['price'] == 150.0
+                    assert result['price'] == pytest.approx(150.0, abs=1e-9)
     
     def test_get_price_data(self, mock_client):
         """Test get_price_data method returns correctly formatted data."""
@@ -135,8 +134,8 @@ class TestYahooFinanceProvider:
                 
                 assert isinstance(result, dict)
                 assert result['ticker'] == 'AAPL'
-                assert result['current_price'] == 150.0
-                assert result['upside'] == 20.0
+                assert result['current_price'] == pytest.approx(150.0, abs=1e-9)
+                assert result['upside'] == pytest.approx(20.0, abs=1e-9)
     
     def test_get_historical_data(self, mock_client):
         """Test get_historical_data method returns correctly formatted data."""

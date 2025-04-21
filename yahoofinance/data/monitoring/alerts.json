@@ -200,5 +200,32 @@
     "threshold": 3.0,
     "timestamp": 1745241807.536435,
     "tags": {}
+  },
+  {
+    "name": "test_alert",
+    "severity": "warning",
+    "message": "Test message",
+    "value": 5.0,
+    "threshold": 3.0,
+    "timestamp": 1745252385.627614,
+    "tags": {}
+  },
+  {
+    "name": "test_alert",
+    "severity": "warning",
+    "message": "Test message",
+    "value": 5.0,
+    "threshold": 3.0,
+    "timestamp": 1745252645.0682209,
+    "tags": {}
+  },
+  {
+    "name": "test_alert",
+    "severity": "warning",
+    "message": "Test message",
+    "value": 5.0,
+    "threshold": 3.0,
+    "timestamp": 1745252668.787008,
+    "tags": {}
   }
 ]

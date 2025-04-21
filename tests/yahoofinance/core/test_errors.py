@@ -107,21 +107,21 @@ class TestAPIErrorClassification(unittest.TestCase):
         """Test classification of 404 errors."""
         error = classify_api_error(404, "Resource not found")
         self.assertIsInstance(error, ResourceNotFoundError)
-        self.assertTrue("Resource not found" in error.message)
+        self.assertIn("Resource not found", error.message)
         self.assertEqual(error.details.get("status_code"), 404)
     
     def test_rate_limit_classification(self):
         """Test classification of 429 errors."""
         error = classify_api_error(429, "Too many requests")
         self.assertIsInstance(error, RateLimitError)
-        self.assertTrue("Rate limit exceeded" in error.message)
+        self.assertIn("Rate limit exceeded", error.message)
         self.assertEqual(error.details.get("status_code"), 429)
     
     def test_server_error_classification(self):
         """Test classification of 5xx errors."""
         error = classify_api_error(500, "Internal server error")
         self.assertIsInstance(error, APIError)  # Generic API error
-        self.assertTrue("Server error" in error.message)
+        self.assertIn("Server error", error.message)
         self.assertEqual(error.details.get("status_code"), 500)
     
     def test_unknown_error_classification(self):

@@ -352,8 +352,8 @@ class TestMonitoredProviderMixin:
         
         # Create an instance
         with patch('yahoofinance.api.middleware.monitoring_middleware.apply_monitoring') as mock_apply:
-            provider = MonitoredMockProvider(provider_name="MonitoredMockProvider")
-            
+            MonitoredMockProvider(provider_name="MonitoredMockProvider")
+
             # Check that apply_monitoring was called
             mock_apply.assert_called_once()
     
@@ -368,7 +368,7 @@ class TestMonitoredProviderMixin:
         
         # Create an instance
         with patch('yahoofinance.api.middleware.monitoring_middleware.apply_monitoring') as mock_apply:
-            provider = MonitoredMockAsyncProvider(provider_name="MonitoredMockAsyncProvider")
-            
+            MonitoredMockAsyncProvider(provider_name="MonitoredMockAsyncProvider")
+
             # Check that apply_monitoring was called
             mock_apply.assert_called_once()

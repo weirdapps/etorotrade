@@ -88,8 +88,8 @@ class TestInsiderTransaction:
         assert transaction.date == "2024-01-15"
         assert transaction.transaction_type == "Buy"
         assert transaction.shares == 1000
-        assert transaction.value == 100000.0
-        assert transaction.share_price == 100.0
+        assert transaction.value == pytest.approx(100000.0, abs=1e-9)
+        assert transaction.share_price == pytest.approx(100.0, abs=1e-9)
 
 class TestInsiderSummary:
     def test_insider_summary_init(self):
@@ -99,9 +99,9 @@ class TestInsiderSummary:
         assert summary.transactions == []
         assert summary.buy_count == 0
         assert summary.sell_count == 0
-        assert summary.total_buy_value == 0.0
-        assert summary.total_sell_value == 0.0
-        assert summary.net_value == 0.0
+        assert summary.total_buy_value == pytest.approx(0.0, abs=1e-9)
+        assert summary.total_sell_value == pytest.approx(0.0, abs=1e-9)
+        assert summary.net_value == pytest.approx(0.0, abs=1e-9)
         assert summary.net_share_count == 0
         assert summary.average_buy_price is None
         assert summary.average_sell_price is None
@@ -134,9 +134,9 @@ class TestInsiderAnalyzer:
                 assert isinstance(result, InsiderSummary)
                 assert result.buy_count == 2
                 assert result.sell_count == 1
-                assert result.total_buy_value == 120000.0
-                assert result.total_sell_value == 50000.0
-                assert result.net_value == 70000.0
+                assert result.total_buy_value == pytest.approx(120000.0, abs=1e-9)
+                assert result.total_sell_value == pytest.approx(50000.0, abs=1e-9)
+                assert result.net_value == pytest.approx(70000.0, abs=1e-9)
                 assert result.net_share_count == 700
 
     def test_get_transactions_non_us_ticker(self, analyzer):
@@ -172,9 +172,9 @@ class TestInsiderAnalyzer:
                 assert isinstance(result, InsiderSummary)
                 assert result.buy_count == 2
                 assert result.sell_count == 1
-                assert result.total_buy_value == 120000.0
-                assert result.total_sell_value == 50000.0
-                assert result.net_value == 70000.0
+                assert result.total_buy_value == pytest.approx(120000.0, abs=1e-9)
+                assert result.total_sell_value == pytest.approx(50000.0, abs=1e-9)
+                assert result.net_value == pytest.approx(70000.0, abs=1e-9)
                 assert result.net_share_count == 700
 
     def test_get_transactions_batch(self, analyzer):

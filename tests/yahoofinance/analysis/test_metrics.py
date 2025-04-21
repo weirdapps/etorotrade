@@ -106,16 +106,16 @@ class TestPriceData:
             from_low=20.0
         )
         
-        assert data.price == 150.0
-        assert data.change == 2.5
-        assert data.change_percent == 1.69
+        assert data.price == pytest.approx(150.0, abs=1e-9)
+        assert data.change == pytest.approx(2.5, abs=1e-9)
+        assert data.change_percent == pytest.approx(1.69, abs=1e-9)
         assert data.volume == 75000000
         assert data.average_volume == 70000000
-        assert data.volume_ratio == 1.07
-        assert data.high_52week == 175.0
-        assert data.low_52week == 125.0
-        assert data.from_high == -14.29
-        assert data.from_low == 20.0
+        assert data.volume_ratio == pytest.approx(1.07, abs=1e-9)
+        assert data.high_52week == pytest.approx(175.0, abs=1e-9)
+        assert data.low_52week == pytest.approx(125.0, abs=1e-9)
+        assert data.from_high == pytest.approx(-14.29, abs=1e-9)
+        assert data.from_low == pytest.approx(20.0, abs=1e-9)
 
 class TestPriceTarget:
     """Tests for PriceTarget class"""
@@ -131,11 +131,11 @@ class TestPriceTarget:
             analyst_count=32
         )
         
-        assert target.average == 180.0
-        assert target.median == 175.0
-        assert target.high == 200.0
-        assert target.low == 150.0
-        assert target.upside == 20.0
+        assert target.average == pytest.approx(180.0, abs=1e-9)
+        assert target.median == pytest.approx(175.0, abs=1e-9)
+        assert target.high == pytest.approx(200.0, abs=1e-9)
+        assert target.low == pytest.approx(150.0, abs=1e-9)
+        assert target.upside == pytest.approx(20.0, abs=1e-9)
         assert target.analyst_count == 32
 
 class TestPricingAnalyzer:
@@ -152,27 +152,27 @@ class TestPricingAnalyzer:
         result = analyzer._process_price_data(SAMPLE_TICKER_INFO)
         
         assert isinstance(result, PriceData)
-        assert result.price == 150.0
-        assert result.change == 2.5
-        assert result.change_percent == 1.69
+        assert result.price == pytest.approx(150.0, abs=1e-9)
+        assert result.change == pytest.approx(2.5, abs=1e-9)
+        assert result.change_percent == pytest.approx(1.69, abs=1e-9)
         assert result.volume == 75000000
         assert result.average_volume == 70000000
-        assert result.volume_ratio == 75000000 / 70000000
-        assert result.high_52week == 175.0
-        assert result.low_52week == 125.0
-        assert result.from_high == -14.29
-        assert result.from_low == 20.0
+        assert result.volume_ratio == pytest.approx(75000000 / 70000000, abs=1e-9)
+        assert result.high_52week == pytest.approx(175.0, abs=1e-9)
+        assert result.low_52week == pytest.approx(125.0, abs=1e-9)
+        assert result.from_high == pytest.approx(-14.29, abs=1e-9)
+        assert result.from_low == pytest.approx(20.0, abs=1e-9)
     
     def test_process_price_target(self, analyzer):
         """Test _process_price_target method"""
         result = analyzer._process_price_target(SAMPLE_TICKER_INFO)
         
         assert isinstance(result, PriceTarget)
-        assert result.average == 180.0
-        assert result.median == 175.0
-        assert result.high == 200.0
-        assert result.low == 150.0
-        assert result.upside == 20.0
+        assert result.average == pytest.approx(180.0, abs=1e-9)
+        assert result.median == pytest.approx(175.0, abs=1e-9)
+        assert result.high == pytest.approx(200.0, abs=1e-9)
+        assert result.low == pytest.approx(150.0, abs=1e-9)
+        assert result.upside == pytest.approx(20.0, abs=1e-9)
         assert result.analyst_count == 32
     
     def test_get_price_data(self, analyzer, mock_provider):
@@ -181,7 +181,7 @@ class TestPricingAnalyzer:
         
         mock_provider.get_ticker_info.assert_called_once_with("AAPL")
         assert isinstance(result, PriceData)
-        assert result.price == 150.0
+        assert result.price == pytest.approx(150.0, abs=1e-9)
         assert result.volume_ratio is not None
     
     def test_get_price_target(self, analyzer, mock_provider):
@@ -190,7 +190,7 @@ class TestPricingAnalyzer:
         
         mock_provider.get_ticker_info.assert_called_once_with("AAPL")
         assert isinstance(result, PriceTarget)
-        assert result.average == 180.0
+        assert result.average == pytest.approx(180.0, abs=1e-9)
         assert result.analyst_count == 32
     
     def test_get_all_metrics(self, analyzer, mock_provider):
@@ -199,11 +199,11 @@ class TestPricingAnalyzer:
         
         mock_provider.get_ticker_info.assert_called_once_with("AAPL")
         assert isinstance(result, dict)
-        assert result["price"] == 150.0
-        assert result["pe_ratio"] == 25.5
-        assert result["peg_ratio"] == 1.5
-        assert result["beta"] == 1.2
-        assert result["market_cap"] == 2500000000000
+        assert result["price"] == pytest.approx(150.0, abs=1e-9)
+        assert result["pe_ratio"] == pytest.approx(25.5, abs=1e-9)
+        assert result["peg_ratio"] == pytest.approx(1.5, abs=1e-9)
+        assert result["beta"] == pytest.approx(1.2, abs=1e-9)
+        assert result["market_cap"] == pytest.approx(2500000000000, abs=1e-9)
     
     def test_get_metrics_batch(self, analyzer, mock_provider):
         """Test get_metrics_batch method"""
@@ -214,7 +214,7 @@ class TestPricingAnalyzer:
         assert "AAPL" in result
         assert "MSFT" in result
         assert isinstance(result["AAPL"], dict)
-        assert result["AAPL"]["price"] == 150.0
+        assert result["AAPL"]["price"] == pytest.approx(150.0, abs=1e-9)
     
     @pytest.mark.asyncio
     async def test_get_price_data_async(self, async_analyzer, async_mock_provider):
@@ -224,7 +224,7 @@ class TestPricingAnalyzer:
             
             assert async_mock_provider.call_tracker["called"]
             assert isinstance(result, PriceData)
-            assert result.price == 150.0
+            assert result.price == pytest.approx(150.0, abs=1e-9)
     
     @pytest.mark.asyncio
     async def test_get_price_target_async(self, async_analyzer, async_mock_provider):
@@ -234,7 +234,7 @@ class TestPricingAnalyzer:
             
             assert async_mock_provider.call_tracker["called"]
             assert isinstance(result, PriceTarget)
-            assert result.average == 180.0
+            assert result.average == pytest.approx(180.0, abs=1e-9)
     
     @pytest.mark.asyncio
     async def test_get_all_metrics_async(self, async_analyzer, async_mock_provider):
@@ -244,7 +244,7 @@ class TestPricingAnalyzer:
             
             assert async_mock_provider.call_tracker["called"]
             assert isinstance(result, dict)
-            assert result["price"] == 150.0
+            assert result["price"] == pytest.approx(150.0, abs=1e-9)
     
     @pytest.mark.asyncio
     async def test_get_metrics_batch_async(self, async_analyzer, async_mock_provider):
@@ -256,4 +256,4 @@ class TestPricingAnalyzer:
             assert isinstance(result, dict)
             assert "AAPL" in result
             assert "MSFT" in result
-            assert result["AAPL"]["price"] == 150.0
+            assert result["AAPL"]["price"] == pytest.approx(150.0, abs=1e-9)

@@ -43,7 +43,6 @@ class MonitoringHandler(http.server.SimpleHTTPRequestHandler):
     
     def log_message(self, format: str, *args: Any) -> None:
         """Suppress log messages."""
-        return
 
 
 def update_dashboard(refresh_interval: int = DEFAULT_REFRESH, max_updates: int = 10) -> None:
@@ -132,7 +131,7 @@ def main() -> None:
     
     # Start HTTP server
     logging.info(f"Starting HTTP server on port {args.port}...")
-    server, server_thread = start_server(port=args.port)
+    server, _ = start_server(port=args.port)
     logging.info("HTTP server started.")
     
     # Start dashboard update thread
