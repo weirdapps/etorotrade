@@ -54,7 +54,7 @@ class CompatAnalystData:
         try:
             datetime.strptime(date_str, '%Y-%m-%d')
         except ValueError:
-            raise YFinanceError("An error occurred")
+            raise YFinanceError(DEFAULT_ERROR_MESSAGE)
     
     def _safe_float_conversion(self, value: Any) -> Optional[float]:
         """
@@ -196,7 +196,7 @@ class CompatAnalystData:
             ValidationError: If days parameter is invalid
         """
         if not isinstance(days, int) or days <= 0:
-            raise YFinanceError("An error occurred")
+            raise YFinanceError(DEFAULT_ERROR_MESSAGE)
             
         try:
             # Get all ratings data
@@ -468,7 +468,7 @@ class AnalystRatingsService(BaseAnalysisService):
             raise TypeError("Cannot use sync method with async provider. Use get_recent_changes_async instead.")
         
         if not isinstance(days, int) or days < 1:
-            raise YFinanceError("An error occurred")
+            raise YFinanceError(DEFAULT_ERROR_MESSAGE)
         
         try:
             # Skip API call for non-US tickers to avoid unnecessary errors
@@ -507,7 +507,7 @@ class AnalystRatingsService(BaseAnalysisService):
             raise TypeError("Cannot use async method with sync provider. Use get_recent_changes instead.")
         
         if not isinstance(days, int) or days < 1:
-            raise YFinanceError("An error occurred")
+            raise YFinanceError(DEFAULT_ERROR_MESSAGE)
         
         try:
             # Skip API call for non-US tickers to avoid unnecessary errors

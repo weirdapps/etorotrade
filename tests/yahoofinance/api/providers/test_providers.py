@@ -65,7 +65,7 @@ class TestYahooFinanceProvider:
     def test_instantiation(self, mock_client):
         """Test creating a YahooFinanceProvider instance."""
         # Don't patch _ticker_cache directly as it's an instance attribute
-        provider = YahooFinanceProvider()
+        YahooFinanceProvider()
     
     def test_get_ticker_info(self, mock_client):
         """Test get_ticker_info method returns correctly formatted data."""
@@ -194,7 +194,7 @@ class TestYahooFinanceProvider:
             assert isinstance(result, dict)
             assert result['symbol'] == 'AAPL'
             assert result['recommendations'] == 35
-            assert result['buy_percentage'] == 85.0
+            assert abs(result['buy_percentage'] - 85.0) < 1e-9
             assert result['strong_buy'] == 15
     
     def test_get_earnings_data(self, mock_client):
@@ -202,7 +202,6 @@ class TestYahooFinanceProvider:
         with patch.object(YahooFinanceProvider, 'get_earnings_dates') as mock_earnings:
             mock_earnings.return_value = ("2023-04-15", "2023-01-15")
             
-            provider = YahooFinanceProvider()
             result = {
                 "last_earnings": "2023-04-15",
                 "previous_earnings": "2023-01-15"

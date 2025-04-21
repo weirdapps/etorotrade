@@ -64,9 +64,13 @@ class MockProvider(FinanceDataProvider):
         """Mock implementation of batch_get_ticker_info."""
         return {ticker: self.get_ticker_info(ticker) for ticker in tickers}
     
-    def search_tickers(self, query):
+    def search_tickers(self, query, limit=None):
         """Mock implementation of search_tickers."""
-        return [{"symbol": query, "name": f"Test Company {query}"}]
+        # Implement basic limit logic for the mock
+        result = [{"symbol": query, "name": f"Test Company {query}"}]
+        if limit is not None and limit < len(result):
+            return result[:limit]
+        return result
     
     def get_price_history(self, ticker, period="1y"):
         """Mock implementation of get_price_history."""

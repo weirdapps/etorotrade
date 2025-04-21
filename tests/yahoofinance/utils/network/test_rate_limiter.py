@@ -293,8 +293,6 @@ class TestBatchProcessing:
     
     def test_batch_process(self):
         """Test batch_process function with rate limiting."""
-        limiter = RateLimiter()
-
         # Define a processor function
         def process_item(item):
             return item * 2

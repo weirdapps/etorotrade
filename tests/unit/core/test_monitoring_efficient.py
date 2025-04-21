@@ -242,7 +242,7 @@ class TestMetricsRegistry:
         assert gauge.name == "test_gauge"
         assert gauge.type == MetricType.GAUGE
         assert gauge.description == "Test gauge description"
-        assert gauge.value == 0.0
+        assert abs(gauge.value - 0.0) < 1e-9
         
         # It should be in the registry
         all_metrics = registry.get_all_metrics()

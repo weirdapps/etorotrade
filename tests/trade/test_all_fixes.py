@@ -69,16 +69,16 @@ async def test_all_fixes():
         "VZ",        # US ticker with very high dividend
     ]
 
-    # Fields to test
-    test_fields = [
-        "dividend_yield",  # Should be raw decimal (0.0234 not 2.34)
-        "peg_ratio",       # PEG ratio
-        "short_percent",   # Short interest
-        "earnings_date",   # Next earnings date
-        "analyst_count",   # Number of analysts
-        "total_ratings",   # Total ratings
-        "buy_percentage",  # Buy percentage
-    ]
+    # Fields to test and their display properties
+    test_fields = {
+        "dividend_yield": {"display_name": "Dividend Yield", "format": lambda x: f"{x * 100:.2f}%", "raw_format": lambda x: f"{x:.6f}"},
+        "peg_ratio": {"display_name": "PEG Ratio", "format": lambda x: f"{x:.1f}", "raw_format": lambda x: f"{x:.6f}"},
+        "short_percent": {"display_name": "Short Interest", "format": lambda x: f"{x:.1f}%", "raw_format": lambda x: f"{x:.6f}"},
+        "earnings_date": {"display_name": "Earnings Date", "format": lambda x: str(x), "raw_format": lambda x: str(x)},
+        "analyst_count": {"display_name": "Analyst Count", "format": lambda x: str(x), "raw_format": lambda x: str(x)},
+        "total_ratings": {"display_name": "Total Ratings", "format": lambda x: str(x), "raw_format": lambda x: str(x)},
+        "buy_percentage": {"display_name": "Buy Percentage", "format": lambda x: f"{x:.1f}%", "raw_format": lambda x: f"{x:.6f}"},
+    }
 
     # Get async provider
     provider = get_provider(async_mode=True)
@@ -89,7 +89,7 @@ async def test_all_fixes():
     # Process each ticker individually
     for ticker in test_tickers:
         print(f"\nFetching data for {ticker} ({'US' if is_us_ticker(ticker) else 'non-US'} ticker)...")
-        ticker_data = await _process_ticker_for_fixes(provider, ticker, test_fields)
+        ticker_data = await _process_ticker_for_fixes(provider, ticker, list(test_fields.keys()))
         if "error" not in ticker_data:
             # Display results
             print(f"Results for {ticker}:")
@@ -97,57 +97,43 @@ async def test_all_fixes():
             # Store results
             results[ticker] = ticker_data
 
-
     # Summary
     print("\n=== Field Availability Summary ===\n")
-
     for field in test_fields:
         available_count = sum(1 for data in results.values() if data.get(field) is not None)
         print(f"{field}: {available_count}/{len(test_tickers)} tickers have data")
 
-    print("\n=== Dividend Yield Summary ===\n")
-    print("Ticker | Dividend Yield | Display Value")
-    print("------ | ------------- | -------------")
+    # Print summaries for each field
+    for field, props in test_fields.items():
+        _print_field_summary(results, field, props["display_name"], props["format"], props["raw_format"])
 
-    for ticker, data in results.items():
-        div_yield = data.get("dividend_yield")
-        if div_yield is not None:
-            display_value = f"{div_yield * 100:.2f}%"
-            print(f"{ticker:6} | {div_yield:.6f} | {display_value}")
-        else:
-            print(f"{ticker:6} | None | None")
 
-    print("\n=== Short Interest (SI) Summary ===\n")
-    print("Ticker | Short Interest | Display Value")
-    print("------ | ------------- | -------------")
-
-    for ticker, data in results.items():
-        si = data.get("short_percent")
-        if si is not None:
-            display_value = f"{si:.1f}%"
-            print(f"{ticker:6} | {si:.6f} | {display_value}")
-        else:
-            print(f"{ticker:6} | None | None")
-
-    print("\n=== PEG Ratio Summary ===\n")
-    print("Ticker | PEG Ratio | Display Value")
-    print("------ | --------- | -------------")
-
-    for ticker, data in results.items():
-        peg = data.get("peg_ratio")
-        if peg is not None:
-            display_value = f"{peg:.1f}"
-            print(f"{ticker:6} | {peg:.6f} | {display_value}")
-        else:
-            print(f"{ticker:6} | None | None")
-
-    print("\n=== Earnings Date Summary ===\n")
-    print("Ticker | Earnings Date")
-    print("------ | -------------")
-
-    for ticker, data in results.items():
-        earnings = data.get("earnings_date")
-        print(f"{ticker:6} | {earnings}")
+def _print_field_summary(results, field, display_name, format_func, raw_format_func):
+    """Helper function to print summary for a specific field."""
+    print(f"\n=== {display_name} Summary ===\n")
+    if field in ["dividend_yield", "peg_ratio", "short_percent", "buy_percentage"]:
+         print(f"Ticker | {display_name} | Display Value")
+         print("------ | ------------- | -------------")
+         for ticker, data in results.items():
+            value = data.get(field)
+            if value is not None:
+                display_value = format_func(value)
+                raw_value = raw_format_func(value)
+                print(f"{ticker:6} | {raw_value} | {display_value}")
+            else:
+                print(f"{ticker:6} | None | None")
+    elif field == "earnings_date":
+        print("Ticker | Earnings Date")
+        print("------ | -------------")
+        for ticker, data in results.items():
+            earnings = data.get("earnings_date")
+            print(f"{ticker:6} | {earnings}")
+    else: # Default for other fields like analyst_count, total_ratings
+        print(f"Ticker | {display_name}")
+        print("------ | -------------")
+        for ticker, data in results.items():
+            value = data.get(field)
+            print(f"{ticker:6} | {value}")
 
     return results
 

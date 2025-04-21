@@ -119,5 +119,5 @@ __all__ = [
     'enable_debug_for_module',
     'get_ticker_logger',
     # For backward compatibility
-    'old_setup_logging as setup_logging'
+    'old_setup_logging'
 ]
