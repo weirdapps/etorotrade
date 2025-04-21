@@ -3,28 +3,13 @@
     "state": "CLOSED",
     "failure_count": 0,
     "success_count": 0,
-    "last_state_change": 1745191986.9708412,
+    "last_state_change": 1745204180.2868311,
     "last_failure_time": 0,
-    "last_success_time": 1745191986.9709172,
+    "last_success_time": 1745204180.2869601,
     "total_failures": 0,
     "total_successes": 1,
     "total_requests": 1,
     "failure_timestamps": [],
     "consecutive_failures": 0
-  },
-  "yahoofinance_api": {
-    "state": "CLOSED",
-    "failure_count": 1,
-    "success_count": 0,
-    "last_state_change": 1745200122.901868,
-    "last_failure_time": 1745200124.0824802,
-    "last_success_time": 0,
-    "total_failures": 1,
-    "total_successes": 0,
-    "total_requests": 1,
-    "failure_timestamps": [
-      1745200124.0824802
-    ],
-    "consecutive_failures": 1
   }
 }
