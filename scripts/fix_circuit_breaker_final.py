@@ -1,4 +1,14 @@
-"""Unit tests for the circuit breaker module."""
+#!/usr/bin/env python3
+"""
+Final fix for circuit breaker tests in the etorotrade project.
+This replaces the entire test_circuit_breaker.py file with a corrected version.
+"""
+
+import os
+import sys
+from pathlib import Path
+
+TEST_CIRCUIT_BREAKER_CONTENT = '''"""Unit tests for the circuit breaker module."""
 
 import time
 import threading
@@ -627,3 +637,22 @@ def test_get_all_circuits():
     # Should be the same instances
     assert circuits["test_get_all_1"] is circuit1
     assert circuits["test_get_all_2"] is circuit2
+'''
+
+def main():
+    """Main entry point for the script."""
+    # Get the project root dir
+    root_dir = Path(__file__).parent.parent
+    test_circuit_breaker_path = root_dir / "tests" / "unit" / "utils" / "network" / "test_circuit_breaker.py"
+    
+    print(f"Replacing {test_circuit_breaker_path}...")
+    
+    # Replace the entire file
+    with open(test_circuit_breaker_path, 'w') as f:
+        f.write(TEST_CIRCUIT_BREAKER_CONTENT)
+    
+    print("✅ Circuit breaker tests fixed")
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
