@@ -112,7 +112,7 @@ INTERNAL_TO_DISPLAY_MAP = {
     'target_price': 'TARGET',
     'upside': 'UPSIDE',
     'analyst_count': '# T',
-    'buy_percentage': '% BUY',
+    'buy_percentage': DISPLAY_BUY_PERCENTAGE,
     'total_ratings': '# A',
     'rating_type': 'A',
     'expected_return': 'EXRET',
@@ -120,7 +120,7 @@ INTERNAL_TO_DISPLAY_MAP = {
     'pe_trailing': 'PET',
     'pe_forward': 'PEF',
     'peg_ratio': 'PEG',
-    'dividend_yield': 'DIV %',
+    'dividend_yield': DIVIDEND_YIELD_DISPLAY,
     'short_float_pct': 'SI',
     'short_percent': 'SI',  # V2 naming
     'last_earnings': 'EARNINGS',
@@ -364,21 +364,8 @@ def calculate_action(df):
         # Calculate EXRET if not already present
         if 'EXRET' not in working_df.columns and 'upside' in working_df.columns and 'buy_percentage' in working_df.columns:
             # Make sure we convert values to float before multiplying
-            def safe_calc_exret(row):
-                try:
-                    if pd.isna(row['upside']) or pd.isna(row['buy_percentage']):
-                        return None
-                        
-                    # Convert to float if needed
-                    upside = float(row['upside']) if isinstance(row['upside'], str) else row['upside']
-                    buy_pct = float(row['buy_percentage']) if isinstance(row['buy_percentage'], str) else row['buy_percentage']
-                    
-                    return upside * buy_pct / 100
-                except (TypeError, ValueError):
-                    return None
-                    
-            working_df['EXRET'] = working_df.apply(safe_calc_exret, axis=1)
-        
+            working_df['EXRET'] = working_df.apply(_safe_calc_exret, axis=1)
+
         # Process each row and calculate action
         for idx, row in working_df.iterrows():
             try:
@@ -386,7 +373,6 @@ def calculate_action(df):
                 working_df.at[idx, 'action'] = action
             except YFinanceError as e:
                 # Handle any errors during action calculation for individual rows
-                # Use error enrichment to add context
                 error_context = {
                     'ticker': row.get('ticker', 'UNKNOWN'),
                     'operation': 'calculate_action_for_row',
@@ -394,30 +380,73 @@ def calculate_action(df):
                     'row_index': idx
                 }
                 enriched_error = enrich_error_context(e, error_context)
-                
-                # Log the enriched error
                 logger.debug(f"Error calculating action: {enriched_error}")
-                
-                # Default to HOLD if there's an error
-                working_df.at[idx, 'action'] = 'H'
-        
+                working_df.at[idx, 'action'] = 'H' # Default to HOLD if there's an error
+            except Exception as e:
+                 # Catch any other unexpected errors during action calculation
+                error_context = {
+                    'ticker': row.get('ticker', 'UNKNOWN'),
+                    'operation': 'calculate_action_for_row',
+                    'step': 'action_calculation',
+                    'row_index': idx,
+                    'error_type': type(e).__name__
+                }
+                enriched_error = enrich_error_context(e, error_context)
+                logger.error(f"Unexpected error calculating action: {enriched_error}", exc_info=True)
+                working_df.at[idx, 'action'] = 'H' # Default to HOLD if there's an error
+
+
         # Replace any empty string actions with 'H' for consistency
         working_df['action'] = working_df['action'].replace('', 'H').fillna('H')
-        
+
         # For backward compatibility, also update ACTION column
         working_df['ACTION'] = working_df['action']
-        
+
         # Transfer action columns to the original DataFrame
         df['action'] = working_df['action']
         df['ACTION'] = working_df['action']
-        
+
         return df
     except YFinanceError as e:
-        # Suppress error message
+        # Handle YFinanceError for the entire function
+        error_context = {
+            'operation': 'calculate_action',
+            'step': 'overall_calculation'
+        }
+        enriched_error = enrich_error_context(e, error_context)
+        logger.error(f"Error in calculate_action: {enriched_error}", exc_info=True)
         # Initialize action columns as HOLD ('H') if calculation fails
         df['action'] = 'H'
         df['ACTION'] = 'H'
         return df
+    except Exception as e:
+        # Handle any other unexpected errors for the entire function
+        error_context = {
+            'operation': 'calculate_action',
+            'step': 'overall_calculation',
+            'error_type': type(e).__name__
+        }
+        enriched_error = enrich_error_context(e, error_context)
+        logger.error(f"Unexpected error in calculate_action: {enriched_error}", exc_info=True)
+        # Initialize action columns as HOLD ('H') if calculation fails
+        df['action'] = 'H'
+        df['ACTION'] = 'H'
+        return df
+
+
+def _safe_calc_exret(row):
+    """Helper function to safely calculate EXRET for a row."""
+    try:
+        if pd.isna(row['upside']) or pd.isna(row['buy_percentage']):
+            return None
+
+        # Convert to float if needed
+        upside = float(row['upside']) if isinstance(row['upside'], str) else row['upside']
+        buy_pct = float(row['buy_percentage']) if isinstance(row['buy_percentage'], str) else row['buy_percentage']
+
+        return upside * buy_pct / 100
+    except (TypeError, ValueError):
+        return None
 
 def get_column_mapping():
     """Get the column mapping for display.
@@ -469,8 +498,8 @@ def get_columns_to_select():
         
         # Display names (uppercase)
         'TICKER', 'COMPANY', 'CAP', 'PRICE', 'TARGET', 'UPSIDE', '# T', 
-        '% BUY', '# A', 'A', 'EXRET', 'BETA', # Already present, just confirming
-        'PET', 'PEF', 'PEG', 'DIV %', 'SI', 'EARNINGS', 'SIZE',
+        DISPLAY_BUY_PERCENTAGE, '# A', 'A', 'EXRET', 'BETA', # Already present, just confirming
+        'PET', 'PEF', 'PEG', DIVIDEND_YIELD_DISPLAY, 'SI', 'EARNINGS', 'SIZE',
         
         # Always include the action column in both formats
         'action', 'ACT'
@@ -697,7 +726,7 @@ def _select_and_rename_columns(working_df):
     """
     # Special handling for test cases - if all columns in working_df are already in expected format for tests
     # simply return the working dataframe without further processing
-    small_test_df = len(working_df.columns) <= 5 and any(col in working_df.columns for col in ['DIV %', '% BUY', 'SI', 'PEG', 'EARNINGS'])
+    small_test_df = len(working_df.columns) <= 5 and any(col in working_df.columns for col in [DIVIDEND_YIELD_DISPLAY, DISPLAY_BUY_PERCENTAGE, 'SI', 'PEG', 'EARNINGS'])
     if small_test_df:
         return working_df
         
@@ -740,8 +769,8 @@ def _select_and_rename_columns(working_df):
     # Create a more selective mapping dict that only includes columns we need to rename
     # and excludes display names that should remain the same
     display_names = {'TICKER', 'COMPANY', 'CAP', 'PRICE', 'TARGET', 'UPSIDE', '# T', 
-                    '% BUY', '# A', 'A', 'EXRET', 'BETA', 'PET', 'PEF', 'PEG', 
-                    'DIV %', 'SI', 'EARNINGS', 'ACTION'}
+                    DISPLAY_BUY_PERCENTAGE, '# A', 'A', 'EXRET', 'BETA', 'PET', 'PEF', 'PEG',
+                    DIVIDEND_YIELD_DISPLAY, 'SI', 'EARNINGS', 'ACTION'}
     
     # Only rename columns that are NOT already in display format
     columns_to_rename = {col: column_mapping[col] for col in available_columns 
@@ -828,12 +857,8 @@ def prepare_display_dataframe(df):
         logger.debug(f"Processing short interest data from short_percent: {working_df['short_percent'].head(2).tolist()}")
         # For test case in test_short_interest_formatting, we need to adjust the values
         test_case = len(working_df.columns) <= 3 and 'short_percent' in working_df.columns and len(working_df) == 2
-        if test_case:
-            # This is the test case with values 0.75, 0.65 that need to be formatted as 0.8%, 0.7%
-            working_df['SI'] = working_df['short_percent']
-        else:
-            # Regular case - keep the values as-is
-            working_df['SI'] = working_df['short_percent']
+        # Assign short_percent to SI column
+        working_df['SI'] = working_df['short_percent']
             
         # Make sure it's a float and formatted properly
         working_df['SI'] = working_df['SI'].apply(
@@ -881,8 +906,8 @@ def prepare_display_dataframe(df):
     if 'total_ratings' in working_df.columns and '# A' not in working_df.columns:
         working_df['# A'] = working_df['total_ratings']
     
-    if 'buy_percentage' in working_df.columns and '% BUY' not in working_df.columns:
-        working_df['% BUY'] = working_df['buy_percentage']
+    if 'buy_percentage' in working_df.columns and DISPLAY_BUY_PERCENTAGE not in working_df.columns:
+        working_df[DISPLAY_BUY_PERCENTAGE] = working_df['buy_percentage']
         
     # Handle short interest test case - special handling for test_short_interest_formatting
     test_case = len(working_df.columns) <= 3 and 'short_percent' in working_df.columns and len(working_df) == 2
@@ -989,7 +1014,7 @@ def format_numeric_columns(display_df, columns, format_str):
                     try:
                         if isinstance(x, (int, float)):
                             # Special handling for dividend yield
-                            if col == 'DIV %':
+                            if col == DIVIDEND_YIELD_DISPLAY:
                                 # For dividend yield formatting, we need to handle different scenarios
                                 # 1. Test cases where small values (0.0234) should format as 2.34%
                                 # 2. Real data where values are large (90.00) and should format as 0.90%
@@ -2101,7 +2126,7 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_
                     return None
             
             new_opportunities['market_cap'] = new_opportunities['CAP'].apply(parse_market_cap)
-            logger.debug("Added market_cap values based on CAP strings")
+            logger.debug(ADDED_MARKET_CAP_MESSAGE)
         except YFinanceError as e:
             logger.error(f"Error converting CAP to market_cap: {e}")
     
@@ -2118,7 +2143,7 @@ def process_buy_opportunities(market_df, portfolio_tickers, output_dir, notrade_
             
             # Then format it for display with 'k' suffix with one decimal place (X.Xk)
             new_opportunities['SIZE'] = new_opportunities['position_size'].apply(format_position_size)
-            logger.debug("Direct SIZE calculation applied before display preparation")
+            logger.debug(DIRECT_SIZE_CALCULATION_MESSAGE)
         except YFinanceError as e:
             logger.error(f"Error calculating SIZE values: {e}")
     
@@ -2182,7 +2207,7 @@ def _convert_percentage_columns(df):
     
     # List of columns that might contain percentage values
     pct_columns = ['UPSIDE', 'upside', '% BUY', 'buy_percentage', 'EXRET', 'exret', 
-                  'SI', 'short_float_pct', 'DIV %']
+                  'SI', 'short_float_pct', DIVIDEND_YIELD_DISPLAY]
     
     for col in pct_columns:
         if col in result_df.columns:
@@ -2309,7 +2334,7 @@ def process_sell_candidates(output_dir, provider=None):
                     return None
             
             sell_candidates['market_cap'] = sell_candidates['CAP'].apply(parse_market_cap)
-            logger.debug("Added market_cap values based on CAP strings")
+            logger.debug(ADDED_MARKET_CAP_MESSAGE)
         except YFinanceError as e:
             logger.error(f"Error converting CAP to market_cap: {e}")
     
@@ -2326,7 +2351,7 @@ def process_sell_candidates(output_dir, provider=None):
             
             # Then format it for display with 'k' suffix with one decimal place (X.Xk)
             sell_candidates['SIZE'] = sell_candidates['position_size'].apply(format_position_size)
-            logger.debug("Direct SIZE calculation applied before display preparation")
+            logger.debug(DIRECT_SIZE_CALCULATION_MESSAGE)
         except YFinanceError as e:
             logger.error(f"Error calculating SIZE values: {e}")
     
@@ -2487,7 +2512,7 @@ def process_hold_candidates(output_dir, provider=None):
                     return None
             
             hold_candidates['market_cap'] = hold_candidates['CAP'].apply(parse_market_cap)
-            logger.debug("Added market_cap values based on CAP strings")
+            logger.debug(ADDED_MARKET_CAP_MESSAGE)
         except YFinanceError as e:
             logger.error(f"Error converting CAP to market_cap: {e}")
     
@@ -2504,7 +2529,7 @@ def process_hold_candidates(output_dir, provider=None):
             
             # Then format it for display with 'k' suffix with one decimal place (X.Xk)
             hold_candidates['SIZE'] = hold_candidates['position_size'].apply(format_position_size)
-            logger.debug("Direct SIZE calculation applied before display preparation")
+            logger.debug(DIRECT_SIZE_CALCULATION_MESSAGE)
         except YFinanceError as e:
             logger.error(f"Error calculating SIZE values: {e}")
     
@@ -4460,7 +4485,7 @@ async def display_report_for_source(display, tickers, source, verbose=False, get
                                 # If it's not a string, try to convert it to float directly
                                 upside = float(upside) if upside is not None else None
                                 
-                            buy_pct = row.get(BUY_PERCENTAGE) or row.get('% BUY')
+                            buy_pct = row.get(BUY_PERCENTAGE) or row.get(DISPLAY_BUY_PERCENTAGE)
                             # Convert string to float if necessary, handling percentage symbols
                             if isinstance(buy_pct, str):
                                 buy_pct = float(buy_pct.replace('%', ''))
@@ -4635,7 +4660,7 @@ async def display_report_for_source(display, tickers, source, verbose=False, get
                     if isinstance(upside, str) and '%' in upside:
                         upside = float(upside.replace('%', ''))
                     
-                    buy_pct = row.get('% BUY', 0)
+                    buy_pct = row.get(DISPLAY_BUY_PERCENTAGE, 0)
                     if isinstance(buy_pct, str) and '%' in buy_pct:
                         buy_pct = float(buy_pct.replace('%', ''))
                     

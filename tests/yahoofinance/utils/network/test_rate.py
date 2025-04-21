@@ -396,7 +396,7 @@ class TestErrorRecovery(unittest.TestCase):
         self.assertNotIn("AAPL", limiter.slow_tickers)
         
         # Add rate limit errors to reach slow ticker threshold
-        for i in range(3):
+        for _ in range(3):
             limiter.record_failure("AAPL", is_rate_limit=True)
             
         # Now AAPL should be in slow_tickers

@@ -96,9 +96,6 @@ def test_benchmark_result_as_dict(benchmark_result):
 async def test_performance_benchmark():
     """Test the PerformanceBenchmark class basic functionality."""
     # Create a test async function to benchmark that doesn't actually sleep
-    async def test_function(a, b):
-        return a + b
-    
     # Mock psutil.Process to avoid actual system calls
     with patch('psutil.Process') as mock_process:
         # Configure the process mock

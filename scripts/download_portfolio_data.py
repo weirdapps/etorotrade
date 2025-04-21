@@ -107,7 +107,7 @@ def _process_historical_batch(batch_tickers, start_date, end_date, rate_limiter)
 
     try:
         # Download data for this batch
-        batch_data = yf.download(
+        downloaded_data = yf.download(
             batch_tickers,
             start=start_date.strftime('%Y-%m-%d'),
             end=end_date.strftime('%Y-%m-%d'),
@@ -121,29 +121,24 @@ def _process_historical_batch(batch_tickers, start_date, end_date, rate_limiter)
         rate_limiter.record_call()
         rate_limiter.record_success()
 
-        # Handle data extraction
-        if len(batch_tickers) == 1:
-            # Single ticker case
-            if not batch_data.empty and 'Close' in batch_data.columns:
-                ticker_data = batch_data['Close'].to_frame()
-                ticker_data.columns = [batch_tickers[0]]
-                if not ticker_data.isnull().all().all():
-                    valid_batch_tickers.add(batch_tickers[0])
-                    batch_data = ticker_data # Return the processed single ticker data
-                else:
-                    batch_data = pd.DataFrame() # Return empty if no valid data
-        # Multiple tickers case
-        elif 'Close' in batch_data.columns:
-            prices_df = batch_data['Close']
-            # Identify tickers with valid data
+        # Extract 'Close' price data and identify valid tickers
+        if not downloaded_data.empty and 'Close' in downloaded_data.columns:
+            prices_df = downloaded_data['Close']
+
+            # Ensure prices_df is a DataFrame even for a single ticker
+            if isinstance(prices_df, pd.Series):
+                prices_df = prices_df.to_frame()
+                prices_df.columns = [batch_tickers[0]]
+
             for ticker in batch_tickers:
                 if ticker in prices_df.columns and not prices_df[ticker].isnull().all():
                     valid_batch_tickers.add(ticker)
-            # Return only valid data from the batch
+
+            # Return only valid data
             if valid_batch_tickers:
-                 batch_data = prices_df[list(valid_batch_tickers)]
+                batch_data = prices_df[list(valid_batch_tickers)]
             else:
-                 batch_data = pd.DataFrame() # Return empty if no valid data
+                batch_data = pd.DataFrame()
 
     except YFinanceError as e:
         # Record failed API call

@@ -302,7 +302,7 @@ class TestCircuitBreakerMonitor:
         assert state.name == "test_breaker"
         assert state.status == CircuitBreakerStatus.OPEN
         assert state.failure_count == 3
-        assert state.last_failure_time == 1000.0  # Mocked time value
+        assert abs(state.last_failure_time - 1000.0) < 1e-9  # Mocked time value
         assert state.last_success_time is None
         
         # Verify save was called
@@ -319,7 +319,7 @@ class TestCircuitBreakerMonitor:
         # Check state again
         state = monitor.get_state("test_breaker")
         assert state.status == CircuitBreakerStatus.HALF_OPEN
-        assert state.last_success_time == 1000.0  # Mocked time value
+        assert abs(state.last_success_time - 1000.0) < 1e-9  # Mocked time value
         
         # Verify save was called again
         monitor._save_states.assert_called_once()
@@ -388,7 +388,7 @@ class TestRequestContext(unittest.TestCase):
         
         # Check properties
         assert context.request_id == "req-123"
-        assert context.start_time == 100.0
+        assert abs(context.start_time - 100.0) < 1e-9
         assert context.endpoint == "/api/data"
         assert context.parameters == {"id": 1, "filter": "active"}
         assert context.user_agent is None

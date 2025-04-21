@@ -290,7 +290,6 @@ class Backtester:
                     break
                     
             if ticker_col is None:
-                cols = ', '.join(df.columns)
                 raise YFinanceError("An error occurred")
             
             # Extract and clean tickers
@@ -381,7 +380,7 @@ class Backtester:
             unit="ticker",
             leave=False,
             ncols=100,
-            bar_format="{desc:<25}: {percentage:3.0f}%|{bar:30}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]",
+            bar_format=PROGRESS_BAR_FORMAT,
             colour="cyan",
             disable=self.disable_progress
         )

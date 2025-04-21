@@ -20,7 +20,7 @@ setup_logging(log_level=logging.INFO)
 async def test_analyst_data():
     """Test retrieval of analyst data for both US and non-US tickers."""
     print("\n=== Testing Analyst Data Retrieval ===\n")
-    
+
     # Test both US and non-US tickers
     test_tickers = [
         "AAPL",      # US ticker
@@ -30,74 +30,97 @@ async def test_analyst_data():
         "BAS.DE",    # German ticker (BASF)
         "NVDA"       # US ticker that had hardcoded values
     ]
-    
+
     # Test both provider types
     provider_types = [
         ("Async", True),
         ("Sync", False)
     ]
-    
+
     all_results = {}
-    
+
     for provider_type, is_async in provider_types:
         print(f"\n--- Testing {provider_type} Provider ---\n")
-        
+
         # Get provider
         provider = get_provider(async_mode=is_async)
         print(f"Using provider: {provider.__class__.__name__}")
-        
+
         results = {}
-        
+
         # Process each ticker individually
         for ticker in test_tickers:
             print(f"\nFetching data for {ticker} ({'US' if is_us_ticker(ticker) else 'non-US'} ticker)...")
-            
-            try:
-                # Get ticker info
-                if is_async:
-                    info = await provider.get_ticker_info(ticker)
-                else:
-                    info = provider.get_ticker_info(ticker)
-                
-                # Extract analyst data
-                analyst_data = {
-                    "ticker": ticker,
-                    "is_us_ticker": is_us_ticker(ticker),
-                    "analyst_count": info.get("analyst_count"),
-                    "total_ratings": info.get("total_ratings"),
-                    "buy_percentage": info.get("buy_percentage"),
-                    "target_price": info.get("target_price"),
-                    "upside": info.get("upside"),
-                    "data_source": info.get("data_source")
-                }
-                
+            ticker_data = await _process_single_analyst_ticker(provider, ticker, is_async)
+            if "error" not in ticker_data:
                 # Display results
                 print(f"Results for {ticker}:")
-                pprint(analyst_data)
-                
+                pprint(ticker_data)
                 # Store results
-                results[ticker] = analyst_data
-                
-            except Exception as e:
-                print(f"Error fetching data for {ticker}: {str(e)}")
-        
+                results[ticker] = ticker_data
+
         # Summary for this provider
-        print(f"\n=== Summary for {provider_type} Provider ===\n")
-        success_count = sum(1 for data in results.values() if data.get("analyst_count") is not None and data.get("analyst_count") > 0)
-        print(f"Successfully retrieved analyst data for {success_count}/{len(test_tickers)} tickers")
-        
-        # Check US vs non-US success
-        us_tickers = [t for t in test_tickers if is_us_ticker(t)]
-        non_us_tickers = [t for t in test_tickers if not is_us_ticker(t)]
-        
-        us_success = sum(1 for t in us_tickers if t in results and results[t].get("analyst_count") is not None and results[t].get("analyst_count") > 0)
-        non_us_success = sum(1 for t in non_us_tickers if t in results and results[t].get("analyst_count") is not None and results[t].get("analyst_count") > 0)
-        
-        print(f"US tickers: {us_success}/{len(us_tickers)} successful")
-        print(f"Non-US tickers: {non_us_success}/{len(non_us_tickers)} successful")
-        
-        # Check for hardcoded values
-        suspected_hardcoded = []
+        _print_analyst_summary(provider_type, test_tickers, results)
+
+        # Store results for this provider type
+        all_results[provider_type] = results
+
+    # Final checks (can add more assertions here if needed)
+    print("\n=== Overall Test Complete ===")
+
+
+async def _process_single_analyst_ticker(provider, ticker, is_async):
+    """Helper function to process a single ticker for analyst data."""
+    try:
+        # Get ticker info
+        if is_async:
+            info = await provider.get_ticker_info(ticker)
+        else:
+            info = provider.get_ticker_info(ticker)
+
+        # Extract analyst data
+        analyst_data = {
+            "ticker": ticker,
+            "is_us_ticker": is_us_ticker(ticker),
+            "analyst_count": info.get("analyst_count"),
+            "total_ratings": info.get("total_ratings"),
+            "buy_percentage": info.get("buy_percentage"),
+            "target_price": info.get("target_price"),
+            "upside": info.get("upside"),
+            "data_source": info.get("data_source")
+        }
+        return analyst_data
+
+    except Exception as e:
+        print(f"Error fetching data for {ticker}: {str(e)}")
+        return {"ticker": ticker, "error": str(e)}
+
+
+def _print_analyst_summary(provider_type, test_tickers, results):
+    """Helper function to print summary for a provider type."""
+    print(f"\n=== Summary for {provider_type} Provider ===\n")
+    success_count = sum(1 for data in results.values() if data.get("analyst_count") is not None and data.get("analyst_count") > 0)
+    print(f"Successfully retrieved analyst data for {success_count}/{len(test_tickers)} tickers")
+
+    # Check US vs non-US success
+    us_tickers = [t for t in test_tickers if is_us_ticker(t)]
+    non_us_tickers = [t for t in test_tickers if not is_us_ticker(t)]
+
+    us_success = sum(1 for t in us_tickers if t in results and results[t].get("analyst_count") is not None and results[t].get("analyst_count") > 0)
+    non_us_success = sum(1 for t in non_us_tickers if t in results and results[t].get("analyst_count") is not None and results[t].get("analyst_count") > 0)
+
+    print(f"US tickers: {us_success}/{len(us_tickers)} successful")
+    print(f"Non-US tickers: {non_us_success}/{len(non_us_tickers)} successful")
+
+    # Check for hardcoded values
+    suspected_hardcoded = []
+    # Add logic here to check for hardcoded values if necessary
+    if suspected_hardcoded:
+        print("\nSuspected hardcoded values found for:")
+        for item in suspected_hardcoded:
+            print(f"- {item}")
+    else:
+        print("\nNo suspected hardcoded values found.")
         for ticker, data in results.items():
             if data.get("analyst_count") == 30 and data.get("total_ratings") == 30 and data.get("buy_percentage") == 90:
                 suspected_hardcoded.append(ticker)

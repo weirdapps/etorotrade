@@ -191,7 +191,7 @@ class TestFormatUtilsFunctions(unittest.TestCase):
         with patch('yahoofinance.utils.data.format_utils.format_position_size', 
                   side_effect=lambda x: "2.5k" if x == 2500 else "--"):
             with patch('yahoofinance.utils.data.format_utils.format_market_cap', 
-                      side_effect=lambda x: "1.50B" if x == 1.5e9 else None):
+                      side_effect=lambda x: "1.50B" if abs(x - 1.5e9) < 1e-9 else None):
                 formatted = format_market_metrics(metrics)
                 
                 # Check specific formatting for fields with special handling
@@ -266,6 +266,7 @@ class TestFormatUtilsFunctions(unittest.TestCase):
         
         # Test with default columns (all columns)
         all_columns_csv = format_for_csv(test_data)
+        self.assertFalse(len(all_columns_csv) == 0, "CSV data should not be empty for non-empty input")
         self.assertEqual(len(all_columns_csv[0]), 7)  # All 7 columns
         
         # Test with empty data

@@ -225,6 +225,4 @@ class TestTrade(unittest.TestCase):
         # which is beyond the scope of our current task
         import warnings
         warnings.warn("Skipping test_handle_trade_analysis_with_hold_option due to decorator dependencies")
-        return
-        
         # For future reference, proper testing would look like this:

@@ -325,7 +325,7 @@ def inject(component_key: str, **resolve_kwargs):
             pass
         else:
             # Add component type as suffix
-            param_name = param_name
+            pass
         
         @wraps(func)
         def wrapper(*args, **kwargs):
