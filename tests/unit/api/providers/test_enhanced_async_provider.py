@@ -7,7 +7,7 @@ focusing on circuit breaker integration, error handling, and resilience patterns
 
 import pytest
 import asyncio
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 import pandas as pd
 
 from yahoofinance.api.providers.enhanced_async_yahoo_finance import EnhancedAsyncYahooFinanceProvider
@@ -66,22 +66,29 @@ async def enhanced_provider_with_circuit_breaker():
 @pytest.mark.asyncio
 async def test_ensure_session():
     """Test that _ensure_session creates a session when needed"""
-    provider = MockableEnhancedAsyncYahooFinanceProvider()
-    assert provider._session is None
+    # Create a proper AsyncMock for session
+    mock_session = AsyncMock()
+    mock_session.closed = False
     
-    # First call should create a session
-    session = await provider._ensure_session()
-    assert provider._session is not None
-    assert session is provider._session
-    assert not session.closed
-    
-    # Second call should return the same session
-    session2 = await provider._ensure_session()
-    assert session2 is session
-    
-    # Clean up
-    await provider.close()
-    assert provider._session is None
+    # Mock the ClientSession constructor to return our controlled mock
+    with patch('aiohttp.ClientSession', return_value=mock_session):
+        provider = MockableEnhancedAsyncYahooFinanceProvider()
+        assert provider._session is None
+        
+        # First call should create a session
+        session = await provider._ensure_session()
+        assert provider._session is not None
+        assert session is provider._session
+        
+        # Second call should return the same session
+        session2 = await provider._ensure_session()
+        assert session2 is session
+        
+        # Clean up
+        await provider.close()
+        assert provider._session is None
+        # Verify that close was called
+        mock_session.close.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -168,8 +175,6 @@ async def test_fetch_json_network_error(enhanced_provider):
 @pytest.mark.asyncio
 async def test_fetch_json_with_circuit_breaker(enhanced_provider_with_circuit_breaker):
     """Test circuit breaker integration with fetch_json"""
-    # Skip this test - we'll check proper behavior by validating the decorators
-    
     # Get the provider instance from the fixture
     provider = await enhanced_provider_with_circuit_breaker.__anext__()
     
@@ -180,20 +185,16 @@ async def test_fetch_json_with_circuit_breaker(enhanced_provider_with_circuit_br
     assert hasattr(provider, '_circuit_name')
     assert provider._circuit_name is not None
     
-    # Simplest possible test - can we call _fetch_json with a mock?
+    # Create a direct mock instead of trying to mock requests
     async def mock_fetch(*args, **kwargs):
         return {"test": "success"}
     
-    original_fetch = provider._fetch_json
-    provider._fetch_json = mock_fetch
-    
-    try:
+    # Patch the provider's internal fetch method
+    with patch.object(provider, '_fetch_json', side_effect=mock_fetch):
         # Simple call to verify basic functionality
         result = await provider._fetch_json("https://example.com")
+        assert isinstance(result, dict)
         assert result == {"test": "success"}
-    finally:
-        # Restore original method
-        provider._fetch_json = original_fetch
 
 
 @pytest.mark.asyncio
@@ -312,36 +313,35 @@ async def test_batch_get_ticker_info(enhanced_provider):
 @pytest.mark.asyncio
 async def test_circuit_breaker_integration_retry_after():
     """Test that CircuitOpenError is translated with proper retry_after"""
-    # Create a new provider specifically for this test
-    provider = MockableEnhancedAsyncYahooFinanceProvider(enable_circuit_breaker=True)
-    
-    try:
-        # Create a direct mock for get_ticker_info that raises APIError with
-        # the expected details that would come from a translated CircuitOpenError
-        async def mock_get_ticker_info(ticker, skip_insider_metrics=False):
-            # Raise an APIError with the details we expect from a circuit open error translation
-            details = {"status_code": 503, "retry_after": 120}
-            raise APIError("Service currently unavailable", details=details)
-        
-        # Replace the method directly
-        original_method = provider.get_ticker_info
-        provider.get_ticker_info = mock_get_ticker_info
+    # Use patch to avoid actual ClientSession creation
+    with patch('aiohttp.ClientSession'):
+        # Create a new provider specifically for this test, with mocked session
+        provider = MockableEnhancedAsyncYahooFinanceProvider(enable_circuit_breaker=True)
         
         try:
-            # Test the error handling
-            with pytest.raises(APIError) as excinfo:
-                await provider.get_ticker_info("AAPL")
+            # Create a direct mock for get_ticker_info that raises APIError with
+            # the expected details that would come from a translated CircuitOpenError
+            async def mock_get_ticker_info(ticker, skip_insider_metrics=False):
+                # Raise an APIError with the details we expect from a circuit open error translation
+                details = {"status_code": 503, "retry_after": 120}
+                raise APIError("Service currently unavailable", details=details)
             
-            # Check that error was translated properly
-            assert "currently unavailable" in str(excinfo.value)
-            assert excinfo.value.details.get("status_code") == 503
-            assert excinfo.value.details.get("retry_after") == 120  # Should preserve retry_after
+            # Use patch to avoid modifying the instance
+            with patch.object(provider, 'get_ticker_info', side_effect=mock_get_ticker_info):
+                # Test the error handling
+                with pytest.raises(APIError) as excinfo:
+                    await provider.get_ticker_info("AAPL")
+                
+                # Check that error was translated properly
+                assert "currently unavailable" in str(excinfo.value)
+                assert excinfo.value.details.get("status_code") == 503
+                assert excinfo.value.details.get("retry_after") == 120  # Should preserve retry_after
         finally:
-            # Restore the original method
-            provider.get_ticker_info = original_method
-    finally:
-        # Ensure we close the provider even if the test fails
-        await provider.close()
+            # Ensure we close the provider even if the test fails
+            # But mock the close method to avoid actual cleanup
+            provider._session = MagicMock()
+            provider._session.close = MagicMock()
+            await provider.close()
 
 
 @pytest.mark.asyncio
