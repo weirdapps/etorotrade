@@ -103,7 +103,7 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         """
         # Fast path for performance-critical first check
         cache_key = f"ticker_info:{ticker}"
-        cached_info = default_cache_manager.get(cache_key, data_type="ticker_info")
+        cached_info = default_cache_manager.get(cache_key)
         if cached_info is not None:
             # Add a flag to indicate this came from cache
             # This will be used by the rate_limited decorator to adjust delays
@@ -241,7 +241,7 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         """
         # Check cache first
         cache_key = f"historical_data:{ticker}:{period}:{interval}"
-        cached_data = default_cache_manager.get(cache_key, data_type="historical_data")
+        cached_data = default_cache_manager.get(cache_key)
         if cached_data is not None:
             logger.debug(f"Using cached historical data for {ticker} (period={period}, interval={interval})")
             # For DataFrames, we can't add the from_cache attribute directly
@@ -289,7 +289,7 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         """
         # Check cache first
         cache_key = f"earnings_dates:{ticker}"
-        cached_data = default_cache_manager.get(cache_key, data_type="earnings_data")
+        cached_data = default_cache_manager.get(cache_key)
         if cached_data is not None:
             logger.debug(f"Using cached earnings dates for {ticker}")
             # Signal to rate limiter that this data came from cache
@@ -394,7 +394,7 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         """
         # Check cache first
         cache_key = f"analyst_ratings:{ticker}"
-        cached_data = default_cache_manager.get(cache_key, data_type="analysis")
+        cached_data = default_cache_manager.get(cache_key)
         if cached_data is not None:
             logger.debug(f"Using cached analyst ratings for {ticker}")
             # Make a copy to avoid modifying cached data

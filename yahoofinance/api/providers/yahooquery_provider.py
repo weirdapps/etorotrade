@@ -18,6 +18,10 @@ from yahooquery import Ticker
 from .base_provider import FinanceDataProvider
 from .yahoo_finance_base import YahooFinanceBaseProvider
 from ...core.errors import YFinanceError, APIError, ValidationError, RateLimitError
+
+# Define constants for repeated strings
+RATE_LIMIT_ERROR_MESSAGE = "rate limit"
+TOO_MANY_REQUESTS_ERROR_MESSAGE = "too many requests"
 from ...utils.market.ticker_utils import is_us_ticker
 from ...utils.network.rate_limiter import rate_limited
 from ...core.config import CACHE_CONFIG, COLUMN_NAMES, POSITIVE_GRADES
@@ -176,7 +180,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         
         except YFinanceError as e:
             # Check for rate limit related errors
-            if "rate limit" in str(e).lower() or "too many requests" in str(e).lower():
+            if RATE_LIMIT_ERROR_MESSAGE in str(e).lower() or TOO_MANY_REQUESTS_ERROR_MESSAGE in str(e).lower():
                 raise RateLimitError(f"Rate limit exceeded for ticker {ticker}: {str(e)}")
             
             # Check for ticker not found errors
@@ -262,7 +266,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         
         except YFinanceError as e:
             # Check for rate limit related errors
-            if "rate limit" in str(e).lower() or "too many requests" in str(e).lower():
+            if RATE_LIMIT_ERROR_MESSAGE in str(e).lower() or TOO_MANY_REQUESTS_ERROR_MESSAGE in str(e).lower():
                 raise RateLimitError(f"Rate limit exceeded for ticker {ticker}: {str(e)}")
             
             # Generic error handler
@@ -320,7 +324,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         
         except YFinanceError as e:
             # Check for rate limit related errors
-            if "rate limit" in str(e).lower() or "too many requests" in str(e).lower():
+            if RATE_LIMIT_ERROR_MESSAGE in str(e).lower() or TOO_MANY_REQUESTS_ERROR_MESSAGE in str(e).lower():
                 raise RateLimitError(f"Rate limit exceeded for ticker {ticker}: {str(e)}")
             
             # Generic error handler
@@ -375,7 +379,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         
         except YFinanceError as e:
             # Check for rate limit related errors
-            if "rate limit" in str(e).lower() or "too many requests" in str(e).lower():
+            if RATE_LIMIT_ERROR_MESSAGE in str(e).lower() or TOO_MANY_REQUESTS_ERROR_MESSAGE in str(e).lower():
                 raise RateLimitError(f"Rate limit exceeded for ticker {ticker}: {str(e)}")
             
             # Generic error handler
@@ -446,7 +450,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         
         except YFinanceError as e:
             # Check for rate limit related errors
-            if "rate limit" in str(e).lower() or "too many requests" in str(e).lower():
+            if RATE_LIMIT_ERROR_MESSAGE in str(e).lower() or TOO_MANY_REQUESTS_ERROR_MESSAGE in str(e).lower():
                 raise RateLimitError(f"Rate limit exceeded for ticker {ticker}: {str(e)}")
             
             # Generic error handler
@@ -483,7 +487,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         
         except YFinanceError as e:
             # Check for rate limit related errors
-            if "rate limit" in str(e).lower() or "too many requests" in str(e).lower():
+            if RATE_LIMIT_ERROR_MESSAGE in str(e).lower() or TOO_MANY_REQUESTS_ERROR_MESSAGE in str(e).lower():
                 raise RateLimitError(f"Rate limit exceeded for ticker {ticker}: {str(e)}")
             
             # Generic error handler
@@ -516,7 +520,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             
         except YFinanceError as e:
             # Check for rate limit related errors
-            if "rate limit" in str(e).lower() or "too many requests" in str(e).lower():
+            if RATE_LIMIT_ERROR_MESSAGE in str(e).lower() or TOO_MANY_REQUESTS_ERROR_MESSAGE in str(e).lower():
                 raise RateLimitError(f"Rate limit exceeded for ticker search: {str(e)}")
             
             # Generic error handler

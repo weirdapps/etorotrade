@@ -18,6 +18,9 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any, Tuple, Set, Union
 from pathlib import Path
+
+# Define constants for repeated strings
+PROGRESS_BAR_FORMAT = "{desc:<25}: {percentage:3.0f}%|{bar:30}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]"
 import copy
 import itertools
 import time
@@ -573,7 +576,7 @@ class Backtester:
                 unit="ticker",
                 leave=False,
                 ncols=100,
-                bar_format="{desc:<25}: {percentage:3.0f}%|{bar:30}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]",
+                bar_format=PROGRESS_BAR_FORMAT,
                 colour="magenta",
                 disable=self.disable_progress
             )

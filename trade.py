@@ -1012,13 +1012,13 @@ def format_numeric_columns(display_df, columns, format_str):
                 # Handle percentage format separately
                 base_format = format_str.rstrip('%')
                 # Use a safer formatting function
-                def safe_pct_format(x, fmt=base_format):
+                def safe_pct_format(x, fmt=base_format, column=col):
                     if pd.isnull(x) or x == "--":
                         return "--"
                     try:
                         if isinstance(x, (int, float)):
                             # Special handling for dividend yield
-                            if col == DIVIDEND_YIELD_DISPLAY:
+                            if column == DIVIDEND_YIELD_DISPLAY:
                                 # For dividend yield formatting, we need to handle different scenarios
                                 # 1. Test cases where small values (0.0234) should format as 2.34%
                                 # 2. Real data where values are large (90.00) and should format as 0.90%
@@ -3363,7 +3363,6 @@ class SimpleProgressTracker:
                     except Exception as e:
                         # Just log the error and continue
                         logger.debug(f"Error parsing progress description: {str(e)}")
-                        pass
         
         self._print_status()
     
