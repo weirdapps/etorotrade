@@ -215,14 +215,6 @@ class TestAsyncHelpers(unittest.IsolatedAsyncioTestCase):
         )
         
         # process_batch_async now returns a dictionary
-        expected = {
-            1: 2,
-            2: 4,
-            # 3 will be missing or None due to error
-            4: 8,
-            5: 10
-        }
-        
         # Remove None values for comparison
         cleaned_results = {k: v for k, v in results.items() if v is not None}
         self.assertEqual(cleaned_results, {1: 2, 2: 4, 4: 8, 5: 10})

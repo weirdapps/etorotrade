@@ -55,16 +55,16 @@ def test_get_price_data(analyzer, mock_provider, sample_ticker_info):
     price_data = analyzer.get_price_data("AAPL")
     
     # Verify result
-    assert price_data.price == 100.0
-    assert price_data.change == 2.5
-    assert price_data.change_percent == 2.5
+    assert price_data.price == pytest.approx(100.0, abs=1e-9)
+    assert price_data.change == pytest.approx(2.5, abs=1e-9)
+    assert price_data.change_percent == pytest.approx(2.5, abs=1e-9)
     assert price_data.volume == 1000000
     assert price_data.average_volume == 1200000
-    assert price_data.volume_ratio == 1000000 / 1200000
-    assert price_data.high_52week == 150.0
-    assert price_data.low_52week == 80.0
-    assert price_data.from_high == -33.3
-    assert price_data.from_low == 25.0
+    assert price_data.volume_ratio == pytest.approx(1000000 / 1200000, abs=1e-9)
+    assert price_data.high_52week == pytest.approx(150.0, abs=1e-9)
+    assert price_data.low_52week == pytest.approx(80.0, abs=1e-9)
+    assert price_data.from_high == pytest.approx(-33.3, abs=1e-9)
+    assert price_data.from_low == pytest.approx(25.0, abs=1e-9)
     
     # Verify provider was called correctly
     mock_provider.get_ticker_info.assert_called_once_with("AAPL")
@@ -100,8 +100,8 @@ async def test_get_price_data_async(analyzer, mock_provider, sample_ticker_info)
     price_data = await analyzer.get_price_data_async("AAPL")
     
     # Verify result
-    assert price_data.price == 100.0
-    assert price_data.change == 2.5
+    assert price_data.price == pytest.approx(100.0, abs=1e-9)
+    assert price_data.change == pytest.approx(2.5, abs=1e-9)
     assert price_data.volume == 1000000
     
     # Verify provider was called correctly
@@ -116,11 +116,11 @@ def test_get_price_target(analyzer, mock_provider, sample_ticker_info):
     price_target = analyzer.get_price_target("AAPL")
     
     # Verify result
-    assert price_target.average == 120.0
-    assert price_target.median == 115.0
-    assert price_target.high == 140.0
-    assert price_target.low == 90.0
-    assert price_target.upside == 20.0
+    assert price_target.average == pytest.approx(120.0, abs=1e-9)
+    assert price_target.median == pytest.approx(115.0, abs=1e-9)
+    assert price_target.high == pytest.approx(140.0, abs=1e-9)
+    assert price_target.low == pytest.approx(90.0, abs=1e-9)
+    assert price_target.upside == pytest.approx(20.0, abs=1e-9)
     assert price_target.analyst_count == 10
     
     # Verify provider was called correctly
@@ -174,8 +174,8 @@ async def test_get_price_target_async(analyzer, mock_provider, sample_ticker_inf
     price_target = await analyzer.get_price_target_async("AAPL")
     
     # Verify result
-    assert price_target.average == 120.0
-    assert price_target.median == 115.0
+    assert price_target.average == pytest.approx(120.0, abs=1e-9)
+    assert price_target.median == pytest.approx(115.0, abs=1e-9)
     assert price_target.analyst_count == 10
     
     # Verify provider was called correctly
@@ -190,10 +190,10 @@ def test_get_all_metrics(analyzer, mock_provider, sample_ticker_info):
     metrics = analyzer.get_all_metrics("AAPL")
     
     # Verify result
-    assert metrics["price"] == 100.0
-    assert metrics["target_price"] == 120.0
+    assert metrics["price"] == pytest.approx(100.0, abs=1e-9)
+    assert metrics["target_price"] == pytest.approx(120.0, abs=1e-9)
     assert metrics["analyst_count"] == 10
-    assert metrics["high_52week"] == 150.0
+    assert metrics["high_52week"] == pytest.approx(150.0, abs=1e-9)
     
     # Verify provider was called correctly
     mock_provider.get_ticker_info.assert_called_once_with("AAPL")
@@ -228,8 +228,8 @@ async def test_get_all_metrics_async(analyzer, mock_provider, sample_ticker_info
     metrics = await analyzer.get_all_metrics_async("AAPL")
     
     # Verify result
-    assert metrics["price"] == 100.0
-    assert metrics["target_price"] == 120.0
+    assert metrics["price"] == pytest.approx(100.0, abs=1e-9)
+    assert metrics["target_price"] == pytest.approx(120.0, abs=1e-9)
     
     # Verify provider was called correctly
     mock_provider.get_ticker_info.assert_called_once_with("AAPL")
@@ -248,16 +248,16 @@ def test_price_data_namedtuple():
         from_high=-33.3,
         from_low=25.0
     )
-    assert data.price == 100.0
-    assert data.change == 2.5
-    assert data.change_percent == 2.5
+    assert data.price == pytest.approx(100.0, abs=1e-9)
+    assert data.change == pytest.approx(2.5, abs=1e-9)
+    assert data.change_percent == pytest.approx(2.5, abs=1e-9)
     assert data.volume == 1000000
     assert data.average_volume == 1200000
-    assert data.volume_ratio == 0.83
-    assert data.high_52week == 150.0
-    assert data.low_52week == 80.0
-    assert data.from_high == -33.3
-    assert data.from_low == 25.0
+    assert data.volume_ratio == pytest.approx(0.83, abs=1e-9)
+    assert data.high_52week == pytest.approx(150.0, abs=1e-9)
+    assert data.low_52week == pytest.approx(80.0, abs=1e-9)
+    assert data.from_high == pytest.approx(-33.3, abs=1e-9)
+    assert data.from_low == pytest.approx(25.0, abs=1e-9)
 
 def test_price_target_namedtuple():
     """Test that PriceTarget class works correctly."""
@@ -269,9 +269,9 @@ def test_price_target_namedtuple():
         upside=20.0,
         analyst_count=10
     )
-    assert target.average == 120.0
-    assert target.median == 115.0
-    assert target.high == 140.0
-    assert target.low == 90.0
-    assert target.upside == 20.0
+    assert target.average == pytest.approx(120.0, abs=1e-9)
+    assert target.median == pytest.approx(115.0, abs=1e-9)
+    assert target.high == pytest.approx(140.0, abs=1e-9)
+    assert target.low == pytest.approx(90.0, abs=1e-9)
+    assert target.upside == pytest.approx(20.0, abs=1e-9)
     assert target.analyst_count == 10

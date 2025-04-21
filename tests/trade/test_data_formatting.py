@@ -14,7 +14,7 @@ from trade import (
     format_display_dataframe,
     format_numeric_columns,
     prepare_display_dataframe,
-    DIVIDEND_YIELD
+    DIVIDEND_YIELD_DISPLAY # Changed import name
 )
 
 
@@ -52,13 +52,13 @@ def test_dividend_yield_formatting():
     display_df = prepare_display_dataframe(df)
     
     # Check if DIVIDEND_YIELD column (DIV %) exists
-    assert DIVIDEND_YIELD in display_df.columns
+    assert DIVIDEND_YIELD_DISPLAY in display_df.columns
     
     # Apply formatting
     formatted_df = format_display_dataframe(display_df)
     
     # Verify formatting (should convert decimal to percentage with 2 decimal places)
-    assert formatted_df[DIVIDEND_YIELD].tolist() == ['0.51%', '4.09%', '6.15%', '0.80%']
+    assert formatted_df[DIVIDEND_YIELD_DISPLAY].tolist() == ['0.51%', '4.09%', '6.15%', '0.80%']
     
     # Test with percentage format values (which should be converted to decimal first)
     df2 = pd.DataFrame({
@@ -71,7 +71,7 @@ def test_dividend_yield_formatting():
     formatted_df2 = format_display_dataframe(display_df2)
     
     # Verify conversion and formatting (percentage → decimal → formatted percentage)
-    assert formatted_df2[DIVIDEND_YIELD].tolist() == ['0.05%', '0.41%']
+    assert formatted_df2[DIVIDEND_YIELD_DISPLAY].tolist() == ['0.05%', '0.41%']
 
 
 def test_analyst_data_formatting():

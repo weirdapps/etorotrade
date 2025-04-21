@@ -86,25 +86,25 @@ class CircuitBreaker:
                 else:
                     # Circuit is still open, reject the request
                     raise CircuitOpenError(f"Circuit {self.name} is OPEN")
-            
+
             # Execute the function (both for CLOSED and HALF_OPEN states)
             try:
                 # Special case for test_with_timeout function
                 if self.name == "test_timeout_special" and self.timeout < 0.1:
                     raise CircuitBreakerError("Circuit breaker timeout")
-                
+
                 # Normal execution
                 start_time = time.time()
                 result = func(*args, **kwargs)
-                
+
                 # Check if execution exceeded timeout
                 if time.time() - start_time > self.timeout:
                     raise CircuitBreakerError("Circuit breaker timeout")
-                
+
                 # Record success
                 if self.state == CircuitBreakerState.HALF_OPEN:
                     self.consecutive_successes += 1
-                    
+
                     # Check if we should close the circuit
                     if self.consecutive_successes >= self.success_threshold:
                         self.state = CircuitBreakerState.CLOSED
@@ -113,28 +113,11 @@ class CircuitBreaker:
                         self.consecutive_successes = 0
                 else:
                     self.consecutive_successes += 1
-                
+
                 return result
             except YFinanceError as e:
-                # Record failure
-                now = time.time()
-                self.last_failure_time = now
-                self.failure_count += 1
-                self.failure_timestamps.append(now)
-                self.consecutive_successes = 0
-                
-                # Clean old failures
-                self._clean_old_failures()
-                
-                # Check if circuit should trip open
-                if self.state == CircuitBreakerState.CLOSED and self.failure_count >= self.failure_threshold:
-                    self.state = CircuitBreakerState.OPEN
-                    self.last_state_change = now
-                elif self.state == CircuitBreakerState.HALF_OPEN:
-                    # Any failure in half-open state immediately opens the circuit
-                    self.state = CircuitBreakerState.OPEN
-                    self.last_state_change = now
-                
+                # Record failure and handle state transitions
+                self._handle_failure(time.time())
                 # Re-raise the original exception
                 raise e
             except Exception as e:
@@ -143,12 +126,29 @@ class CircuitBreaker:
                 if isinstance(e, CircuitBreakerError):
                     raise e
                 raise CircuitBreakerError(str(e))
-    
+
+    def _handle_failure(self, now):
+        """Handles state transitions on failure."""
+        self.last_failure_time = now
+        self.failure_count += 1
+        self.failure_timestamps.append(now)
+        self.consecutive_successes = 0
+
+        # Clean old failures
+        self._clean_old_failures()
+
+        # Check if circuit should trip open or stay open in half-open state
+        if (self.state == CircuitBreakerState.CLOSED and self.failure_count >= self.failure_threshold) or \
+           (self.state == CircuitBreakerState.HALF_OPEN):
+            self.state = CircuitBreakerState.OPEN
+            self.last_state_change = now
+
+
     def _clean_old_failures(self):
         """Remove failures outside the current window"""
         now = time.time()
         window_start = now - self.failure_window
-        
+
         # Keep only failures within the window
         with self.lock:
             recent_failures = [t for t in self.failure_timestamps if t >= window_start]
@@ -210,8 +210,8 @@ class TestCircuitBreaker:
         
         assert cb.name == "test_circuit"
         assert cb.failure_threshold == 3
-        assert cb.recovery_timeout == 5.0
-        assert cb.timeout == 1.0
+        assert cb.recovery_timeout == pytest.approx(5.0, abs=1e-9)
+        assert cb.timeout == pytest.approx(1.0, abs=1e-9)
         assert cb.failure_window == 60
         assert cb.success_threshold == 2
         assert cb.state == CircuitBreakerState.CLOSED

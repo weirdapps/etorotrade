@@ -1,3 +1,5 @@
+import unittest
+
 """
 Tests for the core monitoring module using efficient testing approach.
 
@@ -30,7 +32,7 @@ from yahoofinance.core.monitoring import (
 from yahoofinance.core.errors import MonitoringError
 
 
-class TestMetrics:
+class TestMetrics(unittest.TestCase):
     """Tests for the basic metric classes."""
     
     def test_metric_base_class(self):
@@ -92,25 +94,25 @@ class TestMetrics:
         )
         
         # Initial value should be 0
-        assert gauge.value == 0.0
-        
+        self.assertAlmostEqual(gauge.value, 0.0, delta=1e-9)
+
         # Set value
         gauge.set(42.5)
-        assert gauge.value == 42.5
-        
+        self.assertAlmostEqual(gauge.value, 42.5, delta=1e-9)
+
         # Increment
         gauge.increment(7.5)
-        assert gauge.value == 50.0
-        
+        self.assertAlmostEqual(gauge.value, 50.0, delta=1e-9)
+
         # Decrement
         gauge.decrement(10.0)
-        assert gauge.value == 40.0
-        
+        self.assertAlmostEqual(gauge.value, 40.0, delta=1e-9)
+
         # Test to_dict
         data = gauge.to_dict()
         assert data["name"] == "test_gauge"
         assert data["type"] == "gauge"
-        assert data["value"] == 40.0
+        self.assertAlmostEqual(data["value"], 40.0, delta=1e-9)
     
     def test_histogram_metric(self):
         """Test HistogramMetric functionality."""
@@ -146,10 +148,10 @@ class TestMetrics:
         assert data["name"] == "test_histogram"
         assert data["type"] == "histogram"
         assert data["count"] == 4
-        assert data["sum"] == 305.0
-        assert data["min"] == 5.0
-        assert data["max"] == 200.0
-        assert data["mean"] == 76.25
+        self.assertAlmostEqual(data["sum"], 305.0, delta=1e-9)
+        self.assertAlmostEqual(data["min"], 5.0, delta=1e-9)
+        self.assertAlmostEqual(data["max"], 200.0, delta=1e-9)
+        self.assertAlmostEqual(data["mean"], 76.25, delta=1e-9)
 
 
 class TestMetricsRegistry:
@@ -475,34 +477,39 @@ class TestHealthMonitor:
         assert hasattr(monitor, '_export_health_to_file')
 
 
-def test_measure_execution_time_context():
-    """Test the measure_execution_time context manager."""
-    # Create a context manager to test
-    with patch('time.time') as mock_time:
-        # Mock time.time to return predictable values
-        mock_time.side_effect = [100.0, 100.5]  # Start and end times
-        
-        # Create a mock for the histogram
-        mock_histogram = MagicMock()
-        
-        # Patch the metrics_registry.histogram to return our mock
-        with patch('yahoofinance.core.monitoring.metrics_registry') as mock_registry:
-            mock_registry.histogram.return_value = mock_histogram
-            
-            # Use the context manager
-            with measure_execution_time(name="test_operation", tags={"tag": "value"}):
-                # Code inside context manager
-                pass
-            
-            # Verify metric creation and recording
-            mock_registry.histogram.assert_called_once_with(
-                f"execution_time_test_operation",
-                f"Execution time of test_operation in milliseconds",
-                tags={"tag": "value"}
-            )
-            
-            # Time difference should be 0.5 seconds = 500ms
-            mock_histogram.observe.assert_called_once_with(500.0)
+class TestMeasureExecutionTime(unittest.TestCase):
+    """Tests for the measure_execution_time context manager."""
+
+    def test_measure_execution_time_context(self):
+        """Test the measure_execution_time context manager."""
+        # Create a context manager to test
+        with patch('time.time') as mock_time:
+            # Mock time.time to return predictable values
+            mock_time.side_effect = [100.0, 100.5]  # Start and end times
+
+            # Create a mock for the histogram
+            mock_histogram = MagicMock()
+
+            # Patch the metrics_registry.histogram to return our mock
+            with patch('yahoofinance.core.monitoring.metrics_registry') as mock_registry:
+                mock_registry.histogram.return_value = mock_histogram
+
+                # Use the context manager
+                with measure_execution_time(name="test_operation", tags={"tag": "value"}):
+                    # Code inside context manager
+                    pass
+
+                # Verify metric creation and recording
+                mock_registry.histogram.assert_called_once_with(
+                    "execution_time_test_operation",
+                    "Execution time of test_operation in milliseconds",
+                    tags={"tag": "value"}
+                )
+
+                # Time difference should be 0.5 seconds = 500ms
+                mock_histogram.observe.assert_called_once()
+                called_value = mock_histogram.observe.call_args[0][0]
+                self.assertAlmostEqual(called_value, 500.0, delta=1e-9)
 
 
 @patch('yahoofinance.core.monitoring.metrics_registry')

@@ -103,7 +103,7 @@ async def main():
     has_next_direct = df['next_earnings_direct'].notna().sum()
     has_last_direct = df['last_earnings_direct'].notna().sum()
     
-    print(f"\nData availability:")
+    print("\nData availability:")
     print(f"- earnings_date from provider: {has_earnings}/{len(test_tickers)} tickers")
     print(f"- next_earnings from direct API: {has_next_direct}/{len(test_tickers)} tickers")
     print(f"- last_earnings from direct API: {has_last_direct}/{len(test_tickers)} tickers")

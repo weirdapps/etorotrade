@@ -133,10 +133,10 @@ class TestHybridProviderE2E:
         assert yf_provider.get_ticker_info.call_count >= 1
         assert yq_provider.get_ticker_info.call_count >= 1
         
-        print(f"\nHybrid Provider Data Enhancement Test:")
+        print("\nHybrid Provider Data Enhancement Test:")
         print(f"YFinance PE Forward: {yf_data.get('pe_forward')}")
         print(f"Hybrid PE Forward: {hybrid_data.get('pe_forward')}")
-        print(f"Successfully supplemented PE Forward data from YahooQuery")
+        print("Successfully supplemented PE Forward data from YahooQuery")
     
     @pytest.mark.e2e
     def test_hybrid_provider_impacts_trade_decisions(self, mock_providers):
@@ -214,10 +214,10 @@ class TestHybridProviderE2E:
         # With hybrid supplemented data, we should get an action
         assert hybrid_action != ""
         
-        print(f"\nTrade Decision Impact Test:")
+        print("\nTrade Decision Impact Test:")
         print(f"YFinance PE Forward: {modified_yf_data.get('pe_forward')}")
         print(f"YFinance PE Trailing: {modified_yf_data.get('pe_trailing')}")
         print(f"YFinance Action: {yf_action}, Reason: {yf_reason}")
         print(f"Hybrid PE Forward: {hybrid_result.get('pe_forward')}")
         print(f"Hybrid Action: {hybrid_action}, Reason: {hybrid_reason}")
-        print(f"Hybrid provider successfully enabled proper trade decision making")
+        print("Hybrid provider successfully enabled proper trade decision making")

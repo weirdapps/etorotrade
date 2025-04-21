@@ -14,7 +14,7 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from trade import (
     format_display_dataframe,
     format_numeric_columns,
-    DIVIDEND_YIELD,
+    DIVIDEND_YIELD_DISPLAY, # Changed import name
 )
 
 # Import provider
@@ -72,22 +72,22 @@ def test_format_display_dataframe():
     })
     
     # Rename dividend_yield to DIV % (what happens in trade.py)
-    df = df.rename(columns={'dividend_yield': DIVIDEND_YIELD})
-    
+    df = df.rename(columns={'dividend_yield': DIVIDEND_YIELD_DISPLAY})
+
     # Apply format_display_dataframe
     formatted_df = format_display_dataframe(df)
-    
+
     # Print the results
     print("===== Format Display Dataframe Test =====")
     for i, row in df.iterrows():
         ticker = row['ticker']
-        raw = row[DIVIDEND_YIELD]
-        formatted = formatted_df.loc[i, DIVIDEND_YIELD]
+        raw = row[DIVIDEND_YIELD_DISPLAY]
+        formatted = formatted_df.loc[i, DIVIDEND_YIELD_DISPLAY]
         print(f"{ticker}: {raw} → {formatted}")
-    
+
     # Verify the formatting is correct
     expected = ['0.51%', '0.80%', '4.09%', '6.15%']
-    assert formatted_df[DIVIDEND_YIELD].tolist() == expected, f"Expected {expected}, got {formatted_df[DIVIDEND_YIELD].tolist()}"
+    assert formatted_df[DIVIDEND_YIELD_DISPLAY].tolist() == expected, f"Expected {expected}, got {formatted_df[DIVIDEND_YIELD_DISPLAY].tolist()}"
     print("✅ Test passed\n")
 
 # Test real data from AsyncHybridProvider
@@ -124,16 +124,16 @@ async def test_provider_data():
     ])
     
     # Rename dividend_yield to DIV % (what happens in trade.py)
-    df = df.rename(columns={'dividend_yield': DIVIDEND_YIELD})
-    
+    df = df.rename(columns={'dividend_yield': DIVIDEND_YIELD_DISPLAY})
+
     # Apply format_display_dataframe
     formatted_df = format_display_dataframe(df)
-    
+
     # Print the formatted results
     print("\nFormatted dividend yields:")
     for i, row in formatted_df.iterrows():
         ticker = row['ticker']
-        formatted = row[DIVIDEND_YIELD]
+        formatted = row[DIVIDEND_YIELD_DISPLAY]
         print(f"{ticker}: {formatted}")
     
     # Close the provider

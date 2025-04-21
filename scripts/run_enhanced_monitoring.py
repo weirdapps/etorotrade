@@ -104,7 +104,7 @@ def main() -> None:
     
     # Set up enhanced metrics
     logger.info("Setting up enhanced metrics...")
-    metrics_thread = setup_enhanced_metrics()
+    setup_enhanced_metrics()
     
     # Start health check endpoints if enabled
     health_server = None
@@ -140,7 +140,7 @@ def main() -> None:
         
         # Start HTTP server for dashboard
         logger.info(f"Starting dashboard HTTP server on port {args.dashboard_port}...")
-        dashboard_server, dashboard_server_thread = start_server(port=args.dashboard_port)
+        dashboard_server, _ = start_server(port=args.dashboard_port)
         
         # Start dashboard update thread
         logger.info("Starting dashboard update thread...")

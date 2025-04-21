@@ -314,9 +314,6 @@ class TestPortfolioWorkflow:
         # Mock loading tickers from file
         mock_load_tickers.return_value = sample_portfolio_data['symbol'].tolist()
         
-        # Create a mock to_csv method
-        mock_to_csv = MagicMock()
-        
         # Create a patch for MarketDisplay._sync_display_report
         with patch.object(MarketDisplay, '_sync_display_report') as mock_sync_display:
             with patch.object(MarketDisplay, 'save_to_csv') as mock_save_csv:
@@ -331,7 +328,7 @@ class TestPortfolioWorkflow:
                 
                 # Verify proper parameters were passed to sync_display
                 if mock_sync_display.called:
-                    args, kwargs = mock_sync_display.call_args
+                    args, _ = mock_sync_display.call_args
                     assert args[0] == sample_portfolio_data['symbol'].tolist()
                     assert args[1] == 'P'
                 

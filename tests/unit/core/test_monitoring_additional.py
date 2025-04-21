@@ -7,6 +7,7 @@ import asyncio
 import json
 import os
 import time
+import unittest
 from threading import Lock
 from unittest.mock import AsyncMock, MagicMock, patch, call
 
@@ -34,7 +35,7 @@ from yahoofinance.core.monitoring import (
 from yahoofinance.core.errors import MonitoringError
 
 
-class TestAlert:
+class TestAlert(unittest.TestCase):
     """Tests for the Alert class."""
     
     def test_alert_creation(self):
@@ -53,8 +54,8 @@ class TestAlert:
         assert alert.name == "test_alert"
         assert alert.severity == "warning"
         assert alert.message == "Test alert message"
-        assert alert.value == 75.5
-        assert alert.threshold == 70.0
+        self.assertAlmostEqual(alert.value, 75.5, delta=1e-9)
+        self.assertAlmostEqual(alert.threshold, 70.0, delta=1e-9)
         assert alert.tags == {"service": "api"}
         assert alert.timestamp is not None
     
@@ -76,8 +77,8 @@ class TestAlert:
         assert data["name"] == "memory_warning"
         assert data["severity"] == "critical"
         assert data["message"] == "High memory usage"
-        assert data["value"] == 95.0
-        assert data["threshold"] == 90.0
+        self.assertAlmostEqual(data["value"], 95.0, delta=1e-9)
+        self.assertAlmostEqual(data["threshold"], 90.0, delta=1e-9)
         assert "timestamp" in data
         assert "tags" in data
 
@@ -157,7 +158,7 @@ class TestAlertManager:
         mock_json_dump.assert_called_once()
         
         # Check that the alert was passed to json.dump
-        args, kwargs = mock_json_dump.call_args
+        args, _ = mock_json_dump.call_args
         alerts_data = args[0]
         assert len(alerts_data) == 1
         assert alerts_data[0]["name"] == "test_alert"
@@ -195,7 +196,7 @@ class TestAlertManager:
         assert warning_recent[0] is alert2
 
 
-class TestCircuitBreakerState:
+class TestCircuitBreakerState(unittest.TestCase):
     """Tests for the CircuitBreakerState class."""
     
     def test_circuit_breaker_state_creation(self):
@@ -232,8 +233,8 @@ class TestCircuitBreakerState:
         assert data["name"] == "test_breaker"
         assert data["status"] == "open"
         assert data["failure_count"] == 5
-        assert data["last_failure_time"] == 100.0
-        assert data["last_success_time"] == 50.0
+        self.assertAlmostEqual(data["last_failure_time"], 100.0, delta=1e-9)
+        self.assertAlmostEqual(data["last_success_time"], 50.0, delta=1e-9)
 
 
 # Special test-only class that doesn't access the file system
@@ -372,7 +373,7 @@ class TestCircuitBreakerMonitor:
             assert result["test_breaker"]["status"] == "closed"
 
 
-class TestRequestContext:
+class TestRequestContext(unittest.TestCase):
     """Tests for the RequestContext class."""
     
     def test_request_context_creation(self):
@@ -410,7 +411,7 @@ class TestRequestContext:
         
         # Check duration - should be exactly 500ms with our mock
         duration = context.duration
-        assert duration == 500.0
+        self.assertAlmostEqual(duration, 500.0, delta=1e-9)
 
 
 class TestRequestTracker:

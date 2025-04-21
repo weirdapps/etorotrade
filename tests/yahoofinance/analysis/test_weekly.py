@@ -69,9 +69,9 @@ def test_get_index_performance(tracker):
         assert isinstance(perf, IndexPerformance)
         assert perf.index_name in INDICES.keys()
         assert perf.ticker in INDICES.values()
-        assert perf.previous_value == 100.0
-        assert perf.current_value == 110.0
-        assert abs(perf.change_percent - 10.0) < 1e-10  # Should be 10% increase
+        assert perf.previous_value == pytest.approx(100.0, abs=1e-9)
+        assert perf.current_value == pytest.approx(110.0, abs=1e-9)
+        assert perf.change_percent == pytest.approx(10.0, abs=1e-9)  # Should be 10% increase
         assert perf.start_date == datetime(2024, 3, 8)
         assert perf.end_date == datetime(2024, 3, 15)
         assert perf.period_type == "weekly"

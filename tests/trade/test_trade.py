@@ -7,7 +7,7 @@ import numpy as np
 from io import StringIO
 from tempfile import TemporaryDirectory
 from trade import (
-    main, generate_trade_recommendations, BUY_PERCENTAGE, DIVIDEND_YIELD, 
+    main, generate_trade_recommendations, BUY_PERCENTAGE, DIVIDEND_YIELD_DISPLAY, # Changed import name
     filter_buy_opportunities, filter_sell_candidates, filter_hold_candidates,
     process_hold_candidates
 )
@@ -30,7 +30,6 @@ class TestTrade(unittest.TestCase):
         # This is beyond the scope of what we need to fix right now
         import warnings
         warnings.warn("Skipping test_sell_recommendations_no_portfolio_analysis due to async dependency")
-        return
 
     @patch('yahoofinance.analysis.market.filter_buy_opportunities')
     def test_filter_buy_opportunities_includes_missing_peg(self, mock_filter_buy):
@@ -216,7 +215,6 @@ class TestTrade(unittest.TestCase):
         # that are difficult to mock correctly
         import warnings
         warnings.warn("Skipping test_process_hold_candidates due to complex dependencies")
-        return
 
     @patch('builtins.input')
     @patch('trade.generate_trade_recommendations')
@@ -230,36 +228,3 @@ class TestTrade(unittest.TestCase):
         return
         
         # For future reference, proper testing would look like this:
-        """
-        import asyncio
-        from trade import handle_trade_analysis
-        
-        # Patch the decorators
-        with patch('trade.with_provider', lambda f: f):
-            with patch('trade.with_logger', lambda f: f):
-                # Create async test function
-                async def run_async_test():
-                    # Test Buy option
-                    mock_input.return_value = 'B'
-                    mock_generate.reset_mock()
-                    await handle_trade_analysis()
-                    mock_generate.assert_awaited_with('N', provider=None, app_logger=None)
-                    
-                    # Test Sell option
-                    mock_input.return_value = 'S'
-                    mock_generate.reset_mock()
-                    await handle_trade_analysis()
-                    mock_generate.assert_awaited_with('E', provider=None, app_logger=None)
-                    
-                    # Test Hold option
-                    mock_input.return_value = 'H'
-                    mock_generate.reset_mock()
-                    await handle_trade_analysis()
-                    mock_generate.assert_awaited_with('H', provider=None, app_logger=None)
-                
-                # Run the test
-                asyncio.run(run_async_test())
-                
-                # Verify prompt includes H option
-                self.assertIn('BUY (B), SELL (S), or HOLD (H)', mock_input.call_args[0][0])
-        """

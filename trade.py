@@ -87,9 +87,13 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # Define constants for column names
 BUY_PERCENTAGE = COLUMN_NAMES["BUY_PERCENTAGE"]
-DIVIDEND_YIELD = 'DIV %'
+DIVIDEND_YIELD_DISPLAY = 'DIV %' # Define constant for duplicated literal
 COMPANY_NAME = 'COMPANY NAME'
-DISPLAY_BUY_PERCENTAGE = '% BUY'  # Display column name for buy percentage
+DISPLAY_BUY_PERCENTAGE = '% BUY'  # Display column name for buy percentage # Define constant for duplicated literal
+
+# Define constants for duplicated strings
+ADDED_MARKET_CAP_MESSAGE = "Added market_cap values based on CAP strings"
+DIRECT_SIZE_CALCULATION_MESSAGE = "Direct SIZE calculation applied before display preparation"
 
 # Define the standard display columns in the correct order
 # IMPORTANT: THIS IS THE CANONICAL SOURCE OF TRUTH FOR THE COLUMN ORDER
@@ -439,7 +443,7 @@ def get_column_mapping():
         'pe_trailing': 'PET',
         'pe_forward': 'PEF',
         'peg_ratio': 'PEG',
-        'dividend_yield': DIVIDEND_YIELD,
+        'dividend_yield': DIVIDEND_YIELD_DISPLAY,
         'short_float_pct': 'SI',
         'short_percent': 'SI',  # V2 naming
         'last_earnings': 'EARNINGS',
@@ -858,7 +862,7 @@ def prepare_display_dataframe(df):
     # For unit tests, we need to map columns correctly based on what's in the test dataframe
     
     # Handle dividend yield test case
-    if 'dividend_yield' in working_df.columns and DIVIDEND_YIELD not in working_df.columns:
+    if 'dividend_yield' in working_df.columns and DIVIDEND_YIELD_DISPLAY not in working_df.columns:
         # Special test handling for dividend yield - check values to see if they're decimal or percentage
         first_value = working_df['dividend_yield'].iloc[0] if not working_df.empty else 0
         
@@ -868,7 +872,7 @@ def prepare_display_dataframe(df):
         
         # Map dividend_yield to DIVIDEND_YIELD
         
-        working_df[DIVIDEND_YIELD] = working_df['dividend_yield']
+        working_df[DIVIDEND_YIELD_DISPLAY] = working_df['dividend_yield']
     
     # Handle analyst data test case
     if 'analyst_count' in working_df.columns and '# T' not in working_df.columns:
@@ -1173,9 +1177,9 @@ def format_display_dataframe(display_df):
     display_df = format_numeric_columns(display_df, buy_percentage_columns, '.0f%')
     
     # Format dividend yield with 2 decimal places
-    if DIVIDEND_YIELD in display_df.columns:
+    if DIVIDEND_YIELD_DISPLAY in display_df.columns:
         # Format with 2 decimal places and % sign
-        display_df = format_numeric_columns(display_df, [DIVIDEND_YIELD], '.2f%')
+        display_df = format_numeric_columns(display_df, [DIVIDEND_YIELD_DISPLAY], '.2f%')
     
     # Format date columns
     display_df = format_earnings_date(display_df)

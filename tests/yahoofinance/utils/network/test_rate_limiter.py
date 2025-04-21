@@ -55,8 +55,7 @@ class TestRateLimiter:
     def test_add_call(self):
         """Test adding calls to the limiter."""
         limiter = RateLimiter()
-        initial_streak = limiter.success_streak
-        
+
         # Add a call
         limiter.record_call()
         
@@ -69,7 +68,6 @@ class TestRateLimiter:
         limiter.success_streak = 10
         
         # Add an error
-        error = RateLimitError("Rate limit exceeded")
         limiter.record_failure("AAPL", is_rate_limit=True)
         
         # Should reset success streak and record error
@@ -107,7 +105,7 @@ class TestRateLimiter:
         # Force the rate limiter to think we're at high load
         # by artificially adding call timestamps
         now = time.time()
-        for i in range(4):
+        for _ in range(4):
             limiter.call_timestamps.append(now)
         
         # Force a delay recalculation for high load
@@ -295,8 +293,8 @@ class TestBatchProcessing:
     
     def test_batch_process(self):
         """Test batch_process function with rate limiting."""
-        test_limiter = RateLimiter()
-        
+        limiter = RateLimiter()
+
         # Define a processor function
         def process_item(item):
             return item * 2
@@ -397,7 +395,7 @@ def test_global_rate_limiter():
             test_limiter.call_timestamps = []
             test_limiter.success_streak = 0
             initial_calls = len(test_limiter.call_timestamps)
-            initial_streak = test_limiter.success_streak
+            _ = test_limiter.success_streak
         
         # Add a call
         test_limiter.record_call()

@@ -51,8 +51,8 @@ def test_market_metrics_initialization():
     
     # Test initialization with values
     metrics = MarketMetrics(avg_upside=10.0, median_upside=9.0)
-    assert metrics.avg_upside == 10.0
-    assert metrics.median_upside == 9.0
+    assert metrics.avg_upside == pytest.approx(10.0, abs=1e-9)
+    assert metrics.median_upside == pytest.approx(9.0, abs=1e-9)
 
 @with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
 def test_metrics_calculation(market_data):
@@ -81,13 +81,13 @@ def test_metrics_calculation(market_data):
 def test_metrics_properties(sample_metrics):
     """Test properties of metrics."""
     # Check property values match what was set
-    assert sample_metrics.avg_upside == 15.5
-    assert sample_metrics.median_upside == 12.0
-    assert sample_metrics.avg_buy_percentage == 78.5
-    assert sample_metrics.median_buy_percentage == 80.0
-    assert sample_metrics.avg_pe_ratio == 18.5
-    assert sample_metrics.median_pe_ratio == 17.2
-    assert sample_metrics.avg_forward_pe == 16.8
-    assert sample_metrics.median_forward_pe == 15.5
-    assert sample_metrics.avg_peg_ratio == 1.8
-    assert sample_metrics.median_peg_ratio == 1.5
+    assert sample_metrics.avg_upside == pytest.approx(15.5, abs=1e-9)
+    assert sample_metrics.median_upside == pytest.approx(12.0, abs=1e-9)
+    assert sample_metrics.avg_buy_percentage == pytest.approx(78.5, abs=1e-9)
+    assert sample_metrics.median_buy_percentage == pytest.approx(80.0, abs=1e-9)
+    assert sample_metrics.avg_pe_ratio == pytest.approx(18.5, abs=1e-9)
+    assert sample_metrics.median_pe_ratio == pytest.approx(17.2, abs=1e-9)
+    assert sample_metrics.avg_forward_pe == pytest.approx(16.8, abs=1e-9)
+    assert sample_metrics.median_forward_pe == pytest.approx(15.5, abs=1e-9)
+    assert sample_metrics.avg_peg_ratio == pytest.approx(1.8, abs=1e-9)
+    assert sample_metrics.median_peg_ratio == pytest.approx(1.5, abs=1e-9)
