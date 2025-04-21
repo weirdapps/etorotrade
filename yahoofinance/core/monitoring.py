@@ -1064,7 +1064,7 @@ def monitor_function(name: Optional[str] = None,
                 duration = (time.time() - start_time) * 1000
                 func_duration.observe(duration)
                 return result
-            except Exception as e:
+            except Exception:
                 func_errors.increment()
                 raise
         
@@ -1078,7 +1078,7 @@ def monitor_function(name: Optional[str] = None,
                 duration = (time.time() - start_time) * 1000
                 func_duration.observe(duration)
                 return result
-            except Exception as e:
+            except Exception:
                 func_errors.increment()
                 raise
         

@@ -417,9 +417,12 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             self._ticker_cache[ticker] = info
             return info
 
-        except (APIError, ValidationError, RateLimitError, NetworkError):
-            raise YFinanceError("An error occurred")
+        except (APIError, ValidationError, RateLimitError, NetworkError) as e:
+            # Log the specific error but raise a generic one
+            self.logger.warning(f"Error fetching ticker info for {ticker}: {e}")
+            raise YFinanceError("An error occurred") from e
         except YFinanceError as e:
+            # Re-raise YFinanceError directly
             raise e
 
     @enhanced_async_rate_limited(max_retries=0)
@@ -486,8 +489,8 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             except YFinanceError as e:
                 logger.warning(f"Failed to get earnings estimates for {ticker}: {str(e)}")
             return earnings_data
-        except (ValueError, KeyError, TypeError, AttributeError, pd.errors.EmptyDataError, ImportError, ModuleNotFoundError, RuntimeError, MemoryError) as e:
-            raise e
+        except (ValueError, KeyError, TypeError, AttributeError, pd.errors.EmptyDataError, ImportError, ModuleNotFoundError, RuntimeError, MemoryError):
+            raise
         except (IOError, ConnectionError, aiohttp.ClientError) as e:
             raise NetworkError(f"Network error when fetching earnings data for {ticker}: {str(e)}")
         except (APIError, ValidationError, RateLimitError, NetworkError):
@@ -550,8 +553,8 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                     tx = {"name": transaction.get("filerName", ""), "title": transaction.get("filerRelation", ""), "date": self._format_date(pd.to_datetime(transaction["startDate"]["raw"], unit='s')) if "startDate" in transaction and "raw" in transaction["startDate"] else None, "transaction": transaction.get("transactionText", ""), "shares": transaction["shares"]["raw"] if "shares" in transaction and "raw" in transaction["shares"] else 0, "value": transaction["value"]["raw"] if "value" in transaction and "raw" in transaction["value"] else 0}
                     transactions.append(tx)
             return transactions
-        except (ValueError, KeyError, TypeError, AttributeError, pd.errors.EmptyDataError, ModuleNotFoundError, RuntimeError, MemoryError) as e:
-            raise e
+        except (ValueError, KeyError, TypeError, AttributeError, pd.errors.EmptyDataError, ModuleNotFoundError, RuntimeError, MemoryError):
+            raise
         except (IOError, ConnectionError, aiohttp.ClientError) as e:
             raise NetworkError(f"Network error when fetching insider transactions for {ticker}: {str(e)}")
         except (APIError, ValidationError, RateLimitError, NetworkError):
@@ -694,10 +697,24 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         if value is None: return None
         try:
             val = float(value)
-            if val >= 1e12: return f"{val / 1e12:.1f}T" if val >= 10e12 else f"{val / 1e12:.2f}T"
-            elif val >= 1e9: return f"{int(val / 1e9)}B" if val >= 100e9 else (f"{val / 1e9:.1f}B" if val >= 10e9 else f"{val / 1e9:.2f}B")
-            elif val >= 1e6: return f"{int(val / 1e6)}M" if val >= 100e6 else (f"{val / 1e6:.1f}M" if val >= 10e6 else f"{val / 1e6:.2f}M")
-            else: return f"{int(val):,}"
+            if val >= 1e12:
+                return f"{val / 1e12:.1f}T" if val >= 10e12 else f"{val / 1e12:.2f}T"
+            elif val >= 1e9:
+                if val >= 100e9:
+                    return f"{int(val / 1e9)}B"
+                elif val >= 10e9:
+                    return f"{val / 1e9:.1f}B"
+                else:
+                    return f"{val / 1e9:.2f}B"
+            elif val >= 1e6:
+                if val >= 100e6:
+                    return f"{int(val / 1e6)}M"
+                elif val >= 10e6:
+                    return f"{val / 1e6:.1f}M"
+                else:
+                    return f"{val / 1e6:.2f}M"
+            else:
+                return f"{int(val):,}"
         except (ValueError, TypeError): return str(value)
 
     def _calculate_upside_potential(self, current_price: Optional[float], target_price: Optional[float]) -> Optional[float]:

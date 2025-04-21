@@ -314,19 +314,6 @@ def inject(component_key: str, **resolve_kwargs):
     def decorator(func):
         # Get parameter name from component key or function signature
         param_name = component_key.split('.')[-1]
-        if param_name.endswith('_provider'):
-            # Already has _provider suffix
-            pass
-        elif param_name.endswith('_analyzer'):
-            # Already has _analyzer suffix
-            pass
-        elif param_name.endswith('_factory'):
-            # Already has _factory suffix
-            pass
-        else:
-            # Add component type as suffix
-            pass
-        
         @wraps(func)
         def wrapper(*args, **kwargs):
             # Only inject if the parameter is not provided or is None

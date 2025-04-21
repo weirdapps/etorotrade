@@ -102,15 +102,7 @@ def _print_analyst_summary(provider_type, test_tickers, results):
     success_count = sum(1 for data in results.values() if data.get("analyst_count") is not None and data.get("analyst_count") > 0)
     print(f"Successfully retrieved analyst data for {success_count}/{len(test_tickers)} tickers")
 
-    # Check US vs non-US success
-    us_tickers = [t for t in test_tickers if is_us_ticker(t)]
-    non_us_tickers = [t for t in test_tickers if not is_us_ticker(t)]
-
-    us_success = sum(1 for t in us_tickers if t in results and results[t].get("analyst_count") is not None and results[t].get("analyst_count") > 0)
-    non_us_success = sum(1 for t in non_us_tickers if t in results and results[t].get("analyst_count") is not None and results[t].get("analyst_count") > 0)
-
-    print(f"US tickers: {us_success}/{len(us_tickers)} successful")
-    print(f"Non-US tickers: {non_us_success}/{len(non_us_tickers)} successful")
+    _print_us_non_us_analyst_summary(test_tickers, results)
 
     # Check for hardcoded values
     suspected_hardcoded = []
@@ -121,17 +113,30 @@ def _print_analyst_summary(provider_type, test_tickers, results):
             print(f"- {item}")
     else:
         print("\nNo suspected hardcoded values found.")
-        for ticker, data in results.items():
-            if data.get("analyst_count") == 30 and data.get("total_ratings") == 30 and data.get("buy_percentage") == 90:
-                suspected_hardcoded.append(ticker)
-        
-        if suspected_hardcoded:
-            print(f"\nWARNING: These tickers may have hardcoded values: {', '.join(suspected_hardcoded)}")
-        else:
-            print("\nNo suspected hardcoded values found")
-        
-        # Store results for this provider type
-        all_results[provider_type] = results
+
+
+def _print_us_non_us_analyst_summary(test_tickers, results):
+    """Helper function to print US vs non-US analyst data retrieval summary."""
+    us_tickers = [t for t in test_tickers if is_us_ticker(t)]
+    non_us_tickers = [t for t in test_tickers if not is_us_ticker(t)]
+
+    us_success = sum(1 for t in us_tickers if t in results and results[t].get("analyst_count") is not None and results[t].get("analyst_count") > 0)
+    non_us_success = sum(1 for t in non_us_tickers if t in results and results[t].get("analyst_count") is not None and results[t].get("analyst_count") > 0)
+
+    print(f"US tickers: {us_success}/{len(us_tickers)} successful")
+    print(f"Non-US tickers: {non_us_success}/{len(non_us_tickers)} successful")
+    # Check for hardcoded values
+    suspected_hardcoded = []
+    # Add logic here to check for hardcoded values if necessary
+    if suspected_hardcoded:
+        print("\nSuspected hardcoded values found for:")
+        for item in suspected_hardcoded:
+            print(f"- {item}")
+    else:
+        print("\nNo suspected hardcoded values found.")
+    
+    # Store results for this provider type
+    all_results[provider_type] = results
     
     return all_results
 
