@@ -14,18 +14,18 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from yahoofinance.core.monitoring import (
-    Counter, 
-    Gauge,
-    Histogram,
-    MetricRegistry,
+    Metric,
+    MetricType,
+    CounterMetric,
+    GaugeMetric,
+    HistogramMetric,
+    MetricsRegistry,
     HealthCheck,
     HealthStatus,
-    MonitoringSystem,
-    MetricType,
-    TimedContextManager,
-    timed,
-    monitor_memory,
-    MONITOR_DIR
+    HealthMonitor,
+    measure_execution_time,
+    monitor_function,
+    setup_monitoring
 )
 from yahoofinance.core.errors import MonitoringError
 
@@ -33,383 +33,489 @@ from yahoofinance.core.errors import MonitoringError
 class TestMetrics:
     """Tests for the basic metric classes."""
     
-    def test_counter_operations(self):
-        """Test Counter metric operations."""
-        counter = Counter("requests", "Total requests made")
+    def test_metric_base_class(self):
+        """Test basic Metric class functionality."""
+        # Create a base metric
+        metric = Metric(
+            name="test_metric", 
+            type=MetricType.COUNTER,
+            description="Test metric"
+        )
+        
+        # Check properties
+        assert metric.name == "test_metric"
+        assert metric.type == MetricType.COUNTER
+        assert metric.description == "Test metric"
+        assert isinstance(metric.tags, dict)
+        assert len(metric.tags) == 0
+        assert metric.timestamp is not None
+        
+        # Test to_dict method
+        data = metric.to_dict()
+        assert data["name"] == "test_metric"
+        assert data["type"] == "counter"
+        assert data["description"] == "Test metric"
+        assert "tags" in data
+        assert "timestamp" in data
+    
+    def test_counter_metric(self):
+        """Test CounterMetric functionality."""
+        counter = CounterMetric(
+            name="test_counter",
+            type=MetricType.COUNTER,
+            description="Test counter"
+        )
         
         # Initial value should be 0
         assert counter.value == 0
         
-        # Increment by 1
-        counter.inc()
+        # Increment
+        counter.increment()
         assert counter.value == 1
         
         # Increment by specific amount
-        counter.inc(5)
+        counter.increment(5)
         assert counter.value == 6
         
-        # Check other properties
-        assert counter.name == "requests"
-        assert counter.description == "Total requests made"
-        assert counter.type == MetricType.COUNTER
+        # Test to_dict
+        data = counter.to_dict()
+        assert data["name"] == "test_counter"
+        assert data["type"] == "counter"
+        assert data["value"] == 6
     
-    def test_gauge_operations(self):
-        """Test Gauge metric operations."""
-        gauge = Gauge("connections", "Current connections")
+    def test_gauge_metric(self):
+        """Test GaugeMetric functionality."""
+        gauge = GaugeMetric(
+            name="test_gauge",
+            type=MetricType.GAUGE,
+            description="Test gauge"
+        )
         
         # Initial value should be 0
-        assert gauge.value == 0
+        assert gauge.value == 0.0
         
-        # Set to specific value
-        gauge.set(10)
-        assert gauge.value == 10
+        # Set value
+        gauge.set(42.5)
+        assert gauge.value == 42.5
         
-        # Increment and decrement
-        gauge.inc(5)
-        assert gauge.value == 15
+        # Increment
+        gauge.increment(7.5)
+        assert gauge.value == 50.0
         
-        gauge.dec(3)
-        assert gauge.value == 12
+        # Decrement
+        gauge.decrement(10.0)
+        assert gauge.value == 40.0
         
-        # Simple increment and decrement
-        gauge.inc()
-        assert gauge.value == 13
-        
-        gauge.dec()
-        assert gauge.value == 12
+        # Test to_dict
+        data = gauge.to_dict()
+        assert data["name"] == "test_gauge"
+        assert data["type"] == "gauge"
+        assert data["value"] == 40.0
     
-    def test_histogram_operations(self):
-        """Test Histogram metric operations."""
-        histogram = Histogram("request_duration", "API request duration")
-        
-        # Initial state
-        assert histogram.count == 0
-        assert histogram.sum == 0
-        
-        # Add observations
-        histogram.observe(0.5)
-        assert histogram.count == 1
-        assert histogram.sum == 0.5
-        
-        histogram.observe(1.0)
-        assert histogram.count == 2
-        assert histogram.sum == 1.5
+    def test_histogram_metric(self):
+        """Test HistogramMetric functionality."""
+        # Create with custom buckets
+        buckets = [10.0, 50.0, 100.0]
+        histogram = HistogramMetric(
+            name="test_histogram",
+            type=MetricType.HISTOGRAM,
+            description="Test histogram",
+            buckets=buckets
+        )
         
         # Check buckets
-        assert 0.5 in histogram.observations
-        assert 1.0 in histogram.observations
+        assert histogram.buckets == buckets
         
-        # Check summary statistics
-        stats = histogram.get_statistics()
-        assert stats["count"] == 2
-        assert stats["sum"] == 1.5
-        assert stats["avg"] == 0.75
+        # Initial bucket counts should be all zeros
+        assert histogram.bucket_counts == [0, 0, 0, 0]  # One for each bucket plus overflow
+        
+        # Add observations
+        histogram.observe(5.0)    # Should go in first bucket
+        histogram.observe(25.0)   # Should go in second bucket
+        histogram.observe(75.0)   # Should go in third bucket
+        histogram.observe(200.0)  # Should go in overflow bucket
+        
+        # Check bucket counts
+        assert histogram.bucket_counts == [1, 1, 1, 1]
+        
+        # Check values array
+        assert histogram.values == [5.0, 25.0, 75.0, 200.0]
+        
+        # Test to_dict
+        data = histogram.to_dict()
+        assert data["name"] == "test_histogram"
+        assert data["type"] == "histogram"
+        assert data["count"] == 4
+        assert data["sum"] == 305.0
+        assert data["min"] == 5.0
+        assert data["max"] == 200.0
+        assert data["mean"] == 76.25
 
 
-class TestMetricRegistry:
-    """Tests for the MetricRegistry class."""
+class TestMetricsRegistry:
+    """Tests for the MetricsRegistry class."""
     
-    def test_register_and_get_metrics(self):
+    def test_register_and_retrieve_metric(self):
         """Test registering and retrieving metrics."""
-        registry = MetricRegistry()
+        registry = MetricsRegistry()
         
-        # Register metrics
-        counter = registry.counter("requests", "Total requests made")
-        gauge = registry.gauge("connections", "Current connections")
-        histogram = registry.histogram("duration", "Request duration")
+        # Create a metric
+        metric = Metric(
+            name="test_metric",
+            type=MetricType.COUNTER,
+            description="Test metric"
+        )
         
-        # Verify registration
-        assert "requests" in registry.metrics
-        assert "connections" in registry.metrics
-        assert "duration" in registry.metrics
+        # Register it
+        registered = registry.register_metric(metric)
         
-        # Retrieve metrics
-        assert registry.get_metric("requests") is counter
-        assert registry.get_metric("connections") is gauge
-        assert registry.get_metric("duration") is histogram
-    
-    def test_get_or_register_metric(self):
-        """Test get_or_register pattern for metrics."""
-        registry = MetricRegistry()
-        
-        # First call should create new metric
-        counter1 = registry.counter("api_calls", "API calls count")
-        
-        # Second call should return existing metric
-        counter2 = registry.counter("api_calls", "API calls count")
-        
-        # Both should be same instance
-        assert counter1 is counter2
-        
-        # Verify it's registered
-        assert "api_calls" in registry.metrics
-    
-    def test_get_all_metrics(self):
-        """Test getting all registered metrics."""
-        registry = MetricRegistry()
-        
-        # Register some metrics
-        registry.counter("c1", "Counter 1")
-        registry.gauge("g1", "Gauge 1")
-        registry.histogram("h1", "Histogram 1")
+        # Should be the same instance
+        assert registered is metric
         
         # Get all metrics
         all_metrics = registry.get_all_metrics()
+        assert "test_metric" in all_metrics
+        assert all_metrics["test_metric"] is metric
+    
+    def test_register_duplicate_metric(self):
+        """Test registering a metric with the same name twice."""
+        registry = MetricsRegistry()
         
-        # Should have 3 metrics
-        assert len(all_metrics) == 3
+        # Create a metric
+        metric1 = Metric(
+            name="test_metric",
+            type=MetricType.COUNTER,
+            description="Test metric"
+        )
         
-        # Verify they're the right types
-        metric_names = [m.name for m in all_metrics]
-        assert "c1" in metric_names
-        assert "g1" in metric_names
-        assert "h1" in metric_names
+        # Register it
+        registry.register_metric(metric1)
+        
+        # Create another with same name
+        metric2 = Metric(
+            name="test_metric",
+            type=MetricType.COUNTER,
+            description="Test metric updated"
+        )
+        
+        # Register it - should return the first one
+        result = registry.register_metric(metric2)
+        
+        # Should return the existing instance
+        assert result is metric1
+    
+    def test_counter_creation(self):
+        """Test creating a counter through registry."""
+        registry = MetricsRegistry()
+        
+        # Create counter
+        counter = registry.counter(
+            "test_counter", 
+            "Test counter description",
+            {"tag1": "value1"}
+        )
+        
+        # Verify counter properties
+        assert counter.name == "test_counter"
+        assert counter.type == MetricType.COUNTER
+        assert counter.description == "Test counter description"
+        assert counter.tags == {"tag1": "value1"}
+        assert counter.value == 0
+        
+        # It should be in the registry
+        all_metrics = registry.get_all_metrics()
+        assert "test_counter" in all_metrics
+    
+    def test_gauge_creation(self):
+        """Test creating a gauge through registry."""
+        registry = MetricsRegistry()
+        
+        # Create gauge
+        gauge = registry.gauge(
+            "test_gauge", 
+            "Test gauge description"
+        )
+        
+        # Verify gauge properties
+        assert gauge.name == "test_gauge"
+        assert gauge.type == MetricType.GAUGE
+        assert gauge.description == "Test gauge description"
+        assert gauge.value == 0.0
+        
+        # It should be in the registry
+        all_metrics = registry.get_all_metrics()
+        assert "test_gauge" in all_metrics
+    
+    def test_histogram_creation(self):
+        """Test creating a histogram through registry."""
+        registry = MetricsRegistry()
+        
+        # Create histogram with custom buckets
+        buckets = [10.0, 50.0, 100.0]
+        histogram = registry.histogram(
+            "test_histogram", 
+            "Test histogram description",
+            buckets
+        )
+        
+        # Verify histogram properties
+        assert histogram.name == "test_histogram"
+        assert histogram.type == MetricType.HISTOGRAM
+        assert histogram.description == "Test histogram description"
+        assert histogram.buckets == buckets
+        
+        # It should be in the registry
+        all_metrics = registry.get_all_metrics()
+        assert "test_histogram" in all_metrics
+    
+    def test_to_dict(self):
+        """Test converting registry to dictionary."""
+        registry = MetricsRegistry()
+        
+        # Register some metrics
+        registry.counter("counter1", "Counter 1")
+        registry.gauge("gauge1", "Gauge 1")
+        registry.histogram("histogram1", "Histogram 1")
+        
+        # Convert to dict
+        data = registry.to_dict()
+        
+        # Check dict structure
+        assert "counter1" in data
+        assert "gauge1" in data
+        assert "histogram1" in data
+        
+        assert data["counter1"]["type"] == "counter"
+        assert data["gauge1"]["type"] == "gauge"
+        assert data["histogram1"]["type"] == "histogram"
+    
+    @patch('os.path.join')
+    @patch('json.dump')
+    @patch('builtins.open')
+    def test_export_metrics(self, mock_open, mock_json_dump, mock_path_join):
+        """Test exporting metrics to file."""
+        mock_path_join.return_value = "/mock/path/metrics_timestamp.json"
+        
+        registry = MetricsRegistry()
+        registry.counter("test_counter", "Test counter")
+        
+        # Force export
+        registry.export_metrics(force=True)
+        
+        # Mock functions should be called
+        mock_open.assert_called_once()
+        mock_json_dump.assert_called_once()
 
 
 class TestHealthCheck:
     """Tests for the HealthCheck class."""
     
-    def test_health_check_statuses(self):
-        """Test health check status changes."""
+    def test_health_check_creation(self):
+        """Test creating a health check."""
         # Create a health check
-        check = HealthCheck("db_connection", "Database connection check")
-        
-        # Initial status should be UNKNOWN
-        assert check.status == HealthStatus.UNKNOWN
-        
-        # Set to healthy
-        check.healthy("Connected to database")
-        assert check.status == HealthStatus.HEALTHY
-        assert check.message == "Connected to database"
-        
-        # Set to unhealthy
-        check.unhealthy("Database connection failed")
-        assert check.status == HealthStatus.UNHEALTHY
-        assert check.message == "Database connection failed"
-        
-        # Set to degraded
-        check.degraded("Database connection is slow")
-        assert check.status == HealthStatus.DEGRADED
-        assert check.message == "Database connection is slow"
-    
-    def test_get_status_info(self):
-        """Test getting status info as dictionary."""
-        check = HealthCheck("api_health", "API health check")
-        check.healthy("API responding normally")
-        
-        info = check.get_status_info()
-        assert info["name"] == "api_health"
-        assert info["status"] == "HEALTHY"
-        assert info["message"] == "API responding normally"
-        assert "timestamp" in info
-        assert "duration" in info
-
-
-class TestTimedDecorators:
-    """Tests for the timed decorator and context manager."""
-    
-    def test_timed_decorator(self):
-        """Test the timed decorator for functions."""
-        registry = MetricRegistry()
-        
-        # Define a function with the timed decorator
-        @timed(registry, "test_function")
-        def test_function():
-            time.sleep(0.01)
-            return "result"
-        
-        # Call the function
-        result = test_function()
-        
-        # Verify the result
-        assert result == "result"
-        
-        # Verify the metric was registered and has data
-        metric = registry.get_metric("test_function")
-        assert metric is not None
-        assert metric.count >= 1
-        assert metric.sum > 0
-    
-    def test_timed_context_manager(self):
-        """Test the TimedContextManager."""
-        registry = MetricRegistry()
-        
-        # Use as a context manager
-        with TimedContextManager(registry, "context_test"):
-            time.sleep(0.01)
-        
-        # Verify the metric was registered and has data
-        metric = registry.get_metric("context_test")
-        assert metric is not None
-        assert metric.count >= 1
-        assert metric.sum > 0
-
-
-class TestMonitoringSystem:
-    """Tests for the MonitoringSystem class."""
-    
-    @pytest.fixture
-    def monitoring_system(self):
-        """Create a monitoring system for testing."""
-        system = MonitoringSystem()
-        return system
-    
-    def test_register_health_check(self, monitoring_system):
-        """Test registering health checks."""
-        # Register a health check
-        check = monitoring_system.register_health_check("api", "API Health")
-        
-        # Should be in health checks
-        assert "api" in monitoring_system.health_checks
-        assert monitoring_system.health_checks["api"] is check
-    
-    def test_perform_health_check(self, monitoring_system):
-        """Test performing health checks with custom function."""
-        # Mock health check function
-        def check_health():
-            return True, "All good"
-        
-        # Register with custom function
-        monitoring_system.register_health_check(
-            "custom", "Custom check", check_func=check_health
+        check = HealthCheck(
+            component="db_connection",
+            status=HealthStatus.HEALTHY,
+            details="Database connection is healthy"
         )
         
-        # Run all health checks
-        results = monitoring_system.perform_health_checks()
-        
-        # Verify results
-        assert "custom" in results
-        assert results["custom"]["status"] == "HEALTHY"
-        assert results["custom"]["message"] == "All good"
+        # Check properties
+        assert check.component == "db_connection"
+        assert check.status == HealthStatus.HEALTHY
+        assert check.details == "Database connection is healthy"
+        assert check.timestamp is not None
     
-    def test_metric_collection(self, monitoring_system):
-        """Test collecting metrics."""
-        # Register and update some metrics
-        counter = monitoring_system.metrics.counter("requests", "Request count")
-        counter.inc(10)
+    def test_to_dict(self):
+        """Test converting health check to dictionary."""
+        check = HealthCheck(
+            component="api_health",
+            status=HealthStatus.DEGRADED,
+            details="API response time is slow"
+        )
         
-        gauge = monitoring_system.metrics.gauge("cpu", "CPU usage")
-        gauge.set(35.5)
+        # Convert to dict
+        info = check.to_dict()
         
-        # Collect metrics
-        metrics = monitoring_system.collect_metrics()
-        
-        # Verify basic structure
-        assert "metrics" in metrics
-        assert isinstance(metrics["metrics"], list)
-        assert len(metrics["metrics"]) >= 2
-        
-        # Find our metrics
-        metric_names = [m["name"] for m in metrics["metrics"]]
-        assert "requests" in metric_names
-        assert "cpu" in metric_names
-        
-        # Check values
-        for metric in metrics["metrics"]:
-            if metric["name"] == "requests":
-                assert metric["value"] == 10
-            elif metric["name"] == "cpu":
-                assert metric["value"] == 35.5
-    
-    @patch("yahoofinance.core.monitoring.datetime")
-    def test_write_health_data(self, mock_datetime, monitoring_system, tmp_path):
-        """Test writing health data to disk."""
-        # Mock datetime to get a consistent timestamp
-        mock_now = datetime(2024, 4, 21, 10, 0, 0)
-        mock_datetime.now.return_value = mock_now
-        mock_datetime.strftime = datetime.strftime
-        
-        # Create a temporary MONITOR_DIR
-        with patch("yahoofinance.core.monitoring.MONITOR_DIR", str(tmp_path)):
-            # Set up a health check
-            check = monitoring_system.register_health_check("api", "API Health")
-            check.healthy("All systems operational")
-            
-            # Write health data
-            file_path = monitoring_system.write_health_data()
-            
-            # Check file exists
-            assert os.path.exists(file_path)
-            
-            # Read the data
-            with open(file_path, "r") as f:
-                data = json.load(f)
-            
-            # Verify content
-            assert "timestamp" in data
-            assert "health_checks" in data
-            assert "api" in data["health_checks"]
-            assert data["health_checks"]["api"]["status"] == "HEALTHY"
-            assert data["health_checks"]["api"]["message"] == "All systems operational"
-    
-    @patch("yahoofinance.core.monitoring.datetime")
-    def test_write_metrics_data(self, mock_datetime, monitoring_system, tmp_path):
-        """Test writing metrics data to disk."""
-        # Mock datetime to get a consistent timestamp
-        mock_now = datetime(2024, 4, 21, 10, 0, 0)
-        mock_datetime.now.return_value = mock_now
-        mock_datetime.strftime = datetime.strftime
-        
-        # Create a temporary MONITOR_DIR
-        with patch("yahoofinance.core.monitoring.MONITOR_DIR", str(tmp_path)):
-            # Set up some metrics
-            counter = monitoring_system.metrics.counter("requests", "Request count")
-            counter.inc(10)
-            
-            # Write metrics data
-            file_path = monitoring_system.write_metrics_data()
-            
-            # Check file exists
-            assert os.path.exists(file_path)
-            
-            # Read the data
-            with open(file_path, "r") as f:
-                data = json.load(f)
-            
-            # Verify content
-            assert "timestamp" in data
-            assert "metrics" in data
-            assert isinstance(data["metrics"], list)
-            assert len(data["metrics"]) >= 1
-            
-            # Check our metric
-            counter_found = False
-            for metric in data["metrics"]:
-                if metric["name"] == "requests":
-                    assert metric["value"] == 10
-                    assert metric["type"] == "counter"
-                    counter_found = True
-            
-            assert counter_found, "Couldn't find requests counter in metrics"
+        # Check dict fields
+        assert info["component"] == "api_health"
+        assert info["status"] == "degraded"
+        assert info["details"] == "API response time is slow"
+        assert "timestamp" in info
 
 
-class TestMemoryMonitoring:
-    """Tests for memory monitoring functionality."""
+class TestHealthMonitor:
+    """Tests for the HealthMonitor class."""
     
-    @patch("tracemalloc.start")
-    @patch("tracemalloc.stop")
-    @patch("tracemalloc.get_traced_memory")
-    def test_monitor_memory_decorator(self, mock_get_memory, mock_stop, mock_start):
-        """Test the monitor_memory decorator."""
-        # Mock memory usage
-        mock_get_memory.return_value = (1000, 2000)  # current, peak
+    def test_register_health_check(self):
+        """Test registering a health check function."""
+        monitor = HealthMonitor()
         
-        # Define a function with memory monitoring
-        @monitor_memory
-        def memory_test_func(arg1, arg2=None):
-            """Test function for memory monitoring."""
-            return arg1 + str(arg2 or "")
+        # Define a health check function
+        def check_test_service():
+            return HealthCheck(
+                component="test_service",
+                status=HealthStatus.HEALTHY,
+                details="Service is healthy"
+            )
         
-        # Call the function
-        result = memory_test_func("hello", arg2="world")
+        # Register the health check
+        monitor.register_health_check("test_service", check_test_service)
+        
+        # Check it was registered
+        with patch.object(monitor, '_lock'):
+            assert "test_service" in monitor._checkers
+    
+    def test_update_health(self):
+        """Test updating a health check."""
+        monitor = HealthMonitor()
+        
+        # Create a health check
+        check = HealthCheck(
+            component="test_component",
+            status=HealthStatus.HEALTHY,
+            details="Component is healthy"
+        )
+        
+        # Update health
+        monitor.update_health(check)
+        
+        # Check it was stored
+        with patch.object(monitor, '_lock'):
+            assert "test_component" in monitor._health_checks
+            assert monitor._health_checks["test_component"] is check
+    
+    def test_check_health_specific_component(self):
+        """Test checking health of a specific component."""
+        monitor = HealthMonitor()
+        
+        # Define a health check function
+        def check_test_service():
+            return HealthCheck(
+                component="test_service",
+                status=HealthStatus.HEALTHY,
+                details="Service is healthy"
+            )
+        
+        # Register the health check
+        monitor.register_health_check("test_service", check_test_service)
+        
+        # Check health of specific component
+        result = monitor.check_health("test_service")
         
         # Verify result
-        assert result == "helloworld"
+        assert isinstance(result, HealthCheck)
+        assert result.component == "test_service"
+        assert result.status == HealthStatus.HEALTHY
+        assert result.details == "Service is healthy"
+    
+    def test_check_health_all_components(self):
+        """Test checking health of all components."""
+        monitor = HealthMonitor()
         
-        # Verify memory tracking was started and stopped
-        mock_start.assert_called_once()
-        mock_stop.assert_called_once()
-        mock_get_memory.assert_called_once()
+        # Define health check functions
+        def check_service1():
+            return HealthCheck(
+                component="service1",
+                status=HealthStatus.HEALTHY,
+                details="Service 1 is healthy"
+            )
+        
+        def check_service2():
+            return HealthCheck(
+                component="service2",
+                status=HealthStatus.DEGRADED,
+                details="Service 2 is degraded"
+            )
+        
+        # Register health checks
+        monitor.register_health_check("service1", check_service1)
+        monitor.register_health_check("service2", check_service2)
+        
+        # Check health of all components
+        results = monitor.check_health()
+        
+        # Verify results
+        assert isinstance(results, list)
+        assert len(results) == 2
+        
+        # Find results by component
+        service1_result = next(r for r in results if r.component == "service1")
+        service2_result = next(r for r in results if r.component == "service2")
+        
+        assert service1_result.status == HealthStatus.HEALTHY
+        assert service2_result.status == HealthStatus.DEGRADED
+    
+    def test_get_system_health(self):
+        """Test getting overall system health."""
+        monitor = HealthMonitor()
+        
+        # Mock check_health to return predefined checks
+        mock_checks = [
+            HealthCheck("service1", HealthStatus.HEALTHY, "Healthy service"),
+            HealthCheck("service2", HealthStatus.DEGRADED, "Degraded service")
+        ]
+        monitor.check_health = MagicMock(return_value=mock_checks)
+        
+        # Get system health
+        result = monitor.get_system_health()
+        
+        # Verify result - should be DEGRADED because that's the worst status
+        assert result.component == "system"
+        assert result.status == HealthStatus.DEGRADED
+        assert "Based on 2 component checks" in result.details
+    
+    def test_export_health(self):
+        """Test exporting health status to file."""
+        monitor = HealthMonitor()
+        
+        # Just verify the method exists and can be called without errors
+        monitor.export_health()
+        
+        # We can't easily test the actual file writing since it happens in a different thread
+        assert hasattr(monitor, '_export_health_to_file')
+
+
+def test_measure_execution_time_context():
+    """Test the measure_execution_time context manager."""
+    # Create a context manager to test
+    with patch('time.time') as mock_time:
+        # Mock time.time to return predictable values
+        mock_time.side_effect = [100.0, 100.5]  # Start and end times
+        
+        # Create a mock for the histogram
+        mock_histogram = MagicMock()
+        
+        # Patch the metrics_registry.histogram to return our mock
+        with patch('yahoofinance.core.monitoring.metrics_registry') as mock_registry:
+            mock_registry.histogram.return_value = mock_histogram
+            
+            # Use the context manager
+            with measure_execution_time(name="test_operation", tags={"tag": "value"}):
+                # Code inside context manager
+                pass
+            
+            # Verify metric creation and recording
+            mock_registry.histogram.assert_called_once_with(
+                f"execution_time_test_operation",
+                f"Execution time of test_operation in milliseconds",
+                tags={"tag": "value"}
+            )
+            
+            # Time difference should be 0.5 seconds = 500ms
+            mock_histogram.observe.assert_called_once_with(500.0)
+
+
+@patch('yahoofinance.core.monitoring.metrics_registry')
+@patch('yahoofinance.core.monitoring.health_monitor')
+def test_setup_monitoring(mock_health_monitor, mock_metrics_registry):
+    """Test the setup_monitoring function."""
+    # Create a mock for monitoring_service
+    with patch('yahoofinance.core.monitoring.monitoring_service') as mock_service:
+        # Call setup_monitoring
+        setup_monitoring(export_interval=30)
+        
+        # Verify monitoring service was started
+        mock_service.start.assert_called_once_with(export_interval=30)
 
 
 if __name__ == "__main__":
