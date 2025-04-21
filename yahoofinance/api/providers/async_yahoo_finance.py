@@ -442,6 +442,35 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
 
         # Should not reach here if max_retries > 0
         return []
+            
+    async def search_tickers(self, query: str, limit: int = 10) -> List[Dict[str, str]]:
+        """
+        Search for tickers matching a query.
+        
+        Args:
+            query: Search query
+            limit: Maximum number of results to return
+            
+        Returns:
+            List of matching tickers with metadata
+            
+        Raises:
+            YFinanceError: When an error occurs while searching
+        """
+        if not query or not query.strip():
+            raise ValidationError("Search query cannot be empty")
+        
+        for attempt in range(self.max_retries):
+            try:
+                # Search for tickers
+                ticker_obj = await self._run_sync_in_executor(yf.Ticker, query)
+                search_results = await self._run_sync_in_executor(lambda: ticker_obj.search())
+                
+                # Handle case where there are no search results
+                if not search_results or 'quotes' not in search_results or not search_results['quotes']:
+                    # If no results, it's not necessarily an error, just no match
+                    return []
+                
                 # Format results
                 results = []
                 for quote in search_results['quotes'][:limit]:
