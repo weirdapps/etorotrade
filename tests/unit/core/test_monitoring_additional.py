@@ -12,496 +12,606 @@ from unittest.mock import AsyncMock, MagicMock, patch, call
 import pytest
 
 from yahoofinance.core.monitoring import (
-    AlertLevel,
     Alert,
     AlertManager,
-    PerformanceTracker,
-    ResourceMonitor,
-    BatchMonitor,
-    AsyncMonitor,
-    Timer,
-    StatsCollector,
-    MonitoringSystem,
-    monitor_async,
-    monitor_resources,
-    collect_stats,
-    MONITOR_DIR
+    CircuitBreakerMonitor,
+    CircuitBreakerState,
+    CircuitBreakerStatus,
+    HealthCheck,
+    HealthStatus,
+    MonitoringService,
+    RequestContext,
+    RequestTracker,
+    check_api_health,
+    check_memory_health,
+    track_request,
+    periodic_export_metrics,
+    check_metric_threshold,
+    monitor_api_call,
+    setup_monitoring
 )
 from yahoofinance.core.errors import MonitoringError
 
 
-class TestAlerts:
-    """Tests for the alerting subsystem."""
+class TestAlert:
+    """Tests for the Alert class."""
     
     def test_alert_creation(self):
-        """Test creating and manipulating alerts."""
-        # Create an alert
+        """Test creating an alert."""
+        # Create a new alert
         alert = Alert(
-            name="high_memory",
-            level=AlertLevel.WARNING,
-            message="Memory usage exceeded 80%",
-            source="memory_monitor"
+            name="test_alert",
+            severity="warning", 
+            message="Test alert message",
+            value=75.5,
+            threshold=70.0,
+            tags={"service": "api"}
         )
         
-        # Check fields
-        assert alert.name == "high_memory"
-        assert alert.level == AlertLevel.WARNING
-        assert alert.message == "Memory usage exceeded 80%"
-        assert alert.source == "memory_monitor"
-        assert alert.active is True
-        assert alert.created_at is not None
-        
-        # Test resolve
-        alert.resolve("Memory usage now normal")
-        assert alert.active is False
-        assert alert.resolved_at is not None
-        assert alert.resolution_message == "Memory usage now normal"
+        # Check properties
+        assert alert.name == "test_alert"
+        assert alert.severity == "warning"
+        assert alert.message == "Test alert message"
+        assert alert.value == 75.5
+        assert alert.threshold == 70.0
+        assert alert.tags == {"service": "api"}
+        assert alert.timestamp is not None
     
     def test_alert_to_dict(self):
         """Test converting alert to dictionary."""
+        # Create an alert
         alert = Alert(
-            name="api_error",
-            level=AlertLevel.ERROR,
-            message="API returned 500 status code",
-            source="api_monitor"
+            name="memory_warning",
+            severity="critical",
+            message="High memory usage",
+            value=95.0,
+            threshold=90.0
         )
         
-        alert_dict = alert.to_dict()
-        assert alert_dict["name"] == "api_error"
-        assert alert_dict["level"] == "ERROR"
-        assert alert_dict["message"] == "API returned 500 status code"
-        assert alert_dict["source"] == "api_monitor"
-        assert alert_dict["active"] is True
-        assert "created_at" in alert_dict
+        # Convert to dict
+        data = alert.to_dict()
         
-        # Resolve and check again
-        alert.resolve("API is back online")
-        alert_dict = alert.to_dict()
-        assert alert_dict["active"] is False
-        assert "resolved_at" in alert_dict
-        assert alert_dict["resolution_message"] == "API is back online"
+        # Check dict fields
+        assert data["name"] == "memory_warning"
+        assert data["severity"] == "critical"
+        assert data["message"] == "High memory usage"
+        assert data["value"] == 95.0
+        assert data["threshold"] == 90.0
+        assert "timestamp" in data
+        assert "tags" in data
 
 
 class TestAlertManager:
     """Tests for the AlertManager class."""
     
-    @pytest.fixture
-    def alert_manager(self):
-        """Create an AlertManager for testing."""
-        return AlertManager()
+    def test_register_handler(self):
+        """Test registering an alert handler."""
+        manager = AlertManager()
+        
+        # Create a mock handler
+        mock_handler = MagicMock()
+        
+        # Register the handler
+        manager.register_handler("test_handler", mock_handler)
+        
+        # Check it was registered
+        with patch.object(manager, '_lock'):
+            assert "test_handler" in manager._handlers
     
-    def test_create_alert(self, alert_manager):
-        """Test creating alerts through the manager."""
+    def test_trigger_alert(self):
+        """Test triggering an alert."""
+        manager = AlertManager()
+        
+        # Create a mock handler
+        mock_handler = MagicMock()
+        
+        # Register the handler
+        manager.register_handler("test_handler", mock_handler)
+        
         # Create an alert
-        alert = alert_manager.create_alert(
-            "api_timeout",
-            AlertLevel.WARNING,
-            "API request timed out",
-            "api_monitor"
+        alert = Alert(
+            name="test_alert",
+            severity="warning",
+            message="Test message",
+            value=5.0,
+            threshold=3.0
         )
         
-        # Verify it's in the active alerts
-        assert len(alert_manager.active_alerts) == 1
-        assert alert_manager.active_alerts[0].name == "api_timeout"
+        # Trigger the alert
+        manager.trigger_alert(alert)
         
-        # Verify it's in the alert history
-        assert len(alert_manager.alert_history) == 1
-        assert alert_manager.alert_history[0] is alert
+        # Handler should be called
+        mock_handler.assert_called_once_with(alert)
+        
+        # Alert should be in the list
+        with patch.object(manager, '_lock'):
+            assert alert in manager._alerts
     
-    def test_get_active_alerts(self, alert_manager):
-        """Test getting only active alerts."""
-        # Create several alerts
-        alert1 = alert_manager.create_alert("alert1", AlertLevel.INFO, "Info alert")
-        alert2 = alert_manager.create_alert("alert2", AlertLevel.WARNING, "Warning alert")
-        alert3 = alert_manager.create_alert("alert3", AlertLevel.ERROR, "Error alert")
+    @patch('builtins.open', new_callable=MagicMock)
+    @patch('json.load')
+    @patch('json.dump')
+    def test_file_alert_handler(self, mock_json_dump, mock_json_load, mock_open):
+        """Test the file alert handler."""
+        # Setup mocks
+        mock_json_load.return_value = []
         
-        # Resolve one alert
-        alert2.resolve("Fixed warning")
+        # Create manager
+        manager = AlertManager()
         
-        # Get active alerts
-        active = alert_manager.get_active_alerts()
+        # Create alert
+        alert = Alert(
+            name="test_alert",
+            severity="warning",
+            message="Test message",
+            value=5.0,
+            threshold=3.0
+        )
         
-        # Should have 2 active alerts
+        # Trigger file handler directly
+        manager._file_alert(alert)
+        
+        # Check file operations
+        mock_open.assert_called()
+        mock_json_load.assert_called_once()
+        mock_json_dump.assert_called_once()
+        
+        # Check that the alert was passed to json.dump
+        args, kwargs = mock_json_dump.call_args
+        alerts_data = args[0]
+        assert len(alerts_data) == 1
+        assert alerts_data[0]["name"] == "test_alert"
+    
+    def test_get_alerts_filtered(self):
+        """Test getting alerts with filtering."""
+        manager = AlertManager()
+        
+        # Create alerts with different severities and times
+        now = time.time()
+        one_hour_ago = now - 3600
+        
+        alert1 = Alert("alert1", "info", "Info alert", 1.0, 1.0, timestamp=one_hour_ago)
+        alert2 = Alert("alert2", "warning", "Warning alert", 2.0, 2.0, timestamp=now)
+        alert3 = Alert("alert3", "critical", "Critical alert", 3.0, 3.0, timestamp=now)
+        
+        # Add alerts
+        with patch.object(manager, '_lock'):
+            manager._alerts = [alert1, alert2, alert3]
+        
+        # Get alerts by severity
+        critical_alerts = manager.get_alerts(severity="critical")
+        assert len(critical_alerts) == 1
+        assert critical_alerts[0] is alert3
+        
+        # Get alerts by time
+        recent_alerts = manager.get_alerts(since=now - 10)
+        assert len(recent_alerts) == 2
+        assert alert2 in recent_alerts
+        assert alert3 in recent_alerts
+        
+        # Get alerts by both filters
+        warning_recent = manager.get_alerts(severity="warning", since=now - 10)
+        assert len(warning_recent) == 1
+        assert warning_recent[0] is alert2
+
+
+class TestCircuitBreakerState:
+    """Tests for the CircuitBreakerState class."""
+    
+    def test_circuit_breaker_state_creation(self):
+        """Test creating a circuit breaker state."""
+        # Create a state
+        state = CircuitBreakerState(
+            name="test_breaker",
+            status=CircuitBreakerStatus.CLOSED,
+            failure_count=0
+        )
+        
+        # Check properties
+        assert state.name == "test_breaker"
+        assert state.status == CircuitBreakerStatus.CLOSED
+        assert state.failure_count == 0
+        assert state.last_failure_time is None
+        assert state.last_success_time is None
+    
+    def test_to_dict(self):
+        """Test converting circuit breaker state to dictionary."""
+        # Create a state with all fields
+        state = CircuitBreakerState(
+            name="test_breaker",
+            status=CircuitBreakerStatus.OPEN,
+            failure_count=5,
+            last_failure_time=100.0,
+            last_success_time=50.0
+        )
+        
+        # Convert to dict
+        data = state.to_dict()
+        
+        # Check dict fields
+        assert data["name"] == "test_breaker"
+        assert data["status"] == "open"
+        assert data["failure_count"] == 5
+        assert data["last_failure_time"] == 100.0
+        assert data["last_success_time"] == 50.0
+
+
+class TestCircuitBreakerMonitor:
+    """Tests for the CircuitBreakerMonitor class."""
+    
+    def test_register_breaker(self):
+        """Test registering a new circuit breaker."""
+        monitor = CircuitBreakerMonitor()
+        
+        # Register a breaker
+        monitor.register_breaker("test_breaker")
+        
+        # Check it was registered
+        with patch.object(monitor, '_lock'):
+            assert "test_breaker" in monitor._states
+            assert monitor._states["test_breaker"].name == "test_breaker"
+            assert monitor._states["test_breaker"].status == CircuitBreakerStatus.CLOSED
+            assert monitor._states["test_breaker"].failure_count == 0
+    
+    def test_update_state(self):
+        """Test updating the state of a circuit breaker."""
+        monitor = CircuitBreakerMonitor()
+        
+        # Update state of a new breaker (should auto-register)
+        monitor.update_state(
+            name="test_breaker", 
+            status=CircuitBreakerStatus.OPEN,
+            failure_count=3,
+            is_failure=True
+        )
+        
+        # Check state was updated
+        state = monitor.get_state("test_breaker")
+        assert state.name == "test_breaker"
+        assert state.status == CircuitBreakerStatus.OPEN
+        assert state.failure_count == 3
+        assert state.last_failure_time is not None
+        assert state.last_success_time is None
+        
+        # Update with success
+        monitor.update_state(
+            name="test_breaker",
+            status=CircuitBreakerStatus.HALF_OPEN,
+            is_success=True
+        )
+        
+        # Check state again
+        state = monitor.get_state("test_breaker")
+        assert state.status == CircuitBreakerStatus.HALF_OPEN
+        assert state.last_success_time is not None
+    
+    def test_get_all_states(self):
+        """Test getting all circuit breaker states."""
+        monitor = CircuitBreakerMonitor()
+        
+        # Register a few breakers
+        monitor.register_breaker("breaker1")
+        monitor.register_breaker("breaker2")
+        
+        # Get all states
+        states = monitor.get_all_states()
+        
+        # Check results
+        assert len(states) == 2
+        assert "breaker1" in states
+        assert "breaker2" in states
+        assert states["breaker1"].name == "breaker1"
+        assert states["breaker2"].name == "breaker2"
+    
+    @patch('builtins.open', new_callable=MagicMock)
+    @patch('json.dump')
+    def test_save_states(self, mock_json_dump, mock_open):
+        """Test saving circuit breaker states to file."""
+        monitor = CircuitBreakerMonitor()
+        
+        # Register a breaker
+        monitor.register_breaker("test_breaker")
+        
+        # Force save states
+        monitor._save_states()
+        
+        # Check save operations
+        mock_open.assert_called_once()
+        mock_json_dump.assert_called_once()
+        
+        # Check saved data
+        args, kwargs = mock_json_dump.call_args
+        data = args[0]
+        assert "test_breaker" in data
+        assert data["test_breaker"]["name"] == "test_breaker"
+        assert data["test_breaker"]["status"] == "closed"
+
+
+class TestRequestContext:
+    """Tests for the RequestContext class."""
+    
+    def test_request_context_creation(self):
+        """Test creating a request context."""
+        # Create a context
+        context = RequestContext(
+            request_id="req-123",
+            start_time=100.0,
+            endpoint="/api/data",
+            parameters={"id": 1, "filter": "active"}
+        )
+        
+        # Check properties
+        assert context.request_id == "req-123"
+        assert context.start_time == 100.0
+        assert context.endpoint == "/api/data"
+        assert context.parameters == {"id": 1, "filter": "active"}
+        assert context.user_agent is None
+        assert context.source_ip is None
+    
+    def test_duration_calculation(self):
+        """Test the duration property."""
+        # Create a context with start time in the past
+        start_time = time.time() - 0.5  # Half a second ago
+        context = RequestContext(
+            request_id="req-123",
+            start_time=start_time,
+            endpoint="/api/data",
+            parameters={}
+        )
+        
+        # Check duration
+        duration = context.duration
+        assert duration >= 500.0  # At least 500ms
+
+
+class TestRequestTracker:
+    """Tests for the RequestTracker class."""
+    
+    def test_start_request(self):
+        """Test starting a request."""
+        tracker = RequestTracker()
+        
+        # Start a request
+        request_id = tracker.start_request(
+            endpoint="/api/users",
+            parameters={"page": 1},
+            user_agent="test-agent",
+            source_ip="127.0.0.1"
+        )
+        
+        # Check request ID format
+        assert request_id.startswith("req-")
+        
+        # Check active requests
+        with patch.object(tracker, '_lock'):
+            assert request_id in tracker._active_requests
+            context = tracker._active_requests[request_id]
+            assert context.endpoint == "/api/users"
+            assert context.parameters == {"page": 1}
+            assert context.user_agent == "test-agent"
+            assert context.source_ip == "127.0.0.1"
+    
+    def test_end_request(self):
+        """Test ending a request."""
+        tracker = RequestTracker()
+        
+        # Start a request
+        request_id = tracker.start_request("/api/users", {})
+        
+        # End the request
+        tracker.end_request(request_id)
+        
+        # Check active requests
+        with patch.object(tracker, '_lock'):
+            assert request_id not in tracker._active_requests
+        
+        # Check request history
+        history = tracker.get_request_history()
+        assert len(history) == 1
+        assert history[0]["request_id"] == request_id
+        assert history[0]["endpoint"] == "/api/users"
+        assert history[0]["error"] is None
+    
+    def test_end_request_with_error(self):
+        """Test ending a request with an error."""
+        tracker = RequestTracker()
+        
+        # Start a request
+        request_id = tracker.start_request("/api/error", {})
+        
+        # End with error
+        test_error = ValueError("Test error")
+        tracker.end_request(request_id, error=test_error)
+        
+        # Check history
+        history = tracker.get_request_history()
+        assert len(history) == 1
+        assert history[0]["request_id"] == request_id
+        assert history[0]["error"] == "Test error"
+    
+    def test_get_active_requests(self):
+        """Test getting active requests."""
+        tracker = RequestTracker()
+        
+        # Start a few requests
+        req1 = tracker.start_request("/api/users", {"id": 1})
+        req2 = tracker.start_request("/api/products", {"category": "electronics"})
+        
+        # Get active requests
+        active = tracker.get_active_requests()
+        
+        # Check results
         assert len(active) == 2
-        alert_names = [a.name for a in active]
-        assert "alert1" in alert_names
-        assert "alert3" in alert_names
-        assert "alert2" not in alert_names
-    
-    def test_get_alerts_by_level(self, alert_manager):
-        """Test filtering alerts by level."""
-        # Create several alerts of different levels
-        alert_manager.create_alert("info1", AlertLevel.INFO, "Info alert 1")
-        alert_manager.create_alert("info2", AlertLevel.INFO, "Info alert 2")
-        alert_manager.create_alert("warning1", AlertLevel.WARNING, "Warning alert")
-        alert_manager.create_alert("error1", AlertLevel.ERROR, "Error alert")
-        alert_manager.create_alert("critical1", AlertLevel.CRITICAL, "Critical alert")
+        req_ids = [r["request_id"] for r in active]
+        assert req1 in req_ids
+        assert req2 in req_ids
         
-        # Filter by INFO level
-        info_alerts = alert_manager.get_alerts_by_level(AlertLevel.INFO)
-        assert len(info_alerts) == 2
-        info_names = [a.name for a in info_alerts]
-        assert "info1" in info_names
-        assert "info2" in info_names
-        
-        # Filter by WARNING level
-        warning_alerts = alert_manager.get_alerts_by_level(AlertLevel.WARNING)
-        assert len(warning_alerts) == 1
-        assert warning_alerts[0].name == "warning1"
-        
-        # Filter by ERROR or higher
-        high_alerts = alert_manager.get_alerts_by_min_level(AlertLevel.ERROR)
-        assert len(high_alerts) == 2
-        high_names = [a.name for a in high_alerts]
-        assert "error1" in high_names
-        assert "critical1" in high_names
-    
-    @patch("yahoofinance.core.monitoring.datetime")
-    def test_write_alerts_to_file(self, mock_datetime, alert_manager, tmp_path):
-        """Test writing alerts to a JSON file."""
-        # Mock datetime for consistent testing
-        mock_now = MagicMock()
-        mock_now.strftime.return_value = "20250421_120000"
-        mock_datetime.now.return_value = mock_now
-        
-        # Create a few alerts
-        alert_manager.create_alert("test_alert", AlertLevel.WARNING, "Test alert")
-        
-        # Create a temporary monitoring directory
-        with patch("yahoofinance.core.monitoring.MONITOR_DIR", str(tmp_path)):
-            # Write alerts to file
-            file_path = alert_manager.write_alerts_to_file()
+        # Check request details
+        for req in active:
+            if req["request_id"] == req1:
+                assert req["endpoint"] == "/api/users"
+                assert req["parameters"] == {"id": 1}
+            elif req["request_id"] == req2:
+                assert req["endpoint"] == "/api/products"
+                assert req["parameters"] == {"category": "electronics"}
             
-            # Verify file exists
-            assert os.path.exists(file_path)
-            
-            # Read content
-            with open(file_path, "r") as f:
-                data = json.load(f)
-            
-            # Verify content
-            assert "timestamp" in data
-            assert "alerts" in data
-            assert len(data["alerts"]) == 1
-            assert data["alerts"][0]["name"] == "test_alert"
-            assert data["alerts"][0]["level"] == "WARNING"
+            assert "duration_ms" in req
+            assert "start_time" in req
 
 
-class TestPerformanceTracking:
-    """Tests for performance tracking functionality."""
+@patch('time.time')
+def test_track_request_decorator(mock_time):
+    """Test the track_request decorator."""
+    # Mock time.time to return predictable values
+    mock_time.side_effect = [100.0, 101.0]  # Start and end times
     
-    def test_timer_class(self):
-        """Test the Timer utility class."""
-        # Create a timer
-        timer = Timer()
-        
-        # Start timer
-        timer.start()
-        
-        # Timer should be running
-        assert timer.is_running is True
-        
-        # Sleep briefly
-        time.sleep(0.01)
-        
-        # Stop timer and get elapsed time
-        elapsed = timer.stop()
-        
-        # Should have recorded time > 0
-        assert elapsed > 0
-        assert timer.elapsed > 0
-        assert timer.is_running is False
-        
-        # Reset timer
-        timer.reset()
-        assert timer.elapsed == 0
-        
-        # Test context manager
-        with Timer() as timer:
-            time.sleep(0.01)
-        
-        assert timer.elapsed > 0
-        assert timer.is_running is False
+    # Create mocks
+    request_tracker = MagicMock()
+    request_tracker.start_request.return_value = "req-123"
     
-    def test_performance_tracker(self):
-        """Test the PerformanceTracker class."""
-        tracker = PerformanceTracker()
-        
-        # Record some timings
-        tracker.record_timing("api_call", 0.150)
-        tracker.record_timing("api_call", 0.200)
-        tracker.record_timing("db_query", 0.050)
-        
-        # Check stats for api_call
-        api_stats = tracker.get_stats("api_call")
-        assert api_stats["count"] == 2
-        assert abs(api_stats["min"] - 0.150) < 0.001
-        assert abs(api_stats["max"] - 0.200) < 0.001
-        assert abs(api_stats["avg"] - 0.175) < 0.001
-        
-        # Check stats for db_query
-        db_stats = tracker.get_stats("db_query")
-        assert db_stats["count"] == 1
-        assert abs(db_stats["min"] - 0.050) < 0.001
-        assert abs(db_stats["max"] - 0.050) < 0.001
-        
-        # Check overall stats
-        all_stats = tracker.get_all_stats()
-        assert "api_call" in all_stats
-        assert "db_query" in all_stats
-        
-        # Check timer context manager
-        with tracker.time_operation("timed_op"):
-            time.sleep(0.01)
-        
-        timed_stats = tracker.get_stats("timed_op")
-        assert timed_stats["count"] == 1
-        assert timed_stats["min"] > 0
-
-
-class TestAsyncMonitoring:
-    """Tests for asynchronous monitoring functionality."""
+    # Define a function with the decorator
+    @track_request(endpoint="/api/test", parameters={"source": "test"})
+    def test_function():
+        return "result"
     
-    @pytest.fixture
-    async def async_monitor(self):
-        """Create an AsyncMonitor for testing."""
-        monitor = AsyncMonitor()
-        yield monitor
-        await monitor.stop()
-    
-    @pytest.mark.asyncio
-    async def test_async_monitor_start_stop(self):
-        """Test starting and stopping the async monitor."""
-        monitor = AsyncMonitor()
-        
-        # Monitor should not be running initially
-        assert monitor.is_running is False
-        
-        # Start the monitor
-        await monitor.start()
-        assert monitor.is_running is True
-        
-        # Stop the monitor
-        await monitor.stop()
-        assert monitor.is_running is False
-    
-    @pytest.mark.asyncio
-    async def test_record_async_stats(self, async_monitor):
-        """Test recording async operation statistics."""
-        # Start the monitor
-        await async_monitor.start()
-        
-        # Record some stats
-        async_monitor.record_operation("api_call", 0.200, success=True)
-        async_monitor.record_operation("api_call", 0.300, success=True)
-        async_monitor.record_operation("api_call", 0.0, success=False, error="Timeout")
-        
-        # Check operation stats
-        stats = async_monitor.get_operation_stats("api_call")
-        assert stats["total"] == 3
-        assert stats["success"] == 2
-        assert stats["failure"] == 1
-        assert abs(stats["avg_duration"] - 0.250) < 0.001  # Only for successful ops
-        assert stats["error_types"] == {"Timeout": 1}
-    
-    @pytest.mark.asyncio
-    async def test_monitor_async_decorator(self):
-        """Test the monitor_async decorator."""
-        monitor = AsyncMonitor()
-        await monitor.start()
-        
-        # Define an async function with monitoring
-        @monitor_async(monitor, "test_func")
-        async def test_async_func(succeed=True):
-            await asyncio.sleep(0.01)
-            if not succeed:
-                raise ValueError("Test error")
-            return "success"
-        
-        # Call the function successfully
-        result = await test_async_func()
-        assert result == "success"
-        
-        # Call the function with error
-        with pytest.raises(ValueError):
-            await test_async_func(succeed=False)
-        
-        # Check stats
-        stats = monitor.get_operation_stats("test_func")
-        assert stats["total"] == 2
-        assert stats["success"] == 1
-        assert stats["failure"] == 1
-        assert stats["error_types"] == {"ValueError": 1}
-        
-        await monitor.stop()
-
-
-class TestResourceMonitoring:
-    """Tests for system resource monitoring."""
-    
-    @patch("psutil.cpu_percent")
-    @patch("psutil.virtual_memory")
-    def test_resource_monitor(self, mock_memory, mock_cpu):
-        """Test the ResourceMonitor class."""
-        # Mock resource readings
-        mock_cpu.return_value = 25.5
-        mock_memory.return_value = MagicMock(percent=60.0, available=4*1024*1024*1024)
-        
-        # Create resource monitor
-        monitor = ResourceMonitor(check_interval=0.1)
-        
-        # Start monitoring
-        monitor.start()
-        
-        # Wait for at least one reading
-        time.sleep(0.2)
-        
-        # Stop monitoring
-        monitor.stop()
-        
-        # Check results
-        assert monitor.is_running is False
-        cpu_stats = monitor.get_cpu_stats()
-        mem_stats = monitor.get_memory_stats()
-        
-        # Should have readings
-        assert len(cpu_stats) > 0
-        assert len(mem_stats) > 0
-        
-        # Check CPU stats - should match our mock
-        assert abs(cpu_stats[-1] - 25.5) < 0.1
-        
-        # Check memory stats
-        assert abs(mem_stats[-1]["percent"] - 60.0) < 0.1
-        assert mem_stats[-1]["available_gb"] == 4.0
-    
-    @patch("psutil.cpu_percent")
-    @patch("psutil.virtual_memory")
-    def test_resource_monitor_decorator(self, mock_memory, mock_cpu):
-        """Test the monitor_resources decorator."""
-        # Mock resource readings
-        mock_cpu.return_value = 30.0
-        memory_mock = MagicMock()
-        memory_mock.percent = 50.0
-        memory_mock.available = 8 * 1024 * 1024 * 1024  # 8 GB
-        mock_memory.return_value = memory_mock
-        
-        # Define a function with resource monitoring
-        @monitor_resources(interval=0.1)
-        def resource_test_func(sleep_time):
-            time.sleep(sleep_time)
-            return "done"
-        
+    # Replace the global request_tracker with our mock
+    with patch('yahoofinance.core.monitoring.request_tracker', request_tracker):
         # Call the function
-        result, resources = resource_test_func(0.3)
-        
-        # Check results
-        assert result == "done"
-        assert "cpu" in resources
-        assert "memory" in resources
-        assert len(resources["cpu"]) >= 2  # Should have at least 2 readings (0.3s / 0.1s)
-        assert len(resources["memory"]) >= 2
-        
-        # Check specific readings
-        assert all(c == 30.0 for c in resources["cpu"])
-        assert all(m["percent"] == 50.0 for m in resources["memory"])
-        assert all(m["available_gb"] == 8.0 for m in resources["memory"])
-
-
-class TestBatchMonitoring:
-    """Tests for batch operation monitoring."""
+        result = test_function()
     
-    def test_batch_monitor(self):
-        """Test the BatchMonitor class."""
-        monitor = BatchMonitor("test_batch")
-        
-        # Start a batch
-        monitor.start_batch(10)  # 10 items in batch
-        
-        # Process a few items
-        monitor.item_started(0)
-        time.sleep(0.01)
-        monitor.item_completed(0, success=True)
-        
-        monitor.item_started(1)
-        time.sleep(0.01)
-        monitor.item_completed(1, success=True)
-        
-        monitor.item_started(2)
-        time.sleep(0.01)
-        monitor.item_failed(2, error="Test error")
-        
-        # Complete the batch
-        stats = monitor.complete_batch()
-        
-        # Check stats
-        assert stats["total_items"] == 10
-        assert stats["completed"] == 2
-        assert stats["failed"] == 1
-        assert stats["skipped"] == 7
-        assert stats["success_rate"] == 2/3  # 2 out of 3 processed
-        assert "batch_duration" in stats
-        assert "avg_item_duration" in stats
-        
-        # Check item-level stats
-        item_stats = monitor.get_item_stats()
-        assert len(item_stats) == 3
-        assert item_stats[0]["success"] is True
-        assert item_stats[1]["success"] is True
-        assert item_stats[2]["success"] is False
-        assert item_stats[2]["error"] == "Test error"
+    # Check result
+    assert result == "result"
+    
+    # Check tracker interactions
+    request_tracker.start_request.assert_called_once_with("/api/test", {"source": "test"})
+    request_tracker.end_request.assert_called_once_with("req-123")
 
 
-class TestStatsCollection:
-    """Tests for statistics collection functionality."""
+@patch('time.time')
+def test_track_request_with_error(mock_time):
+    """Test the track_request decorator with an error."""
+    # Mock time.time
+    mock_time.return_value = 100.0
     
-    def test_stats_collector(self):
-        """Test the StatsCollector class."""
-        collector = StatsCollector()
-        
-        # Add various measurements
-        collector.add_value("latency", 100)
-        collector.add_value("latency", 200)
-        collector.add_value("latency", 150)
-        
-        collector.add_value("errors", 1)
-        collector.add_value("errors", 1)
-        
-        # Get basic stats
-        latency_stats = collector.get_stats("latency")
-        assert latency_stats["count"] == 3
-        assert latency_stats["min"] == 100
-        assert latency_stats["max"] == 200
-        assert latency_stats["avg"] == 150
-        assert "stddev" in latency_stats
-        
-        # Get percentiles
-        percentiles = collector.get_percentiles("latency", [50, 90, 99])
-        assert percentiles[50] == 150
-        assert percentiles[90] == 200
-        assert percentiles[99] == 200
+    # Create mocks
+    request_tracker = MagicMock()
+    request_tracker.start_request.return_value = "req-123"
     
-    def test_collect_stats_decorator(self):
-        """Test the collect_stats decorator."""
-        collector = StatsCollector()
+    # Define a function with the decorator
+    @track_request(endpoint="/api/error")
+    def error_function():
+        raise ValueError("Test error")
+    
+    # Replace the global request_tracker with our mock
+    with patch('yahoofinance.core.monitoring.request_tracker', request_tracker):
+        # Call the function, expecting an error
+        with pytest.raises(ValueError):
+            error_function()
+    
+    # Check tracker interactions
+    request_tracker.start_request.assert_called_once()
+    request_tracker.end_request.assert_called_once_with("req-123", error=pytest.any(ValueError))
+
+
+@patch('time.time')
+@pytest.mark.asyncio
+async def test_track_request_async(mock_time):
+    """Test the track_request decorator with an async function."""
+    # Mock time.time
+    mock_time.side_effect = [100.0, 101.0]  # Start and end times
+    
+    # Create mocks
+    request_tracker = MagicMock()
+    request_tracker.start_request.return_value = "req-123"
+    
+    # Define an async function with the decorator
+    @track_request(endpoint="/api/async")
+    async def async_function():
+        await asyncio.sleep(0.001)
+        return "async result"
+    
+    # Replace the global request_tracker with our mock
+    with patch('yahoofinance.core.monitoring.request_tracker', request_tracker):
+        # Call the function
+        result = await async_function()
+    
+    # Check result
+    assert result == "async result"
+    
+    # Check tracker interactions
+    request_tracker.start_request.assert_called_once_with("/api/async", {})
+    request_tracker.end_request.assert_called_once_with("req-123")
+
+
+@patch('yahoofinance.core.monitoring.metrics_registry')
+@patch('yahoofinance.core.monitoring.health_monitor')
+@patch('threading.Thread')
+def test_periodic_export_metrics(mock_thread, mock_health_monitor, mock_metrics_registry):
+    """Test the periodic_export_metrics function."""
+    # Call the function
+    periodic_export_metrics(interval_seconds=30)
+    
+    # Thread should be started
+    mock_thread.assert_called_once()
+    mock_thread.return_value.start.assert_called_once()
+    
+    # Get the target function
+    target_func = mock_thread.call_args[1]['target']
+    
+    # Mock the loop to avoid endless running
+    with patch('time.sleep') as mock_sleep:
+        mock_sleep.side_effect = [None, Exception("Stop loop")]
         
-        # Define a function with stats collection
-        @collect_stats(collector, "func_stats", value_attribute="duration")
-        def timed_func(duration):
-            time.sleep(duration)
-            return {"duration": duration, "other": "data"}
-        
-        # Call the function multiple times
-        timed_func(0.01)
-        timed_func(0.02)
-        timed_func(0.03)
-        
-        # Check collected stats
-        stats = collector.get_stats("func_stats")
-        assert stats["count"] == 3
-        assert abs(stats["min"] - 0.01) < 0.001
-        assert abs(stats["max"] - 0.03) < 0.001
-        assert abs(stats["avg"] - 0.02) < 0.001
+        # Run one iteration of the loop
+        try:
+            target_func()
+        except Exception:
+            pass
+    
+    # Check that metrics and health were exported
+    mock_metrics_registry.export_metrics.assert_called_with(force=True)
+    mock_health_monitor.export_health.assert_called_once()
+
+
+@patch('yahoofinance.core.monitoring.alert_manager')
+def test_check_metric_threshold(mock_alert_manager):
+    """Test the check_metric_threshold function."""
+    # Create mocks
+    mock_metrics_registry = MagicMock()
+    mock_metric = MagicMock()
+    mock_metric.tags = {"service": "api"}
+    
+    # Setup counter metric
+    counter_metric = MagicMock()
+    counter_metric.value = 15.0
+    counter_metric.tags = {"service": "api"}
+    
+    # Setup registry to return our mock metric
+    mock_metrics_registry.get_all_metrics.return_value = {
+        "api_errors": counter_metric
+    }
+    
+    # Replace global registry with our mock
+    with patch('yahoofinance.core.monitoring.metrics_registry', mock_metrics_registry):
+        # Test threshold check - should breach
+        check_metric_threshold(
+            metric_name="api_errors",
+            threshold=10.0,
+            comparison="gt",
+            severity="warning",
+            message_template="Error count {value} exceeds threshold {threshold}"
+        )
+    
+    # Alert should be triggered
+    mock_alert_manager.trigger_alert.assert_called_once()
+    
+    # Check alert properties
+    alert = mock_alert_manager.trigger_alert.call_args[0][0]
+    assert alert.name == "api_errors_gt_10.0"
+    assert alert.severity == "warning"
+    assert alert.message == "Error count 15.0 exceeds threshold 10.0"
+    assert alert.value == 15.0
+    assert alert.threshold == 10.0
+    assert alert.tags == {"service": "api"}
 
 
 if __name__ == "__main__":
