@@ -538,6 +538,48 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
             "two_hundred_day_avg": info.get("two_hundred_day_avg")
         }
         
+    async def _get_single_ticker_info_async(self, ticker: str, skip_insider_metrics: bool = False) -> Dict[str, Any]:
+        """
+        Helper to get comprehensive information for a single ticker asynchronously.
+        This encapsulates the core logic used by get_ticker_info and batch_get_ticker_info.
+        """
+        logger.debug(f"Fetching single ticker info for {ticker}")
+        ticker_obj = await self._get_ticker_object(ticker)
+
+        result = {}
+        for attempt in range(self.max_retries):
+            try:
+                info = await self._run_sync_in_executor(lambda: ticker_obj.info)
+                if not info:
+                    raise DataError(f"No information available for {ticker}")
+
+                result = await self._run_sync_in_executor(
+                    lambda data=info: self._extract_common_ticker_info(data)
+                )
+                result["symbol"] = ticker
+
+                if is_us_ticker(ticker) and not skip_insider_metrics:
+                    try:
+                        insider_data = await self.get_insider_transactions(ticker)
+                        if insider_data:
+                            total_buys = sum(1 for tx in insider_data if tx.get("shares", 0) > 0)
+                            total_sells = sum(1 for tx in insider_data if tx.get("shares", 0) < 0)
+                            result["insider_transactions"] = len(insider_data)
+                            result["insider_buys"] = total_buys
+                            result["insider_sells"] = total_sells
+                            result["insider_ratio"] = total_buys / (total_buys + total_sells) if (total_buys + total_sells) > 0 else 0
+                    except YFinanceError as e:
+                        logger.warning(f"Failed to get insider data for {ticker}: {str(e)}")
+
+                break
+            except RateLimitError:
+                raise
+            except YFinanceError as e:
+                delay = self._handle_retry_logic(e, attempt, ticker, "single ticker info")
+                await asyncio.sleep(delay)
+
+        return result
+
     async def batch_get_ticker_info(self, tickers: List[str], skip_insider_metrics: bool = False) -> Dict[str, Dict[str, Any]]:
         """
         Get ticker information for multiple tickers in a batch asynchronously.
@@ -554,20 +596,22 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
         """
         if not tickers:
             return {}
+            
+        logger.debug(f"Getting batch ticker info for {len(tickers)} tickers")
         
-        async def get_info_for_ticker(ticker: str) -> Tuple[str, Dict[str, Any]]:
+        # Create a list to store results
+        results = {}
+        
+        # Process tickers in batches with controlled concurrency
+        for ticker in tickers:
             try:
-                info = await self.get_ticker_info(ticker, skip_insider_metrics)
-                return ticker, info
+                # Use the single ticker helper function
+                info = await self._get_single_ticker_info_async(ticker, skip_insider_metrics)
+                results[ticker] = info
             except YFinanceError as e:
-                return ticker, self._process_error_for_batch(ticker, e)
+                results[ticker] = self._process_error_for_batch(ticker, e)
         
-        # Process tickers with controlled concurrency
-        tasks = [get_info_for_ticker(ticker) for ticker in tickers]
-        results = await gather_with_concurrency(self.max_concurrency, *tasks)
-        
-        # Convert list of tuples to dictionary
-        return {ticker: info for ticker, info in results}
+        return results
     
     def clear_cache(self) -> None:
         """

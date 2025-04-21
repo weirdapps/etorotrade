@@ -108,7 +108,7 @@ class TestValidate(unittest.TestCase):
             
             # Test
             tickers = ['AAPL', 'INVALID', 'MSFT']
-            result = validate_tickers_batch(tickers, max_workers=3, batch_size=5)
+            result = validate_tickers_batch(tickers, max_workers=3)
             
             # Verify
             self.assertEqual(result, ['AAPL', 'MSFT'])

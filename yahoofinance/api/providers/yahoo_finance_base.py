@@ -353,7 +353,7 @@ class YahooFinanceBaseProvider(ABC):
         cache_key = f"ticker_obj:{ticker}"
         
         # Check in global cache first
-        cached_obj = default_cache_manager.get(cache_key, data_type="ticker_info")
+        cached_obj = default_cache_manager.get(cache_key)
         if cached_obj is not None:
             logger.debug(f"Using cached ticker object for {ticker} from global cache")
             return cached_obj

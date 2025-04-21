@@ -729,7 +729,6 @@ class CacheManager:
         
         Args:
             key: Cache key
-            data_type: Type of data (unused in ultra-fast path)
             
         Returns:
             Cached value or None if not found
@@ -837,7 +836,6 @@ class CacheManager:
             
         # Get base TTL for this data type
         # Default 5 minutes
-        base_ttl = 300
         
         # Check if we have a specific TTL for this data type
         if data_type in self.ttl_config and cache_type in self.ttl_config[data_type]:
@@ -1007,7 +1005,7 @@ class CacheManager:
         
         # Fall back to regular cache system
         cache_key = f"missing_data:{ticker}:{data_field}"
-        missing_marker = self.get(cache_key, "missing_data")
+        missing_marker = self.get(cache_key)
         
         # Update in-memory cache for future fast lookups
         is_missing = missing_marker is not None and missing_marker.get("is_missing", False)

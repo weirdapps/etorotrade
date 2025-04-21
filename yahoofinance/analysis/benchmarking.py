@@ -18,6 +18,9 @@ import io
 import cProfile
 import pstats
 from typing import List, Dict, Any, Callable, Optional, Union, Tuple, TypeVar, cast
+
+# Define constants for repeated strings
+TOP_MEMORY_CONSUMERS_HEADER = "\nTop memory consumers:"
 from functools import wraps
 from datetime import datetime
 from pathlib import Path
@@ -873,12 +876,12 @@ def find_memory_leaks(func, *args, iterations: int = 10, **kwargs) -> Tuple[bool
                     fut = asyncio.ensure_future(func(*args, **kwargs), loop=loop)
                     loop.run_until_complete(fut)
                 else:
-                    result = asyncio.run(func(*args, **kwargs))
+                    asyncio.run(func(*args, **kwargs))
             except Exception as e:
                 logger.error(f"Error during iteration {i+1}: {str(e)}")
         else:
             try:
-                result = func(*args, **kwargs)
+                func(*args, **kwargs)
             except Exception as e:
                 logger.error(f"Error during iteration {i+1}: {str(e)}")
         
@@ -1882,7 +1885,7 @@ def profile_memory(func: Callable[..., Any]) -> Callable[..., Any]:
             stats = profiler.stop()
             print("\n=== Memory Profile ===")
             print(f"Total memory change: {stats.get('total_diff_mb', 0):.2f} MB")
-            print("\nTop memory consumers:")
+            print(TOP_MEMORY_CONSUMERS_HEADER)
             for item in stats.get('top_consumers', []):
                 print(f"{item['file']}:{item['line']} - {item['size_diff_kb']:.2f} KB ({item['count_diff']} objects)")
     
@@ -1940,7 +1943,7 @@ async def adaptive_fetch(
         batch = items_queue[i:i+batch_size]
         
         # Fetch data for batch with current concurrency
-        batch_start = time.time()
+        time.time()
         coroutines = [fetch_func(item) for item in batch]
         
         try:
@@ -1958,7 +1961,7 @@ async def adaptive_fetch(
             logger.error(f"Error in batch processing: {str(e)}")
             errors += len(batch)
         
-        batch_end = time.time()
+        time.time()
         total_processed += len(batch)
         
         # Adjust concurrency based on performance

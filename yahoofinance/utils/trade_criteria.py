@@ -18,6 +18,9 @@ BUY_PERCENTAGE = COLUMN_NAMES["BUY_PERCENTAGE"]  # Column name for buy percentag
 UPSIDE = 'upside'  # Internal column name for upside percentage
 BUY_PERCENTAGE_COL = 'buy_percentage'  # Internal column name for buy percentage
 PE_FORWARD = 'pe_forward'  # Internal column name for forward P/E
+
+# Define constants for repeated strings
+BUY_PERCENTAGE_DISPLAY = '% BUY'
 PE_TRAILING = 'pe_trailing'  # Internal column name for trailing P/E
 PEG_RATIO = 'peg_ratio'  # Internal column name for PEG ratio
 BETA = 'beta'  # Internal column name for beta
@@ -648,7 +651,7 @@ def calculate_action_for_row(row, criteria, short_field=DEFAULT_SHORT_FIELD):
     # Create column mapping with proper short interest field
     column_mapping = {
         'UPSIDE': UPSIDE,
-        '% BUY': BUY_PERCENTAGE_COL,
+        BUY_PERCENTAGE_DISPLAY: BUY_PERCENTAGE_COL,
         'BETA': BETA,
         'PET': PE_TRAILING,
         'PEF': PE_FORWARD,
@@ -701,7 +704,7 @@ def normalize_row_columns(row, column_mapping=None):
         # Default mapping from display (uppercase) to internal (lowercase) columns
         column_mapping = {
             'UPSIDE': UPSIDE,
-            '% BUY': BUY_PERCENTAGE_COL,
+            BUY_PERCENTAGE_DISPLAY: BUY_PERCENTAGE_COL,
             'BETA': BETA,
             'PET': PE_TRAILING,
             'PEF': PE_FORWARD,

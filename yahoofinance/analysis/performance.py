@@ -14,6 +14,9 @@ JENSENS_ALPHA = "Jensen's Alpha"
 DEFAULT_PORTFOLIO_URL = "https://bullaware.com/etoro/plessas"
 HTML_PARSER = "html.parser"
 
+# Define constants for repeated strings
+CHANGE_PERCENT_DISPLAY = 'Change %'
+
 from ..core.logging_config import get_logger
 
 from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
@@ -1285,7 +1288,7 @@ def track_index_performance(period_type: str = "weekly"):
                 'Index': perf.index_name,
                 prev_key: f"{perf.previous_value:,.2f}" if perf.previous_value is not None else "N/A",
                 curr_key: current_display, 
-                'Change %': change_str
+                CHANGE_PERCENT_DISPLAY: change_str
             }
             
             # Debug log the performance data for troubleshooting
@@ -1324,7 +1327,7 @@ def track_index_performance(period_type: str = "weekly"):
                     'Index': 'VIX',
                     prev_key: f"{perf.previous_value:,.2f}",
                     curr_key: f"{calculated_vix:,.2f}",
-                    'Change %': change_str
+                    CHANGE_PERCENT_DISPLAY: change_str
                 }
                 
                 logger.info(f"Created VIX display with calculated value: {calculated_vix:.2f}")
@@ -1437,7 +1440,7 @@ def track_index_performance(period_type: str = "weekly"):
         # Save performance data with standardized filename
         tracker.save_performance_data(
             performances,
-            file_name="performance.json"
+            file_name=PERFORMANCE_DATA_FILENAME
         )
         
     except YFinanceError as e:
@@ -1507,7 +1510,7 @@ def track_portfolio_performance(url: str = DEFAULT_PORTFOLIO_URL):
         # Save performance data with standardized filename
         tracker.save_performance_data(
             performance,
-            file_name="performance.json"
+            file_name=PERFORMANCE_DATA_FILENAME
         )
         
         # Note: The save_performance_data method already logs the path
@@ -1704,7 +1707,7 @@ async def track_performance_async(period_type: str = "weekly", portfolio_url: st
             # Save performance data with standardized filename
             tracker.save_performance_data(
                 portfolio_perf,
-                file_name="performance.json"
+                file_name=PERFORMANCE_DATA_FILENAME
             )
             
             # Display in console

@@ -19,6 +19,8 @@ from yahoofinance.utils.async_utils import (
     retry_async,
     global_async_rate_limiter as global_async_limiter
 )
+# These constants are not defined in enhanced.py
+# from yahoofinance.utils.async_utils.enhanced import RATE_LIMIT_ERROR_MESSAGE, TOO_MANY_REQUESTS_ERROR_MESSAGE
 from yahoofinance.core.errors import RateLimitError, APIError, ValidationError, YFinanceError
 from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 

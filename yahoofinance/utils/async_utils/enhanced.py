@@ -36,6 +36,10 @@ R = TypeVar('R')
 # Set up logging
 logger = get_logger(__name__)
 
+# Constants for rate limit error detection
+RATE_LIMIT_ERROR_MESSAGE = "rate limit"
+TOO_MANY_REQUESTS_ERROR_MESSAGE = "too many requests"
+
 class AsyncRateLimiter:
     """
     True async implementation of rate limiting with adaptive delay and ticker prioritization.
@@ -526,7 +530,7 @@ def async_rate_limited(rate_limiter: Optional[AsyncRateLimiter] = None):
                 # Record failure (check if it's a rate limit error)
                 is_rate_limit = any(
                     err_text in str(e).lower() 
-                    for err_text in ["rate limit", "too many requests", "429"]
+                    for err_text in [RATE_LIMIT_ERROR_MESSAGE, TOO_MANY_REQUESTS_ERROR_MESSAGE, "429"]
                 )
                 await rate_limiter.record_failure(is_rate_limit=is_rate_limit, ticker=ticker)
                 
@@ -1038,8 +1042,8 @@ def enhanced_async_rate_limited(
                     except YFinanceError as e:
                         # Record failure (check if it's a rate limit error)
                         is_rate_limit = any(
-                            err_text in str(e).lower() 
-                            for err_text in ["rate limit", "too many requests", "429"]
+                            err_text in str(e).lower()
+                            for err_text in [RATE_LIMIT_ERROR_MESSAGE, TOO_MANY_REQUESTS_ERROR_MESSAGE, "429"]
                         )
                         await rate_limiter.record_failure(is_rate_limit=is_rate_limit, ticker=ticker)
                         
@@ -1071,8 +1075,8 @@ def enhanced_async_rate_limited(
                     except YFinanceError as e:
                         # Record failure (check if it's a rate limit error)
                         is_rate_limit = any(
-                            err_text in str(e).lower() 
-                            for err_text in ["rate limit", "too many requests", "429"]
+                            err_text in str(e).lower()
+                            for err_text in [RATE_LIMIT_ERROR_MESSAGE, TOO_MANY_REQUESTS_ERROR_MESSAGE, "429"]
                         )
                         await rate_limiter.record_failure(is_rate_limit=is_rate_limit, ticker=ticker)
                         

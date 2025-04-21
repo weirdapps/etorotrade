@@ -18,6 +18,9 @@ from dataclasses import dataclass, field
 
 from ..api import get_provider, FinanceDataProvider, AsyncFinanceDataProvider
 from ..core.config import TRADING_CRITERIA
+
+# Define constants for repeated strings
+BUY_PERCENTAGE_DISPLAY = '% BUY'
 from ..core.errors import YFinanceError
 
 logger = get_logger(__name__)
@@ -527,7 +530,7 @@ def filter_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame:
     # First, map column names to handle differences between internal and display names
     column_mapping = {
         'upside': ['upside', 'UPSIDE'],
-        'buy_percentage': ['buy_percentage', '% BUY'], 
+        'buy_percentage': ['buy_percentage', BUY_PERCENTAGE_DISPLAY],
         'pe_forward': ['pe_forward', 'PEF'],
         'pe_trailing': ['pe_trailing', 'PET'],
         'beta': ['beta', 'BETA'],

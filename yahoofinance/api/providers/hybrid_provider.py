@@ -18,6 +18,9 @@ from .base_provider import FinanceDataProvider
 from .yahoo_finance_base import YahooFinanceBaseProvider
 from .yahoo_finance import YahooFinanceProvider
 from .yahooquery_provider import YahooQueryProvider
+
+# Define constants for repeated strings
+HYBRID_SOURCE_NAME = 'YFinance+YahooQuery'
 from ...core.errors import YFinanceError, APIError, ValidationError, RateLimitError
 from ...utils.network.rate_limiter import rate_limited
 
@@ -114,7 +117,7 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             processing_time = time.time() - start_time
             
             # Mark as hybrid data source
-            yf_data['hybrid_source'] = 'YFinance+YahooQuery'
+            yf_data['hybrid_source'] = HYBRID_SOURCE_NAME
             yf_data['yq_processing_time'] = processing_time
             
             # Transfer any missing fields from YahooQuery to YFinance data
@@ -336,7 +339,7 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                     # Update with YahooQuery data if available
                     if 'buy_percentage' in yq_ratings and yq_ratings['buy_percentage'] is not None:
                         ratings['buy_percentage'] = yq_ratings['buy_percentage']
-                        ratings['data_source'] = 'YFinance+YahooQuery'
+                        ratings['data_source'] = HYBRID_SOURCE_NAME
                     
                     # Update other fields if missing
                     for field in ['total_ratings', 'analyst_count']:
@@ -484,7 +487,7 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                                     yf_results[ticker][field] = yq_data[field]
                             
                             # Mark as hybrid data source
-                            yf_results[ticker]['data_source'] = 'YFinance+YahooQuery'
+                            yf_results[ticker]['data_source'] = HYBRID_SOURCE_NAME
                             supplemented_count += 1
                 except YFinanceError as e:
                     logger.warning(f"YahooQuery batch supplement failed: {str(e)}")

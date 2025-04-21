@@ -570,7 +570,7 @@ def _format_metrics_html(metrics: Dict[str, Any]) -> str:
         for name, metric in sorted(counter_metrics.items()):
             html += f"<tr><td>{name}</td><td>{metric.get('value', 0)}</td></tr>"
         
-        html += "</tbody></table></div>"
+        html += TABLE_END_HTML
     
     # Format gauges
     if gauge_metrics:
@@ -580,7 +580,7 @@ def _format_metrics_html(metrics: Dict[str, Any]) -> str:
         for name, metric in sorted(gauge_metrics.items()):
             html += f"<tr><td>{name}</td><td>{metric.get('value', 0)}</td></tr>"
         
-        html += "</tbody></table></div>"
+        html += TABLE_END_HTML
     
     # Format histograms
     if histogram_metrics:
@@ -595,7 +595,7 @@ def _format_metrics_html(metrics: Dict[str, Any]) -> str:
             
             html += f"<tr><td>{name}</td><td>{count}</td><td>{mean:.2f}</td><td>{min_val:.2f}</td><td>{max_val:.2f}</td></tr>"
         
-        html += "</tbody></table></div>"
+        html += TABLE_END_HTML
     
     html += "</div>"
     

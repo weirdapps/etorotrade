@@ -21,6 +21,7 @@ from yahoofinance.utils.async_utils.enhanced import (
 )
 from yahoofinance.utils.network.circuit_breaker import CircuitOpenError
 from yahoofinance.core.errors import RateLimitError
+from yahoofinance.utils.async_utils.enhanced import RATE_LIMIT_ERROR_MESSAGE, TOO_MANY_REQUESTS_ERROR_MESSAGE
 
 
 @pytest.fixture

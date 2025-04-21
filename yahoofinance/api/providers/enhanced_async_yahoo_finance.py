@@ -18,6 +18,9 @@ import aiohttp
 from typing import Dict, Any, Optional, List, Tuple, cast, TypeVar, Callable, Awaitable, Union
 import pandas as pd
 from functools import wraps
+
+# Define constants for repeated strings
+DEFAULT_ERROR_MESSAGE = "An error occurred"
 import datetime # Added for date checks
 
 # Use relative imports
@@ -121,11 +124,11 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                         retry_after = int(response.headers.get("Retry-After", "60"))
                         raise RateLimitError(f"Yahoo Finance API rate limit exceeded. Retry after {retry_after} seconds", retry_after=retry_after)
                     elif response.status == 404:
-                        raise YFinanceError("An error occurred")
+                        raise YFinanceError(DEFAULT_ERROR_MESSAGE)
                     else:
                         text = await response.text()
                         {"status_code": response.status, "response_text": text[:100]}
-                        raise YFinanceError("An error occurred")
+                        raise YFinanceError(DEFAULT_ERROR_MESSAGE)
             except aiohttp.ClientError as e:
                 raise NetworkError(f"Network error while fetching {url}: {str(e)}")
 
@@ -420,7 +423,7 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         except (APIError, ValidationError, RateLimitError, NetworkError) as e:
             # Log the specific error but raise a generic one
             self.logger.warning(f"Error fetching ticker info for {ticker}: {e}")
-            raise YFinanceError("An error occurred") from e
+            raise YFinanceError(DEFAULT_ERROR_MESSAGE) from e
         except YFinanceError as e:
             # Log and re-raise YFinanceError with additional context
             self.logger.error(f"YFinanceError encountered for {ticker}: {str(e)}")
@@ -495,6 +498,7 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         except (IOError, ConnectionError, aiohttp.ClientError) as e:
             raise NetworkError(f"Network error when fetching earnings data for {ticker}: {str(e)}")
         except (APIError, ValidationError, RateLimitError):
+            raise YFinanceError(DEFAULT_ERROR_MESSAGE)
             raise
 
     @enhanced_async_rate_limited(max_retries=0)
@@ -546,7 +550,7 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         try:
             data = await self._fetch_json(url, params)
             if not data or "quoteSummary" not in data or "result" not in data["quoteSummary"] or not data["quoteSummary"]["result"]:
-                raise YFinanceError("An error occurred")
+                raise YFinanceError(DEFAULT_ERROR_MESSAGE)
             result = data["quoteSummary"]["result"][0]
             transactions = []
             if "insiderTransactions" in result and "transactions" in result["insiderTransactions"]:
