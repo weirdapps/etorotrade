@@ -27,6 +27,10 @@ class TestCache(unittest.TestCase):
 
     def tearDown(self):
         """Clean up test cache directory"""
+        # Explicitly delete the cache instance to release resources
+        del self.cache
+        # Add a small delay to allow resources to be released before removing the directory
+        time.sleep(0.1)
         if os.path.exists(self.test_cache_dir):
             shutil.rmtree(self.test_cache_dir)
         self.cache_config_patch.stop()

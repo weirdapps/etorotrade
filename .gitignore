@@ -142,3 +142,9 @@ yahoofinance/output/performance.json
 # Additional files
 claude.md
 future_improvements.md
+
+# Generated Data
+output/
+yahoofinance/data/circuit_state.json
+yahoofinance/data/portfolio_cache.pkl
+yahoofinance/data/portfolio_prices.json
