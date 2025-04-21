@@ -127,10 +127,14 @@ class MockAsyncProvider(AsyncFinanceDataProvider):
             result[ticker] = await self.get_ticker_info(ticker)
         return result
     
-    async def search_tickers(self, query):
+    async def search_tickers(self, query, limit=None):
         """Mock implementation of search_tickers."""
         await asyncio.sleep(0.01)  # Simulate async work
-        return [{"symbol": query, "name": f"Test Company {query}"}]
+        result = [{"symbol": query, "name": f"Test Company {query}"}]
+        # Implement basic limit logic for the mock
+        if limit is not None and limit < len(result):
+            return result[:limit]
+        return result
     
     async def get_price_history(self, ticker, period="1y"):
         """Mock implementation of get_price_history."""

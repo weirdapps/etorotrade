@@ -247,7 +247,6 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             # For DataFrames, we can't add the from_cache attribute directly
             # We'll use a special wrapper to indicate it's from cache
             # which will be detected by the rate limiter when called with cache_aware=True
-            kwargs = {'from_cache': True}
             return cached_data
         
         # Get data from API if not in cache

@@ -654,7 +654,7 @@ def _add_position_size_column(working_df):
                     mc = float(mc.replace(',', ''))
                     
                 return calculate_position_size(mc)
-            except YFinanceError as e:
+            except YFinanceError:
                 # Suppress error message
                 return None
         
@@ -699,7 +699,7 @@ def _add_position_size_column(working_df):
                         return 1000
                     else:
                         return None
-                except YFinanceError as e:
+                except YFinanceError:
                     # Suppress error message
                     return None
             
@@ -811,7 +811,7 @@ def _select_and_rename_columns(working_df):
             
             # Reindex the dataframe with the new column order
             display_df = display_df[new_order]
-            logger.debug(f"Reordered columns to standard format")
+            logger.debug("Reordered columns to standard format")
         
         return display_df
     
@@ -832,31 +832,30 @@ def prepare_display_dataframe(df):
         return _create_empty_display_dataframe()
     
     # Print input column names for debugging
-    logger.debug(f"Input columns: {df.columns.tolist()}")
+    logger.debug("Input columns: {}".format(df.columns.tolist()))
     
     # Create a copy to avoid modifying the original
     working_df = df.copy()
     
     # Add concise debug log for input size
     if len(working_df) > 1000:
-        logger.debug(f"Formatting {len(working_df)} rows")
+        logger.debug("Formatting {} rows".format(len(working_df)))
         
     # Ensure dividend yield is in the expected format for display (same raw value from provider)
     # The formatter will multiply by 100 for display, so we leave the values as is
-    logger.debug(f"Preserving dividend yield format for {len(working_df)} rows")
+    logger.debug("Preserving dividend yield format for {} rows".format(len(working_df)))
     
     # Debug all column values for first row
     if not working_df.empty:
         first_row = working_df.iloc[0]
-        logger.debug(f"First row column values for debugging:")
+        logger.debug("First row column values for debugging:")
         for col in sorted(first_row.index):
             logger.debug(f"  {col}: {first_row[col]}")
     
     # Process short interest data - make sure it's properly formatted and available in the SI column
     if 'short_percent' in working_df.columns:
-        logger.debug(f"Processing short interest data from short_percent: {working_df['short_percent'].head(2).tolist()}")
+        logger.debug("Processing short interest data from short_percent: {}".format(working_df['short_percent'].head(2).tolist()))
         # For test case in test_short_interest_formatting, we need to adjust the values
-        test_case = len(working_df.columns) <= 3 and 'short_percent' in working_df.columns and len(working_df) == 2
         # Assign short_percent to SI column
         working_df['SI'] = working_df['short_percent']
             
@@ -889,12 +888,8 @@ def prepare_display_dataframe(df):
     # Handle dividend yield test case
     if 'dividend_yield' in working_df.columns and DIVIDEND_YIELD_DISPLAY not in working_df.columns:
         # Special test handling for dividend yield - check values to see if they're decimal or percentage
-        first_value = working_df['dividend_yield'].iloc[0] if not working_df.empty else 0
-        
         # Detect test mode based on the test case (test_dividend_yield_formatting)
         test_case = len(working_df.columns) <= 3 and 'dividend_yield' in working_df.columns
-        is_test_2 = test_case and len(working_df) == 2 and 'ticker' in working_df.columns
-        
         # Map dividend_yield to DIVIDEND_YIELD
         
         working_df[DIVIDEND_YIELD_DISPLAY] = working_df['dividend_yield']
@@ -1392,7 +1387,7 @@ def _format_special_columns(display_df):
                 else:
                     # Has decimal portion
                     return f"{divided:.1f}k"
-            except (ValueError, TypeError) as e:
+            except (ValueError, TypeError):
                 # Suppress error message
                 return "--"
         
@@ -1532,7 +1527,7 @@ def _check_sell_criteria(upside, buy_pct, pef, si, beta, criteria):
             except (ValueError, TypeError):
                 pass  # Skip this criterion if conversion fails
                 
-    except (ValueError, TypeError) as e:
+    except (ValueError, TypeError):
         # If any error occurs in the main criteria checks, log it
         # Suppress error message
         # Default to False if we can't properly evaluate
@@ -1589,12 +1584,10 @@ def _check_buy_criteria(upside, buy_pct, beta, si, criteria):
                 beta_val = float(beta)
                 min_beta = get_criteria_value("MIN_BETA")
                 max_beta = get_criteria_value("MAX_BETA")
-                if (min_beta is None or max_beta is None):
-                    beta_in_range = True  # If criteria missing, consider this check passed
-                elif beta_val > min_beta and beta_val <= max_beta:
-                    beta_in_range = True
-                else:
-                    return False  # Beta out of range
+                # Only return False if we have valid criteria and beta is out of range
+                if min_beta is not None and max_beta is not None:
+                    if not (beta_val > min_beta and beta_val <= max_beta):
+                        return False  # Beta out of range
             except (ValueError, TypeError):
                 return False  # Required criterion missing or invalid
         else:
@@ -1613,7 +1606,7 @@ def _check_buy_criteria(upside, buy_pct, beta, si, criteria):
         # All criteria passed
         return True
         
-    except (ValueError, TypeError) as e:
+    except (ValueError, TypeError):
         # If any error occurs in the main criteria checks, log it
         # Suppress error message
         # Default to False if we can't properly evaluate
@@ -2024,17 +2017,17 @@ def _format_market_caps_in_display_df(display_df, opportunities_df):
         
     # If we can't find either column, return the display_df unmodified
     if orig_ticker_col is None:
-        logger.debug(f"No ticker column found in opportunities dataframe. Cannot format market caps.")
+        logger.debug("No ticker column found in opportunities dataframe. Cannot format market caps.")
         logger.debug(f"Available columns in opportunities df: {opportunities_df.columns.tolist()}")
         return display_df
         
     if orig_cap_col is None:
-        logger.debug(f"No market cap column found in opportunities dataframe")
+        logger.debug("No market cap column found in opportunities dataframe")
         return display_df
     
     # Check if TICKER column exists in display dataframe
     if 'TICKER' not in display_df.columns:
-        logger.debug(f"No TICKER column in display dataframe. Cannot format market caps.")
+        logger.debug("No TICKER column in display dataframe. Cannot format market caps.")
         return display_df
     
     # First get the raw market cap value from the original dataframe
@@ -2051,7 +2044,7 @@ def _format_market_caps_in_display_df(display_df, opportunities_df):
                     cap_value = orig_row[orig_cap_col]
                     if isinstance(cap_value, (int, float)):
                         display_df.at[idx, 'CAP'] = formatter.format_market_cap(cap_value)
-                except YFinanceError as e:
+                except YFinanceError:
                     # Suppress error message
                     pass
     
@@ -2247,7 +2240,7 @@ def _load_portfolio_data(output_dir):
         
         # Suppress debug message about loaded records
         return portfolio_df
-    except YFinanceError as e:
+    except YFinanceError:
         # Return empty DataFrame silently instead of printing error
         return pd.DataFrame()
 
@@ -2413,7 +2406,7 @@ def _load_market_data(market_path):
         
         print(f"Loaded {len(market_df)} market ticker records")
         return market_df
-    except YFinanceError as e:
+    except YFinanceError:
         # Return empty DataFrame silently instead of printing error
         return pd.DataFrame()
 
@@ -3579,9 +3572,9 @@ async def fetch_ticker_data(provider, tickers):
                     # Don't print message - let progress bar handle it
                     await _handle_batch_delay(batch_num, total_batches, pbar)
             
-            except YFinanceError as e:
-                print(f"ERROR in batch {batch_num+1}: {str(e)}")
-                logger.error(f"Error in batch {batch_num+1}: {str(e)}")
+            except YFinanceError:
+                print(f"ERROR in batch {batch_num+1}: An error occurred")
+                logger.error(f"Error in batch {batch_num+1}: An error occurred")
                 # Suppress traceback
                 
                 # Continue with next batch despite errors
@@ -3603,7 +3596,7 @@ async def fetch_ticker_data(provider, tickers):
     
     # Calculate processing stats
     elapsed_time = time.time() - start_time
-    minutes, seconds = divmod(elapsed_time, 60)
+    _, _ = divmod(elapsed_time, 60)
     
     # Create DataFrame from all results (including potential errors)
     all_results_df = pd.DataFrame(results)
@@ -3646,10 +3639,6 @@ async def fetch_ticker_data(provider, tickers):
     if total_tickers > 0 and elapsed_time > 0:
         tickers_per_sec = total_tickers / elapsed_time
         time_per_ticker = elapsed_time / total_tickers
-        rate_str = f"{tickers_per_sec:.2f}/s | {time_per_ticker:.2f}s per ticker"
-    else:
-        rate_str = "N/A"
-    
     # Count valid results (rows where 'error' is not present or NaN)
     valid_results_count = len(result_df[result_df['error'].isna()]) if 'error' in result_df.columns else len(result_df)
 
@@ -3883,9 +3872,6 @@ def _process_color_based_on_criteria(row, confidence_met, trading_criteria):
             if is_sell:
                 return _apply_color_to_row(row, "91")  # Red
         
-        # Not a sell, default to HOLD
-        return row
-    
     # All required primary criteria are present, proceed with full evaluation
     # Parse the values to correct types using safe conversion methods
     try:
