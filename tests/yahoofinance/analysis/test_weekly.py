@@ -1,116 +1,147 @@
 import pytest
-from datetime import datetime, timedelta, date
+from unittest.mock import patch, Mock, MagicMock
 import pandas as pd
+from datetime import datetime, timedelta
+import pytz
+import asyncio
 from yahoofinance.analysis.performance import (
-    calculate_dates,
-    get_previous_trading_day_close,
-    fetch_weekly_change,
-    update_html
+    PerformanceTracker,
+    IndexPerformance,
+    INDICES
 )
 
-def test_calculate_dates():
-    # Test that the function returns two dates
-    last_friday, previous_friday = calculate_dates()
-    
-    # Check that both dates are datetime objects
-    assert isinstance(last_friday, datetime)
-    assert isinstance(previous_friday, datetime)
-    
-    # Check that previous_friday is 7 days before last_friday
-    assert (last_friday - previous_friday).days == 7
-    
-    # Check that both dates are Fridays
-    assert last_friday.weekday() == 4  # Friday is 4 in Python's weekday()
-    assert previous_friday.weekday() == 4
+@pytest.fixture
+def tracker():
+    """Create a PerformanceTracker with a mock provider."""
+    provider = Mock()
+    tracker = PerformanceTracker(provider=provider)
+    return tracker
 
-def test_get_previous_trading_day_close(mocker):
-    # Create a test date
-    test_date = datetime(2024, 1, 10)
-    
-    # Mock yfinance download function with data spanning the expected range
-    mock_data = pd.DataFrame({
-        'Close': [100.0, 101.0, 102.0],
-        'Date': pd.date_range(start=test_date - timedelta(days=7), periods=3)
-    }).set_index('Date')
-    
-    mocker.patch('yfinance.download', return_value=mock_data)
-    
-    # Test the function with our test date
-    price, actual_date = get_previous_trading_day_close('^GSPC', test_date)
-    
-    # Check that we get a float price and a date
-    assert isinstance(price, float)
-    assert isinstance(actual_date, date)
-    assert price == pytest.approx(102.0)
-
-def test_fetch_weekly_change(mocker):
-    # Create test dates
-    last_friday = datetime(2024, 1, 12)  # A Friday
-    previous_friday = last_friday - timedelta(days=7)  # Previous Friday
-    
-    # Mock get_previous_trading_day_close with a more robust comparison
-    def mock_trading_day_close(ticker, date):
-        # Convert both dates to date objects for comparison
-        test_date = date.date()
-        last_friday_date = last_friday.date()
-        previous_friday_date = previous_friday.date()
+def test_calculate_weekly_dates():
+    """Test that weekly dates are calculated correctly."""
+    # Mock today's date to ensure consistent test results
+    with patch('yahoofinance.analysis.performance.datetime') as mock_datetime:
+        # Test case: Today is Wednesday, March 20, 2024
+        mock_date = datetime(2024, 3, 20)
+        mock_datetime.today.return_value = mock_date
         
-        if test_date == last_friday_date:
-            return 110.0, last_friday_date
-        elif test_date == previous_friday_date:
-            return 100.0, previous_friday_date
-        else:
-            return 0.0, test_date  # Fallback case
-    
-    mocker.patch(
-        'yahoofinance.analysis.performance.get_previous_trading_day_close',
-        side_effect=mock_trading_day_close
-    )
-    
-    # Test the function with our specific dates
-    results = fetch_weekly_change(last_friday, previous_friday)
-    
-    # Check results
-    assert isinstance(results, list)
-    assert len(results) > 0
-    assert 'Index' in results[0]
-    assert 'Change Percent' in results[0]
-    
-    # Check that the change percentage is correct
-    # 110 is 10% higher than 100
-    assert '+10.00%' in results[0]['Change Percent']
+        # Get weekly dates
+        oldest_friday, newest_friday = PerformanceTracker.calculate_weekly_dates()
+        
+        # The most recent completed week should end on Friday, March 15, 2024
+        assert newest_friday.date() == datetime(2024, 3, 15).date()
+        # The previous week should end on Friday, March 8, 2024
+        assert oldest_friday.date() == datetime(2024, 3, 8).date()
 
-def test_update_html(tmp_path):
-    # Create a temporary HTML file
-    html_content = """
-    <html>
-    <body>
-        <div id="DJI30">old value</div>
-        <div id="SP500">old value</div>
-    </body>
-    </html>
-    """
-    html_file = tmp_path / "test.html"
-    html_file.write_text(html_content)
-    
-    # Test data
-    test_data = [
-        {
-            'Index': 'DJI30',
-            'Change Percent': '+5.00%'
-        },
-        {
-            'Index': 'SP500',
-            'Change Percent': '+3.00%'
-        }
+def test_get_index_performance(tracker):
+    """Test that getting index performance works correctly."""
+    # Mock the calculate_dates and get_previous_trading_day_close methods
+    with (
+        patch.object(tracker, 'calculate_weekly_dates') as mock_calc_dates,
+        patch.object(tracker, 'get_previous_trading_day_close') as mock_get_close
+    ):
+        # Setup mocks
+        mock_calc_dates.return_value = (datetime(2024, 3, 8), datetime(2024, 3, 15))
+        
+        # Setup mock for get_previous_trading_day_close
+        mock_get_close.side_effect = [
+            # First call: previous price for index1
+            (100.0, datetime(2024, 3, 8)),
+            # Second call: current price for index1
+            (110.0, datetime(2024, 3, 15)),
+            # Calls for other indices (simplified for test)
+            (200.0, datetime(2024, 3, 8)),
+            (220.0, datetime(2024, 3, 15)),
+            (300.0, datetime(2024, 3, 8)),
+            (330.0, datetime(2024, 3, 15)),
+            (20.0, datetime(2024, 3, 8)),
+            (18.0, datetime(2024, 3, 15)),
+        ]
+        
+        # Call the method with 'weekly' period type
+        performances = tracker.get_index_performance(period_type="weekly")
+        
+        # Check results
+        assert len(performances) == len(INDICES)  # Should have one performance per index
+        
+        # Check the first performance
+        perf = performances[0]
+        assert isinstance(perf, IndexPerformance)
+        assert perf.index_name in INDICES.keys()
+        assert perf.ticker in INDICES.values()
+        assert perf.previous_value == 100.0
+        assert perf.current_value == 110.0
+        assert abs(perf.change_percent - 10.0) < 1e-10  # Should be 10% increase
+        assert perf.start_date == datetime(2024, 3, 8)
+        assert perf.end_date == datetime(2024, 3, 15)
+        assert perf.period_type == "weekly"
+
+def test_generate_index_performance_html(tracker):
+    """Test that generating index performance HTML works correctly."""
+    # Create sample performances
+    performances = [
+        IndexPerformance(
+            index_name="DJI30",
+            ticker="^DJI",
+            previous_value=100.0,
+            current_value=110.0,
+            change_percent=10.0,
+            start_date=datetime(2024, 3, 8),
+            end_date=datetime(2024, 3, 15),
+            period_type="weekly"
+        ),
+        IndexPerformance(
+            index_name="SP500",
+            ticker="^GSPC",
+            previous_value=200.0,
+            current_value=220.0,
+            change_percent=10.0,
+            start_date=datetime(2024, 3, 8),
+            end_date=datetime(2024, 3, 15),
+            period_type="weekly"
+        )
     ]
     
-    # Update the HTML
-    update_html(test_data, str(html_file))
+    # Mock the html_generator
+    tracker.html_generator = Mock()
+    tracker.html_generator.generate_market_html.return_value = "<html>test</html>"
     
-    # Read the updated file
-    updated_content = html_file.read_text()
+    # Mock open to prevent actual file writing
+    with patch('builtins.open', MagicMock()):
+        # Call the method
+        result = tracker.generate_index_performance_html(performances, title="Weekly Market Performance")
+        
+        # Should have called the html_generator
+        tracker.html_generator.generate_market_html.assert_called_once()
+        
+        # Should return a path
+        assert result is not None
+
+def test_save_performance_data(tracker):
+    """Test that saving performance data works correctly."""
+    # Create sample performances
+    performances = [
+        IndexPerformance(
+            index_name="DJI30",
+            ticker="^DJI",
+            previous_value=100.0,
+            current_value=110.0,
+            change_percent=10.0,
+            start_date=datetime(2024, 3, 8),
+            end_date=datetime(2024, 3, 15),
+            period_type="weekly"
+        )
+    ]
     
-    # Check that values were updated
-    assert '>+5.00%<' in updated_content
-    assert '>+3.00%<' in updated_content
+    # Mock open to prevent actual file writing
+    with patch('builtins.open', MagicMock()), \
+         patch('json.dump') as mock_json_dump:
+        
+        # Call the method
+        result = tracker.save_performance_data(performances, file_name="weekly.json")
+        
+        # Should have called json.dump
+        mock_json_dump.assert_called_once()
+        
+        # Should return a path
+        assert result is not None

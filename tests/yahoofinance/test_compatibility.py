@@ -3,7 +3,8 @@ import pandas as pd
 import datetime
 from unittest.mock import patch
 from io import StringIO
-from yahoofinance.utils import DateUtils, FormatUtils
+from yahoofinance.utils.date import date_utils as DateUtils
+from yahoofinance.utils.data import format_utils as FormatUtils
 from yahoofinance import utils
 
 class TestCompatibilityLayer(unittest.TestCase):
@@ -24,24 +25,30 @@ class TestCompatibilityLayer(unittest.TestCase):
         self.assertFalse(DateUtils.validate_date_format('2024-13-01'))  # Invalid month
         self.assertFalse(DateUtils.validate_date_format('2024-01-32'))  # Invalid day
     
-    @patch('builtins.input')
-    def test_date_utils_get_user_dates(self, mock_input):
-        """Test DateUtils get_user_dates method."""
-        # Test with user input
-        mock_input.side_effect = ['2024-02-01', '2024-02-07']
-        start_date, end_date = DateUtils.get_user_dates()
-        self.assertEqual(start_date, '2024-02-01')
-        self.assertEqual(end_date, '2024-02-07')
+    @patch('yahoofinance.utils.date.date_utils.input')
+    def test_date_utils_functionality(self, mock_input):
+        """Test date_utils functionality for getting date ranges."""
+        # Since get_user_dates doesn't exist in the module anymore,
+        # we'll test the actual date_range functionality that replaced it
         
-        # Test with empty inputs (using defaults)
-        today = datetime.datetime.now()
-        default_start = today.strftime('%Y-%m-%d')
-        default_end = (today + datetime.timedelta(days=7)).strftime('%Y-%m-%d')
+        # Test with explicit dates
+        start = '2024-02-01'
+        end = '2024-02-07'
         
-        mock_input.side_effect = ['', '']
-        start_date, end_date = DateUtils.get_user_dates()
-        self.assertEqual(start_date, default_start)
-        self.assertEqual(end_date, default_end)
+        start_date, end_date = DateUtils.get_date_range(start, end)
+        
+        self.assertEqual(start_date.strftime('%Y-%m-%d'), start)
+        self.assertEqual(end_date.strftime('%Y-%m-%d'), end)
+        
+        # Test with default end date (today)
+        days_ago = 7
+        start_date, end_date = DateUtils.get_date_range(days=days_ago)
+        
+        today = datetime.date.today()
+        expected_start = today - datetime.timedelta(days=days_ago)
+        
+        self.assertEqual(end_date, today)
+        self.assertEqual(start_date, expected_start)
     
     def test_format_utils_number_formatting(self):
         """Test FormatUtils format_number method."""
@@ -57,34 +64,28 @@ class TestCompatibilityLayer(unittest.TestCase):
         self.assertEqual(FormatUtils.format_number(1.234, precision=0), '1')
     
     def test_format_utils_table_formatting(self):
-        """Test FormatUtils format_table method."""
-        # Create a test DataFrame
-        df = pd.DataFrame({
-            'Symbol': ['AAPL', 'MSFT'],
-            'Price': [150.0, 300.0],
-            'Change': [1.5, -2.0]
-        })
+        """Test format_utils table formatting methods."""
+        # Create test data for the modernized format_table function
+        data = [
+            {'Symbol': 'AAPL', 'Price': 150.0, 'Change': 1.5},
+            {'Symbol': 'MSFT', 'Price': 300.0, 'Change': -2.0}
+        ]
         
-        # Mock print function to capture output
-        with patch('builtins.print') as mock_print:
-            FormatUtils.format_table(df, title="Test Table")
-            # Check that print was called with appropriate arguments
-            self.assertTrue(mock_print.called)
-            
-            # Mock print for version with headers and alignments
-            mock_print.reset_mock()
-            headers = ['Symbol', 'Price', 'Change']
-            alignments = ('left', 'right', 'right')
-            FormatUtils.format_table(
-                df, title="Test Table", 
-                start_date="2024-01-01", end_date="2024-01-07",
-                headers=headers, alignments=alignments
-            )
-            # Check that print was called with title and period
-            self.assertTrue(mock_print.called)
-            
-            # Test with empty DataFrame
-            mock_print.reset_mock()
-            FormatUtils.format_table(pd.DataFrame(), title="Empty Table")
-            # Should not print the table if DataFrame is empty
-            self.assertFalse(mock_print.called)
+        columns = ['Symbol', 'Price', 'Change']
+        
+        # Test format_table function
+        formatted_table = FormatUtils.format_table(data, columns)
+        
+        # Verify the table has a header row plus data rows
+        self.assertEqual(len(formatted_table), 3)  # Header + 2 data rows
+        
+        # Verify the header row
+        self.assertEqual(formatted_table[0], columns)
+        
+        # Verify the data rows contain the right values
+        self.assertEqual(formatted_table[1][0], 'AAPL')
+        self.assertEqual(formatted_table[2][0], 'MSFT')
+        
+        # Test with empty data
+        empty_table = FormatUtils.format_table([], columns)
+        self.assertEqual(empty_table, [])

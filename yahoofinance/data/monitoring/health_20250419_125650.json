@@ -1,0 +1,28 @@
+{
+  "system": {
+    "component": "system",
+    "status": "healthy",
+    "details": "Based on 3 component checks",
+    "timestamp": 1745056610.582658
+  },
+  "components": [
+    {
+      "component": "api",
+      "status": "healthy",
+      "details": "Error rate: 0.00%",
+      "timestamp": 1745056581.7477918
+    },
+    {
+      "component": "memory",
+      "status": "healthy",
+      "details": "Memory usage: 0.12%",
+      "timestamp": 1745056581.748097
+    },
+    {
+      "component": "system_resources",
+      "status": "healthy",
+      "details": "Normal resource usage: Memory=0.1%, CPU=0.0%",
+      "timestamp": 1745056581.74825
+    }
+  ]
+}

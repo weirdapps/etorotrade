@@ -9,5 +9,43 @@
     "tags": {
       "test": "true"
     }
+  },
+  {
+    "name": "test_alert",
+    "severity": "warning",
+    "message": "Test alert message",
+    "value": 95.0,
+    "threshold": 90.0,
+    "timestamp": 1745173620.300503,
+    "tags": {
+      "service": "test"
+    }
+  },
+  {
+    "name": "test_counter_gt_45",
+    "severity": "warning",
+    "message": "Counter 50.0 exceeds threshold 45",
+    "value": 50.0,
+    "threshold": 45,
+    "timestamp": 1745173620.389718,
+    "tags": {}
+  },
+  {
+    "name": "test_gauge_ge_75",
+    "severity": "error",
+    "message": "Gauge 75.5 exceeds threshold 75",
+    "value": 75.5,
+    "threshold": 75,
+    "timestamp": 1745173620.3901088,
+    "tags": {}
+  },
+  {
+    "name": "test_histogram_le_30",
+    "severity": "info",
+    "message": "Histogram mean 20.0 is below threshold 30",
+    "value": 20.0,
+    "threshold": 30,
+    "timestamp": 1745173620.39062,
+    "tags": {}
   }
 ]

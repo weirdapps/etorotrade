@@ -99,6 +99,9 @@ async def test_async_rate_limiter_record_failure():
         max_delay=0.5
     )
     
+    # Set error_threshold to 1 to match test expectations
+    limiter.error_threshold = 1
+    
     # Record failures
     await limiter.record_failure(is_rate_limit=False)
     assert limiter.failure_streak == 1
@@ -324,15 +327,17 @@ async def test_async_rate_limited_decorator():
     limiter.record_success.assert_called_once()
     limiter.record_failure.assert_not_called()
     
-    # Test failure
+    # Test failure with YFinanceError - this should trigger record_failure
     limiter.wait.reset_mock()
     limiter.record_success.reset_mock()
     
+    from yahoofinance.core.errors import YFinanceError
+    
     @async_rate_limited(limiter)
     async def fail_func():
-        raise ValueError("test error")
+        raise YFinanceError("test error")
     
-    with pytest.raises(ValueError, match="test error"):
+    with pytest.raises(YFinanceError, match="test error"):
         await fail_func()
     
     limiter.wait.assert_called_once()

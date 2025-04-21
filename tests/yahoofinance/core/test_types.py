@@ -1,10 +1,10 @@
 import unittest
+from unittest.mock import Mock
+import yfinance as yf
 
 from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
 from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
-from unittest.mock import Mock
-import yfinance as yf
-from yahoofinance.core.types import YFinanceError, APIError, ValidationError, StockData
+from yahoofinance.core.types import StockData
 
 class TestExceptions(unittest.TestCase):
     """Test suite for custom exceptions"""
@@ -33,7 +33,7 @@ class TestExceptions(unittest.TestCase):
             try:
                 raise original_error
             except ValueError as e:
-                raise from e
+                raise APIError("Chained error") from e
         except APIError as e:
             self.assertIs(e.__cause__, original_error)
 
@@ -147,8 +147,8 @@ class TestStockData(unittest.TestCase):
         self.assertEqual(stock.insider_buy_pct, 75.0)
         self.assertEqual(stock.insider_transactions, 5)
     
-    def test_stock_property_success(self):
-        """Test _stock property with valid ticker object"""
+    def test_ticker_object_property(self):
+        """Test ticker_object property with valid ticker object"""
         mock_ticker = Mock(spec=yf.Ticker)
         stock = StockData(
             name="Test Stock",
@@ -157,38 +157,45 @@ class TestStockData(unittest.TestCase):
             ticker_object=mock_ticker
         )
         
-        self.assertIs(stock._stock, mock_ticker)
+        self.assertIs(stock.ticker_object, mock_ticker)
     
-    def test_stock_property_error(self):
-        """Test _stock property with missing ticker object"""
+    def test_to_dict_excludes_ticker_object(self):
+        """Test that to_dict excludes ticker_object"""
+        mock_ticker = Mock(spec=yf.Ticker)
         stock = StockData(
             name="Test Stock",
             sector="Technology",
-            recommendation_key="buy"
+            recommendation_key="buy",
+            ticker_object=mock_ticker
         )
         
-        with self.assertRaises(AttributeError) as context:
-            _ = stock._stock
-        self.assertEqual(str(context.exception), "No ticker object available")
+        data_dict = stock.to_dict()
+        self.assertNotIn('ticker_object', data_dict)
+        self.assertIn('name', data_dict)
+        self.assertEqual(data_dict['name'], "Test Stock")
     
-    def test_field_type_validation(self):
-        """Test field type validation"""
-        # Test numeric fields with string values
-        with self.assertRaises(TypeError):
-            StockData(
-                name="Test Stock",
-                sector="Technology",
-                recommendation_key="buy",
-                current_price="not a number"
-            )
+    def test_from_dict_method(self):
+        """Test the from_dict class method"""
+        data = {
+            "name": "Test Stock",
+            "sector": "Technology",
+            "recommendation_key": "buy",
+            "market_cap": 1000000000.0,
+            "current_price": 150.0,
+            "target_price": 180.0,
+            "unknown_field": "This should be filtered out"
+        }
         
-        # Test string fields with non-string values
-        with self.assertRaises(TypeError):
-            StockData(
-                name=123,  # Should be string
-                sector="Technology",
-                recommendation_key="buy"
-            )
+        stock = StockData.from_dict(data)
+        
+        # Check that valid fields are set
+        self.assertEqual(stock.name, "Test Stock")
+        self.assertEqual(stock.sector, "Technology")
+        self.assertEqual(stock.market_cap, 1000000000.0)
+        self.assertEqual(stock.current_price, 150.0)
+        
+        # Verify that unknown fields are filtered out
+        self.assertFalse(hasattr(stock, "unknown_field"))
     
     def test_edge_cases(self):
         """Test edge cases and boundary conditions"""

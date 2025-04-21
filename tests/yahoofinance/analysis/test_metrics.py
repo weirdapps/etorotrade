@@ -1,159 +1,259 @@
 import pytest
-from unittest.mock import patch, Mock
-import sys
-from io import StringIO
-from yahoofinance.analysis.metrics import show_available_metrics, main
+from unittest.mock import Mock, patch, MagicMock
+import pandas as pd
+from yahoofinance.analysis.metrics import PricingAnalyzer, PriceData, PriceTarget
+
+# Sample ticker data for testing
+SAMPLE_TICKER_INFO = {
+    'price': 150.0,
+    'change': 2.5,
+    'change_percent': 1.69,
+    'volume': 75000000,
+    'average_volume': 70000000,
+    'target_price': 180.0,
+    'median_target_price': 175.0,
+    'highest_target_price': 200.0,
+    'lowest_target_price': 150.0,
+    'upside': 20.0,
+    'analyst_count': 32,
+    'pe_ratio': 25.5,
+    'forward_pe': 22.3,
+    'peg_ratio': 1.5,
+    'price_to_book': 15.2,
+    'price_to_sales': 6.8,
+    'ev_to_ebitda': 18.4,
+    'dividend_yield': 0.65,
+    'dividend_rate': 0.92,
+    'ex_dividend_date': '2024-01-05',
+    'earnings_growth': 12.5,
+    'revenue_growth': 8.2,
+    'beta': 1.2,
+    'short_percent': 0.8,
+    'market_cap': 2500000000000,
+    'market_cap_fmt': '2.5T',
+    'enterprise_value': 2700000000000,
+    'float_shares': 16000000000,
+    'shares_outstanding': 16500000000,
+    'high_52week': 175.0,
+    'low_52week': 125.0,
+    'from_high': -14.29,
+    'from_low': 20.0
+}
 
 @pytest.fixture
-def mock_stock_info():
-    return {
-        # Valuation metrics
-        'trailingPE': 25.5,
-        'forwardPE': 20.1,
-        'priceToBook': 10.2,
-        'enterpriseValue': 2000000000,
-        
-        # Growth & Margins
-        'revenueGrowth': 0.15,
-        'profitMargins': 0.25,
-        'grossMargins': 0.45,
-        
-        # Financial Health
-        'currentRatio': 1.5,
-        'debtToEquity': 0.8,
-        'returnOnEquity': 0.2,
-        
-        # Market Data
-        'beta': 1.2,
-        'marketCap': 1500000000,
-        'shortRatio': 2.5,
-        
-        # Dividends
-        'dividendYield': 0.03,
-        'payoutRatio': 0.4,
-        
-        # Earnings
-        'trailingEps': 5.5,
-        'forwardEps': 6.2
-    }
+def mock_provider():
+    provider = Mock()
+    provider.get_ticker_info = Mock(return_value=SAMPLE_TICKER_INFO)
+    provider.batch_get_ticker_info = Mock(return_value={
+        'AAPL': SAMPLE_TICKER_INFO,
+        'MSFT': SAMPLE_TICKER_INFO,
+    })
+    return provider
 
 @pytest.fixture
-def mock_yf_ticker(mock_stock_info):
-    mock_ticker = Mock()
-    mock_ticker.info = mock_stock_info
-    return mock_ticker
-
-def test_show_available_metrics(mock_yf_ticker, capsys):
-    with patch('yfinance.Ticker', return_value=mock_yf_ticker):
-        show_available_metrics('AAPL')
-        
-        captured = capsys.readouterr()
-        output = captured.out
-        
-        # Check header
-        assert 'Available metrics for AAPL' in output
-        assert '=' * 80 in output
-        
-        # Check categories
-        assert 'Valuation:' in output
-        assert 'Growth & Margins:' in output
-        assert 'Financial Health:' in output
-        assert 'Market Data:' in output
-        assert 'Dividends:' in output
-        assert 'Earnings:' in output
-        
-        # Check some specific metrics
-        assert 'trailingPE' in output
-        assert '25.5' in output
-        assert 'beta' in output
-        assert '1.2' in output
-        assert 'dividendYield' in output
-        assert '0.03' in output
-
-def test_show_available_metrics_missing_values(mock_yf_ticker, capsys):
-    # Modify mock to have some None values
-    mock_yf_ticker.info = {
-        'trailingPE': None,
-        'beta': 1.2,
-        'dividendYield': None
-    }
+def async_mock_provider():
+    provider = Mock()
     
-    with patch('yfinance.Ticker', return_value=mock_yf_ticker):
-        show_available_metrics('AAPL')
-        
-        captured = capsys.readouterr()
-        output = captured.out
-        
-        # None values should not be printed
-        assert 'trailingPE' not in output
-        assert 'beta                      = 1.2' in output
-        assert 'dividendYield' not in output
-
-def test_show_available_metrics_empty_info(capsys):
-    mock_ticker = Mock()
-    mock_ticker.info = {}
+    # Create a spy to track calls
+    call_tracker = {"called": False}
     
-    with patch('yfinance.Ticker', return_value=mock_ticker):
-        show_available_metrics('AAPL')
-        
-        captured = capsys.readouterr()
-        output = captured.out
-        
-        # Should still show categories but no metrics
-        assert 'Available metrics for AAPL' in output
-        assert 'Valuation:' in output
-        assert 'Growth & Margins:' in output
-        assert 'trailingPE' not in output
-        assert 'beta' not in output
-
-def test_main_with_valid_args():
-    test_args = ['script.py', 'AAPL']
-    with patch.object(sys, 'argv', test_args), \
-         patch('yahoofinance.analysis.metrics.show_available_metrics') as mock_show:
-        main()
-        mock_show.assert_called_once_with('AAPL')
-
-def test_main_with_invalid_args(capsys):
-    test_args = ['script.py']
-    with patch.object(sys, 'argv', test_args):
-        with pytest.raises(SystemExit) as exc_info:
-            main()
-        assert exc_info.value.code == 1
-        
-        captured = capsys.readouterr()
-        assert "Usage: python -m yahoofinance.metrics TICKER" in captured.out
-
-def test_main_lowercase_ticker():
-    test_args = ['script.py', 'aapl']
-    with patch.object(sys, 'argv', test_args), \
-         patch('yahoofinance.analysis.metrics.show_available_metrics') as mock_show:
-        main()
-        # Should convert ticker to uppercase
-        mock_show.assert_called_once_with('AAPL')
-
-def test_metrics_categories_structure(mock_yf_ticker):
-    """Test that all expected metric categories are present"""
-    # Define expected categories and their required metrics
-    expected_categories = {
-        "Valuation": ["trailingPE", "forwardPE", "priceToBook"],
-        "Growth & Margins": ["revenueGrowth", "profitMargins", "grossMargins"],
-        "Financial Health": ["currentRatio", "debtToEquity", "returnOnEquity"],
-        "Market Data": ["beta", "marketCap", "shortRatio"],
-        "Dividends": ["dividendYield", "payoutRatio"],
-        "Earnings": ["trailingEps", "forwardEps"]
-    }
+    async def mock_get_ticker_info(*args, **kwargs):
+        call_tracker["called"] = True
+        call_tracker["args"] = args
+        call_tracker["kwargs"] = kwargs
+        return SAMPLE_TICKER_INFO
     
-    import inspect
-    from yahoofinance.analysis.metrics import show_available_metrics
-    source = inspect.getsource(show_available_metrics)
+    async def mock_batch_get_ticker_info(*args, **kwargs):
+        call_tracker["batch_called"] = True
+        call_tracker["batch_args"] = args
+        call_tracker["batch_kwargs"] = kwargs
+        return {
+            'AAPL': SAMPLE_TICKER_INFO,
+            'MSFT': SAMPLE_TICKER_INFO,
+        }
     
-    # Verify each category and some of its metrics are present
-    for category, metrics in expected_categories.items():
-        assert category in source, f"Missing category: {category}"
-        for metric in metrics:
-            assert metric in source, f"Missing metric: {metric} in category {category}"
+    provider.get_ticker_info = mock_get_ticker_info
+    provider.batch_get_ticker_info = mock_batch_get_ticker_info
+    provider.call_tracker = call_tracker
+    return provider
+
+@pytest.fixture
+def analyzer(mock_provider):
+    return PricingAnalyzer(mock_provider)
+
+@pytest.fixture
+def async_analyzer(async_mock_provider):
+    analyzer = PricingAnalyzer(async_mock_provider)
+    # Force is_async to True for testing
+    analyzer.is_async = True
+    return analyzer
+
+class TestPriceData:
+    """Tests for PriceData class"""
+    
+    def test_price_data_init(self):
+        """Test PriceData initialization"""
+        data = PriceData(
+            price=150.0,
+            change=2.5,
+            change_percent=1.69,
+            volume=75000000,
+            average_volume=70000000,
+            volume_ratio=1.07,
+            high_52week=175.0,
+            low_52week=125.0,
+            from_high=-14.29,
+            from_low=20.0
+        )
+        
+        assert data.price == 150.0
+        assert data.change == 2.5
+        assert data.change_percent == 1.69
+        assert data.volume == 75000000
+        assert data.average_volume == 70000000
+        assert data.volume_ratio == 1.07
+        assert data.high_52week == 175.0
+        assert data.low_52week == 125.0
+        assert data.from_high == -14.29
+        assert data.from_low == 20.0
+
+class TestPriceTarget:
+    """Tests for PriceTarget class"""
+    
+    def test_price_target_init(self):
+        """Test PriceTarget initialization"""
+        target = PriceTarget(
+            average=180.0,
+            median=175.0,
+            high=200.0,
+            low=150.0,
+            upside=20.0,
+            analyst_count=32
+        )
+        
+        assert target.average == 180.0
+        assert target.median == 175.0
+        assert target.high == 200.0
+        assert target.low == 150.0
+        assert target.upside == 20.0
+        assert target.analyst_count == 32
+
+class TestPricingAnalyzer:
+    """Tests for PricingAnalyzer class"""
+    
+    def test_init(self, mock_provider):
+        """Test analyzer initialization"""
+        analyzer = PricingAnalyzer(mock_provider)
+        assert analyzer.provider == mock_provider
+        assert not analyzer.is_async
+    
+    def test_process_price_data(self, analyzer):
+        """Test _process_price_data method"""
+        result = analyzer._process_price_data(SAMPLE_TICKER_INFO)
+        
+        assert isinstance(result, PriceData)
+        assert result.price == 150.0
+        assert result.change == 2.5
+        assert result.change_percent == 1.69
+        assert result.volume == 75000000
+        assert result.average_volume == 70000000
+        assert result.volume_ratio == 75000000 / 70000000
+        assert result.high_52week == 175.0
+        assert result.low_52week == 125.0
+        assert result.from_high == -14.29
+        assert result.from_low == 20.0
+    
+    def test_process_price_target(self, analyzer):
+        """Test _process_price_target method"""
+        result = analyzer._process_price_target(SAMPLE_TICKER_INFO)
+        
+        assert isinstance(result, PriceTarget)
+        assert result.average == 180.0
+        assert result.median == 175.0
+        assert result.high == 200.0
+        assert result.low == 150.0
+        assert result.upside == 20.0
+        assert result.analyst_count == 32
+    
+    def test_get_price_data(self, analyzer, mock_provider):
+        """Test get_price_data method"""
+        result = analyzer.get_price_data("AAPL")
+        
+        mock_provider.get_ticker_info.assert_called_once_with("AAPL")
+        assert isinstance(result, PriceData)
+        assert result.price == 150.0
+        assert result.volume_ratio is not None
+    
+    def test_get_price_target(self, analyzer, mock_provider):
+        """Test get_price_target method"""
+        result = analyzer.get_price_target("AAPL")
+        
+        mock_provider.get_ticker_info.assert_called_once_with("AAPL")
+        assert isinstance(result, PriceTarget)
+        assert result.average == 180.0
+        assert result.analyst_count == 32
+    
+    def test_get_all_metrics(self, analyzer, mock_provider):
+        """Test get_all_metrics method"""
+        result = analyzer.get_all_metrics("AAPL")
+        
+        mock_provider.get_ticker_info.assert_called_once_with("AAPL")
+        assert isinstance(result, dict)
+        assert result["price"] == 150.0
+        assert result["pe_ratio"] == 25.5
+        assert result["peg_ratio"] == 1.5
+        assert result["beta"] == 1.2
+        assert result["market_cap"] == 2500000000000
+    
+    def test_get_metrics_batch(self, analyzer, mock_provider):
+        """Test get_metrics_batch method"""
+        result = analyzer.get_metrics_batch(["AAPL", "MSFT"])
+        
+        mock_provider.batch_get_ticker_info.assert_called_once_with(["AAPL", "MSFT"])
+        assert isinstance(result, dict)
+        assert "AAPL" in result
+        assert "MSFT" in result
+        assert isinstance(result["AAPL"], dict)
+        assert result["AAPL"]["price"] == 150.0
+    
+    @pytest.mark.asyncio
+    async def test_get_price_data_async(self, async_analyzer, async_mock_provider):
+        """Test get_price_data_async method"""
+        with patch.object(async_analyzer, '_process_price_data', return_value=PriceData(price=150.0)):
+            result = await async_analyzer.get_price_data_async("AAPL")
             
-    # Verify the function runs without errors when properly mocked
-    with patch('yfinance.Ticker', return_value=mock_yf_ticker), \
-         patch('builtins.print'):  # Suppress output
-        show_available_metrics('AAPL')
+            assert async_mock_provider.call_tracker["called"]
+            assert isinstance(result, PriceData)
+            assert result.price == 150.0
+    
+    @pytest.mark.asyncio
+    async def test_get_price_target_async(self, async_analyzer, async_mock_provider):
+        """Test get_price_target_async method"""
+        with patch.object(async_analyzer, '_process_price_target', return_value=PriceTarget(average=180.0)):
+            result = await async_analyzer.get_price_target_async("AAPL")
+            
+            assert async_mock_provider.call_tracker["called"]
+            assert isinstance(result, PriceTarget)
+            assert result.average == 180.0
+    
+    @pytest.mark.asyncio
+    async def test_get_all_metrics_async(self, async_analyzer, async_mock_provider):
+        """Test get_all_metrics_async method"""
+        with patch.object(async_analyzer, '_extract_all_metrics', return_value={"price": 150.0}):
+            result = await async_analyzer.get_all_metrics_async("AAPL")
+            
+            assert async_mock_provider.call_tracker["called"]
+            assert isinstance(result, dict)
+            assert result["price"] == 150.0
+    
+    @pytest.mark.asyncio
+    async def test_get_metrics_batch_async(self, async_analyzer, async_mock_provider):
+        """Test get_metrics_batch_async method"""
+        with patch.object(async_analyzer, '_extract_metrics', return_value={"price": 150.0}):
+            result = await async_analyzer.get_metrics_batch_async(["AAPL", "MSFT"])
+            
+            assert async_mock_provider.call_tracker["batch_called"]
+            assert isinstance(result, dict)
+            assert "AAPL" in result
+            assert "MSFT" in result
+            assert result["AAPL"]["price"] == 150.0

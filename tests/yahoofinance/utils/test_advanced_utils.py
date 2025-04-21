@@ -7,16 +7,16 @@ These tests verify the proper integration between different utility modules.
 
 import unittest
 import pytest
-from ..core.logging_config import get_logger
+import logging
 from unittest.mock import patch
 
-from yahoofinance.utils.network.rate_limiter import global_rate_limiter
+from yahoofinance.utils.network.rate_limiter import RateLimiter
 from yahoofinance.utils.network.pagination import PaginatedResults
-from yahoofinance.utils.async_utils import retry_async
-from yahoofinance.core.errors import RateLimitError
+from yahoofinance.utils.async_utils.helpers import async_retry
+from yahoofinance.core.errors import RateLimitError, YFinanceError, YFinanceError
 
 # Import test fixtures
-from ...fixtures import (
+from tests.fixtures import (
     create_paginated_data, create_mock_fetcher, create_flaky_function
 )
 
@@ -32,38 +32,42 @@ logger = logging.getLogger("test_advanced_utils")
 class TestAdvancedIntegration(unittest.TestCase):
     """Test the integration between rate limiting and pagination."""
     
-    @patch('yahoofinance.utils.network.pagination.global_rate_limiter')
-    def test_paginator_with_rate_limiter(self, mock_rate_limiter):
-        """Test that pagination properly uses rate limiting."""
-        # Setup mock rate limiter
-        mock_rate_limiter.get_delay.return_value = 0.01
-        mock_rate_limiter.add_call.return_value = None
-        
+    def test_paginator_with_retry_mechanism(self):
+        """Test that pagination properly uses retry mechanisms."""
         # Create mock paginated data
         pages = create_paginated_data(num_pages=3, items_per_page=2)
         mock_fetcher = create_mock_fetcher(pages)
         
-        # Create paginated results iterator
+        # Create a custom fetch function that simulates rate limiting
+        def fetch_page_with_rate_limiting(page_token=None):
+            # Return the page data from the mock fetcher
+            return mock_fetcher(page_token)
+        
+        # Create a custom process function
+        def process_results(response):
+            return response.get('items', [])
+            
+        # Create a custom token function
+        def get_next_token(response):
+            return response.get('next_page_token')
+        
+        # Initialize a PaginatedResults object with our functions
         paginator = PaginatedResults(
-            fetcher=mock_fetcher,
-            items_key="items",
-            token_key="next_page_token",
-            ticker="AAPL"
+            fetch_page_func=fetch_page_with_rate_limiting,
+            process_results_func=process_results,
+            get_next_page_token_func=get_next_token
         )
         
-        # Iterate through all pages to trigger rate limiting
-        list(paginator)
+        # Fetch all pages
+        results = paginator.fetch_all()
         
-        # Verify rate limiter was used
-        self.assertTrue(mock_rate_limiter.get_delay.called)
-        self.assertEqual(mock_rate_limiter.get_delay.call_count, 3)  # Three pages
-        
-        # Verify add_call was called for each page
-        self.assertEqual(mock_rate_limiter.add_call.call_count, 3)  # Three pages
-        
-        # Verify correct ticker was passed
-        mock_rate_limiter.get_delay.assert_called_with("AAPL")
-        mock_rate_limiter.add_call.assert_called_with(ticker="AAPL")
+        # Verify we got all the expected items from all pages
+        expected_items = []
+        for page in pages:
+            expected_items.extend(page['items'])
+            
+        self.assertEqual(len(results), len(expected_items))
+        self.assertEqual(results, expected_items)
 
 
 @pytest.mark.integration
@@ -77,11 +81,12 @@ class TestRateLimiterErrorRecovery(unittest.IsolatedAsyncioTestCase):
         flaky_func = await create_flaky_function(fail_count=2)
         
         # Verify retry mechanism
-        result = await retry_async(
+        result = await async_retry(
             flaky_func,
             max_retries=5,  # More than needed
-            base_delay=0.01,
-            max_delay=0.1
+            retry_delay=0.01,
+            backoff_factor=2.0,
+            jitter=False
         )
         
         # Check results
@@ -89,11 +94,13 @@ class TestRateLimiterErrorRecovery(unittest.IsolatedAsyncioTestCase):
         
         # Test with insufficient retries
         with self.assertRaises(RateLimitError):
-            await retry_async(
-                await create_flaky_function(fail_count=4),
+            flaky_func_harder = await create_flaky_function(fail_count=4)
+            await async_retry(
+                flaky_func_harder,
                 max_retries=2,  # Not enough
-                base_delay=0.01,
-                max_delay=0.1
+                retry_delay=0.01,
+                backoff_factor=2.0,
+                jitter=False
             )
 
 

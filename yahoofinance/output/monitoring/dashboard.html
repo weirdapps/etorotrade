@@ -25,7 +25,7 @@
                     <h1>{Monitoring Dashboard}</h1>
                     <div>
                         <span class="badge bg-{success} status-badge">System Status: {healthy}</span>
-                        <small class="text-muted ms-3">Last updated: {2025-04-19 04:08:49}</small>
+                        <small class="text-muted ms-3">Last updated: {2025-04-19 12:56:21}</small>
                     </div>
                 </div>
             </div>
@@ -93,7 +93,7 @@
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">Current Metrics</h5>
-                        {<div class="row"><div class="col-md-4"><h4>Counters</h4><table class="table table-sm"><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody><tr><td>api_errors_total</td><td>0</td></tr><tr><td>api_requests_total</td><td>0</td></tr></tbody></table></div><div class="col-md-4"><h4>Gauges</h4><table class="table table-sm"><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody><tr><td>active_requests</td><td>0.0</td></tr><tr><td>memory_usage_bytes</td><td>159449088</td></tr></tbody></table></div><div class="col-md-4"><h4>Histograms</h4><table class="table table-sm"><thead><tr><th>Name</th><th>Count</th><th>Mean</th><th>Min</th><th>Max</th></tr></thead><tbody><tr><td>api_request_duration_ms</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr></tbody></table></div></div>}
+                        {<div class="row"><div class="col-md-4"><h4>Counters</h4><table class="table table-sm"><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody><tr><td>api_errors_total</td><td>0</td></tr><tr><td>api_requests_total</td><td>0</td></tr><tr><td>business_buy_recommendations</td><td>0</td></tr><tr><td>business_buy_trades</td><td>0</td></tr><tr><td>business_hold_recommendations</td><td>0</td></tr><tr><td>business_sell_recommendations</td><td>0</td></tr><tr><td>business_sell_trades</td><td>0</td></tr><tr><td>business_trades_executed</td><td>0</td></tr><tr><td>data_api_retries</td><td>0</td></tr><tr><td>data_cache_hits</td><td>0</td></tr><tr><td>data_cache_misses</td><td>0</td></tr><tr><td>data_points_processed</td><td>0</td></tr><tr><td>data_tickers_processed</td><td>0</td></tr><tr><td>network_bytes_received</td><td>0</td></tr><tr><td>network_bytes_sent</td><td>0</td></tr><tr><td>network_http_errors</td><td>0</td></tr><tr><td>network_http_requests</td><td>0</td></tr><tr><td>network_http_retries</td><td>0</td></tr><tr><td>network_http_timeouts</td><td>0</td></tr><tr><td>system_gc_collections</td><td>626</td></tr></tbody></table></div><div class="col-md-4"><h4>Gauges</h4><table class="table table-sm"><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody><tr><td>active_requests</td><td>0.0</td></tr><tr><td>business_portfolio_value</td><td>0.0</td></tr><tr><td>business_trade_volume</td><td>0.0</td></tr><tr><td>data_batch_size</td><td>0.0</td></tr><tr><td>memory_usage_bytes</td><td>169148416</td></tr><tr><td>system_cpu_percent</td><td>0.0</td></tr><tr><td>system_disk_usage_percent</td><td>37.6</td></tr><tr><td>system_memory_percent</td><td>0.12226104736328125</td></tr><tr><td>system_memory_rss_bytes</td><td>168034304</td></tr><tr><td>system_memory_vms_bytes</td><td>423022444544</td></tr><tr><td>system_open_files</td><td>1</td></tr><tr><td>system_python_objects</td><td>143817</td></tr><tr><td>system_thread_count</td><td>10</td></tr></tbody></table></div><div class="col-md-4"><h4>Histograms</h4><table class="table table-sm"><thead><tr><th>Name</th><th>Count</th><th>Mean</th><th>Min</th><th>Max</th></tr></thead><tbody><tr><td>api_request_duration_ms</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr><tr><td>business_processing_time_ms</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr><tr><td>data_fetch_time_ms</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr><tr><td>data_processing_time_ms</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr><tr><td>network_connection_time_ms</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr><tr><td>network_dns_lookup_time_ms</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr><tr><td>network_http_response_time_ms</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr><tr><td>perf_calculation_time_ms</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr><tr><td>perf_filtering_time_ms</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr><tr><td>perf_io_time_ms</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr><tr><td>perf_rendering_time_ms</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr><tr><td>perf_sorting_time_ms</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr></tbody></table></div></div>}
                     </div>
                 </div>
             </div>
@@ -106,8 +106,8 @@
         const requestChart = new Chart(requestCtx, {
             type: '{line}',
             data: {
-                labels: {["03:53:49", "03:54:02", "03:55:02", "03:58:50", "03:59:02", "04:00:02", "04:01:26", "04:03:07", "04:04:07", "04:05:46", "04:05:58", "04:08:33", "04:08:38", "04:08:49"]},
-                datasets: {[{"label": "Request Rate (per minute)", "data": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "borderColor": "rgba(75, 192, 192, 1)", "backgroundColor": "rgba(75, 192, 192, 0.2)", "yAxisID": "y"}, {"label": "Error Count", "data": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "borderColor": "rgba(255, 99, 132, 1)", "backgroundColor": "rgba(255, 99, 132, 0.2)", "yAxisID": "y1"}]}
+                labels: {["03:53:49", "03:54:02", "03:55:02", "03:58:50", "03:59:02", "04:00:02", "04:01:26", "04:03:07", "04:04:07", "04:05:46", "04:05:58", "04:08:33", "04:08:38", "04:08:49", "12:55:20", "12:55:50", "12:56:20"]},
+                datasets: {[{"label": "Request Rate (per minute)", "data": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "borderColor": "rgba(75, 192, 192, 1)", "backgroundColor": "rgba(75, 192, 192, 0.2)", "yAxisID": "y"}, {"label": "Error Count", "data": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "borderColor": "rgba(255, 99, 132, 1)", "backgroundColor": "rgba(255, 99, 132, 0.2)", "yAxisID": "y1"}]}
             },
             options: {{"scales": {"y": {"type": "linear", "display": true, "position": "left", "title": {"display": true, "text": "Requests per Minute"}}, "y1": {"type": "linear", "display": true, "position": "right", "title": {"display": true, "text": "Error Count"}, "grid": {"drawOnChartArea": false}}}}}
         });
@@ -117,8 +117,8 @@
         const responseTimeChart = new Chart(responseTimeCtx, {
             type: '{line}',
             data: {
-                labels: {["03:53:49", "03:54:02", "03:55:02", "03:58:50", "03:59:02", "04:00:02", "04:01:26", "04:03:07", "04:04:07", "04:05:46", "04:05:58", "04:08:33", "04:08:38", "04:08:49"]},
-                datasets: {[{"label": "Mean Response Time (ms)", "data": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "borderColor": "rgba(54, 162, 235, 1)", "backgroundColor": "rgba(54, 162, 235, 0.2)"}, {"label": "Max Response Time (ms)", "data": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "borderColor": "rgba(255, 159, 64, 1)", "backgroundColor": "rgba(255, 159, 64, 0.2)"}]}
+                labels: {["03:53:49", "03:54:02", "03:55:02", "03:58:50", "03:59:02", "04:00:02", "04:01:26", "04:03:07", "04:04:07", "04:05:46", "04:05:58", "04:08:33", "04:08:38", "04:08:49", "12:55:20", "12:55:50", "12:56:20"]},
+                datasets: {[{"label": "Mean Response Time (ms)", "data": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "borderColor": "rgba(54, 162, 235, 1)", "backgroundColor": "rgba(54, 162, 235, 0.2)"}, {"label": "Max Response Time (ms)", "data": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "borderColor": "rgba(255, 159, 64, 1)", "backgroundColor": "rgba(255, 159, 64, 0.2)"}]}
             },
             options: {{"scales": {"y": {"title": {"display": true, "text": "Time (ms)"}}}}}
         });
@@ -128,8 +128,8 @@
         const memoryChart = new Chart(memoryCtx, {
             type: '{line}',
             data: {
-                labels: {["03:53:49", "03:54:02", "03:55:02", "03:58:50", "03:59:02", "04:00:02", "04:01:26", "04:03:07", "04:04:07", "04:05:46", "04:05:58", "04:08:33", "04:08:38", "04:08:49"]},
-                datasets: {[{"label": "Memory Usage (MB)", "data": [0.0, 0.0, 153.671875, 150.84375, 0.0, 153.4375, 0.0, 0.0, 150.15625, 148.5625, 0.0, 149.25, 0.0, 0.0], "borderColor": "rgba(153, 102, 255, 1)", "backgroundColor": "rgba(153, 102, 255, 0.2)"}]}
+                labels: {["03:53:49", "03:54:02", "03:55:02", "03:58:50", "03:59:02", "04:00:02", "04:01:26", "04:03:07", "04:04:07", "04:05:46", "04:05:58", "04:08:33", "04:08:38", "04:08:49", "12:55:20", "12:55:50", "12:56:20"]},
+                datasets: {[{"label": "Memory Usage (MB)", "data": [0.0, 0.0, 153.671875, 150.84375, 0.0, 153.4375, 0.0, 0.0, 150.15625, 148.5625, 0.0, 149.25, 0.0, 0.0, 0.0, 159.96875, 160.25], "borderColor": "rgba(153, 102, 255, 1)", "backgroundColor": "rgba(153, 102, 255, 0.2)"}]}
             },
             options: {{"scales": {"y": {"title": {"display": true, "text": "Memory (MB)"}}}}}
         });
@@ -139,8 +139,8 @@
         const healthChart = new Chart(healthCtx, {
             type: '{line}',
             data: {
-                labels: {["03:53:49", "03:54:02", "03:55:02", "03:58:50", "03:59:02", "04:00:02", "04:01:26", "04:03:07", "04:04:07", "04:05:46", "04:05:58", "04:08:33", "04:08:38", "04:08:49"]},
-                datasets: {[{"label": "api", "data": [3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0], "borderColor": "rgba(75, 192, 192, 1)", "backgroundColor": "rgba(75, 192, 192, 0.2)", "stepped": true}, {"label": "cache", "data": [3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "borderColor": "rgba(54, 162, 235, 1)", "backgroundColor": "rgba(54, 162, 235, 0.2)", "stepped": true}, {"label": "database", "data": [3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "borderColor": "rgba(153, 102, 255, 1)", "backgroundColor": "rgba(153, 102, 255, 0.2)", "stepped": true}, {"label": "memory", "data": [3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0], "borderColor": "rgba(255, 159, 64, 1)", "backgroundColor": "rgba(255, 159, 64, 0.2)", "stepped": true}, {"label": "test_component", "data": [3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "borderColor": "rgba(255, 99, 132, 1)", "backgroundColor": "rgba(255, 99, 132, 0.2)", "stepped": true}]}
+                labels: {["03:53:49", "03:54:02", "03:55:02", "03:58:50", "03:59:02", "04:00:02", "04:01:26", "04:03:07", "04:04:07", "04:05:46", "04:05:58", "04:08:33", "04:08:38", "04:08:49", "12:55:20", "12:55:50", "12:56:20"]},
+                datasets: {[{"label": "api", "data": [3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0], "borderColor": "rgba(75, 192, 192, 1)", "backgroundColor": "rgba(75, 192, 192, 0.2)", "stepped": true}, {"label": "cache", "data": [3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "borderColor": "rgba(54, 162, 235, 1)", "backgroundColor": "rgba(54, 162, 235, 0.2)", "stepped": true}, {"label": "database", "data": [3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "borderColor": "rgba(153, 102, 255, 1)", "backgroundColor": "rgba(153, 102, 255, 0.2)", "stepped": true}, {"label": "memory", "data": [3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0], "borderColor": "rgba(255, 159, 64, 1)", "backgroundColor": "rgba(255, 159, 64, 0.2)", "stepped": true}, {"label": "system_resources", "data": [3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "borderColor": "rgba(255, 99, 132, 1)", "backgroundColor": "rgba(255, 99, 132, 0.2)", "stepped": true}, {"label": "test_component", "data": [3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "borderColor": "rgba(75, 192, 192, 1)", "backgroundColor": "rgba(75, 192, 192, 0.2)", "stepped": true}]}
             },
             options: {{"scales": {"y": {"min": 0, "max": 3, "ticks": {"stepSize": 1, "callback": "function(value) { return ['Unknown', 'Unhealthy', 'Degraded', 'Healthy'][value]; }"}, "title": {"display": true, "text": "Health Status"}}}}}
         });

@@ -55,6 +55,7 @@ class CircuitBreaker:
                  success_threshold: int = None,
                  half_open_allow_percentage: int = None,
                  max_open_timeout: int = None,
+                 timeout: float = None,
                  enabled: bool = None,
                  state_file: str = None):
         """
@@ -68,6 +69,7 @@ class CircuitBreaker:
             success_threshold: Number of successes to close the circuit
             half_open_allow_percentage: Percentage of requests to allow through in half-open state
             max_open_timeout: Maximum time circuit can stay open before forced reset
+            timeout: Maximum execution time for protected functions in seconds
             enabled: Whether the circuit breaker is enabled
             state_file: File to persist circuit state
         """
@@ -78,6 +80,7 @@ class CircuitBreaker:
         self.success_threshold = success_threshold or CIRCUIT_BREAKER["SUCCESS_THRESHOLD"]
         self.half_open_allow_percentage = half_open_allow_percentage or CIRCUIT_BREAKER["HALF_OPEN_ALLOW_PERCENTAGE"]
         self.max_open_timeout = max_open_timeout or CIRCUIT_BREAKER["MAX_OPEN_TIMEOUT"]
+        self.timeout = timeout or CIRCUIT_BREAKER.get("TIMEOUT", None)
         self.enabled = enabled if enabled is not None else CIRCUIT_BREAKER["ENABLED"]
         self.state_file = state_file or CIRCUIT_BREAKER["STATE_FILE"]
         
@@ -383,6 +386,7 @@ class CircuitBreaker:
             
         Raises:
             CircuitOpenError: If circuit is open
+            CircuitBreakerError: If function exceeds timeout
             Original exception: If function call fails
         """
         if not self._should_allow_request():
@@ -394,12 +398,36 @@ class CircuitBreaker:
             )
         
         try:
+            start_time = time.time()
             result = func(*args, **kwargs)
+            
+            # Check if execution exceeded timeout
+            if self.timeout and time.time() - start_time > self.timeout:
+                self.record_failure()
+                raise CircuitBreakerError("Circuit breaker timeout")
+                
             self.record_success()
             return result
         except YFinanceError as e:
             self.record_failure()
             raise e
+
+
+class CircuitBreakerError(Exception):
+    """Exception raised when a circuit breaker operation fails"""
+    
+    def __init__(self, message: str, circuit_name: str = None, details: Dict[str, Any] = None):
+        """
+        Initialize circuit breaker error.
+        
+        Args:
+            message: Error message
+            circuit_name: Name of the circuit breaker (optional)
+            details: Additional error details (optional)
+        """
+        self.circuit_name = circuit_name
+        self.details = details or {}
+        super().__init__(message)
 
 
 class CircuitOpenError(Exception):
@@ -439,6 +467,7 @@ class AsyncCircuitBreaker(CircuitBreaker):
             
         Raises:
             CircuitOpenError: If circuit is open
+            CircuitBreakerError: If function exceeds timeout
             Original exception: If function call fails
         """
         if not self._should_allow_request():
@@ -450,7 +479,14 @@ class AsyncCircuitBreaker(CircuitBreaker):
             )
         
         try:
+            start_time = time.time()
             result = await func(*args, **kwargs)
+            
+            # Check if execution exceeded timeout
+            if self.timeout and time.time() - start_time > self.timeout:
+                self.record_failure()
+                raise CircuitBreakerError("Circuit breaker timeout")
+                
             self.record_success()
             return result
         except YFinanceError as e:
@@ -510,6 +546,7 @@ def get_async_circuit_breaker(name: str) -> AsyncCircuitBreaker:
                 success_threshold=old_circuit.success_threshold,
                 half_open_allow_percentage=old_circuit.half_open_allow_percentage,
                 max_open_timeout=old_circuit.max_open_timeout,
+                timeout=getattr(old_circuit, 'timeout', None),
                 enabled=old_circuit.enabled,
                 state_file=old_circuit.state_file
             )

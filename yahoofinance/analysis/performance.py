@@ -556,8 +556,8 @@ class PerformanceTracker:
             
         return result
     
-    async @with_retry 
-def _get_index_performance_single_async(
+    @with_retry
+    async def _get_index_performance_single_async(
         self,
         name: str,
         ticker: str,
@@ -729,9 +729,9 @@ def _get_index_performance_single_async(
         except YFinanceError as e:
             logger.error(f"Error getting portfolio performance from web async: {str(e)}")
             # Return empty performance object on error
-            return Portfol@with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
-def _get_soup(source=url, last_updated=datetime.now())
-    
+            return PortfolioPerformance(source=url, last_updated=datetime.now())
+            
+    @with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
     def _get_soup(self, url: str) -> BeautifulSoup:
         """
         Fetch and parse HTML content from a URL.
@@ -777,9 +777,7 @@ def _get_soup(source=url, last_updated=datetime.now())
             # SSL errors indicate certificate validation problems that should be addressed properly
             raise NetworkError(f"SSL certificate validation failed for {url}. This could indicate a security issue: {str(e)}")
         except requests.exceptions.RequestException as e:
-         @with_retry
-         
-def _get_soup_async(r(f"Failed to fetch data from {url}: {str(e)}")
+            raise NetworkError(f"Failed to fetch data from {url}: {str(e)}")
         finally:
             session.close()
     
