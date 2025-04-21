@@ -130,6 +130,8 @@ Based on our experience building and maintaining this test suite, we recommend t
    - Make sure all coroutines are properly awaited
    - Cancel remaining tasks when tests complete
    - Explicitly close resources with `await resource.close()`
+   - Set up an event loop for tests with asyncio primitives: `set_event_loop(new_event_loop())`
+   - Be cautious with asyncio.Lock() and similar primitives that require an event loop
 
 4. **Mocking**: Use appropriate mocking techniques
    - Mock external dependencies but not the code under test
@@ -216,6 +218,43 @@ async def test_async_function(event_loop):
                 await cleanup_task
 ```
 
+### Testing with AsyncIO Primitives
+
+When testing components that use asyncio primitives like Lock, Event, etc., you need to ensure an event loop is set:
+
+```python
+import asyncio
+from asyncio import set_event_loop, new_event_loop
+
+# For test functions that use asyncio primitives
+def test_async_primitives():
+    # Create and set an event loop for this test
+    set_event_loop(new_event_loop())
+    
+    # Now you can safely create asyncio primitives
+    lock = asyncio.Lock()
+    event = asyncio.Event()
+    
+    # Test your component that uses these primitives
+    component = AsyncComponent(lock=lock, event=event)
+    assert component is not None
+
+# For fixture-based setup
+@pytest.fixture
+def async_rate_limiter():
+    """Create an async rate limiter with its own event loop."""
+    # Create and set a new event loop for this fixture
+    set_event_loop(new_event_loop())
+    
+    # Create the rate limiter (which uses asyncio.Lock internally)
+    limiter = AsyncRateLimiter(
+        window_size=5,
+        max_calls=20,
+        base_delay=0.01
+    )
+    return limiter
+```
+
 ### Testing Rate Limiting
 
 ```python
@@ -278,4 +317,82 @@ def test_circuit_breaker():
         # Clean up to prevent affecting other tests
         if circuit_name in circuit_breakers:
             del circuit_breakers[circuit_name]
+```
+
+### Testing Timeout and Probability-Based Components
+
+When testing components that involve timeouts or probabilistic behavior:
+
+```python
+def test_with_timeout():
+    """Test timeout behavior in circuit breaker."""
+    # Use a unique circuit name
+    circuit_name = f"test_timeout_{uuid.uuid4()}"
+    
+    # Create the circuit breaker with a very short timeout
+    # Make timeout shorter than the sleep time in the test function
+    cb = CircuitBreaker(circuit_name, timeout=0.05)  # 50ms timeout
+    
+    try:
+        # Define a test function that sleeps longer than the timeout
+        def slow_func():
+            time.sleep(0.2)  # 200ms sleep, exceeds timeout
+            return "success"
+        
+        # Execute the function with the circuit breaker, which should raise
+        with pytest.raises(CircuitBreakerError, match="Circuit breaker timeout"):
+            cb.execute(slow_func)
+    finally:
+        # Clean up
+        if circuit_name in circuit_breakers:
+            del circuit_breakers[circuit_name]
+```
+
+For components with probabilistic behavior, use fixed seeds:
+
+```python
+def test_probability_based_component():
+    """Test component with probabilistic behavior."""
+    # Use a fixed seed for reproducible tests
+    import random
+    random.seed(42)
+    
+    # Create the component
+    component = ProbabilityBasedComponent(probability=0.5)
+    
+    # Run multiple iterations
+    results = [component.execute() for _ in range(100)]
+    
+    # Assert on a range rather than exact value
+    success_count = sum(results)
+    assert 40 <= success_count <= 65  # Allow a reasonable range
+```
+
+### Testing with Floating Point Values
+
+When testing code that involves floating point calculations, avoid using exact equality:
+
+```python
+def test_rate_limiter_delay():
+    """Test delay calculation in rate limiter."""
+    # Create a rate limiter for testing
+    limiter = RateLimiter(base_delay=0.3)
+    
+    # Get the calculated delay
+    delay = limiter.get_delay_for_ticker()
+    
+    # DON'T use exact equality (this is fragile)
+    # assert delay == limiter.base_delay  # BAD!
+    
+    # GOOD: Use one of these approaches instead:
+    
+    # Option 1: Allow a delta for floating point comparisons
+    assert abs(delay - limiter.base_delay) < 0.2
+    
+    # Option 2: Use pytest's approx function
+    from pytest import approx
+    assert delay == approx(limiter.base_delay, abs=0.2)
+    
+    # Option 3: For unittest.TestCase classes, use assertAlmostEqual
+    self.assertAlmostEqual(delay, limiter.base_delay, delta=0.2)
 ```

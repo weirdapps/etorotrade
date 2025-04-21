@@ -7,6 +7,7 @@ including rate limiting, gathering, batch processing, and retry mechanisms.
 
 import pytest
 import asyncio
+from asyncio import set_event_loop, new_event_loop
 import time
 from unittest.mock import Mock, MagicMock, patch, AsyncMock, call
 
@@ -40,6 +41,8 @@ async def async_error(error_type=Exception):
 # Fixtures
 @pytest.fixture
 def async_limiter():
+    # Create and set an event loop for this fixture
+    set_event_loop(new_event_loop())
     """Create a fresh async rate limiter for each test."""
     return AsyncRateLimiter(
         window_size=5,
@@ -393,6 +396,8 @@ def test_global_async_limiter():
 
 # Test import compatibility
 def test_import_compatibility():
+    # Create and set an event loop for this test
+    set_event_loop(new_event_loop())
     """Test compatibility between different import patterns."""
     # Import from all locations
     from yahoofinance.utils.async_utils import AsyncRateLimiter as RL1

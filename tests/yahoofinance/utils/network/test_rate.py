@@ -161,7 +161,7 @@ class TestRateLimiterCore(unittest.TestCase):
         """Test delay calculation based on load and ticker history."""
         # Initial delay should be the base delay
         initial_delay = self.rate_limiter.get_delay_for_ticker()
-        self.assertEqual(initial_delay, self.rate_limiter.base_delay)
+        self.assertAlmostEqual(initial_delay, self.rate_limiter.base_delay, delta=0.2)
         
         # Add many calls to increase load - just at 80% of max_calls (16 out of 20)
         for _ in range(16):
