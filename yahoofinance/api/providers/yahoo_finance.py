@@ -103,7 +103,13 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         """
         # Fast path for performance-critical first check
         cache_key = f"ticker_info:{ticker}"
-        cached_info = default_cache_manager.get(cache_key)
+        logger.debug(f"Getting ticker info from cache with key: {cache_key}")
+        try:
+            cached_info = default_cache_manager.get(cache_key)
+            logger.debug(f"Cache result: {'hit' if cached_info is not None else 'miss'}")
+        except Exception as e:
+            logger.error(f"Error getting from cache: {str(e)}")
+            cached_info = None
         if cached_info is not None:
             # Add a flag to indicate this came from cache
             # This will be used by the rate_limited decorator to adjust delays
