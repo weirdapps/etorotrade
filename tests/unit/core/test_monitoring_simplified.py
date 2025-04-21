@@ -98,5 +98,5 @@ class TestCircuitBreakerMonitorSimplified:
         assert state["name"] == "test_breaker"
         assert state["status"] == CircuitBreakerStatus.OPEN
         assert state["failure_count"] == 3
-        assert state["last_failure_time"] == 1000.0
+        assert state["last_failure_time"] == pytest.approx(1000.0, abs=1e-9)
         assert state["last_success_time"] is None

@@ -25,6 +25,16 @@ from yahoofinance.analysis.benchmarking import (
     profile_memory
 )
 
+# Define constants for duplicated strings
+TOP_MEMORY_CONSUMERS_HEADER = "\nTop memory consumers:"
+ADDED_MARKET_CAP_MESSAGE = "Added market_cap values based on CAP strings"
+DIRECT_SIZE_CALCULATION_MESSAGE = "Direct SIZE calculation applied before display preparation"
+
+# Define constants for duplicated strings
+TOP_MEMORY_CONSUMERS_HEADER = "\nTop memory consumers:"
+ADDED_MARKET_CAP_MESSAGE = "Added market_cap values based on CAP strings"
+DIRECT_SIZE_CALCULATION_MESSAGE = "Direct SIZE calculation applied before display preparation"
+
 # Create a fixture for test teardown
 @pytest.fixture(scope="module", autouse=True)
 def cleanup():
@@ -64,21 +74,21 @@ def test_benchmark_result_as_dict(benchmark_result):
     # Verify result dictionary structure
     assert result_dict["operation"] == "test_operation"
     assert result_dict["iterations"] == 3
-    assert result_dict["duration_seconds"] == 10.0
-    assert result_dict["min_time"] == 2.0
-    assert result_dict["max_time"] == 5.0
-    assert result_dict["avg_time"] == 3.0
-    assert result_dict["median_time"] == 3.0
-    assert result_dict["std_dev"] == 1.0
-    assert result_dict["success_rate"] == 0.9
+    assert result_dict["duration_seconds"] == pytest.approx(10.0, abs=1e-9)
+    assert result_dict["min_time"] == pytest.approx(2.0, abs=1e-9)
+    assert result_dict["max_time"] == pytest.approx(5.0, abs=1e-9)
+    assert result_dict["avg_time"] == pytest.approx(3.0, abs=1e-9)
+    assert result_dict["median_time"] == pytest.approx(3.0, abs=1e-9)
+    assert result_dict["std_dev"] == pytest.approx(1.0, abs=1e-9)
+    assert result_dict["success_rate"] == pytest.approx(0.9, abs=1e-9)
     assert result_dict["error_count"] == 1
-    assert result_dict["memory_before_mb"] == 100.0
-    assert result_dict["memory_after_mb"] == 110.0
-    assert result_dict["memory_peak_mb"] == 120.0
-    assert result_dict["memory_change_mb"] == 10.0
+    assert result_dict["memory_before_mb"] == pytest.approx(100.0, abs=1e-9)
+    assert result_dict["memory_after_mb"] == pytest.approx(110.0, abs=1e-9)
+    assert result_dict["memory_peak_mb"] == pytest.approx(120.0, abs=1e-9)
+    assert result_dict["memory_change_mb"] == pytest.approx(10.0, abs=1e-9)
     # Use pytest.approx to handle floating point precision issues
     assert result_dict["memory_change_percent"] == pytest.approx(10.0, abs=0.0001)
-    assert result_dict["cpu_usage_avg_percent"] == 50.0
+    assert result_dict["cpu_usage_avg_percent"] == pytest.approx(50.0, abs=1e-9)
     assert result_dict["thread_count_avg"] == 5
     assert result_dict["parameters"] == {"param1": "value1", "param2": 42}
 

@@ -19,15 +19,3 @@ def test_api_imports():
     # Main module imports
     from yahoofinance import get_provider
     
-    assert YFinanceError is not None
-    assert ValidationError is not None
-    assert APIError is not None
-    assert StockData is not None
-    assert YahooFinanceProvider is not None
-    assert FinanceDataProvider is not None
-    assert RateLimiter is not None
-    assert CircuitBreaker is not None
-    assert circuit_protected is not None
-    assert format_number is not None
-    assert format_market_cap is not None
-    assert get_provider is not None

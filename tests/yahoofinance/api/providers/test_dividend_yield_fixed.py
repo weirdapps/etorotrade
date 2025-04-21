@@ -12,7 +12,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from trade import (
     format_display_dataframe,
     format_numeric_columns,
-    DIVIDEND_YIELD,
+    DIVIDEND_YIELD_DISPLAY, # Changed import name
 )
 from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
 from yahoofinance.api.providers.enhanced_async_yahoo_finance import EnhancedAsyncYahooFinanceProvider
@@ -77,7 +77,7 @@ async def test_dividend_yield():
     # Now test the trade.py formatting functions directly
     
     # Rename column to match the expected constant
-    hybrid_df = hybrid_df.rename(columns={'dividend_yield': DIVIDEND_YIELD})
+    hybrid_df = hybrid_df.rename(columns={'dividend_yield': DIVIDEND_YIELD_DISPLAY})
     
     # Apply the actual formatting function from trade.py
     formatted_df = format_display_dataframe(hybrid_df.copy())
@@ -86,16 +86,16 @@ async def test_dividend_yield():
     print("\n=== Before and After Formatting ===")
     comparison = pd.DataFrame({
         'ticker': hybrid_df['ticker'],
-        'raw_value': hybrid_df[DIVIDEND_YIELD],
-        'formatted_value': formatted_df[DIVIDEND_YIELD]
+        'raw_value': hybrid_df[DIVIDEND_YIELD_DISPLAY],
+        'formatted_value': formatted_df[DIVIDEND_YIELD_DISPLAY]
     })
     print(comparison)
-    
+
     # Check for correct ranges in the raw values
-    invalid = hybrid_df[hybrid_df[DIVIDEND_YIELD] > 0.25].copy()
+    invalid = hybrid_df[hybrid_df[DIVIDEND_YIELD_DISPLAY] > 0.25].copy()
     if not invalid.empty:
         print("\nWARNING: Found unusually high raw dividend yields (above 25%):")
-        print(invalid[['ticker', 'company', DIVIDEND_YIELD]])
+        print(invalid[['ticker', 'company', DIVIDEND_YIELD_DISPLAY]])
         print("Raw values should be around 0.005-0.08 for typical dividend yields.")
     
     # Close providers

@@ -123,9 +123,6 @@ def test_wait_and_find_element_timeout(mock_driver):
     # To test properly, we need to mock wait_and_find_element's try-except block
     # to catch TimeoutException the way it should be implemented
     
-    # Original function implementation from the file:
-    original_wait_and_find_element = wait_and_find_element
-    
     # Create a patched version that catches TimeoutException
     def patched_wait_and_find_element(driver, by, value, timeout=10, check_visibility=True):
         try:

@@ -117,7 +117,7 @@ class TestRateLimiterCore(unittest.TestCase):
         original_delay = self.rate_limiter.delay
         
         # Add several errors - use is_rate_limit=True to ensure bigger backoff
-        for i in range(3):
+        for _ in range(3):
             self.rate_limiter.record_failure("AAPL", is_rate_limit=True)
         
         # AAPL should be marked as problematic
@@ -145,7 +145,7 @@ class TestRateLimiterCore(unittest.TestCase):
         """Test that problematic tickers are identified for skipping."""
         # The new implementation uses slow_tickers set rather than should_skip_ticker method
         # Add 5 errors for AAPL with rate limit errors
-        for i in range(5):
+        for _ in range(5):
             self.rate_limiter.record_failure("AAPL", is_rate_limit=True)
         
         # AAPL should now be in the slow_tickers set
@@ -354,7 +354,7 @@ class TestErrorRecovery(unittest.TestCase):
         original_delay = limiter.delay
         
         # Add increasing number of errors
-        for i in range(5):
+        for _ in range(5):
             limiter.record_failure("AAPL", is_rate_limit=True)
         
         # Base delay should increase after errors
@@ -376,7 +376,7 @@ class TestErrorRecovery(unittest.TestCase):
         limiter.jitter_factor = 0.0
         
         # Add errors
-        for i in range(3):
+        for _ in range(3):
             limiter.record_failure("AAPL", is_rate_limit=False)
         
         # Initial error count
