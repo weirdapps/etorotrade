@@ -14,6 +14,9 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from yahoofinance.core.monitoring import MONITOR_DIR, monitoring_service
 from yahoofinance.presentation.templates import get_template
 
+# HTML constants
+TABLE_END_HTML = "</tbody></table></div>"
+
 
 @dataclass
 class ChartData:
@@ -823,14 +826,14 @@ def generate_dashboard_html(refresh_interval: int = 30) -> str:
     for key, value in template_data.items():
         if isinstance(value, (ChartData,)):
             # Handle chart data specially
-            html = html.replace(f"{{ {key}.title }}", value.title)
-            html = html.replace(f"{{ {key}.chart_type }}", value.chart_type)
-            html = html.replace(f"{{ {key}.labels|safe }}", json.dumps(value.labels))
-            html = html.replace(f"{{ {key}.datasets|safe }}", json.dumps(value.datasets))
-            html = html.replace(f"{{ {key}.options|safe }}", json.dumps(value.options or {}))
+            html = html.replace("{{ " + f"{key}.title" + " }}", value.title)
+            html = html.replace("{{ " + f"{key}.chart_type" + " }}", value.chart_type)
+            html = html.replace("{{ " + f"{key}.labels|safe" + " }}", json.dumps(value.labels))
+            html = html.replace("{{ " + f"{key}.datasets|safe" + " }}", json.dumps(value.datasets))
+            html = html.replace("{{ " + f"{key}.options|safe" + " }}", json.dumps(value.options or {}))
         else:
             # Standard replacement
-            html = html.replace(f"{{ {key} }}", str(value))
+            html = html.replace("{{ " + key + " }}", str(value))
     
     return html
 
