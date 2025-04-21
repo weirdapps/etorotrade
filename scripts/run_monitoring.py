@@ -14,6 +14,10 @@ import threading
 import time
 import webbrowser
 from typing import Any, Dict, Optional, Tuple
+import logging
+
+# Configure basic logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Add parent directory to path to import yahoofinance module
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -53,20 +57,22 @@ def update_dashboard(refresh_interval: int = DEFAULT_REFRESH, max_updates: int =
     updates = 0
     while updates < max_updates:
         try:
+            logging.info(f"Updating dashboard ({updates + 1}/{max_updates})...")
             # Generate and save dashboard HTML
             save_dashboard_html(DASHBOARD_FILE, refresh_interval=refresh_interval)
-            print(f"Dashboard updated ({updates + 1}/{max_updates})")
+            logging.info(f"Dashboard updated ({updates + 1}/{max_updates}).")
             updates += 1
             
             if updates < max_updates:
+                logging.info(f"Waiting for {refresh_interval} seconds before next update.")
                 time.sleep(refresh_interval)
             else:
-                print("Reached maximum number of updates, stopping update thread")
+                logging.info("Reached maximum number of updates, stopping update thread")
                 break
         except KeyboardInterrupt:
             break
         except Exception as e:
-            print(f"Error updating dashboard: {e}")
+            logging.error(f"Error updating dashboard: {e}")
             time.sleep(5)  # Sleep for a shorter time on error
             updates += 1  # Count errors toward max_updates
 
@@ -115,23 +121,27 @@ def main() -> None:
     args = parser.parse_args()
     
     # Initialize monitoring service
-    print("Initializing monitoring service...")
+    logging.info("Initializing monitoring service...")
     setup_monitoring(export_interval=args.export_interval)
+    logging.info("Monitoring service initialized.")
     
     # Generate initial dashboard
-    print("Generating initial dashboard...")
+    logging.info("Generating initial dashboard...")
     save_dashboard_html(DASHBOARD_FILE, refresh_interval=args.refresh)
+    logging.info("Initial dashboard generated.")
     
     # Start HTTP server
-    print(f"Starting HTTP server on port {args.port}...")
+    logging.info(f"Starting HTTP server on port {args.port}...")
     server, server_thread = start_server(port=args.port)
+    logging.info("HTTP server started.")
     
     # Start dashboard update thread
-    print("Starting dashboard update thread...")
-    update_thread = threading.Thread(target=update_dashboard, 
+    logging.info("Starting dashboard update thread...")
+    update_thread = threading.Thread(target=update_dashboard,
                                    args=(args.refresh, args.max_updates))
     update_thread.daemon = True
     update_thread.start()
+    logging.info("Dashboard update thread started.")
     
     # Open dashboard in browser
     if not args.no_browser:
@@ -145,9 +155,10 @@ def main() -> None:
     try:
         # Keep main thread alive for specified timeout
         start_time = time.time()
+        logging.info(f"Main thread waiting for {args.timeout} seconds timeout.")
         while time.time() - start_time < args.timeout:
             time.sleep(1)
-        print(f"\nTimeout of {args.timeout} seconds reached")
+        logging.info(f"Timeout of {args.timeout} seconds reached.")
     except KeyboardInterrupt:
         print("\nReceived keyboard interrupt")
     finally:
