@@ -118,4 +118,5 @@ Focus first on items 1-5 to establish a stable foundation, then proceed with ite
 | 4/19/2025 | Add Missing Test Coverage | In Progress | Fixed test_monitoring.py by creating an optimized version (test_monitoring_efficient.py) that increased code coverage of core/monitoring.py from 0% to 50%
 | 4/20/2025 | Add Missing Test Coverage | In Progress | Fixed test_async_providers.py with proper mocking of rate limiters and async decorators; added comprehensive tests for async API operations with 100% pass rate; increased overall coverage from 14% to 16%
 | 4/20/2025 | Add Missing Test Coverage | In Progress | Created test_monitoring_additional.py with tests for core monitoring functionality; improved monitoring coverage from 50% to 65%; monitoring_middleware.py coverage at 88% 
+| 4/21/2025 | Dependency Management | In Progress | Added missing vaderSentiment package to requirements.txt and dev-requirements.txt to fix failing test_news.py module
 |      |      |        |       |
