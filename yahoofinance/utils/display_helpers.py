@@ -216,7 +216,7 @@ def _has_required_metrics(row):
     return all(col in row and pd.notna(row[col]) for col in required_columns)
 
 
-def _color_based_on_criteria(row, colored_row, trading_criteria):
+def _color_based_on_criteria(row, colored_row):
     """
     Apply color based on trading criteria evaluation.
     

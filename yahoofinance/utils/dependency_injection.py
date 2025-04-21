@@ -393,7 +393,7 @@ def lazy_import(module_path: str, class_name: Optional[str] = None) -> Any:
         if class_name:
             return getattr(module, class_name)
         return module
-    except (ImportError, AttributeError) as e:
+    except (ImportError, AttributeError):
         # Return a function that will attempt the import when called
         def _lazy_import():
             try:

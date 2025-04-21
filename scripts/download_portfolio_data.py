@@ -100,6 +100,18 @@ def load_portfolio(file_path):
     tickers = df['ticker'].unique().tolist()
     return tickers
 
+def _extract_valid_tickers(prices_df, batch_tickers, valid_batch_tickers):
+    """Extract valid tickers from price data and return filtered DataFrame."""
+    for ticker in batch_tickers:
+        if ticker in prices_df.columns and not prices_df[ticker].isnull().all():
+            valid_batch_tickers.add(ticker)
+
+    # Return only valid data
+    if valid_batch_tickers:
+        return prices_df[list(valid_batch_tickers)]
+    else:
+        return pd.DataFrame()
+
 def _process_historical_batch(batch_tickers, start_date, end_date, rate_limiter):
     """Processes a single batch of tickers for historical data."""
     batch_data = pd.DataFrame()
@@ -130,15 +142,8 @@ def _process_historical_batch(batch_tickers, start_date, end_date, rate_limiter)
                 prices_df = prices_df.to_frame()
                 prices_df.columns = [batch_tickers[0]]
 
-            for ticker in batch_tickers:
-                if ticker in prices_df.columns and not prices_df[ticker].isnull().all():
-                    valid_batch_tickers.add(ticker)
-
-            # Return only valid data
-            if valid_batch_tickers:
-                batch_data = prices_df[list(valid_batch_tickers)]
-            else:
-                batch_data = pd.DataFrame()
+            # Process valid tickers
+            batch_data = _extract_valid_tickers(prices_df, batch_tickers, valid_batch_tickers)
 
     except YFinanceError as e:
         # Record failed API call

@@ -888,7 +888,7 @@ class PerformanceTracker:
             # Method 1: Look for h2 heading with the text
             container = soup.find('h2',
                                 class_=['font-semibold', 'text-slate-100'],
-                                string=lambda s: contains_text in str(s))
+                                string=lambda s, search_text=contains_text: search_text in str(s))
             if container:
                 value_span = container.find_next("span", class_="text-5xl")
                 if value_span:
@@ -904,7 +904,7 @@ class PerformanceTracker:
                     continue
             
             # Method 3: Look for any div containing the text
-            containers = soup.find_all(lambda tag: tag.name == 'div' and contains_text in tag.text)
+            containers = soup.find_all(lambda tag, search_text=contains_text: tag.name == 'div' and search_text in tag.text)
             for container in containers:
                 value_span = container.find("div", class_="font-medium")
                 if value_span:
@@ -1505,7 +1505,7 @@ def track_portfolio_performance(url: str = DEFAULT_PORTFOLIO_URL):
             logger.info(f"Generated portfolio performance HTML at {output_path}")
         
         # Save performance data with standardized filename
-        json_path = tracker.save_performance_data(
+        tracker.save_performance_data(
             performance,
             file_name="performance.json"
         )
@@ -1545,7 +1545,6 @@ async def track_performance_async(period_type: str = "weekly", portfolio_url: st
         else:
             # Generate HTML and save data
             # Determine what periods we're showing based on current date
-            today = datetime.today()
             
             # Get the date ranges directly from a sample performance
             newest_end_date = None
@@ -1634,7 +1633,7 @@ async def track_performance_async(period_type: str = "weekly", portfolio_url: st
                 logger.info(f"Generated index performance HTML at {html_path}")
                 
             # Save performance data with standardized filename
-            json_path = tracker.save_performance_data(
+            tracker.save_performance_data(
                 index_perf,
                 file_name="performance.json"
             )

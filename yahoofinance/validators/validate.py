@@ -46,7 +46,7 @@ def is_valid_ticker(ticker_symbol: str) -> bool:
         logger.error(f"Error validating ticker {ticker_symbol}: {str(e)}")
         return False
 
-def validate_tickers_batch(tickers: list, max_workers: int = 5, batch_size: int = 10) -> list:
+def validate_tickers_batch(tickers: list, max_workers: int = 5) -> list:
     """
     Validate a batch of tickers in parallel.
     
@@ -136,7 +136,7 @@ def main():
     # Save results
     save_valid_tickers(valid_tickers)
     
-    print(f"Saved valid tickers to output/valid_tickers.csv")
+    print("Saved valid tickers to output/valid_tickers.csv")
 
 if __name__ == "__main__":
     main()

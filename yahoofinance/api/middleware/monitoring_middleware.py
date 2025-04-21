@@ -172,7 +172,6 @@ def apply_monitoring(provider: T, provider_name: Optional[str] = None) -> T:
     middleware = MonitoringMiddleware(provider_name)
     
     # Get all methods in the provider class
-    provider_class = provider.__class__
     
     # Only wrap methods defined in the FinanceDataProvider interface
     interface_methods = []

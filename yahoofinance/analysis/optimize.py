@@ -119,7 +119,8 @@ class PortfolioOptimizer:
             return df
             
         except YFinanceError as e:
-            raise e
+            logger.error(f"Error loading portfolio data: {str(e)}")
+            raise YFinanceError(f"Failed to load portfolio data: {str(e)}")
     
     def get_historical_data(self) -> Tuple[pd.DataFrame, Set[str]]:
         """
@@ -348,7 +349,6 @@ class PortfolioOptimizer:
         cov_matrix = returns_df.cov()
         
         # Convert daily risk-free rate
-        daily_rf = (1 + self.risk_free_rate) ** (1/252) - 1
         
         # Initial guess: equal weights
         initial_weights = np.array([1/n_assets] * n_assets)
@@ -408,7 +408,7 @@ class PortfolioOptimizer:
         Returns:
             Dictionary with constrained optimization results
         """
-        if not optimization_results['weights'] is None:
+        if optimization_results['weights'] is not None:
             weights = optimization_results['weights']
             
             # Get the actual tickers from returns DataFrame columns
@@ -578,9 +578,9 @@ class PortfolioOptimizer:
             logger.info(f"Data range: {historical_data.index.min()} to {historical_data.index.max()}")
             
             # Print some sample data
-            print(f"Data sample (first 5 rows):")
+            print("Data sample (first 5 rows):")
             print(historical_data.head())
-            print(f"Data sample (last 5 rows):")
+            print("Data sample (last 5 rows):")
             print(historical_data.tail())
             
             return historical_data, valid_tickers
@@ -699,14 +699,14 @@ class PortfolioOptimizer:
                 continue
                 
             # Run optimization
-            print(f"  Running Sharpe ratio optimization...")
+            print("  Running Sharpe ratio optimization...")
             opt_results = self.optimize_portfolio(returns_df)
             
             # Add returns DataFrame to results
             opt_results['returns_df'] = returns_df
             
             # Apply constraints
-            print(f"  Applying min/max position constraints...")
+            print("  Applying min/max position constraints...")
             constrained_results = self.apply_constraints(
                 opt_results, current_prices, total_portfolio_value
             )

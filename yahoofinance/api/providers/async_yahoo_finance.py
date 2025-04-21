@@ -27,6 +27,9 @@ from ...core.config import CACHE_CONFIG, COLUMN_NAMES
 
 logger = get_logger(__name__)
 
+# Constants
+ERROR_GENERIC = "An error occurred"
+
 T = TypeVar('T')  # Return type for async functions
 
 class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvider):
@@ -112,7 +115,8 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
             ticker_obj = await self._run_sync_in_executor(yf.Ticker, ticker)
             self._ticker_cache[ticker] = ticker_obj
             return ticker_obj
-        except YFinanceError:
+        except YFinanceError as e:
+            logger.error(f"Error creating ticker object for {ticker}: {str(e)}")
             raise
     
     @async_rate_limited
@@ -145,7 +149,7 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
                 
                 # Use shared _process_ticker_info method from base class but with async adjustment for insider data
                 result = await self._run_sync_in_executor(
-                    lambda: self._extract_common_ticker_info(info)
+                    lambda data=info: self._extract_common_ticker_info(data)
                 )
                 result["symbol"] = ticker  # Ensure the symbol is set correctly
                 
@@ -203,8 +207,8 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
                 )
                 return history
             except RateLimitError:
-                # Specific handling for rate limits - just re-raise YFinanceError("An error occurred")
-                raise YFinanceError("An error occurred")
+                # Specific handling for rate limits - just re-raise with generic error
+                raise YFinanceError(ERROR_GENERIC)
             except YFinanceError as e:
                 # Use the shared retry logic handler from the base class but with async sleep
                 delay = self._handle_retry_logic(e, attempt, ticker, "historical data")
@@ -260,8 +264,8 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
                     return None, None
                     
             except RateLimitError:
-                # Specific handling for rate limits - just re-raise YFinanceError("An error occurred")
-                raise YFinanceError("An error occurred")
+                # Specific handling for rate limits - just re-raise with generic error
+                raise YFinanceError(ERROR_GENERIC)
             except YFinanceError as e:
                 if attempt < self.max_retries - 1:
                     delay = self.retry_delay * (2 ** attempt)
@@ -334,8 +338,8 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
                 return result
                 
             except RateLimitError:
-                # Specific handling for rate limits - just re-raise YFinanceError("An error occurred")
-                raise YFinanceError("An error occurred")
+                # Specific handling for rate limits - just re-raise with generic error
+                raise YFinanceError(ERROR_GENERIC)
             except YFinanceError as e:
                 if attempt < self.max_retries - 1:
                     delay = self.retry_delay * (2 ** attempt)
@@ -390,8 +394,8 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
                 return result
                 
             except RateLimitError:
-                # Specific handling for rate limits - just re-raise YFinanceError("An error occurred")
-                raise YFinanceError("An error occurred")
+                # Specific handling for rate limits - just re-raise with generic error
+                raise YFinanceError(ERROR_GENERIC)
             except YFinanceError as e:
                 if attempt < self.max_retries - 1:
                     delay = self.retry_delay * (2 ** attempt)
@@ -464,7 +468,7 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
             try:
                 # Search for tickers
                 ticker_obj = await self._run_sync_in_executor(yf.Ticker, query)
-                search_results = await self._run_sync_in_executor(lambda: ticker_obj.search())
+                search_results = await self._run_sync_in_executor(lambda obj=ticker_obj: obj.search())
                 
                 # Handle case where there are no search results
                 if not search_results or 'quotes' not in search_results or not search_results['quotes']:

@@ -62,7 +62,7 @@ def generate_sample_logs() -> None:
     # Simulate an error
     try:
         raise ValueError("Sample exception for demonstration")
-    except ValueError as e:
+    except ValueError:
         logger.error(
             "Error during processing", 
             extra={"context_dict": {"error_code": "DEMO-001"}},
