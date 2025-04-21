@@ -444,7 +444,7 @@ class MarketAnalyzer:
             sector_breadth = {}
             for sector in sector_counts.index:
                 sector_stocks = market_df[market_df['sector'] == sector]
-                buy_count, sell_count, sector_total, sector_metrics = calculate_sector_metrics(sector_stocks)
+                _, _, sector_total, sector_metrics = calculate_sector_metrics(sector_stocks)
                 
                 if sector_total > 0:
                     sector_breadth[sector] = {
@@ -972,12 +972,17 @@ def filter_hold_candidates(market_df: pd.DataFrame) -> pd.DataFrame:
             continue
         
         # Define column mappings for both internal and display names
+        # Determine short interest column name
+        short_interest_col = 'SI'
+        if 'SI' not in confident_stocks.columns:
+            short_interest_col = 'short_float_pct' if 'short_float_pct' in confident_stocks.columns else 'short_percent'
+            
         col_map = {
             'pe_forward': 'PEF' if 'PEF' in confident_stocks.columns else 'pe_forward',
             'pe_trailing': 'PET' if 'PET' in confident_stocks.columns else 'pe_trailing',
             'peg_ratio': 'PEG' if 'PEG' in confident_stocks.columns else 'peg_ratio',
             'beta': 'BETA' if 'BETA' in confident_stocks.columns else 'beta',
-            'short_interest': 'SI' if 'SI' in confident_stocks.columns else ('short_float_pct' if 'short_float_pct' in confident_stocks.columns else 'short_percent')
+            'short_interest': short_interest_col
         }
         
         # Secondary sell criteria - only check if data is available
@@ -1074,10 +1079,9 @@ def filter_hold_candidates(market_df: pd.DataFrame) -> pd.DataFrame:
         try:
             pet_val = float(pe_trailing)
             pef_val = float(pe_forward)
-            if pet_val > 0:
-                if pef_val >= pet_val:  # Not improving
-                    hold_tickers.append(ticker)
-                    continue
+            if pet_val > 0 and pef_val >= pet_val:  # Not improving
+                hold_tickers.append(ticker)
+                continue
         except (ValueError, TypeError):
             hold_tickers.append(ticker)  # Invalid values = hold
             continue
@@ -1119,7 +1123,6 @@ def filter_hold_candidates(market_df: pd.DataFrame) -> pd.DataFrame:
             
         # If we got here, all criteria are met
         buy_tickers.append(ticker)
-        continue
     
     # Filter for hold candidates only using the correct ticker column
     hold_filter = confident_stocks[ticker_col].isin(hold_tickers)

@@ -889,7 +889,6 @@ def prepare_display_dataframe(df):
     if 'dividend_yield' in working_df.columns and DIVIDEND_YIELD_DISPLAY not in working_df.columns:
         # Special test handling for dividend yield - check values to see if they're decimal or percentage
         # Detect test mode based on the test case (test_dividend_yield_formatting)
-        test_case = len(working_df.columns) <= 3 and 'dividend_yield' in working_df.columns
         # Map dividend_yield to DIVIDEND_YIELD
         
         working_df[DIVIDEND_YIELD_DISPLAY] = working_df['dividend_yield']
@@ -941,11 +940,21 @@ def prepare_display_dataframe(df):
         from yahoofinance.utils.data.format_utils import format_position_size
         
         # Apply formatting directly to SIZE column values
-        display_df['SIZE'] = display_df['SIZE'].apply(
-            lambda x: format_position_size(float(x)) if isinstance(x, (int, float)) or 
-                     (isinstance(x, str) and x not in ['--', ''] and x.replace('.', '', 1).isdigit()) 
-                     else (x if isinstance(x, str) else "--")
-        )
+        # Define a function to format position size
+        def format_size(x):
+            # Check if value can be converted to float
+            is_convertible = isinstance(x, (int, float)) or (
+                isinstance(x, str) and x not in ['--', ''] and x.replace('.', '', 1).isdigit()
+            )
+            
+            # Format the value
+            if is_convertible:
+                return format_position_size(float(x))
+            else:
+                return x if isinstance(x, str) else "--"
+                
+        # Apply the formatting function
+        display_df['SIZE'] = display_df['SIZE'].apply(format_size)
     
     # Special test case handling: if we're in a test, just return the dataframe without adding missing columns
     # This is determined by checking if we have only a few specific columns
@@ -1578,7 +1587,6 @@ def _check_buy_criteria(upside, buy_pct, beta, si, criteria):
             return False
             
         # 3. Beta in range (required criterion)
-        beta_in_range = False
         if beta is not None and beta != '--':
             try:
                 beta_val = float(beta)
@@ -3885,9 +3893,9 @@ def _process_color_based_on_criteria(row, confidence_met, trading_criteria):
         pef = None
         
     try:
-        pet = float(row['PET']) if isinstance(row['PET'], str) and row['PET'] != '--' else None
+        float(row['PET']) if isinstance(row['PET'], str) and row['PET'] != '--' else None
     except (ValueError, TypeError):
-        pet = None
+        pass
         
     try:
         beta = float(row['BETA']) if isinstance(row['BETA'], str) and row['BETA'] != '--' else None
@@ -4144,8 +4152,6 @@ async def display_report_for_source(display, tickers, source, verbose=False, get
         
     try:
         # Import trading criteria for confidence thresholds
-        min_analysts = TRADING_CRITERIA["CONFIDENCE"]["MIN_ANALYST_COUNT"]
-        min_targets = TRADING_CRITERIA["CONFIDENCE"]["MIN_PRICE_TARGETS"]
         
         # Step 1: Prepare ticker data
         result_df, output_file, report_title, report_source, processing_stats = await _prepare_ticker_data(display, tickers, source)
@@ -4305,7 +4311,6 @@ async def display_report_for_source(display, tickers, source, verbose=False, get
         
         # Format the dataframe for better display
         from yahoofinance.presentation.formatter import DisplayFormatter
-        formatter = DisplayFormatter()
         
         from yahoofinance.presentation.html import HTMLGenerator
         
@@ -4319,7 +4324,6 @@ async def display_report_for_source(display, tickers, source, verbose=False, get
             clean_df = result_df.copy()
             
             # Make sure we have the same columns as console display
-            display_columns = get_columns_to_select()
             column_mapping = get_column_mapping()
             
             # Rename columns to match display format
@@ -4708,6 +4712,7 @@ async def display_report_for_source(display, tickers, source, verbose=False, get
             print(f"\n{c['bold']}{report_title}{c['reset']} | {c['cyan']}Generated:{c['reset']} {c['yellow']}{timestamp}{c['reset']} | {c['cyan']}Time:{c['reset']} {c['yellow']}{int(minutes)}m {int(seconds)}s{c['reset']} | {c['cyan']}Tickers:{c['reset']} {c['white']}{total_tickers}/{success_count}/{error_count}{c['reset']} | {c['cyan']}Results:{c['reset']} {c['green']}{valid_results}{c['reset']}")
         else:
             # If no processing stats, just show title and timestamp
+            cache_hits = processing_stats.get("cache_hits", 0)
             print(f"\n{c['bold']}{report_title}{c['reset']} | {c['cyan']}Generated:{c['reset']} {c['yellow']}{timestamp}{c['reset']}")
             
     except YFinanceError as e:
@@ -4831,7 +4836,6 @@ async def main_async(get_provider=None, app_logger=None):
             # Log cleanup errors
             if app_logger:
                 app_logger.debug(f"Error during cleanup: {str(e)}")
-            pass
 
 @with_logger
 def main(app_logger=None):

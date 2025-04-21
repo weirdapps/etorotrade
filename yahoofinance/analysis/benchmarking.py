@@ -355,7 +355,7 @@ def benchmark(name: Optional[str] = None, save_results: bool = False, iterations
                 # Run the function
                 bench.start()
                 result = func(*args, **kwargs)
-                metrics = bench.stop()
+                bench.stop()
                 
                 # Record iteration time
                 iter_end = time.time()
@@ -404,7 +404,7 @@ def benchmark(name: Optional[str] = None, save_results: bool = False, iterations
                 # Run the function
                 bench.start()
                 result = await func(*args, **kwargs)
-                metrics = bench.stop()
+                bench.stop()
                 
                 # Record iteration time
                 iter_end = time.time()
@@ -770,7 +770,7 @@ async def benchmark_provider(
         
         # Measure batch get_ticker_info
         batch_start = time.time()
-        batch_results = await provider.batch_get_ticker_info(tickers)
+        await provider.batch_get_ticker_info(tickers)
         batch_end = time.time()
         batch_time = batch_end - batch_start
         
@@ -778,7 +778,7 @@ async def benchmark_provider(
         individual_times = []
         for ticker in tickers:
             ticker_start = time.time()
-            ticker_info = await provider.get_ticker_info(ticker)
+            await provider.get_ticker_info(ticker)
             ticker_end = time.time()
             individual_times.append(ticker_end - ticker_start)
         
@@ -805,7 +805,7 @@ async def benchmark_provider(
     
     # Stop resource monitor if enabled
     if monitor:
-        monitor_results = await monitor.stop()
+        await monitor.stop()
         monitor.print_summary()
         
         # Add resource metrics to results
@@ -871,7 +871,7 @@ def find_memory_leaks(func, *args, iterations: int = 10, **kwargs) -> Tuple[bool
                 if asyncio.get_event_loop().is_running():
                     loop = asyncio.get_event_loop()
                     fut = asyncio.ensure_future(func(*args, **kwargs), loop=loop)
-                    result = loop.run_until_complete(fut)
+                    loop.run_until_complete(fut)
                 else:
                     result = asyncio.run(func(*args, **kwargs))
             except Exception as e:
@@ -1045,7 +1045,7 @@ async def find_memory_leaks_async(func, *args, iterations: int = 10, **kwargs) -
         # Run function with error handling
         try:
             # Directly await the function since we're already in an async context
-            result = await func(*args, **kwargs)
+            await func(*args, **kwargs)
         except Exception as e:
             logger.error(f"Error during iteration {i+1}: {str(e)}")
         
@@ -1226,7 +1226,7 @@ async def run_batch_size_benchmark(
         
         # Measure batch get_ticker_info
         batch_start = time.time()
-        batch_results = await provider.batch_get_ticker_info(tickers)
+        await provider.batch_get_ticker_info(tickers)
         batch_end = time.time()
         batch_time = batch_end - batch_start
         
@@ -1327,7 +1327,7 @@ async def run_concurrency_benchmark(
         
         # Measure batch get_ticker_info
         batch_start = time.time()
-        batch_results = await provider.batch_get_ticker_info(tickers)
+        await provider.batch_get_ticker_info(tickers)
         batch_end = time.time()
         batch_time = batch_end - batch_start
         
@@ -1959,7 +1959,6 @@ async def adaptive_fetch(
             errors += len(batch)
         
         batch_end = time.time()
-        batch_time = batch_end - batch_start
         total_processed += len(batch)
         
         # Adjust concurrency based on performance
