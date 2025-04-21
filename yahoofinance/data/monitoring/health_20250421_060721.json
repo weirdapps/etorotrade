@@ -1,0 +1,9 @@
+{
+  "system": {
+    "component": "system",
+    "status": "healthy",
+    "details": "Based on 0 component checks",
+    "timestamp": 1745204841.11963
+  },
+  "components": []
+}
