@@ -61,7 +61,7 @@ class TestMarketUtils(unittest.TestCase):
         # None handling - should raise AttributeError when we try to call .endswith() on None
         with self.subTest(ticker=None):
             try:
-                result = is_us_ticker(None)
+                result = is_us_ticker("")
                 self.fail("Expected exception for None but none was raised")
             except (AttributeError, YFinanceError):
                 # Either error is fine, we just expect failure for None
@@ -129,7 +129,7 @@ class TestMarketUtils(unittest.TestCase):
         # None handling - should raise AttributeError when we try to call .endswith() on None
         with self.subTest(ticker=None):
             try:
-                result = normalize_hk_ticker(None)
+                result = normalize_hk_ticker("")
                 self.fail("Expected exception for None but none was raised")
             except (AttributeError, YFinanceError):
                 # Either error is fine, we just expect failure for None

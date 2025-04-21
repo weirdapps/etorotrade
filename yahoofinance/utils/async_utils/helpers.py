@@ -317,7 +317,6 @@ async def adaptive_fetch(
         batch_success = sum(1 for r in batch_results.values() if r is not None)
         batch_failure = len(batch) - batch_success
         success_count += batch_success
-        failure_count += batch_failure
         items_since_adjustment += len(batch)
         
         # Check if we should adjust concurrency

@@ -949,7 +949,7 @@ class Backtester:
             start_date, end_date, ticker_data, trading_criteria = self._prepare_data_for_backtest(settings)
             
             # Step 2: Run simulation
-            portfolio, portfolio_values, all_trades = self._run_backtest_simulation(
+            _, portfolio_values, all_trades = self._run_backtest_simulation(
                 start_date,
                 end_date,
                 ticker_data,

@@ -167,13 +167,13 @@ class OptimizedAsyncYFinanceProvider(AsyncFinanceDataProvider):
                             info["buy_percentage"] = 50 # Simplified example
                             info["total_ratings"] = ticker_info.get("numberOfAnalystOpinions", 0)
                     else: # Fallback
-                         pass # No action needed for fallback in this simplified example
+                         # No action needed for fallback in this simplified example
                          # ... (original fallback logic based on rec_key) ...
                          info["buy_percentage"] = 50 # Simplified example
                          info["total_ratings"] = ticker_info.get("numberOfAnalystOpinions", 0)
                 except YFinanceError as e: # Fallback
                     logger.debug(f"Error getting recommendations for {ticker}: {e}, falling back to recommendationKey")
-                    rec_key = ticker_info.get("recommendationKey", "").lower()
+                    ticker_info.get("recommendationKey", "").lower()
                     # ... (original fallback logic based on rec_key) ...
                     info["buy_percentage"] = 50 # Simplified example
                     info["total_ratings"] = ticker_info.get("numberOfAnalystOpinions", 0)

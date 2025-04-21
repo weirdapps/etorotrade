@@ -722,7 +722,7 @@ class CacheManager:
     # Thread-local TTL cache for faster lookups
     _local_ttl_cache = threading.local()
     
-    def get(self, key: str, data_type: str = "default") -> Optional[Any]:
+    def get(self, key: str) -> Optional[Any]:
         """
         Maximum performance get method with thread-local caching and zero allocations.
         All optimizations focus on memory access speed and CPU efficiency.
@@ -836,7 +836,8 @@ class CacheManager:
             return self.missing_data_ttl[cache_type]
             
         # Get base TTL for this data type
-        base_ttl = 300  # Default 5 minutes
+        # Default 5 minutes
+        base_ttl = 300
         
         # Check if we have a specific TTL for this data type
         if data_type in self.ttl_config and cache_type in self.ttl_config[data_type]:

@@ -254,9 +254,14 @@ class HealthEndpointHandler(http.server.BaseHTTPRequestHandler):
         # Add circuit breaker data
         circuit_breakers = circuit_breaker_monitor.get_all_states()
         for name, state in circuit_breakers.items():
+            # Determine status based on circuit breaker state
+            status = "healthy"
+            if state.status != CircuitBreakerStatus.CLOSED:
+                status = "degraded" if state.status == CircuitBreakerStatus.HALF_OPEN else "unhealthy"
+                
             components.append({
                 "name": f"circuit_breaker_{name}",
-                "status": "healthy" if state.status == CircuitBreakerStatus.CLOSED else "degraded" if state.status == CircuitBreakerStatus.HALF_OPEN else "unhealthy",
+                "status": status,
                 "details": f"Failures: {state.failure_count}, Status: {state.status.value}",
                 "timestamp": datetime.datetime.now().isoformat()
             })
@@ -282,8 +287,8 @@ class HealthEndpointHandler(http.server.BaseHTTPRequestHandler):
         prometheus_output = []
         
         # Add timestamp
-        prometheus_output.append(f"# HELP timestamp Current timestamp in seconds")
-        prometheus_output.append(f"# TYPE timestamp gauge")
+        prometheus_output.append("# HELP timestamp Current timestamp in seconds")
+        prometheus_output.append("# TYPE timestamp gauge")
         prometheus_output.append(f"timestamp {time.time()}")
         prometheus_output.append("")
         
