@@ -223,7 +223,6 @@ def _color_based_on_criteria(row, colored_row):
     Args:
         row: Original row with metrics
         colored_row: Row to apply colors to
-        trading_criteria: Trading criteria from config
         
     Returns:
         Colored row
@@ -266,7 +265,7 @@ def apply_color_formatting(row, trading_criteria):
         
         # Fallback to evaluating criteria directly if required metrics are available
         if _has_required_metrics(row):
-            return _color_based_on_criteria(row, colored_row, trading_criteria)
+            return _color_based_on_criteria(row, colored_row)
             
     except YFinanceError as e:
         # If any error in color logic, use the original row

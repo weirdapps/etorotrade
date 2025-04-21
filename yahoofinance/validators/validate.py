@@ -53,7 +53,6 @@ def validate_tickers_batch(tickers: list, max_workers: int = 5) -> list:
     Args:
         tickers: List of ticker symbols to validate
         max_workers: Maximum number of worker threads
-        batch_size: Size of each batch
         
     Returns:
         List of valid ticker symbols
