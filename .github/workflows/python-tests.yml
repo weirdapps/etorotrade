@@ -37,5 +37,5 @@ jobs:
         python benchmarks/test_priority_limiter.py
     - name: Monitoring system tests
       run: |
-        # Run monitoring system tests and capture output
-        python scripts/run_monitoring.py --timeout 120 > monitoring_test_output.log 2>&1
+        # Run monitoring system tests
+        python scripts/run_monitoring.py --timeout 120
