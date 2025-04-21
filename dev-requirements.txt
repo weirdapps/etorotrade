@@ -15,6 +15,7 @@ pytest-cov>=4.1.0
 pytest-asyncio>=0.21.0
 pytest-mock>=3.10.0
 pytest-xdist>=3.3.1
+vaderSentiment>=3.3.2  # For news sentiment analysis tests
 
 # Development tools
 pre-commit>=3.3.2
