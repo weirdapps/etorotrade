@@ -21,94 +21,74 @@ PROVIDER_CONFIG = {
     "ENABLE_YAHOOQUERY": False,  # Set to False to disable yahooquery and prevent crumb errors
 }
 
-# Rate limiting configuration - OPTIMIZED FOR DIRECT API ACCESS
+# Rate limiting configuration - SIMPLIFIED FIXED RATE STRATEGY
 RATE_LIMIT = {
     # Time window for rate limiting in seconds (60s = 1 minute window)
     "WINDOW_SIZE": 60,
     
-    # Maximum API calls per minute window - Yahoo Finance generally allows 100-120
-    # Set to 60 to avoid rate limiting
+    # Maximum API calls per minute window
     "MAX_CALLS": 60,
     
-    # Base delay between calls in seconds - reduced for faster API access
-    # This is a starting point and will adaptively adjust based on API response
-    "BASE_DELAY": 0.3,  # Reduced from 0.5
+    # Fixed delay between calls in seconds - no adaptive adjustment
+    "BASE_DELAY": 0.3,
     
-    # Minimum delay after many successful calls in seconds
-    # Can go lower with direct API access (no cache overhead)
-    "MIN_DELAY": 0.1,  # Reduced from 0.2
+    # Fixed minimum delay - will not go lower
+    "MIN_DELAY": 0.3,
     
-    # Maximum delay after errors in seconds - kept high to prevent bans
-    "MAX_DELAY": 30.0,
+    # Fixed maximum delay - will not go higher except for rate limit errors
+    "MAX_DELAY": 0.3,
     
-    # Success threshold for delay reduction - after this many consecutive 
-    # successful calls, we'll reduce the delay
-    "SUCCESS_THRESHOLD": 5,  # New setting to reduce delay more quickly
-    
-    # Delay reduction factor - multiplier applied to current delay after
-    # SUCCESS_THRESHOLD consecutive successful API calls
-    "SUCCESS_DELAY_REDUCTION": 0.8,  # New setting (20% reduction)
-    
-    # Number of items per batch - set to 10 for better rate limiting control
+    # Number of items per batch - set to 10 as requested
     "BATCH_SIZE": 10,
     
-    # Delay between batches in seconds - minimized for faster processing
-    "BATCH_DELAY": 0.2,  # Reduced for faster processing
+    # Delay between batches in seconds - set to 0.2 as requested
+    "BATCH_DELAY": 0.2,
     
     # Maximum retry attempts for API calls
     "MAX_RETRY_ATTEMPTS": 3,
     
     # API request timeout in seconds
-    "API_TIMEOUT": 60,  # Keep longer timeout for stability
+    "API_TIMEOUT": 60,
     
     # Maximum concurrent API calls (for async)
-    "MAX_CONCURRENT_CALLS": 15,  # Increased from 10
+    "MAX_CONCURRENT_CALLS": 15,
     
-    # Jitter factor for randomizing delays (helps prevent rate limit detection)
-    "JITTER_FACTOR": 0.2,  # New setting - adds ±20% randomness to delays
+    # No jitter - use fixed delays
+    "JITTER_FACTOR": 0.0,
     
-    # Error count threshold - after this many errors, we'll increase delay
-    "ERROR_THRESHOLD": 2,  # New setting
+    # Disable error-based delay adjustments
+    "ERROR_THRESHOLD": 999999,
+    "ERROR_DELAY_INCREASE": 1.0,
+    "RATE_LIMIT_DELAY_INCREASE": 1.0,
     
-    # Error delay increase factor - multiplier applied to current delay after
-    # ERROR_THRESHOLD consecutive failed API calls
-    "ERROR_DELAY_INCREASE": 1.5,  # New setting
-    
-    # Rate limit error delay increase factor - applied when a rate limit error is detected
-    "RATE_LIMIT_DELAY_INCREASE": 2.0,  # New setting
-    
-    # Ticker priority tiers - HIGH priority tickers get processed faster with lower delays
-    # MEDIUM priority tickers use standard delays
-    # LOW priority tickers use higher delays
+    # No ticker priorities - all tickers treated equally
     "TICKER_PRIORITY": {
-        "HIGH": 0.7,    # 30% delay reduction
-        "MEDIUM": 1.0,  # Standard delay
-        "LOW": 1.5,     # 50% delay increase
+        "HIGH": 1.0,
+        "MEDIUM": 1.0,
+        "LOW": 1.0,
     },
     
-    # Problematic tickers that should use longer delays - updated to be tightly focused
+    # Empty sets for special ticker handling
     "SLOW_TICKERS": set(),
-    
-    # VIP tickers that should always process with highest priority
     "VIP_TICKERS": set(),
     
-    # Cache-aware settings - still relevant for API health even without caching
-    "CACHE_AWARE_RATE_LIMITING": False,  # Disabled since cache is off
+    # Disable cache-aware rate limiting
+    "CACHE_AWARE_RATE_LIMITING": False,
     
-    # Market hours delay multipliers
-    "MARKET_HOURS_DELAY_MULTIPLIER": 1.0,  # Regular delay during market hours
-    "OFF_MARKET_DELAY_MULTIPLIER": 1.5,    # Reduced from 2.0 for faster processing
+    # No market hours adjustments
+    "MARKET_HOURS_DELAY_MULTIPLIER": 1.0,
+    "OFF_MARKET_DELAY_MULTIPLIER": 1.0,
     
-    # Region-specific delay multipliers - optimized values
-    "US_DELAY_MULTIPLIER": 1.0,        # Standard delay for US tickers
-    "EUROPE_DELAY_MULTIPLIER": 1.1,    # Slight adjustment (reduced from 1.2)
-    "ASIA_DELAY_MULTIPLIER": 1.2,      # Reduced from 1.5 for faster overall processing
+    # No region-specific adjustments
+    "US_DELAY_MULTIPLIER": 1.0,
+    "EUROPE_DELAY_MULTIPLIER": 1.0,
+    "ASIA_DELAY_MULTIPLIER": 1.0,
     
-    # Adaptive strategy settings - new advanced configuration
-    "ENABLE_ADAPTIVE_STRATEGY": True,  # New setting - enables runtime strategy adaptation
-    "MONITOR_INTERVAL": 60,           # Seconds between rate limiting strategy adjustments
-    "MAX_ERROR_RATE": 0.05,           # 5% maximum allowable error rate before adjusting
-    "MIN_SUCCESS_RATE": 0.95,         # 95% minimum success rate target
+    # Disable adaptive strategy
+    "ENABLE_ADAPTIVE_STRATEGY": False,
+    "MONITOR_INTERVAL": 0,
+    "MAX_ERROR_RATE": 1.0,
+    "MIN_SUCCESS_RATE": 0.0,
 }
 
 # Circuit breaker configuration
