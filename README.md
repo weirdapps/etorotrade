@@ -1,12 +1,12 @@
-# etoroTRADE 📈 Smart Investment Analysis
+# etorotrade 👨🏻‍💻 An Investment Analysis Tool
 
 **Data-driven investment decisions powered by analyst consensus and financial metrics**
 
 ![eToro Trade Analysis Tool](assets/etorotrade.png)
 
-etoroTRADE is a Python-based investment analysis system that helps you make smarter trading decisions by analyzing financial data, analyst ratings, and technical indicators from Yahoo Finance. Whether you're managing a portfolio or searching for new opportunities, etoroTRADE provides actionable insights with clear BUY, SELL, or HOLD recommendations.
+etorotrade is a Python-based investment analysis system that helps you make smarter trading decisions by analyzing financial data, analyst ratings, and technical indicators from Yahoo Finance. Whether you're managing a portfolio or searching for new opportunities, etorotrade provides actionable insights with clear BUY, SELL, or HOLD recommendations.
 
-## 🚀 Features
+## 🎩 Features
 
 - **Portfolio Analysis**: Identify risks and opportunities in your current holdings
 - **Market Screening**: Discover promising stocks across US, European, and Chinese markets
@@ -38,9 +38,9 @@ Load tickers for Portfolio (P), Market (M), eToro Market (E), Trade Analysis (T)
 
 Simply enter the letter that corresponds to your desired analysis type.
 
-## 📊 Smart Trading Criteria
+## 💲 Trading Criteria
 
-etoroTRADE uses a sophisticated classification system based on financial metrics, analyst consensus, and technical indicators:
+etorotrade uses a sophisticated classification system based on financial metrics, analyst consensus, and technical indicators:
 
 ### 🟢 BUY Recommendations
 A stock must meet ALL of these criteria:
@@ -150,7 +150,7 @@ python -m yahoofinance.analysis.performance portfolio # Portfolio metrics
 python scripts/optimize_criteria.py --mode backtest --period 2y
 ```
 
-## 📊 Output Examples
+## 📝 Output Examples
 
 The analysis generates both CSV files and interactive HTML dashboards:
 
