@@ -48,7 +48,7 @@ A stock must meet ALL of these criteria:
 - **Analyst Consensus**: 85%+ buy ratings
 - **Reasonable Volatility**: Beta between 0.25 and 2.5
 - **Attractive Valuation**: 
-  - Improving earnings outlook (Forward P/E < Trailing P/E)
+  - Improving earnings outlook (Forward P/E - Trailing P/E < 0.5)
   - Reasonable Forward P/E (0.5 < PEF ≤ 45.0)
   - Good growth-adjusted value (PEG < 2.5)
 - **Limited Risk Factors**: 
@@ -59,7 +59,7 @@ A stock must meet ALL of these criteria:
 A stock triggers a SELL if ANY of these warning signs appear:
 - **Limited Upside**: Less than 5% upside potential
 - **Weak Analyst Support**: Less than 65% buy ratings
-- **Deteriorating Earnings**: Forward P/E > Trailing P/E
+- **Deteriorating Earnings**: Forward P/E - Trailing P/E > 0.5
 - **Overvaluation**: Forward P/E > 50.0 or PEG > 3.0
 - **High Risk Factors**: Short interest > 2% or Beta > 3.0
 - **Poor Expected Return**: EXRET < 5.0
@@ -71,6 +71,14 @@ A stock triggers a SELL if ANY of these warning signs appear:
 ### 🟡 INCONCLUSIVE Classification
 - Insufficient analyst coverage (< 5 price targets or < 5 analyst ratings)
 - Not enough data for confident decision-making
+
+### 💰 Position Size Calculation
+The system automatically calculates optimal position sizes based on market cap and expected return:
+- Formula: `position_size = market_cap * EXRET / 5,000,000,000`
+- Uses default EXRET values (10-15%) when actual EXRET is unavailable
+- Result is rounded up to the nearest thousand with minimum size of 1,000 units
+- Applied consistently across all markets (US, China, Europe)
+- For detailed documentation, see [Position Size Calculation](docs/position_size_calculation.md)
 
 ## 📁 Input Files
 

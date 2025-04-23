@@ -152,7 +152,7 @@ def _check_buy_percentage_sell_criterion(row, sell_criteria):
     return False, None
 
 def _check_pe_ratio_sell_criterion(row):
-    """Check if a stock has a worsening PE ratio (forward > trailing)."""
+    """Check if a stock has a significant worsening PE ratio (forward - trailing > 0.5)."""
 
     if (PE_FORWARD in row and PE_TRAILING in row and 
         pd.notna(row[PE_FORWARD]) and pd.notna(row[PE_TRAILING])):
@@ -176,8 +176,9 @@ def _check_pe_ratio_sell_criterion(row):
             else:
                 pe_trailing = float(row[PE_TRAILING])
             
-            if pe_forward > 0 and pe_trailing > 0 and pe_forward > pe_trailing:
-                return True, f"Worsening P/E ratio (Forward {pe_forward:.1f} > Trailing {pe_trailing:.1f})"
+            # Updated condition: check if PEF-PET > 0.5
+            if pe_forward > 0 and pe_trailing > 0 and (pe_forward - pe_trailing) > 0.5:
+                return True, f"Worsening P/E ratio (Forward - Trailing > 0.5: {pe_forward:.1f} - {pe_trailing:.1f} = {(pe_forward - pe_trailing):.1f})"
         except (ValueError, TypeError):
             # If conversion fails, skip this criterion
             return False, None
@@ -563,7 +564,7 @@ def _is_forward_pe_in_range(row, criteria):
         return False
 
 def _is_pe_improving(row):
-    """Check if P/E is improving (forward < trailing and trailing > 0)."""
+    """Check if P/E is improving (forward - trailing < 0.5 and trailing > 0)."""
 
     # We already checked if pe_trailing and pe_forward exist in the calling function
     try:
@@ -573,7 +574,9 @@ def _is_pe_improving(row):
         
         # Zero check with tolerance for floating point errors
         pe_trailing_positive = pe_trailing > 0
-        pe_improving = pe_forward < pe_trailing
+        
+        # Updated condition: check if PEF-PET < 0.5
+        pe_improving = (pe_forward - pe_trailing) < 0.5
         
         return pe_trailing_positive and pe_improving
     except (ValueError, TypeError):
