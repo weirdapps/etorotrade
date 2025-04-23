@@ -122,23 +122,40 @@ class TestFormatUtilsFunctions(unittest.TestCase):
         # Test None value
         self.assertIsNone(calculate_position_size(None))
         
+        # Test when exret is not provided
+        self.assertIsNone(calculate_position_size(2e12))
+        
         # Test trillion-scale company (very large cap)
-        # For market cap of 2 trillion, position size should be 20,000
-        self.assertEqual(calculate_position_size(2e12), 20000)
+        # For market cap of 2 trillion with EXRET of 20, position size should be 8,000,000
+        exret_value = 20
+        expected = math.ceil((2e12 * exret_value / 5000000000) / 1000) * 1000
+        self.assertEqual(calculate_position_size(2e12, exret_value), expected)
         
         # Test large cap (between 1B and 1T)
-        # All companies in this range should have position size of 2500
-        self.assertEqual(calculate_position_size(1.5e9), 2500)  # 1.5 billion
-        self.assertEqual(calculate_position_size(500e9), 2500)  # 500 billion
+        # Position size based on formula: market_cap * exret / 5000000000
+        exret_value = 15
+        # 1.5 billion
+        expected = math.ceil((1.5e9 * exret_value / 5000000000) / 1000) * 1000
+        self.assertEqual(calculate_position_size(1.5e9, exret_value), max(1000, expected))
+        
+        # 500 billion
+        expected = math.ceil((500e9 * exret_value / 5000000000) / 1000) * 1000
+        self.assertEqual(calculate_position_size(500e9, exret_value), max(1000, expected))
         
         # Test mid cap (between 500M and 1B)
-        # All companies in this range should have position size of 1000
-        self.assertEqual(calculate_position_size(750e6), 1000)  # 750 million
+        # Position size based on formula but with minimum of 1000
+        exret_value = 10
+        expected = math.ceil((750e6 * exret_value / 5000000000) / 1000) * 1000
+        self.assertEqual(calculate_position_size(750e6, exret_value), max(1000, expected))
         
         # Test small cap (below 500M)
         # All companies below this threshold should have position size of None
-        self.assertIsNone(calculate_position_size(400e6))  # 400 million
-        self.assertIsNone(calculate_position_size(100e6))  # 100 million
+        self.assertIsNone(calculate_position_size(400e6, exret_value))  # 400 million
+        self.assertIsNone(calculate_position_size(100e6, exret_value))  # 100 million
+        
+        # Test with zero or negative EXRET
+        self.assertIsNone(calculate_position_size(2e12, 0))  # Zero EXRET
+        self.assertIsNone(calculate_position_size(2e12, -5))  # Negative EXRET
     
     @pytest.mark.skip(reason="Temporarily skipping problematic test")
     def test_format_position_size(self):

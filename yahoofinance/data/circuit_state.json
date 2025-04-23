@@ -3,12 +3,12 @@
     "state": "CLOSED",
     "failure_count": 0,
     "success_count": 0,
-    "last_state_change": 1745327175.8913112,
+    "last_state_change": 1745428150.555966,
     "last_failure_time": 0,
-    "last_success_time": 1745327283.5535429,
+    "last_success_time": 1745428150.5560598,
     "total_failures": 0,
-    "total_successes": 2,
-    "total_requests": 2,
+    "total_successes": 1,
+    "total_requests": 1,
     "failure_timestamps": [],
     "consecutive_failures": 0
   }

@@ -12,6 +12,7 @@ This version uses the enhanced components from yahoofinance:
 
 import sys
 import logging
+import math
 import os
 import warnings
 import pandas as pd
@@ -632,82 +633,69 @@ def _add_market_cap_column(working_df):
 
 
 def _add_position_size_column(working_df):
-    """Add position size column based on market cap value."""
+    """Add position size column based on market cap and EXRET values."""
     # Import the position size calculation function
     from yahoofinance.utils.data.format_utils import calculate_position_size
     
     # Check if we have market cap data
     if 'market_cap' in working_df.columns:
-        logger.debug("Calculating position size from market cap...")
+        logger.debug("Calculating position size from market cap and EXRET...")
         
-        # Debug - show market_cap values
-        # Removed debug print
+        # Ensure EXRET is calculated
+        if 'EXRET' not in working_df.columns:
+            working_df = calculate_exret(working_df)
         
-        # Calculate position size based on market cap - use a safer version
-        def safe_calculate_position_size(mc):
+        # Calculate position size based on market cap and EXRET - use a safer version
+        def safe_calculate_position_size(row):
             try:
+                mc = row.get('market_cap')
+                exret = row.get('EXRET')
+                ticker = row.get('symbol', row.get('ticker', ''))
+                
                 if mc is None or pd.isna(mc) or (isinstance(mc, str) and (mc == '--' or not mc.strip())):
                     return None
                     
                 # Convert string to float if needed
                 if isinstance(mc, str):
                     mc = float(mc.replace(',', ''))
+                
+                # Convert EXRET to float if needed
+                if exret is not None and not pd.isna(exret) and isinstance(exret, str):
+                    exret = float(exret.replace(',', ''))
+                
+                # Always use calculate_position_size from format_utils.py which has the correct formula
+                # regardless of the ticker type (US, China, Europe, etc.)
+                position_size = calculate_position_size(mc, exret)
+                
+                # Log a few position sizes for debugging
+                if ticker and (ticker.endswith('.HK') or ticker in ['AAPL', 'MSFT']):
+                    logger.debug(f"Position size for {ticker}: {position_size} (mc={mc}, exret={exret})")
                     
-                return calculate_position_size(mc)
-            except YFinanceError:
-                # Suppress error message
+                return position_size
+            except Exception as e:
+                # Log error but don't raise
+                logger.debug(f"Error calculating position size: {str(e)}")
                 return None
         
-        # Use the safe version for calculation
-        working_df['position_size'] = working_df['market_cap'].apply(safe_calculate_position_size)
+        # Use the safe version for calculation with apply across rows
+        working_df['position_size'] = working_df.apply(safe_calculate_position_size, axis=1)
         
         # Replace NaN values with None for consistent display
         working_df['position_size'] = working_df['position_size'].apply(
             lambda x: None if pd.isna(x) else x
         )
         
-        # Debug - show calculated position_size values
-        # Debug output removed
-        
-        # For portfolio mode, ensure position sizes are always correct - use direct knowledge
-        # Market cap > 1T: variable calculated value
-        # Market cap 1B-1T: 2500
-        # Market cap 500M-1B: 1000
-        # Market cap < 500M: None (displayed as --)
-        if 'position_size' in working_df.columns:
-            def direct_position_size(row):
-                # Don't recalculate if it's already correct
-                if pd.notna(row.get('position_size')) and row['position_size'] in [1000, 2500]:
-                    return row['position_size']
-                    
-                mc = row.get('market_cap')
-                if mc is None or pd.isna(mc) or (isinstance(mc, str) and (mc == '--' or not mc.strip())):
-                    return None
-                    
-                try:
-                    # Convert string to float if needed
-                    if isinstance(mc, str):
-                        mc = float(mc.replace(',', ''))
-                        
-                    # Market cap tiers with explicit values
-                    if mc >= 1_000_000_000_000:  # 1 trillion+
-                        position_size = mc / 100_000_000
-                        return round(position_size / 1000) * 1000
-                    elif mc >= 1_000_000_000:  # 1 billion to 1 trillion
-                        return 2500
-                    elif mc >= 500_000_000:  # 500 million to 1 billion
-                        return 1000
-                    else:
-                        return None
-                except YFinanceError:
-                    # Suppress error message
-                    return None
+        # Log a few calculated position sizes for debugging
+        try:
+            sample_tickers = working_df[working_df['symbol'].str.contains('.HK', na=False)]['symbol'].tolist()[:3]
+            if sample_tickers:
+                for ticker in sample_tickers:
+                    row = working_df[working_df['symbol'] == ticker].iloc[0]
+                    logger.debug(f"Final position size for {ticker}: {row.get('position_size')} (mc={row.get('market_cap')}, exret={row.get('EXRET')})")
+        except Exception:
+            # Ignore any error during debug logging
+            pass
             
-            # Create a temporary column with the correct types for apply with axis=1
-            working_df['position_size'] = working_df.apply(direct_position_size, axis=1)
-            
-            # Debug - show final position_size values
-            # Debug output removed
     else:
         # Add placeholder if no market cap data found
         logger.debug("No market cap data found, using placeholder for position size.")
@@ -3699,11 +3687,12 @@ def _handle_manual_tickers(tickers):
     print(f"Processing tickers: {', '.join(tickers_list)}")
     return tickers_list
 
-def _setup_output_files(report_source):
+def _setup_output_files(report_source, market_type=None):
     """Set up output files based on source.
     
     Args:
         report_source: Source type
+        market_type: Optional market type (for different market files)
         
     Returns:
         tuple: (output_file, report_title)
@@ -3712,6 +3701,15 @@ def _setup_output_files(report_source):
     os.makedirs(output_dir, exist_ok=True)
     
     if report_source == MARKET_SOURCE:
+        # Always delete the market output file first to ensure we don't use stale data
+        # This ensures position size calculations are fresh
+        if os.path.exists(FILE_PATHS["MARKET_OUTPUT"]):
+            try:
+                os.remove(FILE_PATHS["MARKET_OUTPUT"])
+                logger.debug(f"Deleted existing market output file: {FILE_PATHS['MARKET_OUTPUT']}")
+            except Exception as e:
+                logger.debug(f"Could not delete market output file: {str(e)}")
+        
         output_file = FILE_PATHS["MARKET_OUTPUT"]
         report_title = "Market Analysis"
     elif report_source == PORTFOLIO_SOURCE:
@@ -3964,9 +3962,27 @@ async def _prepare_ticker_data(display, tickers, source):
     """
     # Handle special case for eToro market
     report_source = source
+    market_type = None
+    
     if source == ETORO_SOURCE:
         report_source = MARKET_SOURCE  # Still save as market.csv for eToro tickers
         print(f"Processing {len(tickers)} eToro tickers. This may take a while...")
+    
+    # Check if we're processing a specific market region
+    if source == MARKET_SOURCE:
+        # Look for region-specific tickers to determine market type
+        market_type = None
+        # Sample a few tickers to detect market region
+        sample_tickers = tickers[:5] if len(tickers) > 5 else tickers
+        hk_tickers = [t for t in sample_tickers if t.endswith('.HK')]
+        de_tickers = [t for t in sample_tickers if t.endswith('.DE')]
+        
+        if hk_tickers:
+            market_type = 'china'
+            print(f"Detected China market (HK tickers) - processing with updated position size calculation")
+        elif de_tickers:
+            market_type = 'europe'
+            print(f"Detected Europe market (DE tickers) - processing with updated position size calculation")
         
     # Extract the provider
     provider = display.provider
@@ -3980,7 +3996,7 @@ async def _prepare_ticker_data(display, tickers, source):
     result_df, processing_stats = await fetch_ticker_data(provider, tickers)
     
     # Set up output files
-    output_file, report_title = _setup_output_files(report_source)
+    output_file, report_title = _setup_output_files(report_source, market_type)
     
     return result_df, output_file, report_title, report_source, processing_stats
 
