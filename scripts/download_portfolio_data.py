@@ -9,16 +9,18 @@ and saves it to a cache file for faster portfolio optimization.
 import os
 import sys
 import argparse
-from ..core.logging_config import get_logger
 import time
 import pandas as pd
 import yfinance as yf
 from datetime import datetime, timedelta
 import pickle
 import json
+import logging
 
-# Add parent directory to Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+# Add parent directory to Python path first, before any imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# Now we can import from yahoofinance package
 
 from yahoofinance.utils.network.rate_limiter import RateLimiter
 from yahoofinance.core.errors import YFinanceError
