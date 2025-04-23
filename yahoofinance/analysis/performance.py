@@ -13,6 +13,7 @@ TWO_YEARS = "2 Years"
 JENSENS_ALPHA = "Jensen's Alpha"
 DEFAULT_PORTFOLIO_URL = "https://bullaware.com/etoro/plessas"
 HTML_PARSER = "html.parser"
+PERFORMANCE_DATA_FILENAME = "performance.json"
 
 # Define constants for repeated strings
 CHANGE_PERCENT_DISPLAY = 'Change %'

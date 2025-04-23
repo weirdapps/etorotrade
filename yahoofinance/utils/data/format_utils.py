@@ -125,36 +125,38 @@ def format_market_cap(value: Optional[float]) -> Optional[str]:
         return f"{int(value):,}"
 
 
-def calculate_position_size(market_cap: Optional[float]) -> Optional[float]:
+def calculate_position_size(market_cap: Optional[float], exret: Optional[float] = None) -> Optional[float]:
     """
-    Calculate position size based on market cap value.
+    Calculate position size based on market cap and EXRET values.
     
     Args:
         market_cap: Market capitalization value
+        exret: Expected return value (EXRET)
         
     Returns:
-        Position size as a percentage of portfolio or None if below threshold
+        Position size as a percentage of portfolio or None if below threshold or EXRET missing
     """
 
     if market_cap is None:
         return None
     
-    # If market cap is over 1 trillion, calculate as market cap / 100,000,000 rounded to nearest 1,000
-    if market_cap >= 1_000_000_000_000:  # 1 trillion
-        position_size = market_cap / 100_000_000
-        # Round to nearest 1,000
-        return round(position_size / 1000) * 1000
+    # For stocks below 500 million market cap, return None (will display as "--")
+    if market_cap < 500_000_000:
+        return None
     
-    # If market cap is between 1 billion and 1 trillion, return fixed 2,500
-    elif market_cap >= 1_000_000_000:  # 1 billion
-        return 2500
+    # If EXRET is not available or zero, return None (will display as "--")
+    if exret is None or exret <= 0:
+        return None
     
-    # If market cap is between 500 million and 1 billion, return fixed 1,000
-    elif market_cap >= 500_000_000:  # 500 million
-        return 1000
+    # Formula: market cap * EXRET / 5000000000, rounded up to the nearest thousand
+    # This formula is now used for ALL stocks regardless of region (US, China, Europe)
+    position_size = market_cap * exret / 5000000000
     
-    # If market cap is below 500 million, return None (will display as "--")
-    return None
+    # Round up to nearest 1,000
+    result = math.ceil(position_size / 1000) * 1000
+    
+    # For consistency, ensure we have at least 1000 as a minimum value
+    return max(1000, result)
 
 
 def format_position_size(value: Optional[float]) -> str:
