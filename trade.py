@@ -155,7 +155,8 @@ if not os.environ.get('ETOROTRADE_LOG_LEVEL'):
     logging.getLogger('urllib3').setLevel(logging.WARNING)
 
 # Define constants for file paths - use values from config if available, else fallback
-OUTPUT_DIR = PATHS["OUTPUT_DIR"]
+# Ensure OUTPUT_DIR is always within the yahoofinance package
+OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "yahoofinance", "output")
 INPUT_DIR = PATHS["INPUT_DIR"]
 
 # Define constants for output files
@@ -2220,7 +2221,7 @@ def _load_portfolio_data(output_dir):
     Returns:
         pd.DataFrame or None: Portfolio data or None if file not found
     """
-    portfolio_output_path = f"{output_dir}/portfolio.csv"
+    portfolio_output_path = os.path.join(output_dir, "portfolio.csv")
     
     if not os.path.exists(portfolio_output_path):
         print(f"\nPortfolio analysis file not found: {portfolio_output_path}")
@@ -2437,7 +2438,7 @@ def process_hold_candidates(output_dir, provider=None):
         output_dir: Output directory
         provider: Optional data provider to use
     """
-    market_path = f"{output_dir}/market.csv"
+    market_path = os.path.join(output_dir, "market.csv")
     
     # Load market data
     market_df = _load_market_data(market_path)

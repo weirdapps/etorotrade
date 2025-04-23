@@ -7,15 +7,16 @@ It allows configuring minimum and maximum position sizes and time periods.
 """
 
 import os
-
-from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
-from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 import sys
 import argparse
-from ..core.logging_config import get_logger
+import logging
 
-# Add parent directory to Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+# Add parent directory to Python path first, before any imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# Now we can import from yahoofinance package
+from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
+from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
 
 from yahoofinance.analysis.optimize import optimize_portfolio, PortfolioOptimizer
 
