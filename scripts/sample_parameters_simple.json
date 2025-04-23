@@ -1,0 +1,12 @@
+{
+  "SELL": {
+    "SELL_MIN_PEG": [2.0, 3.0],
+    "SELL_MIN_SHORT_INTEREST": [1.5, 2.0],
+    "SELL_MIN_BETA": [2.5, 3.0]
+  },
+  "BUY": {
+    "BUY_MIN_UPSIDE": [15.0, 20.0],
+    "BUY_MIN_BUY_PERCENTAGE": [80.0, 85.0],
+    "BUY_MAX_PEG": [2.0, 2.5]
+  }
+}

@@ -132,10 +132,33 @@ echo "t\nb" | python trade.py
 
 ### Monitoring Dashboard
 ```bash
-# Start the monitoring dashboard with a timeout
+# Start the basic monitoring dashboard with a timeout
 python scripts/run_monitoring.py --timeout 60 --max-updates 5
 
-# Use this script directly instead of from the main application
+# Enhanced monitoring with health endpoints and structured logging
+python scripts/run_enhanced_monitoring.py --timeout 300 --health-port 8081
+```
+
+### Portfolio Optimization
+```bash
+# Download historical data for portfolio optimization
+python scripts/download_portfolio_data.py --max-years 5 --batch-size 10
+
+# Run portfolio optimizer with custom position size constraints
+python scripts/run_optimizer.py --min 1000 --max 25000 --periods 1 3 5 --use-cache
+
+# Optimize trading criteria with backtesting
+python scripts/optimize_criteria.py --mode optimize --period 2y --metric sharpe_ratio
+```
+
+### Utility Scripts
+```bash
+# Run code quality checks
+./scripts/lint.sh          # Check code quality
+./scripts/lint.sh fix      # Fix formatting issues automatically
+
+# Split eToro tickers by region
+python scripts/split_etoro_by_region.py  # Creates usa.csv, europe.csv, and china.csv
 ```
 
 ### Specialized Analysis
@@ -153,9 +176,6 @@ python -m yahoofinance.analysis.insiders
 python -m yahoofinance.analysis.performance weekly    # Week-over-week
 python -m yahoofinance.analysis.performance monthly   # Month-over-month
 python -m yahoofinance.analysis.performance portfolio # Portfolio metrics
-
-# Backtesting and strategy optimization
-python scripts/optimize_criteria.py --mode backtest --period 2y
 ```
 
 ## 📝 Output Examples
