@@ -7,7 +7,6 @@ services:
       - ./yahoofinance/input:/app/yahoofinance/input
       - ./yahoofinance/output:/app/yahoofinance/output
       - ./logs:/app/logs
-      - ./benchmarks:/app/benchmarks
     environment:
       - ETOROTRADE_LOG_LEVEL=INFO
       - PYTHONPATH=/app
