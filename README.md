@@ -76,9 +76,7 @@ A stock triggers a SELL if ANY of these warning signs appear:
 The system automatically calculates optimal position sizes based on market cap and expected return:
 - Formula: `position_size = market_cap * EXRET / 5,000,000,000`
 - Uses default EXRET values (10-15%) when actual EXRET is unavailable
-- Result is rounded up to the nearest thousand with minimum size of 1,000 units
-- Applied consistently across all markets (US, China, Europe)
-- For detailed documentation, see [Position Size Calculation](docs/position_size_calculation.md)
+- Result is rounded up to the nearest thousand with minimum size of $1,000
 
 ## 📁 Input Files
 
@@ -97,7 +95,7 @@ MSFT,Technology
 ```
 
 Pre-populated files include:
-- `etoro.csv`: Tickers available on eToro
+- `etoro.csv`: Tickers available to invest on eToro (GR account)
 - `usa.csv`, `europe.csv`, `china.csv`: Regional market lists
 - `notrade.csv`: Tickers to exclude from recommendations
 
