@@ -8,17 +8,17 @@ entry point for the dependency injection system.
 
 from typing import Dict, Any, Optional, Union, Callable
 
-from .core.logging_config import get_logger
-from .core.errors import YFinanceError, ValidationError
-from .utils.dependency_injection import registry, inject, provides, lazy_import
+from .logging_config import get_logger
+from .errors import YFinanceError, ValidationError
+from ..utils.dependency_injection import registry, inject, provides, lazy_import
 
 # Set up logging
 logger = get_logger(__name__)
 
 # Import necessary factories and providers
-from .api.provider_registry import get_provider, get_all_providers, get_default_provider
-from .analysis.analyzer_factory import create_stock_analyzer, create_portfolio_analyzer
-from .analysis.analyzer_factory import with_analyzer, with_portfolio_analyzer
+from ..api.provider_registry import get_provider, get_all_providers, get_default_provider
+from ..analysis.analyzer_factory import create_stock_analyzer, create_portfolio_analyzer
+from ..analysis.analyzer_factory import with_analyzer, with_portfolio_analyzer
 
 # Define a function to register all application components
 def setup_application():
@@ -32,7 +32,7 @@ def setup_application():
     
     # Register core services
     try:
-        from .core.logging_config import get_logger as logger_factory
+        from .logging_config import get_logger as logger_factory
         registry.register('logger_factory', logger_factory)
         
         # Register a logger instance for direct injection
@@ -46,14 +46,14 @@ def setup_application():
     # Register helper services
     try:
         # Register formatters and utilities
-        from .utils.data.format_utils import format_number
+        from ..utils.data.format_utils import format_number
         registry.register('format_number', format_number)
         
-        from .utils.market.filter_utils import filter_tickers_by_criteria
+        from ..utils.market.filter_utils import filter_tickers_by_criteria
         registry.register('filter_tickers', filter_tickers_by_criteria)
         
         # Register helpers for data processing and display
-        from .utils.display_helpers import create_display
+        from ..utils.display_helpers import create_display
         registry.register('display_factory', create_display)
         
         logger.debug("Registered helper services")
@@ -64,7 +64,7 @@ def setup_application():
     try:
         # Register cache services if available
         try:
-            from .data.cache import get_cache, clear_cache
+            from ..data.cache import get_cache, clear_cache
             registry.register('get_cache', get_cache)
             registry.register('clear_cache', clear_cache)
             logger.debug("Registered cache services")
@@ -72,7 +72,7 @@ def setup_application():
             logger.warning("Cache services not available")
         
         # Register data loaders
-        from .data.download import download_market_data
+        from ..data.download import download_market_data
         registry.register('download_market_data', download_market_data)
         
         logger.debug("Registered data access services")
@@ -81,10 +81,10 @@ def setup_application():
     
     # Register presentation services
     try:
-        from .presentation.formatter import create_formatter
+        from ..presentation.formatter import create_formatter
         registry.register('formatter_factory', create_formatter)
         
-        from .presentation.console import ConsoleDisplay
+        from ..presentation.console import ConsoleDisplay
         registry.register('console_display', ConsoleDisplay)
         
         logger.debug("Registered presentation services")
@@ -130,10 +130,10 @@ def create_display(output_format: str = 'console', **kwargs) -> Any:
     """
     try:
         if output_format == 'console':
-            from .presentation.console import ConsoleDisplay
+            from ..presentation.console import ConsoleDisplay
             return ConsoleDisplay(**kwargs)
         elif output_format == 'html':
-            from .presentation.html import HTMLDisplay
+            from ..presentation.html import HTMLDisplay
             return HTMLDisplay(**kwargs)
         else:
             raise ValidationError(f"Invalid display format: {output_format}")

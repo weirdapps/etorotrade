@@ -32,7 +32,7 @@ setup(
     long_description_content_type="text/markdown",
     author="Roo",
     author_email="noreply@example.com",
-    url="https://github.com/yourusername/etorotrade",
+    url="https://github.com/weirdapps/etorotrade",
     packages=find_packages(exclude=["tests", "tests.*"]),
     include_package_data=True,
     python_requires=">=3.8",
@@ -73,7 +73,7 @@ setup(
     ],
     keywords="finance, trading, stock market, portfolio management, yahoo finance",
     project_urls={
-        "Bug Reports": "https://github.com/yourusername/etorotrade/issues",
-        "Source": "https://github.com/yourusername/etorotrade",
+        "Bug Reports": "https://github.com/weirdapps/etorotrade/issues",
+        "Source": "https://github.com/weirdapps/etorotrade",
     },
 )
