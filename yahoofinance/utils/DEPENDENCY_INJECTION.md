@@ -30,7 +30,7 @@ The system provides decorators for injecting dependencies into functions:
 
 ```python
 from yahoofinance.utils.dependency_injection import inject
-from yahoofinance.di_container import with_analyzer, with_provider
+from yahoofinance.core.di_container import with_analyzer, with_provider
 
 # Using the inject decorator directly
 @inject('yahoo_provider', async_mode=True)
@@ -103,7 +103,7 @@ data = provider.get_ticker_info('AAPL')
 ### Using Injection Decorators
 
 ```python
-from yahoofinance.di_container import with_analyzer
+from yahoofinance.core.di_container import with_analyzer
 
 # Inject a StockAnalyzer
 @with_analyzer(async_mode=True)
@@ -117,7 +117,7 @@ result = analyze_stock('AAPL')  # analyzer is injected automatically
 ### Asynchronous Component Usage
 
 ```python
-from yahoofinance.di_container import with_analyzer
+from yahoofinance.core.di_container import with_analyzer
 import asyncio
 
 @with_analyzer(async_mode=True)
@@ -134,7 +134,7 @@ results = asyncio.run(analyze_stocks(['AAPL', 'MSFT', 'GOOG']))
 ### Batch Processing
 
 ```python
-from yahoofinance.di_container import with_analyzer
+from yahoofinance.core.di_container import with_analyzer
 import asyncio
 
 @with_analyzer(async_mode=True)
@@ -148,7 +148,7 @@ results = asyncio.run(analyze_batch(['AAPL', 'MSFT', 'GOOG', 'AMZN']))
 ### Portfolio Analysis
 
 ```python
-from yahoofinance.di_container import with_portfolio_analyzer
+from yahoofinance.core.di_container import with_portfolio_analyzer
 
 @with_portfolio_analyzer()
 def analyze_portfolio(file_path, portfolio_analyzer=None):
@@ -187,7 +187,7 @@ def test_analysis(setup_test):
 The `di_container` module serves as the main entry point for the DI system. It sets up all application components and provides convenient decorators:
 
 ```python
-from yahoofinance.di_container import (
+from yahoofinance.core.di_container import (
     initialize, 
     with_provider, 
     with_analyzer, 
@@ -212,7 +212,7 @@ def my_function(ticker, analyzer=None, app_logger=None):
 1. **Component Registration**
    - Register all major components as factory functions
    - Use descriptive keys for component registration
-   - Register components in a central location (`di_container.py`)
+   - Register components in a central location (`core/di_container.py`)
 
 2. **Dependency Injection**
    - Use the `inject` decorator for injecting dependencies
