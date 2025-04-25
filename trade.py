@@ -27,10 +27,10 @@ from tqdm import tqdm
 from typing import Dict, Any, List, Optional, Union, Set
 
 # Import dependency injection system first
-from yahoofinance.di_container import (
-    initialize, 
-    with_provider, 
-    with_analyzer, 
+from yahoofinance.core.di_container import (
+    initialize,
+    with_provider,
+    with_analyzer,
     with_portfolio_analyzer,
     with_display,
     with_logger
