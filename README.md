@@ -20,7 +20,7 @@ etorotrade is a Python-based investment analysis system that helps you make smar
 
 ```bash
 # Clone and setup
-git clone https://github.com/yourusername/etorotrade
+git clone https://github.com/weirdapps/etorotrade
 cd etorotrade
 python -m venv myenv
 source myenv/bin/activate  # On Windows: myenv\Scripts\activate
