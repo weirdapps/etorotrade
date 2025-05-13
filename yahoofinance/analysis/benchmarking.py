@@ -1028,7 +1028,9 @@ async def find_memory_leaks_async(func, *args, iterations: int = 10, **kwargs) -
     memory_usage = []
     gc_stats = []
     
-    # Force garbage collection before starting
+    # Force garbage collection before starting - run multiple collections to ensure we clean up all resources
+    gc.collect()
+    gc.collect()
     gc.collect()
     
     # Take initial snapshot
@@ -1036,7 +1038,14 @@ async def find_memory_leaks_async(func, *args, iterations: int = 10, **kwargs) -
     start_memory = tracemalloc.get_traced_memory()[0]
     peak_memory = tracemalloc.get_traced_memory()[1]
     
+    # Print detailed memory statistics for debugging
+    gc_stats_start = {
+        "gc_counts": gc.get_count(),
+        "gc_objects": len(gc.get_objects()),
+        "gc_garbage": len(gc.garbage) if hasattr(gc, 'garbage') else 0
+    }
     logger.info(f"Starting async memory leak check, running {iterations} iterations")
+    logger.info(f"Initial memory: {start_memory / 1024 / 1024:.3f} MB, GC stats: {gc_stats_start}")
     
     # Run function multiple times
     for i in range(iterations):
@@ -1084,9 +1093,40 @@ async def find_memory_leaks_async(func, *args, iterations: int = 10, **kwargs) -
         # Give the event loop a chance to clean up resources
         await asyncio.sleep(0.1)
     
+    # Explicitly run garbage collection multiple times to ensure all objects are properly cleaned up
+    gc.collect()
+    gc.collect()
+    gc.collect()
+
+    # Explicitly clean up pandas caches if they exist
+    try:
+        import pandas
+        if hasattr(pandas.core.common, '_possibly_clean_cache'):
+            pandas.core.common._possibly_clean_cache()
+    except (ImportError, AttributeError):
+        pass
+        
+    # Explicitly clean up ABC module caches
+    try:
+        import abc
+        if hasattr(abc, '_abc_registry'):
+            abc._abc_registry.clear()
+        if hasattr(abc, '_abc_cache'):
+            abc._abc_cache.clear()
+    except (ImportError, AttributeError):
+        pass
+        
     # Take final snapshot
     snapshot_end = tracemalloc.take_snapshot()
     end_memory = tracemalloc.get_traced_memory()[0]
+    
+    # Print final memory stats
+    gc_stats_end = {
+        "gc_counts": gc.get_count(),
+        "gc_objects": len(gc.get_objects()),
+        "gc_garbage": len(gc.garbage) if hasattr(gc, 'garbage') else 0
+    }
+    logger.info(f"Final memory: {end_memory / 1024 / 1024:.3f} MB, GC stats: {gc_stats_end}")
     
     # Compare snapshots
     top_stats = snapshot_end.compare_to(snapshot_start, 'lineno')

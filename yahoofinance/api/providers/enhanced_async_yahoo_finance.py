@@ -149,11 +149,18 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
 
         if ticker in self._ticker_cache:
             logger.debug(f"Using cached data for {ticker}")
-            return self._ticker_cache[ticker]
+            return self._ticker_cache[ticker].copy()  # Return a copy to avoid reference issues
 
         try:
             import yfinance as yf
-            yticker = yf.Ticker(ticker)
+            # Create ticker object temporarily - don't store it in cache to prevent memory leaks
+            try:
+                # Use safe_create_ticker from yfinance_utils if available
+                from ...utils.yfinance_utils import safe_create_ticker
+                yticker = safe_create_ticker(ticker)
+            except ImportError:
+                # Fall back to regular creation if the utility isn't available
+                yticker = yf.Ticker(ticker)
             
             # Handle potential NoneType errors with info
             try:
@@ -617,37 +624,56 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             last_earnings = self._get_last_earnings_date(yticker)
             if last_earnings is None: return False
             try:
-                upgrades_downgrades = getattr(yticker, 'upgrades_downgrades', None)
-                if upgrades_downgrades is None or upgrades_downgrades.empty: return False
-                if hasattr(upgrades_downgrades, 'reset_index'):
-                    df = upgrades_downgrades.reset_index()
-                else: df = upgrades_downgrades
-                if "GradeDate" not in df.columns:
-                    if 'index' in df.columns and pd.api.types.is_datetime64_any_dtype(df['index']):
-                         df.rename(columns={'index': 'GradeDate'}, inplace=True)
-                    elif hasattr(upgrades_downgrades, 'index') and isinstance(upgrades_downgrades.index, pd.DatetimeIndex):
-                         df['GradeDate'] = upgrades_downgrades.index
-                    else:
-                         logger.warning(f"Could not find GradeDate column for {ticker}")
-                         return False
+                # Get upgrades_downgrades but ensure we free memory afterward
+                upgrades_downgrades = None
                 try:
+                    upgrades_downgrades = getattr(yticker, 'upgrades_downgrades', None)
+                    if upgrades_downgrades is None or upgrades_downgrades.empty: 
+                        return False
+                        
+                    # Create a copy of the data to avoid reference issues
+                    if hasattr(upgrades_downgrades, 'reset_index'):
+                        df = upgrades_downgrades.reset_index().copy()
+                    else: 
+                        df = upgrades_downgrades.copy()
+                        
+                    # Process the GradeDate column
+                    if "GradeDate" not in df.columns:
+                        if 'index' in df.columns and pd.api.types.is_datetime64_any_dtype(df['index']):
+                             df.rename(columns={'index': 'GradeDate'}, inplace=True)
+                        elif hasattr(upgrades_downgrades, 'index') and isinstance(upgrades_downgrades.index, pd.DatetimeIndex):
+                             df['GradeDate'] = upgrades_downgrades.index
+                        else:
+                             logger.warning(f"Could not find GradeDate column for {ticker}")
+                             return False
+                             
+                    # Convert dates
                     df["GradeDate"] = pd.to_datetime(df["GradeDate"], errors='coerce')
                     df.dropna(subset=["GradeDate"], inplace=True)
-                except YFinanceError as date_err:
-                     logger.warning(f"Error converting GradeDate for {ticker}: {date_err}")
-                     return False
-                earnings_date = pd.to_datetime(last_earnings)
-                post_earnings_df = df[df["GradeDate"] >= earnings_date]
-                if not post_earnings_df.empty:
-                    total_ratings = len(post_earnings_df)
-                    positive_ratings = post_earnings_df[post_earnings_df["ToGrade"].isin(self.POSITIVE_GRADES)].shape[0]
-                    self._ratings_cache[ticker] = {
-                        "buy_percentage": (positive_ratings / total_ratings * 100) if total_ratings > 0 else 0,
-                        "total_ratings": total_ratings,
-                        "ratings_type": "E"
-                    }
-                    return True
-                return False
+                    
+                    # Get post-earnings data
+                    earnings_date = pd.to_datetime(last_earnings)
+                    post_earnings_df = df[df["GradeDate"] >= earnings_date]
+                    
+                    # Calculate statistics if we have data
+                    if not post_earnings_df.empty:
+                        total_ratings = len(post_earnings_df)
+                        positive_ratings = post_earnings_df[post_earnings_df["ToGrade"].isin(self.POSITIVE_GRADES)].shape[0]
+                        
+                        # Cache only the results, not the dataframes
+                        self._ratings_cache[ticker] = {
+                            "buy_percentage": (positive_ratings / total_ratings * 100) if total_ratings > 0 else 0,
+                            "total_ratings": total_ratings,
+                            "ratings_type": "E"
+                        }
+                        return True
+                        
+                    return False
+                    
+                finally:
+                    # Explicitly clear references to free memory
+                    del upgrades_downgrades
+                    
             except YFinanceError as e:
                 logger.warning(f"Error getting post-earnings ratings for {ticker}: {e}", exc_info=False)
             return False
@@ -656,33 +682,90 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             return False
 
     def _get_last_earnings_date(self, yticker):
-        """Get the last earnings date (kept identical to original)."""
+        """Get the last earnings date with optimized memory handling."""
         try: # Try calendar first
-            calendar = getattr(yticker, 'calendar', None)
-            if isinstance(calendar, dict) and COLUMN_NAMES["EARNINGS_DATE"] in calendar:
-                earnings_date_list = calendar[COLUMN_NAMES["EARNINGS_DATE"]]
-                if isinstance(earnings_date_list, list) and len(earnings_date_list) > 0:
-                    today = pd.Timestamp.now().date()
-                    past_earnings = [d for d in earnings_date_list if isinstance(d, datetime.date) and d < today]
-                    if past_earnings: return max(past_earnings).strftime('%Y-%m-%d')
+            calendar = None
+            earnings_date_list = None
+            today = None
+            past_earnings = None
+            result = None
+            
+            try:
+                calendar = getattr(yticker, 'calendar', None)
+                if isinstance(calendar, dict) and COLUMN_NAMES["EARNINGS_DATE"] in calendar:
+                    earnings_date_list = calendar[COLUMN_NAMES["EARNINGS_DATE"]]
+                    if isinstance(earnings_date_list, list) and len(earnings_date_list) > 0:
+                        today = pd.Timestamp.now().date()
+                        # Filter without creating a new list to avoid memory leaks
+                        latest_date = None
+                        for d in earnings_date_list:
+                            if isinstance(d, datetime.date) and d < today:
+                                if latest_date is None or d > latest_date:
+                                    latest_date = d
+                        
+                        if latest_date is not None:
+                            result = latest_date.strftime('%Y-%m-%d')
+                            return result
+            finally:
+                # Explicitly delete references to free memory
+                del calendar
+                del earnings_date_list
+                del today
+                del past_earnings
+            
         except YFinanceError as e:
              logger.debug(f"Error getting earnings from calendar for {yticker.ticker}: {e}", exc_info=False)
+        
         try: # Try earnings_dates attribute
-            earnings_dates = getattr(yticker, 'earnings_dates', None)
-            if earnings_dates is not None and not earnings_dates.empty:
-                today = pd.Timestamp.now()
-                tz = earnings_dates.index.tz
-                if tz and today.tzinfo is None:
-                    try: today = today.tz_localize('UTC').tz_convert(tz)
-                    except YFinanceError as tz_err:
-                         logger.warning(f"Could not localize 'today' timestamp for {yticker.ticker}: {tz_err}")
-                         today = pd.Timestamp.now()
-                elif tz is None and today.tzinfo is not None:
-                     today = today.tz_localize(None)
-                past_dates = [date for date in earnings_dates.index if date < today]
-                if past_dates: return max(past_dates).strftime('%Y-%m-%d')
+            earnings_dates = None
+            today = None
+            tz = None
+            past_dates = None
+            result = None
+            
+            try:
+                earnings_dates = getattr(yticker, 'earnings_dates', None)
+                if earnings_dates is not None and not earnings_dates.empty:
+                    today = pd.Timestamp.now()
+                    
+                    # Handle timezone issues without creating unnecessary objects
+                    tz = earnings_dates.index.tz
+                    
+                    # Find the latest date without creating a new list
+                    latest_date = None
+                    for date in earnings_dates.index:
+                        # Normalize date comparison if needed
+                        compare_date = date
+                        if tz and today.tzinfo is None:
+                            # Instead of converting today, convert the comparison date
+                            if date.tzinfo is not None:
+                                compare_date = date
+                            else:
+                                # Skip this date if there's a timezone mismatch we can't handle
+                                continue
+                        elif tz is None and today.tzinfo is not None:
+                            # Skip timezone issues
+                            continue
+                            
+                        # Compare and keep the latest
+                        if compare_date < today:
+                            if latest_date is None or compare_date > latest_date:
+                                latest_date = compare_date
+                    
+                    # Format the date if found
+                    if latest_date is not None:
+                        result = latest_date.strftime('%Y-%m-%d')
+                        return result
+            finally:
+                # Explicitly delete references to free memory
+                del earnings_dates
+                del today
+                del tz
+                del past_dates
+                
         except YFinanceError as e:
              logger.debug(f"Error getting earnings from earnings_dates for {yticker.ticker}: {e}", exc_info=False)
+        
         return None
 
     def _is_us_ticker(self, ticker: str) -> bool: # Keep this helper
@@ -733,8 +816,25 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         """Format date object to YYYY-MM-DD string."""
         if date is None: return None
         if isinstance(date, str): return date[:10]
-        if hasattr(date, 'strftime'): return date.strftime('%Y-%m-%d')
-        try: return str(date)[:10]
+        
+        # Handle datetime/date objects without retaining references that could cause tzinfo leaks
+        if hasattr(date, 'strftime'):
+            try:
+                # Convert to simple string immediately to avoid holding timezone references
+                formatted = date.strftime('%Y-%m-%d')
+                # Force date object to be garbage collected
+                date = None
+                return formatted
+            except AttributeError:
+                # If strftime fails for some reason
+                pass
+                
+        # Fall back to string conversion
+        try: 
+            result = str(date)[:10]
+            # Explicitly remove reference to the original object
+            date = None
+            return result
         except Exception as e:
             # Translate standard exception to our error hierarchy
             custom_error = translate_error(e, context={"location": __name__})
@@ -801,18 +901,54 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         return processed_results
 
     async def close(self) -> None:
-        """Close the underlying aiohttp session."""
+        """Close the underlying aiohttp session and clean up resources."""
         if self._session and not self._session.closed:
             await self._session.close()
             self._session = None
-        logger.debug("Enhanced provider session closed.")
+            
+        # Clear all caches to prevent memory leaks
+        self.clear_cache()
+        
+        # Use memory utilities for thorough cleanup
+        try:
+            from ...utils.memory_utils import clean_memory
+            cleanup_results = clean_memory()
+            logger.debug(f"Memory cleanup results: {cleanup_results}")
+        except ImportError:
+            # Fall back to basic garbage collection
+            import gc
+            gc.collect()
+        
+        logger.debug("Enhanced provider session closed and resources cleaned up.")
 
     def clear_cache(self) -> None:
-        """Clear internal caches."""
-        self._ticker_cache.clear()
-        self._stock_cache.clear()
-        self._ratings_cache.clear()
-        logger.info("Enhanced provider internal caches cleared.")
+        """Clear internal caches and free up memory."""
+        # Clear all internal caches
+        if hasattr(self, '_ticker_cache'):
+            self._ticker_cache.clear()
+        if hasattr(self, '_stock_cache'):
+            self._stock_cache.clear()
+        if hasattr(self, '_ratings_cache'):
+            self._ratings_cache.clear()
+        
+        # Use memory utilities for thorough cleanup
+        try:
+            from ...utils.memory_utils import clean_memory
+            cleanup_results = clean_memory()
+            logger.debug(f"Memory cleanup results: {cleanup_results}")
+        except ImportError:
+            # Fall back to basic cleanup if the utility isn't available
+            # Import datetime and tzinfo here to check for memory leaks
+            import sys
+            if 'pandas' in sys.modules:
+                # Clear pandas caches if pandas is loaded
+                try:
+                    import pandas as pd
+                    pd.core.common._possibly_clean_cache()
+                except (ImportError, AttributeError):
+                    pass
+                
+        logger.info("Enhanced provider internal caches cleared and memory freed.")
 
     def get_cache_info(self) -> Dict[str, Any]:
         """Get information about the internal caches."""
@@ -829,3 +965,56 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.close()
+        
+    def __del__(self):
+        """Cleanup resources when the object is garbage collected."""
+        # Clear all caches
+        if hasattr(self, '_ticker_cache'):
+            self._ticker_cache.clear()
+        if hasattr(self, '_stock_cache'):
+            self._stock_cache.clear()
+        if hasattr(self, '_ratings_cache'):
+            self._ratings_cache.clear()
+            
+        # Ensure session is closed
+        if hasattr(self, '_session') and self._session and not self._session.closed:
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    loop.create_task(self._session.close())
+                else:
+                    try:
+                        loop.run_until_complete(self._session.close())
+                    except RuntimeError:
+                        # Likely no running event loop, just set to None
+                        pass
+            except Exception:
+                # Last resort - just null the reference so it can be GC'd
+                pass
+            self._session = None
+        
+        # Use memory_utils if available for efficient cleanup
+        try:
+            from ...utils.memory_utils import clean_memory
+            clean_memory()
+        except ImportError:
+            # Fallback to manual cleanup if memory_utils not available
+            # Clear any module references that might cause memory leaks
+            # Particularly ABC module and tzinfo from datetime
+            import sys
+            for module_name in ['abc', 'pandas', 'datetime']:
+                if module_name in sys.modules:
+                    try:
+                        # Clear module-specific caches if needed
+                        module = sys.modules[module_name]
+                        if hasattr(module, '_abc_registry') and isinstance(module._abc_registry, dict):
+                            module._abc_registry.clear()
+                        if hasattr(module, '_abc_cache') and isinstance(module._abc_cache, dict):
+                            module._abc_cache.clear()
+                    except (AttributeError, KeyError):
+                        pass
+            
+            # Force garbage collection
+            import gc
+            gc.collect()
