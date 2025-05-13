@@ -31,10 +31,10 @@ jobs:
         pytest tests/ --cov=yahoofinance
     - name: Memory leak tests
       run: |
-        python benchmarks/test_memory_leak.py
+        python tests/benchmarks/test_memory_leak.py
     - name: Priority limiter tests
       run: |
-        python benchmarks/test_priority_limiter.py
+        python tests/benchmarks/test_priority_limiter.py
     - name: Monitoring system tests
       run: |
         # Run monitoring system tests
