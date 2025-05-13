@@ -652,7 +652,24 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                     df.dropna(subset=["GradeDate"], inplace=True)
                     
                     # Get post-earnings data
+                    # Convert with consistent timezone handling
                     earnings_date = pd.to_datetime(last_earnings)
+                    
+                    # Make sure both dates have the same timezone information
+                    if 'GradeDate' in df.columns:
+                        if any(date.tzinfo is not None for date in df['GradeDate'] if hasattr(date, 'tzinfo')):
+                            # GradeDates have timezone info but earnings_date might not
+                            if earnings_date.tzinfo is None:
+                                # Use the timezone from the first date with timezone info
+                                for date in df['GradeDate']:
+                                    if hasattr(date, 'tzinfo') and date.tzinfo is not None:
+                                        earnings_date = earnings_date.tz_localize(date.tzinfo)
+                                        break
+                        elif earnings_date.tzinfo is not None:
+                            # GradeDates don't have timezone but earnings_date does
+                            earnings_date = earnings_date.tz_localize(None)
+                    
+                    # Filter with now timezone-compatible dates
                     post_earnings_df = df[df["GradeDate"] >= earnings_date]
                     
                     # Calculate statistics if we have data
@@ -734,21 +751,20 @@ class EnhancedAsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                     # Find the latest date without creating a new list
                     latest_date = None
                     for date in earnings_dates.index:
-                        # Normalize date comparison if needed
+                        # Create comparison variables to handle timezone issues
                         compare_date = date
-                        if tz and today.tzinfo is None:
-                            # Instead of converting today, convert the comparison date
-                            if date.tzinfo is not None:
-                                compare_date = date
-                            else:
-                                # Skip this date if there's a timezone mismatch we can't handle
-                                continue
-                        elif tz is None and today.tzinfo is not None:
-                            # Skip timezone issues
-                            continue
+                        compare_today = today
+                        
+                        # Handle timezone differences by making timestamps comparable
+                        if date.tzinfo is not None and today.tzinfo is None:
+                            # Convert today to have the same timezone
+                            compare_today = today.tz_localize(date.tzinfo)
+                        elif date.tzinfo is None and today.tzinfo is not None:
+                            # Convert date to have the same timezone
+                            compare_date = date.tz_localize(today.tzinfo)
                             
                         # Compare and keep the latest
-                        if compare_date < today:
+                        if compare_date < compare_today:
                             if latest_date is None or compare_date > latest_date:
                                 latest_date = compare_date
                     
