@@ -98,7 +98,7 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
             ticker: Stock ticker symbol
             
         Returns:
-            yf.Ticker: Ticker object for the given symbol
+            yf.Ticker: Ticker object for the given symbol (do not store this long-term)
             
         Raises:
             ValidationError: If the ticker is invalid
@@ -106,14 +106,16 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
         # Validate the ticker format
         validate_ticker(ticker)
         
-        # Return cached ticker object if available
-        if ticker in self._ticker_cache:
-            return self._ticker_cache[ticker]
-        
-        # Create new ticker object
+        # Create new ticker object every time - don't cache the actual objects to prevent memory leaks
         try:
-            ticker_obj = await self._run_sync_in_executor(yf.Ticker, ticker)
-            self._ticker_cache[ticker] = ticker_obj
+            # Use safe_create_ticker from yfinance_utils if available
+            try:
+                from ...utils.yfinance_utils import safe_create_ticker
+                ticker_obj = await self._run_sync_in_executor(safe_create_ticker, ticker)
+            except ImportError:
+                # Fall back to regular creation if the utility isn't available
+                ticker_obj = await self._run_sync_in_executor(yf.Ticker, ticker)
+                
             return ticker_obj
         except YFinanceError as e:
             logger.error(f"Error creating ticker object for {ticker}: {str(e)}")
@@ -197,22 +199,75 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
         Raises:
             YFinanceError: When an error occurs while fetching data
         """
-        ticker_obj = await self._get_ticker_object(ticker)
+        # Create a temporary ticker object
+        ticker_obj = None
+        result = None
         
-        for attempt in range(self.max_retries):
+        try:
+            # Get ticker object for this request only
+            ticker_obj = await self._get_ticker_object(ticker)
+            
+            for attempt in range(self.max_retries):
+                try:
+                    # Use the shared extraction method but run in executor
+                    history = await self._run_sync_in_executor(
+                        lambda: self._extract_historical_data(ticker, ticker_obj, period, interval)
+                    )
+                    
+                    # Create a deep copy of the DataFrame to avoid reference issues
+                    if isinstance(history, pd.DataFrame):
+                        # Use copy to ensure we don't maintain references to original data
+                        result = history.copy(deep=True)
+                        
+                        # Clear any datetime64 objects with timezone info that might cause memory leaks
+                        for col in result.select_dtypes(include=['datetime64[ns]']).columns:
+                            result[col] = pd.to_datetime(result[col].dt.strftime('%Y-%m-%d %H:%M:%S'))
+                            
+                    else:
+                        result = history
+                        
+                    break
+                    
+                except RateLimitError:
+                    # Specific handling for rate limits - just re-raise with generic error
+                    raise YFinanceError(ERROR_GENERIC)
+                except YFinanceError as e:
+                    # Use the shared retry logic handler from the base class but with async sleep
+                    delay = self._handle_retry_logic(e, attempt, ticker, "historical data")
+                    await asyncio.sleep(delay)
+            
+            return result
+            
+        finally:
+            # Explicitly clean up and remove the reference to the ticker object
+            if ticker_obj is not None:
+                try:
+                    # Use clean_ticker_object from yfinance_utils if available
+                    from ...utils.yfinance_utils import clean_ticker_object
+                    await self._run_sync_in_executor(clean_ticker_object, ticker_obj)
+                except ImportError:
+                    # Fall back to basic cleanup if the utility isn't available
+                    pass
+                    
+                # Remove reference
+                del ticker_obj
+                
+            # Force garbage collection to clean up any resources
+            import gc
+            gc.collect()
+            
+            # Clear DataFrame cache in pandas if possible
             try:
-                # Use the shared extraction method but run in executor
-                history = await self._run_sync_in_executor(
-                    lambda: self._extract_historical_data(ticker, ticker_obj, period, interval)
-                )
-                return history
-            except RateLimitError:
-                # Specific handling for rate limits - just re-raise with generic error
-                raise YFinanceError(ERROR_GENERIC)
-            except YFinanceError as e:
-                # Use the shared retry logic handler from the base class but with async sleep
-                delay = self._handle_retry_logic(e, attempt, ticker, "historical data")
-                await asyncio.sleep(delay)
+                pd.core.common._possibly_clean_cache()
+            except (AttributeError, ImportError):
+                pass
+                
+            # Use memory utilities for thorough cleanup
+            try:
+                from ...utils.memory_utils import clean_memory
+                clean_memory()
+            except ImportError:
+                pass
     
     @async_rate_limited
     async def get_earnings_dates(self, ticker: str) -> Tuple[Optional[str], Optional[str]]:
@@ -602,16 +657,37 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
         # Create a list to store results
         results = {}
         
-        # Process tickers in batches with controlled concurrency
-        for ticker in tickers:
-            try:
-                # Use the single ticker helper function
-                info = await self._get_single_ticker_info_async(ticker, skip_insider_metrics)
-                results[ticker] = info
-            except YFinanceError as e:
-                results[ticker] = self._process_error_for_batch(ticker, e)
+        try:
+            # Process tickers in batches with controlled concurrency
+            for ticker in tickers:
+                try:
+                    # Use the single ticker helper function
+                    info = await self._get_single_ticker_info_async(ticker, skip_insider_metrics)
+                    # Create a deep copy of the info to avoid reference issues
+                    import copy
+                    results[ticker] = copy.deepcopy(info)
+                except YFinanceError as e:
+                    results[ticker] = self._process_error_for_batch(ticker, e)
+                
+                # Force garbage collection after each ticker to prevent memory accumulation
+                if len(results) % 5 == 0:  # Every 5 tickers
+                    # Use memory utilities for thorough cleanup
+                    try:
+                        from ...utils.memory_utils import clean_memory
+                        clean_memory()
+                    except ImportError:
+                        # Fall back to basic garbage collection
+                        import gc
+                        gc.collect()
+            
+            return results
+        finally:
+            # Explicitly trigger garbage collection to clean up resources
+            # This helps prevent memory leaks when processing large batches
+            import gc
+            gc.collect()
+            gc.collect()  # Run twice to handle objects with circular references
         
-        return results
     
     def clear_cache(self) -> None:
         """
@@ -631,3 +707,38 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
             "ticker_cache_keys": list(self._ticker_cache.keys()),
             "max_concurrency": self.max_concurrency
         }
+        
+    def __del__(self):
+        """Cleanup resources when the object is garbage collected."""
+        # Clear all caches
+        if hasattr(self, '_ticker_cache'):
+            self._ticker_cache.clear()
+            
+        # Shutdown the thread pool to prevent memory leaks
+        if hasattr(self, '_executor'):
+            self._executor.shutdown(wait=False)
+            
+        # Use memory_utils if available for efficient cleanup
+        try:
+            from ...utils.memory_utils import clean_memory
+            clean_memory()
+        except ImportError:
+            # Fallback to manual cleanup if memory_utils not available
+            # Clear any module references that might cause memory leaks
+            # Particularly ABC module and tzinfo from datetime
+            import sys
+            for module_name in ['abc', 'pandas', 'datetime']:
+                if module_name in sys.modules:
+                    try:
+                        # Clear module-specific caches if needed
+                        module = sys.modules[module_name]
+                        if hasattr(module, '_abc_registry') and isinstance(module._abc_registry, dict):
+                            module._abc_registry.clear()
+                        if hasattr(module, '_abc_cache') and isinstance(module._abc_cache, dict):
+                            module._abc_cache.clear()
+                    except (AttributeError, KeyError):
+                        pass
+            
+            # Force garbage collection
+            import gc
+            gc.collect()
