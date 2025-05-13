@@ -85,24 +85,30 @@ def initialize_registry():
             # Log the registration
             logger.debug(f"Registered provider factory for {provider_type}.{mode}: {provider_path}")
 
+# Create a cache for provider instances to prevent repeated creation
+# This helps reduce memory leaks from creating/destroying providers
+_provider_cache = {}
+
 # Register factory for the get_provider function
 @registry.register('get_provider')
 def get_provider(
     provider_type: str = None,
     async_mode: bool = None,
     enhanced: bool = None,
+    use_cache: bool = True,  # Allow option to bypass cache for testing
     **kwargs
 ) -> Union[FinanceDataProvider, AsyncFinanceDataProvider]:
     """
     Get a provider instance for accessing financial data.
     
     This factory function creates the appropriate provider instance based on
-    the specified type and mode.
+    the specified type and mode. Instances are cached to prevent memory leaks.
     
     Args:
         provider_type: Type of provider (yahoo, yahooquery, hybrid, optimized)
         async_mode: Whether to use asynchronous API
         enhanced: Whether to use enhanced async implementation
+        use_cache: Whether to cache and reuse provider instances (default: True)
         **kwargs: Additional arguments to pass to provider constructor
         
     Returns:
@@ -111,6 +117,8 @@ def get_provider(
     Raises:
         ValidationError: When provider_type is invalid or provider is not available
     """
+    global _provider_cache
+    
     # Use defaults if not specified
     provider_type = provider_type or DEFAULT_PROVIDER_TYPE
     async_mode = async_mode if async_mode is not None else DEFAULT_ASYNC_MODE
@@ -137,9 +145,40 @@ def get_provider(
         else:
             raise ValidationError(f"No sync provider available for {provider_type}")
     
+    # Create a cache key based on the provider key and kwargs
+    # Only consider basic kwargs that don't affect instance behavior
+    cache_key_parts = [provider_key]
+    cacheable_kwargs = {}
+    for key, value in kwargs.items():
+        if key in ('max_retries', 'retry_delay', 'max_concurrency', 'enable_circuit_breaker'):
+            if isinstance(value, (int, float, bool, str)):
+                cacheable_kwargs[key] = value
+    
+    cache_key = f"{provider_key}:{hash(frozenset(cacheable_kwargs.items()))}"
+    
+    # Check if we have a cached instance
+    if use_cache and cache_key in _provider_cache:
+        provider = _provider_cache[cache_key]
+        # Clear caches to prevent memory buildup
+        if hasattr(provider, 'clear_cache'):
+            provider.clear_cache()
+        return provider
+    
     # Create the provider instance
     try:
-        return registry.resolve(provider_key, **kwargs)
+        provider = registry.resolve(provider_key, **kwargs)
+        
+        # Cache the provider for future use
+        if use_cache:
+            # Ensure we're not leaking references
+            if len(_provider_cache) > 10:  # Limit cache size to avoid memory buildup
+                oldest_key = next(iter(_provider_cache))
+                if hasattr(_provider_cache[oldest_key], 'clear_cache'):
+                    _provider_cache[oldest_key].clear_cache()
+                del _provider_cache[oldest_key]
+            _provider_cache[cache_key] = provider
+        
+        return provider
     except Exception as e:
         logger.error(f"Failed to create provider {provider_key}: {str(e)}")
         raise ValidationError(f"Failed to create provider {provider_key}") from e
@@ -188,6 +227,62 @@ def get_default_provider(**kwargs) -> Union[FinanceDataProvider, AsyncFinanceDat
         Default provider instance
     """
     return get_provider(DEFAULT_PROVIDER_TYPE, **kwargs)
+
+# Function to clear the provider cache
+def clear_provider_cache():
+    """
+    Clear the provider instance cache.
+    
+    This can be useful for testing or when memory usage needs to be reduced.
+    """
+    global _provider_cache
+    
+    # Close providers before clearing cache
+    provider_keys = list(_provider_cache.keys())  # Make a copy of keys to avoid modification during iteration
+    for key in provider_keys:
+        try:
+            provider = _provider_cache[key]
+            
+            # Close async providers if possible
+            if hasattr(provider, 'close') and callable(getattr(provider, 'close')):
+                import asyncio
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        loop.create_task(provider.close())
+                    else:
+                        loop.run_until_complete(provider.close())
+                except Exception as e:
+                    logger.warning(f"Error closing provider {key}: {str(e)}")
+            
+            # Clear provider caches
+            if hasattr(provider, 'clear_cache'):
+                provider.clear_cache()
+                
+            # Remove reference from cache
+            del _provider_cache[key]
+            
+            # Explicitly set to None to help garbage collection
+            provider = None
+            
+        except Exception as e:
+            logger.warning(f"Error cleaning up provider {key}: {str(e)}")
+    
+    # Clear the cache
+    _provider_cache.clear()
+    
+    # Use comprehensive memory cleanup from memory_utils
+    try:
+        from ..utils.memory_utils import clean_memory
+        cleanup_results = clean_memory()
+        logger.info(f"Memory cleanup completed: {cleanup_results}")
+    except ImportError:
+        # Fallback to basic garbage collection if memory_utils is not available
+        import gc
+        gc.collect()
+        gc.collect()
+    
+    logger.info("Provider cache cleared and memory cleaned")
 
 # Initialize the registry
 initialize_registry()
