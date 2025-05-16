@@ -1,3 +1,7 @@
+# Build and packaging
+setuptools>=42.0.0
+wheel>=0.37.0
+
 # Core dependencies
 pandas>=2.0.3,<3.0.0  # Updated to accommodate yahooquery 2.3.7+ requirement
 numpy>=1.20.0,<2.0.0
@@ -19,6 +23,7 @@ pytest-asyncio>=0.18.0
 
 # Type hints
 types-requests>=2.25.0
+types-setuptools>=80.7.0
 mypy>=0.910
 
 # Date handling
