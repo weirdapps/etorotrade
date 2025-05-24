@@ -8,11 +8,8 @@ using the memory profiling tools in the benchmarking module.
 
 import argparse
 import asyncio
-import gc
 import os
 import sys
-import tracemalloc
-from typing import Any, Callable, Dict, Tuple
 
 
 # Add project root to path to ensure imports work correctly

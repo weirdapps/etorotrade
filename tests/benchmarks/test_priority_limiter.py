@@ -8,7 +8,6 @@ Tests the priority-based rate limiting functionality.
 import asyncio
 import random
 import time
-from typing import Dict, List
 
 
 # Import the rate limiter from the async utils
