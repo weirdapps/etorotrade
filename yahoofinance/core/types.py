@@ -5,18 +5,18 @@ This module defines the core data structures used throughout the package.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Optional, Dict
+from typing import Any, Dict, Optional
 
 
 @dataclass
 class StockData:
     """
     Comprehensive stock data container.
-    
+
     This class represents a comprehensive set of stock data,
     including price data, analyst coverage, valuation metrics,
     risk metrics, and more.
-    
+
     Attributes:
         name: Company name
         sector: Company sector
@@ -52,12 +52,12 @@ class StockData:
         insider_transactions: Number of insider transactions
         ticker_object: Underlying ticker object (for internal use)
     """
-    
+
     # Basic Info
     name: str = "N/A"
     sector: str = "N/A"
     market_cap: Optional[float] = None
-    
+
     # Price Data
     current_price: Optional[float] = None
     target_price: Optional[float] = None
@@ -65,22 +65,22 @@ class StockData:
     mtd_change: Optional[float] = None
     ytd_change: Optional[float] = None
     two_year_change: Optional[float] = None
-    
+
     # Analyst Coverage
     recommendation_mean: Optional[float] = None
     recommendation_key: str = "N/A"
     analyst_count: Optional[int] = None
-    
+
     # Valuation Metrics
     pe_trailing: Optional[float] = None
     pe_forward: Optional[float] = None
     peg_ratio: Optional[float] = None
-    
+
     # Financial Health
     quick_ratio: Optional[float] = None
     current_ratio: Optional[float] = None
     debt_to_equity: Optional[float] = None
-    
+
     # Risk Metrics
     short_float_pct: Optional[float] = None
     short_ratio: Optional[float] = None
@@ -89,48 +89,48 @@ class StockData:
     sharpe_ratio: Optional[float] = None
     sortino_ratio: Optional[float] = None
     cash_percentage: Optional[float] = None
-    
+
     # Technical Indicators
     ma50: Optional[float] = None
     ma200: Optional[float] = None
-    
+
     # Dividends
     dividend_yield: Optional[float] = None
-    
+
     # Events
     last_earnings: Optional[str] = None
     previous_earnings: Optional[str] = None
-    
+
     # Insider Activity
     insider_buy_pct: Optional[float] = None
     insider_transactions: Optional[int] = None
-    
+
     # Internal
     ticker_object: Any = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """
         Convert to dictionary.
-        
+
         Returns:
             Dictionary representation of the stock data
         """
         result = {}
         for key, value in self.__dict__.items():
             # Skip internal ticker object
-            if key == 'ticker_object':
+            if key == "ticker_object":
                 continue
             result[key] = value
         return result
-    
+
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'StockData':
+    def from_dict(cls, data: Dict[str, Any]) -> "StockData":
         """
         Create StockData from dictionary.
-        
+
         Args:
             data: Dictionary containing stock data
-            
+
         Returns:
             StockData instance
         """

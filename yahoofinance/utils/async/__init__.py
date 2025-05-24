@@ -9,30 +9,31 @@ DEPRECATED: This module is deprecated. Use yahoofinance.utils.async_utils instea
 
 import warnings
 
+
 warnings.warn(
     "The yahoofinance.utils.async module is deprecated. "
     "Use yahoofinance.utils.async_utils instead, which provides improved async utilities.",
     DeprecationWarning,
-    stacklevel=2
+    stacklevel=2,
 )
 
 from .helpers import (
-    gather_with_concurrency, 
-    gather_with_semaphore,
-    async_bulk_fetch,
-    async_retry,
     AsyncRateLimiter,
-    async_rate_limited
+    async_bulk_fetch,
+    async_rate_limited,
+    async_retry,
+    gather_with_concurrency,
+    gather_with_semaphore,
 )
+
 
 __all__ = [
     # Rate limiting
-    'AsyncRateLimiter',
-    'async_rate_limited',
-    
+    "AsyncRateLimiter",
+    "async_rate_limited",
     # Helper functions
-    'gather_with_concurrency',
-    'gather_with_semaphore',
-    'async_bulk_fetch',
-    'async_retry',
+    "gather_with_concurrency",
+    "gather_with_semaphore",
+    "async_bulk_fetch",
+    "async_retry",
 ]

@@ -5,14 +5,21 @@ This module contains fixtures for simulating various API error scenarios
 for unit and integration testing.
 """
 
-import pytest
-from unittest.mock import Mock
-import requests
 import json
+from unittest.mock import Mock
+
+import pytest
+import requests
+
 from yahoofinance.core.errors import (
-    YFinanceError, APIError, RateLimitError, 
-    NetworkError, DataError, ValidationError
+    APIError,
+    DataError,
+    NetworkError,
+    RateLimitError,
+    ValidationError,
+    YFinanceError,
 )
+
 
 # Constants for repeated strings
 NON_JSON_TEXT = "This is not JSON"
@@ -22,6 +29,7 @@ class MockResponse:
     """
     Mock HTTP response for testing API error handling.
     """
+
     def __init__(self, status_code, json_data=None, text=None, headers=None, error=None):
         self.status_code = status_code
         self._json_data = json_data
@@ -29,12 +37,12 @@ class MockResponse:
         self.headers = headers or {}
         self.error = error
         self.reason = "Error" if status_code >= 400 else "OK"
-        
+
     def json(self):
         if self.error:
             raise self.error
         return self._json_data or {}
-    
+
     def raise_for_status(self):
         if self.status_code >= 400:
             raise requests.HTTPError(f"HTTP Error: {self.status_code}")
@@ -44,7 +52,7 @@ class MockResponse:
 def rate_limit_response():
     """
     Create a rate limit error response (HTTP 429).
-    
+
     Returns:
         MockResponse: A mock response with rate limit headers
     """
@@ -52,13 +60,13 @@ def rate_limit_response():
         "Retry-After": "30",
         "X-RateLimit-Limit": "100",
         "X-RateLimit-Remaining": "0",
-        "X-RateLimit-Reset": "1617978000"
+        "X-RateLimit-Reset": "1617978000",
     }
     return MockResponse(
         status_code=429,
         text="Too Many Requests",
         headers=headers,
-        json_data={"error": "rate_limit_exceeded"}
+        json_data={"error": "rate_limit_exceeded"},
     )
 
 
@@ -66,14 +74,12 @@ def rate_limit_response():
 def not_found_response():
     """
     Create a not found error response (HTTP 404).
-    
+
     Returns:
         MockResponse: A mock response for resource not found
     """
     return MockResponse(
-        status_code=404,
-        text="Not Found",
-        json_data={"error": "resource_not_found"}
+        status_code=404, text="Not Found", json_data={"error": "resource_not_found"}
     )
 
 
@@ -81,14 +87,12 @@ def not_found_response():
 def server_error_response():
     """
     Create a server error response (HTTP 500).
-    
+
     Returns:
         MockResponse: A mock response for server error
     """
     return MockResponse(
-        status_code=500,
-        text="Internal Server Error",
-        json_data={"error": "internal_server_error"}
+        status_code=500, text="Internal Server Error", json_data={"error": "internal_server_error"}
     )
 
 
@@ -96,14 +100,14 @@ def server_error_response():
 def malformed_json_response():
     """
     Create a response with malformed JSON.
-    
+
     Returns:
         MockResponse: A mock response that raises an error when json() is called
     """
     return MockResponse(
         status_code=200,
         text=NON_JSON_TEXT,
-        error=json.JSONDecodeError("Expecting value", NON_JSON_TEXT, 0)
+        error=json.JSONDecodeError("Expecting value", NON_JSON_TEXT, 0),
     )
 
 
@@ -111,7 +115,7 @@ def malformed_json_response():
 def timeout_response():
     """
     Create a timeout error for requests.
-    
+
     Returns:
         Exception: A requests.Timeout exception
     """
@@ -122,7 +126,7 @@ def timeout_response():
 def connection_error_response():
     """
     Create a connection error for requests.
-    
+
     Returns:
         Exception: A requests.ConnectionError exception
     """
@@ -133,14 +137,12 @@ def connection_error_response():
 def auth_error_response():
     """
     Create an authentication error response (HTTP 401).
-    
+
     Returns:
         MockResponse: A mock response for authentication error
     """
     return MockResponse(
-        status_code=401,
-        text="Unauthorized",
-        json_data={"error": "invalid_credentials"}
+        status_code=401, text="Unauthorized", json_data={"error": "invalid_credentials"}
     )
 
 
@@ -148,7 +150,7 @@ def auth_error_response():
 def validation_error():
     """
     Create a validation error.
-    
+
     Returns:
         Exception: A ValidationError exception
     """
@@ -159,7 +161,7 @@ def validation_error():
 def data_error():
     """
     Create a data error.
-    
+
     Returns:
         Exception: A DataError exception
     """
@@ -170,39 +172,35 @@ def data_error():
 def mock_error_responses():
     """
     Create a dictionary of all error responses.
-    
+
     Returns:
         dict: A dictionary of error names to mock responses or exceptions
     """
     return {
         "rate_limit": MockResponse(
-            status_code=429, 
+            status_code=429,
             text="Too Many Requests",
             headers={"Retry-After": "30"},
-            json_data={"error": "rate_limit_exceeded"}
+            json_data={"error": "rate_limit_exceeded"},
         ),
         "not_found": MockResponse(
-            status_code=404,
-            text="Not Found",
-            json_data={"error": "resource_not_found"}
+            status_code=404, text="Not Found", json_data={"error": "resource_not_found"}
         ),
         "server_error": MockResponse(
             status_code=500,
             text="Internal Server Error",
-            json_data={"error": "internal_server_error"}
+            json_data={"error": "internal_server_error"},
         ),
         "malformed_json": MockResponse(
             status_code=200,
             text=NON_JSON_TEXT,
-            error=json.JSONDecodeError("Expecting value", NON_JSON_TEXT, 0)
+            error=json.JSONDecodeError("Expecting value", NON_JSON_TEXT, 0),
         ),
         "timeout": requests.Timeout("Request timed out"),
         "connection_error": requests.ConnectionError("Connection failed"),
         "auth_error": MockResponse(
-            status_code=401,
-            text="Unauthorized",
-            json_data={"error": "invalid_credentials"}
+            status_code=401, text="Unauthorized", json_data={"error": "invalid_credentials"}
         ),
         "validation_error": ValidationError("Invalid ticker format"),
-        "data_error": DataError("Missing required data")
+        "data_error": DataError("Missing required data"),
     }

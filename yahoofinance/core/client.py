@@ -7,20 +7,22 @@ with appropriate error handling and configuration.
 """
 
 import logging
-from typing import Dict, Any, List, Optional, Union
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Union
 
 from .config import RATE_LIMIT
-from .errors import YFinanceError, ValidationError
+from .errors import ValidationError, YFinanceError
+
 
 @dataclass
 class StockData:
     """
     Data container for stock information.
-    
+
     This class provides a structured way to store stock data
     and is used by both the core client and providers.
     """
+
     ticker: str
     name: Optional[str] = None
     price: Optional[float] = None
@@ -45,62 +47,68 @@ class StockData:
     sector: Optional[str] = None
     recommendation: Optional[str] = None
 
+
 # Set up logging
 logger = logging.getLogger(__name__)
+
 
 class YFinanceClient:
     """
     Base client for Yahoo Finance data access.
-    
+
     This class provides common functionality used by providers and
     serves as a compatibility layer for v1 code.
     """
-    
-    def __init__(self, 
-                 max_retries: int = None,
-                 timeout: int = None):
+
+    def __init__(self, max_retries: int = None, timeout: int = None):
         """
         Initialize YFinance client.
-        
+
         Args:
             max_retries: Maximum number of retry attempts for API calls
             timeout: API request timeout in seconds
         """
         self.max_retries = max_retries or RATE_LIMIT["MAX_RETRY_ATTEMPTS"]
         self.timeout = timeout or RATE_LIMIT["API_TIMEOUT"]
-        
-        logger.debug(f"Initialized YFinanceClient with max_retries={self.max_retries}, timeout={self.timeout}")
-    
+
+        logger.debug(
+            f"Initialized YFinanceClient with max_retries={self.max_retries}, timeout={self.timeout}"
+        )
+
     def validate_ticker(self, ticker: str) -> bool:
         """
         Validate a ticker symbol format.
-        
+
         Args:
             ticker: Ticker symbol to validate
-            
+
         Returns:
             True if valid, False otherwise
-            
+
         Raises:
             ValidationError: If ticker format is invalid
         """
         if not ticker or not isinstance(ticker, str):
             details = {
-                'ticker': ticker,
-                'issue': 'invalid_type_or_empty',
-                'expected': 'non-empty string',
-                'received': type(ticker).__name__
+                "ticker": ticker,
+                "issue": "invalid_type_or_empty",
+                "expected": "non-empty string",
+                "received": type(ticker).__name__,
             }
-            raise ValidationError(f"Invalid ticker: must be a non-empty string, got {type(ticker).__name__}", details)
-            
+            raise ValidationError(
+                f"Invalid ticker: must be a non-empty string, got {type(ticker).__name__}", details
+            )
+
         # Basic validation - more complex validation happens in providers
         if len(ticker) > 20:
             details = {
-                'ticker': ticker,
-                'issue': 'invalid_length',
-                'max_length': 20,
-                'actual_length': len(ticker)
+                "ticker": ticker,
+                "issue": "invalid_length",
+                "max_length": 20,
+                "actual_length": len(ticker),
             }
-            raise ValidationError(f"Invalid ticker '{ticker}': exceeds maximum length of 20 characters", details)
-            
+            raise ValidationError(
+                f"Invalid ticker '{ticker}': exceeds maximum length of 20 characters", details
+            )
+
         return True

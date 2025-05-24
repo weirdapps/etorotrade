@@ -12,8 +12,8 @@ Options:
 If no arguments are provided, it will use default paths:
     - Input: yahoofinance/input/portfolio.csv
     - Output: yahoofinance/input/portfolio.csv
-    
-A backup of the original file will be created before making changes.
+
+The script automatically detects ticker columns with names: 'ticker', 'Ticker', 'Symbol', or 'symbol'.
 
 Formatting rules:
     - Hong Kong tickers (.HK): Format to have exactly 4 digits (e.g., 1.HK -> 0001.HK, 700.HK -> 0700.HK)
@@ -24,8 +24,6 @@ Formatting rules:
 import os
 import sys
 import csv
-import shutil
-import datetime
 
 
 def fix_yahoo_ticker_format(ticker):
@@ -83,21 +81,10 @@ def fix_yahoo_ticker_format(ticker):
 def fix_portfolio_tickers(input_path, output_path):
     """
     Read portfolio CSV, fix ticker formats, and save to output path.
-    Creates a backup of the original file before making changes.
     """
     # Ensure input file exists
     if not os.path.exists(input_path):
         print(f"Error: Input file {input_path} does not exist.")
-        return False
-    
-    # Create backup with timestamp
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_path = f"{os.path.splitext(input_path)[0]}_backup_{timestamp}.csv"
-    try:
-        shutil.copy2(input_path, backup_path)
-        print(f"Backup created at: {backup_path}")
-    except Exception as e:
-        print(f"Error creating backup: {e}")
         return False
     
     # Read, fix, and write in one pass if the input and output are the same file
@@ -113,12 +100,22 @@ def fix_portfolio_tickers(input_path, output_path):
                 print("Error: Input file is empty.")
                 return False
             
-            # Find the ticker column
+            # Find the ticker column (try multiple possible column names)
             header = data[0]
-            try:
-                ticker_idx = header.index('ticker')
-            except ValueError:
-                print("Error: No 'ticker' column found in CSV.")
+            ticker_idx = None
+            possible_columns = ['ticker', 'Ticker', 'Symbol', 'symbol']
+            
+            for col_name in possible_columns:
+                try:
+                    ticker_idx = header.index(col_name)
+                    print(f"Found ticker column: '{col_name}'")
+                    break
+                except ValueError:
+                    continue
+            
+            if ticker_idx is None:
+                print(f"Error: No ticker column found. Expected one of: {possible_columns}")
+                print(f"Available columns: {header}")
                 return False
             
             # Fix tickers
@@ -159,11 +156,21 @@ def fix_portfolio_tickers(input_path, output_path):
                 header = next(reader)
                 writer.writerow(header)
                 
-                # Find the ticker column
-                try:
-                    ticker_idx = header.index('ticker')
-                except ValueError:
-                    print("Error: No 'ticker' column found in CSV.")
+                # Find the ticker column (try multiple possible column names)
+                ticker_idx = None
+                possible_columns = ['ticker', 'Ticker', 'Symbol', 'symbol']
+                
+                for col_name in possible_columns:
+                    try:
+                        ticker_idx = header.index(col_name)
+                        print(f"Found ticker column: '{col_name}'")
+                        break
+                    except ValueError:
+                        continue
+                
+                if ticker_idx is None:
+                    print(f"Error: No ticker column found. Expected one of: {possible_columns}")
+                    print(f"Available columns: {header}")
                     return False
                 
                 # Process rows

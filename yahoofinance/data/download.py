@@ -5,30 +5,38 @@ This module provides functions for downloading data from various sources.
 """
 
 import os
-from typing import List, Dict, Any, Optional, Union
-
-from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
-from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
-import pandas as pd
-import time
-from ..core.logging_config import get_logger
 import shutil
+import time
+from typing import Any, Dict, List, Optional, Union
+
+import pandas as pd
 from dotenv import load_dotenv
 from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import (
-    TimeoutException,
-    NoSuchElementException,
     ElementClickInterceptedException,
-    WebDriverException
+    NoSuchElementException,
+    TimeoutException,
+    WebDriverException,
+)
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+
+from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
+from yahoofinance.utils.error_handling import (
+    enrich_error_context,
+    safe_operation,
+    translate_error,
+    with_retry,
 )
 
-from ..core.config import PATHS, FILE_PATHS
+from ..core.config import FILE_PATHS, PATHS
+from ..core.logging_config import get_logger
+
 
 logger = get_logger(__name__)
+
 
 def fix_hk_ticker(ticker):
     """
@@ -36,41 +44,43 @@ def fix_hk_ticker(ticker):
     1. If fewer than 4 numerals, add leading zeros to make it 4 numerals
     2. If more than 4 numerals and they are leading zeros, remove until you get to 4 numerals
     3. If more than 4 numerals and the leading numeral is not zero, keep as is
-    
+
     Args:
         ticker: The ticker string to process
-    
+
     Returns:
         The processed ticker with standardized format
     """
     # Return early if not a valid HK ticker format
-    if not isinstance(ticker, str) or not ticker.endswith('.HK'):
+    if not isinstance(ticker, str) or not ticker.endswith(".HK"):
         return ticker
-        
-    parts = ticker.split('.')
+
+    parts = ticker.split(".")
     if len(parts) != 2:
         return ticker
-        
+
     numeric_part = parts[0]
     fixed_ticker = ticker
-    
+
     # Process based on digit count
     if len(numeric_part) < 4:
         # Add leading zeros for fewer than 4 digits
-        fixed_ticker = numeric_part.zfill(4) + '.HK'
-    elif len(numeric_part) > 4 and numeric_part.startswith('0'):
+        fixed_ticker = numeric_part.zfill(4) + ".HK"
+    elif len(numeric_part) > 4 and numeric_part.startswith("0"):
         # Remove leading zeros for more than 4 digits
-        stripped_part = numeric_part.lstrip('0')
-        fixed_ticker = (stripped_part.zfill(4) if len(stripped_part) < 4 else stripped_part) + '.HK'
-    
+        stripped_part = numeric_part.lstrip("0")
+        fixed_ticker = (stripped_part.zfill(4) if len(stripped_part) < 4 else stripped_part) + ".HK"
+
     # Log changes if the ticker was modified
     if fixed_ticker != ticker:
         logger.info(f"Fixed HK ticker: {ticker} -> {fixed_ticker}")
-    
+
     return fixed_ticker
+
 
 # Load environment variables
 load_dotenv()
+
 
 def safe_click(driver, element, description="element"):
     """Helper function to safely click an element using JavaScript"""
@@ -86,18 +96,20 @@ def safe_click(driver, element, description="element"):
         logger.error(f"WebDriver error clicking {description}: {str(e)}")
         raise e
 
+
 def setup_driver():
     """Setup Chrome WebDriver with appropriate options"""
     options = webdriver.ChromeOptions()
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
     # Add additional options to help with stability
-    options.add_argument('--disable-web-security')
-    options.add_argument('--disable-features=IsolateOrigins,site-per-process')
+    options.add_argument("--disable-web-security")
+    options.add_argument("--disable-features=IsolateOrigins,site-per-process")
     # Add options for slow network
-    options.add_argument('--disable-gpu')
-    options.add_argument('--window-size=1200,800')
+    options.add_argument("--disable-gpu")
+    options.add_argument("--window-size=1200,800")
     return webdriver.Chrome(options=options)
+
 
 def wait_and_find_element(driver, by, value, timeout=10, check_visibility=True):
     """Helper function to wait for and find an element"""
@@ -114,6 +126,7 @@ def wait_and_find_element(driver, by, value, timeout=10, check_visibility=True):
     except (YFinanceError, TimeoutException, NoSuchElementException) as e:
         logger.error(f"Error finding element {value}: {str(e)}")
         return None
+
 
 def find_sign_in_button(driver):
     """Helper function to find and click the sign-in button"""
@@ -132,14 +145,18 @@ def find_sign_in_button(driver):
         logger.error(f"WebDriver error finding sign-in button: {str(e)}")
         raise e
 
+
 def handle_email_sign_in(driver):
     """Handle the email sign-in process"""
     logger.info("Looking for email sign-in button...")
-    email_sign_in = wait_and_find_element(driver, By.XPATH, "//button[contains(., 'Sign in with email')]")
+    email_sign_in = wait_and_find_element(
+        driver, By.XPATH, "//button[contains(., 'Sign in with email')]"
+    )
     if not email_sign_in:
         raise NoSuchElementException("Email sign-in button not found")
     safe_click(driver, email_sign_in, "email sign-in button")
     time.sleep(5)
+
 
 def handle_email_input(driver, email):
     """Handle the email input and next button process"""
@@ -158,7 +175,9 @@ def handle_email_input(driver, email):
 
     # Look for the Next button
     logger.info("Looking for Next button...")
-    next_button = wait_and_find_element(driver, By.XPATH, "//button[contains(text(), 'Next') or contains(text(), 'NEXT')]")
+    next_button = wait_and_find_element(
+        driver, By.XPATH, "//button[contains(text(), 'Next') or contains(text(), 'NEXT')]"
+    )
     if next_button:
         safe_click(driver, next_button, "Next button")
     else:
@@ -168,29 +187,33 @@ def handle_email_input(driver, email):
 
     time.sleep(5)  # Wait longer for password field
 
+
 def find_password_input(driver, timeout=5):
     """Try different selectors to find password input"""
     for selector in [
         (By.XPATH, "//input[@type='password']"),
         (By.CSS_SELECTOR, "input[type='password']"),
-        (By.XPATH, "//input[contains(@class, 'password')]")
+        (By.XPATH, "//input[contains(@class, 'password')]"),
     ]:
         try:
-            password_input = wait_and_find_element(driver, selector[0], selector[1], timeout=timeout)
+            password_input = wait_and_find_element(
+                driver, selector[0], selector[1], timeout=timeout
+            )
             if password_input:
                 return password_input
         except (NoSuchElementException, TimeoutException):
             continue
     return None
 
+
 def handle_password_submit(driver, password_input, password):
     """Handle password submission and final sign in"""
     logger.info("Found password input, entering password...")
-    
+
     # Clear any existing text in the password field
     time.sleep(1)
     password_input.clear()
-    
+
     # Enter password
     password_input.send_keys(password)
     logger.info(f"Entered password (length: {len(password)})")
@@ -199,7 +222,7 @@ def handle_password_submit(driver, password_input, password):
     # Try multiple different selectors for the sign-in button
     logger.info("Looking for sign-in button after password entry...")
     sign_in_button = None
-    
+
     # List of different button selectors to try
     button_selectors = [
         # Exact match for the specific button class from pi-screener
@@ -224,7 +247,7 @@ def handle_password_submit(driver, password_input, password):
         (By.XPATH, "//div[@role='button' and contains(text(), 'Sign in')]"),
         (By.XPATH, "//div[@role='button' and contains(text(), 'Login')]"),
     ]
-    
+
     # Try each selector
     for selector_type, selector in button_selectors:
         try:
@@ -235,7 +258,7 @@ def handle_password_submit(driver, password_input, password):
                 break
         except NoSuchElementException:
             continue
-    
+
     # Click the sign-in button if found
     if sign_in_button:
         logger.info("Attempting to click sign-in button")
@@ -275,6 +298,7 @@ def handle_password_submit(driver, password_input, password):
     logger.info("Waiting for login to complete...")
     time.sleep(15)  # Wait longer for login to complete
 
+
 def handle_password_input(driver, password, max_attempts=3):
     """Handle the password input and final sign in process"""
     logger.info("Looking for password input...")
@@ -286,7 +310,12 @@ def handle_password_input(driver, password, max_attempts=3):
             if password_input:
                 handle_password_submit(driver, password_input, password)
                 return True
-        except (NoSuchElementException, TimeoutException, ElementClickInterceptedException, WebDriverException) as e:
+        except (
+            NoSuchElementException,
+            TimeoutException,
+            ElementClickInterceptedException,
+            WebDriverException,
+        ) as e:
             last_error = e
             logger.error(f"Attempt {attempt + 1} failed: {str(e)}")
             if attempt < max_attempts - 1:
@@ -294,13 +323,16 @@ def handle_password_input(driver, password, max_attempts=3):
                 time.sleep(3)
 
     # If we get here, all attempts failed
-    raise NoSuchElementException(f"Password input not found after {max_attempts} attempts: {str(last_error)}")
+    raise NoSuchElementException(
+        f"Password input not found after {max_attempts} attempts: {str(last_error)}"
+    )
+
 
 def login(driver, email, password):
     """Handle the login process with better error handling and reduced complexity"""
     logger.info("Attempting to log in...")
     time.sleep(10)  # Give more time for initial page load
-    
+
     # Initial sign in
     sign_in_button = find_sign_in_button(driver)
     if not sign_in_button:
@@ -310,12 +342,13 @@ def login(driver, email, password):
 
     # Email sign in
     handle_email_sign_in(driver)
-    
+
     # Email input and next
     handle_email_input(driver, email)
-    
+
     # Password input and submit
     handle_password_input(driver, password)
+
 
 def process_portfolio():
     """Process downloaded portfolio file"""
@@ -323,71 +356,74 @@ def process_portfolio():
     downloads_path = os.path.expanduser("~/Downloads")
     # Wait longer for the download
     time.sleep(5)
-    
+
     # Get the most recent csv file
     try:
         if not os.path.isdir(downloads_path):
             logger.error(f"Error: {downloads_path} is not a valid directory")
             return False
 
-        files = [f for f in os.listdir(downloads_path) if f.endswith('.csv')]
+        files = [f for f in os.listdir(downloads_path) if f.endswith(".csv")]
         if not files:
             logger.error("No CSV files found in Downloads folder")
             return False
-        
+
         # Get the latest file path
-        latest_filename = max(files, key=lambda f: os.path.getctime(os.path.join(downloads_path, f)))
+        latest_filename = max(
+            files, key=lambda f: os.path.getctime(os.path.join(downloads_path, f))
+        )
         latest_file = os.path.join(downloads_path, latest_filename)
-        
+
         if not os.path.isfile(latest_file):
             logger.error(f"Error: {latest_file} is not a valid file")
             return False
     except (OSError, IOError) as e:
         logger.error(f"Error accessing files: {str(e)}")
         return False
-    
+
     # Read the CSV
     df = pd.read_csv(latest_file)
-    
+
     # Replace crypto tickers
-    crypto_mapping = {
-        'BTC': 'BTC-USD',
-        'XRP': 'XRP-USD',
-        'SOL': 'SOL-USD',
-        'ETH': 'ETH-USD'
-    }
-    
+    crypto_mapping = {"BTC": "BTC-USD", "XRP": "XRP-USD", "SOL": "SOL-USD", "ETH": "ETH-USD"}
+
     # Update tickers if they exist (using 'ticker' column instead of 'Symbol')
-    if 'ticker' in df.columns:
+    if "ticker" in df.columns:
         logger.info("Found ticker column, updating crypto tickers...")
-        df['ticker'] = df['ticker'].replace(crypto_mapping)
-        logger.info(f"Updated tickers: {df[df['ticker'].isin(crypto_mapping.values())]['ticker'].tolist()}")
-        
+        df["ticker"] = df["ticker"].replace(crypto_mapping)
+        logger.info(
+            f"Updated tickers: {df[df['ticker'].isin(crypto_mapping.values())]['ticker'].tolist()}"
+        )
+
         # Fix HK stock tickers with leading zeros
-        df['ticker'] = df['ticker'].apply(fix_hk_ticker)
+        df["ticker"] = df["ticker"].apply(fix_hk_ticker)
         logger.info("Processed HK tickers with leading zeros")
     else:
         logger.warning("Warning: 'ticker' column not found in CSV")
-    
+
     # Save to input directory
     os.makedirs(PATHS["INPUT_DIR"], exist_ok=True)
     df.to_csv(FILE_PATHS["PORTFOLIO_FILE"], index=False)
     logger.info(f"Portfolio saved to {FILE_PATHS['PORTFOLIO_FILE']}")
-    
+
     # Clean up downloaded file
     os.remove(latest_file)
     return True
+
 
 def handle_cookie_consent(driver):
     """Handle cookie consent if present"""
     try:
         logger.info("Looking for cookie consent...")
-        accept_button = wait_and_find_element(driver, By.XPATH, "//button[contains(text(), 'Accept All')]")
+        accept_button = wait_and_find_element(
+            driver, By.XPATH, "//button[contains(text(), 'Accept All')]"
+        )
         if accept_button:
             safe_click(driver, accept_button, "cookie consent")
             time.sleep(2)
     except (NoSuchElementException, TimeoutException):
         logger.info("No cookie consent needed or already accepted")
+
 
 def handle_portfolio_buttons(driver):
     """Handle clicking portfolio-related buttons"""
@@ -414,30 +450,31 @@ def handle_portfolio_buttons(driver):
         raise NoSuchElementException("Could not find 'Export Portfolio' link")
     safe_click(driver, export_link, "'Export Portfolio' link")
 
+
 async def download_portfolio(provider=None):
     """
     Download portfolio data from pi-screener.com.
-    
+
     This function automates the process of:
     1. Logging into pi-screener.com
     2. Navigating to the portfolio page
     3. Downloading the portfolio data
     4. Processing the downloaded file to standardize tickers
     5. Saving the processed file to yahoofinance/input
-    
+
     Args:
         provider: Optional provider instance (not used, but required for compatibility)
-    
+
     Returns:
         bool: True if successful, False otherwise
     """
     # Create a unique run ID for this download attempt to track related logs
     run_id = f"download_{int(time.time())}"
     logger.info(f"Starting portfolio download (run ID: {run_id})")
-    
+
     # Get credentials from environment variables
-    pi_screener_email = os.getenv('PI_SCREENER_EMAIL')
-    pi_screener_password = os.getenv('PI_SCREENER_PASSWORD')
+    pi_screener_email = os.getenv("PI_SCREENER_EMAIL")
+    pi_screener_password = os.getenv("PI_SCREENER_PASSWORD")
 
     if not pi_screener_email or not pi_screener_password:
         error_msg = "Error: PI_SCREENER_EMAIL and PI_SCREENER_PASSWORD must be set in .env file"
@@ -447,6 +484,7 @@ async def download_portfolio(provider=None):
     # Check if selenium is available
     try:
         import selenium
+
         logger.info(f"[{run_id}] Selenium is available (version: {selenium.__version__})")
     except ImportError:
         logger.error(f"[{run_id}] Selenium is not installed. Using fallback method.")
@@ -457,37 +495,43 @@ async def download_portfolio(provider=None):
         # Setup and navigate
         logger.info(f"[{run_id}] Setting up Chrome driver...")
         driver = setup_driver()
-        
+
         logger.info(f"[{run_id}] Navigating to pi-screener.com...")
         driver.get("https://app.pi-screener.com/")
         time.sleep(10)  # Wait longer for initial page load
-        
+
         # Handle initial page setup
         handle_cookie_consent(driver)
-        
+
         logger.info(f"[{run_id}] Attempting to log in with email: {pi_screener_email[:3]}***")
         login(driver, pi_screener_email, pi_screener_password)
-        
+
         # Wait for page to load after login
         logger.info(f"[{run_id}] Waiting for page to load after login...")
         time.sleep(20)
-        
+
         # Check if login was successful
         current_url = driver.current_url
         logger.info(f"[{run_id}] Current URL after login: {current_url}")
-        
-        if "login" in current_url.lower() or "signin" in current_url.lower() or "auth" in current_url.lower():
-            logger.error(f"[{run_id}] Login appears to have failed. Still on login page: {current_url}")
+
+        if (
+            "login" in current_url.lower()
+            or "signin" in current_url.lower()
+            or "auth" in current_url.lower()
+        ):
+            logger.error(
+                f"[{run_id}] Login appears to have failed. Still on login page: {current_url}"
+            )
             return await fallback_portfolio_download()
-        
+
         # Handle portfolio operations
         logger.info(f"[{run_id}] Accessing portfolio features...")
         handle_portfolio_buttons(driver)
-        
+
         # Process download
         logger.info(f"[{run_id}] Waiting for download...")
         time.sleep(5)
-        
+
         if process_portfolio():
             success_msg = "Portfolio successfully downloaded and processed."
             logger.info(f"[{run_id}] {success_msg}")
@@ -496,7 +540,7 @@ async def download_portfolio(provider=None):
             failure_msg = "Failed to process downloaded portfolio."
             logger.warning(f"[{run_id}] {failure_msg} Trying fallback method.")
             return await fallback_portfolio_download()
-        
+
     except NoSuchElementException as e:
         error_msg = f"Element not found: {str(e)}"
         logger.error(f"[{run_id}] {error_msg}")
@@ -504,13 +548,13 @@ async def download_portfolio(provider=None):
         if driver:
             try:
                 page_source_path = os.path.expanduser(f"~/Downloads/page_source_{run_id}.html")
-                with open(page_source_path, 'w') as f:
+                with open(page_source_path, "w") as f:
                     f.write(driver.page_source)
                 logger.info(f"[{run_id}] Saved page source to {page_source_path}")
             except Exception as e:
                 logger.warning(f"[{run_id}] Failed to save page source: {str(e)}")
         return await fallback_portfolio_download()
-    
+
     except ElementClickInterceptedException as e:
         error_msg = f"Click intercepted: {str(e)}"
         logger.error(f"[{run_id}] {error_msg}")
@@ -523,20 +567,21 @@ async def download_portfolio(provider=None):
             except Exception as e:
                 logger.warning(f"[{run_id}] Failed to save screenshot: {str(e)}")
         return await fallback_portfolio_download()
-    
+
     except WebDriverException as e:
         error_msg = f"WebDriver error: {str(e)}"
         logger.error(f"[{run_id}] {error_msg}")
         return await fallback_portfolio_download()
-    
+
     except Exception as e:
         error_msg = f"Unexpected error: {str(e)}"
         logger.error(f"[{run_id}] {error_msg}")
         import traceback
+
         trace = traceback.format_exc()
         logger.error(f"[{run_id}] Traceback: {trace}")
         return await fallback_portfolio_download()
-    
+
     finally:
         if driver:
             logger.info(f"[{run_id}] Closing Chrome...")
@@ -546,68 +591,70 @@ async def download_portfolio(provider=None):
             except Exception as e:
                 logger.warning(f"[{run_id}] Error while closing Chrome: {str(e)}")
 
+
 @with_retry
 def download_market_data(
-    tickers: List[str], 
+    tickers: List[str],
     include_analyst_data: bool = True,
     include_price_data: bool = True,
     include_financial_data: bool = True,
-    provider_name: str = None
+    provider_name: str = None,
 ) -> Dict[str, Dict[str, Any]]:
     """
     Download comprehensive market data for a list of tickers.
-    
+
     This function provides a centralized way to download comprehensive
     market data for multiple tickers in an efficient manner. It leverages
     the provider system to fetch the data.
-    
+
     Args:
         tickers: List of ticker symbols to download data for
         include_analyst_data: Whether to include analyst recommendations
         include_price_data: Whether to include price and volume data
         include_financial_data: Whether to include financial metrics
         provider_name: Optional provider name to use (defaults to hybrid)
-        
+
     Returns:
         Dictionary mapping ticker symbols to their market data
-        
+
     Raises:
         APIError: If there's an error fetching data from the API
         ValidationError: If the input parameters are invalid
     """
-    from yahoofinance import get_provider
     import asyncio
+
+    from yahoofinance import get_provider
+    from yahoofinance.core.errors import APIError, YFinanceError
     from yahoofinance.core.logging_config import get_logger
-    from yahoofinance.core.errors import YFinanceError, APIError
-    
+
     logger = get_logger(__name__)
-    
+
     # Validate input
     if not tickers:
         logger.warning("No tickers provided to download_market_data")
         return {}
-        
+
     # Initialize provider (async for better performance)
     provider = get_provider(async_api=True, provider_name=provider_name)
-    
+
     # Define the data download function
     async def fetch_all_data():
         results = {}
-        
+
         try:
             # Batch fetch ticker info for all tickers
             logger.info(f"Downloading market data for {len(tickers)} tickers")
-            
+
             # Fetch basic ticker info (always included)
             info_results = await provider.batch_get_ticker_info(tickers)
-            
+
             # Initialize results dictionary with basic info
             for ticker, info in info_results.items():
                 if info:
                     results[ticker] = info
                     # Add source information
-                    results[ticker]['data_source'] = getattr(provider, 'name', 'unknown')
-            
+                    results[ticker]["data_source"] = getattr(provider, "name", "unknown")
+
             # Fetch additional data based on flags
             if include_analyst_data:
                 logger.info("Fetching analyst data...")
@@ -616,7 +663,7 @@ def download_market_data(
                 for ticker, data in analyst_results.items():
                     if ticker in results and data:
                         results[ticker].update(data)
-            
+
             if include_price_data:
                 logger.info("Fetching price data...")
                 price_results = await provider.batch_get_price_data(tickers)
@@ -624,7 +671,7 @@ def download_market_data(
                 for ticker, data in price_results.items():
                     if ticker in results and data:
                         results[ticker].update(data)
-            
+
             if include_financial_data:
                 logger.info("Fetching financial data...")
                 financial_results = await provider.batch_get_financial_data(tickers)
@@ -632,10 +679,10 @@ def download_market_data(
                 for ticker, data in financial_results.items():
                     if ticker in results and data:
                         results[ticker].update(data)
-            
+
             logger.info(f"Successfully downloaded data for {len(results)} tickers")
             return results
-            
+
         except APIError as e:
             logger.error(f"API error while downloading market data: {str(e)}")
             raise
@@ -645,7 +692,7 @@ def download_market_data(
         except Exception as e:
             logger.error(f"Unexpected error downloading market data: {str(e)}")
             raise APIError(f"Unexpected error downloading market data: {str(e)}")
-    
+
     # Run the async function
     try:
         return asyncio.run(fetch_all_data())
@@ -656,53 +703,61 @@ def download_market_data(
 
 async def fallback_portfolio_download():
     """
-    Fallback method that copies the existing portfolio 
+    Fallback method that copies the existing portfolio
     from the original location to yahoofinance/input
-    
+
     Returns:
         bool: True if successful, False otherwise
     """
     # Create a unique ID for this fallback operation
     fallback_id = f"fallback_{int(time.time())}"
     logger.info(f"[{fallback_id}] Starting fallback portfolio download method")
-    
+
     try:
         # Define source and destination paths
         src_path = FILE_PATHS["PORTFOLIO_FILE"]
         dest_dir = PATHS["INPUT_DIR"]
         dest_path = FILE_PATHS["PORTFOLIO_FILE"]
-        
+
         logger.info(f"[{fallback_id}] Source path: {src_path}")
         logger.info(f"[{fallback_id}] Destination path: {dest_path}")
-        
+
         # Ensure destination directory exists
         os.makedirs(dest_dir, exist_ok=True)
         logger.info(f"[{fallback_id}] Ensured destination directory exists: {dest_dir}")
-        
+
         # Check if source file exists and is readable
         if not os.path.exists(src_path):
             error_msg = f"Source portfolio file not found: {src_path}"
             logger.error(f"[{fallback_id}] {error_msg}")
-            
+
             # Try to list available files in the input directory
             try:
                 input_dir = os.path.dirname(src_path)
                 if os.path.exists(input_dir):
                     files = os.listdir(input_dir)
                     logger.info(f"[{fallback_id}] Available files in {input_dir}: {files}")
-                    
+
                     # If any CSV files exist, try to use the most recent one
-                    csv_files = [f for f in files if f.endswith('.csv')]
+                    csv_files = [f for f in files if f.endswith(".csv")]
                     if csv_files:
-                        most_recent = max(csv_files, key=lambda f: os.path.getmtime(os.path.join(input_dir, f)))
+                        most_recent = max(
+                            csv_files, key=lambda f: os.path.getmtime(os.path.join(input_dir, f))
+                        )
                         alt_src_path = os.path.join(input_dir, most_recent)
-                        logger.info(f"[{fallback_id}] Trying to use alternative file: {alt_src_path}")
-                        
+                        logger.info(
+                            f"[{fallback_id}] Trying to use alternative file: {alt_src_path}"
+                        )
+
                         if os.path.isfile(alt_src_path):
                             src_path = alt_src_path
-                            logger.info(f"[{fallback_id}] Using alternative source file: {src_path}")
+                            logger.info(
+                                f"[{fallback_id}] Using alternative source file: {src_path}"
+                            )
                         else:
-                            logger.error(f"[{fallback_id}] Alternative file is not valid: {alt_src_path}")
+                            logger.error(
+                                f"[{fallback_id}] Alternative file is not valid: {alt_src_path}"
+                            )
                             return False
                     else:
                         logger.error(f"[{fallback_id}] No CSV files found in {input_dir}")
@@ -710,60 +765,67 @@ async def fallback_portfolio_download():
             except Exception as e:
                 logger.error(f"[{fallback_id}] Error checking alternative files: {str(e)}")
                 return False
-        
+
         # Check file size and readability
         try:
             file_size = os.path.getsize(src_path)
             logger.info(f"[{fallback_id}] Source file size: {file_size} bytes")
-            
+
             if file_size == 0:
                 logger.warning(f"[{fallback_id}] Source file is empty: {src_path}")
                 # Continue anyway as we'll copy the empty file
-            
+
             # Try to read the first few lines to verify file is readable
-            with open(src_path, 'r', encoding='utf-8') as f:
+            with open(src_path, "r", encoding="utf-8") as f:
                 header = f.readline().strip()
                 logger.info(f"[{fallback_id}] File header: {header}")
         except Exception as e:
             logger.error(f"[{fallback_id}] Error checking source file: {str(e)}")
             # Continue anyway, as the copy operation might still succeed
-        
+
         # Copy the file
         shutil.copy2(src_path, dest_path)
         logger.info(f"[{fallback_id}] Portfolio copied from {src_path} to {dest_path}")
-        
+
         # Verify the copy was successful
         if os.path.exists(dest_path):
             copy_size = os.path.getsize(dest_path)
             logger.info(f"[{fallback_id}] Copied file size: {copy_size} bytes")
-            
+
             if copy_size == 0 and file_size > 0:
                 logger.error(f"[{fallback_id}] Copy failed: destination file is empty")
                 return False
-            
+
             # Try to read the copied file
             try:
                 df = pd.read_csv(dest_path)
                 row_count = len(df)
                 col_count = len(df.columns)
-                logger.info(f"[{fallback_id}] Copied file has {row_count} rows and {col_count} columns")
-                
+                logger.info(
+                    f"[{fallback_id}] Copied file has {row_count} rows and {col_count} columns"
+                )
+
                 # Check for critical columns
-                if 'ticker' not in df.columns:
-                    logger.warning(f"[{fallback_id}] Warning: 'ticker' column missing from portfolio file")
+                if "ticker" not in df.columns:
+                    logger.warning(
+                        f"[{fallback_id}] Warning: 'ticker' column missing from portfolio file"
+                    )
             except Exception as e:
                 logger.error(f"[{fallback_id}] Error reading copied file: {str(e)}")
                 # This is not fatal as long as the file was copied
-        
+
         return True
     except Exception as e:
         logger.error(f"[{fallback_id}] Error in fallback portfolio download: {str(e)}")
         import traceback
+
         trace = traceback.format_exc()
         logger.error(f"[{fallback_id}] Traceback: {trace}")
         return False
 
+
 # Test function
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(download_portfolio())

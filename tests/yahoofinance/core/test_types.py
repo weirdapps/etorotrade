@@ -1,31 +1,38 @@
 import unittest
 from unittest.mock import Mock
+
 import yfinance as yf
 
-from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
-from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
+from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
 from yahoofinance.core.types import StockData
+from yahoofinance.utils.error_handling import (
+    enrich_error_context,
+    safe_operation,
+    translate_error,
+    with_retry,
+)
+
 
 class TestExceptions(unittest.TestCase):
     """Test suite for custom exceptions"""
-    
+
     def test_exception_hierarchy(self):
         """Test exception class inheritance hierarchy"""
         self.assertTrue(issubclass(APIError, YFinanceError))
         self.assertTrue(issubclass(ValidationError, YFinanceError))
         self.assertTrue(issubclass(YFinanceError, Exception))
-    
+
     def test_error_messages(self):
         """Test error message handling"""
         error_msg = "Test error message"
         yf_error = YFinanceError(error_msg)
         api_error = APIError(error_msg)
         validation_error = ValidationError(error_msg)
-        
+
         self.assertEqual(str(yf_error), error_msg)
         self.assertEqual(str(api_error), error_msg)
         self.assertEqual(str(validation_error), error_msg)
-    
+
     def test_exception_chaining(self):
         """Test exception chaining"""
         original_error = ValueError("Original error")
@@ -37,22 +44,19 @@ class TestExceptions(unittest.TestCase):
         except APIError as e:
             self.assertIs(e.__cause__, original_error)
 
+
 class TestStockData(unittest.TestCase):
     """Test suite for StockData class"""
-    
+
     def test_required_fields(self):
         """Test required fields initialization"""
         # Test with minimum required fields
-        stock = StockData(
-            name="Test Stock",
-            sector="Technology",
-            recommendation_key="buy"
-        )
-        
+        stock = StockData(name="Test Stock", sector="Technology", recommendation_key="buy")
+
         self.assertEqual(stock.name, "Test Stock")
         self.assertEqual(stock.sector, "Technology")
         self.assertEqual(stock.recommendation_key, "buy")
-        
+
         # All optional fields should be None by default
         self.assertIsNone(stock.market_cap)
         self.assertIsNone(stock.current_price)
@@ -82,7 +86,7 @@ class TestStockData(unittest.TestCase):
         self.assertIsNone(stock.insider_buy_pct)
         self.assertIsNone(stock.insider_transactions)
         self.assertIsNone(stock.ticker_object)
-    
+
     def test_optional_fields(self):
         """Test optional fields initialization"""
         stock = StockData(
@@ -115,9 +119,9 @@ class TestStockData(unittest.TestCase):
             last_earnings="2024-01-01",
             previous_earnings="2023-10-01",
             insider_buy_pct=75.0,
-            insider_transactions=5
+            insider_transactions=5,
         )
-        
+
         # Verify all optional fields are set correctly
         self.assertEqual(stock.market_cap, 1000000000.0)
         self.assertEqual(stock.current_price, 150.0)
@@ -146,7 +150,7 @@ class TestStockData(unittest.TestCase):
         self.assertEqual(stock.previous_earnings, "2023-10-01")
         self.assertEqual(stock.insider_buy_pct, 75.0)
         self.assertEqual(stock.insider_transactions, 5)
-    
+
     def test_ticker_object_property(self):
         """Test ticker_object property with valid ticker object"""
         mock_ticker = Mock(spec=yf.Ticker)
@@ -154,11 +158,11 @@ class TestStockData(unittest.TestCase):
             name="Test Stock",
             sector="Technology",
             recommendation_key="buy",
-            ticker_object=mock_ticker
+            ticker_object=mock_ticker,
         )
-        
+
         self.assertIs(stock.ticker_object, mock_ticker)
-    
+
     def test_to_dict_excludes_ticker_object(self):
         """Test that to_dict excludes ticker_object"""
         mock_ticker = Mock(spec=yf.Ticker)
@@ -166,14 +170,14 @@ class TestStockData(unittest.TestCase):
             name="Test Stock",
             sector="Technology",
             recommendation_key="buy",
-            ticker_object=mock_ticker
+            ticker_object=mock_ticker,
         )
-        
+
         data_dict = stock.to_dict()
-        self.assertNotIn('ticker_object', data_dict)
-        self.assertIn('name', data_dict)
-        self.assertEqual(data_dict['name'], "Test Stock")
-    
+        self.assertNotIn("ticker_object", data_dict)
+        self.assertIn("name", data_dict)
+        self.assertEqual(data_dict["name"], "Test Stock")
+
     def test_from_dict_method(self):
         """Test the from_dict class method"""
         data = {
@@ -183,45 +187,41 @@ class TestStockData(unittest.TestCase):
             "market_cap": 1000000000.0,
             "current_price": 150.0,
             "target_price": 180.0,
-            "unknown_field": "This should be filtered out"
+            "unknown_field": "This should be filtered out",
         }
-        
+
         stock = StockData.from_dict(data)
-        
+
         # Check that valid fields are set
         self.assertEqual(stock.name, "Test Stock")
         self.assertEqual(stock.sector, "Technology")
         self.assertEqual(stock.market_cap, 1000000000.0)
         self.assertEqual(stock.current_price, 150.0)
-        
+
         # Verify that unknown fields are filtered out
         self.assertFalse(hasattr(stock, "unknown_field"))
-    
+
     def test_edge_cases(self):
         """Test edge cases and boundary conditions"""
         # Test empty strings
-        stock = StockData(
-            name="",
-            sector="",
-            recommendation_key=""
-        )
+        stock = StockData(name="", sector="", recommendation_key="")
         self.assertEqual(stock.name, "")
         self.assertEqual(stock.sector, "")
         self.assertEqual(stock.recommendation_key, "")
-        
+
         # Test extreme numeric values
         stock = StockData(
             name="Test Stock",
             sector="Technology",
             recommendation_key="buy",
-            market_cap=float('inf'),
-            beta=float('-inf'),
-            current_price=0.0
+            market_cap=float("inf"),
+            beta=float("-inf"),
+            current_price=0.0,
         )
-        self.assertEqual(stock.market_cap, float('inf'))
-        self.assertEqual(stock.beta, float('-inf'))
+        self.assertEqual(stock.market_cap, float("inf"))
+        self.assertEqual(stock.beta, float("-inf"))
         self.assertEqual(stock.current_price, 0.0)
-        
+
         # Test with None values for optional fields
         stock = StockData(
             name="Test Stock",
@@ -229,11 +229,12 @@ class TestStockData(unittest.TestCase):
             recommendation_key="buy",
             market_cap=None,
             current_price=None,
-            target_price=None
+            target_price=None,
         )
         self.assertIsNone(stock.market_cap)
         self.assertIsNone(stock.current_price)
         self.assertIsNone(stock.target_price)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

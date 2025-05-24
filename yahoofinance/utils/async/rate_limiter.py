@@ -9,17 +9,19 @@ DEPRECATED: This module is deprecated. The canonical implementation is now in
 yahoofinance.utils.async_utils.enhanced.
 """
 
-from ..core.logging_config import get_logger
 import warnings
-from typing import Dict, Any, Optional, Callable, TypeVar, cast, Coroutine
+from typing import Any, Callable, Coroutine, Dict, Optional, TypeVar, cast
 
 # Import from the canonical source
 from ..async_utils.enhanced import (
-    AsyncRateLimiter, 
+    AsyncRateLimiter,
     async_rate_limited,
-    # Also import the global instance
-    global_async_rate_limiter as enhanced_global_rate_limiter
 )
+from ..async_utils.enhanced import (
+    global_async_rate_limiter as enhanced_global_rate_limiter,  # Also import the global instance
+)
+from ..core.logging_config import get_logger
+
 
 logger = get_logger(__name__)
 
@@ -28,11 +30,11 @@ warnings.warn(
     "yahoofinance.utils.async.rate_limiter is deprecated. "
     "Use yahoofinance.utils.async_utils.enhanced instead.",
     DeprecationWarning,
-    stacklevel=2
+    stacklevel=2,
 )
 
 # Define a generic type variable for the return type
-T = TypeVar('T')
+T = TypeVar("T")
 
 # Re-export the global rate limiter for backward compatibility
 global_async_rate_limiter = enhanced_global_rate_limiter
