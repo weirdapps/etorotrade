@@ -1,9 +1,12 @@
-import pytest
 from datetime import datetime
-from unittest.mock import patch, MagicMock, Mock
+from unittest.mock import MagicMock, Mock, patch
+
 import pandas as pd
+import pytest
+
 from yahoofinance.analysis.market import MarketMetrics
-from yahoofinance.utils.error_handling import with_retry, safe_operation
+from yahoofinance.utils.error_handling import safe_operation, with_retry
+
 
 @pytest.fixture
 def sample_metrics():
@@ -17,21 +20,25 @@ def sample_metrics():
         avg_forward_pe=16.8,
         median_forward_pe=15.5,
         avg_peg_ratio=1.8,
-        median_peg_ratio=1.5
+        median_peg_ratio=1.5,
     )
+
 
 @pytest.fixture
 def market_data():
     # Create a sample DataFrame that could represent market data
-    return pd.DataFrame({
-        'ticker': ['AAPL', 'MSFT', 'GOOG', 'AMZN'],
-        'price': [150.0, 280.0, 140.0, 125.0],
-        'upside': [10.0, 15.0, 20.0, 25.0],
-        'buy_percentage': [75.0, 80.0, 85.0, 90.0],
-        'pe_ratio': [25.0, 30.0, 20.0, 35.0],
-        'forward_pe': [22.0, 25.0, 18.0, 30.0],
-        'peg_ratio': [1.2, 1.5, 1.8, 2.0],
-    })
+    return pd.DataFrame(
+        {
+            "ticker": ["AAPL", "MSFT", "GOOG", "AMZN"],
+            "price": [150.0, 280.0, 140.0, 125.0],
+            "upside": [10.0, 15.0, 20.0, 25.0],
+            "buy_percentage": [75.0, 80.0, 85.0, 90.0],
+            "pe_ratio": [25.0, 30.0, 20.0, 35.0],
+            "forward_pe": [22.0, 25.0, 18.0, 30.0],
+            "peg_ratio": [1.2, 1.5, 1.8, 2.0],
+        }
+    )
+
 
 @with_retry
 def test_market_metrics_initialization():
@@ -48,34 +55,36 @@ def test_market_metrics_initialization():
     assert metrics.median_forward_pe is None
     assert metrics.avg_peg_ratio is None
     assert metrics.median_peg_ratio is None
-    
+
     # Test initialization with values
     metrics = MarketMetrics(avg_upside=10.0, median_upside=9.0)
     assert metrics.avg_upside == pytest.approx(10.0, abs=1e-9)
     assert metrics.median_upside == pytest.approx(9.0, abs=1e-9)
 
+
 @with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
 def test_metrics_calculation(market_data):
     """Test calculation of market metrics from data."""
     # Calculate metrics from the data manually
-    avg_upside = market_data['upside'].mean()
-    median_upside = market_data['upside'].median()
-    avg_buy = market_data['buy_percentage'].mean()
-    median_buy = market_data['buy_percentage'].median()
-    
+    avg_upside = market_data["upside"].mean()
+    median_upside = market_data["upside"].median()
+    avg_buy = market_data["buy_percentage"].mean()
+    median_buy = market_data["buy_percentage"].median()
+
     # Create metrics object
     metrics = MarketMetrics(
         avg_upside=avg_upside,
         median_upside=median_upside,
         avg_buy_percentage=avg_buy,
-        median_buy_percentage=median_buy
+        median_buy_percentage=median_buy,
     )
-    
+
     # Verify calculations
     assert metrics.avg_upside == pytest.approx(17.5)
     assert metrics.median_upside == pytest.approx(17.5)
     assert metrics.avg_buy_percentage == pytest.approx(82.5)
     assert metrics.median_buy_percentage == pytest.approx(82.5)
+
 
 @safe_operation(default_value=None)
 def test_metrics_properties(sample_metrics):

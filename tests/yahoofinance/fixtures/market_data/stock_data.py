@@ -7,34 +7,28 @@ Use the fixtures from that module instead, which are automatically registered in
 
 import warnings
 
+
 warnings.warn(
     "This module (tests.yahoofinance.fixtures.market_data.stock_data) is deprecated. "
     "Use tests.fixtures.market_data.stock_data instead, which is automatically registered in conftest.py.",
     DeprecationWarning,
-    stacklevel=2
+    stacklevel=2,
 )
 
 # Import all fixtures and functions from the canonical source
-from tests.fixtures.market_data.stock_data import (
-    # Constants for company names
-    APPLE_NAME,
-    MICROSOFT_NAME,
+from tests.fixtures.market_data.stock_data import (  # Constants for company names; Market condition datasets; Helper functions; Fixtures
     AMAZON_NAME,
-    
-    # Market condition datasets
-    BULL_MARKET,
+    APPLE_NAME,
     BEAR_MARKET,
+    BULL_MARKET,
+    MICROSOFT_NAME,
     VOLATILE_MARKET,
-    
-    # Helper functions
+    bear_market_data,
+    bear_market_provider_data,
+    bull_market_data,
+    bull_market_provider_data,
     create_mock_stock_data,
     create_provider_response,
-    
-    # Fixtures
-    bull_market_data,
-    bear_market_data,
     volatile_market_data,
-    bull_market_provider_data,
-    bear_market_provider_data,
-    volatile_market_provider_data
+    volatile_market_provider_data,
 )

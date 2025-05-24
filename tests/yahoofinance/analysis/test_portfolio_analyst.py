@@ -6,18 +6,21 @@ across all 114 tickers in the portfolio.
 """
 
 import asyncio
+import logging
 import sys
-import pandas as pd
 from pprint import pprint
+
+import pandas as pd
 
 # Import core provider components
 from yahoofinance import get_provider
 from yahoofinance.core.logging import setup_logging
-import logging
 from yahoofinance.utils.market.ticker_utils import is_us_ticker
+
 
 # Configure logging
 setup_logging(log_level=logging.INFO)
+
 
 def _load_portfolio_tickers():
     """Loads and validates tickers from the portfolio file."""
@@ -37,11 +40,31 @@ def _load_portfolio_tickers():
         print(f"Error loading portfolio: {str(e)}")
         print("Using fallback test tickers instead")
         return [
-            "AAPL", "MSFT", "NVDA", "SAP.DE", "BMW.DE", "BAS.DE",
-            "GOOGL", "AMZN", "META", "TSLA", "AMD", "NFLX"
+            "AAPL",
+            "MSFT",
+            "NVDA",
+            "SAP.DE",
+            "BMW.DE",
+            "BAS.DE",
+            "GOOGL",
+            "AMZN",
+            "META",
+            "TSLA",
+            "AMD",
+            "NFLX",
         ]
 
-async def _process_single_analyst_ticker(provider, ticker, is_async, us_tickers, non_us_tickers, success_count, us_success, non_us_success):
+
+async def _process_single_analyst_ticker(
+    provider,
+    ticker,
+    is_async,
+    us_tickers,
+    non_us_tickers,
+    success_count,
+    us_success,
+    non_us_success,
+):
     """Processes a single ticker for analyst data retrieval."""
     is_us = is_us_ticker(ticker)
     if is_us:
@@ -59,29 +82,52 @@ async def _process_single_analyst_ticker(provider, ticker, is_async, us_tickers,
             info = provider.get_ticker_info(ticker)
 
         # Check if we have analyst data
-        if (info.get("analyst_count") is not None and info.get("analyst_count") > 0 and
-            info.get("total_ratings") is not None and info.get("total_ratings") > 0 and
-            info.get("buy_percentage") is not None):
+        if (
+            info.get("analyst_count") is not None
+            and info.get("analyst_count") > 0
+            and info.get("total_ratings") is not None
+            and info.get("total_ratings") > 0
+            and info.get("buy_percentage") is not None
+        ):
             success_count += 1
             if is_us:
                 us_success += 1
             else:
                 non_us_success += 1
-            print(f" ✓ ({info.get('analyst_count')} analysts, {info.get('total_ratings')} ratings, {info.get('buy_percentage'):.1f}% buy)")
+            print(
+                f" ✓ ({info.get('analyst_count')} analysts, {info.get('total_ratings')} ratings, {info.get('buy_percentage'):.1f}% buy)"
+            )
         else:
-            print(f" ✗ (missing analyst data: analyst_count={info.get('analyst_count')}, total_ratings={info.get('total_ratings')}, buy_percentage={info.get('buy_percentage')})")
+            print(
+                f" ✗ (missing analyst data: analyst_count={info.get('analyst_count')}, total_ratings={info.get('total_ratings')}, buy_percentage={info.get('buy_percentage')})"
+            )
 
     except Exception as e:
         print(f" ✗ (error: {str(e)})")
 
     return success_count, us_success, non_us_success
 
-def _print_analyst_summary(success_count, total_tickers, us_success, us_tickers, non_us_success, non_us_tickers, provider_type):
+
+def _print_analyst_summary(
+    success_count,
+    total_tickers,
+    us_success,
+    us_tickers,
+    non_us_success,
+    non_us_tickers,
+    provider_type,
+):
     """Prints the summary for analyst data retrieval."""
     print(f"\n=== Summary for {provider_type} Provider ===\n")
-    print(f"Successfully retrieved analyst data for {success_count}/{total_tickers} tickers ({success_count/total_tickers*100:.1f}%)")
-    print(f"US tickers: {us_success}/{len(us_tickers)} successful ({us_success/len(us_tickers)*100:.1f}% if any)")
-    print(f"Non-US tickers: {non_us_success}/{len(non_us_tickers)} successful ({non_us_success/len(non_us_tickers)*100:.1f}% if any)")
+    print(
+        f"Successfully retrieved analyst data for {success_count}/{total_tickers} tickers ({success_count/total_tickers*100:.1f}%)"
+    )
+    print(
+        f"US tickers: {us_success}/{len(us_tickers)} successful ({us_success/len(us_tickers)*100:.1f}% if any)"
+    )
+    print(
+        f"Non-US tickers: {non_us_success}/{len(non_us_tickers)} successful ({non_us_success/len(non_us_tickers)*100:.1f}% if any)"
+    )
 
 
 async def test_portfolio_analyst_data():
@@ -92,10 +138,7 @@ async def test_portfolio_analyst_data():
     portfolio_tickers = _load_portfolio_tickers()
 
     # Test both provider types
-    provider_types = [
-        ("Async", True),
-        ("Sync", False)
-    ]
+    provider_types = [("Async", True), ("Sync", False)]
 
     for provider_type, is_async in provider_types:
         print(f"\n--- Testing {provider_type} Provider ---\n")
@@ -116,13 +159,22 @@ async def test_portfolio_analyst_data():
         batch_size = 10
 
         for i in range(0, total_tickers, batch_size):
-            batch_tickers = portfolio_tickers[i:i+batch_size]
-            print(f"\nProcessing batch {i//batch_size + 1}/{(total_tickers + batch_size - 1)//batch_size} ({len(batch_tickers)} tickers)...")
+            batch_tickers = portfolio_tickers[i : i + batch_size]
+            print(
+                f"\nProcessing batch {i//batch_size + 1}/{(total_tickers + batch_size - 1)//batch_size} ({len(batch_tickers)} tickers)..."
+            )
 
             # Process each ticker in the batch
             for ticker in batch_tickers:
                 success_count, us_success, non_us_success = await _process_single_analyst_ticker(
-                    provider, ticker, is_async, us_tickers, non_us_tickers, success_count, us_success, non_us_success
+                    provider,
+                    ticker,
+                    is_async,
+                    us_tickers,
+                    non_us_tickers,
+                    success_count,
+                    us_success,
+                    non_us_success,
                 )
 
             # Small delay between batches to avoid rate limiting
@@ -131,9 +183,18 @@ async def test_portfolio_analyst_data():
                 await asyncio.sleep(2)
 
         # Summary for this provider
-        _print_analyst_summary(success_count, total_tickers, us_success, us_tickers, non_us_success, non_us_tickers, provider_type)
+        _print_analyst_summary(
+            success_count,
+            total_tickers,
+            us_success,
+            us_tickers,
+            non_us_success,
+            non_us_tickers,
+            provider_type,
+        )
 
     return success_count > 0  # Return True if we got at least one successful result
+
 
 if __name__ == "__main__":
     try:

@@ -5,6 +5,9 @@ This tests that our fixes for the analyst data display issue are working properl
 """
 
 import asyncio
+
+# Configure logging
+import logging
 import sys
 from pprint import pprint
 
@@ -13,9 +16,9 @@ from yahoofinance import get_provider
 from yahoofinance.core.logging import setup_logging
 from yahoofinance.utils.market.ticker_utils import is_us_ticker
 
-# Configure logging
-import logging
+
 setup_logging(log_level=logging.INFO)
+
 
 async def test_analyst_data():
     """Test retrieval of analyst data for both US and non-US tickers."""
@@ -23,19 +26,16 @@ async def test_analyst_data():
 
     # Test both US and non-US tickers
     test_tickers = [
-        "AAPL",      # US ticker
-        "MSFT",      # US ticker
-        "SAP.DE",    # German ticker
-        "BMW.DE",    # German ticker
-        "BAS.DE",    # German ticker (BASF)
-        "NVDA"       # US ticker that had hardcoded values
+        "AAPL",  # US ticker
+        "MSFT",  # US ticker
+        "SAP.DE",  # German ticker
+        "BMW.DE",  # German ticker
+        "BAS.DE",  # German ticker (BASF)
+        "NVDA",  # US ticker that had hardcoded values
     ]
 
     # Test both provider types
-    provider_types = [
-        ("Async", True),
-        ("Sync", False)
-    ]
+    provider_types = [("Async", True), ("Sync", False)]
 
     all_results = {}
 
@@ -50,7 +50,9 @@ async def test_analyst_data():
 
         # Process each ticker individually
         for ticker in test_tickers:
-            print(f"\nFetching data for {ticker} ({'US' if is_us_ticker(ticker) else 'non-US'} ticker)...")
+            print(
+                f"\nFetching data for {ticker} ({'US' if is_us_ticker(ticker) else 'non-US'} ticker)..."
+            )
             ticker_data = await _process_single_analyst_ticker(provider, ticker, is_async)
             if "error" not in ticker_data:
                 # Display results
@@ -87,7 +89,7 @@ async def _process_single_analyst_ticker(provider, ticker, is_async):
             "buy_percentage": info.get("buy_percentage"),
             "target_price": info.get("target_price"),
             "upside": info.get("upside"),
-            "data_source": info.get("data_source")
+            "data_source": info.get("data_source"),
         }
         return analyst_data
 
@@ -99,7 +101,11 @@ async def _process_single_analyst_ticker(provider, ticker, is_async):
 def _print_analyst_summary(provider_type, test_tickers, results):
     """Helper function to print summary for a provider type."""
     print(f"\n=== Summary for {provider_type} Provider ===\n")
-    success_count = sum(1 for data in results.values() if data.get("analyst_count") is not None and data.get("analyst_count") > 0)
+    success_count = sum(
+        1
+        for data in results.values()
+        if data.get("analyst_count") is not None and data.get("analyst_count") > 0
+    )
     print(f"Successfully retrieved analyst data for {success_count}/{len(test_tickers)} tickers")
 
     _print_us_non_us_analyst_summary(test_tickers, results)
@@ -120,8 +126,20 @@ def _print_us_non_us_analyst_summary(test_tickers, results):
     us_tickers = [t for t in test_tickers if is_us_ticker(t)]
     non_us_tickers = [t for t in test_tickers if not is_us_ticker(t)]
 
-    us_success = sum(1 for t in us_tickers if t in results and results[t].get("analyst_count") is not None and results[t].get("analyst_count") > 0)
-    non_us_success = sum(1 for t in non_us_tickers if t in results and results[t].get("analyst_count") is not None and results[t].get("analyst_count") > 0)
+    us_success = sum(
+        1
+        for t in us_tickers
+        if t in results
+        and results[t].get("analyst_count") is not None
+        and results[t].get("analyst_count") > 0
+    )
+    non_us_success = sum(
+        1
+        for t in non_us_tickers
+        if t in results
+        and results[t].get("analyst_count") is not None
+        and results[t].get("analyst_count") > 0
+    )
 
     print(f"US tickers: {us_success}/{len(us_tickers)} successful")
     print(f"Non-US tickers: {non_us_success}/{len(non_us_tickers)} successful")
@@ -134,11 +152,12 @@ def _print_us_non_us_analyst_summary(test_tickers, results):
             print(f"- {item}")
     else:
         print("\nNo suspected hardcoded values found.")
-    
+
     # Store results for this provider type
     all_results[provider_type] = results
-    
+
     return all_results
+
 
 if __name__ == "__main__":
     try:

@@ -1,9 +1,12 @@
 import unittest
-from unittest.mock import Mock, patch
-import pandas as pd
 from datetime import datetime, timedelta
+from unittest.mock import Mock, patch
+
+import pandas as pd
+
 from yahoofinance.analysis.market import MarketMetrics
-from yahoofinance.utils.error_handling import with_retry, safe_operation
+from yahoofinance.utils.error_handling import safe_operation, with_retry
+
 
 # Since we don't have economic data functions in market.py, we'll test the MarketMetrics class instead
 class TestMarketData(unittest.TestCase):
@@ -20,7 +23,7 @@ class TestMarketData(unittest.TestCase):
             avg_forward_pe=16.8,
             median_forward_pe=15.5,
             avg_peg_ratio=1.8,
-            median_peg_ratio=1.5
+            median_peg_ratio=1.5,
         )
 
     def test_market_metrics_init(self):
@@ -36,7 +39,7 @@ class TestMarketData(unittest.TestCase):
         self.assertIsNone(self.empty_metrics.median_forward_pe)
         self.assertIsNone(self.empty_metrics.avg_peg_ratio)
         self.assertIsNone(self.empty_metrics.median_peg_ratio)
-        
+
         # Test initialization with values
         self.assertEqual(self.sample_metrics.avg_upside, 15.5)
         self.assertEqual(self.sample_metrics.median_upside, 12.0)
@@ -55,7 +58,7 @@ class TestMarketData(unittest.TestCase):
         # Ensure the dataclass properly tracks changes
         metrics = MarketMetrics(avg_upside=10.0)
         self.assertEqual(metrics.avg_upside, 10.0)
-        
+
         # Change a value and ensure it updates
         metrics.avg_upside = 15.0
         self.assertEqual(metrics.avg_upside, 15.0)
@@ -66,10 +69,11 @@ class TestMarketData(unittest.TestCase):
         # Create two identical instances
         metrics1 = MarketMetrics(avg_upside=10.0, median_upside=9.0)
         metrics2 = MarketMetrics(avg_upside=10.0, median_upside=9.0)
-        
+
         # They should be equal
         self.assertEqual(metrics1.avg_upside, metrics2.avg_upside)
         self.assertEqual(metrics1.median_upside, metrics2.median_upside)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

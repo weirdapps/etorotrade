@@ -5,10 +5,12 @@ This module contains fixtures for creating stock data in various market conditio
 for unit and integration testing.
 """
 
-import pytest
-import pandas as pd
 from datetime import datetime, timedelta
 from unittest.mock import Mock
+
+import pandas as pd
+import pytest
+
 
 # Constants for company names
 APPLE_NAME = "Apple Inc."
@@ -61,7 +63,7 @@ BULL_MARKET = {
         "short_float_pct": 0.8,
         "buy_percentage": 95.0,
         "analyst_count": 45,
-    }
+    },
 }
 
 BEAR_MARKET = {
@@ -109,7 +111,7 @@ BEAR_MARKET = {
         "short_float_pct": 1.5,
         "buy_percentage": 70.0,
         "analyst_count": 42,
-    }
+    },
 }
 
 VOLATILE_MARKET = {
@@ -157,30 +159,30 @@ VOLATILE_MARKET = {
         "short_float_pct": 1.2,
         "buy_percentage": 85.0,
         "analyst_count": 44,
-    }
+    },
 }
 
 
 def create_mock_stock_data(ticker_data):
     """
     Convert dictionary data to mock StockData objects.
-    
+
     Args:
         ticker_data: Dictionary containing ticker data
-        
+
     Returns:
         dict: Dictionary of ticker symbols to mock StockData objects
     """
     result = {}
-    
+
     for ticker, data in ticker_data.items():
         mock_stock = Mock()
         for key, value in data.items():
             setattr(mock_stock, key, value)
-        
+
         # Add additional properties that might be used in tests
         mock_stock.ticker = ticker
-        mock_stock.last_earnings = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+        mock_stock.last_earnings = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
         mock_stock.insider_buy_pct = 60.0
         mock_stock.insider_transactions = 5
         mock_stock.mtd_change = 1.5
@@ -189,31 +191,31 @@ def create_mock_stock_data(ticker_data):
         mock_stock.alpha = 0.4
         mock_stock.sharpe_ratio = 1.5
         mock_stock.sortino_ratio = 1.8
-        
+
         result[ticker] = mock_stock
-    
+
     return result
 
 
 def create_provider_response(ticker_data):
     """
     Convert dictionary data to provider-style dictionary responses.
-    
+
     Args:
         ticker_data: Dictionary containing ticker data
-        
+
     Returns:
         dict: Dictionary of ticker symbols to provider response dictionaries
     """
     result = {}
-    
+
     for ticker, data in ticker_data.items():
         # Create a copy to avoid modifying the original
         ticker_response = data.copy()
-        
+
         # Provider responses use dictionary format
         result[ticker] = ticker_response
-    
+
     return result
 
 
@@ -221,7 +223,7 @@ def create_provider_response(ticker_data):
 def bull_market_data():
     """
     Create mock stock data for a bull market scenario.
-    
+
     Returns:
         dict: Dictionary of ticker symbols to mock StockData objects
     """
@@ -232,7 +234,7 @@ def bull_market_data():
 def bear_market_data():
     """
     Create mock stock data for a bear market scenario.
-    
+
     Returns:
         dict: Dictionary of ticker symbols to mock StockData objects
     """
@@ -243,7 +245,7 @@ def bear_market_data():
 def volatile_market_data():
     """
     Create mock stock data for a volatile market scenario.
-    
+
     Returns:
         dict: Dictionary of ticker symbols to mock StockData objects
     """
@@ -254,7 +256,7 @@ def volatile_market_data():
 def bull_market_provider_data():
     """
     Create provider-style responses for a bull market scenario.
-    
+
     Returns:
         dict: Dictionary of ticker symbols to provider response dictionaries
     """
@@ -265,7 +267,7 @@ def bull_market_provider_data():
 def bear_market_provider_data():
     """
     Create provider-style responses for a bear market scenario.
-    
+
     Returns:
         dict: Dictionary of ticker symbols to provider response dictionaries
     """
@@ -276,7 +278,7 @@ def bear_market_provider_data():
 def volatile_market_provider_data():
     """
     Create provider-style responses for a volatile market scenario.
-    
+
     Returns:
         dict: Dictionary of ticker symbols to provider response dictionaries
     """

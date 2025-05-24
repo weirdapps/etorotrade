@@ -1,116 +1,113 @@
-Name,ticker,Direction,Positions,Allocation,Average Gain
-NVIDIA Corporation,NVDA,Buy,21,6.69%,29.57%
-Microsoft,MSFT,Buy,15,4.46%,14.14%
-Amundi MSCI Greece UCITS ETF,LYXGRE.DE,Buy,8,4.46%,33.11%
-Amazon.com Inc,AMZN,Buy,15,4.04%,14.86%
-Alphabet Inc Class A,GOOGL,Buy,5,2.85%,-0.43%
-Meta Platforms Inc,META,Buy,6,2.48%,9.36%
-UnitedHealth,UNH,Buy,4,2.48%,-11.94%
-iShares 20+ Year Treasury Bond ETF,TLT,Buy,1,2.48%,-0.97%
-Coca-Cola,KO,Buy,1,1.24%,-0.95%
-Alibaba-ADR,BABA,Buy,1,1.24%,1.21%
-iShares China Large-Cap ETF,FXI,Buy,1,1.24%,0.92%
-iShares MSCI India ETF,INDA,Buy,2,1.24%,0.31%
-Oil (Non Expiry),OIL,Buy,2,0.87%,6.93%
-Bitcoin,BTC-USD,Buy,2,0.74%,6.35%
-ASML Holding NV - ADR,ASML,Buy,1,0.62%,9.41%
-Taiwan Semiconductor Manufacturing Co Ltd - ADR,TSM,Buy,2,0.62%,28.19%
-Brilliance China Automotive,1114.HK,Buy,2,0.62%,12.91%
-Gerresheimer,GXI.DE,Buy,2,0.62%,-1.37%
-Flutter Entertainment,FLTR.L,Buy,3,0.62%,10.51%
-Tencent,0700.HK,Buy,2,0.62%,6.56%
-Thermo Fisher Scientific Inc,TMO,Buy,2,0.62%,-4.34%
-Gold (Non Expiry),GOLD,Buy,2,0.62%,-1.87%
-Shell PLC,SHEL.L,Buy,2,0.62%,5.65%
-BYD Co Ltd,1211.HK,Buy,2,0.62%,22.31%
-Sands China Ltd,1928.HK,Buy,2,0.62%,6.18%
-Xiaomi Corp,1810.HK,Buy,2,0.62%,15.52%
-PetroChina Co Ltd,0857.HK,Buy,2,0.62%,8.89%
-Sinopec Engineering Group Co,2386.HK,Buy,2,0.62%,-2.04%
-Apple,AAPL,Buy,1,0.50%,-3.54%
-Techtronic Industries Co Ltd,0669.HK,Buy,1,0.25%,-10.64%
-Acerinox SA,ACX.MC,Buy,2,0.25%,-2.69%
-Anhui Conch,0914.HK,Buy,1,0.25%,-6.95%
-Nomad Foods Ltd,NOMD,Buy,1,0.25%,-4.47%
-China Construction Bank,0939.HK,Buy,1,0.25%,7.50%
-VIX (May 25 Future),^VIXMAY25,Buy,1,0.25%,-23.89%
-Weyerhaeuser Co,WY,Buy,1,0.25%,-2.08%
-Sunny Optical Technology Group,2382.HK,Buy,1,0.25%,-12.64%
-Frontline Plc,FRO.OL,Buy,1,0.25%,5.13%
-Danaher Corp,DHR,Buy,1,0.25%,-4.67%
-Sacyr,SCYR.MC,Buy,1,0.25%,9.32%
-DERMAPHARM HOLDING SE,DMP.DE,Buy,1,0.25%,-3.79%
-BYD Electronic International,0285.HK,Buy,1,0.25%,-15.59%
-eToro Group LTD,ETOR,Buy,1,0.25%,-2.84%
-Siemens Healthineers AG,SHL.DE,Buy,1,0.25%,-2.57%
-Cenovus Energy Inc,CVE,Buy,1,0.25%,11.88%
-CK Hutchison Holdings Ltd,0001.HK,Buy,1,0.25%,-3.11%
-China Everbright Environment Group Ltd,0257.HK,Buy,1,0.25%,10.45%
-Alamos Gold Inc,AGI,Buy,1,0.25%,-4.13%
-ZhongAn Online P&C Insurance,6060.HK,Buy,1,0.25%,-2.71%
-CIE Automotive S.A.,CIE.MC,Buy,1,0.25%,8.88%
-China Mengniu Dairy Co Ltd,2319.HK,Buy,1,0.25%,-4.96%
-China International Capital Co,3908.HK,Buy,1,0.25%,-5.09%
-ConocoPhillips Co,COP,Buy,1,0.25%,-10.01%
-STABILUS SE,STM.DE,Buy,1,0.25%,-11.75%
-Infineon Technologies AG,IFX.DE,Buy,2,0.25%,-0.57%
-Shenzhou International Group,2313.HK,Buy,1,0.25%,-1.67%
-Indivior PLC,INDV.L,Buy,1,0.25%,12.82%
-Business First Bancshares Inc,BFST,Buy,1,0.25%,-2.75%
-Prudential,PRU.L,Buy,1,0.25%,28.23%
-Ping An Insurance,2318.HK,Buy,1,0.25%,-2.25%
-Ladder Capital Corp,LADR,Buy,1,0.25%,7.81%
-Ethereum,ETH-USD,Buy,1,0.25%,39.43%
-Sanofi-ADR,SNY,Buy,1,0.25%,-2.06%
-Azelis Group NV,AZE.BR,Buy,1,0.25%,-18.40%
-China Molybdenum Co Ltd,3993.HK,Buy,1,0.25%,-0.35%
-Ducommun Incorporated,DCO,Buy,1,0.25%,17.50%
-Aubay SA,AUB.PA,Buy,1,0.25%,1.21%
-Smurfit WestRock Public Limited Company,SWR.L,Buy,1,0.25%,-0.75%
-Weichai Power,2338.HK,Buy,1,0.25%,-8.15%
-AAC Technologies Holdings Inc,2018.HK,Buy,1,0.25%,-17.15%
-Meituan Class B,3690.HK,Buy,1,0.25%,-19.39%
-Lenovo Group,0992.HK,Buy,1,0.25%,-14.14%
-SEB SA,SK.PA,Buy,1,0.25%,6.73%
-AIA Group Ltd,1299.HK,Buy,1,0.25%,14.21%
-Veren Inc,VRN,Buy,1,0.25%,18.00%
-JD.com Inc,9618.HK,Buy,2,0.25%,-17.29%
-China Resources Land,1109.HK,Buy,1,0.25%,-3.00%
-Fiserv Inc,FI,Buy,1,0.25%,-12.34%
-Silicon Motion Technology-ADR,SIMO,Buy,1,0.25%,39.63%
-QCR Holdings Inc,QCRH,Buy,1,0.25%,-7.52%
-China Oilfield,2883.HK,Buy,1,0.25%,-3.31%
-Vallourec SA,VK.PA,Buy,1,0.25%,-2.42%
-Arkema,AKE.PA,Buy,1,0.25%,-17.44%
-DEUTZ Aktiengesellschaft,DEZ.DE,Buy,1,0.25%,3.70%
-Galaxy Entertainment Group Ltd,0027.HK,Buy,1,0.25%,4.67%
-Rio Tinto PLC ADR,RIO,Buy,1,0.25%,1.03%
-Paysign Inc,PAYS,Buy,1,0.25%,86.57%
-Yadea Group Holdings Ltd,1585.HK,Buy,1,0.25%,-6.68%
-New Residential Investment Corp,RITM,Buy,1,0.25%,11.95%
-GFT TECHNOLOGIES SE,GFT.DE,Buy,1,0.25%,19.66%
-Ence Energia Y Celulosa SA,ENC.MC,Buy,1,0.25%,-8.58%
-iPath Series B S&P 500 VIX Short-Term FuturesTM ETN,VXX,Buy,1,0.25%,-3.26%
-Genfit,GNFT.PA,Buy,1,0.25%,5.83%
-Energy Transfer LP,ET,Buy,1,0.25%,9.66%
-Seche Environnement SA,SCHP.PA,Buy,1,0.25%,18.23%
-Lectra SA,LSS.PA,Buy,1,0.25%,-11.64%
-Intercos S.p.A,ICOS.MI,Buy,1,0.25%,-1.44%
-Coats Group PLC,COA.L,Buy,1,0.25%,-4.54%
-IWG PLC,IWG.L,Buy,1,0.25%,3.93%
-Luxfer Holdings PLC,LXFR,Buy,1,0.25%,22.07%
-P/F Bakkafrost,BAKKA.OL,Buy,1,0.25%,-1.79%
-Super Group SGHC Limited,SGHC,Buy,1,0.25%,21.09%
-Saipem Spa,SPM.MI,Buy,1,0.25%,18.34%
-GL Events SA,GLO.PA,Buy,1,0.25%,36.07%
-Quadient SA,QDT.PA,Buy,1,0.25%,6.00%
-Corticeira Amorim SGPS SA,COR.LS,Buy,1,0.25%,8.31%
-Pierre et Vacances SA,VAC.PA,Buy,1,0.25%,6.16%
-China Railway Group,0390.HK,Buy,1,0.25%,-12.85%
-Cadeler A/S,CADLR.OL,Buy,1,0.25%,-3.80%
-Zijin Mining,2899.HK,Buy,1,0.25%,15.23%
-China National Building Material,3323.HK,Buy,1,0.25%,-3.47%
-Origin Bancorp Inc,OBK,Buy,1,0.25%,-5.44%
-Laboratorios Farmaceuticos Rovi S.A.,ROVI.MC,Buy,1,0.24%,3.95%
-Laboratorios Almirall SA,ALM.MC,Buy,1,0.24%,8.35%
-Whitestone REIT,WSR,Buy,1,0.24%,-1.09%
+Name,Ticker,Direction,Positions,Allocation,Average Gain
+NVIDIA Corporation,NVDA,Buy,20,6.15%,28.13%
+Amundi MSCI Greece UCITS ETF,LYXGRE.DE,Buy,8,4.43%,36.61%
+Microsoft,MSFT,Buy,14,4.18%,15.60%
+Amazon.com Inc,AMZN,Buy,15,4.01%,12.65%
+iShares 20+ Year Treasury Bond ETF,TLT,Buy,1,2.46%,-4.08%
+Alphabet Inc Class A,GOOGL,Buy,4,2.34%,0.50%
+Meta Platforms Inc,META,Buy,5,2.21%,10.24%
+Coca-Cola,KO,Buy,1,1.23%,-0.71%
+Alibaba-ADR,BABA,Buy,1,1.23%,-0.23%
+iShares China Large-Cap ETF,FXI,Buy,1,1.23%,1.99%
+iShares MSCI India ETF,INDA,Buy,2,1.23%,-0.59%
+Thermo Fisher Scientific Inc,TMO,Buy,3,0.86%,-4.55%
+Oil (Non Expiry),OIL,Buy,2,0.86%,5.37%
+Bitcoin,BTC-USD,Buy,2,0.74%,13.79%
+Flutter Entertainment,FLTR.L,Buy,3,0.61%,7.36%
+Taiwan Semiconductor Manufacturing Co Ltd - ADR,TSM,Buy,2,0.61%,26.54%
+Brilliance China Automotive,1114.HK,Buy,2,0.61%,21.48%
+FedEx Corporation,FDX,Buy,1,0.61%,-0.63%
+Gerresheimer,GXI.DE,Buy,2,0.61%,-0.33%
+DuPont de Nemours Inc.,DD,Buy,1,0.61%,-0.03%
+Tencent,0700.HK,Buy,2,0.61%,7.31%
+ASML Holding NV - ADR,ASML,Buy,1,0.61%,7.82%
+UnitedHealth,UNH,Buy,2,0.61%,-33.20%
+Gold (Non Expiry),GOLD,Buy,2,0.61%,2.67%
+Shell PLC,SHEL.L,Buy,2,0.61%,5.13%
+eToro Group LTD,ETOR,Buy,2,0.61%,-2.17%
+Sands China Ltd,1928.HK,Buy,2,0.61%,2.59%
+PetroChina Co Ltd,0857.HK,Buy,2,0.61%,12.57%
+Sinopec Engineering Group Co,2386.HK,Buy,2,0.61%,-0.77%
+Apple,AAPL,Buy,1,0.49%,-7.80%
+Fiserv Inc,FI,Buy,2,0.49%,-6.87%
+Acerinox SA,ACX.MC,Buy,2,0.25%,-2.04%
+Infineon Technologies AG,IFX.DE,Buy,2,0.25%,2.47%
+JD.com Inc,9618.HK,Buy,2,0.25%,-17.31%
+Techtronic Industries Co Ltd,0669.HK,Buy,1,0.25%,-13.07%
+Anhui Conch,0914.HK,Buy,1,0.25%,-5.77%
+Nomad Foods Ltd,NOMD,Buy,1,0.25%,-5.27%
+China Construction Bank,0939.HK,Buy,1,0.25%,7.78%
+Sunny Optical Technology Group,2382.HK,Buy,1,0.25%,-17.30%
+Weyerhaeuser Co,WY,Buy,1,0.25%,-6.60%
+Frontline Plc,FRO.OL,Buy,1,0.25%,1.21%
+Danaher Corp,DHR,Buy,1,0.25%,-6.92%
+Sacyr,SCYR.MC,Buy,1,0.25%,12.52%
+DERMAPHARM HOLDING SE,DMP.DE,Buy,1,0.25%,-0.65%
+BYD Electronic International,0285.HK,Buy,1,0.25%,-18.40%
+Siemens Healthineers AG,SHL.DE,Buy,1,0.25%,-3.18%
+Cenovus Energy Inc,CVE,Buy,1,0.25%,8.68%
+CK Hutchison Holdings Ltd,0001.HK,Buy,1,0.25%,-3.81%
+Alamos Gold Inc,AGI,Buy,1,0.25%,3.69%
+ZhongAn Online P&C Insurance,6060.HK,Buy,1,0.25%,-5.55%
+CIE Automotive S.A.,CIE.MC,Buy,1,0.25%,10.03%
+China International Capital Co,3908.HK,Buy,1,0.25%,-6.69%
+China Mengniu Dairy Co Ltd,2319.HK,Buy,1,0.25%,-8.84%
+ConocoPhillips Co,COP,Buy,1,0.25%,-14.75%
+STABILUS SE,STM.DE,Buy,1,0.25%,-8.28%
+Owens Corning Inc,OC,Buy,1,0.25%,-0.43%
+Shenzhou International Group,2313.HK,Buy,1,0.25%,-2.61%
+Indivior PLC,INDV.L,Buy,1,0.25%,14.19%
+Business First Bancshares Inc,BFST,Buy,1,0.25%,-5.81%
+Prudential,PRU.L,Buy,1,0.25%,25.06%
+Ping An Insurance,2318.HK,Buy,1,0.25%,-2.74%
+Ladder Capital Corp,LADR,Buy,1,0.25%,3.04%
+CVS Health Corp,CVS,Buy,1,0.25%,-0.56%
+Ethereum,ETH-USD,Buy,1,0.25%,41.09%
+Sanofi-ADR,SNY,Buy,1,0.25%,1.03%
+China Molybdenum Co Ltd,3993.HK,Buy,1,0.25%,1.83%
+Azelis Group NV,AZE.BR,Buy,1,0.25%,-17.77%
+Aubay SA,AUB.PA,Buy,1,0.25%,3.44%
+Ducommun Incorporated,DCO,Buy,1,0.25%,18.77%
+Smurfit WestRock Public Limited Company,SWR.L,Buy,1,0.25%,-4.60%
+Weichai Power,2338.HK,Buy,1,0.25%,-4.45%
+AAC Technologies Holdings Inc,2018.HK,Buy,1,0.25%,-20.56%
+Meituan Class B,3690.HK,Buy,1,0.25%,-16.89%
+Lenovo Group,0992.HK,Buy,1,0.25%,-16.21%
+SEB SA,SK.PA,Buy,1,0.25%,6.48%
+AIA Group Ltd,1299.HK,Buy,1,0.25%,12.12%
+China Resources Land,1109.HK,Buy,1,0.25%,-3.16%
+QCR Holdings Inc,QCRH,Buy,1,0.25%,-8.79%
+China Oilfield,2883.HK,Buy,1,0.25%,-1.74%
+Vallourec SA,VK.PA,Buy,1,0.25%,-2.67%
+Arkema,AKE.PA,Buy,1,0.25%,-17.25%
+DEUTZ Aktiengesellschaft,DEZ.DE,Buy,1,0.25%,4.57%
+Galaxy Entertainment Group Ltd,0027.HK,Buy,1,0.25%,3.18%
+Rio Tinto PLC ADR,RIO,Buy,1,0.25%,0.98%
+Paysign Inc,PAYS,Buy,1,0.25%,77.11%
+Yadea Group Holdings Ltd,1585.HK,Buy,1,0.25%,-8.38%
+New Residential Investment Corp,RITM,Buy,1,0.25%,7.03%
+GFT TECHNOLOGIES SE,GFT.DE,Buy,1,0.25%,21.44%
+Ence Energia Y Celulosa SA,ENC.MC,Buy,1,0.25%,-6.22%
+iPath Series B S&P 500 VIX Short-Term FuturesTM ETN,VXX,Buy,1,0.25%,3.73%
+Genfit,GNFT.PA,Buy,1,0.25%,14.54%
+Energy Transfer LP,ET,Buy,1,0.25%,8.50%
+Seche Environnement SA,SCHP.PA,Buy,1,0.25%,18.94%
+Lectra SA,LSS.PA,Buy,1,0.25%,-12.40%
+Intercos S.p.A,ICOS.MI,Buy,1,0.25%,0.04%
+Coats Group PLC,COA.L,Buy,1,0.25%,-8.03%
+IWG PLC,IWG.L,Buy,1,0.25%,1.29%
+Luxfer Holdings PLC,LXFR,Buy,1,0.25%,18.89%
+P/F Bakkafrost,BAKKA.OL,Buy,1,0.25%,-3.94%
+Super Group SGHC Limited,SGHC,Buy,1,0.25%,18.52%
+Rio Tinto,RIO.L,Buy,1,0.25%,-0.05%
+Saipem Spa,SPM.MI,Buy,1,0.25%,9.44%
+Quadient SA,QDT.PA,Buy,1,0.25%,3.07%
+Corticeira Amorim SGPS SA,COR.LS,Buy,1,0.25%,10.49%
+Pierre et Vacances SA,VAC.PA,Buy,1,0.25%,3.05%
+China Railway Group,0390.HK,Buy,1,0.24%,-11.74%
+Cadeler A/S,CADLR.OL,Buy,1,0.24%,-7.13%
+Zijin Mining,2899.HK,Buy,1,0.24%,23.13%
+China National Building Material,3323.HK,Buy,1,0.24%,-5.76%
+Origin Bancorp Inc,OBK,Buy,1,0.24%,-7.35%
+Laboratorios Farmaceuticos Rovi S.A.,ROVI.MC,Buy,1,0.24%,3.74%
+Whitestone REIT,WSR,Buy,1,0.24%,-4.37%

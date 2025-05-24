@@ -6,19 +6,22 @@ from financial data. Templates are organized by category (market, portfolio, etc
 and can be customized with parameters.
 """
 
-from typing import Dict, Any
+from typing import Any, Dict
+
 from yahoofinance.core.logging import get_logger
 
+
 logger = get_logger(__name__)
+
 
 def get_template(template_key: str, default: str = "") -> str:
     """
     Get a template by key from the Templates class.
-    
+
     Args:
         template_key: The key of the template to get
         default: Default value if the template key doesn't exist
-        
+
     Returns:
         Template string
     """
@@ -27,9 +30,10 @@ def get_template(template_key: str, default: str = "") -> str:
     else:
         return default
 
+
 class Templates:
     """Container for HTML templates"""
-    
+
     # Base HTML document template
     BASE_HTML = """<!DOCTYPE html>
 <html lang="en">
@@ -284,123 +288,123 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });"""
 
+
 class TemplateEngine:
     """Engine for rendering templates with context data"""
-    
+
     def __init__(self):
         """Initialize template engine"""
         self.templates = Templates()
-        
-    def render_base_html(self, title: str, content: str, 
-                         extra_head: str = "", extra_scripts: str = "") -> str:
+
+    def render_base_html(
+        self, title: str, content: str, extra_head: str = "", extra_scripts: str = ""
+    ) -> str:
         """
         Render base HTML document.
-        
+
         Args:
             title: Page title
             content: Main content for the page
             extra_head: Additional head content (CSS, meta tags, etc.)
             extra_scripts: Additional script tags
-            
+
         Returns:
             Complete HTML document as string
         """
         return self.templates.BASE_HTML.format(
-            title=title,
-            content=content,
-            extra_head=extra_head,
-            extra_scripts=extra_scripts
+            title=title, content=content, extra_head=extra_head, extra_scripts=extra_scripts
         )
-        
+
     def render_dashboard(self, sections: list) -> str:
         """
         Render dashboard container with sections.
-        
+
         Args:
             sections: List of rendered section HTML strings
-            
+
         Returns:
             Dashboard HTML as string
         """
         sections_html = "\n".join(sections)
         return self.templates.DASHBOARD_CONTAINER.format(sections=sections_html)
-        
-    def render_section(self, title: str, metrics: list, columns: int = 4, width: str = "100%") -> str:
+
+    def render_section(
+        self, title: str, metrics: list, columns: int = 4, width: str = "100%"
+    ) -> str:
         """
         Render dashboard section.
-        
+
         Args:
             title: Section title
             metrics: List of rendered metric HTML strings
             columns: Number of columns in the grid
             width: Width of the section
-            
+
         Returns:
             Section HTML as string
         """
         metrics_html = "\n".join(metrics)
         return self.templates.DASHBOARD_SECTION.format(
-            title=title,
-            metrics=metrics_html,
-            columns=columns,
-            width=width
+            title=title, metrics=metrics_html, columns=columns, width=width
         )
-        
+
     def render_metric(self, label: str, value: str, color: str = "normal") -> str:
         """
         Render metric card.
-        
+
         Args:
             label: Metric label
             value: Metric value
             color: Color class for the value
-            
+
         Returns:
             Metric card HTML as string
         """
-        return self.templates.METRIC_CARD.format(
-            label=label,
-            value=value,
-            color=color
-        )
-        
+        return self.templates.METRIC_CARD.format(label=label, value=value, color=color)
+
     def render_table(self, table_html: str) -> str:
         """
         Render table container.
-        
+
         Args:
             table_html: HTML table content
-            
+
         Returns:
             Table container HTML as string
         """
         return self.templates.TABLE_CONTAINER.format(table=table_html)
-        
+
     def render_chart(self, chart_id: str, title: str, canvas_id: str = "") -> str:
         """
         Render chart container.
-        
+
         Args:
             chart_id: ID for the chart container
             title: Chart title
             canvas_id: ID for the canvas element (defaults to chart_id + "_canvas")
-            
+
         Returns:
             Chart container HTML as string
         """
         canvas_id = canvas_id or f"{chart_id}_canvas"
         return self.templates.CHART_CONTAINER.format(
-            chart_id=chart_id,
-            title=title,
-            canvas_id=canvas_id
+            chart_id=chart_id, title=title, canvas_id=canvas_id
         )
-        
-    def render_chart_script(self, canvas_id: str, chart_type: str, labels: list, 
-                            data: list, dataset_label: str, colors: list = None, 
-                            border_colors: list = None, begin_at_zero: bool = True) -> str:
+
+    def render_chart_script(
+        self,
+        canvas_id: str,
+        chart_type: str,
+        labels: list,
+        data: list,
+        dataset_label: str,
+        colors: list = None,
+        border_colors: list = None,
+        begin_at_zero: bool = True,
+    ) -> str:
         """
         Render chart script.
-        
+
         Args:
             canvas_id: ID of the canvas element
             chart_type: Type of chart (bar, line, pie, etc.)
@@ -410,33 +414,33 @@ class TemplateEngine:
             colors: List of background colors
             border_colors: List of border colors
             begin_at_zero: Whether y-axis should begin at zero
-            
+
         Returns:
             Chart script HTML as string
         """
         # Default colors if not provided
         if colors is None:
             colors = [
-                'rgba(75, 192, 192, 0.2)',
-                'rgba(54, 162, 235, 0.2)',
-                'rgba(255, 206, 86, 0.2)',
-                'rgba(255, 99, 132, 0.2)',
-                'rgba(153, 102, 255, 0.2)'
+                "rgba(75, 192, 192, 0.2)",
+                "rgba(54, 162, 235, 0.2)",
+                "rgba(255, 206, 86, 0.2)",
+                "rgba(255, 99, 132, 0.2)",
+                "rgba(153, 102, 255, 0.2)",
             ]
             # Repeat colors if needed
             colors = [colors[i % len(colors)] for i in range(len(data))]
-            
+
         if border_colors is None:
             border_colors = [
-                'rgba(75, 192, 192, 1)',
-                'rgba(54, 162, 235, 1)',
-                'rgba(255, 206, 86, 1)',
-                'rgba(255, 99, 132, 1)',
-                'rgba(153, 102, 255, 1)'
+                "rgba(75, 192, 192, 1)",
+                "rgba(54, 162, 235, 1)",
+                "rgba(255, 206, 86, 1)",
+                "rgba(255, 99, 132, 1)",
+                "rgba(153, 102, 255, 1)",
             ]
             # Repeat colors if needed
             border_colors = [border_colors[i % len(border_colors)] for i in range(len(data))]
-            
+
         return self.templates.CHART_SCRIPT.format(
             canvas_id=canvas_id,
             chart_type=chart_type,
@@ -445,13 +449,13 @@ class TemplateEngine:
             dataset_label=dataset_label,
             colors=str(colors),
             border_colors=str(border_colors),
-            begin_at_zero=str(begin_at_zero).lower()
+            begin_at_zero=str(begin_at_zero).lower(),
         )
-        
+
     def get_default_css(self) -> str:
         """Get default CSS styles"""
         return self.templates.DEFAULT_CSS
-        
+
     def get_default_js(self) -> str:
         """Get default JavaScript"""
         return self.templates.DEFAULT_JS

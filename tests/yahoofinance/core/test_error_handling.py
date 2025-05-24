@@ -4,20 +4,30 @@ Test script to verify the improved error handling capabilities.
 """
 
 import logging
-import requests
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import requests
 
 from yahoofinance.core.errors import (
-    YFinanceError, APIError, ValidationError, DataError,
-    RateLimitError, ResourceNotFoundError, 
-    format_error_details, classify_api_error
-)
-from yahoofinance.utils.error_handling import (
-    enrich_error_context, translate_error, 
-    with_error_context, with_retry, safe_operation
+    APIError,
+    DataError,
+    RateLimitError,
+    ResourceNotFoundError,
+    ValidationError,
+    YFinanceError,
+    classify_api_error,
+    format_error_details,
 )
 from yahoofinance.core.logging_config import get_logger
+from yahoofinance.utils.error_handling import (
+    enrich_error_context,
+    safe_operation,
+    translate_error,
+    with_error_context,
+    with_retry,
+)
+
 
 # Set up logging
 logger = get_logger("test_error_handling")
