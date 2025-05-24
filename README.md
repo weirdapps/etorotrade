@@ -226,5 +226,3 @@ I personally use this tool to power my own eToro investment decisions. For real-
 👉 [@plessas on eToro](https://www.etoro.com/people/plessas)
 
 ---
-
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=weirdapps_etorotrade&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=weirdapps_etorotrade)
