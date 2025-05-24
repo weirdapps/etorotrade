@@ -4,7 +4,6 @@ Global pytest fixtures for etorotrade tests.
 This file contains test fixtures that can be used across all test files.
 """
 
-import os
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
 
@@ -13,7 +12,6 @@ import pytest
 
 from yahoofinance.core.client import YFinanceClient
 from yahoofinance.presentation.console import MarketDisplay
-from yahoofinance.presentation.formatter import DisplayConfig, DisplayFormatter
 
 
 # Import common fixtures to make them available globally
