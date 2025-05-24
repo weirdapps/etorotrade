@@ -1,5 +1,9 @@
 # etorotrade 👨🏻‍💻 An Investment Analysis Tool
 
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=weirdapps_etorotrade&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=weirdapps_etorotrade)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=weirdapps_etorotrade&metric=coverage)](https://sonarcloud.io/summary/new_code?id=weirdapps_etorotrade)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=weirdapps_etorotrade&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=weirdapps_etorotrade)
+
 **Data-driven investment decisions powered by analyst consensus and financial metrics**
 
 ![eToro Trade Analysis Tool](assets/etorotrade.png)
