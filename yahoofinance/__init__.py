@@ -85,9 +85,6 @@ from .utils.market import is_us_ticker, normalize_hk_ticker
 # The provider_registry already defaults to hybrid provider
 
 
-
-
-
 __version__ = "2.0.0"  # Updated version to indicate breaking change from compat removal
 __author__ = "Roo"
 

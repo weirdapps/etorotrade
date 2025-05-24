@@ -2,9 +2,7 @@
 """Debug script to show raw ticker data."""
 
 import asyncio
-import json
 import logging
-import sys
 from pprint import pprint
 
 import pandas as pd

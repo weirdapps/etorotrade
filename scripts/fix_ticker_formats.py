@@ -25,6 +25,14 @@ import os
 import sys
 import csv
 
+# String constants to avoid duplication
+ERROR_PREFIX = "Error:"
+NO_TICKER_COLUMN_MSG = "No ticker column found. Expected one of:"
+AVAILABLE_COLUMNS_MSG = "Available columns:"
+TICKER_FORMATS_FIXED_MSG = "Ticker formats fixed and saved to"
+NO_CHANGES_NEEDED_MSG = "No ticker format changes were needed."
+ERROR_PROCESSING_MSG = "Error processing file:"
+
 
 def fix_yahoo_ticker_format(ticker):
     """
@@ -84,7 +92,7 @@ def fix_portfolio_tickers(input_path, output_path):
     """
     # Ensure input file exists
     if not os.path.exists(input_path):
-        print(f"Error: Input file {input_path} does not exist.")
+        print(f"{ERROR_PREFIX} Input file {input_path} does not exist.")
         return False
     
     # Read, fix, and write in one pass if the input and output are the same file
@@ -97,7 +105,7 @@ def fix_portfolio_tickers(input_path, output_path):
             
             # Check if file is empty or has no header
             if not data:
-                print("Error: Input file is empty.")
+                print(f"{ERROR_PREFIX} Input file is empty.")
                 return False
             
             # Find the ticker column (try multiple possible column names)
@@ -114,8 +122,8 @@ def fix_portfolio_tickers(input_path, output_path):
                     continue
             
             if ticker_idx is None:
-                print(f"Error: No ticker column found. Expected one of: {possible_columns}")
-                print(f"Available columns: {header}")
+                print(f"{ERROR_PREFIX} {NO_TICKER_COLUMN_MSG} {possible_columns}")
+                print(f"{AVAILABLE_COLUMNS_MSG} {header}")
                 return False
             
             # Fix tickers
@@ -136,14 +144,14 @@ def fix_portfolio_tickers(input_path, output_path):
                 writer.writerows(data)
             
             if changes_made:
-                print(f"Ticker formats fixed and saved to {output_path}")
+                print(f"{TICKER_FORMATS_FIXED_MSG} {output_path}")
             else:
-                print("No ticker format changes were needed.")
+                print(NO_CHANGES_NEEDED_MSG)
             
             return True
             
         except Exception as e:
-            print(f"Error processing file: {e}")
+            print(f"{ERROR_PROCESSING_MSG} {e}")
             return False
     else:
         # If input and output are different, read and write separately
@@ -169,8 +177,8 @@ def fix_portfolio_tickers(input_path, output_path):
                         continue
                 
                 if ticker_idx is None:
-                    print(f"Error: No ticker column found. Expected one of: {possible_columns}")
-                    print(f"Available columns: {header}")
+                    print(f"{ERROR_PREFIX} {NO_TICKER_COLUMN_MSG} {possible_columns}")
+                    print(f"{AVAILABLE_COLUMNS_MSG} {header}")
                     return False
                 
                 # Process rows
@@ -188,14 +196,14 @@ def fix_portfolio_tickers(input_path, output_path):
                     writer.writerow(row)
                 
                 if changes_made:
-                    print(f"Ticker formats fixed and saved to {output_path}")
+                    print(f"{TICKER_FORMATS_FIXED_MSG} {output_path}")
                 else:
-                    print("No ticker format changes were needed.")
+                    print(NO_CHANGES_NEEDED_MSG)
                 
                 return True
                 
         except Exception as e:
-            print(f"Error processing file: {e}")
+            print(f"{ERROR_PROCESSING_MSG} {e}")
             return False
 
 

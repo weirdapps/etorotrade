@@ -3,8 +3,6 @@
 Debug script to check the raw values from Yahoo Finance and how they're formatted.
 """
 import asyncio
-import os
-import sys
 
 import pandas as pd
 

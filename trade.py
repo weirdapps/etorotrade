@@ -27,6 +27,7 @@ import yfinance as yf
 from tabulate import tabulate
 from tqdm import tqdm
 
+
 # Color constants
 COLOR_GREEN = "\033[92m"
 COLOR_RED = "\033[91m"
@@ -3369,9 +3370,7 @@ async def _process_single_ticker(provider, ticker):
         return None
 
 
-async def _process_batch(
-    provider, batch, batch_num, total_batches, pbar, counters=None
-):
+async def _process_batch(provider, batch, batch_num, total_batches, pbar, counters=None):
     """Process a batch of tickers.
 
     Args:
@@ -3840,7 +3839,7 @@ async def fetch_ticker_data(provider, tickers):
 
                 # Process batch and update counters
                 batch_results, updated_counters = await _process_batch(
-                    provider, batch, batch_num, total_batches, processed_so_far, pbar, counters
+                    provider, batch, batch_num, total_batches, pbar, counters
                 )
                 # Debug logging for batch results
                 if logger.isEnabledFor(logging.DEBUG):
