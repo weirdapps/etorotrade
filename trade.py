@@ -27,6 +27,11 @@ import yfinance as yf
 from tabulate import tabulate
 from tqdm import tqdm
 
+# Color constants
+COLOR_GREEN = "\033[92m"
+COLOR_RED = "\033[91m"
+COLOR_RESET = "\033[0m"
+
 # Import dependency injection system first
 from yahoofinance.core.di_container import (
     initialize,
@@ -1463,9 +1468,9 @@ def get_color_code(title):
         str: ANSI color code
     """
     if "Buy" in title:
-        return "\033[92m"  # Green for buy
+        return COLOR_GREEN  # Green for buy
     elif "Sell" in title:
-        return "\033[91m"  # Red for sell
+        return COLOR_RED  # Red for sell
     else:
         return ""
 
@@ -1502,9 +1507,9 @@ def _get_color_by_title(title):
         str: ANSI color code for the title
     """
     if "Buy" in title:
-        return "\033[92m"  # Green for buy
+        return COLOR_GREEN  # Green for buy
     elif "Sell" in title:
-        return "\033[91m"  # Red for sell
+        return COLOR_RED  # Red for sell
     else:
         return ""  # Neutral for hold
 
@@ -3365,7 +3370,7 @@ async def _process_single_ticker(provider, ticker):
 
 
 async def _process_batch(
-    provider, batch, batch_num, total_batches, processed_so_far, pbar, counters=None
+    provider, batch, batch_num, total_batches, pbar, counters=None
 ):
     """Process a batch of tickers.
 
@@ -3478,13 +3483,13 @@ class SimpleProgressTracker:
 
     # ANSI color codes for colored output
     COLORS = {
-        "green": "\033[92m",
+        "green": COLOR_GREEN,
         "yellow": "\033[93m",
         "blue": "\033[94m",
         "magenta": "\033[95m",
         "cyan": "\033[96m",
         "white": "\033[97m",
-        "red": "\033[91m",
+        "red": COLOR_RED,
         "bold": "\033[1m",
         "reset": "\033[0m",
     }
@@ -4358,12 +4363,12 @@ async def _prepare_ticker_data(display, tickers, source):
         if hk_tickers:
             market_type = "china"
             print(
-                f"Detected China market (HK tickers) - processing with updated position size calculation"
+                "Detected China market (HK tickers) - processing with updated position size calculation"
             )
         elif de_tickers:
             market_type = "europe"
             print(
-                f"Detected Europe market (DE tickers) - processing with updated position size calculation"
+                "Detected Europe market (DE tickers) - processing with updated position size calculation"
             )
 
     # Extract the provider
@@ -4483,7 +4488,7 @@ def _print_action_classifications(display_df, min_analysts, min_targets):
 
         # Format confidence status
         if confidence_met:
-            confidence_status = "\033[92mPASS\033[0m"
+            confidence_status = f"{COLOR_GREEN}PASS{COLOR_RESET}"
         else:
             confidence_status = f"\033[93mINCONCLUSIVE\033[0m (min: {min_analysts}A/{min_targets}T)"
 
@@ -4511,10 +4516,10 @@ def _display_color_key(min_analysts, min_targets):
     """
     print("\nColor Key:")
     print(
-        "\033[92m■\033[0m GREEN: BUY - Strong outlook, meets all criteria (requires beta, PEF, PET data + upside ≥20%, etc.)"
+        f"{COLOR_GREEN}■{COLOR_RESET} GREEN: BUY - Strong outlook, meets all criteria (requires beta, PEF, PET data + upside ≥20%, etc.)"
     )
     print(
-        "\033[91m■\033[0m RED: SELL - Risk flags present (ANY of: upside <5%, buy rating <65%, PEF >45.0, etc.)"
+        f"{COLOR_RED}■{COLOR_RESET} RED: SELL - Risk flags present (ANY of: upside <5%, buy rating <65%, PEF >45.0, etc.)"
     )
     print(
         f"\033[93m■\033[0m YELLOW: LOW CONFIDENCE - Insufficient analyst coverage (<{min_analysts} analysts or <{min_targets} price targets)"
@@ -5221,7 +5226,6 @@ async def display_report_for_source(
             )
         else:
             # If no processing stats, just show title and timestamp
-            cache_hits = processing_stats.get("cache_hits", 0)
             print(
                 f"\n{c['bold']}{report_title}{c['reset']} | {c['cyan']}Generated:{c['reset']} {c['yellow']}{timestamp}{c['reset']}"
             )
@@ -5246,9 +5250,9 @@ def show_circuit_breaker_status():
 
         # Format color based on state
         if state == "CLOSED":
-            state_colored = "\033[92mCLOSED\033[0m"  # Green
+            state_colored = f"{COLOR_GREEN}CLOSED{COLOR_RESET}"  # Green
         elif state == "OPEN":
-            state_colored = "\033[91mOPEN\033[0m"  # Red
+            state_colored = f"{COLOR_RED}OPEN{COLOR_RESET}"  # Red
         elif state == "HALF_OPEN":
             state_colored = "\033[93mHALF_OPEN\033[0m"  # Yellow
         else:
