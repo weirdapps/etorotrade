@@ -148,13 +148,16 @@ class ExampleEnhancedProvider(FinanceDataProvider):
 
             # The @with_error_context decorator will enrich this error
             raise e
-        except YFinanceError as e:
+        except Exception as e:
             # Record failure if circuit breaker enabled
             if self.circuit:
                 self.circuit.record_failure()
 
             # The @with_error_context decorator will translate and enrich this error
-            raise e
+            # Convert general exceptions to YFinanceError
+            error = translate_error(e, f"Error fetching data for {ticker}", 
+                                   self._get_context_for_ticker_op(ticker, "get_ticker_info"))
+            raise error
 
     @safe_operation(default_value={}, log_errors=True)
     def get_optional_metadata(self, ticker: str) -> Dict[str, Any]:
