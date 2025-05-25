@@ -96,11 +96,16 @@ def test_setup_driver(mock_webdriver):
     setup_driver()
     mock_webdriver.assert_called_once()
     options = mock_webdriver.call_args[1]["options"]
-    assert "--no-sandbox" in options.arguments
+    # Security: --no-sandbox and --disable-web-security have been removed
     assert "--disable-dev-shm-usage" in options.arguments
-    assert "--disable-web-security" in options.arguments
     assert "--disable-gpu" in options.arguments
     assert "--window-size=1200,800" in options.arguments
+    assert "--disable-plugins" in options.arguments
+    assert "--disable-extensions" in options.arguments
+    assert "--disable-images" in options.arguments
+    assert "--disable-javascript" in options.arguments
+    # Check for user-data-dir
+    assert any("--user-data-dir=" in arg for arg in options.arguments)
 
 
 @patch("yahoofinance.data.download.WebDriverWait")
