@@ -4638,7 +4638,7 @@ async def display_report_for_source(
                 display_df
             )  # Use original display_df for alignment
             # Display results in console using tabulate
-            print(f"\n{title}:")
+            print(f"\n{report_title}:")
             table_output = tabulate(
                 colored_df,  # Use colored_df for fallback display
                 headers="keys",
