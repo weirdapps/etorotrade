@@ -1,65 +1,76 @@
 """
 Asynchronous Yahoo Finance provider implementation.
 
-This module implements the AsyncFinanceDataProvider interface for Yahoo Finance data.
-It provides a consistent async API for retrieving financial information with
-appropriate rate limiting, caching, and error handling.
+This module implements an AsyncFinanceDataProvider for Yahoo Finance data
+using true async I/O, circuit breaking, and enhanced resilience patterns.
+It provides improved performance and reliability with advanced async features.
 """
 
 import asyncio
-import concurrent.futures
+import secrets
 import time
-from datetime import datetime
 from functools import wraps
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple, TypeVar, Union, cast
 
+import aiohttp
 import pandas as pd
-import yfinance as yf
 
-from yahoofinance.core.errors import (
-    APIError,
-    DataError,
-    RateLimitError,
-    ValidationError,
-    YFinanceError,
-)
-from yahoofinance.utils.error_handling import (
+from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
+from ...utils.error_handling import (
     enrich_error_context,
     safe_operation,
     translate_error,
     with_retry,
 )
 
-from ...core.config import CACHE_CONFIG, COLUMN_NAMES
 from ...core.logging import get_logger
-from ...utils.async_utils.helpers import async_rate_limited, gather_with_concurrency
-from ...utils.market.ticker_utils import is_us_ticker, validate_ticker
+
+
+# Define constants for repeated strings
+DEFAULT_ERROR_MESSAGE = "An error occurred"
+import datetime  # Added for date checks
+
+# Use relative imports
+from ...core.config import CACHE_CONFIG, CIRCUIT_BREAKER, COLUMN_NAMES, RATE_LIMIT
+from ...core.errors import APIError, NetworkError, RateLimitError, ValidationError, YFinanceError
+from ...utils.async_utils.enhanced import (
+    AsyncRateLimiter,
+    enhanced_async_rate_limited,
+    gather_with_concurrency,
+    process_batch_async,
+)
+from ...utils.market.ticker_utils import validate_ticker, is_stock_ticker  # Keep this import
+from ...utils.network.circuit_breaker import CircuitOpenError
 from .base_provider import AsyncFinanceDataProvider
-from .yahoo_finance_base import YahooFinanceBaseProvider
 
 
 logger = get_logger(__name__)
 
-# Constants
-ERROR_GENERIC = "An error occurred"
-
 T = TypeVar("T")  # Return type for async functions
 
 
-class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvider):
+class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
     """
     Asynchronous Yahoo Finance data provider implementation.
 
-    This provider wraps the yfinance library with proper rate limiting,
-    error handling, and caching to provide asynchronous access to financial data.
+    This provider uses true async I/O with aiohttp for HTTP requests,
+    along with advanced resilience patterns including circuit breaking,
+    enhanced rate limiting, and intelligent retries.
 
     Attributes:
         max_retries: Maximum number of retry attempts for API calls
         retry_delay: Base delay in seconds between retries
         max_concurrency: Maximum number of concurrent operations
+        session: aiohttp ClientSession for HTTP requests
     """
 
-    def __init__(self, max_retries: int = 3, retry_delay: float = 1.0, max_concurrency: int = 4):
+    def __init__(
+        self,
+        max_retries: int = 3,
+        retry_delay: float = 1.0,
+        max_concurrency: int = 5,
+        enable_circuit_breaker: bool = True,
+    ):
         """
         Initialize the Async Yahoo Finance provider.
 
@@ -67,722 +78,1208 @@ class AsyncYahooFinanceProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvid
             max_retries: Maximum number of retry attempts for failed API calls
             retry_delay: Base delay in seconds between retries (exponential backoff applied)
             max_concurrency: Maximum number of concurrent operations
+            enable_circuit_breaker: Whether to enable the circuit breaker pattern
         """
-        # Call the base class constructor
-        super().__init__(max_retries=max_retries, retry_delay=retry_delay)
-
-        # Add async-specific attributes
+        self.max_retries = max_retries
+        self.retry_delay = retry_delay
         self.max_concurrency = max_concurrency
-        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_concurrency)
+        self.enable_circuit_breaker = enable_circuit_breaker
+        self._ticker_cache: Dict[str, Dict[str, Any]] = {}  # Simple cache for now
+        self._session: Optional[aiohttp.ClientSession] = None
+        self._rate_limiter = AsyncRateLimiter()
+        self._ratings_cache: Dict[str, Dict[str, Any]] = {}  # Cache for post-earnings ratings
+        self._stock_cache: Dict[str, Any] = {}  # Cache for yf.Ticker objects
+        self.POSITIVE_GRADES = [
+            "Buy",
+            "Overweight",
+            "Outperform",
+            "Strong Buy",
+            "Long-Term Buy",
+            "Positive",
+            "Market Outperform",
+            "Add",
+            "Sector Outperform",
+        ]
 
-    async def _handle_delay(self, delay: float):
+        # Circuit breaker configuration - used for all methods
+        self._circuit_name = "yahoofinance_api"
+
+    async def _ensure_session(self) -> aiohttp.ClientSession:
         """
-        Handle delaying execution for retry logic using asynchronous asyncio.sleep().
-
-        Args:
-            delay: Delay time in seconds
+        Ensure that an aiohttp session exists, creating one if needed.
         """
-        await asyncio.sleep(delay)
+        if self._session is None or self._session.closed:
+            timeout = aiohttp.ClientTimeout(
+                total=RATE_LIMIT["API_TIMEOUT"],
+                connect=10,
+                sock_connect=10,
+                sock_read=RATE_LIMIT["API_TIMEOUT"],
+            )
+            self._session = aiohttp.ClientSession(
+                timeout=timeout,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                    "Accept": "application/json, text/plain, */*",
+                    "Accept-Language": "en-US,en;q=0.9",
+                    "Origin": "https://finance.yahoo.com",
+                    "Referer": "https://finance.yahoo.com/",
+                },
+            )
+        return self._session
 
-    # These methods are now inherited from YahooFinanceBaseProvider
-
-    async def _run_sync_in_executor(self, func: Callable[..., T], *args, **kwargs) -> T:
+    @with_retry
+    async def _fetch_json(
+        self, url: str, params: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """
-        Run a synchronous function in an executor to make it async.
-
-        Args:
-            func: The synchronous function to run
-            *args: Positional arguments for the function
-            **kwargs: Keyword arguments for the function
-
-        Returns:
-            The result of the function
+        Fetch JSON data from a URL with proper error handling.
         """
-        return await asyncio.get_event_loop().run_in_executor(
-            self._executor, lambda: func(*args, **kwargs)
+
+        @enhanced_async_rate_limited(
+            circuit_name=self._circuit_name if self.enable_circuit_breaker else None,
+            max_retries=self.max_retries,
+            rate_limiter=self._rate_limiter,
         )
-
-    @with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
-    async def _get_ticker_object(self, ticker: str) -> yf.Ticker:
-        """
-        Get a yfinance Ticker object for the given symbol with caching.
-
-        Args:
-            ticker: Stock ticker symbol
-
-        Returns:
-            yf.Ticker: Ticker object for the given symbol (do not store this long-term)
-
-        Raises:
-            ValidationError: If the ticker is invalid
-        """
-        # Validate the ticker format
-        validate_ticker(ticker)
-
-        # Create new ticker object every time - don't cache the actual objects to prevent memory leaks
-        try:
-            # Use safe_create_ticker from yfinance_utils if available
+        async def _do_fetch() -> Dict[str, Any]:
+            session = await self._ensure_session()
             try:
-                from ...utils.yfinance_utils import safe_create_ticker
+                async with session.get(url, params=params) as response:
+                    if response.status == 200:
+                        return await response.json()
+                    elif response.status == 429:
+                        retry_after = int(response.headers.get("Retry-After", "60"))
+                        raise RateLimitError(
+                            f"Yahoo Finance API rate limit exceeded. Retry after {retry_after} seconds",
+                            retry_after=retry_after,
+                        )
+                    elif response.status == 404:
+                        raise YFinanceError(DEFAULT_ERROR_MESSAGE)
+                    else:
+                        text = await response.text()
+                        {"status_code": response.status, "response_text": text[:100]}
+                        raise YFinanceError(DEFAULT_ERROR_MESSAGE)
+            except aiohttp.ClientError as e:
+                raise NetworkError(f"Network error while fetching {url}: {str(e)}")
 
-                ticker_obj = await self._run_sync_in_executor(safe_create_ticker, ticker)
-            except ImportError:
-                # Fall back to regular creation if the utility isn't available
-                ticker_obj = await self._run_sync_in_executor(yf.Ticker, ticker)
+        try:
+            return await _do_fetch()
+        except CircuitOpenError as e:
+            retry_after = e.retry_after
+            {"status_code": 503, "retry_after": retry_after}
+            raise e
 
-            return ticker_obj
-        except YFinanceError as e:
-            logger.error(f"Error creating ticker object for {ticker}: {str(e)}")
-            raise
-
-    @async_rate_limited
+    @enhanced_async_rate_limited(max_retries=0)
     async def get_ticker_info(
         self, ticker: str, skip_insider_metrics: bool = False
     ) -> Dict[str, Any]:
         """
         Get comprehensive information for a ticker asynchronously.
-
-        Args:
-            ticker: Stock ticker symbol
-            skip_insider_metrics: If True, skip fetching insider trading metrics
-
-        Returns:
-            Dict containing stock information
-
-        Raises:
-            YFinanceError: When an error occurs while fetching data
         """
+        validate_ticker(ticker)
         logger.debug(f"Getting ticker info for {ticker}")
-        ticker_obj = await self._get_ticker_object(ticker)
 
-        # Basic information with proper rate limiting
-        result = {}
+        if ticker in self._ticker_cache:
+            logger.debug(f"Using cached data for {ticker}")
+            return self._ticker_cache[ticker].copy()  # Return a copy to avoid reference issues
 
-        for attempt in range(self.max_retries):
+        try:
+            import yfinance as yf
+
+            # Create ticker object temporarily - don't store it in cache to prevent memory leaks
             try:
-                # Get basic info
-                info = await self._run_sync_in_executor(lambda: ticker_obj.info)
-                if not info:
-                    raise DataError(f"No information available for {ticker}")
+                # Use safe_create_ticker from yfinance_utils if available
+                from ...utils.yfinance_utils import safe_create_ticker
 
-                # Use shared _process_ticker_info method from base class but with async adjustment for insider data
-                result = await self._run_sync_in_executor(
-                    lambda data=info: self._extract_common_ticker_info(data)
+                yticker = safe_create_ticker(ticker)
+            except ImportError:
+                # Fall back to regular creation if the utility isn't available
+                yticker = yf.Ticker(ticker)
+
+            # Handle potential NoneType errors with info
+            try:
+                ticker_info = yticker.info
+                # Check if ticker_info returns None
+                if ticker_info is None:
+                    logger.warning(
+                        f"Received None response for ticker {ticker} info. Using fallback empty dict."
+                    )
+                    ticker_info = {}
+            except AttributeError as ae:
+                logger.warning(
+                    f"AttributeError for ticker {ticker}: {str(ae)}. Using fallback empty dict."
                 )
-                result["symbol"] = ticker  # Ensure the symbol is set correctly
+                ticker_info = {}
 
-                # Additional metrics for US stocks
-                if is_us_ticker(ticker) and not skip_insider_metrics:
+            info: Dict[str, Any] = {"symbol": ticker}
+
+            # Extract key fields
+            info["name"] = ticker_info.get("longName", ticker_info.get("shortName", ""))
+            info["company"] = info["name"][:14].upper() if info["name"] else ""
+            info["sector"] = ticker_info.get("sector", "")
+            info["industry"] = ticker_info.get("industry", "")
+            info["country"] = ticker_info.get("country", "")
+            info["website"] = ticker_info.get("website", "")
+            # Try multiple price fields in order of preference
+            price = (
+                ticker_info.get("regularMarketPrice") or
+                ticker_info.get("currentPrice") or
+                ticker_info.get("lastPrice") or
+                ticker_info.get("previousClose")
+            )
+            info["current_price"] = price
+            info["price"] = price
+            info["currency"] = ticker_info.get("currency", "")
+            info["market_cap"] = ticker_info.get("marketCap", None)
+            info["exchange"] = ticker_info.get("exchange", "")
+            info["quote_type"] = ticker_info.get("quoteType", "")
+            info["pe_trailing"] = ticker_info.get("trailingPE", None)
+            # Keep dividend_yield in decimal format (0.XX rather than XX%)
+            # This allows downstream processors to handle formatting consistently
+            info["dividend_yield"] = ticker_info.get("dividendYield", None)
+            info["beta"] = ticker_info.get("beta", None)
+            info["fifty_two_week_high"] = ticker_info.get("fiftyTwoWeekHigh", None)
+            info["fifty_two_week_low"] = ticker_info.get("fiftyTwoWeekLow", None)
+            info["pe_forward"] = ticker_info.get("forwardPE", None)
+            info["peg_ratio"] = ticker_info.get("pegRatio", None)
+            info["short_percent"] = ticker_info.get("shortPercentOfFloat", None)
+            if info["short_percent"] is not None:
+                info["short_percent"] = info["short_percent"] * 100
+            info["target_price"] = ticker_info.get("targetMeanPrice", None)
+            info["recommendation"] = ticker_info.get("recommendationMean", None)
+
+            # Add analyst data directly to reduce extra API calls
+            number_of_analysts = ticker_info.get("numberOfAnalystOpinions", 0)
+            info["analyst_count"] = number_of_analysts
+            info["total_ratings"] = number_of_analysts
+
+            # Get recommendations data
+            try:
+                # First check if we have any recommendation data
+                if number_of_analysts > 0:
                     try:
-                        # Get insider metrics
-                        insider_data = await self.get_insider_transactions(ticker)
-                        if insider_data:
-                            # Calculate insider metrics
-                            total_buys = sum(1 for tx in insider_data if tx.get("shares", 0) > 0)
-                            total_sells = sum(1 for tx in insider_data if tx.get("shares", 0) < 0)
+                        # Try to directly get buy percentage from recommendationKey
+                        rec_key = ticker_info.get("recommendationKey", "").lower()
+                        if rec_key in ["buy", "strongbuy"]:
+                            info["buy_percentage"] = 85.0
+                        elif rec_key in ["outperform"]:
+                            info["buy_percentage"] = 75.0
+                        elif rec_key in ["hold"]:
+                            info["buy_percentage"] = 50.0
+                        elif rec_key in ["underperform"]:
+                            info["buy_percentage"] = 25.0
+                        elif rec_key in ["sell"]:
+                            info["buy_percentage"] = 15.0
+                        else:
+                            # Use recommendationMean to estimate buy percentage if available
+                            rec_mean = ticker_info.get("recommendationMean", None)
+                            if rec_mean is not None:
+                                # Convert 1-5 scale to percentage (1=Strong Buy, 5=Sell)
+                                # 1 = 90%, 3 = 50%, 5 = 10%
+                                info["buy_percentage"] = max(0, min(100, 110 - (rec_mean * 20)))
+                            else:
+                                info["buy_percentage"] = None
+                    except Exception as e:
+                        logger.warning(f"Error getting recommendation data for {ticker}: {e}")
+                        info["buy_percentage"] = None
+                else:
+                    # No analysts covering
+                    info["buy_percentage"] = None
+            except Exception as e:
+                logger.warning(f"Error processing recommendations for {ticker}: {e}")
+                info["buy_percentage"] = None
 
-                            result["insider_transactions"] = len(insider_data)
-                            result["insider_buys"] = total_buys
-                            result["insider_sells"] = total_sells
-                            result["insider_ratio"] = (
-                                total_buys / (total_buys + total_sells)
-                                if (total_buys + total_sells) > 0
-                                else 0
+            # Rating type - default to "A" for all-time
+            info["A"] = "A"
+
+            # --- Start: Improved Recommendations Logic ---
+            # Ensure default values are set
+            info["analyst_count"] = 0
+            info["total_ratings"] = 0
+            info["buy_percentage"] = None
+
+            try:
+                # First check if ticker_info has analyst data
+                number_of_analysts = ticker_info.get("numberOfAnalystOpinions", 0)
+                if number_of_analysts > 0:
+                    info["analyst_count"] = number_of_analysts
+                    info["total_ratings"] = number_of_analysts
+
+                    # Try to get recommendation key first
+                    rec_key = ticker_info.get("recommendationKey", "").lower()
+                    rec_mean = ticker_info.get("recommendationMean", None)
+
+                    # If we have a recommendation key, map it to a buy percentage
+                    if rec_key:
+                        if rec_key in ["buy", "strongbuy"]:
+                            info["buy_percentage"] = 85.0
+                            logger.debug(
+                                f"Using recommendationKey '{rec_key}' to set buy_percentage=85.0 for {ticker}"
                             )
-                    except YFinanceError as e:
-                        logger.warning(f"Failed to get insider data for {ticker}: {str(e)}")
+                        elif rec_key in ["outperform"]:
+                            info["buy_percentage"] = 75.0
+                            logger.debug(
+                                f"Using recommendationKey '{rec_key}' to set buy_percentage=75.0 for {ticker}"
+                            )
+                        elif rec_key in ["hold"]:
+                            info["buy_percentage"] = 50.0
+                            logger.debug(
+                                f"Using recommendationKey '{rec_key}' to set buy_percentage=50.0 for {ticker}"
+                            )
+                        elif rec_key in ["underperform"]:
+                            info["buy_percentage"] = 25.0
+                            logger.debug(
+                                f"Using recommendationKey '{rec_key}' to set buy_percentage=25.0 for {ticker}"
+                            )
+                        elif rec_key in ["sell"]:
+                            info["buy_percentage"] = 15.0
+                            logger.debug(
+                                f"Using recommendationKey '{rec_key}' to set buy_percentage=15.0 for {ticker}"
+                            )
+                    # If no key but we have recommendation mean, use it to estimate buy percentage
+                    elif rec_mean is not None:
+                        # Convert 1-5 scale to percentage (1=Strong Buy, 5=Sell)
+                        # 1 = 90%, 3 = 50%, 5 = 10%
+                        info["buy_percentage"] = max(0, min(100, 110 - (rec_mean * 20)))
+                        logger.debug(
+                            f"Using recommendationMean {rec_mean} to set buy_percentage={info['buy_percentage']} for {ticker}"
+                        )
 
-                break
-            except RateLimitError:
-                # Specific handling for rate limits - just re-raise e
-                raise e
-            except YFinanceError as e:
-                # Use the shared retry logic handler from the base class but with async sleep
-                delay = self._handle_retry_logic(e, attempt, ticker, "ticker info")
-                await asyncio.sleep(delay)
+                # Try to get detailed recommendations from recommendations DataFrame
+                recommendations_df = getattr(yticker, "recommendations", None)
+                if recommendations_df is not None and not recommendations_df.empty:
+                    try:
+                        # Get the most recent recommendations
+                        latest_date = recommendations_df.index.max()
+                        latest_recs = recommendations_df.loc[latest_date]
 
-        return result
+                        # Extract counts
+                        strong_buy = int(latest_recs.get("strongBuy", 0))
+                        buy = int(latest_recs.get("buy", 0))
+                        hold = int(latest_recs.get("hold", 0))
+                        sell = int(latest_recs.get("sell", 0))
+                        strong_sell = int(latest_recs.get("strongSell", 0))
 
-    @async_rate_limited
+                        # Calculate the total
+                        total = strong_buy + buy + hold + sell + strong_sell
+
+                        # Only update if we have valid data
+                        if total > 0:
+                            buy_count = strong_buy + buy
+                            buy_percentage = (buy_count / total) * 100
+
+                            # This is the most accurate source of data, always update
+                            info["buy_percentage"] = buy_percentage
+                            info["total_ratings"] = total
+                            info["analyst_count"] = total
+
+                            logger.debug(
+                                f"Using recommendations DataFrame to set analyst data for {ticker}: "
+                                f"buy_percentage={buy_percentage}, total_ratings={total}"
+                            )
+                    except (IndexError, KeyError, ValueError, TypeError) as e:
+                        logger.warning(
+                            f"Error extracting recommendations data for {ticker}: {e}. Using fallback values."
+                        )
+
+                # Fall back to analyzing upgrades_downgrades if needed
+                if info["buy_percentage"] is None:
+                    try:
+                        upgrades_downgrades = getattr(yticker, "upgrades_downgrades", None)
+                        if upgrades_downgrades is not None and not upgrades_downgrades.empty:
+                            # Count grades
+                            positive_grades = [
+                                "Buy",
+                                "Overweight",
+                                "Outperform",
+                                "Strong Buy",
+                                "Long-Term Buy",
+                                "Positive",
+                                "Market Outperform",
+                                "Add",
+                                "Sector Outperform",
+                            ]
+
+                            # Count positive grades in ToGrade column
+                            if "ToGrade" in upgrades_downgrades.columns:
+                                total_grades = len(upgrades_downgrades)
+                                positive_count = upgrades_downgrades[
+                                    upgrades_downgrades["ToGrade"].isin(positive_grades)
+                                ].shape[0]
+
+                                if total_grades > 0:
+                                    buy_percentage = (positive_count / total_grades) * 100
+                                    info["buy_percentage"] = buy_percentage
+                                    info["total_ratings"] = total_grades
+                                    info["analyst_count"] = total_grades
+
+                                    logger.debug(
+                                        f"Using upgrades_downgrades to set analyst data for {ticker}: "
+                                        f"buy_percentage={buy_percentage}, total_ratings={total_grades}"
+                                    )
+                    except Exception as e:
+                        logger.warning(
+                            f"Error analyzing upgrades_downgrades for {ticker}: {e}. Using fallback values."
+                        )
+
+                # If we still don't have a buy percentage but have analyst count,
+                # use recommendationMean as a last resort
+                if (
+                    info["analyst_count"] > 0
+                    and info["buy_percentage"] is None
+                    and rec_mean is not None
+                ):
+                    # Convert 1-5 scale to percentage (1=Strong Buy, 5=Sell)
+                    info["buy_percentage"] = max(0, min(100, 110 - (rec_mean * 20)))
+                    logger.debug(
+                        f"Final fallback: Using recommendationMean {rec_mean} to set buy_percentage={info['buy_percentage']} for {ticker}"
+                    )
+
+            except Exception as e:
+                logger.warning(f"Error processing analyst data for {ticker}: {e}", exc_info=False)
+                # Ensure default values if all attempts fail
+                if info.get("analyst_count") is None:
+                    info["analyst_count"] = 0
+                if info.get("total_ratings") is None:
+                    info["total_ratings"] = 0
+                if info.get("buy_percentage") is None:
+                    info["buy_percentage"] = None
+
+            # Determine Rating Type ('A' or 'E')
+            # Only check post-earnings ratings for stock tickers, not ETFs/commodities/crypto
+            if self._is_us_ticker(ticker) and is_stock_ticker(ticker) and info.get("total_ratings", 0) > 0:
+                has_post_earnings = self._has_post_earnings_ratings(ticker, yticker)
+                if has_post_earnings and ticker in self._ratings_cache:
+                    ratings_data = self._ratings_cache[ticker]
+                    info["buy_percentage"] = ratings_data["buy_percentage"]
+                    info["total_ratings"] = ratings_data["total_ratings"]
+                    info["A"] = "E"
+                    # Recalculate EXRET potentially needed here if buy_percentage changed
+                    if info.get("upside") is not None:
+                        try:
+                            info["EXRET"] = info["upside"] * info["buy_percentage"] / 100
+                        except TypeError:
+                            info["EXRET"] = None
+                else:
+                    info["A"] = "A"  # Default to All-time
+            else:
+                info["A"] = (
+                    "A" if info.get("total_ratings", 0) > 0 else ""
+                )  # Set A based on whether ratings exist
+            # --- End: Reinstated Recommendations Logic ---
+            # --- End: Reinstated Recommendations Logic ---
+
+            # --- Start: Reinstated Earnings Date Logic ---
+            # Only fetch earnings dates for stock tickers, not ETFs/commodities/crypto
+            if is_stock_ticker(ticker):
+                try:
+                    last_earnings_date = self._get_last_earnings_date(yticker)
+                    info["last_earnings"] = last_earnings_date
+                except YFinanceError as e:
+                    logger.warning(
+                        f"Failed to get earnings date for {ticker}: {str(e)}", exc_info=False
+                    )
+                    info["last_earnings"] = None
+            else:
+                # Non-stock assets don't have earnings dates
+                logger.debug(f"Skipping earnings date for non-stock asset {ticker}")
+                info["last_earnings"] = None
+            # --- End: Reinstated Earnings Date Logic ---
+
+            # Re-add missing PEG and ensure Dividend Yield has the original raw value
+            info["dividend_yield"] = ticker_info.get(
+                "dividendYield", None
+            )  # Get raw value - no modification
+
+            info["peg_ratio"] = ticker_info.get("trailingPegRatio", None)  # Use trailingPegRatio
+
+            # Format market cap
+            if info.get("market_cap"):
+                info["market_cap_fmt"] = self._format_market_cap(info["market_cap"])
+
+            # Calculate upside potential
+            price = info.get("current_price")
+            target = info.get("target_price")
+            info["upside"] = self._calculate_upside_potential(price, target)
+
+            # Calculate EXRET (after potential ratings update)
+            if info.get("upside") is not None and info.get("buy_percentage") is not None:
+                try:
+                    info["EXRET"] = info["upside"] * info["buy_percentage"] / 100
+                except TypeError:
+                    info["EXRET"] = None
+            else:
+                info["EXRET"] = None
+
+            # Add to simple cache
+            self._ticker_cache[ticker] = info
+            return info
+
+        except (APIError, ValidationError, RateLimitError, NetworkError) as e:
+            # Log the specific error but raise a generic one
+            logger.warning(f"Error fetching ticker info for {ticker}: {e}")
+            raise YFinanceError(DEFAULT_ERROR_MESSAGE) from e
+        except YFinanceError as e:
+            # Log and re-raise YFinanceError with additional context
+            logger.error(f"YFinanceError encountered for {ticker}: {str(e)}")
+            raise YFinanceError(f"Error processing ticker {ticker}: {str(e)}")
+
+    @enhanced_async_rate_limited(max_retries=0)
     async def get_historical_data(
         self, ticker: str, period: str = "1y", interval: str = "1d"
     ) -> pd.DataFrame:
         """
         Get historical price data for a ticker asynchronously.
-
-        Args:
-            ticker: Stock ticker symbol
-            period: Time period (e.g., "1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "ytd", "max")
-            interval: Data interval (e.g., "1m", "2m", "5m", "15m", "30m", "60m", "90m", "1h", "1d", "5d", "1wk", "1mo", "3mo")
-
-        Returns:
-            DataFrame containing historical data
-
-        Raises:
-            YFinanceError: When an error occurs while fetching data
         """
-        # Create a temporary ticker object
-        ticker_obj = None
-        result = None
-
+        validate_ticker(ticker)
         try:
-            # Get ticker object for this request only
-            ticker_obj = await self._get_ticker_object(ticker)
+            import yfinance as yf
 
-            for attempt in range(self.max_retries):
-                try:
-                    # Use the shared extraction method but run in executor
-                    history = await self._run_sync_in_executor(
-                        lambda: self._extract_historical_data(ticker, ticker_obj, period, interval)
-                    )
+            period_map = {
+                "1d": "1d",
+                "5d": "5d",
+                "1mo": "1mo",
+                "3mo": "3mo",
+                "6mo": "6mo",
+                "1y": "1y",
+                "2y": "2y",
+                "5y": "5y",
+                "10y": "10y",
+                "ytd": "ytd",
+                "max": "max",
+            }
+            api_period = period_map.get(period, period)
+            interval_map = {
+                "1m": "1m",
+                "5m": "5m",
+                "15m": "15m",
+                "30m": "30m",
+                "60m": "60m",
+                "1h": "60m",
+                "1d": "1d",
+                "5d": "5d",
+                "1wk": "1wk",
+                "1mo": "1mo",
+                "3mo": "3mo",
+            }
+            api_interval = interval_map.get(interval, interval)
+            yticker = yf.Ticker(ticker)
+            df = yticker.history(period=api_period, interval=api_interval)
+            if not df.empty and "Open" not in df.columns and "open" in df.columns:
+                df.rename(
+                    columns={
+                        "open": "Open",
+                        "high": "High",
+                        "low": "Low",
+                        "close": "Close",
+                        "volume": "Volume",
+                    },
+                    inplace=True,
+                )
+            return df
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            pd.errors.EmptyDataError,
+            ImportError,
+            ModuleNotFoundError,
+            RuntimeError,
+            MemoryError,
+        ) as e:
+            raise e
+        except (IOError, ConnectionError, aiohttp.ClientError) as e:
+            raise NetworkError(
+                f"Network error when fetching historical data for {ticker}: {str(e)}"
+            )
+        except (APIError, ValidationError, RateLimitError, NetworkError):
+            raise e
 
-                    # Create a deep copy of the DataFrame to avoid reference issues
-                    if isinstance(history, pd.DataFrame):
-                        # Use copy to ensure we don't maintain references to original data
-                        result = history.copy(deep=True)
-
-                        # Clear any datetime64 objects with timezone info that might cause memory leaks
-                        for col in result.select_dtypes(include=["datetime64[ns]"]).columns:
-                            result[col] = pd.to_datetime(
-                                result[col].dt.strftime("%Y-%m-%d %H:%M:%S")
-                            )
-
-                    else:
-                        result = history
-
-                    break
-
-                except RateLimitError:
-                    # Specific handling for rate limits - just re-raise with generic error
-                    raise YFinanceError(ERROR_GENERIC)
-                except YFinanceError as e:
-                    # Use the shared retry logic handler from the base class but with async sleep
-                    delay = self._handle_retry_logic(e, attempt, ticker, "historical data")
-                    await asyncio.sleep(delay)
-
-            return result
-
-        finally:
-            # Explicitly clean up and remove the reference to the ticker object
-            if ticker_obj is not None:
-                try:
-                    # Use clean_ticker_object from yfinance_utils if available
-                    from ...utils.yfinance_utils import clean_ticker_object
-
-                    await self._run_sync_in_executor(clean_ticker_object, ticker_obj)
-                except ImportError:
-                    # Fall back to basic cleanup if the utility isn't available
-                    pass
-
-                # Remove reference
-                del ticker_obj
-
-            # Force garbage collection to clean up any resources
-            import gc
-
-            gc.collect()
-
-            # Clear DataFrame cache in pandas if possible
-            try:
-                pd.core.common._possibly_clean_cache()
-            except (AttributeError, ImportError):
-                pass
-
-            # Use memory utilities for thorough cleanup
-            try:
-                from ...utils.memory_utils import clean_memory
-
-                clean_memory()
-            except ImportError:
-                pass
-
-    @async_rate_limited
-    async def get_earnings_dates(self, ticker: str) -> Tuple[Optional[str], Optional[str]]:
+    @enhanced_async_rate_limited(max_retries=0)
+    async def get_earnings_data(self, ticker: str) -> Dict[str, Any]:
         """
-        Get the last two earnings dates for a stock asynchronously.
-
-        Args:
-            ticker: Stock ticker symbol
-
-        Returns:
-            Tuple containing:
-                - most_recent_date: The most recent earnings date in YYYY-MM-DD format
-                - previous_date: The second most recent earnings date in YYYY-MM-DD format
-                Both values will be None if no earnings dates are found
-
-        Raises:
-            YFinanceError: When an error occurs while fetching data
+        Get earnings data for a ticker asynchronously.
         """
-        ticker_obj = await self._get_ticker_object(ticker)
+        validate_ticker(ticker)
+        try:
+            import yfinance as yf
 
-        for attempt in range(self.max_retries):
+            yticker = yf.Ticker(ticker)
+            earnings_data = {"symbol": ticker, "earnings_dates": [], "earnings_history": []}
+            # Get calendar for earnings dates
             try:
-                # Get earnings data
-                calendar = await self._run_sync_in_executor(lambda: ticker_obj.calendar)
-
-                # Handle cases where calendar might be None or not have earnings date
-                if calendar is None or COLUMN_NAMES["EARNINGS_DATE"] not in calendar:
-                    logger.debug(f"No earnings dates found for {ticker}")
-                    return None, None
-
-                earnings_date = calendar[COLUMN_NAMES["EARNINGS_DATE"]]
-
-                # Convert to list even if there's only one date
-                if not isinstance(earnings_date, list):
-                    earnings_date = [earnings_date]
-
-                # Format dates
-                formatted_dates = [
-                    self._format_date(date) for date in earnings_date if date is not None
-                ]
-
-                # Sort dates in descending order
-                formatted_dates.sort(reverse=True)
-
-                # Return the last two earnings dates
-                if len(formatted_dates) >= 2:
-                    return formatted_dates[0], formatted_dates[1]
-                elif len(formatted_dates) == 1:
-                    return formatted_dates[0], None
-                else:
-                    return None, None
-
-            except RateLimitError:
-                # Specific handling for rate limits - just re-raise with generic error
-                raise YFinanceError(ERROR_GENERIC)
+                calendar = yticker.calendar
+                if (
+                    calendar is not None
+                    and not calendar.empty
+                    and EARNINGS_DATE_COL in calendar.columns
+                ):
+                    earnings_date = calendar[EARNINGS_DATE_COL].iloc[0]
+                    if pd.notna(earnings_date):
+                        earnings_data["earnings_dates"].append(earnings_date.strftime("%Y-%m-%d"))
             except YFinanceError as e:
-                if attempt < self.max_retries - 1:
-                    delay = self.retry_delay * (2**attempt)
-                    logger.warning(
-                        f"Attempt {attempt+1}/{self.max_retries} failed for {ticker} earnings dates: {str(e)}. Retrying in {delay:.2f}s"
-                    )
-                    await asyncio.sleep(delay)
-                else:
-                    raise e
+                logger.warning(f"Failed to get earnings calendar for {ticker}: {str(e)}")
+            # Get earnings history
+            try:
+                earnings_hist = yticker.earnings_history
+                if earnings_hist is not None and not earnings_hist.empty:
+                    for idx, row in earnings_hist.iterrows():
+                        quarter_data = {
+                            "date": (
+                                idx.strftime("%Y-%m-%d") if hasattr(idx, "strftime") else str(idx)
+                            ),
+                            "reported_eps": row.get("Reported EPS", None),
+                            "estimated_eps": row.get("Estimated EPS", None),
+                            "surprise": row.get("Surprise(%)", None),
+                        }
+                        earnings_data["earnings_history"].append(quarter_data)
+            except YFinanceError as e:
+                logger.warning(f"Failed to get earnings history for {ticker}: {str(e)}")
+            # Get earnings estimate from info
+            try:
+                ticker_info = yticker.info
+                if "trailingEps" in ticker_info:
+                    earnings_data["earnings_average"] = ticker_info["trailingEps"]
+                if "forwardEps" in ticker_info:
+                    earnings_data["earnings_estimates"] = ticker_info["forwardEps"]
+                if "lastFiscalYearEnd" in ticker_info:
+                    from datetime import datetime
 
-    @async_rate_limited
+                    last_fiscal = datetime.fromtimestamp(ticker_info["lastFiscalYearEnd"])
+                    earnings_data["quarter_end"] = last_fiscal.strftime("%Y-%m-%d")
+            except YFinanceError as e:
+                logger.warning(f"Failed to get earnings estimates for {ticker}: {str(e)}")
+            return earnings_data
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            pd.errors.EmptyDataError,
+            ImportError,
+            ModuleNotFoundError,
+            RuntimeError,
+            MemoryError,
+        ):
+            raise
+        except (IOError, ConnectionError, aiohttp.ClientError) as e:
+            raise NetworkError(f"Network error when fetching earnings data for {ticker}: {str(e)}")
+        except (APIError, ValidationError, RateLimitError):
+            raise YFinanceError(DEFAULT_ERROR_MESSAGE)
+            raise
+
+    @enhanced_async_rate_limited(max_retries=0)
+    async def get_earnings_dates(self, ticker: str) -> List[str]:
+        """Get earnings dates (uses get_earnings_data)."""
+        validate_ticker(ticker)
+        try:
+            earnings_data = await self.get_earnings_data(ticker)
+            if "error" in earnings_data:  # Propagate error if get_earnings_data failed
+                logger.warning(
+                    f"Could not get earnings dates for {ticker} due to error: {earnings_data['error']}"
+                )
+                return []
+            # Ensure the key exists and the value is iterable before returning
+            dates = earnings_data.get("earnings_dates")
+            return dates if isinstance(dates, list) else []
+        except YFinanceError as e:
+            logger.error(f"Unexpected error getting earnings dates for {ticker}: {str(e)}")
+            return []
+
+    @enhanced_async_rate_limited(max_retries=0)
     async def get_analyst_ratings(self, ticker: str) -> Dict[str, Any]:
         """
         Get analyst ratings for a ticker asynchronously.
-
-        Args:
-            ticker: Stock ticker symbol
-
-        Returns:
-            Dict containing analyst ratings information
-
-        Raises:
-            YFinanceError: When an error occurs while fetching data
         """
-        # Skip analyst ratings for non-US tickers using the base method
-        if not is_us_ticker(ticker):
-            return self._get_empty_analyst_data(ticker)
+        validate_ticker(ticker)
+        info = await self.get_ticker_info(ticker)
+        if "error" in info:
+            return {"symbol": ticker, "error": info["error"]}
+        return {
+            "symbol": ticker,
+            "recommendations": info.get("total_ratings", 0),
+            "buy_percentage": info.get("buy_percentage", None),
+            "positive_percentage": info.get("buy_percentage", None),
+            "total_ratings": info.get("total_ratings", 0),
+            "ratings_type": info.get("A", "A"),
+            "date": None,
+        }
 
-        ticker_obj = await self._get_ticker_object(ticker)
-
-        for attempt in range(self.max_retries):
-            try:
-                # Get analyst consensus data using the enhanced base method
-                # Run in executor since it takes a sync ticker_obj
-                consensus = await self._run_sync_in_executor(
-                    lambda: self._get_analyst_consensus(ticker_obj, ticker)
-                )
-
-                # Get the recommendations
-                recommendations = await self._run_sync_in_executor(
-                    lambda: ticker_obj.recommendations
-                )
-
-                # Add symbol and date if available
-                result = {"symbol": ticker}
-
-                # Add date if we have recommendations
-                if recommendations is not None and not recommendations.empty:
-                    latest_date = recommendations.index.max()
-                    result["date"] = self._format_date(latest_date)
-                else:
-                    result["date"] = None
-
-                # Add recommendation count
-                result["recommendations"] = consensus["total_ratings"]
-
-                # Add buy percentage
-                result["buy_percentage"] = consensus["buy_percentage"]
-
-                # Add individual counts
-                if "recommendations" in consensus and consensus["recommendations"]:
-                    result["strong_buy"] = consensus["recommendations"].get("strong_buy", 0)
-                    result["buy"] = consensus["recommendations"].get("buy", 0)
-                    result["hold"] = consensus["recommendations"].get("hold", 0)
-                    result["sell"] = consensus["recommendations"].get("sell", 0)
-                    result["strong_sell"] = consensus["recommendations"].get("strong_sell", 0)
-                else:
-                    result["strong_buy"] = 0
-                    result["buy"] = 0
-                    result["hold"] = 0
-                    result["sell"] = 0
-                    result["strong_sell"] = 0
-
-                return result
-
-            except RateLimitError:
-                # Specific handling for rate limits - just re-raise with generic error
-                raise YFinanceError(ERROR_GENERIC)
-            except YFinanceError as e:
-                if attempt < self.max_retries - 1:
-                    delay = self.retry_delay * (2**attempt)
-                    logger.warning(
-                        f"Attempt {attempt+1}/{self.max_retries} failed for {ticker} analyst ratings: {str(e)}. Retrying in {delay:.2f}s"
-                    )
-                    await asyncio.sleep(delay)
-                else:
-                    raise e
-
-    @async_rate_limited
+    @enhanced_async_rate_limited(max_retries=0)
     async def get_insider_transactions(self, ticker: str) -> List[Dict[str, Any]]:
         """
         Get insider transactions for a ticker asynchronously.
-
-        Args:
-            ticker: Stock ticker symbol
-
-        Returns:
-            List of dicts containing insider transaction information
-
-        Raises:
-            YFinanceError: When an error occurs while fetching data
         """
-        ticker_obj = await self._get_ticker_object(ticker)
-
-        # Skip insider transactions for non-US tickers
-        if not is_us_ticker(ticker):
+        validate_ticker(ticker)
+        if not self._is_us_ticker(ticker):
             logger.debug(f"Skipping insider transactions for non-US ticker {ticker}")
             return []
 
-        for attempt in range(self.max_retries):
-            try:
-                # Get insider transactions
-                insiders = await self._run_sync_in_executor(
-                    lambda: ticker_obj.institutional_holders
-                )
-
-                # Handle case where there are no insider transactions
-                if insiders is None or insiders.empty:
-                    logger.debug(f"No insider transactions found for {ticker}")
-                    return []
-
-                # Convert to list of dicts
-                result = []
-                for _, row in insiders.iterrows():
-                    transaction = {
-                        "name": row.get("Holder", ""),
-                        "shares": row.get("Shares", 0),
-                        "date": self._format_date(row.get("Date Reported", None)),
-                        "value": row.get("Value", 0),
-                        "pct_out": row.get("% Out", 0) * 100 if row.get("% Out") else 0,
+        # Skip insider transactions for non-stock assets (ETFs, commodities, crypto)
+        if not is_stock_ticker(ticker):
+            logger.debug(f"Skipping insider transactions for non-stock asset {ticker}")
+            return []
+        base_url = "https://query1.finance.yahoo.com/v10/finance/quoteSummary"
+        url = f"{base_url}/{ticker}"
+        params = {"modules": "insiderTransactions", "formatted": "false"}
+        try:
+            data = await self._fetch_json(url, params)
+            if (
+                not data
+                or "quoteSummary" not in data
+                or "result" not in data["quoteSummary"]
+                or not data["quoteSummary"]["result"]
+            ):
+                raise YFinanceError(DEFAULT_ERROR_MESSAGE)
+            result = data["quoteSummary"]["result"][0]
+            transactions = []
+            if "insiderTransactions" in result and "transactions" in result["insiderTransactions"]:
+                for transaction in result["insiderTransactions"]["transactions"]:
+                    tx = {
+                        "name": transaction.get("filerName", ""),
+                        "title": transaction.get("filerRelation", ""),
+                        "date": (
+                            self._format_date(
+                                pd.to_datetime(transaction["startDate"]["raw"], unit="s")
+                            )
+                            if "startDate" in transaction and "raw" in transaction["startDate"]
+                            else None
+                        ),
+                        "transaction": transaction.get("transactionText", ""),
+                        "shares": (
+                            transaction["shares"]["raw"]
+                            if "shares" in transaction and "raw" in transaction["shares"]
+                            else 0
+                        ),
+                        "value": (
+                            transaction["value"]["raw"]
+                            if "value" in transaction and "raw" in transaction["value"]
+                            else 0
+                        ),
                     }
-                    result.append(transaction)
+                    transactions.append(tx)
+            return transactions
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            pd.errors.EmptyDataError,
+            ModuleNotFoundError,
+            RuntimeError,
+            MemoryError,
+        ):
+            raise
+        except (IOError, ConnectionError, aiohttp.ClientError) as e:
+            raise NetworkError(
+                f"Network error when fetching insider transactions for {ticker}: {str(e)}"
+            )
+        except (APIError, ValidationError, RateLimitError):
+            raise
 
-                return result
-
-            except RateLimitError:
-                # Specific handling for rate limits - just re-raise with generic error
-                raise YFinanceError(ERROR_GENERIC)
-            except YFinanceError as e:
-                if attempt < self.max_retries - 1:
-                    delay = self.retry_delay * (2**attempt)
-                    logger.warning(
-                        f"Attempt {attempt+1}/{self.max_retries} failed for {ticker} insider transactions: {str(e)}. Retrying in {delay:.2f}s"
-                    )
-                    await asyncio.sleep(delay)
-                else:
-                    raise e
-
-    @async_rate_limited
+    @enhanced_async_rate_limited(max_retries=0)
     async def search_tickers(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
         """
         Search for tickers matching a query asynchronously.
-
-        Args:
-            query: Search query string
-            limit: Maximum number of results to return
-
-        Returns:
-            List of matching tickers with metadata
-
-        Raises:
-            YFinanceError: When an error occurs while searching
         """
         if not query or not query.strip():
             raise ValidationError("Search query cannot be empty")
+        base_url = "https://query1.finance.yahoo.com/v1/finance/search"
+        params = {
+            "q": query,
+            "quotesCount": limit,
+            "newsCount": 0,
+            "enableFuzzyQuery": "true",
+            "enableEnhancedTrivialQuery": "true",
+        }
+        try:
+            data = await self._fetch_json(base_url, params)
+            if not data or "quotes" not in data:
+                return []
+            results = []
+            for quote in data["quotes"][:limit]:
+                result = {
+                    "symbol": quote.get("symbol", ""),
+                    "name": quote.get("longname", quote.get("shortname", "")),
+                    "exchange": quote.get("exchange", ""),
+                    "type": quote.get("quoteType", ""),
+                    "score": quote.get("score", 0),
+                }
+                results.append(result)
+            return results
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            ModuleNotFoundError,
+            RuntimeError,
+            MemoryError,
+        ) as e:
+            raise e
+        except (IOError, ConnectionError, aiohttp.ClientError) as e:
+            raise NetworkError(f"Network error when searching tickers for '{query}': {str(e)}")
+        except (APIError, ValidationError, RateLimitError, NetworkError):
+            raise e
 
-        for attempt in range(self.max_retries):
-            try:
-                # Search for tickers
-                ticker_obj = await self._run_sync_in_executor(yf.Ticker, query)
-                search_results = await self._run_sync_in_executor(lambda: ticker_obj.search())
-
-                # Handle case where there are no search results
-                if (
-                    not search_results
-                    or "quotes" not in search_results
-                    or not search_results["quotes"]
-                ):
-                    # If no results, it's not necessarily an error, just no match
-                    return []
-
-                # Return the search results
-                return search_results.get("quotes", [])
-            except Exception as e:
-                # Log the error and retry if attempts remain
-                self.logger.warning(f"Search attempt {attempt + 1} failed for query '{query}': {e}")
-                if attempt < self.max_retries - 1:
-                    await asyncio.sleep(self.retry_delay * (self.backoff_factor**attempt))
-                else:
-                    # If last attempt failed, raise the exception
-                    raise APIError(
-                        f"Failed to search for ticker '{query}' after {self.max_retries} attempts: {e}"
-                    ) from e
-
-        # Should not reach here if max_retries > 0
-        return []
-
-    async def search_tickers(self, query: str, limit: int = 10) -> List[Dict[str, str]]:
-        """
-        Search for tickers matching a query.
-
-        Args:
-            query: Search query
-            limit: Maximum number of results to return
-
-        Returns:
-            List of matching tickers with metadata
-
-        Raises:
-            YFinanceError: When an error occurs while searching
-        """
-        if not query or not query.strip():
-            raise ValidationError("Search query cannot be empty")
-
-        for attempt in range(self.max_retries):
-            try:
-                # Search for tickers
-                ticker_obj = await self._run_sync_in_executor(yf.Ticker, query)
-                search_results = await self._run_sync_in_executor(
-                    lambda obj=ticker_obj: obj.search()
-                )
-
-                # Handle case where there are no search results
-                if (
-                    not search_results
-                    or "quotes" not in search_results
-                    or not search_results["quotes"]
-                ):
-                    # If no results, it's not necessarily an error, just no match
-                    return []
-
-                # Format results
-                results = []
-                for quote in search_results["quotes"][:limit]:
-                    result = {
-                        "symbol": quote.get("symbol", ""),
-                        "name": quote.get("longname", quote.get("shortname", "")),
-                        "exchange": quote.get("exchange", ""),
-                        "type": quote.get("quoteType", ""),
-                    }
-                    results.append(result)
-
-                return results
-            except RateLimitError as e:
-                # Specific handling for rate limits
-                self.logger.warning(f"Rate limit hit for search query '{query}': {e}")
-                if attempt < self.max_retries - 1:
-                    delay = self.retry_delay * (self.backoff_factor**attempt)
-                    self.logger.warning(f"Retrying search for '{query}' in {delay:.2f}s...")
-                    await asyncio.sleep(delay)
-                else:
-                    raise APIError(
-                        f"Rate limit exceeded for search query '{query}' after {self.max_retries} attempts"
-                    ) from e
-            except Exception as e:
-                # Handle other exceptions
-                self.logger.warning(f"Search attempt {attempt + 1} failed for query '{query}': {e}")
-                if attempt < self.max_retries - 1:
-                    delay = self.retry_delay * (self.backoff_factor**attempt)
-                    self.logger.warning(f"Retrying search for '{query}' in {delay:.2f}s...")
-                    await asyncio.sleep(delay)
-                else:
-                    raise APIError(
-                        f"Failed to search for ticker '{query}' after {self.max_retries} attempts: {e}"
-                    ) from e
-
-        # Should not reach here if max_retries > 0
-        return []
-
-    @async_rate_limited
+    @enhanced_async_rate_limited(max_retries=0)
     async def get_price_data(self, ticker: str) -> Dict[str, Any]:
-        """
-        Get price data for a ticker asynchronously.
-
-        Args:
-            ticker: Stock ticker symbol
-
-        Returns:
-            Dict containing price data
-
-        Raises:
-            YFinanceError: When an error occurs while fetching data
-        """
-        logger.debug(f"Getting price data for {ticker}")
+        """Get price data for a ticker asynchronously."""
+        logger.debug(f"Getting price data for {ticker} via Enhanced provider")
         info = await self.get_ticker_info(ticker)
-
-        # Extract price-related fields
+        if "error" in info:
+            return {"ticker": ticker, "error": info["error"]}
         return {
             "ticker": ticker,
-            "current_price": info.get("price"),
+            "current_price": info.get("current_price"),
+            "price": info.get("price"),
             "target_price": info.get("target_price"),
-            "upside": self._calculate_upside_potential(info.get("price"), info.get("target_price")),
+            "upside": info.get("upside"),
             "fifty_two_week_high": info.get("fifty_two_week_high"),
             "fifty_two_week_low": info.get("fifty_two_week_low"),
             "fifty_day_avg": info.get("fifty_day_avg"),
             "two_hundred_day_avg": info.get("two_hundred_day_avg"),
         }
 
-    async def _get_single_ticker_info_async(
-        self, ticker: str, skip_insider_metrics: bool = False
-    ) -> Dict[str, Any]:
-        """
-        Helper to get comprehensive information for a single ticker asynchronously.
-        This encapsulates the core logic used by get_ticker_info and batch_get_ticker_info.
-        """
-        logger.debug(f"Fetching single ticker info for {ticker}")
-        ticker_obj = await self._get_ticker_object(ticker)
-
-        result = {}
-        for attempt in range(self.max_retries):
+    # --- Start: Added Helper Methods (at class level) ---
+    def _has_post_earnings_ratings(self, ticker: str, yticker) -> bool:
+        """Check if there are ratings available since the last earnings date."""
+        try:
+            is_us = self._is_us_ticker(ticker)
+            if not is_us:
+                return False
+            last_earnings = self._get_last_earnings_date(yticker)
+            if last_earnings is None:
+                return False
             try:
-                info = await self._run_sync_in_executor(lambda: ticker_obj.info)
-                if not info:
-                    raise DataError(f"No information available for {ticker}")
+                # Get upgrades_downgrades but ensure we free memory afterward
+                upgrades_downgrades = None
+                try:
+                    upgrades_downgrades = getattr(yticker, "upgrades_downgrades", None)
+                    if upgrades_downgrades is None or upgrades_downgrades.empty:
+                        return False
 
-                result = await self._run_sync_in_executor(
-                    lambda data=info: self._extract_common_ticker_info(data)
-                )
-                result["symbol"] = ticker
+                    # Create a copy of the data to avoid reference issues
+                    if hasattr(upgrades_downgrades, "reset_index"):
+                        df = upgrades_downgrades.reset_index().copy()
+                    else:
+                        df = upgrades_downgrades.copy()
 
-                if is_us_ticker(ticker) and not skip_insider_metrics:
-                    try:
-                        insider_data = await self.get_insider_transactions(ticker)
-                        if insider_data:
-                            total_buys = sum(1 for tx in insider_data if tx.get("shares", 0) > 0)
-                            total_sells = sum(1 for tx in insider_data if tx.get("shares", 0) < 0)
-                            result["insider_transactions"] = len(insider_data)
-                            result["insider_buys"] = total_buys
-                            result["insider_sells"] = total_sells
-                            result["insider_ratio"] = (
-                                total_buys / (total_buys + total_sells)
-                                if (total_buys + total_sells) > 0
-                                else 0
-                            )
-                    except YFinanceError as e:
-                        logger.warning(f"Failed to get insider data for {ticker}: {str(e)}")
+                    # Process the GradeDate column
+                    if "GradeDate" not in df.columns:
+                        if "index" in df.columns and pd.api.types.is_datetime64_any_dtype(
+                            df["index"]
+                        ):
+                            df.rename(columns={"index": "GradeDate"}, inplace=True)
+                        elif hasattr(upgrades_downgrades, "index") and isinstance(
+                            upgrades_downgrades.index, pd.DatetimeIndex
+                        ):
+                            df["GradeDate"] = upgrades_downgrades.index
+                        else:
+                            logger.warning(f"Could not find GradeDate column for {ticker}")
+                            return False
 
-                break
-            except RateLimitError:
-                raise
+                    # Convert dates
+                    df["GradeDate"] = pd.to_datetime(df["GradeDate"], errors="coerce")
+                    df.dropna(subset=["GradeDate"], inplace=True)
+
+                    # Get post-earnings data
+                    # Convert with consistent timezone handling
+                    earnings_date = pd.to_datetime(last_earnings)
+
+                    # Make sure both dates have the same timezone information
+                    if "GradeDate" in df.columns:
+                        if any(
+                            date.tzinfo is not None
+                            for date in df["GradeDate"]
+                            if hasattr(date, "tzinfo")
+                        ):
+                            # GradeDates have timezone info but earnings_date might not
+                            if earnings_date.tzinfo is None:
+                                # Use the timezone from the first date with timezone info
+                                for date in df["GradeDate"]:
+                                    if hasattr(date, "tzinfo") and date.tzinfo is not None:
+                                        earnings_date = earnings_date.tz_localize(date.tzinfo)
+                                        break
+                        elif earnings_date.tzinfo is not None:
+                            # GradeDates don't have timezone but earnings_date does
+                            earnings_date = earnings_date.tz_localize(None)
+
+                    # Filter with now timezone-compatible dates
+                    post_earnings_df = df[df["GradeDate"] >= earnings_date]
+
+                    # Calculate statistics if we have data
+                    if not post_earnings_df.empty:
+                        total_ratings = len(post_earnings_df)
+                        positive_ratings = post_earnings_df[
+                            post_earnings_df["ToGrade"].isin(self.POSITIVE_GRADES)
+                        ].shape[0]
+
+                        # Cache only the results, not the dataframes
+                        self._ratings_cache[ticker] = {
+                            "buy_percentage": (
+                                (positive_ratings / total_ratings * 100) if total_ratings > 0 else 0
+                            ),
+                            "total_ratings": total_ratings,
+                            "ratings_type": "E",
+                        }
+                        return True
+
+                    return False
+
+                finally:
+                    # Explicitly clear references to free memory
+                    del upgrades_downgrades
+
             except YFinanceError as e:
-                delay = self._handle_retry_logic(e, attempt, ticker, "single ticker info")
-                await asyncio.sleep(delay)
+                logger.warning(
+                    f"Error getting post-earnings ratings for {ticker}: {e}", exc_info=False
+                )
+            return False
+        except YFinanceError as e:
+            logger.warning(f"Error in _has_post_earnings_ratings for {ticker}: {e}", exc_info=False)
+            return False
 
-        return result
+    def _get_last_earnings_date(self, yticker):
+        """Get the last earnings date with optimized memory handling."""
+        try:  # Try calendar first
+            calendar = None
+            earnings_date_list = None
+            today = None
+            past_earnings = None
+            result = None
+
+            try:
+                calendar = getattr(yticker, "calendar", None)
+                if isinstance(calendar, dict) and COLUMN_NAMES["EARNINGS_DATE"] in calendar:
+                    earnings_date_list = calendar[COLUMN_NAMES["EARNINGS_DATE"]]
+                    if isinstance(earnings_date_list, list) and len(earnings_date_list) > 0:
+                        today = pd.Timestamp.now().date()
+                        # Filter without creating a new list to avoid memory leaks
+                        latest_date = None
+                        for d in earnings_date_list:
+                            if isinstance(d, datetime.date) and d < today:
+                                if latest_date is None or d > latest_date:
+                                    latest_date = d
+
+                        if latest_date is not None:
+                            result = latest_date.strftime("%Y-%m-%d")
+                            return result
+            finally:
+                # Explicitly delete references to free memory
+                del calendar
+                del earnings_date_list
+                del today
+                del past_earnings
+
+        except YFinanceError as e:
+            logger.debug(
+                f"Error getting earnings from calendar for {yticker.ticker}: {e}", exc_info=False
+            )
+
+        try:  # Try earnings_dates attribute
+            earnings_dates = None
+            today = None
+            tz = None
+            past_dates = None
+            result = None
+
+            try:
+                earnings_dates = getattr(yticker, "earnings_dates", None)
+                if earnings_dates is not None and not earnings_dates.empty:
+                    today = pd.Timestamp.now()
+
+                    # Handle timezone issues without creating unnecessary objects
+                    tz = earnings_dates.index.tz
+
+                    # Find the latest date without creating a new list
+                    latest_date = None
+                    for date in earnings_dates.index:
+                        # Create comparison variables to handle timezone issues
+                        compare_date = date
+                        compare_today = today
+
+                        # Handle timezone differences by making timestamps comparable
+                        if date.tzinfo is not None and today.tzinfo is None:
+                            # Convert today to have the same timezone
+                            compare_today = today.tz_localize(date.tzinfo)
+                        elif date.tzinfo is None and today.tzinfo is not None:
+                            # Convert date to have the same timezone
+                            compare_date = date.tz_localize(today.tzinfo)
+
+                        # Compare and keep the latest
+                        if compare_date < compare_today:
+                            if latest_date is None or compare_date > latest_date:
+                                latest_date = compare_date
+
+                    # Format the date if found
+                    if latest_date is not None:
+                        result = latest_date.strftime("%Y-%m-%d")
+                        return result
+            finally:
+                # Explicitly delete references to free memory
+                del earnings_dates
+                del today
+                del tz
+                del past_dates
+
+        except YFinanceError as e:
+            logger.debug(
+                f"Error getting earnings from earnings_dates for {yticker.ticker}: {e}",
+                exc_info=False,
+            )
+
+        return None
+
+    def _is_us_ticker(self, ticker: str) -> bool:  # Keep this helper
+        """Check if a ticker is a US ticker based on suffix (kept identical)."""
+        try:
+            from ...utils.market.ticker_utils import is_us_ticker as util_is_us_ticker
+
+            return util_is_us_ticker(ticker)
+        except ImportError:
+            logger.warning("Could not import is_us_ticker utility, using inline logic.")
+            if ticker in ["BRK.A", "BRK.B", "BF.A", "BF.B"]:
+                return True
+            if "." not in ticker:
+                return True
+            if ticker.endswith(".US"):
+                return True
+            return False
+
+    def _format_market_cap(self, value: Optional[float]) -> Optional[str]:
+        """Format market cap value."""
+        if value is None:
+            return None
+        try:
+            val = float(value)
+            if val >= 1e12:
+                return f"{val / 1e12:.1f}T" if val >= 10e12 else f"{val / 1e12:.2f}T"
+            elif val >= 1e9:
+                if val >= 100e9:
+                    return f"{int(val / 1e9)}B"
+                elif val >= 10e9:
+                    return f"{val / 1e9:.1f}B"
+                else:
+                    return f"{val / 1e9:.2f}B"
+            elif val >= 1e6:
+                if val >= 100e6:
+                    return f"{int(val / 1e6)}M"
+                elif val >= 10e6:
+                    return f"{val / 1e6:.1f}M"
+                else:
+                    return f"{val / 1e6:.2f}M"
+            else:
+                return f"{int(val):,}"
+        except (ValueError, TypeError):
+            return str(value)
+
+    def _calculate_upside_potential(
+        self, current_price: Optional[float], target_price: Optional[float]
+    ) -> Optional[float]:
+        """Calculate upside potential percentage."""
+        if current_price is not None and target_price is not None and current_price > 0:
+            try:
+                return ((float(target_price) / float(current_price)) - 1) * 100
+            except (ValueError, TypeError, ZeroDivisionError):
+                pass
+        return None
+
+    def _format_date(self, date: Any) -> Optional[str]:
+        """Format date object to YYYY-MM-DD string."""
+        if date is None:
+            return None
+        if isinstance(date, str):
+            return date[:10]
+
+        # Handle datetime/date objects without retaining references that could cause tzinfo leaks
+        if hasattr(date, "strftime"):
+            try:
+                # Convert to simple string immediately to avoid holding timezone references
+                formatted = date.strftime("%Y-%m-%d")
+                # Force date object to be garbage collected
+                date = None
+                return formatted
+            except AttributeError:
+                # If strftime fails for some reason
+                pass
+
+        # Fall back to string conversion
+        try:
+            result = str(date)[:10]
+            # Explicitly remove reference to the original object
+            date = None
+            return result
+        except Exception as e:
+            # Translate standard exception to our error hierarchy
+            custom_error = translate_error(e, context={"location": __name__})
+            raise custom_error
+        return None
+
+    # --- End: Added Helper Methods ---
 
     async def batch_get_ticker_info(
         self, tickers: List[str], skip_insider_metrics: bool = False
     ) -> Dict[str, Dict[str, Any]]:
         """
         Get ticker information for multiple tickers in a batch asynchronously.
-
-        Args:
-            tickers: List of stock ticker symbols
-            skip_insider_metrics: If True, skip fetching insider trading metrics
-
-        Returns:
-            Dict mapping ticker symbols to their information dicts
-
-        Raises:
-            YFinanceError: When an error occurs while fetching data
+        Uses optimized async processing with prioritization and proper error handling.
         """
         if not tickers:
             return {}
 
-        logger.debug(f"Getting batch ticker info for {len(tickers)} tickers")
+        # Identify high-priority tickers (important US stocks)
+        from ...utils.market.ticker_utils import is_us_ticker
 
-        # Create a list to store results
-        results = {}
+        high_priority_tickers = [ticker for ticker in tickers if is_us_ticker(ticker)]
 
-        try:
-            # Process tickers in batches with controlled concurrency
+        # Get known high-priority tickers from VIP_TICKERS in config
+        from ...core.config import RATE_LIMIT
+
+        vip_tickers = RATE_LIMIT.get("VIP_TICKERS", set())
+        if vip_tickers:
+            # Add any VIP tickers that are in our request list to the high priority list
+            priority_set = set(high_priority_tickers)
             for ticker in tickers:
-                try:
-                    # Use the single ticker helper function
-                    info = await self._get_single_ticker_info_async(ticker, skip_insider_metrics)
-                    # Create a deep copy of the info to avoid reference issues
-                    import copy
+                if ticker in vip_tickers and ticker not in priority_set:
+                    high_priority_tickers.append(ticker)
 
-                    results[ticker] = copy.deepcopy(info)
-                except YFinanceError as e:
-                    results[ticker] = self._process_error_for_batch(ticker, e)
+        async def get_info_for_ticker(ticker: str) -> Dict[str, Any]:
+            """Wrapper to fetch info for a single ticker and handle errors."""
+            try:
+                return await self.get_ticker_info(ticker, skip_insider_metrics)
+            except YFinanceError as e:
+                logger.error(f"Error fetching batch data for {ticker}: {e}")
+                return {"symbol": ticker, "ticker": ticker, "company": ticker, "error": str(e)}
 
-                # Force garbage collection after each ticker to prevent memory accumulation
-                if len(results) % 5 == 0:  # Every 5 tickers
-                    # Use memory utilities for thorough cleanup
-                    try:
-                        from ...utils.memory_utils import clean_memory
+        # Use the new process_batch_async with prioritization from async_utils.enhanced
+        from ...utils.async_utils.enhanced import process_batch_async
 
-                        clean_memory()
-                    except ImportError:
-                        # Fall back to basic garbage collection
-                        import gc
+        batch_results = await process_batch_async(
+            items=tickers,
+            processor=get_info_for_ticker,
+            batch_size=min(15, len(tickers)),  # Reasonably sized batches
+            concurrency=self.max_concurrency,
+            priority_items=high_priority_tickers,
+            description=f"Processing {len(tickers)} tickers",
+        )
 
-                        gc.collect()
+        # Ensure all results have the expected format
+        processed_results = {}
+        for ticker, result in batch_results.items():
+            if isinstance(result, dict) and "symbol" in result:
+                processed_results[result["symbol"]] = result
+            elif isinstance(ticker, str):
+                # Create a fallback result for unexpected return types
+                logger.warning(f"Unexpected result type for {ticker}: {type(result)}")
+                processed_results[ticker] = {
+                    "symbol": ticker,
+                    "ticker": ticker,
+                    "company": ticker,
+                    "error": "Invalid result format received",
+                }
 
-            return results
-        finally:
-            # Explicitly trigger garbage collection to clean up resources
-            # This helps prevent memory leaks when processing large batches
+        return processed_results
+
+    async def close(self) -> None:
+        """Close the underlying aiohttp session and clean up resources."""
+        if self._session and not self._session.closed:
+            await self._session.close()
+            self._session = None
+
+        # Clear all caches to prevent memory leaks
+        self.clear_cache()
+
+        # Use memory utilities for thorough cleanup
+        try:
+            from ...utils.memory_utils import clean_memory
+
+            cleanup_results = clean_memory()
+            logger.debug(f"Memory cleanup results: {cleanup_results}")
+        except ImportError:
+            # Fall back to basic garbage collection
             import gc
 
             gc.collect()
-            gc.collect()  # Run twice to handle objects with circular references
+
+        logger.debug("Async provider session closed and resources cleaned up.")
 
     def clear_cache(self) -> None:
-        """
-        Clear the ticker object cache.
-        """
-        self._ticker_cache.clear()
+        """Clear internal caches and free up memory."""
+        # Clear all internal caches
+        if hasattr(self, "_ticker_cache"):
+            self._ticker_cache.clear()
+        if hasattr(self, "_stock_cache"):
+            self._stock_cache.clear()
+        if hasattr(self, "_ratings_cache"):
+            self._ratings_cache.clear()
+
+        # Use memory utilities for thorough cleanup
+        try:
+            from ...utils.memory_utils import clean_memory
+
+            cleanup_results = clean_memory()
+            logger.debug(f"Memory cleanup results: {cleanup_results}")
+        except ImportError:
+            # Fall back to basic cleanup if the utility isn't available
+            # Import datetime and tzinfo here to check for memory leaks
+            import sys
+
+            if "pandas" in sys.modules:
+                # Clear pandas caches if pandas is loaded
+                try:
+                    import pandas as pd
+
+                    pd.core.common._possibly_clean_cache()
+                except (ImportError, AttributeError):
+                    pass
+
+        logger.info("Async provider internal caches cleared and memory freed.")
 
     def get_cache_info(self) -> Dict[str, Any]:
-        """
-        Get information about the current cache state.
-
-        Returns:
-            Dict containing cache information
-        """
+        """Get information about the internal caches."""
+        # Note: This only reflects the simple instance cache, not CacheManager
         return {
             "ticker_cache_size": len(self._ticker_cache),
-            "ticker_cache_keys": list(self._ticker_cache.keys()),
-            "max_concurrency": self.max_concurrency,
+            "stock_object_cache_size": len(self._stock_cache),
+            "ratings_cache_size": len(self._ratings_cache),
         }
+
+    async def __aenter__(self):
+        await self._ensure_session()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.close()
 
     def __del__(self):
         """Cleanup resources when the object is garbage collected."""
         # Clear all caches
         if hasattr(self, "_ticker_cache"):
             self._ticker_cache.clear()
+        if hasattr(self, "_stock_cache"):
+            self._stock_cache.clear()
+        if hasattr(self, "_ratings_cache"):
+            self._ratings_cache.clear()
 
-        # Shutdown the thread pool to prevent memory leaks
-        if hasattr(self, "_executor"):
-            self._executor.shutdown(wait=False)
+        # Ensure session is closed
+        if hasattr(self, "_session") and self._session and not self._session.closed:
+            import asyncio
+
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    loop.create_task(self._session.close())
+                else:
+                    try:
+                        loop.run_until_complete(self._session.close())
+                    except RuntimeError:
+                        # Likely no running event loop, just set to None
+                        pass
+            except Exception:
+                # Last resort - just null the reference so it can be GC'd
+                pass
+            self._session = None
 
         # Use memory_utils if available for efficient cleanup
         try:

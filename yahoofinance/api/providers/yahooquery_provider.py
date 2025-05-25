@@ -13,7 +13,7 @@ import pandas as pd
 from yahooquery import Ticker
 
 from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from yahoofinance.utils.error_handling import (
+from ...utils.error_handling import (
     enrich_error_context,
     safe_operation,
     translate_error,
@@ -21,7 +21,7 @@ from yahoofinance.utils.error_handling import (
 )
 
 from ...core.errors import APIError, RateLimitError, ValidationError, YFinanceError
-from ...core.logging_config import get_logger
+from ...core.logging import get_logger
 from .base_provider import FinanceDataProvider
 from .yahoo_finance_base import YahooFinanceBaseProvider
 

@@ -13,7 +13,7 @@ import pandas as pd
 import yfinance as yf
 
 from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from yahoofinance.utils.error_handling import (
+from ...utils.error_handling import (
     enrich_error_context,
     safe_operation,
     translate_error,
@@ -22,9 +22,9 @@ from yahoofinance.utils.error_handling import (
 
 from ...core.config import CACHE_CONFIG, COLUMN_NAMES
 from ...core.errors import APIError, RateLimitError, ValidationError, YFinanceError
-from ...core.logging_config import get_logger
+from ...core.logging import get_logger
 from ...data.cache import default_cache_manager
-from ...utils.market.ticker_utils import is_us_ticker
+from ...utils.market.ticker_utils import is_us_ticker, is_stock_ticker
 from ...utils.network.rate_limiter import rate_limited
 from .base_provider import FinanceDataProvider
 from .yahoo_finance_base import YahooFinanceBaseProvider
@@ -191,24 +191,28 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                             # Mark as missing on error
                             default_cache_manager.set_missing_data(ticker, "short_interest", is_us)
 
-                    try:
-                        # Get insider metrics
-                        insider_data = self.get_insider_transactions(ticker)
-                        if insider_data:
-                            # Calculate insider metrics
-                            total_buys = sum(1 for tx in insider_data if tx.get("shares", 0) > 0)
-                            total_sells = sum(1 for tx in insider_data if tx.get("shares", 0) < 0)
+                    # Only try to get insider data for actual stocks, not ETFs/commodities/crypto
+                    if is_stock_ticker(ticker):
+                        try:
+                            # Get insider metrics
+                            insider_data = self.get_insider_transactions(ticker)
+                            if insider_data:
+                                # Calculate insider metrics
+                                total_buys = sum(1 for tx in insider_data if tx.get("shares", 0) > 0)
+                                total_sells = sum(1 for tx in insider_data if tx.get("shares", 0) < 0)
 
-                            result["insider_transactions"] = len(insider_data)
-                            result["insider_buys"] = total_buys
-                            result["insider_sells"] = total_sells
-                            result["insider_ratio"] = (
-                                total_buys / (total_buys + total_sells)
-                                if (total_buys + total_sells) > 0
-                                else 0
-                            )
-                    except YFinanceError as e:
-                        logger.warning(f"Failed to get insider data for {ticker}: {str(e)}")
+                                result["insider_transactions"] = len(insider_data)
+                                result["insider_buys"] = total_buys
+                                result["insider_sells"] = total_sells
+                                result["insider_ratio"] = (
+                                    total_buys / (total_buys + total_sells)
+                                    if (total_buys + total_sells) > 0
+                                    else 0
+                                )
+                        except YFinanceError as e:
+                            logger.warning(f"Failed to get insider data for {ticker}: {str(e)}")
+                    else:
+                        logger.debug(f"Skipping insider data for non-stock asset {ticker}")
                 else:
                     # For non-US stocks, we know short interest is generally not available
                     if not si_missing:
@@ -216,6 +220,7 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                         logger.debug(f"Marked short interest as missing for non-US ticker {ticker}")
 
                 # Add analyst data for all tickers (both US and non-US)
+                # However, some asset types like ETFs/commodities may not have analyst ratings
                 try:
                     analyst_data = self.get_analyst_ratings(ticker)
                     if analyst_data:
@@ -233,6 +238,7 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                         )
                 except YFinanceError as e:
                     logger.warning(f"Error fetching analyst data for {ticker}: {str(e)}")
+                    # For non-stock assets, this is expected - don't treat as a critical error
 
                 # Cache the result before returning
                 default_cache_manager.set(
@@ -464,8 +470,13 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 # Get analyst consensus data using the enhanced base method
                 consensus = self._get_analyst_consensus(ticker_obj, ticker)
 
-                # Get the recommendations
-                recommendations = ticker_obj.recommendations
+                # Get the recommendations - this can fail for ETFs/commodities/crypto
+                recommendations = None
+                try:
+                    recommendations = ticker_obj.recommendations
+                except Exception as e:
+                    logger.debug(f"Could not get recommendations for {ticker}: {str(e)}")
+                    # This is expected for non-stock assets like ETFs, commodities, crypto
 
                 # Add symbol and date if available
                 result = {"symbol": ticker}
@@ -535,6 +546,11 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         # Skip insider transactions for non-US tickers
         if not is_us_ticker(ticker):
             logger.debug(f"Skipping insider transactions for non-US ticker {ticker}")
+            return []
+
+        # Skip insider transactions for non-stock assets (ETFs, commodities, crypto)
+        if not is_stock_ticker(ticker):
+            logger.debug(f"Skipping insider transactions for non-stock asset {ticker}")
             return []
 
         for attempt in range(self.max_retries):

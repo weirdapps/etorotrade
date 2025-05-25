@@ -14,7 +14,7 @@ from yahooquery import Ticker
 
 from ...core.config import CACHE_CONFIG, COLUMN_NAMES, POSITIVE_GRADES
 from ...core.errors import APIError, RateLimitError, ValidationError, YFinanceError
-from ...core.logging_config import get_logger
+from ...core.logging import get_logger
 from ...utils.async_utils.enhanced import async_rate_limited
 from ...utils.market.ticker_utils import is_us_ticker
 from .base_provider import AsyncFinanceDataProvider

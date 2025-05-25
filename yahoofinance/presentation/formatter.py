@@ -11,7 +11,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from yahoofinance.utils.error_handling import (
+from ..utils.error_handling import (
     enrich_error_context,
     safe_operation,
     translate_error,
@@ -295,7 +295,7 @@ class DisplayFormatter:
         except ValueError:
             # For special values like "--" or non-numeric strings
             if value in ["--", "N/A"]:
-                return value
+                return "--"  # Normalize both to "--"
             # Try to handle negative PE specifically
             if "-" in value:
                 return f"{Color.PURPLE.value}{value}{Color.RESET.value}"
@@ -538,7 +538,7 @@ def create_formatter(
         ValidationError: When the output format is invalid or not supported
     """
     from yahoofinance.core.errors import ValidationError
-    from yahoofinance.core.logging_config import get_logger
+    from yahoofinance.core.logging import get_logger
 
     logger = get_logger(__name__)
 

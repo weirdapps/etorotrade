@@ -8,7 +8,7 @@ ensuring consistent access and configuration across the application.
 from typing import Any, Dict, List, Optional, Set, Type, Union, cast
 
 from ..core.errors import ValidationError
-from ..core.logging_config import get_logger
+from ..core.logging import get_logger
 from ..utils.dependency_injection import registry
 
 # Import provider interfaces
@@ -26,7 +26,6 @@ PROVIDER_TYPES = {
     "yahoo": {
         "sync": "yahoofinance.api.providers.yahoo_finance.YahooFinanceProvider",
         "async": "yahoofinance.api.providers.async_yahoo_finance.AsyncYahooFinanceProvider",
-        "async_enhanced": "yahoofinance.api.providers.enhanced_async_yahoo_finance.EnhancedAsyncYahooFinanceProvider",
     },
     "yahooquery": {
         "sync": "yahoofinance.api.providers.yahooquery_provider.YahooQueryProvider",
@@ -35,9 +34,6 @@ PROVIDER_TYPES = {
     "hybrid": {
         "sync": "yahoofinance.api.providers.hybrid_provider.HybridProvider",
         "async": "yahoofinance.api.providers.async_hybrid_provider.AsyncHybridProvider",
-    },
-    "optimized": {
-        "async": "yahoofinance.api.providers.optimized_async_yfinance.OptimizedAsyncYFinanceProvider",
     },
 }
 
@@ -142,9 +138,7 @@ def get_provider(
 
     # Determine which provider to use based on mode
     if async_mode:
-        if enhanced and "async_enhanced" in PROVIDER_TYPES[provider_type]:
-            provider_key = f"{provider_type}.async_enhanced"
-        elif "async" in PROVIDER_TYPES[provider_type]:
+        if "async" in PROVIDER_TYPES[provider_type]:
             provider_key = f"{provider_type}.async"
         else:
             raise ValidationError(f"No async provider available for {provider_type}")

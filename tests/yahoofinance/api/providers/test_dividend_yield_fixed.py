@@ -17,8 +17,8 @@ from trade import (
     format_numeric_columns,
 )
 from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
-from yahoofinance.api.providers.enhanced_async_yahoo_finance import (
-    EnhancedAsyncYahooFinanceProvider,
+from yahoofinance.api.providers.async_yahoo_finance import (
+    AsyncYahooFinanceProvider,
 )
 
 
@@ -26,7 +26,7 @@ async def test_dividend_yield():
     """Test dividend yield for some high-dividend tickers."""
     # Create providers (both for comparison)
     hybrid_provider = AsyncHybridProvider(max_concurrency=5)
-    enhanced_provider = EnhancedAsyncYahooFinanceProvider(max_concurrency=5)
+    enhanced_provider = AsyncYahooFinanceProvider(max_concurrency=5)
 
     # Test with some high-dividend tickers
     tickers = ["AAPL", "T", "VZ", "KO", "XOM", "MO"]

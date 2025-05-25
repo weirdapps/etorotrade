@@ -34,7 +34,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from yahoofinance.utils.error_handling import (
+from ..utils.error_handling import (
     enrich_error_context,
     safe_operation,
     translate_error,
@@ -44,7 +44,7 @@ from yahoofinance.utils.error_handling import (
 from ..api import AsyncFinanceDataProvider, FinanceDataProvider, get_provider
 from ..core.config import FILE_PATHS, PATHS
 from ..core.errors import NetworkError, ValidationError, YFinanceError
-from ..core.logging_config import get_logger
+from ..core.logging import get_logger
 from ..presentation.html import FormatUtils, HTMLGenerator
 from ..utils.network.circuit_breaker import async_circuit_protected, circuit_protected
 

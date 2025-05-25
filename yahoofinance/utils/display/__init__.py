@@ -5,7 +5,7 @@ This package provides utilities for display formatting and processing
 of trade data.
 """
 
-from yahoofinance.utils.display_helpers import (
+from ...utils.display_helpers import (
     apply_color_formatting,
     check_confidence_threshold,
     display_tabulate_results,

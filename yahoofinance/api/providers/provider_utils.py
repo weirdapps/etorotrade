@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 
 from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from yahoofinance.utils.error_handling import (
+from ...utils.error_handling import (
     enrich_error_context,
     safe_operation,
     translate_error,
@@ -20,7 +20,7 @@ from yahoofinance.utils.error_handling import (
 )
 
 from ...core.errors import APIError, RateLimitError, ValidationError
-from ...core.logging_config import get_logger
+from ...core.logging import get_logger
 
 
 logger = get_logger(__name__)
@@ -39,6 +39,32 @@ def is_rate_limit_error(error: Exception) -> bool:
     error_str = str(error).lower()
     rate_limit_patterns = ["rate limit", "too many requests", "429", "quota exceeded", "throttled"]
     return any(pattern in error_str for pattern in rate_limit_patterns)
+
+
+def safe_extract_value(obj: Any, key: str, default: Any = 0) -> Any:
+    """
+    Safely extract a value from an object, converting to float with fallback.
+
+    Args:
+        obj: Object to extract from
+        key: Key to extract
+        default: Default value if extraction fails
+
+    Returns:
+        Extracted value or default
+    """
+    try:
+        if hasattr(obj, "get"):
+            value = obj.get(key, default)
+        elif hasattr(obj, key):
+            value = getattr(obj, key)
+        else:
+            return default
+
+        # Try to convert to float
+        return float(value)
+    except (ValueError, TypeError, AttributeError):
+        return default
 
 
 @with_retry
@@ -139,22 +165,17 @@ def merge_ticker_results(
         errors: Dictionary mapping tickers to error messages
 
     Returns:
-        Dictionary mapping all tickers to their results or None for failed tickers
+        Dictionary mapping all tickers to their results or errors
     """
     # Start with successful results
     merged = {ticker: data for ticker, data in results.items()}
 
     # Add failed tickers
     for ticker in failed_tickers:
-        merged[ticker] = None
+        merged[ticker] = {"symbol": ticker, "error": "Failed to process"}
 
     # Add error information for failed tickers
     for ticker, error in errors.items():
-        if ticker in merged and merged[ticker] is None:
-            # Already added as None, no change needed
-            pass
-        else:
-            # Add as None with error info available
-            merged[ticker] = None
+        merged[ticker] = {"symbol": ticker, "error": error}
 
     return merged

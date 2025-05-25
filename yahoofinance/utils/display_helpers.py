@@ -12,15 +12,15 @@ import pandas as pd
 
 from yahoofinance.core.config import COLUMN_NAMES, TRADING_CRITERIA
 from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from yahoofinance.utils.error_handling import (
+from ..utils.error_handling import (
     enrich_error_context,
     safe_operation,
     translate_error,
     with_retry,
 )
-from yahoofinance.utils.trade_criteria import calculate_action_for_row, normalize_row_columns
+from ..utils.trade_criteria import calculate_action_for_row, normalize_row_columns
 
-from ..core.logging_config import get_logger
+from ..core.logging import get_logger
 
 
 # Configure logger
@@ -440,7 +440,7 @@ def create_display(output_format="console", **kwargs):
         ValidationError: When the output format is invalid or not supported
     """
     from yahoofinance.core.errors import ValidationError
-    from yahoofinance.core.logging_config import get_logger
+    from yahoofinance.core.logging import get_logger
 
     logger = get_logger(__name__)
 

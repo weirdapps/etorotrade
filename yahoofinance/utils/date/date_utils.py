@@ -11,7 +11,7 @@ from typing import List, Optional, Tuple, Union
 import pandas as pd
 
 from ...core.errors import APIError, DataError, ValidationError, YFinanceError
-from ...core.logging_config import get_logger
+from ...core.logging import get_logger
 from ..error_handling import enrich_error_context, safe_operation, translate_error, with_retry
 
 

@@ -21,9 +21,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from yahoofinance.core.enhanced_metrics import setup_enhanced_metrics
 from yahoofinance.core.health_endpoints import start_health_endpoints, stop_health_endpoints
-from yahoofinance.core.logging_config import get_logger
+from yahoofinance.core.logging_config.logging import get_logger
 from yahoofinance.core.monitoring import setup_monitoring
-from yahoofinance.core.structured_logging import (
+from yahoofinance.core.logging import (
     get_structured_logger, setup_json_logging, generate_request_id
 )
 from yahoofinance.presentation.monitoring_dashboard import save_dashboard_html

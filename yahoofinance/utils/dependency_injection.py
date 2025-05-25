@@ -11,7 +11,7 @@ from functools import wraps
 from typing import Any, Callable, Dict, Generic, List, Optional, Type, TypeVar, Union, cast
 
 from ..core.errors import ValidationError, YFinanceError
-from ..core.logging_config import get_logger
+from ..core.logging import get_logger
 
 
 # Set up logging

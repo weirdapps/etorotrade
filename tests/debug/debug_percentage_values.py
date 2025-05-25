@@ -11,8 +11,8 @@ from trade import format_numeric_columns
 
 # Import the provider
 from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
-from yahoofinance.api.providers.enhanced_async_yahoo_finance import (
-    EnhancedAsyncYahooFinanceProvider,
+from yahoofinance.api.providers.async_yahoo_finance import (
+    AsyncYahooFinanceProvider,
 )
 from yahoofinance.api.providers.yahoo_finance import YahooFinanceProvider
 
@@ -21,7 +21,7 @@ async def main():
     """Run the debug script."""
     # Create providers
     async_hybrid = AsyncHybridProvider()
-    enhanced = EnhancedAsyncYahooFinanceProvider()
+    enhanced = AsyncYahooFinanceProvider()
     sync_provider = YahooFinanceProvider()  # For comparison
 
     # Test ticker

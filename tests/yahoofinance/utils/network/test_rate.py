@@ -18,7 +18,7 @@ from unittest.mock import MagicMock, patch
 # Create a reusable test fixture module
 from tests.fixtures.async_fixtures import create_bulk_fetch_mocks
 from yahoofinance.core.errors import APIError, RateLimitError
-from yahoofinance.core.logging_config import get_logger
+from yahoofinance.core.logging import get_logger
 from yahoofinance.utils.network.batch import batch_process
 from yahoofinance.utils.network.rate_limiter import RateLimiter, global_rate_limiter, rate_limited
 

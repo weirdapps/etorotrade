@@ -15,7 +15,7 @@ import pandas as pd
 
 from ..api import AsyncFinanceDataProvider, FinanceDataProvider, get_provider
 from ..core.errors import APIError, DataError, ValidationError, YFinanceError
-from ..core.logging_config import get_logger
+from ..core.logging import get_logger
 from ..utils.dependency_injection import registry
 from ..utils.error_handling import enrich_error_context, safe_operation, translate_error, with_retry
 from .analyzer_factory import with_analyzer

@@ -22,7 +22,7 @@ from tests.fixtures.async_fixtures import (
     create_paginated_data,
 )
 from yahoofinance.core.errors import APIError, RateLimitError, YFinanceError
-from yahoofinance.core.logging_config import get_logger
+from yahoofinance.core.logging import get_logger
 from yahoofinance.utils.async_utils.enhanced import (
     AsyncRateLimiter,
     async_rate_limited,

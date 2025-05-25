@@ -8,7 +8,7 @@ tables, HTML, CSV, and other formats.
 import math
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from ...core.logging_config import get_logger
+from ...core.logging import get_logger
 from ..error_handling import enrich_error_context, safe_operation, translate_error, with_retry
 
 
@@ -38,7 +38,7 @@ def format_number(
     """
 
     if value is None or value == "":
-        return "N/A"
+        return "--"
 
     try:
         num_value = float(value)
@@ -47,9 +47,11 @@ def format_number(
 
     # Handle special cases
     if math.isnan(num_value):
-        return "N/A"
+        return "--"
     if math.isinf(num_value):
         return "∞" if num_value > 0 else "-∞"
+    if num_value == 0 and as_percentage:
+        return "--"  # Show 0% as -- for better readability
 
     # Apply formatting options
     if as_percentage:
@@ -264,7 +266,7 @@ def _apply_formatter(value: Any, formatter: Optional[Dict[str, Any]] = None) -> 
     """
 
     if value is None:
-        return "N/A"
+        return "--"
 
     if formatter:
         precision = formatter.get("precision", 2)
@@ -281,7 +283,7 @@ def _apply_formatter(value: Any, formatter: Optional[Dict[str, Any]] = None) -> 
         )
 
     # Default formatting if no formatter provided
-    return str(value) if value is not None else "N/A"
+    return str(value) if value is not None else "--"
 
 
 def process_tabular_data(

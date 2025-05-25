@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, Optional, Union
 
 from ..utils.dependency_injection import inject, lazy_import, provides, registry
 from .errors import ValidationError, YFinanceError
-from .logging_config import get_logger
+from .logging import get_logger
 
 
 # Set up logging
@@ -39,7 +39,7 @@ def setup_application():
 
     # Register core services
     try:
-        from .logging_config import get_logger as logger_factory
+        from .logging import get_logger as logger_factory
 
         registry.register("logger_factory", logger_factory)
 

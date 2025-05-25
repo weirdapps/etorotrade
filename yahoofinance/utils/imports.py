@@ -12,7 +12,7 @@ from functools import wraps
 from typing import Any, Callable, Dict, Optional, Type, TypeVar, cast
 
 from ..core.errors import ValidationError, YFinanceError
-from ..core.logging_config import get_logger
+from ..core.logging import get_logger
 from .error_handling import enrich_error_context, safe_operation, translate_error, with_retry
 
 

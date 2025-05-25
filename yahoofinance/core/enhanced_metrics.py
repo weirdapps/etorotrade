@@ -15,7 +15,7 @@ from typing import Any, Callable, Dict, List, Optional, Set, Type, TypeVar, Unio
 
 import psutil
 
-from .logging_config import get_logger
+from .logging import get_logger
 from .monitoring import (
     GaugeMetric,
     HealthCheck,
