@@ -14,7 +14,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from yahoofinance.core.config import CACHE_CONFIG, POSITIVE_GRADES, RATE_LIMIT, RISK_METRICS
-from yahoofinance.core.logging_config import get_logger
+from yahoofinance.core.logging import get_logger
 from yahoofinance.data.cache import CacheManager
 from yahoofinance.presentation.html import FormatUtils
 from yahoofinance.utils.market.ticker_utils import is_us_ticker, normalize_hk_ticker

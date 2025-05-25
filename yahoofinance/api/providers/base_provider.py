@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import pandas as pd
 
 from ...core.errors import YFinanceError
-from ...core.logging_config import get_logger
+from ...core.logging import get_logger
 
 
 logger = get_logger(__name__)

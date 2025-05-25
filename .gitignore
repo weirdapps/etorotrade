@@ -26,7 +26,7 @@ MANIFEST
 
 # Python testing
 .pytest_cache/
-pytest.ini
+.mypy_cache/
 
 # Unit test / coverage reports
 htmlcov/
@@ -87,10 +87,21 @@ Thumbs.db
 # Project specific
 yahoofinance/cache/
 yahoofinance/data/cache/
+yahoofinance/data/monitoring/health_*.json
+yahoofinance/data/monitoring/metrics_*.json
+yahoofinance/data/portfolio_cache.pkl
+yahoofinance/data/portfolio_prices.json
+yahoofinance/data/circuit_state.json
+logs/yahoofinance.log
 yahoofinance/output/backtest/
 yahoofinance/output/backtest/cache/
 yahoofinance/output/optimization/
 yahoofinance/output/*.html
+
+# New cache and temp directories
+.cache/
+.temp/
+.config/local/
 **/*.cache
 **/*.bak
 **/*.orig

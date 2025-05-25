@@ -23,7 +23,7 @@ from ...core.errors import (
     ValidationError,
     YFinanceError,
 )
-from ...core.logging_config import get_logger
+from ...core.logging import get_logger
 from ...data.cache import cached, default_cache_manager
 from ...utils.error_handling import translate_error, with_retry
 from ...utils.market.ticker_utils import is_us_ticker, validate_ticker
@@ -233,9 +233,18 @@ class YahooFinanceBaseProvider(ABC):
                 "symbol": symbol,
                 "name": name,
                 "company": name,  # Match both formats
-                "price": safe_extract_value(info, "regularMarketPrice"),
-                "current_price": safe_extract_value(
-                    info, "regularMarketPrice"
+                # Try multiple price fields in order of preference
+                "price": (
+                    safe_extract_value(info, "regularMarketPrice") or
+                    safe_extract_value(info, "currentPrice") or
+                    safe_extract_value(info, "lastPrice") or
+                    safe_extract_value(info, "previousClose")
+                ),
+                "current_price": (
+                    safe_extract_value(info, "regularMarketPrice") or
+                    safe_extract_value(info, "currentPrice") or
+                    safe_extract_value(info, "lastPrice") or
+                    safe_extract_value(info, "previousClose")
                 ),  # Match both formats
                 "change": safe_extract_value(info, "regularMarketChange"),
                 "change_percent": safe_extract_value(info, "regularMarketChangePercent"),
@@ -663,8 +672,15 @@ class YahooFinanceBaseProvider(ABC):
                 logger.warning(f"Error extracting analyst data from info for {ticker}: {str(e)}")
 
             # Try to get data from recommendations attribute
+            # This can fail for ETFs, commodities, and cryptocurrencies
             try:
-                recommendations = ticker_obj.recommendations
+                recommendations = None
+                try:
+                    recommendations = ticker_obj.recommendations
+                except Exception as rec_error:
+                    logger.debug(f"Could not get recommendations for {ticker}: {str(rec_error)}")
+                    # This is expected for non-stock assets
+                    recommendations = None
 
                 # Skip if no data
                 if recommendations is None or recommendations.empty:

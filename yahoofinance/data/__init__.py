@@ -8,7 +8,7 @@ This package contains modules for data management including:
 """
 
 from .cache import CacheManager, cached, get_cache_manager
-from .download import download_portfolio
+from .download import download_portfolio, download_etoro_portfolio
 
 
 __all__ = [
@@ -18,4 +18,5 @@ __all__ = [
     "get_cache_manager",
     # Data download utilities
     "download_portfolio",
+    "download_etoro_portfolio",
 ]

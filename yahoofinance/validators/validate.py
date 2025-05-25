@@ -12,7 +12,7 @@ from pathlib import Path
 import pandas as pd
 import yfinance as yf
 
-from ..core.logging_config import get_logger
+from ..core.logging import get_logger
 
 
 logger = get_logger(__name__)

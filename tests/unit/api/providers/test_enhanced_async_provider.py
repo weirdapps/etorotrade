@@ -1,5 +1,5 @@
 """
-Unit tests for the EnhancedAsyncYahooFinanceProvider.
+Unit tests for the AsyncYahooFinanceProvider.
 
 This module contains tests for the enhanced async provider implementation,
 focusing on circuit breaker integration, error handling, and resilience patterns.
@@ -10,14 +10,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pandas as pd
 import pytest
 
-from yahoofinance.api.providers.enhanced_async_yahoo_finance import (
-    EnhancedAsyncYahooFinanceProvider,
+from yahoofinance.api.providers.async_yahoo_finance import (
+    AsyncYahooFinanceProvider,
 )
 from yahoofinance.core.errors import APIError, NetworkError, RateLimitError, YFinanceError
 
 
 # Create a mockable class that implements the abstract methods
-class MockableEnhancedAsyncYahooFinanceProvider(EnhancedAsyncYahooFinanceProvider):
+class MockableAsyncYahooFinanceProvider(AsyncYahooFinanceProvider):
     """A mockable version of the provider for testing."""
 
     async def get_price_data(self, ticker: str):
@@ -36,7 +36,7 @@ class MockableEnhancedAsyncYahooFinanceProvider(EnhancedAsyncYahooFinanceProvide
 @pytest.fixture
 async def enhanced_provider():
     """Create test provider with disabled circuit breaker for most tests"""
-    provider = MockableEnhancedAsyncYahooFinanceProvider(
+    provider = MockableAsyncYahooFinanceProvider(
         max_retries=1,
         retry_delay=0.01,
         max_concurrency=2,
@@ -52,7 +52,7 @@ async def enhanced_provider():
 @pytest.fixture
 async def enhanced_provider_with_circuit_breaker():
     """Create test provider with enabled circuit breaker"""
-    provider = MockableEnhancedAsyncYahooFinanceProvider(
+    provider = MockableAsyncYahooFinanceProvider(
         max_retries=1, retry_delay=0.01, max_concurrency=2, enable_circuit_breaker=True
     )
     try:
@@ -71,7 +71,7 @@ async def test_ensure_session():
 
     # Mock the ClientSession constructor to return our controlled mock
     with patch("aiohttp.ClientSession", return_value=mock_session):
-        provider = MockableEnhancedAsyncYahooFinanceProvider()
+        provider = MockableAsyncYahooFinanceProvider()
         assert provider._session is None
 
         # First call should create a session
@@ -302,7 +302,7 @@ async def test_circuit_breaker_integration_retry_after():
     # Use patch to avoid actual ClientSession creation
     with patch("aiohttp.ClientSession"):
         # Create a new provider specifically for this test, with mocked session
-        provider = MockableEnhancedAsyncYahooFinanceProvider(enable_circuit_breaker=True)
+        provider = MockableAsyncYahooFinanceProvider(enable_circuit_breaker=True)
 
         try:
             # Create a direct mock for get_ticker_info that raises APIError with

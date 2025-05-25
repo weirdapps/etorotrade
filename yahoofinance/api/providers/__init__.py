@@ -24,7 +24,6 @@ from .async_yahoo_finance import AsyncYahooFinanceProvider
 from .async_yahooquery_provider import AsyncYahooQueryProvider
 from .base_provider import AsyncFinanceDataProvider, FinanceDataProvider
 from .hybrid_provider import HybridProvider
-from .optimized_async_yfinance import OptimizedAsyncYFinanceProvider
 from .yahoo_finance import YahooFinanceProvider
 from .yahoo_finance_base import YahooFinanceBaseProvider
 from .yahooquery_provider import YahooQueryProvider
@@ -41,7 +40,6 @@ __all__ = [
     "AsyncYahooQueryProvider",
     "HybridProvider",
     "AsyncHybridProvider",
-    "OptimizedAsyncYFinanceProvider",
 ]
 
 _PROVIDERS = {
@@ -51,7 +49,6 @@ _PROVIDERS = {
     "yahooquery_async": AsyncYahooQueryProvider,
     "hybrid": HybridProvider,
     "hybrid_async": AsyncHybridProvider,
-    "optimized": OptimizedAsyncYFinanceProvider,
 }
 
 
@@ -79,13 +76,9 @@ def get_provider(
         # For special case of hybrid_async
         elif provider_name == "hybrid":
             return _PROVIDERS["hybrid_async"](**kwargs)
-        # For other cases, try to find a matching async provider
+        # For other cases, raise an error
         else:
-            # Try alternative registrations
-            if provider_name == "optimized":
-                return _PROVIDERS["optimized"](**kwargs)
-            else:
-                raise ValueError(f"Async provider '{provider_name}' not found")
+            raise ValueError(f"Async provider '{provider_name}' not found")
 
     if provider_name not in _PROVIDERS:
         raise ValueError(f"Provider '{provider_name}' not found")

@@ -19,7 +19,7 @@ import pandas as pd
 
 from ..core.config import FILE_PATHS
 from ..core.errors import APIError, DataError, ValidationError, YFinanceError
-from ..core.logging_config import get_logger
+from ..core.logging import get_logger
 from ..utils.error_handling import enrich_error_context, safe_operation, translate_error, with_retry
 
 
@@ -35,7 +35,7 @@ class FormatUtils:
     def format_number(value, precision=2):
         """Format numeric value with specified precision."""
         if pd.isna(value) or value is None:
-            return "N/A"
+            return "--"
 
         if isinstance(value, (int, float)):
             format_str = f"{{:.{precision}f}}"

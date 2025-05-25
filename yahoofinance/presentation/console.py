@@ -18,7 +18,7 @@ from tabulate import tabulate
 from tqdm import tqdm
 
 from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from yahoofinance.utils.error_handling import (
+from ..utils.error_handling import (
     enrich_error_context,
     safe_operation,
     translate_error,
@@ -27,7 +27,7 @@ from yahoofinance.utils.error_handling import (
 
 from ..api.providers.base_provider import AsyncFinanceDataProvider, FinanceDataProvider
 from ..core.config import COLUMN_NAMES, FILE_PATHS, MESSAGES
-from ..core.logging_config import get_logger
+from ..core.logging import get_logger
 from .formatter import Color, DisplayConfig, DisplayFormatter
 
 
@@ -192,6 +192,22 @@ class MarketDisplay:
         # Add ranking column if not present
         if "#" not in df.columns:
             df.insert(0, "#", range(1, len(df) + 1))
+
+        # Clean up NaN, None, and 0 values with "--" for better display
+        df = df.copy()  # Don't modify original
+        
+        # List of columns that should show "--" for 0 values (percentages, counts, etc.)
+        zero_to_dash_cols = ["# T", "% BUY", "# A", "SI", "DIV %"]
+        
+        for col in df.columns:
+            if col not in ["#", "TICKER", "COMPANY", "EARNINGS"]:  # Don't format these columns
+                # Replace NaN, None, and "nan" string with "--"
+                df[col] = df[col].replace([float('nan'), None, "nan", "NaN"], "--")
+                
+                # Replace 0 with "--" for specific columns
+                if col in zero_to_dash_cols:
+                    df[col] = df[col].replace(0, "--")
+                    df[col] = df[col].replace(0.0, "--")
 
         # Remove helper columns used for sorting
         drop_cols = ["_sort_exret", "_sort_earnings", "_not_found"]

@@ -21,7 +21,7 @@ from scipy.optimize import minimize
 from tabulate import tabulate
 
 from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from yahoofinance.utils.error_handling import (
+from ..utils.error_handling import (
     enrich_error_context,
     safe_operation,
     translate_error,
@@ -30,7 +30,7 @@ from yahoofinance.utils.error_handling import (
 
 from ..api import FinanceDataProvider, get_provider
 from ..core.errors import RateLimitError, ValidationError, YFinanceError
-from ..core.logging_config import get_logger
+from ..core.logging import get_logger
 from ..utils.network.rate_limiter import RateLimiter, rate_limited
 
 

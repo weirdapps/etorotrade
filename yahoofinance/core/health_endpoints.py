@@ -16,7 +16,7 @@ import time
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Type, Union, cast
 
 from .errors import MonitoringError
-from .logging_config import get_logger
+from .logging import get_logger
 from .monitoring import (
     CircuitBreakerStatus,
     HealthStatus,

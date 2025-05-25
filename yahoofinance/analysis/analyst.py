@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import pandas as pd
 
 from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from yahoofinance.utils.error_handling import (
+from ..utils.error_handling import (
     enrich_error_context,
     safe_operation,
     translate_error,
@@ -22,7 +22,7 @@ from yahoofinance.utils.error_handling import (
 from ..api import AsyncFinanceDataProvider, FinanceDataProvider, get_provider
 from ..core.config import POSITIVE_GRADES
 from ..core.errors import ValidationError, YFinanceError
-from ..core.logging_config import get_logger
+from ..core.logging import get_logger
 from ..utils.market import is_us_ticker
 
 
@@ -508,10 +508,9 @@ class AnalystRatingsService(BaseAnalysisService):
             # Calculate start date
             start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
 
-            # Fetch recent changes data
-            changes_data = self.provider.get_rating_changes(ticker, start_date)
-
-            return self._process_changes_data(changes_data)
+            # For now, return empty list as get_rating_changes is not implemented in providers
+            logger.info(f"get_rating_changes not implemented yet for {ticker}")
+            return []
 
         except YFinanceError as e:
             logger.error(f"Error fetching recent changes for {ticker}: {str(e)}")
@@ -549,10 +548,9 @@ class AnalystRatingsService(BaseAnalysisService):
             # Calculate start date
             start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
 
-            # Fetch recent changes data asynchronously
-            changes_data = await self.provider.get_rating_changes(ticker, start_date)
-
-            return self._process_changes_data(changes_data)
+            # For now, return empty list as get_rating_changes is not implemented in providers
+            logger.info(f"get_rating_changes not implemented yet for {ticker}")
+            return []
 
         except YFinanceError as e:
             logger.error(f"Error fetching recent changes for {ticker}: {str(e)}")
@@ -583,3 +581,60 @@ class AnalystRatingsService(BaseAnalysisService):
             processed_changes.append(processed_change)
 
         return processed_changes
+
+
+def main():
+    """
+    Main entry point for running analyst module functionality.
+    Example usage of the analyst module.
+    """
+    import sys
+    
+    # Example usage
+    if len(sys.argv) > 1:
+        ticker = sys.argv[1]
+    else:
+        ticker = "AAPL"  # Default ticker
+    
+    print(f"Fetching analyst data for {ticker}...")
+    
+    try:
+        # Create the analyst ratings service
+        service = AnalystRatingsService()
+        
+        # Get analyst ratings
+        ratings = service.get_ratings(ticker)
+        
+        # Display results
+        print(f"\nAnalyst Ratings for {ticker}:")
+        print(f"Buy Percentage: {ratings.buy_percentage:.1f}%" if ratings.buy_percentage else "Buy Percentage: N/A")
+        print(f"Total Ratings: {ratings.total_ratings}" if ratings.total_ratings else "Total Ratings: N/A")
+        print(f"\nRating Breakdown:")
+        print(f"  Strong Buy: {ratings.strong_buy}")
+        print(f"  Buy: {ratings.buy}")
+        print(f"  Hold: {ratings.hold}")
+        print(f"  Sell: {ratings.sell}")
+        print(f"  Strong Sell: {ratings.strong_sell}")
+        
+        if ratings.average_price_target:
+            print(f"\nPrice Targets:")
+            print(f"  Average: ${ratings.average_price_target:.2f}")
+            print(f"  Median: ${ratings.median_price_target:.2f}" if ratings.median_price_target else "  Median: N/A")
+            print(f"  Highest: ${ratings.highest_price_target:.2f}" if ratings.highest_price_target else "  Highest: N/A")
+            print(f"  Lowest: ${ratings.lowest_price_target:.2f}" if ratings.lowest_price_target else "  Lowest: N/A")
+            print(f"  Analyst Count: {ratings.analyst_count}" if ratings.analyst_count else "  Analyst Count: N/A")
+        
+        # Get recent changes
+        recent_changes = service.get_recent_changes(ticker)
+        if recent_changes:
+            print(f"\nRecent Rating Changes (last 30 days):")
+            for change in recent_changes[:5]:  # Show first 5 changes
+                print(f"  {change['date']}: {change['firm']} - {change['from_grade']} → {change['to_grade']} ({change['action']})")
+        
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

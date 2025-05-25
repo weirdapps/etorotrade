@@ -1,7 +1,7 @@
 """
 Test script to verify analyst data retrieval.
 
-This script tests if the modified EnhancedAsyncYahooFinanceProvider
+This script tests if the modified AsyncYahooFinanceProvider
 properly returns analyst data for ticker information.
 """
 
@@ -10,10 +10,10 @@ import logging
 import os
 import sys
 
-from yahoofinance.api.providers.enhanced_async_yahoo_finance import (
-    EnhancedAsyncYahooFinanceProvider,
+from yahoofinance.api.providers.async_yahoo_finance import (
+    AsyncYahooFinanceProvider,
 )
-from yahoofinance.core.logging_config import configure_logging, get_logger
+from yahoofinance.core.logging import configure_logging, get_logger
 
 
 # Setup logging
@@ -25,7 +25,7 @@ async def test_analyst_data():
     """Test analyst data retrieval for various tickers."""
 
     # Create an instance of the enhanced provider
-    provider = EnhancedAsyncYahooFinanceProvider()
+    provider = AsyncYahooFinanceProvider()
 
     # Test tickers - include a mix of US and international tickers
     test_tickers = ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "GOOGL", "META", "JPM", "V", "WMT"]

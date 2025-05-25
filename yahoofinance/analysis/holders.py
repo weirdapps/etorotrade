@@ -14,7 +14,7 @@ import pandas as pd
 import yfinance as yf
 
 from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from yahoofinance.utils.error_handling import (
+from ..utils.error_handling import (
     enrich_error_context,
     safe_operation,
     translate_error,
@@ -22,7 +22,7 @@ from yahoofinance.utils.error_handling import (
 )
 
 from ..core.errors import YFinanceError
-from ..core.logging_config import get_logger
+from ..core.logging import get_logger
 
 
 # Set locale for proper number formatting

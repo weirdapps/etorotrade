@@ -20,7 +20,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
 
 from ...core.config import CIRCUIT_BREAKER
 from ...core.errors import APIError, DataError, ValidationError, YFinanceError
-from ...core.logging_config import get_logger
+from ...core.logging import get_logger
 
 
 # Type variables for generic function signatures

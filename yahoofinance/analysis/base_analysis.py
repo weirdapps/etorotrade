@@ -10,7 +10,7 @@ to reduce code duplication.
 from typing import Optional, Union
 
 from ..api import AsyncFinanceDataProvider, FinanceDataProvider, get_provider
-from ..core.logging_config import get_logger
+from ..core.logging import get_logger
 
 
 logger = get_logger(__name__)

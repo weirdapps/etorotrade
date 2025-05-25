@@ -15,6 +15,7 @@ etorotrade is a Python-based investment analysis system that helps you make smar
 
 - **Portfolio Analysis**: Identify risks and opportunities in your current holdings
 - **Market Screening**: Discover promising stocks across US, European, and Chinese markets
+- **Multi-Asset Support**: Analyze stocks, ETFs, commodities (Gold, Oil, Silver), and cryptocurrencies
 - **Trade Recommendations**: Get clear BUY, SELL, or HOLD guidance with detailed reasoning
 - **News & Sentiment**: Track market-moving news and sentiment analysis
 - **Insider Activity**: Follow institutional and insider transactions
@@ -42,6 +43,27 @@ Load tickers for Portfolio (P), Market (M), eToro Market (E), Trade Analysis (T)
 ```
 
 Simply enter the letter that corresponds to your desired analysis type.
+
+### 🎯 Portfolio Analysis from eToro
+
+For Portfolio analysis (P), you can now fetch your live portfolio data directly from eToro:
+
+1. Select **P** (Portfolio)
+2. Choose **E** (Use existing portfolio file) or **N** (Download new portfolio from eToro)
+
+**Features:**
+- 🔄 Automatic ticker format fixing for Yahoo Finance compatibility
+- 🏢 Hong Kong tickers properly formatted (e.g., `700.HK` → `0700.HK`)
+- 💰 Cryptocurrency symbols get USD suffix (e.g., `BTC` → `BTC-USD`)
+- 📊 Positions grouped by symbol with aggregated metrics
+
+**Setup eToro API Access:**
+Add your eToro API credentials to the `.env` file:
+```bash
+ETORO_API_KEY=your-etoro-api-key
+ETORO_USER_KEY=your-etoro-user-key
+ETORO_USERNAME=your-etoro-username
+```
 
 ## 💲 Trading Criteria
 

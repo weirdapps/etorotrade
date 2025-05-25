@@ -15,8 +15,8 @@ from unittest.mock import patch
 
 import pytest
 
-from yahoofinance.api.providers.enhanced_async_yahoo_finance import (
-    EnhancedAsyncYahooFinanceProvider,
+from yahoofinance.api.providers.async_yahoo_finance import (
+    AsyncYahooFinanceProvider,
 )
 from yahoofinance.core.errors import APIError
 from yahoofinance.utils.error_handling import (
@@ -92,7 +92,7 @@ async def enhanced_provider(temp_state_file):
             "STATE_FILE": temp_state_file,
         },
     ):
-        provider = EnhancedAsyncYahooFinanceProvider(
+        provider = AsyncYahooFinanceProvider(
             max_retries=1, retry_delay=0.01, max_concurrency=2, enable_circuit_breaker=True
         )
         yield provider

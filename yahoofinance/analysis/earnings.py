@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import pandas as pd
 
 from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from yahoofinance.utils.error_handling import (
+from ..utils.error_handling import (
     enrich_error_context,
     safe_operation,
     translate_error,
@@ -25,7 +25,7 @@ from yahoofinance.utils.error_handling import (
 
 from ..api import AsyncFinanceDataProvider, FinanceDataProvider, get_provider
 from ..core.errors import ValidationError, YFinanceError
-from ..core.logging_config import get_logger
+from ..core.logging import get_logger
 from .base_analysis import BaseAnalysisService
 
 

@@ -7,9 +7,11 @@ This module provides functions for downloading data from various sources.
 import os
 import shutil
 import time
+import uuid
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
+import requests
 from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.common.exceptions import (
@@ -24,7 +26,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from yahoofinance.utils.error_handling import (
+from ..utils.error_handling import (
     enrich_error_context,
     safe_operation,
     translate_error,
@@ -32,7 +34,7 @@ from yahoofinance.utils.error_handling import (
 )
 
 from ..core.config import FILE_PATHS, PATHS
-from ..core.logging_config import get_logger
+from ..core.logging import get_logger
 
 
 logger = get_logger(__name__)
@@ -633,7 +635,7 @@ def download_market_data(
 
     from yahoofinance import get_provider
     from yahoofinance.core.errors import APIError, YFinanceError
-    from yahoofinance.core.logging_config import get_logger
+    from yahoofinance.core.logging import get_logger
 
     logger = get_logger(__name__)
 
@@ -833,6 +835,370 @@ async def fallback_portfolio_download():
         trace = traceback.format_exc()
         logger.error(f"[{fallback_id}] Traceback: {trace}")
         return False
+
+
+async def download_etoro_portfolio(provider=None):
+    """
+    Download portfolio data from eToro API.
+
+    This function:
+    1. Fetches portfolio data from eToro API
+    2. Retrieves instrument metadata 
+    3. Combines and processes the data
+    4. Saves it in the expected format for the application
+
+    Args:
+        provider: Optional provider instance (not used, but required for compatibility)
+
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    import csv
+    import json
+    import requests
+    import uuid
+    from collections import defaultdict
+    
+    # Create a unique run ID for this download attempt
+    run_id = f"etoro_download_{int(time.time())}"
+    logger.info(f"Starting eToro portfolio download (run ID: {run_id})")
+
+    # Get credentials from environment variables
+    username = os.getenv("ETORO_USERNAME", "plessas")
+    api_key = os.getenv("ETORO_API_KEY")
+    user_key = os.getenv("ETORO_USER_KEY")
+
+    if not api_key or not user_key:
+        error_msg = "Error: ETORO_API_KEY and ETORO_USER_KEY must be set in .env file"
+        logger.error(f"[{run_id}] {error_msg}")
+        print(error_msg)
+        return False
+
+    try:
+        # Fetch portfolio data
+        print("Fetching eToro portfolio data...")
+        logger.info(f"[{run_id}] Fetching portfolio for user: {username}")
+        
+        portfolio = await _fetch_etoro_portfolio(username, api_key, user_key, run_id)
+        if not portfolio:
+            return False
+
+        # Extract instrument IDs
+        positions = portfolio.get("positions", [])
+        if not positions:
+            print("No positions found in portfolio")
+            logger.warning(f"[{run_id}] No positions found in portfolio")
+            return False
+
+        instrument_ids = [pos.get("instrumentId") for pos in positions if pos.get("instrumentId")]
+        print(f"Found {len(positions)} positions with {len(instrument_ids)} unique instruments")
+        logger.info(f"[{run_id}] Found {len(positions)} positions with {len(instrument_ids)} instruments")
+
+        # Fetch instrument metadata
+        print("Fetching instrument metadata...")
+        metadata = await _fetch_etoro_instrument_metadata(instrument_ids, api_key, user_key, run_id)
+
+        # Combine and process data
+        print("Processing portfolio data and fixing ticker formats...")
+        processed_data = _process_etoro_portfolio_data(portfolio, metadata, run_id)
+
+        # Save to the expected location
+        output_path = os.path.join(PATHS["INPUT_DIR"], "portfolio.csv")
+        _save_etoro_portfolio_csv(processed_data, output_path, run_id)
+
+        print(f"eToro portfolio data saved successfully to {output_path}")
+        logger.info(f"[{run_id}] eToro portfolio download completed successfully")
+        return True
+
+    except Exception as e:
+        error_msg = f"Error during eToro portfolio download: {str(e)}"
+        logger.error(f"[{run_id}] {error_msg}")
+        print(error_msg)
+        return False
+
+
+async def _fetch_etoro_portfolio(username: str, api_key: str, user_key: str, run_id: str):
+    """Fetch portfolio data from eToro API."""
+    import asyncio
+    import aiohttp
+    
+    url = f"https://www.etoro.com/api/public/v1/user-info/people/{username}/portfolio/live"
+    
+    headers = {
+        "X-REQUEST-ID": str(uuid.uuid4()),
+        "X-API-KEY": api_key,
+        "X-USER-KEY": user_key,
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+    }
+
+    for attempt in range(3):
+        try:
+            # Use requests for simplicity in this context
+            response = requests.get(url, headers=headers, timeout=30)
+            
+            if response.status_code == 429:
+                wait_time = 2 ** attempt
+                print(f"Rate limited. Waiting {wait_time} seconds...")
+                logger.warning(f"[{run_id}] Rate limited, waiting {wait_time}s (attempt {attempt + 1})")
+                await asyncio.sleep(wait_time)
+                continue
+                
+            response.raise_for_status()
+            data = response.json()
+            logger.info(f"[{run_id}] Successfully fetched portfolio data")
+            return data
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"[{run_id}] HTTP error (attempt {attempt + 1}): {str(e)}")
+            if attempt == 2:
+                print(f"Failed to fetch portfolio after 3 attempts: {e}")
+                return None
+            await asyncio.sleep(1)
+    
+    return None
+
+
+async def _fetch_etoro_instrument_metadata(instrument_ids: list, api_key: str, user_key: str, run_id: str):
+    """Fetch instrument metadata from eToro API."""
+    import asyncio
+    
+    if not instrument_ids:
+        return {}
+
+    # Remove duplicates
+    unique_ids = list(set(instrument_ids))
+    
+    # Build URL with comma-separated instrument IDs
+    ids_param = ",".join(map(str, unique_ids))
+    url = f"https://www.etoro.com/api/public/v1/market-data/instruments?instrumentIds={ids_param}"
+    
+    headers = {
+        "X-REQUEST-ID": str(uuid.uuid4()),
+        "X-API-KEY": api_key,
+        "X-USER-KEY": user_key,
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+    }
+
+    for attempt in range(3):
+        try:
+            response = requests.get(url, headers=headers, timeout=30)
+            
+            if response.status_code == 429:
+                wait_time = 2 ** attempt
+                print(f"Rate limited. Waiting {wait_time} seconds...")
+                logger.warning(f"[{run_id}] Metadata rate limited, waiting {wait_time}s (attempt {attempt + 1})")
+                await asyncio.sleep(wait_time)
+                continue
+                
+            response.raise_for_status()
+            data = response.json()
+            
+            # Convert to dictionary for easy lookup
+            metadata_dict = {}
+            if "instrumentDisplayDatas" in data:
+                for instrument in data["instrumentDisplayDatas"]:
+                    if "instrumentID" in instrument:
+                        metadata_dict[instrument["instrumentID"]] = instrument
+            
+            logger.info(f"[{run_id}] Successfully fetched metadata for {len(metadata_dict)} instruments")
+            return metadata_dict
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"[{run_id}] Metadata HTTP error (attempt {attempt + 1}): {str(e)}")
+            if attempt == 2:
+                print(f"Failed to fetch metadata after 3 attempts: {e}")
+                return {}
+            await asyncio.sleep(1)
+    
+    return {}
+
+
+def _fix_yahoo_ticker_format(ticker: str) -> str:
+    """
+    Convert ticker to Yahoo Finance format.
+    
+    Rules:
+    - HK tickers: Format to have exactly 4 digits (e.g., 1.HK -> 0001.HK, 700.HK -> 0700.HK)
+    - Cryptocurrencies: BTC/ETH -> BTC-USD/ETH-USD
+    - Options/Futures formatting with ^ and = symbols as needed
+    - All other tickers remain unchanged
+    """
+    # Backup original ticker
+    original = ticker
+    
+    # Handle Hong Kong tickers (ensure 4 digits with leading zeros)
+    if ticker.endswith('.HK'):
+        numeric_part = ticker.split('.')[0]
+        try:
+            # First remove any leading zeros
+            cleaned_numeric = numeric_part.lstrip('0')
+            # If empty, this was all zeros
+            if not cleaned_numeric:
+                cleaned_numeric = '0'
+            # Now format to have exactly 4 digits with leading zeros
+            formatted_numeric = cleaned_numeric.zfill(4)
+            ticker = f"{formatted_numeric}.HK"
+        except Exception:
+            # If any error occurs, keep original
+            ticker = original
+    
+    # Handle cryptocurrencies (add -USD suffix if not present)
+    elif ticker in ('BTC', 'ETH', 'XRP', 'LTC', 'BCH', 'ADA', 'DOT', 'LINK', 'XLM', 'DOGE'):
+        ticker = f"{ticker}-USD"
+    
+    # Handle special VIX futures like VIX.MAY25
+    elif ticker.startswith('VIX.'):
+        # Extract month and year
+        try:
+            parts = ticker.split('.')
+            if len(parts) == 2 and len(parts[1]) >= 5:
+                month = parts[1][:3]
+                year = parts[1][3:]
+                
+                # Convert to Yahoo Finance format
+                ticker = f"^VIX{month}{year}"
+        except Exception:
+            # If any error occurs, keep original
+            ticker = original
+    
+    # Return the fixed ticker
+    return ticker
+
+
+def _process_etoro_portfolio_data(portfolio: dict, metadata: dict, run_id: str):
+    """Process eToro portfolio data into the format expected by the application."""
+    from collections import defaultdict
+    
+    # Group positions by symbol (using original symbol first)
+    grouped = defaultdict(list)
+    
+    for position in portfolio.get("positions", []):
+        instrument_id = position.get("instrumentId")
+        instrument_meta = metadata.get(instrument_id, {})
+        
+        # Get symbol, defaulting to Unknown if not available
+        symbol = instrument_meta.get("symbolFull", "Unknown")
+        if symbol and symbol != "Unknown":
+            grouped[symbol].append({
+                "position": position,
+                "metadata": instrument_meta
+            })
+
+    # Process grouped data
+    processed_data = []
+    
+    for symbol, symbol_positions in grouped.items():
+        # Get data from first position
+        first_pos_data = symbol_positions[0]
+        first_pos = first_pos_data["position"]
+        first_meta = first_pos_data["metadata"]
+        
+        # Calculate aggregated values
+        num_positions = len(symbol_positions)
+        total_investment_pct = sum(p["position"].get("investmentPct", 0) for p in symbol_positions)
+        total_net_profit = sum(p["position"].get("netProfit", 0) for p in symbol_positions)
+        
+        # Calculate weighted average open rate
+        weighted_open_rate = 0
+        if total_investment_pct > 0:
+            weighted_open_rate = sum(
+                p["position"].get("openRate", 0) * p["position"].get("investmentPct", 0) 
+                for p in symbol_positions
+            ) / total_investment_pct
+        
+        # Get earliest open timestamp
+        earliest_open = min(p["position"].get("openTimestamp", "") for p in symbol_positions)
+        
+        # Check if all positions are buy
+        all_buy = all(p["position"].get("isBuy", True) for p in symbol_positions)
+        
+        # Get leverage (should be same for all positions of same symbol)
+        leverages = set(p["position"].get("leverage", 1) for p in symbol_positions)
+        leverage = leverages.pop() if len(leverages) == 1 else max(leverages)
+        
+        # Fix the ticker format for Yahoo Finance compatibility
+        fixed_symbol = _fix_yahoo_ticker_format(symbol)
+        
+        # Log ticker changes if any
+        if fixed_symbol != symbol:
+            logger.info(f"[{run_id}] Fixed ticker: {symbol} -> {fixed_symbol}")
+        
+        # Create the processed row
+        processed_row = {
+            "symbol": fixed_symbol,  # Use the fixed symbol
+            "instrumentDisplayName": first_meta.get("instrumentDisplayName", "Unknown"),
+            "instrumentId": first_pos.get("instrumentId", ""),
+            "numPositions": num_positions,
+            "totalInvestmentPct": round(total_investment_pct, 6),
+            "avgOpenRate": round(weighted_open_rate, 4),
+            "totalNetProfit": round(total_net_profit, 3),
+            "totalNetProfitPct": round((total_net_profit / total_investment_pct) if total_investment_pct > 0 else 0, 3),
+            "earliestOpenTimestamp": earliest_open,
+            "isBuy": all_buy,
+            "leverage": leverage,
+            "instrumentTypeId": first_meta.get("instrumentTypeID", ""),
+            "exchangeId": first_meta.get("exchangeID", ""),
+            "exchangeName": first_meta.get("priceSource", ""),
+            "stocksIndustryId": first_meta.get("stocksIndustryID", ""),
+            "isInternalInstrument": first_meta.get("isInternalInstrument", False)
+        }
+        
+        processed_data.append(processed_row)
+    
+    # Sort by total investment percentage descending
+    processed_data.sort(key=lambda x: x["totalInvestmentPct"], reverse=True)
+    
+    logger.info(f"[{run_id}] Processed {len(processed_data)} unique symbols")
+    return processed_data
+
+
+def _save_etoro_portfolio_csv(data: list, output_path: str, run_id: str):
+    """Save eToro portfolio data to CSV in the expected format."""
+    import csv
+    
+    if not data:
+        print("No data to save")
+        logger.warning(f"[{run_id}] No data to save")
+        return
+
+    # Define the CSV columns to match the expected format
+    fieldnames = [
+        "symbol",
+        "instrumentDisplayName", 
+        "instrumentId",
+        "numPositions",
+        "totalInvestmentPct",
+        "avgOpenRate",
+        "totalNetProfit",
+        "totalNetProfitPct",
+        "earliestOpenTimestamp",
+        "isBuy",
+        "leverage",
+        "instrumentTypeId",
+        "exchangeId", 
+        "exchangeName",
+        "stocksIndustryId",
+        "isInternalInstrument"
+    ]
+
+    # Ensure output directory exists
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    
+    with open(output_path, "w", newline="", encoding="utf-8") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(data)
+
+    logger.info(f"[{run_id}] eToro portfolio data saved to {output_path}")
+    
+    # Print summary
+    total_investment = sum(row['totalInvestmentPct'] for row in data)
+    total_profit = sum(row['totalNetProfit'] for row in data)
+    print(f"\neToro Portfolio Summary:")
+    print(f"Total unique symbols: {len(data)}")
+    print(f"Total investment: {total_investment:.2f}%")
+    print(f"Total net profit: {total_profit:.2f}")
+    print("Note: Ticker formats have been automatically fixed for Yahoo Finance compatibility")
 
 
 # Test function

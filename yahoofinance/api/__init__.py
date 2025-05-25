@@ -13,9 +13,7 @@ from .providers.async_hybrid_provider import AsyncHybridProvider
 from .providers.async_yahoo_finance import AsyncYahooFinanceProvider
 from .providers.async_yahooquery_provider import AsyncYahooQueryProvider
 from .providers.base_provider import AsyncFinanceDataProvider, FinanceDataProvider
-from .providers.enhanced_async_yahoo_finance import EnhancedAsyncYahooFinanceProvider
 from .providers.hybrid_provider import HybridProvider
-from .providers.optimized_async_yfinance import OptimizedAsyncYFinanceProvider
 from .providers.yahoo_finance import YahooFinanceProvider
 from .providers.yahooquery_provider import YahooQueryProvider
 
@@ -29,13 +27,11 @@ __all__ = [
     # Provider interfaces
     "FinanceDataProvider",
     "AsyncFinanceDataProvider",
-    # Provider implementations (for backward compatibility)
+    # Provider implementations
     "YahooFinanceProvider",
     "AsyncYahooFinanceProvider",
-    "EnhancedAsyncYahooFinanceProvider",
     "YahooQueryProvider",
     "AsyncYahooQueryProvider",
     "HybridProvider",
     "AsyncHybridProvider",
-    "OptimizedAsyncYFinanceProvider",
 ]

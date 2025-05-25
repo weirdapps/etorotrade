@@ -21,7 +21,7 @@ import sys
 from .core.logging import setup_logging as old_setup_logging
 
 # Import our new standardized logging configuration
-from .core.logging_config import (
+from .core.logging import (
     configure_logging,
     enable_debug_for_module,
     get_logger,

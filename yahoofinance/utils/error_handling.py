@@ -21,7 +21,7 @@ from ..core.errors import (
     ValidationError,
     YFinanceError,
 )
-from ..core.logging_config import get_logger
+from ..core.logging import get_logger
 
 
 # Create a logger for this module

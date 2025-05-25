@@ -18,7 +18,7 @@ from typing import Any, Callable, Dict, Optional, TypeVar, cast
 
 from ...core.config import RATE_LIMIT
 from ...core.errors import APIError, RateLimitError, ValidationError, YFinanceError
-from ...core.logging_config import get_logger
+from ...core.logging import get_logger
 
 
 logger = get_logger(__name__)

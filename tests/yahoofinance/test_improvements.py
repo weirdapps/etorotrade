@@ -11,7 +11,7 @@ import time
 
 from yahoofinance.core.config import CACHE_CONFIG, POSITIVE_GRADES, RATE_LIMIT, RISK_METRICS
 from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from yahoofinance.core.logging_config import get_logger
+from yahoofinance.core.logging import get_logger
 from yahoofinance.data.cache import CacheManager, default_cache_manager
 from yahoofinance.utils.error_handling import (
     enrich_error_context,

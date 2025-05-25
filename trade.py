@@ -45,7 +45,7 @@ from yahoofinance.core.di_container import (
 
 # Import error handling system
 from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from yahoofinance.core.logging_config import configure_logging, get_logger
+from yahoofinance.core.logging import configure_logging, get_logger
 from yahoofinance.utils.dependency_injection import inject, registry
 from yahoofinance.utils.error_handling import (
     enrich_error_context,
@@ -3213,16 +3213,19 @@ async def handle_portfolio_download(get_provider=None, app_logger=None):
             app_logger.info("User requested to download a new portfolio")
 
         try:
-            # Import the download function
+            # Import the eToro download function (now the default for new downloads)
             try:
-                from yahoofinance.data import download_portfolio
+                from yahoofinance.data import download_etoro_portfolio as download_func
+                print("Downloading new portfolio from eToro...")
+                if app_logger:
+                    app_logger.info("Using eToro portfolio download for new portfolio")
 
                 if app_logger:
-                    app_logger.info("Successfully imported download_portfolio function")
+                    app_logger.info("Successfully imported eToro download function")
             except ImportError as e:
                 if app_logger:
-                    app_logger.error(f"Failed to import download_portfolio: {str(e)}")
-                print(f"Error: Failed to import download_portfolio module: {str(e)}")
+                    app_logger.error(f"Failed to import eToro download function: {str(e)}")
+                print(f"Error: Failed to import eToro download module: {str(e)}")
                 return False
 
             # Make sure we have a provider
@@ -3248,9 +3251,9 @@ async def handle_portfolio_download(get_provider=None, app_logger=None):
 
             print(f"Using provider: {provider.__class__.__name__} for portfolio download")
 
-            # Call download_portfolio with provider
+            # Call the selected download function with provider
             print("Starting portfolio download process... (this may take a minute)")
-            result = await download_portfolio(provider=provider)
+            result = await download_func(provider=provider)
 
             if result:
                 success_msg = "Portfolio download completed successfully!"
@@ -3270,16 +3273,12 @@ async def handle_portfolio_download(get_provider=None, app_logger=None):
                 app_logger.error(error_msg)
             print(f"Error: {error_msg}")
 
-            # Check if this is a credential error
-            if "PI_SCREENER_EMAIL" in str(e) or "PASSWORD" in str(e).upper():
+            # Check if this is a credential error and provide appropriate tips
+            if "ETORO_API_KEY" in str(e) or "ETORO_USER_KEY" in str(e):
                 print("\nTIP: Make sure your .env file contains the following variables:")
-                print("PI_SCREENER_EMAIL=your-email@example.com")
-                print("PI_SCREENER_PASSWORD=your-password\n")
-
-            # Check if this is a Selenium error
-            if "selenium" in str(e).lower():
-                print("\nTIP: Make sure Chrome and chromedriver are installed.")
-                print("You can install Selenium with: pip install selenium\n")
+                print("ETORO_API_KEY=your-etoro-api-key")
+                print("ETORO_USER_KEY=your-etoro-user-key")
+                print("ETORO_USERNAME=your-etoro-username  # Optional, defaults to 'plessas'\n")
 
             return False
     else:
