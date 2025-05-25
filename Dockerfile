@@ -8,6 +8,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Create a non-root user to run the application
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
 # Copy requirements file
 COPY requirements.txt .
 
@@ -15,14 +18,17 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the source code
-COPY . .
+COPY --chown=appuser:appuser . .
 
-# Create directories for data
-RUN mkdir -p /app/logs
+# Create directories for data with proper ownership
+RUN mkdir -p /app/logs && chown -R appuser:appuser /app/logs
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
+
+# Switch to non-root user
+USER appuser
 
 # Command to run when the container starts
 CMD ["python", "trade.py"]
