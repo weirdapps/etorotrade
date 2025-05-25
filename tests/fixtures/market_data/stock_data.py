@@ -8,7 +8,6 @@ for unit and integration testing.
 from datetime import datetime, timedelta
 from unittest.mock import Mock
 
-import pandas as pd
 import pytest
 
 

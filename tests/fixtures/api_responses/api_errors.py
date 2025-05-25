@@ -6,18 +6,13 @@ for unit and integration testing.
 """
 
 import json
-from unittest.mock import Mock
 
 import pytest
 import requests
 
 from yahoofinance.core.errors import (
-    APIError,
     DataError,
-    NetworkError,
-    RateLimitError,
     ValidationError,
-    YFinanceError,
 )
 
 

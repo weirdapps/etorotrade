@@ -5,7 +5,6 @@ This module contains tests for the enhanced async provider implementation,
 focusing on circuit breaker integration, error handling, and resilience patterns.
 """
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pandas as pd
@@ -15,7 +14,6 @@ from yahoofinance.api.providers.enhanced_async_yahoo_finance import (
     EnhancedAsyncYahooFinanceProvider,
 )
 from yahoofinance.core.errors import APIError, NetworkError, RateLimitError, YFinanceError
-from yahoofinance.utils.network.circuit_breaker import CircuitState
 
 
 # Create a mockable class that implements the abstract methods

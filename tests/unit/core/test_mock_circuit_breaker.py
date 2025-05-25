@@ -3,9 +3,7 @@ Test file with simple mocked CircuitBreaker implementations that don't import th
 """
 
 from enum import Enum
-from unittest.mock import MagicMock
 
-import pytest
 
 
 # Define minimal classes needed for testing

@@ -4,7 +4,6 @@ Test fixtures for async testing.
 This module provides fixtures and helpers for testing asynchronous functionality.
 """
 
-import asyncio
 from typing import Any, Callable, Dict, List, Tuple
 from unittest.mock import AsyncMock, MagicMock
 

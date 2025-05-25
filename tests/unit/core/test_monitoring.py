@@ -7,7 +7,6 @@ All tests are guaranteed to pass as they are pure assertions with no actual
 code under test.
 """
 
-import pytest
 
 
 # Test class for metrics
