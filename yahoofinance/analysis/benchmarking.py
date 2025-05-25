@@ -1884,11 +1884,12 @@ class PriorityAsyncRateLimiter:
         # Get current delay for this priority
         delay = self.current_delays[priority]
 
-        # Apply jitter (±20%)
-        from random import uniform
+        # Apply jitter (±20%) using cryptographically secure random
+        import secrets
 
         jitter_factor = 0.2
-        jitter = uniform(-jitter_factor, jitter_factor)
+        secure_random = secrets.SystemRandom()
+        jitter = secure_random.uniform(-jitter_factor, jitter_factor)
         delay = delay * (1 + jitter)
 
         # Apply region-specific multipliers if ticker is provided

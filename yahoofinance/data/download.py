@@ -98,16 +98,24 @@ def safe_click(driver, element, description="element"):
 
 
 def setup_driver():
-    """Setup Chrome WebDriver with appropriate options"""
+    """Setup Chrome WebDriver with secure options"""
     options = webdriver.ChromeOptions()
-    options.add_argument("--no-sandbox")
+    # Security: Removed --no-sandbox and --disable-web-security
+    # Only use these if absolutely necessary and in controlled environments
     options.add_argument("--disable-dev-shm-usage")
-    # Add additional options to help with stability
-    options.add_argument("--disable-web-security")
-    options.add_argument("--disable-features=IsolateOrigins,site-per-process")
-    # Add options for slow network
+    # Add additional options for stability while maintaining security
     options.add_argument("--disable-gpu")
     options.add_argument("--window-size=1200,800")
+    # Add security-focused options
+    options.add_argument("--disable-plugins")
+    options.add_argument("--disable-extensions")
+    options.add_argument("--disable-images")  # Faster loading
+    options.add_argument("--disable-javascript")  # More secure if JS not needed
+    # Set a specific user data directory within project (not system temp)
+    import os
+    user_data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "chrome_profile")
+    os.makedirs(user_data_dir, exist_ok=True)
+    options.add_argument(f"--user-data-dir={user_data_dir}")
     return webdriver.Chrome(options=options)
 
 
