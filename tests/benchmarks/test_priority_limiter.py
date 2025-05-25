@@ -145,7 +145,7 @@ async def test_adaptive_behavior():
 
     stats = rate_limiter.get_stats()
 
-    print(f"After 10 successful calls:")
+    print("After 10 successful calls:")
     print(f"  - Total calls: {stats.get('total_calls', 0)}")
     print(f"  - Success rate: {stats.get('success_rate', 0):.1f}%")
     print(f"  - Current delay: {stats.get('current_delay', 0):.3f}s")

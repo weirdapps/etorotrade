@@ -420,7 +420,7 @@ def _check_upside_buy_criterion(row, buy_criteria):
     """Check if a stock meets the upside criterion for buying."""
 
     if UPSIDE not in row or pd.isna(row[UPSIDE]):
-        return False, f"Upside data not available (required for buy)"
+        return False, "Upside data not available (required for buy)"
 
     # Safe conversion handling special values
     try:
@@ -455,7 +455,7 @@ def _check_buy_percentage_buy_criterion(row, buy_criteria):
     """Check if a stock meets the buy percentage criterion for buying."""
 
     if BUY_PERCENTAGE_COL not in row or pd.isna(row[BUY_PERCENTAGE_COL]):
-        return False, f"Buy percentage data not available (required for buy)"
+        return False, "Buy percentage data not available (required for buy)"
 
     # Safe conversion handling special values
     try:
@@ -993,7 +993,7 @@ def format_numeric_values(df, numeric_columns):
             if result_df[col].dtype == "object":
                 result_df[col] = result_df[col].apply(
                     lambda x: (
-                        float(str(x).replace("%", "")) if isinstance(x, str) and "%" in x else x
+                        float(x.replace("%", "")) if isinstance(x, str) and "%" in x else x
                     )
                 )
             # Convert to numeric, coerce errors to NaN

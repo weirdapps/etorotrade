@@ -382,7 +382,7 @@ async def test_concurrent_requests():
     min_wait = min(wait_times)
     max_wait = max(wait_times)
     
-    print(f"\nWait time statistics:")
+    print("\nWait time statistics:")
     print(f"Min: {min_wait:.3f}s, Max: {max_wait:.3f}s, Avg: {avg_wait:.3f}s")
     
     # Get rate limiter stats
