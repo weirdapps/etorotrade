@@ -828,6 +828,8 @@ class PerformanceTracker:
 
         # Create a proper SSL context with certificate verification
         ssl_context = ssl.create_default_context(cafile=certifi.where())
+        # Use TLSv1.2 or higher for stronger security
+        ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
 
         async with aiohttp.ClientSession() as session:
             try:
