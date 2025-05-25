@@ -12,7 +12,7 @@ related async rate limiting functionality.
 
 import asyncio
 import logging
-import random
+import secrets
 import time
 from datetime import datetime
 from functools import wraps
@@ -406,7 +406,9 @@ class AsyncRateLimiter:
             return delay
 
         jitter_range = delay * self.jitter_factor
-        jitter = random.uniform(-jitter_range / 2, jitter_range / 2)
+        # Generate secure random value between -jitter_range/2 and jitter_range/2
+        random_factor = (secrets.randbits(32) / (2**32 - 1)) - 0.5  # Range: -0.5 to 0.5
+        jitter = jitter_range * random_factor
 
         return max(self.min_delay, delay + jitter)
 
@@ -530,7 +532,8 @@ async def retry_async_with_backoff(
 
             # Calculate delay with jitter
             delay = min(max_delay, base_delay * (2 ** (attempt - 1)))
-            jitter = random.uniform(0.75, 1.25)  # Add 25% jitter
+            # Generate secure random value between 0.75 and 1.25 (25% jitter)
+            jitter = 0.75 + (secrets.randbits(32) / (2**32 - 1)) * 0.5
             delay = delay * jitter
 
             logger.debug(

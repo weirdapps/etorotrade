@@ -783,9 +783,12 @@ async def fallback_portfolio_download():
             logger.error(f"[{fallback_id}] Error checking source file: {str(e)}")
             # Continue anyway, as the copy operation might still succeed
 
-        # Copy the file
-        shutil.copy2(src_path, dest_path)
-        logger.info(f"[{fallback_id}] Portfolio copied from {src_path} to {dest_path}")
+        # Copy the file without preserving metadata/permissions for security
+        shutil.copy(src_path, dest_path)
+        # Set secure permissions: owner read/write, group read, others no access
+        import stat
+        os.chmod(dest_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP)
+        logger.info(f"[{fallback_id}] Portfolio copied from {src_path} to {dest_path} with secure permissions")
 
         # Verify the copy was successful
         if os.path.exists(dest_path):

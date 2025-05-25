@@ -3,11 +3,20 @@
 .github
 .gitignore
 
-# Virtual environment
+# Virtual environment and sensitive files
 myenv/
 venv/
 env/
 .env
+.env.*
+*.env
+secrets.*
+*.key
+*.pem
+*.p12
+*.pfx
+config.local.*
+*.local
 
 # Python cache files
 __pycache__/
@@ -42,3 +51,13 @@ benchmarks/*
 # OS specific files
 .DS_Store
 Thumbs.db
+
+# Development and testing files (exclude from production container)
+tests/
+benchmarks/
+scripts/
+*.md
+README*
+LICENSE
+Makefile
+docker-compose*.yml

@@ -17,7 +17,8 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the source code
+# Copy only necessary files for production (security best practice)
+# The .dockerignore file excludes sensitive files, tests, and development tools
 COPY --chown=appuser:appuser . .
 
 # Create directories for data with proper ownership
