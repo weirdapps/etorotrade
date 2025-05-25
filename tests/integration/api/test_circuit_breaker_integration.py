@@ -9,29 +9,17 @@ This module tests the integration of circuit breakers across various components:
 """
 
 import asyncio
-import json
 import os
 import tempfile
-import time
-from unittest.mock import AsyncMock, MagicMock, mock_open, patch
+from unittest.mock import patch
 
-import aiohttp
 import pytest
 
-import yahoofinance.utils.async_utils.enhanced
 from yahoofinance.api.providers.enhanced_async_yahoo_finance import (
     EnhancedAsyncYahooFinanceProvider,
 )
-from yahoofinance.core.errors import APIError, NetworkError, RateLimitError, ValidationError
-from yahoofinance.utils.async_utils.enhanced import (
-    AsyncRateLimiter,
-    enhanced_async_rate_limited,
-    retry_async_with_backoff,
-)
+from yahoofinance.core.errors import APIError
 from yahoofinance.utils.error_handling import (
-    enrich_error_context,
-    safe_operation,
-    translate_error,
     with_retry,
 )
 from yahoofinance.utils.network.circuit_breaker import (
@@ -41,8 +29,6 @@ from yahoofinance.utils.network.circuit_breaker import (
     CircuitState,
     async_circuit_protected,
     circuit_protected,
-    get_async_circuit_breaker,
-    get_circuit_breaker,
     reset_all_circuits,
 )
 

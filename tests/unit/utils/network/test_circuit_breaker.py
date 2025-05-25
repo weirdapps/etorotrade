@@ -3,12 +3,11 @@
 import threading
 import time
 from enum import Enum
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from yahoofinance.core.errors import YFinanceError
-from yahoofinance.utils.network.circuit_breaker import CircuitState
 
 
 # Define Enums for test compatibility

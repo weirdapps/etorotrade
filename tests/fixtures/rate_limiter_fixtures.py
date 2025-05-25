@@ -4,21 +4,12 @@ This module contains fixtures and utilities used by multiple
 rate limiter test modules to reduce duplication.
 """
 
-import threading
 import time
-from collections import deque
-from concurrent.futures import ThreadPoolExecutor
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from yahoofinance.core.errors import APIError, RateLimitError
-from yahoofinance.utils.network.batch import batch_process
 from yahoofinance.utils.network.rate_limiter import RateLimiter as AdaptiveRateLimiter
-from yahoofinance.utils.network.rate_limiter import (
-    global_rate_limiter,
-    rate_limited,
-)
 
 
 @pytest.fixture

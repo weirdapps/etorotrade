@@ -6,10 +6,8 @@ import os
 
 # Import functions from trade.py
 import sys
-from unittest.mock import patch
 
 import pandas as pd
-import pytest
 
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))

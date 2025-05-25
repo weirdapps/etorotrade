@@ -8,14 +8,12 @@ process_batch_async, and the various decorators.
 
 import asyncio
 import time
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from yahoofinance.core.errors import RateLimitError
 from yahoofinance.utils.async_utils.enhanced import (
-    RATE_LIMIT_ERROR_MESSAGE,
-    TOO_MANY_REQUESTS_ERROR_MESSAGE,
     AsyncRateLimiter,
     async_rate_limited,
     enhanced_async_rate_limited,
@@ -101,7 +99,7 @@ async def test_async_rate_limiter_record_failure():
     # Non-rate-limit failure increases delay by factor of 1.5, but only after
     # reaching the error_threshold (which we set to 1)
     # Record current delay value for comparison later
-    initial_delay = limiter.current_delay
+    _ = limiter.current_delay  # Record initial delay (unused in current test)
 
     # Record rate limit failure
     await limiter.record_failure(is_rate_limit=True)

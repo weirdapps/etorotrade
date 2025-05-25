@@ -109,7 +109,7 @@ class TestRateLimiterCore(unittest.TestCase):
 
     def test_error_tracking(self):
         """Test error tracking and backoff behavior."""
-        original_delay = self.rate_limiter.delay
+        _ = self.rate_limiter.delay  # Store original delay for reference (unused in test)
 
         # Add several errors - use is_rate_limit=True to ensure bigger backoff
         for _ in range(3):
@@ -396,8 +396,8 @@ class TestErrorRecovery(unittest.TestCase):
             "yahoofinance.utils.network.rate_limiter.RateLimiter.get_ticker_region",
             return_value="US",
         ):
-            regular_delay = limiter.get_delay_for_ticker()
-            ticker_delay = limiter.get_delay_for_ticker("AAPL")
+            _ = limiter.get_delay_for_ticker()  # Regular delay (unused)
+            _ = limiter.get_delay_for_ticker("AAPL")  # Ticker delay (unused)
 
             # Skip this assertion as ticker_delay behavior might vary based on implementation
 

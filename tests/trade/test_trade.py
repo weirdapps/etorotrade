@@ -1,22 +1,14 @@
-import os
 import sys
 import unittest
 from io import StringIO
-from tempfile import TemporaryDirectory
-from unittest.mock import Mock, call, mock_open, patch
+from unittest.mock import patch
 
-import numpy as np
 import pandas as pd
 
-from trade import DIVIDEND_YIELD_DISPLAY  # Changed import name
 from trade import (
-    BUY_PERCENTAGE,
     filter_buy_opportunities,
     filter_hold_candidates,
     filter_sell_candidates,
-    generate_trade_recommendations,
-    main,
-    process_hold_candidates,
 )
 
 

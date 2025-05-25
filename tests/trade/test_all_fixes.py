@@ -14,7 +14,6 @@ import logging
 import sys
 from pprint import pprint
 
-import pandas as pd
 
 # Import core provider components
 from yahoofinance import get_provider

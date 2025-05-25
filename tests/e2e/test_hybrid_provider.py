@@ -5,14 +5,10 @@ These tests validate that the hybrid provider correctly combines data from YFina
 and YahooQuery, providing better data coverage, especially for international stocks.
 """
 
-import os
-import random
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import pandas as pd
 import pytest
 
-from yahoofinance import get_provider
 from yahoofinance.api.providers.hybrid_provider import HybridProvider
 from yahoofinance.api.providers.yahoo_finance import YahooFinanceProvider
 from yahoofinance.api.providers.yahooquery_provider import YahooQueryProvider
