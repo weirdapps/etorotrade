@@ -19,24 +19,25 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy only necessary files for production (security best practice)
 # Using explicit COPY commands instead of recursive copy to minimize security risk
-COPY --chown=appuser:appuser yahoofinance/ ./yahoofinance/
-COPY --chown=appuser:appuser trade.py ./
-COPY --chown=appuser:appuser setup.py ./
-COPY --chown=appuser:appuser pyproject.toml ./
+COPY yahoofinance/ ./yahoofinance/
+COPY trade.py ./
+COPY setup.py ./
+COPY pyproject.toml ./
 
 # Copy essential input data files needed for application functionality
-COPY --chown=appuser:appuser yahoofinance/input/ ./yahoofinance/input/
+COPY yahoofinance/input/ ./yahoofinance/input/
 
-# Create directories for data with proper ownership and set secure permissions
-RUN mkdir -p /app/logs && chown -R appuser:appuser /app/logs && chmod -R 755 /app/logs
-
-# Set secure permissions on copied files - remove write permissions for group/others
+# Set proper ownership and secure permissions on all copied files
 # This addresses the SonarCloud security hotspot about write permissions on copied resources
-RUN find /app -type f -exec chmod 644 {} \; && \
+RUN chown -R appuser:appuser /app && \
+    find /app -type f -exec chmod 644 {} \; && \
     find /app -type d -exec chmod 755 {} \; && \
     find /app -name "*.py" -exec chmod 644 {} \; && \
     find /app -name "*.sh" -exec chmod 755 {} \; && \
-    chmod -R go-w /app
+    chmod -R go-w /app && \
+    mkdir -p /app/logs && \
+    chown -R appuser:appuser /app/logs && \
+    chmod -R 755 /app/logs
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
