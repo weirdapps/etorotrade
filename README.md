@@ -7,7 +7,7 @@
 
 **Data-driven investment decisions powered by analyst consensus and financial metrics**
 
-![eToro Trade Analysis Tool](assets/etorotrade.png)
+![eToro Trade Analysis Tool](docs/assets/etorotrade.png)
 
 etorotrade is a Python-based investment analysis system that helps you make smarter trading decisions by analyzing financial data, analyst ratings, and technical indicators from Yahoo Finance. Whether you're managing a portfolio or searching for new opportunities, etorotrade provides actionable insights with clear BUY, SELL, or HOLD recommendations.
 
