@@ -9,7 +9,7 @@ import re
 from typing import Any, Dict, List, Optional, Set
 
 from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from yahoofinance.utils.error_handling import (
+from ...utils.error_handling import (
     enrich_error_context,
     safe_operation,
     translate_error,
@@ -40,8 +40,8 @@ def validate_ticker(ticker: str) -> bool:
     if len(ticker) > 20:
         raise ValidationError(f"Invalid ticker: {ticker} - length exceeds 20 characters")
 
-    # Check for invalid characters
-    if re.search(r"[^\w\.\-]", ticker):
+    # Check for invalid characters (allow alphanumeric, dots, hyphens, and equals for futures)
+    if re.search(r"[^\w\.\-=]", ticker):
         raise ValidationError(f"Invalid ticker: {ticker} - contains invalid characters")
 
     return True
@@ -152,6 +152,49 @@ def normalize_hk_ticker(ticker: str) -> str:
 
     # For non-zero starting tickers, keep as is
     return ticker
+
+
+def is_stock_ticker(ticker: str) -> bool:
+    """
+    Check if a ticker represents a stock (as opposed to ETF, commodity, or cryptocurrency).
+    
+    Stocks have insider trading data available, while ETFs, commodities, and 
+    cryptocurrencies typically do not.
+
+    Args:
+        ticker: Ticker symbol to check
+
+    Returns:
+        True if likely a stock ticker, False for ETFs/commodities/crypto
+    """
+    ticker_upper = ticker.upper()
+    
+    # Cryptocurrency patterns
+    if ticker_upper.endswith("-USD") or ticker_upper.endswith("-EUR"):
+        return False
+    
+    # Common ETF patterns (many ETFs are 3-4 letters)
+    # This is a heuristic - not all 3-letter tickers are ETFs
+    common_etf_tickers = {
+        "TLT", "FXI", "INDA", "SPY", "QQQ", "IWM", "EFA", "EEM", "VTI", "VEA",
+        "VWO", "AGG", "LQD", "HYG", "GLD", "SLV", "OIL", "USO", "UNG", "GDXJ",
+        "XLF", "XLE", "XLI", "XLK", "XLP", "XLU", "XLV", "XLY", "XLB", "XLRE",
+        "SQQQ", "TQQQ", "UVXY", "VXX", "VIXY"
+    }
+    
+    if ticker_upper in common_etf_tickers:
+        return False
+    
+    # Common commodity/futures patterns
+    commodity_patterns = {
+        "GC=F", "SI=F", "CL=F", "NG=F", "ZC=F", "ZS=F", "ZW=F"  # Futures contracts
+    }
+    
+    if ticker_upper in commodity_patterns:
+        return False
+    
+    # Default to assuming it's a stock if we can't definitively classify it
+    return True
 
 
 def filter_valid_tickers(

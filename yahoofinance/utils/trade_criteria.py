@@ -9,7 +9,7 @@ import pandas as pd
 
 from yahoofinance.core.config import COLUMN_NAMES
 
-from ..core.logging_config import get_logger
+from ..core.logging import get_logger
 
 
 # Constants for column names from config

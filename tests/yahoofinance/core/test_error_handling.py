@@ -19,7 +19,7 @@ from yahoofinance.core.errors import (
     classify_api_error,
     format_error_details,
 )
-from yahoofinance.core.logging_config import get_logger
+from yahoofinance.core.logging import get_logger
 from yahoofinance.utils.error_handling import (
     enrich_error_context,
     safe_operation,

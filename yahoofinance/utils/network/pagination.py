@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, Generic, Iterator, List, Optional, TypeV
 
 from ...core.config import PAGINATION
 from ...core.errors import APIError, DataError, ValidationError, YFinanceError
-from ...core.logging_config import get_logger
+from ...core.logging import get_logger
 
 
 # Set up logging

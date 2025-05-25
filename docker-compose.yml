@@ -1,26 +1,15 @@
+# This file has been moved to .config/docker/docker-compose.yml
+# This is a compatibility wrapper
+
 version: '3'
 
 services:
   etorotrade:
-    build: .
-    volumes:
-      - ./yahoofinance/input:/app/yahoofinance/input
-      - ./yahoofinance/output:/app/yahoofinance/output
-      - ./logs:/app/logs
-    environment:
-      - ETOROTRADE_LOG_LEVEL=INFO
-      - PYTHONPATH=/app
-    ports:
-      - "8000:8000"  # For potential web dashboard in the future
-    command: python trade.py
+    extends:
+      file: .config/docker/docker-compose.yml
+      service: etorotrade
   
   tests:
-    build: .
-    volumes:
-      - ./tests:/app/tests:ro  # Read-only mount for tests
-      - ./yahoofinance:/app/yahoofinance:ro  # Read-only mount for source code
-      - ./requirements.txt:/app/requirements.txt:ro
-      - ./pyproject.toml:/app/pyproject.toml:ro
-      - ./setup.py:/app/setup.py:ro
-      - ./run_tests.sh:/app/run_tests.sh:ro
-    command: ./run_tests.sh --all
+    extends:
+      file: .config/docker/docker-compose.yml
+      service: tests

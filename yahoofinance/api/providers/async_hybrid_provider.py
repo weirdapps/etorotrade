@@ -1,7 +1,7 @@
 """
 Asynchronous Hybrid Finance Data Provider.
 
-Combines data from EnhancedAsyncYahooFinanceProvider (yfinance) and
+Combines data from AsyncYahooFinanceProvider (yfinance) and
 AsyncYahooQueryProvider (yahooquery) to maximize data coverage,
 especially for metrics like PEG ratio.
 """
@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import pandas as pd  # Add pandas import
 
 from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from yahoofinance.utils.error_handling import (
+from ...utils.error_handling import (
     enrich_error_context,
     safe_operation,
     translate_error,
@@ -20,11 +20,11 @@ from yahoofinance.utils.error_handling import (
 )
 
 from ...core.errors import YFinanceError
-from ...core.logging_config import get_logger
+from ...core.logging import get_logger
 from ...utils.async_utils.enhanced import gather_with_concurrency  # Use the same concurrency helper
 from .async_yahooquery_provider import AsyncYahooQueryProvider
 from .base_provider import AsyncFinanceDataProvider
-from .enhanced_async_yahoo_finance import EnhancedAsyncYahooFinanceProvider
+from .async_yahoo_finance import AsyncYahooFinanceProvider
 
 
 logger = get_logger(__name__)
@@ -32,7 +32,7 @@ logger = get_logger(__name__)
 
 class AsyncHybridProvider(AsyncFinanceDataProvider):
     """
-    Async provider combining yfinance (via Enhanced) and yahooquery.
+    Async provider combining yfinance and yahooquery.
     Prioritizes yfinance data, supplements with yahooquery for missing fields.
     """
 
@@ -41,8 +41,8 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
         from ...core.config import PROVIDER_CONFIG
 
         # Instantiate the underlying providers
-        # Pass kwargs like max_concurrency if needed by the enhanced provider
-        self.yf_provider = EnhancedAsyncYahooFinanceProvider(**kwargs)
+        # Pass kwargs like max_concurrency if needed by the async provider
+        self.yf_provider = AsyncYahooFinanceProvider(**kwargs)
 
         # Check if yahooquery is enabled
         self.enable_yahooquery = PROVIDER_CONFIG.get("ENABLE_YAHOOQUERY", False)
@@ -58,13 +58,14 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
 
         self.max_concurrency = self.yf_provider.max_concurrency  # Inherit concurrency limit
 
-        # Add ticker mappings
+        # Add ticker mappings for common commodity/crypto symbols
         self._ticker_mappings = {
             "BTC": "BTC-USD",
             "ETH": "ETH-USD",
-            "OIL": "CL=F",  # Crude oil futures
-            "GOLD": "GC=F",  # Gold futures
-            "SILVER": "SI=F",  # Silver futures
+            "GOLD": "GC=F",    # Gold Futures
+            "OIL": "CL=F",     # Crude Oil Futures
+            "SILVER": "SI=F",  # Silver Futures
+            "NATURAL_GAS": "NG=F",  # Natural Gas Futures
             "EURUSD": "EURUSD=X",  # Forex
             # Add other mappings as needed
         }

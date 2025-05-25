@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from ..api.providers.base_provider import AsyncFinanceDataProvider, FinanceDataProvider
 from ..core.errors import ValidationError
-from ..core.logging_config import get_logger
+from ..core.logging import get_logger
 from ..utils.dependency_injection import inject, registry
 
 

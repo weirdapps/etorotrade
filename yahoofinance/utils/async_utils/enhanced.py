@@ -19,7 +19,7 @@ from functools import wraps
 from typing import Any, Callable, Coroutine, Dict, List, Optional, Set, Tuple, TypeVar, Union
 
 from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from yahoofinance.utils.error_handling import (
+from ...utils.error_handling import (
     enrich_error_context,
     safe_operation,
     translate_error,

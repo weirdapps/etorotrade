@@ -18,7 +18,7 @@ from tabulate import tabulate
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from yahoofinance.utils.error_handling import (
+from ..utils.error_handling import (
     enrich_error_context,
     safe_operation,
     translate_error,
@@ -27,7 +27,7 @@ from yahoofinance.utils.error_handling import (
 
 from ..core.config import FILE_PATHS, MESSAGES, PATHS
 from ..core.errors import YFinanceError
-from ..core.logging_config import get_logger
+from ..core.logging import get_logger
 from ..utils.network.circuit_breaker import async_circuit_protected, circuit_protected
 
 

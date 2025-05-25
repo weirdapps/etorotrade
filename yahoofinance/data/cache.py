@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from yahoofinance.utils.error_handling import (
+from ..utils.error_handling import (
     enrich_error_context,
     safe_operation,
     translate_error,
@@ -29,7 +29,7 @@ from yahoofinance.utils.error_handling import (
 )
 
 from ..core.config import CACHE_CONFIG
-from ..core.logging_config import get_logger
+from ..core.logging import get_logger
 
 
 logger = get_logger(__name__)
