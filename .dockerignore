@@ -17,6 +17,15 @@ secrets.*
 *.pfx
 config.local.*
 *.local
+*.secret
+*.password
+*.passwd
+*_key
+*_secret
+credentials.*
+auth.*
+token.*
+api_key.*
 
 # Python cache files
 __pycache__/

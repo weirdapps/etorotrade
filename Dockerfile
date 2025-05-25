@@ -21,8 +21,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 # The .dockerignore file excludes sensitive files, tests, and development tools
 COPY --chown=appuser:appuser . .
 
-# Create directories for data with proper ownership
-RUN mkdir -p /app/logs && chown -R appuser:appuser /app/logs
+# Create directories for data with proper ownership and set secure permissions
+RUN mkdir -p /app/logs && chown -R appuser:appuser /app/logs && chmod -R 755 /app/logs
+
+# Set secure permissions on copied files - remove write permissions for group/others
+RUN find /app -type f -exec chmod 644 {} \; && \
+    find /app -type d -exec chmod 755 {} \; && \
+    find /app -name "*.py" -exec chmod 644 {} \; && \
+    find /app -name "*.sh" -exec chmod 755 {} \;
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1

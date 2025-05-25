@@ -8,7 +8,7 @@ the thread-pool based implementation.
 """
 
 import asyncio
-import random
+import secrets
 import time
 from functools import wraps
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple, TypeVar, Union, cast
