@@ -30,7 +30,7 @@ class TestFinanceProviders:
         mock_registry.resolve.return_value = mock_provider
 
         # Call the get_provider function with provider_type explicitly set to yahoo
-        provider = get_provider(provider_type="yahoo", use_cache=False)
+        _ = get_provider(provider_type="yahoo", use_cache=False)  # We only test the call, not the returned provider
 
         # Check that resolve was called properly - we're testing the wiring, not the actual provider
         mock_registry.resolve.assert_called_once()
@@ -47,7 +47,7 @@ class TestFinanceProviders:
         mock_registry.resolve.return_value = mock_provider
 
         # Call the get_provider function with async_api=True
-        provider = get_provider(async_api=True, use_cache=False)
+        _ = get_provider(async_api=True, use_cache=False)  # We only test the call, not the returned provider
 
         # Check that the registry resolve function was called
         mock_registry.resolve.assert_called_once()

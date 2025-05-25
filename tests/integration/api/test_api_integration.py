@@ -5,18 +5,14 @@ These tests verify that the API client, providers, and rate limiting components
 work together correctly in realistic scenarios.
 """
 
-import time
-from unittest.mock import Mock, patch
-
 import pandas as pd
 import pytest
 
 # Using direct imports from canonical modules
 # No more compat imports
-from yahoofinance.api import FinanceDataProvider, get_provider
-from yahoofinance.core.errors import APIError, RateLimitError, ValidationError
+from yahoofinance.api import get_provider
+from yahoofinance.core.errors import ValidationError
 from yahoofinance.utils.error_handling import with_retry
-from yahoofinance.utils.network.rate_limiter import RateLimiter, global_rate_limiter
 
 
 @pytest.mark.integration
@@ -165,7 +161,7 @@ class TestProviderIntegration:
     @pytest.mark.skip(reason="Async tests require separate handling")
     def test_async_provider(self):
         """Test async provider (placeholder, need to be run separately)"""
-        pass
+        pytest.skip("Async provider tests need to be implemented in separate async test suite")
 
 
 @pytest.mark.integration

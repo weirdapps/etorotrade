@@ -168,7 +168,7 @@ async def test_concurrent_access():
     async def stress_test(id: int):
         try:
             for _ in range(10):
-                priority = random.choice([PRIORITY_HIGH, PRIORITY_MEDIUM, PRIORITY_LOW])
+                _ = random.choice([PRIORITY_HIGH, PRIORITY_MEDIUM, PRIORITY_LOW])  # Unused but demonstrates different priorities
                 async with rate_limiter:
                     await asyncio.sleep(0.001)
             completed.append(id)

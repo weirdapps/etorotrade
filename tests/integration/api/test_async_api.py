@@ -1,7 +1,5 @@
 """Integration tests for async provider pattern"""
 
-import asyncio
-
 import pandas as pd
 import pytest
 import pytest_asyncio

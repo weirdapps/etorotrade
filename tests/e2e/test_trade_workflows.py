@@ -5,13 +5,11 @@ These tests verify complete user workflows from data retrieval to
 decision-making, ensuring the system works correctly as a whole.
 """
 
-import os
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
 
-from yahoofinance.api import get_provider
 from yahoofinance.presentation.console import MarketDisplay
 
 

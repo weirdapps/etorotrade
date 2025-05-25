@@ -4,29 +4,21 @@ and edge cases to improve test coverage.
 """
 
 import asyncio
-import json
-import os
 import time
 import unittest
 from threading import Lock
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from yahoofinance.core.errors import MonitoringError
 from yahoofinance.core.monitoring import (
     Alert,
     AlertManager,
     CircuitBreakerMonitor,
     CircuitBreakerState,
     CircuitBreakerStatus,
-    HealthCheck,
-    HealthStatus,
-    MonitoringService,
     RequestContext,
     RequestTracker,
-    check_api_health,
-    check_memory_health,
     check_metric_threshold,
     monitor_api_call,
     periodic_export_metrics,
