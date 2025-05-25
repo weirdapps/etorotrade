@@ -28,6 +28,9 @@ from ..utils.market import is_us_ticker
 
 logger = get_logger(__name__)
 
+# Constants
+DEFAULT_ERROR_MESSAGE = "Error fetching analyst data"
+
 
 # The AnalystData class below is used for modern API
 # The legacy CompatAnalystData class is provided for backward compatibility

@@ -6,6 +6,7 @@ Modern Portfolio Theory to maximize Sharpe ratio under specified constraints.
 """
 
 import json
+import logging
 import os
 import pickle
 import sys

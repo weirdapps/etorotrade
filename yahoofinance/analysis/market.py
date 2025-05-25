@@ -7,6 +7,7 @@ identifying trading opportunities, and applying trading criteria.
 When run directly, this module performs market analysis on a default set of tickers.
 """
 
+import logging
 import sys
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
