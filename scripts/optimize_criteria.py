@@ -79,7 +79,7 @@ def parse_parameters(param_file: Optional[str] = None) -> Dict[str, Any]:
                         return params
                         
             # If we get here, the file was loaded but format wasn't recognized
-            print(f"Warning: Parameter file format not recognized. Using simplified defaults.")
+            print("Warning: Parameter file format not recognized. Using simplified defaults.")
         except Exception as e:
             print(f"Error parsing parameter file: {e}")
             print("Using default parameters instead.")
