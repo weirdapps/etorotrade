@@ -13,7 +13,7 @@ from yahoofinance.api.middleware.monitoring_middleware import (
     apply_monitoring,
 )
 from yahoofinance.api.providers.base_provider import AsyncFinanceDataProvider, FinanceDataProvider
-, YFinanceError
+from yahoofinance.core.errors import YFinanceError
 
 
 # Mocks for circuit breaker monitoring
