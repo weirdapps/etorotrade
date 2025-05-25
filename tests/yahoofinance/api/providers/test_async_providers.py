@@ -36,7 +36,7 @@ def mock_rate_limiters():
         side_effect=async_rate_limited_mock,
     ):
         with patch(
-            "yahoofinance.api.providers.async_yahoo_finance.async_rate_limited",
+            "yahoofinance.api.providers.async_yahoo_finance.enhanced_async_rate_limited",
             side_effect=async_rate_limited_mock,
         ):
             yield
