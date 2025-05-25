@@ -80,11 +80,11 @@ class TestLazyImport:
         # Verify join is callable
         assert callable(join)
 
-        # Call join
-        result = join("/tmp", "file.txt")
+        # Call join with safe test paths (avoid publicly writable directories)
+        result = join("home", "user", "file.txt")
 
         # Verify result
-        assert result == "/tmp/file.txt"
+        assert result == "home/user/file.txt" or result == "home\\user\\file.txt"  # Handle both Unix and Windows
 
     def test_lazy_import_item_access(self):
         """Test accessing items of a lazy import."""

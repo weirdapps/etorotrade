@@ -111,8 +111,8 @@ class TestFormatUtils(unittest.TestCase):
             }
         ]
 
-        # Patch FILE_PATHS temporarily during the test
-        with patch("yahoofinance.presentation.html.FILE_PATHS", {"OUTPUT_DIR": "/tmp"}):
+        # Patch FILE_PATHS temporarily during the test (use safe test directory)
+        with patch("yahoofinance.presentation.html.FILE_PATHS", {"OUTPUT_DIR": "test_output"}):
             # Create HTML generator instance
             from yahoofinance.presentation.html import HTMLGenerator
 
