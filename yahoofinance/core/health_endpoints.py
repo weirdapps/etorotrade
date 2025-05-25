@@ -418,6 +418,8 @@ class HealthEndpointServer:
             logger.info(f"Health endpoint server started on {self.host}:{self.port}")
 
             # Log available endpoints
+            # Note: Using HTTP for local health monitoring endpoints is acceptable
+            # as these are only accessible within the local network/container
             endpoints = [
                 f"http://{self.host}:{self.port}/health",
                 f"http://{self.host}:{self.port}/health/live",
