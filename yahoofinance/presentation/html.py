@@ -35,7 +35,7 @@ class FormatUtils:
     def format_number(value, precision=2):
         """Format numeric value with specified precision."""
         if pd.isna(value) or value is None:
-            return "--"
+            return "N/A"
 
         if isinstance(value, (int, float)):
             format_str = f"{{:.{precision}f}}"

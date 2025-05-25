@@ -38,7 +38,7 @@ def format_number(
     """
 
     if value is None or value == "":
-        return "--"
+        return "N/A"
 
     try:
         num_value = float(value)
@@ -47,7 +47,7 @@ def format_number(
 
     # Handle special cases
     if math.isnan(num_value):
-        return "--"
+        return "N/A"
     if math.isinf(num_value):
         return "∞" if num_value > 0 else "-∞"
     if num_value == 0 and as_percentage:
