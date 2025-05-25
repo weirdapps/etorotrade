@@ -6,6 +6,7 @@ the configured trading criteria on historical data and evaluating performance.
 """
 
 import json
+import logging
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
