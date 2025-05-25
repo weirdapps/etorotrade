@@ -5448,9 +5448,13 @@ if __name__ == "__main__":
                 dst_file = os.path.join(input_dir, file)
                 if os.path.isfile(src_file) and not os.path.exists(dst_file):
                     import shutil
+                    import stat
 
-                    shutil.copy2(src_file, dst_file)
-                    logger.debug(f"Copied {file} from v1 to v2 input directory")
+                    # Use shutil.copy instead of copy2 to not preserve metadata/permissions
+                    shutil.copy(src_file, dst_file)
+                    # Set secure permissions: owner read/write, group read, others no access
+                    os.chmod(dst_file, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP)
+                    logger.debug(f"Copied {file} from v1 to v2 input directory with secure permissions")
         else:
             logger.debug(f"V1 input directory not found: {v1_input_dir}")
 
