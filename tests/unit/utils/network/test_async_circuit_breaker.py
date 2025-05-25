@@ -42,11 +42,16 @@ class HalfOpenExecutor:
 
     def __init__(self, allow_percentage):
         self.allow_percentage = allow_percentage
+        self.call_count = 0
 
     def should_execute(self):
-        import random
-
-        return random.randint(1, 100) <= self.allow_percentage
+        # Use deterministic behavior for testing: allow every nth request based on percentage
+        # This provides predictable test behavior while still testing the half-open logic
+        self.call_count += 1
+        # For example, if allow_percentage is 50, allow every 2nd call
+        # if allow_percentage is 25, allow every 4th call
+        interval = max(1, 100 // max(1, self.allow_percentage))
+        return (self.call_count % interval) == 1
 
 
 # Mock AsyncCircuitBreaker implementation for tests

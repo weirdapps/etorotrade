@@ -6,7 +6,7 @@ Tests the priority-based rate limiting functionality.
 """
 
 import asyncio
-import random
+import itertools
 import time
 
 
@@ -112,10 +112,12 @@ async def test_rate_limiting_enforcement():
             call_times.append(time.time())
             await asyncio.sleep(0.01)
 
-    # Make 5 rapid calls
+    # Make 5 rapid calls with deterministic priority assignment
     tasks = []
+    priorities = [PRIORITY_HIGH, PRIORITY_MEDIUM, PRIORITY_LOW]
     for i in range(5):
-        priority = random.choice([PRIORITY_HIGH, PRIORITY_MEDIUM, PRIORITY_LOW])
+        # Use modulo to cycle through priorities deterministically
+        priority = priorities[i % len(priorities)]
         tasks.append(make_call(f"TICKER_{i}", priority))
 
     await asyncio.gather(*tasks)
@@ -167,8 +169,10 @@ async def test_concurrent_access():
 
     async def stress_test(id: int):
         try:
-            for _ in range(10):
-                _ = random.choice([PRIORITY_HIGH, PRIORITY_MEDIUM, PRIORITY_LOW])  # Unused but demonstrates different priorities
+            priorities = [PRIORITY_HIGH, PRIORITY_MEDIUM, PRIORITY_LOW]
+            for i in range(10):
+                # Use deterministic priority assignment based on worker ID and iteration
+                priority = priorities[(id + i) % len(priorities)]
                 async with rate_limiter:
                     await asyncio.sleep(0.001)
             completed.append(id)
