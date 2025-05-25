@@ -162,9 +162,11 @@ async def async_retry(
 
                 # Add jitter to avoid thundering herd problem
                 if jitter:
-                    import random
+                    import secrets
 
-                    delay = delay * random.uniform(0.75, 1.25)
+                    # Generate secure random value between 0.75 and 1.25
+                    random_factor = 0.75 + (secrets.randbits(32) / (2**32 - 1)) * 0.5
+                    delay = delay * random_factor
 
                 logger.warning(
                     f"Attempt {attempt + 1}/{max_retries + 1} failed: {str(e)}. "
