@@ -224,7 +224,7 @@ class MarketDisplay:
         # Create master progress bar with enhanced formatting and fixed width
         with tqdm(
             total=total_tickers,
-            desc=f"Processing tickers",
+            desc="Processing tickers",
             unit="ticker",
             bar_format="{desc} {percentage:3.0f}% |{bar:30}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]",
             ncols=100,
