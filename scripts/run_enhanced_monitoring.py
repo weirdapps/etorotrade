@@ -113,6 +113,7 @@ def main() -> None:
         health_server = start_health_endpoints(port=args.health_port)
         
         # Log health check URLs
+        # Note: Using HTTP for localhost monitoring is secure and appropriate
         health_urls = [
             f"http://localhost:{args.health_port}/health",
             f"http://localhost:{args.health_port}/health/live",
@@ -124,6 +125,7 @@ def main() -> None:
         
         # Open browser to health endpoint
         time.sleep(1)  # Give server time to start
+        # Note: Opening localhost URL in browser for development is secure
         webbrowser.open(f"http://localhost:{args.health_port}/health")
     
     # Start dashboard if enabled

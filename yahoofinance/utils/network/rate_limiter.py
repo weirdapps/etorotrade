@@ -10,7 +10,7 @@ CANONICAL SOURCE: This module is now the canonical source for synchronous rate l
 For asynchronous rate limiting, use yahoofinance.utils.async.rate_limiter.
 """
 
-import random
+import secrets
 import threading
 import time
 from functools import wraps
@@ -467,8 +467,10 @@ class RateLimiter:
         # Calculate jitter range
         jitter_range = delay * self.jitter_factor
 
-        # Apply random jitter within range
-        jittered_delay = delay + random.uniform(-jitter_range, jitter_range)
+        # Apply random jitter within range using secure random
+        # Generate a secure random value between -1 and 1
+        random_factor = (secrets.randbits(32) / (2**32 - 1)) * 2 - 1
+        jittered_delay = delay + (jitter_range * random_factor)
 
         # Ensure delay stays within reasonable bounds
         return max(jittered_delay, self.min_delay * 0.5)
