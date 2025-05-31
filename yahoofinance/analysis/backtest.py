@@ -41,7 +41,38 @@ import time
 from tqdm.auto import tqdm
 
 from ..api import get_provider
-from ..core.config import FILE_PATHS, PATHS, TRADING_CRITERIA
+from ..core.config import FILE_PATHS, PATHS
+from ..core.trade_criteria_config import TradingCriteria
+
+# Temporary compatibility wrapper for old TRADING_CRITERIA structure
+def _get_legacy_trading_criteria():
+    """Get trading criteria in the old dictionary format for backward compatibility."""
+    return {
+        "CONFIDENCE": {
+            "MIN_ANALYST_COUNT": TradingCriteria.MIN_ANALYST_COUNT,
+            "MIN_PRICE_TARGETS": TradingCriteria.MIN_PRICE_TARGETS,
+        },
+        "SELL": {
+            "SELL_MAX_UPSIDE": TradingCriteria.SELL_MAX_UPSIDE,
+            "SELL_MIN_BUY_PERCENTAGE": TradingCriteria.SELL_MIN_BUY_PERCENTAGE,
+            "SELL_MIN_FORWARD_PE": TradingCriteria.SELL_MIN_FORWARD_PE,
+            "SELL_MIN_PEG": TradingCriteria.SELL_MIN_PEG,
+            "SELL_MIN_SHORT_INTEREST": TradingCriteria.SELL_MIN_SHORT_INTEREST,
+            "SELL_MIN_BETA": TradingCriteria.SELL_MIN_BETA,
+            "SELL_MAX_EXRET": TradingCriteria.SELL_MAX_EXRET,
+        },
+        "BUY": {
+            "BUY_MIN_UPSIDE": TradingCriteria.BUY_MIN_UPSIDE,
+            "BUY_MIN_BUY_PERCENTAGE": TradingCriteria.BUY_MIN_BUY_PERCENTAGE,
+            "BUY_MIN_BETA": TradingCriteria.BUY_MIN_BETA,
+            "BUY_MAX_BETA": TradingCriteria.BUY_MAX_BETA,
+            "BUY_MIN_FORWARD_PE": TradingCriteria.BUY_MIN_FORWARD_PE,
+            "BUY_MAX_FORWARD_PE": TradingCriteria.BUY_MAX_FORWARD_PE,
+            "BUY_MAX_PEG": TradingCriteria.BUY_MAX_PEG,
+            "BUY_MAX_SHORT_INTEREST": TradingCriteria.BUY_MAX_SHORT_INTEREST,
+            "BUY_MIN_EXRET": TradingCriteria.BUY_MIN_EXRET,
+        },
+    }
 from ..core.errors import ValidationError, YFinanceError
 from ..presentation.html import FormatUtils, HTMLGenerator
 from ..utils.trade_criteria import (
@@ -783,7 +814,7 @@ class Backtester:
             Dictionary mapping tickers to (action, reason) tuples
         """
         # Use default criteria if none provided
-        trading_criteria = copy.deepcopy(TRADING_CRITERIA)
+        trading_criteria = copy.deepcopy(_get_legacy_trading_criteria())
 
         # Override with custom parameters if provided
         if criteria_params:
@@ -874,7 +905,7 @@ class Backtester:
             Dictionary with trading criteria
         """
         # Copy default criteria
-        trading_criteria = copy.deepcopy(TRADING_CRITERIA)
+        trading_criteria = copy.deepcopy(_get_legacy_trading_criteria())
 
         # Override with custom parameters if provided
         if not settings.criteria_params:

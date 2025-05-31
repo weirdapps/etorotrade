@@ -23,8 +23,14 @@ from ..utils.error_handling import (
 )
 
 from ..api import AsyncFinanceDataProvider, FinanceDataProvider, get_provider
-from ..core.config import TRADING_CRITERIA
+# Trading criteria moved to trade_criteria_config.py for centralized management
+from yahoofinance.core.trade_criteria_config import TradingCriteria
 from ..core.logging import get_logger
+from .market_filters import (
+    filter_buy_opportunities_v2,
+    filter_sell_candidates_v2,
+    filter_hold_candidates_v2
+)
 
 
 # Define constants for repeated strings
@@ -170,8 +176,8 @@ def get_confidence_condition(df: pd.DataFrame) -> pd.Series:
     return (
         analyst_counts.notna()
         & total_ratings.notna()
-        & (analyst_counts >= TRADING_CRITERIA["CONFIDENCE"]["MIN_PRICE_TARGETS"])
-        & (total_ratings >= TRADING_CRITERIA["CONFIDENCE"]["MIN_ANALYST_COUNT"])
+        & (analyst_counts >= TradingCriteria.MIN_PRICE_TARGETS)
+        & (total_ratings >= TradingCriteria.MIN_ANALYST_COUNT)
     )
 
 
@@ -561,6 +567,9 @@ class MarketAnalyzer:
 def filter_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame:
     """
     Filter out buy opportunities from market data based on trading criteria.
+    
+    This function delegates to the centralized filter which ensures consistency
+    with ACT column calculation.
 
     Args:
         market_df: DataFrame with market data
@@ -568,184 +577,15 @@ def filter_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         DataFrame with buy opportunities
     """
-    # Apply BUY criteria
-    buy_criteria = TRADING_CRITERIA["BUY"]
-
-    # First, map column names to handle differences between internal and display names
-    column_mapping = {
-        "upside": ["upside", "UPSIDE"],
-        "buy_percentage": ["buy_percentage", BUY_PERCENTAGE_DISPLAY],
-        "pe_forward": ["pe_forward", "PEF"],
-        "pe_trailing": ["pe_trailing", "PET"],
-        "beta": ["beta", "BETA"],
-        "exret": ["EXRET"],
-    }
-
-    # Create a dictionary to map internal names to actual column names
-    col_map = {}
-    for internal_name, possible_names in column_mapping.items():
-        for name in possible_names:
-            if name in market_df.columns:
-                col_map[internal_name] = name
-                break
-
-    # Map column names (debug logging removed)
-
-    # If we're missing any required columns, return an empty DataFrame
-    required_columns = ["upside", "buy_percentage", "pe_forward", "pe_trailing", "beta"]
-    missing_columns = [col for col in required_columns if col not in col_map]
-    if missing_columns:
-        logger.warning(f"Missing required columns for buy opportunities: {missing_columns}")
-        return market_df.head(0)  # Empty DataFrame with same columns
-
-    # Filter condition with confidence requirements
-    confidence_condition = get_confidence_condition(market_df)
-
-    # Helper function to convert percentage strings to floats
-    def convert_pct_to_float(series):
-        if series.dtype == "object":
-            # First convert to string
-            str_series = series.astype(str)
-
-            # Replace '--' with NaN and % with empty string
-            cleaned_series = str_series.str.replace("--", "NaN").str.replace("%", "")
-
-            # Convert to numeric, forcing non-numeric values to NaN
-            return pd.to_numeric(cleaned_series, errors="coerce")
-        return series
-
-    # PRIMARY CRITERIA - always check these (required fields and values)
-    # Beta, PET, and PEF are primary (required) criteria
-    primary_conditions = (
-        # Required fields must exist
-        market_df[col_map["upside"]].notna()
-        & market_df[col_map["buy_percentage"]].notna()
-        & market_df[col_map["pe_forward"]].notna()  # PE forward is required
-        & market_df[col_map["pe_trailing"]].notna()  # PE trailing is required
-        & market_df[col_map["beta"]].notna()  # Beta is required
-        &
-        # Basic criteria must be met
-        (convert_pct_to_float(market_df[col_map["upside"]]) >= buy_criteria["BUY_MIN_UPSIDE"])
-        & (
-            convert_pct_to_float(market_df[col_map["buy_percentage"]])
-            >= buy_criteria["BUY_MIN_BUY_PERCENTAGE"]
-        )
-    )
-
-    # Calculate expected return
-    market_df_temp = market_df.copy()
-
-    # Check if EXRET already exists
-    if "EXRET" in market_df.columns:
-        exret_col = "EXRET"
-        # Convert percentage strings to floats if needed
-        if market_df[exret_col].dtype == "object":
-            market_df_temp[exret_col] = convert_pct_to_float(market_df[exret_col])
-        else:
-            market_df_temp[exret_col] = market_df[exret_col]
-    else:
-        # Create it if needed
-        upside_values = convert_pct_to_float(market_df[col_map["upside"]])
-        buy_pct_values = convert_pct_to_float(market_df[col_map["buy_percentage"]])
-
-        market_df_temp["EXRET"] = upside_values * buy_pct_values / 100
-        exret_col = "EXRET"
-
-    # Apply condition - make sure values are numeric
-    # Convert EXRET to numeric for proper comparison
-    numeric_exret = pd.to_numeric(
-        # First convert to string and remove % if present
-        market_df_temp[exret_col].astype(str).str.replace("%", ""),
-        errors="coerce",
-    )
-    exret_condition = numeric_exret >= buy_criteria["BUY_MIN_EXRET"]
-
-    # PE condition - a primary criterion (required)
-    # Convert both PE values to numeric first for more reliable comparison
-    pe_forward_numeric = convert_pct_to_float(market_df[col_map["pe_forward"]])
-    pe_trailing_numeric = convert_pct_to_float(market_df[col_map["pe_trailing"]])
-
-    # Basic PE range condition
-    pe_basic_condition = (
-        # Within range
-        (pe_forward_numeric >= buy_criteria["BUY_MIN_FORWARD_PE"])
-        & (pe_forward_numeric <= buy_criteria["BUY_MAX_FORWARD_PE"])
-    )
-
-    # PE improvement condition (forward < trailing OR trailing <= 0)
-    pe_improvement_condition = (
-        # Either PE Forward less than PE Trailing (improving)
-        (pe_forward_numeric < pe_trailing_numeric)
-        |
-        # Or PE Trailing is negative or zero (growth case)
-        (pe_trailing_numeric <= 0)
-    )
-
-    # Beta range check - a primary criterion (required)
-    # Convert beta to numeric first for more reliable comparison
-    beta_numeric = convert_pct_to_float(market_df[col_map["beta"]])
-
-    beta_condition = (beta_numeric >= buy_criteria["BUY_MIN_BETA"]) & (
-        beta_numeric <= buy_criteria["BUY_MAX_BETA"]
-    )
-
-    # SECONDARY CRITERIA - only apply if data is available (optional)
-
-    # PEG Ratio criteria with nullability handling (optional secondary criterion)
-    peg_col = None
-    for col_name in ["peg_ratio", "PEG"]:
-        if col_name in market_df.columns:
-            peg_col = col_name
-            break
-
-    if peg_col:
-        # First convert to numeric, handling percentages and placeholders
-        peg_numeric = pd.to_numeric(
-            # Convert to string, replace placeholders with NaN
-            market_df[peg_col]
-            .astype(str)
-            .replace("--", float("NaN"))
-            .str.replace("%", ""),  # Remove % if present
-            errors="coerce",
-        )
-
-        peg_condition = (
-            market_df[peg_col].isna()  # Ignore missing PEG values
-            | peg_numeric.isna()  # Ignore values that couldn't be converted
-            | (peg_numeric < buy_criteria["BUY_MAX_PEG"])
-        )
-    else:
-        # If PEG ratio not available, don't filter on it
-        peg_condition = pd.Series(True, index=market_df.index)
-
-    # Short interest criteria with nullability handling (optional secondary criterion)
-    short_condition = get_short_interest_condition(
-        market_df, buy_criteria["BUY_MAX_SHORT_INTEREST"], is_maximum=True
-    )
-
-    # Combine all criteria
-    buy_filter = (
-        confidence_condition
-        & primary_conditions
-        & exret_condition
-        & pe_basic_condition
-        & pe_improvement_condition
-        & beta_condition
-        & peg_condition
-        & short_condition
-    )
-
-    # Filter the dataframe
-    buy_opportunities = market_df[buy_filter].copy()
-
-    # Return filtered buy opportunities
-
-    return buy_opportunities
+    return filter_buy_opportunities_v2(market_df)
 
 
 def filter_sell_candidates(portfolio_df: pd.DataFrame) -> pd.DataFrame:
     """
     Filter out sell candidates from portfolio data based on trading criteria.
+    
+    This function delegates to the centralized filter which ensures consistency
+    with ACT column calculation.
 
     Args:
         portfolio_df: DataFrame with portfolio data
@@ -753,196 +593,17 @@ def filter_sell_candidates(portfolio_df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         DataFrame with sell candidates
     """
-    # Apply SELL criteria
-    sell_criteria = TRADING_CRITERIA["SELL"]
-
-    # Filter condition with confidence requirements
-    confidence_condition = get_confidence_condition(portfolio_df)
-
-    # Debug log rows with 'ACT' or 'ACTION' = 'S'
-    if "ACT" in portfolio_df.columns:
-        act_sells = portfolio_df[portfolio_df["ACT"] == "S"]
-        print(f"Found {len(act_sells)} rows with ACT='S' before filtering")
-        if not act_sells.empty:
-            print(f"Tickers with ACT='S': {', '.join(act_sells['TICKER'].tolist())}")
-
-    # Initialize filters list for each SELL criterion
-    filters = []
-
-    # Map column names to handle both internal and display names
-    column_mapping = {
-        "upside": ["upside", "UPSIDE"],
-        "buy_percentage": ["buy_percentage", "% BUY"],
-        "exret": ["EXRET"],
-        "pe_forward": ["pe_forward", "PEF"],
-        "pe_trailing": ["pe_trailing", "PET"],
-        "peg_ratio": ["peg_ratio", "PEG"],
-        "beta": ["beta", "BETA"],
-        "short_interest": ["short_float_pct", "short_percent", "SI"],
-    }
-
-    # Create a dictionary to map internal names to actual column names
-    col_map = {}
-    for internal_name, possible_names in column_mapping.items():
-        for name in possible_names:
-            if name in portfolio_df.columns:
-                col_map[internal_name] = name
-                break
-
-    # Map column names (debug logging removed)
-
-    # Primary criteria - always check these
-
-    # Upside too low
-    if "upside" in col_map:
-        upside_col = col_map["upside"]
-        # Convert to numeric for reliable comparison
-        upside_numeric = pd.to_numeric(
-            portfolio_df[upside_col].astype(str).str.replace("%", ""), errors="coerce"
-        )
-
-        upside_condition = upside_numeric.notna() & (
-            upside_numeric < sell_criteria["SELL_MAX_UPSIDE"]
-        )
-        filters.append(upside_condition)
-
-    # Analyst buy percentage too low
-    if "buy_percentage" in col_map:
-        buy_pct_col = col_map["buy_percentage"]
-        # Convert to numeric for reliable comparison
-        buy_pct_numeric = pd.to_numeric(
-            portfolio_df[buy_pct_col].astype(str).str.replace("%", ""), errors="coerce"
-        )
-
-        analyst_condition = buy_pct_numeric.notna() & (
-            buy_pct_numeric < sell_criteria["SELL_MIN_BUY_PERCENTAGE"]
-        )
-        filters.append(analyst_condition)
-
-    # Expected return too low
-    if "exret" in col_map:
-        exret_col = col_map["exret"]
-        # Convert to numeric for reliable comparison
-        exret_numeric = pd.to_numeric(
-            portfolio_df[exret_col].astype(str).str.replace("%", ""), errors="coerce"
-        )
-
-        exret_condition = exret_numeric.notna() & (exret_numeric < sell_criteria["SELL_MAX_EXRET"])
-        filters.append(exret_condition)
-    elif "upside" in col_map and "buy_percentage" in col_map:
-        # We already have numeric versions from above
-        if "upside_numeric" not in locals():
-            upside_numeric = pd.to_numeric(
-                portfolio_df[col_map["upside"]].astype(str).str.replace("%", ""), errors="coerce"
-            )
-
-        if "buy_pct_numeric" not in locals():
-            buy_pct_numeric = pd.to_numeric(
-                portfolio_df[col_map["buy_percentage"]].astype(str).str.replace("%", ""),
-                errors="coerce",
-            )
-
-        # Calculate EXRET on the fly using numeric values
-        calculated_exret = upside_numeric * buy_pct_numeric / 100
-
-        exret_condition = calculated_exret.notna() & (
-            calculated_exret < sell_criteria["SELL_MAX_EXRET"]
-        )
-        filters.append(exret_condition)
-
-    # Secondary criteria - only check if data exists
-
-    # PE Forward higher than PE Trailing (worsening outlook)
-    if "pe_forward" in col_map and "pe_trailing" in col_map:
-        # Get the actual column names
-        pef_col = col_map["pe_forward"]
-        pet_col = col_map["pe_trailing"]
-
-        # Convert to numeric for reliable comparison
-        pef_numeric = pd.to_numeric(portfolio_df[pef_col], errors="coerce")
-        pet_numeric = pd.to_numeric(portfolio_df[pet_col], errors="coerce")
-
-        pe_condition = (
-            pef_numeric.notna()
-            & pet_numeric.notna()
-            & (pef_numeric > 0)
-            & (pet_numeric > 0)
-            & (pef_numeric > pet_numeric)
-        )
-        filters.append(pe_condition)
-
-    # Forward PE too high
-    if "pe_forward" in col_map:
-        pef_col = col_map["pe_forward"]
-        pef_numeric = pd.to_numeric(portfolio_df[pef_col], errors="coerce")
-
-        pe_high_condition = pef_numeric.notna() & (
-            pef_numeric > sell_criteria["SELL_MIN_FORWARD_PE"]
-        )
-        filters.append(pe_high_condition)
-
-    # PEG ratio too high
-    if "peg_ratio" in col_map:
-        peg_col = col_map["peg_ratio"]
-        # Convert string values like '--' to NaN with pd.to_numeric
-        numeric_peg = pd.to_numeric(portfolio_df[peg_col], errors="coerce")
-        peg_condition = numeric_peg.notna() & (numeric_peg > sell_criteria["SELL_MIN_PEG"])
-        filters.append(peg_condition)
-
-    # Short interest too high
-    if "short_interest" in col_map:
-        short_field = col_map["short_interest"]
-        # Convert to numeric for reliable comparison
-        si_numeric = pd.to_numeric(
-            portfolio_df[short_field].astype(str).str.replace("%", ""), errors="coerce"
-        )
-
-        short_condition = si_numeric.notna() & (
-            si_numeric > sell_criteria["SELL_MIN_SHORT_INTEREST"]
-        )
-        filters.append(short_condition)
-
-    # Beta too high
-    if "beta" in col_map:
-        beta_col = col_map["beta"]
-        # Convert to numeric for reliable comparison
-        beta_numeric = pd.to_numeric(portfolio_df[beta_col], errors="coerce")
-
-        beta_condition = beta_numeric.notna() & (beta_numeric > sell_criteria["SELL_MIN_BETA"])
-        filters.append(beta_condition)
-
-    # If no filters were created, return empty dataframe
-    if not filters:
-        return portfolio_df.head(0)
-
-    # Combine filters with OR (any one criterion can trigger a sell)
-    sell_criteria_filter = pd.Series(False, index=portfolio_df.index)
-    for condition in filters:
-        sell_criteria_filter = sell_criteria_filter | condition
-
-    # Final filter includes confidence threshold and at least one sell criterion
-    sell_filter = confidence_condition & sell_criteria_filter
-
-    # Also directly use ACT column if available
-    if "ACT" in portfolio_df.columns:
-        direct_act_filter = portfolio_df["ACT"] == "S"
-        # Combine with OR - either meets criteria or already has ACT='S'
-        sell_filter = sell_filter | direct_act_filter
-
-    # Filter the dataframe
-    sell_candidates = portfolio_df[sell_filter].copy()
-
-    # Add diagnostics for column names
-    print(f"Sell candidates columns: {sell_candidates.columns.tolist()}")
-
-    return sell_candidates
+    return filter_sell_candidates_v2(portfolio_df)
 
 
 def filter_hold_candidates(market_df: pd.DataFrame) -> pd.DataFrame:
     """
     Filter out hold candidates from market data.
 
-    These are stocks that:
+    This function delegates to the centralized filter which ensures consistency
+    with ACT column calculation.
+    
+    Hold candidates are stocks that:
     1. Pass the confidence threshold (sufficient analyst coverage)
     2. Don't trigger any SELL criteria
     3. Don't meet all BUY criteria
@@ -953,237 +614,7 @@ def filter_hold_candidates(market_df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         DataFrame with hold candidates
     """
-    # Filter for confidence condition first - this is always checked
-    confidence_condition = get_confidence_condition(market_df)
-
-    # Get stocks with sufficient confidence
-    confident_stocks = market_df[confidence_condition].copy()
-
-    # Apply BUY criteria
-    buy_criteria = TRADING_CRITERIA["BUY"]
-
-    # Apply SELL criteria
-    sell_criteria = TRADING_CRITERIA["SELL"]
-
-    # For each confident stock, check sell criteria first
-
-    # Create empty lists for each classification
-    sell_tickers = []
-    buy_tickers = []
-    hold_tickers = []
-
-    # Determine which ticker column name to use
-    ticker_col = "TICKER" if "TICKER" in confident_stocks.columns else "ticker"
-
-    # Process each ticker to match the formatter._calculate_signal logic
-    for _, row in confident_stocks.iterrows():
-        ticker = row[ticker_col]
-
-        # Check sell signals first (any trigger a sell)
-
-        # First check column naming convention
-        upside_col = "UPSIDE" if "UPSIDE" in confident_stocks.columns else "upside"
-        buy_pct_col = "% BUY" if "% BUY" in confident_stocks.columns else "buy_percentage"
-
-        # Primary sell criteria
-        upside = row.get(upside_col)
-        buy_percentage = row.get(buy_pct_col)
-        expected_return = (
-            upside * buy_percentage / 100
-            if upside is not None and buy_percentage is not None
-            else None
-        )
-
-        # Check primary sell criteria
-        if upside is not None and upside < sell_criteria["SELL_MAX_UPSIDE"]:
-            sell_tickers.append(ticker)
-            continue
-
-        if buy_percentage is not None and buy_percentage < sell_criteria["SELL_MIN_BUY_PERCENTAGE"]:
-            sell_tickers.append(ticker)
-            continue
-
-        if expected_return is not None and expected_return < sell_criteria["SELL_MAX_EXRET"]:
-            sell_tickers.append(ticker)
-            continue
-
-        # Define column mappings for both internal and display names
-        # Determine short interest column name
-        short_interest_col = "SI"
-        if "SI" not in confident_stocks.columns:
-            short_interest_col = (
-                "short_float_pct"
-                if "short_float_pct" in confident_stocks.columns
-                else "short_percent"
-            )
-
-        col_map = {
-            "pe_forward": "PEF" if "PEF" in confident_stocks.columns else "pe_forward",
-            "pe_trailing": "PET" if "PET" in confident_stocks.columns else "pe_trailing",
-            "peg_ratio": "PEG" if "PEG" in confident_stocks.columns else "peg_ratio",
-            "beta": "BETA" if "BETA" in confident_stocks.columns else "beta",
-            "short_interest": short_interest_col,
-        }
-
-        # Secondary sell criteria - only check if data is available
-        pe_forward = row.get(col_map["pe_forward"])
-        pe_trailing = row.get(col_map["pe_trailing"])
-        peg = row.get(col_map["peg_ratio"])
-        beta = row.get(col_map["beta"])
-        short_interest = row.get(col_map["short_interest"])
-
-        # PE deteriorating
-        if pe_forward is not None and pe_trailing is not None:
-            try:
-                pef_val = float(pe_forward)
-                pet_val = float(pe_trailing)
-                if pef_val > 0 and pet_val > 0 and pef_val > pet_val:
-                    sell_tickers.append(ticker)
-                    continue
-            except (ValueError, TypeError):
-                pass  # Ignore conversion errors
-
-        # Extremely high forward PE or negative forward PE
-        if pe_forward is not None:
-            try:
-                pef_val = float(pe_forward)
-                if pef_val > sell_criteria["SELL_MIN_FORWARD_PE"] or pef_val < 0:
-                    sell_tickers.append(ticker)
-                    continue
-            except (ValueError, TypeError):
-                pass  # Ignore conversion errors
-
-        # High PEG ratio (optional secondary criterion)
-        if peg is not None:
-            try:
-                peg_val = float(peg)
-                if peg_val > sell_criteria["SELL_MIN_PEG"]:
-                    sell_tickers.append(ticker)
-                    continue
-            except (ValueError, TypeError):
-                pass  # Ignore conversion errors
-
-        # High short interest (optional secondary criterion)
-        if short_interest is not None:
-            try:
-                si_val = float(short_interest)
-                if si_val > sell_criteria["SELL_MIN_SHORT_INTEREST"]:
-                    sell_tickers.append(ticker)
-                    continue
-            except (ValueError, TypeError):
-                pass  # Ignore conversion errors
-
-        # Excessive volatility
-        if beta is not None:
-            try:
-                beta_val = float(beta)
-                if beta_val > sell_criteria["SELL_MIN_BETA"]:
-                    sell_tickers.append(ticker)
-                    continue
-            except (ValueError, TypeError):
-                pass  # Ignore conversion errors
-
-        # If we get here, it's not a sell - check buy criteria
-
-        # PRIMARY CRITERIA - all must be present and valid
-        # Beta, PET, and PEF are now required primary criteria
-        try:
-            # Convert values to float for comparison
-            up_val = float(upside) if upside is not None else None
-            buy_pct = float(buy_percentage) if buy_percentage is not None else None
-            er_val = float(expected_return) if expected_return is not None else None
-
-            if (
-                up_val is None
-                or buy_pct is None
-                or pe_forward is None
-                or pe_trailing is None
-                or beta is None
-                or up_val < buy_criteria["BUY_MIN_UPSIDE"]
-                or buy_pct < buy_criteria["BUY_MIN_BUY_PERCENTAGE"]
-                or er_val < buy_criteria["BUY_MIN_EXRET"]
-            ):
-                hold_tickers.append(ticker)
-                continue
-        except (ValueError, TypeError):
-            # Handle any conversion errors
-            hold_tickers.append(ticker)
-            continue
-
-        # PE condition (required - primary criterion)
-        try:
-            pef_val = float(pe_forward)
-            if (
-                pef_val < buy_criteria["BUY_MIN_FORWARD_PE"]
-                or pef_val > buy_criteria["BUY_MAX_FORWARD_PE"]
-            ):
-                hold_tickers.append(ticker)
-                continue
-        except (ValueError, TypeError):
-            hold_tickers.append(ticker)  # Invalid pe_forward = hold
-            continue
-
-        # PE improvement condition (required - primary criterion)
-        try:
-            pet_val = float(pe_trailing)
-            pef_val = float(pe_forward)
-            if pet_val > 0 and pef_val >= pet_val:  # Not improving
-                hold_tickers.append(ticker)
-                continue
-        except (ValueError, TypeError):
-            hold_tickers.append(ticker)  # Invalid values = hold
-            continue
-        else:
-            # Trailing PE <= 0 (growth case) is acceptable
-            pass
-
-        # Beta range check (required - primary criterion)
-        try:
-            beta_val = float(beta)
-            if not (
-                beta_val >= buy_criteria["BUY_MIN_BETA"]
-                and beta_val <= buy_criteria["BUY_MAX_BETA"]
-            ):
-                hold_tickers.append(ticker)
-                continue
-        except (ValueError, TypeError):
-            hold_tickers.append(ticker)
-            continue
-
-        # SECONDARY CRITERIA - only check if available (optional)
-
-        # PEG check (optional secondary criterion)
-        if peg is not None and peg != "--":
-            try:
-                peg_val = float(peg)
-                if peg_val > 0 and peg_val >= buy_criteria["BUY_MAX_PEG"]:
-                    hold_tickers.append(ticker)
-                    continue
-            except (ValueError, TypeError):
-                pass  # Ignore conversion errors
-
-        # Short interest check (optional secondary criterion)
-        if short_interest is not None:
-            try:
-                si_val = float(short_interest)
-                if si_val > buy_criteria["BUY_MAX_SHORT_INTEREST"]:
-                    hold_tickers.append(ticker)
-                    continue
-            except (ValueError, TypeError):
-                pass  # Ignore conversion errors
-
-        # If we got here, all criteria are met
-        buy_tickers.append(ticker)
-
-    # Filter for hold candidates only using the correct ticker column
-    hold_filter = confident_stocks[ticker_col].isin(hold_tickers)
-
-    hold_candidates = confident_stocks[hold_filter].copy()
-
-    # Log statistics to debug level
-    logger.debug(f"Hold: {len(hold_tickers)}, Buy: {len(buy_tickers)}, Sell: {len(sell_tickers)}")
-
-    return hold_candidates
+    return filter_hold_candidates_v2(market_df)
 
 
 def filter_risk_first_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame:
@@ -1199,9 +630,30 @@ def filter_risk_first_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame
     Returns:
         DataFrame with risk-adjusted buy opportunities
     """
-    # We're using the same criteria and logic as filter_buy_opportunities,
-    # so we can just call that function directly
-    return filter_buy_opportunities(market_df)
+    # Use the new centralized filter function that matches ACT calculation
+    result = filter_buy_opportunities_v2(market_df)
+    
+    # DEBUG: Check if AUSS.OL is in the input and output
+    ticker_col = "TICKER" if "TICKER" in market_df.columns else "ticker"
+    if ticker_col in market_df.columns:
+        market_tickers = market_df[ticker_col].tolist()
+        if "AUSS.OL" in market_tickers:
+            logger.info("DEBUG: AUSS.OL is in market_df input to filter_risk_first_buy_opportunities")
+            # Check if it has ACT='B'
+            if "ACT" in market_df.columns:
+                auss_row = market_df[market_df[ticker_col] == "AUSS.OL"]
+                if not auss_row.empty:
+                    act_value = auss_row["ACT"].iloc[0]
+                    logger.info(f"DEBUG: AUSS.OL has ACT='{act_value}' in market_df")
+    
+    if not result.empty and ticker_col in result.columns:
+        result_tickers = result[ticker_col].tolist()
+        if "AUSS.OL" in result_tickers:
+            logger.info("DEBUG: AUSS.OL passed filter_buy_opportunities and is in the result")
+        else:
+            logger.info("DEBUG: AUSS.OL did NOT pass filter_buy_opportunities")
+    
+    return result
 
 
 def classify_stocks(market_df: pd.DataFrame) -> pd.DataFrame:

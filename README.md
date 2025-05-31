@@ -67,7 +67,7 @@ ETORO_USERNAME=your-etoro-username
 
 ## 💲 Trading Criteria
 
-etorotrade uses a sophisticated classification system based on financial metrics, analyst consensus, and technical indicators:
+etorotrade uses a sophisticated classification system based on financial metrics, analyst consensus, and technical indicators. **All trading criteria are centralized in a single configuration file** for consistency across all analysis types.
 
 ### 🟢 BUY Recommendations
 A stock must meet ALL of these criteria:
@@ -75,7 +75,7 @@ A stock must meet ALL of these criteria:
 - **Analyst Consensus**: 85%+ buy ratings
 - **Reasonable Volatility**: Beta between 0.25 and 2.5
 - **Attractive Valuation**: 
-  - Improving earnings outlook (Forward P/E - Trailing P/E < 0.5)
+  - Improving earnings outlook (Forward P/E < Trailing P/E OR Trailing P/E ≤ 0)
   - Reasonable Forward P/E (0.5 < PEF ≤ 45.0)
   - Good growth-adjusted value (PEG < 2.5)
 - **Limited Risk Factors**: 
@@ -86,7 +86,7 @@ A stock must meet ALL of these criteria:
 A stock triggers a SELL if ANY of these warning signs appear:
 - **Limited Upside**: Less than 5% upside potential
 - **Weak Analyst Support**: Less than 65% buy ratings
-- **Deteriorating Earnings**: Forward P/E - Trailing P/E > 0.5
+- **Deteriorating Earnings**: Forward P/E > Trailing P/E (worsening outlook)
 - **Overvaluation**: Forward P/E > 50.0 or PEG > 3.0
 - **High Risk Factors**: Short interest > 2% or Beta > 3.0
 - **Poor Expected Return**: EXRET < 5.0
@@ -98,6 +98,27 @@ A stock triggers a SELL if ANY of these warning signs appear:
 ### 🟡 INCONCLUSIVE Classification
 - Insufficient analyst coverage (< 5 price targets or < 5 analyst ratings)
 - Not enough data for confident decision-making
+
+### ⚙️ Customizing Trading Criteria
+All trading criteria can be customized by editing a single file: `yahoofinance/core/trade_criteria_config.py`
+
+This centralized configuration ensures consistency across:
+- ACT column values (B/S/H/I)
+- Color coding (green/red/yellow highlighting)
+- Buy/Sell/Hold opportunity filtering
+- All recommendation outputs
+
+Example customization:
+```python
+# In yahoofinance/core/trade_criteria_config.py
+class TradingCriteria:
+    # Make BUY criteria more aggressive
+    BUY_MIN_UPSIDE = 25.0              # Require 25% upside (was 20%)
+    BUY_MIN_BUY_PERCENTAGE = 90.0      # Require 90% buy rating (was 85%)
+    
+    # Make SELL criteria more conservative  
+    SELL_MAX_UPSIDE = 3.0              # Sell if upside < 3% (was 5%)
+```
 
 ### 💰 Position Size Calculation
 The system automatically calculates optimal position sizes based on market cap and expected return:
