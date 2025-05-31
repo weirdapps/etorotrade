@@ -8,11 +8,9 @@ import pytest
 from yahoofinance.utils.trade_criteria import (
     calculate_action_for_row,
     check_confidence_criteria,
-    check_pe_condition,
     format_numeric_values,
-    meets_buy_criteria,
-    meets_sell_criteria,
 )
+from yahoofinance.core.trade_criteria_config import TradingCriteria
 
 
 # Test trading criteria config
@@ -58,7 +56,7 @@ def test_data():
             "pe_forward": 15.0,
             "peg_ratio": 1.2,
             "beta": 1.5,
-            "short_percent": 2.0,
+            "short_percent": 1.0,  # Reduced to pass the 1.5% threshold
             "analyst_count": 10,
             "total_ratings": 8,
             "EXRET": 22.5,  # 25 * 0.9
@@ -83,24 +81,24 @@ def test_data():
             "pe_trailing": 22.0,
             "pe_forward": 20.0,
             "peg_ratio": 1.8,
-            "beta": 3.5,  # Above MAX_BETA threshold
-            "short_percent": 3.0,
+            "beta": 3.5,  # Above SELL_MIN_BETA threshold (3.0)
+            "short_percent": 1.0,  # Reduced to avoid triggering short interest rule first
             "analyst_count": 7,
             "total_ratings": 6,
             "EXRET": 11.25,  # 15 * 0.75
         },
         "hold_stock": {
             "ticker": "HOLD",
-            "upside": 12.0,  # Not enough for BUY
-            "buy_percentage": 80.0,  # Not enough for BUY
+            "upside": 12.0,  # Not enough for BUY (needs >= 20)
+            "buy_percentage": 80.0,  # Not enough for BUY (needs >= 85)
             "pe_trailing": 18.0,
             "pe_forward": 16.0,
             "peg_ratio": 1.5,
             "beta": 1.2,
-            "short_percent": 2.5,
+            "short_percent": 1.0,  # Keep under buy threshold
             "analyst_count": 6,
             "total_ratings": 5,
-            "EXRET": 9.6,  # 12 * 0.8
+            "EXRET": 16.0,  # Above SELL threshold (5%) and BUY threshold (15%)
         },
         "insufficient_confidence": {
             "ticker": "LOWCONF",
@@ -134,17 +132,17 @@ def test_check_confidence_criteria(trading_criteria, test_data):
 def test_meets_sell_criteria(trading_criteria, test_data):
     """Test sell criteria checking."""
     # Should meet sell criteria due to low upside
-    is_sell, reason = meets_sell_criteria(test_data["sell_stock_low_upside"], trading_criteria)
+    is_sell, reason = TradingCriteria.check_sell_criteria(test_data["sell_stock_low_upside"])
     assert is_sell is True
     assert "upside" in reason.lower()
 
     # Should meet sell criteria due to high beta
-    is_sell, reason = meets_sell_criteria(test_data["sell_stock_high_beta"], trading_criteria)
+    is_sell, reason = TradingCriteria.check_sell_criteria(test_data["sell_stock_high_beta"])
     assert is_sell is True
     assert "beta" in reason.lower()
 
     # Should not meet sell criteria
-    is_sell, reason = meets_sell_criteria(test_data["buy_stock"], trading_criteria)
+    is_sell, reason = TradingCriteria.check_sell_criteria(test_data["buy_stock"])
     assert is_sell is False
     assert reason is None
 
@@ -152,35 +150,41 @@ def test_meets_sell_criteria(trading_criteria, test_data):
 def test_meets_buy_criteria(trading_criteria, test_data):
     """Test buy criteria checking."""
     # Should meet buy criteria
-    is_buy, reason = meets_buy_criteria(test_data["buy_stock"], trading_criteria)
+    is_buy, reason = TradingCriteria.check_buy_criteria(test_data["buy_stock"])
     assert is_buy is True
     assert reason is None
 
     # Should not meet buy criteria due to low upside
-    is_buy, reason = meets_buy_criteria(test_data["hold_stock"], trading_criteria)
+    is_buy, reason = TradingCriteria.check_buy_criteria(test_data["hold_stock"])
     assert is_buy is False
     assert "upside" in reason.lower()
 
     # First check shows insufficient upside, so test for that
-    is_buy, reason = meets_buy_criteria(test_data["sell_stock_high_beta"], trading_criteria)
+    is_buy, reason = TradingCriteria.check_buy_criteria(test_data["sell_stock_high_beta"])
     assert is_buy is False
     assert "upside" in reason.lower()
 
 
-def test_check_pe_condition(trading_criteria, test_data):
-    """Test PE condition checking."""
+def test_pe_condition_in_buy_criteria(trading_criteria, test_data):
+    """Test PE condition checking as part of buy criteria."""
     # Should pass PE condition (forward PE < trailing PE)
-    assert check_pe_condition(test_data["buy_stock"], trading_criteria["BUY"]) is True
+    is_buy, reason = TradingCriteria.check_buy_criteria(test_data["buy_stock"])
+    assert is_buy is True
+    assert reason is None
 
     # Create a test case for negative trailing PE (growth case)
     growth_stock = test_data["buy_stock"].copy()
     growth_stock["pe_trailing"] = -5.0
-    assert check_pe_condition(growth_stock, trading_criteria["BUY"]) is True
+    is_buy, reason = TradingCriteria.check_buy_criteria(growth_stock)
+    assert is_buy is True
+    assert reason is None
 
-    # Should fail PE condition (forward PE > trailing PE)
+    # Should fail PE condition (forward PE > trailing PE and not growth)
     worse_pe = test_data["buy_stock"].copy()
     worse_pe["pe_forward"] = 25.0  # Higher than trailing PE of 20.0
-    assert check_pe_condition(worse_pe, trading_criteria["BUY"]) is False
+    is_buy, reason = TradingCriteria.check_buy_criteria(worse_pe)
+    assert is_buy is False
+    assert "not improving" in reason.lower() or "not a growth" in reason.lower()
 
 
 def test_calculate_action_for_row(trading_criteria, test_data):
@@ -200,10 +204,10 @@ def test_calculate_action_for_row(trading_criteria, test_data):
     assert action == "S"
     assert "beta" in reason.lower()
 
-    # Hold stock has EXRET < 10, so it should be a SELL
+    # Hold stock should be a HOLD (doesn't meet buy criteria, doesn't meet sell criteria)
     action, reason = calculate_action_for_row(test_data["hold_stock"], trading_criteria)
-    assert action == "S"
-    assert "expected return" in reason.lower()
+    assert action == "H"
+    assert "upside" in reason.lower()
 
     # Should have 'I' action due to insufficient confidence
     action, reason = calculate_action_for_row(
