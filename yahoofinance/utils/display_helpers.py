@@ -10,7 +10,8 @@ from typing import Any, Dict, List, Tuple
 
 import pandas as pd
 
-from yahoofinance.core.config import COLUMN_NAMES, TRADING_CRITERIA
+from yahoofinance.core.config import COLUMN_NAMES
+from yahoofinance.core.trade_criteria_config import TradingCriteria
 from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
 from ..utils.error_handling import (
     enrich_error_context,
@@ -151,16 +152,17 @@ def _apply_color_to_row(colored_row, color_code):
     return colored_row
 
 
-# Action values constants
-BUY_ACTION = "B"
-SELL_ACTION = "S"
-HOLD_ACTION = "H"
-
-# Color code constants
-GREEN_COLOR = "92"
-RED_COLOR = "91"
-YELLOW_COLOR = "93"
-# No color code for HOLD - it stays default
+# Import action and color constants from centralized config
+from yahoofinance.core.trade_criteria_config import (
+    BUY_ACTION,
+    SELL_ACTION,
+    HOLD_ACTION,
+    INCONCLUSIVE_ACTION,
+    GREEN_COLOR,
+    RED_COLOR,
+    YELLOW_COLOR,
+    get_action_color
+)
 
 
 def _color_based_on_action(row, colored_row):
@@ -324,9 +326,9 @@ def check_confidence_threshold(row, trading_criteria):
     analyst_count = _extract_numeric_value(row, ANALYST_COUNT_COL)
     price_targets = _extract_numeric_value(row, PRICE_TARGET_COUNT_COL)
 
-    # Get threshold values from criteria
-    min_analysts = trading_criteria["CONFIDENCE"]["MIN_ANALYST_COUNT"]
-    min_targets = trading_criteria["CONFIDENCE"]["MIN_PRICE_TARGETS"]
+    # Get threshold values from centralized criteria
+    min_analysts = TradingCriteria.MIN_ANALYST_COUNT
+    min_targets = TradingCriteria.MIN_PRICE_TARGETS
 
     # Check if confidence threshold is met
     return (
@@ -398,7 +400,7 @@ def get_action_from_row(row, short_field="short_percent"):
         String action code ('B', 'S', 'H', or '')
     """
     # Use the central criteria calculation function
-    action, _ = calculate_action_for_row(row, TRADING_CRITERIA, short_field)
+    action, _ = calculate_action_for_row(row, {}, short_field)
     return action
 
 
@@ -550,9 +552,9 @@ def print_confidence_details(row, i, trading_criteria):
     except YFinanceError:
         price_targets = "Invalid"
 
-    # Get confidence thresholds
-    min_analysts = trading_criteria["CONFIDENCE"]["MIN_ANALYST_COUNT"]
-    min_targets = trading_criteria["CONFIDENCE"]["MIN_PRICE_TARGETS"]
+    # Get confidence thresholds from centralized criteria
+    min_analysts = TradingCriteria.MIN_ANALYST_COUNT
+    min_targets = TradingCriteria.MIN_PRICE_TARGETS
 
     # Determine confidence status
     _, confidence_status = _get_confidence_status(

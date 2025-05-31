@@ -1,0 +1,299 @@
+"""
+Centralized trade criteria configuration.
+
+This module provides a single source of truth for all trading criteria used in:
+- ACT column calculation
+- Buy/Sell/Hold opportunity filtering
+- Display coloring
+- Trade recommendations
+
+The criteria ensure consistency across all components of the system.
+"""
+
+from typing import Dict, Any, Tuple, Optional
+import pandas as pd
+
+
+# Trading action constants
+BUY_ACTION = "B"
+SELL_ACTION = "S"
+HOLD_ACTION = "H"
+INCONCLUSIVE_ACTION = "I"  # For insufficient data/confidence
+NO_ACTION = ""  # For no data
+
+# Display color constants
+GREEN_COLOR = "92"  # Buy
+RED_COLOR = "91"    # Sell
+YELLOW_COLOR = "93"  # Inconclusive
+# No color for Hold - stays default
+
+# Color mapping for actions
+ACTION_COLORS = {
+    BUY_ACTION: GREEN_COLOR,
+    SELL_ACTION: RED_COLOR,
+    HOLD_ACTION: None,  # No color
+    INCONCLUSIVE_ACTION: YELLOW_COLOR,
+    NO_ACTION: None,
+}
+
+
+class TradingCriteria:
+    """Centralized trading criteria configuration."""
+
+    # Confidence thresholds
+    MIN_ANALYST_COUNT = 5
+    MIN_PRICE_TARGETS = 5
+
+    # SELL criteria thresholds
+    SELL_MAX_UPSIDE = 5.0              # Sell if upside < 5%
+    SELL_MIN_BUY_PERCENTAGE = 65.0     # Sell if buy% < 65%
+    SELL_MIN_FORWARD_PE = 50.0         # Sell if PEF > 50
+    SELL_MIN_PEG = 3.0                 # Sell if PEG > 3
+    SELL_MIN_SHORT_INTEREST = 2.0      # Sell if SI > 2%
+    SELL_MIN_BETA = 3.0                # Sell if Beta > 3
+    SELL_MAX_EXRET = 5.0               # Sell if EXRET < 5%
+
+    # BUY criteria thresholds
+    BUY_MIN_UPSIDE = 20.0              # Buy if upside >= 20%
+    BUY_MIN_BUY_PERCENTAGE = 85.0      # Buy if buy% >= 85%
+    BUY_MIN_BETA = 0.25                # Buy if beta > 0.25
+    BUY_MAX_BETA = 2.5                 # Buy if beta <= 2.5
+    BUY_MIN_FORWARD_PE = 0.5           # Buy if PEF > 0.5
+    BUY_MAX_FORWARD_PE = 45.0          # Buy if PEF <= 45
+    BUY_MAX_PEG = 2.5                  # Buy if PEG < 2.5
+    BUY_MAX_SHORT_INTEREST = 1.5       # Buy if SI <= 1.5%
+    BUY_MIN_EXRET = 15.0               # Buy if EXRET >= 15%
+
+    @classmethod
+    def check_confidence(cls, analyst_count: Optional[float], total_ratings: Optional[float]) -> bool:
+        """Check if stock has sufficient analyst coverage for confident recommendations."""
+        if analyst_count is None or total_ratings is None:
+            return False
+
+        try:
+            # Handle string values
+            if isinstance(analyst_count, str):
+                if analyst_count == "--" or not analyst_count.replace(".", "", 1).isdigit():
+                    return False
+                analyst_count = float(analyst_count)
+
+            if isinstance(total_ratings, str):
+                if total_ratings == "--" or not total_ratings.replace(".", "", 1).isdigit():
+                    return False
+                total_ratings = float(total_ratings)
+
+            return analyst_count >= cls.MIN_ANALYST_COUNT and total_ratings >= cls.MIN_PRICE_TARGETS
+        except (ValueError, TypeError):
+            return False
+
+    @classmethod
+    def check_sell_criteria(cls, row: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+        """
+        Check if a stock meets SELL criteria (ANY condition triggers sell).
+
+        Returns:
+            Tuple of (is_sell, reason)
+        """
+        # 1. Low upside OR low buy percentage
+        upside = cls._get_numeric_value(row.get("upside"))
+        buy_pct = cls._get_numeric_value(row.get("buy_percentage"))
+
+        if upside is not None and upside < cls.SELL_MAX_UPSIDE:
+            return True, f"Low upside ({upside:.1f}% < {cls.SELL_MAX_UPSIDE}%)"
+
+        if buy_pct is not None and buy_pct < cls.SELL_MIN_BUY_PERCENTAGE:
+            return True, f"Low buy percentage ({buy_pct:.1f}% < {cls.SELL_MIN_BUY_PERCENTAGE}%)"
+
+        # 2. Deteriorating PE (PEF > PET) OR high forward PE
+        pe_forward = cls._get_numeric_value(row.get("pe_forward"))
+        pe_trailing = cls._get_numeric_value(row.get("pe_trailing"))
+
+        if pe_forward is not None and pe_trailing is not None:
+            if pe_forward > 0 and pe_trailing > 0 and (pe_forward - pe_trailing) > 0.5:
+                return True, f"Worsening P/E (PEF {pe_forward:.1f} - PET {pe_trailing:.1f} > 0.5)"
+
+        if pe_forward is not None:
+            if pe_forward < 0:
+                return True, f"Negative forward P/E ({pe_forward:.1f})"
+            elif pe_forward > cls.SELL_MIN_FORWARD_PE:
+                return True, f"High forward P/E ({pe_forward:.1f} > {cls.SELL_MIN_FORWARD_PE})"
+
+        # 3. High PEG ratio
+        peg = cls._get_numeric_value(row.get("peg_ratio"))
+        if peg is not None and peg >= cls.SELL_MIN_PEG:
+            return True, f"High PEG ratio ({peg:.1f} >= {cls.SELL_MIN_PEG})"
+
+        # 4. High short interest
+        si = cls._get_numeric_value(row.get("short_percent", row.get("SI")))
+        if si is not None and si > cls.SELL_MIN_SHORT_INTEREST:
+            return True, f"High short interest ({si:.1f}% > {cls.SELL_MIN_SHORT_INTEREST}%)"
+
+        # 5. High beta
+        beta = cls._get_numeric_value(row.get("beta"))
+        if beta is not None and beta > cls.SELL_MIN_BETA:
+            return True, f"High beta ({beta:.1f} > {cls.SELL_MIN_BETA})"
+
+        # 6. Low expected return
+        exret = cls._get_numeric_value(row.get("EXRET"))
+        if exret is not None and exret < cls.SELL_MAX_EXRET:
+            return True, f"Low expected return ({exret:.1f}% < {cls.SELL_MAX_EXRET}%)"
+
+        return False, None
+
+    @classmethod
+    def check_buy_criteria(cls, row: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+        """
+        Check if a stock meets BUY criteria (ALL conditions must be met).
+
+        Returns:
+            Tuple of (is_buy, failure_reason)
+        """
+        # 1. High upside AND high buy percentage (both required)
+        upside = cls._get_numeric_value(row.get("upside"))
+        buy_pct = cls._get_numeric_value(row.get("buy_percentage"))
+
+        if upside is None:
+            return False, "Upside data not available"
+        if upside < cls.BUY_MIN_UPSIDE:
+            return False, f"Insufficient upside ({upside:.1f}% < {cls.BUY_MIN_UPSIDE}%)"
+
+        if buy_pct is None:
+            return False, "Buy percentage not available"
+        if buy_pct < cls.BUY_MIN_BUY_PERCENTAGE:
+            return False, f"Insufficient buy percentage ({buy_pct:.1f}% < {cls.BUY_MIN_BUY_PERCENTAGE}%)"
+
+        # 2. Beta in valid range (required)
+        beta = cls._get_numeric_value(row.get("beta"))
+        if beta is None:
+            return False, "Beta data not available"
+        if beta <= cls.BUY_MIN_BETA:
+            return False, f"Beta too low ({beta:.1f} <= {cls.BUY_MIN_BETA})"
+        if beta > cls.BUY_MAX_BETA:
+            return False, f"Beta too high ({beta:.1f} > {cls.BUY_MAX_BETA})"
+
+        # 3. PE conditions (required)
+        pe_forward = cls._get_numeric_value(row.get("pe_forward"))
+        pe_trailing = cls._get_numeric_value(row.get("pe_trailing"))
+
+        if pe_forward is None:
+            return False, "Forward P/E not available"
+
+        # Check if PE is in valid range
+        if not (cls.BUY_MIN_FORWARD_PE < pe_forward <= cls.BUY_MAX_FORWARD_PE):
+            return False, f"Forward P/E out of range ({pe_forward:.1f})"
+
+        # PE condition from CLAUDE.md: "PEF < PET OR PET ≤ 0, and 0.5 < PEF <= 45.0"
+        # Interpretation: Either PE is improving (PEF < PET) OR it's a growth stock (PET <= 0)
+        # AND forward PE must be in valid range (already checked above)
+        if pe_trailing is not None:
+            pe_improving = pe_forward < pe_trailing
+            is_growth = pe_trailing <= 0
+
+            if not (pe_improving or is_growth):
+                return False, f"P/E not improving (PEF {pe_forward:.1f} >= PET {pe_trailing:.1f}) and not a growth stock"
+
+        # 4. Secondary criteria (optional but checked if available)
+        peg = cls._get_numeric_value(row.get("peg_ratio"))
+        if peg is not None and peg >= cls.BUY_MAX_PEG:
+            return False, f"PEG ratio too high ({peg:.1f} >= {cls.BUY_MAX_PEG})"
+
+        si = cls._get_numeric_value(row.get("short_percent", row.get("SI")))
+        if si is not None and si > cls.BUY_MAX_SHORT_INTEREST:
+            return False, f"Short interest too high ({si:.1f}% > {cls.BUY_MAX_SHORT_INTEREST}%)"
+
+        # 5. Expected return (required)
+        exret = cls._get_numeric_value(row.get("EXRET"))
+        if exret is None:
+            return False, "Expected return not available"
+        if exret < cls.BUY_MIN_EXRET:
+            return False, f"Expected return too low ({exret:.1f}% < {cls.BUY_MIN_EXRET}%)"
+
+        return True, None
+
+    @classmethod
+    def calculate_action(cls, row: Dict[str, Any]) -> Tuple[str, str]:
+        """
+        Calculate trading action for a stock based on criteria.
+
+        Returns:
+            Tuple of (action, reason)
+        """
+        # Check confidence first
+        analyst_count = row.get("analyst_count", row.get("# T"))
+        total_ratings = row.get("total_ratings", row.get("# A"))
+
+        if not cls.check_confidence(analyst_count, total_ratings):
+            return INCONCLUSIVE_ACTION, "Insufficient analyst coverage"
+
+        # Check SELL criteria (any condition triggers)
+        is_sell, sell_reason = cls.check_sell_criteria(row)
+        if is_sell:
+            return SELL_ACTION, sell_reason
+
+        # Check BUY criteria (all conditions required)
+        is_buy, buy_reason = cls.check_buy_criteria(row)
+        if is_buy:
+            return BUY_ACTION, "Meets all buy criteria"
+
+        # Default to HOLD
+        return HOLD_ACTION, buy_reason or "Does not meet buy or sell criteria"
+
+    @staticmethod
+    def _get_numeric_value(value: Any) -> Optional[float]:
+        """Convert various value formats to float."""
+        if value is None or pd.isna(value):
+            return None
+
+        if isinstance(value, str):
+            # Handle special values
+            if value == "--" or not value.strip():
+                return None
+
+            # Remove percentage sign and convert
+            try:
+                return float(value.replace("%", "").replace(",", ""))
+            except (ValueError, TypeError):
+                return None
+
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return None
+
+
+def get_action_color(action: str) -> Optional[str]:
+    """Get the color code for a given action."""
+    return ACTION_COLORS.get(action)
+
+
+def normalize_row_for_criteria(row: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Normalize row column names for criteria evaluation.
+
+    Maps display column names to internal names used by criteria.
+    """
+    mapping = {
+        "UPSIDE": "upside",
+        "% BUY": "buy_percentage",
+        "BETA": "beta",
+        "PET": "pe_trailing",
+        "PEF": "pe_forward",
+        "PEG": "peg_ratio",
+        "SI": "short_percent",
+        "# T": "analyst_count",
+        "# A": "total_ratings",
+        "EXRET": "EXRET",  # Keep as is
+    }
+
+    normalized = {}
+
+    # Copy all original keys first
+    for key, value in row.items():
+        normalized[key] = value
+
+    # Apply mapping
+    for display_name, internal_name in mapping.items():
+        if display_name in row and internal_name not in row:
+            normalized[internal_name] = row[display_name]
+
+    return normalized

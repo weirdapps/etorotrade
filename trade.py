@@ -2284,12 +2284,34 @@ def process_buy_opportunities(
     # Get buy opportunities with risk management priority
     buy_opportunities = filter_risk_first_buy_opportunities(market_df)
 
+    # DEBUG: Log all buy opportunities before filtering
+    logger.info(f"DEBUG: Total buy opportunities from filter_risk_first_buy_opportunities: {len(buy_opportunities)}")
+    ticker_col_temp = "TICKER" if "TICKER" in buy_opportunities.columns else "ticker"
+    if not buy_opportunities.empty:
+        buy_tickers = buy_opportunities[ticker_col_temp].tolist()
+        logger.info(f"DEBUG: Buy opportunity tickers: {buy_tickers}")
+        # Check if AUSS.OL is in the list
+        if "AUSS.OL" in buy_tickers:
+            logger.info("DEBUG: AUSS.OL is in buy opportunities before portfolio filtering")
+        else:
+            logger.info("DEBUG: AUSS.OL is NOT in buy opportunities before portfolio filtering")
+
     # First check which column name exists: 'ticker' or 'TICKER'
     ticker_col = "TICKER" if "TICKER" in buy_opportunities.columns else "ticker"
     # Filter out stocks already in portfolio
     new_opportunities = buy_opportunities[
         ~buy_opportunities[ticker_col].str.upper().isin(portfolio_tickers)
     ]
+
+    # DEBUG: Log after portfolio filtering
+    logger.info(f"DEBUG: Portfolio tickers being filtered: {portfolio_tickers}")
+    logger.info(f"DEBUG: Opportunities after portfolio filtering: {len(new_opportunities)}")
+    if not new_opportunities.empty:
+        remaining_tickers = new_opportunities[ticker_col].tolist()
+        if "AUSS.OL" in remaining_tickers:
+            logger.info("DEBUG: AUSS.OL is still present after portfolio filtering")
+        else:
+            logger.info("DEBUG: AUSS.OL was removed during portfolio filtering")
 
     # Filter out stocks in notrade.csv if file exists
     new_opportunities, _ = _filter_notrade_tickers(new_opportunities, notrade_path)

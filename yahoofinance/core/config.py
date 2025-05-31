@@ -202,51 +202,42 @@ PAGINATION = {
     "RETRY_DELAY": 1.0,
 }
 
-# Trading criteria configuration
-TRADING_CRITERIA = {
-    "CONFIDENCE": {
-        # Minimum number of analysts covering the stock
-        "MIN_ANALYST_COUNT": 5,
-        # Minimum number of price targets
-        "MIN_PRICE_TARGETS": 5,
-    },
-    "SELL": {
-        # Maximum upside potential for sell recommendation (sell if below this)
-        "SELL_MAX_UPSIDE": 5.0,
-        # Minimum buy percentage for sell recommendation (sell if below this)
-        "SELL_MIN_BUY_PERCENTAGE": 65.0,
-        # Minimum forward P/E for sell recommendation (sell if above this)
-        "SELL_MIN_FORWARD_PE": 50.0,
-        # Minimum PEG ratio for sell recommendation (sell if above this)
-        "SELL_MIN_PEG": 3.0,
-        # Minimum short interest for sell recommendation (sell if above this)
-        "SELL_MIN_SHORT_INTEREST": 2.0,
-        # Minimum beta for sell recommendation (sell if above this)
-        "SELL_MIN_BETA": 3.0,
-        # Maximum expected return for sell recommendation (sell if below this)
-        "SELL_MAX_EXRET": 5.0,
-    },
-    "BUY": {
-        # Minimum upside potential for buy recommendation (buy if above this)
-        "BUY_MIN_UPSIDE": 20.0,
-        # Minimum buy percentage for buy recommendation (buy if above this)
-        "BUY_MIN_BUY_PERCENTAGE": 85.0,
-        # Minimum beta for buy recommendation (buy if above this)
-        "BUY_MIN_BETA": 0.25,
-        # Maximum beta for buy recommendation (buy if below this)
-        "BUY_MAX_BETA": 2.5,
-        # Minimum forward P/E for buy recommendation (buy if above this)
-        "BUY_MIN_FORWARD_PE": 0.5,
-        # Maximum forward P/E for buy recommendation (buy if below this)
-        "BUY_MAX_FORWARD_PE": 45.0,
-        # Maximum PEG ratio for buy recommendation (buy if below this)
-        "BUY_MAX_PEG": 2.5,
-        # Maximum short interest for buy recommendation (buy if below this)
-        "BUY_MAX_SHORT_INTEREST": 1.5,
-        # Minimum expected return for buy recommendation (buy if above this)
-        "BUY_MIN_EXRET": 15.0,
-    },
-}
+# NOTE: Trading criteria configuration has been moved to yahoofinance.core.trade_criteria_config
+# to provide a single source of truth for all trading logic
+
+# Temporary compatibility import to support existing code
+def get_trading_criteria():
+    """Get trading criteria in legacy format for backward compatibility."""
+    from .trade_criteria_config import TradingCriteria
+    return {
+        "CONFIDENCE": {
+            "MIN_ANALYST_COUNT": TradingCriteria.MIN_ANALYST_COUNT,
+            "MIN_PRICE_TARGETS": TradingCriteria.MIN_PRICE_TARGETS,
+        },
+        "SELL": {
+            "SELL_MAX_UPSIDE": TradingCriteria.SELL_MAX_UPSIDE,
+            "SELL_MIN_BUY_PERCENTAGE": TradingCriteria.SELL_MIN_BUY_PERCENTAGE,
+            "SELL_MIN_FORWARD_PE": TradingCriteria.SELL_MIN_FORWARD_PE,
+            "SELL_MIN_PEG": TradingCriteria.SELL_MIN_PEG,
+            "SELL_MIN_SHORT_INTEREST": TradingCriteria.SELL_MIN_SHORT_INTEREST,
+            "SELL_MIN_BETA": TradingCriteria.SELL_MIN_BETA,
+            "SELL_MAX_EXRET": TradingCriteria.SELL_MAX_EXRET,
+        },
+        "BUY": {
+            "BUY_MIN_UPSIDE": TradingCriteria.BUY_MIN_UPSIDE,
+            "BUY_MIN_BUY_PERCENTAGE": TradingCriteria.BUY_MIN_BUY_PERCENTAGE,
+            "BUY_MIN_BETA": TradingCriteria.BUY_MIN_BETA,
+            "BUY_MAX_BETA": TradingCriteria.BUY_MAX_BETA,
+            "BUY_MIN_FORWARD_PE": TradingCriteria.BUY_MIN_FORWARD_PE,
+            "BUY_MAX_FORWARD_PE": TradingCriteria.BUY_MAX_FORWARD_PE,
+            "BUY_MAX_PEG": TradingCriteria.BUY_MAX_PEG,
+            "BUY_MAX_SHORT_INTEREST": TradingCriteria.BUY_MAX_SHORT_INTEREST,
+            "BUY_MIN_EXRET": TradingCriteria.BUY_MIN_EXRET,
+        },
+    }
+
+# Create a module-level TRADING_CRITERIA for backward compatibility
+TRADING_CRITERIA = get_trading_criteria()
 
 # Display configuration
 DISPLAY = {

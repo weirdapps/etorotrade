@@ -314,8 +314,8 @@ class DisplayFormatter:
         Returns:
             Signal string ("BUY", "SELL", "HOLD", or "NEUTRAL")
         """
-        # Import TRADING_CRITERIA from config to ensure consistency
-        from yahoofinance.core.config import TRADING_CRITERIA
+        # Import trading criteria from centralized config
+        from yahoofinance.core.trade_criteria_config import TradingCriteria
 
         # Extract and convert relevant metrics
         upside = ticker_data.get("upside")
@@ -329,9 +329,10 @@ class DisplayFormatter:
         total_ratings = ticker_data.get("total_ratings")
 
         # Get the criteria values from the central config
-        sell_criteria = TRADING_CRITERIA["SELL"]
-        buy_criteria = TRADING_CRITERIA["BUY"]
-        confidence = TRADING_CRITERIA["CONFIDENCE"]
+        # Use centralized TradingCriteria class
+        sell_criteria = TradingCriteria
+        buy_criteria = TradingCriteria
+        confidence = TradingCriteria
 
         # Confidence check - require both analyst metrics to be present with minimum values
         if (
@@ -339,8 +340,8 @@ class DisplayFormatter:
             or total_ratings is None
             or upside is None
             or buy_percentage is None
-            or analyst_count < confidence["MIN_ANALYST_COUNT"]
-            or total_ratings < confidence["MIN_PRICE_TARGETS"]
+            or analyst_count < confidence.MIN_ANALYST_COUNT
+            or total_ratings < confidence.MIN_PRICE_TARGETS
         ):
             return "NEUTRAL"
 
@@ -352,9 +353,9 @@ class DisplayFormatter:
         sell_signals = []
 
         # Primary criteria - always check these
-        sell_signals.append(upside < sell_criteria["SELL_MAX_UPSIDE"])
-        sell_signals.append(buy_percentage < sell_criteria["SELL_MIN_BUY_PERCENTAGE"])
-        sell_signals.append(expected_return < sell_criteria["SELL_MAX_EXRET"])
+        sell_signals.append(upside < sell_criteria.SELL_MAX_UPSIDE)
+        sell_signals.append(buy_percentage < sell_criteria.SELL_MIN_BUY_PERCENTAGE)
+        sell_signals.append(expected_return < sell_criteria.SELL_MAX_EXRET)
 
         # Secondary criteria - only check if the data is available
         # PE deteriorating (both positive, but forward > trailing)
@@ -368,13 +369,13 @@ class DisplayFormatter:
 
         # Extremely high forward PE or negative forward PE
         if pe_forward is not None:
-            sell_signals.append(pe_forward > sell_criteria["SELL_MIN_FORWARD_PE"] or pe_forward < 0)
+            sell_signals.append(pe_forward > sell_criteria.SELL_MIN_FORWARD_PE or pe_forward < 0)
 
         # High PEG ratio (optional secondary criterion)
         if peg is not None:
             try:
                 peg_val = float(peg)
-                sell_signals.append(peg_val > sell_criteria["SELL_MIN_PEG"])
+                sell_signals.append(peg_val > sell_criteria.SELL_MIN_PEG)
             except (ValueError, TypeError):
                 pass  # Ignore conversion errors
 
@@ -382,7 +383,7 @@ class DisplayFormatter:
         if short_interest is not None:
             try:
                 si_val = float(short_interest)
-                sell_signals.append(si_val > sell_criteria["SELL_MIN_SHORT_INTEREST"])
+                sell_signals.append(si_val > sell_criteria.SELL_MIN_SHORT_INTEREST)
             except (ValueError, TypeError):
                 pass  # Ignore conversion errors
 
@@ -390,7 +391,7 @@ class DisplayFormatter:
         if beta is not None:
             try:
                 beta_val = float(beta)
-                sell_signals.append(beta_val > sell_criteria["SELL_MIN_BETA"])
+                sell_signals.append(beta_val > sell_criteria.SELL_MIN_BETA)
             except (ValueError, TypeError):
                 pass  # Ignore conversion errors
 
@@ -407,17 +408,17 @@ class DisplayFormatter:
             or pe_forward is None
             or pe_trailing is None
             or beta is None
-            or upside < buy_criteria["BUY_MIN_UPSIDE"]
-            or buy_percentage < buy_criteria["BUY_MIN_BUY_PERCENTAGE"]
-            or expected_return < buy_criteria["BUY_MIN_EXRET"]
+            or upside < buy_criteria.BUY_MIN_UPSIDE
+            or buy_percentage < buy_criteria.BUY_MIN_BUY_PERCENTAGE
+            or expected_return < buy_criteria.BUY_MIN_EXRET
         ):
             return "HOLD"  # Missing required data or basic criteria not met
 
         # Check PE condition (required - primary criterion)
         pe_condition = False
         if (
-            pe_forward < buy_criteria["BUY_MIN_FORWARD_PE"]
-            or pe_forward > buy_criteria["BUY_MAX_FORWARD_PE"]
+            pe_forward < buy_criteria.BUY_MIN_FORWARD_PE
+            or pe_forward > buy_criteria.BUY_MAX_FORWARD_PE
         ):
             return "HOLD"  # PE outside acceptable range
 
@@ -434,8 +435,8 @@ class DisplayFormatter:
         try:
             beta_val = float(beta)
             if not (
-                beta_val >= buy_criteria["BUY_MIN_BETA"]
-                and beta_val <= buy_criteria["BUY_MAX_BETA"]
+                beta_val >= buy_criteria.BUY_MIN_BETA
+                and beta_val <= buy_criteria.BUY_MAX_BETA
             ):
                 return "HOLD"  # Beta outside acceptable range
         except (ValueError, TypeError):
@@ -447,7 +448,7 @@ class DisplayFormatter:
         if peg is not None and peg != "--":
             try:
                 peg_val = float(peg)
-                if peg_val > 0 and peg_val >= buy_criteria["BUY_MAX_PEG"]:
+                if peg_val > 0 and peg_val >= buy_criteria.BUY_MAX_PEG:
                     return "HOLD"  # PEG too high
             except (ValueError, TypeError):
                 pass  # Ignore conversion errors
@@ -456,7 +457,7 @@ class DisplayFormatter:
         if short_interest is not None:
             try:
                 si_val = float(short_interest)
-                if si_val > buy_criteria["BUY_MAX_SHORT_INTEREST"]:
+                if si_val > buy_criteria.BUY_MAX_SHORT_INTEREST:
                     return "HOLD"  # Short interest too high
             except (ValueError, TypeError):
                 pass  # Ignore conversion errors
