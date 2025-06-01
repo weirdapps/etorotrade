@@ -25,6 +25,7 @@ def sample_data():
                 "analyst_count": 10,
                 "total_ratings": 8,
                 "EXRET": 22.5,  # Added to ensure it's above BUY_MIN_EXRET (15.0)
+                "market_cap": 1_000_000_000,  # $1B - above $500M requirement
             },
             {
                 "ticker": "SELL",
@@ -37,6 +38,7 @@ def sample_data():
                 "short_percent": 3.5,
                 "analyst_count": 8,
                 "total_ratings": 7,
+                "market_cap": 800_000_000,  # $800M - above $500M requirement
             },
             {
                 "ticker": "HOLD",
@@ -50,6 +52,7 @@ def sample_data():
                 "analyst_count": 6,
                 "total_ratings": 5,
                 "EXRET": 8.0,  # Between SELL_MAX_EXRET (5.0) and BUY_MIN_EXRET (15.0)
+                "market_cap": 600_000_000,  # $600M - above $500M requirement
             },
             {
                 "ticker": "LOWCONF",
@@ -62,6 +65,7 @@ def sample_data():
                 "short_percent": 1.0,
                 "analyst_count": 3,  # Below MIN_ANALYST_COUNT
                 "total_ratings": 2,  # Below MIN_PRICE_TARGETS
+                "market_cap": 700_000_000,  # $700M - above $500M requirement
             },
         ]
     )

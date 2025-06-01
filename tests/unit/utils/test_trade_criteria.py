@@ -60,6 +60,7 @@ def test_data():
             "analyst_count": 10,
             "total_ratings": 8,
             "EXRET": 22.5,  # 25 * 0.9
+            "market_cap": 1_000_000_000,  # $1B - above $500M requirement
         },
         "sell_stock_low_upside": {
             "ticker": "SELL1",
@@ -73,6 +74,7 @@ def test_data():
             "analyst_count": 8,
             "total_ratings": 7,
             "EXRET": 2.1,  # 3 * 0.7
+            "market_cap": 800_000_000,  # $800M - above $500M requirement
         },
         "sell_stock_high_beta": {
             "ticker": "SELL2",
@@ -86,6 +88,7 @@ def test_data():
             "analyst_count": 7,
             "total_ratings": 6,
             "EXRET": 11.25,  # 15 * 0.75
+            "market_cap": 900_000_000,  # $900M - above $500M requirement
         },
         "hold_stock": {
             "ticker": "HOLD",
@@ -99,6 +102,7 @@ def test_data():
             "analyst_count": 6,
             "total_ratings": 5,
             "EXRET": 16.0,  # Above SELL threshold (5%) and BUY threshold (15%)
+            "market_cap": 600_000_000,  # $600M - above $500M requirement
         },
         "insufficient_confidence": {
             "ticker": "LOWCONF",
@@ -112,6 +116,7 @@ def test_data():
             "analyst_count": 3,  # Below MIN_ANALYST_COUNT
             "total_ratings": 2,  # Below MIN_PRICE_TARGETS
             "EXRET": 27.0,  # 30 * 0.9
+            "market_cap": 700_000_000,  # $700M - above $500M requirement
         },
     }
 
