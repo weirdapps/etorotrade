@@ -63,6 +63,7 @@ class TradingCriteria:
     BUY_MAX_PEG = 2.5                  # Buy if PEG < 2.5
     BUY_MAX_SHORT_INTEREST = 1.5       # Buy if SI <= 1.5%
     BUY_MIN_EXRET = 15.0               # Buy if EXRET >= 15%
+    BUY_MIN_MARKET_CAP = 500_000_000   # Buy if market cap >= $500M
 
     @classmethod
     def check_confidence(cls, analyst_count: Optional[float], total_ratings: Optional[float]) -> bool:
@@ -201,7 +202,16 @@ class TradingCriteria:
         if si is not None and si > cls.BUY_MAX_SHORT_INTEREST:
             return False, f"Short interest too high ({si:.1f}% > {cls.BUY_MAX_SHORT_INTEREST}%)"
 
-        # 5. Expected return (required)
+        # 5. Market cap (required)
+        market_cap = cls._get_numeric_value(row.get("market_cap"))
+        if market_cap is None:
+            return False, "Market cap not available"
+        if market_cap < cls.BUY_MIN_MARKET_CAP:
+            market_cap_formatted = cls._format_market_cap_short(market_cap)
+            min_cap_formatted = cls._format_market_cap_short(cls.BUY_MIN_MARKET_CAP)
+            return False, f"Market cap too small ({market_cap_formatted} < {min_cap_formatted})"
+
+        # 6. Expected return (required)
         exret = cls._get_numeric_value(row.get("EXRET"))
         if exret is None:
             return False, "Expected return not available"
@@ -260,6 +270,18 @@ class TradingCriteria:
         except (ValueError, TypeError):
             return None
 
+    @staticmethod
+    def _format_market_cap_short(value: float) -> str:
+        """Format market cap for display in error messages."""
+        if value >= 1_000_000_000_000:  # Trillion
+            return f"{value / 1_000_000_000_000:.1f}T"
+        elif value >= 1_000_000_000:  # Billion
+            return f"{value / 1_000_000_000:.1f}B"
+        elif value >= 1_000_000:  # Million
+            return f"{value / 1_000_000:.0f}M"
+        else:
+            return f"{value:,.0f}"
+
 
 def get_action_color(action: str) -> Optional[str]:
     """Get the color code for a given action."""
@@ -283,6 +305,7 @@ def normalize_row_for_criteria(row: Dict[str, Any]) -> Dict[str, Any]:
         "# T": "analyst_count",
         "# A": "total_ratings",
         "EXRET": "EXRET",  # Keep as is
+        "CAP": "market_cap",
     }
 
     normalized = {}
@@ -294,6 +317,31 @@ def normalize_row_for_criteria(row: Dict[str, Any]) -> Dict[str, Any]:
     # Apply mapping
     for display_name, internal_name in mapping.items():
         if display_name in row and internal_name not in row:
-            normalized[internal_name] = row[display_name]
+            value = row[display_name]
+            
+            # Special handling for market cap - convert formatted string to numeric
+            if internal_name == "market_cap" and isinstance(value, str):
+                value = _parse_market_cap_string(value)
+            
+            normalized[internal_name] = value
 
     return normalized
+
+
+def _parse_market_cap_string(cap_str: str) -> Optional[float]:
+    """Parse market cap string (e.g., '3.67B') to numeric value."""
+    if cap_str == "--" or not cap_str or cap_str.strip() == "":
+        return None
+    
+    try:
+        cap_str = cap_str.upper().strip()
+        if cap_str.endswith('T'):
+            return float(cap_str[:-1]) * 1_000_000_000_000
+        elif cap_str.endswith('B'):
+            return float(cap_str[:-1]) * 1_000_000_000
+        elif cap_str.endswith('M'):
+            return float(cap_str[:-1]) * 1_000_000
+        else:
+            return float(cap_str)
+    except (ValueError, TypeError):
+        return None
