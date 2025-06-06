@@ -273,7 +273,6 @@ def _create_empty_ticker_dataframe():
                 "buy_percentage": None,
                 "total_ratings": 0,
                 "analyst_count": 0,
-                "upside": None,
                 "pe_trailing": None,
                 "pe_forward": None,
                 "peg_ratio": None,
@@ -981,6 +980,13 @@ def prepare_display_dataframe(df):
 
     # Create a copy to avoid modifying the original
     working_df = df.copy()
+    
+    # Recalculate upside dynamically to ensure consistency
+    if "price" in working_df.columns and "target_price" in working_df.columns:
+        from yahoofinance.utils.data.format_utils import calculate_upside
+        working_df["upside"] = working_df.apply(
+            lambda row: calculate_upside(row.get("price"), row.get("target_price")), axis=1
+        )
 
     # Add concise debug log for input size
     if len(working_df) > 1000:
@@ -1210,7 +1216,7 @@ def format_numeric_columns(display_df, columns, format_str):
                                 else:
                                     # Real data with already decimal values (rare cases)
                                     return f"{float(x):{fmt}}%"
-                            elif abs(x) < 1.0 and col != "BETA":
+                            elif abs(x) < 1.0 and col not in ["BETA", "UPSIDE"]:
                                 # Special handling for SI (short interest)
                                 if col == "SI":
                                     # Check if it's a test value (small value like 0.75 expected to format as 0.8%)
@@ -3360,15 +3366,8 @@ async def _process_single_ticker(provider, ticker):
             # Record if this was a cache hit
             info["from_cache"] = is_cache_hit
 
-            # Calculate upside if price and target are available
-            if info.get("price") and info.get("target_price"):
-                try:
-                    upside = ((info["target_price"] / info["price"]) - 1) * 100
-                    info["upside"] = upside
-                except (TypeError, ZeroDivisionError):
-                    info["upside"] = None
-            else:
-                info["upside"] = None
+            # Note: upside is now calculated dynamically from price and target_price
+            # No longer storing upside in the info dict to ensure consistency
 
             return info
         else:
@@ -4014,18 +4013,14 @@ async def fetch_ticker_data(provider, tickers):
     # Prepare stats dictionary to return
     tickers_per_sec = total_tickers / elapsed_time if total_tickers > 0 and elapsed_time > 0 else 0
     time_per_ticker = elapsed_time / total_tickers if total_tickers > 0 and elapsed_time > 0 else 0
-    processing_stats = {
-        "total_time_sec": elapsed_time,
-        "tickers_per_sec": tickers_per_sec,
-        "time_per_ticker_sec": time_per_ticker,
-        "total_tickers": total_tickers,
-        "success_count": counters["success"],
-        "error_count": counters["errors"],
-        "cache_hits": counters["cache_hits"],
-        "valid_results_count": valid_results_count,
-    }
+    # Calculate upside dynamically from price and target_price to ensure consistency
+    # Always recalculate to override any existing upside values
+    if "price" in result_df.columns and "target_price" in result_df.columns:
+        from yahoofinance.utils.data.format_utils import calculate_upside
+        result_df["upside"] = result_df.apply(
+            lambda row: calculate_upside(row.get("price"), row.get("target_price")), axis=1
+        )
 
-    # Just one return at the end with the properly formatted stats
     processing_stats = {
         "total_time_sec": elapsed_time,
         "tickers_per_sec": tickers_per_sec if total_tickers > 0 and elapsed_time > 0 else 0,
