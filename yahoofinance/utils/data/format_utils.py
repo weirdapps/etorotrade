@@ -10,10 +10,75 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from ...core.logging import get_logger
 from ..error_handling import enrich_error_context, safe_operation, translate_error, with_retry
+from .price_target_utils import get_preferred_price_target, validate_price_target_data
 
 
 # Set up logging
 logger = get_logger(__name__)
+
+
+def calculate_upside(price: Any, target_price: Any) -> Optional[float]:
+    """
+    Calculate upside potential as a percentage from price and target price.
+    
+    Args:
+        price: Current stock price
+        target_price: Target price
+        
+    Returns:
+        Upside potential as a percentage, or None if calculation not possible
+    """
+    try:
+        if price is None or target_price is None:
+            return None
+            
+        # Convert to float if they're strings
+        if isinstance(price, str):
+            price = float(price)
+        if isinstance(target_price, str):
+            target_price = float(target_price)
+            
+        if price == 0:
+            return None
+            
+        return ((target_price - price) / price) * 100
+        
+    except (ValueError, TypeError, ZeroDivisionError):
+        return None
+
+
+def calculate_validated_upside(ticker_data: Dict[str, Any]) -> Tuple[Optional[float], str]:
+    """
+    Calculate upside using the most reliable price target available.
+    
+    Args:
+        ticker_data: Dict containing ticker information with price target fields
+        
+    Returns:
+        Tuple of (upside_percentage, quality_description)
+    """
+    try:
+        price = ticker_data.get("price")
+        if not price:
+            return None, "no_current_price"
+            
+        # Get the preferred price target based on quality
+        preferred_target, source_desc = get_preferred_price_target(ticker_data)
+        
+        if preferred_target is None:
+            return None, source_desc
+            
+        # Calculate upside
+        upside = calculate_upside(price, preferred_target)
+        
+        if upside is not None:
+            return upside, source_desc
+        else:
+            return None, "calculation_failed"
+            
+    except Exception as e:
+        logger.warning(f"Error calculating validated upside: {e}")
+        return None, "error_occurred"
 
 
 def format_number(

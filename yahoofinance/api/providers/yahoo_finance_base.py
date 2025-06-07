@@ -256,7 +256,13 @@ class YahooFinanceBaseProvider(ABC):
                 "pe_forward": safe_extract_value(info, "forwardPE"),  # Match both formats
                 "forward_pe": safe_extract_value(info, "forwardPE"),
                 "dividend_yield": safe_extract_value(info, "dividendYield"),
-                "target_price": safe_extract_value(info, "targetMeanPrice"),
+                # Price target fields - use median as primary, extract all for validation
+                "target_price": safe_extract_value(info, "targetMedianPrice"),  # Changed to median
+                "target_price_mean": safe_extract_value(info, "targetMeanPrice"),
+                "target_price_median": safe_extract_value(info, "targetMedianPrice"),
+                "target_price_high": safe_extract_value(info, "targetHighPrice"),
+                "target_price_low": safe_extract_value(info, "targetLowPrice"),
+                "price_target_analyst_count": safe_extract_value(info, "numberOfAnalystOpinions"),
                 "beta": safe_extract_value(info, "beta"),
                 "eps": safe_extract_value(info, "trailingEps"),
                 "forward_eps": safe_extract_value(info, "forwardEps"),
@@ -304,12 +310,8 @@ class YahooFinanceBaseProvider(ABC):
                 except (ValueError, TypeError):
                     pass
 
-            # Add calculated fields
-            result["upside"] = self._calculate_upside_potential(
-                result["price"], result["target_price"]
-            )
-            # Also add original field name for compatibility
-            result["upside_potential"] = result["upside"]
+            # Note: upside will be calculated dynamically from price and target_price
+            # No longer storing upside as a field to ensure consistency
 
             return result
 
@@ -327,6 +329,9 @@ class YahooFinanceBaseProvider(ABC):
     def _calculate_upside_potential(self, current_price, target_price):
         """
         Calculate upside potential as a percentage.
+        
+        Note: This method is deprecated. Upside is now calculated dynamically
+        from price and target_price to ensure consistency.
 
         Args:
             current_price: Current stock price
