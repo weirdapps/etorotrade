@@ -99,6 +99,36 @@ A stock triggers a SELL if ANY of these warning signs appear:
 - Insufficient analyst coverage (< 5 price targets or < 5 analyst ratings)
 - Not enough data for confident decision-making
 
+### 🎯 Robust Target Price Mechanism
+
+etorotrade features a sophisticated **quality-validated target price system** that goes beyond simple analyst medians to provide more reliable upside calculations:
+
+#### Quality Assessment System
+Every stock's analyst price targets are automatically graded on a **5-tier quality scale**:
+
+- **Grade A (85-100)**: Excellent consensus with tight target ranges
+- **Grade B (70-84)**: Good quality with minor disagreements
+- **Grade C (55-69)**: Moderate quality with some outliers
+- **Grade D (40-54)**: Poor quality requiring manual review
+- **Grade F (<40)**: Excluded due to unreliable data
+
+#### Robustness Scoring Factors
+The system evaluates price target quality using multiple criteria:
+
+- **Spread Analysis**: Penalizes excessive target ranges (>50% concerning, >75% severe)
+- **Outlier Detection**: Identifies extreme predictions that skew averages
+- **Consensus Validation**: Rewards tight agreement between mean and median
+- **Coverage Assessment**: Considers analyst count and expertise level
+- **Price Reasonableness**: Flags targets >300% from current price
+
+#### Trading Decision Impact
+- **Grades A-C**: Uses quality-validated median target with confidence indicators
+- **Grade D**: Still participates in trading but flagged for manual review
+- **Grade F**: Excluded from buy/sell recommendations entirely
+- **Fallback Protection**: Reverts to simple median if robust calculation fails
+
+The robust mechanism **prioritizes data quality over raw numbers**, ensuring trading decisions are based on reliable analyst consensus rather than potentially misleading outliers.
+
 ### ⚙️ Customizing Trading Criteria
 All trading criteria can be customized by editing a single file: `yahoofinance/core/trade_criteria_config.py`
 

@@ -980,13 +980,23 @@ def prepare_display_dataframe(df):
 
     # Create a copy to avoid modifying the original
     working_df = df.copy()
-    
-    # Recalculate upside dynamically to ensure consistency
+
+    # Recalculate upside dynamically using robust target price validation
     if "price" in working_df.columns and "target_price" in working_df.columns:
-        from yahoofinance.utils.data.format_utils import calculate_upside
-        working_df["upside"] = working_df.apply(
-            lambda row: calculate_upside(row.get("price"), row.get("target_price")), axis=1
+        from yahoofinance.utils.data.format_utils import (
+            calculate_validated_upside,
+            calculate_upside,
         )
+
+        def get_robust_upside(row):
+            # Try robust calculation first
+            robust_upside, source = calculate_validated_upside(row)
+            if robust_upside is not None:
+                return robust_upside
+            # Fallback to simple calculation if robust fails
+            return calculate_upside(row.get("price"), row.get("target_price"))
+
+        working_df["upside"] = working_df.apply(get_robust_upside, axis=1)
 
     # Add concise debug log for input size
     if len(working_df) > 1000:
@@ -2291,7 +2301,9 @@ def process_buy_opportunities(
     buy_opportunities = filter_risk_first_buy_opportunities(market_df)
 
     # DEBUG: Log all buy opportunities before filtering
-    logger.info(f"DEBUG: Total buy opportunities from filter_risk_first_buy_opportunities: {len(buy_opportunities)}")
+    logger.info(
+        f"DEBUG: Total buy opportunities from filter_risk_first_buy_opportunities: {len(buy_opportunities)}"
+    )
     ticker_col_temp = "TICKER" if "TICKER" in buy_opportunities.columns else "ticker"
     if not buy_opportunities.empty:
         buy_tickers = buy_opportunities[ticker_col_temp].tolist()
@@ -3244,6 +3256,7 @@ async def handle_portfolio_download(get_provider=None, app_logger=None):
             # Import the eToro download function (now the default for new downloads)
             try:
                 from yahoofinance.data import download_etoro_portfolio as download_func
+
                 print("Downloading new portfolio from eToro...")
                 if app_logger:
                     app_logger.info("Using eToro portfolio download for new portfolio")
@@ -4013,13 +4026,23 @@ async def fetch_ticker_data(provider, tickers):
     # Prepare stats dictionary to return
     tickers_per_sec = total_tickers / elapsed_time if total_tickers > 0 and elapsed_time > 0 else 0
     time_per_ticker = elapsed_time / total_tickers if total_tickers > 0 and elapsed_time > 0 else 0
-    # Calculate upside dynamically from price and target_price to ensure consistency
-    # Always recalculate to override any existing upside values
+    # Calculate upside dynamically using robust target price validation
+    # Always recalculate to override any existing upside values with quality-validated targets
     if "price" in result_df.columns and "target_price" in result_df.columns:
-        from yahoofinance.utils.data.format_utils import calculate_upside
-        result_df["upside"] = result_df.apply(
-            lambda row: calculate_upside(row.get("price"), row.get("target_price")), axis=1
+        from yahoofinance.utils.data.format_utils import (
+            calculate_validated_upside,
+            calculate_upside,
         )
+
+        def get_robust_upside(row):
+            # Try robust calculation first
+            robust_upside, source = calculate_validated_upside(row)
+            if robust_upside is not None:
+                return robust_upside
+            # Fallback to simple calculation if robust fails
+            return calculate_upside(row.get("price"), row.get("target_price"))
+
+        result_df["upside"] = result_df.apply(get_robust_upside, axis=1)
 
     processing_stats = {
         "total_time_sec": elapsed_time,
@@ -5470,7 +5493,9 @@ if __name__ == "__main__":
                     shutil.copy(src_file, dst_file)
                     # Set secure permissions: owner read/write, group read, others no access
                     os.chmod(dst_file, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP)
-                    logger.debug(f"Copied {file} from v1 to v2 input directory with secure permissions")
+                    logger.debug(
+                        f"Copied {file} from v1 to v2 input directory with secure permissions"
+                    )
         else:
             logger.debug(f"V1 input directory not found: {v1_input_dir}")
 

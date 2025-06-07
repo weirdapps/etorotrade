@@ -284,7 +284,13 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 "change": price_data.get("regularMarketChange", None),
                 "change_percent": price_data.get("regularMarketChangePercent", None),
                 "volume": price_data.get("regularMarketVolume", None),
-                "target_price": financial_data.get("targetMeanPrice", None),
+                # Price target fields - use median as primary, extract all for validation
+                "target_price": financial_data.get("targetMedianPrice", None),  # Changed to median
+                "target_price_mean": financial_data.get("targetMeanPrice", None),
+                "target_price_median": financial_data.get("targetMedianPrice", None),
+                "target_price_high": financial_data.get("targetHighPrice", None),
+                "target_price_low": financial_data.get("targetLowPrice", None),
+                "price_target_analyst_count": financial_data.get("numberOfAnalystOpinions", None),
                 "last_updated": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
             }
 
@@ -653,7 +659,13 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                     "sector": ticker_price.get("sector", ""),
                     "industry": ticker_price.get("industry", ""),
                     "price": ticker_price.get("regularMarketPrice", None),
-                    "target_price": ticker_financial.get("targetMeanPrice", None),
+                    # Price target fields - use median as primary, extract all for validation
+                    "target_price": ticker_financial.get("targetMedianPrice", None),  # Changed to median
+                    "target_price_mean": ticker_financial.get("targetMeanPrice", None),
+                    "target_price_median": ticker_financial.get("targetMedianPrice", None),
+                    "target_price_high": ticker_financial.get("targetHighPrice", None),
+                    "target_price_low": ticker_financial.get("targetLowPrice", None),
+                    "price_target_analyst_count": ticker_financial.get("numberOfAnalystOpinions", None),
                     "market_cap": ticker_price.get("marketCap", None),
                     "beta": ticker_stats.get("beta", None),
                     "pe_trailing": ticker_stats.get("trailingPE", None),
