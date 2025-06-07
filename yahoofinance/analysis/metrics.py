@@ -72,15 +72,15 @@ class PriceTarget:
         median: Median price target
         high: Highest price target
         low: Lowest price target
-        upside: Percentage upside to average target
         analyst_count: Number of analysts with price targets
+        
+    Note: upside is calculated dynamically from current price and average target
     """
 
     average: Optional[float] = None
     median: Optional[float] = None
     high: Optional[float] = None
     low: Optional[float] = None
-    upside: Optional[float] = None
     analyst_count: Optional[int] = None
 
 
