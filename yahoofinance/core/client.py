@@ -43,7 +43,6 @@ class StockData:
     total_ratings: Optional[int] = None
     hold_pct: Optional[float] = None
     buy_pct: Optional[float] = None
-    upside: Optional[float] = None
     sector: Optional[str] = None
     recommendation: Optional[str] = None
 
