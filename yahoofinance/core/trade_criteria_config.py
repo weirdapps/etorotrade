@@ -325,6 +325,28 @@ def normalize_row_for_criteria(row: Dict[str, Any]) -> Dict[str, Any]:
             
             normalized[internal_name] = value
 
+    # Calculate upside dynamically from price and target_price if not already present
+    if "upside" not in normalized and "price" in row:
+        # Try to use validated upside calculation with price target quality assessment
+        try:
+            from yahoofinance.utils.data.format_utils import calculate_validated_upside, calculate_upside
+            
+            # First try validated upside with quality assessment
+            validated_upside, quality_desc = calculate_validated_upside(normalized)
+            if validated_upside is not None:
+                normalized["upside"] = validated_upside
+                normalized["upside_quality"] = quality_desc
+            # Fallback to simple calculation if we have target_price
+            elif "target_price" in row and row.get("target_price"):
+                normalized["upside"] = calculate_upside(row.get("price"), row.get("target_price"))
+                normalized["upside_quality"] = "simple_calculation"
+        except ImportError:
+            # Fallback for backward compatibility
+            if "target_price" in row:
+                from yahoofinance.utils.data.format_utils import calculate_upside
+                normalized["upside"] = calculate_upside(row.get("price"), row.get("target_price"))
+                normalized["upside_quality"] = "legacy_calculation"
+
     return normalized
 
 
