@@ -356,7 +356,12 @@ def calculate_exret(df):
             and pd.api.types.is_numeric_dtype(df["upside"])
             and pd.api.types.is_numeric_dtype(df["buy_percentage"])
         ):
-            df["EXRET"] = df["upside"] * df["buy_percentage"] / 100
+            # Round upside to 1 decimal place to match display formatting before calculating EXRET
+            rounded_upside = df["upside"].round(1)
+            # Store EXRET as decimal (not percentage) to match original calculation format
+            # Original: percentage * percentage / 100 = decimal
+            # Recalc: percentage * percentage / 100 / 100 = decimal (to match original format)
+            df["EXRET"] = (rounded_upside * df["buy_percentage"]) / 10000
         else:
             df["EXRET"] = None
     return df
@@ -500,7 +505,10 @@ def _safe_calc_exret(row):
             else row["buy_percentage"]
         )
 
-        return upside * buy_pct / 100
+        # Round upside to 1 decimal place to match display formatting before calculating EXRET
+        rounded_upside = round(upside, 1)
+        # Store EXRET as decimal to match original format (divide by 10000 not 100)
+        return (rounded_upside * buy_pct) / 10000
     except (TypeError, ValueError):
         return None
 
@@ -997,6 +1005,12 @@ def prepare_display_dataframe(df):
             return calculate_upside(row.get("price"), row.get("target_price"))
 
         working_df["upside"] = working_df.apply(get_robust_upside, axis=1)
+        
+        # Force recalculation of EXRET after upside recalculation to ensure consistency
+        # Remove existing EXRET column first to force recalculation
+        if "EXRET" in working_df.columns:
+            working_df = working_df.drop("EXRET", axis=1)
+        working_df = calculate_exret(working_df)
 
     # Add concise debug log for input size
     if len(working_df) > 1000:
@@ -1097,8 +1111,9 @@ def prepare_display_dataframe(df):
     if "market_cap" in working_df.columns:
         working_df = _add_position_size_column(working_df)
 
-    # Calculate EXRET if needed
-    working_df = calculate_exret(working_df)  # Calculate EXRET first if needed
+    # Calculate EXRET if needed (only if not already calculated after upside recalculation)
+    if "EXRET" not in working_df.columns:
+        working_df = calculate_exret(working_df)
 
     # Skip action calculation in test mode unless explicitly required
     has_required_columns = all(
