@@ -349,21 +349,19 @@ def calculate_exret(df):
     Returns:
         pd.DataFrame: Dataframe with EXRET column added
     """
-    if "EXRET" not in df.columns:
-        if (
-            "upside" in df.columns
-            and "buy_percentage" in df.columns
-            and pd.api.types.is_numeric_dtype(df["upside"])
-            and pd.api.types.is_numeric_dtype(df["buy_percentage"])
-        ):
-            # Round upside to 1 decimal place to match display formatting before calculating EXRET
-            rounded_upside = df["upside"].round(1)
-            # Store EXRET as decimal (not percentage) to match original calculation format
-            # Original: percentage * percentage / 100 = decimal
-            # Recalc: percentage * percentage / 100 / 100 = decimal (to match original format)
-            df["EXRET"] = (rounded_upside * df["buy_percentage"]) / 10000
-        else:
-            df["EXRET"] = None
+    # Always recalculate EXRET even if it exists to ensure consistency with upside values
+    if (
+        "upside" in df.columns
+        and "buy_percentage" in df.columns
+        and pd.api.types.is_numeric_dtype(df["upside"])
+        and pd.api.types.is_numeric_dtype(df["buy_percentage"])
+    ):
+        # Round upside to 1 decimal place to match display formatting before calculating EXRET
+        rounded_upside = df["upside"].round(1)
+        # Calculate EXRET: upside% * buy% / 100 = percentage
+        df["EXRET"] = (rounded_upside * df["buy_percentage"]) / 100
+    else:
+        df["EXRET"] = None
     return df
 
 
@@ -507,8 +505,8 @@ def _safe_calc_exret(row):
 
         # Round upside to 1 decimal place to match display formatting before calculating EXRET
         rounded_upside = round(upside, 1)
-        # Store EXRET as decimal to match original format (divide by 10000 not 100)
-        return (rounded_upside * buy_pct) / 10000
+        # Calculate EXRET: upside% * buy% / 100 = percentage
+        return (rounded_upside * buy_pct) / 100
     except (TypeError, ValueError):
         return None
 
@@ -989,28 +987,8 @@ def prepare_display_dataframe(df):
     # Create a copy to avoid modifying the original
     working_df = df.copy()
 
-    # Recalculate upside dynamically using robust target price validation
-    if "price" in working_df.columns and "target_price" in working_df.columns:
-        from yahoofinance.utils.data.format_utils import (
-            calculate_validated_upside,
-            calculate_upside,
-        )
-
-        def get_robust_upside(row):
-            # Try robust calculation first
-            robust_upside, source = calculate_validated_upside(row)
-            if robust_upside is not None:
-                return robust_upside
-            # Fallback to simple calculation if robust fails
-            return calculate_upside(row.get("price"), row.get("target_price"))
-
-        working_df["upside"] = working_df.apply(get_robust_upside, axis=1)
-        
-        # Force recalculation of EXRET after upside recalculation to ensure consistency
-        # Remove existing EXRET column first to force recalculation
-        if "EXRET" in working_df.columns:
-            working_df = working_df.drop("EXRET", axis=1)
-        working_df = calculate_exret(working_df)
+    # Note: Upside and EXRET recalculation is now handled in fetch_ticker_data
+    # to avoid duplicate processing and ensure consistency across all code paths
 
     # Add concise debug log for input size
     if len(working_df) > 1000:
@@ -2522,8 +2500,22 @@ def _load_portfolio_data(output_dir):
         # Read portfolio analysis data
         portfolio_df = pd.read_csv(portfolio_output_path)
 
+        # Drop EXRET column before conversion to avoid incorrect values
+        # This ensures we recalculate EXRET with the correct formula
+        if "EXRET" in portfolio_df.columns:
+            portfolio_df = portfolio_df.drop("EXRET", axis=1)
+
         # Convert percentage strings to numeric
         portfolio_df = _convert_percentage_columns(portfolio_df)
+
+        # Normalize column names for EXRET calculation
+        if "UPSIDE" in portfolio_df.columns and "upside" not in portfolio_df.columns:
+            portfolio_df["upside"] = portfolio_df["UPSIDE"]
+        if "% BUY" in portfolio_df.columns and "buy_percentage" not in portfolio_df.columns:
+            portfolio_df["buy_percentage"] = portfolio_df["% BUY"]
+
+        # Recalculate EXRET to ensure consistency with current calculation formula
+        portfolio_df = calculate_exret(portfolio_df)
 
         # Suppress debug message about loaded records
         return portfolio_df
@@ -4058,6 +4050,13 @@ async def fetch_ticker_data(provider, tickers):
             return calculate_upside(row.get("price"), row.get("target_price"))
 
         result_df["upside"] = result_df.apply(get_robust_upside, axis=1)
+
+        # ALWAYS force recalculation of EXRET after upside recalculation to ensure consistency
+        # Remove existing EXRET column first to force recalculation
+        if "EXRET" in result_df.columns:
+            result_df = result_df.drop("EXRET", axis=1)
+        # Recalculate EXRET with the updated upside values
+        result_df = calculate_exret(result_df)
 
     processing_stats = {
         "total_time_sec": elapsed_time,

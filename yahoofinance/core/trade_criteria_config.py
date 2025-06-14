@@ -51,7 +51,7 @@ class TradingCriteria:
     SELL_MIN_PEG = 3.0                 # Sell if PEG > 3
     SELL_MIN_SHORT_INTEREST = 2.0      # Sell if SI > 2%
     SELL_MIN_BETA = 3.0                # Sell if Beta > 3
-    SELL_MAX_EXRET = 5.0               # Sell if EXRET < 5%
+    SELL_MAX_EXRET = 0.05               # Sell if EXRET < 5% (stored as decimal)
 
     # BUY criteria thresholds
     BUY_MIN_UPSIDE = 20.0              # Buy if upside >= 20%
@@ -62,7 +62,7 @@ class TradingCriteria:
     BUY_MAX_FORWARD_PE = 45.0          # Buy if PEF <= 45
     BUY_MAX_PEG = 2.5                  # Buy if PEG < 2.5
     BUY_MAX_SHORT_INTEREST = 1.5       # Buy if SI <= 1.5%
-    BUY_MIN_EXRET = 15.0               # Buy if EXRET >= 15%
+    BUY_MIN_EXRET = 0.15               # Buy if EXRET >= 15% (stored as decimal)
     BUY_MIN_MARKET_CAP = 500_000_000   # Buy if market cap >= $500M
 
     @classmethod
@@ -136,8 +136,12 @@ class TradingCriteria:
 
         # 6. Low expected return
         exret = cls._get_numeric_value(row.get("EXRET"))
-        if exret is not None and exret < cls.SELL_MAX_EXRET:
-            return True, f"Low expected return ({exret:.1f}% < {cls.SELL_MAX_EXRET}%)"
+        if exret is not None:
+            # Handle both decimal (0.05) and percentage (5.0) formats
+            if exret > 1.0:  # If > 1, assume it's in percentage format, convert to decimal
+                exret = exret / 100
+            if exret < cls.SELL_MAX_EXRET:
+                return True, f"Low expected return ({exret*100:.1f}% < {cls.SELL_MAX_EXRET*100:.0f}%)"
 
         return False, None
 
@@ -215,8 +219,13 @@ class TradingCriteria:
         exret = cls._get_numeric_value(row.get("EXRET"))
         if exret is None:
             return False, "Expected return not available"
+        
+        # Handle both decimal (0.15) and percentage (15.0) formats
+        if exret > 1.0:  # If > 1, assume it's in percentage format, convert to decimal
+            exret = exret / 100
+            
         if exret < cls.BUY_MIN_EXRET:
-            return False, f"Expected return too low ({exret:.1f}% < {cls.BUY_MIN_EXRET}%)"
+            return False, f"Expected return too low ({exret*100:.1f}% < {cls.BUY_MIN_EXRET*100:.0f}%)"
 
         return True, None
 
