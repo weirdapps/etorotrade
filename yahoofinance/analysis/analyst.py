@@ -505,8 +505,8 @@ class AnalystRatingsService(BaseAnalysisService):
                 logger.info(f"Skipping recent changes for non-US ticker: {ticker}")
                 return []
 
-            # Calculate start date
-            start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+            # Calculate start date (currently unused as API not implemented)
+            _ = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
 
             # For now, return empty list as get_rating_changes is not implemented in providers
             logger.info(f"get_rating_changes not implemented yet for {ticker}")
@@ -545,8 +545,8 @@ class AnalystRatingsService(BaseAnalysisService):
                 logger.info(f"Skipping recent changes for non-US ticker: {ticker}")
                 return []
 
-            # Calculate start date
-            start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+            # Calculate start date (currently unused as API not implemented)
+            _ = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
 
             # For now, return empty list as get_rating_changes is not implemented in providers
             logger.info(f"get_rating_changes not implemented yet for {ticker}")
@@ -609,7 +609,7 @@ def main():
         print(f"\nAnalyst Ratings for {ticker}:")
         print(f"Buy Percentage: {ratings.buy_percentage:.1f}%" if ratings.buy_percentage else "Buy Percentage: N/A")
         print(f"Total Ratings: {ratings.total_ratings}" if ratings.total_ratings else "Total Ratings: N/A")
-        print(f"\nRating Breakdown:")
+        print("\nRating Breakdown:")
         print(f"  Strong Buy: {ratings.strong_buy}")
         print(f"  Buy: {ratings.buy}")
         print(f"  Hold: {ratings.hold}")
@@ -617,7 +617,7 @@ def main():
         print(f"  Strong Sell: {ratings.strong_sell}")
         
         if ratings.average_price_target:
-            print(f"\nPrice Targets:")
+            print("\nPrice Targets:")
             print(f"  Average: ${ratings.average_price_target:.2f}")
             print(f"  Median: ${ratings.median_price_target:.2f}" if ratings.median_price_target else "  Median: N/A")
             print(f"  Highest: ${ratings.highest_price_target:.2f}" if ratings.highest_price_target else "  Highest: N/A")
@@ -627,7 +627,7 @@ def main():
         # Get recent changes
         recent_changes = service.get_recent_changes(ticker)
         if recent_changes:
-            print(f"\nRecent Rating Changes (last 30 days):")
+            print("\nRecent Rating Changes (last 30 days):")
             for change in recent_changes[:5]:  # Show first 5 changes
                 print(f"  {change['date']}: {change['firm']} - {change['from_grade']} → {change['to_grade']} ({change['action']})")
         

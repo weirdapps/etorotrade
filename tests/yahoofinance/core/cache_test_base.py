@@ -78,11 +78,10 @@ class BaseCacheTest(unittest.TestCase):
                     self.cache.memory_cache.cache[key] = (current_value, expired_time, expiry)
 
         # Also manually clear thread-local cache if it exists
-        if hasattr(self.cache.memory_cache, "_local") and hasattr(
-            self.cache.memory_cache._local, "recent_hits"
-        ):
-            if key in self.cache.memory_cache._local.recent_hits:
-                del self.cache.memory_cache._local.recent_hits[key]
+        if (hasattr(self.cache.memory_cache, "_local") and 
+            hasattr(self.cache.memory_cache._local, "recent_hits") and
+            key in self.cache.memory_cache._local.recent_hits):
+            del self.cache.memory_cache._local.recent_hits[key]
 
         # Also handle disk cache if enabled
         if hasattr(self.cache, "disk_cache") and self.cache.disk_cache:

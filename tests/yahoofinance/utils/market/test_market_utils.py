@@ -68,7 +68,7 @@ class TestMarketUtils(unittest.TestCase):
         with self.subTest(ticker=None):
             # Should raise AttributeError when we try to call .endswith() on None
             with self.assertRaises(AttributeError):
-                is_us_ticker(None)
+                is_us_ticker(None)  # type: ignore[arg-type]
 
     def test_normalize_hk_ticker(self):
         """Test Hong Kong ticker normalization."""
@@ -134,7 +134,7 @@ class TestMarketUtils(unittest.TestCase):
         with self.subTest(ticker=None):
             # Should raise AttributeError when we try to call .endswith() on None
             with self.assertRaises(AttributeError):
-                normalize_hk_ticker(None)
+                normalize_hk_ticker(None)  # type: ignore[arg-type]
 
 
 if __name__ == "__main__":

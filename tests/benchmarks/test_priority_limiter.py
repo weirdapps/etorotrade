@@ -35,6 +35,7 @@ except ImportError:
             return self
 
         async def __aexit__(self, *args):
+            # Mock implementation - no cleanup needed for test mock
             pass
 
         def get_stats(self):
@@ -172,7 +173,7 @@ async def test_concurrent_access():
             priorities = [PRIORITY_HIGH, PRIORITY_MEDIUM, PRIORITY_LOW]
             for i in range(10):
                 # Use deterministic priority assignment based on worker ID and iteration
-                priority = priorities[(id + i) % len(priorities)]
+                _ = priorities[(id + i) % len(priorities)]  # Priority not used in mock implementation
                 async with rate_limiter:
                     await asyncio.sleep(0.001)
             completed.append(id)

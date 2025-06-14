@@ -1219,9 +1219,9 @@ def format_numeric_columns(display_df, columns, format_str):
                                 else:
                                     # Real data with already decimal values (rare cases)
                                     return f"{float(x):{fmt}}%"
-                            elif abs(x) < 1.0 and col not in ["BETA", "UPSIDE"]:
+                            elif abs(x) < 1.0 and column not in ["BETA", "UPSIDE"]:
                                 # Special handling for SI (short interest)
-                                if col == "SI":
+                                if column == "SI":
                                     # Check if it's a test value (small value like 0.75 expected to format as 0.8%)
                                     # or a production value (larger value like 68.0 expected to format as 0.68%)
                                     if x >= 0.1 and x < 1.0:
@@ -3875,7 +3875,6 @@ async def fetch_ticker_data(provider, tickers):
 
                 # Get current batch and process it
                 batch = tickers[i : i + batch_size]
-                processed_so_far = i
 
                 # Process batch and update counters
                 batch_results, updated_counters = await _process_batch(
@@ -3988,7 +3987,7 @@ async def fetch_ticker_data(provider, tickers):
     # Use 'symbol' as the key, assuming providers return 'symbol'
     if not all_results_df.empty and "symbol" in all_results_df.columns:
         # Prioritize results_df, fill missing from initial_tickers_df
-        result_df = pd.merge(initial_tickers_df, all_results_df, on="symbol", how="left")
+        result_df = pd.merge(initial_tickers_df, all_results_df, on="symbol", how="left", validate="many_to_one")
     else:
         # If results are empty or missing 'symbol', just use the initial list
         result_df = initial_tickers_df
@@ -4043,7 +4042,7 @@ async def fetch_ticker_data(provider, tickers):
 
         def get_robust_upside(row):
             # Try robust calculation first
-            robust_upside, source = calculate_validated_upside(row)
+            robust_upside, _ = calculate_validated_upside(row)
             if robust_upside is not None:
                 return robust_upside
             # Fallback to simple calculation if robust fails
@@ -4095,12 +4094,11 @@ def _handle_manual_tickers(tickers):
     return tickers_list
 
 
-def _setup_output_files(report_source, market_type=None):
+def _setup_output_files(report_source):
     """Set up output files based on source.
 
     Args:
         report_source: Source type
-        market_type: Optional market type (for different market files)
 
     Returns:
         tuple: (output_file, report_title)
@@ -5269,7 +5267,7 @@ async def display_report_for_source(
             total_tickers = processing_stats.get("total_tickers", 0)
             success_count = processing_stats.get("success_count", 0)
             error_count = processing_stats.get("error_count", 0)
-            cache_hits = processing_stats.get("cache_hits", 0)
+            _ = processing_stats.get("cache_hits", 0)  # Cache hits not used in output
             valid_results = processing_stats.get("valid_results_count", 0)
 
             # Single-line format that combines title, timestamp and processing summary
