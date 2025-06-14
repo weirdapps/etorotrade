@@ -444,12 +444,20 @@ health_monitor = HealthMonitor()
 
 def check_api_health() -> HealthCheck:
     """Check health of API connections."""
-    error_rate = error_counter.value / max(request_counter.value, 1) * 100
+    # Handle case where no requests have been made yet
+    if request_counter.value == 0:
+        return HealthCheck(
+            component="api", 
+            status=HealthStatus.HEALTHY, 
+            details="No requests made yet"
+        )
+    
+    error_rate = (error_counter.value / request_counter.value) * 100
 
     if error_rate > 20:  # More than 20% errors
         status = HealthStatus.UNHEALTHY
         details = f"High error rate: {error_rate:.2f}%"
-    elif error_rate > 5:  # 5-20% errors (already know error_rate <= 20 from above)
+    elif error_rate > 5:  # 5-20% errors
         status = HealthStatus.DEGRADED
         details = f"Elevated error rate: {error_rate:.2f}%"
     else:
