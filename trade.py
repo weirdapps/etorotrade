@@ -4433,7 +4433,7 @@ async def _prepare_ticker_data(display, tickers, source):
     result_df, processing_stats = await fetch_ticker_data(provider, tickers)
 
     # Set up output files
-    output_file, report_title = _setup_output_files(report_source, market_type)
+    output_file, report_title = _setup_output_files(report_source)
 
     return result_df, output_file, report_title, report_source, processing_stats
 
