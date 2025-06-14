@@ -449,7 +449,7 @@ def check_api_health() -> HealthCheck:
     if error_rate > 20:  # More than 20% errors
         status = HealthStatus.UNHEALTHY
         details = f"High error rate: {error_rate:.2f}%"
-    elif error_rate > 5 and error_rate <= 20:  # 5-20% errors
+    elif error_rate > 5:  # 5-20% errors (already know error_rate <= 20 from above)
         status = HealthStatus.DEGRADED
         details = f"Elevated error rate: {error_rate:.2f}%"
     else:
