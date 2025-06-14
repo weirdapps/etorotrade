@@ -452,12 +452,12 @@ def check_api_health() -> HealthCheck:
             details="No requests made yet"
         )
     
-    error_rate = (error_counter.value / request_counter.value) * 100
+    error_rate = (float(error_counter.value) / float(request_counter.value)) * 100
 
     if error_rate > 20:  # More than 20% errors
         status = HealthStatus.UNHEALTHY
         details = f"High error rate: {error_rate:.2f}%"
-    elif error_rate > 5:  # 5-20% errors
+    elif error_rate > 5:  # 5-20% errors - This condition IS reachable when some requests fail
         status = HealthStatus.DEGRADED
         details = f"Elevated error rate: {error_rate:.2f}%"
     else:
