@@ -348,7 +348,8 @@ def _apply_formatter(value: Any, formatter: Optional[Dict[str, Any]] = None) -> 
         )
 
     # Default formatting if no formatter provided
-    return str(value) if value is not None else "--"
+    # Note: value is guaranteed to be not None at this point due to early return above
+    return str(value)
 
 
 def process_tabular_data(
