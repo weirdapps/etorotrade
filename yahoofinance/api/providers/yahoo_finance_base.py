@@ -283,6 +283,9 @@ class YahooFinanceBaseProvider(ABC):
 
             # Process special fields
 
+            # Add fallback logic for missing PE ratios
+            self._add_fallback_pe_ratios(result, info)
+
             # Process short interest - convert to percentage
             if result.get("short_percent") is not None:
                 try:
@@ -325,6 +328,48 @@ class YahooFinanceBaseProvider(ABC):
                 "data_source": "yfinance",
                 "error": f"Error extracting data: {str(e)}",
             }
+
+    def _add_fallback_pe_ratios(self, result, info):
+        """
+        Add fallback logic for missing PE ratios by calculating from price and EPS.
+        
+        Args:
+            result: The result dictionary to update
+            info: The raw info data from Yahoo Finance
+        """
+        try:
+            # If trailing PE is missing, try to calculate from price and EPS
+            if result.get("pe_trailing") is None or result.get("pe_ratio") is None:
+                price = result.get("price")
+                eps = result.get("eps")
+                
+                if price is not None and eps is not None and eps > 0:
+                    calculated_pe = price / eps
+                    # Sanity check: PE should be positive and reasonable (0.1 to 1000)
+                    if 0.1 <= calculated_pe <= 1000:
+                        if result.get("pe_trailing") is None:
+                            result["pe_trailing"] = calculated_pe
+                        if result.get("pe_ratio") is None:
+                            result["pe_ratio"] = calculated_pe
+                        logger.debug(f"Calculated trailing PE for {result.get('symbol')}: {calculated_pe:.2f}")
+            
+            # If forward PE is missing, try to calculate from price and forward EPS
+            if result.get("pe_forward") is None or result.get("forward_pe") is None:
+                price = result.get("price")
+                forward_eps = result.get("forward_eps")
+                
+                if price is not None and forward_eps is not None and forward_eps > 0:
+                    calculated_forward_pe = price / forward_eps
+                    # Sanity check: PE should be positive and reasonable (0.1 to 1000)
+                    if 0.1 <= calculated_forward_pe <= 1000:
+                        if result.get("pe_forward") is None:
+                            result["pe_forward"] = calculated_forward_pe
+                        if result.get("forward_pe") is None:
+                            result["forward_pe"] = calculated_forward_pe
+                        logger.debug(f"Calculated forward PE for {result.get('symbol')}: {calculated_forward_pe:.2f}")
+                        
+        except Exception as e:
+            logger.debug(f"Error in fallback PE calculation for {result.get('symbol', 'unknown')}: {e}")
 
     def _calculate_upside_potential(self, current_price, target_price):
         """

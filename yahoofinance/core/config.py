@@ -29,6 +29,23 @@ PROVIDER_CONFIG = {
     "ENABLE_YAHOOQUERY": False,  # Set to False to disable yahooquery and prevent crumb errors
 }
 
+# Portfolio configuration for position sizing
+PORTFOLIO_CONFIG = {
+    # Total portfolio value in USD
+    "PORTFOLIO_VALUE": 450_000,
+    # Position sizing limits
+    "MIN_POSITION_USD": 1_000,      # Minimum trade size
+    "MAX_POSITION_USD": 40_000,     # Maximum for exceptional cases
+    "MAX_POSITION_PCT": 8.9,        # Maximum as % of portfolio (40k/450k)
+    # Risk-based position sizing
+    "BASE_POSITION_PCT": 0.5,       # Base position as % of portfolio (0.5% = $2,250)
+    "HIGH_CONVICTION_PCT": 2.0,     # High conviction positions (2% = $9,000)
+    # Market cap thresholds for position sizing
+    "SMALL_CAP_THRESHOLD": 2_000_000_000,    # $2B - smaller positions
+    "MID_CAP_THRESHOLD": 10_000_000_000,     # $10B - standard positions  
+    "LARGE_CAP_THRESHOLD": 50_000_000_000,   # $50B - larger positions allowed
+}
+
 # Rate limiting configuration - SIMPLIFIED FIXED RATE STRATEGY
 RATE_LIMIT = {
     # Time window for rate limiting in seconds (60s = 1 minute window)

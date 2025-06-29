@@ -50,13 +50,14 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         retry_delay: Base delay in seconds between retries
     """
 
-    def __init__(self, max_retries: int = 3, retry_delay: float = 1.0):
+    def __init__(self, max_retries: int = 3, retry_delay: float = 1.0, **kwargs):
         """
         Initialize the Hybrid provider.
 
         Args:
             max_retries: Maximum number of retry attempts for failed API calls
             retry_delay: Base delay in seconds between retries
+            **kwargs: Additional arguments (ignored for compatibility)
         """
         super().__init__(max_retries=max_retries, retry_delay=retry_delay)
 
@@ -66,17 +67,17 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         # Check if yahooquery is enabled
         self.enable_yahooquery = PROVIDER_CONFIG.get("ENABLE_YAHOOQUERY", False)
 
-        # Initialize underlying providers
-        self.yf_provider = YahooFinanceProvider(max_retries=max_retries, retry_delay=retry_delay)
+        # Initialize underlying providers, passing through kwargs for compatibility
+        self.yf_provider = YahooFinanceProvider(max_retries=max_retries, retry_delay=retry_delay, **kwargs)
 
         # Log whether yahooquery is enabled or disabled
         if self.enable_yahooquery:
             logger.info("HybridProvider initialized with yahooquery supplementation ENABLED")
-            self.yq_provider = YahooQueryProvider(max_retries=max_retries, retry_delay=retry_delay)
+            self.yq_provider = YahooQueryProvider(max_retries=max_retries, retry_delay=retry_delay, **kwargs)
         else:
             logger.info("HybridProvider initialized with yahooquery supplementation DISABLED")
             # Still create the provider instance but we won't use it unless config changes at runtime
-            self.yq_provider = YahooQueryProvider(max_retries=max_retries, retry_delay=retry_delay)
+            self.yq_provider = YahooQueryProvider(max_retries=max_retries, retry_delay=retry_delay, **kwargs)
 
     def _handle_delay(self, delay: float):
         """
