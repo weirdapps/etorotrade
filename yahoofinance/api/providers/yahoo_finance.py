@@ -46,13 +46,14 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         _ticker_cache: Cache of ticker information to avoid repeated fetches
     """
 
-    def __init__(self, max_retries: int = 3, retry_delay: float = 1.0):
+    def __init__(self, max_retries: int = 3, retry_delay: float = 1.0, **kwargs):
         """
         Initialize the Yahoo Finance provider.
 
         Args:
             max_retries: Maximum number of retry attempts for failed API calls
             retry_delay: Base delay in seconds between retries
+            **kwargs: Additional keyword arguments (for factory compatibility)
         """
         super().__init__(max_retries=max_retries, retry_delay=retry_delay)
 

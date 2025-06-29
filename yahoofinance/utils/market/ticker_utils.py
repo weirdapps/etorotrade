@@ -47,6 +47,84 @@ def validate_ticker(ticker: str) -> bool:
     return True
 
 
+def is_etf_or_commodity(ticker: str) -> bool:
+    """
+    Identify if a ticker is an ETF or commodity.
+    
+    ETFs and commodities typically don't have:
+    - Analyst price targets
+    - PEG ratios (since they track indexes/commodities, not growth)
+    - Traditional financial metrics
+    
+    Args:
+        ticker: Ticker symbol to check
+        
+    Returns:
+        True if likely an ETF or commodity, False otherwise
+    """
+    if not ticker:
+        return False
+        
+    ticker_upper = ticker.upper()
+    
+    # Common ETF patterns
+    etf_patterns = [
+        # Specific ETF name patterns (more precise than exchange suffixes)
+        r'^LYX',        # Lyxor ETFs (LYXGRE.DE etc) - moved up for specificity
+        
+        # US ETF patterns
+        r'^VOO$', r'^VTI$', r'^SPY$', r'^QQQ$',     # US ETFs
+        r'^VGK$', r'^FXI$', r'^EWJ$', r'^INDA$',    # Regional ETFs
+        r'^SPDR',       # SPDR ETFs
+        r'ETF$',        # Ends with ETF
+        r'^I[A-Z]{2,3}$',  # iShares pattern (IVV, etc)
+        r'^VX[A-Z]',    # VXX, VXN volatility ETFs
+        
+        # Cryptocurrency ETFs/instruments
+        r'-USD$',       # BTC-USD, ETH-USD, XRP-USD
+    ]
+    
+    # Cryptocurrency patterns (individual cryptos)
+    crypto_patterns = [
+        r'^SOL$',       # Solana
+        r'^BTC$',       # Bitcoin (if not BTC-USD)
+        r'^ETH$',       # Ethereum (if not ETH-USD) 
+        r'^XRP$',       # Ripple (if not XRP-USD)
+        r'^ADA$',       # Cardano
+        r'^DOT$',       # Polkadot
+        r'^DOGE$',      # Dogecoin
+        r'^MATIC$',     # Polygon
+        r'^AVAX$',      # Avalanche
+    ]
+    
+    # Commodity patterns
+    commodity_patterns = [
+        r'^GC=F$',      # Gold futures
+        r'^SI=F$',      # Silver futures  
+        r'^CL=F$',      # Oil futures
+        r'^GOLD$',      # Gold commodity
+        r'^OIL$',       # Oil commodity
+        r'^SILVER$',    # Silver commodity
+    ]
+    
+    # Check ETF patterns
+    for pattern in etf_patterns:
+        if re.search(pattern, ticker_upper):
+            return True
+    
+    # Check cryptocurrency patterns
+    for pattern in crypto_patterns:
+        if re.search(pattern, ticker_upper):
+            return True
+            
+    # Check commodity patterns  
+    for pattern in commodity_patterns:
+        if re.search(pattern, ticker_upper):
+            return True
+            
+    return False
+
+
 def is_us_ticker(ticker: str) -> bool:
     """
     Check if a ticker is a US stock.

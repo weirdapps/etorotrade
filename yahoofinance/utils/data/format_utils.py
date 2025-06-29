@@ -199,39 +199,108 @@ def format_market_cap(value: Optional[float]) -> Optional[str]:
 
 
 def calculate_position_size(
-    market_cap: Optional[float], exret: Optional[float] = None
+    market_cap: Optional[float], exret: Optional[float] = None, ticker: Optional[str] = None
 ) -> Optional[float]:
     """
-    Calculate position size based on market cap and EXRET values.
+    Calculate position size based on market cap, EXRET, and portfolio configuration.
+
+    Position sizing logic for $450K portfolio:
+    - Base position: 0.5% of portfolio ($2,250)
+    - High conviction: up to 2.0% of portfolio ($9,000)
+    - Exceptional cases: up to 8.9% of portfolio ($40K max)
+    - Minimum: $1,000 for any trade
+    - Considers market cap and expected returns for risk adjustment
 
     Args:
-        market_cap: Market capitalization value
-        exret: Expected return value (EXRET)
+        market_cap: Market capitalization value in USD
+        exret: Expected return value (EXRET) as percentage
+        ticker: Ticker symbol for ETF/commodity detection
 
     Returns:
-        Position size as a percentage of portfolio or None if below threshold or EXRET missing
+        Position size in USD or None if below threshold, EXRET missing, or ETF/commodity
     """
+    from ...core.config import PORTFOLIO_CONFIG
+    from ..market.ticker_utils import is_etf_or_commodity
 
     if market_cap is None:
+        return None
+    
+    # Exclude ETFs and commodities from position sizing
+    if ticker and is_etf_or_commodity(ticker):
         return None
 
     # For stocks below 500 million market cap, return None (will display as "--")
     if market_cap < 500_000_000:
         return None
 
-    # If EXRET is not available or zero, return None (will display as "--")
-    if exret is None or exret <= 0:
-        return None
+    # If EXRET is not available, use fallback logic based on market cap only
+    use_fallback = exret is None or exret <= 0
 
-    # Formula: market cap * EXRET / 5000000000, rounded up to the nearest thousand
-    # This formula is now used for ALL stocks regardless of region (US, China, Europe)
-    position_size = market_cap * exret / 5000000000
+    # Get portfolio configuration
+    portfolio_value = PORTFOLIO_CONFIG["PORTFOLIO_VALUE"]
+    min_position = PORTFOLIO_CONFIG["MIN_POSITION_USD"]
+    max_position = PORTFOLIO_CONFIG["MAX_POSITION_USD"]
+    base_pct = PORTFOLIO_CONFIG["BASE_POSITION_PCT"]
+    
+    # Market cap thresholds
+    small_cap = PORTFOLIO_CONFIG["SMALL_CAP_THRESHOLD"]
+    mid_cap = PORTFOLIO_CONFIG["MID_CAP_THRESHOLD"]
+    large_cap = PORTFOLIO_CONFIG["LARGE_CAP_THRESHOLD"]
 
-    # Round up to nearest 1,000
-    result = math.ceil(position_size / 1000) * 1000
+    # Calculate base position size as percentage of portfolio
+    base_position = portfolio_value * (base_pct / 100)  # 0.5% = $2,250
 
-    # For consistency, ensure we have at least 1000 as a minimum value
-    return max(1000, result)
+    if use_fallback:
+        # Fallback logic: Use conservative position sizing based on market cap only
+        # For stocks without analyst coverage, use smaller, risk-appropriate positions
+        if market_cap >= large_cap:  # Large cap (>$50B): More conservative, lower risk
+            position_multiplier = 1.2  # Slightly above base
+        elif market_cap >= mid_cap:  # Mid cap ($10B-$50B): Standard position
+            position_multiplier = 1.0  # Base position
+        elif market_cap >= small_cap:  # Mid-small cap ($2B-$10B): Smaller position
+            position_multiplier = 0.8  # Reduced from base
+        else:  # Small cap (<$2B): Smallest position due to higher risk
+            position_multiplier = 0.6  # Most conservative
+    else:
+        # Normal logic: Adjust position size based on EXRET (expected return)
+        # Higher expected returns get larger positions
+        if exret >= 30:  # Exceptional opportunity (>30% expected return)
+            position_multiplier = 3.0  # Up to 6% of portfolio
+        elif exret >= 20:  # High conviction (20-30% expected return)
+            position_multiplier = 2.0  # Up to 4% of portfolio  
+        elif exret >= 15:  # Good opportunity (15-20% expected return)
+            position_multiplier = 1.5  # Up to 3% of portfolio
+        elif exret >= 10:  # Standard opportunity (10-15% expected return)
+            position_multiplier = 1.0  # Base position (2.25K)
+        else:  # Lower conviction (5-10% expected return)
+            position_multiplier = 0.7  # Smaller position
+
+    # For fallback mode, we already incorporated market cap into position_multiplier
+    # For normal mode, apply additional market cap risk adjustment
+    if not use_fallback:
+        if market_cap < small_cap:  # Small cap (<$2B): higher risk, smaller positions
+            cap_multiplier = 0.7
+        elif market_cap < mid_cap:  # Mid cap ($2B-$10B): standard risk
+            cap_multiplier = 1.0
+        elif market_cap < large_cap:  # Large cap ($10B-$50B): lower risk, can be larger
+            cap_multiplier = 1.2
+        else:  # Mega cap (>$50B): lowest risk
+            cap_multiplier = 1.3
+        
+        # Calculate final position size with market cap adjustment
+        position_size = base_position * position_multiplier * cap_multiplier
+    else:
+        # Fallback mode: market cap already considered in position_multiplier
+        position_size = base_position * position_multiplier
+
+    # Apply limits
+    position_size = max(min_position, position_size)  # At least $1K
+    position_size = min(max_position, position_size)  # At most $40K
+
+    # Round to nearest $500 for cleaner position sizes
+    result = round(position_size / 500) * 500
+
+    return result
 
 
 def format_position_size(value: Optional[float]) -> str:
