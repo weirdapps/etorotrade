@@ -70,6 +70,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         retry_delay: float = 1.0,
         max_concurrency: int = 5,
         enable_circuit_breaker: bool = True,
+        **kwargs,
     ):
         """
         Initialize the Async Yahoo Finance provider.
@@ -79,6 +80,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             retry_delay: Base delay in seconds between retries (exponential backoff applied)
             max_concurrency: Maximum number of concurrent operations
             enable_circuit_breaker: Whether to enable the circuit breaker pattern
+            **kwargs: Additional keyword arguments (for factory compatibility)
         """
         self.max_retries = max_retries
         self.retry_delay = retry_delay

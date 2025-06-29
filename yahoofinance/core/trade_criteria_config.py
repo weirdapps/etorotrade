@@ -49,21 +49,21 @@ class TradingCriteria:
     SELL_MIN_BUY_PERCENTAGE = 65.0     # Sell if buy% < 65%
     SELL_MIN_FORWARD_PE = 50.0         # Sell if PEF > 50
     SELL_MIN_PEG = 3.0                 # Sell if PEG > 3
-    SELL_MIN_SHORT_INTEREST = 2.0      # Sell if SI > 2%
+    SELL_MIN_SHORT_INTEREST = 2.5      # Sell if SI > 2.5%
     SELL_MIN_BETA = 3.0                # Sell if Beta > 3
     SELL_MAX_EXRET = 0.05               # Sell if EXRET < 5% (stored as decimal)
 
     # BUY criteria thresholds
     BUY_MIN_UPSIDE = 20.0              # Buy if upside >= 20%
-    BUY_MIN_BUY_PERCENTAGE = 85.0      # Buy if buy% >= 85%
+    BUY_MIN_BUY_PERCENTAGE = 80.0      # Buy if buy% >= 80%
     BUY_MIN_BETA = 0.25                # Buy if beta > 0.25
     BUY_MAX_BETA = 2.5                 # Buy if beta <= 2.5
     BUY_MIN_FORWARD_PE = 0.5           # Buy if PEF > 0.5
-    BUY_MAX_FORWARD_PE = 45.0          # Buy if PEF <= 45
+    BUY_MAX_FORWARD_PE = 55.0          # Buy if PEF <= 55
     BUY_MAX_PEG = 2.5                  # Buy if PEG < 2.5
-    BUY_MAX_SHORT_INTEREST = 1.5       # Buy if SI <= 1.5%
+    BUY_MAX_SHORT_INTEREST = 2.0       # Buy if SI <= 2.0%
     BUY_MIN_EXRET = 0.15               # Buy if EXRET >= 15% (stored as decimal)
-    BUY_MIN_MARKET_CAP = 500_000_000   # Buy if market cap >= $500M
+    BUY_MIN_MARKET_CAP = 1_000_000_000 # Buy if market cap >= $1B
 
     @classmethod
     def check_confidence(cls, analyst_count: Optional[float], total_ratings: Optional[float]) -> bool:
@@ -187,15 +187,12 @@ class TradingCriteria:
         if not (cls.BUY_MIN_FORWARD_PE < pe_forward <= cls.BUY_MAX_FORWARD_PE):
             return False, f"Forward P/E out of range ({pe_forward:.1f})"
 
-        # PE condition from CLAUDE.md: "PEF < PET OR PET ≤ 0, and 0.5 < PEF <= 45.0"
-        # Interpretation: Either PE is improving (PEF < PET) OR it's a growth stock (PET <= 0)
-        # AND forward PE must be in valid range (already checked above)
-        if pe_trailing is not None:
-            pe_improving = pe_forward < pe_trailing
-            is_growth = pe_trailing <= 0
-
-            if not (pe_improving or is_growth):
-                return False, f"P/E not improving (PEF {pe_forward:.1f} >= PET {pe_trailing:.1f}) and not a growth stock"
+        # PE condition: PEF - PET <= 10 (PE not expanding too much)
+        # This allows for reasonable PE expansion but not excessive growth
+        if pe_trailing is not None and pe_trailing > 0:
+            pe_difference = pe_forward - pe_trailing
+            if pe_difference > 10:
+                return False, f"P/E expanding too much (PEF {pe_forward:.1f} - PET {pe_trailing:.1f} = {pe_difference:.1f} > 10)"
 
         # 4. Secondary criteria (optional but checked if available)
         peg = cls._get_numeric_value(row.get("peg_ratio"))

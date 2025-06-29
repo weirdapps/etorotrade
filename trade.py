@@ -783,17 +783,30 @@ def _add_position_size_column(working_df):
                 ):
                     return None
 
-                # Convert string to float if needed
+                # Convert string to float if needed (handle B, M, T suffixes)
                 if isinstance(mc, str):
-                    mc = float(mc.replace(",", ""))
+                    # Use the same parsing logic as trade criteria
+                    mc_str = mc.upper().strip()
+                    if mc_str.endswith('T'):
+                        mc = float(mc_str[:-1]) * 1_000_000_000_000
+                    elif mc_str.endswith('B'):
+                        mc = float(mc_str[:-1]) * 1_000_000_000
+                    elif mc_str.endswith('M'):
+                        mc = float(mc_str[:-1]) * 1_000_000
+                    else:
+                        mc = float(mc_str.replace(",", ""))
 
-                # Convert EXRET to float if needed
+                # Convert EXRET to float if needed (handle percentage strings)
                 if exret is not None and not pd.isna(exret) and isinstance(exret, str):
-                    exret = float(exret.replace(",", ""))
+                    exret_str = exret.strip()
+                    if exret_str.endswith('%'):
+                        exret = float(exret_str[:-1])
+                    else:
+                        exret = float(exret_str.replace(",", ""))
 
                 # Always use calculate_position_size from format_utils.py which has the correct formula
                 # regardless of the ticker type (US, China, Europe, etc.)
-                position_size = calculate_position_size(mc, exret)
+                position_size = calculate_position_size(mc, exret, ticker)
 
                 # Log a few position sizes for debugging
                 if ticker and (ticker.endswith(".HK") or ticker in ["AAPL", "MSFT"]):
