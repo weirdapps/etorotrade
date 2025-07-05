@@ -24,10 +24,12 @@ Tests are organized in a hierarchical structure mirroring the package:
   - `presentation/`: Tests for output formatting and display
   - `utils/`: Tests for utility modules
     - `network/`: Tests for network operations, rate limiting, and circuit breakers
-- `trade/`: Tests for main trade module functionality
-- `e2e/`: End-to-end tests for complete workflows
 - `integration/`: Integration tests for component interactions
 - `unit/`: Unit tests organized by module
+  - `trade/`: Tests for main trade module functionality
+- `standalone/`: Standalone test files moved from project root
+- `benchmarks/`: Performance benchmarking tests
+- `debug/`: Debug utilities and test helpers
 - `fixtures/`: Shared test fixtures
 - `conftest.py`: Pytest configuration and global fixtures
 

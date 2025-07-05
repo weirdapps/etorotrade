@@ -318,15 +318,45 @@ class YahooFinanceBaseProvider(ABC):
 
             return result
 
-        except Exception as e:
-            # Provide minimal info in case of unexpected error
-            logger.warning(f"Error extracting info for {symbol}: {str(e)}. Returning minimal info.")
+        except (ValueError, TypeError, KeyError, AttributeError) as e:
+            # Handle data processing errors
+            logger.warning(f"Data processing error for {symbol}: {str(e)}. Returning minimal info.")
             return {
                 "symbol": symbol,
                 "name": symbol.upper(),
                 "company": symbol.upper(),
                 "data_source": "yfinance",
-                "error": f"Error extracting data: {str(e)}",
+                "error": f"Data processing error: {str(e)}",
+            }
+        except (APIError, NetworkError) as e:
+            # Handle API-related errors
+            logger.warning(f"API error for {symbol}: {str(e)}. Returning minimal info.")
+            return {
+                "symbol": symbol,
+                "name": symbol.upper(),
+                "company": symbol.upper(),
+                "data_source": "yfinance",
+                "error": f"API error: {str(e)}",
+            }
+        except YFinanceError as e:
+            # Handle other YFinance-specific errors
+            logger.warning(f"YFinance error for {symbol}: {str(e)}. Returning minimal info.")
+            return {
+                "symbol": symbol,
+                "name": symbol.upper(),
+                "company": symbol.upper(),
+                "data_source": "yfinance",
+                "error": f"YFinance error: {str(e)}",
+            }
+        except Exception as e:
+            # Handle truly unexpected errors
+            logger.error(f"Unexpected error extracting info for {symbol}: {str(e)}. Returning minimal info.")
+            return {
+                "symbol": symbol,
+                "name": symbol.upper(),
+                "company": symbol.upper(),
+                "data_source": "yfinance",
+                "error": f"Unexpected error: {str(e)}",
             }
 
     def _add_fallback_pe_ratios(self, result, info):
