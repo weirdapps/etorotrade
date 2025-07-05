@@ -293,11 +293,18 @@ The analysis generates both CSV files and interactive HTML dashboards:
 For a consistent environment or deployment:
 
 ```bash
-# Run the application in Docker
-docker-compose up etorotrade
+# Run the application in Docker (infrastructure files in .config/)
+docker-compose -f .config/docker/docker-compose.yml up etorotrade
 
 # Run a specific analysis in Docker
-docker-compose run etorotrade python -m yahoofinance.analysis.portfolio
+docker-compose -f .config/docker/docker-compose.yml run etorotrade python -m yahoofinance.analysis.portfolio
+
+# Build Docker image
+docker build -f .config/docker/Dockerfile -t etorotrade .
+
+# Use Makefile for common tasks
+make -f .config/Makefile test
+make -f .config/Makefile lint
 ```
 
 ## 🔍 Configuration
