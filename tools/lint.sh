@@ -23,7 +23,7 @@ if [ $FIX_MODE -eq 1 ]; then
     black $PATHS
 else
     echo -e "\n${YELLOW}Checking formatting with black...${NC}"
-    black --check $PATHS || { echo -e "${RED}Formatting issues found. Run './scripts/lint.sh fix' to fix.${NC}"; exit 1; }
+    black --check $PATHS || { echo -e "${RED}Formatting issues found. Run './tools/lint.sh fix' to fix.${NC}"; exit 1; }
 fi
 
 # Run isort
@@ -32,12 +32,12 @@ if [ $FIX_MODE -eq 1 ]; then
     isort $PATHS
 else
     echo -e "\n${YELLOW}Checking import sorting with isort...${NC}"
-    isort --check-only $PATHS || { echo -e "${RED}Import sorting issues found. Run './scripts/lint.sh fix' to fix.${NC}"; exit 1; }
+    isort --check-only $PATHS || { echo -e "${RED}Import sorting issues found. Run './tools/lint.sh fix' to fix.${NC}"; exit 1; }
 fi
 
 # Run flake8
 echo -e "\n${YELLOW}Checking code with flake8...${NC}"
-flake8 $PATHS || { echo -e "${RED}Linting issues found. Please fix them manually.${NC}"; exit 1; }
+flake8 --config .config/linting/.flake8 $PATHS || { echo -e "${RED}Linting issues found. Please fix them manually.${NC}"; exit 1; }
 
 # Run mypy
 echo -e "\n${YELLOW}Checking types with mypy...${NC}"
