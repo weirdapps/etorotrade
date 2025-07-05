@@ -150,11 +150,39 @@ class TradingCriteria:
     SELL_MAX_UPSIDE = 3.0              # Sell if upside < 3% (was 5%)
 ```
 
-### 💰 Position Size Calculation
-The system automatically calculates optimal position sizes based on market cap and expected return:
-- Formula: `position_size = market_cap * EXRET / 5,000,000,000`
-- Uses default EXRET values (10-15%) when actual EXRET is unavailable
-- Result is rounded up to the nearest thousand with minimum size of $1,000
+### 💰 Intelligent Position Sizing
+
+etorotrade features a sophisticated position sizing system that calculates optimal trade sizes based on portfolio allocation, risk management, and expected returns.
+
+#### Position Sizing Strategy
+- **Portfolio Value**: $450,000 (configurable in `yahoofinance/core/config.py`)
+- **Base Position**: 0.5% of portfolio = $2,250 for standard opportunities  
+- **High Conviction**: 2% of portfolio = $9,000 for exceptional opportunities
+- **Position Limits**: $1,000 minimum, $40,000 maximum (8.9% max allocation)
+
+#### Smart Sizing Logic
+1. **Expected Return Adjustment**: Higher EXRET = larger positions
+   - EXRET ≥ 15%: High conviction multiplier (2-4x base position)
+   - EXRET 10-15%: Moderate increase (1.5-2x base position)  
+   - EXRET < 10%: Standard or reduced position
+
+2. **Market Cap Scaling**: Position size scales with company size
+   - Large cap (>$50B): Can support larger positions
+   - Mid cap ($10-50B): Standard scaling
+   - Small cap (<$10B): Reduced positions for higher risk
+
+3. **Risk Management**: Automatic scaling for volatility and other risk factors
+
+#### Display Format
+Position sizes are shown in the SIZE column with intuitive formatting:
+- $2,000 → "2k"
+- $7,500 → "7.5k" 
+- $15,000 → "15k"
+
+#### Exclusions
+- ETFs and commodities: No position sizing (SIZE shows "--")
+- Stocks under $500M market cap: Excluded for liquidity concerns
+- Missing data: No position size without EXRET or market cap
 
 ## 📁 Input Files
 
@@ -179,32 +207,27 @@ Pre-populated files include:
 
 ## 🧰 Analysis Tools
 
-### Portfolio Analysis
+### Core Trading Analysis
 ```bash
-# Interactive analysis
-python trade.py  # Then select "P" for Portfolio Analysis
+# Interactive analysis with clean progress display
+python trade.py  # Then select:
+                 # P - Portfolio Analysis
+                 # M - Market Screening  
+                 # E - eToro Market Analysis
+                 # T - Trade Recommendations
+                 # I - Manual ticker input
 
-# Non-interactive for scripts/automation
-echo "p\ne" | python trade.py  # P for portfolio, E for existing file
+# Non-interactive automation examples
+echo "p\ne" | python trade.py  # Portfolio analysis with existing file
+echo "t\nb" | python trade.py  # BUY recommendations
+echo "m" | python trade.py     # Market screening
 ```
 
-### Market Screening
-```bash
-# Find opportunities in specific markets
-python trade.py  # Then select "M" and choose a market
-
-# Or analyze eToro-available stocks
-python trade.py  # Then select "E" for eToro Market Analysis
-```
-
-### Trade Recommendations
-```bash
-# Get actionable BUY/SELL/HOLD guidance
-python trade.py  # Then select "T" and choose recommendation type
-
-# Run directly from command line (for BUY recommendations)
-echo "t\nb" | python trade.py
-```
+**Recent Improvements (2025-01-05)**:
+- ✅ **Clean Progress Display**: Errors collected and shown in summary at end
+- ✅ **Position Sizing Fixed**: SIZE column now shows actual calculated values (2k, 7.5k, etc.)
+- ✅ **Silent Processing**: yfinance errors and rate limit warnings suppressed during progress
+- ✅ **Connection Pooling**: HTTP performance optimized with shared session management
 
 ### Monitoring Dashboard
 ```bash

@@ -297,7 +297,10 @@ class MarketDisplay:
                         # If processing failed
                         error_count += 1
                         self.rate_limiter.add_error(e, ticker)
-                        logging.warning(f"Error processing {ticker}: {str(e)}")
+                        # Collect error for summary instead of immediate logging
+                        if not hasattr(self, '_error_collection'):
+                            self._error_collection = []
+                        self._error_collection.append({"ticker": ticker, "error": str(e), "context": "processing"})
 
                     # Update progress and description with latest stats
                     pbar.update(1)
@@ -323,8 +326,70 @@ class MarketDisplay:
             f"Processed {total_tickers} tickers in {elapsed:.1f}s ({tickers_per_second:.2f}/s) - "
             f"Success: {success_count}, Errors: {error_count}, Cache hits: {cache_hits}"
         )
+        
+        # Display error summary if errors were collected
+        if hasattr(self, '_error_collection') and self._error_collection:
+            self._display_console_error_summary(self._error_collection)
 
         return results
+
+    def _display_console_error_summary(self, errors):
+        """Display a summary of all errors encountered during console processing.
+        
+        Args:
+            errors: List of error dictionaries with 'ticker', 'error', and 'context' keys
+        """
+        if not errors:
+            return
+        
+        # Color constants (defined at top of file)
+        COLOR_RED = "\033[91m"
+        COLOR_YELLOW = "\033[93m" 
+        COLOR_RESET = "\033[0m"
+        
+        print(f"\\n{COLOR_RED}=== ERROR SUMMARY ==={COLOR_RESET}")
+        print(f"Total errors encountered: {len(errors)}")
+        
+        # Group errors by type for better readability
+        error_groups = {}
+        ticker_errors = {}
+        
+        for error_info in errors:
+            ticker = error_info.get('ticker', 'Unknown')
+            error_msg = error_info.get('error', 'Unknown error')
+            context = error_info.get('context', 'N/A')
+            
+            # Count errors by ticker
+            ticker_errors[ticker] = ticker_errors.get(ticker, 0) + 1
+            
+            # Group by error type
+            error_type = error_msg.split(':')[0] if ':' in error_msg else error_msg
+            if error_type not in error_groups:
+                error_groups[error_type] = []
+            error_groups[error_type].append(f"{ticker} ({context})")
+        
+        # Display error types and counts
+        print(f"\\n{COLOR_YELLOW}Error breakdown by type:{COLOR_RESET}")
+        for error_type, affected_tickers in error_groups.items():
+            print(f"  • {error_type}: {len(affected_tickers)} occurrences")
+            # Show first few examples
+            examples = affected_tickers[:3]
+            if len(affected_tickers) > 3:
+                examples.append(f"... and {len(affected_tickers) - 3} more")
+            print(f"    Examples: {', '.join(examples)}")
+        
+        # Display most problematic tickers
+        if ticker_errors:
+            print(f"\\n{COLOR_YELLOW}Tickers with multiple errors:{COLOR_RESET}")
+            problem_tickers = [(ticker, count) for ticker, count in ticker_errors.items() if count > 1]
+            if problem_tickers:
+                problem_tickers.sort(key=lambda x: x[1], reverse=True)
+                for ticker, count in problem_tickers[:5]:  # Show top 5
+                    print(f"  • {ticker}: {count} errors")
+            else:
+                print("  None - all errors were isolated incidents")
+        
+        print(f"{COLOR_RED}========================{COLOR_RESET}\\n")
 
     def display_stock_table(
         self, stock_data: List[Dict[str, Any]], title: str = "Stock Analysis"
