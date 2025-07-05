@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd  # Add pandas import
 
-from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
+from yahoofinance.core.errors import APIError, DataError, NetworkError, ValidationError, YFinanceError
 from ...utils.error_handling import (
     enrich_error_context,
     safe_operation,
@@ -62,6 +62,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
         self._ticker_mappings = {
             "BTC": "BTC-USD",
             "ETH": "ETH-USD",
+            "SOL": "SOL-USD",  # Solana cryptocurrency
             "GOLD": "GC=F",    # Gold Futures
             "OIL": "CL=F",     # Crude Oil Futures
             "SILVER": "SI=F",  # Silver Futures
@@ -83,8 +84,8 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
 
         yf_data = {}
         yq_data = {}
-        # Initialize with original ticker
-        merged_data = {"symbol": original_ticker, "ticker": original_ticker}
+        # Initialize with mapped ticker for symbol (SOL -> SOL-USD) but keep original ticker
+        merged_data = {"symbol": mapped_ticker, "ticker": original_ticker}
         errors = []
 
         # Fetch using mapped ticker
@@ -215,7 +216,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
             )  # Use original ticker for placeholder
 
         # Ensure essential keys exist even if fetching failed partially/fully
-        merged_data.setdefault("symbol", ticker)
+        merged_data.setdefault("symbol", mapped_ticker)
         merged_data.setdefault("ticker", original_ticker)  # Ensure original ticker
         # Ensure company uses original ticker if name is missing
         merged_data.setdefault("company", merged_data.get("name", original_ticker)[:14].upper())
@@ -240,8 +241,12 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
                     logger.debug(
                         f"Added earnings date for {original_ticker} via direct API: {next_earnings}"
                     )
+            except (APIError, NetworkError, ValidationError) as e:
+                logger.debug(f"API/Network error getting earnings date for {original_ticker}: {str(e)}")
+            except (ImportError, AttributeError) as e:
+                logger.debug(f"Import/Attribute error getting earnings date for {original_ticker}: {str(e)}")
             except Exception as e:
-                logger.debug(f"Failed to get earnings date for {original_ticker}: {str(e)}")
+                logger.warning(f"Unexpected error getting earnings date for {original_ticker}: {str(e)}")
 
         return merged_data
 
@@ -300,9 +305,17 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
                                 logger.debug(
                                     f"Added earnings date for {ticker} in batch processing: {next_earnings}"
                                 )
-                        except Exception as e:
+                        except (APIError, NetworkError, ValidationError) as e:
                             logger.debug(
-                                f"Failed to get earnings date for {ticker} in batch: {str(e)}"
+                                f"API/Network error getting earnings date for {ticker} in batch: {str(e)}"
+                            )
+                        except (ImportError, AttributeError) as e:
+                            logger.debug(
+                                f"Import/Attribute error getting earnings date for {ticker} in batch: {str(e)}"
+                            )
+                        except Exception as e:
+                            logger.warning(
+                                f"Unexpected error getting earnings date for {ticker} in batch: {str(e)}"
                             )
 
                 # Calculate EXRET for any ticker with missing EXRET but with upside and buy_percentage
@@ -313,10 +326,18 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
                     ):
                         result["EXRET"] = result["upside"] * result["buy_percentage"] / 100
                 return result
+            except (APIError, NetworkError) as e:
+                # Handle API/Network errors gracefully in batch processing
+                logger.warning(f"API/Network error in hybrid batch fetch for {ticker}: {e}")
+            except (ValidationError, ValueError, TypeError) as e:
+                # Handle validation and data processing errors
+                logger.warning(f"Data processing error in hybrid batch fetch for {ticker}: {e}")
+            except YFinanceError as e:
+                # Handle other YFinance-specific errors
+                logger.warning(f"YFinance error in hybrid batch fetch for {ticker}: {e}")
             except Exception as e:
-                # Catch any exception to prevent the entire batch from failing
-                # Use ticker variable since original_ticker isn't defined in this scope
-                logger.error(f"Error in hybrid batch fetch for {ticker}: {e}")
+                # Catch any truly unexpected exception to prevent the entire batch from failing
+                logger.error(f"Unexpected error in hybrid batch fetch for {ticker}: {e}")
                 return {
                     "symbol": ticker,
                     "ticker": ticker,
@@ -345,7 +366,9 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
         for i, result in enumerate(results_list):
             try:
                 if isinstance(result, dict) and "symbol" in result:
-                    processed_results[result["symbol"]] = result
+                    # Use the original ticker (from the request) as the key for consistency
+                    original_ticker = tickers[i] if i < len(tickers) else result.get("ticker", result["symbol"])
+                    processed_results[original_ticker] = result
                 elif isinstance(result, dict):
                     # If we have a dict without a symbol, try to recover using the original ticker list
                     if i < len(tickers):

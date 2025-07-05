@@ -4,6 +4,7 @@ Data downloading utilities.
 This module provides functions for downloading data from various sources.
 """
 
+import asyncio
 import os
 import shutil
 import time
@@ -508,7 +509,7 @@ async def download_portfolio(provider=None):
 
         logger.info(f"[{run_id}] Navigating to pi-screener.com...")
         driver.get("https://app.pi-screener.com/")
-        time.sleep(10)  # Wait longer for initial page load
+        await asyncio.sleep(10)  # Wait longer for initial page load
 
         # Handle initial page setup
         handle_cookie_consent(driver)
@@ -518,7 +519,7 @@ async def download_portfolio(provider=None):
 
         # Wait for page to load after login
         logger.info(f"[{run_id}] Waiting for page to load after login...")
-        time.sleep(20)
+        await asyncio.sleep(20)
 
         # Check if login was successful
         current_url = driver.current_url
@@ -540,7 +541,7 @@ async def download_portfolio(provider=None):
 
         # Process download
         logger.info(f"[{run_id}] Waiting for download...")
-        time.sleep(5)
+        await asyncio.sleep(5)
 
         if process_portfolio():
             success_msg = "Portfolio successfully downloaded and processed."

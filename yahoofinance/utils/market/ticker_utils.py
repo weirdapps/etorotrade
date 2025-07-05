@@ -251,6 +251,14 @@ def is_stock_ticker(ticker: str) -> bool:
     if ticker_upper.endswith("-USD") or ticker_upper.endswith("-EUR"):
         return False
     
+    # Individual cryptocurrency tickers
+    crypto_tickers = {
+        "SOL", "BTC", "ETH", "XRP", "ADA", "DOT", "DOGE", "MATIC", "AVAX"
+    }
+    
+    if ticker_upper in crypto_tickers:
+        return False
+    
     # Common ETF patterns (many ETFs are 3-4 letters)
     # This is a heuristic - not all 3-letter tickers are ETFs
     common_etf_tickers = {

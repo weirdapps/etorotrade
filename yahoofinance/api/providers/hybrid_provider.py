@@ -79,6 +79,19 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             # Still create the provider instance but we won't use it unless config changes at runtime
             self.yq_provider = YahooQueryProvider(max_retries=max_retries, retry_delay=retry_delay, **kwargs)
 
+        # Add ticker mappings for common commodity/crypto symbols
+        self._ticker_mappings = {
+            "BTC": "BTC-USD",
+            "ETH": "ETH-USD",
+            "SOL": "SOL-USD",  # Solana cryptocurrency
+            "GOLD": "GC=F",    # Gold Futures
+            "OIL": "CL=F",     # Crude Oil Futures
+            "SILVER": "SI=F",  # Silver Futures
+            "NATURAL_GAS": "NG=F",  # Natural Gas Futures
+            "EURUSD": "EURUSD=X",  # Forex
+            # Add other mappings as needed
+        }
+
     def _handle_delay(self, delay: float):
         """
         Handle delaying execution for retry logic using synchronous time.sleep().
@@ -174,14 +187,23 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             logger.debug(f"Fetching ticker info for {ticker} using Hybrid provider")
             start_time = time.time()
 
-            # First try with YFinance
-            yf_data = self.yf_provider.get_ticker_info(ticker, skip_insider_metrics)
+            # Use original ticker for the final result keys
+            original_ticker = ticker
+            # Apply mapping for provider calls
+            mapped_ticker = self._ticker_mappings.get(original_ticker, original_ticker)
+
+            # First try with YFinance using mapped ticker
+            yf_data = self.yf_provider.get_ticker_info(mapped_ticker, skip_insider_metrics)
+            
+            # Ensure we keep the original ticker in the response
+            yf_data["symbol"] = original_ticker
+            yf_data["ticker"] = original_ticker
 
             # Mark data source
             yf_data["data_source"] = "YFinance"
 
-            # Supplement with YahooQuery if needed
-            combined_data = self._supplement_with_yahooquery(ticker, yf_data)
+            # Supplement with YahooQuery if needed (using mapped ticker)
+            combined_data = self._supplement_with_yahooquery(mapped_ticker, yf_data)
 
             # Record total processing time
             combined_data["processing_time"] = time.time() - start_time
@@ -212,24 +234,26 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             return combined_data
         except YFinanceError as e:
             # If YFinance fails completely, try YahooQuery as a fallback
-            logger.warning(f"YFinance failed for {ticker}, trying YahooQuery as fallback: {str(e)}")
+            logger.warning(f"YFinance failed for {original_ticker}, trying YahooQuery as fallback: {str(e)}")
 
             try:
-                yq_data = self.yq_provider.get_ticker_info(ticker, skip_insider_metrics)
+                yq_data = self.yq_provider.get_ticker_info(mapped_ticker, skip_insider_metrics)
+                yq_data["symbol"] = original_ticker
+                yq_data["ticker"] = original_ticker
                 yq_data["data_source"] = "YahooQuery"
                 yq_data["processing_time"] = time.time() - start_time
 
                 # We don't need hardcoded test values anymore since we get analyst data directly
                 # Instead, let's just log that we're in fallback mode
                 logger.info(
-                    f"Using YahooQuery fallback for {ticker} with data source: {yq_data.get('data_source', 'unknown')}"
+                    f"Using YahooQuery fallback for {original_ticker} with data source: {yq_data.get('data_source', 'unknown')}"
                 )
 
                 return yq_data
             except YFinanceError as yq_error:
                 # If both fail, raise the original error
-                logger.error(f"Both providers failed for {ticker}: {str(yq_error)}")
-                raise YFinanceError(f"Error fetching data for ticker {ticker}: {str(e)}")
+                logger.error(f"Both providers failed for {original_ticker}: {str(yq_error)}")
+                raise YFinanceError(f"Error fetching data for ticker {original_ticker}: {str(e)}")
 
     @rate_limited
     def get_price_data(self, ticker: str) -> Dict[str, Any]:
@@ -245,25 +269,35 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         Raises:
             YFinanceError: When an error occurs while fetching data
         """
+        # Use original ticker for the final result keys
+        original_ticker = ticker
+        # Apply mapping for provider calls
+        mapped_ticker = self._ticker_mappings.get(original_ticker, original_ticker)
+        
         try:
-            # First try with YFinance
-            price_data = self.yf_provider.get_price_data(ticker)
+            # First try with YFinance using mapped ticker
+            price_data = self.yf_provider.get_price_data(mapped_ticker)
             price_data["data_source"] = "YFinance"
+            # Ensure we keep the original ticker in the response
+            price_data["symbol"] = original_ticker
+            price_data["ticker"] = original_ticker
             return price_data
         except YFinanceError as e:
             # If YFinance fails, try YahooQuery as a fallback
             logger.warning(
-                f"YFinance failed for price data of {ticker}, trying YahooQuery: {str(e)}"
+                f"YFinance failed for price data of {original_ticker}, trying YahooQuery: {str(e)}"
             )
 
             try:
-                price_data = self.yq_provider.get_price_data(ticker)
+                price_data = self.yq_provider.get_price_data(mapped_ticker)
                 price_data["data_source"] = "YahooQuery"
+                price_data["symbol"] = original_ticker
+                price_data["ticker"] = original_ticker
                 return price_data
             except YFinanceError as yq_error:
                 # If both fail, raise the original error
-                logger.error(f"Both providers failed for price data of {ticker}: {str(yq_error)}")
-                raise YFinanceError(f"Error fetching price data for ticker {ticker}: {str(e)}")
+                logger.error(f"Both providers failed for price data of {original_ticker}: {str(yq_error)}")
+                raise YFinanceError(f"Error fetching price data for ticker {original_ticker}: {str(e)}")
 
     @rate_limited
     def get_historical_data(
@@ -283,25 +317,30 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         Raises:
             YFinanceError: When an error occurs while fetching data
         """
+        # Use original ticker for the final result keys
+        original_ticker = ticker
+        # Apply mapping for provider calls
+        mapped_ticker = self._ticker_mappings.get(original_ticker, original_ticker)
+        
         try:
-            # First try with YFinance
-            hist_data = self.yf_provider.get_historical_data(ticker, period, interval)
+            # First try with YFinance using mapped ticker
+            hist_data = self.yf_provider.get_historical_data(mapped_ticker, period, interval)
             return hist_data
         except YFinanceError as e:
             # If YFinance fails, try YahooQuery as a fallback
             logger.warning(
-                f"YFinance failed for historical data of {ticker}, trying YahooQuery: {str(e)}"
+                f"YFinance failed for historical data of {original_ticker}, trying YahooQuery: {str(e)}"
             )
 
             try:
-                hist_data = self.yq_provider.get_historical_data(ticker, period, interval)
+                hist_data = self.yq_provider.get_historical_data(mapped_ticker, period, interval)
                 return hist_data
             except YFinanceError as yq_error:
                 # If both fail, raise the original error
                 logger.error(
-                    f"Both providers failed for historical data of {ticker}: {str(yq_error)}"
+                    f"Both providers failed for historical data of {original_ticker}: {str(yq_error)}"
                 )
-                raise YFinanceError(f"Error fetching historical data for ticker {ticker}: {str(e)}")
+                raise YFinanceError(f"Error fetching historical data for ticker {original_ticker}: {str(e)}")
 
     @rate_limited
     def get_earnings_dates(self, ticker: str) -> Tuple[Optional[str], Optional[str]]:

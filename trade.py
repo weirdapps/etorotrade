@@ -549,54 +549,35 @@ def get_columns_to_select():
     """Get columns to select for display.
 
     Returns:
-        list: Columns to select, including both uppercase and lowercase variants
+        list: Columns to select, prioritizing internal names that will be renamed
     """
-    # Include both lowercase (internal) and uppercase (display) column names
-    # The _select_and_rename_columns function will only select columns that exist
+    # Only include internal (lowercase) column names that need to be renamed
+    # This prevents duplicate columns in the DataFrame
     return [
-        # Internal names (lowercase)
+        # Internal names (lowercase) - these will be renamed to display format
         "symbol",
-        "ticker",
+        "ticker", 
         "company",
         "market_cap",
         "price",
         "target_price",
         "upside",
-        "analyst_count",  # Add 'symbol'
+        "analyst_count",
         "buy_percentage",
         "total_ratings",
-        "A",
-        "beta",  # Add 'A' to internal names list
+        "beta",
         "pe_trailing",
-        "pe_forward",
+        "pe_forward", 
         "peg_ratio",
         "dividend_yield",
         "short_percent",
         "last_earnings",
         "position_size",
-        # Display names (uppercase)
-        "TICKER",
-        "COMPANY",
-        "CAP",
-        "PRICE",
-        "TARGET",
-        "UPSIDE",
-        "# T",
-        DISPLAY_BUY_PERCENTAGE,
-        "# A",
-        "A",
-        "EXRET",
-        "BETA",  # Already present, just confirming
-        "PET",
-        "PEF",
-        "PEG",
-        DIVIDEND_YIELD_DISPLAY,
-        "SI",
-        "EARNINGS",
-        "SIZE",
-        # Always include the action column in both formats
         "action",
-        "ACT",
+        # Columns that are already in display format - keep as-is
+        "A",  # This is already uppercase
+        "EXRET",  # This is already uppercase  
+        "ACT",  # This is already uppercase
     ]
 
 
@@ -877,29 +858,51 @@ def _select_and_rename_columns(working_df):
     available_set = set(working_df.columns)
     requested_set = set(columns_to_select)
     missing_columns = requested_set - available_set
+    logger.debug(f"Available columns in working_df: {list(working_df.columns)}")
+    logger.debug(f"Requested columns: {columns_to_select}")
     if missing_columns:
         logger.debug(f"Missing columns: {', '.join(missing_columns)}")
 
-    # Select columns that exist in the dataframe
-    available_columns = [col for col in columns_to_select if col in working_df.columns]
-    if not available_columns:
+    # Create a mapping of display names back to their possible internal names
+    reverse_mapping = {}
+    for internal, display in column_mapping.items():
+        if display not in reverse_mapping:
+            reverse_mapping[display] = []
+        reverse_mapping[display].append(internal)
+
+    # Select columns prioritizing display names over internal names to avoid duplicates
+    final_columns = []
+    used_display_names = set()
+    
+    for col in columns_to_select:
+        if col in working_df.columns:
+            target_name = column_mapping.get(col, col)
+            
+            # If this column would map to a display name we've already selected, skip it
+            if target_name in used_display_names:
+                continue
+                
+            # If we have both internal and display names available, prefer the display name
+            if col in column_mapping and target_name in working_df.columns:
+                # Use the display name directly instead of the internal name
+                if target_name not in final_columns:
+                    final_columns.append(target_name)
+                    used_display_names.add(target_name)
+            else:
+                # Safe to add this column (either no mapping or no display version exists)
+                if col not in final_columns:
+                    final_columns.append(col)
+                    used_display_names.add(target_name)
+
+    logger.debug(f"Final selected columns: {final_columns}")
+    
+    if not final_columns:
         # No requested columns found - silently preserve original columns
         return working_df
 
-    # Create display dataframe with available columns, but ensure we don't have duplicates
-    # First check for duplicates in available_columns
-    if len(available_columns) != len(set(available_columns)):
-        logger.debug("Duplicate columns detected. Removing duplicates...")
-        # Find and remove duplicates - keep only the first occurrence
-        unique_columns = []
-        for col in available_columns:
-            if col not in unique_columns:
-                unique_columns.append(col)
-        available_columns = unique_columns
-
     # Now create the dataframe with unique columns
     try:
-        display_df = working_df[available_columns].copy()
+        display_df = working_df[final_columns].copy()
     except KeyError:
         # This can happen in tests where there's a mismatch between expected columns
         # Just return the working dataframe without changes
@@ -927,12 +930,13 @@ def _select_and_rename_columns(working_df):
         "SI",
         "EARNINGS",
         "ACTION",
+        "ACT",
     }
 
-    # Only rename columns that are NOT already in display format
+    # Only rename columns that are NOT already in display format  
     columns_to_rename = {
         col: column_mapping[col]
-        for col in available_columns
+        for col in final_columns
         if col in column_mapping and col not in display_names
     }
 
@@ -943,12 +947,11 @@ def _select_and_rename_columns(working_df):
     # Check if we have enough columns for meaningful display (at least ticker and one data column)
     if len(display_df.columns) < 2:
         logger.debug(
-            "Very few columns selected. Adding remaining columns to ensure useful display."
+            "Very few columns selected. This may indicate a data processing issue."
         )
-        # Add any important columns that might be missing
-        for col in working_df.columns:
-            if col not in display_df.columns:
-                display_df[col] = working_df[col]
+        # Log available columns for debugging instead of adding all columns
+        logger.debug(f"Available columns in working_df: {list(working_df.columns)}")
+        logger.debug(f"Final selected columns: {final_columns}")
 
     # Final check for duplicate columns after renaming
     if len(display_df.columns) != len(set(display_df.columns)):
@@ -1117,6 +1120,7 @@ def prepare_display_dataframe(df):
 
     # Select and rename columns
     display_df = _select_and_rename_columns(working_df)
+    logger.debug(f"display_df columns after _select_and_rename_columns: {list(display_df.columns)}")
 
     # Format SIZE column directly after column selection/renaming
     if "SIZE" in display_df.columns:
@@ -1146,10 +1150,12 @@ def prepare_display_dataframe(df):
 
     if not is_test_case:
         # Ensure all standard display columns are available
+        logger.debug(f"STANDARD_DISPLAY_COLUMNS: {STANDARD_DISPLAY_COLUMNS}")
         for column in STANDARD_DISPLAY_COLUMNS:
             if (
                 column not in display_df.columns and column != "#"
             ):  # Skip # column which is added later
+                logger.debug(f"Adding missing column: {column}")
                 display_df[column] = "--"  # Add missing columns with placeholder
 
     # Check if we have any rows left
@@ -1160,6 +1166,7 @@ def prepare_display_dataframe(df):
             f"Created display DataFrame: {len(display_df)} rows, {len(display_df.columns)} columns"
         )
 
+    logger.debug(f"Final display_df columns before return: {list(display_df.columns)}")
     return display_df
 
 
@@ -1988,7 +1995,7 @@ def display_and_save_results(display_df, title, output_file):
         colored_df = colored_df[available_cols + other_cols]
 
     # Get column alignments for display
-    colalign = ["right"] + get_column_alignments(display_df)
+    colalign = get_column_alignments(display_df)
 
     # Display results in console
     print(f"\n{title}:")
@@ -3485,14 +3492,17 @@ async def _process_batch(provider, batch, batch_num, total_batches, pbar, counte
                 error_count += 1
                 counters["errors"] += 1
                 error_msg = info.get("error", "Unknown error") if info else "No data returned"
-                logger.warning(f"Error processing {ticker} in batch: {error_msg}")
+                # Collect error instead of logging immediately
+                pbar.errors.append({"ticker": ticker, "error": error_msg, "batch": batch_num + 1})
 
             # Update progress bar for each ticker processed in the batch result
             pbar.update(1)
 
     except YFinanceError as e:
         # Handle errors during the batch call itself
-        logger.error(f"Error processing batch {batch_num+1}: {str(e)}")
+        # Collect batch error instead of logging immediately
+        for ticker in batch:
+            pbar.errors.append({"ticker": ticker, "error": f"Batch error: {str(e)}", "batch": batch_num + 1})
         error_count += len(batch)  # Assume all tickers in the batch failed
         counters["errors"] += len(batch)
         pbar.update(len(batch))  # Update progress bar for all tickers in the failed batch
@@ -3566,6 +3576,7 @@ class SimpleProgressTracker:
         self.success_count = 0
         self.error_count = 0
         self.cache_count = 0
+        self.errors = []  # Collect errors for summary display
         self.terminal_width = self._get_terminal_width()
         # Initialize the display (no need for an empty line anymore)
         self._print_status()
@@ -3837,6 +3848,64 @@ async def _handle_batch_delay(batch_num, total_batches, pbar):
         await asyncio.sleep(batch_delay)
 
 
+def _display_error_summary(errors):
+    """Display a summary of all errors encountered during processing.
+    
+    Args:
+        errors: List of error dictionaries with 'ticker', 'error', and 'batch' keys
+    """
+    if not errors:
+        return
+    
+    # Define color constants locally
+    COLOR_YELLOW = "\\033[93m"
+    
+    print(f"\\n{COLOR_RED}=== ERROR SUMMARY ==={COLOR_RESET}")
+    print(f"Total errors encountered: {len(errors)}")
+    
+    # Group errors by type for better readability
+    error_groups = {}
+    ticker_errors = {}
+    
+    for error_info in errors:
+        ticker = error_info.get('ticker', 'Unknown')
+        error_msg = error_info.get('error', 'Unknown error')
+        batch = error_info.get('batch', 'N/A')
+        
+        # Count errors by ticker
+        if ticker != 'ALL':
+            ticker_errors[ticker] = ticker_errors.get(ticker, 0) + 1
+        
+        # Group by error type
+        error_type = error_msg.split(':')[0] if ':' in error_msg else error_msg
+        if error_type not in error_groups:
+            error_groups[error_type] = []
+        error_groups[error_type].append(f"{ticker} (batch {batch})")
+    
+    # Display error types and counts
+    print(f"\\n{COLOR_YELLOW}Error breakdown by type:{COLOR_RESET}")
+    for error_type, affected_tickers in error_groups.items():
+        print(f"  • {error_type}: {len(affected_tickers)} occurrences")
+        # Show first few examples
+        examples = affected_tickers[:3]
+        if len(affected_tickers) > 3:
+            examples.append(f"... and {len(affected_tickers) - 3} more")
+        print(f"    Examples: {', '.join(examples)}")
+    
+    # Display most problematic tickers
+    if ticker_errors:
+        print(f"\\n{COLOR_YELLOW}Tickers with multiple errors:{COLOR_RESET}")
+        problem_tickers = [(ticker, count) for ticker, count in ticker_errors.items() if count > 1]
+        if problem_tickers:
+            problem_tickers.sort(key=lambda x: x[1], reverse=True)
+            for ticker, count in problem_tickers[:5]:  # Show top 5
+                print(f"  • {ticker}: {count} errors")
+        else:
+            print("  None - all errors were isolated incidents")
+    
+    print(f"{COLOR_RED}========================{COLOR_RESET}\\n")
+
+
 async def fetch_ticker_data(provider, tickers):
     """Fetch ticker data from provider
 
@@ -3874,9 +3943,23 @@ async def fetch_ticker_data(provider, tickers):
 
     # Create progress bar
     pbar = None
+    
+    # Temporarily suppress stderr to prevent yfinance errors from appearing during progress
+    import sys
+    import os
+    original_stderr = sys.stderr
+    devnull = open(os.devnull, 'w')
+    
     try:
         # Create progress bar
         pbar = await _create_progress_bar(total_tickers, total_batches)
+        
+        # Suppress stderr during batch processing to keep progress clean
+        sys.stderr = devnull
+        
+        # Also suppress rate limiter warnings during progress display
+        from yahoofinance.utils.network.rate_limiter import global_rate_limiter
+        global_rate_limiter.suppress_warnings = True
 
         # Process all batches
         batch_info = []  # For debugging
@@ -3964,24 +4047,38 @@ async def fetch_ticker_data(provider, tickers):
                     # Don't print message - let progress bar handle it
                     await _handle_batch_delay(batch_num, total_batches, pbar)
 
-            except YFinanceError:
-                print(f"ERROR in batch {batch_num+1}: An error occurred")
-                logger.error(f"Error in batch {batch_num+1}: An error occurred")
-                # Suppress traceback
-
+            except YFinanceError as e:
+                # Collect batch-level error instead of printing immediately
+                for ticker in batch:
+                    pbar.errors.append({"ticker": ticker, "error": f"Batch processing error: {str(e)}", "batch": batch_num + 1})
                 # Continue with next batch despite errors
                 continue
 
     except YFinanceError as e:
-        print(f"ERROR in fetch_ticker_data: {str(e)}")
-        logger.error(f"Error in fetch_ticker_data: {str(e)}")
+        # Collect top-level error instead of printing immediately
+        if pbar:
+            pbar.errors.append({"ticker": "ALL", "error": f"Fetch error: {str(e)}", "batch": "N/A"})
         # Suppress traceback
 
     finally:
-        # Make sure we close the progress bar properly
+        # Restore stderr and rate limiter warnings
+        sys.stderr = original_stderr
+        devnull.close()
+        
+        # Re-enable rate limiter warnings
+        try:
+            from yahoofinance.utils.network.rate_limiter import global_rate_limiter
+            global_rate_limiter.suppress_warnings = False
+        except ImportError:
+            # Ignore if module is not available during cleanup
+            pass
+        
+        # Make sure we close the progress bar properly and show error summary
         if pbar:
             try:
                 pbar.close()
+                # Display error summary after progress bar closes
+                _display_error_summary(pbar.errors)
             except YFinanceError:
                 # Suppress any errors during progress bar cleanup
                 pass
@@ -3997,10 +4094,35 @@ async def fetch_ticker_data(provider, tickers):
     initial_tickers_df = pd.DataFrame({"symbol": all_tickers})
 
     # Merge the results with the initial list, keeping all initial tickers
-    # Use 'symbol' as the key, assuming providers return 'symbol'
+    # Use 'symbol' as the key, but handle ticker mappings properly
     if not all_results_df.empty and "symbol" in all_results_df.columns:
-        # Prioritize results_df, fill missing from initial_tickers_df
-        result_df = pd.merge(initial_tickers_df, all_results_df, on="symbol", how="left", validate="many_to_one")
+        # For crypto/commodity tickers, we need to handle the mapping issue
+        # The provider returns mapped symbols (SOL-USD) but we want original tickers (SOL)
+        # Create a reverse mapping for the merge
+        if "ticker" in all_results_df.columns:
+            # Create a mapping from original ticker to provider symbol for merging
+            ticker_to_symbol_map = dict(zip(all_results_df["ticker"], all_results_df["symbol"]))
+            
+            # Add a mapped_symbol column to initial_tickers_df
+            initial_tickers_df["mapped_symbol"] = initial_tickers_df["symbol"].map(ticker_to_symbol_map).fillna(initial_tickers_df["symbol"])
+            
+            # Merge using the mapped symbol
+            result_df = pd.merge(initial_tickers_df, all_results_df, left_on="mapped_symbol", right_on="symbol", how="left", suffixes=('_portfolio', '_provider'))
+            
+            # For crypto tickers, use the provider symbol (SOL-USD) instead of portfolio symbol (SOL)
+            # This ensures cryptos display with their proper exchange suffix
+            result_df = result_df.drop("mapped_symbol", axis=1)
+            
+            # Rename the provider symbol to be the main symbol column
+            if "symbol_provider" in result_df.columns:
+                result_df["symbol"] = result_df["symbol_provider"]
+                result_df = result_df.drop(["symbol_portfolio", "symbol_provider"], axis=1)
+            elif "symbol_portfolio" in result_df.columns:
+                result_df["symbol"] = result_df["symbol_portfolio"]
+                result_df = result_df.drop("symbol_portfolio", axis=1)
+        else:
+            # Fallback to simple symbol merge if no ticker column
+            result_df = pd.merge(initial_tickers_df, all_results_df, on="symbol", how="left", validate="many_to_one")
     else:
         # If results are empty or missing 'symbol', just use the initial list
         result_df = initial_tickers_df
@@ -4012,8 +4134,33 @@ async def fetch_ticker_data(provider, tickers):
 
     # Fill missing company names for tickers that had errors
     if "company" not in result_df.columns:
-        result_df["company"] = result_df["symbol"]  # Add company column if missing
-    result_df["company"] = result_df["company"].fillna(result_df["symbol"])
+        # Determine which symbol column to use
+        symbol_col = None
+        if "symbol" in result_df.columns:
+            symbol_col = "symbol"
+        elif "symbol_y" in result_df.columns:
+            symbol_col = "symbol_y"
+        elif "symbol_x" in result_df.columns:
+            symbol_col = "symbol_x"
+        
+        if symbol_col:
+            result_df["company"] = result_df[symbol_col]  # Add company column if missing
+        else:
+            result_df["company"] = "Unknown"  # Fallback if no symbol column found
+    
+    # Fill missing company names using the appropriate symbol column
+    symbol_col = None
+    if "symbol" in result_df.columns:
+        symbol_col = "symbol"
+    elif "symbol_y" in result_df.columns:
+        symbol_col = "symbol_y"
+    elif "symbol_x" in result_df.columns:
+        symbol_col = "symbol_x"
+    
+    if symbol_col:
+        result_df["company"] = result_df["company"].fillna(result_df[symbol_col])
+    else:
+        result_df["company"] = result_df["company"].fillna("Unknown")
 
     # Skip batch summary display
     c = SimpleProgressTracker.COLORS
@@ -4460,6 +4607,30 @@ def _process_data_for_display(result_df):
     Returns:
         pd.DataFrame: Processed display DataFrame
     """
+    # Convert CAP strings to numeric market_cap values if needed
+    if "market_cap" not in result_df.columns and "cap" in result_df.columns:
+        def parse_market_cap(cap_str):
+            """Parse market cap string like '3.02B' to numeric value."""
+            if not cap_str or cap_str == "--":
+                return None
+            
+            try:
+                cap_str = str(cap_str).upper().strip()
+                
+                if cap_str.endswith('T'):
+                    return float(cap_str[:-1]) * 1_000_000_000_000
+                elif cap_str.endswith('B'):
+                    return float(cap_str[:-1]) * 1_000_000_000
+                elif cap_str.endswith('M'):
+                    return float(cap_str[:-1]) * 1_000_000
+                else:
+                    return float(cap_str)
+            except (ValueError, AttributeError):
+                return None
+        
+        result_df["market_cap"] = result_df["cap"].apply(parse_market_cap)
+        logger.debug("Added market_cap values based on CAP strings")
+    
     # Format market caps
     result_df = _prepare_market_caps(result_df)
 
@@ -4698,9 +4869,7 @@ async def display_report_for_source(
                     available_cols + other_cols
                 ]  # Use colored_df here for fallback
             # Get column alignments for display
-            colalign = ["right"] + get_column_alignments(
-                display_df
-            )  # Use original display_df for alignment
+            colalign = get_column_alignments(display_df)  # Use original display_df for alignment
             # Display results in console using tabulate
             print(f"\n{report_title}:")
             table_output = tabulate(
@@ -4951,14 +5120,14 @@ async def display_report_for_source(
 
                                 # Simplified action calculation based on key criteria
                                 if (
-                                    upside >= TRADING_CRITERIA["BUY"]["BUY_MIN_UPSIDE"]
-                                    and buy_pct >= TRADING_CRITERIA["BUY"]["BUY_MIN_BUY_PERCENTAGE"]
+                                    upside >= TRADING_CRITERIA["BUY"]["MIN_UPSIDE"]
+                                    and buy_pct >= TRADING_CRITERIA["BUY"]["MIN_BUY_PERCENTAGE"]
                                 ):
                                     record["ACTION"] = "B"  # Buy
                                 elif (
-                                    upside <= TRADING_CRITERIA["SELL"]["SELL_MAX_UPSIDE"]
+                                    upside <= TRADING_CRITERIA["SELL"]["MAX_UPSIDE"]
                                     or buy_pct
-                                    <= TRADING_CRITERIA["SELL"]["SELL_MIN_BUY_PERCENTAGE"]
+                                    <= TRADING_CRITERIA["SELL"]["MIN_BUY_PERCENTAGE"]
                                 ):
                                     record["ACTION"] = "S"  # Sell
                                 else:
@@ -5019,14 +5188,14 @@ async def display_report_for_source(
                             if upside is not None and buy_pct is not None:
                                 # Simple criteria for demonstration based on TRADING_CRITERIA
                                 if (
-                                    upside >= TRADING_CRITERIA["BUY"]["BUY_MIN_UPSIDE"]
-                                    and buy_pct >= TRADING_CRITERIA["BUY"]["BUY_MIN_BUY_PERCENTAGE"]
+                                    upside >= TRADING_CRITERIA["BUY"]["MIN_UPSIDE"]
+                                    and buy_pct >= TRADING_CRITERIA["BUY"]["MIN_BUY_PERCENTAGE"]
                                 ):
                                     clean_df.at[idx, "ACTION"] = "B"  # Buy
                                 elif (
-                                    upside <= TRADING_CRITERIA["SELL"]["SELL_MAX_UPSIDE"]
+                                    upside <= TRADING_CRITERIA["SELL"]["MAX_UPSIDE"]
                                     or buy_pct
-                                    <= TRADING_CRITERIA["SELL"]["SELL_MIN_BUY_PERCENTAGE"]
+                                    <= TRADING_CRITERIA["SELL"]["MIN_BUY_PERCENTAGE"]
                                 ):
                                     clean_df.at[idx, "ACTION"] = "S"  # Sell
                                 else:
@@ -5191,14 +5360,14 @@ async def display_report_for_source(
                                 buy_pct = internal_row.get("buy_percentage", 0)
 
                                 if (
-                                    upside >= TRADING_CRITERIA["BUY"]["BUY_MIN_UPSIDE"]
-                                    and buy_pct >= TRADING_CRITERIA["BUY"]["BUY_MIN_BUY_PERCENTAGE"]
+                                    upside >= TRADING_CRITERIA["BUY"]["MIN_UPSIDE"]
+                                    and buy_pct >= TRADING_CRITERIA["BUY"]["MIN_BUY_PERCENTAGE"]
                                 ):
                                     clean_df.at[idx, "ACTION"] = "B"  # Buy
                                 elif (
-                                    upside <= TRADING_CRITERIA["SELL"]["SELL_MAX_UPSIDE"]
+                                    upside <= TRADING_CRITERIA["SELL"]["MAX_UPSIDE"]
                                     or buy_pct
-                                    <= TRADING_CRITERIA["SELL"]["SELL_MIN_BUY_PERCENTAGE"]
+                                    <= TRADING_CRITERIA["SELL"]["MIN_BUY_PERCENTAGE"]
                                 ):
                                     clean_df.at[idx, "ACTION"] = "S"  # Sell
                     except YFinanceError as e:

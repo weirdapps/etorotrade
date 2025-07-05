@@ -1,177 +1,55 @@
-# Scripts Usage Guide
+# Scripts Directory
 
-This directory contains utility scripts for the etorotrade project. These scripts provide additional functionality beyond the main application, such as portfolio optimization, data processing, system monitoring, and development tools.
+This directory contains utility scripts organized by function:
 
-## Available Scripts
+## Directory Structure
 
-### Download Portfolio Data
+- `analysis/` - Scripts for analyzing trading recommendations and criteria changes
+- `monitoring/` - Scripts for monitoring system performance and health
+- `optimization/` - Scripts for optimizing trading parameters and strategies
+- `utilities/` - General utility scripts for data processing and debugging
 
-**File**: `download_portfolio_data.py`
+## Analysis Scripts
 
-Downloads historical price data for all tickers in your portfolio and saves it to cache files for faster portfolio optimization.
+- `analyze_recommendation_changes.py` - Compare trading recommendations before/after criteria changes
+- `analyze_stricter_criteria.py` - Analyze impact of stricter trading criteria
+- `summarize_changes.py` - Summarize changes in trading recommendations
 
-```bash
-python scripts/download_portfolio_data.py [options]
-```
+## Utilities Scripts  
 
-Options:
-- `--portfolio`: Path to portfolio CSV file (default: yahoofinance/input/portfolio.csv)
-- `--max-years`: Maximum number of years of historical data (default: 6)
-- `--batch-size`: Number of tickers per batch (default: 10)
-- `--output`: Cache output file path (default: yahoofinance/data/portfolio_cache.pkl)
-- `--price-output`: Price output file path (default: yahoofinance/data/portfolio_prices.json)
-- `--delay`: Base delay between API calls in seconds (default: 1.0)
-- `--verbose`: Enable verbose logging
+- `check_buy_csv.py` - Validate assets in buy.csv against criteria
+- `debug_eden.py` - Debug specific ticker issues
+- `generate_buy_table.py` - Generate formatted buy recommendation tables
 
-### Code Quality Checks
+## Other Scripts
 
-**File**: `lint.sh`
+- `cleanup.sh` - Clean up temporary files and caches
+- `download_portfolio_data.py` - Download portfolio data
+- `fix_ticker_formats.py` - Fix ticker format inconsistencies
+- `lint.sh` - Run linting and code quality checks
+- `run_enhanced_monitoring.py` - Run enhanced monitoring with detailed metrics
+- `run_monitoring.py` - Basic monitoring script
+- `run_optimizer.py` - Run trading criteria optimization
+- `split_etoro_by_region.py` - Split eToro data by geographic region
+- `test_optimize.py` - Test optimization functionality
 
-Runs code quality checks on the codebase using black, isort, flake8, and mypy.
+## Usage
 
-```bash
-./scripts/lint.sh [fix]
-```
-
-Parameters:
-- `fix`: Optional. When provided, automatically fixes formatting issues where possible.
-
-### Optimize Trading Criteria
-
-**File**: `optimize_criteria.py`
-
-Backtests and optimizes trading criteria parameters to find the best performing combination.
+Run scripts from the project root directory:
 
 ```bash
-python scripts/optimize_criteria.py [options]
+# Analysis
+python scripts/analysis/analyze_recommendation_changes.py
+
+# Utilities  
+python scripts/utilities/check_buy_csv.py
+
+# Monitoring
+python scripts/run_monitoring.py
 ```
 
-Key options:
-- `--mode`: Mode to run (`backtest` or `optimize`, default: backtest)
-- `--period`: Backtest period (e.g., '1y', '3y', '5y', default: '3y')
-- `--metric`: Metric to optimize (default: sharpe_ratio)
-- `--tickers`: Comma-separated list of tickers to backtest
-- `--source`: Source of tickers (default: portfolio)
-- `--param-file`: JSON file with parameter ranges (default: use built-in ranges)
-- `--output`: Output file for results
-- `--ticker-limit`: Limit number of tickers for faster execution
+## Parameter Files
 
-### Enhanced Monitoring
-
-**File**: `run_enhanced_monitoring.py`
-
-Runs enhanced monitoring with structured logging, health endpoints, and a real-time dashboard.
-
-```bash
-python scripts/run_enhanced_monitoring.py [options]
-```
-
-Key options:
-- `--health-port`: Port for health check endpoints (default: 8081)
-- `--dashboard-port`: Port for monitoring dashboard (default: 8000)
-- `--refresh`: Dashboard refresh interval in seconds (default: 30)
-- `--log-level`: Logging level (default: INFO)
-- `--log-file`: Log file path (default: None, logs to console only)
-- `--timeout`: Time in seconds to run before exiting (default: 300)
-
-### Basic Monitoring Dashboard
-
-**File**: `run_monitoring.py`
-
-Runs a monitoring dashboard for system performance.
-
-```bash
-python scripts/run_monitoring.py [options]
-```
-
-Key options:
-- `--port`: Port to run server on (default: 8000)
-- `--refresh`: Dashboard refresh interval in seconds (default: 30)
-- `--no-browser`: Do not open dashboard in browser
-- `--timeout`: Time in seconds to run the dashboard (default: 60)
-- `--max-updates`: Maximum number of dashboard updates (default: 5)
-
-### Portfolio Optimizer
-
-**File**: `run_optimizer.py`
-
-Runs the portfolio optimizer to find optimal position sizes based on historical performance.
-
-```bash
-python scripts/run_optimizer.py [options]
-```
-
-Key options:
-- `--min`: Minimum position size in USD (default: 1000.0)
-- `--max`: Maximum position size in USD (default: 25000.0)
-- `--periods`: Time periods in years to analyze (default: 1 3 4 5)
-- `--limit`: Limit the number of tickers to process (0 = no limit)
-- `--use-cache`: Use cached historical data and prices
-- `--cache-path`: Path to cached historical data
-- `--price-cache-path`: Path to cached price data
-
-### Split eToro by Region
-
-**File**: `split_etoro_by_region.py`
-
-Splits the eToro CSV file into regional files (China, Europe, USA) based on ticker patterns.
-
-```bash
-python scripts/split_etoro_by_region.py
-```
-
-This script:
-- Reads from yahoofinance/input/etoro.csv
-- Creates separate files for:
-  - China (.HK tickers) in china.csv
-  - Europe (other .XX tickers) in europe.csv
-  - USA (no .XX suffix) in usa.csv
-- Preserves the original etoro.csv file
-
-### Parameter Configuration
-
-**File**: `sample_parameters.json`
-
-Sample parameter ranges for trading criteria optimization. Used by optimize_criteria.py to define the search space for finding optimal trading parameters.
-
-Key sections:
-- `SELL`: Parameters for sell criteria
-- `BUY`: Parameters for buy criteria
-- `CONFIDENCE`: Thresholds for confidence in recommendations
-
-## Common Usage Patterns
-
-### Full Optimization Workflow
-
-```bash
-# 1. Download historical data
-python scripts/download_portfolio_data.py --max-years 5
-
-# 2. Run portfolio optimization using cached data
-python scripts/run_optimizer.py --use-cache --min 1000 --max 25000
-
-# 3. Optimize trading criteria
-python scripts/optimize_criteria.py --mode optimize --period 3y --metric sharpe_ratio
-```
-
-### Development and Testing
-
-```bash
-# Check code quality
-./scripts/lint.sh
-
-# Fix formatting issues
-./scripts/lint.sh fix
-
-# Run basic monitoring
-python scripts/run_monitoring.py --timeout 60
-```
-
-### Regional Market Analysis
-
-```bash
-# Split eToro tickers by region
-python scripts/split_etoro_by_region.py
-
-# Then use the main trade.py application to analyze regional markets
-```
+- `sample_parameters.json` - Sample parameter configuration
+- `sample_parameters_simple.json` - Simplified parameter configuration  
+- `working_params.json` - Current working parameters

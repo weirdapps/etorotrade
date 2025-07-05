@@ -211,8 +211,8 @@ def configure_logging(
                 "propagate": True,
             },
             "yfinance": {
-                "level": logging.WARNING,
-                "propagate": True,
+                "level": logging.ERROR,  # Set to ERROR to reduce noise during progress
+                "propagate": False,  # Don't propagate to prevent console output during progress
             },
             "yahooquery": {
                 "level": logging.WARNING,

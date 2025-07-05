@@ -46,6 +46,12 @@ def setup_application():
         # Register a logger instance for direct injection
         app_logger = logger_factory("application")
         registry.register_instance("app_logger", app_logger)
+        
+        # Register configuration service
+        from .config_service import ConfigurationService
+        
+        config_service = ConfigurationService()
+        registry.register_instance("config_service", config_service)
 
         logger.debug("Registered core services")
     except Exception as e:
@@ -66,6 +72,24 @@ def setup_application():
         from ..utils.display_helpers import create_display
 
         registry.register("display_factory", create_display)
+
+        # Register rate limiter factory
+        from ..utils.network.rate_limiter import RateLimiterFactory
+        
+        rate_limiter_factory = RateLimiterFactory()
+        registry.register_instance("rate_limiter_factory", rate_limiter_factory)
+        
+        # Register circuit breaker registry
+        from ..utils.network.circuit_breaker import CircuitBreakerRegistry
+        
+        circuit_breaker_registry = CircuitBreakerRegistry()
+        registry.register_instance("circuit_breaker_registry", circuit_breaker_registry)
+        
+        # Register shared session manager
+        from ..utils.network.session_manager import SharedSessionManager
+        
+        session_manager = SharedSessionManager()
+        registry.register_instance("session_manager", session_manager)
 
         logger.debug("Registered helper services")
     except Exception as e:
@@ -202,3 +226,7 @@ with_provider = inject("get_provider")
 with_display = inject("create_display")
 with_formatter = inject("formatter_factory")
 with_cache = inject("get_cache")
+with_rate_limiter_factory = inject("rate_limiter_factory")
+with_circuit_breaker_registry = inject("circuit_breaker_registry")
+with_config_service = inject("config_service")
+with_session_manager = inject("session_manager")

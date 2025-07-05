@@ -42,6 +42,7 @@ from ...utils.async_utils.enhanced import (
 from ...utils.market.ticker_utils import validate_ticker, is_stock_ticker  # Keep this import
 from ...utils.network.circuit_breaker import CircuitOpenError
 from .base_provider import AsyncFinanceDataProvider
+from ...utils.network.session_manager import get_shared_session
 
 
 logger = get_logger(__name__)
@@ -87,7 +88,6 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         self.max_concurrency = max_concurrency
         self.enable_circuit_breaker = enable_circuit_breaker
         self._ticker_cache: Dict[str, Dict[str, Any]] = {}  # Simple cache for now
-        self._session: Optional[aiohttp.ClientSession] = None
         self._rate_limiter = AsyncRateLimiter()
         self._ratings_cache: Dict[str, Dict[str, Any]] = {}  # Cache for post-earnings ratings
         self._stock_cache: Dict[str, Any] = {}  # Cache for yf.Ticker objects
@@ -108,26 +108,9 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
 
     async def _ensure_session(self) -> aiohttp.ClientSession:
         """
-        Ensure that an aiohttp session exists, creating one if needed.
+        Get the shared session from SharedSessionManager for connection pooling.
         """
-        if self._session is None or self._session.closed:
-            timeout = aiohttp.ClientTimeout(
-                total=RATE_LIMIT["API_TIMEOUT"],
-                connect=10,
-                sock_connect=10,
-                sock_read=RATE_LIMIT["API_TIMEOUT"],
-            )
-            self._session = aiohttp.ClientSession(
-                timeout=timeout,
-                headers={
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                    "Accept": "application/json, text/plain, */*",
-                    "Accept-Language": "en-US,en;q=0.9",
-                    "Origin": "https://finance.yahoo.com",
-                    "Referer": "https://finance.yahoo.com/",
-                },
-            )
-        return self._session
+        return await get_shared_session()
 
     @with_retry
     async def _fetch_json(
@@ -286,8 +269,14 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 else:
                     # No analysts covering
                     info["buy_percentage"] = None
+            except (APIError, NetworkError) as e:
+                logger.warning(f"API/Network error processing recommendations for {ticker}: {e}")
+                info["buy_percentage"] = None
+            except (ValueError, TypeError, KeyError, AttributeError) as e:
+                logger.warning(f"Data processing error with recommendations for {ticker}: {e}")
+                info["buy_percentage"] = None
             except Exception as e:
-                logger.warning(f"Error processing recommendations for {ticker}: {e}")
+                logger.warning(f"Unexpected error processing recommendations for {ticker}: {e}")
                 info["buy_percentage"] = None
 
             # Rating type - default to "A" for all-time
@@ -1184,11 +1173,10 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         return processed_results
 
     async def close(self) -> None:
-        """Close the underlying aiohttp session and clean up resources."""
-        if self._session and not self._session.closed:
-            await self._session.close()
-            self._session = None
-
+        """Close the provider and clean up resources."""
+        # No longer need to close session directly since we use SharedSessionManager
+        # Just clear internal caches and let SharedSessionManager handle session lifecycle
+        
         # Clear all caches to prevent memory leaks
         self.clear_cache()
 
@@ -1204,7 +1192,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
 
             gc.collect()
 
-        logger.debug("Async provider session closed and resources cleaned up.")
+        logger.debug("Async provider resources cleaned up.")
 
     def clear_cache(self) -> None:
         """Clear internal caches and free up memory."""
@@ -1248,7 +1236,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         }
 
     async def __aenter__(self):
-        await self._ensure_session()
+        # SharedSessionManager handles session lifecycle, no setup needed
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -1256,59 +1244,52 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
 
     def __del__(self):
         """Cleanup resources when the object is garbage collected."""
-        # Clear all caches
-        if hasattr(self, "_ticker_cache"):
-            self._ticker_cache.clear()
-        if hasattr(self, "_stock_cache"):
-            self._stock_cache.clear()
-        if hasattr(self, "_ratings_cache"):
-            self._ratings_cache.clear()
-
-        # Ensure session is closed
-        if hasattr(self, "_session") and self._session and not self._session.closed:
-            import asyncio
-
-            try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    loop.create_task(self._session.close())
-                else:
-                    try:
-                        loop.run_until_complete(self._session.close())
-                    except RuntimeError:
-                        # Likely no running event loop, just set to None
-                        pass
-            except Exception:
-                # Last resort - just null the reference so it can be GC'd
-                pass
-            self._session = None
-
-        # Use memory_utils if available for efficient cleanup
+        # Check if Python is shutting down to avoid import errors
+        import sys
+        if sys.meta_path is None:
+            # Python is shutting down, skip cleanup to avoid errors
+            return
+            
         try:
-            from ...utils.memory_utils import clean_memory
+            # Clear all caches
+            if hasattr(self, "_ticker_cache"):
+                self._ticker_cache.clear()
+            if hasattr(self, "_stock_cache"):
+                self._stock_cache.clear()
+            if hasattr(self, "_ratings_cache"):
+                self._ratings_cache.clear()
 
-            clean_memory()
-        except ImportError:
-            # Fallback to manual cleanup if memory_utils not available
-            # Clear any module references that might cause memory leaks
-            # Particularly ABC module and tzinfo from datetime
-            import sys
+            # No longer need to manage session directly since we use SharedSessionManager
 
-            for module_name in ["abc", "pandas", "datetime"]:
-                if module_name in sys.modules:
-                    try:
-                        # Clear module-specific caches if needed
-                        module = sys.modules[module_name]
-                        if hasattr(module, "_abc_registry") and isinstance(
-                            module._abc_registry, dict
-                        ):
-                            module._abc_registry.clear()
-                        if hasattr(module, "_abc_cache") and isinstance(module._abc_cache, dict):
-                            module._abc_cache.clear()
-                    except (AttributeError, KeyError):
-                        pass
+            # Use memory_utils if available for efficient cleanup
+            try:
+                from ...utils.memory_utils import clean_memory
+                clean_memory()
+            except (ImportError, AttributeError):
+                # Fallback to manual cleanup if memory_utils not available
+                # Clear any module references that might cause memory leaks
+                # Particularly ABC module and tzinfo from datetime
+                if sys.modules:  # Check if modules dict still exists
+                    for module_name in ["abc", "pandas", "datetime"]:
+                        if module_name in sys.modules:
+                            try:
+                                # Clear module-specific caches if needed
+                                module = sys.modules[module_name]
+                                if hasattr(module, "_abc_registry") and isinstance(
+                                    module._abc_registry, dict
+                                ):
+                                    module._abc_registry.clear()
+                                if hasattr(module, "_abc_cache") and isinstance(module._abc_cache, dict):
+                                    module._abc_cache.clear()
+                            except (AttributeError, KeyError, TypeError):
+                                pass
 
-            # Force garbage collection
-            import gc
-
-            gc.collect()
+                # Force garbage collection
+                try:
+                    import gc
+                    gc.collect()
+                except (ImportError, AttributeError):
+                    pass
+        except Exception:
+            # Silently ignore any errors during cleanup to prevent issues during shutdown
+            pass

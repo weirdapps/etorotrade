@@ -219,7 +219,25 @@ def calculate_position_size(
     Returns:
         Position size in USD or None if below threshold, EXRET missing, or ETF/commodity
     """
-    from ...core.config import PORTFOLIO_CONFIG
+    # Import PORTFOLIO_CONFIG - handle both old and new config systems
+    try:
+        # Try new config system first
+        from ...core.config import PORTFOLIO_CONFIG
+        if not PORTFOLIO_CONFIG:  # If empty, fall back to hardcoded values
+            raise ImportError("PORTFOLIO_CONFIG is empty")
+    except (ImportError, KeyError):
+        # Fallback to hardcoded configuration to ensure position sizing works
+        PORTFOLIO_CONFIG = {
+            "PORTFOLIO_VALUE": 450_000,
+            "MIN_POSITION_USD": 1_000,
+            "MAX_POSITION_USD": 40_000,
+            "MAX_POSITION_PCT": 8.9,
+            "BASE_POSITION_PCT": 0.5,
+            "HIGH_CONVICTION_PCT": 2.0,
+            "SMALL_CAP_THRESHOLD": 2_000_000_000,
+            "MID_CAP_THRESHOLD": 10_000_000_000,
+            "LARGE_CAP_THRESHOLD": 50_000_000_000,
+        }
     from ..market.ticker_utils import is_etf_or_commodity
 
     if market_cap is None:

@@ -147,6 +147,9 @@ class RateLimiter:
 
         # Market hours detection
         self.is_market_hours = True
+        
+        # Flag to suppress warnings during progress display
+        self.suppress_warnings = False
         self.last_market_hours_check = 0
         self.market_hours_check_interval = 300  # 5 minutes
 
@@ -527,9 +530,11 @@ class RateLimiter:
                     # Calculate how long to wait
                     window_wait_time = next_available - time.time()
                     if window_wait_time > 0:
-                        logger.warning(
-                            f"Rate limit would be exceeded. Waiting {window_wait_time:.2f} seconds."
-                        )
+                        # Only log if warnings are not suppressed
+                        if not self.suppress_warnings:
+                            logger.warning(
+                                f"Rate limit would be exceeded. Waiting {window_wait_time:.2f} seconds."
+                            )
                         time.sleep(window_wait_time)
 
         # Apply appropriate delay based on success/failure pattern and ticker
@@ -887,8 +892,98 @@ class RateLimiter:
             }
 
 
-# Create a global rate limiter instance
-global_rate_limiter = RateLimiter()
+# Rate limiter factory for dependency injection
+class RateLimiterFactory:
+    """Factory for creating rate limiter instances with dependency injection support."""
+    
+    def __init__(self, default_config: Optional[Dict[str, Any]] = None):
+        """
+        Initialize the rate limiter factory.
+        
+        Args:
+            default_config: Default configuration for rate limiters
+        """
+        self.default_config = default_config or RATE_LIMIT
+        self._instances: Dict[str, RateLimiter] = {}
+        self._lock = threading.Lock()
+    
+    def get_rate_limiter(self, name: str = "default", config: Optional[Dict[str, Any]] = None) -> RateLimiter:
+        """
+        Get or create a rate limiter instance.
+        
+        Args:
+            name: Name/identifier for the rate limiter
+            config: Optional configuration overrides
+            
+        Returns:
+            RateLimiter instance
+        """
+        with self._lock:
+            if name not in self._instances:
+                # Merge default config with provided config
+                final_config = self.default_config.copy()
+                if config:
+                    final_config.update(config)
+                
+                # Map configuration keys to constructor parameters
+                constructor_args = {
+                    "window_size": final_config.get("WINDOW_SIZE"),
+                    "max_calls": final_config.get("MAX_CALLS"),
+                    "base_delay": final_config.get("BASE_DELAY"),
+                    "min_delay": final_config.get("MIN_DELAY"),
+                    "max_delay": final_config.get("MAX_DELAY"),
+                    "cache_aware": final_config.get("CACHE_AWARE_RATE_LIMITING"),
+                }
+                
+                # Remove None values
+                constructor_args = {k: v for k, v in constructor_args.items() if v is not None}
+                
+                self._instances[name] = RateLimiter(**constructor_args)
+                logger.debug(f"Created rate limiter instance '{name}' with config: {constructor_args}")
+            
+            return self._instances[name]
+    
+    def create_rate_limiter(self, config: Optional[Dict[str, Any]] = None) -> RateLimiter:
+        """
+        Create a new rate limiter instance (not cached).
+        
+        Args:
+            config: Configuration for the rate limiter
+            
+        Returns:
+            New RateLimiter instance
+        """
+        final_config = self.default_config.copy()
+        if config:
+            final_config.update(config)
+        
+        # Map configuration keys to constructor parameters
+        constructor_args = {
+            "window_size": final_config.get("WINDOW_SIZE"),
+            "max_calls": final_config.get("MAX_CALLS"),
+            "base_delay": final_config.get("BASE_DELAY"),
+            "min_delay": final_config.get("MIN_DELAY"),
+            "max_delay": final_config.get("MAX_DELAY"),
+            "cache_aware": final_config.get("CACHE_AWARE_RATE_LIMITING"),
+        }
+        
+        # Remove None values
+        constructor_args = {k: v for k, v in constructor_args.items() if v is not None}
+        
+        return RateLimiter(**constructor_args)
+    
+    def clear_instances(self) -> None:
+        """Clear all cached rate limiter instances (useful for testing)."""
+        with self._lock:
+            self._instances.clear()
+            logger.debug("Cleared all rate limiter instances")
+
+
+# Create a default rate limiter factory
+_default_rate_limiter_factory = RateLimiterFactory()
+
+# Create a global rate limiter instance for backward compatibility
+global_rate_limiter = _default_rate_limiter_factory.get_rate_limiter("global")
 
 
 def rate_limited(
