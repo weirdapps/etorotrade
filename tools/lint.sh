@@ -37,7 +37,7 @@ fi
 
 # Run flake8
 echo -e "\n${YELLOW}Checking code with flake8...${NC}"
-flake8 --config .config/linting/.flake8 $PATHS || { echo -e "${RED}Linting issues found. Please fix them manually.${NC}"; exit 1; }
+flake8 $PATHS || { echo -e "${RED}Linting issues found. Please fix them manually.${NC}"; exit 1; }
 
 # Run mypy
 echo -e "\n${YELLOW}Checking types with mypy...${NC}"

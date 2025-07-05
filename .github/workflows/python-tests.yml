@@ -38,4 +38,4 @@ jobs:
     - name: Monitoring system tests
       run: |
         # Run monitoring system tests
-        python scripts/run_monitoring.py --timeout 120
+        python tools/run_monitoring.py --timeout 120
