@@ -551,8 +551,8 @@ def get_columns_to_select():
     Returns:
         list: Columns to select, prioritizing internal names that will be renamed
     """
-    # Only include internal (lowercase) column names that need to be renamed
-    # This prevents duplicate columns in the DataFrame
+    # Include both internal names (for provider data) and display names (for CSV data)
+    # This ensures compatibility with both data sources
     return [
         # Internal names (lowercase) - these will be renamed to display format
         "symbol",
@@ -574,6 +574,24 @@ def get_columns_to_select():
         "last_earnings",
         "position_size",
         "action",
+        # Display format names (for CSV data compatibility)
+        "TICKER",
+        "COMPANY", 
+        "CAP",
+        "PRICE",
+        "TARGET",
+        "UPSIDE",
+        "# T",
+        "% BUY",
+        "# A",
+        "BETA",
+        "PET",
+        "PEF",
+        "PEG",
+        "DIV %",
+        "SI",
+        "EARNINGS",
+        "SIZE",
         # Columns that are already in display format - keep as-is
         "A",  # This is already uppercase
         "EXRET",  # This is already uppercase  
