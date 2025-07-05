@@ -26,7 +26,7 @@ POSITIVE_GRADES = {
 # Provider configuration
 PROVIDER_CONFIG = {
     # Enable yahooquery supplementation in hybrid provider
-    "ENABLE_YAHOOQUERY": False,  # Set to False to disable yahooquery and prevent crumb errors
+    "ENABLE_YAHOOQUERY": True,  # Set to False to disable yahooquery and prevent crumb errors
 }
 
 # Portfolio configuration for position sizing
