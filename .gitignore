@@ -154,6 +154,10 @@ yahoofinance/output/performance.json
 claude.md
 future_improvements.md
 
+# Temporary directories
+.tmp/
+test_output/
+
 # Generated Data
 output/
 yahoofinance/data/circuit_state.json

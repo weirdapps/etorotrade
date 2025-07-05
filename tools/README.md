@@ -1,6 +1,6 @@
-# Scripts Directory
+# Tools Directory
 
-This directory contains utility scripts organized by function:
+This directory contains development tools and utility scripts for the etorotrade project.
 
 ## Directory Structure
 
@@ -39,13 +39,13 @@ Run scripts from the project root directory:
 
 ```bash
 # Analysis
-python scripts/analysis/analyze_recommendation_changes.py
+python tools/analysis/analyze_recommendation_changes.py
 
 # Utilities  
-python scripts/utilities/check_buy_csv.py
+python tools/utilities/check_buy_csv.py
 
 # Monitoring
-python scripts/run_monitoring.py
+python tools/run_monitoring.py
 ```
 
 ## Parameter Files
