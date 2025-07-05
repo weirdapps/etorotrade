@@ -54,6 +54,67 @@ from yahoofinance.utils.error_handling import (
     with_retry,
 )
 
+# Import utility functions from the new modularized utilities
+# This is part of modularizing the large trade.py file into organized components
+from trade_modules.utils import (
+    get_file_paths,
+    ensure_output_directory,
+    check_required_files,
+    find_ticker_column,
+    create_empty_ticker_dataframe,
+    format_market_cap_value,
+    get_column_mapping,
+    safe_float_conversion,
+    safe_percentage_format,
+    validate_dataframe,
+    clean_ticker_symbol,
+    get_display_columns,
+)
+
+# Import CLI interface functions
+from trade_modules.cli import (
+    get_user_source_choice,
+    get_portfolio_choice,
+    get_trade_analysis_choice,
+    display_welcome_message,
+    display_analysis_complete_message,
+    display_error_message,
+    display_info_message,
+    CLIManager,
+)
+
+# Import data processing functions
+from trade_modules.data_processor import (
+    process_market_data,
+    format_company_names,
+    format_numeric_columns,
+    format_percentage_columns,
+    format_earnings_date,
+    calculate_expected_return,
+    DataProcessor,
+)
+
+# Import analysis engine functions
+from trade_modules.analysis_engine import (
+    calculate_exret,
+    calculate_action,
+    filter_buy_opportunities_wrapper as filter_buy_opportunities,
+    filter_sell_candidates_wrapper as filter_sell_candidates,
+    filter_hold_candidates_wrapper as filter_hold_candidates,
+    process_buy_opportunities,
+    AnalysisEngine,
+)
+
+# Import output manager functions
+from trade_modules.output_manager import (
+    display_and_save_results,
+    create_empty_results_file,
+    prepare_display_dataframe,
+    format_display_dataframe,
+    export_results_to_files,
+    OutputManager,
+)
+
 
 # Use standardized logging configuration
 # By default, configure logging to be quiet for the CLI
@@ -98,6 +159,250 @@ warnings.filterwarnings("ignore", category=RuntimeWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+
+class ErrorSummaryCollector:
+    """Centralized error collection and reporting system."""
+    
+    def __init__(self):
+        self.errors = []
+        self.warnings = []
+        self.info_messages = []
+    
+    def add_error(self, message, context=None, ticker=None):
+        """Add an error to the collection."""
+        error_entry = {
+            "type": "ERROR",
+            "message": message,
+            "context": context,
+            "ticker": ticker,
+            "timestamp": datetime.datetime.now()
+        }
+        self.errors.append(error_entry)
+    
+    def add_warning(self, message, context=None, ticker=None):
+        """Add a warning to the collection."""
+        warning_entry = {
+            "type": "WARNING", 
+            "message": message,
+            "context": context,
+            "ticker": ticker,
+            "timestamp": datetime.datetime.now()
+        }
+        self.warnings.append(warning_entry)
+    
+    def add_info(self, message, context=None):
+        """Add an info message to the collection."""
+        info_entry = {
+            "type": "INFO",
+            "message": message,
+            "context": context,
+            "timestamp": datetime.datetime.now()
+        }
+        self.info_messages.append(info_entry)
+    
+    def get_summary(self):
+        """Get a formatted summary of all collected errors and warnings."""
+        total_errors = len(self.errors)
+        total_warnings = len(self.warnings)
+        
+        if total_errors == 0 and total_warnings == 0:
+            return "✅ No errors or warnings reported."
+        
+        summary = []
+        summary.append(f"\n{'='*60}")
+        summary.append(f"📋 EXECUTION SUMMARY")
+        summary.append(f"{'='*60}")
+        
+        if total_errors > 0:
+            summary.append(f"❌ {total_errors} error(s) encountered:")
+            for i, error in enumerate(self.errors[-5:], 1):  # Show last 5 errors
+                ticker_info = f" [{error['ticker']}]" if error['ticker'] else ""
+                summary.append(f"  {i}. {error['message']}{ticker_info}")
+            if total_errors > 5:
+                summary.append(f"  ... and {total_errors - 5} more errors")
+        
+        if total_warnings > 0:
+            summary.append(f"⚠️  {total_warnings} warning(s) encountered:")
+            for i, warning in enumerate(self.warnings[-3:], 1):  # Show last 3 warnings  
+                ticker_info = f" [{warning['ticker']}]" if warning['ticker'] else ""
+                summary.append(f"  {i}. {warning['message']}{ticker_info}")
+            if total_warnings > 3:
+                summary.append(f"  ... and {total_warnings - 3} more warnings")
+        
+        summary.append(f"{'='*60}")
+        return "\n".join(summary)
+    
+    def clear(self):
+        """Clear all collected errors and warnings."""
+        self.errors.clear()
+        self.warnings.clear()
+        self.info_messages.clear()
+
+
+# Global error collector instance
+error_collector = ErrorSummaryCollector()
+
+
+class ConfigurationValidator:
+    """Validates application configuration and environment setup."""
+    
+    def __init__(self):
+        self.validation_errors = []
+        self.validation_warnings = []
+    
+    def validate_environment_variables(self):
+        """Validate required and optional environment variables."""
+        # Optional environment variables with defaults
+        optional_vars = {
+            "ETOROTRADE_LOG_LEVEL": {"default": "WARNING", "valid_values": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]},
+            "ETOROTRADE_DEBUG": {"default": "false", "valid_values": ["true", "false"]},
+            "ETOROTRADE_LOG_FILE": {"default": None, "description": "Path to log file"},
+        }
+        
+        # eToro API variables (optional but recommended for portfolio features)
+        etoro_vars = {
+            "ETORO_API_KEY": {"description": "eToro API key for portfolio access"},
+            "ETORO_USER_KEY": {"description": "eToro user key for authentication"},
+            "ETORO_USERNAME": {"description": "eToro username"},
+        }
+        
+        # Check optional environment variables
+        for var_name, config in optional_vars.items():
+            value = os.environ.get(var_name, config["default"])
+            if value and "valid_values" in config and value not in config["valid_values"]:
+                self.validation_errors.append(
+                    f"Invalid value for {var_name}: '{value}'. Valid values: {config['valid_values']}"
+                )
+        
+        # Check eToro API variables (warn if missing)
+        missing_etoro_vars = [var for var in etoro_vars.keys() if not os.environ.get(var)]
+        if missing_etoro_vars:
+            self.validation_warnings.append(
+                f"eToro API variables not set: {missing_etoro_vars}. "
+                "Portfolio download features will not be available."
+            )
+        
+        return len(self.validation_errors) == 0
+    
+    def validate_directories(self):
+        """Validate that required directories exist or can be created."""
+        try:
+            from yahoofinance.core.config import PATHS
+            required_dirs = [
+                PATHS.get("INPUT_DIR", "yahoofinance/input"),
+                PATHS.get("OUTPUT_DIR", "yahoofinance/output"),
+            ]
+            
+            for dir_path in required_dirs:
+                if not os.path.exists(dir_path):
+                    try:
+                        os.makedirs(dir_path, exist_ok=True)
+                        self.validation_warnings.append(f"Created directory: {dir_path}")
+                    except OSError as e:
+                        self.validation_errors.append(f"Cannot create directory {dir_path}: {e}")
+                elif not os.access(dir_path, os.W_OK):
+                    self.validation_errors.append(f"Directory not writable: {dir_path}")
+        except ImportError:
+            self.validation_warnings.append("Could not import configuration for directory validation")
+        
+        return len(self.validation_errors) == 0
+    
+    def validate_required_files(self):
+        """Validate that required input files exist."""
+        try:
+            from yahoofinance.core.config import PATHS
+            input_dir = PATHS.get("INPUT_DIR", "yahoofinance/input")
+            
+            # Check for common input files (not strictly required but good to have)
+            recommended_files = [
+                "portfolio.csv",
+                "market.csv",
+                "etoro.csv"
+            ]
+            
+            missing_files = []
+            for filename in recommended_files:
+                file_path = os.path.join(input_dir, filename)
+                if not os.path.exists(file_path):
+                    missing_files.append(filename)
+            
+            if missing_files:
+                self.validation_warnings.append(
+                    f"Recommended input files not found: {missing_files}. "
+                    "You may need to create these files or use manual input mode."
+                )
+        except ImportError:
+            self.validation_warnings.append("Could not import configuration for file validation")
+        
+        return True  # Missing files are warnings, not errors
+    
+    def validate_dependencies(self):
+        """Validate that required Python packages are available."""
+        required_packages = [
+            ("pandas", "pandas"),
+            ("numpy", "numpy"), 
+            ("yfinance", "yfinance"),
+            ("tqdm", "tqdm"),
+        ]
+        
+        for package_name, import_name in required_packages:
+            try:
+                __import__(import_name)
+            except ImportError:
+                self.validation_errors.append(f"Required package not found: {package_name}")
+        
+        return len(self.validation_errors) == 0
+    
+    def run_full_validation(self):
+        """Run all validation checks and return results."""
+        self.validation_errors.clear()
+        self.validation_warnings.clear()
+        
+        env_valid = self.validate_environment_variables()
+        dir_valid = self.validate_directories()
+        files_valid = self.validate_required_files()
+        deps_valid = self.validate_dependencies()
+        
+        overall_valid = env_valid and dir_valid and files_valid and deps_valid
+        
+        return {
+            "valid": overall_valid,
+            "errors": self.validation_errors.copy(),
+            "warnings": self.validation_warnings.copy()
+        }
+    
+    def print_validation_report(self):
+        """Print a formatted validation report."""
+        result = self.run_full_validation()
+        
+        print("\n" + "="*60)
+        print("🔧 CONFIGURATION VALIDATION")
+        print("="*60)
+        
+        if result["valid"] and not result["warnings"]:
+            print("✅ All configuration checks passed!")
+        elif result["valid"]:
+            print("✅ Configuration is valid with some warnings:")
+            for warning in result["warnings"]:
+                print(f"⚠️  {warning}")
+        else:
+            print("❌ Configuration validation failed:")
+            for error in result["errors"]:
+                print(f"❌ {error}")
+            
+            if result["warnings"]:
+                print("\nWarnings:")
+                for warning in result["warnings"]:
+                    print(f"⚠️  {warning}")
+        
+        print("="*60)
+        return result["valid"]
+
+
+# Global configuration validator
+config_validator = ConfigurationValidator()
+
 
 # Define constants for column names
 BUY_PERCENTAGE = COLUMN_NAMES["BUY_PERCENTAGE"]
@@ -285,230 +590,8 @@ def _create_empty_ticker_dataframe():
     )
 
 
-def filter_buy_opportunities(market_df):
-    """Filter buy opportunities from market data.
-
-    Args:
-        market_df: Market dataframe
-
-    Returns:
-        pd.DataFrame: Filtered buy opportunities
-    """
-    # Import the filter function from v2 analysis
-    from yahoofinance.analysis.market import filter_buy_opportunities as filter_buy
-
-    return filter_buy(market_df)
-
-
-def filter_sell_candidates(portfolio_df):
-    """Filter sell candidates from portfolio data.
-
-    Args:
-        portfolio_df: Portfolio dataframe
-
-    Returns:
-        pd.DataFrame: Filtered sell candidates
-    """
-    # Import the filter function from v2 analysis
-    from yahoofinance.analysis.market import filter_sell_candidates as filter_sell
-
-    logger.debug(
-        f"Filtering sell candidates from DataFrame with columns: {portfolio_df.columns.tolist()}"
-    )
-    result = filter_sell(portfolio_df)
-    logger.debug(f"Found {len(result)} sell candidates")
-    return result
-
-
-def filter_hold_candidates(market_df):
-    """Filter hold candidates from market data.
-
-    Args:
-        market_df: Market dataframe
-
-    Returns:
-        pd.DataFrame: Filtered hold candidates
-    """
-    # Import the filter function from v2 analysis
-    from yahoofinance.analysis.market import filter_hold_candidates as filter_hold
-
-    logger.debug(
-        f"Filtering hold candidates from DataFrame with columns: {market_df.columns.tolist()}"
-    )
-    result = filter_hold(market_df)
-    logger.debug(f"Found {len(result)} hold candidates")
-    return result
-
-
-def calculate_exret(df):
-    """Calculate EXRET (Expected Return) if not already present.
-
-    Args:
-        df: Dataframe with upside and buy_percentage columns
-
-    Returns:
-        pd.DataFrame: Dataframe with EXRET column added
-    """
-    # Always recalculate EXRET even if it exists to ensure consistency with upside values
-    if (
-        "upside" in df.columns
-        and "buy_percentage" in df.columns
-        and pd.api.types.is_numeric_dtype(df["upside"])
-        and pd.api.types.is_numeric_dtype(df["buy_percentage"])
-    ):
-        # Round upside to 1 decimal place to match display formatting before calculating EXRET
-        rounded_upside = df["upside"].round(1)
-        # Calculate EXRET: upside% * buy% / 100 = percentage
-        df["EXRET"] = (rounded_upside * df["buy_percentage"]) / 100
-    else:
-        df["EXRET"] = None
-    return df
-
-
-def calculate_action(df):
-    """Calculate buy/sell/hold decisions and add as B/S/H indicator for the output.
-    This uses the full criteria from TRADING_CRITERIA config to ensure consistency with
-    the filter_buy/sell/hold functions.
-
-    Args:
-        df: Dataframe with necessary metrics
-
-    Returns:
-        pd.DataFrame: Dataframe with action classifications added
-    """
-    try:
-        # Import trading criteria from the same source used by filter functions
-        from yahoofinance.core.config import TRADING_CRITERIA
-
-        # Import trade criteria utilities
-        from yahoofinance.utils.trade_criteria import (
-            calculate_action_for_row,
-            format_numeric_values,
-        )
-
-        # Create a working copy to prevent modifying the original
-        working_df = df.copy()
-
-        # Initialize action column as empty strings
-        working_df["action"] = ""
-
-        # Define numeric columns to format
-        numeric_columns = [
-            "upside",
-            "buy_percentage",
-            "pe_trailing",
-            "pe_forward",
-            "peg_ratio",
-            "beta",
-            "analyst_count",
-            "total_ratings",
-        ]
-
-        # Handle 'short_percent' or 'short_float_pct' - use whichever is available
-        short_field = (
-            "short_percent" if "short_percent" in working_df.columns else "short_float_pct"
-        )
-        if short_field in working_df.columns:
-            numeric_columns.append(short_field)
-
-        # Format numeric values
-        working_df = format_numeric_values(working_df, numeric_columns)
-
-        # Calculate EXRET if not already present
-        if (
-            "EXRET" not in working_df.columns
-            and "upside" in working_df.columns
-            and "buy_percentage" in working_df.columns
-        ):
-            # Make sure we convert values to float before multiplying
-            working_df["EXRET"] = working_df.apply(_safe_calc_exret, axis=1)
-
-        # Process each row and calculate action
-        for idx, row in working_df.iterrows():
-            try:
-                action, _ = calculate_action_for_row(row, TRADING_CRITERIA, short_field)
-                working_df.at[idx, "action"] = action
-            except YFinanceError as e:
-                # Handle any errors during action calculation for individual rows
-                error_context = {
-                    "ticker": row.get("ticker", "UNKNOWN"),
-                    "operation": "calculate_action_for_row",
-                    "step": "action_calculation",
-                    "row_index": idx,
-                }
-                enriched_error = enrich_error_context(e, error_context)
-                logger.debug(f"Error calculating action: {enriched_error}")
-                working_df.at[idx, "action"] = "H"  # Default to HOLD if there's an error
-            except Exception as e:
-                # Catch any other unexpected errors during action calculation
-                error_context = {
-                    "ticker": row.get("ticker", "UNKNOWN"),
-                    "operation": "calculate_action_for_row",
-                    "step": "action_calculation",
-                    "row_index": idx,
-                    "error_type": type(e).__name__,
-                }
-                enriched_error = enrich_error_context(e, error_context)
-                logger.error(
-                    f"Unexpected error calculating action: {enriched_error}", exc_info=True
-                )
-                working_df.at[idx, "action"] = "H"  # Default to HOLD if there's an error
-
-        # Replace any empty string actions with 'H' for consistency
-        working_df["action"] = working_df["action"].replace("", "H").fillna("H")
-
-        # For backward compatibility, also update ACTION column
-        working_df["ACTION"] = working_df["action"]
-
-        # Transfer action columns to the original DataFrame
-        df["action"] = working_df["action"]
-        df["ACTION"] = working_df["action"]
-
-        return df
-    except YFinanceError as e:
-        # Handle YFinanceError for the entire function
-        error_context = {"operation": "calculate_action", "step": "overall_calculation"}
-        enriched_error = enrich_error_context(e, error_context)
-        logger.error(f"Error in calculate_action: {enriched_error}", exc_info=True)
-        # Initialize action columns as HOLD ('H') if calculation fails
-        df["action"] = "H"
-        df["ACTION"] = "H"
-        return df
-    except Exception as e:
-        # Handle any other unexpected errors for the entire function
-        error_context = {
-            "operation": "calculate_action",
-            "step": "overall_calculation",
-            "error_type": type(e).__name__,
-        }
-        enriched_error = enrich_error_context(e, error_context)
-        logger.error(f"Unexpected error in calculate_action: {enriched_error}", exc_info=True)
-        # Initialize action columns as HOLD ('H') if calculation fails
-        df["action"] = "H"
-        df["ACTION"] = "H"
-        return df
-
-
-def _safe_calc_exret(row):
-    """Helper function to safely calculate EXRET for a row."""
-    try:
-        if pd.isna(row["upside"]) or pd.isna(row["buy_percentage"]):
-            return None
-
-        # Convert to float if needed
-        upside = float(row["upside"]) if isinstance(row["upside"], str) else row["upside"]
-        buy_pct = (
-            float(row["buy_percentage"])
-            if isinstance(row["buy_percentage"], str)
-            else row["buy_percentage"]
-        )
-
-        # Round upside to 1 decimal place to match display formatting before calculating EXRET
-        rounded_upside = round(upside, 1)
-        # Calculate EXRET: upside% * buy% / 100 = percentage
-        return (rounded_upside * buy_pct) / 100
-    except (TypeError, ValueError):
-        return None
+# Analysis functions have been moved to trade_modules/analysis_engine.py
+# These functions are now imported from the modularized analysis engine
 
 
 def get_column_mapping():
@@ -2711,18 +2794,19 @@ def _load_market_data(market_path):
         pd.DataFrame or None: Market data or None if file not found
     """
     if not os.path.exists(market_path):
-        print(f"\nMarket analysis file not found: {market_path}")
-        print("Please run the market analysis (M) first to generate hold recommendations.")
+        print(f"\n❌ Market analysis file not found: {market_path}")
+        print("📋 Please run the market analysis (M) first to generate hold recommendations.")
         return None
 
     try:
+        print(f"📊 Loading market analysis data from {market_path}...")
         # Read market analysis data
         market_df = pd.read_csv(market_path)
 
         # Convert percentage strings to numeric
         market_df = _convert_percentage_columns(market_df)
 
-        print(f"Loaded {len(market_df)} market ticker records")
+        print(f"✅ Loaded {len(market_df)} market ticker records")
         return market_df
     except YFinanceError:
         # Return empty DataFrame silently instead of printing error
@@ -2949,22 +3033,27 @@ def _load_data_files(market_path, portfolio_path):
         tuple: (market_df, portfolio_df) or (None, None) if loading fails
     """
     # Read market data
-    print(f"Loading market data from {market_path}...")
+    print(f"📊 Loading market data from {market_path}...")
     try:
         market_df = pd.read_csv(market_path)
-        print(f"Loaded {len(market_df)} market ticker records")
+        print(f"✅ Loaded {len(market_df)} market ticker records")
     except YFinanceError as e:
-        logger.error(f"Error loading market data: {str(e)}")
+        error_msg = f"Error loading market data: {str(e)}"
+        logger.error(f"❌ {error_msg}")
+        error_collector.add_error(error_msg, context="data_loading")
         # Handle error silently
         return None, None
 
     # Read portfolio data
-    print(f"Loading portfolio data from {portfolio_path}...")
+    print(f"💼 Loading portfolio data from {portfolio_path}...")
     try:
         portfolio_df = pd.read_csv(portfolio_path)
+        print(f"✅ Loaded {len(portfolio_df)} portfolio records")
         # Suppress debug message about loaded records
     except YFinanceError as e:
-        logger.error(f"Error loading portfolio data: {str(e)}")
+        error_msg = f"Error loading portfolio data: {str(e)}"
+        logger.error(f"❌ {error_msg}")
+        error_collector.add_error(error_msg, context="data_loading") 
         # Handle error silently
         return None, None
 
@@ -3027,7 +3116,7 @@ async def _process_trade_action(
     action_data = {
         "N": {
             "name": "BUY",
-            "message": "Processing BUY opportunities...",
+            "message": "🔍 Processing BUY opportunities...",
             "processor": lambda: process_buy_opportunities(
                 market_df, portfolio_tickers, output_dir, notrade_path, provider=provider
             ),
@@ -3035,13 +3124,13 @@ async def _process_trade_action(
         },
         "E": {
             "name": "SELL",
-            "message": "Processing SELL candidates from portfolio...",
+            "message": "📈 Processing SELL candidates from portfolio...",
             "processor": lambda: process_sell_candidates(output_dir, provider=provider),
             "output_key": "sell",
         },
         "H": {
             "name": "HOLD",
-            "message": "Processing HOLD candidates...",
+            "message": "⚖️ Processing HOLD candidates...",
             "processor": lambda: process_hold_candidates(output_dir, provider=provider),
             "output_key": "hold",
         },
@@ -3212,11 +3301,8 @@ async def handle_trade_analysis(get_provider=None, app_logger=None):
             provider = get_provider
             if app_logger:
                 app_logger.info(f"Using injected provider instance: {provider.__class__.__name__}")
-    action = (
-        input("Do you want to identify BUY (B), SELL (S), or HOLD (H) opportunities? ")
-        .strip()
-        .upper()
-    )
+    # Use CLI module for trade analysis choice
+    action = get_trade_analysis_choice()
     if action == BUY_ACTION:
         if app_logger:
             app_logger.info("User selected BUY analysis")
@@ -3283,14 +3369,8 @@ async def handle_portfolio_download(get_provider=None, app_logger=None):
             if app_logger:
                 app_logger.info(f"Using injected provider instance: {provider.__class__.__name__}")
 
-    # Prompt user for portfolio choice
-    while True:
-        use_existing = (
-            input("Use existing portfolio file (E) or download new one (N)? ").strip().upper()
-        )
-        if use_existing in ["E", "N"]:
-            break
-        print("Invalid choice. Please enter 'E' to use existing file or 'N' to download a new one.")
+    # Prompt user for portfolio choice using CLI module
+    use_existing = get_portfolio_choice()
 
     if use_existing == "N":
         print("Attempting to download a new portfolio...")
@@ -5552,18 +5632,8 @@ async def main_async(get_provider=None, app_logger=None):
         display = MarketDisplay(provider=provider)
         app_logger.info("MarketDisplay created successfully")
 
-        try:
-            source = (
-                input(
-                    "Load tickers for Portfolio (P), Market (M), eToro Market (E), Trade Analysis (T) or Manual Input (I)? "
-                )
-                .strip()
-                .upper()
-            )
-        except EOFError:
-            # For testing in non-interactive environments, default to Manual Input
-            print("Non-interactive environment detected, defaulting to Manual Input (I)")
-            source = "I"
+        # Use the CLI module for user interaction
+        source = get_user_source_choice()
         app_logger.info(f"User selected option: {source}")
 
         # Handle trade analysis separately
@@ -5682,10 +5752,28 @@ def main(app_logger=None):
 
     # Run the async main function with interactive input
     asyncio.run(main_async())
+    
+    # Display error summary after execution
+    summary = error_collector.get_summary()
+    if summary:
+        print(summary)
 
 
 if __name__ == "__main__":
+    # Handle special validation-only mode
+    if len(sys.argv) > 1 and sys.argv[1] == "--validate-config":
+        print("🔧 Running configuration validation...")
+        is_valid = config_validator.print_validation_report()
+        sys.exit(0 if is_valid else 1)
+    
     try:
+        # Run configuration validation first
+        print("🔧 Running configuration validation...")
+        if not config_validator.print_validation_report():
+            print("\n❌ Configuration validation failed. Please fix the errors above before continuing.")
+            print("💡 You can also run 'python trade.py --validate-config' to check configuration without starting the application.")
+            sys.exit(1)
+        
         # Ensure input/output directories
         output_dir, input_dir, _, _, _ = get_file_paths()
         os.makedirs(output_dir, exist_ok=True)
@@ -5715,4 +5803,9 @@ if __name__ == "__main__":
         main()
     except YFinanceError as e:
         # Silently handle errors without any output
-        pass
+        error_collector.add_error(f"Critical error: {str(e)}", context="main_execution")
+    finally:
+        # Always display error summary at the end
+        summary = error_collector.get_summary()
+        if summary:
+            print(summary)
