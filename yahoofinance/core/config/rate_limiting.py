@@ -14,19 +14,19 @@ class RateLimitConfig:
         self.window_size = 60  # 1 minute sliding window
         self.max_calls = 60    # Max 60 calls per minute window
         
-        # Delay configuration - SIMPLIFIED FIXED RATE STRATEGY
-        self.base_delay = 0.3     # 300ms between API calls
-        self.min_delay = 0.3      # Fixed minimum delay
-        self.max_delay = 0.3      # Fixed maximum delay (except for rate limit errors)
+        # Delay configuration - OPTIMIZED FOR PERFORMANCE
+        self.base_delay = 0.15    # 150ms between API calls (optimized)
+        self.min_delay = 0.1      # Aggressive but safe minimum delay
+        self.max_delay = 2.0      # Allow higher delays for error conditions
         
-        # Batch configuration
-        self.batch_size = 10       # Items per batch
-        self.batch_delay = 0.2     # Delay between batches in seconds
+        # Batch configuration - OPTIMIZED FOR THROUGHPUT
+        self.batch_size = 25       # Larger batches for better throughput
+        self.batch_delay = 0.1     # Reduced delay between batches
         
         # Retry and timeout configuration
         self.max_retry_attempts = 3
         self.api_timeout = 60
-        self.max_concurrent_calls = 15
+        self.max_concurrent_calls = 30  # Increased for better async performance
         
         # Jitter and adaptation - DISABLED for fixed rate strategy
         self.jitter_factor = 0.0

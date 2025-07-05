@@ -52,22 +52,22 @@ RATE_LIMIT = {
     "WINDOW_SIZE": 60,
     # Maximum API calls per minute window
     "MAX_CALLS": 60,
-    # Fixed delay between calls in seconds - no adaptive adjustment
-    "BASE_DELAY": 0.3,
-    # Fixed minimum delay - will not go lower
-    "MIN_DELAY": 0.3,
-    # Fixed maximum delay - will not go higher except for rate limit errors
-    "MAX_DELAY": 0.3,
-    # Number of items per batch - set to 10 as requested
-    "BATCH_SIZE": 10,
-    # Delay between batches in seconds - set to 0.2 as requested
-    "BATCH_DELAY": 0.2,
+    # Optimized delay between calls - reduced for better performance
+    "BASE_DELAY": 0.15,
+    # Minimum delay - aggressive but safe
+    "MIN_DELAY": 0.1,
+    # Maximum delay for error conditions
+    "MAX_DELAY": 2.0,
+    # Increased batch size for better throughput
+    "BATCH_SIZE": 25,
+    # Reduced batch delay for faster processing
+    "BATCH_DELAY": 0.1,
     # Maximum retry attempts for API calls
     "MAX_RETRY_ATTEMPTS": 3,
     # API request timeout in seconds
     "API_TIMEOUT": 60,
-    # Maximum concurrent API calls (for async)
-    "MAX_CONCURRENT_CALLS": 15,
+    # Increased concurrent API calls for better async performance
+    "MAX_CONCURRENT_CALLS": 30,
     # No jitter - use fixed delays
     "JITTER_FACTOR": 0.0,
     # Disable error-based delay adjustments
