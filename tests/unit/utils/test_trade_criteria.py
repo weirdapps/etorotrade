@@ -184,12 +184,12 @@ def test_pe_condition_in_buy_criteria(trading_criteria, test_data):
     assert is_buy is True
     assert reason is None
 
-    # Should fail PE condition (forward PE > trailing PE and not growth)
+    # Should fail PE condition (forward PE expansion > 10 points)
     worse_pe = test_data["buy_stock"].copy()
-    worse_pe["pe_forward"] = 25.0  # Higher than trailing PE of 20.0
+    worse_pe["pe_forward"] = 35.0  # Much higher than trailing PE of 20.0 (difference = 15)
     is_buy, reason = TradingCriteria.check_buy_criteria(worse_pe)
     assert is_buy is False
-    assert "not improving" in reason.lower() or "not a growth" in reason.lower()
+    assert "expanding too much" in reason.lower()
 
 
 def test_calculate_action_for_row(trading_criteria, test_data):

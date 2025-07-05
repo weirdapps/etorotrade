@@ -201,7 +201,17 @@ except ImportError:
             "MIN_BUY_PERCENTAGE": 65.0,
         },
     }
-    PORTFOLIO_CONFIG = {}
+    PORTFOLIO_CONFIG = {
+        "PORTFOLIO_VALUE": 450_000,
+        "MIN_POSITION_USD": 1_000,
+        "MAX_POSITION_USD": 40_000,
+        "MAX_POSITION_PCT": 8.9,
+        "BASE_POSITION_PCT": 0.5,
+        "HIGH_CONVICTION_PCT": 2.0,
+        "SMALL_CAP_THRESHOLD": 2_000_000_000,
+        "MID_CAP_THRESHOLD": 10_000_000_000,
+        "LARGE_CAP_THRESHOLD": 50_000_000_000,
+    }
     PROVIDER_CONFIG = {
         "ENABLE_YAHOOQUERY": False,
     }
@@ -251,10 +261,13 @@ except ImportError:
         "FAILURE_THRESHOLD": 5,
         "RECOVERY_TIMEOUT": 60,
         "HALF_OPEN_MAX_CALLS": 2,
+        "STATE_FILE": "yahoofinance/data/circuit_state.json",
+        "MAX_RETRY_ATTEMPTS": 3,
     }
     PAGINATION = {
         "DEFAULT_PAGE_SIZE": 50,
         "MAX_PAGE_SIZE": 1000,
+        "PAGE_SIZE": 50,
     }
     CACHE_CONFIG = {
         "ENABLE_MEMORY_CACHE": False,
@@ -301,6 +314,7 @@ except ImportError:
         "SUCCESS": "Operation completed successfully",
         "PROMPT_ENTER_TICKERS": "Enter tickers (comma-separated): ",
         "PROMPT_SOURCE_SELECTION": "Load tickers for Portfolio (P), Market (M), eToro Market (E), Trade Analysis (T) or Manual Input (I)? ",
+        "PROMPT_TICKER_SOURCE": "Select ticker source: ",
         "INFO_TICKERS_LOADED": "Loaded {count} tickers from {file_path}",
         "ERROR_LOADING_FILE": "Error loading file {file_path}: {error}",
     }
