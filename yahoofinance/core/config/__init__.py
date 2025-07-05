@@ -271,6 +271,7 @@ except ImportError:
         "PAGE_SIZE": 50,
         "MAX_PAGES": 100,
         "MAX_RETRIES": 3,
+        "RETRY_DELAY": 1.0,
     }
     CACHE_CONFIG = {
         "ENABLE_MEMORY_CACHE": False,
@@ -319,6 +320,8 @@ except ImportError:
         "PROMPT_SOURCE_SELECTION": "Load tickers for Portfolio (P), Market (M), eToro Market (E), Trade Analysis (T) or Manual Input (I)? ",
         "PROMPT_TICKER_SOURCE": "Select ticker source: ",
         "PROMPT_TICKER_SOURCE_OPTIONS": "Available ticker sources",
+        "PROMPT_TICKER_SOURCE_CHOICE": "Enter your choice: ",
+        "PROMPT_INVALID_CHOICE": "Invalid choice. Please try again.",
         "INFO_TICKERS_LOADED": "Loaded {count} tickers from {file_path}",
         "ERROR_LOADING_FILE": "Error loading file {file_path}: {error}",
     }
