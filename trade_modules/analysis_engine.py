@@ -14,6 +14,7 @@ from typing import Dict, Any, Optional, List, Tuple
 # Import trading criteria and configuration
 from yahoofinance.core.config import TRADING_CRITERIA, COLUMN_NAMES
 from yahoofinance.core.errors import YFinanceError
+from yahoofinance.core.trade_criteria_config import TradingCriteria
 from yahoofinance.utils.error_handling import enrich_error_context
 from yahoofinance.utils.trade_criteria import calculate_action_for_row
 from yahoofinance.analysis.market import (
@@ -79,9 +80,82 @@ def _safe_calc_exret(row: pd.Series) -> float:
         return 0.0
 
 
+def calculate_action_vectorized(df: pd.DataFrame) -> pd.Series:
+    """
+    Vectorized calculation of trading actions for improved performance.
+    
+    Args:
+        df: DataFrame with financial metrics
+        
+    Returns:
+        pd.Series: Series with action values (B/S/H/I)
+    """
+    # Convert columns to numeric with NaN handling
+    upside = pd.to_numeric(df.get("upside", 0), errors="coerce").fillna(0)
+    buy_pct = pd.to_numeric(df.get("buy_percentage", 0), errors="coerce").fillna(0)
+    analyst_count = pd.to_numeric(df.get("analyst_count", df.get("# T", 0)), errors="coerce").fillna(0)
+    total_ratings = pd.to_numeric(df.get("total_ratings", df.get("# A", 0)), errors="coerce").fillna(0)
+    
+    # Confidence check - vectorized
+    has_confidence = (analyst_count >= TradingCriteria.MIN_ANALYST_COUNT) & \
+                     (total_ratings >= TradingCriteria.MIN_PRICE_TARGETS)
+    
+    # SELL criteria - vectorized (ANY condition triggers SELL)
+    sell_conditions = (
+        (upside < TradingCriteria.SELL_MAX_UPSIDE) |
+        (buy_pct < TradingCriteria.SELL_MIN_BUY_PERCENTAGE)
+    )
+    
+    # Additional SELL criteria for stocks with data
+    pef = pd.to_numeric(df.get("pe_forward", np.nan), errors="coerce")
+    pet = pd.to_numeric(df.get("pe_trailing", np.nan), errors="coerce")
+    peg = pd.to_numeric(df.get("peg_ratio", np.nan), errors="coerce")
+    si = pd.to_numeric(df.get("short_percent", df.get("SI", np.nan)), errors="coerce")
+    beta = pd.to_numeric(df.get("beta", np.nan), errors="coerce")
+    exret_col = df.get("EXRET")
+    if exret_col is None:
+        exret = pd.Series(0, index=df.index)
+    else:
+        exret = pd.to_numeric(exret_col, errors="coerce").fillna(0)
+    
+    # Additional SELL conditions
+    sell_conditions = sell_conditions | \
+                     (pef > pet) | \
+                     (pef > TradingCriteria.SELL_MIN_FORWARD_PE) | \
+                     (peg > TradingCriteria.SELL_MIN_PEG) | \
+                     (si > TradingCriteria.SELL_MIN_SHORT_INTEREST) | \
+                     (beta > TradingCriteria.SELL_MIN_BETA) | \
+                     (exret < TradingCriteria.SELL_MAX_EXRET * 100)  # Convert to percentage
+    
+    # BUY criteria - vectorized (ALL conditions must be true)
+    buy_conditions = (
+        (upside >= TradingCriteria.BUY_MIN_UPSIDE) &
+        (buy_pct >= TradingCriteria.BUY_MIN_BUY_PERCENTAGE) &
+        (exret >= TradingCriteria.BUY_MIN_EXRET * 100)  # Convert to percentage
+    )
+    
+    # Additional BUY criteria for stocks with data (missing data is acceptable)
+    beta_ok = beta.isna() | ((beta >= TradingCriteria.BUY_MIN_BETA) & (beta <= TradingCriteria.BUY_MAX_BETA))
+    pef_ok = pef.isna() | ((pef > TradingCriteria.BUY_MIN_FORWARD_PE) & (pef <= TradingCriteria.BUY_MAX_FORWARD_PE))
+    peg_ok = peg.isna() | (peg <= TradingCriteria.BUY_MAX_PEG)
+    si_ok = si.isna() | (si <= TradingCriteria.BUY_MAX_SHORT_INTEREST)
+    
+    # Combine all BUY criteria
+    buy_conditions = buy_conditions & beta_ok & pef_ok & peg_ok & si_ok
+    
+    # Calculate final actions
+    actions = pd.Series("H", index=df.index)  # Default to HOLD
+    actions[~has_confidence] = "I"  # INCONCLUSIVE for low confidence
+    actions[has_confidence & sell_conditions] = "S"  # SELL
+    actions[has_confidence & buy_conditions & ~sell_conditions] = "B"  # BUY
+    
+    return actions
+
+
 def calculate_action(df: pd.DataFrame) -> pd.DataFrame:
     """
     Calculate trading action (B/S/H) for each row based on trading criteria.
+    OPTIMIZED: Uses vectorized operations instead of row-by-row apply for better performance.
     
     Args:
         df: DataFrame with financial metrics
@@ -92,12 +166,10 @@ def calculate_action(df: pd.DataFrame) -> pd.DataFrame:
     working_df = df.copy()
     
     try:
-        # Use centralized action calculation
-        working_df["ACT"] = working_df.apply(
-            lambda row: calculate_action_for_row(row), axis=1
-        )
+        # Use vectorized action calculation for better performance
+        working_df["ACT"] = calculate_action_vectorized(working_df)
         
-        logger.debug(f"Calculated actions for {len(working_df)} rows")
+        logger.debug(f"Calculated actions for {len(working_df)} rows using vectorized operations")
         return working_df
     except Exception as e:
         logger.error(f"Error calculating actions: {str(e)}")

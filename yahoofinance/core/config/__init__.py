@@ -161,12 +161,12 @@ except ImportError:
         "DEFAULT_LOG_FILE": "logs/yahoofinance.log",
     }
     RATE_LIMIT = {
-        # Minimal fallback rate limit configuration
+        # Optimized fallback rate limit configuration for performance
         "WINDOW_SIZE": 60,
         "MAX_CALLS": 75,
-        "BASE_DELAY": 0.3,
+        "BASE_DELAY": 0.15,  # Optimized: reduced from 0.3
         "MIN_DELAY": 0.1,
-        "MAX_DELAY": 30.0,
+        "MAX_DELAY": 2.0,    # Optimized: reduced from 30.0
         "SUCCESS_THRESHOLD": 5,
         "SUCCESS_DELAY_REDUCTION": 0.8,
         "ERROR_THRESHOLD": 2,
@@ -176,9 +176,9 @@ except ImportError:
         "SLOW_TICKERS": set(),
         "ENABLE_ADAPTIVE_STRATEGY": True,
         "MONITOR_INTERVAL": 60,
-        "BATCH_SIZE": 10,
-        "BATCH_DELAY": 0.5,
-        "MAX_CONCURRENT_CALLS": 10,
+        "BATCH_SIZE": 25,     # Optimized: increased from 10
+        "BATCH_DELAY": 0.1,   # Optimized: reduced from 0.5
+        "MAX_CONCURRENT_CALLS": 30,  # Optimized: increased from 10
         # Connection pooling configuration
         "MAX_TOTAL_CONNECTIONS": 50,
         "MAX_CONNECTIONS_PER_HOST": 20,
