@@ -186,6 +186,7 @@ except ImportError:
         "DNS_CACHE_TTL": 300,
         "SESSION_MAX_AGE": 3600,
         "API_TIMEOUT": 30,
+        "MAX_RETRY_ATTEMPTS": 3,
     }
     TRADING_CRITERIA = {
         "CONFIDENCE": {
@@ -268,6 +269,8 @@ except ImportError:
         "DEFAULT_PAGE_SIZE": 50,
         "MAX_PAGE_SIZE": 1000,
         "PAGE_SIZE": 50,
+        "MAX_PAGES": 100,
+        "MAX_RETRIES": 3,
     }
     CACHE_CONFIG = {
         "ENABLE_MEMORY_CACHE": False,
@@ -315,6 +318,7 @@ except ImportError:
         "PROMPT_ENTER_TICKERS": "Enter tickers (comma-separated): ",
         "PROMPT_SOURCE_SELECTION": "Load tickers for Portfolio (P), Market (M), eToro Market (E), Trade Analysis (T) or Manual Input (I)? ",
         "PROMPT_TICKER_SOURCE": "Select ticker source: ",
+        "PROMPT_TICKER_SOURCE_OPTIONS": "Available ticker sources",
         "INFO_TICKERS_LOADED": "Loaded {count} tickers from {file_path}",
         "ERROR_LOADING_FILE": "Error loading file {file_path}: {error}",
     }

@@ -64,30 +64,17 @@ async def enhanced_provider_with_circuit_breaker():
 
 @pytest.mark.asyncio
 async def test_ensure_session():
-    """Test that _ensure_session creates a session when needed"""
+    """Test that _ensure_session gets the shared session"""
     # Create a proper AsyncMock for session
     mock_session = AsyncMock()
     mock_session.closed = False
 
-    # Mock the ClientSession constructor to return our controlled mock
-    with patch("aiohttp.ClientSession", return_value=mock_session):
+    # Mock the shared session manager since the provider now uses it
+    with patch("yahoofinance.api.providers.async_yahoo_finance.get_shared_session", return_value=mock_session):
         provider = MockableAsyncYahooFinanceProvider()
-        assert provider._session is None
-
-        # First call should create a session
         session = await provider._ensure_session()
-        assert provider._session is not None
-        assert session is provider._session
+        assert session is mock_session
 
-        # Second call should return the same session
-        session2 = await provider._ensure_session()
-        assert session2 is session
-
-        # Clean up
-        await provider.close()
-        assert provider._session is None
-        # Verify that close was called
-        mock_session.close.assert_called_once()
 
 
 @pytest.mark.asyncio
