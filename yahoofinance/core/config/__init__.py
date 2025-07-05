@@ -132,6 +132,8 @@ try:
         CACHE_CONFIG,
         MESSAGES,
         STANDARD_DISPLAY_COLUMNS,
+        RISK_METRICS,
+        PERFORMANCE_CONFIG,
     )
 except ImportError:
     # Define minimal fallbacks to prevent circular import issues
@@ -200,8 +202,20 @@ except ImportError:
         },
     }
     PORTFOLIO_CONFIG = {}
-    PROVIDER_CONFIG = {}
-    POSITIVE_GRADES = []
+    PROVIDER_CONFIG = {
+        "ENABLE_YAHOOQUERY": False,
+    }
+    POSITIVE_GRADES = {
+        "Buy",
+        "Outperform",
+        "Strong Buy",
+        "Overweight",
+        "Accumulate",
+        "Add",
+        "Conviction Buy",
+        "Top Pick",
+        "Positive",
+    }
     SPECIAL_TICKERS = {
         "US_SPECIAL_CASES": {
             "BRK.A",
@@ -243,9 +257,43 @@ except ImportError:
         "MAX_PAGE_SIZE": 1000,
     }
     CACHE_CONFIG = {
-        "TTL": 300,
-        "MAX_SIZE": 1000,
-        "ENABLED": True,
+        "ENABLE_MEMORY_CACHE": False,
+        "ENABLE_DISK_CACHE": False,
+        "MEMORY_ONLY_MODE": True,
+        "MEMORY_CACHE_SIZE": 10000,
+        "MEMORY_CACHE_TTL": 300,
+        "THREAD_LOCAL_CACHE_SIZE": 100,
+        "ENABLE_ULTRA_FAST_PATH": True,
+        "BATCH_UPDATE_THRESHOLD": 5,
+        "CACHE_ERRORS": True,
+        "ERROR_CACHE_TTL": 60,
+        "DISK_CACHE_SIZE_MB": 100,
+        "DISK_CACHE_TTL": 3600,
+        "DISK_CACHE_DIR": "yahoofinance/data/cache",
+        "TICKER_INFO_MEMORY_TTL": 86400,
+        "TICKER_INFO_DISK_TTL": 604800,
+        "MARKET_DATA_MEMORY_TTL": 60,
+        "MARKET_DATA_DISK_TTL": 180,
+        "FUNDAMENTALS_MEMORY_TTL": 60,
+        "FUNDAMENTALS_DISK_TTL": 180,
+        "NEWS_MEMORY_TTL": 600,
+        "NEWS_DISK_TTL": 1200,
+        "ANALYSIS_MEMORY_TTL": 600,
+        "ANALYSIS_DISK_TTL": 1200,
+        "HISTORICAL_DATA_MEMORY_TTL": 86400,
+        "HISTORICAL_DATA_DISK_TTL": 172800,
+        "EARNINGS_DATA_MEMORY_TTL": 600,
+        "EARNINGS_DATA_DISK_TTL": 1200,
+        "INSIDER_TRADES_MEMORY_TTL": 86400,
+        "INSIDER_TRADES_DISK_TTL": 172800,
+        "DIVIDEND_DATA_MEMORY_TTL": 86400,
+        "DIVIDEND_DATA_DISK_TTL": 172800,
+        "TARGET_PRICE_MEMORY_TTL": 600,
+        "TARGET_PRICE_DISK_TTL": 1200,
+        "MISSING_DATA_MEMORY_TTL": 259200,
+        "MISSING_DATA_DISK_TTL": 604800,
+        "US_STOCK_TTL_MULTIPLIER": 1.0,
+        "NON_US_STOCK_TTL_MULTIPLIER": 2.0,
     }
     MESSAGES = {
         "NO_DATA": "No data available",
@@ -279,6 +327,29 @@ except ImportError:
         "SIZE",
         "ACT",
     ]
+    # Missing config constants for backward compatibility
+    RISK_METRICS = {
+        "RISK_FREE_RATE": 0.03,
+        "TRADING_DAYS_PER_YEAR": 252,
+    }
+    PERFORMANCE_CONFIG = {
+        "ENABLE_MEMORY_PROFILING": True,
+        "RESULTS_DIR": "benchmarks",
+        "BASELINE_DIR": "benchmarks",
+        "BENCHMARK": {
+            "BENCHMARK_DIR": "benchmarks",
+            "SAMPLE_TICKERS": [
+                "AAPL", "MSFT", "GOOG", "AMZN", "META",
+                "NVDA", "TSLA", "JPM", "V", "JNJ",
+            ],
+            "BASELINE_FILE": "baseline_performance.json",
+            "MEMORY_PROFILE_THRESHOLD": 1.2,
+            "RESOURCE_MONITOR_INTERVAL": 0.5,
+            "MAX_BENCHMARK_DURATION": 300,
+            "DEFAULT_ITERATIONS": 3,
+            "DEFAULT_WARMUP_ITERATIONS": 1,
+        },
+    }
 
 __all__ = [
     'get_config',
@@ -315,4 +386,6 @@ __all__ = [
     'CACHE_CONFIG',
     'MESSAGES',
     'STANDARD_DISPLAY_COLUMNS',
+    'RISK_METRICS',
+    'PERFORMANCE_CONFIG',
 ]
