@@ -290,6 +290,7 @@ DISPLAY = {
         "peg_ratio": {"precision": 1},
         "dividend_yield": {"precision": 2, "as_percentage": True},
         "short_float_pct": {"precision": 1, "as_percentage": True},
+        "exret": {"precision": 1, "as_percentage": True},
     },
 }
 

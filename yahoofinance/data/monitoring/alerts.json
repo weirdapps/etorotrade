@@ -569,5 +569,23 @@
     "threshold": 3.0,
     "timestamp": 1751812437.144724,
     "tags": {}
+  },
+  {
+    "name": "test_alert",
+    "severity": "warning",
+    "message": "Test message",
+    "value": 5.0,
+    "threshold": 3.0,
+    "timestamp": 1751820696.209903,
+    "tags": {}
+  },
+  {
+    "name": "test_alert",
+    "severity": "warning",
+    "message": "Test message",
+    "value": 5.0,
+    "threshold": 3.0,
+    "timestamp": 1751822080.4953442,
+    "tags": {}
   }
 ]
