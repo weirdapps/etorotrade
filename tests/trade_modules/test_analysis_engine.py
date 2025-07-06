@@ -87,7 +87,7 @@ class TestCalculateExret:
         result = calculate_exret(df)
         
         assert 'EXRET' in result.columns
-        assert result.iloc[0]['EXRET'] == 0.0
+        assert result.iloc[0]['EXRET'] == pytest.approx(0.0)
     
     def test_calculate_exret_nan_values(self, edge_case_dataframe):
         """Test EXRET calculation with NaN values."""

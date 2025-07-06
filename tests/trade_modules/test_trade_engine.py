@@ -207,8 +207,8 @@ class TestPositionSizer:
         """Test PositionSizer initialization with parameters."""
         sizer = PositionSizer(max_position_size=0.10, min_position_size=0.02)
         
-        assert sizer.max_position_size == 0.10
-        assert sizer.min_position_size == 0.02
+        assert sizer.max_position_size == pytest.approx(0.10)
+        assert sizer.min_position_size == pytest.approx(0.02)
     
     def test_init_with_defaults(self):
         """Test PositionSizer initialization with default parameters."""

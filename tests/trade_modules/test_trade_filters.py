@@ -185,8 +185,8 @@ class TestTradingCriteriaFilter:
             filter_instance.update_criteria(new_criteria)
             
             # Criteria should be updated
-            assert filter_instance.criteria['min_upside'] == 15.0
-            assert filter_instance.criteria['max_pe_forward'] == 25.0
+            assert filter_instance.criteria['min_upside'] == pytest.approx(15.0)
+            assert filter_instance.criteria['max_pe_forward'] == pytest.approx(25.0)
 
 
 class TestPortfolioFilter:
@@ -289,7 +289,7 @@ class TestDataQualityFilter:
         filter_instance = DataQualityFilter(min_completeness=0.8)
         
         assert hasattr(filter_instance, 'min_completeness')
-        assert filter_instance.min_completeness == 0.8
+        assert filter_instance.min_completeness == pytest.approx(0.8)
     
     def test_init_with_default_threshold(self):
         """Test DataQualityFilter initialization with default threshold."""
@@ -510,7 +510,7 @@ class TestFactoryFunctions:
         filter_instance = create_quality_filter(min_completeness=0.9)
         
         assert isinstance(filter_instance, DataQualityFilter)
-        assert filter_instance.min_completeness == 0.9
+        assert filter_instance.min_completeness == pytest.approx(0.9)
     
     def test_create_custom_filter(self):
         """Test create_custom_filter factory function."""
