@@ -31,6 +31,50 @@ CONSOLE_FORMAT = "%(levelname)s - %(message)s"
 LogRecordAttrs = Dict[str, Any]
 
 
+class YFinanceErrorFilter(logging.Filter):
+    """Filter to suppress noisy yfinance/network error messages."""
+    
+    def filter(self, record):
+        # Suppress delisting, earnings, and HTTP error messages
+        if hasattr(record, 'msg'):
+            msg = str(record.msg)
+            if any(pattern in msg.lower() for pattern in [
+                'possibly delisted',
+                'no earnings dates found',
+                'earnings date',
+                'delisted',
+                'no earnings',
+                'http error 404',
+                'http error 400',
+                'http error 403',
+                'http error 500',
+                'connection error',
+                'timeout error',
+                'request failed'
+            ]):
+                return False
+        return True
+
+
+def suppress_yfinance_noise():
+    """Apply filter to suppress yfinance delisting/earnings/HTTP error messages."""
+    # Apply filter to multiple loggers that might generate noise
+    logger_names = ['yfinance', 'urllib3', 'requests', 'yahooquery']
+    
+    for logger_name in logger_names:
+        logger = logging.getLogger(logger_name)
+        # Check if filter is already applied
+        filter_already_applied = any(
+            isinstance(filter_obj, YFinanceErrorFilter) 
+            for filter_obj in logger.filters
+        )
+        
+        if not filter_already_applied:
+            # Apply the filter
+            error_filter = YFinanceErrorFilter()
+            logger.addFilter(error_filter)
+
+
 # ===== Basic Logging Functions =====
 
 def setup_logging(
@@ -86,6 +130,11 @@ def setup_logging(
 
         # Add file handler to root logger
         logging.root.addHandler(file_handler)
+
+    # Add filter to suppress yfinance delisting errors
+    yfinance_logger = logging.getLogger('yfinance')
+    yfinance_filter = YFinanceErrorFilter()
+    yfinance_logger.addFilter(yfinance_filter)
 
     # Log configuration details
     logger = logging.getLogger(__name__)
@@ -231,6 +280,11 @@ def configure_logging(
     # Apply configuration if any handlers are defined
     if handlers:
         logging.config.dictConfig(logging_config)
+
+        # Add filter to suppress yfinance delisting errors
+        yfinance_logger = logging.getLogger('yfinance')
+        yfinance_filter = YFinanceErrorFilter()
+        yfinance_logger.addFilter(yfinance_filter)
 
         # Log initial message
         logger = logging.getLogger(__name__)

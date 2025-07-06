@@ -148,8 +148,8 @@ class TestAsyncHandlers:
         mock_provider = AsyncMock()
         mock_logger = MagicMock()
         
-        with patch('trade.handle_trade_analysis') as mock_handle:
-            mock_handle.return_value = AsyncMock()
+        with patch('trade.run_market_analysis') as mock_handle:
+            mock_handle.return_value = {"opportunities": []}
             
             try:
                 await handle_trade_analysis(mock_provider, mock_logger)
@@ -165,7 +165,7 @@ class TestAsyncHandlers:
         mock_provider = AsyncMock()
         mock_logger = MagicMock()
         
-        with patch('trade.handle_trade_analysis') as mock_handle:
+        with patch('trade.run_market_analysis') as mock_handle:
             mock_handle.side_effect = Exception("Test error")
             
             # Should handle errors gracefully
@@ -181,13 +181,13 @@ class TestAsyncHandlers:
         mock_provider = AsyncMock()
         mock_logger = MagicMock()
         
-        with patch('trade.handle_portfolio_download') as mock_handle:
-            mock_handle.return_value = AsyncMock()
+        with patch('yahoofinance.data.download.download_portfolio') as mock_handle:
+            mock_handle.return_value = True
             
             try:
-                await handle_portfolio_download(mock_provider, mock_logger)
-                # Should complete without errors
-                assert True
+                result = await handle_portfolio_download(mock_provider, mock_logger)
+                # Should complete without errors and return True
+                assert result is True
             except Exception:
                 # Function calls original implementation, which may not be async
                 assert True
@@ -198,15 +198,12 @@ class TestAsyncHandlers:
         mock_provider = AsyncMock()
         mock_logger = MagicMock()
         
-        with patch('trade.handle_portfolio_download') as mock_handle:
+        with patch('yahoofinance.data.download.download_portfolio') as mock_handle:
             mock_handle.side_effect = Exception("Test error")
             
-            # Should handle errors gracefully
-            try:
-                await handle_portfolio_download(mock_provider, mock_logger)
-            except Exception as e:
-                # Error should be handled appropriately
-                assert "Test error" in str(e)
+            # Should handle errors gracefully and return False
+            result = await handle_portfolio_download(mock_provider, mock_logger)
+            assert result is False
 
 
 class TestMainAsync:

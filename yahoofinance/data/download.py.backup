@@ -484,6 +484,95 @@ async def download_portfolio(provider=None):
     
     # Call the modern eToro API implementation
     return await download_etoro_portfolio(provider)
+        handle_cookie_consent(driver)
+
+        logger.info(f"[{run_id}] Attempting to log in with email: {pi_screener_email[:3]}***")
+        login(driver, pi_screener_email, pi_screener_password)
+
+        # Wait for page to load after login
+        logger.info(f"[{run_id}] Waiting for page to load after login...")
+        await asyncio.sleep(20)
+
+        # Check if login was successful
+        current_url = driver.current_url
+        logger.info(f"[{run_id}] Current URL after login: {current_url}")
+
+        if (
+            "login" in current_url.lower()
+            or "signin" in current_url.lower()
+            or "auth" in current_url.lower()
+        ):
+            logger.error(
+                f"[{run_id}] Login appears to have failed. Still on login page: {current_url}"
+            )
+            return await fallback_portfolio_download()
+
+        # Handle portfolio operations
+        logger.info(f"[{run_id}] Accessing portfolio features...")
+        handle_portfolio_buttons(driver)
+
+        # Process download
+        logger.info(f"[{run_id}] Waiting for download...")
+        await asyncio.sleep(5)
+
+        if process_portfolio():
+            success_msg = "Portfolio successfully downloaded and processed."
+            logger.info(f"[{run_id}] {success_msg}")
+            return True
+        else:
+            failure_msg = "Failed to process downloaded portfolio."
+            logger.warning(f"[{run_id}] {failure_msg} Trying fallback method.")
+            return await fallback_portfolio_download()
+
+    except NoSuchElementException as e:
+        error_msg = f"Element not found: {str(e)}"
+        logger.error(f"[{run_id}] {error_msg}")
+        # Save DOM page source to help debugging
+        if driver:
+            try:
+                page_source_path = os.path.expanduser(f"~/Downloads/page_source_{run_id}.html")
+                async with aiofiles.open(page_source_path, "w") as f:
+                    await f.write(driver.page_source)
+                logger.info(f"[{run_id}] Saved page source to {page_source_path}")
+            except Exception as e:
+                logger.warning(f"[{run_id}] Failed to save page source: {str(e)}")
+        return await fallback_portfolio_download()
+
+    except ElementClickInterceptedException as e:
+        error_msg = f"Click intercepted: {str(e)}"
+        logger.error(f"[{run_id}] {error_msg}")
+        # Take a screenshot of the page where the click was intercepted
+        if driver:
+            try:
+                screenshot_path = os.path.expanduser(f"~/Downloads/click_intercepted_{run_id}.png")
+                driver.save_screenshot(screenshot_path)
+                logger.info(f"[{run_id}] Saved click interception screenshot to {screenshot_path}")
+            except Exception as e:
+                logger.warning(f"[{run_id}] Failed to save screenshot: {str(e)}")
+        return await fallback_portfolio_download()
+
+    except WebDriverException as e:
+        error_msg = f"WebDriver error: {str(e)}"
+        logger.error(f"[{run_id}] {error_msg}")
+        return await fallback_portfolio_download()
+
+    except Exception as e:
+        error_msg = f"Unexpected error: {str(e)}"
+        logger.error(f"[{run_id}] {error_msg}")
+        import traceback
+
+        trace = traceback.format_exc()
+        logger.error(f"[{run_id}] Traceback: {trace}")
+        return await fallback_portfolio_download()
+
+    finally:
+        if driver:
+            logger.info(f"[{run_id}] Closing Chrome...")
+            try:
+                driver.quit()
+                logger.info(f"[{run_id}] Chrome closed successfully")
+            except Exception as e:
+                logger.warning(f"[{run_id}] Error while closing Chrome: {str(e)}")
 
 
 @with_retry

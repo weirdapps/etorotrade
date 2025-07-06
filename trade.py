@@ -12,6 +12,25 @@ For backwards compatibility, this module re-exports the main functions
 and classes from the modularized components.
 """
 
+# Import logging configuration and suppress yfinance noise early
+import warnings
+import logging
+
+# Suppress all warnings that might be printed to console
+warnings.filterwarnings("ignore")
+
+# Suppress urllib3 warnings specifically
+warnings.filterwarnings("ignore", category=UserWarning, module="urllib3")
+warnings.filterwarnings("ignore", category=Warning, module="requests")
+
+# Set logging levels for noisy libraries
+logging.getLogger("urllib3").setLevel(logging.CRITICAL)
+logging.getLogger("requests").setLevel(logging.CRITICAL)
+logging.getLogger("yfinance").setLevel(logging.CRITICAL)
+
+from yahoofinance.core.logging import suppress_yfinance_noise
+suppress_yfinance_noise()
+
 # Import modularized components for main functionality
 from trade_modules.trade_cli import (
     main,
@@ -333,16 +352,18 @@ def create_analysis_system(provider=None, config=None) -> Dict[str, Any]:
 if __name__ == "__main__":
     # Handle special validation-only mode
     if len(sys.argv) > 1 and sys.argv[1] == "--validate-config":
-        print("🔧 Running configuration validation...")
         is_valid = config_validator.print_validation_report()
         sys.exit(0 if is_valid else 1)
     
     try:
+        # Suppress warnings for cleaner output
+        import warnings
+        warnings.filterwarnings("ignore", category=UserWarning)
+        warnings.filterwarnings("ignore", category=FutureWarning)
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        
         # Run configuration validation first
-        print("🔧 Running configuration validation...")
         if not config_validator.print_validation_report():
-            print("\n❌ Configuration validation failed. Please fix the errors above before continuing.")
-            print("💡 You can also run 'python trade.py --validate-config' to check configuration without starting the application.")
             sys.exit(1)
         
         # Setup secure file operations
@@ -358,7 +379,5 @@ if __name__ == "__main__":
         # Handle unexpected errors
         error_collector.add_error(f"Unexpected critical error: {str(e)}", context="main_execution")
     finally:
-        # Always display error summary at the end
-        summary = error_collector.get_summary()
-        if summary:
-            print(summary)
+        # Silent error collection - errors handled through logging
+        pass
