@@ -107,18 +107,19 @@ def calculate_action_vectorized(df: pd.DataFrame) -> pd.Series:
     )
     
     # Additional SELL criteria for stocks with data
-    pef = pd.to_numeric(df.get("pe_forward", np.nan), errors="coerce")
-    pet = pd.to_numeric(df.get("pe_trailing", np.nan), errors="coerce")
-    peg = pd.to_numeric(df.get("peg_ratio", np.nan), errors="coerce")
-    si = pd.to_numeric(df.get("short_percent", df.get("SI", np.nan)), errors="coerce")
-    beta = pd.to_numeric(df.get("beta", np.nan), errors="coerce")
+    # Ensure we create pandas Series with proper index alignment
+    pef = pd.to_numeric(df.get("pe_forward", pd.Series([np.nan] * len(df), index=df.index)), errors="coerce")
+    pet = pd.to_numeric(df.get("pe_trailing", pd.Series([np.nan] * len(df), index=df.index)), errors="coerce")
+    peg = pd.to_numeric(df.get("peg_ratio", pd.Series([np.nan] * len(df), index=df.index)), errors="coerce")
+    si = pd.to_numeric(df.get("short_percent", df.get("SI", pd.Series([np.nan] * len(df), index=df.index))), errors="coerce")
+    beta = pd.to_numeric(df.get("beta", pd.Series([np.nan] * len(df), index=df.index)), errors="coerce")
     exret_col = df.get("EXRET")
     if exret_col is None:
         exret = pd.Series(0, index=df.index)
     else:
         exret = pd.to_numeric(exret_col, errors="coerce").fillna(0)
     
-    # Additional SELL conditions
+    # Additional SELL conditions - ensure all operations are on pandas Series
     sell_conditions = sell_conditions | \
                      (pef > pet) | \
                      (pef > TradingCriteria.SELL_MIN_FORWARD_PE) | \
@@ -135,10 +136,11 @@ def calculate_action_vectorized(df: pd.DataFrame) -> pd.Series:
     )
     
     # Additional BUY criteria for stocks with data (missing data is acceptable)
-    beta_ok = beta.isna() | ((beta >= TradingCriteria.BUY_MIN_BETA) & (beta <= TradingCriteria.BUY_MAX_BETA))
-    pef_ok = pef.isna() | ((pef > TradingCriteria.BUY_MIN_FORWARD_PE) & (pef <= TradingCriteria.BUY_MAX_FORWARD_PE))
-    peg_ok = peg.isna() | (peg <= TradingCriteria.BUY_MAX_PEG)
-    si_ok = si.isna() | (si <= TradingCriteria.BUY_MAX_SHORT_INTEREST)
+    # Use pd.isna() for pandas Series operations
+    beta_ok = pd.isna(beta) | ((beta >= TradingCriteria.BUY_MIN_BETA) & (beta <= TradingCriteria.BUY_MAX_BETA))
+    pef_ok = pd.isna(pef) | ((pef > TradingCriteria.BUY_MIN_FORWARD_PE) & (pef <= TradingCriteria.BUY_MAX_FORWARD_PE))
+    peg_ok = pd.isna(peg) | (peg <= TradingCriteria.BUY_MAX_PEG)
+    si_ok = pd.isna(si) | (si <= TradingCriteria.BUY_MAX_SHORT_INTEREST)
     
     # Combine all BUY criteria
     buy_conditions = buy_conditions & beta_ok & pef_ok & peg_ok & si_ok
