@@ -11,6 +11,8 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional, Union
 
+import aiofiles
+import aiohttp
 import pandas as pd
 import requests
 from dotenv import load_dotenv
@@ -559,8 +561,8 @@ async def download_portfolio(provider=None):
         if driver:
             try:
                 page_source_path = os.path.expanduser(f"~/Downloads/page_source_{run_id}.html")
-                with open(page_source_path, "w") as f:
-                    f.write(driver.page_source)
+                async with aiofiles.open(page_source_path, "w") as f:
+                    await f.write(driver.page_source)
                 logger.info(f"[{run_id}] Saved page source to {page_source_path}")
             except Exception as e:
                 logger.warning(f"[{run_id}] Failed to save page source: {str(e)}")
@@ -787,8 +789,9 @@ async def fallback_portfolio_download():
                 # Continue anyway as we'll copy the empty file
 
             # Try to read the first few lines to verify file is readable
-            with open(src_path, "r", encoding="utf-8") as f:
-                header = f.readline().strip()
+            async with aiofiles.open(src_path, "r", encoding="utf-8") as f:
+                header = await f.readline()
+                header = header.strip()
                 logger.info(f"[{fallback_id}] File header: {header}")
         except Exception as e:
             logger.error(f"[{fallback_id}] Error checking source file: {str(e)}")
@@ -934,22 +937,23 @@ async def _fetch_etoro_portfolio(username: str, api_key: str, user_key: str, run
 
     for attempt in range(3):
         try:
-            # Use requests for simplicity in this context
-            response = requests.get(url, headers=headers, timeout=30)
+            # Use aiohttp for async HTTP requests
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                    
+                    if response.status == 429:
+                        wait_time = 2 ** attempt
+                        print(f"Rate limited. Waiting {wait_time} seconds...")
+                        logger.warning(f"[{run_id}] Rate limited, waiting {wait_time}s (attempt {attempt + 1})")
+                        await asyncio.sleep(wait_time)
+                        continue
+                        
+                    response.raise_for_status()
+                    data = await response.json()
+                    logger.info(f"[{run_id}] Successfully fetched portfolio data")
+                    return data
             
-            if response.status_code == 429:
-                wait_time = 2 ** attempt
-                print(f"Rate limited. Waiting {wait_time} seconds...")
-                logger.warning(f"[{run_id}] Rate limited, waiting {wait_time}s (attempt {attempt + 1})")
-                await asyncio.sleep(wait_time)
-                continue
-                
-            response.raise_for_status()
-            data = response.json()
-            logger.info(f"[{run_id}] Successfully fetched portfolio data")
-            return data
-            
-        except requests.exceptions.RequestException as e:
+        except aiohttp.ClientError as e:
             logger.error(f"[{run_id}] HTTP error (attempt {attempt + 1}): {str(e)}")
             if attempt == 2:
                 print(f"Failed to fetch portfolio after 3 attempts: {e}")
@@ -982,29 +986,30 @@ async def _fetch_etoro_instrument_metadata(instrument_ids: list, api_key: str, u
 
     for attempt in range(3):
         try:
-            response = requests.get(url, headers=headers, timeout=30)
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                    
+                    if response.status == 429:
+                        wait_time = 2 ** attempt
+                        print(f"Rate limited. Waiting {wait_time} seconds...")
+                        logger.warning(f"[{run_id}] Metadata rate limited, waiting {wait_time}s (attempt {attempt + 1})")
+                        await asyncio.sleep(wait_time)
+                        continue
+                        
+                    response.raise_for_status()
+                    data = await response.json()
+                    
+                    # Convert to dictionary for easy lookup
+                    metadata_dict = {}
+                    if "instrumentDisplayDatas" in data:
+                        for instrument in data["instrumentDisplayDatas"]:
+                            if "instrumentID" in instrument:
+                                metadata_dict[instrument["instrumentID"]] = instrument
+                    
+                    logger.info(f"[{run_id}] Successfully fetched metadata for {len(metadata_dict)} instruments")
+                    return metadata_dict
             
-            if response.status_code == 429:
-                wait_time = 2 ** attempt
-                print(f"Rate limited. Waiting {wait_time} seconds...")
-                logger.warning(f"[{run_id}] Metadata rate limited, waiting {wait_time}s (attempt {attempt + 1})")
-                await asyncio.sleep(wait_time)
-                continue
-                
-            response.raise_for_status()
-            data = response.json()
-            
-            # Convert to dictionary for easy lookup
-            metadata_dict = {}
-            if "instrumentDisplayDatas" in data:
-                for instrument in data["instrumentDisplayDatas"]:
-                    if "instrumentID" in instrument:
-                        metadata_dict[instrument["instrumentID"]] = instrument
-            
-            logger.info(f"[{run_id}] Successfully fetched metadata for {len(metadata_dict)} instruments")
-            return metadata_dict
-            
-        except requests.exceptions.RequestException as e:
+        except aiohttp.ClientError as e:
             logger.error(f"[{run_id}] Metadata HTTP error (attempt {attempt + 1}): {str(e)}")
             if attempt == 2:
                 print(f"Failed to fetch metadata after 3 attempts: {e}")
