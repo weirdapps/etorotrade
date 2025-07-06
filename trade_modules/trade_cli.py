@@ -146,8 +146,8 @@ error_collector = ErrorSummaryCollector()
 
 async def handle_trade_analysis(get_provider=None, app_logger=None):
     """Handle trade analysis workflow."""
-    # Import the original function from backup
-    from trade_original_backup import handle_trade_analysis as original_handle_trade_analysis
+    # Import the function from main trade module
+    from trade import handle_trade_analysis as original_handle_trade_analysis
     
     # Call the original function with the same parameters
     return await original_handle_trade_analysis(get_provider=get_provider, app_logger=app_logger)
@@ -164,8 +164,8 @@ async def handle_portfolio_download(get_provider=None, app_logger=None):
     Returns:
         bool: True if portfolio is available, False otherwise
     """
-    # Import the original function from backup
-    from trade_original_backup import handle_portfolio_download as original_handle_portfolio_download
+    # Import the function from main trade module
+    from trade import handle_portfolio_download as original_handle_portfolio_download
     
     # Call the original function with the same parameters
     return await original_handle_portfolio_download(get_provider=get_provider, app_logger=app_logger)
@@ -231,8 +231,8 @@ async def main_async(get_provider=None, app_logger=None):
         # Pass verbose=True flag for eToro source and Manual Input due to special processing requirements
         verbose = source == "E" or source == "I"
         
-        # Import the original display function
-        from trade_original_backup import display_report_for_source
+        # Import the display function from main trade module
+        from trade import display_report_for_source
         
         # Use the proper display report function like the original
         await display_report_for_source(
@@ -314,8 +314,8 @@ def main(app_logger=None):
 
             # Display report directly for manual tickers
             try:
-                # Import the original display function
-                from trade_original_backup import display_report_for_source
+                # Import the display function from main trade module
+                from trade import display_report_for_source
                 
                 # Use the proper display report function like the original
                 asyncio.run(
