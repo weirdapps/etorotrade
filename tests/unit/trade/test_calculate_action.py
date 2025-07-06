@@ -75,15 +75,15 @@ def test_calculate_action(sample_data):
     """Test that actions are calculated correctly."""
     result = calculate_action(sample_data)
 
-    # Check that ACTION column was added
-    assert "ACTION" in result.columns
+    # Check that ACT column was added (not ACTION)
+    assert "ACT" in result.columns
 
     # Check specific tickers got correct actions
-    assert result.loc[result["ticker"] == "BUY", "ACTION"].iloc[0] == "B"
-    assert result.loc[result["ticker"] == "SELL", "ACTION"].iloc[0] == "S"
+    assert result.loc[result["ticker"] == "BUY", "ACT"].iloc[0] == "B"
+    assert result.loc[result["ticker"] == "SELL", "ACT"].iloc[0] == "S"
     assert (
-        result.loc[result["ticker"] == "HOLD", "ACTION"].iloc[0] == "H"
+        result.loc[result["ticker"] == "HOLD", "ACT"].iloc[0] == "H"
     )  # EXRET = 8.0 is between SELL_MAX_EXRET (5.0) and BUY_MIN_EXRET (15.0)
     assert (
-        result.loc[result["ticker"] == "LOWCONF", "ACTION"].iloc[0] == "I"
+        result.loc[result["ticker"] == "LOWCONF", "ACT"].iloc[0] == "I"
     )  # 'I' for Inconclusive due to low confidence

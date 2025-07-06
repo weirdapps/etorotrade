@@ -156,22 +156,16 @@ class TestMarketDataDisplay:
     
     def test_init(self, market_display):
         """Test MarketDataDisplay initialization."""
-        assert hasattr(market_display, 'use_colors')
-        # Default should be with colors
-        assert market_display.use_colors is True
+        assert hasattr(market_display, 'formatter')
+        assert hasattr(market_display, 'logger')
+        # Should have a formatter instance
+        assert market_display.formatter is not None
     
     def test_display_methods_exist(self, market_display):
         """Test that expected display methods exist."""
-        expected_methods = [
-            'display_market_data',
-            'display_portfolio_data',
-            'display_analysis_results',
-            'format_for_display',
-        ]
-        
-        for method_name in expected_methods:
-            if hasattr(market_display, method_name):
-                assert callable(getattr(market_display, method_name))
+        # Check for the actual method that exists
+        assert hasattr(market_display, 'display_market_analysis')
+        assert callable(getattr(market_display, 'display_market_analysis'))
     
     def test_display_market_data(self, market_display, sample_dataframe):
         """Test market data display functionality."""
@@ -288,14 +282,16 @@ class TestFactoryFunctions:
         display = create_market_display()
         
         assert isinstance(display, MarketDataDisplay)
-        assert display.use_colors is True
+        assert hasattr(display, 'formatter')
+        assert display.formatter.use_colors is True
     
     def test_create_market_display_no_colors(self):
         """Test create_market_display without colors."""
         display = create_market_display(use_colors=False)
         
         assert isinstance(display, MarketDataDisplay)
-        assert display.use_colors is False
+        assert hasattr(display, 'formatter')
+        assert display.formatter.use_colors is False
 
 
 class TestDisplayIntegration:
@@ -333,8 +329,8 @@ class TestDisplayIntegration:
         display_no_colors = create_market_display(use_colors=False)
         
         # Color settings should be consistent
-        assert formatter_colors.use_colors == display_colors.use_colors
-        assert formatter_no_colors.use_colors == display_no_colors.use_colors
+        assert formatter_colors.use_colors == display_colors.formatter.use_colors
+        assert formatter_no_colors.use_colors == display_no_colors.formatter.use_colors
     
     def test_performance_with_large_dataset(self):
         """Test performance with large dataset."""
