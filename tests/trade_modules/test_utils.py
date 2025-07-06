@@ -349,7 +349,7 @@ class TestSafeFloatConversion:
         
         for input_val in invalid_inputs:
             result = safe_float_conversion(input_val, default_value)
-            assert result == default_value
+            assert result == pytest.approx(default_value)
     
     def test_safe_float_conversion_custom_default(self):
         """Test safe float conversion with custom default value."""
