@@ -134,6 +134,7 @@ try:
         STANDARD_DISPLAY_COLUMNS,
         RISK_METRICS,
         PERFORMANCE_CONFIG,
+        DISPLAY,
     )
 except ImportError:
     # Define minimal fallbacks to prevent circular import issues
@@ -371,6 +372,28 @@ except ImportError:
             "DEFAULT_WARMUP_ITERATIONS": 1,
         },
     }
+    DISPLAY = {
+        "MAX_COMPANY_NAME_LENGTH": 14,
+        "DEFAULT_COLUMNS": [
+            "ticker", "company", "market_cap", "price", "target_price",
+            "upside", "analyst_count", "buy_percentage", "total_ratings",
+            "beta", "pe_trailing", "pe_forward", "peg_ratio",
+            "dividend_yield", "short_float_pct",
+        ],
+        "FORMATTERS": {
+            "price": {"precision": 2},
+            "target_price": {"precision": 2},
+            "upside": {"precision": 1, "as_percentage": True},
+            "buy_percentage": {"precision": 0, "as_percentage": True},
+            "beta": {"precision": 2},
+            "pe_trailing": {"precision": 1},
+            "pe_forward": {"precision": 1},
+            "peg_ratio": {"precision": 1},
+            "dividend_yield": {"precision": 2, "as_percentage": True},
+            "short_float_pct": {"precision": 1, "as_percentage": True},
+            "exret": {"precision": 1, "as_percentage": True},
+        },
+    }
 
 __all__ = [
     'get_config',
@@ -409,4 +432,5 @@ __all__ = [
     'STANDARD_DISPLAY_COLUMNS',
     'RISK_METRICS',
     'PERFORMANCE_CONFIG',
+    'DISPLAY',
 ]
