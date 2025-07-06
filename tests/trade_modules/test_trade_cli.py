@@ -148,7 +148,7 @@ class TestAsyncHandlers:
         mock_provider = AsyncMock()
         mock_logger = MagicMock()
         
-        with patch('trade_original_backup.handle_trade_analysis') as mock_handle:
+        with patch('trade.handle_trade_analysis') as mock_handle:
             mock_handle.return_value = AsyncMock()
             
             try:
@@ -165,7 +165,7 @@ class TestAsyncHandlers:
         mock_provider = AsyncMock()
         mock_logger = MagicMock()
         
-        with patch('trade_original_backup.handle_trade_analysis') as mock_handle:
+        with patch('trade.handle_trade_analysis') as mock_handle:
             mock_handle.side_effect = Exception("Test error")
             
             # Should handle errors gracefully
@@ -181,7 +181,7 @@ class TestAsyncHandlers:
         mock_provider = AsyncMock()
         mock_logger = MagicMock()
         
-        with patch('trade_original_backup.handle_portfolio_download') as mock_handle:
+        with patch('trade.handle_portfolio_download') as mock_handle:
             mock_handle.return_value = AsyncMock()
             
             try:
@@ -198,7 +198,7 @@ class TestAsyncHandlers:
         mock_provider = AsyncMock()
         mock_logger = MagicMock()
         
-        with patch('trade_original_backup.handle_portfolio_download') as mock_handle:
+        with patch('trade.handle_portfolio_download') as mock_handle:
             mock_handle.side_effect = Exception("Test error")
             
             # Should handle errors gracefully
