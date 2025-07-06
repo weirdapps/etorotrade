@@ -26,7 +26,7 @@ from ..utils.error_handling import (
 )
 
 from ..api.providers.base_provider import AsyncFinanceDataProvider, FinanceDataProvider
-from ..core.config import COLUMN_NAMES, FILE_PATHS, MESSAGES
+from ..core.config import COLUMN_NAMES, FILE_PATHS, MESSAGES, PATHS
 from ..core.logging import get_logger
 from .formatter import Color, DisplayConfig, DisplayFormatter
 
@@ -165,9 +165,13 @@ class MarketDisplay:
         if df.empty:
             return df
 
-        # Ensure sort columns exist
+        # Ensure sort columns exist and populate from actual data
         if "_sort_exret" not in df.columns:
-            df["_sort_exret"] = 0.0
+            # Use EXRET column if available, otherwise fall back to 0.0
+            if "EXRET" in df.columns:
+                df["_sort_exret"] = pd.to_numeric(df["EXRET"], errors='coerce').fillna(0.0)
+            else:
+                df["_sort_exret"] = 0.0
         if "_sort_earnings" not in df.columns:
             df["_sort_earnings"] = pd.NaT
 
@@ -189,10 +193,89 @@ class MarketDisplay:
         if df.empty:
             return df
 
+        # Map raw column names to display column names
+        column_mapping = {
+            'symbol': 'TICKER',
+            'ticker': 'TICKER', 
+            'company': 'COMPANY',
+            'name': 'COMPANY',
+            'current_price': 'PRICE',
+            'price': 'PRICE',
+            'target_price': 'TARGET',
+            'upside': 'UPSIDE',
+            'analyst_count': '# T',
+            'total_ratings': '# A',
+            'buy_percentage': '% BUY',
+            'market_cap_fmt': 'CAP',
+            'market_cap': 'CAP',
+            'pe_trailing': 'PET',
+            'pe_forward': 'PEF',
+            'peg_ratio': 'PEG',
+            'beta': 'BETA',
+            'short_percent': 'SI',
+            'dividend_yield': 'DIV %',
+            'earnings_date': 'EARNINGS',
+            'EXRET': 'EXRET',
+            'A': 'A'
+        }
+        
+        # Create new DataFrame with only mapped columns to avoid duplicates
+        new_df = pd.DataFrame()
+        
+        # Copy index from original
+        new_df.index = df.index
+        
+        # Apply column mapping, taking the first available source column for each target
+        for source_col, target_col in column_mapping.items():
+            if source_col in df.columns and target_col not in new_df.columns:
+                new_df[target_col] = df[source_col]
+        
+        # Copy any EXRET column if present
+        if 'EXRET' in df.columns:
+            new_df['EXRET'] = df['EXRET']
+            
+        # Copy any A column if present  
+        if 'A' in df.columns:
+            new_df['A'] = df['A']
+        
+        df = new_df
+        
         # Add ranking column if not present
         if "#" not in df.columns:
             df.insert(0, "#", range(1, len(df) + 1))
+            
+        # Add ACT column if not present (using action or action-like columns)
+        if "ACT" not in df.columns:
+            if "action" in df.columns:
+                df["ACT"] = df["action"]
+            elif "ACTION" in df.columns:
+                df["ACT"] = df["ACTION"]  
+            else:
+                # Calculate action based on available data using trade criteria
+                df["ACT"] = self._calculate_actions(df)
 
+        # Apply number formatting based on FORMATTERS configuration
+        import math
+        from ..core.config import DISPLAY
+        from ..utils.data.format_utils import format_number
+        
+        formatters = DISPLAY.get("FORMATTERS", {})
+        
+        # Column mapping from display name to formatter key
+        format_mapping = {
+            'PRICE': 'price',
+            'TARGET': 'target_price', 
+            'UPSIDE': 'upside',
+            '% BUY': 'buy_percentage',
+            'BETA': 'beta',
+            'PET': 'pe_trailing',
+            'PEF': 'pe_forward', 
+            'PEG': 'peg_ratio',
+            'DIV %': 'dividend_yield',
+            'SI': 'short_float_pct',
+            'EXRET': 'exret'
+        }
+        
         # Clean up NaN, None, and 0 values with "--" for better display
         df = df.copy()  # Don't modify original
         
@@ -201,18 +284,137 @@ class MarketDisplay:
         
         for col in df.columns:
             if col not in ["#", "TICKER", "COMPANY", "EARNINGS"]:  # Don't format these columns
-                # Replace NaN, None, and "nan" string with "--"
-                df[col] = df[col].replace([float('nan'), None, "nan", "NaN"], "--")
-                
-                # Replace 0 with "--" for specific columns
-                if col in zero_to_dash_cols:
-                    df[col] = df[col].replace(0, "--")
-                    df[col] = df[col].replace(0.0, "--")
+                # Apply specific formatting if configured
+                if col in format_mapping:
+                    formatter_key = format_mapping[col]
+                    formatter_config = formatters.get(formatter_key, {})
+                    
+                    # Format numbers using the configuration
+                    formatted_values = []
+                    for value in df[col]:
+                        if value is None or (isinstance(value, float) and (math.isnan(value) or math.isinf(value))):
+                            formatted_values.append("--")
+                        elif value == 0 and col in zero_to_dash_cols:
+                            formatted_values.append("--")
+                        elif isinstance(value, (int, float)) and value != 0:
+                            formatted_values.append(format_number(
+                                value,
+                                precision=formatter_config.get('precision', 2),
+                                as_percentage=formatter_config.get('as_percentage', False)
+                            ))
+                        else:
+                            formatted_values.append(str(value) if value not in ["nan", "NaN"] else "--")
+                    
+                    df[col] = formatted_values
+                else:
+                    # Default cleanup for non-configured columns
+                    # Replace NaN, None, and "nan" string with "--"
+                    df[col] = df[col].replace([float('nan'), None, "nan", "NaN"], "--")
+                    
+                    # Replace 0 with "--" for specific columns
+                    if col in zero_to_dash_cols:
+                        df[col] = df[col].replace(0, "--")
+                        df[col] = df[col].replace(0.0, "--")
 
         # Remove helper columns used for sorting
         drop_cols = ["_sort_exret", "_sort_earnings", "_not_found"]
         existing_cols = [col for col in drop_cols if col in df.columns]
         return df.drop(columns=existing_cols)
+
+    def _calculate_actions(self, df: pd.DataFrame) -> pd.Series:
+        """Calculate trading actions for each row in the DataFrame."""
+        actions = []
+        
+        for _, row in df.iterrows():
+            try:
+                # Import the calculation function
+                from ..utils.trade_criteria import calculate_action_for_row
+                action, _ = calculate_action_for_row(row, {}, "short_percent")
+                actions.append(action if action else "H")  # Default to Hold if no action
+            except Exception:
+                # Fallback action calculation
+                actions.append("H")  # Default to Hold
+        
+        return pd.Series(actions, index=df.index)
+
+    def _filter_by_trade_action(self, results: List[Dict], trade_filter: str) -> List[Dict]:
+        """
+        Filter results by trade action with file-based filtering logic.
+        
+        For B (BUY): Check market.csv for buy opportunities NOT in portfolio.csv OR sell.csv
+        For S (SELL): Check portfolio.csv for sell opportunities
+        For H (HOLD): Check market.csv for hold opportunities NOT in portfolio.csv OR sell.csv
+        
+        Args:
+            results: List of ticker data dictionaries
+            trade_filter: Trade filter ('B' for buy, 'S' for sell, 'H' for hold)
+            
+        Returns:
+            Filtered list of results
+        """
+        if not trade_filter or not results:
+            return results
+            
+        # Load portfolio and sell file tickers for exclusion
+        portfolio_tickers = set()
+        sell_tickers = set()
+        
+        try:
+            from ..core.config import FILE_PATHS
+            import pandas as pd
+            import os
+            
+            # Load portfolio tickers
+            portfolio_path = os.path.join(FILE_PATHS["INPUT_DIR"], "portfolio.csv")
+            if os.path.exists(portfolio_path):
+                portfolio_df = pd.read_csv(portfolio_path)
+                if 'symbol' in portfolio_df.columns:
+                    portfolio_tickers = set(portfolio_df['symbol'].astype(str).str.upper())
+                
+            # Load sell file tickers (acting as notrade)
+            sell_path = os.path.join(FILE_PATHS["OUTPUT_DIR"], "sell.csv")
+            if os.path.exists(sell_path):
+                sell_df = pd.read_csv(sell_path)
+                if 'TICKER' in sell_df.columns:
+                    sell_tickers = set(sell_df['TICKER'].astype(str).str.upper())
+                    
+        except Exception as e:
+            logger.warning(f"Failed to load portfolio/sell files for filtering: {e}")
+        
+        filtered_results = []
+        exclusion_tickers = portfolio_tickers | sell_tickers  # Union of both sets
+        
+        for ticker_data in results:
+            try:
+                ticker = str(ticker_data.get('symbol', ticker_data.get('ticker', ''))).upper()
+                
+                # Calculate action for this ticker
+                from ..utils.trade_criteria import calculate_action_for_row
+                action, _ = calculate_action_for_row(ticker_data, {}, "short_percent")
+                
+                # Apply file-based filtering logic
+                if trade_filter == "B":
+                    # BUY: market opportunities not in portfolio or sell files
+                    if action == "B" and ticker not in exclusion_tickers:
+                        filtered_results.append(ticker_data)
+                elif trade_filter == "S":
+                    # SELL: portfolio opportunities only
+                    if action == "S" and ticker in portfolio_tickers:
+                        filtered_results.append(ticker_data)
+                elif trade_filter == "H":
+                    # HOLD: market opportunities not in portfolio or sell files
+                    if action == "H" and ticker not in exclusion_tickers:
+                        filtered_results.append(ticker_data)
+                    
+            except Exception as e:
+                logger.warning(f"Error filtering ticker {ticker_data.get('symbol', 'unknown')}: {e}")
+                # If action calculation fails, include in HOLD filter only if not excluded
+                if trade_filter == "H":
+                    ticker = str(ticker_data.get('symbol', ticker_data.get('ticker', ''))).upper()
+                    if ticker not in exclusion_tickers:
+                        filtered_results.append(ticker_data)
+                    
+        return filtered_results
 
     def _process_tickers_with_progress(
         self, tickers: List[str], process_fn: callable, batch_size: int = 10
@@ -319,42 +521,65 @@ class MarketDisplay:
 
                     time.sleep(batch_delay)
 
-        # Final summary
+        # Final summary - store stats for later display
         elapsed = time.time() - start_time
         tickers_per_second = total_tickers / max(elapsed, 0.1)
-        print(
-            f"Processed {total_tickers} tickers in {elapsed:.1f}s ({tickers_per_second:.2f}/s) - "
-            f"Success: {success_count}, Errors: {error_count}, Cache hits: {cache_hits}"
-        )
         
-        # Display error summary if errors were collected
+        # Store stats in global variable for display after table
+        import yahoofinance.utils.async_utils.enhanced as enhanced_utils
+        enhanced_utils._last_processing_stats = {
+            'total_items': total_tickers,
+            'elapsed': elapsed,
+            'items_per_second': tickers_per_second,
+            'success_count': success_count,
+            'error_count': error_count,
+            'cache_hits': cache_hits
+        }
+        
+        # Display filtered error summary if errors were collected
         if hasattr(self, '_error_collection') and self._error_collection:
             self._display_console_error_summary(self._error_collection)
 
         return results
 
     def _display_console_error_summary(self, errors):
-        """Display a summary of all errors encountered during console processing.
-        
-        Args:
-            errors: List of error dictionaries with 'ticker', 'error', and 'context' keys
-        """
+        """Display a summary of errors, filtering out delisting/earnings messages."""
         if not errors:
             return
         
-        # Color constants (defined at top of file)
+        # Filter out delisting and earnings-related error messages
+        filtered_errors = []
+        for error_info in errors:
+            error_msg = error_info.get('error', '').lower()
+            # Skip delisting, earnings, and other noisy messages
+            if any(pattern in error_msg for pattern in [
+                'possibly delisted',
+                'no earnings dates found',
+                'earnings date',
+                'delisted',
+                'no earnings',
+                'earnings data not available'
+            ]):
+                continue
+            filtered_errors.append(error_info)
+        
+        # Only display if there are significant errors after filtering
+        if not filtered_errors:
+            return
+            
+        # Color constants
         COLOR_RED = "\033[91m"
         COLOR_YELLOW = "\033[93m" 
         COLOR_RESET = "\033[0m"
         
         print(f"\\n{COLOR_RED}=== ERROR SUMMARY ==={COLOR_RESET}")
-        print(f"Total errors encountered: {len(errors)}")
+        print(f"Total significant errors encountered: {len(filtered_errors)}")
         
         # Group errors by type for better readability
         error_groups = {}
         ticker_errors = {}
         
-        for error_info in errors:
+        for error_info in filtered_errors:
             ticker = error_info.get('ticker', 'Unknown')
             error_msg = error_info.get('error', 'Unknown error')
             context = error_info.get('context', 'N/A')
@@ -378,17 +603,6 @@ class MarketDisplay:
                 examples.append(f"... and {len(affected_tickers) - 3} more")
             print(f"    Examples: {', '.join(examples)}")
         
-        # Display most problematic tickers
-        if ticker_errors:
-            print(f"\\n{COLOR_YELLOW}Tickers with multiple errors:{COLOR_RESET}")
-            problem_tickers = [(ticker, count) for ticker, count in ticker_errors.items() if count > 1]
-            if problem_tickers:
-                problem_tickers.sort(key=lambda x: x[1], reverse=True)
-                for ticker, count in problem_tickers[:5]:  # Show top 5
-                    print(f"  • {ticker}: {count} errors")
-            else:
-                print("  None - all errors were isolated incidents")
-        
         print(f"{COLOR_RED}========================{COLOR_RESET}\\n")
 
     def display_stock_table(
@@ -402,7 +616,6 @@ class MarketDisplay:
             title: Title for the table
         """
         if not stock_data:
-            print(f"\n{title}: No data available")
             return
 
         # Convert to DataFrame
@@ -414,24 +627,18 @@ class MarketDisplay:
         # Format for display
         df = self._format_dataframe(df)
 
-        # Get the standard column order
+        # Get the standard column order from config
         from ..core.config import STANDARD_DISPLAY_COLUMNS
 
-        standard_cols = [col for col in STANDARD_DISPLAY_COLUMNS if col in df.columns]
+        # Only include columns that exist in both the DataFrame and standard columns
+        final_col_order = [col for col in STANDARD_DISPLAY_COLUMNS if col in df.columns]
 
-        # Reorder columns according to standard order
-        # Only include columns that actually exist in the DataFrame
-        existing_cols = [col for col in standard_cols if col in df.columns]
+        # If we have fewer than 5 essential columns, fall back to basic set
+        essential_cols = ["#", "TICKER", "COMPANY", "PRICE", "ACT"]
+        if len(final_col_order) < 5:
+            final_col_order = [col for col in essential_cols if col in df.columns]
 
-        # Check if any columns exist in df but not in standard_cols
-        extra_cols = [col for col in df.columns if col not in standard_cols]
-        if extra_cols:
-            # Add them to the end of the order list
-            final_col_order = existing_cols + extra_cols
-        else:
-            final_col_order = existing_cols
-
-        # Reorder the DataFrame
+        # Reorder the DataFrame to only show standard display columns
         df = df[final_col_order]
 
         # Apply color coding based on ACTION column
@@ -476,20 +683,8 @@ class MarketDisplay:
         # No color key display
 
     def _display_color_key(self) -> None:
-        """Display color key legend for interpreting the table"""
-        print("\nColor Key:")
-        print(
-            f"{Color.GREEN.value}■{Color.RESET.value} GREEN: BUY - Strong outlook, meets all criteria (requires beta, PEF, PET data + upside ≥20%, etc.)"
-        )
-        print(
-            f"{Color.RED.value}■{Color.RESET.value} RED: SELL - Risk flags present (ANY of: upside <5%, buy rating <65%, PEF >45.0, etc.)"
-        )
-        print(
-            f"{Color.YELLOW.value}■{Color.RESET.value} YELLOW: LOW CONFIDENCE - Insufficient analyst coverage (<5 price targets or <5 ratings)"
-        )
-        print(
-            f"{Color.RESET.value}■ WHITE: HOLD - Passes confidence threshold but doesn't meet buy or sell criteria, or missing primary criteria data)"
-        )
+        """Silent color key - no display"""
+        pass
 
     def save_to_csv(
         self, data: List[Dict[str, Any]], filename: str, output_dir: Optional[str] = None
@@ -507,7 +702,7 @@ class MarketDisplay:
         """
         try:
             # Determine output path
-            output_dir = output_dir or FILE_PATHS["OUTPUT_DIR"]
+            output_dir = output_dir or PATHS["OUTPUT_DIR"]
             output_path = f"{output_dir}/{filename}"
 
             # Convert to DataFrame
@@ -551,7 +746,6 @@ class MarketDisplay:
                     .upper()
                 )
             except EOFError:
-                print("Non-interactive environment detected, defaulting to USA market")
                 market_choice = "U"
 
             if market_choice == "U":
@@ -584,13 +778,10 @@ class MarketDisplay:
             # This avoids the issue with the decorator returning a function
             try:
                 result = self._get_manual_tickers()
-                print(f"DEBUG: Manual tickers result type: {type(result)}")
                 if callable(result):
-                    print("DEBUG: Result is callable, executing function")
                     return result()
                 return result
             except Exception as e:
-                print(f"DEBUG: Error in _get_manual_tickers: {type(e).__name__}: {str(e)}")
                 return ["AAPL", "MSFT"]  # Default tickers for error cases
         else:
             raise ValueError(f"Unknown source type: {source_type}")
@@ -607,7 +798,6 @@ class MarketDisplay:
             List of tickers
         """
         if not os.path.exists(file_path):
-            print(f"File not found: {file_path}")
             return []
 
         try:
@@ -627,11 +817,6 @@ class MarketDisplay:
                         break
 
                 if not column_found:
-                    print(
-                        MESSAGES["ERROR_TICKER_COLUMN_NOT_FOUND"].format(
-                            file_path=file_path, columns=ticker_column
-                        )
-                    )
                     return []
 
                 # Read tickers
@@ -643,10 +828,9 @@ class MarketDisplay:
                             ticker = "BSX"
                         tickers.append(ticker)
 
-            print(MESSAGES["INFO_TICKERS_LOADED"].format(count=len(tickers), file_path=file_path))
             return tickers
         except YFinanceError as e:
-            print(MESSAGES["ERROR_LOADING_FILE"].format(file_path=file_path, error=str(e)))
+            pass  # Silent error handling
             return []
 
     @with_retry
@@ -663,7 +847,6 @@ class MarketDisplay:
                 return []
         except EOFError:
             # Default tickers for testing in non-interactive environments
-            print("Non-interactive environment detected, using default test tickers: AAPL, MSFT")
             ticker_input = "AAPL, MSFT"
 
         # Split by comma and clean up
@@ -679,11 +862,9 @@ class MarketDisplay:
             report_type: Type of report ('M' for market, 'P' for portfolio)
         """
         if not tickers:
-            print(MESSAGES["NO_TICKERS_FOUND"])
             return
 
         if not self.provider:
-            print(MESSAGES["NO_PROVIDER_AVAILABLE"])
             return
 
         # Determine if the provider is async
@@ -706,7 +887,7 @@ class MarketDisplay:
         """
         # Process tickers with progress
         results = self._process_tickers_with_progress(
-            tickers, lambda ticker: self.provider.get_ticker_analysis(ticker)
+            tickers, lambda ticker: self.provider.get_ticker_info(ticker)
         )
 
         # Display results
@@ -722,10 +903,10 @@ class MarketDisplay:
                 filename = "portfolio.csv" if report_type == "P" else "market.csv"
                 self.save_to_csv(results, filename)
         else:
-            print(MESSAGES["NO_RESULTS_AVAILABLE"])
+            pass
 
     async def _async_display_report(
-        self, tickers: List[str], report_type: Optional[str] = None
+        self, tickers: List[str], report_type: Optional[str] = None, trade_filter: Optional[str] = None
     ) -> None:
         """
         Display report for tickers using asynchronous provider.
@@ -733,19 +914,26 @@ class MarketDisplay:
         Args:
             tickers: List of tickers to display report for
             report_type: Type of report ('M' for market, 'P' for portfolio)
+            trade_filter: Trade analysis filter (B, S, H) for filtering results
         """
-        from ..core.config import RATE_LIMIT
+        from ..core.config import RATE_LIMIT, MESSAGES
         from ..utils.async_utils.enhanced import process_batch_async
 
-        print(MESSAGES["INFO_PROCESSING_TICKERS"].format(count=len(tickers)))
+        # Silent processing - no progress messages for clean display
 
-        # Generate title for progress tracking
-        report_type_name = "Portfolio" if report_type == "P" else "Market"
+        # Set report type name based on context
+        if trade_filter:
+            if trade_filter == "S":
+                report_type_name = "Portfolio"
+            else:
+                report_type_name = "Market"
+        else:
+            report_type_name = "Portfolio" if report_type == "P" else "Market"
 
         # Use batch processing for async provider with enhanced progress
         results_dict = await process_batch_async(
             tickers,
-            self.provider.get_ticker_analysis,  # type: ignore (we know it's async)
+            self.provider.get_ticker_info,  # type: ignore (we know it's async)
             batch_size=RATE_LIMIT["BATCH_SIZE"],
             concurrency=RATE_LIMIT["MAX_CONCURRENT_CALLS"],
             delay_between_batches=RATE_LIMIT["BATCH_DELAY"],
@@ -758,19 +946,44 @@ class MarketDisplay:
 
         # Display results
         if results:
-            # Determine report title
-            title = f"{report_type_name} Analysis"
+            # Apply trade filter if specified
+            if trade_filter:
+                results = self._filter_by_trade_action(results, trade_filter)
+                if trade_filter == "B":
+                    title = "Trade Analysis - BUY Opportunities (Market data excluding portfolio/notrade)"
+                elif trade_filter == "S":
+                    title = "Trade Analysis - SELL Opportunities (Portfolio data)"
+                elif trade_filter == "H":
+                    title = "Trade Analysis - HOLD Opportunities (Market data excluding portfolio/notrade)"
+                else:
+                    title = f"{report_type_name} Analysis"
+            else:
+                # Determine report title
+                title = f"{report_type_name} Analysis"
 
             # Display table
             self.display_stock_table(results, title)
+            
+            # Display processing statistics after the table
+            from yahoofinance.utils.async_utils.enhanced import display_processing_stats
+            display_processing_stats()
 
-            # Save to CSV if report type provided
-            if report_type:
+            # Save to CSV with appropriate filename based on trade filter
+            if trade_filter:
+                if trade_filter == "B":
+                    filename = "buy.csv"
+                elif trade_filter == "S":
+                    filename = "sell.csv"
+                elif trade_filter == "H":
+                    filename = "hold.csv"
+                else:
+                    filename = "market.csv"
+                self.save_to_csv(results, filename)
+            elif report_type:
                 filename = "portfolio.csv" if report_type == "P" else "market.csv"
                 self.save_to_csv(results, filename)
-                print(f"Results saved to output/{filename}")
         else:
-            print(MESSAGES["NO_RESULTS_AVAILABLE"])
+            pass
 
 
 class ConsoleDisplay:

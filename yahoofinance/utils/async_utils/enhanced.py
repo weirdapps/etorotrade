@@ -28,6 +28,9 @@ from ...utils.error_handling import (
 
 from ...core.config import RATE_LIMIT
 from ...core.logging import get_logger
+
+# Global variable to store processing statistics for display after table
+_last_processing_stats = None
 from ..network.circuit_breaker import (
     CircuitOpenError,
     CircuitState,
@@ -778,15 +781,47 @@ async def process_batch_async(
     if show_progress:
         progress_bar.close()
 
-        # Print final summary
-        elapsed = time.time() - start_time
-        items_per_second = total_items / max(elapsed, 0.1)
-        print(
-            f"Processed {total_items} items in {elapsed:.1f}s ({items_per_second:.2f}/s) - "
-            f"Success: {success_count}, Errors: {error_count}, Cache hits: {cache_hits}"
-        )
+    # Store statistics for later display
+    elapsed = time.time() - start_time
+    items_per_second = total_items / max(elapsed, 0.1)
+    
+    # Store statistics in results metadata (if not already stored)
+    if hasattr(results, '__dict__'):
+        results._processing_stats = {
+            'total_items': total_items,
+            'elapsed': elapsed,
+            'items_per_second': items_per_second,
+            'success_count': success_count,
+            'error_count': error_count,
+            'cache_hits': cache_hits
+        }
+    
+    # Store stats in global variable for display after table
+    global _last_processing_stats
+    _last_processing_stats = {
+        'total_items': total_items,
+        'elapsed': elapsed,
+        'items_per_second': items_per_second,
+        'success_count': success_count,
+        'error_count': error_count,
+        'cache_hits': cache_hits
+    }
 
     return results
+
+
+def display_processing_stats():
+    """Display the stored processing statistics."""
+    global _last_processing_stats
+    # Silent processing - no output for clean display
+    if _last_processing_stats:
+        _last_processing_stats = None  # Clear after displaying
+
+
+def get_processing_stats():
+    """Get the stored processing statistics without clearing them."""
+    global _last_processing_stats
+    return _last_processing_stats
 
 
 class PriorityAsyncRateLimiter(AsyncRateLimiter):
