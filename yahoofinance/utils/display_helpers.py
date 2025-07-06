@@ -68,7 +68,7 @@ def handle_manual_input_tickers(tickers):
         if ticker:  # Skip empty strings
             tickers_list.append(ticker)
 
-    print(f"Processing tickers: {', '.join(tickers_list)}")
+    # Silent processing - no output for clean display
     return tickers_list
 
 
@@ -611,20 +611,16 @@ def generate_html_dashboard(result_df, display_df, report_source, output_dir):
                 output_path = f"{output_dir}/index.html"
                 title = "Market Analysis"
 
-                # Generate the dashboard
-                print(f"\nGenerating HTML dashboard: {output_path}")
+                # Generate the dashboard silently
                 generate_dashboard(result_df, output_path, title)
-                print(f"Dashboard generated: {output_path}")
 
             elif report_source == "P":
                 # Portfolio dashboard
                 output_path = f"{output_dir}/portfolio_dashboard.html"
                 title = "Portfolio Analysis"
 
-                # Generate the dashboard
-                print(f"\nGenerating HTML dashboard: {output_path}")
+                # Generate the dashboard silently
                 generate_dashboard(result_df, output_path, title, is_portfolio=True)
-                print(f"Dashboard generated: {output_path}")
     except YFinanceError as e:
         logger.error(f"Error generating HTML dashboard: {str(e)}")
 

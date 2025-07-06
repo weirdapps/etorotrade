@@ -6,6 +6,7 @@ registering all components and their factories. It serves as the main
 entry point for the dependency injection system.
 """
 
+import logging
 from typing import Any, Callable, Dict, Optional, Union
 
 from ..utils.dependency_injection import inject, lazy_import, provides, registry
@@ -43,8 +44,9 @@ def setup_application():
 
         registry.register("logger_factory", logger_factory)
 
-        # Register a logger instance for direct injection
+        # Register a logger instance for direct injection with WARNING level for clean output
         app_logger = logger_factory("application")
+        app_logger.setLevel(logging.WARNING)  # Suppress INFO messages for clean display
         registry.register_instance("app_logger", app_logger)
         
         # Register configuration service
