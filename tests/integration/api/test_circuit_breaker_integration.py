@@ -35,9 +35,9 @@ from yahoofinance.utils.network.circuit_breaker import (
 
 @pytest.fixture
 def temp_state_file():
-    """Create a temporary file for circuit breaker state"""
-    fd, path = tempfile.mkstemp()
-    os.close(fd)
+    """Create a secure temporary file for circuit breaker state"""
+    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as tmp_file:
+        path = tmp_file.name
     yield path
     if os.path.exists(path):
         os.unlink(path)
