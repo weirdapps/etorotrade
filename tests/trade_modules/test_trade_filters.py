@@ -196,15 +196,18 @@ class TestPortfolioFilter:
         """Test PortfolioFilter initialization with portfolio data."""
         filter_instance = PortfolioFilter(sample_portfolio_data)
         
-        assert hasattr(filter_instance, 'portfolio')
-        assert isinstance(filter_instance.portfolio, pd.DataFrame)
+        assert hasattr(filter_instance, 'portfolio_df')
+        assert hasattr(filter_instance, 'portfolio_tickers')
+        assert isinstance(filter_instance.portfolio_df, pd.DataFrame)
     
     def test_init_without_portfolio(self):
         """Test PortfolioFilter initialization without portfolio data."""
         filter_instance = PortfolioFilter()
         
-        assert hasattr(filter_instance, 'portfolio')
+        assert hasattr(filter_instance, 'portfolio_df')
+        assert hasattr(filter_instance, 'portfolio_tickers')
         # Should handle empty portfolio
+        assert filter_instance.portfolio_df is None
     
     def test_exclude_existing_holdings(self, sample_market_data, sample_portfolio_data):
         """Test exclusion of existing portfolio holdings."""
@@ -493,7 +496,7 @@ class TestFactoryFunctions:
         filter_instance = create_portfolio_filter(sample_portfolio_data)
         
         assert isinstance(filter_instance, PortfolioFilter)
-        assert isinstance(filter_instance.portfolio, pd.DataFrame)
+        assert isinstance(filter_instance.portfolio_df, pd.DataFrame)
     
     def test_create_quality_filter_default(self):
         """Test create_quality_filter with default parameters."""
