@@ -94,7 +94,12 @@ class CircuitBreaker:
         self.max_open_timeout = max_open_timeout or config.get("MAX_OPEN_TIMEOUT", 1800)
         self.timeout = timeout or config.get("TIMEOUT", 10.0)
         self.enabled = enabled if enabled is not None else config.get("ENABLED", True)
-        self.state_file = state_file or config.get("STATE_FILE", f"/tmp/circuit_breaker_{name}.json")
+        # Use secure temporary directory location
+        import tempfile
+        import os
+        secure_temp_dir = tempfile.gettempdir()
+        default_state_file = os.path.join(secure_temp_dir, f"circuit_breaker_{name}.json")
+        self.state_file = state_file or config.get("STATE_FILE", default_state_file)
 
         # State tracking
         self.state = CircuitState.CLOSED
