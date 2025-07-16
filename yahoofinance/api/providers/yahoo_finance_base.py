@@ -186,6 +186,20 @@ class YahooFinanceBaseProvider(ABC):
         # None of the fields found or had valid data
         return None
 
+    def _extract_last_earnings_date(self, info: Dict[str, Any]) -> Optional[str]:
+        """
+        Extract the last (past) earnings date from info dictionary.
+        
+        Args:
+            info: Dictionary with ticker info
+            
+        Returns:
+            Last earnings date in YYYY-MM-DD format or None
+        """
+        # This is a placeholder - the actual implementation should be in the provider
+        # For now, return None and let the provider handle it
+        return None
+
     def _extract_common_ticker_info(self, info: Dict[str, Any]) -> Dict[str, Any]:
         """
         Extract common ticker information fields from the raw info dictionary.
@@ -277,7 +291,7 @@ class YahooFinanceBaseProvider(ABC):
                 "country": safe_extract_value(info, "country"),
                 "short_percent": safe_extract_value(info, "shortPercentOfFloat"),  # Short interest
                 # Extract and format earnings date - handle different possible field names and formats
-                "earnings_date": self._extract_earnings_date(info),  # Next earnings date
+                "earnings_date": self._extract_last_earnings_date(info),  # Last earnings date
                 "data_source": "yfinance",
             }
 
