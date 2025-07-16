@@ -89,6 +89,7 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             "SILVER": "SI=F",  # Silver Futures
             "NATURAL_GAS": "NG=F",  # Natural Gas Futures
             "EURUSD": "EURUSD=X",  # Forex
+            "ASML.NV": "ASML",  # ASML Holding NV - European ticker to US ticker mapping
             # Add other mappings as needed
         }
 
