@@ -465,15 +465,19 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 try:
                     last_earnings_date = self._get_last_earnings_date(yticker)
                     info["last_earnings"] = last_earnings_date
+                    info["earnings_date"] = last_earnings_date  # Also set earnings_date for console display
+                    logger.debug(f"Set earnings_date for {ticker} to LAST earnings: {last_earnings_date}")
                 except YFinanceError as e:
                     logger.warning(
                         f"Failed to get earnings date for {ticker}: {str(e)}", exc_info=False
                     )
                     info["last_earnings"] = None
+                    info["earnings_date"] = None
             else:
                 # Non-stock assets don't have earnings dates
                 logger.debug(f"Skipping earnings date for non-stock asset {ticker}")
                 info["last_earnings"] = None
+                info["earnings_date"] = None
             # --- End: Reinstated Earnings Date Logic ---
 
             # Re-add missing PEG and ensure Dividend Yield has the original raw value

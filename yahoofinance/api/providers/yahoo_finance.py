@@ -876,27 +876,20 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
 
     def _get_last_earnings_date(self, ticker_obj):
         """Get the last (past) earnings date for a ticker."""
+        ticker_symbol = getattr(ticker_obj, "ticker", "unknown")
+        logger.debug(f"Getting last earnings date for {ticker_symbol}")
+        
         try:
-            # Try calendar first
-            calendar = getattr(ticker_obj, "calendar", None)
-            if calendar is not None and COLUMN_NAMES["EARNINGS_DATE"] in calendar:
-                earnings_date_list = calendar[COLUMN_NAMES["EARNINGS_DATE"]]
-                if isinstance(earnings_date_list, list) and len(earnings_date_list) > 0:
-                    import pandas as pd
-                    from datetime import datetime
-                    today = pd.Timestamp.now().date()
-                    
-                    # Find the latest past earnings date
-                    latest_date = None
-                    for date in earnings_date_list:
-                        if isinstance(date, datetime.date) and date < today:
-                            if latest_date is None or date > latest_date:
-                                latest_date = date
-                    
-                    if latest_date is not None:
-                        return latest_date.strftime("%Y-%m-%d")
+            # Try quarterly earnings first - this should contain historical earnings dates
+            quarterly_earnings = getattr(ticker_obj, "quarterly_earnings", None)
+            if quarterly_earnings is not None and not quarterly_earnings.empty:
+                # Get the most recent earnings date from quarterly earnings
+                latest_date = quarterly_earnings.index.max()
+                result = latest_date.strftime("%Y-%m-%d")
+                logger.debug(f"Found last earnings date from quarterly_earnings for {ticker_symbol}: {result}")
+                return result
         except Exception as e:
-            logger.debug(f"Error getting last earnings date from calendar: {str(e)}")
+            logger.debug(f"Error getting last earnings date from quarterly_earnings: {str(e)}")
         
         try:
             # Try earnings_dates attribute
@@ -904,26 +897,51 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             if earnings_dates is not None and not earnings_dates.empty:
                 import pandas as pd
                 today = pd.Timestamp.now()
+                logger.debug(f"Found earnings_dates for {ticker_symbol}, filtering for past dates before {today}")
                 
                 # Filter for past dates
                 past_dates = earnings_dates[earnings_dates.index < today]
                 if not past_dates.empty:
                     # Get the most recent past date
                     latest_date = past_dates.index.max()
-                    return latest_date.strftime("%Y-%m-%d")
+                    result = latest_date.strftime("%Y-%m-%d")
+                    logger.debug(f"Found last earnings date from earnings_dates for {ticker_symbol}: {result}")
+                    return result
+                else:
+                    logger.debug(f"No past earnings dates found in earnings_dates for {ticker_symbol}")
         except Exception as e:
             logger.debug(f"Error getting last earnings date from earnings_dates: {str(e)}")
         
         try:
-            # Try quarterly earnings as fallback
-            quarterly_earnings = getattr(ticker_obj, "quarterly_earnings", None)
-            if quarterly_earnings is not None and not quarterly_earnings.empty:
-                # Get the most recent earnings date
-                latest_date = quarterly_earnings.index.max()
-                return latest_date.strftime("%Y-%m-%d")
+            # Try calendar last - this might contain future dates  
+            calendar = getattr(ticker_obj, "calendar", None)
+            if calendar is not None and COLUMN_NAMES["EARNINGS_DATE"] in calendar:
+                earnings_date_list = calendar[COLUMN_NAMES["EARNINGS_DATE"]]
+                logger.debug(f"Found calendar earnings dates for {ticker_symbol}: {earnings_date_list}")
+                if isinstance(earnings_date_list, list) and len(earnings_date_list) > 0:
+                    import pandas as pd
+                    from datetime import datetime
+                    today = pd.Timestamp.now().date()
+                    logger.debug(f"Today's date: {today}")
+                    
+                    # Find the latest past earnings date
+                    latest_date = None
+                    for date in earnings_date_list:
+                        logger.debug(f"Checking date {date} (type: {type(date)}) against today {today}")
+                        if isinstance(date, datetime.date) and date < today:
+                            if latest_date is None or date > latest_date:
+                                latest_date = date
+                    
+                    if latest_date is not None:
+                        result = latest_date.strftime("%Y-%m-%d")
+                        logger.debug(f"Found last earnings date for {ticker_symbol}: {result}")
+                        return result
+                    else:
+                        logger.debug(f"No past earnings dates found in calendar for {ticker_symbol}")
         except Exception as e:
-            logger.debug(f"Error getting last earnings date from quarterly_earnings: {str(e)}")
+            logger.debug(f"Error getting last earnings date from calendar: {str(e)}")
         
+        logger.debug(f"No last earnings date found for {ticker_symbol}")
         return None
 
     def _extract_last_earnings_date(self, info: Dict[str, Any]) -> Optional[str]:
