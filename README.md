@@ -71,25 +71,30 @@ etorotrade uses a sophisticated classification system based on financial metrics
 
 ### 🟢 BUY Recommendations
 A stock must meet ALL of these criteria:
-- **Strong Upside**: 20%+ potential upside
-- **Analyst Consensus**: 85%+ buy ratings
+- **Strong Upside**: 15%+ potential upside
+- **Analyst Consensus**: 75%+ buy ratings
 - **Reasonable Volatility**: Beta between 0.25 and 2.5
 - **Attractive Valuation**: 
-  - Improving earnings outlook (Forward P/E < Trailing P/E OR Trailing P/E ≤ 0)
-  - Reasonable Forward P/E (0.5 < PEF ≤ 45.0)
-  - Good growth-adjusted value (PEG < 2.5)
+  - Forward P/E between 0.1 and 65.0
+  - Good growth-adjusted value (PEG < 2.5, if available)
+- **Strong Fundamentals**:
+  - Earnings growth ≥ 5% (if available)
+  - 3-month price performance ≥ -10% (if available)
 - **Limited Risk Factors**: 
-  - Low short interest (≤ 1.5%)
-  - Strong expected return (≥ 15.0)
+  - Low short interest (≤ 2.0%, if available)
+  - Strong expected return (≥ 10.0%)
+- **Sufficient Coverage**: ≥ 5 analyst ratings and ≥ 5 price targets
 
 ### 🔴 SELL Signals
 A stock triggers a SELL if ANY of these warning signs appear:
 - **Limited Upside**: Less than 5% upside potential
 - **Weak Analyst Support**: Less than 65% buy ratings
-- **Deteriorating Earnings**: Forward P/E > Trailing P/E (worsening outlook)
-- **Overvaluation**: Forward P/E > 50.0 or PEG > 3.0
-- **High Risk Factors**: Short interest > 2% or Beta > 3.0
-- **Poor Expected Return**: EXRET < 5.0
+- **Overvaluation**: Forward P/E > 65.0 or PEG > 3.0 (if available)
+- **Poor Fundamentals**:
+  - Earnings growth < -15% (if available)
+  - 3-month price performance < -20% (if available)
+- **High Risk Factors**: Short interest > 2.5% (if available) or Beta > 3.0
+- **Poor Expected Return**: EXRET < 2.5%
 
 ### ⚪ HOLD Recommendations
 - Passes confidence thresholds but doesn't meet full BUY or SELL criteria
@@ -98,6 +103,21 @@ A stock triggers a SELL if ANY of these warning signs appear:
 ### 🟡 INCONCLUSIVE Classification
 - Insufficient analyst coverage (< 5 price targets or < 5 analyst ratings)
 - Not enough data for confident decision-making
+
+## 📊 Enhanced Data Columns
+
+etorotrade now includes additional fundamental analysis columns for more comprehensive stock evaluation:
+
+### New Data Columns
+- **EG (Earnings Growth)**: Year-over-year earnings growth percentage from quarterly data
+- **PP (Price Performance)**: 3-month price performance showing recent momentum
+- **Enhanced Position Sizing**: Updated to consider high conviction criteria
+
+### High Conviction Position Sizing
+The system now identifies high conviction opportunities using multiple criteria:
+- **High Conviction Criteria**: EG >15% AND PP >0% AND EXRET >20%
+- **Position Range**: 0.5% to 10% of portfolio ($2,250 to $45,000)
+- **Smart Scaling**: Higher conviction = larger position sizes
 
 ### 🎯 Robust Target Price Mechanism
 
@@ -157,8 +177,9 @@ etorotrade features a sophisticated position sizing system that calculates optim
 #### Position Sizing Strategy
 - **Portfolio Value**: $450,000 (configurable in `yahoofinance/core/config.py`)
 - **Base Position**: 0.5% of portfolio = $2,250 for standard opportunities  
-- **High Conviction**: 2% of portfolio = $9,000 for exceptional opportunities
-- **Position Limits**: $1,000 minimum, $40,000 maximum (8.9% max allocation)
+- **High Conviction**: Up to 10% of portfolio = $45,000 for exceptional opportunities
+- **Position Limits**: $1,000 minimum, $45,000 maximum (10% max allocation)
+- **High Conviction Criteria**: EG >15% AND PP >0% AND EXRET >20%
 
 #### Smart Sizing Logic
 1. **Expected Return Adjustment**: Higher EXRET = larger positions

@@ -338,6 +338,78 @@ class PerformanceTracker:
             hour=0, minute=0, second=0, microsecond=0
         )
 
+    @staticmethod
+    def calculate_three_month_dates() -> Tuple[datetime, datetime]:
+        """
+        Calculate dates for 3-month price performance comparison.
+        
+        Returns the date 3 months ago and the current date.
+        
+        Returns:
+            Tuple of (three_months_ago, current_date)
+        """
+        today = datetime.today()
+        
+        # Calculate 3 months ago
+        three_months_ago = today - timedelta(days=90)  # Approximately 3 months
+        
+        # Use yesterday as current date to ensure market data is available
+        current_date = today - timedelta(days=1)
+        
+        return three_months_ago.replace(
+            hour=0, minute=0, second=0, microsecond=0
+        ), current_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    def calculate_3month_price_performance(self, ticker: str) -> Optional[float]:
+        """
+        Calculate 3-month price performance for a ticker.
+        
+        Args:
+            ticker: Ticker symbol
+            
+        Returns:
+            3-month price performance as percentage, or None if unable to calculate
+        """
+        try:
+            import yfinance as yf
+            
+            three_months_ago, current_date = self.calculate_three_month_dates()
+            
+            # Download historical data for 3 months
+            start_date = three_months_ago - timedelta(days=7)  # Add buffer for weekends
+            end_date = current_date + timedelta(days=1)
+            
+            data = yf.download(ticker, start=start_date, end=end_date, progress=False)
+            
+            if data.empty or len(data) < 2:
+                logger.debug(f"No historical data available for {ticker}")
+                return None
+                
+            # Get the current price (most recent close)
+            current_price = float(data["Close"].iloc[-1])
+            
+            # Get the price from approximately 3 months ago
+            # Find the closest date to 3 months ago
+            data.index = pd.to_datetime(data.index)
+            three_month_data = data[data.index <= three_months_ago]
+            
+            if three_month_data.empty:
+                # If no data exactly 3 months ago, use earliest available data
+                three_month_price = float(data["Close"].iloc[0])
+            else:
+                three_month_price = float(three_month_data["Close"].iloc[-1])
+            
+            # Calculate percentage change
+            if three_month_price > 0:
+                performance = ((current_price - three_month_price) / three_month_price) * 100
+                return round(performance, 2)
+            else:
+                return None
+                
+        except Exception as e:
+            logger.debug(f"Error calculating 3-month performance for {ticker}: {e}")
+            return None
+
     def get_previous_trading_day_close(self, ticker: str, date: datetime) -> Tuple[float, datetime]:
         """
         Get the closing price for the last trading day before the given date.

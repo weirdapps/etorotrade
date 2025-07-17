@@ -215,6 +215,7 @@ class MarketDisplay:
             'short_percent': 'SI',
             'dividend_yield': 'DIV %',
             'earnings_date': 'EARNINGS',
+            'earnings_growth': 'earnings_growth',
             'EXRET': 'EXRET',
             'A': 'A'
         }
@@ -627,6 +628,15 @@ class MarketDisplay:
         # Format for display
         df = self._format_dataframe(df)
 
+        # Add position size calculation
+        try:
+            df = self._add_position_size_column(df)
+        except Exception as e:
+            # If position size calculation fails, continue without it
+            logger.warning(f"Failed to add position size column: {e}")
+            # Ensure SIZE column exists for column filtering
+            df['SIZE'] = '--'
+
         # Get the standard column order from config
         from ..core.config import STANDARD_DISPLAY_COLUMNS
 
@@ -707,6 +717,13 @@ class MarketDisplay:
 
             # Convert to DataFrame
             df = pd.DataFrame(data)
+
+            # Apply same processing as display (format columns and add position sizes)
+            try:
+                df = self._format_dataframe(df)
+                df = self._add_position_size_column(df)
+            except Exception as e:
+                logger.warning(f"Failed to add position size to CSV: {e}")
 
             # Save to CSV
             df.to_csv(output_path, index=False)
@@ -826,6 +843,18 @@ class MarketDisplay:
                         # Special case: convert BSX.US to BSX
                         if ticker == "BSX.US":
                             ticker = "BSX"
+                        
+                        # Apply Yahoo Finance ticker format fixing for portfolio files
+                        if "portfolio" in file_path.lower():
+                            try:
+                                from yahoofinance.data.download import _fix_yahoo_ticker_format
+                                original_ticker = ticker
+                                ticker = _fix_yahoo_ticker_format(ticker)
+                                if ticker != original_ticker:
+                                    logger.info(f"Fixed portfolio ticker: {original_ticker} -> {ticker}")
+                            except ImportError:
+                                logger.warning("Could not import _fix_yahoo_ticker_format function")
+                        
                         tickers.append(ticker)
 
             return tickers
@@ -985,6 +1014,165 @@ class MarketDisplay:
         else:
             pass
 
+    def _add_position_size_column(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Add position size column and new metrics (EG, PP) to DataFrame.
+
+        Args:
+            df: DataFrame with market data
+
+        Returns:
+            DataFrame with SIZE, EG, and PP columns added
+        """
+        if df.empty:
+            return df
+
+        # Import the position size calculation functions
+        from ..utils.data.format_utils import calculate_position_size, format_position_size
+        from ..analysis.performance import PerformanceTracker
+
+        # Create a copy to avoid modifying the original
+        df = df.copy()
+
+        # Initialize PerformanceTracker for 3-month performance calculations
+        perf_tracker = PerformanceTracker()
+
+        # Add EG and PP columns first
+        earnings_growths = []
+        three_month_perfs = []
+        
+        for _, row in df.iterrows():
+            ticker = row.get('TICKER', '') if 'TICKER' in row else ''
+            
+            # Get earnings growth from the row if available, or set default
+            earnings_growth = row.get('earnings_growth', None)
+            if earnings_growth is not None and earnings_growth != '--':
+                try:
+                    # Convert to percentage if it's in decimal form
+                    eg_value = float(earnings_growth)
+                    if abs(eg_value) <= 1:  # Likely in decimal form (0.15 = 15%)
+                        eg_value *= 100
+                    # Display all earnings growth values
+                    earnings_growths.append(f"{eg_value:.1f}%")
+                except (ValueError, TypeError):
+                    earnings_growths.append("--")
+            else:
+                earnings_growths.append("--")
+            
+            # Calculate 3-month performance
+            three_month_perf = perf_tracker.calculate_3month_price_performance(ticker) if ticker else None
+            if three_month_perf is not None:
+                three_month_perfs.append(f"{three_month_perf:.1f}%")
+            else:
+                three_month_perfs.append("--")
+
+        # Add the new columns
+        df['EG'] = earnings_growths
+        df['PP'] = three_month_perfs
+
+        # Calculate position sizes with new criteria
+        position_sizes = []
+        for i, row in df.iterrows():
+            # Get market cap value
+            market_cap = None
+            if 'CAP' in row:
+                market_cap_raw = row['CAP']
+                if market_cap_raw and market_cap_raw != '--':
+                    # Parse market cap from formatted string (e.g., "3.14T" -> 3140000000000)
+                    market_cap = self._parse_market_cap_value(market_cap_raw)
+            
+            # Get EXRET value
+            exret = None
+            if 'EXRET' in row:
+                exret_raw = row['EXRET']
+                if exret_raw and exret_raw != '--':
+                    # Parse EXRET from percentage string (e.g., "6.3%" -> 6.3)
+                    exret = self._parse_percentage_value(exret_raw)
+            
+            # Get earnings growth value
+            earnings_growth_value = None
+            eg_str = df.loc[i, 'EG']
+            if eg_str and eg_str != '--':
+                try:
+                    earnings_growth_value = float(eg_str.rstrip('%'))
+                except (ValueError, TypeError):
+                    pass
+            
+            # Get 3-month performance value
+            three_month_perf_value = None
+            mop_str = df.loc[i, 'PP']
+            if mop_str and mop_str != '--':
+                try:
+                    three_month_perf_value = float(mop_str.rstrip('%'))
+                except (ValueError, TypeError):
+                    pass
+            
+            # Get ticker for ETF/commodity detection
+            ticker = row.get('TICKER', '') if 'TICKER' in row else ''
+            
+            # Calculate position size with new criteria
+            position_size = calculate_position_size(
+                market_cap, exret, ticker, earnings_growth_value, three_month_perf_value
+            )
+            position_sizes.append(position_size)
+
+        # Add formatted position size column
+        df['SIZE'] = [format_position_size(size) for size in position_sizes]
+
+        return df
+
+    def _parse_market_cap_value(self, market_cap_str: str) -> Optional[float]:
+        """
+        Parse market cap string to numeric value.
+
+        Args:
+            market_cap_str: Market cap string (e.g., "3.14T", "297B")
+
+        Returns:
+            Market cap value in USD or None if parsing fails
+        """
+        if not market_cap_str or market_cap_str == '--':
+            return None
+
+        try:
+            # Remove any whitespace
+            market_cap_str = market_cap_str.strip()
+            
+            # Handle different suffixes
+            if market_cap_str.endswith('T'):
+                return float(market_cap_str[:-1]) * 1_000_000_000_000
+            elif market_cap_str.endswith('B'):
+                return float(market_cap_str[:-1]) * 1_000_000_000
+            elif market_cap_str.endswith('M'):
+                return float(market_cap_str[:-1]) * 1_000_000
+            elif market_cap_str.endswith('K'):
+                return float(market_cap_str[:-1]) * 1_000
+            else:
+                # Try to parse as raw number
+                return float(market_cap_str)
+        except (ValueError, TypeError):
+            return None
+
+    def _parse_percentage_value(self, percentage_str: str) -> Optional[float]:
+        """
+        Parse percentage string to numeric value.
+
+        Args:
+            percentage_str: Percentage string (e.g., "6.3%", "-2.2%")
+
+        Returns:
+            Percentage value as float or None if parsing fails
+        """
+        if not percentage_str or percentage_str == '--':
+            return None
+
+        try:
+            # Remove % sign and any whitespace
+            clean_str = percentage_str.replace('%', '').strip()
+            return float(clean_str)
+        except (ValueError, TypeError):
+            return None
+
 
 class ConsoleDisplay:
     """
@@ -1094,3 +1282,4 @@ class ConsoleDisplay:
         except (AttributeError, KeyError):
             # Return uncolored text if color not found
             return text
+

@@ -4,6 +4,7 @@ CLI interface module for the trading system.
 Extracted from trade.py to improve maintainability.
 """
 
+import argparse
 import asyncio
 import os
 import sys
@@ -24,6 +25,38 @@ from .utils import get_file_paths
 # Global configuration
 INPUT_DIR = "input"
 logger = get_logger(__name__)
+
+
+def parse_arguments():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description='Trading Analysis Tool',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python trade.py                     # Interactive mode
+  python trade.py -o p                # Portfolio analysis
+  python trade.py -o p -t n           # Portfolio analysis with new download
+  python trade.py -o m -t 10          # Market analysis with 10 stocks
+  python trade.py -o t -t b           # Trade analysis for BUY opportunities
+  python trade.py -o i -t AAPL,MSFT   # Manual input with specific tickers
+        """)
+    
+    parser.add_argument('-o', '--operation', 
+                       choices=['p', 'portfolio', 'm', 'market', 'e', 'etoro', 't', 'trade', 'i', 'input'],
+                       help='Operation mode: (p)ortfolio, (m)arket, (e)toro, (t)rade analysis, (i)nput manual')
+    
+    parser.add_argument('-t', '--target',
+                       help='Target parameter: tickers for manual input, number for market, n/e for portfolio, b/s/h for trade')
+    
+    parser.add_argument('--validate-config', action='store_true',
+                       help='Validate configuration and exit')
+    
+    # Legacy support for "trade.py i ticker1 ticker2" format
+    parser.add_argument('legacy_args', nargs='*',
+                       help='Legacy arguments for manual input mode')
+    
+    return parser.parse_args()
 
 
 class ConfigurationValidator:
@@ -545,6 +578,115 @@ async def main_async(get_provider=None, app_logger=None):
                     app_logger.debug(f"Error during cleanup: {str(e)}")
 
 
+async def main_async_with_args(args, app_logger=None):
+    """
+    Handle parsed command line arguments in async context.
+    
+    Args:
+        args: Parsed command line arguments
+        app_logger: Logger instance
+    """
+    display = None
+    try:
+        # Create provider instance
+        try:
+            provider = registry.resolve("get_provider")(async_mode=True, max_concurrency=10)
+            if app_logger:
+                app_logger.info(f"Using injected provider: {provider.__class__.__name__}")
+        except Exception:
+            provider = AsyncHybridProvider(max_concurrency=10)
+            if app_logger:
+                app_logger.info("Using default AsyncHybridProvider")
+
+        # Create display instance
+        display = MarketDisplay(provider=provider)
+        
+        # Handle portfolio operations
+        if args.operation in ['p', 'portfolio']:
+            if app_logger:
+                app_logger.info(f"Handling portfolio operation with target: {args.target}")
+            
+            # Handle portfolio download if target is 'n'
+            if args.target == 'n':
+                if app_logger:
+                    app_logger.info("Downloading new portfolio...")
+                if not await handle_portfolio_download(get_provider=provider, app_logger=app_logger):
+                    if app_logger:
+                        app_logger.error("Portfolio download failed")
+                    return
+                if app_logger:
+                    app_logger.info("Portfolio download completed")
+                    
+            # Display portfolio data
+            tickers = display.load_tickers("P")
+            await display_market_report(
+                display, tickers, "P", verbose=False,
+                get_provider=provider, app_logger=app_logger
+            )
+            
+        # Handle trade analysis operations
+        elif args.operation in ['t', 'trade']:
+            trade_choice = args.target.upper() if args.target else 'B'
+            if app_logger:
+                app_logger.info(f"Handling trade analysis: {trade_choice}")
+                
+            await handle_trade_analysis_direct(display, trade_choice, provider, app_logger)
+            
+        # Handle market operations
+        elif args.operation in ['m', 'market']:
+            num_stocks = int(args.target) if args.target and args.target.isdigit() else 50
+            if app_logger:
+                app_logger.info(f"Handling market analysis for {num_stocks} stocks")
+                
+            tickers = display.load_tickers("M")[:num_stocks]
+            await display_market_report(
+                display, tickers, "M", verbose=False,
+                get_provider=provider, app_logger=app_logger
+            )
+            
+        # Handle etoro operations
+        elif args.operation in ['e', 'etoro']:
+            if app_logger:
+                app_logger.info("Handling eToro analysis")
+                
+            tickers = display.load_tickers("E")
+            await display_market_report(
+                display, tickers, "E", verbose=True,
+                get_provider=provider, app_logger=app_logger
+            )
+            
+        # Handle manual input operations
+        elif args.operation in ['i', 'input']:
+            if args.target:
+                tickers = [t.strip().upper() for t in args.target.split(',')]
+            elif args.legacy_args:
+                tickers = [t.strip().upper() for t in args.legacy_args]
+            else:
+                if app_logger:
+                    app_logger.error("No tickers provided for manual input")
+                return
+                
+            if app_logger:
+                app_logger.info(f"Handling manual input for tickers: {tickers}")
+                
+            await display_market_report(
+                display, tickers, "I", verbose=True,
+                get_provider=provider, app_logger=app_logger
+            )
+            
+    except Exception as e:
+        if app_logger:
+            app_logger.error(f"Error in main_async_with_args: {str(e)}")
+        raise
+    finally:
+        if display:
+            try:
+                await display.close()
+            except Exception as e:
+                if app_logger:
+                    app_logger.debug(f"Error during cleanup: {str(e)}")
+
+
 @with_logger
 def main(app_logger=None):
     """
@@ -553,6 +695,14 @@ def main(app_logger=None):
     Args:
         app_logger: Injected logger component
     """
+    # Parse command line arguments
+    args = parse_arguments()
+    
+    # Handle validation mode
+    if args.validate_config:
+        is_valid = config_validator.print_validation_report()
+        sys.exit(0 if is_valid else 1)
+    
     # Ensure output directories exist with secure permissions
     output_dir, input_dir, _, _, _ = get_file_paths()
     
@@ -569,45 +719,17 @@ def main(app_logger=None):
             logger.debug(f"Using input files from legacy directory: {v1_input_dir}")
 
     # Handle command line arguments if provided
-    if len(sys.argv) > 1:
-        # Basic argument handling for "trade.py i nvda" format
-        source = sys.argv[1].upper()
-        if source == "I" and len(sys.argv) > 2:
-            tickers = sys.argv[2:]
+    if args.operation or args.legacy_args:
+        if app_logger:
+            app_logger.info(f"Running with arguments: operation={args.operation}, target={args.target}")
             
-
-            # Get provider using dependency injection
-            try:
-                provider = registry.resolve("get_provider")(async_mode=True, max_concurrency=10)
-                if app_logger:
-                    app_logger.info(f"Using injected provider for manual input: {provider.__class__.__name__}")
-            except Exception as e:
-                if app_logger:
-                    app_logger.error(f"Failed to resolve provider, using default: {str(e)}")
-                # Fallback to direct instantiation
-                provider = AsyncHybridProvider(max_concurrency=10)
-
-            display = MarketDisplay(provider=provider)
-
-            # Display report directly for manual tickers
-            try:
-                # Display the market data report for manual input
-                asyncio.run(
-                    display_market_report(
-                        display,
-                        tickers,
-                        "I",
-                        verbose=True,
-                        get_provider=provider,
-                        app_logger=app_logger,
-                    )
-                )
-                return
-            except Exception as e:
-                error_collector.add_error(f"Error displaying individual report: {str(e)}", context="manual_tickers")
-                if app_logger:
-                    app_logger.error(f"Error displaying individual report: {str(e)}")
-                return
+        try:
+            asyncio.run(main_async_with_args(args, app_logger=app_logger))
+        except Exception as e:
+            error_collector.add_error(f"Error in main_async_with_args: {str(e)}", context="main_execution")
+            if app_logger:
+                app_logger.error(f"Error in main_async_with_args: {str(e)}")
+        return
 
     # Run async main for interactive mode
     try:

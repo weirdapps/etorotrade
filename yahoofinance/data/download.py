@@ -933,6 +933,10 @@ def _fix_yahoo_ticker_format(ticker: str) -> str:
     elif ticker in ('BTC', 'ETH', 'XRP', 'LTC', 'BCH', 'ADA', 'DOT', 'LINK', 'XLM', 'DOGE'):
         ticker = f"{ticker}-USD"
     
+    # Handle European tickers that need US ticker mapping
+    elif ticker == 'ASML.NV':
+        ticker = 'ASML'
+    
     # Handle special VIX futures like VIX.MAY25
     elif ticker.startswith('VIX.'):
         # Extract month and year

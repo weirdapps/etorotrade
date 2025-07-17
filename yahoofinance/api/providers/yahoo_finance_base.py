@@ -291,7 +291,11 @@ class YahooFinanceBaseProvider(ABC):
                 "country": safe_extract_value(info, "country"),
                 "short_percent": safe_extract_value(info, "shortPercentOfFloat"),  # Short interest
                 # Extract and format earnings date - handle different possible field names and formats
+                # Set both earnings_date and last_earnings for consistency with async provider
                 "earnings_date": self._extract_last_earnings_date(info),  # Last earnings date
+                "last_earnings": self._extract_last_earnings_date(info),  # Last earnings date (for data processor)
+                # Calculate earnings growth from quarterly data
+                "earnings_growth": self._calculate_earnings_growth(ticker),
                 "data_source": "yfinance",
             }
 
@@ -908,3 +912,90 @@ class YahooFinanceBaseProvider(ABC):
             "success": False,
             "data_source": "error",
         }
+
+    def _calculate_earnings_growth(self, ticker: str) -> Optional[float]:
+        """
+        Calculate earnings growth by comparing recent quarters.
+        
+        Uses quarterly income statement data since quarterly_earnings is deprecated.
+        Tries year-over-year growth first, falls back to quarter-over-quarter if needed.
+        
+        Args:
+            ticker: Stock ticker symbol
+            
+        Returns:
+            Earnings growth as percentage, or None if unable to calculate
+        """
+        try:
+            import yfinance as yf
+            import pandas as pd
+            
+            yticker = yf.Ticker(ticker)
+            
+            # Use quarterly income statement (quarterly_earnings is deprecated)
+            quarterly_income = yticker.quarterly_income_stmt
+            if quarterly_income is None or quarterly_income.empty:
+                logger.debug(f"No quarterly income statement data for {ticker}")
+                return None
+            
+            # Look for net income fields in order of preference
+            earnings_row = None
+            potential_keys = [
+                'Net Income From Continuing Operation Net Minority Interest',
+                'Net Income Common Stockholders', 
+                'Net Income',
+                'Net Income Including Noncontrolling Interests',
+                'Net Income Continuous Operations'
+            ]
+            
+            for potential_key in potential_keys:
+                if potential_key in quarterly_income.index:
+                    earnings_row = quarterly_income.loc[potential_key]
+                    logger.debug(f"Using earnings field '{potential_key}' for {ticker}")
+                    break
+            
+            if earnings_row is None:
+                logger.debug(f"No earnings row found in quarterly income statement for {ticker}")
+                return None
+            
+            # Remove NaN values and sort by date descending (most recent first)
+            earnings_data = earnings_row.dropna().sort_index(ascending=False)
+            
+            if len(earnings_data) < 2:
+                logger.debug(f"Insufficient income statement data for {ticker} (only {len(earnings_data)} quarters)")
+                return None
+            
+            # Convert to numeric and handle any string/object types
+            earnings_data = pd.to_numeric(earnings_data, errors='coerce').dropna()
+            
+            if len(earnings_data) < 2:
+                logger.debug(f"Insufficient numeric earnings data for {ticker}")
+                return None
+            
+            # Try year-over-year calculation first (preferred)
+            if len(earnings_data) >= 4:
+                current_quarter = float(earnings_data.iloc[0])  # Most recent
+                year_ago_quarter = float(earnings_data.iloc[3])  # 4 quarters ago
+                
+                if year_ago_quarter != 0 and abs(year_ago_quarter) > 1000:  # Avoid division by small numbers
+                    # Year-over-year growth
+                    yoy_growth = ((current_quarter - year_ago_quarter) / abs(year_ago_quarter)) * 100
+                    logger.debug(f"Calculated YoY earnings growth for {ticker}: {yoy_growth:.1f}% (current: {current_quarter:,.0f}, year ago: {year_ago_quarter:,.0f})")
+                    return round(yoy_growth, 1)
+            
+            # Fall back to quarter-over-quarter calculation
+            current_quarter = float(earnings_data.iloc[0])  # Most recent
+            previous_quarter = float(earnings_data.iloc[1])  # Previous quarter
+            
+            if previous_quarter != 0 and abs(previous_quarter) > 1000:  # Avoid division by small numbers
+                # Quarter-over-quarter growth (not annualized for display)
+                qoq_growth = ((current_quarter - previous_quarter) / abs(previous_quarter)) * 100
+                logger.debug(f"Calculated QoQ earnings growth for {ticker}: {qoq_growth:.1f}% (current: {current_quarter:,.0f}, previous: {previous_quarter:,.0f})")
+                return round(qoq_growth, 1)
+            
+            logger.debug(f"Unable to calculate earnings growth for {ticker} - zero or insufficient base earnings")
+            return None
+                
+        except Exception as e:
+            logger.debug(f"Error calculating earnings growth for {ticker}: {e}")
+            return None

@@ -264,6 +264,17 @@ class TradeEngine:
         
         # Select and rename columns
         available_columns = [col for col in columns_to_select if col in working_df.columns]
+        
+        # Handle duplicate mappings - prefer last_earnings over earnings_date
+        if "last_earnings" in available_columns and "earnings_date" in available_columns:
+            # Remove earnings_date if last_earnings is available
+            available_columns = [col for col in available_columns if col != "earnings_date"]
+        
+        # Handle duplicate mappings - prefer short_percent over short_float_pct
+        if "short_percent" in available_columns and "short_float_pct" in available_columns:
+            # Remove short_float_pct if short_percent is available
+            available_columns = [col for col in available_columns if col != "short_float_pct"]
+        
         working_df = working_df[available_columns]
         
         # Rename columns for display
