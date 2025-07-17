@@ -125,6 +125,7 @@ class DataProcessor:
             "short_float_pct": "SI",
             "short_percent": "SI",  # V2 naming
             "last_earnings": "EARNINGS",
+            "earnings_date": "EARNINGS",  # Fallback mapping for earnings_date
             "position_size": "SIZE",  # Position size mapping
             "action": "ACT",  # Update ACTION to ACT
             "ACTION": "ACT",  # Update ACTION to ACT (for backward compatibility)
@@ -160,6 +161,7 @@ class DataProcessor:
             "short_float_pct",
             "short_percent",
             "last_earnings",
+            "earnings_date",  # Fallback column for earnings_date
             "action",  # Add action column
             "ACTION",  # Keep ACTION for compatibility
         ]
@@ -278,7 +280,7 @@ class DataProcessor:
         # Handle special cases
         # Example: "Alphabet Inc. (Class A)" -> "Alphabet (Class A)"
         formatted_names = formatted_names.str.replace(
-            r"\s+\(Class\s+[A-Z]\)$", r" (Class \1)", regex=True
+            r"\s+\(Class\s+([A-Z])\)$", r" (Class \1)", regex=True
         )
         
         # Truncate very long names at word boundary

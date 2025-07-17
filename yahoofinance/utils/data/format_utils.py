@@ -199,22 +199,25 @@ def format_market_cap(value: Optional[float]) -> Optional[str]:
 
 
 def calculate_position_size(
-    market_cap: Optional[float], exret: Optional[float] = None, ticker: Optional[str] = None
+    market_cap: Optional[float], exret: Optional[float] = None, ticker: Optional[str] = None,
+    earnings_growth: Optional[float] = None, three_month_perf: Optional[float] = None
 ) -> Optional[float]:
     """
-    Calculate position size based on market cap, EXRET, and portfolio configuration.
+    Calculate position size based on market cap, EXRET, and high conviction criteria.
 
     Position sizing logic for $450K portfolio:
     - Base position: 0.5% of portfolio ($2,250)
-    - High conviction: up to 2.0% of portfolio ($9,000)
-    - Exceptional cases: up to 8.9% of portfolio ($40K max)
+    - High conviction: up to 10% of portfolio ($45,000)
+    - Range: 0.5% to 10% based on conviction level
     - Minimum: $1,000 for any trade
-    - Considers market cap and expected returns for risk adjustment
+    - High conviction criteria: EG >15%, 3MOP >0%, EXRET >20%
 
     Args:
         market_cap: Market capitalization value in USD
         exret: Expected return value (EXRET) as percentage
         ticker: Ticker symbol for ETF/commodity detection
+        earnings_growth: Earnings growth percentage
+        three_month_perf: 3-month price performance percentage
 
     Returns:
         Position size in USD or None if below threshold, EXRET missing, or ETF/commodity
@@ -230,10 +233,10 @@ def calculate_position_size(
         PORTFOLIO_CONFIG = {
             "PORTFOLIO_VALUE": 450_000,
             "MIN_POSITION_USD": 1_000,
-            "MAX_POSITION_USD": 40_000,
-            "MAX_POSITION_PCT": 8.9,
+            "MAX_POSITION_USD": 45_000,  # Updated to 10% of portfolio
+            "MAX_POSITION_PCT": 10.0,   # Updated to 10%
             "BASE_POSITION_PCT": 0.5,
-            "HIGH_CONVICTION_PCT": 2.0,
+            "HIGH_CONVICTION_PCT": 10.0,  # Updated to 10%
             "SMALL_CAP_THRESHOLD": 2_000_000_000,
             "MID_CAP_THRESHOLD": 10_000_000_000,
             "LARGE_CAP_THRESHOLD": 50_000_000_000,
@@ -280,18 +283,36 @@ def calculate_position_size(
         else:  # Small cap (<$2B): Smallest position due to higher risk
             position_multiplier = 0.6  # Most conservative
     else:
-        # Normal logic: Adjust position size based on EXRET (expected return)
-        # Higher expected returns get larger positions
-        if exret >= 30:  # Exceptional opportunity (>30% expected return)
-            position_multiplier = 3.0  # Up to 6% of portfolio
-        elif exret >= 20:  # High conviction (20-30% expected return)
-            position_multiplier = 2.0  # Up to 4% of portfolio  
-        elif exret >= 15:  # Good opportunity (15-20% expected return)
-            position_multiplier = 1.5  # Up to 3% of portfolio
-        elif exret >= 10:  # Standard opportunity (10-15% expected return)
-            position_multiplier = 1.0  # Base position (2.25K)
-        else:  # Lower conviction (5-10% expected return)
-            position_multiplier = 0.7  # Smaller position
+        # New logic: Check high conviction criteria first
+        # High conviction: EG >15%, 3MOP >0%, EXRET >20%
+        is_high_conviction = (
+            (earnings_growth is not None and earnings_growth > 15) and
+            (three_month_perf is not None and three_month_perf > 0) and
+            (exret is not None and exret > 20)
+        )
+        
+        if is_high_conviction:
+            # High conviction plays get significantly larger positions
+            if exret >= 40:  # Exceptional high conviction (>40% expected return)
+                position_multiplier = 20.0  # Up to 10% of portfolio
+            elif exret >= 30:  # Very high conviction (30-40% expected return) 
+                position_multiplier = 16.0  # Up to 8% of portfolio
+            elif exret >= 25:  # High conviction (25-30% expected return)
+                position_multiplier = 12.0  # Up to 6% of portfolio
+            else:  # Base high conviction (20-25% expected return)
+                position_multiplier = 8.0   # Up to 4% of portfolio
+        else:
+            # Standard logic: Adjust position size based on EXRET only
+            if exret >= 25:  # High opportunity without all conviction criteria
+                position_multiplier = 4.0   # Up to 2% of portfolio
+            elif exret >= 20:  # Good opportunity (20-25% expected return)
+                position_multiplier = 2.0   # Up to 1% of portfolio  
+            elif exret >= 15:  # Standard opportunity (15-20% expected return)
+                position_multiplier = 1.5   # Up to 0.75% of portfolio
+            elif exret >= 10:  # Lower opportunity (10-15% expected return)
+                position_multiplier = 1.0   # Base position (0.5%)
+            else:  # Low conviction (5-10% expected return)
+                position_multiplier = 0.5   # Smaller position (0.25%)
 
     # For fallback mode, we already incorporated market cap into position_multiplier
     # For normal mode, apply additional market cap risk adjustment
@@ -313,7 +334,7 @@ def calculate_position_size(
 
     # Apply limits
     position_size = max(min_position, position_size)  # At least $1K
-    position_size = min(max_position, position_size)  # At most $40K
+    position_size = min(max_position, position_size)  # At most $45K
 
     # Round to nearest $500 for cleaner position sizes
     result = round(position_size / 500) * 500

@@ -68,6 +68,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
             "SILVER": "SI=F",  # Silver Futures
             "NATURAL_GAS": "NG=F",  # Natural Gas Futures
             "EURUSD": "EURUSD=X",  # Forex
+            "ASML.NV": "ASML",  # ASML Holding NV
             # Add other mappings as needed
         }
 

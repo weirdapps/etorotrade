@@ -880,7 +880,19 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         logger.debug(f"Getting last earnings date for {ticker_symbol}")
         
         try:
-            # Try quarterly earnings first - this should contain historical earnings dates
+            # Try quarterly income statement first - this is the most reliable source
+            quarterly_income = getattr(ticker_obj, "quarterly_income_stmt", None)
+            if quarterly_income is not None and not quarterly_income.empty:
+                # Get the most recent quarter date
+                latest_date = quarterly_income.columns[0]  # Most recent is first column
+                result = latest_date.strftime("%Y-%m-%d")
+                logger.debug(f"Found last earnings date from quarterly_income_stmt for {ticker_symbol}: {result}")
+                return result
+        except Exception as e:
+            logger.debug(f"Error getting earnings from quarterly_income_stmt: {str(e)}")
+        
+        try:
+            # Try quarterly earnings second - this should contain historical earnings dates
             quarterly_earnings = getattr(ticker_obj, "quarterly_earnings", None)
             if quarterly_earnings is not None and not quarterly_earnings.empty:
                 # Get the most recent earnings date from quarterly earnings
@@ -896,7 +908,8 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             earnings_dates = getattr(ticker_obj, "earnings_dates", None)
             if earnings_dates is not None and not earnings_dates.empty:
                 import pandas as pd
-                today = pd.Timestamp.now()
+                # Make timezone-aware comparison
+                today = pd.Timestamp.now(tz=earnings_dates.index.tz)
                 logger.debug(f"Found earnings_dates for {ticker_symbol}, filtering for past dates before {today}")
                 
                 # Filter for past dates
@@ -928,9 +941,23 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                     latest_date = None
                     for date in earnings_date_list:
                         logger.debug(f"Checking date {date} (type: {type(date)}) against today {today}")
-                        if isinstance(date, datetime.date) and date < today:
-                            if latest_date is None or date > latest_date:
-                                latest_date = date
+                        # Handle both datetime.date and datetime.datetime objects
+                        if hasattr(date, 'date'):
+                            # It's a datetime object, get the date part
+                            date_obj = date.date()
+                        elif hasattr(date, 'strftime'):
+                            # It's already a date object
+                            date_obj = date
+                        else:
+                            # Try to convert to date
+                            try:
+                                date_obj = pd.to_datetime(date).date()
+                            except:
+                                continue
+                        
+                        if date_obj < today:
+                            if latest_date is None or date_obj > latest_date:
+                                latest_date = date_obj
                     
                     if latest_date is not None:
                         result = latest_date.strftime("%Y-%m-%d")
