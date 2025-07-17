@@ -78,7 +78,7 @@ A stock must meet ALL of these criteria:
   - Forward P/E between 0.1 and 65.0
   - Good growth-adjusted value (PEG < 2.5, if available)
 - **Strong Fundamentals**:
-  - Earnings growth ≥ 5% (if available)
+  - Earnings growth ≥ -10% (if available)
   - 3-month price performance ≥ -10% (if available)
 - **Limited Risk Factors**: 
   - Low short interest (≤ 2.0%, if available)
