@@ -345,6 +345,8 @@ except ImportError:
         "PEG",
         "DIV %",
         "SI",
+        "EG",
+        "PP",
         "EARNINGS",
         "SIZE",
         "ACT",

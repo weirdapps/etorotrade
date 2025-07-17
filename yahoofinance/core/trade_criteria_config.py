@@ -47,23 +47,27 @@ class TradingCriteria:
     # SELL criteria thresholds
     SELL_MAX_UPSIDE = 5.0              # Sell if upside < 5%
     SELL_MIN_BUY_PERCENTAGE = 65.0     # Sell if buy% < 65%
-    SELL_MIN_FORWARD_PE = 50.0         # Sell if PEF > 50
+    SELL_MIN_FORWARD_PE = 65.0         # Sell if PEF > 65
     SELL_MIN_PEG = 3.0                 # Sell if PEG > 3
     SELL_MIN_SHORT_INTEREST = 2.5      # Sell if SI > 2.5%
     SELL_MIN_BETA = 3.0                # Sell if Beta > 3
-    SELL_MAX_EXRET = 0.05               # Sell if EXRET < 5% (stored as decimal)
+    SELL_MAX_EXRET = 0.025             # Sell if EXRET < 2.5% (stored as decimal)
+    SELL_MAX_EARNINGS_GROWTH = -15.0   # Sell if EG < -15%
+    SELL_MAX_PRICE_PERFORMANCE = -20.0 # Sell if PP < -20%
 
-    # BUY criteria thresholds
-    BUY_MIN_UPSIDE = 20.0              # Buy if upside >= 20%
-    BUY_MIN_BUY_PERCENTAGE = 80.0      # Buy if buy% >= 80%
+    # BUY criteria thresholds (Adjusted for realistic market conditions)
+    BUY_MIN_UPSIDE = 15.0              # Buy if upside >= 15%
+    BUY_MIN_BUY_PERCENTAGE = 75.0      # Buy if buy% >= 75%
     BUY_MIN_BETA = 0.25                # Buy if beta > 0.25
     BUY_MAX_BETA = 2.5                 # Buy if beta <= 2.5
-    BUY_MIN_FORWARD_PE = 0.5           # Buy if PEF > 0.5
-    BUY_MAX_FORWARD_PE = 55.0          # Buy if PEF <= 55
-    BUY_MAX_PEG = 2.5                  # Buy if PEG < 2.5
+    BUY_MIN_FORWARD_PE = 0.1           # Buy if PEF > 0.1
+    BUY_MAX_FORWARD_PE = 65.0          # Buy if PEF <= 65
+    BUY_MAX_PEG = 2.5                  # Buy if PEG < 2.5 (conditional)
     BUY_MAX_SHORT_INTEREST = 2.0       # Buy if SI <= 2.0%
-    BUY_MIN_EXRET = 0.15               # Buy if EXRET >= 15% (stored as decimal)
+    BUY_MIN_EXRET = 0.10               # Buy if EXRET >= 10% (stored as decimal)
     BUY_MIN_MARKET_CAP = 1_000_000_000 # Buy if market cap >= $1B
+    BUY_MIN_EARNINGS_GROWTH = 5.0      # Buy if EG >= 5% (conditional)
+    BUY_MIN_PRICE_PERFORMANCE = -10.0  # Buy if PP >= -10% (conditional)
 
     @classmethod
     def check_confidence(cls, analyst_count: Optional[float], total_ratings: Optional[float]) -> bool:
@@ -143,6 +147,16 @@ class TradingCriteria:
             if exret < cls.SELL_MAX_EXRET:
                 return True, f"Low expected return ({exret*100:.1f}% < {cls.SELL_MAX_EXRET*100:.0f}%)"
 
+        # 7. Poor earnings growth
+        eg = cls._get_numeric_value(row.get("earnings_growth", row.get("EG")))
+        if eg is not None and eg < cls.SELL_MAX_EARNINGS_GROWTH:
+            return True, f"Poor earnings growth ({eg:.1f}% < {cls.SELL_MAX_EARNINGS_GROWTH}%)"
+
+        # 8. Poor price performance
+        pp = cls._get_numeric_value(row.get("price_performance", row.get("PP")))
+        if pp is not None and pp < cls.SELL_MAX_PRICE_PERFORMANCE:
+            return True, f"Poor price performance ({pp:.1f}% < {cls.SELL_MAX_PRICE_PERFORMANCE}%)"
+
         return False, None
 
     @classmethod
@@ -184,7 +198,7 @@ class TradingCriteria:
             return False, "Forward P/E not available"
 
         # Check if PE is in valid range
-        if not (cls.BUY_MIN_FORWARD_PE < pe_forward <= cls.BUY_MAX_FORWARD_PE):
+        if not (cls.BUY_MIN_FORWARD_PE <= pe_forward <= cls.BUY_MAX_FORWARD_PE):
             return False, f"Forward P/E out of range ({pe_forward:.1f})"
 
         # PE condition: PEF - PET <= 10 (PE not expanding too much)
@@ -194,7 +208,7 @@ class TradingCriteria:
             if pe_difference > 10:
                 return False, f"P/E expanding too much (PEF {pe_forward:.1f} - PET {pe_trailing:.1f} = {pe_difference:.1f} > 10)"
 
-        # 4. Secondary criteria (optional but checked if available)
+        # 4. Secondary criteria (conditional - only checked if data available)
         peg = cls._get_numeric_value(row.get("peg_ratio"))
         if peg is not None and peg >= cls.BUY_MAX_PEG:
             return False, f"PEG ratio too high ({peg:.1f} >= {cls.BUY_MAX_PEG})"
@@ -223,6 +237,16 @@ class TradingCriteria:
             
         if exret < cls.BUY_MIN_EXRET:
             return False, f"Expected return too low ({exret*100:.1f}% < {cls.BUY_MIN_EXRET*100:.0f}%)"
+
+        # 7. Earnings growth (conditional - only checked if data available)
+        eg = cls._get_numeric_value(row.get("earnings_growth", row.get("EG")))
+        if eg is not None and eg < cls.BUY_MIN_EARNINGS_GROWTH:
+            return False, f"Earnings growth too low ({eg:.1f}% < {cls.BUY_MIN_EARNINGS_GROWTH}%)"
+        
+        # 8. Price performance (conditional - only checked if data available)
+        pp = cls._get_numeric_value(row.get("price_performance", row.get("PP")))
+        if pp is not None and pp < cls.BUY_MIN_PRICE_PERFORMANCE:
+            return False, f"Price performance too low ({pp:.1f}% < {cls.BUY_MIN_PRICE_PERFORMANCE}%)"
 
         return True, None
 
@@ -312,6 +336,8 @@ def normalize_row_for_criteria(row: Dict[str, Any]) -> Dict[str, Any]:
         "# A": "total_ratings",
         "EXRET": "EXRET",  # Keep as is
         "CAP": "market_cap",
+        "EG": "earnings_growth",  # Map EG display column to internal name
+        "PP": "price_performance",  # Map PP display column to internal name
     }
 
     normalized = {}

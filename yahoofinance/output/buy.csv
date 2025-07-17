@@ -1,1 +1,2 @@
-
+symbol,ticker,name,company,sector,industry,country,website,current_price,price,currency,market_cap,exchange,quote_type,pe_trailing,dividend_yield,beta,fifty_two_week_high,fifty_two_week_low,pe_forward,peg_ratio,short_percent,target_price,recommendation,analyst_count,total_ratings,buy_percentage,A,last_earnings,earnings_date,market_cap_fmt,upside,EXRET,data_source
+DIE.BR,DIE.BR,D'Ieteren Group SA,D'IETEREN GROU,Consumer Cyclical,Auto & Truck Dealerships,Belgium,https://www.dieterengroup.com,173.4,173.4,EUR,9340763136.0,BRU,EQUITY,25.276966,0.88,1.222,228.4,140.0,12.385714,,,214.85715,1.57143,7,7,85.71428571428571,A,,2025-09-03,9.34B,23.908391003460206,20.49290657439446,yfinance

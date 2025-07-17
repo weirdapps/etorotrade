@@ -1,4 +1,2 @@
-symbol,ticker,name,company,sector,industry,country,website,current_price,price,currency,market_cap,exchange,quote_type,pe_trailing,dividend_yield,beta,fifty_two_week_high,fifty_two_week_low,pe_forward,peg_ratio,short_percent,target_price,recommendation,analyst_count,total_ratings,buy_percentage,A,last_earnings,market_cap_fmt,upside,EXRET,data_source,earnings_date
-AAPL,AAPL,Apple Inc.,APPLE INC.,Technology,Consumer Electronics,United States,https://www.apple.com,213.55,213.55,USD,3189540126720.0,NMS,EQUITY,33.21151,0.51,1.211,260.1,169.21,25.697954,1.9474,0.67000003,228.60326,2.1087,48,17,70.58823529411765,E,2025-05-01,3.19T,7.049056427066258,4.975804536752653,yfinance,2025-07-31
-MSFT,MSFT,Microsoft Corporation,MICROSOFT CORP,Technology,Software - Infrastructure,United States,https://www.microsoft.com,498.84,498.84,USD,3707648344064.0,NMS,EQUITY,38.609905,0.67,1.026,500.76,344.79,33.367226,2.3397,0.69,522.2628,1.43333,61,27,92.5925925925926,E,2025-04-30,3.71T,4.695453452008658,4.347642085193201,yfinance,2025-08-01
-AAAAAA,AAAAAA,,,,,,,,,,,,,,,,,,,,,,,0,0,,,,,,,yfinance,
+#,TICKER,COMPANY,PRICE,TARGET,UPSIDE,# T,# A,% BUY,CAP,PET,PEF,PEG,BETA,SI,DIV %,EARNINGS,earnings_growth,EXRET,A,ACT,EG,PP,SIZE
+1,STM.DE,STABILUS SE,25.20,44.71,77.4%,7,7,100%,661M,9.5,5.7,--,0.89,--,4.13%,2025-03-31,-54.3,77.4%,A,S,--,15.5%,6.5k
