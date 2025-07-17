@@ -31,14 +31,14 @@ def trading_criteria():
             "SELL_MAX_EXRET": 10.0,
         },
         "BUY": {
-            "BUY_MIN_UPSIDE": 20.0,
-            "BUY_MIN_BUY_PERCENTAGE": 85.0,  # Updated to match config.py
-            "BUY_MIN_BETA": 0.2,
-            "BUY_MAX_BETA": 3.0,
-            "BUY_MIN_FORWARD_PE": 0.5,
-            "BUY_MAX_FORWARD_PE": 45.0,
-            "BUY_MAX_PEG": 3.0,
-            "BUY_MAX_SHORT_INTEREST": 3.0,
+            "BUY_MIN_UPSIDE": 15.0,  # Updated to match current criteria
+            "BUY_MIN_BUY_PERCENTAGE": 75.0,  # Updated to match current criteria  
+            "BUY_MIN_BETA": 0.25,
+            "BUY_MAX_BETA": 2.5,  # Updated to match current criteria
+            "BUY_MIN_FORWARD_PE": 0.1,  # Updated to match current criteria
+            "BUY_MAX_FORWARD_PE": 65.0,  # Updated to match current criteria
+            "BUY_MAX_PEG": 2.5,  # Updated to match current criteria
+            "BUY_MAX_SHORT_INTEREST": 2.0,  # Updated to match current criteria
             "BUY_MIN_EXRET": 10.0,
         },
     }
@@ -51,15 +51,15 @@ def test_data():
         "buy_stock": {
             "ticker": "BUY",
             "upside": 25.0,
-            "buy_percentage": 90.0,  # Increased to pass the new 85% threshold
+            "buy_percentage": 80.0,  # Updated to pass 75% threshold
             "pe_trailing": 20.0,
             "pe_forward": 15.0,
             "peg_ratio": 1.2,
             "beta": 1.5,
-            "short_percent": 1.0,  # Reduced to pass the 1.5% threshold
+            "short_percent": 1.5,  # Updated to pass 2.0% threshold
             "analyst_count": 10,
             "total_ratings": 8,
-            "EXRET": 22.5,  # 25 * 0.9
+            "EXRET": 20.0,  # 25 * 0.8
             "market_cap": 1_000_000_000,  # $1B - above $500M requirement
         },
         "sell_stock_low_upside": {
@@ -78,36 +78,36 @@ def test_data():
         },
         "sell_stock_high_beta": {
             "ticker": "SELL2",
-            "upside": 15.0,
+            "upside": 10.0,  # Below BUY_MIN_UPSIDE threshold (15.0)
             "buy_percentage": 75.0,
             "pe_trailing": 22.0,
             "pe_forward": 20.0,
             "peg_ratio": 1.8,
-            "beta": 3.5,  # Above SELL_MIN_BETA threshold (3.0)
+            "beta": 3.5,  # Above BUY_MAX_BETA threshold (2.5) 
             "short_percent": 1.0,  # Reduced to avoid triggering short interest rule first
             "analyst_count": 7,
             "total_ratings": 6,
-            "EXRET": 11.25,  # 15 * 0.75
+            "EXRET": 7.5,  # 10 * 0.75
             "market_cap": 900_000_000,  # $900M - above $500M requirement
         },
         "hold_stock": {
             "ticker": "HOLD",
-            "upside": 12.0,  # Not enough for BUY (needs >= 20)
-            "buy_percentage": 80.0,  # Not enough for BUY (needs >= 85)
+            "upside": 12.0,  # Not enough for BUY (needs >= 15)
+            "buy_percentage": 70.0,  # Not enough for BUY (needs >= 75)
             "pe_trailing": 18.0,
             "pe_forward": 16.0,
             "peg_ratio": 1.5,
             "beta": 1.2,
-            "short_percent": 1.0,  # Keep under buy threshold
+            "short_percent": 1.5,  # Keep under buy threshold
             "analyst_count": 6,
             "total_ratings": 5,
-            "EXRET": 16.0,  # Above SELL threshold (5%) and BUY threshold (15%)
+            "EXRET": 8.4,  # 12 * 0.7 - Above SELL threshold (2.5%) and BUY threshold (10%)
             "market_cap": 600_000_000,  # $600M - above $500M requirement
         },
         "insufficient_confidence": {
             "ticker": "LOWCONF",
             "upside": 30.0,
-            "buy_percentage": 90.0,
+            "buy_percentage": 80.0,
             "pe_trailing": 15.0,
             "pe_forward": 12.0,
             "peg_ratio": 1.0,
@@ -115,7 +115,7 @@ def test_data():
             "short_percent": 1.0,
             "analyst_count": 3,  # Below MIN_ANALYST_COUNT
             "total_ratings": 2,  # Below MIN_PRICE_TARGETS
-            "EXRET": 27.0,  # 30 * 0.9
+            "EXRET": 24.0,  # 30 * 0.8
             "market_cap": 700_000_000,  # $700M - above $500M requirement
         },
     }

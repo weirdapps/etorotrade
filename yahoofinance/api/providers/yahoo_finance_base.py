@@ -19,6 +19,7 @@ import yfinance as yf
 from ...core.errors import (
     APIError,
     DataError,
+    NetworkError,
     ResourceNotFoundError,
     ValidationError,
     YFinanceError,

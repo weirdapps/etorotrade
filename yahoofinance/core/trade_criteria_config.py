@@ -66,7 +66,7 @@ class TradingCriteria:
     BUY_MAX_SHORT_INTEREST = 2.0       # Buy if SI <= 2.0%
     BUY_MIN_EXRET = 0.10               # Buy if EXRET >= 10% (stored as decimal)
     BUY_MIN_MARKET_CAP = 1_000_000_000 # Buy if market cap >= $1B
-    BUY_MIN_EARNINGS_GROWTH = 5.0      # Buy if EG >= 5% (conditional)
+    BUY_MIN_EARNINGS_GROWTH = -10.0    # Buy if EG >= -10% (conditional)
     BUY_MIN_PRICE_PERFORMANCE = -10.0  # Buy if PP >= -10% (conditional)
 
     @classmethod
