@@ -247,12 +247,12 @@ async def handle_trade_analysis_direct(display, trade_choice, get_provider=None,
             app_logger.info("Loading portfolio data for SELL opportunities analysis")
             
         elif trade_choice == "H":
-            # HOLD: Check market.csv for hold opportunities NOT in portfolio or sell files
-            data_file = market_file
-            exclusion_files = [portfolio_file, os.path.join(output_dir, "sell.csv")]
-            title = "Trade Analysis - HOLD Opportunities (Market data excluding portfolio/notrade)"
+            # HOLD: Check portfolio.csv for hold opportunities (stocks we own that should be held)
+            data_file = portfolio_file
+            exclusion_files = []  # Don't exclude anything - we want to analyze our portfolio
+            title = "Trade Analysis - HOLD Opportunities (Portfolio data)"
             output_filename = "hold.csv"
-            app_logger.info("Loading market data for HOLD opportunities analysis")
+            app_logger.info("Loading portfolio data for HOLD opportunities analysis")
             
         else:
             app_logger.error(f"Invalid trade choice: {trade_choice}")

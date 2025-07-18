@@ -183,56 +183,35 @@ def clean_yfinance_caches():
 
 def clean_memory():
     """
-    Perform comprehensive memory cleanup to prevent leaks.
+    Perform optimized memory cleanup to prevent leaks.
 
-    This function runs a series of cleanup operations to address known
-    memory leak sources in Python modules, particularly ABC, pandas,
-    and datetime.
+    Simplified cleanup that performs essential operations without
+    excessive multiple passes that cause post-execution delays.
 
     Returns:
         Dict containing counts of cleaned items from various sources
     """
-    # Run garbage collection
-    gc_collected = gc.collect(2)  # Full collection (all generations)
-
     # Clear specific module caches
     abc_cleaned = clear_abc_caches()
     pandas_cleaned = clear_pandas_caches()
     datetime_cleaned = clear_datetime_caches()
     yfinance_cleaned = clean_yfinance_caches()
 
-    # Run another round of cleanup after the first round
-    abc_cleaned_second = clear_abc_caches()
-
-    # Run garbage collection again after clearing caches
-    gc_collected_again = gc.collect(2)
-
-    # Force a final cleanup of ABC caches
-    final_abc_cleaned = clear_abc_caches()
-
-    # Final garbage collection
-    final_gc = gc.collect(2)
+    # Single garbage collection pass after cache clearing
+    gc_collected = gc.collect()
 
     results = {
-        "gc_collected_initial": gc_collected,
         "abc_cache_items_cleared": abc_cleaned,
         "pandas_cache_items_cleared": pandas_cleaned,
         "datetime_cache_items_cleared": datetime_cleaned,
         "yfinance_cache_items_cleared": yfinance_cleaned,
-        "abc_cache_items_cleared_second_pass": abc_cleaned_second,
-        "gc_collected_after_cache_clearing": gc_collected_again,
-        "final_abc_cache_items_cleared": final_abc_cleaned,
-        "final_gc_collected": final_gc,
+        "gc_collected": gc_collected,
         "total_items_cleaned": (
-            gc_collected
-            + abc_cleaned
+            abc_cleaned
             + pandas_cleaned
             + datetime_cleaned
             + yfinance_cleaned
-            + abc_cleaned_second
-            + gc_collected_again
-            + final_abc_cleaned
-            + final_gc
+            + gc_collected
         ),
     }
 

@@ -75,7 +75,8 @@ A stock must meet ALL of these criteria:
 - **Analyst Consensus**: 75%+ buy ratings
 - **Reasonable Volatility**: Beta between 0.25 and 2.5
 - **Attractive Valuation**: 
-  - Forward P/E between 0.1 and 65.0
+  - Forward P/E between 0.5 and 65.0
+  - Trailing P/E between 0.5 and 80.0 (required for BUY)
   - Good growth-adjusted value (PEG < 2.5, if available)
 - **Strong Fundamentals**:
   - Earnings growth ≥ -10% (if available)
@@ -110,8 +111,13 @@ etorotrade now includes additional fundamental analysis columns for more compreh
 
 ### New Data Columns
 - **EG (Earnings Growth)**: Year-over-year earnings growth percentage from quarterly data
-- **PP (Price Performance)**: 3-month price performance showing recent momentum
+- **PP (Price Performance)**: 3-month price performance showing recent momentum (shows `--` when data unavailable)
 - **Enhanced Position Sizing**: Updated to consider high conviction criteria
+
+### Data Availability Notes
+- **PP Column**: Shows `--` when price performance data is unavailable from Yahoo Finance API
+- **Common for**: ETFs, crypto, international stocks, and smaller stocks
+- **This is expected behavior** - the system correctly shows `--` instead of misleading information
 
 ### High Conviction Position Sizing
 The system now identifies high conviction opportunities using multiple criteria:
@@ -241,10 +247,19 @@ python trade.py  # Then select:
 # Non-interactive automation examples
 echo "p\ne" | python trade.py  # Portfolio analysis with existing file
 echo "t\nb" | python trade.py  # BUY recommendations
+echo "t\ns" | python trade.py  # SELL recommendations
+echo "t\nh" | python trade.py  # HOLD recommendations
 echo "m" | python trade.py     # Market screening
+
+# Command line arguments (faster)
+python trade.py -o t -t b      # BUY opportunities
+python trade.py -o t -t s      # SELL opportunities  
+python trade.py -o t -t h      # HOLD opportunities
+python trade.py -o p -t n      # Portfolio analysis with new download
+python trade.py -o m -t 50     # Market analysis for 50 stocks
 ```
 
-**Recent Improvements (2025-01-06)**:
+**Recent Improvements (2025-01-18)**:
 - 🚀 **Major Performance Boost**: 127% faster API processing (390 vs 171 tickers/minute)
 - ⚡ **Vectorized Operations**: DataFrame calculations now >1.7M rows/second 
 - 📊 **Smart Rate Limiting**: Optimized batch sizes (25 vs 10) and reduced delays (0.15s vs 0.3s)
@@ -252,6 +267,8 @@ echo "m" | python trade.py     # Market screening
 - 🏗️ **Modular Architecture**: Clean separation into specialized trade_modules
 - ✅ **Enterprise Performance**: 56% faster processing for large datasets (100+ tickers)
 - 📈 **Performance Monitoring**: Built-in benchmarking tools for real-time metrics
+- 🔧 **Trade Analysis Fixed**: Display formatting and HOLD analysis logic corrected
+- 📊 **Updated BUY Criteria**: P/E ratio minimums increased from 0.1 to 0.5 for more realistic filtering
 
 **UI/UX Enhancements (2025-01-06)**:
 - 🎨 **Ultra-Clean Display**: Completely silent processing with zero debug/info/warning messages

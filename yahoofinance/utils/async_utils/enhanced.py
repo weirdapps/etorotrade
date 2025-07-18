@@ -736,46 +736,78 @@ async def process_batch_async(
 
         logger.debug(f"Processing batch {batch_num}/{total_batches} ({len(batch)} items)")
 
-        # Process batch with concurrency limit, and optional timeout
-        batch_coroutines = [processor(item) for item in batch]
-
         if timeout_per_batch:
+            # Process batch with concurrency limit, and optional timeout
+            batch_coroutines = [processor(item) for item in batch]
             # Use asyncio.wait_for with timeout for the entire batch
             try:
                 batch_results = await asyncio.wait_for(
                     gather_with_concurrency(batch_coroutines, limit=concurrency),
                     timeout=timeout_per_batch,
                 )
+                # Map results back to original items
+                for item, result in zip(batch, batch_results):
+                    if result is not None:
+                        results[item] = result
+                        success_count += 1
+
+                        # Check if this was a cache hit
+                        if isinstance(result, dict) and result.get("_cache_hit") is True:
+                            cache_hits += 1
+                    else:
+                        error_count += 1
+                    
+                    # Smooth progress update: Update after each item
+                    if show_progress:
+                        progress_bar.update(1)
+                        progress_bar.refresh()  # Force immediate display update
+                        
             except asyncio.TimeoutError:
                 logger.warning(f"Batch {batch_num} timed out after {timeout_per_batch}s")
-                batch_results = [None] * len(batch)
+                # Update progress even for timed out batch
+                if show_progress:
+                    progress_bar.update(len(batch))
         else:
-            # No timeout, use regular gather
-            batch_results = await gather_with_concurrency(batch_coroutines, limit=concurrency)
+            # SMOOTH PROGRESS: Process items as they complete for real-time updates
+            # Use enumerate to track items instead of task mapping to avoid KeyError
+            batch_results = await asyncio.gather(
+                *[processor(item) for item in batch], 
+                return_exceptions=True
+            )
+            
+            # Process results and update progress as we go
+            for i, (item, result) in enumerate(zip(batch, batch_results)):
+                try:
+                    if isinstance(result, Exception):
+                        logger.warning(f"Error processing {item}: {result}")
+                        error_count += 1
+                    elif result is not None:
+                        results[item] = result
+                        success_count += 1
 
-        # Map results back to original items
-        for item, result in zip(batch, batch_results):
-            if result is not None:
-                results[item] = result
-                success_count += 1
+                        # Check if this was a cache hit
+                        if isinstance(result, dict) and result.get("_cache_hit") is True:
+                            cache_hits += 1
+                    else:
+                        error_count += 1
+                        
+                except Exception as e:
+                    # Handle individual item errors
+                    logger.warning(f"Error processing {item}: {e}")
+                    error_count += 1
+                
+                # Smooth progress update: Update immediately after each item completes
+                if show_progress:
+                    progress_bar.update(1)
+                    progress_bar.refresh()  # Force immediate display update
 
-                # Check if this was a cache hit
-                if isinstance(result, dict) and result.get("_cache_hit") is True:
-                    cache_hits += 1
-            else:
-                error_count += 1
-
-        # Update progress bar
-        if show_progress:
-            progress_bar.update(len(batch))
-
-        # Delay between batches (except for the last batch)
+        # Delay between batches (except for the last batch) - OPTIMIZED: No delay for maximum performance
         if i + batch_size < total_items and delay_between_batches > 0:
             if show_progress:
                 progress_bar.set_description(f"⏳ Waiting {delay_between_batches:.1f}s")
 
-            logger.debug(f"Waiting {delay_between_batches}s between batches")
-            await asyncio.sleep(delay_between_batches)
+            logger.debug(f"Batch delay disabled for optimal performance (was {delay_between_batches}s)")
+            # await asyncio.sleep(delay_between_batches)  # Disabled for performance optimization
 
     # Close progress bar if used
     if show_progress:

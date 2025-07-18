@@ -210,11 +210,7 @@ class SharedSessionManager:
                 await self._session.close()
                 logger.info("Closed shared HTTP session")
                 
-                # Wait for underlying connections to close
-                try:
-                    await asyncio.sleep(0.1)  # Brief delay for cleanup
-                except Exception:
-                    pass
+                # Connections close automatically - no delay needed
             
             self._session = None
             self._session_created_at = None

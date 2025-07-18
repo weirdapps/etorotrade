@@ -60,8 +60,8 @@ RATE_LIMIT = {
     "MAX_DELAY": 2.0,
     # Increased batch size for better throughput
     "BATCH_SIZE": 25,
-    # Reduced batch delay for faster processing
-    "BATCH_DELAY": 0.1,
+    # No batch delay for maximum performance
+    "BATCH_DELAY": 0.0,
     # Maximum retry attempts for API calls
     "MAX_RETRY_ATTEMPTS": 3,
     # API request timeout in seconds
@@ -123,19 +123,19 @@ CIRCUIT_BREAKER = {
     ),
 }
 
-# Caching configuration - COMPLETELY DISABLED FOR BETTER PERFORMANCE
-# Testing showed that direct API calls without caching provide equal or better performance
+# Caching configuration - OPTIMIZED WITH SMART TTLs
+# Re-enabled with appropriate TTLs for different data types to reduce API calls
 CACHE_CONFIG = {
-    # Memory cache disabled - direct API calls performing better
-    "ENABLE_MEMORY_CACHE": False,
-    # Disk cache disabled - avoids I/O overhead
+    # Memory cache enabled with smart TTLs for different data types
+    "ENABLE_MEMORY_CACHE": True,
+    # Disk cache disabled - keep I/O overhead minimal
     "ENABLE_DISK_CACHE": False,
     # Memory-only mode (not relevant when both caches disabled)
     "MEMORY_ONLY_MODE": True,
     # Memory cache size (items) - significantly increased for better hit rates
     "MEMORY_CACHE_SIZE": 10000,
-    # Default memory cache TTL (seconds)
-    "MEMORY_CACHE_TTL": 300,  # 5 minutes
+    # Default memory cache TTL (seconds) - reduced for fresher data
+    "MEMORY_CACHE_TTL": 60,  # 1 minute
     # Thread-local cache size for frequently accessed keys
     "THREAD_LOCAL_CACHE_SIZE": 100,
     # Enable ultra-fast path optimizations

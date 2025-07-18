@@ -178,7 +178,7 @@ except ImportError:
         "ENABLE_ADAPTIVE_STRATEGY": True,
         "MONITOR_INTERVAL": 60,
         "BATCH_SIZE": 25,     # Optimized: increased from 10
-        "BATCH_DELAY": 0.1,   # Optimized: reduced from 0.5
+        "BATCH_DELAY": 0.0,   # Optimized: no delay for maximum performance
         "MAX_CONCURRENT_CALLS": 30,  # Optimized: increased from 10
         # Connection pooling configuration
         "MAX_TOTAL_CONNECTIONS": 50,

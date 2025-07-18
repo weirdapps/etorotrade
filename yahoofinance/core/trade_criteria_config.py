@@ -60,8 +60,10 @@ class TradingCriteria:
     BUY_MIN_BUY_PERCENTAGE = 75.0      # Buy if buy% >= 75%
     BUY_MIN_BETA = 0.25                # Buy if beta > 0.25
     BUY_MAX_BETA = 2.5                 # Buy if beta <= 2.5
-    BUY_MIN_FORWARD_PE = 0.1           # Buy if PEF > 0.1
+    BUY_MIN_FORWARD_PE = 0.5           # Buy if PEF > 0.5
     BUY_MAX_FORWARD_PE = 65.0          # Buy if PEF <= 65
+    BUY_MIN_TRAILING_PE = 0.5          # Buy if PET > 0.5  
+    BUY_MAX_TRAILING_PE = 80.0         # Buy if PET <= 80
     BUY_MAX_PEG = 2.5                  # Buy if PEG < 2.5 (conditional)
     BUY_MAX_SHORT_INTEREST = 2.0       # Buy if SI <= 2.0%
     BUY_MIN_EXRET = 0.10               # Buy if EXRET >= 10% (stored as decimal)
@@ -197,16 +199,23 @@ class TradingCriteria:
         if pe_forward is None:
             return False, "Forward P/E not available"
 
+        # MANDATORY: PET (trailing P/E) is now required for BUY signals
+        if pe_trailing is None:
+            return False, "Trailing P/E (PET) not available - required for BUY"
+
         # Check if PE is in valid range
         if not (cls.BUY_MIN_FORWARD_PE <= pe_forward <= cls.BUY_MAX_FORWARD_PE):
             return False, f"Forward P/E out of range ({pe_forward:.1f})"
 
+        # Check if trailing PE is in valid range (companies with negative earnings can't get BUY)
+        if not (cls.BUY_MIN_TRAILING_PE <= pe_trailing <= cls.BUY_MAX_TRAILING_PE):
+            return False, f"Trailing P/E out of range ({pe_trailing:.1f}) - must be between {cls.BUY_MIN_TRAILING_PE} and {cls.BUY_MAX_TRAILING_PE}"
+
         # PE condition: PEF - PET <= 10 (PE not expanding too much)
         # This allows for reasonable PE expansion but not excessive growth
-        if pe_trailing is not None and pe_trailing > 0:
-            pe_difference = pe_forward - pe_trailing
-            if pe_difference > 10:
-                return False, f"P/E expanding too much (PEF {pe_forward:.1f} - PET {pe_trailing:.1f} = {pe_difference:.1f} > 10)"
+        pe_difference = pe_forward - pe_trailing
+        if pe_difference > 10:
+            return False, f"P/E expanding too much (PEF {pe_forward:.1f} - PET {pe_trailing:.1f} = {pe_difference:.1f} > 10)"
 
         # 4. Secondary criteria (conditional - only checked if data available)
         peg = cls._get_numeric_value(row.get("peg_ratio"))
