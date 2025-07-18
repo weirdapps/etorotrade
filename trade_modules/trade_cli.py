@@ -236,7 +236,8 @@ async def handle_trade_analysis_direct(display, trade_choice, get_provider=None,
             exclusion_files = [portfolio_file, os.path.join(output_dir, "sell.csv")]
             title = "Trade Analysis - BUY Opportunities (Market data excluding portfolio/notrade)"
             output_filename = "buy.csv"
-            app_logger.info("Loading market data for BUY opportunities analysis")
+            if app_logger:
+                app_logger.info("Loading market data for BUY opportunities analysis")
             
         elif trade_choice == "S":
             # SELL: Check portfolio.csv for sell opportunities
@@ -244,7 +245,8 @@ async def handle_trade_analysis_direct(display, trade_choice, get_provider=None,
             exclusion_files = []
             title = "Trade Analysis - SELL Opportunities (Portfolio data)"
             output_filename = "sell.csv"
-            app_logger.info("Loading portfolio data for SELL opportunities analysis")
+            if app_logger:
+                app_logger.info("Loading portfolio data for SELL opportunities analysis")
             
         elif trade_choice == "H":
             # HOLD: Check portfolio.csv for hold opportunities (stocks we own that should be held)
@@ -252,24 +254,29 @@ async def handle_trade_analysis_direct(display, trade_choice, get_provider=None,
             exclusion_files = []  # Don't exclude anything - we want to analyze our portfolio
             title = "Trade Analysis - HOLD Opportunities (Portfolio data)"
             output_filename = "hold.csv"
-            app_logger.info("Loading portfolio data for HOLD opportunities analysis")
+            if app_logger:
+                app_logger.info("Loading portfolio data for HOLD opportunities analysis")
             
         else:
-            app_logger.error(f"Invalid trade choice: {trade_choice}")
+            if app_logger:
+                app_logger.error(f"Invalid trade choice: {trade_choice}")
             return
         
         # Check if data file exists
         if not os.path.exists(data_file):
-            app_logger.error(f"Data file not found: {data_file}")
+            if app_logger:
+                app_logger.error(f"Data file not found: {data_file}")
             return
         
         # Load and process data directly from CSV without API calls
         await display_existing_csv_data(data_file, exclusion_files, title, output_filename, trade_choice, app_logger)
         
-        app_logger.info(f"Trade analysis {trade_choice} completed successfully")
+        if app_logger:
+            app_logger.info(f"Trade analysis {trade_choice} completed successfully")
         
     except Exception as e:
-        app_logger.error(f"Trade analysis direct failed: {str(e)}")
+        if app_logger:
+            app_logger.error(f"Trade analysis direct failed: {str(e)}")
         raise
 
 
@@ -292,7 +299,8 @@ async def display_existing_csv_data(data_file, exclusion_files, title, output_fi
     try:
         # Load the main data file
         df = pd.read_csv(data_file)
-        app_logger.info(f"Loaded {len(df)} records from {data_file}")
+        if app_logger:
+            app_logger.info(f"Loaded {len(df)} records from {data_file}")
         
         if df.empty:
             return
@@ -308,7 +316,8 @@ async def display_existing_csv_data(data_file, exclusion_files, title, output_fi
                             exclusion_tickers.update(excl_df['symbol'].astype(str).str.upper())
                         elif 'TICKER' in excl_df.columns:
                             exclusion_tickers.update(excl_df['TICKER'].astype(str).str.upper())
-                        app_logger.info(f"Loaded {len(excl_df)} exclusion tickers from {exclusion_file}")
+                        if app_logger:
+                            app_logger.info(f"Loaded {len(excl_df)} exclusion tickers from {exclusion_file}")
                     except Exception as e:
                         pass  # Silent error handling
         
@@ -318,9 +327,11 @@ async def display_existing_csv_data(data_file, exclusion_files, title, output_fi
             ticker_col = 'symbol' if 'symbol' in df.columns else 'TICKER'
             if ticker_col in df.columns:
                 df = df[~df[ticker_col].astype(str).str.upper().isin(exclusion_tickers)]
-                app_logger.info(f"After exclusion filtering: {len(df)} records (excluded {original_count - len(df)})")
+                if app_logger:
+                    app_logger.info(f"After exclusion filtering: {len(df)} records (excluded {original_count - len(df)})")
         elif trade_choice == "S":
-            app_logger.info(f"Processing portfolio data for SELL opportunities: {len(df)} records")
+            if app_logger:
+                app_logger.info(f"Processing portfolio data for SELL opportunities: {len(df)} records")
         
         # Apply trade action filtering to existing data
         if not df.empty:
@@ -363,12 +374,15 @@ async def display_existing_csv_data(data_file, exclusion_files, title, output_fi
                     output_path = os.path.join(output_dir, output_filename)
                     display.save_to_csv(filtered_rows, output_filename)
                     
-                    app_logger.info(f"Displayed {len(filtered_rows)} {trade_choice} opportunities")
+                    if app_logger:
+                        app_logger.info(f"Displayed {len(filtered_rows)} {trade_choice} opportunities")
                 else:
-                    app_logger.info(f"No {trade_choice} opportunities found after filtering")
+                    if app_logger:
+                        app_logger.info(f"No {trade_choice} opportunities found after filtering")
                     
             except Exception as e:
-                app_logger.error(f"Error filtering trade actions: {e}")
+                if app_logger:
+                    app_logger.error(f"Error filtering trade actions: {e}")
                 # Fallback: display all data without action filtering
                 
                 # Convert DataFrame to list of dicts for display
@@ -388,10 +402,12 @@ async def display_existing_csv_data(data_file, exclusion_files, title, output_fi
                 output_path = os.path.join(output_dir, output_filename)
                 display.save_to_csv(all_data, output_filename)
         else:
-            app_logger.info("No data remaining after exclusion filtering")
+            if app_logger:
+                app_logger.info("No data remaining after exclusion filtering")
             
     except Exception as e:
-        app_logger.error(f"Error displaying CSV data: {e}")
+        if app_logger:
+            app_logger.error(f"Error displaying CSV data: {e}")
         raise
 
 

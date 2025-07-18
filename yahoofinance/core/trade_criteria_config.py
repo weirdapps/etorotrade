@@ -53,7 +53,7 @@ class TradingCriteria:
     SELL_MIN_BETA = 3.0                # Sell if Beta > 3
     SELL_MAX_EXRET = 0.025             # Sell if EXRET < 2.5% (stored as decimal)
     SELL_MAX_EARNINGS_GROWTH = -15.0   # Sell if EG < -15%
-    SELL_MAX_PRICE_PERFORMANCE = -25.0 # Sell if PP < -25%
+    SELL_MAX_PRICE_PERFORMANCE = -35.0 # Sell if PP < -35%
 
     # BUY criteria thresholds (Adjusted for realistic market conditions)
     BUY_MIN_UPSIDE = 20.0              # Buy if upside >= 20%

@@ -106,11 +106,11 @@ class TradingEngine:
             # Calculate expected return
             df = calculate_expected_return(df)
             
-            # Calculate excess return
-            df['exret'] = df.apply(lambda row: calculate_exret(row), axis=1)
+            # Calculate excess return using the DataFrame function
+            df = calculate_exret(df)
             
-            # Calculate action recommendations
-            df['action'] = df.apply(lambda row: calculate_action(row), axis=1)
+            # Calculate action recommendations using the DataFrame function
+            df = calculate_action(df)
             
             # Add confidence scores
             df['confidence_score'] = self._calculate_confidence_score(df)
@@ -124,28 +124,47 @@ class TradingEngine:
     def _calculate_confidence_score(self, df: pd.DataFrame) -> pd.Series:
         """Calculate confidence score for trading recommendations."""
         try:
-            # Simple confidence calculation based on multiple factors
-            confidence = pd.Series(0.0, index=df.index)
+            # Initialize confidence with base score
+            confidence = pd.Series(0.6, index=df.index)  # Start with medium-high confidence
             
-            # Factor in expected return strength
+            # Factor in analyst coverage (primary confidence driver)
+            if 'analyst_count' in df.columns:
+                analyst_count = pd.to_numeric(df['analyst_count'], errors='coerce').fillna(0)
+                # High analyst coverage boosts confidence
+                confidence += np.where(analyst_count >= 5, 0.2, 0.0)
+                confidence += np.where(analyst_count >= 10, 0.1, 0.0)
+            
+            # Factor in total ratings
+            if 'total_ratings' in df.columns:
+                total_ratings = pd.to_numeric(df['total_ratings'], errors='coerce').fillna(0)
+                # High rating count boosts confidence
+                confidence += np.where(total_ratings >= 5, 0.1, 0.0)
+            
+            # Factor in expected return strength (if available)
             if 'expected_return' in df.columns:
-                confidence += np.abs(df['expected_return']) * 0.3
+                expected_return = pd.to_numeric(df['expected_return'], errors='coerce').fillna(0)
+                confidence += np.abs(expected_return) * 0.01  # Small boost for strong returns
             
-            # Factor in excess return
-            if 'exret' in df.columns:
-                confidence += np.abs(df['exret']) * 0.4
+            # Factor in excess return (if available)
+            if 'EXRET' in df.columns:
+                exret = pd.to_numeric(df['EXRET'], errors='coerce').fillna(0)
+                confidence += np.abs(exret) * 0.005  # Small boost for strong EXRET
             
-            # Factor in volume (if available)
-            if 'volume' in df.columns:
-                normalized_volume = df['volume'] / df['volume'].mean()
-                confidence += np.log1p(normalized_volume) * 0.3
+            # Reduce confidence for missing critical data
+            if 'upside' in df.columns:
+                upside = pd.to_numeric(df['upside'], errors='coerce')
+                confidence = np.where(pd.isna(upside), confidence - 0.2, confidence)
+            
+            if 'buy_percentage' in df.columns:
+                buy_pct = pd.to_numeric(df['buy_percentage'], errors='coerce')
+                confidence = np.where(pd.isna(buy_pct), confidence - 0.2, confidence)
             
             # Normalize to 0-1 range
             confidence = np.clip(confidence, 0, 1)
             
         except Exception as e:
             self.logger.warning(f"Error calculating confidence scores: {str(e)}")
-            confidence = pd.Series(0.5, index=df.index)  # Default medium confidence
+            confidence = pd.Series(0.7, index=df.index)  # Default high confidence
         
         return confidence
     
@@ -166,39 +185,44 @@ class TradingEngine:
     
     def _filter_buy_opportunities(self, df: pd.DataFrame) -> pd.DataFrame:
         """Filter for buy opportunities based on action and criteria."""
-        if 'action' not in df.columns:
+        # Use ACT column which contains 'B', 'S', 'H' values
+        if 'ACT' not in df.columns:
             return pd.DataFrame()
         
-        buy_mask = (df['action'] == 'BUY')
+        buy_mask = (df['ACT'] == 'B')
         
         # Additional filters for buy opportunities
         if 'confidence_score' in df.columns:
-            buy_mask &= (df['confidence_score'] > 0.6)  # High confidence threshold
+            # Handle NaN values in confidence_score
+            buy_mask &= (df['confidence_score'].fillna(0.5) > 0.6)  # High confidence threshold
         
-        if 'exret' in df.columns:
-            buy_mask &= (df['exret'] > 0)  # Positive excess return
+        if 'EXRET' in df.columns:
+            buy_mask &= (df['EXRET'] > 0)  # Positive excess return
         
         return df[buy_mask].copy()
     
     def _filter_sell_opportunities(self, df: pd.DataFrame) -> pd.DataFrame:
         """Filter for sell opportunities based on action and criteria."""
-        if 'action' not in df.columns:
+        # Use ACT column which contains 'B', 'S', 'H' values
+        if 'ACT' not in df.columns:
             return pd.DataFrame()
         
-        sell_mask = (df['action'] == 'SELL')
+        sell_mask = (df['ACT'] == 'S')
         
         # Additional filters for sell opportunities
         if 'confidence_score' in df.columns:
-            sell_mask &= (df['confidence_score'] > 0.6)  # High confidence threshold
+            # Handle NaN values in confidence_score
+            sell_mask &= (df['confidence_score'].fillna(0.5) > 0.6)  # High confidence threshold
         
         return df[sell_mask].copy()
     
     def _filter_hold_opportunities(self, df: pd.DataFrame) -> pd.DataFrame:
         """Filter for hold opportunities based on action and criteria."""
-        if 'action' not in df.columns:
+        # Use ACT column which contains 'B', 'S', 'H' values
+        if 'ACT' not in df.columns:
             return pd.DataFrame()
         
-        hold_mask = (df['action'] == 'HOLD')
+        hold_mask = (df['ACT'] == 'H')
         return df[hold_mask].copy()
     
     def _apply_portfolio_filters(self, opportunities: Dict[str, pd.DataFrame], 
@@ -284,22 +308,31 @@ class TradingEngine:
             clean_ticker = clean_ticker_symbol(ticker)
             
             # Get market data from provider
-            data = await self.provider.get_stock_data(clean_ticker)
+            data = await self.provider.get_ticker_info(clean_ticker)
             
             if not data:
                 return None
             
-            # Extract relevant fields
+            # Extract relevant fields using the correct field names from the provider
             result = {
                 'ticker': clean_ticker,
-                'price': safe_float_conversion(data.get('regularMarketPrice')),
-                'market_cap': safe_float_conversion(data.get('marketCap')),
+                'price': safe_float_conversion(data.get('price', data.get('current_price'))),
+                'market_cap': safe_float_conversion(data.get('market_cap')),
                 'volume': safe_float_conversion(data.get('volume')),
-                'pe_ratio': safe_float_conversion(data.get('trailingPE')),
-                'forward_pe': safe_float_conversion(data.get('forwardPE')),
-                'dividend_yield': safe_float_conversion(data.get('dividendYield')),
+                'pe_ratio': safe_float_conversion(data.get('pe_trailing')),
+                'forward_pe': safe_float_conversion(data.get('pe_forward')),
+                'dividend_yield': safe_float_conversion(data.get('dividend_yield')),
                 'beta': safe_float_conversion(data.get('beta')),
-                'price_target': safe_float_conversion(data.get('targetMeanPrice')),
+                'price_target': safe_float_conversion(data.get('target_price')),
+                'twelve_month_performance': safe_float_conversion(data.get('twelve_month_performance')),
+                'upside': safe_float_conversion(data.get('upside')),
+                'buy_percentage': safe_float_conversion(data.get('buy_percentage')),
+                'analyst_count': safe_float_conversion(data.get('analyst_count')),
+                'total_ratings': safe_float_conversion(data.get('total_ratings')),
+                'EXRET': safe_float_conversion(data.get('EXRET')),
+                'earnings_growth': safe_float_conversion(data.get('earnings_growth')),
+                'peg_ratio': safe_float_conversion(data.get('peg_ratio')),
+                'short_percent': safe_float_conversion(data.get('short_percent')),
             }
             
             return result

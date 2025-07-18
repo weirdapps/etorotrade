@@ -215,7 +215,8 @@ class MarketDisplay:
             'short_percent': 'SI',
             'dividend_yield': 'DIV %',
             'earnings_date': 'EARNINGS',
-            'earnings_growth': 'earnings_growth',
+            'earnings_growth': 'EG',
+            'twelve_month_performance': 'PP',
             'EXRET': 'EXRET',
             'A': 'A',
             # Identity mappings for columns already in display format
@@ -250,6 +251,12 @@ class MarketDisplay:
         for source_col, target_col in column_mapping.items():
             if source_col in df.columns and target_col not in new_df.columns:
                 new_df[target_col] = df[source_col]
+        
+        # Handle special cases for EG and PP columns that might already exist with raw names
+        if 'earnings_growth' in df.columns and 'EG' not in new_df.columns:
+            new_df['EG'] = df['earnings_growth']
+        if 'twelve_month_performance' in df.columns and 'PP' not in new_df.columns:
+            new_df['PP'] = df['twelve_month_performance']
         
         # Copy any EXRET column if present
         if 'EXRET' in df.columns:
@@ -734,6 +741,19 @@ class MarketDisplay:
             try:
                 df = self._format_dataframe(df)
                 df = self._add_position_size_column(df)
+                
+                # Apply column filtering to match display format
+                from ..core.config import STANDARD_DISPLAY_COLUMNS
+                final_col_order = [col for col in STANDARD_DISPLAY_COLUMNS if col in df.columns]
+                
+                # If we have fewer than 5 essential columns, fall back to basic set
+                essential_cols = ["#", "TICKER", "COMPANY", "PRICE", "ACT"]
+                if len(final_col_order) < 5:
+                    final_col_order = [col for col in essential_cols if col in df.columns]
+                
+                # Reorder the DataFrame to only show standard display columns
+                df = df[final_col_order]
+                
             except Exception as e:
                 logger.warning(f"Failed to add position size to CSV: {e}")
 
@@ -1045,36 +1065,48 @@ class MarketDisplay:
         # Create a copy to avoid modifying the original
         df = df.copy()
 
-        # Add EG and PP columns first
-        earnings_growths = []
-        three_month_perfs = []
-        
-        for _, row in df.iterrows():
-            # Get earnings growth from the row if available, or set default
-            earnings_growth = row.get('earnings_growth', None)
-            if earnings_growth is not None and earnings_growth != '--':
-                try:
-                    # Convert to percentage if it's in decimal form
-                    eg_value = float(earnings_growth)
-                    if abs(eg_value) <= 1:  # Likely in decimal form (0.15 = 15%)
-                        eg_value *= 100
-                    # Display all earnings growth values
-                    earnings_growths.append(f"{eg_value:.1f}%")
-                except (ValueError, TypeError):
-                    earnings_growths.append("--")
-            else:
-                earnings_growths.append("--")
+        # Add EG and PP columns first, but only if they don't already exist with valid data
+        if 'EG' not in df.columns or df['EG'].isna().all() or (df['EG'] == '--').all():
+            earnings_growths = []
             
-            # Use pre-calculated 3-month performance from provider (no additional API calls)
-            three_month_perf = row.get('three_month_performance', None)
-            if three_month_perf is not None:
-                three_month_perfs.append(f"{three_month_perf:.1f}%")
-            else:
-                three_month_perfs.append("--")
-
-        # Add the new columns
-        df['EG'] = earnings_growths
-        df['PP'] = three_month_perfs
+            for _, row in df.iterrows():
+                # Get earnings growth from the row if available, or set default
+                # Check multiple possible column names
+                earnings_growth = row.get('earnings_growth', row.get('EG', None))
+                if earnings_growth is not None and earnings_growth != '--':
+                    try:
+                        # Convert to percentage if it's in decimal form
+                        eg_value = float(earnings_growth)
+                        if abs(eg_value) <= 1:  # Likely in decimal form (0.15 = 15%)
+                            eg_value *= 100
+                        # Display all earnings growth values
+                        earnings_growths.append(f"{eg_value:.1f}%")
+                    except (ValueError, TypeError):
+                        earnings_growths.append("--")
+                else:
+                    earnings_growths.append("--")
+            
+            # Add the new column
+            df['EG'] = earnings_growths
+        
+        if 'PP' not in df.columns or df['PP'].isna().all() or (df['PP'] == '--').all():
+            three_month_perfs = []
+            
+            for _, row in df.iterrows():
+                # Use pre-calculated 12-month performance from provider (no additional API calls)
+                # Check multiple possible column names
+                twelve_month_perf = row.get('twelve_month_performance', row.get('PP', None))
+                if twelve_month_perf is not None and twelve_month_perf != '--':
+                    try:
+                        pp_value = float(twelve_month_perf)
+                        three_month_perfs.append(f"{pp_value:.1f}%")
+                    except (ValueError, TypeError):
+                        three_month_perfs.append("--")
+                else:
+                    three_month_perfs.append("--")
+            
+            # Add the new column
+            df['PP'] = three_month_perfs
 
         # Calculate position sizes with new criteria
         position_sizes = []
@@ -1100,7 +1132,11 @@ class MarketDisplay:
             eg_str = df.loc[i, 'EG']
             if eg_str and eg_str != '--':
                 try:
-                    earnings_growth_value = float(eg_str.rstrip('%'))
+                    # Handle both string and numeric values
+                    if isinstance(eg_str, str):
+                        earnings_growth_value = float(eg_str.rstrip('%'))
+                    else:
+                        earnings_growth_value = float(eg_str)
                 except (ValueError, TypeError):
                     pass
             
@@ -1109,7 +1145,11 @@ class MarketDisplay:
             mop_str = df.loc[i, 'PP']
             if mop_str and mop_str != '--':
                 try:
-                    three_month_perf_value = float(mop_str.rstrip('%'))
+                    # Handle both string and numeric values
+                    if isinstance(mop_str, str):
+                        three_month_perf_value = float(mop_str.rstrip('%'))
+                    else:
+                        three_month_perf_value = float(mop_str)
                 except (ValueError, TypeError):
                     pass
             
@@ -1141,8 +1181,12 @@ class MarketDisplay:
             return None
 
         try:
+            # If it's already a number, return it
+            if isinstance(market_cap_str, (int, float)):
+                return float(market_cap_str)
+            
             # Remove any whitespace
-            market_cap_str = market_cap_str.strip()
+            market_cap_str = str(market_cap_str).strip()
             
             # Handle different suffixes
             if market_cap_str.endswith('T'):
@@ -1159,12 +1203,12 @@ class MarketDisplay:
         except (ValueError, TypeError):
             return None
 
-    def _parse_percentage_value(self, percentage_str: str) -> Optional[float]:
+    def _parse_percentage_value(self, percentage_str: Union[str, float]) -> Optional[float]:
         """
-        Parse percentage string to numeric value.
+        Parse percentage string or float to numeric value.
 
         Args:
-            percentage_str: Percentage string (e.g., "6.3%", "-2.2%")
+            percentage_str: Percentage string (e.g., "6.3%", "-2.2%") or float
 
         Returns:
             Percentage value as float or None if parsing fails
@@ -1173,8 +1217,12 @@ class MarketDisplay:
             return None
 
         try:
+            # If it's already a float, return it
+            if isinstance(percentage_str, (int, float)):
+                return float(percentage_str)
+            
             # Remove % sign and any whitespace
-            clean_str = percentage_str.replace('%', '').strip()
+            clean_str = str(percentage_str).replace('%', '').strip()
             return float(clean_str)
         except (ValueError, TypeError):
             return None
