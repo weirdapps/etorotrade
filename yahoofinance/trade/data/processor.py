@@ -162,8 +162,10 @@ class DataProcessor:
             "short_percent",
             "last_earnings",
             "earnings_date",  # Fallback column for earnings_date
+            "earnings_growth",  # Add earnings_growth for EG column
             "action",  # Add action column
             "ACTION",  # Keep ACTION for compatibility
+            "twelve_month_performance",  # Add twelve_month_performance for PP column
         ]
     
     @staticmethod

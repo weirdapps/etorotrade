@@ -360,6 +360,28 @@ class PerformanceTracker:
             hour=0, minute=0, second=0, microsecond=0
         ), current_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
+    @staticmethod
+    def calculate_twelve_month_dates() -> Tuple[datetime, datetime]:
+        """
+        Calculate dates for 12-month price performance comparison.
+        
+        Returns the date 12 months ago and the current date.
+        
+        Returns:
+            Tuple of (twelve_months_ago, current_date)
+        """
+        today = datetime.today()
+        
+        # Calculate 12 months ago
+        twelve_months_ago = today - timedelta(days=365)  # Approximately 12 months
+        
+        # Use yesterday as current date to ensure market data is available
+        current_date = today - timedelta(days=1)
+        
+        return twelve_months_ago.replace(
+            hour=0, minute=0, second=0, microsecond=0
+        ), current_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
     def calculate_3month_price_performance(self, ticker: str) -> Optional[float]:
         """
         Calculate 3-month price performance for a ticker.
@@ -408,6 +430,62 @@ class PerformanceTracker:
                 
         except Exception as e:
             logger.debug(f"Error calculating 3-month performance for {ticker}: {e}")
+            return None
+
+    def calculate_twelve_month_price_performance(self, ticker: str) -> Optional[float]:
+        """
+        Calculate 12-month price performance for a ticker.
+        
+        Args:
+            ticker: Ticker symbol
+            
+        Returns:
+            12-month price performance as percentage, or None if unable to calculate
+        """
+        try:
+            import yfinance as yf
+            
+            twelve_months_ago, current_date = self.calculate_twelve_month_dates()
+            
+            # Download historical data for 12 months using 1y period for efficiency
+            data = yf.download(ticker, period="1y", progress=False)
+            
+            if data.empty or len(data) < 2:
+                logger.debug(f"No historical data available for {ticker}")
+                return None
+                
+            # Get the current price (most recent close)
+            current_price = data["Close"].iloc[-1]
+            if isinstance(current_price, pd.Series):
+                current_price = current_price.iloc[0]
+            current_price = float(current_price)
+            
+            # Get the price from approximately 12 months ago
+            # Find the closest date to 12 months ago
+            data.index = pd.to_datetime(data.index)
+            twelve_month_data = data[data.index <= twelve_months_ago]
+            
+            if twelve_month_data.empty:
+                # If no data exactly 12 months ago, use earliest available data
+                twelve_month_price = data["Close"].iloc[0]
+                if isinstance(twelve_month_price, pd.Series):
+                    twelve_month_price = twelve_month_price.iloc[0]
+                twelve_month_price = float(twelve_month_price)
+            else:
+                twelve_month_price = twelve_month_data["Close"].iloc[-1]
+                if isinstance(twelve_month_price, pd.Series):
+                    twelve_month_price = twelve_month_price.iloc[0]
+                twelve_month_price = float(twelve_month_price)
+            
+            # Calculate percentage change
+            if twelve_month_price > 0:
+                performance = ((current_price - twelve_month_price) / twelve_month_price) * 100
+                return round(performance, 2)
+            else:
+                return None
+                
+        except Exception as e:
+            logger.debug(f"Error calculating 12-month performance for {ticker}: {e}")
             return None
 
     def get_previous_trading_day_close(self, ticker: str, date: datetime) -> Tuple[float, datetime]:

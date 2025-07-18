@@ -446,6 +446,8 @@ STANDARD_DISPLAY_COLUMNS = [
     "DIV %",
     "SI",
     "EARNINGS",
+    "EG",
+    "PP",
     "SIZE",
     "ACT",
 ]
