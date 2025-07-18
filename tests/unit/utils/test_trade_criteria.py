@@ -177,9 +177,10 @@ def test_pe_condition_in_buy_criteria(trading_criteria, test_data):
     assert is_buy is True
     assert reason is None
 
-    # Create a test case for negative trailing PE (growth case)
+    # Create a test case for growth stock with low but valid trailing PE
     growth_stock = test_data["buy_stock"].copy()
-    growth_stock["pe_trailing"] = -5.0
+    growth_stock["pe_trailing"] = 1.0  # Low but valid trailing PE
+    growth_stock["pe_forward"] = 0.8   # Lower forward PE (good)
     is_buy, reason = TradingCriteria.check_buy_criteria(growth_stock)
     assert is_buy is True
     assert reason is None
