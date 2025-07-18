@@ -71,7 +71,7 @@ etorotrade uses a sophisticated classification system based on financial metrics
 
 ### 🟢 BUY Recommendations
 A stock must meet ALL of these criteria:
-- **Strong Upside**: 15%+ potential upside
+- **Strong Upside**: 20%+ potential upside
 - **Analyst Consensus**: 75%+ buy ratings
 - **Reasonable Volatility**: Beta between 0.25 and 2.5
 - **Attractive Valuation**: 
@@ -83,7 +83,7 @@ A stock must meet ALL of these criteria:
   - 3-month price performance ≥ -10% (if available)
 - **Limited Risk Factors**: 
   - Low short interest (≤ 2.0%, if available)
-  - Strong expected return (≥ 10.0%)
+  - Strong expected return (≥ 15.0%)
 - **Sufficient Coverage**: ≥ 5 analyst ratings and ≥ 5 price targets
 
 ### 🔴 SELL Signals
@@ -91,10 +91,11 @@ A stock triggers a SELL if ANY of these warning signs appear:
 - **Limited Upside**: Less than 5% upside potential
 - **Weak Analyst Support**: Less than 65% buy ratings
 - **Overvaluation**: Forward P/E > 65.0 or PEG > 3.0 (if available)
+- **Poor Valuation**: Forward P/E < 0.5 or P/E expanding excessively (PEF - PET > 10)
 - **Poor Fundamentals**:
   - Earnings growth < -15% (if available)
-  - 3-month price performance < -20% (if available)
-- **High Risk Factors**: Short interest > 2.5% (if available) or Beta > 3.0
+  - 3-month price performance < -25% (if available)
+- **High Risk Factors**: Short interest > 3.0% (if available) or Beta > 3.0
 - **Poor Expected Return**: EXRET < 2.5%
 
 ### ⚪ HOLD Recommendations
@@ -170,10 +171,11 @@ Example customization:
 class TradingCriteria:
     # Make BUY criteria more aggressive
     BUY_MIN_UPSIDE = 25.0              # Require 25% upside (was 20%)
-    BUY_MIN_BUY_PERCENTAGE = 90.0      # Require 90% buy rating (was 85%)
+    BUY_MIN_EXRET = 0.20               # Require 20% expected return (was 15%)
     
     # Make SELL criteria more conservative  
     SELL_MAX_UPSIDE = 3.0              # Sell if upside < 3% (was 5%)
+    SELL_MIN_SHORT_INTEREST = 4.0      # Sell if SI > 4% (was 3%)
 ```
 
 ### 💰 Intelligent Position Sizing
@@ -268,7 +270,7 @@ python trade.py -o m -t 50     # Market analysis for 50 stocks
 - ✅ **Enterprise Performance**: 56% faster processing for large datasets (100+ tickers)
 - 📈 **Performance Monitoring**: Built-in benchmarking tools for real-time metrics
 - 🔧 **Trade Analysis Fixed**: Display formatting and HOLD analysis logic corrected
-- 📊 **Updated BUY Criteria**: P/E ratio minimums increased from 0.1 to 0.5 for more realistic filtering
+- 📊 **Enhanced Trading Criteria**: More selective BUY signals (20% upside, 15% EXRET) and conservative SELL triggers
 
 **UI/UX Enhancements (2025-01-06)**:
 - 🎨 **Ultra-Clean Display**: Completely silent processing with zero debug/info/warning messages

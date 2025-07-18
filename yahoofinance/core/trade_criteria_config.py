@@ -49,14 +49,14 @@ class TradingCriteria:
     SELL_MIN_BUY_PERCENTAGE = 65.0     # Sell if buy% < 65%
     SELL_MIN_FORWARD_PE = 65.0         # Sell if PEF > 65
     SELL_MIN_PEG = 3.0                 # Sell if PEG > 3
-    SELL_MIN_SHORT_INTEREST = 2.5      # Sell if SI > 2.5%
+    SELL_MIN_SHORT_INTEREST = 3.0      # Sell if SI > 3.0%
     SELL_MIN_BETA = 3.0                # Sell if Beta > 3
     SELL_MAX_EXRET = 0.025             # Sell if EXRET < 2.5% (stored as decimal)
     SELL_MAX_EARNINGS_GROWTH = -15.0   # Sell if EG < -15%
-    SELL_MAX_PRICE_PERFORMANCE = -20.0 # Sell if PP < -20%
+    SELL_MAX_PRICE_PERFORMANCE = -25.0 # Sell if PP < -25%
 
     # BUY criteria thresholds (Adjusted for realistic market conditions)
-    BUY_MIN_UPSIDE = 15.0              # Buy if upside >= 15%
+    BUY_MIN_UPSIDE = 20.0              # Buy if upside >= 20%
     BUY_MIN_BUY_PERCENTAGE = 75.0      # Buy if buy% >= 75%
     BUY_MIN_BETA = 0.25                # Buy if beta > 0.25
     BUY_MAX_BETA = 2.5                 # Buy if beta <= 2.5
@@ -66,7 +66,7 @@ class TradingCriteria:
     BUY_MAX_TRAILING_PE = 80.0         # Buy if PET <= 80
     BUY_MAX_PEG = 2.5                  # Buy if PEG < 2.5 (conditional)
     BUY_MAX_SHORT_INTEREST = 2.0       # Buy if SI <= 2.0%
-    BUY_MIN_EXRET = 0.10               # Buy if EXRET >= 10% (stored as decimal)
+    BUY_MIN_EXRET = 0.15               # Buy if EXRET >= 15% (stored as decimal)
     BUY_MIN_MARKET_CAP = 1_000_000_000 # Buy if market cap >= $1B
     BUY_MIN_EARNINGS_GROWTH = -10.0    # Buy if EG >= -10% (conditional)
     BUY_MIN_PRICE_PERFORMANCE = -10.0  # Buy if PP >= -10% (conditional)
@@ -116,12 +116,12 @@ class TradingCriteria:
         pe_trailing = cls._get_numeric_value(row.get("pe_trailing"))
 
         if pe_forward is not None and pe_trailing is not None:
-            if pe_forward > 0 and pe_trailing > 0 and (pe_forward - pe_trailing) > 0.5:
-                return True, f"Worsening P/E (PEF {pe_forward:.1f} - PET {pe_trailing:.1f} > 0.5)"
+            if pe_forward > 0 and pe_trailing > 0 and (pe_forward - pe_trailing) > 10:
+                return True, f"Worsening P/E (PEF {pe_forward:.1f} - PET {pe_trailing:.1f} > 10)"
 
         if pe_forward is not None:
-            if pe_forward < 0:
-                return True, f"Negative forward P/E ({pe_forward:.1f})"
+            if pe_forward < 0.5:
+                return True, f"Low forward P/E ({pe_forward:.1f} < 0.5)"
             elif pe_forward > cls.SELL_MIN_FORWARD_PE:
                 return True, f"High forward P/E ({pe_forward:.1f} > {cls.SELL_MIN_FORWARD_PE})"
 
