@@ -232,6 +232,16 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 )
                 logger.debug(f"Calculated EXRET for {ticker}: {combined_data['EXRET']}")
 
+            # Add 12-month performance calculation
+            if "twelve_month_performance" not in combined_data:
+                try:
+                    twelve_month_perf = self._calculate_twelve_month_performance_sync(original_ticker)
+                    if twelve_month_perf is not None:
+                        combined_data["twelve_month_performance"] = twelve_month_perf
+                        logger.debug(f"Added 12-month performance for {original_ticker}: {twelve_month_perf:.2f}%")
+                except Exception as e:
+                    logger.debug(f"Error calculating 12-month performance for {original_ticker}: {str(e)}")
+
             return combined_data
         except YFinanceError as e:
             # If YFinance fails completely, try YahooQuery as a fallback
@@ -644,6 +654,16 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                     if data.get("total_ratings", 0) > 0:
                         data["A"] = "A"  # Default to all-time ratings if we have any ratings
 
+                # Add 12-month performance calculation
+                if "twelve_month_performance" not in data:
+                    try:
+                        twelve_month_perf = self._calculate_twelve_month_performance_sync(ticker)
+                        if twelve_month_perf is not None:
+                            data["twelve_month_performance"] = twelve_month_perf
+                            logger.debug(f"Added 12-month performance for {ticker}: {twelve_month_perf:.2f}%")
+                    except Exception as e:
+                        logger.debug(f"Error calculating 12-month performance for {ticker}: {str(e)}")
+
             return yf_results
         except YFinanceError as e:
             # If YFinance batch fails completely, try YahooQuery as a fallback
@@ -691,6 +711,16 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                         if data.get("total_ratings", 0) > 0:
                             data["A"] = "A"  # Default to all-time ratings if we have any ratings
 
+                    # Add 12-month performance calculation
+                    if "twelve_month_performance" not in data:
+                        try:
+                            twelve_month_perf = self._calculate_twelve_month_performance_sync(ticker)
+                            if twelve_month_perf is not None:
+                                data["twelve_month_performance"] = twelve_month_perf
+                                logger.debug(f"Added 12-month performance for {ticker} in fallback: {twelve_month_perf:.2f}%")
+                        except Exception as e:
+                            logger.debug(f"Error calculating 12-month performance for {ticker} in fallback: {str(e)}")
+
                 return yq_results
             except YFinanceError as yq_error:
                 # If both fail, raise the original error
@@ -715,3 +745,43 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         yq_cache_info = self.yq_provider.get_cache_info()
 
         return {"yfinance": yf_cache_info, "yahooquery": yq_cache_info}
+
+    def _calculate_twelve_month_performance_sync(self, ticker: str) -> Optional[float]:
+        """
+        Calculate 12-month price performance for a ticker synchronously.
+        
+        Args:
+            ticker: Ticker symbol
+            
+        Returns:
+            12-month price performance as percentage, or None if unable to calculate
+        """
+        try:
+            # Get historical data using our existing provider
+            hist_data = self.get_historical_data(
+                ticker, 
+                period="1y",  # Use 12-month period
+                interval="1d"
+            )
+            
+            if hist_data.empty or len(hist_data) < 2:
+                logger.debug(f"No sufficient historical data for 12-month performance calculation: {ticker}")
+                return None
+                
+            # Get the current price (most recent close)
+            current_price = float(hist_data["Close"].iloc[-1])
+            
+            # Get the price from 12 months ago (or earliest available)
+            # Use the earliest data point as 12-month reference since we requested 1y period
+            twelve_month_price = float(hist_data["Close"].iloc[0])
+            
+            # Calculate percentage change
+            if twelve_month_price > 0:
+                performance = ((current_price - twelve_month_price) / twelve_month_price) * 100
+                return round(performance, 2)
+            else:
+                return None
+                
+        except Exception as e:
+            logger.debug(f"Error calculating 12-month performance for {ticker}: {str(e)}")
+            return None
