@@ -18,7 +18,9 @@ This document summarizes the major performance optimizations and bug fixes imple
 ### Phase 3: Trade Analysis Bug Fixes
 - **Fixed display formatting**: Corrected column mapping in console.py to preserve all display columns
 - **Fixed HOLD analysis logic**: Changed HOLD analysis to use portfolio.csv instead of market.csv with exclusions
-- **Updated BUY criteria**: Modified P/E ratio minimums from 0.1 to 0.5 for more realistic filtering
+- **Enhanced trading criteria**: 
+  - Updated BUY criteria: P/E ratio minimums from 0.1 to 0.5, upside from 15% to 20%, EXRET from 10% to 15%
+  - Updated SELL criteria: More conservative triggers (SI > 3%, PP < -25%, PEF-PET > 10, PEF < 0.5)
 
 ## Files Modified
 
@@ -46,7 +48,9 @@ This document summarizes the major performance optimizations and bug fixes imple
 ### Trade Analysis Fixes
 - **Display Issue Resolved**: Trade analysis now shows full stock information (TICKER, COMPANY, PRICE, etc.) instead of condensed format
 - **HOLD Analysis Working**: Now correctly shows 26 portfolio candidates for HOLD analysis
-- **BUY Criteria Updated**: More realistic P/E ratio requirements (0.5 minimum instead of 0.1)
+- **Enhanced Trading Criteria**: 
+  - **BUY**: More selective (20% upside, 15% EXRET, 0.5 P/E minimums)
+  - **SELL**: More conservative (3% SI, -25% PP, 10 PEF-PET expansion, 0.5 PEF minimum)
 
 ## Trade Analysis Commands
 - `python trade.py -o t -t b` - BUY opportunities analysis
