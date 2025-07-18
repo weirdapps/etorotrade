@@ -262,17 +262,18 @@ async def test_process_batch_async():
     # Verify results dict maps items to their results
     assert results == {i: i * 10 for i in items}
 
-    # Sleep is called multiple times, both for the small delays in the processor
-    # function and for the delays between batches
+    # Sleep is called for the small delays in the processor function
+    # Note: delays between batches are disabled for performance optimization
     assert mock_sleep.call_count > 0
 
-    # At least some of the sleeps should be for the right delay amount
+    # Verify that the processor sleep calls (0.01) are present
     # Using proper floating point comparison with small epsilon
     epsilon = 1e-10
-    delay_between_batches_calls = [
-        call for call in mock_sleep.call_args_list if abs(call[0][0] - 0.05) < epsilon
+    processor_delay_calls = [
+        call for call in mock_sleep.call_args_list if abs(call[0][0] - 0.01) < epsilon
     ]
-    assert len(delay_between_batches_calls) > 0
+    # Should have at least some processor delays (one per item processed)
+    assert len(processor_delay_calls) > 0
 
 
 @pytest.mark.asyncio
