@@ -12,6 +12,8 @@ Tests are structured to mirror the main package organization for easy navigation
 4. Establishes a standard pattern for adding new tests
 5. Simplifies navigation between implementation and tests
 
+**Recent Updates (2025-01-18)**: All tests have been updated to reflect the recent performance optimizations and trade analysis fixes, ensuring comprehensive coverage of the enhanced functionality.
+
 ### Structure
 
 Tests are organized in a hierarchical structure mirroring the package:

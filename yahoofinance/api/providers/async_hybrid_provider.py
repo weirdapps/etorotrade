@@ -7,6 +7,7 @@ especially for metrics like PEG ratio.
 """
 
 import asyncio
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd  # Add pandas import
@@ -89,105 +90,87 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
         merged_data = {"symbol": mapped_ticker, "ticker": original_ticker}
         errors = []
 
-        # Fetch using mapped ticker
+        # SMART SUPPLEMENTATION: First get yfinance data, then conditionally fetch yahooquery
         try:
             yf_data = await self.yf_provider.get_ticker_info(mapped_ticker, skip_insider_metrics)
             if yf_data.get("error"):
                 errors.append(f"yfinance: {yf_data['error']}")
-                yf_data = {}  # Clear data if error occurred
+                yf_data = {}
         except YFinanceError as e:
             errors.append(f"yfinance provider error for {mapped_ticker}: {str(e)}")
             logger.warning(f"Error fetching yfinance data for {ticker}: {e}", exc_info=False)
-
-        # Check if PEG is missing or invalid (None, 0, non-numeric) from yfinance result
-        yf_peg = yf_data.get("peg_ratio")
-        try:
-            # Treat 0 or non-positive PEG as invalid for supplementation purposes
-            peg_missing_or_invalid = yf_peg is None or float(yf_peg) <= 0
-        except (ValueError, TypeError):
-            peg_missing_or_invalid = True  # Treat conversion errors as invalid
-
-        # Check if we would need supplementation, regardless of whether it's enabled
-        needs_supplement = peg_missing_or_invalid
-
-        # Log warning if yahooquery would be useful but is disabled
-        if needs_supplement and not self.enable_yahooquery:
-            logger.info(
-                f"Missing PEG ratio for {original_ticker} but yahooquery supplementation is disabled"
-            )
-
-        # Only fetch from yahooquery if supplementation is needed AND it's enabled
-        if needs_supplement and self.enable_yahooquery:
-            try:
-                # Fetch using mapped ticker
-                yq_data = await self.yq_provider.get_ticker_info(
-                    mapped_ticker, skip_insider_metrics
-                )
-                if yq_data.get("error"):
-                    errors.append(f"yahooquery: {yq_data['error']}")
-                    yq_data = {}  # Clear data if error occurred
-            except YFinanceError as e:
-                errors.append(f"yahooquery provider error for {mapped_ticker}: {str(e)}")
-                # Simplify logging to avoid duplicate messages
-                logger.warning(
-                    f"Error fetching yahooquery data for {mapped_ticker} (original: {ticker}): {e}",
-                    exc_info=False,
-                )
-        else:
-            # Initialize empty dict if we're skipping yahooquery
-            yq_data = {}
-            # Added more explicit logging about why we're skipping yahooquery
-            if not self.enable_yahooquery:
-                logger.debug(
-                    f"Skipping yahooquery supplement for {mapped_ticker}, yahooquery integration is disabled"
-                )
-            elif not needs_supplement:
-                logger.debug(
-                    f"Skipping yahooquery supplement for {mapped_ticker}, no missing fields detected"
-                )
-
-        # Merge data: Prioritize yfinance, supplement with yahooquery
+            yf_data = {}
+        
         # Start with yfinance data
         merged_data.update(yf_data)
+        
+        # Smart supplementation: Only fetch from yahooquery if we have missing critical fields
+        needs_supplement = False
+        missing_fields = []
+        
+        if self.enable_yahooquery and yf_data:
+            # Define critical fields that are worth supplementing from yahooquery
+            critical_fields = ["peg_ratio", "forward_pe", "trailing_pe", "beta", "market_cap"]
+            
+            for field in critical_fields:
+                field_value = yf_data.get(field)
+                # Check if field is missing, None, or invalid (NaN, negative PE/PEG)
+                if (field_value is None or 
+                    (isinstance(field_value, (int, float)) and 
+                     (field_value <= 0 if field in ["peg_ratio", "forward_pe", "trailing_pe"] else False)) or
+                    (isinstance(field_value, str) and field_value.lower() in ["nan", "n/a", "null", ""])):
+                    needs_supplement = True
+                    missing_fields.append(field)
+                    break  # Exit early - we found at least one missing field
+        
+        # Only fetch from yahooquery if supplementation is needed
+        if needs_supplement and self.enable_yahooquery:
+            try:
+                logger.debug(f"Smart supplement: fetching missing fields {missing_fields} for {original_ticker}")
+                yq_data = await self.yq_provider.get_ticker_info(mapped_ticker, skip_insider_metrics)
+                
+                if isinstance(yq_data, Exception):
+                    errors.append(f"yahooquery provider error for {mapped_ticker}: {str(yq_data)}")
+                    logger.warning(f"Error fetching yahooquery data for supplementation: {yq_data}", exc_info=False)
+                    yq_data = {}
+                elif yq_data.get("error"):
+                    errors.append(f"yahooquery: {yq_data['error']}")
+                    yq_data = {}
+            except Exception as e:
+                errors.append(f"Yahooquery supplement error for {mapped_ticker}: {str(e)}")
+                logger.warning(f"Error in yahooquery supplementation for {ticker}: {e}", exc_info=False)
+                yq_data = {}
+        else:
+            yq_data = {}
+            if not self.enable_yahooquery:
+                logger.debug(f"Yahooquery supplementation disabled for {mapped_ticker}")
+            elif not needs_supplement:
+                logger.debug(f"No supplementation needed for {mapped_ticker} - all critical fields present")
 
-        # Supplement with yahooquery data for missing fields
-        # Supplement with yahooquery data
-        for key, yq_value in yq_data.items():
-            # Supplement if key is missing in merged_data OR if the existing value is None
-            should_add = key not in merged_data or merged_data[key] is None
+        # Supplement with yahooquery data for missing fields only
+        if yq_data:
+            for key, yq_value in yq_data.items():
+                # Only supplement if the field is missing or None in yfinance data
+                yf_value = merged_data.get(key)
+                should_supplement = (yf_value is None or 
+                                   (isinstance(yf_value, (int, float)) and 
+                                    (yf_value <= 0 if key in ["peg_ratio", "forward_pe", "trailing_pe"] else False)) or
+                                   (isinstance(yf_value, str) and yf_value.lower() in ["nan", "n/a", "null", ""]))
 
-            # Special handling for PEG: supplement if yfinance PEG was missing/invalid AND yq value is valid
-            if key == "peg_ratio" and peg_missing_or_invalid:
-                try:
-                    # Check if yahooquery value is valid (positive number)
-                    if yq_value is not None and float(yq_value) > 0:
-                        merged_data[key] = yq_value
-                        logger.info(
-                            f"PEG Supplement: Found valid PEG={yq_value} from yahooquery for {original_ticker} (yfinance was {yf_peg})"
-                        )  # Use info level
-                        merged_data[key] = yq_value
-                        # Only set once
-                        should_add = False  # Already handled
+                if should_supplement and yq_value is not None:
+                    # Validate yahooquery value before supplementing
+                    if key in ["peg_ratio", "forward_pe", "trailing_pe"]:
+                        try:
+                            yq_float = float(yq_value)
+                            if yq_float > 0:  # Only use positive PE/PEG values
+                                merged_data[key] = yq_value
+                                logger.debug(f"Supplemented {key}={yq_value} from yahooquery for {original_ticker}")
+                        except (ValueError, TypeError):
+                            pass  # Skip invalid numeric values
                     else:
-                        logger.info(
-                            f"PEG Supplement: yahooquery PEG={yq_value} for {original_ticker} is invalid. Keeping yfinance value ({yf_peg})."
-                        )  # Use info level
-                        # Ensure merged_data has None or keeps original invalid yf_peg
-                        if key not in merged_data or merged_data[key] is None:
-                            merged_data[key] = None
-                        should_add = False  # Already handled
-                except (ValueError, TypeError):
-                    logger.info(
-                        f"PEG Supplement: yahooquery PEG={yq_value} for {original_ticker} is not numeric. Keeping yfinance value ({yf_peg})."
-                    )  # Use info level
-                    if key not in merged_data or merged_data[key] is None:
-                        merged_data[key] = None
-                    should_add = False  # Already handled
-
-            # Add other missing values from yahooquery
-            elif should_add and yq_value is not None:
-                merged_data[key] = yq_value
-                # Other missing values are added here
+                        # For other fields, use the value as-is
+                        merged_data[key] = yq_value
+                        logger.debug(f"Supplemented {key} from yahooquery for {original_ticker}")
 
         # Add data source information
         # Use the instance variable for consistency
@@ -248,6 +231,16 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
                 logger.debug(f"Import/Attribute error getting earnings date for {original_ticker}: {str(e)}")
             except Exception as e:
                 logger.warning(f"Unexpected error getting earnings date for {original_ticker}: {str(e)}")
+
+        # Add 3-month performance calculation to eliminate post-processing delays
+        if "three_month_performance" not in merged_data:
+            try:
+                three_month_perf = await self._calculate_3month_performance_async(original_ticker)
+                if three_month_perf is not None:
+                    merged_data["three_month_performance"] = three_month_perf
+                    logger.debug(f"Added 3-month performance for {original_ticker}: {three_month_perf:.2f}%")
+            except Exception as e:
+                logger.debug(f"Error calculating 3-month performance for {original_ticker}: {str(e)}")
 
         return merged_data
 
@@ -326,6 +319,17 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
                         and result.get("buy_percentage") is not None
                     ):
                         result["EXRET"] = result["upside"] * result["buy_percentage"] / 100
+
+                # Add 3-month performance calculation to eliminate post-processing delays
+                if "three_month_performance" not in result:
+                    try:
+                        three_month_perf = await self._calculate_3month_performance_async(ticker)
+                        if three_month_perf is not None:
+                            result["three_month_performance"] = three_month_perf
+                            logger.debug(f"Added 3-month performance for {ticker}: {three_month_perf:.2f}%")
+                    except Exception as e:
+                        logger.debug(f"Error calculating 3-month performance for {ticker}: {str(e)}")
+                        
                 return result
             except (APIError, NetworkError) as e:
                 # Handle API/Network errors gracefully in batch processing
@@ -532,6 +536,46 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
                 f"Hybrid: Error in yf search_tickers for {query}: {e}. Returning empty list."
             )
             return []
+
+    async def _calculate_3month_performance_async(self, ticker: str) -> Optional[float]:
+        """
+        Calculate 3-month price performance for a ticker asynchronously.
+        
+        Args:
+            ticker: Ticker symbol
+            
+        Returns:
+            3-month price performance as percentage, or None if unable to calculate
+        """
+        try:
+            # Get historical data using our existing provider
+            hist_data = await self.get_historical_data(
+                ticker, 
+                period="3mo",  # Use 3-month period
+                interval="1d"
+            )
+            
+            if hist_data.empty or len(hist_data) < 2:
+                logger.debug(f"No sufficient historical data for 3-month performance calculation: {ticker}")
+                return None
+                
+            # Get the current price (most recent close)
+            current_price = float(hist_data["Close"].iloc[-1])
+            
+            # Get the price from 3 months ago (or earliest available)
+            # Use the earliest data point as 3-month reference since we requested 3mo period
+            three_month_price = float(hist_data["Close"].iloc[0])
+            
+            # Calculate percentage change
+            if three_month_price > 0:
+                performance = ((current_price - three_month_price) / three_month_price) * 100
+                return round(performance, 2)
+            else:
+                return None
+                
+        except Exception as e:
+            logger.debug(f"Error calculating 3-month performance for {ticker}: {str(e)}")
+            return None
 
     async def close(self) -> None:
         """Close underlying provider sessions."""
