@@ -259,6 +259,7 @@ python trade.py -o t -t s      # SELL opportunities
 python trade.py -o t -t h      # HOLD opportunities
 python trade.py -o p -t n      # Portfolio analysis with new download
 python trade.py -o m -t 50     # Market analysis for 50 stocks
+python trade.py -o i -t AAPL,MSFT  # Manual input analysis for specific tickers
 ```
 
 **Recent Improvements (2025-01-18)**:
@@ -345,6 +346,7 @@ The analysis generates both CSV files and interactive HTML dashboards:
 
 - **Portfolio Analysis**: `yahoofinance/output/portfolio.csv` + HTML dashboard
 - **Market Analysis**: `yahoofinance/output/market.csv` + HTML dashboard
+- **Manual Input Analysis**: `yahoofinance/output/manual.csv` + HTML dashboard
 - **Trade Recommendations**: 
   - `yahoofinance/output/buy.csv`
   - `yahoofinance/output/sell.csv`
