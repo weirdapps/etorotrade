@@ -961,7 +961,12 @@ class MarketDisplay:
 
             # Save to CSV if report type provided
             if report_type:
-                filename = "portfolio.csv" if report_type == "P" else "market.csv"
+                if report_type == "P":
+                    filename = "portfolio.csv"
+                elif report_type == "I":
+                    filename = "manual.csv"
+                else:
+                    filename = "market.csv"
                 self.save_to_csv(results, filename)
         else:
             pass
@@ -1041,7 +1046,12 @@ class MarketDisplay:
                     filename = "market.csv"
                 self.save_to_csv(results, filename)
             elif report_type:
-                filename = "portfolio.csv" if report_type == "P" else "market.csv"
+                if report_type == "P":
+                    filename = "portfolio.csv"
+                elif report_type == "I":
+                    filename = "manual.csv"
+                else:
+                    filename = "market.csv"
                 self.save_to_csv(results, filename)
         else:
             pass
