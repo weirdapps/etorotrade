@@ -81,7 +81,7 @@ async def test_ensure_session():
 async def test_fetch_json_success(enhanced_provider):
     """Test successful JSON fetch with mocked response"""
     # Get the provider instance from the fixture
-    provider = await enhanced_provider.__anext__()
+    provider = enhanced_provider
 
     # Create a direct mock that bypasses all the complexities
     async def mock_fetch_json(url, params=None):
@@ -101,7 +101,7 @@ async def test_fetch_json_success(enhanced_provider):
 async def test_fetch_json_rate_limit_error(enhanced_provider):
     """Test handling of rate limit errors"""
     # Get the provider instance from the fixture
-    provider = await enhanced_provider.__anext__()
+    provider = enhanced_provider
 
     # Create a direct mock implementation that raises a RateLimitError
     async def mock_fetch_json(url, params=None):
@@ -122,7 +122,7 @@ async def test_fetch_json_rate_limit_error(enhanced_provider):
 async def test_fetch_json_api_error(enhanced_provider):
     """Test handling of API errors"""
     # Get the provider instance from the fixture
-    provider = await enhanced_provider.__anext__()
+    provider = enhanced_provider
 
     # Create a direct mock implementation that raises an APIError
     async def mock_fetch_json(url, params=None):
@@ -142,7 +142,7 @@ async def test_fetch_json_api_error(enhanced_provider):
 async def test_fetch_json_network_error(enhanced_provider):
     """Test handling of network errors"""
     # Get the provider instance from the fixture
-    provider = await enhanced_provider.__anext__()
+    provider = enhanced_provider
 
     # Create a direct mock implementation that raises a NetworkError
     async def mock_fetch_json(url, params=None):
@@ -161,7 +161,7 @@ async def test_fetch_json_network_error(enhanced_provider):
 async def test_fetch_json_with_circuit_breaker(enhanced_provider_with_circuit_breaker):
     """Test circuit breaker integration with fetch_json"""
     # Get the provider instance from the fixture
-    provider = await enhanced_provider_with_circuit_breaker.__anext__()
+    provider = enhanced_provider_with_circuit_breaker
 
     # Verify that the circuit breaker is enabled
     assert provider.enable_circuit_breaker
@@ -186,7 +186,7 @@ async def test_fetch_json_with_circuit_breaker(enhanced_provider_with_circuit_br
 async def test_get_ticker_info(enhanced_provider):
     """Test get_ticker_info with mocked fetch_json"""
     # Get the provider instance from the fixture
-    provider = await enhanced_provider.__anext__()
+    provider = enhanced_provider
 
     # Create a direct mock implementation for get_ticker_info
     # that returns a predefined test ticker info
@@ -240,7 +240,7 @@ async def test_get_ticker_info(enhanced_provider):
 async def test_batch_get_ticker_info(enhanced_provider):
     """Test batch_get_ticker_info with mocked get_ticker_info"""
     # Get the provider instance from the fixture
-    provider = await enhanced_provider.__anext__()
+    provider = enhanced_provider
 
     # Create a direct mock for batch_get_ticker_info
     async def mock_batch_get_ticker_info(tickers, skip_insider_metrics=False):
@@ -323,7 +323,7 @@ async def test_circuit_breaker_integration_retry_after():
 async def test_error_handling_in_batch_operations(enhanced_provider):
     """Test error handling in batch operations"""
     # Get the provider instance from the fixture
-    provider = await enhanced_provider.__anext__()
+    provider = enhanced_provider
 
     # Mock get_ticker_info to succeed for some tickers and fail for others
     async def mock_get_ticker_info(ticker, skip_insider_metrics=False):
