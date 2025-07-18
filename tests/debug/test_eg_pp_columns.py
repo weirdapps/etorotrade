@@ -52,7 +52,7 @@ def test_portfolio_csv_columns():
     for i, col in enumerate(df.columns):
         print(f"  {i+1:2d}. {col}")
     
-    return True
+    assert os.path.exists(portfolio_path), "Portfolio file must exist"
 
 def test_standard_display_columns():
     """Test that STANDARD_DISPLAY_COLUMNS includes EG and PP."""
