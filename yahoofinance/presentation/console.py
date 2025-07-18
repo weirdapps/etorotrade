@@ -52,7 +52,7 @@ class RateLimitTracker:
         self.base_delay = 1.0  # Base delay between calls
         self.min_delay = 0.5  # Minimum delay
         self.max_delay = 30.0  # Maximum delay
-        self.batch_delay = 10.0  # Delay between batches
+        self.batch_delay = 0.0   # No delay between batches for optimal performance
         self.error_counts = {}  # Track error counts per ticker
         self.success_streak = 0  # Track successful calls
 
@@ -217,7 +217,27 @@ class MarketDisplay:
             'earnings_date': 'EARNINGS',
             'earnings_growth': 'earnings_growth',
             'EXRET': 'EXRET',
-            'A': 'A'
+            'A': 'A',
+            # Identity mappings for columns already in display format
+            'TICKER': 'TICKER',
+            'COMPANY': 'COMPANY', 
+            'PRICE': 'PRICE',
+            'TARGET': 'TARGET',
+            'UPSIDE': 'UPSIDE',
+            '# T': '# T',
+            '# A': '# A',
+            '% BUY': '% BUY',
+            'CAP': 'CAP',
+            'PET': 'PET',
+            'PEF': 'PEF',
+            'PEG': 'PEG',
+            'BETA': 'BETA',
+            'SI': 'SI',
+            'DIV %': 'DIV %',
+            'EARNINGS': 'EARNINGS',
+            'EG': 'EG',
+            'PP': 'PP',
+            'SIZE': 'SIZE'
         }
         
         # Create new DataFrame with only mapped columns to avoid duplicates
@@ -512,15 +532,7 @@ class MarketDisplay:
                 # Add batch results to overall results
                 results.extend(batch_results)
 
-                # Add delay between batches (except for last batch)
-                if batch_num < total_batches - 1:
-                    batch_delay = self.rate_limiter.get_batch_delay()
-
-                    # Update description to show waiting status using fixed width
-                    description = f"⏳ Waiting {batch_delay:.1f}s"
-                    pbar.set_description(description)
-
-                    time.sleep(batch_delay)
+                # Skip batch delays for optimal performance
 
         # Final summary - store stats for later display
         elapsed = time.time() - start_time
@@ -1029,21 +1041,15 @@ class MarketDisplay:
 
         # Import the position size calculation functions
         from ..utils.data.format_utils import calculate_position_size, format_position_size
-        from ..analysis.performance import PerformanceTracker
 
         # Create a copy to avoid modifying the original
         df = df.copy()
-
-        # Initialize PerformanceTracker for 3-month performance calculations
-        perf_tracker = PerformanceTracker()
 
         # Add EG and PP columns first
         earnings_growths = []
         three_month_perfs = []
         
         for _, row in df.iterrows():
-            ticker = row.get('TICKER', '') if 'TICKER' in row else ''
-            
             # Get earnings growth from the row if available, or set default
             earnings_growth = row.get('earnings_growth', None)
             if earnings_growth is not None and earnings_growth != '--':
@@ -1059,8 +1065,8 @@ class MarketDisplay:
             else:
                 earnings_growths.append("--")
             
-            # Calculate 3-month performance
-            three_month_perf = perf_tracker.calculate_3month_price_performance(ticker) if ticker else None
+            # Use pre-calculated 3-month performance from provider (no additional API calls)
+            three_month_perf = row.get('three_month_performance', None)
             if three_month_perf is not None:
                 three_month_perfs.append(f"{three_month_perf:.1f}%")
             else:

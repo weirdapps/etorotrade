@@ -21,11 +21,12 @@ class RateLimitConfig:
         
         # Batch configuration - OPTIMIZED FOR THROUGHPUT
         self.batch_size = 25       # Larger batches for better throughput
-        self.batch_delay = 0.1     # Reduced delay between batches
+        self.batch_delay = 0.0     # No delay between batches for maximum speed
         
-        # Retry and timeout configuration
+        # Retry and timeout configuration - optimized for responsiveness
         self.max_retry_attempts = 3
-        self.api_timeout = 60
+        self.api_timeout = 30          # Reduced from 60s for faster failure detection
+        self.quick_timeout = 15        # Quick timeout for retry attempts
         self.max_concurrent_calls = 30  # Increased for better async performance
         
         # Jitter and adaptation - DISABLED for fixed rate strategy
@@ -73,6 +74,7 @@ class RateLimitConfig:
             "BATCH_DELAY": self.batch_delay,
             "MAX_RETRY_ATTEMPTS": self.max_retry_attempts,
             "API_TIMEOUT": self.api_timeout,
+            "QUICK_TIMEOUT": self.quick_timeout,
             "MAX_CONCURRENT_CALLS": self.max_concurrent_calls,
             "JITTER_FACTOR": self.jitter_factor,
             "ERROR_THRESHOLD": self.error_threshold,

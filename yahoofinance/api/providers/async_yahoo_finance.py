@@ -1213,19 +1213,11 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         # Clear all caches to prevent memory leaks
         self.clear_cache()
 
-        # Use memory utilities for thorough cleanup
-        try:
-            from ...utils.memory_utils import clean_memory
-
-            cleanup_results = clean_memory()
-            logger.debug(f"Memory cleanup results: {cleanup_results}")
-        except ImportError:
-            # Fall back to basic garbage collection
-            import gc
-
-            gc.collect()
-
-        logger.debug("Async provider resources cleaned up.")
+        # OPTIMIZED: Skip heavy memory cleanup for faster shutdown
+        # Python's garbage collector will handle cleanup automatically
+        # Heavy cleanup moved to background or eliminated for better UX
+        
+        logger.debug("Async provider resources cleaned up (optimized for speed).")
 
     def clear_cache(self) -> None:
         """Clear internal caches and free up memory."""
