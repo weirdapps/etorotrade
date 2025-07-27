@@ -88,9 +88,9 @@ etorotrade uses a sophisticated **three-tier trading system** that classifies st
 ### 🟢 BUY Recommendations (Tier-Specific)
 
 **VALUE Tier BUY** (≥$100B market cap):
-- **Relaxed Upside**: 10%+ potential upside (vs 20% for others)
-- **Analyst Consensus**: 65%+ buy ratings (vs 75% for others)  
-- **Expected Return**: ≥7.5% (lower threshold for stability)
+- **Conservative Upside**: 15%+ potential upside (reasonable for large-caps)
+- **Analyst Consensus**: 70%+ buy ratings (strong support needed)  
+- **Expected Return**: ≥10% (balanced threshold for stability)
 - **Risk Management**: Higher position size tolerance due to stability
 
 **GROWTH Tier BUY** ($5B-$100B market cap):
@@ -100,9 +100,9 @@ etorotrade uses a sophisticated **three-tier trading system** that classifies st
 - **Risk Management**: Balanced position sizing and thresholds
 
 **BETS Tier BUY** (<$5B market cap):
-- **High Upside**: 30%+ potential upside (higher bar for risk)
-- **Strong Consensus**: 80%+ buy ratings (more conviction needed)
-- **High Return**: ≥25% expected return (compensation for risk)
+- **Aggressive Upside**: 25%+ potential upside (high returns for risk)
+- **Strong Consensus**: 80%+ buy ratings (conviction required)
+- **High Return**: ≥20% expected return (compensation for risk)
 - **Risk Management**: Smaller positions, stricter fundamentals
 
 **Common BUY Requirements** (All Tiers):
@@ -114,16 +114,19 @@ etorotrade uses a sophisticated **three-tier trading system** that classifies st
 ### 🔴 SELL Signals (Tier-Specific)
 
 **VALUE Tier SELL** (≥$100B market cap):
-- **Limited Upside**: <2.5% upside potential
-- **Weak Support**: <55% buy ratings
+- **Limited Upside**: <5% upside potential
+- **Weak Support**: <50% buy ratings
+- **Poor Returns**: <5% expected return
 
 **GROWTH Tier SELL** ($5B-$100B market cap):
-- **Limited Upside**: <5% upside potential  
-- **Weak Support**: <65% buy ratings
+- **Limited Upside**: <8% upside potential  
+- **Weak Support**: <60% buy ratings
+- **Poor Returns**: <8% expected return
 
 **BETS Tier SELL** (<$5B market cap):
-- **Limited Upside**: <10% upside potential
-- **Weak Support**: <75% buy ratings
+- **Limited Upside**: <12% upside potential
+- **Weak Support**: <70% buy ratings
+- **Poor Returns**: <10% expected return
 
 **Common SELL Triggers** (All Tiers):
 - **Overvaluation**: Forward P/E >65.0, PEG >3.0, or excessive PE expansion
@@ -202,13 +205,13 @@ class TradingCriteria:
     VALUE_TIER_MIN_CAP = 50_000_000_000   # $50B threshold (was $100B)
     GROWTH_TIER_MIN_CAP = 2_000_000_000   # $2B threshold (was $5B)
     
-    # Customize VALUE tier BUY criteria (more conservative)
-    VALUE_BUY_MIN_UPSIDE = 5.0            # Only 5% upside needed (was 10%)
-    VALUE_BUY_MIN_BUY_PERCENTAGE = 60.0   # 60% consensus (was 65%)
+    # Customize VALUE tier BUY criteria (example: more conservative)
+    VALUE_BUY_MIN_UPSIDE = 10.0           # Lower upside needed (current: 15%)
+    VALUE_BUY_MIN_BUY_PERCENTAGE = 65.0   # Lower consensus (current: 70%)
     
-    # Customize BETS tier BUY criteria (more aggressive)
-    BETS_BUY_MIN_UPSIDE = 40.0            # Require 40% upside (was 30%)
-    BETS_BUY_MIN_BUY_PERCENTAGE = 85.0    # 85% consensus (was 80%)
+    # Customize BETS tier BUY criteria (example: more aggressive)
+    BETS_BUY_MIN_UPSIDE = 30.0            # Higher upside required (current: 25%)
+    BETS_BUY_MIN_BUY_PERCENTAGE = 85.0    # Higher consensus (current: 80%)
 ```
 
 ### 💰 Intelligent Position Sizing
