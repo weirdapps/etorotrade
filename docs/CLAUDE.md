@@ -694,7 +694,7 @@ The codebase implements a sophisticated position sizing system that calculates r
 **Key Implementation**: `yahoofinance/utils/data/format_utils.py:calculate_position_size()`
 
 1. **Base Calculation**: Starts with base position (0.5% of portfolio = $2,250)
-2. **EXRET Adjustment**: Extended multiplier range for better scaling (0.5x-5.0x)
+2. **EXRET Adjustment**: Simplified multiplier range for more reasonable scaling (0.5x-5.0x)
    - EXRET ≥ 40%: Exceptional opportunity (5.0x multiplier)
    - EXRET ≥ 30%: High opportunity (4.0x multiplier)
    - EXRET ≥ 25%: Good opportunity (3.0x multiplier)
