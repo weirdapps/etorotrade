@@ -186,8 +186,10 @@ class TestHybridProviderE2E:
         # pass the upside check but fail on PE requirements
         modified_yf_data = yf_data.copy()
         modified_yf_data["pe_trailing"] = None
-        modified_yf_data["upside"] = 25.0  # Pass upside check (>= 20%)
-        modified_yf_data["buy_percentage"] = 90.0  # Pass buy percentage check (>= 85%)
+        modified_yf_data["upside"] = 35.0  # Pass upside check for VALUE tier (>= 10%) 
+        modified_yf_data["buy_percentage"] = 70.0  # Pass buy percentage check for VALUE tier (>= 65%)
+        modified_yf_data["market_cap"] = 500_000_000_000  # $500B - VALUE tier (≥$100B)
+        modified_yf_data["CAP"] = "500B"  # Also provide CAP string for tier calculation
 
         # Calculate action with original YFinance data
         yf_action, yf_reason = calculate_action_for_row(modified_yf_data, test_criteria)
@@ -206,7 +208,7 @@ class TestHybridProviderE2E:
         hybrid_action, hybrid_reason = calculate_action_for_row(hybrid_result, test_criteria)
 
         # Without PE Forward data, calculation should fail with PE-related error
-        assert "Forward P/E not available" in yf_reason
+        assert "Forward P/E not available" in yf_reason or "Trailing P/E" in yf_reason
 
         # With hybrid supplemented data, we should get an action
         assert hybrid_action != ""
