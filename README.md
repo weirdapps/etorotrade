@@ -65,46 +65,74 @@ ETORO_USER_KEY=your-etoro-user-key
 ETORO_USERNAME=your-etoro-username
 ```
 
-## 💲 Trading Criteria
+## 💲 Three-Tier Trading System
 
-etorotrade uses a sophisticated classification system based on financial metrics, analyst consensus, and technical indicators. **All trading criteria are centralized in a single configuration file** for consistency across all analysis types.
+etorotrade uses a sophisticated **three-tier trading system** that classifies stocks by market cap and applies appropriate risk-adjusted criteria. This approach recognizes that large-cap blue chips require different analysis than small-cap speculative plays.
 
-### 🟢 BUY Recommendations
-A stock must meet ALL of these criteria:
-- **Strong Upside**: 20%+ potential upside
+### 🏗️ Market Cap Tier Classification
+
+**VALUE Tier (≥$100B)**: Large-cap quality companies
+- **Philosophy**: Conservative approach for established blue chips
+- **Examples**: Apple, Microsoft, Google, Amazon
+
+**GROWTH Tier ($5B-$100B)**: Mid-cap growth companies  
+- **Philosophy**: Balanced risk/reward for established growers
+- **Examples**: Most established companies with growth potential
+
+**BETS Tier (<$5B)**: Small-cap speculative positions
+- **Philosophy**: Higher bar for speculative investments
+- **Examples**: Small-cap growth stocks, emerging companies
+
+**M Column**: Every output shows tier classification (V/G/B) for instant risk assessment
+
+### 🟢 BUY Recommendations (Tier-Specific)
+
+**VALUE Tier BUY** (≥$100B market cap):
+- **Relaxed Upside**: 10%+ potential upside (vs 20% for others)
+- **Analyst Consensus**: 65%+ buy ratings (vs 75% for others)  
+- **Expected Return**: ≥7.5% (lower threshold for stability)
+- **Risk Management**: Higher position size tolerance due to stability
+
+**GROWTH Tier BUY** ($5B-$100B market cap):
+- **Standard Upside**: 20%+ potential upside
 - **Analyst Consensus**: 75%+ buy ratings
-- **Reasonable Volatility**: Beta between 0.25 and 2.5
-- **Attractive Valuation**: 
-  - Forward P/E between 0.5 and 65.0
-  - Trailing P/E between 0.5 and 80.0 (required for BUY)
-  - Good growth-adjusted value (PEG < 2.5, if available)
-- **Strong Fundamentals**:
-  - Earnings growth ≥ -10% (if available)
-  - 3-month price performance ≥ -10% (if available)
-- **Limited Risk Factors**: 
-  - Low short interest (≤ 2.0%, if available)
-  - Strong expected return (≥ 15.0%)
-- **Sufficient Coverage**: ≥ 5 analyst ratings and ≥ 5 price targets
+- **Expected Return**: ≥15% (standard requirement)
+- **Risk Management**: Balanced position sizing and thresholds
 
-### 🔴 SELL Signals
-A stock triggers a SELL if ANY of these warning signs appear:
-- **Limited Upside**: Less than 5% upside potential
-- **Weak Analyst Support**: Less than 65% buy ratings
-- **Overvaluation**: Forward P/E > 65.0 or PEG > 3.0 (if available)
-- **Poor Valuation**: Forward P/E < 0.5 or P/E expanding excessively (PEF - PET > 10)
-- **Poor Fundamentals**:
-  - Earnings growth < -15% (if available)
-  - 3-month price performance < -25% (if available)
-- **High Risk Factors**: Short interest > 3.0% (if available) or Beta > 3.0
-- **Poor Expected Return**: EXRET < 2.5%
+**BETS Tier BUY** (<$5B market cap):
+- **High Upside**: 30%+ potential upside (higher bar for risk)
+- **Strong Consensus**: 80%+ buy ratings (more conviction needed)
+- **High Return**: ≥25% expected return (compensation for risk)
+- **Risk Management**: Smaller positions, stricter fundamentals
 
-### ⚪ HOLD Recommendations
-- Passes confidence thresholds but doesn't meet full BUY or SELL criteria
-- May have mixed signals or be fairly valued at current price
+**Common BUY Requirements** (All Tiers):
+- **Reasonable Volatility**: Beta between 0.25 and 3.0
+- **Attractive Valuation**: Forward P/E 0.5-65.0, Trailing P/E required
+- **Quality Factors**: PEG < 2.5, Low short interest (if available)
+- **Sufficient Coverage**: ≥5 analyst ratings and ≥5 price targets
 
-### 🟡 INCONCLUSIVE Classification
-- Insufficient analyst coverage (< 5 price targets or < 5 analyst ratings)
-- Not enough data for confident decision-making
+### 🔴 SELL Signals (Tier-Specific)
+
+**VALUE Tier SELL** (≥$100B market cap):
+- **Limited Upside**: <2.5% upside potential
+- **Weak Support**: <55% buy ratings
+
+**GROWTH Tier SELL** ($5B-$100B market cap):
+- **Limited Upside**: <5% upside potential  
+- **Weak Support**: <65% buy ratings
+
+**BETS Tier SELL** (<$5B market cap):
+- **Limited Upside**: <10% upside potential
+- **Weak Support**: <75% buy ratings
+
+**Common SELL Triggers** (All Tiers):
+- **Overvaluation**: Forward P/E >65.0, PEG >3.0, or excessive PE expansion
+- **Poor Fundamentals**: Earnings growth <-15%, Price performance <-35%
+- **High Risk**: Short interest >3%, Beta >3.0, Expected return <2.5%
+
+### ⚪ HOLD & 🟡 INCONCLUSIVE
+- **HOLD**: Passes confidence thresholds but doesn't meet tier-specific BUY/SELL criteria
+- **INCONCLUSIVE**: Insufficient analyst coverage (<5 targets or ratings)
 
 ## 📊 Enhanced Data Columns
 
@@ -161,21 +189,26 @@ All trading criteria can be customized by editing a single file: `yahoofinance/c
 
 This centralized configuration ensures consistency across:
 - ACT column values (B/S/H/I)
+- M column tier classification (V/G/B)
 - Color coding (green/red/yellow highlighting)
 - Buy/Sell/Hold opportunity filtering
 - All recommendation outputs
 
-Example customization:
+Example tier customization:
 ```python
 # In yahoofinance/core/trade_criteria_config.py
 class TradingCriteria:
-    # Make BUY criteria more aggressive
-    BUY_MIN_UPSIDE = 25.0              # Require 25% upside (was 20%)
-    BUY_MIN_EXRET = 0.20               # Require 20% expected return (was 15%)
+    # Adjust market cap tier boundaries
+    VALUE_TIER_MIN_CAP = 50_000_000_000   # $50B threshold (was $100B)
+    GROWTH_TIER_MIN_CAP = 2_000_000_000   # $2B threshold (was $5B)
     
-    # Make SELL criteria more conservative  
-    SELL_MAX_UPSIDE = 3.0              # Sell if upside < 3% (was 5%)
-    SELL_MIN_SHORT_INTEREST = 4.0      # Sell if SI > 4% (was 3%)
+    # Customize VALUE tier BUY criteria (more conservative)
+    VALUE_BUY_MIN_UPSIDE = 5.0            # Only 5% upside needed (was 10%)
+    VALUE_BUY_MIN_BUY_PERCENTAGE = 60.0   # 60% consensus (was 65%)
+    
+    # Customize BETS tier BUY criteria (more aggressive)
+    BETS_BUY_MIN_UPSIDE = 40.0            # Require 40% upside (was 30%)
+    BETS_BUY_MIN_BUY_PERCENTAGE = 85.0    # 85% consensus (was 80%)
 ```
 
 ### 💰 Intelligent Position Sizing
