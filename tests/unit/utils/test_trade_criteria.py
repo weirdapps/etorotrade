@@ -50,21 +50,22 @@ def test_data():
     return {
         "buy_stock": {
             "ticker": "BUY",
-            "upside": 25.0,
-            "buy_percentage": 80.0,  # Updated to pass 75% threshold
+            "upside": 35.0,  # Above BETS_BUY_MIN_UPSIDE (30%)
+            "buy_percentage": 85.0,  # Above BETS_BUY_MIN_BUY_PERCENTAGE (80%)
             "pe_trailing": 20.0,
             "pe_forward": 15.0,
             "peg_ratio": 1.2,
             "beta": 1.5,
-            "short_percent": 1.5,  # Updated to pass 2.0% threshold
+            "short_percent": 1.5,  # Below BETS_BUY_MAX_SHORT_INTEREST (2.0%)
             "analyst_count": 10,
             "total_ratings": 8,
-            "EXRET": 20.0,  # 25 * 0.8
-            "market_cap": 1_000_000_000,  # $1B - above $500M requirement
+            "EXRET": 30.0,  # Above BETS_BUY_MIN_EXRET (25%)
+            "market_cap": 1_000_000_000,  # $1B - BETS tier (<$5B)
+            "CAP": "1.00B",  # Also provide CAP string for tier calculation
         },
         "sell_stock_low_upside": {
             "ticker": "SELL1",
-            "upside": 3.0,  # Below MAX_UPSIDE threshold
+            "upside": 3.0,  # Below BETS_SELL_MAX_UPSIDE (10%) threshold
             "buy_percentage": 70.0,
             "pe_trailing": 25.0,
             "pe_forward": 20.0,
@@ -74,26 +75,28 @@ def test_data():
             "analyst_count": 8,
             "total_ratings": 7,
             "EXRET": 2.1,  # 3 * 0.7
-            "market_cap": 800_000_000,  # $800M - above $500M requirement
+            "market_cap": 800_000_000,  # $800M - BETS tier (<$5B)
+            "CAP": "800M",  # Also provide CAP string for tier calculation
         },
         "sell_stock_high_beta": {
             "ticker": "SELL2",
-            "upside": 10.0,  # Below BUY_MIN_UPSIDE threshold (15.0)
-            "buy_percentage": 75.0,
+            "upside": 15.0,  # Above BETS_SELL_MAX_UPSIDE (10%) to avoid upside SELL trigger
+            "buy_percentage": 85.0,  # Above BETS_SELL_MIN_BUY_PERCENTAGE (75%) to avoid buy% SELL trigger
             "pe_trailing": 22.0,
             "pe_forward": 20.0,
             "peg_ratio": 1.8,
-            "beta": 3.5,  # Above BUY_MAX_BETA threshold (2.5) 
+            "beta": 3.5,  # Above SELL_MIN_BETA (3.0) - this should trigger SELL
             "short_percent": 1.0,  # Reduced to avoid triggering short interest rule first
             "analyst_count": 7,
             "total_ratings": 6,
-            "EXRET": 7.5,  # 10 * 0.75
-            "market_cap": 900_000_000,  # $900M - above $500M requirement
+            "EXRET": 12.75,  # 15 * 0.85
+            "market_cap": 900_000_000,  # $900M - BETS tier (<$5B)
+            "CAP": "900M",  # Also provide CAP string for tier calculation
         },
         "hold_stock": {
             "ticker": "HOLD",
-            "upside": 12.0,  # Not enough for BUY (needs >= 15)
-            "buy_percentage": 70.0,  # Not enough for BUY (needs >= 75)
+            "upside": 25.0,  # Above BETS_SELL_MAX_UPSIDE (10%) to avoid SELL trigger, but below BETS_BUY_MIN_UPSIDE (30%)
+            "buy_percentage": 78.0,  # Above BETS_SELL_MIN_BUY_PERCENTAGE (75%) but below BETS_BUY_MIN_BUY_PERCENTAGE (80%)
             "pe_trailing": 18.0,
             "pe_forward": 16.0,
             "peg_ratio": 1.5,
@@ -101,8 +104,9 @@ def test_data():
             "short_percent": 1.5,  # Keep under buy threshold
             "analyst_count": 6,
             "total_ratings": 5,
-            "EXRET": 8.4,  # 12 * 0.7 - Above SELL threshold (2.5%) and BUY threshold (10%)
-            "market_cap": 600_000_000,  # $600M - above $500M requirement
+            "EXRET": 19.5,  # 25 * 0.78 - Above SELL threshold but below BETS_BUY_MIN_EXRET (25%)
+            "market_cap": 600_000_000,  # $600M - BETS tier (<$5B)
+            "CAP": "600M",  # Also provide CAP string for tier calculation
         },
         "insufficient_confidence": {
             "ticker": "LOWCONF",
@@ -116,7 +120,8 @@ def test_data():
             "analyst_count": 3,  # Below MIN_ANALYST_COUNT
             "total_ratings": 2,  # Below MIN_PRICE_TARGETS
             "EXRET": 24.0,  # 30 * 0.8
-            "market_cap": 700_000_000,  # $700M - above $500M requirement
+            "market_cap": 700_000_000,  # $700M - BETS tier (<$5B)
+            "CAP": "700M",  # Also provide CAP string for tier calculation
         },
     }
 
@@ -154,17 +159,17 @@ def test_meets_sell_criteria(trading_criteria, test_data):
 
 def test_meets_buy_criteria(trading_criteria, test_data):
     """Test buy criteria checking."""
-    # Should meet buy criteria
+    # Should meet buy criteria (BETS tier with 30% upside, 80% buy%, 25% EXRET)
     is_buy, reason = TradingCriteria.check_buy_criteria(test_data["buy_stock"])
     assert is_buy is True
     assert reason is None
 
-    # Should not meet buy criteria due to low upside
+    # Should not meet buy criteria due to insufficient upside for BETS tier (25% < 30%)
     is_buy, reason = TradingCriteria.check_buy_criteria(test_data["hold_stock"])
     assert is_buy is False
     assert "upside" in reason.lower()
 
-    # First check shows insufficient upside, so test for that
+    # Should not meet buy criteria due to insufficient upside (15% < 30% for BETS tier)
     is_buy, reason = TradingCriteria.check_buy_criteria(test_data["sell_stock_high_beta"])
     assert is_buy is False
     assert "upside" in reason.lower()
@@ -200,7 +205,7 @@ def test_calculate_action_for_row(trading_criteria, test_data):
     assert action == "B"
     assert "meets all buy criteria" in reason.lower()
 
-    # Should be a SELL due to low upside
+    # Should be a SELL due to low upside for BETS tier (3% < 10%)
     action, reason = calculate_action_for_row(test_data["sell_stock_low_upside"], trading_criteria)
     assert action == "S"
     assert "upside" in reason.lower()
@@ -213,7 +218,7 @@ def test_calculate_action_for_row(trading_criteria, test_data):
     # Hold stock should be a HOLD (doesn't meet buy criteria, doesn't meet sell criteria)
     action, reason = calculate_action_for_row(test_data["hold_stock"], trading_criteria)
     assert action == "H"
-    assert "upside" in reason.lower()
+    assert "upside" in reason.lower()  # Changed to expected failure reason (insufficient upside)
 
     # Should have 'I' action due to insufficient confidence
     action, reason = calculate_action_for_row(
