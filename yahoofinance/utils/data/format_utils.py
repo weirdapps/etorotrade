@@ -233,10 +233,10 @@ def calculate_position_size(
         PORTFOLIO_CONFIG = {
             "PORTFOLIO_VALUE": 450_000,
             "MIN_POSITION_USD": 1_000,
-            "MAX_POSITION_USD": 45_000,  # Updated to 10% of portfolio
-            "MAX_POSITION_PCT": 10.0,   # Updated to 10%
+            "MAX_POSITION_USD": 40_000,  # Reduced from 45K for simplified system
+            "MAX_POSITION_PCT": 8.9,    # Updated to ~8.9% of portfolio
             "BASE_POSITION_PCT": 0.5,
-            "HIGH_CONVICTION_PCT": 10.0,  # Updated to 10%
+            "HIGH_CONVICTION_PCT": 8.9,  # Updated to match max position
             "SMALL_CAP_THRESHOLD": 2_000_000_000,
             "MID_CAP_THRESHOLD": 10_000_000_000,
             "LARGE_CAP_THRESHOLD": 50_000_000_000,
@@ -283,58 +283,44 @@ def calculate_position_size(
         else:  # Small cap (<$2B): Smallest position due to higher risk
             position_multiplier = 0.6  # Most conservative
     else:
-        # New logic: Check high conviction criteria first
-        # High conviction: EG >15%, 3MOP >0%, EXRET >20%
-        is_high_conviction = (
-            (earnings_growth is not None and earnings_growth > 15) and
-            (three_month_perf is not None and three_month_perf > 0) and
-            (exret is not None and exret > 20)
-        )
-        
-        if is_high_conviction:
-            # High conviction plays get significantly larger positions
-            if exret >= 40:  # Exceptional high conviction (>40% expected return)
-                position_multiplier = 20.0  # Up to 10% of portfolio
-            elif exret >= 30:  # Very high conviction (30-40% expected return) 
-                position_multiplier = 16.0  # Up to 8% of portfolio
-            elif exret >= 25:  # High conviction (25-30% expected return)
-                position_multiplier = 12.0  # Up to 6% of portfolio
-            else:  # Base high conviction (20-25% expected return)
-                position_multiplier = 8.0   # Up to 4% of portfolio
-        else:
-            # Standard logic: Adjust position size based on EXRET only
-            if exret >= 25:  # High opportunity without all conviction criteria
-                position_multiplier = 4.0   # Up to 2% of portfolio
-            elif exret >= 20:  # Good opportunity (20-25% expected return)
-                position_multiplier = 2.0   # Up to 1% of portfolio  
-            elif exret >= 15:  # Standard opportunity (15-20% expected return)
-                position_multiplier = 1.5   # Up to 0.75% of portfolio
-            elif exret >= 10:  # Lower opportunity (10-15% expected return)
-                position_multiplier = 1.0   # Base position (0.5%)
-            else:  # Low conviction (5-10% expected return)
-                position_multiplier = 0.5   # Smaller position (0.25%)
+        # Updated EXRET-based position sizing
+        # Extended multiplier range from 0.8x-3.0x to 0.5x-5.0x for better scaling
+        if exret >= 40:  # Exceptional opportunity
+            position_multiplier = 5.0
+        elif exret >= 30:  # High opportunity
+            position_multiplier = 4.0
+        elif exret >= 25:  # Good opportunity  
+            position_multiplier = 3.0
+        elif exret >= 20:  # Standard opportunity
+            position_multiplier = 2.0
+        elif exret >= 15:  # Lower opportunity
+            position_multiplier = 1.5
+        elif exret >= 10:  # Base position
+            position_multiplier = 1.0
+        else:  # Conservative (5-10% expected return)
+            position_multiplier = 0.5
 
-    # For fallback mode, we already incorporated market cap into position_multiplier
-    # For normal mode, apply additional market cap risk adjustment
-    if not use_fallback:
-        if market_cap < small_cap:  # Small cap (<$2B): higher risk, smaller positions
-            cap_multiplier = 0.7
-        elif market_cap < mid_cap:  # Mid cap ($2B-$10B): standard risk
-            cap_multiplier = 1.0
-        elif market_cap < large_cap:  # Large cap ($10B-$50B): lower risk, can be larger
-            cap_multiplier = 1.2
-        else:  # Mega cap (>$50B): lowest risk
-            cap_multiplier = 1.3
-        
-        # Calculate final position size with market cap adjustment
-        position_size = base_position * position_multiplier * cap_multiplier
-    else:
-        # Fallback mode: market cap already considered in position_multiplier
-        position_size = base_position * position_multiplier
+    # Determine market cap tier and apply tier-based multiplier
+    from ...core.trade_criteria_config import TradingCriteria
+    
+    if market_cap >= TradingCriteria.VALUE_TIER_MIN_CAP:  # VALUE (≥$100B)
+        tier_multiplier = 2.5   # Increased reward for stability of large caps
+    elif market_cap >= TradingCriteria.GROWTH_TIER_MIN_CAP:  # GROWTH ($5B-$100B)
+        tier_multiplier = 1.5   # Standard mid-cap allocation
+    else:  # BETS (<$5B)
+        tier_multiplier = 0.5   # Conservative small-cap sizing
+    
+    # Calculate position size with tier-based adjustment
+    position_size = base_position * position_multiplier * tier_multiplier
+    
+    # Apply geographic risk adjustment for non-US markets
+    if ticker:
+        geo_multiplier = _get_geographic_risk_multiplier(ticker)
+        position_size *= geo_multiplier
 
     # Apply limits
     position_size = max(min_position, position_size)  # At least $1K
-    position_size = min(max_position, position_size)  # At most $45K
+    position_size = min(max_position, position_size)  # At most $40K
 
     # Round to nearest $500 for cleaner position sizes
     result = round(position_size / 500) * 500
@@ -424,6 +410,29 @@ def format_market_metrics(
             formatted[key] = str(value) if value is not None else "N/A"
 
     return formatted
+
+
+def _get_geographic_risk_multiplier(ticker: str) -> float:
+    """
+    Calculate geographic risk adjustment multiplier for position sizing.
+    
+    Simplified binary approach: moderately reduce HK concentration.
+    
+    Args:
+        ticker: Ticker symbol to analyze
+        
+    Returns:
+        Multiplier for position sizing (0.75 for HK, 1.0 for all others)
+    """
+    if not ticker:
+        return 1.0
+    
+    # Hong Kong stocks get 25% reduction to address concentration
+    if ticker.upper().endswith('.HK'):
+        return 0.75
+    
+    # All other markets (US, EU, etc.) - no adjustment
+    return 1.0
 
 
 def _apply_formatter(value: Any, formatter: Optional[Dict[str, Any]] = None) -> str:

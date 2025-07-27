@@ -214,29 +214,34 @@ class TradingCriteria:
     BETS_BUY_MIN_BUY_PERCENTAGE = 85.0    # Higher consensus (current: 80%)
 ```
 
-### 💰 Intelligent Position Sizing
+### 💰 Intelligent Position Sizing (Updated 2025-01-27)
 
-etorotrade features a sophisticated position sizing system that calculates optimal trade sizes based on portfolio allocation, risk management, and expected returns.
+etorotrade features a sophisticated position sizing system that calculates optimal trade sizes based on portfolio allocation, risk management, and expected returns with tier-based and geographic adjustments.
 
 #### Position Sizing Strategy
 - **Portfolio Value**: $450,000 (configurable in `yahoofinance/core/config.py`)
 - **Base Position**: 0.5% of portfolio = $2,250 for standard opportunities  
-- **High Conviction**: Up to 10% of portfolio = $45,000 for exceptional opportunities
-- **Position Limits**: $1,000 minimum, $45,000 maximum (10% max allocation)
-- **High Conviction Criteria**: EG >15% AND PP >0% AND EXRET >20%
+- **Position Limits**: $1,000 minimum, $40,000 maximum (8.9% max allocation)
+- **Extended EXRET Range**: Multipliers from 0.5x to 5.0x for better differentiation
 
-#### Smart Sizing Logic
-1. **Expected Return Adjustment**: Higher EXRET = larger positions
-   - EXRET ≥ 15%: High conviction multiplier (2-4x base position)
-   - EXRET 10-15%: Moderate increase (1.5-2x base position)  
-   - EXRET < 10%: Standard or reduced position
+#### Enhanced Sizing Logic
+1. **EXRET-Based Scaling**: Extended multiplier range for better opportunity differentiation
+   - EXRET ≥ 40%: Exceptional opportunity (5.0x multiplier)
+   - EXRET ≥ 30%: High opportunity (4.0x multiplier)
+   - EXRET ≥ 25%: Good opportunity (3.0x multiplier)
+   - EXRET ≥ 20%: Standard opportunity (2.0x multiplier)
+   - EXRET ≥ 15%: Lower opportunity (1.5x multiplier)
+   - EXRET ≥ 10%: Base position (1.0x multiplier)
+   - EXRET < 10%: Conservative (0.5x multiplier)
 
-2. **Market Cap Scaling**: Position size scales with company size
-   - Large cap (>$50B): Can support larger positions
-   - Mid cap ($10-50B): Standard scaling
-   - Small cap (<$10B): Reduced positions for higher risk
+2. **Tier-Based Market Cap Scaling**: Rewards stability and appropriate risk
+   - **VALUE tier** (≥$100B): 2.5x multiplier (enhanced for stability)
+   - **GROWTH tier** ($5B-$100B): 1.5x multiplier (standard allocation)
+   - **BETS tier** (<$5B): 0.5x multiplier (conservative small-cap sizing)
 
-3. **Risk Management**: Automatic scaling for volatility and other risk factors
+3. **Geographic Risk Management**: Concentration risk mitigation
+   - **Hong Kong** (.HK): 0.75x multiplier (moderate reduction)
+   - **All other markets**: 1.0x multiplier (no adjustment)
 
 #### Display Format
 Position sizes are shown in the SIZE column with intuitive formatting:
