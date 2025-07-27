@@ -258,6 +258,7 @@ except ImportError:
         "PE_TRAILING": "PET",
         "PE_FORWARD": "PEF",
         "PEG_RATIO": "PEG",
+        "MODEL_TIER": "M",
     }
     CIRCUIT_BREAKER = {
         "FAILURE_THRESHOLD": 5,
@@ -349,6 +350,7 @@ except ImportError:
         "PP",
         "EARNINGS",
         "SIZE",
+        "M",
         "ACT",
     ]
     # Missing config constants for backward compatibility

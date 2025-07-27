@@ -238,7 +238,8 @@ class MarketDisplay:
             'EARNINGS': 'EARNINGS',
             'EG': 'EG',
             'PP': 'PP',
-            'SIZE': 'SIZE'
+            'SIZE': 'SIZE',
+            'M': 'M'
         }
         
         # Create new DataFrame with only mapped columns to avoid duplicates
@@ -265,6 +266,10 @@ class MarketDisplay:
         # Copy any A column if present  
         if 'A' in df.columns:
             new_df['A'] = df['A']
+        
+        # Copy any M column if present  
+        if 'M' in df.columns:
+            new_df['M'] = df['M']
         
         df = new_df
         
@@ -364,6 +369,22 @@ class MarketDisplay:
                 actions.append("H")  # Default to Hold
         
         return pd.Series(actions, index=df.index)
+    
+    def _calculate_market_cap_tiers(self, df: pd.DataFrame) -> pd.Series:
+        """Calculate market cap tiers (V/G/B) for each row in the DataFrame."""
+        tiers = []
+        
+        for _, row in df.iterrows():
+            try:
+                # Import the tier classification function
+                from ..core.trade_criteria_config import TradingCriteria
+                tier = TradingCriteria.get_market_cap_tier(row)
+                tiers.append(tier)
+            except Exception:
+                # Fallback to BETS tier if calculation fails
+                tiers.append("B")
+        
+        return pd.Series(tiers, index=df.index)
 
     def _filter_by_trade_action(self, results: List[Dict], trade_filter: str) -> List[Dict]:
         """
@@ -655,15 +676,32 @@ class MarketDisplay:
             logger.warning(f"Failed to add position size column: {e}")
             # Ensure SIZE column exists for column filtering
             df['SIZE'] = '--'
+        
+        # Add market cap tier (M column)
+        try:
+            df['M'] = self._calculate_market_cap_tiers(df)
+        except Exception as e:
+            # If tier calculation fails, default to B (BETS)
+            logger.warning(f"Failed to add market cap tier column: {e}")
+            df['M'] = 'B'
 
         # Get the standard column order from config
         from ..core.config import STANDARD_DISPLAY_COLUMNS
 
         # Only include columns that exist in both the DataFrame and standard columns
         final_col_order = [col for col in STANDARD_DISPLAY_COLUMNS if col in df.columns]
+        
+        # Ensure M column is in final order if it exists
+        if 'M' in df.columns and 'M' not in final_col_order:
+            # Find where to insert M column (before ACT)
+            if 'ACT' in final_col_order:
+                act_index = final_col_order.index('ACT')
+                final_col_order.insert(act_index, 'M')
+            else:
+                final_col_order.append('M')
 
         # If we have fewer than 5 essential columns, fall back to basic set
-        essential_cols = ["#", "TICKER", "COMPANY", "PRICE", "ACT"]
+        essential_cols = ["#", "TICKER", "COMPANY", "PRICE", "M", "ACT"]
         if len(final_col_order) < 5:
             final_col_order = [col for col in essential_cols if col in df.columns]
 
@@ -737,17 +775,33 @@ class MarketDisplay:
             # Convert to DataFrame
             df = pd.DataFrame(data)
 
-            # Apply same processing as display (format columns and add position sizes)
+            # Apply same processing as display (format columns, add position sizes, and add tiers)
             try:
                 df = self._format_dataframe(df)
                 df = self._add_position_size_column(df)
+                
+                # Add market cap tier (M column) 
+                try:
+                    df['M'] = self._calculate_market_cap_tiers(df)
+                except Exception as e:
+                    logger.warning(f"Failed to add market cap tier to CSV: {e}")
+                    df['M'] = 'B'  # Default to BETS tier
                 
                 # Apply column filtering to match display format
                 from ..core.config import STANDARD_DISPLAY_COLUMNS
                 final_col_order = [col for col in STANDARD_DISPLAY_COLUMNS if col in df.columns]
                 
+                # Ensure M column is in final order if it exists
+                if 'M' in df.columns and 'M' not in final_col_order:
+                    # Find where to insert M column (before ACT)
+                    if 'ACT' in final_col_order:
+                        act_index = final_col_order.index('ACT')
+                        final_col_order.insert(act_index, 'M')
+                    else:
+                        final_col_order.append('M')
+                
                 # If we have fewer than 5 essential columns, fall back to basic set
-                essential_cols = ["#", "TICKER", "COMPANY", "PRICE", "ACT"]
+                essential_cols = ["#", "TICKER", "COMPANY", "PRICE", "M", "ACT"]
                 if len(final_col_order) < 5:
                     final_col_order = [col for col in essential_cols if col in df.columns]
                 

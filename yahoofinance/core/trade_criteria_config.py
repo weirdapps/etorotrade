@@ -40,13 +40,22 @@ ACTION_COLORS = {
 class TradingCriteria:
     """Centralized trading criteria configuration."""
 
+    # Market cap tier thresholds (in dollars)
+    VALUE_TIER_MIN_CAP = 100_000_000_000  # $100B
+    GROWTH_TIER_MIN_CAP = 5_000_000_000   # $5B
+    
+    # Tier classification constants
+    VALUE_TIER = "V"
+    GROWTH_TIER = "G"
+    BETS_TIER = "B"
+
     # Confidence thresholds
     MIN_ANALYST_COUNT = 5
     MIN_PRICE_TARGETS = 5
 
-    # SELL criteria thresholds
-    SELL_MAX_UPSIDE = 5.0              # Sell if upside < 5%
-    SELL_MIN_BUY_PERCENTAGE = 65.0     # Sell if buy% < 65%
+    # SELL criteria thresholds (shared across tiers, but can be overridden per tier)
+    SELL_MAX_UPSIDE = 5.0              # Default sell if upside < 5%
+    SELL_MIN_BUY_PERCENTAGE = 65.0     # Default sell if buy% < 65%
     SELL_MIN_FORWARD_PE = 65.0         # Sell if PEF > 65
     SELL_MIN_PEG = 3.0                 # Sell if PEG > 3
     SELL_MIN_SHORT_INTEREST = 3.0      # Sell if SI > 3.0%
@@ -55,21 +64,82 @@ class TradingCriteria:
     SELL_MAX_EARNINGS_GROWTH = -15.0   # Sell if EG < -15%
     SELL_MAX_PRICE_PERFORMANCE = -35.0 # Sell if PP < -35%
 
-    # BUY criteria thresholds (Adjusted for realistic market conditions)
-    BUY_MIN_UPSIDE = 20.0              # Buy if upside >= 20%
-    BUY_MIN_BUY_PERCENTAGE = 75.0      # Buy if buy% >= 75%
-    BUY_MIN_BETA = 0.25                # Buy if beta > 0.25
-    BUY_MAX_BETA = 2.5                 # Buy if beta <= 2.5
-    BUY_MIN_FORWARD_PE = 0.5           # Buy if PEF > 0.5
-    BUY_MAX_FORWARD_PE = 65.0          # Buy if PEF <= 65
-    BUY_MIN_TRAILING_PE = 0.5          # Buy if PET > 0.5  
-    BUY_MAX_TRAILING_PE = 80.0         # Buy if PET <= 80
-    BUY_MAX_PEG = 2.5                  # Buy if PEG < 2.5 (conditional)
-    BUY_MAX_SHORT_INTEREST = 2.0       # Buy if SI <= 2.0%
-    BUY_MIN_EXRET = 0.15               # Buy if EXRET >= 15% (stored as decimal)
-    BUY_MIN_MARKET_CAP = 1_000_000_000 # Buy if market cap >= $1B
-    BUY_MIN_EARNINGS_GROWTH = -10.0    # Buy if EG >= -10% (conditional)
-    BUY_MIN_PRICE_PERFORMANCE = -10.0  # Buy if PP >= -10% (conditional)
+    # VALUE tier BUY criteria (≥$100B market cap) - Relaxed criteria for quality large-caps
+    VALUE_BUY_MIN_UPSIDE = 10.0              # Very low threshold for stable large-caps
+    VALUE_BUY_MIN_BUY_PERCENTAGE = 65.0      # Lower threshold for analyst consensus
+    VALUE_BUY_MIN_BETA = 0.25                # Minimum beta allowed
+    VALUE_BUY_MAX_BETA = 3.0                 # Higher maximum beta allowed
+    VALUE_BUY_MIN_FORWARD_PE = 0.5           # Same PE requirements
+    VALUE_BUY_MAX_FORWARD_PE = 65.0          # Same PE requirements
+    VALUE_BUY_MIN_TRAILING_PE = 0.5          # Same trailing PE requirement
+    VALUE_BUY_MAX_TRAILING_PE = 85.0         # Higher trailing PE allowed
+    VALUE_BUY_MAX_PEG = 2.5                  # PEG requirement
+    VALUE_BUY_MAX_SHORT_INTEREST = 2.0       # Short interest tolerance
+    VALUE_BUY_MIN_EXRET = 0.075              # Lower expected return threshold (7.5%)
+    VALUE_BUY_MIN_EARNINGS_GROWTH = -15.0    # More tolerance for earnings variation
+    VALUE_BUY_MIN_PRICE_PERFORMANCE = -15.0  # More tolerance for price performance
+    
+    # GROWTH tier BUY criteria ($5B-$100B market cap) - Standard criteria
+    GROWTH_BUY_MIN_UPSIDE = 20.0             # Standard upside requirement
+    GROWTH_BUY_MIN_BUY_PERCENTAGE = 75.0     # Standard analyst consensus
+    GROWTH_BUY_MIN_BETA = 0.25               # Standard beta range
+    GROWTH_BUY_MAX_BETA = 3.0                # Higher beta limit
+    GROWTH_BUY_MIN_FORWARD_PE = 0.5          # Standard PE requirements
+    GROWTH_BUY_MAX_FORWARD_PE = 65.0         # Standard forward PE limit
+    GROWTH_BUY_MIN_TRAILING_PE = 0.5         # Standard trailing PE requirement
+    GROWTH_BUY_MAX_TRAILING_PE = 80.0        # Standard trailing PE limit
+    GROWTH_BUY_MAX_PEG = 2.5                 # Standard PEG requirement
+    GROWTH_BUY_MAX_SHORT_INTEREST = 2.5      # Higher short interest tolerance
+    GROWTH_BUY_MIN_EXRET = 0.15              # Standard expected return (15%)
+    GROWTH_BUY_MIN_EARNINGS_GROWTH = -10.0   # Standard earnings growth requirement
+    GROWTH_BUY_MIN_PRICE_PERFORMANCE = -10.0 # Standard price performance requirement
+    
+    # BETS tier BUY criteria (<$5B market cap) - Stricter criteria for speculative positions
+    BETS_BUY_MIN_UPSIDE = 30.0               # Higher upside required for small caps
+    BETS_BUY_MIN_BUY_PERCENTAGE = 80.0       # Higher analyst consensus required
+    BETS_BUY_MIN_BETA = 0.25                 # Standard minimum beta
+    BETS_BUY_MAX_BETA = 3.0                  # Higher maximum beta allowed
+    BETS_BUY_MIN_FORWARD_PE = 0.5            # Same PE requirements
+    BETS_BUY_MAX_FORWARD_PE = 65.0           # Same PE requirements  
+    BETS_BUY_MIN_TRAILING_PE = 0.5           # Same trailing PE requirement
+    BETS_BUY_MAX_TRAILING_PE = 60.0          # Lower trailing PE limit
+    BETS_BUY_MAX_PEG = 2.0                   # Stricter PEG requirement
+    BETS_BUY_MAX_SHORT_INTEREST = 2.0        # Short interest tolerance
+    BETS_BUY_MIN_EXRET = 0.25                # Higher expected return required (25%)
+    BETS_BUY_MIN_EARNINGS_GROWTH = -5.0      # Stricter earnings growth requirement
+    BETS_BUY_MIN_PRICE_PERFORMANCE = -5.0    # Stricter price performance requirement
+
+    # Tier-specific SELL criteria
+    # VALUE tier SELL criteria (≥$100B market cap)
+    VALUE_SELL_MAX_UPSIDE = 2.5              # Sell if upside < 2.5%
+    VALUE_SELL_MIN_BUY_PERCENTAGE = 55.0     # Sell if buy% < 55%
+    VALUE_SELL_MAX_FORWARD_PE = 65.0         # Sell if PEF > 65
+    
+    # GROWTH tier SELL criteria ($5B-$100B market cap)  
+    GROWTH_SELL_MAX_UPSIDE = 5.0             # Sell if upside < 5%
+    GROWTH_SELL_MIN_BUY_PERCENTAGE = 65.0    # Sell if buy% < 65%
+    GROWTH_SELL_MAX_FORWARD_PE = 65.0        # Sell if PEF > 65
+    
+    # BETS tier SELL criteria (<$5B market cap)
+    BETS_SELL_MAX_UPSIDE = 10.0              # Sell if upside < 10%
+    BETS_SELL_MIN_BUY_PERCENTAGE = 75.0      # Sell if buy% < 75%
+    BETS_SELL_MAX_FORWARD_PE = 65.0          # Sell if PEF > 65
+
+    # Legacy single-tier criteria (for backward compatibility)
+    BUY_MIN_UPSIDE = GROWTH_BUY_MIN_UPSIDE
+    BUY_MIN_BUY_PERCENTAGE = GROWTH_BUY_MIN_BUY_PERCENTAGE
+    BUY_MIN_BETA = GROWTH_BUY_MIN_BETA
+    BUY_MAX_BETA = GROWTH_BUY_MAX_BETA
+    BUY_MIN_FORWARD_PE = GROWTH_BUY_MIN_FORWARD_PE
+    BUY_MAX_FORWARD_PE = GROWTH_BUY_MAX_FORWARD_PE
+    BUY_MIN_TRAILING_PE = GROWTH_BUY_MIN_TRAILING_PE
+    BUY_MAX_TRAILING_PE = GROWTH_BUY_MAX_TRAILING_PE
+    BUY_MAX_PEG = GROWTH_BUY_MAX_PEG
+    BUY_MAX_SHORT_INTEREST = GROWTH_BUY_MAX_SHORT_INTEREST
+    BUY_MIN_EXRET = GROWTH_BUY_MIN_EXRET
+    BUY_MIN_MARKET_CAP = 1_000_000_000       # Minimum market cap for any buy
+    BUY_MIN_EARNINGS_GROWTH = GROWTH_BUY_MIN_EARNINGS_GROWTH
+    BUY_MIN_PRICE_PERFORMANCE = GROWTH_BUY_MIN_PRICE_PERFORMANCE
 
     @classmethod
     def check_confidence(cls, analyst_count: Optional[float], total_ratings: Optional[float]) -> bool:
@@ -101,15 +171,30 @@ class TradingCriteria:
         Returns:
             Tuple of (is_sell, reason)
         """
-        # 1. Low upside OR low buy percentage
+        # Get the tier-specific sell criteria
+        tier = cls.get_market_cap_tier(row)
+        if tier == cls.VALUE_TIER:
+            max_upside = cls.VALUE_SELL_MAX_UPSIDE
+            min_buy_pct = cls.VALUE_SELL_MIN_BUY_PERCENTAGE
+            max_forward_pe = cls.VALUE_SELL_MAX_FORWARD_PE
+        elif tier == cls.GROWTH_TIER:
+            max_upside = cls.GROWTH_SELL_MAX_UPSIDE
+            min_buy_pct = cls.GROWTH_SELL_MIN_BUY_PERCENTAGE
+            max_forward_pe = cls.GROWTH_SELL_MAX_FORWARD_PE
+        else:  # BETS_TIER
+            max_upside = cls.BETS_SELL_MAX_UPSIDE
+            min_buy_pct = cls.BETS_SELL_MIN_BUY_PERCENTAGE
+            max_forward_pe = cls.BETS_SELL_MAX_FORWARD_PE
+
+        # 1. Low upside OR low buy percentage (tier-specific thresholds)
         upside = cls._get_numeric_value(row.get("upside"))
         buy_pct = cls._get_numeric_value(row.get("buy_percentage"))
 
-        if upside is not None and upside < cls.SELL_MAX_UPSIDE:
-            return True, f"Low upside ({upside:.1f}% < {cls.SELL_MAX_UPSIDE}%)"
+        if upside is not None and upside < max_upside:
+            return True, f"Low upside ({upside:.1f}% < {max_upside}% for {tier} tier)"
 
-        if buy_pct is not None and buy_pct < cls.SELL_MIN_BUY_PERCENTAGE:
-            return True, f"Low buy percentage ({buy_pct:.1f}% < {cls.SELL_MIN_BUY_PERCENTAGE}%)"
+        if buy_pct is not None and buy_pct < min_buy_pct:
+            return True, f"Low buy percentage ({buy_pct:.1f}% < {min_buy_pct}% for {tier} tier)"
 
         # 2. Deteriorating PE (PEF > PET) OR high forward PE
         pe_forward = cls._get_numeric_value(row.get("pe_forward"))
@@ -122,8 +207,8 @@ class TradingCriteria:
         if pe_forward is not None:
             if pe_forward < 0.5:
                 return True, f"Low forward P/E ({pe_forward:.1f} < 0.5)"
-            elif pe_forward > cls.SELL_MIN_FORWARD_PE:
-                return True, f"High forward P/E ({pe_forward:.1f} > {cls.SELL_MIN_FORWARD_PE})"
+            elif pe_forward > max_forward_pe:
+                return True, f"High forward P/E ({pe_forward:.1f} > {max_forward_pe} for {tier} tier)"
 
         # 3. High PEG ratio
         peg = cls._get_numeric_value(row.get("peg_ratio"))
@@ -162,35 +247,91 @@ class TradingCriteria:
         return False, None
 
     @classmethod
+    def get_tier_criteria(cls, tier: str) -> Dict[str, float]:
+        """Get criteria thresholds for a specific tier."""
+        if tier == cls.VALUE_TIER:
+            return {
+                "min_upside": cls.VALUE_BUY_MIN_UPSIDE,
+                "min_buy_percentage": cls.VALUE_BUY_MIN_BUY_PERCENTAGE,
+                "min_beta": cls.VALUE_BUY_MIN_BETA,
+                "max_beta": cls.VALUE_BUY_MAX_BETA,
+                "min_forward_pe": cls.VALUE_BUY_MIN_FORWARD_PE,
+                "max_forward_pe": cls.VALUE_BUY_MAX_FORWARD_PE,
+                "min_trailing_pe": cls.VALUE_BUY_MIN_TRAILING_PE,
+                "max_trailing_pe": cls.VALUE_BUY_MAX_TRAILING_PE,
+                "max_peg": cls.VALUE_BUY_MAX_PEG,
+                "max_short_interest": cls.VALUE_BUY_MAX_SHORT_INTEREST,
+                "min_exret": cls.VALUE_BUY_MIN_EXRET,
+                "min_earnings_growth": cls.VALUE_BUY_MIN_EARNINGS_GROWTH,
+                "min_price_performance": cls.VALUE_BUY_MIN_PRICE_PERFORMANCE,
+            }
+        elif tier == cls.GROWTH_TIER:
+            return {
+                "min_upside": cls.GROWTH_BUY_MIN_UPSIDE,
+                "min_buy_percentage": cls.GROWTH_BUY_MIN_BUY_PERCENTAGE,
+                "min_beta": cls.GROWTH_BUY_MIN_BETA,
+                "max_beta": cls.GROWTH_BUY_MAX_BETA,
+                "min_forward_pe": cls.GROWTH_BUY_MIN_FORWARD_PE,
+                "max_forward_pe": cls.GROWTH_BUY_MAX_FORWARD_PE,
+                "min_trailing_pe": cls.GROWTH_BUY_MIN_TRAILING_PE,
+                "max_trailing_pe": cls.GROWTH_BUY_MAX_TRAILING_PE,
+                "max_peg": cls.GROWTH_BUY_MAX_PEG,
+                "max_short_interest": cls.GROWTH_BUY_MAX_SHORT_INTEREST,
+                "min_exret": cls.GROWTH_BUY_MIN_EXRET,
+                "min_earnings_growth": cls.GROWTH_BUY_MIN_EARNINGS_GROWTH,
+                "min_price_performance": cls.GROWTH_BUY_MIN_PRICE_PERFORMANCE,
+            }
+        else:  # BETS_TIER
+            return {
+                "min_upside": cls.BETS_BUY_MIN_UPSIDE,
+                "min_buy_percentage": cls.BETS_BUY_MIN_BUY_PERCENTAGE,
+                "min_beta": cls.BETS_BUY_MIN_BETA,
+                "max_beta": cls.BETS_BUY_MAX_BETA,
+                "min_forward_pe": cls.BETS_BUY_MIN_FORWARD_PE,
+                "max_forward_pe": cls.BETS_BUY_MAX_FORWARD_PE,
+                "min_trailing_pe": cls.BETS_BUY_MIN_TRAILING_PE,
+                "max_trailing_pe": cls.BETS_BUY_MAX_TRAILING_PE,
+                "max_peg": cls.BETS_BUY_MAX_PEG,
+                "max_short_interest": cls.BETS_BUY_MAX_SHORT_INTEREST,
+                "min_exret": cls.BETS_BUY_MIN_EXRET,
+                "min_earnings_growth": cls.BETS_BUY_MIN_EARNINGS_GROWTH,
+                "min_price_performance": cls.BETS_BUY_MIN_PRICE_PERFORMANCE,
+            }
+
+    @classmethod
     def check_buy_criteria(cls, row: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
         """
-        Check if a stock meets BUY criteria (ALL conditions must be met).
+        Check if a stock meets BUY criteria using tier-specific thresholds.
 
         Returns:
             Tuple of (is_buy, failure_reason)
         """
+        # Determine tier and get appropriate criteria
+        tier = cls.get_market_cap_tier(row)
+        criteria = cls.get_tier_criteria(tier)
+
         # 1. High upside AND high buy percentage (both required)
         upside = cls._get_numeric_value(row.get("upside"))
         buy_pct = cls._get_numeric_value(row.get("buy_percentage"))
 
         if upside is None:
             return False, "Upside data not available"
-        if upside < cls.BUY_MIN_UPSIDE:
-            return False, f"Insufficient upside ({upside:.1f}% < {cls.BUY_MIN_UPSIDE}%)"
+        if upside < criteria["min_upside"]:
+            return False, f"Insufficient upside ({upside:.1f}% < {criteria['min_upside']}% for {tier} tier)"
 
         if buy_pct is None:
             return False, "Buy percentage not available"
-        if buy_pct < cls.BUY_MIN_BUY_PERCENTAGE:
-            return False, f"Insufficient buy percentage ({buy_pct:.1f}% < {cls.BUY_MIN_BUY_PERCENTAGE}%)"
+        if buy_pct < criteria["min_buy_percentage"]:
+            return False, f"Insufficient buy percentage ({buy_pct:.1f}% < {criteria['min_buy_percentage']}% for {tier} tier)"
 
         # 2. Beta in valid range (required)
         beta = cls._get_numeric_value(row.get("beta"))
         if beta is None:
             return False, "Beta data not available"
-        if beta <= cls.BUY_MIN_BETA:
-            return False, f"Beta too low ({beta:.1f} <= {cls.BUY_MIN_BETA})"
-        if beta > cls.BUY_MAX_BETA:
-            return False, f"Beta too high ({beta:.1f} > {cls.BUY_MAX_BETA})"
+        if beta <= criteria["min_beta"]:
+            return False, f"Beta too low ({beta:.1f} <= {criteria['min_beta']} for {tier} tier)"
+        if beta > criteria["max_beta"]:
+            return False, f"Beta too high ({beta:.1f} > {criteria['max_beta']} for {tier} tier)"
 
         # 3. PE conditions (required)
         pe_forward = cls._get_numeric_value(row.get("pe_forward"))
@@ -204,12 +345,12 @@ class TradingCriteria:
             return False, "Trailing P/E (PET) not available - required for BUY"
 
         # Check if PE is in valid range
-        if not (cls.BUY_MIN_FORWARD_PE <= pe_forward <= cls.BUY_MAX_FORWARD_PE):
-            return False, f"Forward P/E out of range ({pe_forward:.1f})"
+        if not (criteria["min_forward_pe"] <= pe_forward <= criteria["max_forward_pe"]):
+            return False, f"Forward P/E out of range ({pe_forward:.1f}) for {tier} tier"
 
         # Check if trailing PE is in valid range (companies with negative earnings can't get BUY)
-        if not (cls.BUY_MIN_TRAILING_PE <= pe_trailing <= cls.BUY_MAX_TRAILING_PE):
-            return False, f"Trailing P/E out of range ({pe_trailing:.1f}) - must be between {cls.BUY_MIN_TRAILING_PE} and {cls.BUY_MAX_TRAILING_PE}"
+        if not (criteria["min_trailing_pe"] <= pe_trailing <= criteria["max_trailing_pe"]):
+            return False, f"Trailing P/E out of range ({pe_trailing:.1f}) for {tier} tier"
 
         # PE condition: PEF - PET <= 10 (PE not expanding too much)
         # This allows for reasonable PE expansion but not excessive growth
@@ -219,12 +360,12 @@ class TradingCriteria:
 
         # 4. Secondary criteria (conditional - only checked if data available)
         peg = cls._get_numeric_value(row.get("peg_ratio"))
-        if peg is not None and peg >= cls.BUY_MAX_PEG:
-            return False, f"PEG ratio too high ({peg:.1f} >= {cls.BUY_MAX_PEG})"
+        if peg is not None and peg >= criteria["max_peg"]:
+            return False, f"PEG ratio too high ({peg:.1f} >= {criteria['max_peg']} for {tier} tier)"
 
         si = cls._get_numeric_value(row.get("short_percent", row.get("SI")))
-        if si is not None and si > cls.BUY_MAX_SHORT_INTEREST:
-            return False, f"Short interest too high ({si:.1f}% > {cls.BUY_MAX_SHORT_INTEREST}%)"
+        if si is not None and si > criteria["max_short_interest"]:
+            return False, f"Short interest too high ({si:.1f}% > {criteria['max_short_interest']}% for {tier} tier)"
 
         # 5. Market cap (required)
         market_cap = cls._get_numeric_value(row.get("market_cap"))
@@ -244,20 +385,48 @@ class TradingCriteria:
         if exret > 1.0:  # If > 1, assume it's in percentage format, convert to decimal
             exret = exret / 100
             
-        if exret < cls.BUY_MIN_EXRET:
-            return False, f"Expected return too low ({exret*100:.1f}% < {cls.BUY_MIN_EXRET*100:.0f}%)"
+        if exret < criteria["min_exret"]:
+            return False, f"Expected return too low ({exret*100:.1f}% < {criteria['min_exret']*100:.0f}% for {tier} tier)"
 
         # 7. Earnings growth (conditional - only checked if data available)
         eg = cls._get_numeric_value(row.get("earnings_growth", row.get("EG")))
-        if eg is not None and eg < cls.BUY_MIN_EARNINGS_GROWTH:
-            return False, f"Earnings growth too low ({eg:.1f}% < {cls.BUY_MIN_EARNINGS_GROWTH}%)"
+        if eg is not None and eg < criteria["min_earnings_growth"]:
+            return False, f"Earnings growth too low ({eg:.1f}% < {criteria['min_earnings_growth']}% for {tier} tier)"
         
         # 8. Price performance (conditional - only checked if data available)
         pp = cls._get_numeric_value(row.get("price_performance", row.get("PP")))
-        if pp is not None and pp < cls.BUY_MIN_PRICE_PERFORMANCE:
-            return False, f"Price performance too low ({pp:.1f}% < {cls.BUY_MIN_PRICE_PERFORMANCE}%)"
+        if pp is not None and pp < criteria["min_price_performance"]:
+            return False, f"Price performance too low ({pp:.1f}% < {criteria['min_price_performance']}% for {tier} tier)"
 
         return True, None
+
+    @classmethod
+    def get_market_cap_tier(cls, row: Dict[str, Any]) -> str:
+        """
+        Determine market cap tier (VALUE/GROWTH/BETS) for a stock.
+        
+        Args:
+            row: Stock data row
+            
+        Returns:
+            str: Tier classification (V/G/B)
+        """
+        market_cap = cls._get_numeric_value(row.get("market_cap"))
+        if market_cap is None:
+            # Try to parse from CAP column if market_cap not available
+            cap_str = row.get("CAP")
+            if cap_str:
+                market_cap = _parse_market_cap_string(cap_str)
+        
+        if market_cap is None:
+            return cls.BETS_TIER  # Default to BETS if no market cap data
+            
+        if market_cap >= cls.VALUE_TIER_MIN_CAP:
+            return cls.VALUE_TIER
+        elif market_cap >= cls.GROWTH_TIER_MIN_CAP:
+            return cls.GROWTH_TIER
+        else:
+            return cls.BETS_TIER
 
     @classmethod
     def calculate_action(cls, row: Dict[str, Any]) -> Tuple[str, str]:

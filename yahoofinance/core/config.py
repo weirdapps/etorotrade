@@ -421,6 +421,9 @@ COLUMN_NAMES = {
     "PEG_RATIO": "PEG",
     "SHORT_INTEREST": "SI",
     "EARNINGS": "EARNINGS",
+    "EARNINGS_GROWTH": "EG",
+    "PRICE_PERFORMANCE": "PP", 
+    "MODEL_TIER": "M",
     "RANKING": "#",
 }
 
@@ -445,10 +448,11 @@ STANDARD_DISPLAY_COLUMNS = [
     "PEG",
     "DIV %",
     "SI",
-    "EARNINGS",
     "EG",
     "PP",
+    "EARNINGS",
     "SIZE",
+    "M",
     "ACT",
 ]
 
