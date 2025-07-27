@@ -64,18 +64,18 @@ class TradingCriteria:
     SELL_MAX_EARNINGS_GROWTH = -15.0   # Sell if EG < -15%
     SELL_MAX_PRICE_PERFORMANCE = -35.0 # Sell if PP < -35%
 
-    # VALUE tier BUY criteria (≥$100B market cap) - Relaxed criteria for quality large-caps
-    VALUE_BUY_MIN_UPSIDE = 10.0              # Very low threshold for stable large-caps
-    VALUE_BUY_MIN_BUY_PERCENTAGE = 65.0      # Lower threshold for analyst consensus
+    # VALUE tier BUY criteria (≥$100B market cap) - Conservative quality large-caps
+    VALUE_BUY_MIN_UPSIDE = 15.0              # Reasonable upside for large-caps
+    VALUE_BUY_MIN_BUY_PERCENTAGE = 70.0      # Strong analyst consensus required
     VALUE_BUY_MIN_BETA = 0.25                # Minimum beta allowed
-    VALUE_BUY_MAX_BETA = 3.0                 # Higher maximum beta allowed
-    VALUE_BUY_MIN_FORWARD_PE = 0.5           # Same PE requirements
-    VALUE_BUY_MAX_FORWARD_PE = 65.0          # Same PE requirements
-    VALUE_BUY_MIN_TRAILING_PE = 0.5          # Same trailing PE requirement
-    VALUE_BUY_MAX_TRAILING_PE = 85.0         # Higher trailing PE allowed
+    VALUE_BUY_MAX_BETA = 3.0                 # Maximum beta allowed
+    VALUE_BUY_MIN_FORWARD_PE = 0.5           # Minimum forward PE
+    VALUE_BUY_MAX_FORWARD_PE = 65.0          # Maximum forward PE
+    VALUE_BUY_MIN_TRAILING_PE = 0.5          # Minimum trailing PE
+    VALUE_BUY_MAX_TRAILING_PE = 85.0         # Higher trailing PE allowed for stability
     VALUE_BUY_MAX_PEG = 2.5                  # PEG requirement
     VALUE_BUY_MAX_SHORT_INTEREST = 2.0       # Short interest tolerance
-    VALUE_BUY_MIN_EXRET = 0.075              # Lower expected return threshold (7.5%)
+    VALUE_BUY_MIN_EXRET = 0.10               # Expected return threshold (10%)
     VALUE_BUY_MIN_EARNINGS_GROWTH = -15.0    # More tolerance for earnings variation
     VALUE_BUY_MIN_PRICE_PERFORMANCE = -15.0  # More tolerance for price performance
     
@@ -94,36 +94,39 @@ class TradingCriteria:
     GROWTH_BUY_MIN_EARNINGS_GROWTH = -10.0   # Standard earnings growth requirement
     GROWTH_BUY_MIN_PRICE_PERFORMANCE = -10.0 # Standard price performance requirement
     
-    # BETS tier BUY criteria (<$5B market cap) - Stricter criteria for speculative positions
-    BETS_BUY_MIN_UPSIDE = 30.0               # Higher upside required for small caps
-    BETS_BUY_MIN_BUY_PERCENTAGE = 80.0       # Higher analyst consensus required
-    BETS_BUY_MIN_BETA = 0.25                 # Standard minimum beta
-    BETS_BUY_MAX_BETA = 3.0                  # Higher maximum beta allowed
-    BETS_BUY_MIN_FORWARD_PE = 0.5            # Same PE requirements
-    BETS_BUY_MAX_FORWARD_PE = 65.0           # Same PE requirements  
-    BETS_BUY_MIN_TRAILING_PE = 0.5           # Same trailing PE requirement
-    BETS_BUY_MAX_TRAILING_PE = 60.0          # Lower trailing PE limit
+    # BETS tier BUY criteria (<$5B market cap) - High-conviction speculative positions
+    BETS_BUY_MIN_UPSIDE = 25.0               # High upside required for small caps
+    BETS_BUY_MIN_BUY_PERCENTAGE = 80.0       # Strong analyst consensus required
+    BETS_BUY_MIN_BETA = 0.25                 # Minimum beta allowed
+    BETS_BUY_MAX_BETA = 3.0                  # Maximum beta allowed
+    BETS_BUY_MIN_FORWARD_PE = 0.5            # Minimum forward PE
+    BETS_BUY_MAX_FORWARD_PE = 60.0           # Stricter forward PE limit
+    BETS_BUY_MIN_TRAILING_PE = 0.5           # Minimum trailing PE
+    BETS_BUY_MAX_TRAILING_PE = 60.0          # Stricter trailing PE limit
     BETS_BUY_MAX_PEG = 2.0                   # Stricter PEG requirement
     BETS_BUY_MAX_SHORT_INTEREST = 2.0        # Short interest tolerance
-    BETS_BUY_MIN_EXRET = 0.25                # Higher expected return required (25%)
+    BETS_BUY_MIN_EXRET = 0.20                # Higher expected return required (20%)
     BETS_BUY_MIN_EARNINGS_GROWTH = -5.0      # Stricter earnings growth requirement
     BETS_BUY_MIN_PRICE_PERFORMANCE = -5.0    # Stricter price performance requirement
 
-    # Tier-specific SELL criteria
-    # VALUE tier SELL criteria (≥$100B market cap)
-    VALUE_SELL_MAX_UPSIDE = 2.5              # Sell if upside < 2.5%
-    VALUE_SELL_MIN_BUY_PERCENTAGE = 55.0     # Sell if buy% < 55%
+    # Tier-specific SELL criteria (logically consistent progression)
+    # VALUE tier SELL criteria (≥$100B market cap) - Lower tolerance for large-caps
+    VALUE_SELL_MAX_UPSIDE = 5.0              # Sell if upside < 5%
+    VALUE_SELL_MIN_BUY_PERCENTAGE = 50.0     # Sell if buy% < 50%
     VALUE_SELL_MAX_FORWARD_PE = 65.0         # Sell if PEF > 65
+    VALUE_SELL_MAX_EXRET = 0.05              # Sell if EXRET < 5%
     
-    # GROWTH tier SELL criteria ($5B-$100B market cap)  
-    GROWTH_SELL_MAX_UPSIDE = 5.0             # Sell if upside < 5%
-    GROWTH_SELL_MIN_BUY_PERCENTAGE = 65.0    # Sell if buy% < 65%
+    # GROWTH tier SELL criteria ($5B-$100B market cap) - Moderate tolerance
+    GROWTH_SELL_MAX_UPSIDE = 8.0             # Sell if upside < 8%
+    GROWTH_SELL_MIN_BUY_PERCENTAGE = 60.0    # Sell if buy% < 60%
     GROWTH_SELL_MAX_FORWARD_PE = 65.0        # Sell if PEF > 65
+    GROWTH_SELL_MAX_EXRET = 0.08             # Sell if EXRET < 8%
     
-    # BETS tier SELL criteria (<$5B market cap)
-    BETS_SELL_MAX_UPSIDE = 10.0              # Sell if upside < 10%
-    BETS_SELL_MIN_BUY_PERCENTAGE = 75.0      # Sell if buy% < 75%
+    # BETS tier SELL criteria (<$5B market cap) - Higher tolerance for small-caps
+    BETS_SELL_MAX_UPSIDE = 12.0              # Sell if upside < 12%
+    BETS_SELL_MIN_BUY_PERCENTAGE = 70.0      # Sell if buy% < 70%
     BETS_SELL_MAX_FORWARD_PE = 65.0          # Sell if PEF > 65
+    BETS_SELL_MAX_EXRET = 0.10               # Sell if EXRET < 10%
 
     # Legacy single-tier criteria (for backward compatibility)
     BUY_MIN_UPSIDE = GROWTH_BUY_MIN_UPSIDE
@@ -177,14 +180,17 @@ class TradingCriteria:
             max_upside = cls.VALUE_SELL_MAX_UPSIDE
             min_buy_pct = cls.VALUE_SELL_MIN_BUY_PERCENTAGE
             max_forward_pe = cls.VALUE_SELL_MAX_FORWARD_PE
+            max_exret = cls.VALUE_SELL_MAX_EXRET
         elif tier == cls.GROWTH_TIER:
             max_upside = cls.GROWTH_SELL_MAX_UPSIDE
             min_buy_pct = cls.GROWTH_SELL_MIN_BUY_PERCENTAGE
             max_forward_pe = cls.GROWTH_SELL_MAX_FORWARD_PE
+            max_exret = cls.GROWTH_SELL_MAX_EXRET
         else:  # BETS_TIER
             max_upside = cls.BETS_SELL_MAX_UPSIDE
             min_buy_pct = cls.BETS_SELL_MIN_BUY_PERCENTAGE
             max_forward_pe = cls.BETS_SELL_MAX_FORWARD_PE
+            max_exret = cls.BETS_SELL_MAX_EXRET
 
         # 1. Low upside OR low buy percentage (tier-specific thresholds)
         upside = cls._get_numeric_value(row.get("upside"))
@@ -225,14 +231,14 @@ class TradingCriteria:
         if beta is not None and beta > cls.SELL_MIN_BETA:
             return True, f"High beta ({beta:.1f} > {cls.SELL_MIN_BETA})"
 
-        # 6. Low expected return
+        # 6. Low expected return (tier-specific threshold)
         exret = cls._get_numeric_value(row.get("EXRET"))
         if exret is not None:
             # Handle both decimal (0.05) and percentage (5.0) formats
             if exret > 1.0:  # If > 1, assume it's in percentage format, convert to decimal
                 exret = exret / 100
-            if exret < cls.SELL_MAX_EXRET:
-                return True, f"Low expected return ({exret*100:.1f}% < {cls.SELL_MAX_EXRET*100:.0f}%)"
+            if exret < max_exret:
+                return True, f"Low expected return ({exret*100:.1f}% < {max_exret*100:.0f}% for {tier} tier)"
 
         # 7. Poor earnings growth
         eg = cls._get_numeric_value(row.get("earnings_growth", row.get("EG")))
