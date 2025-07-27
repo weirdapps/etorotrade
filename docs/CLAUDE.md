@@ -681,29 +681,35 @@ print(f"Warnings: {robustness['warning_flags']}")
 
 The codebase implements a sophisticated position sizing system that calculates recommended trade sizes based on portfolio configuration, risk management, and market analysis.
 
-### Position Size Configuration (Updated 2025-01-17)
+### Position Size Configuration (Updated 2025-01-27)
 
 **File**: `yahoofinance/core/config.py` - PORTFOLIO_CONFIG section
 - **Portfolio Value**: $450,000 total portfolio value
-- **Position Limits**: $1,000 minimum, $45,000 maximum ($45K = 10% max position)
+- **Position Limits**: $1,000 minimum, $40,000 maximum ($40K = 8.9% max position)
 - **Base Position**: 0.5% of portfolio = $2,250 for standard positions
-- **High Conviction**: Up to 10% of portfolio = $45,000 for exceptional opportunities
-- **High Conviction Criteria**: EG >15% AND PP >0% AND EXRET >20%
+- **Enhanced Scaling**: Extended multiplier ranges with tier-based adjustments
 
-### Position Sizing Logic
+### Position Sizing Logic (Updated 2025-01-27)
 
 **Key Implementation**: `yahoofinance/utils/data/format_utils.py:calculate_position_size()`
 
 1. **Base Calculation**: Starts with base position (0.5% of portfolio = $2,250)
-2. **EXRET Adjustment**: Higher expected returns get larger positions
-   - EXRET >= 15%: High conviction multiplier (2-4x base)
-   - EXRET 10-15%: Moderate increase (1.5-2x base)
-   - EXRET < 10%: Standard or reduced position
-3. **Market Cap Scaling**: 
-   - Large cap (>$50B): Can support larger positions
-   - Mid cap ($10-50B): Standard scaling
-   - Small cap (<$10B): Reduced positions for higher risk
-4. **Safety Limits**: All positions capped at $1K-$40K range
+2. **EXRET Adjustment**: Extended multiplier range for better scaling (0.5x-5.0x)
+   - EXRET ≥ 40%: Exceptional opportunity (5.0x multiplier)
+   - EXRET ≥ 30%: High opportunity (4.0x multiplier)
+   - EXRET ≥ 25%: Good opportunity (3.0x multiplier)
+   - EXRET ≥ 20%: Standard opportunity (2.0x multiplier)
+   - EXRET ≥ 15%: Lower opportunity (1.5x multiplier)
+   - EXRET ≥ 10%: Base position (1.0x multiplier)
+   - EXRET < 10%: Conservative (0.5x multiplier)
+3. **Tier-Based Market Cap Scaling**: 
+   - VALUE tier (≥$100B): 2.5x multiplier (enhanced for large cap stability)
+   - GROWTH tier ($5B-$100B): 1.5x multiplier
+   - BETS tier (<$5B): 0.5x multiplier
+4. **Geographic Risk Adjustment**:
+   - Hong Kong (.HK): 0.75x multiplier (moderate reduction for concentration risk)
+   - All other markets: 1.0x multiplier
+5. **Safety Limits**: All positions capped at $1K-$40K range
 
 ### SIZE Column Display
 

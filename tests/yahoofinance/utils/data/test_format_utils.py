@@ -129,25 +129,29 @@ class TestFormatUtilsFunctions(unittest.TestCase):
         self.assertIsNotNone(result)  # Should return a value using fallback logic
 
         # Test trillion-scale company (very large cap)
-        # For market cap of 2 trillion with EXRET of 20, position size should be 6,000
+        # For market cap of 2 trillion with EXRET of 20:
+        # Base: $2,250 × EXRET_multiplier: 2.0x × VALUE_tier: 2.5x = $11,250 → rounded to $11K
         exret_value = 20
-        expected = 6000  # Updated to match current implementation
+        expected = 11000  # Updated for new VALUE tier multiplier (2.5x) and EXRET scaling
         self.assertEqual(calculate_position_size(2e12, exret_value), expected)
 
-        # Test large cap (between 1B and 1T)
-        # For market cap of 1.5B with EXRET of 15, position size should be 2,500
+        # Test BETS tier ($1.5B < $5B threshold)
+        # For market cap of 1.5B with EXRET of 15:
+        # Base: $2,250 × EXRET_multiplier: 1.5x × BETS_tier: 0.5x = $1,687.50 → rounded to $1.5K
         exret_value = 15
-        expected = 2500  # Updated to match current implementation
+        expected = 1500  # Updated for BETS tier multiplier (0.5x)
         self.assertEqual(calculate_position_size(1.5e9, exret_value), expected)
 
-        # 500 billion
-        expected = 4500  # Updated to match current implementation
+        # Test VALUE tier (500B ≥ $100B threshold)
+        # Base: $2,250 × EXRET_multiplier: 1.5x × VALUE_tier: 2.5x = $8,437.50 → rounded to $8.5K
+        expected = 8500  # Updated for VALUE tier multiplier (2.5x)
         self.assertEqual(calculate_position_size(500e9, exret_value), expected)
 
-        # Test mid cap (between 500M and 1B)
-        # For market cap of 750M with EXRET of 10, position size should be 1,500
+        # Test BETS tier (750M < $5B threshold)
+        # For market cap of 750M with EXRET of 10:
+        # Base: $2,250 × EXRET_multiplier: 1.0x × BETS_tier: 0.5x = $1,125 → rounded to $1K
         exret_value = 10
-        expected = 1500  # Updated to match current implementation
+        expected = 1000  # Updated for BETS tier multiplier (0.5x)
         self.assertEqual(calculate_position_size(750e6, exret_value), expected)
 
         # Test small cap (below 500M)
@@ -156,8 +160,9 @@ class TestFormatUtilsFunctions(unittest.TestCase):
         self.assertIsNone(calculate_position_size(100e6, exret_value))  # 100 million
 
         # Test with zero or negative EXRET (uses fallback logic)
-        self.assertEqual(calculate_position_size(2e12, 0), 2500)  # Zero EXRET uses fallback
-        self.assertEqual(calculate_position_size(2e12, -5), 2500)  # Negative EXRET uses fallback
+        # For 2T market cap: fallback position_multiplier 1.2x × VALUE_tier 2.5x = $6,750 → $7K
+        self.assertEqual(calculate_position_size(2e12, 0), 7000)  # Zero EXRET uses fallback
+        self.assertEqual(calculate_position_size(2e12, -5), 7000)  # Negative EXRET uses fallback
 
     @pytest.mark.skip(reason="Temporarily skipping problematic test")
     def test_format_position_size(self):
