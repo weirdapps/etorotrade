@@ -200,27 +200,72 @@ def format_market_cap(value: Optional[float]) -> Optional[str]:
 
 def calculate_position_size(
     market_cap: Optional[float], exret: Optional[float] = None, ticker: Optional[str] = None,
-    earnings_growth: Optional[float] = None, three_month_perf: Optional[float] = None
+    earnings_growth: Optional[float] = None, three_month_perf: Optional[float] = None,
+    beta: Optional[float] = None
 ) -> Optional[float]:
     """
-    Calculate position size based on market cap, EXRET, and high conviction criteria.
+    Calculate position size using market cap-centric approach with risk adjustment.
 
-    Position sizing logic for $450K portfolio:
-    - Base position: 0.5% of portfolio ($2,250)
-    - High conviction: up to 10% of portfolio ($45,000)
-    - Range: 0.5% to 10% based on conviction level
-    - Minimum: $1,000 for any trade
-    - High conviction criteria: EG >15%, 3MOP >0%, EXRET >20%
+    UPDATED 2024 POSITION SIZING METHODOLOGY:
+    =======================================
+    
+    Portfolio Configuration:
+    - Portfolio Value: $500,000
+    - Position Limits: $1,000 min (0.2%) to $40,000 max (8.0%)
+    
+    Step 1: Tier-Based Base Allocation (Primary Driver)
+    - VALUE (≥$100B): 2.0% base = $10,000 (large-cap stability premium)
+    - GROWTH ($5B-$100B): 1.0% base = $5,000 (standard allocation)
+    - BETS (<$5B): 0.2% base = $1,000 (small-cap risk management)
+    
+    Step 2: Linear Beta Risk Adjustment (Secondary Driver)
+    - Formula: multiplier = 1.4 - (beta × 0.4)
+    - Range: 1.2x (beta ≤0.5) to 0.8x (beta ≥2.5)
+    - Smooth linear scaling replaces stepped tiers
+    
+    Step 3: Linear EXRET Tilt (Tertiary Driver)
+    - Formula: multiplier = 1.0 + (exret × 0.0167)
+    - Range: 1.0x (0% EXRET) to 1.5x (30%+ EXRET)
+    - Conservative approach minimizes estimation error
+    
+    Step 4: Geographic Risk Adjustment
+    - Hong Kong (.HK): 0.75x multiplier (concentration risk)
+    - All other markets: 1.0x multiplier
+    
+    Final Calculation:
+    Position = Base × Beta Risk × EXRET Tilt × Geographic Risk
+    Result rounded to nearest $500, capped at min/max limits
+    
+    Academic Rationale:
+    - Modern Portfolio Theory: Size effect and systematic risk optimization
+    - Kelly Criterion: Risk-based position sizing principles
+    - Risk Parity: Beta-based volatility adjustment
+    - Reduces estimation error vs over-weighting expected returns
+    - Aligns with institutional approaches (Vanguard, BlackRock)
 
     Args:
         market_cap: Market capitalization value in USD
         exret: Expected return value (EXRET) as percentage
         ticker: Ticker symbol for ETF/commodity detection
-        earnings_growth: Earnings growth percentage
-        three_month_perf: 3-month price performance percentage
+        earnings_growth: Earnings growth percentage (legacy parameter)
+        three_month_perf: 3-month price performance percentage (legacy parameter)
+        beta: Beta coefficient for volatility-based risk adjustment
 
     Returns:
-        Position size in USD or None if below threshold, EXRET missing, or ETF/commodity
+        Position size in USD or None if below threshold, ETF/commodity, or invalid data
+        
+    Examples:
+        >>> # VALUE tier example: AAPL-like stock
+        >>> calculate_position_size(3e12, 10.0, "AAPL", beta=1.2)
+        10500  # $10K base × 0.92 beta × 1.167 EXRET = $10,728 → $10,500
+        
+        >>> # GROWTH tier example: Mid-cap growth
+        >>> calculate_position_size(25e9, 15.0, "GROWTH", beta=1.0) 
+        6000   # $5K base × 1.0 beta × 1.25 EXRET = $6,250 → $6,000
+        
+        >>> # BETS tier example: Small-cap speculation
+        >>> calculate_position_size(2e9, 25.0, "SMALL", beta=1.8)
+        1000   # $1K base × 0.68 beta × 1.42 EXRET = $966 → $1,000 (minimum)
     """
     # Import PORTFOLIO_CONFIG - handle both old and new config systems
     try:
@@ -231,12 +276,12 @@ def calculate_position_size(
     except (ImportError, KeyError):
         # Fallback to hardcoded configuration to ensure position sizing works
         PORTFOLIO_CONFIG = {
-            "PORTFOLIO_VALUE": 450_000,
-            "MIN_POSITION_USD": 1_000,
-            "MAX_POSITION_USD": 40_000,  # Reduced from 45K for simplified system
-            "MAX_POSITION_PCT": 8.9,    # Updated to ~8.9% of portfolio
+            "PORTFOLIO_VALUE": 500_000,  # Updated to $500K
+            "MIN_POSITION_USD": 1_000,   # 0.2% of portfolio minimum
+            "MAX_POSITION_USD": 40_000,  # 8% of portfolio maximum
+            "MAX_POSITION_PCT": 8.0,     # 8% max position size
             "BASE_POSITION_PCT": 0.5,
-            "HIGH_CONVICTION_PCT": 8.9,  # Updated to match max position
+            "HIGH_CONVICTION_PCT": 8.0,  # Updated to match max position
             "SMALL_CAP_THRESHOLD": 2_000_000_000,
             "MID_CAP_THRESHOLD": 10_000_000_000,
             "LARGE_CAP_THRESHOLD": 50_000_000_000,
@@ -268,50 +313,47 @@ def calculate_position_size(
     mid_cap = PORTFOLIO_CONFIG["MID_CAP_THRESHOLD"]
     large_cap = PORTFOLIO_CONFIG["LARGE_CAP_THRESHOLD"]
 
-    # Calculate base position size as percentage of portfolio
-    base_position = portfolio_value * (base_pct / 100)  # 0.5% = $2,250
-
-    if use_fallback:
-        # Fallback logic: Use conservative position sizing based on market cap only
-        # For stocks without analyst coverage, use smaller, risk-appropriate positions
-        if market_cap >= large_cap:  # Large cap (>$50B): More conservative, lower risk
-            position_multiplier = 1.2  # Slightly above base
-        elif market_cap >= mid_cap:  # Mid cap ($10B-$50B): Standard position
-            position_multiplier = 1.0  # Base position
-        elif market_cap >= small_cap:  # Mid-small cap ($2B-$10B): Smaller position
-            position_multiplier = 0.8  # Reduced from base
-        else:  # Small cap (<$2B): Smallest position due to higher risk
-            position_multiplier = 0.6  # Most conservative
-    else:
-        # Updated EXRET-based position sizing
-        # Extended multiplier range from 0.8x-3.0x to 0.5x-5.0x for better scaling
-        if exret >= 40:  # Exceptional opportunity
-            position_multiplier = 5.0
-        elif exret >= 30:  # High opportunity
-            position_multiplier = 4.0
-        elif exret >= 25:  # Good opportunity  
-            position_multiplier = 3.0
-        elif exret >= 20:  # Standard opportunity
-            position_multiplier = 2.0
-        elif exret >= 15:  # Lower opportunity
-            position_multiplier = 1.5
-        elif exret >= 10:  # Base position
-            position_multiplier = 1.0
-        else:  # Conservative (5-10% expected return)
-            position_multiplier = 0.5
-
-    # Determine market cap tier and apply tier-based multiplier
+    # NEW APPROACH: Market Cap-Centric Position Sizing
     from ...core.trade_criteria_config import TradingCriteria
     
+    # Step 1: Determine tier-based base allocation (primary driver)
     if market_cap >= TradingCriteria.VALUE_TIER_MIN_CAP:  # VALUE (≥$100B)
-        tier_multiplier = 2.5   # Increased reward for stability of large caps
+        base_allocation_pct = 2.0  # 2.0% base for large-cap stability premium
+        tier_name = "VALUE"
     elif market_cap >= TradingCriteria.GROWTH_TIER_MIN_CAP:  # GROWTH ($5B-$100B)
-        tier_multiplier = 1.5   # Standard mid-cap allocation
+        base_allocation_pct = 1.0  # 1.0% base for mid-cap standard allocation
+        tier_name = "GROWTH"
     else:  # BETS (<$5B)
-        tier_multiplier = 0.5   # Conservative small-cap sizing
+        base_allocation_pct = 0.2  # 0.2% base for small-cap risk management
+        tier_name = "BETS"
     
-    # Calculate position size with tier-based adjustment
-    position_size = base_position * position_multiplier * tier_multiplier
+    # Calculate base position from tier allocation
+    base_position = portfolio_value * (base_allocation_pct / 100)
+    
+    # Step 2: Linear beta risk adjustment (secondary driver)
+    risk_multiplier = 1.0
+    if beta is not None and beta > 0:
+        # Linear scaling: Beta 0.5 → 1.2x, Beta 1.0 → 1.0x, Beta 2.5+ → 0.8x
+        # Formula: multiplier = 1.4 - (beta * 0.4)
+        # Academic approach: smooth risk adjustment based on volatility
+        risk_multiplier = 1.4 - (beta * 0.4)
+        
+        # Apply bounds: minimum 0.8x, maximum 1.2x
+        risk_multiplier = max(0.8, min(1.2, risk_multiplier))
+    
+    # Step 3: Linear EXRET tilt (tertiary driver - conservative approach)
+    exret_multiplier = 1.0
+    if not use_fallback and exret is not None:
+        # Linear scaling: EXRET 0% → 1.0x, EXRET 30%+ → 1.5x
+        # Formula: multiplier = 1.0 + (exret * 0.0167)
+        # Conservative approach: reduces estimation error from expected return forecasts
+        exret_multiplier = 1.0 + (exret * 0.0167)
+        
+        # Apply bounds: minimum 1.0x, maximum 1.5x
+        exret_multiplier = max(1.0, min(1.5, exret_multiplier))
+    
+    # Calculate position size with new methodology
+    position_size = base_position * risk_multiplier * exret_multiplier
     
     # Apply geographic risk adjustment for non-US markets
     if ticker:
