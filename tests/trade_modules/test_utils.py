@@ -470,7 +470,7 @@ class TestCleanTickerSymbol:
         test_cases = [
             ('AAPL', 'AAPL'),
             ('MSFT', 'MSFT'),
-            ('GOOGL', 'GOOGL'),
+            ('GOOGL', 'GOOG'),  # GOOGL now normalizes to GOOG (main ticker)
         ]
         
         for input_ticker, expected in test_cases:
@@ -494,7 +494,7 @@ class TestCleanTickerSymbol:
         test_cases = [
             ('aapl', 'AAPL'),
             ('msft', 'MSFT'),
-            ('googl', 'GOOGL'),
+            ('googl', 'GOOG'),  # googl now normalizes to GOOG (main ticker)
         ]
         
         for input_ticker, expected in test_cases:
@@ -506,7 +506,7 @@ class TestCleanTickerSymbol:
         test_cases = [
             ('AaPl', 'AAPL'),
             ('MsFt', 'MSFT'),
-            ('gOoGl', 'GOOGL'),
+            ('gOoGl', 'GOOG'),  # gOoGl now normalizes to GOOG (main ticker)
         ]
         
         for input_ticker, expected in test_cases:

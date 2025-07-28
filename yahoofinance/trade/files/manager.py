@@ -9,6 +9,7 @@ import pandas as pd
 from yahoofinance.core.logging import get_logger
 from yahoofinance.core.errors import YFinanceError
 from yahoofinance.core.config import FILE_PATHS, PATHS
+from yahoofinance.utils.data.ticker_utils import normalize_ticker
 
 logger = get_logger(__name__)
 
@@ -280,7 +281,7 @@ class FileManager:
                         break
                 
                 if ticker_col:
-                    notrade_tickers = set(notrade_df[ticker_col].str.upper())
+                    notrade_tickers = set(notrade_df[ticker_col].apply(normalize_ticker))
                     logger.info(f"Loaded {len(notrade_tickers)} notrade tickers")
                 else:
                     logger.warning("No ticker column found in notrade file")

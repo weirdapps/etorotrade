@@ -11,6 +11,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from ...core.logging import get_logger
 from ..error_handling import enrich_error_context, safe_operation, translate_error, with_retry
 from .price_target_utils import get_preferred_price_target, validate_price_target_data
+from .ticker_utils import normalize_ticker, get_ticker_for_display, get_geographic_region
 
 
 # Set up logging
@@ -246,7 +247,7 @@ def calculate_position_size(
     Args:
         market_cap: Market capitalization value in USD
         exret: Expected return value (EXRET) as percentage
-        ticker: Ticker symbol for ETF/commodity detection
+        ticker: Ticker symbol for ETF/commodity detection and geographic risk adjustment (will be normalized automatically)
         earnings_growth: Earnings growth percentage (legacy parameter)
         three_month_perf: 3-month price performance percentage (legacy parameter)
         beta: Beta coefficient for volatility-based risk adjustment
@@ -291,9 +292,14 @@ def calculate_position_size(
     if market_cap is None:
         return None
     
-    # Exclude ETFs and commodities from position sizing
-    if ticker and is_etf_or_commodity(ticker):
-        return None
+    # Normalize ticker once at the beginning for all ticker-related operations
+    normalized_ticker = None
+    if ticker:
+        normalized_ticker = normalize_ticker(ticker)
+        
+        # Exclude ETFs and commodities from position sizing
+        if is_etf_or_commodity(normalized_ticker):
+            return None
 
     # For stocks below 500 million market cap, return None (will display as "--")
     if market_cap < 500_000_000:
@@ -356,9 +362,13 @@ def calculate_position_size(
     position_size = base_position * risk_multiplier * exret_multiplier
     
     # Apply geographic risk adjustment for non-US markets
-    if ticker:
-        geo_multiplier = _get_geographic_risk_multiplier(ticker)
-        position_size *= geo_multiplier
+    if normalized_ticker:
+        geo_region = get_geographic_region(normalized_ticker)
+        
+        # Apply geographic risk multiplier based on region
+        if geo_region == 'HK':
+            position_size *= 0.75  # Hong Kong concentration risk adjustment
+        # All other regions use 1.0x multiplier (no adjustment)
 
     # Apply limits
     position_size = max(min_position, position_size)  # At least $1K
@@ -454,27 +464,6 @@ def format_market_metrics(
     return formatted
 
 
-def _get_geographic_risk_multiplier(ticker: str) -> float:
-    """
-    Calculate geographic risk adjustment multiplier for position sizing.
-    
-    Simplified binary approach: moderately reduce HK concentration.
-    
-    Args:
-        ticker: Ticker symbol to analyze
-        
-    Returns:
-        Multiplier for position sizing (0.75 for HK, 1.0 for all others)
-    """
-    if not ticker:
-        return 1.0
-    
-    # Hong Kong stocks get 25% reduction to address concentration
-    if ticker.upper().endswith('.HK'):
-        return 0.75
-    
-    # All other markets (US, EU, etc.) - no adjustment
-    return 1.0
 
 
 def _apply_formatter(value: Any, formatter: Optional[Dict[str, Any]] = None) -> str:
@@ -509,6 +498,55 @@ def _apply_formatter(value: Any, formatter: Optional[Dict[str, Any]] = None) -> 
     # Default formatting if no formatter provided
     # Note: value is guaranteed to be not None at this point due to early return above
     return str(value)
+
+
+def normalize_ticker_data(data: List[Dict[str, Any]], ticker_column: str = 'ticker') -> List[Dict[str, Any]]:
+    """
+    Normalize ticker symbols in a list of data dictionaries.
+    
+    This function ensures all ticker symbols are normalized using the centralized
+    ticker mapping system for consistent processing throughout the application.
+    
+    Args:
+        data: List of data dictionaries containing ticker information
+        ticker_column: Name of the column containing ticker symbols (default: 'ticker')
+        
+    Returns:
+        List of data dictionaries with normalized ticker symbols
+    """
+    if not data:
+        return data
+    
+    normalized_data = []
+    for item in data:
+        if ticker_column in item and item[ticker_column]:
+            # Create a copy to avoid modifying the original data
+            normalized_item = item.copy()
+            normalized_item[ticker_column] = normalize_ticker(item[ticker_column])
+            normalized_data.append(normalized_item)
+        else:
+            normalized_data.append(item)
+    
+    return normalized_data
+
+
+def format_ticker_for_display(ticker: str) -> str:
+    """
+    Format a ticker symbol for display purposes.
+    
+    This function uses the centralized ticker mapping system to ensure
+    consistent ticker display throughout the application.
+    
+    Args:
+        ticker: Input ticker symbol
+        
+    Returns:
+        Formatted ticker symbol for display
+    """
+    if not ticker:
+        return ticker
+    
+    return get_ticker_for_display(ticker)
 
 
 def process_tabular_data(
