@@ -157,7 +157,43 @@ The system now identifies high conviction opportunities using multiple criteria:
 - **Position Range**: 0.5% to 10% of portfolio ($2,250 to $45,000)
 - **Smart Scaling**: Higher conviction = larger position sizes
 
-### 🎯 Robust Target Price Mechanism
+### 🎯 Dual-Listed Stock Handling (New 2025-01-28)
+
+etorotrade now features **intelligent dual-listed stock normalization** that handles stocks trading on multiple exchanges, ensuring consistent analysis and preventing duplicate portfolio positions.
+
+### Key Features
+- **Automatic Normalization**: US tickers (ADRs, cross-listings) are automatically converted to their original exchange tickers
+- **Portfolio Deduplication**: Prevents suggesting stocks you already own under different ticker symbols  
+- **Geographic Risk Assessment**: Applies correct geographic multipliers based on the original exchange
+- **Consistent Display**: All outputs use the canonical ticker for clarity
+
+### Supported Dual-Listed Stocks
+The system handles major dual-listings including:
+
+**European Stocks with US ADRs:**
+- NVO → NOVO-B.CO (Novo Nordisk)
+- SNY → SAN.PA (Sanofi)  
+- ASML → ASML.NV (ASML Netherlands)
+- SHEL → SHEL.L (Shell London)
+
+**Asian Stocks with US ADRs:**
+- JD → 9618.HK (JD.com)
+- BABA → 9988.HK (Alibaba)
+- TCEHY → 0700.HK (Tencent)
+
+**Share Class Normalization:**
+- GOOGL → GOOG (Google Class C as main ticker)
+
+### Portfolio Impact
+If you own **NVO** (Novo Nordisk ADR), the system will:
+1. Display it as **NOVO-B.CO** in all outputs
+2. Apply **European (0.75x)** geographic risk multiplier
+3. **Prevent** suggesting NOVO-B.CO as a buy opportunity
+4. Use the **same analysis** whether you input NVO or NOVO-B.CO
+
+*For complete documentation, see: [docs/ticker-normalization.md](docs/ticker-normalization.md)*
+
+## 🎯 Robust Target Price Mechanism
 
 etorotrade features a sophisticated **quality-validated target price system** that goes beyond simple analyst medians to provide more reliable upside calculations:
 
@@ -239,8 +275,9 @@ etorotrade features a sophisticated position sizing system that calculates optim
    - **GROWTH tier** ($5B-$100B): 1.5x multiplier (standard allocation)
    - **BETS tier** (<$5B): 0.5x multiplier (conservative small-cap sizing)
 
-3. **Geographic Risk Management**: Concentration risk mitigation
-   - **Hong Kong** (.HK): 0.75x multiplier (moderate reduction)
+3. **Geographic Risk Management**: Concentration risk mitigation (Updated 2025-01-28)
+   - **Hong Kong** (.HK): 0.5x multiplier (enhanced reduction for overexposure)
+   - **Europe** (.L, .PA, .DE, etc.): 0.75x multiplier (moderate reduction)
    - **All other markets**: 1.0x multiplier (no adjustment)
 
 #### Display Format

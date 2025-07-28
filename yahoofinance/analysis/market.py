@@ -26,6 +26,7 @@ from ..api import AsyncFinanceDataProvider, FinanceDataProvider, get_provider
 # Trading criteria moved to trade_criteria_config.py for centralized management
 from yahoofinance.core.trade_criteria_config import TradingCriteria
 from ..core.logging import get_logger
+from ..utils.data.ticker_utils import normalize_ticker
 from .market_filters import (
     filter_buy_opportunities_v2,
     filter_sell_candidates_v2,
@@ -688,29 +689,29 @@ def classify_stocks(market_df: pd.DataFrame) -> pd.DataFrame:
     # Filter for BUY stocks
     buy_opportunities = filter_buy_opportunities(market_df)
     if not buy_opportunities.empty and ticker_col in buy_opportunities.columns:
-        buy_tickers = set(buy_opportunities[ticker_col].astype(str).str.upper())
+        buy_tickers = set(buy_opportunities[ticker_col].astype(str).apply(normalize_ticker))
         result_df.loc[
-            result_df[ticker_col].astype(str).str.upper().isin(buy_tickers), "classification"
+            result_df[ticker_col].astype(str).apply(normalize_ticker).isin(buy_tickers), "classification"
         ] = "BUY"
 
     # Filter for SELL stocks
     sell_candidates = filter_sell_candidates(market_df)
     if not sell_candidates.empty and ticker_col in sell_candidates.columns:
-        sell_tickers = set(sell_candidates[ticker_col].astype(str).str.upper())
+        sell_tickers = set(sell_candidates[ticker_col].astype(str).apply(normalize_ticker))
         result_df.loc[
-            result_df[ticker_col].astype(str).str.upper().isin(sell_tickers), "classification"
+            result_df[ticker_col].astype(str).apply(normalize_ticker).isin(sell_tickers), "classification"
         ] = "SELL"
 
     # Filter for HOLD stocks (confident but neither BUY nor SELL)
     confident_stocks = market_df[confidence_condition]
     if not confident_stocks.empty and ticker_col in confident_stocks.columns:
-        confident_tickers = set(confident_stocks[ticker_col].astype(str).str.upper())
+        confident_tickers = set(confident_stocks[ticker_col].astype(str).apply(normalize_ticker))
         # Use buy_tickers and sell_tickers from above if they exist, otherwise create empty sets
         buy_tickers = buy_tickers if "buy_tickers" in locals() else set()
         sell_tickers = sell_tickers if "sell_tickers" in locals() else set()
         hold_tickers = confident_tickers - buy_tickers - sell_tickers
         result_df.loc[
-            result_df[ticker_col].astype(str).str.upper().isin(hold_tickers), "classification"
+            result_df[ticker_col].astype(str).apply(normalize_ticker).isin(hold_tickers), "classification"
         ] = "HOLD"
 
     return result_df

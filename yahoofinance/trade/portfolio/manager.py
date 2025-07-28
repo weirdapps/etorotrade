@@ -7,6 +7,7 @@ This module contains portfolio-specific functions extracted from trade.py.
 import pandas as pd
 from yahoofinance.core.logging import get_logger
 from yahoofinance.core.errors import YFinanceError
+from yahoofinance.utils.data.ticker_utils import normalize_ticker
 
 logger = get_logger(__name__)
 
@@ -33,9 +34,9 @@ class PortfolioManager:
             logger.warning("No ticker column found in portfolio")
             return set()
         
-        # Extract unique tickers
-        portfolio_tickers = set(portfolio_df[ticker_column].str.upper())
-        logger.info(f"Found {len(portfolio_tickers)} unique tickers in portfolio")
+        # Extract unique tickers and normalize them
+        portfolio_tickers = set(portfolio_df[ticker_column].apply(normalize_ticker))
+        logger.info(f"Found {len(portfolio_tickers)} unique normalized tickers in portfolio")
         
         return portfolio_tickers
     
@@ -63,9 +64,13 @@ class PortfolioManager:
         
         # Check for TICKER column (display format) or ticker column (internal format)
         if "TICKER" in opportunities_df.columns:
-            filtered_df = opportunities_df[~opportunities_df["TICKER"].str.upper().isin(notrade_tickers)]
+            # Normalize both sides for consistent comparison
+            normalized_tickers = opportunities_df["TICKER"].apply(normalize_ticker)
+            filtered_df = opportunities_df[~normalized_tickers.isin(notrade_tickers)]
         elif "ticker" in opportunities_df.columns:
-            filtered_df = opportunities_df[~opportunities_df["ticker"].str.upper().isin(notrade_tickers)]
+            # Normalize both sides for consistent comparison
+            normalized_tickers = opportunities_df["ticker"].apply(normalize_ticker)
+            filtered_df = opportunities_df[~normalized_tickers.isin(notrade_tickers)]
         else:
             logger.warning("No ticker column found for notrade filtering")
             return opportunities_df

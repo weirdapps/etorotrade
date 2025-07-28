@@ -10,6 +10,15 @@ import os
 import pandas as pd
 from typing import Optional, Tuple, Dict, Any
 
+# Import ticker normalization utilities
+from yahoofinance.utils.data.ticker_utils import (
+    normalize_ticker,
+    process_ticker_input,
+    get_ticker_for_display,
+    standardize_ticker_format,
+    validate_ticker_format
+)
+
 # Get logger for this module
 logger = logging.getLogger(__name__)
 
@@ -271,25 +280,69 @@ def validate_dataframe(df: pd.DataFrame, required_columns: list = None) -> bool:
 
 def clean_ticker_symbol(ticker: str) -> str:
     """
-    Clean and standardize a ticker symbol.
+    Clean and standardize a ticker symbol using the new ticker utilities.
+    
+    This function is maintained for backward compatibility but now uses
+    the centralized ticker normalization system.
     
     Args:
         ticker: Raw ticker symbol
         
     Returns:
-        str: Cleaned ticker symbol
+        str: Cleaned and normalized ticker symbol
     """
     if not ticker or pd.isna(ticker):
         return ""
     
-    # Convert to string and strip whitespace
-    cleaned = str(ticker).strip().upper()
+    try:
+        # Use the new ticker processing pipeline
+        return process_ticker_input(ticker)
+    except Exception as e:
+        logger.warning(f"Error processing ticker {ticker}: {str(e)}")
+        # Fallback to basic cleaning
+        return str(ticker).strip().upper()
+
+
+def normalize_ticker_for_display(ticker: str) -> str:
+    """
+    Normalize a ticker for consistent display formatting.
     
-    # Remove any invalid characters (keep only alphanumeric, dots, dashes, equals)
-    import re
-    cleaned = re.sub(r'[^A-Z0-9.\-=]', '', cleaned)
+    Args:
+        ticker: Input ticker symbol
+        
+    Returns:
+        str: Normalized ticker for display
+    """
+    try:
+        return get_ticker_for_display(process_ticker_input(ticker))
+    except Exception as e:
+        logger.warning(f"Error normalizing ticker for display {ticker}: {str(e)}")
+        return str(ticker).strip().upper()
+
+
+def normalize_ticker_list_for_processing(tickers: list) -> list:
+    """
+    Normalize a list of tickers for processing.
     
-    return cleaned
+    Args:
+        tickers: List of ticker symbols
+        
+    Returns:
+        list: List of normalized ticker symbols
+    """
+    normalized_tickers = []
+    for ticker in tickers:
+        if ticker and not pd.isna(ticker):
+            try:
+                normalized = process_ticker_input(ticker)
+                if normalized and validate_ticker_format(normalized):
+                    normalized_tickers.append(normalized)
+                else:
+                    logger.warning(f"Invalid ticker format after normalization: {ticker} -> {normalized}")
+            except Exception as e:
+                logger.warning(f"Error normalizing ticker {ticker}: {str(e)}")
+    
+    return normalized_tickers
 
 
 def get_display_columns() -> list:

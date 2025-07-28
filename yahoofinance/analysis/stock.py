@@ -18,6 +18,7 @@ from ..core.types import StockData
 from ..utils.dependency_injection import registry
 from ..utils.error_handling import enrich_error_context, safe_operation, translate_error, with_retry
 from ..utils.market import is_us_ticker
+from ..utils.data.ticker_utils import normalize_ticker
 
 
 logger = get_logger(__name__)
@@ -159,11 +160,14 @@ class StockAnalyzer:
                 "Cannot use sync method with async provider. Use analyze_async instead."
             )
 
+        # Normalize ticker before analysis
+        normalized_ticker = normalize_ticker(ticker)
+
         # Fetch stock data
         try:
-            ticker_info = self.provider.get_ticker_info(ticker)
-            analyst_ratings = self.provider.get_analyst_ratings(ticker)
-            earnings_dates = self.provider.get_earnings_dates(ticker)
+            ticker_info = self.provider.get_ticker_info(normalized_ticker)
+            analyst_ratings = self.provider.get_analyst_ratings(normalized_ticker)
+            earnings_dates = self.provider.get_earnings_dates(normalized_ticker)
         except APIError as e:
             # Re-raise API errors directly with original context
             raise e
@@ -174,8 +178,8 @@ class StockAnalyzer:
             # Handle unexpected errors
             raise YFinanceError(MESSAGES["ERROR_FETCHING_DATA"].format(ticker=ticker, error=str(e)))
 
-        # Process the data
-        return self._process_analysis(ticker, ticker_info, analyst_ratings, earnings_dates)
+        # Process the data (use normalized ticker for consistency)
+        return self._process_analysis(normalized_ticker, ticker_info, analyst_ratings, earnings_dates)
 
     async def analyze_async(self, ticker: str) -> AnalysisResults:
         """
@@ -193,11 +197,14 @@ class StockAnalyzer:
         if not self.is_async:
             raise TypeError("Cannot use async method with sync provider. Use analyze instead.")
 
+        # Normalize ticker before analysis
+        normalized_ticker = normalize_ticker(ticker)
+
         # Fetch stock data asynchronously
         try:
-            ticker_info = await self.provider.get_ticker_info(ticker)
-            analyst_ratings = await self.provider.get_analyst_ratings(ticker)
-            earnings_dates = await self.provider.get_earnings_dates(ticker)
+            ticker_info = await self.provider.get_ticker_info(normalized_ticker)
+            analyst_ratings = await self.provider.get_analyst_ratings(normalized_ticker)
+            earnings_dates = await self.provider.get_earnings_dates(normalized_ticker)
         except APIError as e:
             # Re-raise API errors directly with original context
             raise e
@@ -208,8 +215,8 @@ class StockAnalyzer:
             # Handle unexpected errors
             raise YFinanceError(MESSAGES["ERROR_FETCHING_DATA"].format(ticker=ticker, error=str(e)))
 
-        # Process the data
-        return self._process_analysis(ticker, ticker_info, analyst_ratings, earnings_dates)
+        # Process the data (use normalized ticker for consistency)
+        return self._process_analysis(normalized_ticker, ticker_info, analyst_ratings, earnings_dates)
 
     def analyze_batch(self, tickers: List[str]) -> Dict[str, AnalysisResults]:
         """
@@ -229,31 +236,34 @@ class StockAnalyzer:
                 "Cannot use sync method with async provider. Use analyze_batch_async instead."
             )
 
+        # Normalize all tickers first
+        normalized_tickers = [normalize_ticker(ticker) for ticker in tickers]
+        
         # Fetch stock data in batch
         try:
-            ticker_info_batch = self.provider.batch_get_ticker_info(tickers)
+            ticker_info_batch = self.provider.batch_get_ticker_info(normalized_tickers)
 
             # For each ticker, fetch analyst ratings and earnings dates
             results = {}
-            for ticker in tickers:
-                if ticker not in ticker_info_batch or ticker_info_batch[ticker] is None:
-                    logger.warning(MESSAGES["NO_DATA_FOUND_TICKER"].format(ticker=ticker))
+            for original_ticker, normalized_ticker in zip(tickers, normalized_tickers):
+                if normalized_ticker not in ticker_info_batch or ticker_info_batch[normalized_ticker] is None:
+                    logger.warning(MESSAGES["NO_DATA_FOUND_TICKER"].format(ticker=original_ticker))
                     continue
 
                 try:
-                    analyst_ratings = self.provider.get_analyst_ratings(ticker)
-                    earnings_dates = self.provider.get_earnings_dates(ticker)
-                    results[ticker] = self._process_analysis(
-                        ticker, ticker_info_batch[ticker], analyst_ratings, earnings_dates
+                    analyst_ratings = self.provider.get_analyst_ratings(normalized_ticker)
+                    earnings_dates = self.provider.get_earnings_dates(normalized_ticker)
+                    results[original_ticker] = self._process_analysis(
+                        normalized_ticker, ticker_info_batch[normalized_ticker], analyst_ratings, earnings_dates
                     )
                 except YFinanceError as e:
                     logger.error(
-                        MESSAGES["ERROR_ANALYZING_TICKER"].format(ticker=ticker, error=str(e))
+                        MESSAGES["ERROR_ANALYZING_TICKER"].format(ticker=original_ticker, error=str(e))
                     )
-                    results[ticker] = AnalysisResults(
-                        ticker=ticker,
-                        name=ticker_info_batch[ticker].get("name", ticker),
-                        price=ticker_info_batch[ticker].get("price", 0.0),
+                    results[original_ticker] = AnalysisResults(
+                        ticker=normalized_ticker,
+                        name=ticker_info_batch[normalized_ticker].get("name", original_ticker),
+                        price=ticker_info_batch[normalized_ticker].get("price", 0.0),
                         warning=MESSAGES["ANALYSIS_FAILED"].format(error=str(e)),
                     )
         except APIError as e:
@@ -286,20 +296,23 @@ class StockAnalyzer:
                 "Cannot use async method with sync provider. Use analyze_batch instead."
             )
 
+        # Normalize all tickers first
+        normalized_tickers = [normalize_ticker(ticker) for ticker in tickers]
+        
         # Fetch stock data in batch asynchronously
         try:
-            ticker_info_batch = await self.provider.batch_get_ticker_info(tickers)
+            ticker_info_batch = await self.provider.batch_get_ticker_info(normalized_tickers)
 
             # For each ticker, asynchronously fetch analyst ratings and earnings dates
             import asyncio
 
             tasks = []
-            for ticker in tickers:
-                if ticker not in ticker_info_batch or ticker_info_batch[ticker] is None:
-                    logger.warning(MESSAGES["NO_DATA_FOUND_TICKER"].format(ticker=ticker))
+            for original_ticker, normalized_ticker in zip(tickers, normalized_tickers):
+                if normalized_ticker not in ticker_info_batch or ticker_info_batch[normalized_ticker] is None:
+                    logger.warning(MESSAGES["NO_DATA_FOUND_TICKER"].format(ticker=original_ticker))
                     continue
 
-                tasks.append(self._fetch_and_analyze_async(ticker, ticker_info_batch[ticker]))
+                tasks.append(self._fetch_and_analyze_async(original_ticker, normalized_ticker, ticker_info_batch[normalized_ticker]))
 
             # Wait for all tasks to complete
             results_list = await asyncio.gather(*tasks, return_exceptions=True)
@@ -329,47 +342,48 @@ class StockAnalyzer:
 
     @with_retry
     async def _fetch_and_analyze_async(
-        self, ticker: str, ticker_info: Dict[str, Any]
+        self, original_ticker: str, normalized_ticker: str, ticker_info: Dict[str, Any]
     ) -> Tuple[str, AnalysisResults]:
         """
         Helper method to fetch additional data and analyze a stock asynchronously.
 
         Args:
-            ticker: Stock ticker symbol
+            original_ticker: Original ticker symbol as input by user
+            normalized_ticker: Normalized ticker symbol for API calls
             ticker_info: Stock information dictionary
 
         Returns:
-            Tuple containing the ticker symbol and its analysis results
+            Tuple containing the original ticker symbol and its analysis results
         """
         try:
-            analyst_ratings = await self.provider.get_analyst_ratings(ticker)
-            earnings_dates = await self.provider.get_earnings_dates(ticker)
-            analysis = self._process_analysis(ticker, ticker_info, analyst_ratings, earnings_dates)
-            return ticker, analysis
+            analyst_ratings = await self.provider.get_analyst_ratings(normalized_ticker)
+            earnings_dates = await self.provider.get_earnings_dates(normalized_ticker)
+            analysis = self._process_analysis(normalized_ticker, ticker_info, analyst_ratings, earnings_dates)
+            return original_ticker, analysis
         except APIError as e:
             # Log API errors but return a valid object for batch processing
-            logger.error(f"API error analyzing {ticker}: {str(e)}")
-            return ticker, AnalysisResults(
-                ticker=ticker,
-                name=ticker_info.get("name", ticker),
+            logger.error(f"API error analyzing {original_ticker}: {str(e)}")
+            return original_ticker, AnalysisResults(
+                ticker=normalized_ticker,
+                name=ticker_info.get("name", original_ticker),
                 price=ticker_info.get("price", 0.0),
                 warning=f"API error: {str(e)}",
             )
         except ValidationError as e:
             # Log validation errors
-            logger.error(f"Validation error analyzing {ticker}: {str(e)}")
-            return ticker, AnalysisResults(
-                ticker=ticker,
-                name=ticker_info.get("name", ticker),
+            logger.error(f"Validation error analyzing {original_ticker}: {str(e)}")
+            return original_ticker, AnalysisResults(
+                ticker=normalized_ticker,
+                name=ticker_info.get("name", original_ticker),
                 price=ticker_info.get("price", 0.0),
                 warning=f"Validation error: {str(e)}",
             )
         except YFinanceError as e:
             # Log unexpected errors
-            logger.error(MESSAGES["ERROR_ANALYZING_TICKER"].format(ticker=ticker, error=str(e)))
-            return ticker, AnalysisResults(
-                ticker=ticker,
-                name=ticker_info.get("name", ticker),
+            logger.error(MESSAGES["ERROR_ANALYZING_TICKER"].format(ticker=original_ticker, error=str(e)))
+            return original_ticker, AnalysisResults(
+                ticker=normalized_ticker,
+                name=ticker_info.get("name", original_ticker),
                 price=ticker_info.get("price", 0.0),
                 warning=MESSAGES["ANALYSIS_FAILED"].format(error=str(e)),
             )

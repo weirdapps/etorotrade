@@ -18,6 +18,7 @@ from ..core.errors import APIError, DataError, ValidationError, YFinanceError
 from ..core.logging import get_logger
 from ..utils.dependency_injection import registry
 from ..utils.error_handling import enrich_error_context, safe_operation, translate_error, with_retry
+from ..utils.data.ticker_utils import normalize_ticker
 from .analyzer_factory import with_analyzer
 from .stock import AnalysisResults, StockAnalyzer
 
@@ -179,7 +180,7 @@ class PortfolioAnalyzer:
 
                 # Process each row
                 for row in reader:
-                    ticker = row["symbol"].strip().upper()
+                    ticker = normalize_ticker(row["symbol"])
                     try:
                         shares = float(row["shares"])
                         cost_basis = float(row["cost"])
