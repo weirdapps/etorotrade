@@ -328,7 +328,7 @@ class TestUtilityFunctions:
     def test_is_ticker_dual_listed(self):
         """Test dual-listed detection."""
         dual_listed = ["NVO", "NOVO-B.CO", "GOOGL", "GOOG", "JD", "9618.HK"]
-        not_dual_listed = ["AAPL", "MSFT", "0700.HK", "UNKNOWN"]
+        not_dual_listed = ["AAPL", "MSFT", "1234.HK", "UNKNOWN"]
         
         for ticker in dual_listed:
             assert is_ticker_dual_listed(ticker) is True
@@ -382,7 +382,7 @@ class TestIntegration:
     
     def test_normalization_consistency(self):
         """Test that all normalization functions return consistent results."""
-        test_tickers = ["NVO", "GOOGL", "JD", "AAPL", "700.HK", "BTC"]
+        test_tickers = ["NVO", "GOOGL", "JD", "AAPL", "0700.HK", "BTC"]
         
         for ticker in test_tickers:
             normalized = normalize_ticker(ticker)
