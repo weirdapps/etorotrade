@@ -147,7 +147,7 @@ class TestValidate(unittest.TestCase):
 
         # Verify
         mock_input.assert_called_once()
-        mock_validate.assert_called_once_with(["AAPL", "MSFT", "GOOGL"])
+        mock_validate.assert_called_once_with(["AAPL", "MSFT", "GOOG"])
         mock_save.assert_called_once_with(["AAPL", "MSFT"])
 
     @patch("yahoofinance.validators.validate.input", return_value="")
