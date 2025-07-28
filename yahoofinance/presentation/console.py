@@ -1217,12 +1217,26 @@ class MarketDisplay:
                 except (ValueError, TypeError):
                     pass
             
+            # Get beta value
+            beta_value = None
+            if 'BETA' in row:
+                beta_raw = row['BETA']
+                if beta_raw and beta_raw != '--':
+                    try:
+                        # Handle both string and numeric values
+                        if isinstance(beta_raw, str):
+                            beta_value = float(beta_raw)
+                        else:
+                            beta_value = float(beta_raw)
+                    except (ValueError, TypeError):
+                        pass
+            
             # Get ticker for ETF/commodity detection
             ticker = row.get('TICKER', '') if 'TICKER' in row else ''
             
             # Calculate position size with new criteria
             position_size = calculate_position_size(
-                market_cap, exret, ticker, earnings_growth_value, three_month_perf_value
+                market_cap, exret, ticker, earnings_growth_value, three_month_perf_value, beta_value
             )
             position_sizes.append(position_size)
 
