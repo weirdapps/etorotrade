@@ -150,8 +150,9 @@ def validate_ticker_format(ticker: str) -> bool:
     
     # Basic format validation
     # Allow letters, numbers, dots, hyphens, and common suffixes
+    # But prevent trailing dots, hyphens, or underscores
     import re
-    pattern = r'^[A-Za-z0-9][A-Za-z0-9\.\-_]*[A-Za-z0-9]?$'
+    pattern = r'^[A-Za-z0-9][A-Za-z0-9\.\-_]*[A-Za-z0-9]$'
     return bool(re.match(pattern, ticker))
 
 def get_ticker_exchange_suffix(ticker: str) -> Optional[str]:
@@ -202,7 +203,7 @@ def standardize_ticker_format(ticker: str) -> str:
             cleaned = normalized_base.zfill(4) + '.HK'
     
     # Crypto tickers: ensure -USD suffix for major cryptos
-    elif cleaned in ['BTC', 'ETH', 'XRP', 'LTC', 'BCH', 'ADA', 'DOT', 'LINK', 'XLM', 'DOGE']:
+    elif cleaned in ['BTC', 'ETH', 'XRP', 'LTC', 'BCH', 'ADA', 'DOT', 'LINK', 'XLM', 'DOGE', 'SOL']:
         if not cleaned.endswith('-USD'):
             cleaned = cleaned + '-USD'
     
