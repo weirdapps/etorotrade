@@ -12,6 +12,7 @@ import pandas as pd
 
 from yahoofinance.core.config import COLUMN_NAMES
 from yahoofinance.core.trade_criteria_config import TradingCriteria
+from .data.ticker_utils import normalize_ticker
 from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
 from ..utils.error_handling import (
     enrich_error_context,
@@ -64,7 +65,7 @@ def handle_manual_input_tickers(tickers):
 
     # Split by common separators (comma, space, semicolon)
     for ticker in re.split(r"[,;\s]+", tickers_str):
-        ticker = ticker.strip().upper()
+        ticker = normalize_ticker(ticker)
         if ticker:  # Skip empty strings
             tickers_list.append(ticker)
 

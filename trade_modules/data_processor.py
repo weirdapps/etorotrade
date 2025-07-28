@@ -10,6 +10,14 @@ import pandas as pd
 import numpy as np
 from typing import Dict, Any, Optional, List, Tuple
 
+# Import ticker normalization utilities
+from yahoofinance.utils.data.ticker_utils import (
+    normalize_ticker,
+    process_ticker_input,
+    get_ticker_for_display,
+    normalize_ticker_list
+)
+
 # Get logger for this module
 logger = logging.getLogger(__name__)
 
@@ -397,6 +405,36 @@ def clean_dataframe_for_output(df: pd.DataFrame) -> pd.DataFrame:
     return result_df
 
 
+def normalize_dataframe_tickers(df: pd.DataFrame, ticker_column: str = 'ticker') -> pd.DataFrame:
+    """
+    Normalize ticker symbols in a DataFrame.
+    
+    Args:
+        df: DataFrame containing ticker symbols
+        ticker_column: Name of the column containing tickers
+        
+    Returns:
+        pd.DataFrame: DataFrame with normalized ticker symbols
+    """
+    result_df = df.copy()
+    
+    try:
+        if ticker_column in result_df.columns:
+            # Normalize tickers using the centralized function
+            result_df[ticker_column] = result_df[ticker_column].apply(
+                lambda x: get_ticker_for_display(process_ticker_input(x)) if pd.notna(x) and x else x
+            )
+            
+            logger.debug(f"Normalized tickers in {ticker_column} column for {len(result_df)} rows")
+        else:
+            logger.warning(f"Ticker column '{ticker_column}' not found in DataFrame")
+            
+    except Exception as e:
+        logger.error(f"Error normalizing DataFrame tickers: {str(e)}")
+    
+    return result_df
+
+
 def apply_data_filters(df: pd.DataFrame, filters: Dict[str, Any]) -> pd.DataFrame:
     """
     Apply filters to a DataFrame based on criteria.
@@ -441,19 +479,26 @@ class DataProcessor:
     
     def process_ticker_data(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Process raw ticker data into standardized format.
+        Process raw ticker data into standardized format with ticker normalization.
         
         Args:
             raw_data: Raw ticker data from provider
             
         Returns:
-            dict: Processed ticker data
+            dict: Processed ticker data with normalized ticker
         """
         try:
             processed_data = {}
             
-            # Copy and clean basic fields
-            for field in ['ticker', 'company_name', 'current_price', 'target_price']:
+            # Normalize ticker symbol first
+            raw_ticker = raw_data.get('ticker', '')
+            if raw_ticker:
+                processed_data['ticker'] = get_ticker_for_display(process_ticker_input(raw_ticker))
+            else:
+                processed_data['ticker'] = "--"
+            
+            # Copy and clean other basic fields
+            for field in ['company_name', 'current_price', 'target_price']:
                 processed_data[field] = raw_data.get(field, "--")
             
             # Process numeric fields

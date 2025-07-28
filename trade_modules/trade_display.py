@@ -18,10 +18,12 @@ from .utils import (
     safe_float_conversion,
     safe_percentage_format,
     format_market_cap_value,
+    normalize_ticker_for_display,
 )
 from .data_processor import (
     format_numeric_columns,
     format_percentage_columns,
+    normalize_dataframe_tickers,
 )
 
 logger = get_logger(__name__)
@@ -109,12 +111,15 @@ class DisplayFormatter:
         return f"{color}{COLOR_BOLD}=== {title} ==={COLOR_RESET}"
     
     def _prepare_display_dataframe(self, df: pd.DataFrame, action_type: str) -> pd.DataFrame:
-        """Prepare DataFrame for display with proper formatting."""
+        """Prepare DataFrame for display with proper formatting and ticker normalization."""
         if df.empty:
             return df
         
         # Create a copy to avoid modifying original
         display_df = df.copy()
+        
+        # Normalize ticker symbols for consistent display
+        display_df = normalize_dataframe_tickers(display_df, 'ticker')
         
         # Select and order relevant columns for display
         display_columns = self._get_display_columns(action_type)
@@ -261,12 +266,12 @@ class DisplayFormatter:
             return f"Error formatting table: {str(e)}"
     
     def _format_as_html(self, df: pd.DataFrame, action_type: str) -> str:
-        """Format DataFrame as HTML string."""
+        """Format DataFrame as HTML string with normalized tickers."""
         if df.empty:
             return "<p>No opportunities found.</p>"
         
         try:
-            # Prepare DataFrame for HTML output
+            # Prepare DataFrame for HTML output (includes ticker normalization)
             display_df = self._prepare_display_dataframe(df, action_type)
             
             # Generate HTML table

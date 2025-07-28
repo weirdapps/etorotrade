@@ -17,6 +17,7 @@ from yahoofinance.core.logging import get_logger
 from yahoofinance.utils.dependency_injection import registry
 from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
 from yahoofinance.presentation import MarketDisplay
+from yahoofinance.utils.data.ticker_utils import are_equivalent_tickers
 
 from .cli import get_user_source_choice
 from .utils import get_file_paths
@@ -233,29 +234,38 @@ async def handle_trade_analysis_direct(display, trade_choice, get_provider=None,
         if trade_choice == "B":
             # BUY: Check market.csv for buy opportunities NOT in portfolio or sell files
             data_file = market_file
-            exclusion_files = [portfolio_file, os.path.join(output_dir, "sell.csv")]
+            # Include both input portfolio (complete list) and output portfolio (processed list) 
+            # plus sell file and notrade file for comprehensive exclusion
+            input_portfolio_file = os.path.join(input_dir, "portfolio.csv")
+            notrade_file = os.path.join(input_dir, "notrade.csv")
+            exclusion_files = [
+                input_portfolio_file,  # Complete portfolio from input (includes international stocks)
+                portfolio_file,        # Processed portfolio from output (for any additional processed stocks)
+                os.path.join(output_dir, "sell.csv"),  # Stocks marked for selling
+                notrade_file          # Stocks explicitly marked as notrade
+            ]
             title = "Trade Analysis - BUY Opportunities (Market data excluding portfolio/notrade)"
             output_filename = "buy.csv"
             if app_logger:
                 app_logger.info("Loading market data for BUY opportunities analysis")
             
         elif trade_choice == "S":
-            # SELL: Check portfolio.csv for sell opportunities
-            data_file = portfolio_file
+            # SELL: Use output portfolio file which contains processed data with action signals (ACT column)
+            data_file = portfolio_file  # This points to output/portfolio.csv with ACT column
             exclusion_files = []
-            title = "Trade Analysis - SELL Opportunities (Portfolio data)"
+            title = "Trade Analysis - SELL Opportunities (Portfolio with action analysis)"
             output_filename = "sell.csv"
             if app_logger:
-                app_logger.info("Loading portfolio data for SELL opportunities analysis")
+                app_logger.info("Loading processed portfolio data for SELL opportunities analysis")
             
         elif trade_choice == "H":
-            # HOLD: Check portfolio.csv for hold opportunities (stocks we own that should be held)
-            data_file = portfolio_file
+            # HOLD: Use output portfolio file which contains processed data with action signals (ACT column)
+            data_file = portfolio_file  # This points to output/portfolio.csv with ACT column
             exclusion_files = []  # Don't exclude anything - we want to analyze our portfolio
-            title = "Trade Analysis - HOLD Opportunities (Portfolio data)"
+            title = "Trade Analysis - HOLD Opportunities (Portfolio with action analysis)"
             output_filename = "hold.csv"
             if app_logger:
-                app_logger.info("Loading portfolio data for HOLD opportunities analysis")
+                app_logger.info("Loading processed portfolio data for HOLD opportunities analysis")
             
         else:
             if app_logger:
@@ -321,14 +331,28 @@ async def display_existing_csv_data(data_file, exclusion_files, title, output_fi
                     except Exception as e:
                         pass  # Silent error handling
         
-        # Apply exclusion filtering only for BUY and HOLD (not for SELL)
+        # Apply exclusion filtering only for BUY and HOLD (not for SELL) using ticker equivalence
         if exclusion_tickers and trade_choice in ["B", "H"]:
             original_count = len(df)
             ticker_col = 'symbol' if 'symbol' in df.columns else 'TICKER'
             if ticker_col in df.columns:
-                df = df[~df[ticker_col].astype(str).str.upper().isin(exclusion_tickers)]
+                # Create mask using ticker equivalence checking
+                mask = pd.Series(True, index=df.index)
+                
+                for idx, row in df.iterrows():
+                    market_ticker = str(row[ticker_col]) if pd.notna(row[ticker_col]) else ""
+                    if market_ticker:
+                        # Check if this market ticker is equivalent to any exclusion ticker
+                        is_excluded = any(
+                            are_equivalent_tickers(market_ticker, exclusion_ticker)
+                            for exclusion_ticker in exclusion_tickers
+                        )
+                        if is_excluded:
+                            mask.iloc[idx] = False
+                
+                df = df[mask]
                 if app_logger:
-                    app_logger.info(f"After exclusion filtering: {len(df)} records (excluded {original_count - len(df)})")
+                    app_logger.info(f"After exclusion filtering via equivalence: {len(df)} records (excluded {original_count - len(df)})")
         elif trade_choice == "S":
             if app_logger:
                 app_logger.info(f"Processing portfolio data for SELL opportunities: {len(df)} records")

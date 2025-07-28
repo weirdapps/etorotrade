@@ -13,6 +13,7 @@ import pandas as pd
 import yfinance as yf
 
 from ..core.logging import get_logger
+from ..utils.data.ticker_utils import normalize_ticker
 
 
 logger = get_logger(__name__)
@@ -29,21 +30,24 @@ def is_valid_ticker(ticker_symbol: str) -> bool:
         True if the ticker is valid, False otherwise
     """
     try:
+        # Normalize the ticker before validation
+        normalized_ticker = normalize_ticker(ticker_symbol)
+        
         # Initialize a ticker object
-        ticker = yf.Ticker(ticker_symbol)
+        ticker = yf.Ticker(normalized_ticker)
 
         # Check if we can get basic info
         if not ticker.info:
-            logger.warning(f"Ticker {ticker_symbol} has no info data")
+            logger.warning(f"Ticker {ticker_symbol} (normalized: {normalized_ticker}) has no info data")
             return False
 
         # Check if we can get history data
         history = ticker.history(period="1mo")
         if history.empty:
-            logger.warning(f"Ticker {ticker_symbol} has no history data")
+            logger.warning(f"Ticker {ticker_symbol} (normalized: {normalized_ticker}) has no history data")
             return False
 
-        logger.info(f"Ticker {ticker_symbol} is valid")
+        logger.info(f"Ticker {ticker_symbol} (normalized: {normalized_ticker}) is valid")
         return True
     except Exception as e:
         logger.error(f"Error validating ticker {ticker_symbol}: {str(e)}")
@@ -125,8 +129,8 @@ def main():
         print("No tickers entered.")
         return
 
-    # Split and strip tickers
-    tickers = [t.strip() for t in tickers_input.split(",")]
+    # Split and strip tickers, then normalize them
+    tickers = [normalize_ticker(t.strip()) for t in tickers_input.split(",")]
     print(f"Validating {len(tickers)} tickers...")
 
     # Validate tickers

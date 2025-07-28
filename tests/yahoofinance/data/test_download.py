@@ -406,7 +406,7 @@ def test_fix_hk_ticker():
         # Edge cases
         ("AAPL", "AAPL"),  # Non-HK ticker -> unchanged
         (None, None),  # None value -> unchanged
-        (123, 123),  # Non-string -> unchanged
+        (123, "123"),  # Non-string -> converted to string
     ]
 
     for input_val, expected in test_cases:

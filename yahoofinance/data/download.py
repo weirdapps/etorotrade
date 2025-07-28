@@ -35,6 +35,7 @@ from ..utils.error_handling import (
     translate_error,
     with_retry,
 )
+from ..utils.data.ticker_utils import normalize_ticker, process_ticker_input
 
 from ..core.config import FILE_PATHS, PATHS
 from ..core.logging import get_logger
@@ -43,44 +44,25 @@ from ..core.logging import get_logger
 logger = get_logger(__name__)
 
 
+# HK ticker logic moved to centralized ticker_utils.py
+# This function is deprecated - use normalize_ticker instead
 def fix_hk_ticker(ticker):
     """
-    Fix HK stock tickers to standardize their format:
-    1. If fewer than 4 numerals, add leading zeros to make it 4 numerals
-    2. If more than 4 numerals and they are leading zeros, remove until you get to 4 numerals
-    3. If more than 4 numerals and the leading numeral is not zero, keep as is
-
-    Args:
-        ticker: The ticker string to process
-
-    Returns:
-        The processed ticker with standardized format
+    DEPRECATED: Use normalize_ticker from utils.data.ticker_utils instead.
+    
+    Fix HK stock tickers to standardize their format.
     """
-    # Return early if not a valid HK ticker format
-    if not isinstance(ticker, str) or not ticker.endswith(".HK"):
+    logger.warning(f"fix_hk_ticker is deprecated. Use normalize_ticker instead.")
+    
+    # Handle None and empty values
+    if ticker is None or ticker == "":
         return ticker
-
-    parts = ticker.split(".")
-    if len(parts) != 2:
-        return ticker
-
-    numeric_part = parts[0]
-    fixed_ticker = ticker
-
-    # Process based on digit count
-    if len(numeric_part) < 4:
-        # Add leading zeros for fewer than 4 digits
-        fixed_ticker = numeric_part.zfill(4) + ".HK"
-    elif len(numeric_part) > 4 and numeric_part.startswith("0"):
-        # Remove leading zeros for more than 4 digits
-        stripped_part = numeric_part.lstrip("0")
-        fixed_ticker = (stripped_part.zfill(4) if len(stripped_part) < 4 else stripped_part) + ".HK"
-
-    # Log changes if the ticker was modified
-    if fixed_ticker != ticker:
-        logger.info(f"Fixed HK ticker: {ticker} -> {fixed_ticker}")
-
-    return fixed_ticker
+    
+    # Convert non-string values to string (for numeric HK tickers)
+    if not isinstance(ticker, str):
+        ticker = str(ticker)
+    
+    return normalize_ticker(ticker)
 
 
 # Load environment variables
@@ -397,20 +379,12 @@ def process_portfolio():
     # Read the CSV
     df = pd.read_csv(latest_file)
 
-    # Replace crypto tickers
-    crypto_mapping = {"BTC": "BTC-USD", "XRP": "XRP-USD", "SOL": "SOL-USD", "ETH": "ETH-USD"}
-
     # Update tickers if they exist (using 'ticker' column instead of 'Symbol')
     if "ticker" in df.columns:
-        logger.info("Found ticker column, updating crypto tickers...")
-        df["ticker"] = df["ticker"].replace(crypto_mapping)
-        logger.info(
-            f"Updated tickers: {df[df['ticker'].isin(crypto_mapping.values())]['ticker'].tolist()}"
-        )
-
-        # Fix HK stock tickers with leading zeros
-        df["ticker"] = df["ticker"].apply(fix_hk_ticker)
-        logger.info("Processed HK tickers with leading zeros")
+        logger.info("Found ticker column, normalizing all tickers...")
+        # Use centralized ticker normalization
+        df["ticker"] = df["ticker"].apply(normalize_ticker)
+        logger.info("Processed and normalized all tickers")
     else:
         logger.warning("Warning: 'ticker' column not found in CSV")
 
@@ -902,58 +876,12 @@ async def _fetch_etoro_instrument_metadata(instrument_ids: list, api_key: str, u
 
 def _fix_yahoo_ticker_format(ticker: str) -> str:
     """
+    DEPRECATED: Use normalize_ticker from utils.data.ticker_utils instead.
+    
     Convert ticker to Yahoo Finance format.
-    
-    Rules:
-    - HK tickers: Format to have exactly 4 digits (e.g., 1.HK -> 0001.HK, 700.HK -> 0700.HK)
-    - Cryptocurrencies: BTC/ETH -> BTC-USD/ETH-USD
-    - Options/Futures formatting with ^ and = symbols as needed
-    - All other tickers remain unchanged
     """
-    # Backup original ticker
-    original = ticker
-    
-    # Handle Hong Kong tickers (ensure 4 digits with leading zeros)
-    if ticker.endswith('.HK'):
-        numeric_part = ticker.split('.')[0]
-        try:
-            # First remove any leading zeros
-            cleaned_numeric = numeric_part.lstrip('0')
-            # If empty, this was all zeros
-            if not cleaned_numeric:
-                cleaned_numeric = '0'
-            # Now format to have exactly 4 digits with leading zeros
-            formatted_numeric = cleaned_numeric.zfill(4)
-            ticker = f"{formatted_numeric}.HK"
-        except Exception:
-            # If any error occurs, keep original
-            ticker = original
-    
-    # Handle cryptocurrencies (add -USD suffix if not present)
-    elif ticker in ('BTC', 'ETH', 'XRP', 'LTC', 'BCH', 'ADA', 'DOT', 'LINK', 'XLM', 'DOGE'):
-        ticker = f"{ticker}-USD"
-    
-    # Handle European tickers that need US ticker mapping
-    elif ticker == 'ASML.NV':
-        ticker = 'ASML'
-    
-    # Handle special VIX futures like VIX.MAY25
-    elif ticker.startswith('VIX.'):
-        # Extract month and year
-        try:
-            parts = ticker.split('.')
-            if len(parts) == 2 and len(parts[1]) >= 5:
-                month = parts[1][:3]
-                year = parts[1][3:]
-                
-                # Convert to Yahoo Finance format
-                ticker = f"^VIX{month}{year}"
-        except Exception:
-            # If any error occurs, keep original
-            ticker = original
-    
-    # Return the fixed ticker
-    return ticker
+    logger.warning("_fix_yahoo_ticker_format is deprecated. Use normalize_ticker instead.")
+    return normalize_ticker(ticker)
 
 
 def _process_etoro_portfolio_data(portfolio: dict, metadata: dict, run_id: str):
@@ -1007,8 +935,8 @@ def _process_etoro_portfolio_data(portfolio: dict, metadata: dict, run_id: str):
         leverages = set(p["position"].get("leverage", 1) for p in symbol_positions)
         leverage = leverages.pop() if len(leverages) == 1 else max(leverages)
         
-        # Fix the ticker format for Yahoo Finance compatibility
-        fixed_symbol = _fix_yahoo_ticker_format(symbol)
+        # Fix the ticker format for Yahoo Finance compatibility using centralized system
+        fixed_symbol = normalize_ticker(symbol)
         
         # Log ticker changes if any
         if fixed_symbol != symbol:

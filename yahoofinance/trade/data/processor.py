@@ -9,6 +9,7 @@ from yahoofinance.core.logging import get_logger
 from yahoofinance.core.errors import YFinanceError
 from yahoofinance.utils.error_handling import enrich_error_context
 from yahoofinance.core.config import TRADING_CRITERIA
+from yahoofinance.utils.data.ticker_utils import normalize_ticker, process_ticker_input
 
 logger = get_logger(__name__)
 
@@ -19,6 +20,26 @@ DIVIDEND_YIELD_DISPLAY = "%"
 
 class DataProcessor:
     """Data processing operations for trade functionality."""
+    
+    @staticmethod
+    def normalize_ticker_column(df, ticker_column='ticker'):
+        """Normalize ticker symbols in a DataFrame.
+        
+        Args:
+            df: DataFrame with ticker column
+            ticker_column: Name of the ticker column (default: 'ticker')
+            
+        Returns:
+            pd.DataFrame: DataFrame with normalized ticker symbols
+        """
+        if ticker_column not in df.columns:
+            return df
+        
+        df = df.copy()
+        df[ticker_column] = df[ticker_column].apply(
+            lambda x: process_ticker_input(x) if pd.notna(x) and x else x
+        )
+        return df
     
     @staticmethod
     def create_empty_ticker_dataframe():
@@ -460,3 +481,27 @@ class DataProcessor:
                     pass
         
         return row_dict
+    
+    @staticmethod
+    def process_dataframe_tickers(df):
+        """Process all ticker columns in a DataFrame for normalization.
+        
+        Args:
+            df: DataFrame that may contain ticker columns
+            
+        Returns:
+            pd.DataFrame: DataFrame with normalized ticker columns
+        """
+        if df is None or df.empty:
+            return df
+        
+        df = df.copy()
+        
+        # Common ticker column names to normalize
+        ticker_columns = ['ticker', 'symbol', 'TICKER', 'SYMBOL']
+        
+        for col in ticker_columns:
+            if col in df.columns:
+                df = DataProcessor.normalize_ticker_column(df, col)
+        
+        return df

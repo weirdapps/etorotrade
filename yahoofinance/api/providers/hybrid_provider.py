@@ -79,7 +79,11 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             # Still create the provider instance but we won't use it unless config changes at runtime
             self.yq_provider = YahooQueryProvider(max_retries=max_retries, retry_delay=retry_delay, **kwargs)
 
+        # Import ticker utilities for dual-listed stock handling
+        from ...utils.data.ticker_utils import normalize_ticker, get_ticker_for_data_fetch, get_ticker_for_display
+
         # Add ticker mappings for common commodity/crypto symbols
+        # Note: Dual-listed stock mappings are now handled by ticker_utils
         self._ticker_mappings = {
             "BTC": "BTC-USD",
             "ETH": "ETH-USD",
@@ -89,8 +93,7 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             "SILVER": "SI=F",  # Silver Futures
             "NATURAL_GAS": "NG=F",  # Natural Gas Futures
             "EURUSD": "EURUSD=X",  # Forex
-            "ASML.NV": "ASML",  # ASML Holding NV - European ticker to US ticker mapping
-            # Add other mappings as needed
+            # Dual-listed stocks are now handled by ticker_mappings.py
         }
 
     def _handle_delay(self, delay: float):
@@ -188,17 +191,22 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             logger.debug(f"Fetching ticker info for {ticker} using Hybrid provider")
             start_time = time.time()
 
-            # Use original ticker for the final result keys
-            original_ticker = ticker
-            # Apply mapping for provider calls
-            mapped_ticker = self._ticker_mappings.get(original_ticker, original_ticker)
+            # Normalize ticker using centralized mapping system
+            from ...utils.data.ticker_utils import normalize_ticker, get_ticker_for_data_fetch, get_ticker_for_display
+            
+            # Get normalized ticker for display and data fetch
+            display_ticker = get_ticker_for_display(ticker)
+            data_fetch_ticker = get_ticker_for_data_fetch(ticker)
+            
+            # Apply legacy commodity/crypto mappings if needed
+            mapped_ticker = self._ticker_mappings.get(data_fetch_ticker, data_fetch_ticker)
 
             # First try with YFinance using mapped ticker
             yf_data = self.yf_provider.get_ticker_info(mapped_ticker, skip_insider_metrics)
             
-            # Ensure we keep the original ticker in the response
-            yf_data["symbol"] = original_ticker
-            yf_data["ticker"] = original_ticker
+            # Ensure we use normalized ticker in the response
+            yf_data["symbol"] = display_ticker
+            yf_data["ticker"] = display_ticker
 
             # Mark data source
             yf_data["data_source"] = "YFinance"
@@ -235,36 +243,36 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             # Add 12-month performance calculation
             if "twelve_month_performance" not in combined_data:
                 try:
-                    twelve_month_perf = self._calculate_twelve_month_performance_sync(original_ticker)
+                    twelve_month_perf = self._calculate_twelve_month_performance_sync(display_ticker)
                     if twelve_month_perf is not None:
                         combined_data["twelve_month_performance"] = twelve_month_perf
-                        logger.debug(f"Added 12-month performance for {original_ticker}: {twelve_month_perf:.2f}%")
+                        logger.debug(f"Added 12-month performance for {display_ticker}: {twelve_month_perf:.2f}%")
                 except Exception as e:
-                    logger.debug(f"Error calculating 12-month performance for {original_ticker}: {str(e)}")
+                    logger.debug(f"Error calculating 12-month performance for {display_ticker}: {str(e)}")
 
             return combined_data
         except YFinanceError as e:
             # If YFinance fails completely, try YahooQuery as a fallback
-            logger.warning(f"YFinance failed for {original_ticker}, trying YahooQuery as fallback: {str(e)}")
+            logger.warning(f"YFinance failed for {display_ticker}, trying YahooQuery as fallback: {str(e)}")
 
             try:
                 yq_data = self.yq_provider.get_ticker_info(mapped_ticker, skip_insider_metrics)
-                yq_data["symbol"] = original_ticker
-                yq_data["ticker"] = original_ticker
+                yq_data["symbol"] = display_ticker
+                yq_data["ticker"] = display_ticker
                 yq_data["data_source"] = "YahooQuery"
                 yq_data["processing_time"] = time.time() - start_time
 
                 # We don't need hardcoded test values anymore since we get analyst data directly
                 # Instead, let's just log that we're in fallback mode
                 logger.info(
-                    f"Using YahooQuery fallback for {original_ticker} with data source: {yq_data.get('data_source', 'unknown')}"
+                    f"Using YahooQuery fallback for {display_ticker} with data source: {yq_data.get('data_source', 'unknown')}"
                 )
 
                 return yq_data
             except YFinanceError as yq_error:
                 # If both fail, raise the original error
-                logger.error(f"Both providers failed for {original_ticker}: {str(yq_error)}")
-                raise YFinanceError(f"Error fetching data for ticker {original_ticker}: {str(e)}")
+                logger.error(f"Both providers failed for {display_ticker}: {str(yq_error)}")
+                raise YFinanceError(f"Error fetching data for ticker {display_ticker}: {str(e)}")
 
     @rate_limited
     def get_price_data(self, ticker: str) -> Dict[str, Any]:
@@ -280,35 +288,39 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         Raises:
             YFinanceError: When an error occurs while fetching data
         """
-        # Use original ticker for the final result keys
-        original_ticker = ticker
-        # Apply mapping for provider calls
-        mapped_ticker = self._ticker_mappings.get(original_ticker, original_ticker)
+        # Normalize ticker using centralized mapping system
+        from ...utils.data.ticker_utils import get_ticker_for_data_fetch, get_ticker_for_display
+        
+        display_ticker = get_ticker_for_display(ticker)
+        data_fetch_ticker = get_ticker_for_data_fetch(ticker)
+        
+        # Apply legacy commodity/crypto mappings if needed
+        mapped_ticker = self._ticker_mappings.get(data_fetch_ticker, data_fetch_ticker)
         
         try:
             # First try with YFinance using mapped ticker
             price_data = self.yf_provider.get_price_data(mapped_ticker)
             price_data["data_source"] = "YFinance"
-            # Ensure we keep the original ticker in the response
-            price_data["symbol"] = original_ticker
-            price_data["ticker"] = original_ticker
+            # Ensure we use normalized ticker in the response
+            price_data["symbol"] = display_ticker
+            price_data["ticker"] = display_ticker
             return price_data
         except YFinanceError as e:
             # If YFinance fails, try YahooQuery as a fallback
             logger.warning(
-                f"YFinance failed for price data of {original_ticker}, trying YahooQuery: {str(e)}"
+                f"YFinance failed for price data of {display_ticker}, trying YahooQuery: {str(e)}"
             )
 
             try:
                 price_data = self.yq_provider.get_price_data(mapped_ticker)
                 price_data["data_source"] = "YahooQuery"
-                price_data["symbol"] = original_ticker
-                price_data["ticker"] = original_ticker
+                price_data["symbol"] = display_ticker
+                price_data["ticker"] = display_ticker
                 return price_data
             except YFinanceError as yq_error:
                 # If both fail, raise the original error
-                logger.error(f"Both providers failed for price data of {original_ticker}: {str(yq_error)}")
-                raise YFinanceError(f"Error fetching price data for ticker {original_ticker}: {str(e)}")
+                logger.error(f"Both providers failed for price data of {display_ticker}: {str(yq_error)}")
+                raise YFinanceError(f"Error fetching price data for ticker {display_ticker}: {str(e)}")
 
     @rate_limited
     def get_historical_data(
@@ -328,10 +340,14 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         Raises:
             YFinanceError: When an error occurs while fetching data
         """
-        # Use original ticker for the final result keys
-        original_ticker = ticker
-        # Apply mapping for provider calls
-        mapped_ticker = self._ticker_mappings.get(original_ticker, original_ticker)
+        # Normalize ticker using centralized mapping system
+        from ...utils.data.ticker_utils import get_ticker_for_data_fetch, get_ticker_for_display
+        
+        display_ticker = get_ticker_for_display(ticker)
+        data_fetch_ticker = get_ticker_for_data_fetch(ticker)
+        
+        # Apply legacy commodity/crypto mappings if needed
+        mapped_ticker = self._ticker_mappings.get(data_fetch_ticker, data_fetch_ticker)
         
         try:
             # First try with YFinance using mapped ticker
@@ -340,7 +356,7 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         except YFinanceError as e:
             # If YFinance fails, try YahooQuery as a fallback
             logger.warning(
-                f"YFinance failed for historical data of {original_ticker}, trying YahooQuery: {str(e)}"
+                f"YFinance failed for historical data of {display_ticker}, trying YahooQuery: {str(e)}"
             )
 
             try:
@@ -349,9 +365,9 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             except YFinanceError as yq_error:
                 # If both fail, raise the original error
                 logger.error(
-                    f"Both providers failed for historical data of {original_ticker}: {str(yq_error)}"
+                    f"Both providers failed for historical data of {display_ticker}: {str(yq_error)}"
                 )
-                raise YFinanceError(f"Error fetching historical data for ticker {original_ticker}: {str(e)}")
+                raise YFinanceError(f"Error fetching historical data for ticker {display_ticker}: {str(e)}")
 
     @rate_limited
     def get_earnings_dates(self, ticker: str) -> Tuple[Optional[str], Optional[str]]:
@@ -532,17 +548,50 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             YFinanceError: When an error occurs while fetching data
         """
         try:
+            # Normalize all tickers using centralized mapping system
+            from ...utils.data.ticker_utils import normalize_ticker_list, get_ticker_for_data_fetch, get_ticker_for_display
+            
+            # Create mappings for display and data fetch
+            ticker_mappings = {}
+            data_fetch_tickers = []
+            
+            for ticker in tickers:
+                display_ticker = get_ticker_for_display(ticker)
+                data_fetch_ticker = get_ticker_for_data_fetch(ticker)
+                
+                # Apply legacy commodity/crypto mappings if needed
+                mapped_ticker = self._ticker_mappings.get(data_fetch_ticker, data_fetch_ticker)
+                
+                ticker_mappings[ticker] = {
+                    'display': display_ticker,
+                    'data_fetch': mapped_ticker
+                }
+                data_fetch_tickers.append(mapped_ticker)
+            
             # First try with YFinance
             logger.debug(
-                f"Fetching batch ticker info for {len(tickers)} tickers using Hybrid provider"
+                f"Fetching batch ticker info for {len(data_fetch_tickers)} tickers using Hybrid provider"
             )
             start_time = time.time()
 
-            # Get data from YFinance
-            yf_results = self.yf_provider.batch_get_ticker_info(tickers, skip_insider_metrics)
+            # Get data from YFinance using mapped tickers
+            yf_results = self.yf_provider.batch_get_ticker_info(data_fetch_tickers, skip_insider_metrics)
+            
+            # Remap results to use display tickers as keys
+            normalized_results = {}
+            for original_ticker in tickers:
+                mapped_ticker = ticker_mappings[original_ticker]['data_fetch']
+                display_ticker = ticker_mappings[original_ticker]['display']
+                
+                if mapped_ticker in yf_results:
+                    data = yf_results[mapped_ticker].copy()
+                    # Ensure display ticker is used in the response
+                    data["symbol"] = display_ticker
+                    data["ticker"] = display_ticker
+                    normalized_results[display_ticker] = data
 
             # Mark data source for each result
-            for ticker, data in yf_results.items():
+            for ticker, data in normalized_results.items():
                 data["data_source"] = "YFinance"
 
             # Track tickers that need supplementing
@@ -554,7 +603,7 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             if self.enable_yahooquery:
                 # Supplement with YahooQuery if needed
                 # YahooQuery's batch is more efficient, so we'll gather all tickers needing supplements
-                for ticker, data in yf_results.items():
+                for ticker, data in normalized_results.items():
                     # Check if we need to supplement this ticker
                     needs_supplement = False
                     key_fields = [
@@ -571,7 +620,11 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                             break
 
                     if needs_supplement:
-                        tickers_to_supplement.append(ticker)
+                        # Find the mapped ticker for this display ticker
+                        for orig_ticker in tickers:
+                            if ticker_mappings[orig_ticker]['display'] == ticker:
+                                tickers_to_supplement.append(ticker_mappings[orig_ticker]['data_fetch'])
+                                break
             else:
                 logger.debug("Skipping yahooquery supplementation for batch (disabled in config)")
 
@@ -586,25 +639,33 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                     )
 
                     # Update the results with YahooQuery data
-                    for ticker in tickers_to_supplement:
-                        if ticker in yq_results and ticker in yf_results:
-                            yq_data = yq_results[ticker]
+                    for mapped_ticker in tickers_to_supplement:
+                        if mapped_ticker in yq_results:
+                            yq_data = yq_results[mapped_ticker]
+                            
+                            # Find the corresponding display ticker
+                            display_ticker = None
+                            for orig_ticker in tickers:
+                                if ticker_mappings[orig_ticker]['data_fetch'] == mapped_ticker:
+                                    display_ticker = ticker_mappings[orig_ticker]['display']
+                                    break
+                            
+                            if display_ticker and display_ticker in normalized_results:
+                                # Supplement missing fields
+                                for field in key_fields:
+                                    if (
+                                        (
+                                            field not in normalized_results[display_ticker]
+                                            or normalized_results[display_ticker][field] is None
+                                        )
+                                        and field in yq_data
+                                        and yq_data[field] is not None
+                                    ):
+                                        normalized_results[display_ticker][field] = yq_data[field]
 
-                            # Supplement missing fields
-                            for field in key_fields:
-                                if (
-                                    (
-                                        field not in yf_results[ticker]
-                                        or yf_results[ticker][field] is None
-                                    )
-                                    and field in yq_data
-                                    and yq_data[field] is not None
-                                ):
-                                    yf_results[ticker][field] = yq_data[field]
-
-                            # Mark as hybrid data source
-                            yf_results[ticker]["data_source"] = HYBRID_SOURCE_NAME
-                            supplemented_count += 1
+                                # Mark as hybrid data source
+                                normalized_results[display_ticker]["data_source"] = HYBRID_SOURCE_NAME
+                                supplemented_count += 1
                 except YFinanceError as e:
                     logger.warning(f"YahooQuery batch supplement failed: {str(e)}")
 
@@ -615,7 +676,7 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             )
 
             # Process all tickers to fix dividend yield and calculate EXRET
-            for ticker, data in yf_results.items():
+            for ticker, data in normalized_results.items():
                 # Ensure dividend yield is in raw format (0.0234 for 2.34%)
                 if "dividend_yield" in data and data["dividend_yield"] is not None:
                     try:
@@ -664,20 +725,31 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                     except Exception as e:
                         logger.debug(f"Error calculating 12-month performance for {ticker}: {str(e)}")
 
-            return yf_results
+            return normalized_results
         except YFinanceError as e:
             # If YFinance batch fails completely, try YahooQuery as a fallback
             logger.warning(f"YFinance batch failed, trying YahooQuery as fallback: {str(e)}")
 
             try:
-                yq_results = self.yq_provider.batch_get_ticker_info(tickers, skip_insider_metrics)
-
-                # Mark data source for each result
-                for ticker, data in yq_results.items():
-                    data["data_source"] = "YahooQuery"
+                # Use mapped tickers for YahooQuery fallback
+                yq_results = self.yq_provider.batch_get_ticker_info(data_fetch_tickers, skip_insider_metrics)
+                
+                # Remap results to use display tickers as keys
+                normalized_yq_results = {}
+                for original_ticker in tickers:
+                    mapped_ticker = ticker_mappings[original_ticker]['data_fetch']
+                    display_ticker = ticker_mappings[original_ticker]['display']
+                    
+                    if mapped_ticker in yq_results:
+                        data = yq_results[mapped_ticker].copy()
+                        # Ensure display ticker is used in the response
+                        data["symbol"] = display_ticker
+                        data["ticker"] = display_ticker
+                        data["data_source"] = "YahooQuery"
+                        normalized_yq_results[display_ticker] = data
 
                 # Process all tickers to fix dividend yield and calculate EXRET
-                for ticker, data in yq_results.items():
+                for ticker, data in normalized_yq_results.items():
                     # Ensure dividend yield is a valid number but don't modify the value
                     if "dividend_yield" in data and data["dividend_yield"] is not None:
                         try:
@@ -721,7 +793,7 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                         except Exception as e:
                             logger.debug(f"Error calculating 12-month performance for {ticker} in fallback: {str(e)}")
 
-                return yq_results
+                return normalized_yq_results
             except YFinanceError as yq_error:
                 # If both fail, raise the original error
                 logger.error(f"Both providers failed for batch ticker info: {str(yq_error)}")

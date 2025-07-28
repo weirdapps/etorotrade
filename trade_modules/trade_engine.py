@@ -19,12 +19,20 @@ from yahoofinance.core.errors import APIError, DataError, ValidationError, YFina
 from yahoofinance.core.logging import get_logger
 from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
 from yahoofinance.presentation import MarketDisplay
+from yahoofinance.utils.data.ticker_utils import (
+    normalize_ticker,
+    process_ticker_input,
+    get_ticker_for_display,
+    are_equivalent_tickers
+)
 
 from .utils import (
     get_file_paths,
     clean_ticker_symbol,
     safe_float_conversion,
     validate_dataframe,
+    normalize_ticker_for_display,
+    normalize_ticker_list_for_processing,
 )
 from .analysis_engine import calculate_exret, calculate_action
 from .data_processor import (
@@ -169,15 +177,34 @@ class TradingEngine:
         return confidence
     
     def _filter_notrade_tickers(self, df: pd.DataFrame, notrade_path: str) -> pd.DataFrame:
-        """Filter out tickers from the notrade list."""
+        """Filter out tickers from the notrade list using ticker equivalence checking."""
         try:
             notrade_df = pd.read_csv(notrade_path)
             if 'Ticker' in notrade_df.columns:
-                notrade_tickers = set(notrade_df['Ticker'].str.upper())
-                initial_count = len(df)
-                df = df[~df.index.str.upper().isin(notrade_tickers)]
-                filtered_count = initial_count - len(df)
-                self.logger.info(f"Filtered out {filtered_count} notrade tickers")
+                notrade_tickers = set()
+                for ticker in notrade_df['Ticker']:
+                    if pd.notna(ticker) and ticker:
+                        notrade_tickers.add(ticker)
+                
+                if notrade_tickers:
+                    initial_count = len(df)
+                    
+                    # Create mask to filter out equivalent tickers
+                    mask = pd.Series(True, index=df.index)
+                    
+                    for market_ticker in df.index:
+                        if pd.notna(market_ticker):
+                            # Check if this market ticker is equivalent to any notrade ticker
+                            is_notrade = any(
+                                are_equivalent_tickers(market_ticker, notrade_ticker)
+                                for notrade_ticker in notrade_tickers
+                            )
+                            if is_notrade:
+                                mask.loc[market_ticker] = False
+                    
+                    df = df[mask]
+                    filtered_count = initial_count - len(df)
+                    self.logger.info(f"Filtered out {filtered_count} notrade tickers via equivalence check")
         except Exception as e:
             self.logger.warning(f"Could not filter notrade tickers: {str(e)}")
         
@@ -227,24 +254,54 @@ class TradingEngine:
     
     def _apply_portfolio_filters(self, opportunities: Dict[str, pd.DataFrame], 
                                portfolio_df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
-        """Apply portfolio-specific filters to opportunities."""
+        """Apply portfolio-specific filters to opportunities using ticker equivalence checking."""
         try:
             portfolio_tickers = set()
-            if 'Ticker' in portfolio_df.columns:
-                portfolio_tickers = set(portfolio_df['Ticker'].str.upper())
-            elif 'ticker' in portfolio_df.columns:
-                portfolio_tickers = set(portfolio_df['ticker'].str.upper())
             
-            # For sell and hold, only include tickers in portfolio
+            # Extract portfolio tickers (no normalization needed for equivalence checking)
+            if 'Ticker' in portfolio_df.columns:
+                for ticker in portfolio_df['Ticker']:
+                    if pd.notna(ticker) and ticker:
+                        portfolio_tickers.add(ticker)
+            elif 'ticker' in portfolio_df.columns:
+                for ticker in portfolio_df['ticker']:
+                    if pd.notna(ticker) and ticker:
+                        portfolio_tickers.add(ticker)
+            
             if portfolio_tickers:
-                sell_mask = opportunities['sell_opportunities'].index.str.upper().isin(portfolio_tickers)
+                # For sell and hold, only include tickers equivalent to portfolio holdings
+                sell_mask = pd.Series(False, index=opportunities['sell_opportunities'].index)
+                for market_ticker in opportunities['sell_opportunities'].index:
+                    if pd.notna(market_ticker):
+                        is_in_portfolio = any(
+                            are_equivalent_tickers(market_ticker, portfolio_ticker)
+                            for portfolio_ticker in portfolio_tickers
+                        )
+                        if is_in_portfolio:
+                            sell_mask.loc[market_ticker] = True
                 opportunities['sell_opportunities'] = opportunities['sell_opportunities'][sell_mask]
                 
-                hold_mask = opportunities['hold_opportunities'].index.str.upper().isin(portfolio_tickers)
+                hold_mask = pd.Series(False, index=opportunities['hold_opportunities'].index)
+                for market_ticker in opportunities['hold_opportunities'].index:
+                    if pd.notna(market_ticker):
+                        is_in_portfolio = any(
+                            are_equivalent_tickers(market_ticker, portfolio_ticker)
+                            for portfolio_ticker in portfolio_tickers
+                        )
+                        if is_in_portfolio:
+                            hold_mask.loc[market_ticker] = True
                 opportunities['hold_opportunities'] = opportunities['hold_opportunities'][hold_mask]
                 
-                # For buy, exclude tickers already in portfolio
-                buy_mask = ~opportunities['buy_opportunities'].index.str.upper().isin(portfolio_tickers)
+                # For buy, exclude tickers equivalent to portfolio holdings
+                buy_mask = pd.Series(True, index=opportunities['buy_opportunities'].index)
+                for market_ticker in opportunities['buy_opportunities'].index:
+                    if pd.notna(market_ticker):
+                        is_in_portfolio = any(
+                            are_equivalent_tickers(market_ticker, portfolio_ticker)
+                            for portfolio_ticker in portfolio_tickers
+                        )
+                        if is_in_portfolio:
+                            buy_mask.loc[market_ticker] = False
                 opportunities['buy_opportunities'] = opportunities['buy_opportunities'][buy_mask]
                 
         except Exception as e:
@@ -302,20 +359,21 @@ class TradingEngine:
         return batch_results
     
     async def _process_single_ticker(self, ticker: str) -> Optional[Dict]:
-        """Process a single ticker and return market data."""
+        """Process a single ticker and return market data with normalized ticker."""
         try:
-            # Clean ticker symbol
-            clean_ticker = clean_ticker_symbol(ticker)
+            # Normalize ticker symbol using the centralized system
+            normalized_ticker = process_ticker_input(ticker)
+            display_ticker = get_ticker_for_display(normalized_ticker)
             
-            # Get market data from provider
-            data = await self.provider.get_ticker_info(clean_ticker)
+            # Get market data from provider using normalized ticker
+            data = await self.provider.get_ticker_info(normalized_ticker)
             
             if not data:
                 return None
             
             # Extract relevant fields using the correct field names from the provider
             result = {
-                'ticker': clean_ticker,
+                'ticker': display_ticker,  # Use display ticker for consistent output
                 'price': safe_float_conversion(data.get('price', data.get('current_price'))),
                 'market_cap': safe_float_conversion(data.get('market_cap')),
                 'volume': safe_float_conversion(data.get('volume')),

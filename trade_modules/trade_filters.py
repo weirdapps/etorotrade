@@ -17,6 +17,13 @@ from .utils import (
     clean_ticker_symbol,
     safe_float_conversion,
     validate_dataframe,
+    normalize_ticker_for_display,
+)
+from yahoofinance.utils.data.ticker_utils import (
+    normalize_ticker,
+    process_ticker_input,
+    get_ticker_for_display,
+    are_equivalent_tickers
 )
 
 logger = get_logger(__name__)
@@ -243,21 +250,27 @@ class PortfolioFilter:
         self.logger = logger
     
     def _extract_portfolio_tickers(self) -> Set[str]:
-        """Extract ticker symbols from portfolio DataFrame."""
+        """Extract and normalize ticker symbols from portfolio DataFrame."""
         tickers = set()
         
         if self.portfolio_df is not None and not self.portfolio_df.empty:
             # Try different possible column names for tickers
             for col in ['Ticker', 'ticker', 'Symbol', 'symbol']:
                 if col in self.portfolio_df.columns:
-                    tickers.update(self.portfolio_df[col].str.upper().tolist())
+                    for ticker in self.portfolio_df[col]:
+                        if pd.notna(ticker) and ticker:
+                            normalized = get_ticker_for_display(process_ticker_input(ticker))
+                            tickers.add(normalized.upper())
                     break
         
         return tickers
     
     def filter_new_opportunities(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Filter for new investment opportunities (not in portfolio).
+        Filter for new investment opportunities (not in portfolio) using ticker equivalence checking.
+        
+        This prevents suggesting buy opportunities for stocks already owned under different tickers
+        (e.g., NVO vs NOVO-B.CO, GOOG vs GOOGL).
         
         Args:
             df: DataFrame with market data
@@ -271,14 +284,24 @@ class PortfolioFilter:
         try:
             initial_count = len(df)
             
-            # Filter out tickers already in portfolio
-            ticker_index = df.index.str.upper() if hasattr(df.index, 'str') else df.index
-            mask = ~ticker_index.isin(self.portfolio_tickers)
+            # Create mask to identify tickers not in portfolio using equivalence checking
+            mask = pd.Series(True, index=df.index)
+            
+            for market_ticker in df.index:
+                if pd.notna(market_ticker):
+                    # Check if this market ticker is equivalent to any portfolio ticker
+                    is_in_portfolio = any(
+                        are_equivalent_tickers(market_ticker, portfolio_ticker)
+                        for portfolio_ticker in self.portfolio_tickers
+                    )
+                    if is_in_portfolio:
+                        mask.loc[market_ticker] = False
+            
             filtered_df = df[mask]
             
             filtered_count = initial_count - len(filtered_df)
             self.logger.info(f"Portfolio filter (new): {initial_count} → {len(filtered_df)} "
-                           f"({filtered_count} already in portfolio)")
+                           f"({filtered_count} already in portfolio via equivalence check)")
             
             return filtered_df
             
@@ -288,7 +311,10 @@ class PortfolioFilter:
     
     def filter_existing_holdings(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Filter for existing portfolio holdings only.
+        Filter for existing portfolio holdings only using ticker equivalence checking.
+        
+        This ensures holdings are identified even if using different tickers
+        (e.g., NVO vs NOVO-B.CO, GOOG vs GOOGL).
         
         Args:
             df: DataFrame with market data
@@ -302,13 +328,23 @@ class PortfolioFilter:
         try:
             initial_count = len(df)
             
-            # Filter for tickers in portfolio
-            ticker_index = df.index.str.upper() if hasattr(df.index, 'str') else df.index
-            mask = ticker_index.isin(self.portfolio_tickers)
+            # Create mask to identify tickers in portfolio using equivalence checking
+            mask = pd.Series(False, index=df.index)
+            
+            for market_ticker in df.index:
+                if pd.notna(market_ticker):
+                    # Check if this market ticker is equivalent to any portfolio ticker
+                    is_in_portfolio = any(
+                        are_equivalent_tickers(market_ticker, portfolio_ticker)
+                        for portfolio_ticker in self.portfolio_tickers
+                    )
+                    if is_in_portfolio:
+                        mask.loc[market_ticker] = True
+            
             filtered_df = df[mask]
             
             self.logger.info(f"Portfolio filter (existing): {initial_count} → {len(filtered_df)} "
-                           f"(portfolio holdings only)")
+                           f"(portfolio holdings only via equivalence check)")
             
             return filtered_df
             

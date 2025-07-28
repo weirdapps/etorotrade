@@ -133,6 +133,9 @@ from yahoofinance.core.di_container import (
     with_provider,
 )
 
+# Import ticker normalization utilities for main application
+from yahoofinance.utils.data.ticker_utils import normalize_ticker, process_ticker_input, check_equivalent_tickers, get_ticker_equivalents
+
 from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
 from yahoofinance.core.logging import configure_logging, get_logger
 from yahoofinance.utils.dependency_injection import inject, registry
@@ -220,6 +223,12 @@ __all__ = [
     'validate_dataframe',
     'clean_ticker_symbol',
     'get_display_columns',
+    
+    # Ticker normalization functions
+    'normalize_ticker',
+    'process_ticker_input',
+    'check_equivalent_tickers',
+    'get_ticker_equivalents',
     
     # CLI functions
     'get_user_source_choice',

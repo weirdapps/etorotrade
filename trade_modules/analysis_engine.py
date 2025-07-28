@@ -23,6 +23,7 @@ from yahoofinance.analysis.market import (
     filter_hold_candidates,
     filter_risk_first_buy_opportunities
 )
+from yahoofinance.utils.data.ticker_utils import are_equivalent_tickers
 
 # Get logger for this module
 logger = logging.getLogger(__name__)
@@ -518,7 +519,7 @@ def _filter_notrade_tickers(opportunities_df: pd.DataFrame, notrade_path: str) -
         # Get no-trade tickers list
         notrade_tickers = set(notrade_df[ticker_col].str.upper().tolist())
         
-        # Filter out no-trade tickers
+        # Filter out no-trade tickers using ticker equivalence checking
         ticker_col_opps = None
         for col in ["ticker", "TICKER", "symbol", "SYMBOL"]:
             if col in opportunities_df.columns:
@@ -527,13 +528,26 @@ def _filter_notrade_tickers(opportunities_df: pd.DataFrame, notrade_path: str) -
                 
         if ticker_col_opps:
             initial_count = len(opportunities_df)
-            filtered_df = opportunities_df[
-                ~opportunities_df[ticker_col_opps].str.upper().isin(notrade_tickers)
-            ]
+            
+            # Create mask using ticker equivalence checking
+            mask = pd.Series(True, index=opportunities_df.index)
+            
+            for idx, row in opportunities_df.iterrows():
+                market_ticker = row[ticker_col_opps]
+                if pd.notna(market_ticker) and market_ticker:
+                    # Check if this market ticker is equivalent to any notrade ticker
+                    is_notrade = any(
+                        are_equivalent_tickers(str(market_ticker), notrade_ticker)
+                        for notrade_ticker in notrade_tickers
+                    )
+                    if is_notrade:
+                        mask.iloc[idx] = False
+            
+            filtered_df = opportunities_df[mask]
             filtered_count = initial_count - len(filtered_df)
             
             if filtered_count > 0:
-                logger.info(f"🚫 Filtered out {filtered_count} no-trade tickers")
+                logger.info(f"🚫 Filtered out {filtered_count} no-trade tickers via equivalence check")
                 
             return filtered_df
         else:
@@ -570,7 +584,7 @@ def process_buy_opportunities(market_df: pd.DataFrame, portfolio_tickers: List[s
             logger.info("No buy opportunities found")
             return buy_opportunities
             
-        # Filter out current portfolio tickers
+        # Filter out current portfolio tickers using ticker equivalence checking
         if portfolio_tickers:
             ticker_col = None
             for col in ["ticker", "TICKER", "symbol", "SYMBOL"]:
@@ -580,13 +594,26 @@ def process_buy_opportunities(market_df: pd.DataFrame, portfolio_tickers: List[s
                     
             if ticker_col:
                 initial_count = len(buy_opportunities)
-                buy_opportunities = buy_opportunities[
-                    ~buy_opportunities[ticker_col].str.upper().isin([t.upper() for t in portfolio_tickers])
-                ]
+                
+                # Create mask using ticker equivalence checking
+                mask = pd.Series(True, index=buy_opportunities.index)
+                
+                for idx, row in buy_opportunities.iterrows():
+                    market_ticker = row[ticker_col]
+                    if pd.notna(market_ticker) and market_ticker:
+                        # Check if this market ticker is equivalent to any portfolio ticker
+                        is_in_portfolio = any(
+                            are_equivalent_tickers(str(market_ticker), portfolio_ticker)
+                            for portfolio_ticker in portfolio_tickers
+                        )
+                        if is_in_portfolio:
+                            mask.iloc[idx] = False
+                
+                buy_opportunities = buy_opportunities[mask]
                 filtered_count = initial_count - len(buy_opportunities)
                 
                 if filtered_count > 0:
-                    logger.info(f"📊 Filtered out {filtered_count} portfolio holdings")
+                    logger.info(f"📊 Filtered out {filtered_count} portfolio holdings via equivalence check")
         
         # Filter out no-trade tickers
         buy_opportunities = _filter_notrade_tickers(buy_opportunities, notrade_path)

@@ -28,6 +28,7 @@ from ..utils.error_handling import (
 from ..api.providers.base_provider import AsyncFinanceDataProvider, FinanceDataProvider
 from ..core.config import COLUMN_NAMES, FILE_PATHS, MESSAGES, PATHS
 from ..core.logging import get_logger
+from ..utils.data.ticker_utils import normalize_ticker
 from .formatter import Color, DisplayConfig, DisplayFormatter
 
 
@@ -418,14 +419,14 @@ class MarketDisplay:
             if os.path.exists(portfolio_path):
                 portfolio_df = pd.read_csv(portfolio_path)
                 if 'symbol' in portfolio_df.columns:
-                    portfolio_tickers = set(portfolio_df['symbol'].astype(str).str.upper())
+                    portfolio_tickers = set(portfolio_df['symbol'].astype(str).apply(normalize_ticker))
                 
             # Load sell file tickers (acting as notrade)
             sell_path = os.path.join(FILE_PATHS["OUTPUT_DIR"], "sell.csv")
             if os.path.exists(sell_path):
                 sell_df = pd.read_csv(sell_path)
                 if 'TICKER' in sell_df.columns:
-                    sell_tickers = set(sell_df['TICKER'].astype(str).str.upper())
+                    sell_tickers = set(sell_df['TICKER'].astype(str).apply(normalize_ticker))
                     
         except Exception as e:
             logger.warning(f"Failed to load portfolio/sell files for filtering: {e}")
@@ -435,7 +436,7 @@ class MarketDisplay:
         
         for ticker_data in results:
             try:
-                ticker = str(ticker_data.get('symbol', ticker_data.get('ticker', ''))).upper()
+                ticker = normalize_ticker(str(ticker_data.get('symbol', ticker_data.get('ticker', ''))))
                 
                 # Calculate action for this ticker
                 from ..utils.trade_criteria import calculate_action_for_row
@@ -459,7 +460,7 @@ class MarketDisplay:
                 logger.warning(f"Error filtering ticker {ticker_data.get('symbol', 'unknown')}: {e}")
                 # If action calculation fails, include in HOLD filter only if not excluded
                 if trade_filter == "H":
-                    ticker = str(ticker_data.get('symbol', ticker_data.get('ticker', ''))).upper()
+                    ticker = normalize_ticker(str(ticker_data.get('symbol', ticker_data.get('ticker', ''))))
                     if ticker not in exclusion_tickers:
                         filtered_results.append(ticker_data)
                     
@@ -965,7 +966,7 @@ class MarketDisplay:
             ticker_input = "AAPL, MSFT"
 
         # Split by comma and clean up
-        tickers = [t.strip().upper() for t in ticker_input.split(",") if t.strip()]
+        tickers = [normalize_ticker(t.strip()) for t in ticker_input.split(",") if t.strip()]
         return tickers
 
     def display_report(self, tickers: List[str], report_type: Optional[str] = None) -> None:

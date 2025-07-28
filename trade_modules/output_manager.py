@@ -16,6 +16,11 @@ from tabulate import tabulate
 from yahoofinance.presentation.html import HTMLGenerator
 from yahoofinance.presentation.formatter import DisplayFormatter
 from yahoofinance.utils.data.format_utils import format_position_size
+from yahoofinance.utils.data.ticker_utils import (
+    normalize_ticker,
+    process_ticker_input,
+    get_ticker_for_display
+)
 from yahoofinance.core.config import (
     STANDARD_DISPLAY_COLUMNS, FILE_PATHS, PATHS
 )
@@ -87,16 +92,26 @@ def _setup_output_files(report_source: str) -> Tuple[str, str, str]:
 
 def _prepare_csv_dataframe(display_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Prepare dataframe for CSV export with proper column ordering.
+    Prepare dataframe for CSV export with proper column ordering and normalized tickers.
     
     Args:
         display_df: Display dataframe to prepare
         
     Returns:
-        pd.DataFrame: Prepared CSV dataframe
+        pd.DataFrame: Prepared CSV dataframe with normalized tickers
     """
     try:
         csv_df = display_df.copy()
+        
+        # Normalize ticker symbols for consistent CSV output
+        if "TICKER" in csv_df.columns:
+            csv_df["TICKER"] = csv_df["TICKER"].apply(
+                lambda x: get_ticker_for_display(process_ticker_input(x)) if pd.notna(x) and x else x
+            )
+        elif "ticker" in csv_df.columns:
+            csv_df["ticker"] = csv_df["ticker"].apply(
+                lambda x: get_ticker_for_display(process_ticker_input(x)) if pd.notna(x) and x else x
+            )
         
         # Add ranking column if not present
         if "#" not in csv_df.columns:
@@ -499,17 +514,27 @@ def _format_size_value(value: Any) -> str:
 
 def prepare_display_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Main function to prepare dataframes for display.
+    Main function to prepare dataframes for display with ticker normalization.
     
     Args:
         df: Raw dataframe to prepare
         
     Returns:
-        pd.DataFrame: Prepared display dataframe
+        pd.DataFrame: Prepared display dataframe with normalized tickers
     """
     try:
         # Make a copy to avoid modifying original
         display_df = df.copy()
+        
+        # Normalize ticker symbols first
+        if "TICKER" in display_df.columns:
+            display_df["TICKER"] = display_df["TICKER"].apply(
+                lambda x: get_ticker_for_display(process_ticker_input(x)) if pd.notna(x) and x else x
+            )
+        elif "ticker" in display_df.columns:
+            display_df["ticker"] = display_df["ticker"].apply(
+                lambda x: get_ticker_for_display(process_ticker_input(x)) if pd.notna(x) and x else x
+            )
         
         # Format all columns
         display_df = format_display_dataframe(display_df)
