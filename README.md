@@ -318,29 +318,35 @@ Pre-populated files include:
 ```bash
 # Interactive analysis with clean progress display
 python trade.py  # Then select:
-                 # P - Portfolio Analysis
-                 # M - Market Screening  
+                 # P - Portfolio Analysis (comprehensive with dual-listed handling)
+                 # M - Market Screening (across US/EU/Asia markets)
                  # E - eToro Market Analysis
-                 # T - Trade Recommendations
-                 # I - Manual ticker input
+                 # T - Trade Recommendations (BUY/SELL/HOLD with tier-based criteria)
+                 # I - Manual ticker input (supports all exchange formats)
 
 # Non-interactive automation examples
 echo "p\ne" | python trade.py  # Portfolio analysis with existing file
-echo "t\nb" | python trade.py  # BUY recommendations
-echo "t\ns" | python trade.py  # SELL recommendations
+echo "t\nb" | python trade.py  # BUY recommendations with position sizing
+echo "t\ns" | python trade.py  # SELL recommendations with risk assessment
 echo "t\nh" | python trade.py  # HOLD recommendations
-echo "m" | python trade.py     # Market screening
+echo "m" | python trade.py     # Market screening with geographic filtering
 
-# Command line arguments (faster)
+# Command line arguments (fastest execution)
 python trade.py -o t -t b      # BUY opportunities
 python trade.py -o t -t s      # SELL opportunities  
 python trade.py -o t -t h      # HOLD opportunities
-python trade.py -o p -t n      # Portfolio analysis with new download
+python trade.py -o p -t n      # Portfolio analysis with new eToro download
 python trade.py -o m -t 50     # Market analysis for 50 stocks
-python trade.py -o i -t AAPL,MSFT  # Manual input analysis for specific tickers
+python trade.py -o i -t AAPL,MSFT,NOVO-B.CO  # Manual input analysis (auto-normalizes tickers)
 ```
 
-**Recent Improvements (2025-01-18)**:
+**Recent Improvements (2025-01-28)**:
+- 🎯 **Dual-Listed Stock System**: Intelligent ticker normalization prevents duplicate holdings (NVO→NOVO-B.CO, GOOGL→GOOG)
+- 🌍 **Geographic Risk Update**: HK stocks now use 0.5x multiplier (down from 0.75x) for better risk management
+- 🧹 **Codebase Cleanup**: Removed 3 legacy analysis scripts, consolidated functionality into main analysis engine
+- 📊 **Enhanced Portfolio Filtering**: Prevents suggesting equivalent stocks already owned under different ticker symbols
+
+**Performance Improvements (2025-01-18)**:
 - 🚀 **Major Performance Boost**: 127% faster API processing (390 vs 171 tickers/minute)
 - ⚡ **Vectorized Operations**: DataFrame calculations now >1.7M rows/second 
 - 📊 **Smart Rate Limiting**: Optimized batch sizes (25 vs 10) and reduced delays (0.15s vs 0.3s)
@@ -403,19 +409,19 @@ python tools/performance_benchmark.py
 
 ### Specialized Analysis
 ```bash
-# Analyst ratings and recommendations
+# Analyst ratings and recommendations (with dual-listed normalization)
 python -m yahoofinance.analysis.analyst
 
 # News with sentiment analysis
 python -m yahoofinance.analysis.news
 
-# Insider transactions
+# Insider transactions (tracks original exchange tickers)
 python -m yahoofinance.analysis.insiders
 
-# Performance tracking
+# Performance tracking with geographic risk assessment
 python -m yahoofinance.analysis.performance weekly    # Week-over-week
 python -m yahoofinance.analysis.performance monthly   # Month-over-month
-python -m yahoofinance.analysis.performance portfolio # Portfolio metrics
+python -m yahoofinance.analysis.performance portfolio # Portfolio metrics with tier analysis
 ```
 
 ## 📝 Output Examples
