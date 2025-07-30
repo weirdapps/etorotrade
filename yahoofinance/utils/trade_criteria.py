@@ -125,7 +125,8 @@ def calculate_action(ticker_data):
         Action string ('B', 'S', 'H', or 'I')
     """
     # Use the calculate_action_for_row function
-    action, _ = calculate_action_for_row(ticker_data, {})
+    from ..core.config import TRADING_CRITERIA
+    action, _ = calculate_action_for_row(ticker_data, TRADING_CRITERIA)
     return action
 
 

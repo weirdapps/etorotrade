@@ -146,8 +146,9 @@ class TestCalculateActionVectorized:
         """Test vectorized INCONCLUSIVE action detection."""
         result = calculate_action_vectorized(edge_case_dataframe)
         
-        # First two rows should be INCONCLUSIVE due to low analyst coverage
+        # First row should be INCONCLUSIVE due to low analyst coverage (0 analysts)
         assert result.iloc[0] == 'I'
+        # Second row should be INCONCLUSIVE due to low analyst coverage (2 analysts < 5 minimum)
         assert result.iloc[1] == 'I'
     
     def test_vectorized_action_performance(self):
@@ -185,14 +186,14 @@ class TestCalculateAction:
         """Test the main calculate_action function integration."""
         result = calculate_action(sample_dataframe)
         
-        # Should return DataFrame with ACT column
+        # Should return DataFrame with BS column
         assert isinstance(result, pd.DataFrame)
-        assert 'ACT' in result.columns
+        assert 'BS' in result.columns
         assert len(result) == len(sample_dataframe)
         
         # All actions should be valid
         valid_actions = {'B', 'S', 'H', 'I'}
-        assert result['ACT'].isin(valid_actions).all()
+        assert result['BS'].isin(valid_actions).all()
     
     def test_calculate_action_error_handling(self):
         """Test error handling in calculate_action."""
@@ -213,7 +214,7 @@ class TestCalculateAction:
         
         # Verify vectorized function was called
         mock_vectorized.assert_called_once()
-        assert 'ACT' in result.columns
+        assert 'BS' in result.columns
 
 
 class TestFilterFunctions:
@@ -221,11 +222,11 @@ class TestFilterFunctions:
     
     def test_filter_buy_opportunities_wrapper(self, sample_dataframe):
         """Test buy opportunities filter wrapper."""
-        # Add ACT column first
+        # Add BS column first
         df = calculate_action(sample_dataframe)
         
         with patch('trade_modules.analysis_engine.filter_buy_opportunities') as mock_filter:
-            mock_filter.return_value = df[df['ACT'] == 'B']
+            mock_filter.return_value = df[df['BS'] == 'B']
             
             result = filter_buy_opportunities_wrapper(df)
             
@@ -237,7 +238,7 @@ class TestFilterFunctions:
         df = calculate_action(sample_dataframe)
         
         with patch('trade_modules.analysis_engine.filter_sell_candidates') as mock_filter:
-            mock_filter.return_value = df[df['ACT'] == 'S']
+            mock_filter.return_value = df[df['BS'] == 'S']
             
             result = filter_sell_candidates_wrapper(df)
             
@@ -248,7 +249,7 @@ class TestFilterFunctions:
         df = calculate_action(sample_dataframe)
         
         with patch('trade_modules.analysis_engine.filter_hold_candidates') as mock_filter:
-            mock_filter.return_value = df[df['ACT'] == 'H']
+            mock_filter.return_value = df[df['BS'] == 'H']
             
             result = filter_hold_candidates_wrapper(df)
             
@@ -315,7 +316,7 @@ class TestEdgeCases:
         
         action_result = calculate_action(single_df)
         assert len(action_result) == 1
-        assert 'ACT' in action_result.columns
+        assert 'BS' in action_result.columns
     
     def test_missing_required_columns(self):
         """Test graceful handling of missing required columns."""
@@ -348,7 +349,7 @@ class TestEdgeCases:
         
         assert len(exret_result) == 3
         assert len(action_result) == 3
-        assert action_result['ACT'].isin(['B', 'S', 'H', 'I']).all()
+        assert action_result['BS'].isin(['B', 'S', 'H', 'I']).all()
 
 
 if __name__ == '__main__':

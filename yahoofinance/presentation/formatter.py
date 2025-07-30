@@ -94,28 +94,27 @@ class DisplayFormatter:
 
     def format_price(self, value: Optional[float], decimals: int = 2) -> str:
         """
-        Format a price value.
+        Format a price value with conditional decimal places.
 
         Args:
             value: Price value
-            decimals: Number of decimal places
+            decimals: Number of decimal places (overridden by conditional logic)
 
         Returns:
             Formatted price string
         """
-        if value is None:
+        if value is None or value == 0:
             return "--"
 
-        # Use fewer decimals in compact mode
-        if self.compact_mode and value >= 100:
-            decimals = max(0, decimals - 1)
-
-        # Format price with appropriate decimals
-        return f"${value:,.{decimals}f}"
+        # 1 decimal if >= $10, 2 decimals if < $10
+        if value >= 10:
+            return f"${value:,.1f}"
+        else:
+            return f"${value:,.2f}"
 
     def format_percentage(self, value: Optional[float], decimals: int = 1) -> str:
         """
-        Format a percentage value.
+        Format a percentage value with extreme value handling.
 
         Args:
             value: Percentage value (should be pre-multiplied by 100)
@@ -124,19 +123,20 @@ class DisplayFormatter:
         Returns:
             Formatted percentage string
         """
-        if value is None:
+        if value is None or value == 0:
             return "--"
 
-        # Use fewer decimals in compact mode
-        if self.compact_mode:
-            decimals = max(0, decimals - 1)
-
-        # Format percentage with appropriate decimals
-        return f"{value:,.{decimals}f}%"
+        # Show H for >99%, L for <-99%, otherwise 1 decimal
+        if value > 99:
+            return "H"
+        elif value < -99:
+            return "L"
+        else:
+            return f"{value:,.1f}%"
 
     def format_ratio(self, value: Optional[float], decimals: int = 2) -> str:
         """
-        Format a ratio value.
+        Format a ratio value with zero handling.
 
         Args:
             value: Ratio value
@@ -145,14 +145,10 @@ class DisplayFormatter:
         Returns:
             Formatted ratio string
         """
-        if value is None:
+        if value is None or value == 0:
             return "--"
 
-        # Use fewer decimals in compact mode
-        if self.compact_mode:
-            decimals = max(1, decimals - 1)
-
-        # Format ratio with appropriate decimals
+        # Format ratio with appropriate decimals (2 for beta, 1 for others)
         return f"{value:,.{decimals}f}"
 
     def color_value(self, value: str, condition: str, cutoff: float, reverse: bool = False) -> str:

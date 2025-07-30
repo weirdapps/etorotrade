@@ -341,86 +341,77 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
 
         for attempt in range(self.max_retries):
             try:
-                # Get earnings data
-                calendar = ticker_obj.calendar
+                # Try earnings_dates attribute FIRST - this contains earnings announcement dates
+                # These are needed for filtering analyst recommendations after earnings announcements
+                earnings_dates = getattr(ticker_obj, "earnings_dates", None)
+                if earnings_dates is not None and not earnings_dates.empty:
+                    import pandas as pd
+                    # Use current date with same timezone as the earnings data for proper comparison
+                    if earnings_dates.index.tz is not None:
+                        today = pd.Timestamp.now(tz=earnings_dates.index.tz).normalize()
+                    else:
+                        today = pd.Timestamp.now().normalize()
+                    logger.debug(f"Found earnings_dates for {ticker}, filtering for past announcement dates before {today}")
+                    
+                    # Filter for past earnings announcement dates (before today)
+                    past_dates = earnings_dates[earnings_dates.index.normalize() < today]
+                    if not past_dates.empty:
+                        # Sort past dates in descending order (most recent first)
+                        sorted_past_dates = past_dates.index.sort_values(ascending=False)
+                        
+                        # Format the dates
+                        formatted_dates = [date.strftime("%Y-%m-%d") for date in sorted_past_dates]
+                        
+                        # Return the last two earnings dates
+                        if len(formatted_dates) >= 2:
+                            result = (formatted_dates[0], formatted_dates[1])
+                            default_cache_manager.set(cache_key, result, data_type="earnings_data")
+                            logger.debug(f"Cached past earnings dates for {ticker}: {result}")
+                            return result
+                        elif len(formatted_dates) == 1:
+                            result = (formatted_dates[0], None)
+                            default_cache_manager.set(cache_key, result, data_type="earnings_data")
+                            logger.debug(f"Cached past earnings dates for {ticker}: {result}")
+                            return result
+                    else:
+                        logger.debug(f"No past earnings dates found in earnings_dates for {ticker}")
 
-                # Handle cases where calendar might be None or not have earnings date
-                if calendar is None or COLUMN_NAMES["EARNINGS_DATE"] not in calendar:
-                    logger.debug(f"No earnings dates found for {ticker} in calendar")
-                    # Try to get earnings date from info
-                    try:
-                        info = ticker_obj.info
-                        if "earningsDate" in info:
-                            earnings_date = info["earningsDate"]
-                            logger.debug(
-                                f"Found earnings date in info for {ticker}: {earnings_date}"
-                            )
-                            # If it's just a single value, turn it into a list
-                            if not isinstance(earnings_date, list):
-                                earnings_date = [earnings_date]
-                            # Format dates
-                            formatted_dates = [
-                                self._format_date(date)
-                                for date in earnings_date
-                                if date is not None
-                            ]
-                            # Sort dates in descending order
-                            formatted_dates.sort(reverse=True)
-                            # Return the dates we have
+                # Try quarterly earnings as fallback
+                try:
+                    quarterly_earnings = getattr(ticker_obj, "quarterly_earnings", None)
+                    if quarterly_earnings is not None and not quarterly_earnings.empty:
+                        import pandas as pd
+                        # Filter for past dates only
+                        today = pd.Timestamp.now().normalize()
+                        quarterly_index_normalized = quarterly_earnings.index.normalize()
+                        past_quarterly = quarterly_earnings[quarterly_index_normalized < today]
+                        
+                        if not past_quarterly.empty:
+                            # Sort past dates in descending order (most recent first)
+                            sorted_dates = past_quarterly.index.sort_values(ascending=False)
+                            
+                            # Format the dates and return last two
+                            formatted_dates = [date.strftime("%Y-%m-%d") for date in sorted_dates]
+                            
                             if len(formatted_dates) >= 2:
                                 result = (formatted_dates[0], formatted_dates[1])
-                                default_cache_manager.set(
-                                    cache_key, result, data_type="earnings_data"
-                                )
-                                logger.debug(f"Cached earnings dates for {ticker}")
+                                default_cache_manager.set(cache_key, result, data_type="earnings_data")
+                                logger.debug(f"Cached quarterly earnings dates for {ticker}: {result}")
                                 return result
                             elif len(formatted_dates) == 1:
                                 result = (formatted_dates[0], None)
-                                default_cache_manager.set(
-                                    cache_key, result, data_type="earnings_data"
-                                )
-                                logger.debug(f"Cached earnings dates for {ticker}")
+                                default_cache_manager.set(cache_key, result, data_type="earnings_data")
+                                logger.debug(f"Cached quarterly earnings dates for {ticker}: {result}")
                                 return result
-                    except Exception as e:
-                        logger.debug(
-                            f"Error getting earnings date from info for {ticker}: {str(e)}"
-                        )
+                except Exception as e:
+                    logger.debug(f"Error getting quarterly earnings dates for {ticker}: {str(e)}")
 
-                    result = (None, None)
-                    default_cache_manager.set(cache_key, result, data_type="earnings_data")
-                    logger.debug(f"Cached empty earnings dates for {ticker}")
-                    return result
 
-                earnings_date = calendar[COLUMN_NAMES["EARNINGS_DATE"]]
-
-                # Convert to list even if there's only one date
-                if not isinstance(earnings_date, list):
-                    earnings_date = [earnings_date]
-
-                # Format dates
-                formatted_dates = [
-                    self._format_date(date) for date in earnings_date if date is not None
-                ]
-
-                # Sort dates in descending order
-                formatted_dates.sort(reverse=True)
-
-                # Return the last two earnings dates
-                if len(formatted_dates) >= 2:
-                    result = (formatted_dates[0], formatted_dates[1])
-                    default_cache_manager.set(cache_key, result, data_type="earnings_data")
-                    logger.debug(f"Cached earnings dates for {ticker}")
-                    return result
-                elif len(formatted_dates) == 1:
-                    result = (formatted_dates[0], None)
-                    default_cache_manager.set(cache_key, result, data_type="earnings_data")
-                    logger.debug(f"Cached earnings dates for {ticker}")
-                    return result
-                else:
-                    result = (None, None)
-                    default_cache_manager.set(cache_key, result, data_type="earnings_data")
-                    logger.debug(f"Cached empty earnings dates for {ticker}")
-                    return result
+                # If all methods fail, return None
+                result = (None, None)
+                default_cache_manager.set(cache_key, result, data_type="earnings_data")
+                logger.debug(f"No earnings dates found for {ticker}, cached empty result")
+                return result
 
             except RateLimitError as rate_error:
                 # Specific handling for rate limits - just re-raise YFinanceError("An error occurred")
@@ -880,31 +871,7 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         logger.debug(f"Getting last earnings date for {ticker_symbol}")
         
         try:
-            # Try quarterly income statement first - this is the most reliable source
-            quarterly_income = getattr(ticker_obj, "quarterly_income_stmt", None)
-            if quarterly_income is not None and not quarterly_income.empty:
-                # Get the most recent quarter date
-                latest_date = quarterly_income.columns[0]  # Most recent is first column
-                result = latest_date.strftime("%Y-%m-%d")
-                logger.debug(f"Found last earnings date from quarterly_income_stmt for {ticker_symbol}: {result}")
-                return result
-        except Exception as e:
-            logger.debug(f"Error getting earnings from quarterly_income_stmt: {str(e)}")
-        
-        try:
-            # Try quarterly earnings second - this should contain historical earnings dates
-            quarterly_earnings = getattr(ticker_obj, "quarterly_earnings", None)
-            if quarterly_earnings is not None and not quarterly_earnings.empty:
-                # Get the most recent earnings date from quarterly earnings
-                latest_date = quarterly_earnings.index.max()
-                result = latest_date.strftime("%Y-%m-%d")
-                logger.debug(f"Found last earnings date from quarterly_earnings for {ticker_symbol}: {result}")
-                return result
-        except Exception as e:
-            logger.debug(f"Error getting last earnings date from quarterly_earnings: {str(e)}")
-        
-        try:
-            # Try earnings_dates attribute
+            # Try earnings_dates attribute FIRST - this contains actual earnings announcement dates
             earnings_dates = getattr(ticker_obj, "earnings_dates", None)
             if earnings_dates is not None and not earnings_dates.empty:
                 import pandas as pd
@@ -924,6 +891,30 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                     logger.debug(f"No past earnings dates found in earnings_dates for {ticker_symbol}")
         except Exception as e:
             logger.debug(f"Error getting last earnings date from earnings_dates: {str(e)}")
+
+        try:
+            # Try quarterly earnings second - this should contain historical earnings dates
+            quarterly_earnings = getattr(ticker_obj, "quarterly_earnings", None)
+            if quarterly_earnings is not None and not quarterly_earnings.empty:
+                # Get the most recent earnings date from quarterly earnings
+                latest_date = quarterly_earnings.index.max()
+                result = latest_date.strftime("%Y-%m-%d")
+                logger.debug(f"Found last earnings date from quarterly_earnings for {ticker_symbol}: {result}")
+                return result
+        except Exception as e:
+            logger.debug(f"Error getting last earnings date from quarterly_earnings: {str(e)}")
+        
+        try:
+            # Try quarterly income statement as fallback - gives fiscal quarter end dates, not announcement dates
+            quarterly_income = getattr(ticker_obj, "quarterly_income_stmt", None)
+            if quarterly_income is not None and not quarterly_income.empty:
+                # Get the most recent quarter date
+                latest_date = quarterly_income.columns[0]  # Most recent is first column
+                result = latest_date.strftime("%Y-%m-%d")
+                logger.debug(f"Found last earnings date from quarterly_income_stmt for {ticker_symbol}: {result}")
+                return result
+        except Exception as e:
+            logger.debug(f"Error getting earnings from quarterly_income_stmt: {str(e)}")
         
         try:
             # Try calendar last - this might contain future dates  

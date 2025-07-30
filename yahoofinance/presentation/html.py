@@ -951,23 +951,24 @@ class HTMLGenerator:
         formatted_df = df.copy()
 
         # Map internal column names to display names (if they're not already mapped)
+        from ..core.config import COLUMN_NAMES
         column_mapping = {
-            "buy_percentage": "% BUY",
+            "buy_percentage": COLUMN_NAMES['BUY_PERCENTAGE'],
             "ticker": "TICKER",
             "company": "COMPANY",
             "market_cap": "CAP",
             "price": "PRICE",
             "target_price": "TARGET",
             "upside": "UPSIDE",
-            "analyst_count": "# T",
-            "total_ratings": "# A",
+            "analyst_count": COLUMN_NAMES['ANALYST_COUNT'],
+            "total_ratings": COLUMN_NAMES['TOTAL_RATINGS'],
             "rating_type": "A",
             "expected_return": "EXRET",
             "beta": "BETA",
             "pe_trailing": "PET",
             "pe_forward": "PEF",
             "peg_ratio": "PEG",
-            "dividend_yield": "DIV %",
+            "dividend_yield": COLUMN_NAMES['DIVIDEND_YIELD_DISPLAY'],
             "short_float_pct": "SI",
             "short_percent": "SI",
             "last_earnings": "EARNINGS",
