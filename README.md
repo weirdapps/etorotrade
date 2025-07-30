@@ -9,7 +9,7 @@
 
 ![eToro Trade Analysis Tool](docs/assets/etorotrade.png)
 
-etorotrade is a Python-based investment analysis system that helps you make smarter trading decisions by analyzing financial data, analyst ratings, and technical indicators from Yahoo Finance. Whether you're managing a portfolio or searching for new opportunities, etorotrade provides actionable insights with clear BUY, SELL, or HOLD recommendations.
+etorotrade is a comprehensive Python-based investment analysis system that helps you make smarter trading decisions by analyzing financial data, analyst ratings, and technical indicators from Yahoo Finance. The system features a sophisticated hybrid provider architecture, comprehensive dual-listed stock support, and advanced trading criteria to provide actionable insights with clear BUY, SELL, or HOLD recommendations.
 
 ## 🎩 Features
 
@@ -17,10 +17,20 @@ etorotrade is a Python-based investment analysis system that helps you make smar
 - **Market Screening**: Discover promising stocks across US, European, and Chinese markets
 - **Multi-Asset Support**: Analyze stocks, ETFs, commodities (Gold, Oil, Silver), and cryptocurrencies
 - **Trade Recommendations**: Get clear BUY, SELL, or HOLD guidance with detailed reasoning
+- **Dual-Listed Stock Support**: Comprehensive handling of stocks listed on multiple exchanges (e.g., ASML.NV)
+- **Hybrid Data Provider**: Intelligent fallback system combining YFinance and YahooQuery for maximum data reliability
+- **Advanced Trading Criteria**: Sophisticated multi-tier criteria system (Value, Growth, Bets tiers)
 - **News & Sentiment**: Track market-moving news and sentiment analysis
 - **Insider Activity**: Follow institutional and insider transactions
 - **Backtesting**: Test your strategies against historical data to optimize performance
 - **Performance Tracking**: Monitor how your portfolio and markets are performing
+
+## 🔄 Recent Improvements
+
+- **Fixed ASML Ticker Display Issue**: Resolved ticker normalization in display pipeline to show proper tickers (e.g., "ASML.NV" instead of "ASML")
+- **Enhanced Test Coverage**: Comprehensive test suite with vectorized action calculation tests
+- **Code Cleanup**: Removed legacy files and improved codebase organization
+- **Improved Error Handling**: Better handling of edge cases in trading criteria evaluation
 
 ## 🏁 Quick Start
 

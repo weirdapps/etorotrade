@@ -204,15 +204,16 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             # First try with YFinance using mapped ticker
             yf_data = self.yf_provider.get_ticker_info(mapped_ticker, skip_insider_metrics)
             
-            # Ensure we use normalized ticker in the response
-            yf_data["symbol"] = display_ticker
-            yf_data["ticker"] = display_ticker
-
             # Mark data source
             yf_data["data_source"] = "YFinance"
 
             # Supplement with YahooQuery if needed (using mapped ticker)
             combined_data = self._supplement_with_yahooquery(mapped_ticker, yf_data)
+            
+            # IMPORTANT: Ensure we use normalized ticker in the response AFTER all data processing
+            # This fixes dual-listed stock display (e.g., ASML.NV showing as ASML)
+            combined_data["symbol"] = display_ticker
+            combined_data["ticker"] = display_ticker
 
             # Record total processing time
             combined_data["processing_time"] = time.time() - start_time
