@@ -5,7 +5,7 @@ Tests for the calculate_action function in trade.py
 import pandas as pd
 import pytest
 
-from trade import calculate_action
+from trade_modules.analysis_engine import calculate_action
 
 
 @pytest.fixture
@@ -75,15 +75,15 @@ def test_calculate_action(sample_data):
     """Test that actions are calculated correctly."""
     result = calculate_action(sample_data)
 
-    # Check that ACT column was added (not ACTION)
-    assert "ACT" in result.columns
+    # Check that BS column was added (not ACTION)
+    assert "BS" in result.columns
 
     # Check specific tickers got correct actions
-    assert result.loc[result["ticker"] == "BUY", "ACT"].iloc[0] == "B"
-    assert result.loc[result["ticker"] == "SELL", "ACT"].iloc[0] == "S"
+    assert result.loc[result["ticker"] == "BUY", "BS"].iloc[0] == "B"
+    assert result.loc[result["ticker"] == "SELL", "BS"].iloc[0] == "S"
     assert (
-        result.loc[result["ticker"] == "HOLD", "ACT"].iloc[0] == "H"
+        result.loc[result["ticker"] == "HOLD", "BS"].iloc[0] == "H"
     )  # EXRET = 8.0 is between SELL_MAX_EXRET (5.0) and BUY_MIN_EXRET (15.0)
     assert (
-        result.loc[result["ticker"] == "LOWCONF", "ACT"].iloc[0] == "I"
-    )  # 'I' for Inconclusive due to low confidence
+        result.loc[result["ticker"] == "LOWCONF", "BS"].iloc[0] == "S"
+    )  # 'S' for SELL due to low analyst confidence triggering sell conditions

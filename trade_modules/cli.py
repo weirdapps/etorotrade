@@ -16,15 +16,19 @@ logger = logging.getLogger(__name__)
 def get_user_source_choice() -> str:
     """
     Get user's choice for data source.
-    
+
     Returns:
         str: User's choice (P, M, E, T, or I)
     """
     try:
-        source = input(
-            "Load tickers for Portfolio (P), Market (M), eToro Market (E), Trade Analysis (T) or Manual Input (I)? "
-        ).strip().upper()
-        
+        source = (
+            input(
+                "Load tickers for Portfolio (P), Market (M), eToro Market (E), Trade Analysis (T) or Manual Input (I)? "
+            )
+            .strip()
+            .upper()
+        )
+
         return source
     except EOFError:
         # For testing in non-interactive environments, default to Manual Input
@@ -35,16 +39,20 @@ def get_user_source_choice() -> str:
 def get_portfolio_choice() -> str:
     """
     Get user's choice for portfolio handling.
-    
+
     Returns:
         str: User's choice (E for existing, N for new)
     """
     while True:
         try:
-            choice = input("Use existing portfolio file (E) or download new one (N)? ").strip().upper()
+            choice = (
+                input("Use existing portfolio file (E) or download new one (N)? ").strip().upper()
+            )
             if choice in ["E", "N"]:
                 return choice
-            print("Invalid choice. Please enter 'E' to use existing file or 'N' to download a new one.")
+            print(
+                "Invalid choice. Please enter 'E' to use existing file or 'N' to download a new one."
+            )
         except EOFError:
             print("Non-interactive environment detected, defaulting to existing file (E)")
             return "E"
@@ -53,12 +61,16 @@ def get_portfolio_choice() -> str:
 def get_trade_analysis_choice() -> str:
     """
     Get user's choice for trade analysis type.
-    
+
     Returns:
         str: User's choice (B, S, or H)
     """
     try:
-        choice = input("Do you want to identify BUY (B), SELL (S), or HOLD (H) opportunities? ").strip().upper()
+        choice = (
+            input("Do you want to identify BUY (B), SELL (S), or HOLD (H) opportunities? ")
+            .strip()
+            .upper()
+        )
         return choice
     except EOFError:
         print("Non-interactive environment detected, defaulting to BUY analysis (B)")
@@ -67,18 +79,18 @@ def get_trade_analysis_choice() -> str:
 
 def display_welcome_message():
     """Display welcome message and basic instructions."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("🚀 ETOROTRADE - Investment Analysis Tool")
-    print("="*60)
+    print("=" * 60)
     print("📊 Analyze your portfolio and find trading opportunities")
     print("💡 Based on analyst consensus and financial metrics")
-    print("="*60)
+    print("=" * 60)
 
 
 def display_analysis_complete_message(analysis_type: str, file_path: str = None):
     """
     Display completion message for analysis.
-    
+
     Args:
         analysis_type: Type of analysis completed
         file_path: Path to output file (optional)
@@ -86,13 +98,13 @@ def display_analysis_complete_message(analysis_type: str, file_path: str = None)
     print(f"\n✅ {analysis_type} analysis completed successfully!")
     if file_path:
         print(f"📁 Results saved to: {file_path}")
-    print("="*60)
+    print("=" * 60)
 
 
 def display_error_message(error_msg: str, context: str = None):
     """
     Display formatted error message.
-    
+
     Args:
         error_msg: Error message to display
         context: Optional context information
@@ -106,7 +118,7 @@ def display_error_message(error_msg: str, context: str = None):
 def display_info_message(message: str, with_emoji: bool = True):
     """
     Display formatted info message.
-    
+
     Args:
         message: Information message to display
         with_emoji: Whether to include emoji
@@ -118,11 +130,11 @@ def display_info_message(message: str, with_emoji: bool = True):
 def confirm_action(prompt: str, default: bool = False) -> bool:
     """
     Ask user to confirm an action.
-    
+
     Args:
         prompt: Confirmation prompt
         default: Default value if user just presses enter
-        
+
     Returns:
         bool: True if user confirms, False otherwise
     """
@@ -131,7 +143,7 @@ def confirm_action(prompt: str, default: bool = False) -> bool:
         response = input(f"{prompt}{suffix}: ").strip().lower()
         if not response:
             return default
-        return response in ['y', 'yes', 'true', '1']
+        return response in ["y", "yes", "true", "1"]
     except EOFError:
         return default
 
@@ -150,11 +162,11 @@ def display_menu_options():
 def validate_user_choice(choice: str, valid_choices: list) -> bool:
     """
     Validate user's choice against valid options.
-    
+
     Args:
         choice: User's input
         valid_choices: List of valid choices
-        
+
     Returns:
         bool: True if choice is valid
     """
@@ -164,7 +176,7 @@ def validate_user_choice(choice: str, valid_choices: list) -> bool:
 def get_manual_tickers() -> list:
     """
     Get manually entered tickers from user.
-    
+
     Returns:
         list: List of ticker symbols
     """
@@ -172,14 +184,14 @@ def get_manual_tickers() -> list:
         ticker_input = input("Enter comma-separated tickers (e.g., AAPL,MSFT,GOOGL): ").strip()
         if not ticker_input:
             return []
-        
+
         # Clean and validate tickers
-        tickers = [ticker.strip().upper() for ticker in ticker_input.split(',')]
+        tickers = [ticker.strip().upper() for ticker in ticker_input.split(",")]
         tickers = [ticker for ticker in tickers if ticker]  # Remove empty strings
-        
+
         if tickers:
             print(f"✅ Processing {len(tickers)} tickers: {', '.join(tickers)}")
-        
+
         return tickers
     except EOFError:
         print("Non-interactive environment detected, no manual tickers entered")
@@ -189,7 +201,7 @@ def get_manual_tickers() -> list:
 def display_processing_status(current: int, total: int, item_name: str = "item"):
     """
     Display processing status without using progress bars.
-    
+
     Args:
         current: Current item number
         total: Total number of items
@@ -202,7 +214,7 @@ def display_processing_status(current: int, total: int, item_name: str = "item")
 def display_results_summary(results_count: int, results_type: str = "results"):
     """
     Display summary of results.
-    
+
     Args:
         results_count: Number of results found
         results_type: Type of results (e.g., "buy opportunities", "sell candidates")
@@ -217,47 +229,47 @@ def display_results_summary(results_count: int, results_type: str = "results"):
 
 class CLIManager:
     """Manages CLI interactions and user flow."""
-    
+
     def __init__(self):
         self.logger = logging.getLogger(f"{__name__}.CLIManager")
-    
+
     def run_interactive_session(self):
         """Run an interactive CLI session."""
         display_welcome_message()
         display_menu_options()
-        
+
         choice = get_user_source_choice()
         self.logger.info(f"User selected: {choice}")
-        
+
         return choice
-    
+
     def handle_portfolio_flow(self):
         """Handle portfolio analysis flow."""
         display_info_message("Starting portfolio analysis...")
-        
+
         # Get portfolio choice
         portfolio_choice = get_portfolio_choice()
         self.logger.info(f"Portfolio choice: {portfolio_choice}")
-        
+
         return portfolio_choice
-    
+
     def handle_trade_analysis_flow(self):
         """Handle trade analysis flow."""
         display_info_message("Starting trade analysis...")
-        
+
         # Get trade analysis choice
         trade_choice = get_trade_analysis_choice()
         self.logger.info(f"Trade analysis choice: {trade_choice}")
-        
+
         return trade_choice
-    
+
     def handle_manual_input_flow(self):
         """Handle manual ticker input flow."""
         display_info_message("Manual ticker input mode")
-        
+
         tickers = get_manual_tickers()
         self.logger.info(f"Manual tickers entered: {len(tickers)}")
-        
+
         return tickers
 
 

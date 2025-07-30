@@ -189,20 +189,39 @@ except ImportError:
         "API_TIMEOUT": 30,
         "MAX_RETRY_ATTEMPTS": 3,
     }
-    TRADING_CRITERIA = {
-        "CONFIDENCE": {
-            "MIN_ANALYST_COUNT": 5,
-            "MIN_PRICE_TARGETS": 5,
-        },
-        "BUY": {
-            "MIN_UPSIDE": 20.0,
-            "MIN_BUY_PERCENTAGE": 85.0,
-        },
-        "SELL": {
-            "MAX_UPSIDE": 5.0,
-            "MIN_BUY_PERCENTAGE": 65.0,
-        },
-    }
+    # Import TradingCriteria to get current settings
+    try:
+        from ..trade_criteria_config import TradingCriteria
+        TRADING_CRITERIA = {
+            "CONFIDENCE": {
+                "MIN_ANALYST_COUNT": TradingCriteria.MIN_ANALYST_COUNT,
+                "MIN_PRICE_TARGETS": TradingCriteria.MIN_PRICE_TARGETS,
+            },
+            "BUY": {
+                "MIN_UPSIDE": TradingCriteria.GROWTH_BUY_MIN_UPSIDE,  # Use GROWTH as default
+                "MIN_BUY_PERCENTAGE": TradingCriteria.GROWTH_BUY_MIN_BUY_PERCENTAGE,
+            },
+            "SELL": {
+                "MAX_UPSIDE": TradingCriteria.SELL_MAX_UPSIDE,
+                "MIN_BUY_PERCENTAGE": TradingCriteria.SELL_MIN_BUY_PERCENTAGE,
+            },
+        }
+    except ImportError:
+        # Fallback to old values if import fails
+        TRADING_CRITERIA = {
+            "CONFIDENCE": {
+                "MIN_ANALYST_COUNT": 5,
+                "MIN_PRICE_TARGETS": 5,
+            },
+            "BUY": {
+                "MIN_UPSIDE": 20.0,
+                "MIN_BUY_PERCENTAGE": 85.0,
+            },
+            "SELL": {
+                "MAX_UPSIDE": 5.0,
+                "MIN_BUY_PERCENTAGE": 65.0,
+            },
+        }
     PORTFOLIO_CONFIG = {
         "PORTFOLIO_VALUE": 450_000,
         "MIN_POSITION_USD": 1_000,
@@ -240,17 +259,17 @@ except ImportError:
     COLUMN_NAMES = {
         # Minimal fallback column names to prevent import errors
         "EARNINGS_DATE": "Earnings Date",
-        "BUY_PERCENTAGE": "% BUY",
-        "DIVIDEND_YIELD_DISPLAY": "DIV %",
+        "BUY_PERCENTAGE": "%BUY",
+        "DIVIDEND_YIELD_DISPLAY": "DIV%",
         "COMPANY_NAME": "COMPANY",
         "TICKER": "TICKER",
         "MARKET_CAP": "CAP",
         "PRICE": "PRICE",
         "TARGET_PRICE": "TARGET",
         "UPSIDE": "UPSIDE",
-        "ANALYST_COUNT": "# T",
-        "TOTAL_RATINGS": "# A",
-        "ACTION": "ACT",
+        "ANALYST_COUNT": "#T",
+        "TOTAL_RATINGS": "#A",
+        "ACTION": "BS",
         "POSITION_SIZE": "SIZE",
         "RATING_TYPE": "A",
         "EXPECTED_RETURN": "EXRET",
@@ -335,23 +354,23 @@ except ImportError:
         "PRICE",
         "TARGET",
         "UPSIDE",
-        "# T",
-        "% BUY",
-        "# A",
+        "#T",
+        "%BUY",
+        "#A",
         "A",
         "EXRET",
         "BETA",
         "PET",
         "PEF",
         "PEG",
-        "DIV %",
+        "DIV%",
         "SI",
         "EG",
         "PP",
         "EARNINGS",
         "SIZE",
         "M",
-        "ACT",
+        "BS",
     ]
     # Missing config constants for backward compatibility
     RISK_METRICS = {

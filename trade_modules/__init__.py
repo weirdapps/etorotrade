@@ -19,35 +19,46 @@ __author__ = "etorotrade"
 from .utils import get_file_paths, format_market_cap_value
 from .cli import get_user_choice, display_menu, get_user_source_choice, CLIManager
 from .data_processor import (
-    process_market_data, format_company_names, format_numeric_columns, 
-    calculate_expected_return, DataProcessor
+    process_market_data,
+    format_company_names,
+    format_numeric_columns,
+    calculate_expected_return,
+    DataProcessor,
 )
 from .analysis_engine import (
-    calculate_exret, calculate_action, filter_buy_opportunities_wrapper,
-    filter_sell_candidates_wrapper, filter_hold_candidates_wrapper,
-    process_buy_opportunities, AnalysisEngine
+    calculate_exret,
+    calculate_action,
+    filter_buy_opportunities_wrapper,
+    filter_sell_candidates_wrapper,
+    filter_hold_candidates_wrapper,
+    process_buy_opportunities,
+    AnalysisEngine,
 )
 from .output_manager import (
-    display_and_save_results, create_empty_results_file, prepare_display_dataframe,
-    format_display_dataframe, export_results_to_files, OutputManager
+    display_and_save_results,
+    create_empty_results_file,
+    prepare_display_dataframe,
+    format_display_dataframe,
+    export_results_to_files,
+    OutputManager,
 )
 
 __all__ = [
     "get_file_paths",
     "format_market_cap_value",
     "get_user_choice",
-    "display_menu", 
+    "display_menu",
     "get_user_source_choice",
     "CLIManager",
     "process_market_data",
-    "format_company_names", 
+    "format_company_names",
     "format_numeric_columns",
     "calculate_expected_return",
     "DataProcessor",
     "calculate_exret",
     "calculate_action",
     "filter_buy_opportunities_wrapper",
-    "filter_sell_candidates_wrapper", 
+    "filter_sell_candidates_wrapper",
     "filter_hold_candidates_wrapper",
     "process_buy_opportunities",
     "AnalysisEngine",
@@ -56,5 +67,5 @@ __all__ = [
     "prepare_display_dataframe",
     "format_display_dataframe",
     "export_results_to_files",
-    "OutputManager"
+    "OutputManager",
 ]

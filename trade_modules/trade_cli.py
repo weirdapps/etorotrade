@@ -31,7 +31,7 @@ logger = get_logger(__name__)
 def parse_arguments():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description='Trading Analysis Tool',
+        description="Trading Analysis Tool",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -41,82 +41,89 @@ Examples:
   python trade.py -o m -t 10          # Market analysis with 10 stocks
   python trade.py -o t -t b           # Trade analysis for BUY opportunities
   python trade.py -o i -t AAPL,MSFT   # Manual input with specific tickers
-        """)
-    
-    parser.add_argument('-o', '--operation', 
-                       choices=['p', 'portfolio', 'm', 'market', 'e', 'etoro', 't', 'trade', 'i', 'input'],
-                       help='Operation mode: (p)ortfolio, (m)arket, (e)toro, (t)rade analysis, (i)nput manual')
-    
-    parser.add_argument('-t', '--target',
-                       help='Target parameter: tickers for manual input, number for market, n/e for portfolio, b/s/h for trade')
-    
-    parser.add_argument('--validate-config', action='store_true',
-                       help='Validate configuration and exit')
-    
+        """,
+    )
+
+    parser.add_argument(
+        "-o",
+        "--operation",
+        choices=["p", "portfolio", "m", "market", "e", "etoro", "t", "trade", "i", "input"],
+        help="Operation mode: (p)ortfolio, (m)arket, (e)toro, (t)rade analysis, (i)nput manual",
+    )
+
+    parser.add_argument(
+        "-t",
+        "--target",
+        help="Target parameter: tickers for manual input, number for market, n/e for portfolio, b/s/h for trade",
+    )
+
+    parser.add_argument(
+        "--validate-config", action="store_true", help="Validate configuration and exit"
+    )
+
     # Legacy support for "trade.py i ticker1 ticker2" format
-    parser.add_argument('legacy_args', nargs='*',
-                       help='Legacy arguments for manual input mode')
-    
+    parser.add_argument("legacy_args", nargs="*", help="Legacy arguments for manual input mode")
+
     return parser.parse_args()
 
 
 class ConfigurationValidator:
     """Validates system configuration and environment variables."""
-    
+
     def __init__(self):
         self.errors = []
         self.warnings = []
-    
+
     def validate_environment_variables(self) -> bool:
         """Validate required environment variables with proper sanitization."""
         required_vars = []  # Add required env vars here
-        
+
         for var in required_vars:
             value = os.getenv(var)
             if not value:
                 self.errors.append(f"Missing required environment variable: {var}")
                 continue
-            
+
             # Validate environment variable value
             if not self._is_safe_env_value(value):
                 self.errors.append(f"Environment variable {var} contains unsafe characters")
-        
+
         return len(self.errors) == 0
-    
+
     def _is_safe_env_value(self, value: str) -> bool:
         """Check if environment variable value is safe."""
         # Add validation logic for environment variables
         if not value or len(value) > 1000:  # Reasonable length limit
             return False
-        
+
         # Check for obvious injection attempts
-        dangerous_patterns = ['$(', '`', '&&', '||', ';', '|']
+        dangerous_patterns = ["$(", "`", "&&", "||", ";", "|"]
         return not any(pattern in value for pattern in dangerous_patterns)
-    
+
     def validate_file_paths(self) -> bool:
         """Validate file paths using pathlib for security."""
         try:
             output_dir, input_dir, _, _, _ = get_file_paths()
-            
+
             # Use pathlib for secure path handling
             output_path = Path(output_dir).resolve()
             input_path = Path(input_dir).resolve()
-            
+
             # Ensure paths are within project directory
             project_root = Path.cwd().resolve()
-            
+
             if not self._is_safe_path(output_path, project_root):
                 self.errors.append(f"Output directory outside project: {output_path}")
-            
+
             if not self._is_safe_path(input_path, project_root):
                 self.errors.append(f"Input directory outside project: {input_path}")
-                
+
         except Exception as e:
             self.errors.append(f"Path validation error: {str(e)}")
             return False
-        
+
         return len(self.errors) == 0
-    
+
     def _is_safe_path(self, path: Path, project_root: Path) -> bool:
         """Check if path is safe (within project boundaries)."""
         try:
@@ -124,40 +131,40 @@ class ConfigurationValidator:
             return True
         except ValueError:
             return False
-    
+
     def print_validation_report(self) -> bool:
         """Print validation report and return success status."""
         self.errors.clear()
         self.warnings.clear()
-        
+
         self.validate_environment_variables()
         self.validate_file_paths()
-        
+
         # Silent validation - only return status
         return len(self.errors) == 0
 
 
 class ErrorSummaryCollector:
     """Collects and summarizes errors during execution."""
-    
+
     def __init__(self):
         self.errors = []
-    
+
     def add_error(self, error: str, context: str = ""):
         """Add error with context information."""
         error_entry = {"error": error, "context": context}
         self.errors.append(error_entry)
-    
+
     def get_summary(self) -> str:
         """Get formatted error summary."""
         if not self.errors:
             return ""
-        
+
         summary = "\n🔍 Error Summary:\n"
         for i, error_entry in enumerate(self.errors, 1):
-            context_str = f" ({error_entry['context']})" if error_entry['context'] else ""
+            context_str = f" ({error_entry['context']})" if error_entry["context"] else ""
             summary += f"  {i}. {error_entry['error']}{context_str}\n"
-        
+
         return summary
 
 
@@ -188,24 +195,24 @@ async def handle_trade_analysis(get_provider=None, app_logger=None):
                 provider = get_provider
         else:
             provider = get_provider_instance()
-        
+
         # Run market analysis using trade modules
         from trade import run_market_analysis
         from trade_modules.utils import get_file_paths
         import pandas as pd
-        
+
         # Load market data
         paths = get_file_paths()
         market_df = pd.read_csv(paths[2])  # market.csv path
-        
+
         # Run analysis
         opportunities = run_market_analysis(market_df, provider)
-        
+
         if app_logger:
             app_logger.info("Trade analysis completed successfully")
-        
+
         return opportunities
-        
+
     except Exception as e:
         if app_logger:
             app_logger.error(f"Trade analysis failed: {str(e)}")
@@ -215,7 +222,7 @@ async def handle_trade_analysis(get_provider=None, app_logger=None):
 async def handle_trade_analysis_direct(display, trade_choice, get_provider=None, app_logger=None):
     """
     Handle trade analysis by using existing data from CSV files (no API calls).
-    
+
     Args:
         display: MarketDisplay instance
         trade_choice: Trade choice (B, S, or H)
@@ -225,75 +232,79 @@ async def handle_trade_analysis_direct(display, trade_choice, get_provider=None,
     import pandas as pd
     import os
     from trade_modules.utils import get_file_paths
-    
+
     try:
         # Get file paths
         output_dir, input_dir, market_file, portfolio_file, _ = get_file_paths()
-        
+
         # Determine which file to load and filter logic
         if trade_choice == "B":
             # BUY: Check market.csv for buy opportunities NOT in portfolio or sell files
             data_file = market_file
-            # Include both input portfolio (complete list) and output portfolio (processed list) 
+            # Include both input portfolio (complete list) and output portfolio (processed list)
             # plus sell file and notrade file for comprehensive exclusion
             input_portfolio_file = os.path.join(input_dir, "portfolio.csv")
             notrade_file = os.path.join(input_dir, "notrade.csv")
             exclusion_files = [
                 input_portfolio_file,  # Complete portfolio from input (includes international stocks)
-                portfolio_file,        # Processed portfolio from output (for any additional processed stocks)
+                portfolio_file,  # Processed portfolio from output (for any additional processed stocks)
                 os.path.join(output_dir, "sell.csv"),  # Stocks marked for selling
-                notrade_file          # Stocks explicitly marked as notrade
+                notrade_file,  # Stocks explicitly marked as notrade
             ]
             title = "Trade Analysis - BUY Opportunities (Market data excluding portfolio/notrade)"
             output_filename = "buy.csv"
             if app_logger:
                 app_logger.info("Loading market data for BUY opportunities analysis")
-            
+
         elif trade_choice == "S":
-            # SELL: Use output portfolio file which contains processed data with action signals (ACT column)
-            data_file = portfolio_file  # This points to output/portfolio.csv with ACT column
+            # SELL: Use output portfolio file which contains processed data with action signals (BS column)
+            data_file = portfolio_file  # This points to output/portfolio.csv with BS column
             exclusion_files = []
             title = "Trade Analysis - SELL Opportunities (Portfolio with action analysis)"
             output_filename = "sell.csv"
             if app_logger:
                 app_logger.info("Loading processed portfolio data for SELL opportunities analysis")
-            
+
         elif trade_choice == "H":
-            # HOLD: Use output portfolio file which contains processed data with action signals (ACT column)
-            data_file = portfolio_file  # This points to output/portfolio.csv with ACT column
+            # HOLD: Use output portfolio file which contains processed data with action signals (BS column)
+            data_file = portfolio_file  # This points to output/portfolio.csv with BS column
             exclusion_files = []  # Don't exclude anything - we want to analyze our portfolio
             title = "Trade Analysis - HOLD Opportunities (Portfolio with action analysis)"
             output_filename = "hold.csv"
             if app_logger:
                 app_logger.info("Loading processed portfolio data for HOLD opportunities analysis")
-            
+
         else:
             if app_logger:
                 app_logger.error(f"Invalid trade choice: {trade_choice}")
             return
-        
+
         # Check if data file exists
         if not os.path.exists(data_file):
             if app_logger:
                 app_logger.error(f"Data file not found: {data_file}")
             return
-        
+
         # Load and process data directly from CSV without API calls
-        await display_existing_csv_data(data_file, exclusion_files, title, output_filename, trade_choice, app_logger)
-        
+        await display_existing_csv_data(
+            data_file, exclusion_files, title, output_filename, trade_choice, app_logger
+        )
+
         if app_logger:
             app_logger.info(f"Trade analysis {trade_choice} completed successfully")
-        
+
     except Exception as e:
         if app_logger:
             app_logger.error(f"Trade analysis direct failed: {str(e)}")
         raise
 
 
-async def display_existing_csv_data(data_file, exclusion_files, title, output_filename, trade_choice, app_logger):
+async def display_existing_csv_data(
+    data_file, exclusion_files, title, output_filename, trade_choice, app_logger
+):
     """
     Display existing CSV data with filtering and trade action analysis (no API calls).
-    
+
     Args:
         data_file: Path to main data file
         exclusion_files: List of files containing tickers to exclude
@@ -305,16 +316,16 @@ async def display_existing_csv_data(data_file, exclusion_files, title, output_fi
     import pandas as pd
     import os
     from trade_modules.utils import get_file_paths
-    
+
     try:
         # Load the main data file
         df = pd.read_csv(data_file)
         if app_logger:
             app_logger.info(f"Loaded {len(df)} records from {data_file}")
-        
+
         if df.empty:
             return
-        
+
         # Load exclusion tickers if needed
         exclusion_tickers = set()
         if exclusion_files:
@@ -322,23 +333,25 @@ async def display_existing_csv_data(data_file, exclusion_files, title, output_fi
                 if os.path.exists(exclusion_file):
                     try:
                         excl_df = pd.read_csv(exclusion_file)
-                        if 'symbol' in excl_df.columns:
-                            exclusion_tickers.update(excl_df['symbol'].astype(str).str.upper())
-                        elif 'TICKER' in excl_df.columns:
-                            exclusion_tickers.update(excl_df['TICKER'].astype(str).str.upper())
+                        if "symbol" in excl_df.columns:
+                            exclusion_tickers.update(excl_df["symbol"].astype(str).str.upper())
+                        elif "TICKER" in excl_df.columns:
+                            exclusion_tickers.update(excl_df["TICKER"].astype(str).str.upper())
                         if app_logger:
-                            app_logger.info(f"Loaded {len(excl_df)} exclusion tickers from {exclusion_file}")
+                            app_logger.info(
+                                f"Loaded {len(excl_df)} exclusion tickers from {exclusion_file}"
+                            )
                     except Exception as e:
                         pass  # Silent error handling
-        
+
         # Apply exclusion filtering only for BUY and HOLD (not for SELL) using ticker equivalence
         if exclusion_tickers and trade_choice in ["B", "H"]:
             original_count = len(df)
-            ticker_col = 'symbol' if 'symbol' in df.columns else 'TICKER'
+            ticker_col = "symbol" if "symbol" in df.columns else "TICKER"
             if ticker_col in df.columns:
                 # Create mask using ticker equivalence checking
                 mask = pd.Series(True, index=df.index)
-                
+
                 for idx, row in df.iterrows():
                     market_ticker = str(row[ticker_col]) if pd.notna(row[ticker_col]) else ""
                     if market_ticker:
@@ -349,25 +362,34 @@ async def display_existing_csv_data(data_file, exclusion_files, title, output_fi
                         )
                         if is_excluded:
                             mask.iloc[idx] = False
-                
+
                 df = df[mask]
                 if app_logger:
-                    app_logger.info(f"After exclusion filtering via equivalence: {len(df)} records (excluded {original_count - len(df)})")
+                    app_logger.info(
+                        f"After exclusion filtering via equivalence: {len(df)} records (excluded {original_count - len(df)})"
+                    )
         elif trade_choice == "S":
             if app_logger:
-                app_logger.info(f"Processing portfolio data for SELL opportunities: {len(df)} records")
-        
+                app_logger.info(
+                    f"Processing portfolio data for SELL opportunities: {len(df)} records"
+                )
+
         # Apply trade action filtering to existing data
         if not df.empty:
             try:
                 # Calculate actions for all rows
                 from yahoofinance.utils.trade_criteria import calculate_action_for_row
+
                 actions = []
                 filtered_rows = []
-                
+
                 for _, row in df.iterrows():
                     try:
-                        action, _ = calculate_action_for_row(row.to_dict(), {}, "short_percent")
+                        from yahoofinance.core.config import TRADING_CRITERIA
+
+                        action, _ = calculate_action_for_row(
+                            row.to_dict(), TRADING_CRITERIA, "short_percent"
+                        )
                         if action == trade_choice:
                             actions.append(action)
                             filtered_rows.append(row.to_dict())
@@ -376,59 +398,63 @@ async def display_existing_csv_data(data_file, exclusion_files, title, output_fi
                         if trade_choice == "H":
                             actions.append("H")
                             filtered_rows.append(row.to_dict())
-                
+
                 if filtered_rows:
                     # Use MarketDisplay to show the filtered data
                     from yahoofinance.presentation.console import MarketDisplay
                     from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
-                    
+
                     # Create a minimal provider (won't be used for API calls)
                     provider = AsyncHybridProvider(max_concurrency=1)
                     display = MarketDisplay(provider=provider)
-                    
+
                     # Display the results
                     display.display_stock_table(filtered_rows, title)
-                    
+
                     # Display processing statistics after the table
                     from yahoofinance.utils.async_utils.enhanced import display_processing_stats
+
                     display_processing_stats()
-                    
+
                     # Save to CSV
                     output_dir, _, _, _, _ = get_file_paths()
                     output_path = os.path.join(output_dir, output_filename)
                     display.save_to_csv(filtered_rows, output_filename)
-                    
+
                     if app_logger:
-                        app_logger.info(f"Displayed {len(filtered_rows)} {trade_choice} opportunities")
+                        app_logger.info(
+                            f"Displayed {len(filtered_rows)} {trade_choice} opportunities"
+                        )
                 else:
                     if app_logger:
                         app_logger.info(f"No {trade_choice} opportunities found after filtering")
-                    
+
             except Exception as e:
                 if app_logger:
                     app_logger.error(f"Error filtering trade actions: {e}")
                 # Fallback: display all data without action filtering
-                
+
                 # Convert DataFrame to list of dicts for display
-                all_data = df.to_dict('records')
+                all_data = df.to_dict("records")
                 from yahoofinance.presentation.console import MarketDisplay
                 from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
-                
+
                 provider = AsyncHybridProvider(max_concurrency=1)
                 display = MarketDisplay(provider=provider)
                 display.display_stock_table(all_data, title)
-                
+
                 # Display processing statistics after the table
                 from yahoofinance.utils.async_utils.enhanced import display_processing_stats
+
                 display_processing_stats()
-                
+
                 output_dir, _, _, _, _ = get_file_paths()
                 output_path = os.path.join(output_dir, output_filename)
                 display.save_to_csv(all_data, output_filename)
         else:
             if app_logger:
                 app_logger.info("No data remaining after exclusion filtering")
-            
+
     except Exception as e:
         if app_logger:
             app_logger.error(f"Error displaying CSV data: {e}")
@@ -449,7 +475,7 @@ async def handle_portfolio_download(get_provider=None, app_logger=None):
     try:
         # Import download functions
         from yahoofinance.data.download import download_portfolio
-        
+
         # Get provider instance
         if get_provider:
             if callable(get_provider):
@@ -458,28 +484,30 @@ async def handle_portfolio_download(get_provider=None, app_logger=None):
                 provider = get_provider
         else:
             provider = get_provider_instance()
-        
+
         # Download portfolio data
         success = await download_portfolio(provider)
-        
+
         if app_logger:
             if success:
                 app_logger.info("Portfolio download completed successfully")
             else:
                 app_logger.warning("Portfolio download failed or incomplete")
-        
+
         return bool(success)
-        
+
     except Exception as e:
         if app_logger:
             app_logger.error(f"Portfolio download failed: {str(e)}")
         return False
 
 
-async def display_market_report(display, tickers, source, verbose=False, get_provider=None, app_logger=None, trade_filter=None):
+async def display_market_report(
+    display, tickers, source, verbose=False, get_provider=None, app_logger=None, trade_filter=None
+):
     """
     Display market data report using MarketDisplay instance.
-    
+
     Args:
         display: MarketDisplay instance
         tickers: List of ticker symbols
@@ -491,26 +519,27 @@ async def display_market_report(display, tickers, source, verbose=False, get_pro
     """
     try:
         if app_logger:
-            app_logger.info(f"Displaying market report for {len(tickers)} tickers from source {source}")
-        
+            app_logger.info(
+                f"Displaying market report for {len(tickers)} tickers from source {source}"
+            )
+
         # Use the MarketDisplay instance to show the report
         # Since we're in an async context, call the async method directly
         await display._async_display_report(tickers, report_type=source, trade_filter=trade_filter)
-        
+
         if app_logger:
             app_logger.info("Market report displayed successfully")
-            
+
     except Exception as e:
         if app_logger:
             app_logger.error(f"Failed to display market report: {str(e)}")
         raise
 
 
-
 async def main_async(get_provider=None, app_logger=None):
     """
     Async main function for CLI interface.
-    
+
     Args:
         get_provider: Injected provider factory function
         app_logger: Injected logger component
@@ -522,7 +551,9 @@ async def main_async(get_provider=None, app_logger=None):
         if get_provider:
             if callable(get_provider):
                 provider = get_provider(async_mode=True, max_concurrency=10)
-                app_logger.info(f"Using injected provider from factory: {provider.__class__.__name__}")
+                app_logger.info(
+                    f"Using injected provider from factory: {provider.__class__.__name__}"
+                )
             else:
                 provider = get_provider
                 app_logger.info(f"Using injected provider instance: {provider.__class__.__name__}")
@@ -532,7 +563,9 @@ async def main_async(get_provider=None, app_logger=None):
 
         # Override provider with AsyncHybridProvider for consistency
         if not isinstance(provider, AsyncHybridProvider):
-            app_logger.info(f"Switching from {provider.__class__.__name__} to AsyncHybridProvider for consistency")
+            app_logger.info(
+                f"Switching from {provider.__class__.__name__} to AsyncHybridProvider for consistency"
+            )
             provider = AsyncHybridProvider(max_concurrency=10)
 
         app_logger.info("Creating MarketDisplay instance...")
@@ -549,13 +582,16 @@ async def main_async(get_provider=None, app_logger=None):
             app_logger.info("Handling portfolio flow...")
             # Import CLI functions for portfolio suboptions
             from .cli import get_portfolio_choice
+
             portfolio_choice = get_portfolio_choice()
             app_logger.info(f"Portfolio choice: {portfolio_choice}")
-            
+
             # Only download new portfolio if user chose N
             if portfolio_choice == "N":
                 app_logger.info("Downloading new portfolio...")
-                if not await handle_portfolio_download(get_provider=get_provider, app_logger=app_logger):
+                if not await handle_portfolio_download(
+                    get_provider=get_provider, app_logger=app_logger
+                ):
                     app_logger.error("Portfolio download failed")
                     return
                 app_logger.info("New portfolio download completed successfully")
@@ -568,9 +604,10 @@ async def main_async(get_provider=None, app_logger=None):
             app_logger.info("Handling trade analysis flow...")
             # Import CLI functions for trade analysis suboptions
             from .cli import get_trade_analysis_choice
+
             trade_choice = get_trade_analysis_choice()
             app_logger.info(f"Trade analysis choice: {trade_choice}")
-            
+
             # Load and display data directly from appropriate files
             await handle_trade_analysis_direct(display, trade_choice, get_provider, app_logger)
             return
@@ -583,7 +620,7 @@ async def main_async(get_provider=None, app_logger=None):
         app_logger.info("Displaying report...")
         # Pass verbose=True flag for eToro source and Manual Input due to special processing requirements
         verbose = source == "E" or source == "I"
-        
+
         # Display the market data report
         await display_market_report(
             display,
@@ -621,7 +658,7 @@ async def main_async(get_provider=None, app_logger=None):
 async def main_async_with_args(args, app_logger=None):
     """
     Handle parsed command line arguments in async context.
-    
+
     Args:
         args: Parsed command line arguments
         app_logger: Logger instance
@@ -640,80 +677,78 @@ async def main_async_with_args(args, app_logger=None):
 
         # Create display instance
         display = MarketDisplay(provider=provider)
-        
+
         # Handle portfolio operations
-        if args.operation in ['p', 'portfolio']:
+        if args.operation in ["p", "portfolio"]:
             if app_logger:
                 app_logger.info(f"Handling portfolio operation with target: {args.target}")
-            
+
             # Handle portfolio download if target is 'n'
-            if args.target == 'n':
+            if args.target == "n":
                 if app_logger:
                     app_logger.info("Downloading new portfolio...")
-                if not await handle_portfolio_download(get_provider=provider, app_logger=app_logger):
+                if not await handle_portfolio_download(
+                    get_provider=provider, app_logger=app_logger
+                ):
                     if app_logger:
                         app_logger.error("Portfolio download failed")
                     return
                 if app_logger:
                     app_logger.info("Portfolio download completed")
-                    
+
             # Display portfolio data
             tickers = display.load_tickers("P")
             await display_market_report(
-                display, tickers, "P", verbose=False,
-                get_provider=provider, app_logger=app_logger
+                display, tickers, "P", verbose=False, get_provider=provider, app_logger=app_logger
             )
-            
+
         # Handle trade analysis operations
-        elif args.operation in ['t', 'trade']:
-            trade_choice = args.target.upper() if args.target else 'B'
+        elif args.operation in ["t", "trade"]:
+            trade_choice = args.target.upper() if args.target else "B"
             if app_logger:
                 app_logger.info(f"Handling trade analysis: {trade_choice}")
-                
+
             await handle_trade_analysis_direct(display, trade_choice, provider, app_logger)
-            
+
         # Handle market operations
-        elif args.operation in ['m', 'market']:
+        elif args.operation in ["m", "market"]:
             num_stocks = int(args.target) if args.target and args.target.isdigit() else 50
             if app_logger:
                 app_logger.info(f"Handling market analysis for {num_stocks} stocks")
-                
+
             tickers = display.load_tickers("M")[:num_stocks]
             await display_market_report(
-                display, tickers, "M", verbose=False,
-                get_provider=provider, app_logger=app_logger
+                display, tickers, "M", verbose=False, get_provider=provider, app_logger=app_logger
             )
-            
+
         # Handle etoro operations
-        elif args.operation in ['e', 'etoro']:
+        elif args.operation in ["e", "etoro"]:
             if app_logger:
                 app_logger.info("Handling eToro analysis")
-                
+
             tickers = display.load_tickers("E")
             await display_market_report(
-                display, tickers, "E", verbose=True,
-                get_provider=provider, app_logger=app_logger
+                display, tickers, "E", verbose=True, get_provider=provider, app_logger=app_logger
             )
-            
+
         # Handle manual input operations
-        elif args.operation in ['i', 'input']:
+        elif args.operation in ["i", "input"]:
             if args.target:
-                tickers = [t.strip().upper() for t in args.target.split(',')]
+                tickers = [t.strip().upper() for t in args.target.split(",")]
             elif args.legacy_args:
                 tickers = [t.strip().upper() for t in args.legacy_args]
             else:
                 if app_logger:
                     app_logger.error("No tickers provided for manual input")
                 return
-                
+
             if app_logger:
                 app_logger.info(f"Handling manual input for tickers: {tickers}")
-                
+
             await display_market_report(
-                display, tickers, "I", verbose=True,
-                get_provider=provider, app_logger=app_logger
+                display, tickers, "I", verbose=True, get_provider=provider, app_logger=app_logger
             )
-            
+
     except Exception as e:
         if app_logger:
             app_logger.error(f"Error in main_async_with_args: {str(e)}")
@@ -731,21 +766,21 @@ async def main_async_with_args(args, app_logger=None):
 def main(app_logger=None):
     """
     Command line interface entry point with dependency injection.
-    
+
     Args:
         app_logger: Injected logger component
     """
     # Parse command line arguments
     args = parse_arguments()
-    
+
     # Handle validation mode
     if args.validate_config:
         is_valid = config_validator.print_validation_report()
         sys.exit(0 if is_valid else 1)
-    
+
     # Ensure output directories exist with secure permissions
     output_dir, input_dir, _, _, _ = get_file_paths()
-    
+
     # Use pathlib for secure directory creation
     Path(output_dir).mkdir(parents=True, exist_ok=True, mode=0o755)
     Path(input_dir).mkdir(parents=True, exist_ok=True, mode=0o755)
@@ -761,12 +796,16 @@ def main(app_logger=None):
     # Handle command line arguments if provided
     if args.operation or args.legacy_args:
         if app_logger:
-            app_logger.info(f"Running with arguments: operation={args.operation}, target={args.target}")
-            
+            app_logger.info(
+                f"Running with arguments: operation={args.operation}, target={args.target}"
+            )
+
         try:
             asyncio.run(main_async_with_args(args, app_logger=app_logger))
         except Exception as e:
-            error_collector.add_error(f"Error in main_async_with_args: {str(e)}", context="main_execution")
+            error_collector.add_error(
+                f"Error in main_async_with_args: {str(e)}", context="main_execution"
+            )
             if app_logger:
                 app_logger.error(f"Error in main_async_with_args: {str(e)}")
         return
@@ -783,7 +822,7 @@ def main(app_logger=None):
 def setup_secure_file_copy():
     """Setup secure file copying from v1 to v2 directories."""
     output_dir, input_dir, _, _, _ = get_file_paths()
-    
+
     # Ensure directories exist with secure permissions
     Path(output_dir).mkdir(parents=True, exist_ok=True, mode=0o755)
     Path(input_dir).mkdir(parents=True, exist_ok=True, mode=0o755)
@@ -791,7 +830,7 @@ def setup_secure_file_copy():
     # Copy input files from v1 directory if they don't exist
     v1_input_path = Path(INPUT_DIR)
     input_path = Path(input_dir)
-    
+
     if v1_input_path.exists():
         for file_path in v1_input_path.iterdir():
             if file_path.is_file():
@@ -799,10 +838,13 @@ def setup_secure_file_copy():
                 if not dst_file.exists():
                     # Secure file copy with proper permissions
                     import shutil
+
                     shutil.copy2(file_path, dst_file)
                     # Set secure permissions: owner read/write, group read, others no access
                     dst_file.chmod(0o640)
-                    logger.debug(f"Copied {file_path.name} from v1 to v2 input directory with secure permissions")
+                    logger.debug(
+                        f"Copied {file_path.name} from v1 to v2 input directory with secure permissions"
+                    )
     else:
         logger.debug(f"V1 input directory not found: {v1_input_path}")
 
@@ -812,12 +854,12 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--validate-config":
         is_valid = config_validator.print_validation_report()
         sys.exit(0 if is_valid else 1)
-    
+
     try:
         # Run configuration validation first
         if not config_validator.print_validation_report():
             sys.exit(1)
-        
+
         # Setup secure file operations
         setup_secure_file_copy()
 

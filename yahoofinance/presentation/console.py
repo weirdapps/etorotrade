@@ -194,7 +194,8 @@ class MarketDisplay:
         if df.empty:
             return df
 
-        # Map raw column names to display column names
+        # Map raw column names to display column names using config values
+        from ..core.config import COLUMN_NAMES
         column_mapping = {
             'symbol': 'TICKER',
             'ticker': 'TICKER', 
@@ -204,9 +205,9 @@ class MarketDisplay:
             'price': 'PRICE',
             'target_price': 'TARGET',
             'upside': 'UPSIDE',
-            'analyst_count': '# T',
-            'total_ratings': '# A',
-            'buy_percentage': '% BUY',
+            'analyst_count': COLUMN_NAMES['ANALYST_COUNT'],
+            'total_ratings': COLUMN_NAMES['TOTAL_RATINGS'],
+            'buy_percentage': COLUMN_NAMES['BUY_PERCENTAGE'],
             'market_cap_fmt': 'CAP',
             'market_cap': 'CAP',
             'pe_trailing': 'PET',
@@ -214,7 +215,7 @@ class MarketDisplay:
             'peg_ratio': 'PEG',
             'beta': 'BETA',
             'short_percent': 'SI',
-            'dividend_yield': 'DIV %',
+            'dividend_yield': COLUMN_NAMES['DIVIDEND_YIELD_DISPLAY'],
             'earnings_date': 'EARNINGS',
             'earnings_growth': 'EG',
             'twelve_month_performance': 'PP',
@@ -226,16 +227,16 @@ class MarketDisplay:
             'PRICE': 'PRICE',
             'TARGET': 'TARGET',
             'UPSIDE': 'UPSIDE',
-            '# T': '# T',
-            '# A': '# A',
-            '% BUY': '% BUY',
+            COLUMN_NAMES['ANALYST_COUNT']: COLUMN_NAMES['ANALYST_COUNT'],
+            COLUMN_NAMES['TOTAL_RATINGS']: COLUMN_NAMES['TOTAL_RATINGS'],
+            COLUMN_NAMES['BUY_PERCENTAGE']: COLUMN_NAMES['BUY_PERCENTAGE'],
             'CAP': 'CAP',
             'PET': 'PET',
             'PEF': 'PEF',
             'PEG': 'PEG',
             'BETA': 'BETA',
             'SI': 'SI',
-            'DIV %': 'DIV %',
+            COLUMN_NAMES['DIVIDEND_YIELD_DISPLAY']: COLUMN_NAMES['DIVIDEND_YIELD_DISPLAY'],
             'EARNINGS': 'EARNINGS',
             'EG': 'EG',
             'PP': 'PP',
@@ -252,7 +253,14 @@ class MarketDisplay:
         # Apply column mapping, taking the first available source column for each target
         for source_col, target_col in column_mapping.items():
             if source_col in df.columns and target_col not in new_df.columns:
-                new_df[target_col] = df[source_col]
+                if target_col == 'TICKER':
+                    # Apply ticker normalization for dual-listed stock display
+                    from ..utils.data.ticker_utils import get_ticker_for_display, process_ticker_input
+                    new_df[target_col] = df[source_col].apply(
+                        lambda x: get_ticker_for_display(process_ticker_input(x)) if pd.notna(x) and x else x
+                    )
+                else:
+                    new_df[target_col] = df[source_col]
         
         # Handle special cases for EG and PP columns that might already exist with raw names
         if 'earnings_growth' in df.columns and 'EG' not in new_df.columns:
@@ -278,15 +286,16 @@ class MarketDisplay:
         if "#" not in df.columns:
             df.insert(0, "#", range(1, len(df) + 1))
             
-        # Add ACT column if not present (using action or action-like columns)
-        if "ACT" not in df.columns:
+        # Add BS column if not present (using action or action-like columns)
+        bs_col = COLUMN_NAMES['ACTION']
+        if bs_col not in df.columns:
             if "action" in df.columns:
-                df["ACT"] = df["action"]
+                df[bs_col] = df["action"]
             elif "ACTION" in df.columns:
-                df["ACT"] = df["ACTION"]  
+                df[bs_col] = df["ACTION"]  
             else:
                 # Calculate action based on available data using trade criteria
-                df["ACT"] = self._calculate_actions(df)
+                df[bs_col] = self._calculate_actions(df)
 
         # Apply number formatting based on FORMATTERS configuration
         import math
@@ -300,12 +309,12 @@ class MarketDisplay:
             'PRICE': 'price',
             'TARGET': 'target_price', 
             'UPSIDE': 'upside',
-            '% BUY': 'buy_percentage',
+            '%BUY': 'buy_percentage',  # Updated to match new column header
             'BETA': 'beta',
             'PET': 'pe_trailing',
             'PEF': 'pe_forward', 
             'PEG': 'peg_ratio',
-            'DIV %': 'dividend_yield',
+            'DIV%': 'dividend_yield',  # Updated to match new column header
             'SI': 'short_float_pct',
             'EXRET': 'exret'
         }
@@ -314,7 +323,26 @@ class MarketDisplay:
         df = df.copy()  # Don't modify original
         
         # List of columns that should show "--" for 0 values (percentages, counts, etc.)
-        zero_to_dash_cols = ["# T", "% BUY", "# A", "SI", "DIV %"]
+        zero_to_dash_cols = [COLUMN_NAMES['ANALYST_COUNT'], COLUMN_NAMES['BUY_PERCENTAGE'], 
+                            COLUMN_NAMES['TOTAL_RATINGS'], "SI", COLUMN_NAMES['DIVIDEND_YIELD_DISPLAY']]
+        
+        # Special handling for EARNINGS date formatting
+        if "EARNINGS" in df.columns:
+            def format_earnings_date(value):
+                try:
+                    if value is None or (isinstance(value, float) and (math.isnan(value) or math.isinf(value))):
+                        return "--"
+                    date_str = str(value).strip()
+                    # Remove dashes from date format (YYYY-MM-DD -> YYYYMMDD)
+                    if len(date_str) >= 10 and "-" in date_str:
+                        return date_str.replace("-", "")[:8]  # YYYYMMDD format
+                    elif len(date_str) >= 8:
+                        return date_str[:8]  # Already in YYYYMMDD format
+                    return date_str
+                except Exception:
+                    return "--"
+            
+            df["EARNINGS"] = df["EARNINGS"].apply(format_earnings_date)
         
         for col in df.columns:
             if col not in ["#", "TICKER", "COMPANY", "EARNINGS"]:  # Don't format these columns
@@ -361,9 +389,10 @@ class MarketDisplay:
         
         for _, row in df.iterrows():
             try:
-                # Import the calculation function
+                # Import the calculation function and trading criteria
                 from ..utils.trade_criteria import calculate_action_for_row
-                action, _ = calculate_action_for_row(row, {}, "short_percent")
+                from ..core.config import TRADING_CRITERIA
+                action, _ = calculate_action_for_row(row, TRADING_CRITERIA, "short_percent")
                 actions.append(action if action else "H")  # Default to Hold if no action
             except Exception:
                 # Fallback action calculation
@@ -440,7 +469,8 @@ class MarketDisplay:
                 
                 # Calculate action for this ticker
                 from ..utils.trade_criteria import calculate_action_for_row
-                action, _ = calculate_action_for_row(ticker_data, {}, "short_percent")
+                from ..core.config import TRADING_CRITERIA
+                action, _ = calculate_action_for_row(ticker_data, TRADING_CRITERIA, "short_percent")
                 
                 # Apply file-based filtering logic
                 if trade_filter == "B":
@@ -693,16 +723,17 @@ class MarketDisplay:
         final_col_order = [col for col in STANDARD_DISPLAY_COLUMNS if col in df.columns]
         
         # Ensure M column is in final order if it exists
+        bs_col = COLUMN_NAMES['ACTION']
         if 'M' in df.columns and 'M' not in final_col_order:
-            # Find where to insert M column (before ACT)
-            if 'ACT' in final_col_order:
-                act_index = final_col_order.index('ACT')
+            # Find where to insert M column (before BS)
+            if bs_col in final_col_order:
+                act_index = final_col_order.index(bs_col)
                 final_col_order.insert(act_index, 'M')
             else:
                 final_col_order.append('M')
 
         # If we have fewer than 5 essential columns, fall back to basic set
-        essential_cols = ["#", "TICKER", "COMPANY", "PRICE", "M", "ACT"]
+        essential_cols = ["#", "TICKER", "COMPANY", "PRICE", "M", bs_col]
         if len(final_col_order) < 5:
             final_col_order = [col for col in essential_cols if col in df.columns]
 
@@ -714,8 +745,9 @@ class MarketDisplay:
         for _, row in df.iterrows():
             colored_row = row.copy()
 
-            # Apply color based on ACTION or ACT value
-            action = row.get("ACT", "") if "ACT" in row else row.get("ACTION", "")
+            # Apply color based on ACTION or BS value
+            bs_col = COLUMN_NAMES['ACTION']
+            action = row.get(bs_col, "") if bs_col in row else row.get("ACTION", "")
             if action == "B":  # BUY
                 colored_row = {k: f"\033[92m{v}\033[0m" for k, v in colored_row.items()}  # Green
             elif action == "S":  # SELL
@@ -793,16 +825,17 @@ class MarketDisplay:
                 final_col_order = [col for col in STANDARD_DISPLAY_COLUMNS if col in df.columns]
                 
                 # Ensure M column is in final order if it exists
+                bs_col = COLUMN_NAMES['ACTION']
                 if 'M' in df.columns and 'M' not in final_col_order:
-                    # Find where to insert M column (before ACT)
-                    if 'ACT' in final_col_order:
-                        act_index = final_col_order.index('ACT')
+                    # Find where to insert M column (before BS)
+                    if bs_col in final_col_order:
+                        act_index = final_col_order.index(bs_col)
                         final_col_order.insert(act_index, 'M')
                     else:
                         final_col_order.append('M')
                 
                 # If we have fewer than 5 essential columns, fall back to basic set
-                essential_cols = ["#", "TICKER", "COMPANY", "PRICE", "M", "ACT"]
+                essential_cols = ["#", "TICKER", "COMPANY", "PRICE", "M", bs_col]
                 if len(final_col_order) < 5:
                     final_col_order = [col for col in essential_cols if col in df.columns]
                 

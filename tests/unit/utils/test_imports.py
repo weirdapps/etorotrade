@@ -1,9 +1,6 @@
 """
 Unit tests for the import utilities.
 
-from yahoofinance.core.errors import YFinanceError, APIError, ValidationError, DataError
-from yahoofinance.utils.error_handling import translate_error, enrich_error_context, with_retry, safe_operation
-
 These tests verify the behavior of the import utilities including
 lazy imports, dependency injection, and other techniques to resolve
 circular dependencies.
@@ -13,6 +10,7 @@ from unittest.mock import Mock, call, patch
 
 import pytest
 
+from yahoofinance.core.errors import YFinanceError
 from yahoofinance.utils.imports import (
     DependencyProvider,
     LazyImport,

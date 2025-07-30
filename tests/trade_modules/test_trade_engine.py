@@ -544,6 +544,7 @@ class TestErrorHandling:
         # Should handle provider errors gracefully
         if hasattr(engine, 'fetch_market_data'):
             with pytest.raises(Exception):
+                import asyncio
                 asyncio.run(engine.fetch_market_data(['AAPL']))
 
 

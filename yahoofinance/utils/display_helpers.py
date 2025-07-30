@@ -401,7 +401,8 @@ def get_action_from_row(row, short_field="short_percent"):
         String action code ('B', 'S', 'H', or '')
     """
     # Use the central criteria calculation function
-    action, _ = calculate_action_for_row(row, {}, short_field)
+    from ..core.config import TRADING_CRITERIA
+    action, _ = calculate_action_for_row(row, TRADING_CRITERIA, short_field)
     return action
 
 

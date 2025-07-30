@@ -300,13 +300,13 @@ class TradeEngine:
             "PRICE": "{:.2f}",
             "TARGET": "{:.2f}",
             "UPSIDE": "{:.1f}",
-            "B %": "{:.0f}",
+            "%BUY": "{:.0f}%",  # Updated to match new column name and format
             "EXRET": "{:.1f}",
-            "BETA": "{:.2f}",
+            "BETA": "{:.1f}",   # Updated to 1 decimal
             "PET": "{:.1f}",
             "PEF": "{:.1f}",
-            "PEG": "{:.2f}",
-            "%": "{:.2f}",
+            "PEG": "{:.1f}",    # Updated to 1 decimal
+            "%": "{:.1f}",
         }
         
         for col, fmt in numeric_formats.items():
@@ -393,7 +393,7 @@ class TradeEngine:
         return display_df
     
     def _format_earnings_date(self, display_df):
-        """Format earnings date column.
+        """Format earnings date column without dashes (YYYYMMDD format).
         
         Args:
             display_df: Display dataframe
@@ -401,8 +401,23 @@ class TradeEngine:
         Returns:
             pd.DataFrame: Dataframe with formatted earnings dates
         """
-        # This would contain the earnings date formatting logic
-        # For now, just return as-is
+        def format_date_value(value):
+            try:
+                if pd.isna(value) or value is None or value == "":
+                    return "--"
+                date_str = str(value).strip()
+                # Remove dashes from date format (YYYY-MM-DD -> YYYYMMDD)
+                if len(date_str) >= 10 and "-" in date_str:
+                    return date_str.replace("-", "")[:8]  # YYYYMMDD format
+                elif len(date_str) >= 8:
+                    return date_str[:8]  # Already in YYYYMMDD format
+                return date_str
+            except Exception:
+                return "--"
+        
+        if "EARNINGS" in display_df.columns:
+            display_df["EARNINGS"] = display_df["EARNINGS"].apply(format_date_value)
+        
         return display_df
     
     async def process_trade_recommendation(self, action_type):

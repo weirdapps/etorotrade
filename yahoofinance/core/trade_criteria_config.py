@@ -49,7 +49,7 @@ class TradingCriteria:
     GROWTH_TIER = "G"
     BETS_TIER = "B"
 
-    # Confidence thresholds
+    # Confidence thresholds - Strict criteria for reliable trading decisions
     MIN_ANALYST_COUNT = 5
     MIN_PRICE_TARGETS = 5
 
@@ -76,8 +76,8 @@ class TradingCriteria:
     VALUE_BUY_MAX_PEG = 2.5                  # PEG requirement
     VALUE_BUY_MAX_SHORT_INTEREST = 2.0       # Short interest tolerance
     VALUE_BUY_MIN_EXRET = 0.10               # Expected return threshold (10%)
-    VALUE_BUY_MIN_EARNINGS_GROWTH = -15.0    # More tolerance for earnings variation
-    VALUE_BUY_MIN_PRICE_PERFORMANCE = -15.0  # More tolerance for price performance
+    VALUE_BUY_MIN_EARNINGS_GROWTH = -5.0     # Stricter requirement for large companies
+    VALUE_BUY_MIN_PRICE_PERFORMANCE = -20.0  # Most tolerance for large company underperformance
     
     # GROWTH tier BUY criteria ($5B-$100B market cap) - Standard criteria
     GROWTH_BUY_MIN_UPSIDE = 20.0             # Standard upside requirement
@@ -92,7 +92,7 @@ class TradingCriteria:
     GROWTH_BUY_MAX_SHORT_INTEREST = 2.5      # Higher short interest tolerance
     GROWTH_BUY_MIN_EXRET = 0.15              # Standard expected return (15%)
     GROWTH_BUY_MIN_EARNINGS_GROWTH = -10.0   # Standard earnings growth requirement
-    GROWTH_BUY_MIN_PRICE_PERFORMANCE = -10.0 # Standard price performance requirement
+    GROWTH_BUY_MIN_PRICE_PERFORMANCE = -15.0 # Moderate tolerance for underperformance
     
     # BETS tier BUY criteria (<$5B market cap) - High-conviction speculative positions
     BETS_BUY_MIN_UPSIDE = 25.0               # High upside required for small caps
@@ -106,8 +106,8 @@ class TradingCriteria:
     BETS_BUY_MAX_PEG = 2.0                   # Stricter PEG requirement
     BETS_BUY_MAX_SHORT_INTEREST = 2.0        # Short interest tolerance
     BETS_BUY_MIN_EXRET = 0.20                # Higher expected return required (20%)
-    BETS_BUY_MIN_EARNINGS_GROWTH = -5.0      # Stricter earnings growth requirement
-    BETS_BUY_MIN_PRICE_PERFORMANCE = -5.0    # Stricter price performance requirement
+    BETS_BUY_MIN_EARNINGS_GROWTH = -15.0     # More tolerance for small company volatility
+    BETS_BUY_MIN_PRICE_PERFORMANCE = -10.0   # Stricter requirement for small companies
 
     # Tier-specific SELL criteria (logically consistent progression)
     # VALUE tier SELL criteria (≥$100B market cap) - Lower tolerance for large-caps
@@ -207,8 +207,8 @@ class TradingCriteria:
         pe_trailing = cls._get_numeric_value(row.get("pe_trailing"))
 
         if pe_forward is not None and pe_trailing is not None:
-            if pe_forward > 0 and pe_trailing > 0 and (pe_forward - pe_trailing) > 10:
-                return True, f"Worsening P/E (PEF {pe_forward:.1f} - PET {pe_trailing:.1f} > 10)"
+            if pe_forward > 0 and pe_trailing > 0 and (pe_forward - pe_trailing) > 5:
+                return True, f"Worsening P/E (PEF {pe_forward:.1f} - PET {pe_trailing:.1f} > 5)"
 
         if pe_forward is not None:
             if pe_forward < 0.5:
@@ -358,11 +358,11 @@ class TradingCriteria:
         if not (criteria["min_trailing_pe"] <= pe_trailing <= criteria["max_trailing_pe"]):
             return False, f"Trailing P/E out of range ({pe_trailing:.1f}) for {tier} tier"
 
-        # PE condition: PEF - PET <= 10 (PE not expanding too much)
+        # PE condition: PEF - PET <= 5 (PE not expanding too much)
         # This allows for reasonable PE expansion but not excessive growth
         pe_difference = pe_forward - pe_trailing
-        if pe_difference > 10:
-            return False, f"P/E expanding too much (PEF {pe_forward:.1f} - PET {pe_trailing:.1f} = {pe_difference:.1f} > 10)"
+        if pe_difference > 5:
+            return False, f"P/E expanding too much (PEF {pe_forward:.1f} - PET {pe_trailing:.1f} = {pe_difference:.1f} > 5)"
 
         # 4. Secondary criteria (conditional - only checked if data available)
         peg = cls._get_numeric_value(row.get("peg_ratio"))
@@ -511,13 +511,16 @@ def normalize_row_for_criteria(row: Dict[str, Any]) -> Dict[str, Any]:
     mapping = {
         "UPSIDE": "upside",
         "% BUY": "buy_percentage",
+        "%BUY": "buy_percentage",     # Handle both formats
         "BETA": "beta",
         "PET": "pe_trailing",
         "PEF": "pe_forward",
         "PEG": "peg_ratio",
         "SI": "short_percent",
-        "# T": "analyst_count",
-        "# A": "total_ratings",
+        "#T": "analyst_count",        # Current format (no space)
+        "# T": "analyst_count",       # Legacy format (with space)
+        "#A": "total_ratings",        # Current format (no space)
+        "# A": "total_ratings",       # Legacy format (with space)
         "EXRET": "EXRET",  # Keep as is
         "CAP": "market_cap",
         "EG": "earnings_growth",  # Map EG display column to internal name
