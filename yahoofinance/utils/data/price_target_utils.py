@@ -2,11 +2,12 @@
 Price target validation and robustness utilities.
 
 This module provides functions for validating price target quality and
-identifying stocks with unreliable analyst coverage.
+identifying stocks with unreliable analyst coverage, including earnings-aware filtering.
 """
 
 from typing import Any, Dict, Optional, Tuple
 import math
+from datetime import datetime, timedelta
 
 from ...core.logging import get_logger
 
@@ -259,3 +260,89 @@ def get_preferred_price_target(ticker_data: Dict[str, Any]) -> Tuple[Optional[fl
         return mean, f"mean_fallback_{validation_info['confidence_level']}_confidence"
     else:
         return None, "no_valid_price_targets"
+
+
+def validate_price_target_data_with_earnings(
+    ticker_data: Dict[str, Any], 
+    latest_earnings_date: Optional[str] = None
+) -> Tuple[bool, Dict[str, Any]]:
+    """
+    Validate price target data quality with earnings-date awareness.
+    
+    This function extends the standard validation to consider whether price targets
+    were published after the most recent earnings announcement.
+
+    Args:
+        ticker_data: Dict containing ticker information with price target fields
+        latest_earnings_date: Latest earnings date in YYYY-MM-DD format
+
+    Returns:
+        Tuple of (is_valid, validation_info)
+    """
+    # Start with standard validation
+    is_valid, validation_info = validate_price_target_data(ticker_data)
+    
+    # Add earnings-aware information
+    validation_info["earnings_date"] = latest_earnings_date
+    validation_info["post_earnings_filtering"] = False
+    
+    if latest_earnings_date and is_valid:
+        try:
+            # Convert earnings date to datetime for comparison
+            earnings_dt = datetime.strptime(latest_earnings_date, "%Y-%m-%d")
+            
+            # Check if we have price target date information
+            target_date = ticker_data.get("target_price_date") or ticker_data.get("price_target_date")
+            
+            if target_date:
+                # Handle different date formats
+                if isinstance(target_date, str):
+                    try:
+                        # Try common date formats
+                        for fmt in ["%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d %H:%M:%S"]:
+                            try:
+                                target_dt = datetime.strptime(target_date.split()[0], fmt)
+                                break
+                            except ValueError:
+                                continue
+                        else:
+                            # If no format worked, log and continue with standard validation
+                            logger.debug(f"Could not parse price target date format: {target_date}")
+                            return is_valid, validation_info
+                    except Exception as e:
+                        logger.debug(f"Error parsing price target date: {e}")
+                        return is_valid, validation_info
+                elif hasattr(target_date, 'date'):
+                    # Handle datetime objects
+                    target_dt = target_date
+                else:
+                    # Unknown date format
+                    return is_valid, validation_info
+                
+                # Check if price targets are after earnings
+                if target_dt <= earnings_dt:
+                    # Price targets are stale (published before earnings)
+                    validation_info["post_earnings_filtering"] = True
+                    validation_info["recommended_action"] = "exclude"
+                    validation_info["confidence_level"] = "low"
+                    
+                    logger.debug(
+                        f"Price targets excluded: published {target_date} before earnings {latest_earnings_date}"
+                    )
+                    
+                    return False, validation_info
+                else:
+                    # Price targets are fresh (published after earnings)
+                    validation_info["post_earnings_filtering"] = True
+                    logger.debug(
+                        f"Price targets accepted: published {target_date} after earnings {latest_earnings_date}"
+                    )
+            else:
+                # No price target date available, use standard validation
+                logger.debug("No price target date available for earnings filtering")
+                
+        except Exception as e:
+            logger.debug(f"Error in earnings-aware price target validation: {e}")
+            # Fall back to standard validation on error
+    
+    return is_valid, validation_info
