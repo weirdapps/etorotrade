@@ -2,18 +2,21 @@
 
 This document serves as the technical reference for the etorotrade project, covering architecture, design patterns, best practices, and key components.
 
+**Last Updated**: 2025-01-08 - Added portfolio performance tracking, cleaned codebase, fixed all test failures
+
 ## Table of Contents
 1. [System Architecture](#system-architecture)
 2. [Modular Trade Components](#modular-trade-components)
-3. [Performance Optimizations](#performance-optimizations)
-4. [Provider Pattern](#provider-pattern)
-5. [Error Handling](#error-handling)
-6. [Rate Limiting](#rate-limiting)
-7. [Async Operations](#async-operations)
-8. [Trading Criteria](#trading-criteria)
-9. [Development Commands](#development-commands)
-10. [Testing Guidelines](#testing-guidelines)
-11. [Best Practices](#best-practices)
+3. [Portfolio Performance System](#portfolio-performance-system)
+4. [Performance Optimizations](#performance-optimizations)
+5. [Provider Pattern](#provider-pattern)
+6. [Error Handling](#error-handling)
+7. [Rate Limiting](#rate-limiting)
+8. [Async Operations](#async-operations)
+9. [Trading Criteria](#trading-criteria)
+10. [Development Commands](#development-commands)
+11. [Testing Guidelines](#testing-guidelines)
+12. [Best Practices](#best-practices)
 
 ## System Architecture
 
@@ -149,6 +152,101 @@ from trade_modules import calculate_exret, display_and_save_results
 # New modular imports
 from trade_modules.analysis_engine import AnalysisEngine
 from trade_modules.output_manager import OutputManager
+```
+
+## Portfolio Performance System
+
+**Comprehensive portfolio performance tracking and market comparison system** (implemented 2025-01-08):
+
+### Core Components
+
+#### Performance Tracker (`yahoofinance/analysis/performance.py`)
+
+**Market Indices and Portfolio Performance**: Real-time tracking with multiple time horizons
+- **Market Indices**: DJI30 (^DJI), SP500 (^GSPC), NQ100 (^NDX)
+- **Time Periods**: Today, This Week, This Month, YTD, Annualized (1Y, 2Y, 5Y, 10Y)
+- **Portfolio Metrics**: Alpha, Beta, Sharpe Ratio, Sortino Ratio, Cash Position
+- **Data Sources**: yfinance for market data, bullaware.com for portfolio metrics
+
+```python
+from yahoofinance.analysis.performance import PerformanceTracker
+
+# Track combined performance
+tracker = PerformanceTracker()
+tracker.track_combined_performance()  # Creates unified comparison table
+
+# Date calculations for different periods
+weekly_start, weekly_end = tracker.calculate_weekly_dates()
+monthly_start, monthly_end = tracker.calculate_monthly_dates()
+```
+
+#### Portfolio Allocation Analysis
+
+**Geographic and Sector Diversification**: Comprehensive portfolio breakdown
+- **Geographic Regions**: USA, Europe, Asia, Cryptocurrency
+- **Sector Classification**: Technology, Healthcare, Consumer, Materials, ETFs
+- **Analysis Features**: Position sizing, risk distribution, diversification metrics
+
+```python
+# Geographic allocation analysis
+def get_geographic_region(symbol):
+    if symbol.endswith('.HK'):
+        return 'Asia'
+    elif symbol.endswith(('.DE', '.PA', '.L')):
+        return 'Europe'
+    # ... additional mappings
+
+# Sector allocation with automated classification
+sector_allocation = calculate_sector_breakdown(portfolio_df)
+```
+
+#### Performance Data Classes
+
+```python
+@dataclass
+class PortfolioPerformance:
+    today: Optional[float] = None
+    this_week: Optional[float] = None
+    this_month: Optional[float] = None
+    year_to_date: Optional[float] = None
+    last_year: Optional[float] = None
+    annualized: Optional[float] = None
+    beta: Optional[float] = None
+    sharpe: Optional[float] = None
+    alpha: Optional[float] = None
+    sortino: Optional[float] = None
+    cash: Optional[float] = None
+
+@dataclass  
+class IndexPerformance:
+    index_name: str
+    ticker: str
+    previous_value: float
+    current_value: float
+    change_percent: float
+    start_date: datetime
+    end_date: datetime
+    period_type: str
+```
+
+### Key Features
+
+1. **Unified Performance View**: Side-by-side comparison of market indices and portfolio
+2. **Multiple Time Horizons**: Today, weekly, monthly, YTD, and annualized performance
+3. **Real-time Market Data**: Live quotes from Yahoo Finance API
+4. **Portfolio Metrics Integration**: Web scraping from bullaware.com for advanced metrics
+5. **Date Logic**: Intelligent handling of trading days, weekends, and month boundaries
+6. **Error Handling**: Comprehensive error handling with FutureWarning fixes for yfinance
+7. **Unicode Formatting**: Professional social media post generation with sans serif bold
+
+### Performance Tracking Usage
+
+```python
+# Generate combined performance table
+python -c "from yahoofinance.analysis.performance import PerformanceTracker; PerformanceTracker().track_combined_performance()"
+
+# Generate allocation analysis
+python portfolio_allocation_analysis.py
 ```
 
 ## Performance Optimizations

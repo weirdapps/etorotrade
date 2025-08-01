@@ -66,6 +66,7 @@ class DataProcessor:
                     "short_percent": None,
                     "dividend_yield": None,
                     "A": "",
+                    "E": "",
                 }
             ]
         )
@@ -137,6 +138,7 @@ class DataProcessor:
             "buy_percentage": BUY_PERCENTAGE,
             "total_ratings": "# A",  # Already present, just confirming
             "A": "A",  # A column shows ratings type (A/E for All-time/Earnings-based)
+            "E": "E",  # Earnings filter type column
             "EXRET": "EXRET",
             "beta": "BETA",
             "pe_trailing": "PET",
@@ -173,6 +175,7 @@ class DataProcessor:
             "buy_percentage",
             "total_ratings",
             "A",
+            "E",
             "EXRET",
             "beta",
             "pe_trailing",
@@ -209,6 +212,7 @@ class DataProcessor:
             BUY_PERCENTAGE,
             "# A",
             "A",
+            "E",
             "EXRET",
             "BETA",
             "PET",

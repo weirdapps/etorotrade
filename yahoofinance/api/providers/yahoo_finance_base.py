@@ -291,12 +291,12 @@ class YahooFinanceBaseProvider(ABC):
                 "exchange": safe_extract_value(info, "exchange"),
                 "country": safe_extract_value(info, "country"),
                 "short_percent": safe_extract_value(info, "shortPercentOfFloat"),  # Short interest
-                # Extract and format earnings date - handle different possible field names and formats
+                # Extract and format earnings date - get from earnings dates method
                 # Set both earnings_date and last_earnings for consistency with async provider
-                "earnings_date": self._extract_last_earnings_date(info),  # Last earnings date
-                "last_earnings": self._extract_last_earnings_date(info),  # Last earnings date (for data processor)
+                "earnings_date": None,  # Will be populated below
+                "last_earnings": None,  # Will be populated below
                 # Calculate earnings growth from quarterly data
-                "earnings_growth": self._calculate_earnings_growth(ticker),
+                "earnings_growth": self._calculate_earnings_growth_safe(symbol),
                 "data_source": "yfinance",
             }
 
@@ -334,6 +334,44 @@ class YahooFinanceBaseProvider(ABC):
 
             # Note: upside will be calculated dynamically from price and target_price
             # No longer storing upside as a field to ensure consistency
+
+            # Get earnings dates and populate the result
+            try:
+                earnings_dates = self.get_earnings_dates(symbol)
+                if earnings_dates and earnings_dates[0]:
+                    result["earnings_date"] = earnings_dates[0]
+                    result["last_earnings"] = earnings_dates[0]
+                    logger.debug(f"Successfully set earnings_date for {symbol}: {earnings_dates[0]}")
+                else:
+                    logger.debug(f"No earnings dates found for {symbol}: {earnings_dates}")
+            except Exception as earnings_error:
+                logger.debug(f"Could not get earnings dates for {symbol}: {str(earnings_error)}")
+
+            # Apply earnings-aware price target filtering
+            try:
+                from ...utils.data.price_target_utils import validate_price_target_data_with_earnings
+                
+                # Get earnings date for this ticker
+                earnings_date = result.get("last_earnings") or result.get("earnings_date")
+                
+                if earnings_date:
+                    # Validate price targets against earnings date
+                    is_valid, validation_info = validate_price_target_data_with_earnings(result, earnings_date)
+                    
+                    if not is_valid and validation_info.get("post_earnings_filtering"):
+                        # Price targets are stale (published before earnings) - clear them
+                        result["target_price"] = None
+                        result["target_price_mean"] = None
+                        result["target_price_median"] = None
+                        result["target_price_high"] = None
+                        result["target_price_low"] = None
+                        logger.debug(f"Cleared stale price targets for {symbol} (published before earnings {earnings_date})")
+                    elif validation_info.get("post_earnings_filtering"):
+                        logger.debug(f"Using post-earnings price targets for {symbol} (published after earnings {earnings_date})")
+                        
+            except Exception as price_target_error:
+                # If price target filtering fails, continue with original data
+                logger.debug(f"Price target earnings filtering failed for {symbol}: {str(price_target_error)}")
 
             return result
 
@@ -708,6 +746,7 @@ class YahooFinanceBaseProvider(ABC):
             "buy_percentage": None,
             "analyst_count": 0,
             "recommendations": None,
+            "E": "A",  # Default to "A" (all data) until we determine if post-earnings filtering was used
         }
 
         try:
@@ -787,11 +826,47 @@ class YahooFinanceBaseProvider(ABC):
                         logger.debug(f"No analyst ratings available for {ticker}")
                     return result
 
-                # Get the most recent date
-                latest_date = recommendations.index.max()
-
-                # Filter for the most recent recommendations
-                latest_recommendations = recommendations[recommendations.index == latest_date]
+                # Try to filter recommendations after the most recent earnings date
+                # Initialize earnings filter type - default to "A" (all data)
+                earnings_filter_type = "A"
+                
+                try:
+                    # Get earnings dates to filter recommendations after earnings announcement
+                    earnings_dates = self.get_earnings_dates(ticker)
+                    latest_earnings_date = earnings_dates[0] if earnings_dates[0] else None
+                    
+                    if latest_earnings_date:
+                        # Convert earnings date string to pandas timestamp for comparison
+                        import pandas as pd
+                        earnings_timestamp = pd.to_datetime(latest_earnings_date)
+                        
+                        # Filter recommendations published after the latest earnings date
+                        post_earnings_recs = recommendations[recommendations.index > earnings_timestamp]
+                        
+                        if not post_earnings_recs.empty:
+                            # Use recommendations after earnings
+                            latest_recommendations = post_earnings_recs
+                            earnings_filter_type = "E"  # Using post-earnings data
+                            logger.debug(f"Using {len(post_earnings_recs)} analyst recommendations after earnings date {latest_earnings_date} for {ticker}")
+                        else:
+                            # Fallback to most recent recommendations if no post-earnings data
+                            latest_date = recommendations.index.max()
+                            latest_recommendations = recommendations[recommendations.index == latest_date]
+                            earnings_filter_type = "A"  # Using all available data
+                            logger.debug(f"No recommendations after earnings date {latest_earnings_date} for {ticker}, using most recent recommendations from {latest_date}")
+                    else:
+                        # No earnings date available, use most recent recommendations
+                        latest_date = recommendations.index.max()
+                        latest_recommendations = recommendations[recommendations.index == latest_date]
+                        earnings_filter_type = "A"  # Using all available data
+                        logger.debug(f"No earnings date available for {ticker}, using most recent recommendations from {latest_date}")
+                        
+                except Exception as earnings_error:
+                    # If we can't get earnings dates, fall back to original logic
+                    logger.debug(f"Could not get earnings dates for {ticker}: {str(earnings_error)}, using most recent recommendations")
+                    latest_date = recommendations.index.max()
+                    latest_recommendations = recommendations[recommendations.index == latest_date]
+                    earnings_filter_type = "A"  # Using all available data
 
                 # Count the recommendations by grade
                 recommendation_counts = {}
@@ -817,9 +892,12 @@ class YahooFinanceBaseProvider(ABC):
                     result["analyst_count"] = total_ratings
                     result["buy_percentage"] = buy_percentage
                     result["recommendations"] = recommendation_counts
+                    
+                    # Set the earnings filter type (E = post-earnings, A = all data)
+                    result["E"] = earnings_filter_type
 
                     logger.debug(
-                        f"Used recommendations data for {ticker}: {buy_ratings}/{total_ratings} analysts recommend buy ({buy_percentage:.1f}%)"
+                        f"Used recommendations data for {ticker}: {buy_ratings}/{total_ratings} analysts recommend buy ({buy_percentage:.1f}%) [Filter: {earnings_filter_type}]"
                     )
             except Exception as e:
                 logger.warning(f"Error getting recommendations for {ticker}: {str(e)}")
@@ -914,6 +992,14 @@ class YahooFinanceBaseProvider(ABC):
             "data_source": "error",
         }
 
+    def _calculate_earnings_growth_safe(self, ticker: str) -> Optional[float]:
+        """Safe wrapper for earnings growth calculation that won't throw exceptions"""
+        try:
+            return self._calculate_earnings_growth(ticker)
+        except Exception as e:
+            logger.debug(f"Exception in earnings growth calculation for {ticker}: {e}")
+            return None
+    
     def _calculate_earnings_growth(self, ticker: str) -> Optional[float]:
         """
         Calculate earnings growth by comparing recent quarters.
