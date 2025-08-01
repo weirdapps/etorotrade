@@ -1258,11 +1258,7 @@ class MarketDisplay:
                 beta_raw = row['BETA']
                 if beta_raw and beta_raw != '--':
                     try:
-                        # Handle both string and numeric values
-                        if isinstance(beta_raw, str):
-                            beta_value = float(beta_raw)
-                        else:
-                            beta_value = float(beta_raw)
+                        beta_value = float(beta_raw)
                     except (ValueError, TypeError):
                         pass
             
