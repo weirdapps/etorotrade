@@ -233,6 +233,10 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                         # Also set the rating type if we have analyst data
                         if result["total_ratings"] > 0:
                             result["A"] = "A"  # Default to all-time ratings
+                            
+                        # Set the earnings filter type from analyst data
+                        if "E" in analyst_data:
+                            result["E"] = analyst_data["E"]
 
                         logger.debug(
                             f"Added analyst data for {ticker}: {result['total_ratings']} ratings, {result['buy_percentage']}% buy"
@@ -341,20 +345,21 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
 
         for attempt in range(self.max_retries):
             try:
-                # Try earnings_dates attribute FIRST - this contains earnings announcement dates
+                # Use get_earnings_dates() method - this contains earnings announcement dates
                 # These are needed for filtering analyst recommendations after earnings announcements
-                earnings_dates = getattr(ticker_obj, "earnings_dates", None)
+                earnings_dates = ticker_obj.get_earnings_dates(limit=12)
                 if earnings_dates is not None and not earnings_dates.empty:
                     import pandas as pd
                     # Use current date with same timezone as the earnings data for proper comparison
+                    today = pd.Timestamp.now()
                     if earnings_dates.index.tz is not None:
-                        today = pd.Timestamp.now(tz=earnings_dates.index.tz).normalize()
-                    else:
-                        today = pd.Timestamp.now().normalize()
+                        # Make today timezone-aware to match earnings_dates timezone
+                        today = today.tz_localize(earnings_dates.index.tz)
+                    
                     logger.debug(f"Found earnings_dates for {ticker}, filtering for past announcement dates before {today}")
                     
                     # Filter for past earnings announcement dates (before today)
-                    past_dates = earnings_dates[earnings_dates.index.normalize() < today]
+                    past_dates = earnings_dates[earnings_dates.index < today]
                     if not past_dates.empty:
                         # Sort past dates in descending order (most recent first)
                         sorted_past_dates = past_dates.index.sort_values(ascending=False)
@@ -485,6 +490,10 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
 
                 # Add buy percentage
                 result["buy_percentage"] = consensus["buy_percentage"]
+                
+                # Add earnings filter type (E = post-earnings, A = all data)
+                if "E" in consensus:
+                    result["E"] = consensus["E"]
 
                 # Add individual counts
                 if "recommendations" in consensus and consensus["recommendations"]:

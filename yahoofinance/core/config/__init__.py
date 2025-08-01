@@ -358,6 +358,7 @@ except ImportError:
         "%BUY",
         "#A",
         "A",
+        "E",
         "EXRET",
         "BETA",
         "PET",

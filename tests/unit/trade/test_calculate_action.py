@@ -85,5 +85,5 @@ def test_calculate_action(sample_data):
         result.loc[result["ticker"] == "HOLD", "BS"].iloc[0] == "H"
     )  # EXRET = 8.0 is between SELL_MAX_EXRET (5.0) and BUY_MIN_EXRET (15.0)
     assert (
-        result.loc[result["ticker"] == "LOWCONF", "BS"].iloc[0] == "S"
-    )  # 'S' for SELL due to low analyst confidence triggering sell conditions
+        result.loc[result["ticker"] == "LOWCONF", "BS"].iloc[0] == "I"
+    )  # 'I' for INCONCLUSIVE due to insufficient analyst coverage

@@ -972,6 +972,7 @@ class HTMLGenerator:
             "short_float_pct": "SI",
             "short_percent": "SI",
             "last_earnings": "EARNINGS",
+            "E": "E",  # Earnings filter type column
             "action": "ACTION",
             "position_size": "SIZE",
         }

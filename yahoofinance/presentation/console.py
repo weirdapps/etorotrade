@@ -217,6 +217,7 @@ class MarketDisplay:
             'short_percent': 'SI',
             'dividend_yield': COLUMN_NAMES['DIVIDEND_YIELD_DISPLAY'],
             'earnings_date': 'EARNINGS',
+            'E': 'E',  # Earnings filter type column
             'earnings_growth': 'EG',
             'twelve_month_performance': 'PP',
             'EXRET': 'EXRET',

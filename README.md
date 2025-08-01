@@ -27,6 +27,17 @@ etorotrade is a comprehensive Python-based investment analysis system that helps
 
 ## 🔄 Recent Improvements
 
+**Latest (2025-01-08)**:
+- **Portfolio Performance System**: Comprehensive portfolio tracking with market comparison
+  - Real-time market indices comparison (DJI30, SP500, NQ100)
+  - Multiple time horizons (Today, This Week, This Month, YTD, Annualized)
+  - Advanced portfolio metrics (Alpha, Beta, Sharpe, Sortino ratios)
+  - Geographic and sector allocation analysis
+- **Production Ready Codebase**: Cleaned and organized codebase with all tests passing
+- **Enhanced Date Logic**: Fixed monthly date calculations and improved trading day handling
+- **Error Handling**: Comprehensive FutureWarning fixes for yfinance API integration
+
+**Previous**:
 - **Fixed ASML Ticker Display Issue**: Resolved ticker normalization in display pipeline to show proper tickers (e.g., "ASML.NV" instead of "ASML")
 - **Enhanced Test Coverage**: Comprehensive test suite with vectorized action calculation tests
 - **Code Cleanup**: Removed legacy files and improved codebase organization

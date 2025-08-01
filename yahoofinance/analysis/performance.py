@@ -52,7 +52,7 @@ from ..utils.network.circuit_breaker import async_circuit_protected, circuit_pro
 logger = get_logger(__name__)
 
 # Define the indices to track with carets (^)
-INDICES = {"DJI30": "^DJI", "SP500": "^GSPC", "NQ100": "^NDX", "VIX": "^VIX"}
+INDICES = {"DJI30": "^DJI", "SP500": "^GSPC", "NQ100": "^NDX"}
 
 # Timezone for Athens, Greece
 athens_tz = pytz.timezone("Europe/Athens")
@@ -110,7 +110,9 @@ class PortfolioPerformance:
     Attributes:
         this_month: Performance for the current month (%)
         year_to_date: Performance year to date (%)
+        last_year: Performance for the last year (%)
         two_years: Performance over two years (%)
+        five_years: Performance over five years (%)
         beta: Portfolio beta
         sharpe: Sharpe ratio
         alpha: Alpha (Jensen's Alpha)
@@ -120,9 +122,15 @@ class PortfolioPerformance:
         last_updated: When the data was last updated
     """
 
+    today: Optional[float] = None
+    this_week: Optional[float] = None
     this_month: Optional[float] = None
     year_to_date: Optional[float] = None
+    last_year: Optional[float] = None
     two_years: Optional[float] = None
+    five_years: Optional[float] = None
+    ten_years: Optional[float] = None
+    annualized: Optional[float] = None
     beta: Optional[float] = None
     sharpe: Optional[float] = None
     alpha: Optional[float] = None
@@ -150,8 +158,20 @@ class PortfolioPerformance:
                 "is_percentage": True,
             }
 
+        if self.last_year is not None:
+            result["Last Year"] = {"value": self.last_year, "label": "Last Year", "is_percentage": True}
+
         if self.two_years is not None:
             result[TWO_YEARS] = {"value": self.two_years, "label": TWO_YEARS, "is_percentage": True}
+
+        if self.five_years is not None:
+            result["5 Years"] = {"value": self.five_years, "label": "5 Years", "is_percentage": True}
+
+        if self.ten_years is not None:
+            result["10 Years"] = {"value": self.ten_years, "label": "10 Years", "is_percentage": True}
+
+        if self.annualized is not None:
+            result["Annualized"] = {"value": self.annualized, "label": "Annualized", "is_percentage": True}
 
         # Risk metrics
         if self.beta is not None:
@@ -260,26 +280,24 @@ class PerformanceTracker:
         """
         Calculate dates for monthly performance comparison.
 
-        If the current month is complete (we're in a new month),
-        returns previous month end and the month end before that.
-        Otherwise, returns the month end before the previous month and the previous month end.
+        If we're on the 1st day of the month, we consider the current month as incomplete
+        and use two months prior as our comparison period.
+        Otherwise, we use the previous month and the month before that.
 
         Returns:
             Tuple of (older_month_end, newer_month_end)
         """
         today = datetime.today()
 
-        # Determine if current month is complete (we're in a new month)
-        # For stocks, month is considered complete when we reach the next month
-        # We don't need to check time since we only care about the day
-        current_month_complete = today.day > 1  # past the 1st of month
-
-        # Calculate the last day of the previous month
-        last_month_end = today.replace(day=1) - timedelta(days=1)
-
-        # If current month is not complete, go back one more month
-        if not current_month_complete:
-            last_month_end = last_month_end.replace(day=1) - timedelta(days=1)
+        # If we're on the 1st of the month, consider current month incomplete
+        # and skip the immediate previous month for comparison
+        if today.day == 1:
+            # Go back two months from current month
+            last_month_end = today.replace(day=1) - timedelta(days=1)  # Previous month end
+            last_month_end = last_month_end.replace(day=1) - timedelta(days=1)  # Go back one more month
+        else:
+            # Use the previous month
+            last_month_end = today.replace(day=1) - timedelta(days=1)
 
         # Get the end of the month before the last month
         previous_month_end = last_month_end.replace(day=1) - timedelta(days=1)
@@ -790,13 +808,23 @@ class PerformanceTracker:
         """
         # Map the scraped data fields to performance fields
         field_mapping = {
+            "Today": "today",
+            "This Week": "this_week",
+            "WTD": "this_week",
             THIS_MONTH: "this_month",
             "MTD": "this_month",
-            "Today": "this_month",
+            "This Month": "this_month",
             YEAR_TO_DATE: "year_to_date",
             "YTD": "year_to_date",
+            "Last Year": "last_year",
+            "1YR": "last_year",
             TWO_YEARS: "two_years",
             "2YR": "two_years",
+            "5 Years": "five_years",
+            "5YR": "five_years",
+            "10 Years": "ten_years",
+            "10YR": "ten_years",
+            "Annualized": "annualized",
             "Beta": "beta",
             JENSENS_ALPHA: "alpha",
             "Alpha": "alpha",
@@ -1215,7 +1243,7 @@ class PerformanceTracker:
             risk_metrics = {}
 
             # Performance metrics
-            for key in ["This Month", "Year To Date", "2 Years"]:
+            for key in ["This Month", "Year To Date", "Last Year", "2 Years", "5 Years", "10 Years", "Annualized"]:
                 if key in performance_metrics:
                     perf_metrics[key] = performance_metrics[key]
 
@@ -1712,6 +1740,203 @@ def track_index_performance(period_type: str = "weekly"):
         print(f"Error: {str(e)}")
 
 
+def track_combined_performance(period_type: str = "monthly", url: str = DEFAULT_PORTFOLIO_URL):
+    """
+    Track and display both market indices and portfolio performance in a unified table.
+    
+    Args:
+        period_type: 'weekly', 'monthly', 'yeartodate', or 'monthtodate' for index performance
+        url: URL to scrape for portfolio performance data
+    """
+    try:
+        import yfinance as yf
+        from tabulate import tabulate
+        
+        # Create performance tracker
+        tracker = PerformanceTracker()
+        
+        # Get portfolio performance
+        portfolio_performance = tracker.get_portfolio_performance_web(url=url)
+        
+        # Print header
+        print(f"Combined Market & Portfolio Performance")
+        print(f"Current time in Athens: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        print()
+        
+        # Calculate various time periods for indices
+        table_data = []
+        
+        # Today (1-day performance)
+        today_data = ["Today"]
+        for index_name, ticker in INDICES.items():
+            try:
+                data = yf.download(ticker, period="5d", progress=False, auto_adjust=True)
+                if len(data) >= 2:
+                    current = float(data["Close"].iloc[-1].iloc[0] if isinstance(data["Close"].iloc[-1], pd.Series) else data["Close"].iloc[-1])
+                    previous = float(data["Close"].iloc[-2].iloc[0] if isinstance(data["Close"].iloc[-2], pd.Series) else data["Close"].iloc[-2])
+                    change = ((current - previous) / previous) * 100
+                    color = "\033[92m" if change > 0 else "\033[91m" if change < 0 else ""
+                    reset = "\033[0m" if color else ""
+                    today_data.append(f"{color}{change:+.2f}%{reset}")
+                else:
+                    today_data.append("N/A")
+            except Exception:
+                today_data.append("N/A")
+        # Add portfolio today if available
+        today_val = getattr(portfolio_performance, 'today', None)
+        if today_val is not None:
+            color = "\033[92m" if today_val > 0 else "\033[91m" if today_val < 0 else ""
+            reset = "\033[0m" if color else ""
+            today_data.append(f"{color}{today_val:+.2f}%{reset}")
+        else:
+            today_data.append("N/A")
+        table_data.append(today_data)
+        
+        # This Week
+        week_data = ["This Week"]
+        for index_name, ticker in INDICES.items():
+            try:
+                data = yf.download(ticker, period="1mo", progress=False, auto_adjust=True)
+                if len(data) >= 7:
+                    current = float(data["Close"].iloc[-1].iloc[0] if isinstance(data["Close"].iloc[-1], pd.Series) else data["Close"].iloc[-1])
+                    week_ago = float(data["Close"].iloc[-7].iloc[0] if isinstance(data["Close"].iloc[-7], pd.Series) else data["Close"].iloc[-7])
+                    change = ((current - week_ago) / week_ago) * 100
+                    color = "\033[92m" if change > 0 else "\033[91m" if change < 0 else ""
+                    reset = "\033[0m" if color else ""
+                    week_data.append(f"{color}{change:+.2f}%{reset}")
+                else:
+                    week_data.append("N/A")
+            except Exception:
+                week_data.append("N/A")
+        # Add portfolio this week if available
+        week_val = getattr(portfolio_performance, 'this_week', None)
+        if week_val is not None:
+            color = "\033[92m" if week_val > 0 else "\033[91m" if week_val < 0 else ""
+            reset = "\033[0m" if color else ""
+            week_data.append(f"{color}{week_val:+.2f}%{reset}")
+        else:
+            week_data.append("N/A")
+        table_data.append(week_data)
+        
+        # This Month
+        month_data = ["This Month"]
+        for index_name, ticker in INDICES.items():
+            try:
+                data = yf.download(ticker, period="3mo", progress=False, auto_adjust=True)
+                if len(data) >= 21:  # ~1 month of trading days
+                    current = float(data["Close"].iloc[-1].iloc[0] if isinstance(data["Close"].iloc[-1], pd.Series) else data["Close"].iloc[-1])
+                    month_ago = float(data["Close"].iloc[-21].iloc[0] if isinstance(data["Close"].iloc[-21], pd.Series) else data["Close"].iloc[-21])
+                    change = ((current - month_ago) / month_ago) * 100
+                    color = "\033[92m" if change > 0 else "\033[91m" if change < 0 else ""
+                    reset = "\033[0m" if color else ""
+                    month_data.append(f"{color}{change:+.2f}%{reset}")
+                else:
+                    month_data.append("N/A")
+            except Exception:
+                month_data.append("N/A")
+        # Add portfolio this month if available
+        this_month_val = getattr(portfolio_performance, 'this_month', None)
+        if this_month_val is not None:
+            color = "\033[92m" if this_month_val > 0 else "\033[91m" if this_month_val < 0 else ""
+            reset = "\033[0m" if color else ""
+            month_data.append(f"{color}{this_month_val:+.2f}%{reset}")
+        else:
+            month_data.append("N/A")
+        table_data.append(month_data)
+        
+        # Year to Date
+        ytd_data = ["YTD"]
+        for index_name, ticker in INDICES.items():
+            try:
+                data = yf.download(ticker, period="1y", progress=False, auto_adjust=True)
+                if not data.empty:
+                    # Find start of year
+                    current_year = datetime.now().year
+                    year_start = datetime(current_year, 1, 1)
+                    
+                    # Filter data from year start
+                    data.index = pd.to_datetime(data.index)
+                    year_data = data[data.index >= year_start]
+                    
+                    if len(year_data) >= 2:
+                        current = float(year_data["Close"].iloc[-1].iloc[0] if isinstance(year_data["Close"].iloc[-1], pd.Series) else year_data["Close"].iloc[-1])
+                        year_start_price = float(year_data["Close"].iloc[0].iloc[0] if isinstance(year_data["Close"].iloc[0], pd.Series) else year_data["Close"].iloc[0])
+                        change = ((current - year_start_price) / year_start_price) * 100
+                        color = "\033[92m" if change > 0 else "\033[91m" if change < 0 else ""
+                        reset = "\033[0m" if color else ""
+                        ytd_data.append(f"{color}{change:+.2f}%{reset}")
+                    else:
+                        ytd_data.append("N/A")
+                else:
+                    ytd_data.append("N/A")
+            except Exception:
+                ytd_data.append("N/A")
+        # Add portfolio YTD
+        ytd_val = getattr(portfolio_performance, 'year_to_date', None)
+        if ytd_val is not None:
+            color = "\033[92m" if ytd_val > 0 else "\033[91m" if ytd_val < 0 else ""
+            reset = "\033[0m" if color else ""
+            ytd_data.append(f"{color}{ytd_val:+.2f}%{reset}")
+        else:
+            ytd_data.append("N/A")
+        table_data.append(ytd_data)
+        
+        # Annualized
+        annualized_data = ["Annualized"]
+        for index_name, ticker in INDICES.items():
+            try:
+                data = yf.download(ticker, period="10y", progress=False, auto_adjust=True)
+                if len(data) >= 252 * 5:  # At least 5 years of data
+                    current = float(data["Close"].iloc[-1].iloc[0] if isinstance(data["Close"].iloc[-1], pd.Series) else data["Close"].iloc[-1])
+                    start_price = float(data["Close"].iloc[0].iloc[0] if isinstance(data["Close"].iloc[0], pd.Series) else data["Close"].iloc[0])
+                    years = len(data) / 252  # Approximate years
+                    annualized_return = (((current / start_price) ** (1/years)) - 1) * 100
+                    color = "\033[92m" if annualized_return > 0 else "\033[91m" if annualized_return < 0 else ""
+                    reset = "\033[0m" if color else ""
+                    annualized_data.append(f"{color}{annualized_return:+.2f}%{reset}")
+                else:
+                    annualized_data.append("N/A")
+            except Exception:
+                annualized_data.append("N/A")
+        # Add portfolio annualized
+        ann_val = getattr(portfolio_performance, 'annualized', None)
+        if ann_val is not None:
+            color = "\033[92m" if ann_val > 0 else "\033[91m" if ann_val < 0 else ""
+            reset = "\033[0m" if color else ""
+            annualized_data.append(f"{color}{ann_val:+.2f}%{reset}")
+        else:
+            annualized_data.append("N/A")
+        table_data.append(annualized_data)
+        
+        # Create headers
+        headers = ["Period"] + list(INDICES.keys()) + ["Portfolio"]
+        
+        # Display the unified table
+        print(tabulate(table_data, headers=headers, tablefmt="fancy_grid", showindex=False))
+        
+        # Add portfolio risk metrics summary
+        print(f"\nPortfolio Risk Metrics:")
+        risk_metrics = []
+        for field, label in [("beta", "Beta"), ("alpha", "Alpha"), ("sharpe", "Sharpe"), ("sortino", "Sortino")]:
+            value = getattr(portfolio_performance, field, None)
+            if value is not None:
+                risk_metrics.append(f"{label}: {value:.2f}")
+        
+        if risk_metrics:
+            print(" | ".join(risk_metrics))
+        
+        cash_val = getattr(portfolio_performance, 'cash', None)
+        if cash_val is not None:
+            print(f"Cash Position: {cash_val:.1f}%")
+        
+    except YFinanceError as e:
+        logger.error(f"Error tracking combined performance: {str(e)}")
+        print(f"Error: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error in combined performance: {str(e)}")
+        print(f"Error: {str(e)}")
+
+
 def track_portfolio_performance(url: str = DEFAULT_PORTFOLIO_URL):
     """
     Track and display portfolio performance from web source.
@@ -1734,7 +1959,11 @@ def track_portfolio_performance(url: str = DEFAULT_PORTFOLIO_URL):
         for field in [
             "this_month",
             "year_to_date",
+            "last_year",
             "two_years",
+            "five_years",
+            "ten_years",
+            "annualized",
             "beta",
             "sharpe",
             "alpha",
@@ -1744,15 +1973,15 @@ def track_portfolio_performance(url: str = DEFAULT_PORTFOLIO_URL):
             value = getattr(performance, field, None)
             # Format value
             if value is not None:
-                if field in ["this_month", "year_to_date", "two_years", "cash"]:
+                if field in ["this_month", "year_to_date", "last_year", "two_years", "five_years", "ten_years", "annualized", "cash"]:
                     formatted_value = f"{value:+.2f}%" if value >= 0 else f"{value:.2f}%"
                 else:
                     formatted_value = f"{value:.2f}"
 
                 # Color positive/negative values
-                if value > 0 and field in ["this_month", "year_to_date", "two_years"]:
+                if value > 0 and field in ["this_month", "year_to_date", "last_year", "two_years", "five_years", "ten_years", "annualized"]:
                     color_code = "\033[92m"  # Green for positive
-                elif value < 0 and field in ["this_month", "year_to_date", "two_years"]:
+                elif value < 0 and field in ["this_month", "year_to_date", "last_year", "two_years", "five_years", "ten_years", "annualized"]:
                     color_code = "\033[91m"  # Red for negative
                 else:
                     color_code = ""
@@ -2008,7 +2237,11 @@ async def track_performance_async(
             for field in [
                 "this_month",
                 "year_to_date",
+                "last_year",
                 "two_years",
+                "five_years",
+                "ten_years",
+                "annualized",
                 "beta",
                 "sharpe",
                 "alpha",
@@ -2018,15 +2251,15 @@ async def track_performance_async(
                 value = getattr(portfolio_perf, field, None)
                 # Format value
                 if value is not None:
-                    if field in ["this_month", "year_to_date", "two_years", "cash"]:
+                    if field in ["this_month", "year_to_date", "last_year", "two_years", "five_years", "cash"]:
                         formatted_value = f"{value:+.2f}%" if value >= 0 else f"{value:.2f}%"
                     else:
                         formatted_value = f"{value:.2f}"
 
                     # Color positive/negative values
-                    if value > 0 and field in ["this_month", "year_to_date", "two_years"]:
+                    if value > 0 and field in ["this_month", "year_to_date", "last_year", "two_years", "five_years"]:
                         color_code = "\033[92m"  # Green for positive
-                    elif value < 0 and field in ["this_month", "year_to_date", "two_years"]:
+                    elif value < 0 and field in ["this_month", "year_to_date", "last_year", "two_years", "five_years"]:
                         color_code = "\033[91m"  # Red for negative
                     else:
                         color_code = ""
@@ -2082,6 +2315,22 @@ if __name__ == "__main__":
     elif option in ["portfolio", "p"]:
         print("Tracking portfolio performance...")
         track_portfolio_performance()
+    elif option in ["combined", "c"]:
+        # Combined view with optional period type
+        period_type = "monthly"  # default
+        if len(sys.argv) > 2:
+            second_arg = sys.argv[2].lower()
+            if second_arg in ["weekly", "w"]:
+                period_type = "weekly"
+            elif second_arg in ["monthly", "m"]:
+                period_type = "monthly"
+            elif second_arg in ["yeartodate", "ytd", "y"]:
+                period_type = "yeartodate"
+            elif second_arg in ["monthtodate", "mtd", "md"]:
+                period_type = "monthtodate"
+        
+        print(f"Tracking combined market ({period_type}) and portfolio performance...")
+        track_combined_performance(period_type=period_type)
     elif option in ["all", "a"]:
         # Default to weekly, but allow selection
         period_type = "weekly"
@@ -2103,13 +2352,13 @@ if __name__ == "__main__":
     else:
         print("Usage: python -m yahoofinance.analysis.performance [option]")
         print("Options:")
-        print("  weekly (w)        - Track weekly market performance")
-        print("  monthly (m)       - Track monthly market performance")
-        print("  yeartodate (y/ytd)- Track year-to-date market performance")
-        print("  monthtodate (mtd) - Track month-to-date market performance")
-        print("  portfolio (p)     - Track portfolio performance")
-        print("  all (a) [period]  - Track both market and portfolio performance asynchronously")
-        print(
-            "                       [period] is optional: weekly(default), monthly, yeartodate, or monthtodate"
-        )
+        print("  weekly (w)         - Track weekly market performance")
+        print("  monthly (m)        - Track monthly market performance")
+        print("  yeartodate (y/ytd) - Track year-to-date market performance")
+        print("  monthtodate (mtd)  - Track month-to-date market performance")
+        print("  portfolio (p)      - Track portfolio performance only")
+        print("  combined (c) [period] - Track market indices + portfolio side by side")
+        print("                         [period] is optional: monthly(default), weekly, yeartodate, monthtodate")
+        print("  all (a) [period]   - Track both market and portfolio performance asynchronously")
+        print("                         [period] is optional: weekly(default), monthly, yeartodate, or monthtodate")
         print("If no option is provided, portfolio performance is tracked by default.")

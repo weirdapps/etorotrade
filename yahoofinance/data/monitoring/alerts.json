@@ -668,5 +668,50 @@
     "threshold": 3.0,
     "timestamp": 1753918718.3909628,
     "tags": {}
+  },
+  {
+    "name": "test_alert",
+    "severity": "warning",
+    "message": "Test message",
+    "value": 5.0,
+    "threshold": 3.0,
+    "timestamp": 1754074279.6945522,
+    "tags": {}
+  },
+  {
+    "name": "test_alert",
+    "severity": "warning",
+    "message": "Test message",
+    "value": 5.0,
+    "threshold": 3.0,
+    "timestamp": 1754074530.0423691,
+    "tags": {}
+  },
+  {
+    "name": "test_alert",
+    "severity": "warning",
+    "message": "Test message",
+    "value": 5.0,
+    "threshold": 3.0,
+    "timestamp": 1754074618.260755,
+    "tags": {}
+  },
+  {
+    "name": "test_alert",
+    "severity": "warning",
+    "message": "Test message",
+    "value": 5.0,
+    "threshold": 3.0,
+    "timestamp": 1754074743.32967,
+    "tags": {}
+  },
+  {
+    "name": "test_alert",
+    "severity": "warning",
+    "message": "Test message",
+    "value": 5.0,
+    "threshold": 3.0,
+    "timestamp": 1754074850.0361469,
+    "tags": {}
   }
 ]
