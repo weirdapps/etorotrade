@@ -263,7 +263,11 @@ class YahooFinanceBaseProvider(ABC):
                 ),  # Match both formats
                 "change": safe_extract_value(info, "regularMarketChange"),
                 "change_percent": safe_extract_value(info, "regularMarketChangePercent"),
-                "market_cap": safe_extract_value(info, "marketCap"),
+                "market_cap": (
+                    safe_extract_value(info, "marketCap") or  # Regular stocks
+                    safe_extract_value(info, "totalAssets") or  # ETFs
+                    safe_extract_value(info, "netAssets")  # Alternative ETF field
+                ),
                 "volume": safe_extract_value(info, "regularMarketVolume"),
                 "avg_volume": safe_extract_value(info, "averageVolume"),
                 "pe_trailing": safe_extract_value(info, "trailingPE"),  # Match both formats

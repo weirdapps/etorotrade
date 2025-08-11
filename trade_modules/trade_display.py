@@ -180,11 +180,22 @@ class DisplayFormatter:
                 lambda x: format_market_cap_value(x) if pd.notna(x) else "N/A"
             )
 
-        # Format price columns as currency
+        # Format price columns as currency with conditional decimal places
         price_columns = ["price", "price_target"]
         for col in price_columns:
             if col in df.columns:
-                df[col] = df[col].apply(lambda x: f"${x:.2f}" if pd.notna(x) and x != 0 else "N/A")
+                def format_price_conditional(x):
+                    if pd.notna(x) and x != 0:
+                        # 0 decimals if >= $1000, 1 decimal if >= $10, 2 decimals if < $10
+                        if x >= 1000:
+                            return f"${x:,.0f}"
+                        elif x >= 10:
+                            return f"${x:.1f}"
+                        else:
+                            return f"${x:.2f}"
+                    else:
+                        return "N/A"
+                df[col] = df[col].apply(format_price_conditional)
 
         # Format percentage columns
         percentage_columns = ["expected_return", "exret", "dividend_yield", "confidence_score"]
