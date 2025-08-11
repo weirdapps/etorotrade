@@ -202,6 +202,11 @@ def standardize_ticker_format(ticker: str) -> str:
             normalized_base = base_ticker.lstrip('0') or '0'  # Handle all zeros case
             cleaned = normalized_base.zfill(4) + '.HK'
     
+    # VIX tickers: normalize all VIX variants to ^VIX for proper data fetching
+    # This handles VIX, VIX.CBE, VIX.SEP25, etc. -> ^VIX
+    elif cleaned.startswith('VIX') and (cleaned == 'VIX' or cleaned.startswith('VIX.')):
+        cleaned = '^VIX'
+    
     # Crypto tickers: ensure -USD suffix for major cryptos
     elif cleaned in ['BTC', 'ETH', 'XRP', 'LTC', 'BCH', 'ADA', 'DOT', 'LINK', 'XLM', 'DOGE', 'SOL', 'HBAR']:
         if not cleaned.endswith('-USD'):
