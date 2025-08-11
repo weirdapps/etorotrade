@@ -29,7 +29,9 @@ from ..api.providers.base_provider import AsyncFinanceDataProvider, FinanceDataP
 from ..core.config import COLUMN_NAMES, FILE_PATHS, MESSAGES, PATHS
 from ..core.logging import get_logger
 from ..utils.data.ticker_utils import normalize_ticker
+from ..utils.data.asset_type_utils import universal_sort_dataframe
 from .formatter import Color, DisplayConfig, DisplayFormatter
+from .html import HTMLGenerator
 
 
 logger = get_logger(__name__)
@@ -155,7 +157,7 @@ class MarketDisplay:
 
     def _sort_market_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Sort market data according to business rules.
+        Sort market data using universal sorting: asset type first, then market cap descending.
 
         Args:
             df: DataFrame containing market data
@@ -166,20 +168,8 @@ class MarketDisplay:
         if df.empty:
             return df
 
-        # Ensure sort columns exist and populate from actual data
-        if "_sort_exret" not in df.columns:
-            # Use EXRET column if available, otherwise fall back to 0.0
-            if "EXRET" in df.columns:
-                df["_sort_exret"] = pd.to_numeric(df["EXRET"], errors='coerce').fillna(0.0)
-            else:
-                df["_sort_exret"] = 0.0
-        if "_sort_earnings" not in df.columns:
-            df["_sort_earnings"] = pd.NaT
-
-        # Sort by expected return (EXRET) and earnings date
-        return df.sort_values(
-            by=["_sort_exret", "_sort_earnings"], ascending=[False, False], na_position="last"
-        ).reset_index(drop=True)
+        # Apply universal sorting (asset type priority, then market cap descending)
+        return universal_sort_dataframe(df)
 
     def _format_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -283,20 +273,18 @@ class MarketDisplay:
         
         df = new_df
         
-        # Add ranking column if not present
-        if "#" not in df.columns:
-            df.insert(0, "#", range(1, len(df) + 1))
+        # Note: Position numbers (#) will be added after all sorting and formatting is complete
             
-        # Add BS column if not present (using action or action-like columns)
+        # Always recalculate BS/ACT column to ensure accuracy with latest criteria
         bs_col = COLUMN_NAMES['ACTION']
-        if bs_col not in df.columns:
-            if "action" in df.columns:
-                df[bs_col] = df["action"]
-            elif "ACTION" in df.columns:
-                df[bs_col] = df["ACTION"]  
-            else:
-                # Calculate action based on available data using trade criteria
-                df[bs_col] = self._calculate_actions(df)
+        # Remove any existing action columns to force recalculation
+        action_cols_to_remove = [bs_col, "action", "ACTION", "ACT"]
+        for col in action_cols_to_remove:
+            if col in df.columns:
+                df = df.drop(columns=[col])
+        
+        # Calculate action based on available data using trade criteria
+        df[bs_col] = self._calculate_actions(df)
 
         # Apply number formatting based on FORMATTERS configuration
         import math
@@ -394,7 +382,8 @@ class MarketDisplay:
                 from ..utils.trade_criteria import calculate_action_for_row
                 from ..core.config import TRADING_CRITERIA
                 action, _ = calculate_action_for_row(row, TRADING_CRITERIA, "short_percent")
-                actions.append(action if action else "H")  # Default to Hold if no action
+                # Preserve all valid actions including "I" (Inconclusive), only default empty/None to "H"
+                actions.append(action if action is not None and action != "" else "H")
             except Exception:
                 # Fallback action calculation
                 actions.append("H")  # Default to Hold
@@ -694,10 +683,7 @@ class MarketDisplay:
         # Convert to DataFrame
         df = pd.DataFrame(stock_data)
 
-        # Sort data
-        df = self._sort_market_data(df)
-
-        # Format for display
+        # Format for display FIRST (before any sorting that depends on formatted values)
         df = self._format_dataframe(df)
 
         # Add position size calculation
@@ -716,6 +702,13 @@ class MarketDisplay:
             # If tier calculation fails, default to B (BETS)
             logger.warning(f"Failed to add market cap tier column: {e}")
             df['M'] = 'B'
+
+        # Sort data AFTER all formatting and calculations are complete
+        df = self._sort_market_data(df)
+
+        # Add position numbers AFTER all sorting and formatting is complete
+        if "#" not in df.columns:
+            df.insert(0, "#", range(1, len(df) + 1))
 
         # Get the standard column order from config
         from ..core.config import STANDARD_DISPLAY_COLUMNS
@@ -809,8 +802,9 @@ class MarketDisplay:
             # Convert to DataFrame
             df = pd.DataFrame(data)
 
-            # Apply same processing as display (format columns, add position sizes, and add tiers)
+            # Apply same processing as display (format, then sort, add position sizes, and add tiers)
             try:
+                # Format data first (same as display method)
                 df = self._format_dataframe(df)
                 df = self._add_position_size_column(df)
                 
@@ -820,6 +814,9 @@ class MarketDisplay:
                 except Exception as e:
                     logger.warning(f"Failed to add market cap tier to CSV: {e}")
                     df['M'] = 'B'  # Default to BETS tier
+                
+                # Sort data AFTER all formatting and calculations are complete (same as display method)
+                df = self._sort_market_data(df)
                 
                 # Apply column filtering to match display format
                 from ..core.config import STANDARD_DISPLAY_COLUMNS
@@ -849,6 +846,44 @@ class MarketDisplay:
             # Save to CSV
             df.to_csv(output_path, index=False)
             logger.info(f"Saved data to {output_path}")
+
+            # Generate corresponding HTML file using the same beautiful format as portfolio.html
+            try:
+                html_filename = filename.replace('.csv', '.html')
+                html_path = f"{output_dir}/{html_filename}"
+                html_generator = HTMLGenerator()
+                stocks_data = df.to_dict('records')
+                base_filename = os.path.splitext(html_filename)[0]
+                
+                # Determine title based on filename
+                if 'portfolio' in filename.lower():
+                    title = "Portfolio Analysis"
+                elif 'buy' in filename.lower():
+                    title = "Buy Opportunities"  
+                elif 'sell' in filename.lower():
+                    title = "Sell Candidates"
+                elif 'hold' in filename.lower():
+                    title = "Hold Candidates"
+                elif 'market' in filename.lower():
+                    title = "Market Analysis"
+                else:
+                    title = "Analysis Results"
+                
+                # Rename BS column to ACTION for proper color coding
+                if 'BS' in df.columns:
+                    df = df.rename(columns={'BS': 'ACTION'})
+                    stocks_data = df.to_dict('records')
+                
+                # Use generate_stock_table for beautiful color-coded HTML like portfolio.html
+                html_generator.generate_stock_table(
+                    stocks_data=stocks_data,
+                    title=title,
+                    output_filename=base_filename,
+                    include_columns=list(df.columns)
+                )
+                logger.info(f"Generated HTML report: {html_path}")
+            except Exception as e:
+                logger.warning(f"Failed to generate HTML file: {str(e)}")
 
             return output_path
         except YFinanceError as e:

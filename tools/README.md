@@ -14,6 +14,15 @@ This directory contains development tools and utility scripts for the etorotrade
 - `run_optimizer.py` - Run trading criteria optimization with backtesting
 - `optimize_criteria.py` - Advanced criteria optimization with multiple strategies
 
+### Portfolio Analysis Scripts
+- `corrected_allocation.py` - Portfolio allocation correction and analysis
+- `current_allocation_details.py` - Current portfolio allocation breakdown
+- `current_value_allocation.py` - Current value-based portfolio allocation
+- `portfolio_analysis.py` - Comprehensive portfolio analysis tools
+- `portfolio_insights.py` - Portfolio insights and recommendations
+- `true_geographical_allocation.py` - Geographic allocation analysis
+- `true_portfolio_allocation.py` - True portfolio allocation assessment
+
 ### Development Tools
 - `lint.sh` - Run code quality checks (black, isort, flake8, mypy)
 - `cleanup.sh` - Clean up temporary files and caches
@@ -39,6 +48,12 @@ python tools/run_enhanced_monitoring.py --timeout 300 --health-port 8081
 # Portfolio Optimization
 python tools/run_optimizer.py --min 1000 --max 25000 --periods 1 3 5 --use-cache
 python tools/optimize_criteria.py --mode optimize --period 2y --metric sharpe_ratio
+
+# Portfolio Analysis
+python tools/portfolio_analysis.py      # Comprehensive portfolio analysis
+python tools/portfolio_insights.py     # Portfolio insights and recommendations
+python tools/true_geographical_allocation.py  # Geographic allocation analysis
+python tools/corrected_allocation.py   # Portfolio allocation corrections
 
 # Development Tools
 ./tools/lint.sh          # Check code quality

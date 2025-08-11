@@ -106,8 +106,10 @@ class DisplayFormatter:
         if value is None or value == 0:
             return "--"
 
-        # 1 decimal if >= $10, 2 decimals if < $10
-        if value >= 10:
+        # 0 decimals if >= $1000, 1 decimal if >= $10, 2 decimals if < $10
+        if value >= 1000:
+            return f"${value:,.0f}"
+        elif value >= 10:
             return f"${value:,.1f}"
         else:
             return f"${value:,.2f}"

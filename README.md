@@ -27,7 +27,15 @@ etorotrade is a comprehensive Python-based investment analysis system that helps
 
 ## 🔄 Recent Improvements
 
-**Latest (2025-01-08)**:
+**Latest (2025-08-11)**:
+- **HTML Action Display Fix**: Fixed critical bug where "I" (Inconclusive) actions were incorrectly displayed as "H" (Hold) in HTML output
+  - Updated HTML generator validation in `yahoofinance/presentation/html.py` to include "I" and "" actions
+  - TSM and other stocks with insufficient analyst coverage now correctly display as "I" with yellow styling
+  - Fix applies to all trade options and sub-options without special case handling
+- **Codebase Organization**: Moved portfolio analysis scripts to `tools/` directory for better organization
+- **Test File Cleanup**: Removed temporary test files from output directory for production readiness
+
+**Previous (2025-01-08)**:
 - **Portfolio Performance System**: Comprehensive portfolio tracking with market comparison
   - Real-time market indices comparison (DJI30, SP500, NQ100)
   - Multiple time horizons (Today, This Week, This Month, YTD, Annualized)

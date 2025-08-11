@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
-from ..core.config import FILE_PATHS
+from ..core.config import FILE_PATHS, PATHS
 from ..core.errors import APIError, DataError, ValidationError, YFinanceError
 from ..core.logging import get_logger
 from ..utils.error_handling import enrich_error_context, safe_operation, translate_error, with_retry
@@ -178,7 +178,7 @@ class HTMLGenerator:
         Args:
             output_dir: Directory for output files (defaults to config)
         """
-        self.output_dir = output_dir or FILE_PATHS["OUTPUT_DIR"]
+        self.output_dir = output_dir or PATHS["OUTPUT_DIR"]
         # Ensure output directory exists
         Path(self.output_dir).mkdir(parents=True, exist_ok=True)
 
@@ -419,6 +419,255 @@ class HTMLGenerator:
             logger.error(f"Error generating portfolio dashboard: {str(e)}")
             return None
 
+    def generate_results_html(self, df: pd.DataFrame, title: str, output_file: str) -> None:
+        """
+        Generate HTML file from DataFrame results for buy/sell/hold opportunities.
+        
+        Args:
+            df: DataFrame containing the results data
+            title: Title for the HTML page
+            output_file: Path to output HTML file
+        """
+        try:
+            # Handle empty DataFrame case
+            if df.empty:
+                html_content = self._generate_empty_results_html(title)
+            else:
+                html_content = self._generate_dataframe_html(df, title)
+            
+            # Write HTML file
+            with open(output_file, "w", encoding="utf-8") as f:
+                f.write(html_content)
+                
+            logger.info(f"Generated HTML file: {output_file}")
+            
+        except Exception as e:
+            logger.error(f"Error generating HTML file {output_file}: {str(e)}")
+            # Create fallback empty file
+            self._generate_empty_results_html(title)
+
+    def _generate_empty_results_html(self, title: str) -> str:
+        """Generate HTML content for empty results."""
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>No results found for {title}</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f7;
+            color: #333;
+        }}
+        
+        .container {{
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }}
+        
+        h1 {{
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 30px;
+        }}
+        
+        .empty-state {{
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            margin-top: 50px;
+        }}
+        
+        .empty-icon {{
+            font-size: 4em;
+            color: #ccc;
+            margin-bottom: 20px;
+        }}
+        
+        .empty-message {{
+            font-size: 1.2em;
+            color: #666;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>{title}</h1>
+        <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <div class="empty-message">No results found matching the criteria.</div>
+        </div>
+    </div>
+</body>
+</html>"""
+
+    def _generate_dataframe_html(self, df: pd.DataFrame, title: str) -> str:
+        """Generate HTML content from DataFrame."""
+        # Create table headers
+        headers = [f"<th>{col}</th>" for col in df.columns]
+        header_row = f"<tr>{''.join(headers)}</tr>"
+        
+        # Create table rows
+        rows = []
+        for _, row in df.iterrows():
+            cells = []
+            for col in df.columns:
+                value = row[col]
+                # Apply formatting and styling based on column type
+                formatted_value = self._format_cell_value(value, col)
+                cells.append(f"<td>{formatted_value}</td>")
+            rows.append(f"<tr>{''.join(cells)}</tr>")
+        
+        # Build complete HTML
+        table_html = f"""
+        <table class="results-table">
+            <thead>{header_row}</thead>
+            <tbody>{''.join(rows)}</tbody>
+        </table>
+        """
+        
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title}</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f7;
+            color: #333;
+        }}
+        
+        .container {{
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }}
+        
+        h1 {{
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+            font-weight: 600;
+        }}
+        
+        .table-container {{
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }}
+        
+        .results-table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }}
+        
+        .results-table th {{
+            background-color: #f8f9fa;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #dee2e6;
+            position: sticky;
+            top: 0;
+        }}
+        
+        .results-table td {{
+            padding: 10px 8px;
+            border-bottom: 1px solid #dee2e6;
+            white-space: nowrap;
+        }}
+        
+        .results-table tr:hover {{
+            background-color: #f8f9fa;
+        }}
+        
+        /* Column-specific styling */
+        .results-table th:first-child,
+        .results-table td:first-child {{
+            text-align: center;
+            font-weight: 600;
+        }}
+        
+        .results-table td:nth-child(2) {{ /* TICKER */
+            font-weight: 600;
+            color: #0066cc;
+        }}
+        
+        .results-table td:nth-child(5), /* PRICE */
+        .results-table td:nth-child(6) {{ /* TARGET */
+            text-align: right;
+            font-weight: 600;
+        }}
+        
+        .results-table td:nth-child(7), /* UPSIDE */
+        .results-table td:nth-child(12) {{ /* EXRET */
+            text-align: right;
+            font-weight: 600;
+            color: #28a745;
+        }}
+        
+        .footer-info {{
+            text-align: center;
+            margin-top: 20px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+        }}
+        
+        .stats {{
+            font-size: 1.1em;
+            color: #666;
+            margin-bottom: 10px;
+        }}
+        
+        @media (max-width: 768px) {{
+            .container {{ padding: 10px; }}
+            .results-table {{ font-size: 12px; }}
+            .results-table th, .results-table td {{ padding: 8px 4px; }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>{title}</h1>
+        <div class="table-container">
+            {table_html}
+        </div>
+        <div class="footer-info">
+            <div class="stats">Total Results: {len(df)}</div>
+            <div>Generated on: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}</div>
+        </div>
+    </div>
+</body>
+</html>"""
+
+    def _format_cell_value(self, value: Any, column: str) -> str:
+        """Format cell value based on column type and content."""
+        if pd.isna(value) or value is None or value == "":
+            return "--"
+            
+        # Convert to string for processing
+        str_value = str(value)
+        
+        # Return formatted value
+        return str_value
+
     def generate_stock_table(
         self,
         stocks_data: List[Dict[str, Any]],
@@ -456,7 +705,7 @@ class HTMLGenerator:
 
             # Sanitize ACTION column immediately after DataFrame creation
             if "ACTION" in df.columns:
-                valid_actions = ["B", "S", "H"]
+                valid_actions = ["B", "S", "H", "I", ""]
                 # Replace any value not in valid_actions (including NaN, None, '', '--') with 'H'
                 df["ACTION"] = df["ACTION"].apply(lambda x: x if x in valid_actions else "H")
             else:
@@ -604,8 +853,10 @@ class HTMLGenerator:
                     ticker_val = row.get("TICKER", "")
                     logger.debug(f"Applying INCONCLUSIVE styling to row {idx}: {ticker_val}")
                 elif action_str.strip() == "H":
-                    # No special styling for HOLD
-                    bg_color = ""
+                    # H (Hold) actions should have default white background, not yellow
+                    bg_color = None  # Default white background
+                    ticker_val = row.get("TICKER", "")
+                    logger.debug(f"Applying HOLD styling to row {idx}: {ticker_val}")
 
                 # Always use direct inline style + class for maximum reliability
                 if bg_color:
@@ -699,7 +950,7 @@ class HTMLGenerator:
         .stock-table {{
             width: 100%;
             border-collapse: collapse;
-            font-size: 14px;
+            font-size: 12px;
         }}
         
         .stock-table th {{
@@ -796,7 +1047,7 @@ class HTMLGenerator:
             border-radius: 8px;
             text-align: center;
             color: #555;
-            font-size: 14px;
+            font-size: 12px;
         }}
         
         .footer p {{
@@ -890,10 +1141,9 @@ class HTMLGenerator:
 </html>
 """
 
-            # Write CSV file with same columns and order
-            csv_path = f"{self.output_dir}/{output_filename}.csv"
-            df.to_csv(csv_path, index=False)
-            logger.debug(f"Generated CSV file at {csv_path}")
+            # NOTE: Removed CSV writing from HTML generator as it was overwriting 
+            # correctly formatted CSV files from the console display module
+            # CSV files should be generated by the console module, not HTML generator
 
             # Write HTML file
             html_path = f"{self.output_dir}/{output_filename}.html"
@@ -1265,7 +1515,7 @@ h2.section-title:after {
 .stock-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.95rem;
+    font-size: 0.85rem;
 }
 
 .stock-table th {

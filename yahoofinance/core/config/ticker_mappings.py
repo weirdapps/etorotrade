@@ -40,6 +40,9 @@ DUAL_LISTED_MAPPINGS: Dict[str, str] = {
     "TSM": "TSM",            # Taiwan Semiconductor (already properly listed)
     "RIO": "RIO.L",          # Rio Tinto ADR → London primary
     "BHP": "BHP.AX",         # BHP ADR → Australia primary
+    
+    # VIX pattern mapping: VIX derivatives → VIX index for data
+    # Note: This is a special case handled in ticker_utils.py
 }
 
 # Reverse mapping: Original Exchange Ticker -> US Ticker
@@ -63,6 +66,19 @@ def get_normalized_ticker(ticker: str) -> str:
         
     # Convert to uppercase for consistent matching
     ticker_upper = ticker.upper()
+    
+    # Handle special Copenhagen Stock Exchange ticker normalization
+    # If we have an incorrectly formatted .CO ticker, standardize it first
+    if ticker_upper.endswith('.CO'):
+        base_ticker = ticker_upper.split('.')[0]
+        if base_ticker.endswith('B') and len(base_ticker) > 1:
+            if base_ticker in ['MAERSKB', 'NOVOB', 'COLOB']:
+                if base_ticker == 'MAERSKB':
+                    ticker_upper = 'MAERSK-B.CO'
+                elif base_ticker == 'NOVOB':
+                    ticker_upper = 'NOVO-B.CO'
+                elif base_ticker == 'COLOB':
+                    ticker_upper = 'COLO-B.CO'
     
     # If this is a US ticker with a mapped original, return the original
     if ticker_upper in DUAL_LISTED_MAPPINGS:
@@ -120,6 +136,10 @@ def get_display_ticker(ticker: str) -> str:
     Returns:
         Preferred display ticker (original exchange ticker)
     """
+    # Handle VIX pattern replacement: VIX.??? -> ^VIX for display as well
+    if ticker and ticker.upper().startswith('VIX.') and len(ticker) > 4:
+        return '^VIX'
+    
     return get_normalized_ticker(ticker)
 
 def get_data_fetch_ticker(ticker: str) -> str:
@@ -132,6 +152,11 @@ def get_data_fetch_ticker(ticker: str) -> str:
     Returns:
         Best ticker for data fetching
     """
+    # Handle VIX pattern replacement: VIX.??? -> ^VIX for data retrieval
+    # This handles VIX futures/options that should use the main VIX index for data
+    if ticker and ticker.upper().startswith('VIX.') and len(ticker) > 4:
+        return '^VIX'  # Yahoo Finance uses ^VIX for the VIX index
+    
     # For data fetching, we might want to use US tickers when available
     # as they often have better data coverage, but we'll normalize the results
     normalized = get_normalized_ticker(ticker)

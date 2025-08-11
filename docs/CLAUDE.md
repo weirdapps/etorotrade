@@ -2,7 +2,7 @@
 
 This document serves as the technical reference for the etorotrade project, covering architecture, design patterns, best practices, and key components.
 
-**Last Updated**: 2025-01-08 - Added portfolio performance tracking, cleaned codebase, fixed all test failures
+**Last Updated**: 2025-08-11 - Fixed HTML action display bug, moved portfolio scripts to tools/, cleaned test files
 
 ## Table of Contents
 1. [System Architecture](#system-architecture)
@@ -14,9 +14,10 @@ This document serves as the technical reference for the etorotrade project, cove
 7. [Rate Limiting](#rate-limiting)
 8. [Async Operations](#async-operations)
 9. [Trading Criteria](#trading-criteria)
-10. [Development Commands](#development-commands)
-11. [Testing Guidelines](#testing-guidelines)
-12. [Best Practices](#best-practices)
+10. [HTML Generator Fix](#html-generator-fix)
+11. [Development Commands](#development-commands)
+12. [Testing Guidelines](#testing-guidelines)
+13. [Best Practices](#best-practices)
 
 ## System Architecture
 
@@ -919,6 +920,68 @@ Position Sizing → Use EG/PP/EXRET for high conviction detection
 - `yahoofinance/utils/data/format_utils.py`: Enhanced position sizing with high conviction
 
 The enhanced fundamental analysis provides deeper insights into stock quality and momentum, enabling more informed investment decisions with appropriate position sizing.
+
+## HTML Generator Fix
+
+**Critical Bug Fixed (2025-08-11)**: Resolved issue where "I" (Inconclusive) actions were incorrectly displayed as "H" (Hold) in HTML output files.
+
+### Problem Description
+
+**Issue**: Stocks with insufficient analyst coverage (like TSM with only 3 analysts) were correctly classified as "I" (Inconclusive) in the CSV output and console display, but incorrectly showing as "H" (Hold) in the HTML files.
+
+**Root Cause**: The HTML generator validation in `yahoofinance/presentation/html.py` at lines 708-710 only allowed actions `["B", "S", "H"]`, filtering out "I" actions before they could be styled properly.
+
+### Solution Implementation
+
+**File Modified**: `/Users/plessas/SourceCode/etorotrade/yahoofinance/presentation/html.py`
+**Lines Changed**: 708
+
+**Before Fix**:
+```python
+valid_actions = ["B", "S", "H"]
+```
+
+**After Fix**:
+```python
+valid_actions = ["B", "S", "H", "I", ""]
+```
+
+### Technical Details
+
+**Action System**: The trading system uses 5 official action types defined in `yahoofinance/core/trade_criteria_config.py`:
+- **"B"** (BUY_ACTION): Green styling for buy recommendations  
+- **"S"** (SELL_ACTION): Red styling for sell recommendations
+- **"H"** (HOLD_ACTION): Default styling for hold recommendations
+- **"I"** (INCONCLUSIVE_ACTION): Yellow styling for insufficient analyst coverage
+- **""** (NO_ACTION): Default styling for no data
+
+**HTML Styling**: The system includes comprehensive CSS styling for inconclusive actions:
+```css
+.stock-table tr.inconclusive-row {
+    background-color: #fffadd !important;  /* Light yellow background */
+}
+```
+
+**Color Coding**: Inconclusive actions display with orange/brown text (`color: #CC7700`) and yellow row highlighting.
+
+### Validation Results
+
+**Test Case**: TSM (Taiwan Semiconductor) with insufficient analyst coverage
+- **CSV Output**: Correctly shows "I" action ✓
+- **Console Display**: Correctly shows "I" action ✓  
+- **HTML Output**: Now correctly shows "I" action with yellow styling ✓
+
+**Impact**: Fix applies to all trade options and sub-options without requiring special case handling, ensuring consistency across the entire system.
+
+### Implementation Benefits
+
+1. **Universal Fix**: Works for all assets across all trade options (`-o p`, `-o m`, `-o t`, etc.)
+2. **No Special Cases**: No conditional logic or ticker-specific handling required
+3. **Consistent Display**: CSV, console, and HTML outputs now perfectly aligned
+4. **Proper Styling**: Inconclusive actions display with appropriate yellow visual indicators
+5. **System Integrity**: Maintains the official 5-action system without compromises
+
+The fix ensures that stocks with insufficient analyst coverage are properly identified across all output formats, providing users with accurate and consistent trading information.
 
 ## Development Commands
 

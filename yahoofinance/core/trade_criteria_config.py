@@ -442,12 +442,30 @@ class TradingCriteria:
         Returns:
             Tuple of (action, reason)
         """
-        # Check confidence first
+        # Check confidence first - but differentiate between asset types
         analyst_count = row.get("analyst_count", row.get("# T"))
         total_ratings = row.get("total_ratings", row.get("# A"))
 
         if not cls.check_confidence(analyst_count, total_ratings):
-            return INCONCLUSIVE_ACTION, "Insufficient analyst coverage"
+            # Determine if this asset type naturally lacks analyst coverage
+            ticker = row.get("TICKER", row.get("ticker", ""))
+            company_name = row.get("COMPANY", row.get("company_name", ""))
+            
+            # Import asset classification utility
+            try:
+                from ..utils.data.asset_type_utils import classify_asset_type
+                asset_type = classify_asset_type(ticker, None, company_name)
+                
+                # ETFs, crypto, and commodities naturally don't have analyst coverage
+                if asset_type in ["etf", "crypto", "commodity"]:
+                    # Skip analyst coverage check and proceed to other criteria
+                    pass  # Continue to sell/buy criteria checks
+                else:
+                    # For stocks, insufficient analyst coverage is inconclusive
+                    return INCONCLUSIVE_ACTION, "Insufficient analyst coverage"
+            except ImportError:
+                # Fallback: treat as inconclusive if we can't classify
+                return INCONCLUSIVE_ACTION, "Insufficient analyst coverage"
 
         # Check SELL criteria (any condition triggers)
         is_sell, sell_reason = cls.check_sell_criteria(row)
