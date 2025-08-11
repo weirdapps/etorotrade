@@ -136,8 +136,8 @@ def get_display_ticker(ticker: str) -> str:
     Returns:
         Preferred display ticker (original exchange ticker)
     """
-    # Handle VIX pattern replacement: VIX.??? -> ^VIX for display as well
-    if ticker and ticker.upper().startswith('VIX.') and len(ticker) > 4:
+    # Handle VIX pattern replacement: VIX, VIX.??? -> ^VIX for display consistency  
+    if ticker and ticker.upper().startswith('VIX') and (ticker.upper() == 'VIX' or ticker.upper().startswith('VIX.')):
         return '^VIX'
     
     return get_normalized_ticker(ticker)
@@ -152,9 +152,9 @@ def get_data_fetch_ticker(ticker: str) -> str:
     Returns:
         Best ticker for data fetching
     """
-    # Handle VIX pattern replacement: VIX.??? -> ^VIX for data retrieval
+    # Handle VIX pattern replacement: VIX, VIX.??? -> ^VIX for data retrieval
     # This handles VIX futures/options that should use the main VIX index for data
-    if ticker and ticker.upper().startswith('VIX.') and len(ticker) > 4:
+    if ticker and ticker.upper().startswith('VIX') and (ticker.upper() == 'VIX' or ticker.upper().startswith('VIX.')):
         return '^VIX'  # Yahoo Finance uses ^VIX for the VIX index
     
     # For data fetching, we might want to use US tickers when available

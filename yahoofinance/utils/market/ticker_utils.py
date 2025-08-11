@@ -40,8 +40,8 @@ def validate_ticker(ticker: str) -> bool:
     if len(ticker) > 20:
         raise ValidationError(f"Invalid ticker: {ticker} - length exceeds 20 characters")
 
-    # Check for invalid characters (allow alphanumeric, dots, hyphens, and equals for futures)
-    if re.search(r"[^\w\.\-=]", ticker):
+    # Check for invalid characters (allow alphanumeric, dots, hyphens, equals for futures, and ^ for indices)
+    if re.search(r"[^\w\.\-=\^]", ticker):
         raise ValidationError(f"Invalid ticker: {ticker} - contains invalid characters")
 
     return True
