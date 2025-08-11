@@ -126,6 +126,19 @@ standardized = standardize_ticker_format("BTC")  # Returns "BTC-USD"
 standardized = standardize_ticker_format("ETH")  # Returns "ETH-USD"
 ```
 
+### VIX Index Ticker Normalization
+
+```python
+# VIX tickers are normalized to ^VIX for proper data fetching
+standardized = standardize_ticker_format("VIX")      # Returns "^VIX"
+standardized = standardize_ticker_format("VIX.CBE")  # Returns "^VIX"
+standardized = standardize_ticker_format("VIX.SEP25") # Returns "^VIX"
+
+# Display and data fetch functions also handle VIX variants
+display_ticker = get_display_ticker("VIX.DEC25")     # Returns "^VIX"
+fetch_ticker = get_data_fetch_ticker("VIX.CBE")      # Returns "^VIX"
+```
+
 ## Integration Points
 
 ### 1. Data Providers (`yahoofinance/api/providers/hybrid_provider.py`)
