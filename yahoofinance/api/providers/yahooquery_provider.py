@@ -114,7 +114,11 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 "industry": price_data.get("industry", ""),
                 "price": price_data.get("regularMarketPrice", None),
                 "target_price": financial_data.get("targetMeanPrice", None),
-                "market_cap": price_data.get("marketCap", None),
+                "market_cap": (
+                    price_data.get("marketCap") or  # Regular stocks
+                    price_data.get("totalAssets") or  # ETFs
+                    price_data.get("netAssets")  # Alternative ETF field
+                ),
                 "beta": key_stats.get("beta", None),
                 "pe_trailing": key_stats.get("trailingPE", None),
                 "pe_forward": key_stats.get("forwardPE", None),
@@ -693,7 +697,11 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                     "target_price_high": ticker_financial.get("targetHighPrice", None),
                     "target_price_low": ticker_financial.get("targetLowPrice", None),
                     "price_target_analyst_count": ticker_financial.get("numberOfAnalystOpinions", None),
-                    "market_cap": ticker_price.get("marketCap", None),
+                    "market_cap": (
+                        ticker_price.get("marketCap") or  # Regular stocks
+                        ticker_price.get("totalAssets") or  # ETFs
+                        ticker_price.get("netAssets")  # Alternative ETF field
+                    ),
                     "beta": ticker_stats.get("beta", None),
                     "pe_trailing": ticker_stats.get("trailingPE", None),
                     "pe_forward": ticker_stats.get("forwardPE", None),

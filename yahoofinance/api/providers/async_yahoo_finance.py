@@ -214,7 +214,11 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             info["current_price"] = price
             info["price"] = price
             info["currency"] = ticker_info.get("currency", "")
-            info["market_cap"] = ticker_info.get("marketCap", None)
+            info["market_cap"] = (
+                ticker_info.get("marketCap") or  # Regular stocks
+                ticker_info.get("totalAssets") or  # ETFs
+                ticker_info.get("netAssets")  # Alternative ETF field
+            )
             info["exchange"] = ticker_info.get("exchange", "")
             info["quote_type"] = ticker_info.get("quoteType", "")
             info["pe_trailing"] = ticker_info.get("trailingPE", None)

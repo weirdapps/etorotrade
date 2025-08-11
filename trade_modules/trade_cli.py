@@ -237,42 +237,33 @@ async def handle_trade_analysis_direct(display, trade_choice, get_provider=None,
         # Get file paths
         output_dir, input_dir, market_file, portfolio_file, _ = get_file_paths()
 
-        # Determine which file to load and filter logic
+        # Determine which file to load - use the pre-generated result files
         if trade_choice == "B":
-            # BUY: Check market.csv for buy opportunities NOT in portfolio or sell files
-            data_file = market_file
-            # Include both input portfolio (complete list) and output portfolio (processed list)
-            # plus sell file and notrade file for comprehensive exclusion
-            input_portfolio_file = os.path.join(input_dir, "portfolio.csv")
-            notrade_file = os.path.join(input_dir, "notrade.csv")
-            exclusion_files = [
-                input_portfolio_file,  # Complete portfolio from input (includes international stocks)
-                portfolio_file,  # Processed portfolio from output (for any additional processed stocks)
-                os.path.join(output_dir, "sell.csv"),  # Stocks marked for selling
-                notrade_file,  # Stocks explicitly marked as notrade
-            ]
-            title = "Trade Analysis - BUY Opportunities (Market data excluding portfolio/notrade)"
+            # BUY: Use the pre-generated buy.csv file which already has the filtered results
+            data_file = os.path.join(output_dir, "buy.csv")
+            exclusion_files = []  # No additional exclusion needed since file is pre-filtered
+            title = "Trade Analysis - BUY Opportunities"
             output_filename = "buy.csv"
             if app_logger:
-                app_logger.info("Loading market data for BUY opportunities analysis")
+                app_logger.info("Loading pre-generated BUY opportunities from buy.csv")
 
         elif trade_choice == "S":
-            # SELL: Use output portfolio file which contains processed data with action signals (BS column)
-            data_file = portfolio_file  # This points to output/portfolio.csv with BS column
-            exclusion_files = []
-            title = "Trade Analysis - SELL Opportunities (Portfolio with action analysis)"
+            # SELL: Use the pre-generated sell.csv file which already has the filtered results
+            data_file = os.path.join(output_dir, "sell.csv")
+            exclusion_files = []  # No additional exclusion needed since file is pre-filtered
+            title = "Trade Analysis - SELL Opportunities"
             output_filename = "sell.csv"
             if app_logger:
-                app_logger.info("Loading processed portfolio data for SELL opportunities analysis")
+                app_logger.info("Loading pre-generated SELL opportunities from sell.csv")
 
         elif trade_choice == "H":
-            # HOLD: Use output portfolio file which contains processed data with action signals (BS column)
-            data_file = portfolio_file  # This points to output/portfolio.csv with BS column
-            exclusion_files = []  # Don't exclude anything - we want to analyze our portfolio
-            title = "Trade Analysis - HOLD Opportunities (Portfolio with action analysis)"
+            # HOLD: Use the pre-generated hold.csv file which already has the filtered results  
+            data_file = os.path.join(output_dir, "hold.csv")
+            exclusion_files = []  # No additional exclusion needed since file is pre-filtered
+            title = "Trade Analysis - HOLD Opportunities"
             output_filename = "hold.csv"
             if app_logger:
-                app_logger.info("Loading processed portfolio data for HOLD opportunities analysis")
+                app_logger.info("Loading pre-generated HOLD opportunities from hold.csv")
 
         else:
             if app_logger:
@@ -374,86 +365,69 @@ async def display_existing_csv_data(
                     f"Processing portfolio data for SELL opportunities: {len(df)} records"
                 )
 
-        # Apply trade action filtering to existing data
+        # Since we're using pre-filtered files, just display the data directly
         if not df.empty:
+            # Convert DataFrame to list of dicts for display
+            all_data = df.to_dict("records")
+            
+            # Use MarketDisplay to show the data
+            from yahoofinance.presentation.console import MarketDisplay
+            from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
+
+            # Create a minimal provider (won't be used for API calls)
+            provider = AsyncHybridProvider(max_concurrency=1)
+            display = MarketDisplay(provider=provider)
+
+            # Display the results
+            print(f"\n📊 {title}")
+            print("=" * len(title))
+            display.display_stock_table(all_data, title)
+
+            # Generate HTML file using the same pattern as regular analysis
             try:
-                # Calculate actions for all rows
-                from yahoofinance.utils.trade_criteria import calculate_action_for_row
-
-                actions = []
-                filtered_rows = []
-
-                for _, row in df.iterrows():
-                    try:
-                        from yahoofinance.core.config import TRADING_CRITERIA
-
-                        action, _ = calculate_action_for_row(
-                            row.to_dict(), TRADING_CRITERIA, "short_percent"
-                        )
-                        if action == trade_choice:
-                            actions.append(action)
-                            filtered_rows.append(row.to_dict())
-                    except Exception as e:
-                        # If action calculation fails, include in HOLD filter only
-                        if trade_choice == "H":
-                            actions.append("H")
-                            filtered_rows.append(row.to_dict())
-
-                if filtered_rows:
-                    # Use MarketDisplay to show the filtered data
-                    from yahoofinance.presentation.console import MarketDisplay
-                    from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
-
-                    # Create a minimal provider (won't be used for API calls)
-                    provider = AsyncHybridProvider(max_concurrency=1)
-                    display = MarketDisplay(provider=provider)
-
-                    # Display the results
-                    display.display_stock_table(filtered_rows, title)
-
-                    # Display processing statistics after the table
-                    from yahoofinance.utils.async_utils.enhanced import display_processing_stats
-
-                    display_processing_stats()
-
-                    # Save to CSV
-                    output_dir, _, _, _, _ = get_file_paths()
-                    output_path = os.path.join(output_dir, output_filename)
-                    display.save_to_csv(filtered_rows, output_filename)
-
-                    if app_logger:
-                        app_logger.info(
-                            f"Displayed {len(filtered_rows)} {trade_choice} opportunities"
-                        )
-                else:
-                    if app_logger:
-                        app_logger.info(f"No {trade_choice} opportunities found after filtering")
-
+                from yahoofinance.presentation.html import HTMLGenerator
+                from trade_modules.utils import get_file_paths
+                
+                # Get output directory
+                output_dir, _, _, _, _ = get_file_paths()
+                
+                # Generate HTML filename
+                html_filename = output_filename.replace('.csv', '.html')
+                html_path = f"{output_dir}/{html_filename}"
+                
+                # Rename BS column to ACTION for proper color coding (if it exists)
+                df_for_html = df.copy()
+                if 'BS' in df_for_html.columns:
+                    df_for_html = df_for_html.rename(columns={'BS': 'ACTION'})
+                elif 'ACT' in df_for_html.columns:
+                    df_for_html = df_for_html.rename(columns={'ACT': 'ACTION'})
+                
+                # Convert to stocks_data for HTML generation
+                stocks_data = df_for_html.to_dict('records')
+                base_filename = os.path.splitext(html_filename)[0]
+                
+                # Generate HTML file
+                html_generator = HTMLGenerator()
+                html_generator.generate_stock_table(
+                    stocks_data=stocks_data,
+                    title=title,
+                    output_filename=base_filename,
+                    include_columns=list(df_for_html.columns)
+                )
+                
+                if app_logger:
+                    app_logger.info(f"Generated HTML file: {html_path}")
+                    
             except Exception as e:
                 if app_logger:
-                    app_logger.error(f"Error filtering trade actions: {e}")
-                # Fallback: display all data without action filtering
+                    app_logger.warning(f"Failed to generate HTML file: {str(e)}")
 
-                # Convert DataFrame to list of dicts for display
-                all_data = df.to_dict("records")
-                from yahoofinance.presentation.console import MarketDisplay
-                from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
-
-                provider = AsyncHybridProvider(max_concurrency=1)
-                display = MarketDisplay(provider=provider)
-                display.display_stock_table(all_data, title)
-
-                # Display processing statistics after the table
-                from yahoofinance.utils.async_utils.enhanced import display_processing_stats
-
-                display_processing_stats()
-
-                output_dir, _, _, _, _ = get_file_paths()
-                output_path = os.path.join(output_dir, output_filename)
-                display.save_to_csv(all_data, output_filename)
-        else:
             if app_logger:
-                app_logger.info("No data remaining after exclusion filtering")
+                app_logger.info(f"Displayed {len(all_data)} {trade_choice} opportunities")
+        else:
+            print(f"📋 No {trade_choice} opportunities found in {data_file}")
+            if app_logger:
+                app_logger.info(f"No {trade_choice} opportunities found")
 
     except Exception as e:
         if app_logger:

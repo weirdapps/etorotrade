@@ -203,9 +203,24 @@ def standardize_ticker_format(ticker: str) -> str:
             cleaned = normalized_base.zfill(4) + '.HK'
     
     # Crypto tickers: ensure -USD suffix for major cryptos
-    elif cleaned in ['BTC', 'ETH', 'XRP', 'LTC', 'BCH', 'ADA', 'DOT', 'LINK', 'XLM', 'DOGE', 'SOL']:
+    elif cleaned in ['BTC', 'ETH', 'XRP', 'LTC', 'BCH', 'ADA', 'DOT', 'LINK', 'XLM', 'DOGE', 'SOL', 'HBAR']:
         if not cleaned.endswith('-USD'):
             cleaned = cleaned + '-USD'
+    
+    # Copenhagen Stock Exchange (.CO) tickers: normalize format for dual-listed stocks
+    elif cleaned.endswith('.CO'):
+        base_ticker = cleaned.split('.')[0]
+        # Handle specific patterns for Copenhagen stocks with dashes
+        # Many Copenhagen stocks use the pattern XXXB.CO but should be XXX-B.CO
+        if base_ticker.endswith('B') and len(base_ticker) > 1:
+            # Check for known patterns that need dash insertion
+            if base_ticker in ['MAERSKB', 'NOVOB', 'COLOB']:
+                if base_ticker == 'MAERSKB':
+                    cleaned = 'MAERSK-B.CO'
+                elif base_ticker == 'NOVOB':
+                    cleaned = 'NOVO-B.CO'
+                elif base_ticker == 'COLOB':
+                    cleaned = 'COLO-B.CO'
     
     return cleaned
 

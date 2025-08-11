@@ -21,6 +21,11 @@ from yahoofinance.utils.data.ticker_utils import (
     process_ticker_input,
     get_ticker_for_display,
 )
+from yahoofinance.utils.data.asset_type_utils import (
+    universal_sort_dataframe,
+    get_asset_type_summary,
+    format_asset_type_summary,
+)
 from yahoofinance.core.config import STANDARD_DISPLAY_COLUMNS, FILE_PATHS, PATHS
 
 # Color constants for terminal output
@@ -310,10 +315,23 @@ def display_and_save_results(display_df: pd.DataFrame, title: str, output_file: 
         csv_df.to_csv(output_file, index=False)
         print(f"📁 Results saved to: {output_file}")
 
-        # Generate HTML file
+        # Generate HTML file with color coding
         html_file = output_file.replace(".csv", ".html")
         html_generator = HTMLGenerator()
-        html_generator.generate_results_html(csv_df, title, html_file)
+        
+        # Convert DataFrame to list of dictionaries for generate_stock_table
+        stocks_data = csv_df.to_dict('records')
+        
+        # Extract base filename for output filename
+        base_filename = os.path.splitext(os.path.basename(html_file))[0]
+        
+        # Use generate_stock_table instead of generate_results_html for proper color coding
+        html_generator.generate_stock_table(
+            stocks_data=stocks_data,
+            title=title,
+            output_filename=base_filename,
+            include_columns=list(csv_df.columns)
+        )
         print(f"🌐 HTML report saved to: {html_file}")
 
     except Exception as e:
@@ -338,7 +356,20 @@ def create_empty_results_file(output_file: str) -> None:
         # Generate empty HTML
         html_file = output_file.replace(".csv", ".html")
         html_generator = HTMLGenerator()
-        html_generator.generate_results_html(empty_df, "No Results Found", html_file)
+        
+        # Convert empty DataFrame to list of dictionaries
+        stocks_data = empty_df.to_dict('records')
+        
+        # Extract base filename
+        base_filename = os.path.splitext(os.path.basename(html_file))[0]
+        
+        # Use generate_stock_table for consistency
+        html_generator.generate_stock_table(
+            stocks_data=stocks_data,
+            title="No Results Found",
+            output_filename=base_filename,
+            include_columns=list(empty_df.columns)
+        )
 
         logger.debug(f"Created empty results files: {output_file}, {html_file}")
 
@@ -361,7 +392,7 @@ def _display_empty_result(report_title: str) -> None:
 
 def _sort_display_dataframe(display_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Sort display dataframe by EXRET column in descending order.
+    Sort display dataframe using universal sorting: asset type first, then market cap descending.
 
     Args:
         display_df: Dataframe to sort
@@ -370,25 +401,14 @@ def _sort_display_dataframe(display_df: pd.DataFrame) -> pd.DataFrame:
         pd.DataFrame: Sorted dataframe
     """
     try:
-        if "EXRET" in display_df.columns and not display_df.empty:
-            # Convert EXRET to numeric for sorting
-            display_df["EXRET_numeric"] = pd.to_numeric(
-                display_df["EXRET"], errors="coerce"
-            ).fillna(0)
-
-            # Sort by EXRET descending
-            sorted_df = display_df.sort_values("EXRET_numeric", ascending=False)
-
-            # Remove the temporary numeric column
-            sorted_df = sorted_df.drop("EXRET_numeric", axis=1)
-
-            # Reset index
-            sorted_df = sorted_df.reset_index(drop=True)
-
-            logger.debug(f"Sorted dataframe by EXRET: {len(sorted_df)} rows")
-            return sorted_df
-        else:
+        if display_df.empty:
             return display_df
+
+        # Apply universal sorting (asset type priority, then market cap descending)
+        sorted_df = universal_sort_dataframe(display_df)
+        
+        logger.debug(f"Applied universal sorting to dataframe: {len(sorted_df)} rows")
+        return sorted_df
 
     except Exception as e:
         logger.error(f"Error sorting display dataframe: {str(e)}")
@@ -481,8 +501,10 @@ def _format_price_value(value: Any) -> str:
         numeric_value = float(value)
         if numeric_value == 0:
             return "--"
-        # 1 decimal if >= $10, 2 decimals if < $10
-        if numeric_value >= 10:
+        # 0 decimals if >= $1000, 1 decimal if >= $10, 2 decimals if < $10
+        if numeric_value >= 1000:
+            return f"${numeric_value:,.0f}"
+        elif numeric_value >= 10:
             return f"${numeric_value:.1f}"
         else:
             return f"${numeric_value:.2f}"

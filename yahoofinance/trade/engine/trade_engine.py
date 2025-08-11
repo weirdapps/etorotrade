@@ -18,6 +18,7 @@ from yahoofinance.trade.criteria.calculator import CriteriaCalculator
 from yahoofinance.trade.reports.generator import ReportGenerator
 from yahoofinance.trade.portfolio.manager import PortfolioManager
 from yahoofinance import get_provider
+from yahoofinance.utils.data.asset_type_utils import universal_sort_dataframe
 from yahoofinance.presentation.console import MarketDisplay
 
 logger = get_logger(__name__)
@@ -105,9 +106,8 @@ class TradeEngine:
         # Format and display results
         display_df = self.format_display_dataframe(display_df)
         
-        # Sort by EXRET descending
-        if "EXRET" in display_df.columns:
-            display_df = display_df.sort_values("EXRET", ascending=False, na_position="last")
+        # Apply universal sorting (asset type first, then market cap descending)
+        display_df = universal_sort_dataframe(display_df)
         
         # Display and save results
         self.report_generator.display_and_save_results(
@@ -220,9 +220,8 @@ class TradeEngine:
         # Apply general formatting
         display_df = self.format_display_dataframe(display_df)
         
-        # Sort by EXRET descending
-        if "EXRET" in display_df.columns:
-            display_df = display_df.sort_values("EXRET", ascending=False, na_position="last")
+        # Apply universal sorting (asset type first, then market cap descending)
+        display_df = universal_sort_dataframe(display_df)
         
         # Display and save results
         output_file = os.path.join(output_dir, HOLD_CSV)
