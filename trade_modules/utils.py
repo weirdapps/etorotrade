@@ -36,7 +36,7 @@ def get_file_paths():
         output_dir = PATHS["OUTPUT_DIR"]
         input_dir = PATHS["INPUT_DIR"]
         market_path = os.path.join(output_dir, "market.csv")
-        portfolio_path = os.path.join(output_dir, "portfolio.csv")
+        portfolio_path = os.path.join(input_dir, "portfolio.csv")
         notrade_path = os.path.join(input_dir, "notrade.csv")
 
         return output_dir, input_dir, market_path, portfolio_path, notrade_path
@@ -47,7 +47,7 @@ def get_file_paths():
             "yahoofinance/output",
             "yahoofinance/input",
             "yahoofinance/output/market.csv",
-            "yahoofinance/output/portfolio.csv",
+            "yahoofinance/input/portfolio.csv",
             "yahoofinance/input/notrade.csv",
         )
 
