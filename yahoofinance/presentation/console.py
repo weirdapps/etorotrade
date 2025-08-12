@@ -271,20 +271,35 @@ class MarketDisplay:
         if 'M' in df.columns:
             new_df['M'] = df['M']
         
+        # Copy any BS/ACTION column if present to preserve existing values
+        for action_col in ['BS', 'ACTION', 'ACT', 'action']:
+            if action_col in df.columns:
+                new_df[action_col] = df[action_col]
+                break  # Only copy the first one found
+        
         df = new_df
         
         # Note: Position numbers (#) will be added after all sorting and formatting is complete
             
-        # Always recalculate BS/ACT column to ensure accuracy with latest criteria
+        # Handle BS/ACTION column - preserve existing values
         bs_col = COLUMN_NAMES['ACTION']
-        # Remove any existing action columns to force recalculation
-        action_cols_to_remove = [bs_col, "action", "ACTION", "ACT"]
-        for col in action_cols_to_remove:
-            if col in df.columns:
-                df = df.drop(columns=[col])
         
-        # Calculate action based on available data using trade criteria
-        df[bs_col] = self._calculate_actions(df)
+        # Check if any action column already exists
+        existing_action_cols = [col for col in ["BS", "action", "ACTION", "ACT"] if col in df.columns]
+        
+        if existing_action_cols:
+            # Use the first existing action column found
+            source_col = existing_action_cols[0]
+            if source_col != bs_col:
+                # Copy the values to the standard column name
+                df[bs_col] = df[source_col].copy()
+                # Remove the original column if it's different
+                df = df.drop(columns=[source_col])
+            # If source_col == bs_col (e.g., both are "BS"), keep the existing values as-is
+            # No need to do anything, the column already has the right name and values
+        else:
+            # Only calculate if no action column exists
+            df[bs_col] = self._calculate_actions(df)
 
         # Apply number formatting based on FORMATTERS configuration
         import math
