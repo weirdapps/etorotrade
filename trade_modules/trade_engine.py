@@ -86,8 +86,11 @@ class TradingEngine:
             if notrade_path and Path(notrade_path).exists():
                 processed_market = self._filter_notrade_tickers(processed_market, notrade_path)
 
-            # Calculate trading signals
-            processed_market = self._calculate_trading_signals(processed_market)
+            # Calculate trading signals only if BS column doesn't exist
+            if "BS" not in processed_market.columns:
+                processed_market = self._calculate_trading_signals(processed_market)
+            else:
+                self.logger.info("Using existing BS column values from market data")
 
             # Categorize opportunities
             results["buy_opportunities"] = self._filter_buy_opportunities(processed_market)
@@ -215,22 +218,16 @@ class TradingEngine:
         return df
 
     def _filter_buy_opportunities(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Filter for buy opportunities based on action and criteria."""
+        """Filter for buy opportunities based on BS column classification."""
         # Use BS column which contains 'B', 'S', 'H' values
         if "BS" not in df.columns:
             return pd.DataFrame()
 
+        # Filter for stocks marked as BUY - trust the BS column classification
         buy_mask = df["BS"] == "B"
-
-        # Additional filters for buy opportunities
-        if "confidence_score" in df.columns:
-            # Handle NaN values in confidence_score
-            buy_mask &= df["confidence_score"].fillna(0.5) > 0.6  # High confidence threshold
-
-        if "EXRET" in df.columns:
-            buy_mask &= df["EXRET"] > 0  # Positive excess return
-
-        return df[buy_mask].copy()
+        filtered_df = df[buy_mask].copy()
+        
+        return filtered_df
 
     def _filter_sell_opportunities(self, df: pd.DataFrame) -> pd.DataFrame:
         """Filter for sell opportunities based on action and criteria."""
@@ -272,7 +269,11 @@ class TradingEngine:
                 for ticker in portfolio_df["ticker"]:
                     if pd.notna(ticker) and ticker:
                         portfolio_tickers.add(ticker)
-
+            elif "symbol" in portfolio_df.columns:
+                for ticker in portfolio_df["symbol"]:
+                    if pd.notna(ticker) and ticker:
+                        portfolio_tickers.add(ticker)
+            
             if portfolio_tickers:
                 # For sell and hold, only include tickers equivalent to portfolio holdings
                 sell_mask = pd.Series(False, index=opportunities["sell_opportunities"].index)
@@ -299,6 +300,7 @@ class TradingEngine:
 
                 # For buy, exclude tickers equivalent to portfolio holdings
                 buy_mask = pd.Series(True, index=opportunities["buy_opportunities"].index)
+                
                 for market_ticker in opportunities["buy_opportunities"].index:
                     if pd.notna(market_ticker):
                         is_in_portfolio = any(
@@ -307,6 +309,7 @@ class TradingEngine:
                         )
                         if is_in_portfolio:
                             buy_mask.loc[market_ticker] = False
+                
                 opportunities["buy_opportunities"] = opportunities["buy_opportunities"][buy_mask]
 
         except Exception as e:

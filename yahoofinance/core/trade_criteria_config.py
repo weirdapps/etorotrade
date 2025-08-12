@@ -81,7 +81,7 @@ class TradingCriteria:
     
     # GROWTH tier BUY criteria ($5B-$100B market cap) - Standard criteria
     GROWTH_BUY_MIN_UPSIDE = 20.0             # Standard upside requirement
-    GROWTH_BUY_MIN_BUY_PERCENTAGE = 75.0     # Standard analyst consensus
+    GROWTH_BUY_MIN_BUY_PERCENTAGE = 75.0     # Strong analyst consensus required
     GROWTH_BUY_MIN_BETA = 0.25               # Standard beta range
     GROWTH_BUY_MAX_BETA = 3.0                # Higher beta limit
     GROWTH_BUY_MIN_FORWARD_PE = 0.5          # Standard PE requirements
@@ -90,7 +90,7 @@ class TradingCriteria:
     GROWTH_BUY_MAX_TRAILING_PE = 80.0        # Standard trailing PE limit
     GROWTH_BUY_MAX_PEG = 2.5                 # Standard PEG requirement
     GROWTH_BUY_MAX_SHORT_INTEREST = 2.5      # Higher short interest tolerance
-    GROWTH_BUY_MIN_EXRET = 0.15              # Standard expected return (15%)
+    GROWTH_BUY_MIN_EXRET = 0.15              # Standard expected return threshold (15%)
     GROWTH_BUY_MIN_EARNINGS_GROWTH = -10.0   # Standard earnings growth requirement
     GROWTH_BUY_MIN_PRICE_PERFORMANCE = -15.0 # Moderate tolerance for underperformance
     

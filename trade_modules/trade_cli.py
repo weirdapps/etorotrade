@@ -270,10 +270,19 @@ async def handle_trade_analysis_direct(display, trade_choice, get_provider=None,
                 app_logger.error(f"Invalid trade choice: {trade_choice}")
             return
 
-        # Check if data file exists
+        # Always generate fresh opportunities from market.csv (no caching)
+        if app_logger:
+            app_logger.info(f"Generating fresh {trade_choice} opportunities from market.csv")
+        
+        # Generate opportunities from market.csv
+        await generate_trade_opportunities_from_market(
+            market_file, portfolio_file, trade_choice, output_dir, app_logger
+        )
+        
+        # Check if file was created
         if not os.path.exists(data_file):
             if app_logger:
-                app_logger.error(f"Data file not found: {data_file}")
+                app_logger.error(f"Failed to generate trade opportunities: {data_file}")
             return
 
         # Load and process data directly from CSV without API calls
@@ -287,6 +296,88 @@ async def handle_trade_analysis_direct(display, trade_choice, get_provider=None,
     except Exception as e:
         if app_logger:
             app_logger.error(f"Trade analysis direct failed: {str(e)}")
+        raise
+
+
+async def generate_trade_opportunities_from_market(
+    market_file, portfolio_file, trade_choice, output_dir, app_logger
+):
+    """
+    Generate trade opportunities from market.csv data.
+    
+    Args:
+        market_file: Path to market.csv
+        portfolio_file: Path to portfolio.csv
+        trade_choice: Trade type (B/S/H)
+        output_dir: Output directory
+        app_logger: Logger instance
+    """
+    try:
+        import pandas as pd
+        from trade_modules.trade_engine import TradingEngine
+        
+        # Load market data
+        if not os.path.exists(market_file):
+            if app_logger:
+                app_logger.error(f"Market file not found: {market_file}")
+            return
+            
+        market_df = pd.read_csv(market_file, index_col=0)
+        if app_logger:
+            app_logger.info(f"Loaded market data: {len(market_df)} stocks")
+        
+        # Load portfolio data if it exists
+        portfolio_df = None
+        if os.path.exists(portfolio_file):
+            portfolio_df = pd.read_csv(portfolio_file)
+            if app_logger:
+                app_logger.info(f"Loaded portfolio data: {len(portfolio_df)} holdings")
+        
+        # Create trading engine and analyze opportunities
+        engine = TradingEngine()
+        opportunities = await engine.analyze_market_opportunities(market_df, portfolio_df)
+        
+        # Save the appropriate opportunities file
+        if trade_choice == "B":
+            buy_opps = opportunities.get("buy_opportunities", pd.DataFrame())
+            output_file = os.path.join(output_dir, "buy.csv")
+            if not buy_opps.empty:
+                buy_opps.to_csv(output_file)
+                if app_logger:
+                    app_logger.info(f"Generated {len(buy_opps)} buy opportunities -> {output_file}")
+            else:
+                # Create empty file to prevent re-generation
+                pd.DataFrame().to_csv(output_file)
+                if app_logger:
+                    app_logger.info("No buy opportunities found, created empty file")
+                    
+        elif trade_choice == "S":
+            sell_opps = opportunities.get("sell_opportunities", pd.DataFrame())
+            output_file = os.path.join(output_dir, "sell.csv")
+            if not sell_opps.empty:
+                sell_opps.to_csv(output_file)
+                if app_logger:
+                    app_logger.info(f"Generated {len(sell_opps)} sell opportunities -> {output_file}")
+            else:
+                pd.DataFrame().to_csv(output_file)
+                if app_logger:
+                    app_logger.info("No sell opportunities found, created empty file")
+                    
+        elif trade_choice == "H":
+            hold_opps = opportunities.get("hold_opportunities", pd.DataFrame())
+            output_file = os.path.join(output_dir, "hold.csv")
+            if not hold_opps.empty:
+                hold_opps.to_csv(output_file)
+                if app_logger:
+                    app_logger.info(f"Generated {len(hold_opps)} hold opportunities -> {output_file}")
+            else:
+                pd.DataFrame().to_csv(output_file)
+                if app_logger:
+                    app_logger.info("No hold opportunities found, created empty file")
+        
+    except Exception as e:
+        if app_logger:
+            app_logger.error(f"Error generating trade opportunities: {str(e)}")
         raise
 
 
@@ -367,6 +458,10 @@ async def display_existing_csv_data(
 
         # Since we're using pre-filtered files, just display the data directly
         if not df.empty:
+            # Reset index to make ticker a regular column if it's the index
+            if df.index.name == 'TICKER' or (df.index.name and 'ticker' in df.index.name.lower()):
+                df = df.reset_index()
+            
             # Convert DataFrame to list of dicts for display
             all_data = df.to_dict("records")
             
@@ -395,8 +490,10 @@ async def display_existing_csv_data(
                 html_filename = output_filename.replace('.csv', '.html')
                 html_path = f"{output_dir}/{html_filename}"
                 
-                # Rename BS column to ACTION for proper color coding (if it exists)
+                # Ensure df has TICKER as a column (not index) for HTML generation
                 df_for_html = df.copy()
+                
+                # Rename BS column to ACTION for proper color coding (if it exists)
                 if 'BS' in df_for_html.columns:
                     df_for_html = df_for_html.rename(columns={'BS': 'ACTION'})
                 elif 'ACT' in df_for_html.columns:
