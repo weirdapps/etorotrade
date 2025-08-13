@@ -86,6 +86,12 @@ class TradingEngine:
             if notrade_path and Path(notrade_path).exists():
                 processed_market = self._filter_notrade_tickers(processed_market, notrade_path)
 
+            # Handle column name variations: ACT or BS
+            # Rename ACT to BS if present for consistency
+            if "ACT" in processed_market.columns and "BS" not in processed_market.columns:
+                processed_market["BS"] = processed_market["ACT"]
+                self.logger.info("Using ACT column values as BS column from market data")
+            
             # Calculate trading signals only if BS column doesn't exist
             if "BS" not in processed_market.columns:
                 processed_market = self._calculate_trading_signals(processed_market)
@@ -261,7 +267,12 @@ class TradingEngine:
             portfolio_tickers = set()
 
             # Extract portfolio tickers (no normalization needed for equivalence checking)
-            if "Ticker" in portfolio_df.columns:
+            # Check for various column name variations
+            if "TICKER" in portfolio_df.columns:
+                for ticker in portfolio_df["TICKER"]:
+                    if pd.notna(ticker) and ticker:
+                        portfolio_tickers.add(ticker)
+            elif "Ticker" in portfolio_df.columns:
                 for ticker in portfolio_df["Ticker"]:
                     if pd.notna(ticker) and ticker:
                         portfolio_tickers.add(ticker)
