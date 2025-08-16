@@ -12,6 +12,7 @@ import numpy as np
 
 from yahoofinance.core.logging import get_logger
 from yahoofinance.core.errors import ValidationError, YFinanceError
+from .errors import TradingFilterError
 
 from .utils import (
     clean_ticker_symbol,
@@ -563,10 +564,7 @@ class CustomFilter:
             return df
 
 
-class TradingFilterError(YFinanceError):
-    """Custom exception for trading filter errors."""
-
-    pass
+# TradingFilterError is now imported from .errors module for consolidated error hierarchy
 
 
 def create_criteria_filter(criteria_config: Optional[Dict] = None) -> TradingCriteriaFilter:
