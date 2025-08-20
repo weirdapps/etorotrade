@@ -214,12 +214,11 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
     buy_pct = pd.Series([_parse_percentage(val) for val in buy_pct_raw], index=df.index)
 
     # Handle both raw CSV column names and normalized column names
-    analyst_count = pd.to_numeric(
-        df.get("analyst_count", df.get("#T", df.get("# T", 0))), errors="coerce"
-    ).fillna(0)
-    total_ratings = pd.to_numeric(
-        df.get("total_ratings", df.get("#A", df.get("# A", 0))), errors="coerce"
-    ).fillna(0)
+    analyst_count_raw = df.get("analyst_count", df.get("#T", df.get("# T", pd.Series([0] * len(df), index=df.index))))
+    analyst_count = pd.to_numeric(analyst_count_raw, errors="coerce").fillna(0)
+    
+    total_ratings_raw = df.get("total_ratings", df.get("#A", df.get("# A", pd.Series([0] * len(df), index=df.index))))
+    total_ratings = pd.to_numeric(total_ratings_raw, errors="coerce").fillna(0)
 
     # Confidence check - vectorized
     has_confidence = (analyst_count >= config.UNIVERSAL_THRESHOLDS["min_analyst_count"]) & (
@@ -227,7 +226,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
     )
 
     # Get market cap and parse formatted strings (e.g., "2.47T", "628B")
-    cap_raw = df.get("market_cap", df.get("CAP", 0))
+    cap_raw = df.get("market_cap", df.get("CAP", pd.Series([0] * len(df), index=df.index)))
     cap_values = pd.Series([_parse_market_cap(cap) for cap in cap_raw], index=df.index)
     
     # Additional SELL/BUY criteria for stocks with data

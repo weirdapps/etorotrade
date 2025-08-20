@@ -42,7 +42,7 @@ class DataProcessingService:
             items=tickers,
             processor=self._process_single_ticker,
             batch_size=batch_size,
-            max_concurrency=get_max_concurrent_requests(),
+            concurrency=get_max_concurrent_requests(),
             show_progress=True,
             description="Processing tickers"
         )
