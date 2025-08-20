@@ -55,14 +55,27 @@ logger = get_logger(__name__)
 class TradingEngine:
     """Core trading engine for market analysis and decision making."""
 
-    def __init__(self, provider=None, config=None):
-        """Initialize trading engine with provider and configuration."""
+    def __init__(self, provider_or_config=None, config=None):
+        """Initialize trading engine with provider and configuration.
+        
+        Args:
+            provider_or_config: Either a provider instance or a config dict (for backward compatibility)
+            config: Configuration dict (only used if first param is a provider)
+        """
         # Import here to avoid circular imports
         from yahoofinance.core.config import get_max_concurrent_requests
         max_concurrent = get_max_concurrent_requests()
         _AsyncHybridProvider = get_async_hybrid_provider()
-        self.provider = provider or _AsyncHybridProvider(max_concurrency=max_concurrent)
-        self.config = config or {}
+        
+        # Handle backward compatibility - first param could be config dict
+        if isinstance(provider_or_config, dict):
+            # Old signature: TradingEngine(config)
+            self.config = provider_or_config
+            self.provider = _AsyncHybridProvider(max_concurrency=max_concurrent)
+        else:
+            # New signature: TradingEngine(provider, config)
+            self.provider = provider_or_config or _AsyncHybridProvider(max_concurrency=max_concurrent)
+            self.config = config or {}
         self.logger = logger
         self.data_processing_service = DataProcessingService(self.provider, self.logger)
         self.analysis_service = AnalysisService(self.config, self.logger)
@@ -146,6 +159,68 @@ class TradingEngine:
     async def process_ticker_batch(self, tickers: List[str], batch_size: int = 50) -> pd.DataFrame:
         """Process a batch of tickers for market data."""
         return await self.data_processing_service.process_ticker_batch(tickers, batch_size)
+    
+    # Backward compatibility methods
+    def analyze_buy_opportunities(self, market_df: pd.DataFrame) -> pd.DataFrame:
+        """Backward compatibility wrapper for analyzing buy opportunities (sync)."""
+        # This is a sync method for backward compatibility
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # Can't run async in already running loop
+                return pd.DataFrame()
+            else:
+                results = loop.run_until_complete(self.analyze_market_opportunities(market_df))
+                return results.get("buy_opportunities", pd.DataFrame())
+        except:
+            return pd.DataFrame()
+    
+    def analyze_sell_opportunities(self, portfolio_df: pd.DataFrame) -> pd.DataFrame:
+        """Backward compatibility wrapper for analyzing sell opportunities (sync)."""
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                return pd.DataFrame()
+            else:
+                results = loop.run_until_complete(self.analyze_market_opportunities(pd.DataFrame(), portfolio_df))
+                return results.get("sell_opportunities", pd.DataFrame())
+        except:
+            return pd.DataFrame()
+    
+    def analyze_hold_opportunities(self, portfolio_df: pd.DataFrame) -> pd.DataFrame:
+        """Backward compatibility wrapper for analyzing hold opportunities (sync)."""
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                return pd.DataFrame()
+            else:
+                results = loop.run_until_complete(self.analyze_market_opportunities(pd.DataFrame(), portfolio_df))
+                return results.get("hold_opportunities", pd.DataFrame())
+        except:
+            return pd.DataFrame()
+    
+    def load_portfolio(self, portfolio_file: str = None) -> pd.DataFrame:
+        """Backward compatibility method to load portfolio."""
+        if not portfolio_file:
+            portfolio_file = self.config.get("portfolio_file", "portfolio.csv")
+        try:
+            return pd.read_csv(portfolio_file)
+        except FileNotFoundError:
+            self.logger.warning(f"Portfolio file not found: {portfolio_file}")
+            return pd.DataFrame()
+    
+    def generate_reports(self, opportunities: Dict[str, pd.DataFrame]) -> None:
+        """Backward compatibility method for report generation."""
+        # This functionality was moved to display/output modules
+        self.logger.info("Report generation moved to display modules")
+        pass
+    
+    def _calculate_trading_signals(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Backward compatibility wrapper for trading signal calculation."""
+        return self.analysis_service.calculate_trading_signals(df)
 
 
 
@@ -224,42 +299,7 @@ class PositionSizer:
             self.logger.warning(f"Error calculating position size for {ticker}: {str(e)}")
             # Return minimum position size as fallback
             return portfolio_value * self.min_position_size
-    
-    # Backward compatibility methods
-    async def analyze_buy_opportunities(self, market_df: pd.DataFrame) -> pd.DataFrame:
-        """Backward compatibility wrapper for analyzing buy opportunities."""
-        results = await self.analyze_market_opportunities(market_df)
-        return results.get("buy_opportunities", pd.DataFrame())
-    
-    async def analyze_sell_opportunities(self, portfolio_df: pd.DataFrame) -> pd.DataFrame:
-        """Backward compatibility wrapper for analyzing sell opportunities."""
-        results = await self.analyze_market_opportunities(pd.DataFrame(), portfolio_df)
-        return results.get("sell_opportunities", pd.DataFrame())
-    
-    async def analyze_hold_opportunities(self, portfolio_df: pd.DataFrame) -> pd.DataFrame:
-        """Backward compatibility wrapper for analyzing hold opportunities."""
-        results = await self.analyze_market_opportunities(pd.DataFrame(), portfolio_df)
-        return results.get("hold_opportunities", pd.DataFrame())
-    
-    def load_portfolio(self, portfolio_file: str = None) -> pd.DataFrame:
-        """Backward compatibility method to load portfolio."""
-        if not portfolio_file:
-            portfolio_file = self.config.get("portfolio_file", "portfolio.csv")
-        try:
-            return pd.read_csv(portfolio_file)
-        except FileNotFoundError:
-            self.logger.warning(f"Portfolio file not found: {portfolio_file}")
-            return pd.DataFrame()
-    
-    def generate_reports(self, opportunities: Dict[str, pd.DataFrame]) -> None:
-        """Backward compatibility method for report generation."""
-        # This functionality was moved to display/output modules
-        self.logger.info("Report generation moved to display modules")
-        pass
-    
-    def _calculate_trading_signals(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Backward compatibility wrapper for trading signal calculation."""
-        return self.analysis_service.calculate_trading_signals(df)
+
 
 
 def create_trading_engine(provider=None, config=None) -> TradingEngine:
@@ -270,3 +310,19 @@ def create_trading_engine(provider=None, config=None) -> TradingEngine:
 def create_position_sizer(max_position: float = 0.05, min_position: float = 0.01) -> PositionSizer:
     """Factory function to create a position sizer instance."""
     return PositionSizer(max_position_size=max_position, min_position_size=min_position)
+
+
+# Backward compatibility function
+def process_ticker_input(ticker_input: str) -> List[str]:
+    """Process ticker input string into a list of tickers."""
+    if not ticker_input:
+        return []
+    
+    # Handle various input formats
+    if isinstance(ticker_input, list):
+        return ticker_input
+    
+    # Split by comma, space, or newline
+    import re
+    tickers = re.split(r'[,\s\n]+', ticker_input.strip())
+    return [t.strip().upper() for t in tickers if t.strip()]

@@ -188,6 +188,13 @@ class CacheService:
             
             self._stats['evictions'] += len(self._memory_cache)
     
+    def _get_file_path(self, key: str) -> Path:
+        """Get the file path for a cache key (backward compatibility)."""
+        if not self.cache_dir:
+            self.cache_dir = Path(".cache")
+        safe_key = key.replace("/", "_").replace("\\", "_").replace(":", "_")
+        return self.cache_dir / f"{safe_key}.cache"
+    
     def get_stats(self) -> Dict[str, Any]:
         """
         Get cache statistics.

@@ -821,3 +821,30 @@ if __name__ == "__main__":
     except YFinanceError as e:
         print(f"Error analyzing market data: {str(e)}")
         sys.exit(1)
+
+
+# Backward compatibility function
+def get_market_data(tickers: List[str] = None, provider=None) -> pd.DataFrame:
+    """Backward compatibility wrapper for market data retrieval."""
+    analyzer = MarketAnalyzer(provider=provider)
+    if not tickers:
+        tickers = []
+    
+    # Return a basic DataFrame with market data
+    import asyncio
+    
+    async def _get_data():
+        results = await analyzer.analyze_multiple_tickers(tickers)
+        return analyzer._convert_results_to_dataframe(results)
+    
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # If we're already in an async context, create a new task
+            task = asyncio.create_task(_get_data())
+            return asyncio.run_until_complete(task)
+        else:
+            return asyncio.run(_get_data())
+    except RuntimeError:
+        # Fallback to sync-like behavior
+        return pd.DataFrame()
