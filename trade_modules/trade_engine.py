@@ -55,20 +55,25 @@ logger = get_logger(__name__)
 class TradingEngine:
     """Core trading engine for market analysis and decision making."""
 
-    def __init__(self, provider_or_config=None, config=None):
+    def __init__(self, provider_or_config=None, config=None, **kwargs):
         """Initialize trading engine with provider and configuration.
         
         Args:
             provider_or_config: Either a provider instance or a config dict (for backward compatibility)
             config: Configuration dict (only used if first param is a provider)
+            **kwargs: Additional keyword arguments (e.g., provider=...)
         """
         # Import here to avoid circular imports
         from yahoofinance.core.config import get_max_concurrent_requests
         max_concurrent = get_max_concurrent_requests()
         _AsyncHybridProvider = get_async_hybrid_provider()
         
-        # Handle backward compatibility - first param could be config dict
-        if isinstance(provider_or_config, dict):
+        # Check if provider was passed as keyword argument
+        if 'provider' in kwargs:
+            # New signature with keyword: TradingEngine(provider=provider, config=config)
+            self.provider = kwargs['provider'] or _AsyncHybridProvider(max_concurrency=max_concurrent)
+            self.config = provider_or_config if isinstance(provider_or_config, dict) else config or {}
+        elif isinstance(provider_or_config, dict):
             # Old signature: TradingEngine(config)
             self.config = provider_or_config
             self.provider = _AsyncHybridProvider(max_concurrency=max_concurrent)
@@ -161,8 +166,28 @@ class TradingEngine:
         return await self.data_processing_service.process_ticker_batch(tickers, batch_size)
     
     # Backward compatibility methods
-    def analyze_buy_opportunities(self, market_df: pd.DataFrame) -> pd.DataFrame:
-        """Backward compatibility wrapper for analyzing buy opportunities (sync)."""
+    def analyze_buy_opportunities(self, market_df=None, **kwargs) -> pd.DataFrame:
+        """Backward compatibility wrapper for analyzing buy opportunities (sync).
+        
+        Args:
+            market_df: Market data DataFrame (optional)
+            **kwargs: Additional arguments for compatibility:
+                - provider: Data provider (ignored, uses self.provider)
+                - ticker_list: List of tickers to analyze
+        """
+        # Handle old signature with ticker_list
+        if 'ticker_list' in kwargs and market_df is None:
+            # Old API: fetch market data for ticker list
+            from yahoofinance.analysis.market import get_market_data
+            ticker_list = kwargs['ticker_list']
+            try:
+                market_df = get_market_data(ticker_list, provider=self.provider)
+            except:
+                market_df = pd.DataFrame()
+        
+        if market_df is None:
+            market_df = pd.DataFrame()
+            
         # This is a sync method for backward compatibility
         import asyncio
         try:
@@ -176,8 +201,12 @@ class TradingEngine:
         except:
             return pd.DataFrame()
     
-    def analyze_sell_opportunities(self, portfolio_df: pd.DataFrame) -> pd.DataFrame:
+    def analyze_sell_opportunities(self, portfolio_df=None, **kwargs) -> pd.DataFrame:
         """Backward compatibility wrapper for analyzing sell opportunities (sync)."""
+        # Accept kwargs for compatibility but ignore them
+        if portfolio_df is None:
+            portfolio_df = pd.DataFrame()
+            
         import asyncio
         try:
             loop = asyncio.get_event_loop()
@@ -189,8 +218,12 @@ class TradingEngine:
         except:
             return pd.DataFrame()
     
-    def analyze_hold_opportunities(self, portfolio_df: pd.DataFrame) -> pd.DataFrame:
+    def analyze_hold_opportunities(self, portfolio_df=None, **kwargs) -> pd.DataFrame:
         """Backward compatibility wrapper for analyzing hold opportunities (sync)."""
+        # Accept kwargs for compatibility but ignore them
+        if portfolio_df is None:
+            portfolio_df = pd.DataFrame()
+            
         import asyncio
         try:
             loop = asyncio.get_event_loop()
@@ -212,8 +245,9 @@ class TradingEngine:
             self.logger.warning(f"Portfolio file not found: {portfolio_file}")
             return pd.DataFrame()
     
-    def generate_reports(self, opportunities: Dict[str, pd.DataFrame]) -> None:
+    def generate_reports(self, opportunities=None, **kwargs) -> None:
         """Backward compatibility method for report generation."""
+        # Accept kwargs for compatibility but ignore them
         # This functionality was moved to display/output modules
         self.logger.info("Report generation moved to display modules")
         pass
@@ -221,6 +255,18 @@ class TradingEngine:
     def _calculate_trading_signals(self, df: pd.DataFrame) -> pd.DataFrame:
         """Backward compatibility wrapper for trading signal calculation."""
         return self.analysis_service.calculate_trading_signals(df)
+    
+    def get_ticker_data(self, tickers: List[str]) -> pd.DataFrame:
+        """Backward compatibility method to get ticker data."""
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                return pd.DataFrame()
+            else:
+                return loop.run_until_complete(self.process_ticker_batch(tickers))
+        except:
+            return pd.DataFrame()
 
 
 
@@ -302,9 +348,13 @@ class PositionSizer:
 
 
 
-def create_trading_engine(provider=None, config=None) -> TradingEngine:
+def create_trading_engine(provider=None, config=None, **kwargs) -> TradingEngine:
     """Factory function to create a trading engine instance."""
-    return TradingEngine(provider=provider, config=config)
+    # Support both ways of passing provider
+    if provider is not None:
+        return TradingEngine(provider=provider, config=config, **kwargs)
+    else:
+        return TradingEngine(config=config, **kwargs)
 
 
 def create_position_sizer(max_position: float = 0.05, min_position: float = 0.01) -> PositionSizer:
