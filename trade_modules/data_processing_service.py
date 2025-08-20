@@ -99,3 +99,8 @@ class DataProcessingService:
         except Exception as e:
             self.logger.debug(f"Error processing ticker {ticker}: {str(e)}")
             return None
+    
+    # Backward compatibility method
+    async def _process_batch(self, tickers: List[str]) -> Dict[str, Any]:
+        """Backward compatibility wrapper for process_ticker_batch."""
+        return await self.process_ticker_batch(tickers)

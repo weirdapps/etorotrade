@@ -18,15 +18,17 @@ class CacheManager:
     def __init__(self, *args, **kwargs):
         """Initialize with unified cache."""
         self.cache = get_unified_cache()
-        # Backward compatibility attribute
+        # Backward compatibility attributes
         self.memory_cache = {}
+        self.disk_cache = self.cache  # Point to same cache for compatibility
     
     def get(self, key: str, default: Any = None) -> Any:
         """Get from cache."""
         return self.cache.get(key, default)
     
-    def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
-        """Set in cache."""
+    def set(self, key: str, value: Any, ttl: Optional[int] = None, data_type: Optional[str] = None) -> bool:
+        """Set in cache with optional data_type for backward compatibility."""
+        # Ignore data_type parameter - it was used in old cache implementation
         return self.cache.set(key, value, ttl)
     
     def delete(self, key: str) -> bool:
@@ -44,6 +46,12 @@ class CacheManager:
     def is_data_known_missing(self, key: str, data_type: str = None) -> bool:
         """Check if data is known to be missing (always returns False for compatibility)."""
         return False
+    
+    def set_missing_data(self, key: str, data_type: str = None) -> None:
+        """Mark data as known to be missing (no-op for compatibility)."""
+        # This was used in old cache to track missing data
+        # Now we just ignore it for backward compatibility
+        pass
 
 
 class LRUCache:
