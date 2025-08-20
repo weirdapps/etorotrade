@@ -76,6 +76,7 @@ class TradingEngine:
         self._filter_notrade_tickers = self.filter_service.filter_notrade_tickers
         self._calculate_confidence_score = self.analysis_service.calculate_confidence_score
         self._apply_portfolio_filter = self.portfolio_service.apply_portfolio_filter
+        self._apply_portfolio_filters = self.portfolio_service.apply_portfolio_filters
 
     async def analyze_market_opportunities(
         self, market_df: pd.DataFrame, portfolio_df: pd.DataFrame = None, notrade_path: str = None
@@ -223,6 +224,42 @@ class PositionSizer:
             self.logger.warning(f"Error calculating position size for {ticker}: {str(e)}")
             # Return minimum position size as fallback
             return portfolio_value * self.min_position_size
+    
+    # Backward compatibility methods
+    async def analyze_buy_opportunities(self, market_df: pd.DataFrame) -> pd.DataFrame:
+        """Backward compatibility wrapper for analyzing buy opportunities."""
+        results = await self.analyze_market_opportunities(market_df)
+        return results.get("buy_opportunities", pd.DataFrame())
+    
+    async def analyze_sell_opportunities(self, portfolio_df: pd.DataFrame) -> pd.DataFrame:
+        """Backward compatibility wrapper for analyzing sell opportunities."""
+        results = await self.analyze_market_opportunities(pd.DataFrame(), portfolio_df)
+        return results.get("sell_opportunities", pd.DataFrame())
+    
+    async def analyze_hold_opportunities(self, portfolio_df: pd.DataFrame) -> pd.DataFrame:
+        """Backward compatibility wrapper for analyzing hold opportunities."""
+        results = await self.analyze_market_opportunities(pd.DataFrame(), portfolio_df)
+        return results.get("hold_opportunities", pd.DataFrame())
+    
+    def load_portfolio(self, portfolio_file: str = None) -> pd.DataFrame:
+        """Backward compatibility method to load portfolio."""
+        if not portfolio_file:
+            portfolio_file = self.config.get("portfolio_file", "portfolio.csv")
+        try:
+            return pd.read_csv(portfolio_file)
+        except FileNotFoundError:
+            self.logger.warning(f"Portfolio file not found: {portfolio_file}")
+            return pd.DataFrame()
+    
+    def generate_reports(self, opportunities: Dict[str, pd.DataFrame]) -> None:
+        """Backward compatibility method for report generation."""
+        # This functionality was moved to display/output modules
+        self.logger.info("Report generation moved to display modules")
+        pass
+    
+    def _calculate_trading_signals(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Backward compatibility wrapper for trading signal calculation."""
+        return self.analysis_service.calculate_trading_signals(df)
 
 
 def create_trading_engine(provider=None, config=None) -> TradingEngine:
