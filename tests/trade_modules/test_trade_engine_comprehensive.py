@@ -324,7 +324,7 @@ class TestFilteringMethods:
         # Should return only GOOGL (BS='S' and confidence > 0.6)
         assert len(result) == 1
         assert 'GOOGL' in result.index
-        assert result.loc['GOOGL', 'confidence_score'] == 0.9
+        assert pytest.approx(result.loc['GOOGL', 'confidence_score']) == 0.9
     
     def test_filter_sell_opportunities_low_confidence_excluded(self, trading_engine, sample_market_data_with_bs):
         """Test sell filtering excludes low confidence scores."""
@@ -651,7 +651,7 @@ class TestTradingSignalCalculation:
         
         # Should have confidence_score column
         assert 'confidence_score' in result.columns
-        assert result['confidence_score'].iloc[0] == 0.8
+        assert pytest.approx(result['confidence_score'].iloc[0]) == 0.8
     
     def test_calculate_trading_signals_error_handling(self, trading_engine):
         """Test trading signal calculation error handling."""
@@ -744,7 +744,7 @@ class TestAsyncBatchProcessing:
         # Should return processed data
         assert result is not None
         assert result['ticker'] == 'AAPL'
-        assert result['price'] == 150.0
+        assert pytest.approx(result['price']) == 150.0
     
     @pytest.mark.asyncio
     async def test_process_single_ticker_no_data(self, trading_engine):
@@ -783,8 +783,8 @@ class TestPositionSizer:
         """Test PositionSizer initialization."""
         sizer = PositionSizer(max_position_size=0.08, min_position_size=0.015)
         
-        assert sizer.max_position_size == 0.08
-        assert sizer.min_position_size == 0.015
+        assert pytest.approx(sizer.max_position_size) == 0.08
+        assert pytest.approx(sizer.min_position_size) == 0.015
     
     def test_calculate_position_size_basic(self):
         """Test basic position size calculation."""
@@ -894,8 +894,8 @@ class TestFactoryFunctions:
         """Test create_position_sizer with parameters."""
         sizer = create_position_sizer(max_position=0.08, min_position=0.015)
         
-        assert sizer.max_position_size == 0.08
-        assert sizer.min_position_size == 0.015
+        assert pytest.approx(sizer.max_position_size) == 0.08
+        assert pytest.approx(sizer.min_position_size) == 0.015
 
 
 class TestIntegrationScenarios:

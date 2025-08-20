@@ -225,7 +225,7 @@ class TestPortfolioRepository:
         holding = portfolio_repo.get_holdings_for_ticker('AAPL')
         assert holding is not None
         assert holding['Quantity'] == 100
-        assert holding['Price'] == 150.0
+        assert pytest.approx(holding['Price']) == 150.0
     
     def test_remove_holding(self, portfolio_repo, sample_portfolio):
         """Test removing holding."""

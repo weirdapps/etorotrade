@@ -230,7 +230,6 @@ class TestTradingEngineComprehensive(unittest.TestCase):
         """Test automatic output directory creation."""
         with tempfile.TemporaryDirectory() as temp_dir:
             output_dir = os.path.join(temp_dir, 'new_output')
-            self.engine.config['output_dir'] = output_dir
             
             # Should handle directory creation gracefully
             self.engine.config['output_dir'] = output_dir
