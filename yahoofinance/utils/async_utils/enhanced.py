@@ -852,7 +852,7 @@ def display_processing_stats():
 
 def get_processing_stats():
     """Get the stored processing statistics without clearing them."""
-    global _last_processing_stats
+    # No need for global declaration since we're not reassigning _last_processing_stats
     return _last_processing_stats
 
 

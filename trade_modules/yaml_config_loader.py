@@ -105,6 +105,6 @@ def get_yaml_config() -> YamlConfigLoader:
 
 def reload_config():
     """Force reload of configuration from YAML file."""
-    global _yaml_loader
+    # No need for global declaration since we're not reassigning _yaml_loader
     _yaml_loader._config_cache = None
     _yaml_loader.load_config()

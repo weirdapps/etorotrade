@@ -499,7 +499,7 @@ def start_health_endpoints(
 
 def stop_health_endpoints() -> None:
     """Stop the health endpoint server."""
-    global health_endpoint_server
+    # No need for global declaration since we're not reassigning health_endpoint_server
 
     if health_endpoint_server and health_endpoint_server.is_running:
         health_endpoint_server.stop()

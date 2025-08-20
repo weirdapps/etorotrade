@@ -122,7 +122,7 @@ def get_provider(
     Raises:
         ValidationError: When provider_type is invalid or provider is not available
     """
-    global _provider_cache
+    # No need for global declaration since we're not reassigning _provider_cache
 
     # Use defaults if not specified
     provider_type = provider_type or DEFAULT_PROVIDER_TYPE
@@ -243,7 +243,7 @@ def clear_provider_cache():
 
     This can be useful for testing or when memory usage needs to be reduced.
     """
-    global _provider_cache
+    # No need for global declaration since we're not reassigning _provider_cache
 
     # Close providers before clearing cache
     provider_keys = list(
