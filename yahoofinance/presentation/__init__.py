@@ -11,7 +11,7 @@ This package contains modules for formatting and displaying data including:
 from .console import MarketDisplay, RateLimitTracker
 from .formatter import Color, DisplayConfig, DisplayFormatter
 from .html import FormatUtils, HTMLGenerator
-from .templates import TemplateEngine, Templates
+from .html_templates import TemplateEngine, Templates
 
 
 __all__ = [

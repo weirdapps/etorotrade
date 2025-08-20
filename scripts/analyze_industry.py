@@ -16,22 +16,95 @@ from collections import defaultdict
 # Current total portfolio size including cash
 PORTFOLIO_SIZE = 520000  # USD
 
+def classify_asset_type(symbol, exchange=None):
+    """Classify asset into type (Stock, ETF, Crypto, Commodity, Derivative)."""
+    # Cryptocurrencies
+    if symbol.endswith('-USD') and symbol not in ['EUR-USD', 'GBP-USD', 'JPY-USD']:
+        return 'Crypto'
+    
+    # Derivatives
+    if symbol.startswith('^'):
+        return 'Derivative'
+    
+    # Commodities - both direct and ETFs
+    commodity_symbols = ['GLD', 'SLV', 'USO', 'UNG', 'DBA', 'CORN', 'WEAT', 'SOYB']
+    if symbol in commodity_symbols:
+        return 'Commodity'
+    
+    # ETFs - identified by common patterns
+    etf_patterns = ['SPY', 'QQQ', 'IWM', 'EEM', 'VTI', 'VOO', 'AGG', 'TLT', 'HYG', 'LQD', 'XLF', 'XLE', 'XLK', 'XLV', 'XLI', 'XLY', 'XLP', 'XLB', 'XLU', 'XLRE']
+    
+    # Check for ETF patterns
+    if symbol in etf_patterns:
+        return 'ETF'
+    
+    # Check for European ETFs
+    if 'ETF' in symbol.upper() or 'LYXOR' in symbol.upper() or 'ISHARES' in symbol.upper():
+        return 'ETF'
+    
+    # Greece ETF and other country ETFs
+    if 'LYXGRE' in symbol or symbol.startswith('EW'):
+        return 'ETF'
+    
+    # Default to Stock
+    return 'Stock'
+
+def get_etf_sector_exposure(symbol):
+    """Get sector exposure for ETFs."""
+    etf_sectors = {
+        # Sector ETFs
+        'XLF': {'Financial Services': 100},
+        'XLE': {'Energy': 100},
+        'XLK': {'Technology': 100},
+        'XLV': {'Healthcare': 100},
+        'XLI': {'Industrials': 100},
+        'XLY': {'Consumer Cyclical': 100},
+        'XLP': {'Consumer Defensive': 100},
+        'XLB': {'Basic Materials': 100},
+        'XLU': {'Utilities': 100},
+        'XLRE': {'Real Estate': 100},
+        
+        # Broad market ETFs (approximate sector allocations)
+        'SPY': {'Technology': 30, 'Healthcare': 13, 'Financial Services': 13, 'Consumer Cyclical': 11, 
+                'Communication Services': 9, 'Industrials': 8, 'Consumer Defensive': 6, 'Energy': 4, 
+                'Utilities': 3, 'Real Estate': 2, 'Basic Materials': 2},
+        'QQQ': {'Technology': 50, 'Communication Services': 20, 'Consumer Cyclical': 15, 
+                'Healthcare': 10, 'Other': 5},
+        'IWM': {'Financial Services': 20, 'Healthcare': 18, 'Industrials': 15, 'Technology': 12,
+                'Consumer Cyclical': 12, 'Real Estate': 7, 'Energy': 6, 'Other': 10},
+        
+        # Country/Region ETFs - generic sector mix
+        'LYXGRE.DE': {'Financial Services': 40, 'Industrials': 20, 'Consumer Cyclical': 15, 
+                      'Energy': 10, 'Basic Materials': 10, 'Other': 5},
+        'EEM': {'Technology': 25, 'Financial Services': 20, 'Consumer Cyclical': 15,
+                'Basic Materials': 10, 'Energy': 10, 'Other': 20},
+    }
+    
+    # Default sector allocation for unknown ETFs
+    default_allocation = {'Diversified': 100}
+    
+    return etf_sectors.get(symbol, default_allocation)
+
 def classify_sector(row):
     """Classify ticker into sector using industry ID and symbol patterns."""
     symbol = row['symbol']
     industry_id = row.get('stocksIndustryId', None)
-    exchange = row['exchangeName']
+    exchange = row.get('exchangeName', '')
     
-    # Special classifications first
-    if symbol.endswith('-USD') or exchange == 'eToro':
-        if symbol == '^VIX':
-            return 'Derivatives'
-        else:
-            return 'Cryptocurrency'
-    elif symbol in ['GLD']:
+    # First determine asset type
+    asset_type = classify_asset_type(symbol, exchange)
+    
+    # Special handling for non-equity assets
+    if asset_type == 'Crypto':
+        return 'Cryptocurrency'
+    elif asset_type == 'Commodity':
         return 'Commodities'
+    elif asset_type == 'Derivative':
+        return 'Derivatives'
+    elif asset_type == 'ETF':
+        return 'ETF'  # Will be broken down by sector exposure
     
-    # Industry ID mapping (eToro's classification)
+    # Industry ID mapping (eToro's classification for stocks)
     industry_mapping = {
         1: "Basic Materials",
         3: "Consumer Cyclical", 
@@ -39,7 +112,11 @@ def classify_sector(row):
         5: "Healthcare",
         6: "Energy", 
         7: "Technology",
-        8: "Communication Services"
+        8: "Communication Services",
+        9: "Consumer Defensive",
+        10: "Industrials",
+        11: "Utilities",
+        12: "Real Estate"
     }
     
     if pd.notna(industry_id) and industry_id in industry_mapping:
@@ -69,11 +146,17 @@ def analyze_portfolio_sectors():
     cash_percentage = (cash_amount / PORTFOLIO_SIZE) * 100
     df['true_portfolio_pct'] = df['totalInvestmentPct']  # Already correct percentages
     
-    # Sector classification
+    # Sector and asset type classification
     df['sector'] = df.apply(classify_sector, axis=1)
+    df['asset_type'] = df.apply(lambda row: classify_asset_type(row['symbol'], row.get('exchangeName', '')), axis=1)
     
-    # Sector analysis
+    # Separate ETFs for special handling
+    etf_holdings = df[df['asset_type'] == 'ETF'].copy()
+    
+    # Sector analysis with ETF breakdown
     sector_data = defaultdict(lambda: {'count': 0, 'total_value': 0.0, 'tickers': [], 'positions': [], 'avg_return': 0.0})
+    asset_type_data = defaultdict(lambda: {'count': 0, 'total_value': 0.0, 'tickers': []})
+    etf_sector_exposure = defaultdict(float)
     unknown_sectors = []
     
     print("🏭 PORTFOLIO INDUSTRY/SECTOR ANALYSIS")
@@ -88,23 +171,37 @@ def analyze_portfolio_sectors():
         sector = row['sector']
         current_value = row['actual_current_value']
         profit_pct = row['totalNetProfitPct']
+        asset_type = row['asset_type']
+        
+        # Track by asset type
+        asset_type_data[asset_type]['count'] += 1
+        asset_type_data[asset_type]['total_value'] += current_value
+        asset_type_data[asset_type]['tickers'].append(symbol)
         
         if sector == "Unknown":
             unknown_sectors.append(symbol)
         
-        position_data = {
-            'symbol': symbol,
-            'value': current_value,
-            'profit_pct': profit_pct,
-            'portfolio_pct': row['true_portfolio_pct'],
-            'name': row['instrumentDisplayName']
-        }
-        
-        sector_data[sector]['count'] += 1
-        sector_data[sector]['total_value'] += current_value
-        sector_data[sector]['tickers'].append(symbol)
-        sector_data[sector]['positions'].append(position_data)
-        sector_data[sector]['avg_return'] += profit_pct
+        # For ETFs, calculate sector exposure
+        if asset_type == 'ETF':
+            etf_sectors = get_etf_sector_exposure(symbol)
+            for sec, percentage in etf_sectors.items():
+                sec_value = current_value * (percentage / 100)
+                etf_sector_exposure[sec] += sec_value
+        # For regular stocks and other assets
+        elif sector != 'ETF':
+            position_data = {
+                'symbol': symbol,
+                'value': current_value,
+                'profit_pct': profit_pct,
+                'portfolio_pct': row['true_portfolio_pct'],
+                'name': row['instrumentDisplayName']
+            }
+            
+            sector_data[sector]['count'] += 1
+            sector_data[sector]['total_value'] += current_value
+            sector_data[sector]['tickers'].append(symbol)
+            sector_data[sector]['positions'].append(position_data)
+            sector_data[sector]['avg_return'] += profit_pct
     
     # Calculate average returns and add cash
     for sector in sector_data:
@@ -120,22 +217,56 @@ def analyze_portfolio_sectors():
         'avg_return': 0.0
     }
     
+    # Combine ETF sector exposure with direct holdings
+    for sector, value in etf_sector_exposure.items():
+        if sector not in sector_data:
+            sector_data[sector] = {'count': 0, 'total_value': 0.0, 'tickers': [], 'positions': [], 'avg_return': 0.0}
+        sector_data[sector]['total_value'] += value
+        sector_data[sector]['tickers'].append('(ETF exposure)')
+    
     # Sort by total value
     sorted_sectors = sorted(sector_data.items(), key=lambda x: x[1]['total_value'], reverse=True)
     
-    # Create summary
-    print("Sector Breakdown:")
+    # Asset Type Summary
+    print("📊 ASSET TYPE BREAKDOWN:")
     print("-" * 80)
-    print(f"{'Sector':<20} {'Count':<8} {'Value':<15} {'%':<8} {'Avg Return':<12} {'Top Holdings'}")
+    print(f"{'Asset Type':<15} {'Count':<8} {'Value':<15} {'%':<8} {'Holdings'}")
+    print("-" * 80)
+    
+    for asset_type in ['Stock', 'ETF', 'Crypto', 'Commodity', 'Derivative']:
+        if asset_type in asset_type_data:
+            data = asset_type_data[asset_type]
+            percentage = (data['total_value'] / PORTFOLIO_SIZE) * 100
+            holdings = ', '.join(data['tickers'][:3])
+            if len(data['tickers']) > 3:
+                holdings += f" (+{len(data['tickers'])-3})"
+            print(f"{asset_type:<15} {data['count']:<8} ${data['total_value']:<14,.0f} {percentage:<7.1f}% {holdings}")
+    
+    # ETF Sector Exposure Breakdown
+    if etf_holdings.shape[0] > 0:
+        print("\n📈 ETF SECTOR EXPOSURE:")
+        print("-" * 80)
+        for _, etf in etf_holdings.iterrows():
+            etf_sectors = get_etf_sector_exposure(etf['symbol'])
+            etf_value = etf['actual_current_value']
+            print(f"{etf['symbol']:<12} (${etf_value:,.0f}):")
+            for sector, pct in etf_sectors.items():
+                sector_value = etf_value * (pct / 100)
+                print(f"  → {sector:<25} {pct:>3}% (${sector_value:,.0f})")
+    
+    # Create summary
+    print("\n🏭 SECTOR BREAKDOWN (INCLUDING ETF EXPOSURE):")
+    print("-" * 80)
+    print(f"{'Sector':<20} {'Direct':<8} {'Total Value':<15} {'%':<8} {'Avg Return':<12} {'Top Holdings'}")
     print("-" * 80)
     
     for sector, data in sorted_sectors:
         percentage = (data['total_value'] / PORTFOLIO_SIZE) * 100
-        top_holdings = ', '.join(data['tickers'][:3])  # Show top 3
-        if len(data['tickers']) > 3:
-            top_holdings += f" (+{len(data['tickers'])-3} more)"
+        top_holdings = ', '.join([t for t in data['tickers'] if t != '(ETF exposure)'][:3])  # Show top 3 direct
+        if '(ETF exposure)' in data['tickers']:
+            top_holdings += ' + ETF' if top_holdings else 'ETF exposure'
         
-        return_str = f"{data['avg_return']:+.1f}%" if sector != 'Cash' else "N/A"
+        return_str = f"{data['avg_return']:+.1f}%" if data['count'] > 0 and sector != 'Cash' else "N/A"
         
         print(f"{sector:<20} {data['count']:<8} ${data['total_value']:<14,.0f} {percentage:<7.1f}% {return_str:<12} {top_holdings}")
     

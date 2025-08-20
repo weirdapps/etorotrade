@@ -2,67 +2,58 @@
 
 ## Overview
 
-The etorotrade system employs a sophisticated, academically-backed position sizing approach that prioritizes market capitalization tiers while incorporating risk adjustments and expected return tilts. This methodology was designed to optimize risk-adjusted returns while minimizing estimation errors common in traditional expected return-based approaches.
+The etorotrade system employs a sophisticated, multi-factor position sizing approach that balances market capitalization tiers, expected returns, and risk management. The methodology has been modernized in 2025 to provide more intuitive scaling while maintaining rigorous risk controls.
 
-## 2024 Updated Framework
+## 2025 Current Framework
 
 ### Portfolio Configuration
-- **Portfolio Value**: $500,000
+- **Portfolio Value**: $450,000 (updated from previous $500K)
 - **Position Limits**: 
-  - Minimum: $1,000 (0.2% of portfolio)
-  - Maximum: $40,000 (8.0% of portfolio)
-- **Rounding**: All positions rounded to nearest $500 for cleaner execution
+  - Minimum: $1,000 (0.22% of portfolio)
+  - Maximum: $40,000 (8.89% of portfolio)
+- **Base Position**: 0.5% of portfolio = $2,250 for standard opportunities
 
-### Step 1: Tier-Based Base Allocation (Primary Driver)
+### Step 1: Base Position Calculation
 
-The foundation of our approach is market capitalization-based tiering, reflecting the empirical size effect documented in academic literature:
+The foundation starts with a base position that is then scaled by multiple factors:
 
-| Tier | Market Cap Range | Base Allocation | Dollar Amount | Rationale |
-|------|------------------|-----------------|---------------|-----------|
-| **VALUE** | ≥$100B | 2.0% | $10,000 | Large-cap stability premium |
-| **GROWTH** | $5B-$100B | 1.0% | $5,000 | Standard mid-cap allocation |
-| **BETS** | <$5B | 0.2% | $1,000 | Small-cap risk management |
+**Base Position**: 0.5% of portfolio = $2,250
+
+This represents the standard allocation for a typical investment opportunity with moderate expected returns.
+
+### Step 2: EXRET-Based Scaling (Primary Driver)
+
+The EXRET (Expected Return) multiplier provides the primary position sizing signal based on opportunity quality:
+
+| EXRET Range | Multiplier | Position Type | Example Amount |
+|-------------|------------|---------------|----------------|
+| ≥40% | 5.0x | Exceptional opportunity | $11,250 |
+| ≥30% | 4.0x | High opportunity | $9,000 |
+| ≥25% | 3.0x | Good opportunity | $6,750 |
+| ≥20% | 2.0x | Standard opportunity | $4,500 |
+| ≥15% | 1.5x | Lower opportunity | $3,375 |
+| ≥10% | 1.0x | Base position | $2,250 |
+| <10% | 0.5x | Conservative | $1,125 |
 
 **Academic Basis**: 
+- Kelly Criterion principles: Position size proportional to expected edge
+- Simplified from complex stepped functions for cleaner scaling
+- Reduced maximum multiplier from 10x to 5x to limit concentration risk
+
+### Step 3: Market Cap Tier Scaling (Secondary Driver)
+
+Market capitalization tier provides risk-adjusted scaling based on company stability:
+
+| Tier | Market Cap Range | Multiplier | Rationale |
+|------|------------------|------------|-----------|
+| **VALUE** | ≥$100B | 2.5x | Large-cap stability premium |
+| **GROWTH** | $5B-$100B | 1.5x | Standard mid-cap allocation |
+| **BETS** | <$5B | 0.5x | Small-cap risk management |
+
+**Academic Basis**:
 - Fama-French size factor research
 - Lower volatility and higher Sharpe ratios in large-cap stocks
 - Institutional investor preferences for liquid, stable positions
-
-### Step 2: Linear Beta Risk Adjustment (Secondary Driver)
-
-**Formula**: `risk_multiplier = 1.4 - (beta × 0.4)`
-
-**Range**: 1.2x (low risk) to 0.8x (high risk)
-
-| Beta Range | Multiplier | Risk Profile | Example |
-|------------|------------|--------------|---------|
-| ≤0.5 | 1.2x | Low volatility premium | Utilities, Consumer staples |
-| 1.0 | 1.0x | Market risk (baseline) | Broad market ETFs |
-| 1.5 | 0.8x | High risk penalty | Growth tech, Biotech |
-| ≥2.5 | 0.8x | Maximum penalty (floor) | Speculative stocks |
-
-**Academic Basis**:
-- Kelly Criterion: Optimal position sizing inversely related to variance
-- Risk Parity principles: Equal risk contribution across positions
-- CAPM systematic risk adjustment
-
-### Step 3: Linear EXRET Tilt (Tertiary Driver)
-
-**Formula**: `exret_multiplier = 1.0 + (exret × 0.0167)`
-
-**Range**: 1.0x (0% EXRET) to 1.5x (30%+ EXRET)
-
-| EXRET Level | Multiplier | Interpretation |
-|-------------|------------|----------------|
-| 0% | 1.0x | No expected return advantage |
-| 10% | 1.167x | Modest opportunity |
-| 20% | 1.33x | Strong opportunity |
-| 30%+ | 1.5x | Exceptional opportunity (capped) |
-
-**Academic Basis**:
-- Reduced from previous 10x range to minimize estimation error
-- Black-Litterman model: Modest tilts toward expected outperformance
-- Practitioner research on forecast uncertainty
 
 ### Step 4: Geographic Risk Adjustment
 
@@ -74,58 +65,58 @@ The foundation of our approach is market capitalization-based tiering, reflectin
 ### Final Calculation
 
 ```
-Position Size = Base Allocation × Beta Risk × EXRET Tilt × Geographic Risk
+Position Size = Base Position × EXRET Multiplier × Market Cap Tier × Geographic Risk
 ```
 
 **Post-Processing**:
 1. Apply minimum ($1,000) and maximum ($40,000) limits
-2. Round to nearest $500 for execution efficiency
+2. Round to nearest dollar for display (no forced rounding)
 
 ## Implementation Examples
 
 ### VALUE Tier: Large-Cap Technology (AAPL-like)
 - **Market Cap**: $3T (VALUE tier)
-- **Beta**: 1.2 (moderate risk)
-- **EXRET**: 10%
+- **EXRET**: 15%
+- **Geographic**: US
 
 **Calculation**:
 ```
-Base: $10,000 (2.0% of $500K)
-Beta: 1.4 - (1.2 × 0.4) = 1.0
-EXRET: 1.0 + (10 × 0.0167) = 1.167
-Geographic: 1.0 (US stock)
+Base: $2,250 (0.5% of $450K)
+EXRET: 1.5x (15% opportunity)
+Market Cap: 2.5x (VALUE tier)
+Geographic: 1.0x (US stock)
 
-Position = $10,000 × 1.0 × 1.167 × 1.0 = $11,670 → $11,500
+Position = $2,250 × 1.5 × 2.5 × 1.0 = $8,438
 ```
 
 ### GROWTH Tier: Mid-Cap Growth
 - **Market Cap**: $25B (GROWTH tier)
-- **Beta**: 1.0 (market risk)
-- **EXRET**: 15%
+- **EXRET**: 22%
+- **Geographic**: US
 
 **Calculation**:
 ```
-Base: $5,000 (1.0% of $500K)
-Beta: 1.4 - (1.0 × 0.4) = 1.0
-EXRET: 1.0 + (15 × 0.0167) = 1.25
-Geographic: 1.0
+Base: $2,250 (0.5% of $450K)
+EXRET: 2.0x (22% opportunity)
+Market Cap: 1.5x (GROWTH tier)
+Geographic: 1.0x (US stock)
 
-Position = $5,000 × 1.0 × 1.25 × 1.0 = $6,250 → $6,000
+Position = $2,250 × 2.0 × 1.5 × 1.0 = $6,750
 ```
 
-### BETS Tier: Small-Cap Speculation
+### BETS Tier: Small-Cap with Hong Kong Risk
 - **Market Cap**: $2B (BETS tier)
-- **Beta**: 1.8 (high risk)
-- **EXRET**: 25%
+- **EXRET**: 28%
+- **Geographic**: Hong Kong
 
 **Calculation**:
 ```
-Base: $1,000 (0.2% of $500K)
-Beta: 1.4 - (1.8 × 0.4) = 0.68 → capped at 0.8
-EXRET: 1.0 + (25 × 0.0167) = 1.417
-Geographic: 1.0
+Base: $2,250 (0.5% of $450K)
+EXRET: 3.0x (28% opportunity)
+Market Cap: 0.5x (BETS tier)
+Geographic: 0.75x (Hong Kong risk)
 
-Position = $1,000 × 0.8 × 1.417 × 1.0 = $1,134 → $1,000 (minimum)
+Position = $2,250 × 3.0 × 0.5 × 0.75 = $2,531
 ```
 
 ## Academic References & Rationale
@@ -150,30 +141,57 @@ Position = $1,000 × 0.8 × 1.417 × 1.0 = $1,134 → $1,000 (minimum)
 
 ### Evolution from Previous Approach
 
-| Aspect | Previous | Current | Improvement |
+| Aspect | Previous (2024) | Current (2025) | Improvement |
 |--------|----------|---------|-------------|
-| Portfolio Size | $450K | $500K | Increased capacity |
-| VALUE Base | 1.5% | 2.0% | Enhanced large-cap focus |
-| GROWTH Base | 1.0% | 1.0% | Maintained balance |
-| BETS Base | 0.5% | 0.2% | Better risk management |
-| Beta Range | 0.75x-1.25x | 0.8x-1.2x | Tighter risk bounds |
-| EXRET Range | 1.75x | 1.5x | Reduced estimation error |
-| Formula Type | Stepped tiers | Linear scaling | Mathematical consistency |
+| Portfolio Size | $500K | $450K | Realistic capacity |
+| Base Position | Tier-based | 0.5% uniform | Simplified foundation |
+| Primary Driver | Market cap tiers | EXRET scaling | Opportunity-focused |
+| EXRET Range | 0.0167 coefficient | 0.5x-5.0x steps | Intuitive scaling |
+| Beta Adjustment | Linear formula | Removed | Simplified system |
+| VALUE Multiplier | 2.0x base | 2.5x tier | Enhanced large-cap |
+| GROWTH Multiplier | 1.0x base | 1.5x tier | Balanced approach |
+| BETS Multiplier | 0.2x base | 0.5x tier | Better small-cap |
 
 ## Implementation Location
 
 The position sizing logic is implemented in:
 - **Primary Function**: `yahoofinance/utils/data/format_utils.py::calculate_position_size()`
-- **Configuration**: `yahoofinance/core/trade_criteria_config.py::TradingCriteria`
-- **Integration**: `yahoofinance/presentation/console.py::_add_position_size_column()`
+- **Constants**: `trade_modules/constants.py` - All thresholds and multipliers
+- **Configuration**: `yahoofinance/core/config.py::PORTFOLIO_CONFIG`
+- **Integration**: Trade processing pipeline automatically applies position sizing
+
+## Configuration Constants
+
+Key constants controlling position sizing behavior:
+
+```python
+# From trade_modules/constants.py
+PORTFOLIO_VALUE = 450_000            # Total portfolio value
+BASE_POSITION_PERCENTAGE = 0.5      # 0.5% base position
+MIN_POSITION_SIZE = 1_000           # $1K minimum
+MAX_POSITION_SIZE = 40_000          # $40K maximum
+
+# Market cap tier thresholds
+MARKET_CAP_LARGE_THRESHOLD = 100_000_000_000  # $100B for VALUE
+MARKET_CAP_SMALL_THRESHOLD = 5_000_000_000    # $5B for GROWTH/BETS
+```
 
 ## Testing & Validation
 
 Comprehensive unit tests validate the methodology:
-- **Test File**: `tests/yahoofinance/utils/data/test_format_utils.py`
-- **Coverage**: All tier combinations, edge cases, and boundary conditions
-- **Verification**: Mathematical formulas and rounding behavior
+- **Test File**: `tests/trade_modules/test_analysis_engine.py`
+- **Coverage**: All tier combinations, EXRET ranges, and geographic adjustments
+- **Verification**: Mathematical formulas and edge case handling
+- **Integration**: End-to-end position sizing within trade recommendations
+
+## Benefits of Current Approach
+
+1. **Intuitive Scaling**: Clear relationship between opportunity quality and position size
+2. **Risk Management**: Tier-based and geographic risk adjustments
+3. **Simplified Logic**: Removed complex beta calculations for maintainability  
+4. **Opportunity Focus**: EXRET-driven sizing aligns with investment merit
+5. **Realistic Limits**: $1K-$40K range appropriate for $450K portfolio
 
 ---
-*Last Updated: July 2024*
-*Framework Version: 2024.1*
+*Last Updated: January 2025*
+*Framework Version: 2025.1 (Modernized)*

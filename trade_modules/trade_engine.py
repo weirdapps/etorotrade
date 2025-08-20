@@ -15,7 +15,15 @@ import pandas as pd
 from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
 from .errors import TradingEngineError
 from yahoofinance.core.logging import get_logger
-from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
+# Import AsyncHybridProvider lazily to avoid circular imports
+AsyncHybridProvider = None
+
+def get_async_hybrid_provider():
+    global AsyncHybridProvider
+    if AsyncHybridProvider is None:
+        from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider as _AsyncHybridProvider
+        AsyncHybridProvider = _AsyncHybridProvider
+    return AsyncHybridProvider
 from yahoofinance.presentation import MarketDisplay
 from yahoofinance.utils.data.ticker_utils import (
     normalize_ticker,
@@ -49,7 +57,11 @@ class TradingEngine:
 
     def __init__(self, provider=None, config=None):
         """Initialize trading engine with provider and configuration."""
-        self.provider = provider or AsyncHybridProvider(max_concurrency=10)
+        # Import here to avoid circular imports
+        from yahoofinance.core.config import get_max_concurrent_requests
+        max_concurrent = get_max_concurrent_requests()
+        _AsyncHybridProvider = get_async_hybrid_provider()
+        self.provider = provider or _AsyncHybridProvider(max_concurrency=max_concurrent)
         self.config = config or {}
         self.logger = logger
         self.data_processing_service = DataProcessingService(self.provider, self.logger)
@@ -121,34 +133,6 @@ class TradingEngine:
             raise TradingEngineError(f"Market analysis failed: {str(e)}") from e
 
         return results
-
-    def _calculate_trading_signals(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Calculate trading signals for each ticker. DEPRECATED: use analysis_service directly."""
-        return self.analysis_service.calculate_trading_signals(df)
-
-    def _calculate_confidence_score(self, df: pd.DataFrame) -> pd.Series:
-        """Calculate confidence score for trading recommendations. DEPRECATED: use analysis_service directly."""
-        return self.analysis_service.calculate_confidence_score(df)
-
-    def _filter_notrade_tickers(self, df: pd.DataFrame, notrade_path: str) -> pd.DataFrame:
-        """Filter out tickers from the notrade list. DEPRECATED: use filter_service directly."""
-        return self.filter_service.filter_notrade_tickers(df, notrade_path)
-
-    def _filter_buy_opportunities(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Filter for buy opportunities. DEPRECATED: use filter_service directly."""
-        return self.filter_service.filter_buy_opportunities(df)
-
-    def _filter_sell_opportunities(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Filter for sell opportunities. DEPRECATED: use filter_service directly."""
-        return self.filter_service.filter_sell_opportunities(df)
-
-    def _filter_hold_opportunities(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Filter for hold opportunities. DEPRECATED: use filter_service directly."""
-        return self.filter_service.filter_hold_opportunities(df)
-
-    def _apply_portfolio_filters(self, opportunities: Dict[str, pd.DataFrame], portfolio_df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
-        """Apply portfolio-specific filtering. DEPRECATED: use portfolio_service directly.""" 
-        return self.portfolio_service.apply_portfolio_filters(opportunities, portfolio_df)
 
     async def process_ticker_batch(self, tickers: List[str], batch_size: int = 50) -> pd.DataFrame:
         """Process a batch of tickers for market data."""

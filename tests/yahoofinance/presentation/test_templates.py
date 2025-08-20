@@ -1,6 +1,6 @@
 import unittest
 
-from yahoofinance.presentation.templates import TemplateEngine, Templates
+from yahoofinance.presentation.html_templates import TemplateEngine, Templates
 
 
 class TestTemplates(unittest.TestCase):

@@ -6,7 +6,7 @@ trading on multiple exchanges, ensuring consistent normalization throughout the 
 """
 
 import pytest
-from yahoofinance.core.config.ticker_mappings import (
+from yahoofinance.utils.ticker_mappings import (
     DUAL_LISTED_MAPPINGS,
     REVERSE_MAPPINGS,
     DUAL_LISTED_TICKERS,

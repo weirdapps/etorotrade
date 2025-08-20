@@ -23,8 +23,8 @@ from ..utils.error_handling import (
 )
 
 from ..api import AsyncFinanceDataProvider, FinanceDataProvider, get_provider
-# Trading criteria moved to trade_criteria_config.py for centralized management
-from yahoofinance.core.trade_criteria_config import TradingCriteria
+# Trading criteria moved to centralized trade configuration
+from trade_modules.trade_config import TradeConfig
 from ..core.logging import get_logger
 from ..utils.data.ticker_utils import normalize_ticker
 from .market_filters import (
@@ -177,8 +177,8 @@ def get_confidence_condition(df: pd.DataFrame) -> pd.Series:
     return (
         analyst_counts.notna()
         & total_ratings.notna()
-        & (analyst_counts >= TradingCriteria.MIN_PRICE_TARGETS)
-        & (total_ratings >= TradingCriteria.MIN_ANALYST_COUNT)
+        & (analyst_counts >= TradeConfig().UNIVERSAL_THRESHOLDS.get("min_price_targets", 5))
+        & (total_ratings >= TradeConfig().UNIVERSAL_THRESHOLDS.get("min_analyst_count", 5))
     )
 
 
