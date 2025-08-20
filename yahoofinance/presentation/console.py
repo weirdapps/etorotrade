@@ -1,3 +1,14 @@
+
+# Import utilities from decomposed modules
+try:
+    from .console_utils.formatters import ConsoleFormatter
+    from .console_utils.colors import ConsoleColors
+    from .console_utils.tables import TableRenderer
+except ImportError:
+    # Fallback if modules not yet available
+    pass
+
+
 """
 Console presentation utilities for Yahoo Finance data.
 
@@ -411,11 +422,15 @@ class MarketDisplay:
         
         for _, row in df.iterrows():
             try:
-                # Import the tier classification function
-                from ..core.trade_criteria_config import TradingCriteria
-                tier = TradingCriteria.get_market_cap_tier(row)
+                # Import the tier classification functions from analysis engine
+                from trade_modules.analysis_engine import _parse_market_cap, _determine_market_cap_tier
+                
+                # Get market cap value from CAP column
+                cap_str = row.get('CAP', '')
+                cap_value = _parse_market_cap(cap_str)
+                tier = _determine_market_cap_tier(cap_value)
                 tiers.append(tier)
-            except Exception:
+            except Exception as e:
                 # Fallback to BETS tier if calculation fails
                 tiers.append("B")
         
@@ -1018,9 +1033,9 @@ class MarketDisplay:
                         # Apply Yahoo Finance ticker format fixing for portfolio files
                         if "portfolio" in file_path.lower():
                             try:
-                                from yahoofinance.data.download import _fix_yahoo_ticker_format
+                                from yahoofinance.utils.data.ticker_utils import normalize_ticker
                                 original_ticker = ticker
-                                ticker = _fix_yahoo_ticker_format(ticker)
+                                ticker = normalize_ticker(ticker)
                                 if ticker != original_ticker:
                                     logger.info(f"Fixed portfolio ticker: {original_ticker} -> {ticker}")
                             except ImportError:
@@ -1136,12 +1151,14 @@ class MarketDisplay:
             report_type_name = "Portfolio" if report_type == "P" else "Market"
 
         # Use batch processing for async provider with enhanced progress
+        from ..core.config import get_max_concurrent_requests, RATE_LIMIT
+        
         results_dict = await process_batch_async(
             tickers,
             self.provider.get_ticker_info,  # type: ignore (we know it's async)
-            batch_size=RATE_LIMIT["BATCH_SIZE"],
-            concurrency=RATE_LIMIT["MAX_CONCURRENT_CALLS"],
-            delay_between_batches=RATE_LIMIT["BATCH_DELAY"],
+            batch_size=1,  # Process one ticker at a time for real-time progress updates
+            concurrency=get_max_concurrent_requests(),
+            delay_between_batches=RATE_LIMIT.get("BATCH_DELAY", 0.0),
             description=f"Processing {report_type_name} tickers",
             show_progress=True,
         )
@@ -1495,4 +1512,3 @@ class ConsoleDisplay:
         except (AttributeError, KeyError):
             # Return uncolored text if color not found
             return text
-

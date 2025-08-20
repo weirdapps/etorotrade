@@ -1,0 +1,158 @@
+# ================================================================
+# ETORO TRADING ANALYSIS - UNIFIED CONFIGURATION
+# ================================================================
+# This file contains ALL trading parameters for the etorotrade system.
+# Criteria are applied based on ASSET TIER only (market cap based).
+# 
+# ACTIONS:
+# - B (Buy): Strong buying opportunity based on criteria
+# - S (Sell): Sell recommendation or exit signal  
+# - H (Hold): Neutral position, meets some but not all criteria
+# - I (Inconclusive): Insufficient data or mixed signals
+#
+# TIERS (Market Cap Based):
+# - VALUE (V): >= $100B market cap (Large-cap blue chips)
+# - GROWTH (G): $5B - $100B market cap (Mid-cap growth)  
+# - BETS (B): < $5B market cap (Small-cap speculative)
+# ================================================================
+
+# Data Sources
+data:
+  portfolio_csv: "yahoofinance/input/portfolio.csv"
+  cache_enabled: true
+  cache_ttl_hours: 24  # Cache stable data for 24 hours
+
+# ================================================================
+# MARKET CAP TIER DEFINITIONS
+# ================================================================
+tier_thresholds:
+  value_tier_min: 100000000000      # $100B+ = VALUE tier (V)
+  growth_tier_min: 5000000000       # $5B-100B = GROWTH tier (G)
+  # Below $5B = BETS tier (B)
+
+# ================================================================
+# UNIVERSAL THRESHOLDS (Applied to all tiers)
+# ================================================================
+universal_thresholds:
+  min_analyst_count: 5              # Minimum analyst coverage required
+  min_price_targets: 5              # Minimum price targets required  
+  min_market_cap: 1000000000        # $1B minimum market cap
+
+# ================================================================
+# TIER-SPECIFIC TRADING CRITERIA
+# ================================================================
+
+# VALUE TIER (V) - Large-cap blue chips >= $100B
+value:
+  buy:
+    min_upside: 10.0                # 10% minimum upside (conservative for large caps)
+    min_buy_percentage: 75.0        # 75% analyst consensus required
+    min_beta: 0.25                  # Minimum beta allowed
+    max_beta: 3.0                   # Maximum beta allowed  
+    min_forward_pe: 0.5             # Minimum forward P/E ratio
+    max_forward_pe: 65.0            # Maximum forward P/E ratio
+    min_trailing_pe: 0.5            # Minimum trailing P/E ratio
+    max_trailing_pe: 125.0           # Higher trailing P/E allowed for stability
+    max_peg: 3.0                    # Maximum PEG ratio
+    max_short_interest: 2.0         # Maximum short interest %
+    min_exret: 0.075                 # 7.5% minimum expected return
+    min_earnings_growth: -25.0      # Allow some earnings decline
+    min_price_performance: -25.0    # 3-month price performance tolerance
+  sell:
+    max_upside: 5.0                 # Sell if upside drops to 5%
+    min_buy_percentage: 55.0        # Lower analyst consensus for sell
+    max_forward_pe: 80.0            # Higher P/E tolerance before sell
+    min_short_interest: 3.5         # Sell if short interest rises above 3.5%
+    min_beta: 3.5                   # Sell if beta gets too high
+    max_exret: 0.05                 # 5% maximum expected return for sell
+    max_earnings_growth: -45.0      # Sell if earnings decline > 45%
+    max_price_performance: -45.0    # Sell if 3-month performance < -45%
+
+# GROWTH TIER (G) - Mid-cap growth $5B-100B  
+growth:
+  buy:
+    min_upside: 15.0                # 15% minimum upside for growth
+    min_buy_percentage: 75.0        # 75% analyst consensus required
+    min_beta: 0.25                  # Minimum beta allowed
+    max_beta: 3.0                   # Allow higher volatility
+    min_forward_pe: 0.5             # Minimum forward P/E ratio
+    max_forward_pe: 75.0            # Maximum forward P/E ratio  
+    min_trailing_pe: 0.5            # Minimum trailing P/E ratio
+    max_trailing_pe: 125.0           # Maximum trailing P/E ratio
+    max_peg: 3.0                    # Maximum PEG ratio
+    max_short_interest: 2.5         # Maximum short interest %
+    min_exret: 0.10                 # 10% minimum expected return
+    min_earnings_growth: -30.0      # Less tolerance for earnings decline
+    min_price_performance: -30.0    # 3-month price performance tolerance
+  sell:
+    max_upside: 7.5                 # Sell if upside drops to 7.5%
+    min_buy_percentage: 55.0        # Analyst consensus for sell
+    max_forward_pe: 95.0            # P/E tolerance before sell
+    min_short_interest: 3.0         # Sell if short interest rises above 3%
+    min_beta: 3.5                   # Sell if beta gets too high
+    max_exret: 0.075                 # 7.5% maximum expected return for sell
+    max_earnings_growth: -50.0      # Sell if earnings decline > 50%
+    max_price_performance: -50.0    # Sell if 3-month performance < -50%
+
+# BETS TIER (B) - Small-cap speculative < $5B
+bets:
+  buy:
+    min_upside: 20.0                # 20% minimum upside for speculation
+    min_buy_percentage: 75.0        # 75% strong analyst consensus required
+    min_beta: 0.25                  # Minimum beta allowed
+    max_beta: 3.0                   # Allow high volatility
+    min_forward_pe: 0.5             # Minimum forward P/E ratio
+    max_forward_pe: 85.0            # Lower P/E limit for small caps
+    min_trailing_pe: 0.5            # Minimum trailing P/E ratio
+    max_trailing_pe: 125.0           # Lower trailing P/E limit
+    max_peg: 3.0                    # Stricter PEG for small caps
+    max_short_interest: 3.0         # Lower short interest tolerance
+    min_exret: 0.15                 # 15% minimum expected return
+    min_earnings_growth: -35.0       # Less tolerance for declining earnings
+    min_price_performance: -35.0     # Less tolerance for poor performance
+  sell:
+    max_upside: 10.0                 # Sell if upside drops to 10%
+    min_buy_percentage: 55.0        # Higher consensus needed for sell
+    max_forward_pe: 100.0            # Lower P/E tolerance
+    min_short_interest: 2.5         # Sell if short interest rises above 2.5%
+    min_beta: 3.5                   # Sell if beta gets too high
+    max_exret: 0.055                 # 5.5% maximum expected return for sell
+    max_earnings_growth: -55.0      # Sell if earnings decline > 55%
+    max_price_performance: -55.0    # Sell if 3-month performance < -55%
+
+# ================================================================
+# POSITION SIZING MULTIPLIERS BY TIER
+# ================================================================
+position_sizing:
+  base_position_size: 2500          # Base position size in dollars
+  
+  # Tier-specific position multipliers
+  tier_multipliers:
+    value: 4                      # Large-cap multiplier (VALUE tier)
+    growth: 2                     # Mid-cap multiplier (GROWTH tier)  
+    bets: 1                       # Small-cap multiplier (BETS tier)
+
+# ================================================================
+# OUTPUT PREFERENCES
+# ================================================================
+output:
+  save_to_csv: true
+  save_to_html: true
+  display_colors: true
+  max_display_rows: 99999999
+
+# ================================================================
+# PERFORMANCE SETTINGS
+# ================================================================
+performance:
+  max_concurrent_requests: 15
+  request_timeout_seconds: 30
+  retry_attempts: 3
+
+# ================================================================
+# LOGGING CONFIGURATION
+# ================================================================
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  file: "logs/trading_analysis.log"
+  console: true

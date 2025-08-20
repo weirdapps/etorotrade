@@ -2,16 +2,22 @@
 Market filtering functions using centralized trading criteria.
 
 This module provides functions for filtering stocks based on buy/sell/hold criteria
-using the centralized TradingCriteria configuration.
+using the centralized TradeConfig configuration.
 """
 
 import pandas as pd
 from typing import Optional, List, Dict, Any
 
-from yahoofinance.core.trade_criteria_config import TradingCriteria, normalize_row_for_criteria
+from trade_modules.trade_config import TradeConfig
+from trade_modules.analysis_engine import calculate_action_vectorized
 from yahoofinance.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def normalize_row_for_criteria(row_dict):
+    """Simple row normalization for backward compatibility."""
+    return row_dict  # For now, just return the row as-is
 
 
 def filter_buy_opportunities_v2(market_df: pd.DataFrame) -> pd.DataFrame:
@@ -45,7 +51,11 @@ def filter_buy_opportunities_v2(market_df: pd.DataFrame) -> pd.DataFrame:
         normalized_row = normalize_row_for_criteria(row_dict)
         
         # Calculate action using centralized criteria
-        action, reason = TradingCriteria.calculate_action(normalized_row)
+        # Use our centralized action calculation
+        df_row = pd.DataFrame([row])
+        actions = calculate_action_vectorized(df_row, "market")
+        action = actions.iloc[0] if not actions.empty else "H"
+        reason = f"Calculated using centralized TradeConfig"
         
         # Check if it's AUSS.OL for debugging
         ticker = row_dict.get(ticker_col, "")
@@ -86,7 +96,10 @@ def filter_sell_candidates_v2(portfolio_df: pd.DataFrame) -> pd.DataFrame:
         normalized_row = normalize_row_for_criteria(row_dict)
         
         # Calculate action using centralized criteria
-        action, _ = TradingCriteria.calculate_action(normalized_row)
+        # Use our centralized action calculation
+        df_row = pd.DataFrame([row])
+        actions = calculate_action_vectorized(df_row, "market")
+        action = actions.iloc[0] if not actions.empty else "H"
         
         # Add to sell list if action is SELL
         if action == "S":
@@ -113,15 +126,18 @@ def add_action_column(df: pd.DataFrame) -> pd.DataFrame:
     result_df = df.copy()
     
     # Calculate action for each row
-    actions = []
+    action_list = []
     for idx, row in result_df.iterrows():
         row_dict = row.to_dict()
         normalized_row = normalize_row_for_criteria(row_dict)
-        action, _ = TradingCriteria.calculate_action(normalized_row)
-        actions.append(action)
+        # Use our centralized action calculation
+        df_row = pd.DataFrame([row])
+        actions = calculate_action_vectorized(df_row, "market")
+        action = actions.iloc[0] if not actions.empty else "H"
+        action_list.append(action)
     
     # Add ACT column
-    result_df["ACT"] = actions
+    result_df["ACT"] = action_list
     
     return result_df
 
@@ -156,7 +172,10 @@ def filter_hold_candidates_v2(market_df: pd.DataFrame) -> pd.DataFrame:
         normalized_row = normalize_row_for_criteria(row_dict)
         
         # Calculate action using centralized criteria
-        action, _ = TradingCriteria.calculate_action(normalized_row)
+        # Use our centralized action calculation
+        df_row = pd.DataFrame([row])
+        actions = calculate_action_vectorized(df_row, "market")
+        action = actions.iloc[0] if not actions.empty else "H"
         
         # Add to hold list if action is HOLD
         if action == "H":

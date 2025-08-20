@@ -319,22 +319,57 @@ def calculate_position_size(
     mid_cap = PORTFOLIO_CONFIG["MID_CAP_THRESHOLD"]
     large_cap = PORTFOLIO_CONFIG["LARGE_CAP_THRESHOLD"]
 
-    # NEW APPROACH: Market Cap-Centric Position Sizing
-    from ...core.trade_criteria_config import TradingCriteria
-    
-    # Step 1: Determine tier-based base allocation (primary driver)
-    if market_cap >= TradingCriteria.VALUE_TIER_MIN_CAP:  # VALUE (≥$100B)
-        base_allocation_pct = 2.0  # 2.0% base for large-cap stability premium
-        tier_name = "VALUE"
-    elif market_cap >= TradingCriteria.GROWTH_TIER_MIN_CAP:  # GROWTH ($5B-$100B)
-        base_allocation_pct = 1.0  # 1.0% base for mid-cap standard allocation
-        tier_name = "GROWTH"
-    else:  # BETS (<$5B)
-        base_allocation_pct = 0.2  # 0.2% base for small-cap risk management
-        tier_name = "BETS"
-    
-    # Calculate base position from tier allocation
-    base_position = portfolio_value * (base_allocation_pct / 100)
+    # NEW APPROACH: YAML-Based Position Sizing
+    try:
+        from trade_modules.yaml_config_loader import get_yaml_config
+        yaml_config = get_yaml_config()
+        
+        if yaml_config.is_config_available():
+            # Get position sizing config from YAML
+            position_config = yaml_config.get_position_sizing_config()
+            base_size = position_config.get('base_position_size', 2500)
+            tier_multipliers = position_config.get('tier_multipliers', {})
+            
+            # Get tier thresholds from YAML
+            tier_thresholds = yaml_config.get_tier_thresholds()
+            value_min = tier_thresholds.get('value_tier_min', 100_000_000_000)  # $100B
+            growth_min = tier_thresholds.get('growth_tier_min', 5_000_000_000)   # $5B
+            
+            # Step 1: Determine tier-based position size (YAML-driven)
+            if market_cap >= value_min:  # VALUE tier (≥$100B)
+                multiplier = tier_multipliers.get('value', 4)
+                tier_name = "VALUE"
+            elif market_cap >= growth_min:  # GROWTH tier ($5B-$100B)
+                multiplier = tier_multipliers.get('growth', 2)
+                tier_name = "GROWTH"
+            else:  # BETS tier (<$5B)
+                multiplier = tier_multipliers.get('bets', 1)
+                tier_name = "BETS"
+            
+            # Calculate base position using YAML configuration
+            base_position = base_size * multiplier
+        else:
+            # Fallback to hardcoded values if YAML not available
+            if market_cap >= 100_000_000_000:  # VALUE (≥$100B)
+                base_position = 2500 * 4  # $10,000
+                tier_name = "VALUE"
+            elif market_cap >= 5_000_000_000:  # GROWTH ($5B-$100B)
+                base_position = 2500 * 2  # $5,000
+                tier_name = "GROWTH"
+            else:  # BETS (<$5B)
+                base_position = 2500 * 1  # $2,500
+                tier_name = "BETS"
+    except Exception as e:
+        # If YAML loading fails, use hardcoded fallback
+        if market_cap >= 100_000_000_000:  # VALUE (≥$100B)
+            base_position = 2500 * 4  # $10,000
+            tier_name = "VALUE"
+        elif market_cap >= 5_000_000_000:  # GROWTH ($5B-$100B)
+            base_position = 2500 * 2  # $5,000
+            tier_name = "GROWTH"
+        else:  # BETS (<$5B)
+            base_position = 2500 * 1  # $2,500
+            tier_name = "BETS"
     
     # Step 2: Linear beta risk adjustment (secondary driver)
     risk_multiplier = 1.0

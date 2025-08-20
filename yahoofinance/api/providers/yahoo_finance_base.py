@@ -1,9 +1,12 @@
 """
 Base Yahoo Finance provider implementation.
 
+DEPRECATED: This module is scheduled for removal. Use HybridProvider instead.
+
 This module provides a base implementation for Yahoo Finance providers,
 with common functionality shared by different provider types.
 """
+
 
 import logging
 import re

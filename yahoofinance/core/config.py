@@ -1,52 +1,40 @@
 """
-Configuration settings for Yahoo Finance data access.
+Configuration Bridge Module
 
-This module defines configuration settings for rate limiting, caching,
-API timeouts, and more. It provides a central location for all configuration
-values used throughout the package.
+This module provides backward compatibility while migrating to the unified
+ConfigManager. It redirects all configuration access to the new system.
 """
 
 import os
 from typing import Any, Dict, List, Set
 
+# Import from new unified config
+from trade_modules.config_manager import (
+    get_config as _get_config,
+    reload_config,
+    get_max_concurrent_requests,
+    get_request_timeout,
+    get_portfolio_value,
+    get_input_dir,
+    get_output_dir,
+)
 
-# Define set of analyst grades considered positive
-POSITIVE_GRADES = {
-    "Buy",
-    "Outperform",
-    "Strong Buy",
-    "Overweight",
-    "Accumulate",
-    "Add",
-    "Conviction Buy",
-    "Top Pick",
-    "Positive",
-}
+# Get config instance for module-level constants
+_cfg = _get_config()
+
+# Module-level constants for backward compatibility
+POSITIVE_GRADES = _cfg.positive_grades
 
 # Provider configuration
 PROVIDER_CONFIG = {
-    # Enable yahooquery supplementation in hybrid provider
-    "ENABLE_YAHOOQUERY": True,  # Set to False to disable yahooquery and prevent crumb errors
+    "ENABLE_YAHOOQUERY": False,  # Disabled to avoid delays
 }
 
-# Portfolio configuration for position sizing
-PORTFOLIO_CONFIG = {
-    # Total portfolio value in USD
-    "PORTFOLIO_VALUE": 450_000,
-    # Position sizing limits
-    "MIN_POSITION_USD": 1_000,      # Minimum trade size
-    "MAX_POSITION_USD": 40_000,     # Maximum for exceptional cases
-    "MAX_POSITION_PCT": 8.9,        # Maximum as % of portfolio (40k/450k)
-    # Risk-based position sizing
-    "BASE_POSITION_PCT": 0.5,       # Base position as % of portfolio (0.5% = $2,250)
-    "HIGH_CONVICTION_PCT": 2.0,     # High conviction positions (2% = $9,000)
-    # Market cap thresholds for position sizing
-    "SMALL_CAP_THRESHOLD": 2_000_000_000,    # $2B - smaller positions
-    "MID_CAP_THRESHOLD": 10_000_000_000,     # $10B - standard positions  
-    "LARGE_CAP_THRESHOLD": 50_000_000_000,   # $50B - larger positions allowed
-}
+# Portfolio configuration - redirect to unified config
+PORTFOLIO_CONFIG = _cfg.portfolio
 
-# Rate limiting configuration - SIMPLIFIED FIXED RATE STRATEGY
+# Rate limiting configuration - merge unified config with legacy structure
+# Keep legacy RATE_LIMIT dict structure for compatibility
 RATE_LIMIT = {
     # Time window for rate limiting in seconds (60s = 1 minute window)
     "WINDOW_SIZE": 60,
@@ -62,12 +50,12 @@ RATE_LIMIT = {
     "BATCH_SIZE": 25,
     # No batch delay for maximum performance
     "BATCH_DELAY": 0.0,
-    # Maximum retry attempts for API calls
-    "MAX_RETRY_ATTEMPTS": 3,
-    # API request timeout in seconds
-    "API_TIMEOUT": 60,
-    # Increased concurrent API calls for better async performance
-    "MAX_CONCURRENT_CALLS": 30,
+    # Maximum retry attempts for API calls - from unified config
+    "MAX_RETRY_ATTEMPTS": _cfg.rate_limit.get("retry_attempts", 3),
+    # API request timeout in seconds - from unified config
+    "API_TIMEOUT": _cfg.rate_limit.get("request_timeout_seconds", 60),
+    # Default concurrent API calls - from unified config
+    "MAX_CONCURRENT_CALLS": _cfg.rate_limit.get("max_concurrent_requests", 30),
     # No jitter - use fixed delays
     "JITTER_FACTOR": 0.0,
     # Disable error-based delay adjustments
@@ -191,6 +179,47 @@ CACHE_CONFIG = {
     "NON_US_STOCK_TTL_MULTIPLIER": 2.0,  # Double TTL for non-US stocks that update less frequently
 }
 
+# Field-level cache configuration (as per user requirements)
+# Default: Field-level caching disabled for safety
+FIELD_CACHE_CONFIG = {
+    # Core control
+    "ENABLED": False,  # Default OFF for safety - enable via environment or code
+    
+    # User-defined field classifications (exact requirements specification)
+    "NEVER_CACHE_FIELDS": {
+        # Never cache - always API call (11 columns as specified)
+        "PRICE", "TARGET", "UPSIDE", "#T", "#A", "%BUY", 
+        "PET", "PEF", "PEG", "PP", "EXRET", "A", "BS"
+    },
+    
+    "DAILY_CACHE_FIELDS": {
+        # 24 hour cache (8 columns with TTL = 86400 seconds as specified)
+        "TICKER": 86400,    # 24 hours
+        "COMPANY": 86400,   # 24 hours
+        "CAP": 86400,       # 24 hours
+        "BETA": 86400,      # 24 hours
+        "SI": 86400,        # 24 hours
+        "DIV%": 86400,      # 24 hours
+        "EARNINGS": 86400,  # 24 hours
+        "EG": 86400         # 24 hours
+    },
+    
+    # Performance and reliability settings
+    "MAX_CACHE_SIZE": 10000,               # Maximum cached entries
+    "ENABLE_DETAILED_LOGGING": False,      # Detailed cache operation logging
+    "ENABLE_PERFORMANCE_METRICS": True,    # Performance metrics collection
+    "FALLBACK_ON_CACHE_ERROR": True,       # Always fallback to API on errors
+    "THREAD_SAFE": True,                   # Thread-safe operations
+    
+    # Cache management
+    "CLEANUP_INTERVAL": 3600,              # Cache cleanup every hour
+    "STATS_LOGGING_INTERVAL": 300,         # Log stats every 5 minutes
+    
+    # Error handling
+    "CACHE_ERROR_RETRY_COUNT": 3,          # Retries on cache errors
+    "LOCK_TIMEOUT": 5.0,                   # Maximum cache lock wait time
+}
+
 # Risk metrics configuration
 RISK_METRICS = {
     # Risk-free rate (annual)
@@ -225,31 +254,32 @@ PAGINATION = {
 # Temporary compatibility import to support existing code
 def get_trading_criteria():
     """Get trading criteria in legacy format for backward compatibility."""
-    from .trade_criteria_config import TradingCriteria
+    # Trading criteria have been moved to config.yaml
+    # Providing default values for backward compatibility
     return {
         "CONFIDENCE": {
-            "MIN_ANALYST_COUNT": TradingCriteria.MIN_ANALYST_COUNT,
-            "MIN_PRICE_TARGETS": TradingCriteria.MIN_PRICE_TARGETS,
+            "MIN_ANALYST_COUNT": 3,
+            "MIN_PRICE_TARGETS": 2,
         },
         "SELL": {
-            "SELL_MAX_UPSIDE": TradingCriteria.SELL_MAX_UPSIDE,
-            "SELL_MIN_BUY_PERCENTAGE": TradingCriteria.SELL_MIN_BUY_PERCENTAGE,
-            "SELL_MIN_FORWARD_PE": TradingCriteria.SELL_MIN_FORWARD_PE,
-            "SELL_MIN_PEG": TradingCriteria.SELL_MIN_PEG,
-            "SELL_MIN_SHORT_INTEREST": TradingCriteria.SELL_MIN_SHORT_INTEREST,
-            "SELL_MIN_BETA": TradingCriteria.SELL_MIN_BETA,
-            "SELL_MAX_EXRET": TradingCriteria.SELL_MAX_EXRET,
+            "SELL_MAX_UPSIDE": -10,
+            "SELL_MIN_BUY_PERCENTAGE": 20,
+            "SELL_MIN_FORWARD_PE": 50,
+            "SELL_MIN_PEG": 3,
+            "SELL_MIN_SHORT_INTEREST": 20,
+            "SELL_MIN_BETA": 2,
+            "SELL_MAX_EXRET": -0.05,
         },
         "BUY": {
-            "BUY_MIN_UPSIDE": TradingCriteria.BUY_MIN_UPSIDE,
-            "BUY_MIN_BUY_PERCENTAGE": TradingCriteria.BUY_MIN_BUY_PERCENTAGE,
-            "BUY_MIN_BETA": TradingCriteria.BUY_MIN_BETA,
-            "BUY_MAX_BETA": TradingCriteria.BUY_MAX_BETA,
-            "BUY_MIN_FORWARD_PE": TradingCriteria.BUY_MIN_FORWARD_PE,
-            "BUY_MAX_FORWARD_PE": TradingCriteria.BUY_MAX_FORWARD_PE,
-            "BUY_MAX_PEG": TradingCriteria.BUY_MAX_PEG,
-            "BUY_MAX_SHORT_INTEREST": TradingCriteria.BUY_MAX_SHORT_INTEREST,
-            "BUY_MIN_EXRET": TradingCriteria.BUY_MIN_EXRET,
+            "BUY_MIN_UPSIDE": 20,
+            "BUY_MIN_BUY_PERCENTAGE": 60,
+            "BUY_MIN_BETA": 0.3,
+            "BUY_MAX_BETA": 1.8,
+            "BUY_MIN_FORWARD_PE": 1,
+            "BUY_MAX_FORWARD_PE": 30,
+            "BUY_MAX_PEG": 2,
+            "BUY_MAX_SHORT_INTEREST": 10,
+            "BUY_MIN_EXRET": 0.10,
         },
     }
 
@@ -342,22 +372,14 @@ MESSAGES = {
     "INFO_PROCESSING_TICKERS": "Processing {count} tickers...",
 }
 
-# Paths configuration
-PATHS = {
-    # Input directory
-    "INPUT_DIR": os.path.join(os.path.dirname(os.path.dirname(__file__)), "input"),
-    # Output directory
-    "OUTPUT_DIR": os.path.join(os.path.dirname(os.path.dirname(__file__)), "output"),
-    # Log directory
-    "LOG_DIR": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logs"),
-    # Default log file
-    "DEFAULT_LOG_FILE": os.path.join(
-        os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logs", "yahoofinance.log"
-    ),
-}
+# Paths configuration - redirect to unified config
+PATHS = _cfg.paths
 
-# File paths for data files
-FILE_PATHS = {
+# File paths for data files - redirect to unified config
+FILE_PATHS = _cfg.file_paths
+
+# Keep legacy FILE_PATHS structure for any code that builds it manually
+_LEGACY_FILE_PATHS = {
     # Input files
     "MARKET_FILE": os.path.join(PATHS["INPUT_DIR"], "market.csv"),
     "PORTFOLIO_FILE": os.path.join(PATHS["INPUT_DIR"], "portfolio.csv"),
@@ -550,3 +572,18 @@ PERFORMANCE_CONFIG = {
         "DEFAULT_WARMUP_ITERATIONS": 1,
     },
 }
+
+
+def get_max_concurrent_requests():
+    """Get max concurrent requests from config.yaml or fallback to default."""
+    try:
+        from .config_loader import get_config_value
+        # Try to get from config.yaml first
+        max_concurrent = get_config_value('performance.max_concurrent_requests')
+        if max_concurrent is not None:
+            return int(max_concurrent)
+    except Exception:
+        pass
+    
+    # Fallback to hardcoded default
+    return RATE_LIMIT["MAX_CONCURRENT_CALLS"]

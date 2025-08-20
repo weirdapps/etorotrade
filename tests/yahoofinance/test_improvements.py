@@ -79,7 +79,7 @@ def test_cache_implementation():
         enable_disk_cache=False,
     )
 
-    news_cache = CacheManager(
+    general_cache = CacheManager(
         enable_memory_cache=True,
         memory_cache_ttl=CACHE_CONFIG.get("NEWS_MEMORY_TTL", 600),
         enable_disk_cache=False,
@@ -120,7 +120,7 @@ def test_cache_implementation():
 
     # Clear the caches for cleanup
     market_cache.clear()
-    news_cache.clear()
+    general_cache.clear()
     earnings_cache.clear()
     custom_cache.clear()
 

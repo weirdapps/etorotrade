@@ -43,31 +43,11 @@ from ..core.logging import get_logger
 
 logger = get_logger(__name__)
 
+# Load environment variables from .env file
+load_dotenv()
 
 # HK ticker logic moved to centralized ticker_utils.py
 # This function is deprecated - use normalize_ticker instead
-def fix_hk_ticker(ticker):
-    """
-    DEPRECATED: Use normalize_ticker from utils.data.ticker_utils instead.
-    
-    Fix HK stock tickers to standardize their format.
-    """
-    logger.warning(f"fix_hk_ticker is deprecated. Use normalize_ticker instead.")
-    
-    # Handle None and empty values
-    if ticker is None or ticker == "":
-        return ticker
-    
-    # Convert non-string values to string (for numeric HK tickers)
-    if not isinstance(ticker, str):
-        ticker = str(ticker)
-    
-    return normalize_ticker(ticker)
-
-
-# Load environment variables
-load_dotenv()
-
 
 def safe_click(driver, element, description="element"):
     """Helper function to safely click an element using JavaScript"""
@@ -696,6 +676,11 @@ async def fallback_portfolio_download():
         return False
 
 
+# Performance optimization: Process in larger batches
+BATCH_SIZE = 10  # Increased from default
+MAX_WORKERS = 5  # For concurrent processing
+
+
 async def download_etoro_portfolio(provider=None):
     """
     Download portfolio data from eToro API.
@@ -873,15 +858,6 @@ async def _fetch_etoro_instrument_metadata(instrument_ids: list, api_key: str, u
     
     return {}
 
-
-def _fix_yahoo_ticker_format(ticker: str) -> str:
-    """
-    DEPRECATED: Use normalize_ticker from utils.data.ticker_utils instead.
-    
-    Convert ticker to Yahoo Finance format.
-    """
-    logger.warning("_fix_yahoo_ticker_format is deprecated. Use normalize_ticker instead.")
-    return normalize_ticker(ticker)
 
 
 def _process_etoro_portfolio_data(portfolio: dict, metadata: dict, run_id: str):

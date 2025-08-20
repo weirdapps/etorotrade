@@ -713,5 +713,41 @@
     "threshold": 3.0,
     "timestamp": 1754074850.0361469,
     "tags": {}
+  },
+  {
+    "name": "test_alert",
+    "severity": "warning",
+    "message": "Test message",
+    "value": 5.0,
+    "threshold": 3.0,
+    "timestamp": 1755383017.201618,
+    "tags": {}
+  },
+  {
+    "name": "test_alert",
+    "severity": "warning",
+    "message": "Test message",
+    "value": 5.0,
+    "threshold": 3.0,
+    "timestamp": 1755383996.8929532,
+    "tags": {}
+  },
+  {
+    "name": "test_alert",
+    "severity": "warning",
+    "message": "Test message",
+    "value": 5.0,
+    "threshold": 3.0,
+    "timestamp": 1755384451.546284,
+    "tags": {}
+  },
+  {
+    "name": "test_alert",
+    "severity": "warning",
+    "message": "Test message",
+    "value": 5.0,
+    "threshold": 3.0,
+    "timestamp": 1755385651.507581,
+    "tags": {}
   }
 ]

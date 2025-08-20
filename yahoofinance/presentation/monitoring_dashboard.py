@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from yahoofinance.core.monitoring import MONITOR_DIR, monitoring_service
-from yahoofinance.presentation.templates import get_template
+from yahoofinance.presentation.html_templates import get_template
 
 
 # HTML constants

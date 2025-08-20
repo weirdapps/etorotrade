@@ -157,7 +157,7 @@ class TestConfigAndCache(unittest.TestCase):
             memory_cache_ttl=CACHE_CONFIG.get("MARKET_DATA_MEMORY_TTL", 60),
             enable_disk_cache=False,
         )
-        news_cache = CacheManager(
+        general_cache = CacheManager(
             enable_memory_cache=True,
             memory_cache_ttl=CACHE_CONFIG.get("NEWS_DATA_MEMORY_TTL", 30),
             enable_disk_cache=False,
@@ -194,7 +194,7 @@ class TestConfigAndCache(unittest.TestCase):
 
         # Clear the caches for cleanup
         market_cache.clear()
-        news_cache.clear()
+        general_cache.clear()
         custom_cache.clear()
 
         # Verify cache was cleared

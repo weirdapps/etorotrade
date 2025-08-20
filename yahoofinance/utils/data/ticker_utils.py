@@ -6,7 +6,7 @@ especially for handling dual-listed stocks that trade on multiple exchanges.
 """
 
 from typing import Dict, List, Optional, Set, Tuple
-from ...core.config.ticker_mappings import (
+from ..ticker_mappings import (
     DUAL_LISTED_MAPPINGS,
     REVERSE_MAPPINGS,
     DUAL_LISTED_TICKERS,

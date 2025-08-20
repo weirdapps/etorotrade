@@ -6,12 +6,12 @@ in the main trade.py module, particularly for display_report_for_source function
 """
 
 import re
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
 from yahoofinance.core.config import COLUMN_NAMES
-from yahoofinance.core.trade_criteria_config import TradingCriteria
+from trade_modules.trade_config import TradeConfig
 from .data.ticker_utils import normalize_ticker
 from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
 from ..utils.error_handling import (
@@ -49,7 +49,7 @@ ANALYST_COUNT_COL = "# A"
 PRICE_TARGET_COUNT_COL = "# T"
 
 
-def handle_manual_input_tickers(tickers):
+def handle_manual_input_tickers(tickers: str) -> List[str]:
     """
     Process manual input tickers string into a list of individual tickers.
 
@@ -73,7 +73,7 @@ def handle_manual_input_tickers(tickers):
     return tickers_list
 
 
-def get_output_file_and_title(report_source, output_dir):
+def get_output_file_and_title(report_source: str, output_dir: str) -> Tuple[str, str]:
     """
     Determine the appropriate output file and report title based on the source.
 
@@ -92,7 +92,7 @@ def get_output_file_and_title(report_source, output_dir):
         return f"{output_dir}/manual.csv", "Manual Ticker Analysis"
 
 
-def format_market_cap(row):
+def format_market_cap(row: pd.Series) -> str:
     """
     Format market cap values for display in the CAP column.
 
@@ -136,7 +136,7 @@ def format_market_cap(row):
     return "--"
 
 
-def _apply_color_to_row(colored_row, color_code):
+def _apply_color_to_row(colored_row: pd.Series, color_code: str) -> pd.Series:
     """
     Apply the specified color to all cells in a row.
 
@@ -154,19 +154,29 @@ def _apply_color_to_row(colored_row, color_code):
 
 
 # Import action and color constants from centralized config
-from yahoofinance.core.trade_criteria_config import (
-    BUY_ACTION,
-    SELL_ACTION,
-    HOLD_ACTION,
-    INCONCLUSIVE_ACTION,
-    GREEN_COLOR,
-    RED_COLOR,
-    YELLOW_COLOR,
-    get_action_color
-)
+# Define action and color constants locally
+BUY_ACTION = "B"
+SELL_ACTION = "S"
+HOLD_ACTION = "H"
+INCONCLUSIVE_ACTION = "I"
+GREEN_COLOR = "92"
+RED_COLOR = "91"
+YELLOW_COLOR = "93"
+
+# Color mapping for actions
+ACTION_COLORS = {
+    BUY_ACTION: GREEN_COLOR,
+    SELL_ACTION: RED_COLOR,
+    HOLD_ACTION: None,  # No color
+    INCONCLUSIVE_ACTION: YELLOW_COLOR,
+}
+
+def get_action_color(action: str) -> Optional[str]:
+    """Get the color code for a given action."""
+    return ACTION_COLORS.get(action)
 
 
-def _color_based_on_action(row, colored_row):
+def _color_based_on_action(row: pd.Series, colored_row: pd.Series) -> Optional[pd.Series]:
     """
     Apply color based on the ACTION column value.
 
@@ -220,7 +230,7 @@ def _color_based_on_action(row, colored_row):
     return colored_row_copy
 
 
-def _has_required_metrics(row):
+def _has_required_metrics(row: pd.Series) -> bool:
     """
     Check if row has all required metrics for criteria evaluation.
 
@@ -328,8 +338,9 @@ def check_confidence_threshold(row, trading_criteria):
     price_targets = _extract_numeric_value(row, PRICE_TARGET_COUNT_COL)
 
     # Get threshold values from centralized criteria
-    min_analysts = TradingCriteria.MIN_ANALYST_COUNT
-    min_targets = TradingCriteria.MIN_PRICE_TARGETS
+    config = TradeConfig()
+    min_analysts = config.UNIVERSAL_THRESHOLDS.get("min_analyst_count", 5)
+    min_targets = config.UNIVERSAL_THRESHOLDS.get("min_price_targets", 5)
 
     # Check if confidence threshold is met
     return (
@@ -370,7 +381,7 @@ def _parse_numeric_value(value):
     return value
 
 
-def parse_row_values(row):
+def parse_row_values(row: pd.Series) -> Dict[str, Any]:
     """
     Parse numeric values from a row, handling string formatting.
 
@@ -555,8 +566,9 @@ def print_confidence_details(row, i, trading_criteria):
         price_targets = "Invalid"
 
     # Get confidence thresholds from centralized criteria
-    min_analysts = TradingCriteria.MIN_ANALYST_COUNT
-    min_targets = TradingCriteria.MIN_PRICE_TARGETS
+    config = TradeConfig()
+    min_analysts = config.UNIVERSAL_THRESHOLDS.get("min_analyst_count", 5)
+    min_targets = config.UNIVERSAL_THRESHOLDS.get("min_price_targets", 5)
 
     # Determine confidence status
     _, confidence_status = _get_confidence_status(
