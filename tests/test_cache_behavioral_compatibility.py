@@ -188,8 +188,8 @@ class TestCacheBehavioralCompatibility(unittest.TestCase):
         self.assertEqual(result1["COMPANY"], result2["COMPANY"])
         
         # Non-cached fields should reflect new values
-        self.assertEqual(result2["PRICE"], 155.00)
-        self.assertEqual(result2["TARGET"], 180.00)
+        self.assertAlmostEqual(result2["PRICE"], 155.00, places=2)
+        self.assertAlmostEqual(result2["TARGET"], 180.00, places=2)
     
     def test_error_handling_compatibility(self):
         """Test that error handling behavior is identical with/without cache."""

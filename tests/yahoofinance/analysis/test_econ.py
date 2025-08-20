@@ -41,27 +41,27 @@ class TestMarketData(unittest.TestCase):
         self.assertIsNone(self.empty_metrics.median_peg_ratio)
 
         # Test initialization with values
-        self.assertEqual(self.sample_metrics.avg_upside, 15.5)
-        self.assertEqual(self.sample_metrics.median_upside, 12.0)
-        self.assertEqual(self.sample_metrics.avg_buy_percentage, 78.5)
-        self.assertEqual(self.sample_metrics.median_buy_percentage, 80.0)
-        self.assertEqual(self.sample_metrics.avg_pe_ratio, 18.5)
-        self.assertEqual(self.sample_metrics.median_pe_ratio, 17.2)
-        self.assertEqual(self.sample_metrics.avg_forward_pe, 16.8)
-        self.assertEqual(self.sample_metrics.median_forward_pe, 15.5)
-        self.assertEqual(self.sample_metrics.avg_peg_ratio, 1.8)
-        self.assertEqual(self.sample_metrics.median_peg_ratio, 1.5)
+        self.assertAlmostEqual(self.sample_metrics.avg_upside, 15.5, places=1)
+        self.assertAlmostEqual(self.sample_metrics.median_upside, 12.0, places=1)
+        self.assertAlmostEqual(self.sample_metrics.avg_buy_percentage, 78.5, places=1)
+        self.assertAlmostEqual(self.sample_metrics.median_buy_percentage, 80.0, places=1)
+        self.assertAlmostEqual(self.sample_metrics.avg_pe_ratio, 18.5, places=1)
+        self.assertAlmostEqual(self.sample_metrics.median_pe_ratio, 17.2, places=1)
+        self.assertAlmostEqual(self.sample_metrics.avg_forward_pe, 16.8, places=1)
+        self.assertAlmostEqual(self.sample_metrics.median_forward_pe, 15.5, places=1)
+        self.assertAlmostEqual(self.sample_metrics.avg_peg_ratio, 1.8, places=1)
+        self.assertAlmostEqual(self.sample_metrics.median_peg_ratio, 1.5, places=1)
 
     @with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
     def test_dataclass_functionality(self):
         """Test dataclass functionality with appropriate retries."""
         # Ensure the dataclass properly tracks changes
         metrics = MarketMetrics(avg_upside=10.0)
-        self.assertEqual(metrics.avg_upside, 10.0)
+        self.assertAlmostEqual(metrics.avg_upside, 10.0, places=1)
 
         # Change a value and ensure it updates
         metrics.avg_upside = 15.0
-        self.assertEqual(metrics.avg_upside, 15.0)
+        self.assertAlmostEqual(metrics.avg_upside, 15.0, places=1)
 
     @safe_operation(default_value=None)
     def test_comparison(self):

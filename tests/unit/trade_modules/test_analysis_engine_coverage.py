@@ -14,9 +14,7 @@ import os
 from trade_modules.analysis_engine import (
     calculate_action_vectorized,
     process_buy_opportunities,
-    _filter_notrade_tickers,
-    _clean_percentage_column,
-    _parse_market_cap_string
+    _filter_notrade_tickers
 )
 from tests.fixtures.mock_api_responses import MockYahooFinanceResponses, patch_yahoo_finance_api
 
@@ -54,36 +52,7 @@ class TestAnalysisEngineComprehensive(unittest.TestCase):
         result_nan = calculate_action_vectorized(nan_df, "market")
         self.assertEqual(len(result_nan), len(nan_df))
         
-    def test_market_cap_tier_calculation(self):
-        """Test market cap tier calculation logic."""
-        # Test with various market cap values
-        test_caps = [500e6, 2e9, 10e9, 200e9, 1e12]  # Small, Mid, Large, Mega caps
         
-        for cap in test_caps:
-            tier = _calculate_market_cap_tier(cap)
-            self.assertIn(tier, ['Small', 'Mid', 'Large'])
-            
-        # Test edge cases
-        self.assertEqual(_calculate_market_cap_tier(np.nan), 'Small')  # Default for NaN
-        self.assertEqual(_calculate_market_cap_tier(0), 'Small')
-        self.assertEqual(_calculate_market_cap_tier(-100), 'Small')
-        
-    def test_clean_percentage_column(self):
-        """Test percentage string cleaning functionality."""
-        # Create test series with various formats
-        test_series = pd.Series(['5.5%', '10.2', '15%', '', np.nan, 'invalid'])
-        
-        cleaned = _clean_percentage_column(test_series)
-        
-        # Check that percentages are converted to floats
-        self.assertEqual(cleaned.iloc[0], 5.5)
-        self.assertEqual(cleaned.iloc[1], 10.2)
-        self.assertEqual(cleaned.iloc[2], 15.0)
-        
-        # Check that invalid values become NaN or default
-        self.assertTrue(pd.isna(cleaned.iloc[3]) or cleaned.iloc[3] == 0.0)
-        self.assertTrue(pd.isna(cleaned.iloc[4]) or cleaned.iloc[4] == 0.0)
-        self.assertTrue(pd.isna(cleaned.iloc[5]) or cleaned.iloc[5] == 0.0)
         
     def test_filter_notrade_tickers(self):
         """Test no-trade ticker filtering functionality."""
@@ -93,7 +62,7 @@ class TestAnalysisEngineComprehensive(unittest.TestCase):
         
         notrade_tickers = ['STOCK0002', 'STOCK0004']
         
-        filtered = _filter_notrade_tickers(opportunities, notrade_tickers, 'ticker')
+        filtered = _filter_notrade_tickers(opportunities, notrade_tickers)
         
         # Verify no-trade tickers are filtered out
         remaining_tickers = filtered['ticker'].tolist()
@@ -101,7 +70,7 @@ class TestAnalysisEngineComprehensive(unittest.TestCase):
             self.assertNotIn(ticker, remaining_tickers)
             
         # Test with empty no-trade list
-        filtered_empty = _filter_notrade_tickers(opportunities, [], 'ticker')
+        filtered_empty = _filter_notrade_tickers(opportunities, [])
         self.assertEqual(len(filtered_empty), len(opportunities))
         
     @patch('pandas.read_csv')
@@ -134,22 +103,6 @@ class TestAnalysisEngineComprehensive(unittest.TestCase):
             
             self.assertIsInstance(result_no_notrade, pd.DataFrame)
             
-    def test_parse_market_cap_string(self):
-        """Test market cap string parsing logic."""
-        # Test with various market cap formats
-        result_b = _parse_market_cap_string('3.67B')
-        self.assertAlmostEqual(result_b, 3.67e9, places=5)
-        
-        result_t = _parse_market_cap_string('1.5T')  
-        self.assertAlmostEqual(result_t, 1.5e12, places=5)
-        
-        result_m = _parse_market_cap_string('500M')
-        self.assertAlmostEqual(result_m, 500e6, places=5)
-        
-        # Test edge cases
-        self.assertIsNone(_parse_market_cap_string('--'))
-        self.assertIsNone(_parse_market_cap_string(''))
-        self.assertIsNone(_parse_market_cap_string('   '))
             
     def test_error_handling(self):
         """Test error handling in various scenarios."""

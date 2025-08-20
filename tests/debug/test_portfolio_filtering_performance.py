@@ -95,7 +95,7 @@ def test_edge_cases():
     buy_opps = create_test_buy_opportunities(10)
     # First calculate actions to see what would be buy opportunities
     from trade_modules.analysis_engine import calculate_action
-    buy_opps_with_actions = calculate_action(buy_opps, "market")
+    buy_opps_with_actions = calculate_action(buy_opps)
     actual_buy_opps = buy_opps_with_actions[buy_opps_with_actions["BS"] == "B"]
     
     result = process_buy_opportunities(actual_buy_opps, [], "", "non_existent.csv", None)
