@@ -36,4 +36,13 @@ __all__ = [
     'configure_caching',
     'create_cache_aware_wrapper',
     'wrap_provider_with_cache',
+    'CACHE_CONFIG',
 ]
+
+# Default cache configuration for backward compatibility
+CACHE_CONFIG = {
+    'ttl': 3600,  # 1 hour default TTL
+    'max_size': 1000,
+    'enabled': True,
+    'directory': '.cache',
+}

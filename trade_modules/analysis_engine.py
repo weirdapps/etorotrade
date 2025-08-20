@@ -869,6 +869,49 @@ def process_buy_opportunities(
         return pd.DataFrame()
 
 
+# Backward compatibility aliases for old function names
+def filter_buy_opportunities(df):
+    """Backward compatibility wrapper for filter_buy_opportunities."""
+    # Filter to only buy signals
+    if 'BS' in df.columns:
+        return df[df['BS'] == 'B']
+    return df
+
+
+def filter_sell_candidates(df):
+    """Backward compatibility wrapper for filter_sell_candidates."""
+    # Filter to only sell signals
+    if 'BS' in df.columns:
+        return df[df['BS'] == 'S']
+    return df
+
+
+def filter_hold_candidates(df):
+    """Backward compatibility wrapper for filter_hold_candidates."""
+    # Filter to only hold signals
+    if 'BS' in df.columns:
+        return df[df['BS'] == 'H']
+    return df
+
+
+def process_sell_opportunities(market_df, portfolio_df=None, *args, **kwargs):
+    """Backward compatibility wrapper."""
+    # Just return market data filtered for sell signals
+    return filter_sell_candidates(market_df)
+
+
+def process_hold_opportunities(market_df, portfolio_df=None, *args, **kwargs):
+    """Backward compatibility wrapper."""
+    # Just return market data filtered for hold signals
+    return filter_hold_candidates(market_df)
+
+
+def generate_trade_reports(*args, **kwargs):
+    """Backward compatibility stub."""
+    # Return empty dict for now
+    return {}
+
+
 class AnalysisEngine:
     """Main analysis engine for trading decisions."""
 

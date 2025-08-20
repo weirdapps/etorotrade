@@ -68,6 +68,14 @@ class TradingEngine:
         self.analysis_service = AnalysisService(self.config, self.logger)
         self.filter_service = FilterService(self.logger)
         self.portfolio_service = PortfolioService(self.logger)
+        
+        # Backward compatibility aliases for private methods
+        self._filter_buy_opportunities = self.filter_service.filter_buy_opportunities
+        self._filter_sell_opportunities = self.filter_service.filter_sell_opportunities
+        self._filter_hold_opportunities = self.filter_service.filter_hold_opportunities
+        self._filter_notrade_tickers = self.filter_service.filter_notrade_tickers
+        self._calculate_confidence_score = self.analysis_service.calculate_confidence_score
+        self._apply_portfolio_filter = self.portfolio_service.apply_portfolio_filter
 
     async def analyze_market_opportunities(
         self, market_df: pd.DataFrame, portfolio_df: pd.DataFrame = None, notrade_path: str = None
