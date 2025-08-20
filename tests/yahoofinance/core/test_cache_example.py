@@ -6,6 +6,7 @@ This is an example of a well-organized test file in the new structure.
 
 import os
 import time
+import unittest
 from datetime import datetime
 from unittest.mock import MagicMock
 
