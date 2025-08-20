@@ -16,6 +16,7 @@ from yahoofinance.core.errors import YFinanceError
 from yahoofinance.core.logging import get_logger
 from yahoofinance.utils.dependency_injection import registry
 from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
+from yahoofinance.core.config import get_max_concurrent_requests
 from yahoofinance.presentation import MarketDisplay
 from yahoofinance.utils.data.ticker_utils import are_equivalent_tickers
 
@@ -181,7 +182,7 @@ def get_provider_instance():
         return provider
     except Exception:
         # Fallback to direct instantiation
-        return AsyncHybridProvider(max_concurrency=10)
+        return AsyncHybridProvider(max_concurrency=get_max_concurrent_requests())
 
 
 async def handle_trade_analysis(get_provider=None, app_logger=None):
@@ -274,9 +275,12 @@ async def handle_trade_analysis_direct(display, trade_choice, get_provider=None,
         if app_logger:
             app_logger.info(f"Generating fresh {trade_choice} opportunities from market.csv")
         
+        # Use processed portfolio file from output directory for trade opportunities
+        processed_portfolio_file = os.path.join(output_dir, "portfolio.csv")
+        
         # Generate opportunities from market.csv
         await generate_trade_opportunities_from_market(
-            market_file, portfolio_file, trade_choice, output_dir, app_logger
+            market_file, processed_portfolio_file, trade_choice, output_dir, app_logger
         )
         
         # Check if file was created
@@ -630,14 +634,14 @@ async def main_async(get_provider=None, app_logger=None):
                 app_logger.info(f"Using injected provider instance: {provider.__class__.__name__}")
         else:
             app_logger.error("Provider not injected, creating default provider")
-            provider = AsyncHybridProvider(max_concurrency=10)
+            provider = AsyncHybridProvider(max_concurrency=get_max_concurrent_requests())
 
         # Override provider with AsyncHybridProvider for consistency
         if not isinstance(provider, AsyncHybridProvider):
             app_logger.info(
                 f"Switching from {provider.__class__.__name__} to AsyncHybridProvider for consistency"
             )
-            provider = AsyncHybridProvider(max_concurrency=10)
+            provider = AsyncHybridProvider(max_concurrency=get_max_concurrent_requests())
 
         app_logger.info("Creating MarketDisplay instance...")
         display = MarketDisplay(provider=provider)
@@ -742,7 +746,7 @@ async def main_async_with_args(args, app_logger=None):
             if app_logger:
                 app_logger.info(f"Using injected provider: {provider.__class__.__name__}")
         except Exception:
-            provider = AsyncHybridProvider(max_concurrency=10)
+            provider = AsyncHybridProvider(max_concurrency=get_max_concurrent_requests())
             if app_logger:
                 app_logger.info("Using default AsyncHybridProvider")
 

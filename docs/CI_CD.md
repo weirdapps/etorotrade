@@ -1,84 +1,99 @@
 # CI/CD Setup for etorotrade
 
-This document describes the continuous integration and deployment setup for the etorotrade project.
+This document describes the comprehensive continuous integration and deployment setup for the etorotrade project.
 
 ## Overview
 
-The etorotrade project uses a lightweight CI/CD approach suitable for locally-run projects while maintaining professional development standards.
+The etorotrade project implements a **production-grade CI/CD pipeline** with multi-version testing, security scanning, code quality gates, and performance benchmarking to ensure enterprise-level reliability.
 
 ## GitHub Actions
 
-### Python Tests Workflow
+### Comprehensive CI/CD Pipeline
 
-The project includes automated testing via GitHub Actions:
+The project features a sophisticated GitHub Actions pipeline with multiple jobs and quality gates:
 
-- **Location**: `.github/workflows/python-tests.yml`
+- **Location**: `.github/workflows/ci.yml`
 - **Triggers**: 
-  - Push to master branch
-  - Pull requests to master branch
-- **Test Coverage**:
-  - Unit tests
-  - Memory leak tests
-  - Priority limiter tests
+  - Push to main, master, develop branches
+  - Pull requests to main, master branches
+- **Multi-Version Testing**: Python 3.9, 3.10, 3.11, 3.12
+- **Pipeline Jobs**:
+  - **test**: Core testing with security and quality checks
+  - **integration**: Integration tests on main branch pushes
+  - **quality-gates**: Code complexity and dependency validation
 
-## Pre-commit Hooks
+### Pipeline Features
 
-Pre-commit hooks ensure code quality before commits:
+**Security Scanning**:
+- **Bandit**: Security vulnerability detection in Python code
+- **Safety**: Known security vulnerability checks in dependencies
+- **Artifact Upload**: Security reports saved for review
 
-- **Configuration**: `.pre-commit-config.yaml`
-- **Checks**:
-  - Trailing whitespace removal
-  - Debug statement detection
-  - Code formatting with isort and black
-  - Static analysis with flake8 and mypy
-  - Unit test execution
+**Code Quality Gates**:
+- **Flake8**: Syntax errors, undefined names, complexity analysis
+- **MyPy**: Type checking with missing imports handling
+- **Test Coverage**: 60% minimum threshold with XML/HTML reports
+- **Performance Benchmarks**: Automated performance validation
 
-### Installation
-
-```bash
-# Install pre-commit
-pip install pre-commit
-
-# Install the git hook scripts
-pre-commit install
-
-# Run against all files
-pre-commit run --all-files
-```
+**Advanced Quality Checks**:
+- **Code Complexity**: Radon analysis for maintainability
+- **Dependency Validation**: Import verification for all modules
+- **TODO/FIXME Detection**: Code comment analysis
+- **Maintainability Index**: Code quality scoring
 
 ## Code Quality Tools
 
-### Linting and Formatting
+### Integrated CI/CD Tools
 
-The project uses several tools for code quality:
+The pipeline includes comprehensive code quality tools with optimized configuration:
 
-- **Black**: Code formatter (config in `pyproject.toml`)
-- **isort**: Import sorter (config in `pyproject.toml`)
-- **flake8**: Linter (config in `.flake8`)
-- **mypy**: Type checker (config in `pyproject.toml`)
+- **Flake8**: 
+  - Max line length: 100 characters
+  - Max complexity: 10
+  - Critical errors halt build, warnings continue
+- **MyPy**: Type checking with relaxed missing imports for CI
+- **Bandit**: Security analysis with JSON report generation
+- **Safety**: Vulnerability scanning with JSON output
+- **Pytest**: Test execution with coverage and parallel processing
 
-Run all checks:
+### Local Development Tools
+
+For local development, use the following quality tools:
+
 ```bash
-make lint
+# Code quality checks (matches CI pipeline)
+flake8 . --max-line-length=100 --max-complexity=10
+mypy yahoofinance/ trade_modules/ --ignore-missing-imports
+
+# Security scanning
+bandit -r yahoofinance/ trade_modules/
+safety check
+
+# Test execution with coverage
+pytest tests/ --cov=yahoofinance --cov=trade_modules --cov-fail-under=60
 ```
 
-Auto-fix issues:
-```bash
-make lint-fix
-```
+### Test Execution
 
-### Test Runner Script
-
-Use `run_tests.sh` for comprehensive testing:
+The CI/CD pipeline runs comprehensive test suites with intelligent exclusions:
 
 ```bash
-# Run all tests
-./run_tests.sh --all
+# CI test execution (excludes integration/e2e tests)
+pytest tests/ \
+  --cov=yahoofinance \
+  --cov=trade_modules \
+  --cov-report=xml \
+  --cov-report=html \
+  --cov-fail-under=60 \
+  --ignore=tests/integration/ \
+  --ignore=tests/e2e/
 
-# Run specific test types
-./run_tests.sh --unit
-./run_tests.sh --memory
-./run_tests.sh --performance
+# Integration tests (main branch only)
+pytest tests/integration/ -v --maxfail=3
+
+# Local development testing
+pytest tests/unit/          # Unit tests only
+pytest tests/debug/         # Performance benchmarks
 ```
 
 ## Version Management
@@ -220,10 +235,32 @@ Track performance metrics:
    pytest --pdb tests/path/to/test.py
    ```
 
+## CI/CD Pipeline Benefits
+
+### Quality Assurance
+- **Multi-Version Compatibility**: Ensures compatibility across Python 3.9-3.12
+- **Security First**: Automated vulnerability detection and dependency scanning
+- **Code Quality Gates**: Prevents technical debt with complexity and quality thresholds
+- **Test Coverage**: 90%+ test coverage target with comprehensive edge case testing
+
+### Performance Monitoring
+- **Automated Benchmarks**: Performance validation in CI pipeline
+- **Regression Detection**: Alerts on performance degradation
+- **Scalability Testing**: Large dataset processing validation
+- **Memory Profiling**: Memory leak detection and optimization
+
+### Development Efficiency
+- **Fast Feedback**: Parallel job execution for quick results
+- **Artifact Management**: Test reports, coverage, and security scans preserved
+- **Branch Protection**: Quality gates prevent broken code in main branches
+- **Local Development**: CI commands work identically in local environment
+
 ## Future Enhancements
 
-- [ ] Add code coverage reporting to CI
-- [ ] Implement automated security scanning
-- [ ] Add performance benchmarking to CI
-- [ ] Set up automated dependency updates
-- [ ] Implement blue-green deployments for production
+- [x] ~~Add code coverage reporting to CI~~ ✅ **Completed**: Codecov integration with XML/HTML reports
+- [x] ~~Implement automated security scanning~~ ✅ **Completed**: Bandit + Safety integration
+- [x] ~~Add performance benchmarking to CI~~ ✅ **Completed**: Automated performance validation
+- [ ] Set up automated dependency updates (Dependabot/Renovate)
+- [ ] Implement deployment automation for production releases
+- [ ] Add container security scanning for Docker builds
+- [ ] Integrate SonarQube for advanced code quality metrics

@@ -16,18 +16,99 @@ from collections import defaultdict
 # Current total portfolio size including cash
 PORTFOLIO_SIZE = 520000  # USD
 
+def classify_asset_type(symbol, exchange=None):
+    """Classify asset into type (Stock, ETF, Crypto, Commodity, Derivative)."""
+    # Cryptocurrencies
+    if symbol.endswith('-USD') and symbol not in ['EUR-USD', 'GBP-USD', 'JPY-USD']:
+        return 'Crypto'
+    
+    # Derivatives
+    if symbol.startswith('^'):
+        return 'Derivative'
+    
+    # Commodities - both direct and ETFs
+    commodity_symbols = ['GLD', 'SLV', 'USO', 'UNG', 'DBA', 'CORN', 'WEAT', 'SOYB']
+    if symbol in commodity_symbols:
+        return 'Commodity'
+    
+    # ETFs - identified by common patterns
+    etf_patterns = ['SPY', 'QQQ', 'IWM', 'EEM', 'VTI', 'VOO', 'AGG', 'TLT', 'HYG', 'LQD']
+    etf_suffixes = ['.DE', '.PA', '.MI', '.AS']  # European ETF exchanges
+    
+    # Check for ETF patterns
+    if symbol in etf_patterns:
+        return 'ETF'
+    
+    # Check for European ETFs (often have exchange suffix)
+    if 'ETF' in symbol.upper() or 'LYXOR' in symbol.upper() or 'ISHARES' in symbol.upper():
+        return 'ETF'
+    
+    # Greece ETF and other country ETFs
+    if 'LYXGRE' in symbol or symbol.startswith('EW'):  # EWx are country ETFs
+        return 'ETF'
+    
+    # Default to Stock
+    return 'Stock'
+
+def get_etf_geography(symbol):
+    """Get geographic exposure for ETFs."""
+    etf_geography = {
+        # Country-specific ETFs
+        'LYXGRE.DE': {'Europe': 100},  # Greece ETF
+        'EWZ': {'Brazil': 100},
+        'EWJ': {'Japan': 100},
+        'EWG': {'Europe': 100},  # Germany
+        'EWU': {'Europe': 100},  # UK
+        'FXI': {'China': 100},
+        'INDA': {'India': 100},
+        'EEM': {'Emerging Markets': 100},
+        
+        # Regional ETFs
+        'VGK': {'Europe': 100},
+        'VPL': {'Asia-Pacific': 100},
+        'VWO': {'Emerging Markets': 100},
+        
+        # US ETFs
+        'SPY': {'US': 100},
+        'QQQ': {'US': 100},
+        'IWM': {'US': 100},
+        'VOO': {'US': 100},
+        'VTI': {'US': 100},
+        
+        # Global ETFs (approximate allocations)
+        'VT': {'US': 60, 'Europe': 20, 'Asia-Pacific': 15, 'Emerging Markets': 5},
+        'ACWI': {'US': 60, 'Europe': 20, 'Asia-Pacific': 15, 'Emerging Markets': 5},
+    }
+    
+    return etf_geography.get(symbol, {'Global': 100})
+
 def classify_geography(row):
     """Classify ticker into geographic region based on company domicile and operations."""
     symbol = row['symbol']
+    exchange = row.get('exchangeName', '')
     
-    # Accurate company-to-geography mapping based on headquarters and primary operations
+    # First determine asset type
+    asset_type = classify_asset_type(symbol, exchange)
+    
+    # Special handling for non-equity assets
+    if asset_type == 'Crypto':
+        return 'Crypto'  # Crypto is global by nature
+    elif asset_type == 'Commodity':
+        return 'Commodities'  # Commodities are global
+    elif asset_type == 'Derivative':
+        return 'Derivatives'  # Derivatives
+    elif asset_type == 'ETF':
+        return 'ETF'  # Will be broken down separately
+    
+    # Stock company-to-geography mapping based on headquarters
     geography_mapping = {
         # US Companies
         'GOOG': 'US', 'AMZN': 'US', 'LLY': 'US', 'UNH': 'US', 'META': 'US', 
         'NVDA': 'US', 'MSFT': 'US', 'AAPL': 'US', 'MU': 'US', 'KO': 'US', 
         'PG': 'US', 'BAC': 'US', 'DE': 'US', 'MA': 'US', 'PFE': 'US', 
         'CRM': 'US', 'CSCO': 'US', 'CI': 'US', 'NFLX': 'US', 'XOM': 'US', 
-        'WMT': 'US', 'ET': 'US', 'ETOR': 'US',
+        'WMT': 'US', 'ET': 'US', 'ETOR': 'US', 'REGN': 'US', 'DVN': 'US',
+        'V': 'US', 'JPM': 'US', 'JNJ': 'US', 'INTC': 'US',
         
         # Europe Companies
         'DTE.DE': 'Europe',      # Deutsche Telekom (Germany)
@@ -40,6 +121,9 @@ def classify_geography(row):
         'FGR.PA': 'Europe',      # Eiffage (France)
         'ASML.NV': 'Europe',     # ASML (Netherlands)
         'DIE.BR': 'Europe',      # D'ieteren (Belgium)
+        'ULVR.L': 'Europe',      # Unilever (UK)
+        'RIO.L': 'Europe',       # Rio Tinto (UK/Australia, but LSE primary)
+        'SMSN.L': 'Europe',      # Samsung GDR (Listed in London)
         
         # China/Hong Kong Companies
         '0700.HK': 'China',      # Tencent Holdings (China)
@@ -54,25 +138,22 @@ def classify_geography(row):
         # Asia-Pacific (Non-China)
         'TSM': 'Taiwan',         # Taiwan Semiconductor (Taiwan)
         '1299.HK': 'Asia-Pacific', # AIA Group (Pan-Asian insurance)
-        
-        # UK Companies (part of Europe)
-        'ULVR.L': 'Europe',      # Unilever (UK)
-        'RIO.L': 'Europe',       # Rio Tinto (UK/Australia, but LSE primary)
-        
-        # Greece (part of Europe)
-        'LYXGRE.DE': 'Europe',   # Greece ETF (underlying is Greek)
-        
-        # Commodities
-        'GLD': 'Commodities',    # Gold ETF
-        
-        # Derivatives
-        '^VIX': 'Derivatives',   # VIX futures
-        
-        # Cryptocurrencies
-        'BTC-USD': 'Crypto', 'ETH-USD': 'Crypto', 'XRP-USD': 'Crypto',
-        'ADA-USD': 'Crypto', 'LINK-USD': 'Crypto', 'SOL-USD': 'Crypto',
-        'HBAR-USD': 'Crypto'
     }
+    
+    # Check exchange suffix for additional context
+    if symbol.endswith('.DE'):
+        return 'Europe'  # German exchange
+    elif symbol.endswith('.PA'):
+        return 'Europe'  # Paris exchange
+    elif symbol.endswith('.MI'):
+        return 'Europe'  # Milan exchange
+    elif symbol.endswith('.L'):
+        return 'Europe'  # London exchange
+    elif symbol.endswith('.CO'):
+        return 'Europe'  # Copenhagen exchange
+    elif symbol.endswith('.HK'):
+        # Could be China or Hong Kong company
+        return geography_mapping.get(symbol, 'China')
     
     return geography_mapping.get(symbol, 'Other')
 
@@ -98,11 +179,17 @@ def analyze_portfolio_geography():
     cash_percentage = (cash_amount / PORTFOLIO_SIZE) * 100
     df['true_portfolio_pct'] = df['totalInvestmentPct']  # Already correct percentages
     
-    # Geographic classification
+    # Geographic and asset type classification
     df['geography'] = df.apply(classify_geography, axis=1)
+    df['asset_type'] = df.apply(lambda row: classify_asset_type(row['symbol'], row.get('exchangeName', '')), axis=1)
     
-    # Geographic analysis
+    # Separate ETFs for special handling
+    etf_holdings = df[df['asset_type'] == 'ETF'].copy()
+    
+    # Geographic analysis with ETF breakdown
     geography_data = defaultdict(lambda: {'count': 0, 'total_value': 0.0, 'tickers': [], 'avg_return': 0.0})
+    asset_type_data = defaultdict(lambda: {'count': 0, 'total_value': 0.0, 'tickers': []})
+    etf_geography_exposure = defaultdict(float)
     
     print("🌍 PORTFOLIO GEOGRAPHIC ANALYSIS")
     print("=" * 70)
@@ -111,15 +198,31 @@ def analyze_portfolio_geography():
     print(f"Cash Position: ${cash_amount:.0f} ({cash_percentage:.1f}%)")
     print()
     
+    # Process regular holdings
     for _, row in df.iterrows():
+        symbol = row['symbol']
         geography = row['geography']
         current_value = row['actual_current_value']
         profit_pct = row['totalNetProfitPct']
+        asset_type = row['asset_type']
         
-        geography_data[geography]['count'] += 1
-        geography_data[geography]['total_value'] += current_value
-        geography_data[geography]['tickers'].append(row['symbol'])
-        geography_data[geography]['avg_return'] += profit_pct
+        # Track by asset type
+        asset_type_data[asset_type]['count'] += 1
+        asset_type_data[asset_type]['total_value'] += current_value
+        asset_type_data[asset_type]['tickers'].append(symbol)
+        
+        # For ETFs, calculate geographic exposure
+        if asset_type == 'ETF':
+            etf_geo = get_etf_geography(symbol)
+            for region, percentage in etf_geo.items():
+                region_value = current_value * (percentage / 100)
+                etf_geography_exposure[region] += region_value
+        # For regular stocks and other assets
+        elif geography not in ['ETF']:
+            geography_data[geography]['count'] += 1
+            geography_data[geography]['total_value'] += current_value
+            geography_data[geography]['tickers'].append(symbol)
+            geography_data[geography]['avg_return'] += profit_pct
     
     # Calculate average returns and add cash
     for geo in geography_data:
@@ -134,24 +237,58 @@ def analyze_portfolio_geography():
         'avg_return': 0.0
     }
     
+    # Combine ETF geographic exposure with direct holdings
+    for region, value in etf_geography_exposure.items():
+        if region not in geography_data:
+            geography_data[region] = {'count': 0, 'total_value': 0.0, 'tickers': [], 'avg_return': 0.0}
+        geography_data[region]['total_value'] += value
+        geography_data[region]['tickers'].append('(ETF exposure)')
+    
     # Sort by total value
     sorted_regions = sorted(geography_data.items(), key=lambda x: x[1]['total_value'], reverse=True)
+    
+    # Asset Type Summary
+    print("📊 ASSET TYPE BREAKDOWN:")
+    print("-" * 70)
+    print(f"{'Asset Type':<15} {'Count':<8} {'Value':<15} {'%':<8} {'Holdings'}")
+    print("-" * 70)
+    
+    for asset_type in ['Stock', 'ETF', 'Crypto', 'Commodity', 'Derivative']:
+        if asset_type in asset_type_data:
+            data = asset_type_data[asset_type]
+            percentage = (data['total_value'] / PORTFOLIO_SIZE) * 100
+            holdings = ', '.join(data['tickers'][:3])
+            if len(data['tickers']) > 3:
+                holdings += f" (+{len(data['tickers'])-3})"
+            print(f"{asset_type:<15} {data['count']:<8} ${data['total_value']:<14,.0f} {percentage:<7.1f}% {holdings}")
+    
+    # ETF Geographic Exposure Breakdown
+    if etf_holdings.shape[0] > 0:
+        print("\n📍 ETF GEOGRAPHIC EXPOSURE:")
+        print("-" * 70)
+        for _, etf in etf_holdings.iterrows():
+            etf_geo = get_etf_geography(etf['symbol'])
+            etf_value = etf['actual_current_value']
+            print(f"{etf['symbol']:<12} (${etf_value:,.0f}):")
+            for region, pct in etf_geo.items():
+                region_value = etf_value * (pct / 100)
+                print(f"  → {region:<20} {pct:>3}% (${region_value:,.0f})")
     
     # Create summary
     total_current_value = sum(data['total_value'] for data in geography_data.values())
     
-    print("Regional Breakdown:")
+    print("\n🌍 GEOGRAPHIC BREAKDOWN (INCLUDING ETF EXPOSURE):")
     print("-" * 70)
-    print(f"{'Region':<15} {'Count':<8} {'Value':<15} {'%':<8} {'Return':<10} {'Top Holdings'}")
+    print(f"{'Region':<15} {'Direct':<8} {'Total Value':<15} {'%':<8} {'Avg Return':<10} {'Top Holdings'}")
     print("-" * 70)
     
     for region, data in sorted_regions:
         percentage = (data['total_value'] / PORTFOLIO_SIZE) * 100
-        top_holdings = ', '.join(data['tickers'][:3])  # Show top 3
-        if len(data['tickers']) > 3:
-            top_holdings += f" (+{len(data['tickers'])-3} more)"
+        top_holdings = ', '.join([t for t in data['tickers'] if t != '(ETF exposure)'][:3])  # Show top 3 direct
+        if '(ETF exposure)' in data['tickers']:
+            top_holdings += ' + ETF exp' if top_holdings else 'ETF exposure'
         
-        return_str = f"{data['avg_return']:+.1f}%" if region != 'Cash' else "N/A"
+        return_str = f"{data['avg_return']:+.1f}%" if data['count'] > 0 and region != 'Cash' else "N/A"
         
         print(f"{region:<15} {data['count']:<8} ${data['total_value']:<14,.0f} {percentage:<7.1f}% {return_str:<10} {top_holdings}")
     

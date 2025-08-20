@@ -317,3 +317,58 @@ def safe_operation(
         return wrapper
 
     return decorator
+
+
+# User-friendly error handling functions
+def handle_file_not_found(file_path: str) -> str:
+    """Generate user-friendly message for file not found errors."""
+    if "portfolio.csv" in file_path:
+        return (
+            "❌ Portfolio file not found\n\n"
+            "💡 Suggestions:\n"
+            "• Export your eToro portfolio to CSV format\n"
+            "• Place the file in: yahoofinance/input/portfolio.csv\n"
+            "• Make sure the filename is exactly 'portfolio.csv'"
+        )
+    return f"❌ File not found: {file_path}\n\n💡 Check the file path and permissions"
+
+
+def handle_csv_error(file_path: str, error_msg: str) -> str:
+    """Generate user-friendly message for CSV parsing errors."""
+    return (
+        f"❌ Error reading CSV file: {file_path}\n\n"
+        f"Details: {error_msg}\n\n"
+        "💡 Suggestions:\n"
+        "• Check the file format is valid CSV\n"
+        "• Try opening in Excel/Numbers to verify\n"
+        "• Re-export from eToro if corrupted"
+    )
+
+
+def handle_api_error(api_name: str, error_msg: str) -> str:
+    """Generate user-friendly message for API errors."""
+    return (
+        f"❌ {api_name} API error\n\n"
+        f"Details: {error_msg}\n\n"
+        "💡 Suggestions:\n"
+        "• Check internet connection\n"
+        "• Try again in a few minutes\n"
+        "• Reduce number of tickers if analyzing large portfolio"
+    )
+
+
+def format_user_error(error: Exception) -> str:
+    """Format any error as a user-friendly message."""
+    error_type = type(error).__name__
+    error_msg = str(error)
+    
+    if "FileNotFoundError" in error_type:
+        return handle_file_not_found(error_msg)
+    elif "ConnectionError" in error_type or "Timeout" in error_type:
+        return handle_api_error("Yahoo Finance", error_msg)
+    elif "ParsingError" in error_type or "CSV" in error_msg:
+        return handle_csv_error("data file", error_msg)
+    elif isinstance(error, YFinanceError):
+        return f"❌ {error_msg}\n\n💡 Check logs for technical details"
+    else:
+        return f"❌ Unexpected error: {error_msg}\n\n💡 Please try again or check logs"

@@ -60,3 +60,6 @@ vaderSentiment>=3.3.2  # For sentiment analysis in news module
 
 # Monitoring and profiling
 psutil>=5.9.0
+
+# Configuration
+pyyaml>=6.0

@@ -3,21 +3,22 @@ Trade criteria evaluation utilities.
 
 This module provides functions for evaluating trading criteria
 and calculating buy/sell/hold recommendations using the centralized
-TradingCriteria configuration.
+TradeConfig configuration.
 """
+
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 
 from yahoofinance.core.config import COLUMN_NAMES
-from yahoofinance.core.trade_criteria_config import (
-    TradingCriteria,
-    BUY_ACTION,
-    SELL_ACTION,
-    HOLD_ACTION,
-    INCONCLUSIVE_ACTION,
-    NO_ACTION,
-    normalize_row_for_criteria
-)
+from trade_modules.trade_config import TradeConfig
+
+# Trading action constants
+BUY_ACTION = "B"
+SELL_ACTION = "S"
+HOLD_ACTION = "H"
+INCONCLUSIVE_ACTION = "I"
+NO_ACTION = ""
 
 from ..core.logging import get_logger
 
@@ -51,7 +52,11 @@ MSG_PE_CONDITION_NOT_MET = "P/E ratio condition not met"
 logger = get_logger(__name__)
 
 
-def calculate_action_for_row(row, criteria, short_field=DEFAULT_SHORT_FIELD):
+def calculate_action_for_row(
+    row: Union[pd.Series, Dict[str, Any]], 
+    criteria: Dict[str, Any], 
+    short_field: str = DEFAULT_SHORT_FIELD
+) -> Tuple[str, str]:
     """
     Calculate action (BUY/SELL/HOLD) for a single row, along with reason.
 
@@ -63,24 +68,25 @@ def calculate_action_for_row(row, criteria, short_field=DEFAULT_SHORT_FIELD):
     Returns:
         Tuple containing (action, reason)
     """
-    # Normalize the row for criteria evaluation
-    normalized_row = normalize_row_for_criteria(row)
+    # Use the new centralized analysis engine
+    from trade_modules.analysis_engine import calculate_action
     
-    # Add the short field mapping if it's not the default
-    if short_field != DEFAULT_SHORT_FIELD and "SI" in normalized_row:
-        normalized_row["short_percent"] = normalized_row.get("SI")
+    # Convert row to DataFrame for analysis engine
+    df = pd.DataFrame([row])
+    df = calculate_action(df)
     
-    # Use the centralized criteria calculation
-    return TradingCriteria.calculate_action(normalized_row)
+    # Return action and reason for this row
+    action = df.iloc[0]["BS"] if not df.empty else "H"
+    return action, "Calculated using centralized TradeConfig"
 
 
 # Backward compatibility functions
-def check_confidence_criteria(row, criteria):
+def check_confidence_criteria(row: Union[pd.Series, Dict[str, Any]], criteria: Dict[str, Any]) -> bool:
     """
     Check if a row meets confidence criteria for making trade decisions.
     
     This function is kept for backward compatibility but delegates to
-    the centralized TradingCriteria.
+    the centralized TradeConfig.
 
     Args:
         row: DataFrame row with ticker metrics
@@ -91,10 +97,51 @@ def check_confidence_criteria(row, criteria):
     """
     analyst_count = row.get(ANALYST_COUNT, row.get("# T"))
     total_ratings = row.get(TOTAL_RATINGS, row.get("# A"))
-    return TradingCriteria.check_confidence(analyst_count, total_ratings)
+    config = TradeConfig()
+    min_analysts = config.UNIVERSAL_THRESHOLDS.get("min_analyst_count", 5)
+    min_targets = config.UNIVERSAL_THRESHOLDS.get("min_price_targets", 5)
+    
+    # Convert to numeric and handle None values
+    analyst_count = float(analyst_count) if analyst_count is not None else 0
+    total_ratings = float(total_ratings) if total_ratings is not None else 0
+    
+    return analyst_count >= min_analysts and total_ratings >= min_targets
 
 
-def normalize_row_columns(row, column_mapping=None):
+def normalize_row_for_criteria(row: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Normalize a row's data for criteria evaluation.
+    
+    Args:
+        row: Dictionary with row data
+        
+    Returns:
+        Dictionary with normalized values
+    """
+    normalized = {}
+    
+    # Normalize key fields for criteria evaluation
+    normalized[UPSIDE] = row.get("UPSIDE", row.get("upside"))
+    normalized[BUY_PERCENTAGE_COL] = row.get("% BUY", row.get("buy_percentage"))
+    normalized[PE_FORWARD] = row.get("PEF", row.get("pe_forward"))
+    normalized[PE_TRAILING] = row.get("PET", row.get("pe_trailing"))
+    normalized[PEG_RATIO] = row.get("PEG", row.get("peg_ratio"))
+    normalized[BETA] = row.get("BETA", row.get("beta"))
+    normalized[ANALYST_COUNT] = row.get("# A", row.get("analyst_count"))
+    normalized[TOTAL_RATINGS] = row.get("# T", row.get("total_ratings"))
+    
+    # Include all other fields as-is
+    for key, value in row.items():
+        if key not in normalized:
+            normalized[key] = value
+            
+    return normalized
+
+
+def normalize_row_columns(
+    row: Union[pd.Series, Dict[str, Any]], 
+    column_mapping: Optional[Dict[str, str]] = None
+) -> Dict[str, Any]:
     """
     Normalize a row's column names and values.
     
@@ -114,7 +161,7 @@ def normalize_row_columns(row, column_mapping=None):
         return normalize_row_for_criteria(row.to_dict() if hasattr(row, 'to_dict') else dict(row))
 
 
-def calculate_action(ticker_data):
+def calculate_action(ticker_data: Dict[str, Any]) -> str:
     """
     Simple wrapper to calculate action for a ticker's data.
     
@@ -130,7 +177,7 @@ def calculate_action(ticker_data):
     return action
 
 
-def evaluate_trade_criteria(ticker_data):
+def evaluate_trade_criteria(ticker_data: Dict[str, Any]) -> str:
     """
     Evaluate trade criteria for backward compatibility.
     
@@ -143,7 +190,7 @@ def evaluate_trade_criteria(ticker_data):
     return calculate_action(ticker_data)
 
 
-def format_numeric_values(df, numeric_columns):
+def format_numeric_values(df: pd.DataFrame, numeric_columns: List[str]) -> pd.DataFrame:
     """
     Format numeric values in a DataFrame, handling percentage strings and missing values.
 

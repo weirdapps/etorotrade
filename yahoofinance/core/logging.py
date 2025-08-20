@@ -19,7 +19,16 @@ import uuid
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Set, Type, TypeVar, Union, cast
 
-from .config import PATHS
+# Lazy import to avoid circular dependency
+PATHS = None
+
+def _get_paths():
+    """Lazy load PATHS to avoid circular imports."""
+    global PATHS
+    if PATHS is None:
+        from .config import PATHS as _PATHS
+        PATHS = _PATHS
+    return PATHS
 
 
 # Default logging formats
@@ -212,9 +221,9 @@ def configure_logging(
             "encoding": "utf-8",
         }
         handlers.append(file_handler)
-    elif PATHS.get("DEFAULT_LOG_FILE"):
+    elif _get_paths().get("DEFAULT_LOG_FILE"):
         # Use default log file if none specified
-        log_dir = os.path.dirname(PATHS["DEFAULT_LOG_FILE"])
+        log_dir = os.path.dirname(_get_paths()["DEFAULT_LOG_FILE"])
         if log_dir and not os.path.exists(log_dir):
             os.makedirs(log_dir, exist_ok=True)
 
@@ -222,7 +231,7 @@ def configure_logging(
             "level": level,
             "class": "logging.FileHandler",
             "formatter": "detailed",
-            "filename": PATHS["DEFAULT_LOG_FILE"],
+            "filename": _get_paths()["DEFAULT_LOG_FILE"],
             "encoding": "utf-8",
         }
         handlers.append(file_handler)
