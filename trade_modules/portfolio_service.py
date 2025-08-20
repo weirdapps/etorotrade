@@ -131,3 +131,10 @@ class PortfolioService:
             self.logger.warning(f"Error applying portfolio filters: {str(e)}")
 
         return opportunities
+    
+    # Backward compatibility alias - singular version
+    def apply_portfolio_filter(
+        self, opportunities: Dict[str, pd.DataFrame], portfolio_df: pd.DataFrame
+    ) -> Dict[str, pd.DataFrame]:
+        """Backward compatibility alias for apply_portfolio_filters."""
+        return self.apply_portfolio_filters(opportunities, portfolio_df)

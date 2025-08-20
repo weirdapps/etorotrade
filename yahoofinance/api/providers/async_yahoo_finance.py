@@ -28,6 +28,7 @@ from ...core.logging import get_logger
 
 # Define constants for repeated strings
 DEFAULT_ERROR_MESSAGE = "An error occurred"
+EARNINGS_DATE_COL = 'Earnings Date'
 import datetime  # Added for date checks
 
 # Use relative imports
@@ -594,8 +595,8 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             raise NetworkError(
                 f"Network error when fetching historical data for {ticker}: {str(e)}"
             )
-        except (APIError, ValidationError, RateLimitError, NetworkError):
-            raise e
+        except (APIError, ValidationError, RateLimitError, NetworkError) as exc:
+            raise exc
 
     @enhanced_async_rate_limited(max_retries=0)
     async def get_earnings_data(self, ticker: str) -> Dict[str, Any]:
@@ -821,8 +822,8 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             raise e
         except (IOError, ConnectionError, aiohttp.ClientError) as e:
             raise NetworkError(f"Network error when searching tickers for '{query}': {str(e)}")
-        except (APIError, ValidationError, RateLimitError, NetworkError):
-            raise e
+        except (APIError, ValidationError, RateLimitError, NetworkError) as exc:
+            raise exc
 
     @enhanced_async_rate_limited(max_retries=0)
     async def get_price_data(self, ticker: str) -> Dict[str, Any]:

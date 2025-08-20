@@ -271,7 +271,7 @@ class StockAnalyzer:
             raise e
         except ValidationError as e:
             # Handle data validation errors
-            raise enrich_error_context(e, {"ticker": ticker})
+            raise enrich_error_context(e, {"tickers": tickers})
         except YFinanceError as e:
             # Handle unexpected errors
             raise YFinanceError(MESSAGES["ERROR_BATCH_FETCH"].format(error=str(e)))
@@ -333,7 +333,7 @@ class StockAnalyzer:
             raise e
         except ValidationError as e:
             # Handle data validation errors
-            raise enrich_error_context(e, {"ticker": ticker})
+            raise enrich_error_context(e, {"tickers": tickers})
         except YFinanceError as e:
             # Handle unexpected errors
             raise YFinanceError(MESSAGES["ERROR_BATCH_FETCH_ASYNC"].format(error=str(e)))

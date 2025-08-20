@@ -6,7 +6,7 @@ Provides realistic mock data for Yahoo Finance API responses.
 
 import pandas as pd
 from typing import Dict, Any, List, Optional
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 
 class MockYahooFinanceResponses:

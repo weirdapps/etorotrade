@@ -154,9 +154,11 @@ def _print_us_non_us_analyst_summary(test_tickers, results):
         print("\nNo suspected hardcoded values found.")
 
     # Store results for this provider type
-    all_results[provider_type] = results
-
-    return all_results
+    # NOTE: all_results and provider_type would need to be defined in the calling context
+    # This is just test/debug code
+    # all_results[provider_type] = results
+    
+    return results
 
 
 if __name__ == "__main__":
