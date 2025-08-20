@@ -41,7 +41,7 @@ class CacheManager:
         """Clear cache (compatibility method)."""
         self.cache.clear()
     
-    def is_data_known_missing(self, key: str) -> bool:
+    def is_data_known_missing(self, key: str, data_type: str = None) -> bool:
         """Check if data is known to be missing (always returns False for compatibility)."""
         return False
 

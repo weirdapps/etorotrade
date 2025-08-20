@@ -11,7 +11,7 @@ import asyncio
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from unittest.mock import AsyncMock, MagicMock
 
-from yahoofinance.core.errors import APIError, RateLimitError
+from yahoofinance.core.errors import APIError, RateLimitError, YFinanceError
 
 
 # Pagination Test Fixtures
