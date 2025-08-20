@@ -17,18 +17,59 @@ class CacheManager:
     
     def __init__(self, *args, **kwargs):
         """Initialize with unified cache."""
+        import os
+        from pathlib import Path
+        
         self.cache = get_unified_cache()
-        # Backward compatibility attributes
-        self.memory_cache = {}
+        # Backward compatibility attributes - expose actual cache as memory_cache
+        self.memory_cache = self.cache  # Tests expect this to be the actual cache
         self.disk_cache = self.cache  # Point to same cache for compatibility
+        
+        # Handle disk_cache_dir parameter for backward compatibility
+        if 'disk_cache_dir' in kwargs:
+            disk_cache_dir = kwargs['disk_cache_dir']
+            if disk_cache_dir:
+                # Create the directory if requested
+                Path(disk_cache_dir).mkdir(parents=True, exist_ok=True)
     
     def get(self, key: str, default: Any = None) -> Any:
         """Get from cache."""
         return self.cache.get(key, default)
     
-    def set(self, key: str, value: Any, ttl: Optional[int] = None, data_type: Optional[str] = None) -> bool:
-        """Set in cache with optional data_type for backward compatibility."""
-        # Ignore data_type parameter - it was used in old cache implementation
+    def set(self, key: str, value: Any, data_type_or_ttl: Any = None, persist_to_disk_or_data_type: Any = None, **kwargs) -> bool:
+        """Set in cache with flexible backward compatibility for multiple signatures.
+        
+        This method handles multiple old signatures:
+        1. set(key, value, ttl, data_type) 
+        2. set(key, value, data_type, persist_to_disk)
+        3. set(key, value, ttl)
+        4. set(key, value)
+        5. set(key, value, data_type="ticker_info")  # keyword argument
+        6. set(key, value, ttl=300, data_type="something")  # mixed kwargs
+        """
+        # Handle keyword arguments for backward compatibility
+        ttl = kwargs.get('ttl', None)
+        data_type = kwargs.get('data_type', None)
+        
+        # If ttl wasn't provided as keyword, try to determine from positional args
+        if ttl is None:
+            # Determine what the third parameter is
+            # If third parameter is a string, it's likely data_type (old signature)
+            # If it's a number or None, it's likely ttl
+            if isinstance(data_type_or_ttl, str):
+                # Old signature: set(key, value, data_type, persist_to_disk)
+                # Ignore data_type and persist_to_disk
+                pass
+            elif isinstance(data_type_or_ttl, (int, float)):
+                # It's TTL
+                ttl = data_type_or_ttl
+            elif data_type_or_ttl is None:
+                # Could be either, default to None TTL
+                ttl = None
+            else:
+                # Try to use it as TTL
+                ttl = data_type_or_ttl
+            
         return self.cache.set(key, value, ttl)
     
     def delete(self, key: str) -> bool:
@@ -47,7 +88,7 @@ class CacheManager:
         """Check if data is known to be missing (always returns False for compatibility)."""
         return False
     
-    def set_missing_data(self, key: str, data_type: str = None) -> None:
+    def set_missing_data(self, key: str, data_type: str = None, ttl: Optional[int] = None) -> None:
         """Mark data as known to be missing (no-op for compatibility)."""
         # This was used in old cache to track missing data
         # Now we just ignore it for backward compatibility

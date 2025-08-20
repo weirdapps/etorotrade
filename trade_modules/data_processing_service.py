@@ -101,6 +101,7 @@ class DataProcessingService:
             return None
     
     # Backward compatibility method
-    async def _process_batch(self, tickers: List[str]) -> Dict[str, Any]:
+    async def _process_batch(self, tickers: List[str], *args, **kwargs) -> Dict[str, Any]:
         """Backward compatibility wrapper for process_ticker_batch."""
+        # Ignore extra arguments from old API
         return await self.process_ticker_batch(tickers)
