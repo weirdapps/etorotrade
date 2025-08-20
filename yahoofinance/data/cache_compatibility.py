@@ -18,6 +18,8 @@ class CacheManager:
     def __init__(self, *args, **kwargs):
         """Initialize with unified cache."""
         self.cache = get_unified_cache()
+        # Backward compatibility attribute
+        self.memory_cache = {}
     
     def get(self, key: str, default: Any = None) -> Any:
         """Get from cache."""
@@ -38,6 +40,10 @@ class CacheManager:
     def invalidate(self, pattern: str = None) -> None:
         """Clear cache (compatibility method)."""
         self.cache.clear()
+    
+    def is_data_known_missing(self, key: str) -> bool:
+        """Check if data is known to be missing (always returns False for compatibility)."""
+        return False
 
 
 class LRUCache:
