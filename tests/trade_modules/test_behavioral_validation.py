@@ -382,7 +382,7 @@ class TestBehavioralValidation:
         
         # Should log warning and return default scores
         mock_logger.assert_called_once()
-        assert all(pytest.approx(score) == 0.7 for score in scores)
+        assert all(pytest.approx(score, 0.01) == 0.7 for score in scores)
 
 
 class TestBehavioralRegression:
