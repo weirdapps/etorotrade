@@ -772,7 +772,7 @@ def _filter_notrade_tickers(opportunities_df: pd.DataFrame, notrade_path: str) -
                         for notrade_ticker in notrade_tickers
                     )
                     if is_notrade:
-                        mask.iloc[idx] = False
+                        mask.loc[idx] = False
 
             filtered_df = opportunities_df[mask]
             filtered_count = initial_count - len(filtered_df)
