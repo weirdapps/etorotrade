@@ -359,7 +359,7 @@ def calculate_position_size(
             else:  # BETS (<$5B)
                 base_position = 2500 * 1  # $2,500
                 tier_name = "BETS"
-    except Exception as e:
+    except Exception:
         # If YAML loading fails, use hardcoded fallback
         if market_cap >= 100_000_000_000:  # VALUE (≥$100B)
             base_position = 2500 * 4  # $10,000
