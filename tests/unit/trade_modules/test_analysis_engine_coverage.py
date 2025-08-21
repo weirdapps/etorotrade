@@ -58,20 +58,34 @@ class TestAnalysisEngineComprehensive(unittest.TestCase):
         """Test no-trade ticker filtering functionality."""
         # Create test DataFrames
         opportunities = self.mock_df.copy()
-        opportunities['ticker'] = ['STOCK0001', 'STOCK0002', 'STOCK0003', 'STOCK0004'][:len(opportunities)]
+        # Set index to symbol names for filtering
+        opportunities.index = [f'STOCK{i:04d}' for i in range(len(opportunities))]
         
-        notrade_tickers = ['STOCK0002', 'STOCK0004']
+        # Create a temporary notrade CSV file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as f:
+            f.write('symbol\n')
+            f.write('STOCK0001\n')
+            f.write('STOCK0003\n')
+            notrade_path = f.name
         
-        filtered = _filter_notrade_tickers(opportunities, notrade_tickers)
-        
-        # Verify no-trade tickers are filtered out
-        remaining_tickers = filtered['ticker'].tolist()
-        for ticker in notrade_tickers:
-            self.assertNotIn(ticker, remaining_tickers)
+        try:
+            filtered = _filter_notrade_tickers(opportunities, notrade_path)
             
-        # Test with empty no-trade list
-        filtered_empty = _filter_notrade_tickers(opportunities, [])
-        self.assertEqual(len(filtered_empty), len(opportunities))
+            # Verify no-trade tickers are filtered out
+            remaining_indices = filtered.index.tolist()
+            self.assertNotIn('STOCK0001', remaining_indices)
+            self.assertNotIn('STOCK0003', remaining_indices)
+            
+            # Verify some tickers remain
+            self.assertIn('STOCK0000', remaining_indices)
+            self.assertIn('STOCK0002', remaining_indices)
+            
+            # Test with non-existent file (should return original)
+            filtered_no_file = _filter_notrade_tickers(opportunities, 'nonexistent.csv')
+            self.assertEqual(len(filtered_no_file), len(opportunities))
+        finally:
+            # Clean up temp file
+            os.unlink(notrade_path)
         
     @patch('pandas.read_csv')
     @patch('trade_modules.analysis_engine._filter_notrade_tickers')
