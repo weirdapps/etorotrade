@@ -92,11 +92,11 @@ class TestYahooFinanceBoundary:
         # Test the function works
         convert_func = utils['safe_float_conversion']
         result = convert_func('123.45')
-        assert pytest.approx(result, 0.01) == 123.45
+        assert result == pytest.approx(123.45, 0.01)
         
         # Test with invalid input
         result_invalid = convert_func('invalid')
-        assert pytest.approx(result_invalid, 0.01) == 0.0
+        assert result_invalid == pytest.approx(0.0, 0.01)
     
     def test_fallback_functionality(self):
         """Test that fallback functions work when yahoofinance is unavailable."""
