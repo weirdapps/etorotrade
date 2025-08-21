@@ -478,6 +478,7 @@ class TestPerformanceIntegration:
     @pytest.mark.asyncio
     async def test_large_dataset_performance(self):
         """Test performance with large dataset (realistic market size)."""
+        rng = np.random.default_rng(42)
         mock_provider = AsyncMock()
         engine = TradingEngine(provider=mock_provider)
         

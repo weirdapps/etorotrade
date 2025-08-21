@@ -461,6 +461,7 @@ class TestIntegration:
             assert True
     
     def test_performance_with_large_dataset(self):
+        rng = np.random.default_rng(42)
         """Test performance with large dataset."""
         # Create large market data
         large_market_data = pd.DataFrame({

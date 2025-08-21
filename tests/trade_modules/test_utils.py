@@ -688,6 +688,7 @@ class TestPerformance:
     """Test performance of utility functions."""
     
     def test_dataframe_validation_performance(self):
+        rng = np.random.default_rng(42)
         """Test DataFrame validation performance with large DataFrame."""
         # Create large DataFrame
         large_df = pd.DataFrame({
