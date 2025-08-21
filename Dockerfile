@@ -12,21 +12,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create a non-root user for running the application
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
-# Copy requirements first for better caching
-COPY --chown=appuser:appuser requirements.txt .
+# Copy requirements first for better caching (root owns, read-only for others)
+COPY --chmod=444 requirements.txt .
 
 # Install Python dependencies as root (for system-wide installation)
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    rm -f requirements.txt
 
-# Copy only necessary application code (no config files)
-# Config should be provided via environment variables or mounted volumes
-COPY --chown=appuser:appuser trade.py trade_test.py ./
-COPY --chown=appuser:appuser trade_modules ./trade_modules
-COPY --chown=appuser:appuser yahoofinance ./yahoofinance
+# Copy only necessary application code with read-only permissions
+# Files are owned by root but readable by appuser
+COPY --chmod=444 trade.py trade_test.py ./
+COPY --chmod=555 trade_modules ./trade_modules
+COPY --chmod=555 yahoofinance ./yahoofinance
 
-# Create necessary directories with proper ownership
-RUN mkdir -p logs yahoofinance/input yahoofinance/output /app/config && \
-    chown -R appuser:appuser logs yahoofinance/input yahoofinance/output /app/config
+# Fix Python module permissions (directories need execute for traversal)
+RUN find /app -type d -exec chmod 555 {} \; && \
+    find /app -type f -name "*.py" -exec chmod 444 {} \;
+
+# Create necessary runtime directories with proper ownership
+RUN mkdir -p /app/logs /app/yahoofinance/input /app/yahoofinance/output /app/config && \
+    chown -R appuser:appuser /app/logs /app/yahoofinance/input /app/yahoofinance/output /app/config && \
+    chmod 755 /app/logs /app/yahoofinance/input /app/yahoofinance/output /app/config
 
 # Set environment variables
 ENV PYTHONPATH=/app
@@ -42,7 +48,12 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 # Default command
 CMD ["python", "trade.py", "--help"]
 
+# Security notes:
+# - Application code is read-only (444 for files, 555 for directories)
+# - Config must be mounted from outside: -v $(pwd)/config.yaml:/app/config/config.yaml:ro
+# - Data directories are writable only by appuser
+# - No sensitive data is included in the image
+
 # Example usage:
 # docker build -t etoro-analysis .
-# docker run -v $(pwd)/config.yaml:/app/config.yaml:ro -v $(pwd)/data:/app/yahoofinance/input etoro-analysis python trade.py -o p -t e
-# Note: Mount config.yaml as read-only (:ro) for security
+# docker run -v $(pwd)/config.yaml:/app/config/config.yaml:ro -v $(pwd)/data:/app/yahoofinance/input etoro-analysis python trade.py -o p -t e
