@@ -194,11 +194,24 @@ class TestConfigBoundary:
         config = boundary.get_trading_criteria_config()
         assert isinstance(config, dict)
         
-        # Should contain expected trading criteria
-        expected_keys = ['min_market_cap', 'max_pe_ratio', 'min_volume']
-        for key in expected_keys:
-            assert key in config
-            assert isinstance(config[key], (int, float))
+        # Should contain expected trading criteria structure
+        assert 'buy' in config
+        assert 'sell' in config
+        assert 'min_market_cap' in config
+        assert 'min_analyst_count' in config
+        
+        # Check buy criteria structure
+        assert isinstance(config['buy'], dict)
+        assert 'max_trailing_pe' in config['buy']  # This is the max_pe_ratio equivalent
+        assert 'min_upside' in config['buy']
+        
+        # Check sell criteria structure  
+        assert isinstance(config['sell'], dict)
+        assert 'max_forward_pe' in config['sell']
+        
+        # Check universal thresholds
+        assert isinstance(config['min_market_cap'], (int, float))
+        assert isinstance(config['min_analyst_count'], (int, float))
     
     def test_get_display_config(self, boundary):
         """Test display configuration retrieval."""
