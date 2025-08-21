@@ -76,11 +76,20 @@ class BaseCacheTest(unittest.TestCase):
                     cache_dict = getattr(self.cache.memory_cache, '_memory_cache', None)
                 
                 if cache_dict and key in cache_dict:
-                    # Get current tuple
-                    current_value, _, expiry = cache_dict[key]
-                    # Set with expired timestamp (way in the past)
-                    expired_time = time.time() - (minutes_expired * 60) - expiry - 1
-                    cache_dict[key] = (current_value, expired_time, expiry)
+                    # Get current tuple - handle both 2-tuple and 3-tuple formats
+                    cache_entry = cache_dict[key]
+                    if len(cache_entry) == 2:
+                        # Format: (value, expiry)
+                        current_value, expiry = cache_entry
+                        # Set with expired timestamp (way in the past)
+                        expired_time = time.time() - (minutes_expired * 60) - 300 - 1  # Use 300s default
+                        cache_dict[key] = (current_value, expired_time)
+                    elif len(cache_entry) == 3:
+                        # Format: (value, timestamp, expiry)
+                        current_value, _, expiry = cache_entry
+                        # Set with expired timestamp (way in the past)
+                        expired_time = time.time() - (minutes_expired * 60) - expiry - 1
+                        cache_dict[key] = (current_value, expired_time, expiry)
 
         # Also manually clear thread-local cache if it exists
         if (hasattr(self.cache.memory_cache, "_local") and 
