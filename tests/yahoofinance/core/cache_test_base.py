@@ -69,7 +69,7 @@ class BaseCacheTest(unittest.TestCase):
         # Force expiration of the entry if memory cache is available
         if hasattr(self.cache, "memory_cache") and self.cache.memory_cache:
             # Manipulate the cache entry to make it expired
-            with self.cache.memory_cache.lock:
+            with self.cache.memory_cache._lock:
                 if key in self.cache.memory_cache.cache:
                     # Get current tuple
                     current_value, _, expiry = self.cache.memory_cache.cache[key]
@@ -91,7 +91,7 @@ class BaseCacheTest(unittest.TestCase):
             # Ensure the file exists
             if os.path.exists(cache_path):
                 # Manually manipulate the index to make it expired
-                with self.cache.disk_cache.lock:
+                with self.cache.disk_cache._lock:
                     if key in self.cache.disk_cache.index:
                         entry = self.cache.disk_cache.index[key].copy()
                         expired_time = (

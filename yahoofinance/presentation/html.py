@@ -193,7 +193,7 @@ class HTMLGenerator:
         <div class="section" style="width: {width}; margin-bottom: 30px;">
             <h2 class="section-title">{section_title}</h2>
             <div class="metrics-grid" style="grid-template-columns: repeat({columns}, 1fr); gap: 20px;">
-"""
+""".format(width=width, section_title=section_title, columns=columns)
 
         # Add metrics
         for metric in metrics:
@@ -208,7 +208,7 @@ class HTMLGenerator:
                     <div class="metric-value {color_class}">{formatted_value}</div>
                     <div class="metric-border {color_class}-border"></div>
                 </div>
-"""
+""".format(label=label, color_class=color_class, formatted_value=formatted_value)
 
         html += """
             </div>
@@ -293,8 +293,11 @@ class HTMLGenerator:
 </html>
 """
 
+            # Format the HTML with actual values
+            formatted_html = html.format(title=title, current_time=current_time)
+            
             # Return generated HTML
-            return html
+            return formatted_html
 
         except YFinanceError as e:
             logger.error(f"Error generating market HTML: {str(e)}")
