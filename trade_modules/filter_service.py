@@ -24,9 +24,17 @@ class FilterService:
         """Filter out tickers from the notrade list using ticker equivalence checking."""
         try:
             notrade_df = pd.read_csv(notrade_path)
-            if "Ticker" in notrade_df.columns:
+            
+            # Look for ticker column with different possible names
+            ticker_col = None
+            for col in ["Ticker", "ticker", "TICKER", "symbol", "Symbol", "SYMBOL"]:
+                if col in notrade_df.columns:
+                    ticker_col = col
+                    break
+            
+            if ticker_col:
                 notrade_tickers = set()
-                for ticker in notrade_df["Ticker"]:
+                for ticker in notrade_df[ticker_col]:
                     if pd.notna(ticker) and ticker:
                         notrade_tickers.add(ticker)
 
