@@ -1,0 +1,75 @@
+# Git files
+.git
+.gitignore
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test files
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+coverage.xml
+*.log
+
+# Build files
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Documentation
+docs/
+*.md
+README.md
+LICENSE
+
+# CI/CD
+.github/
+
+# Sensitive data
+*.env
+.env.*
+secrets/
+*.key
+*.pem
+*.crt
+
+# Data files that should be mounted
+yahoofinance/data/
+yahoofinance/output/*.csv
+yahoofinance/output/*.html
+yahoofinance/input/*.csv
+
+# Backup files
+*.backup
+*.backup.*
+*.bak
+
+# Test/debug files
+tests/
+test_*.py
+debug_*.py
+*_test.py
+
+# SonarQube
+.sonar/
+sonar-project.properties

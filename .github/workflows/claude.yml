@@ -25,13 +25,13 @@ jobs:
       id-token: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           fetch-depth: 1
 
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@beta
+        uses: anthropics/claude-code-action@beta # This is a beta action, no stable SHA available yet
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 
