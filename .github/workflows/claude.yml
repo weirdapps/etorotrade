@@ -1,76 +1,36 @@
-name: Claude Code
+name: Claude Code (Disabled for Security)
 
 on:
-  issue_comment:
-    types: [created]
-  pull_request_review_comment:
-    types: [created]
-  issues:
-    types: [opened, assigned]
-  pull_request_review:
-    types: [submitted]
+  workflow_dispatch:  # Only manual trigger, effectively disabled
 
 jobs:
-  claude:
-    if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+  security_notice:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
-      issues: read
-      id-token: write
-    
-    # Additional security: Require manual approval for this workflow
-    environment: claude-prod
-    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 1
-
-      - name: Validate workflow trigger
+      - name: Security Notice
         run: |
-          # Additional security check: Validate the trigger is from a trusted source
-          echo "Event: ${{ github.event_name }}"
-          echo "Actor: ${{ github.actor }}"
-          
-          # You can add a list of trusted users here
-          TRUSTED_USERS="weirdapps"
-          if [[ ! "$TRUSTED_USERS" == *"${{ github.actor }}"* ]]; then
-            echo "⚠️ Warning: Triggered by non-trusted user: ${{ github.actor }}"
-            # Optionally exit here for stricter control
-            # exit 1
-          fi
-
-      - name: Run Claude Code
-        id: claude
-        # SECURITY NOTICE: This action cannot be pinned to SHA as it's in beta
-        # 
-        # Risk Assessment: MEDIUM
-        # - This is an official Anthropic action but in beta phase
-        # - Mitigation strategies implemented:
-        #   1. Required environment approval (claude-prod)
-        #   2. Minimal permissions granted
-        #   3. Trigger validation step
-        #   4. Secrets stored securely in GitHub
-        #
-        # TODO: Pin to specific SHA once stable release is available
-        # Track at: https://github.com/anthropics/claude-code-action/releases
-        #
-        # Alternative: Consider disabling this workflow until stable version available
-        # by commenting out the 'uses' line below
-        uses: anthropics/claude-code-action@beta
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-        timeout-minutes: 5  # Limit execution time
-
-      - name: Post-execution audit
-        if: always()
-        run: |
-          echo "Claude action completed with status: ${{ steps.claude.outcome }}"
-          echo "Execution time: $(date)
+          echo "=================================================="
+          echo "CLAUDE CODE WORKFLOW IS CURRENTLY DISABLED"
+          echo "=================================================="
+          echo ""
+          echo "This workflow has been disabled due to security requirements."
+          echo ""
+          echo "Reason: The anthropics/claude-code-action is in beta and"
+          echo "cannot be pinned to a specific commit SHA, which violates"
+          echo "our security policy (SonarQube S7637)."
+          echo ""
+          echo "The workflow will be re-enabled once:"
+          echo "1. A stable version of claude-code-action is released"
+          echo "2. The action can be pinned to a specific commit SHA"
+          echo ""
+          echo "Track the action releases at:"
+          echo "https://github.com/anthropics/claude-code-action/releases"
+          echo ""
+          echo "To temporarily enable with accepted risk:"
+          echo "1. Rename .github/workflows/claude.yml.disabled to claude.yml"
+          echo "2. Delete this security notice workflow"
+          echo "3. Document the security exception"
+          echo ""
+          echo "For more information, see .github/SECURITY.md"
+          echo "=================================================="
+          exit 0
