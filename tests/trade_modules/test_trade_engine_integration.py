@@ -305,7 +305,7 @@ class TestRealDataIntegration:
         # Analyze without existing BS column to trigger confidence calculation
         market_no_signals = market_data_with_prices.drop(columns=['BS'])
         
-        with patch.object(engine, '_calculate_trading_signals') as mock_calc:
+        with patch.object(engine.analysis_service, 'calculate_trading_signals') as mock_calc:
             # Mock the signal calculation to return data with confidence scores
             mock_result = market_no_signals.copy()
             mock_result['BS'] = ['B', 'B', 'H', 'B', 'S', 'H', 'B']
@@ -526,8 +526,8 @@ class TestPerformanceIntegration:
         # Test batch processing with moderate size
         tickers = [f'TICKER{i:03d}' for i in range(100)]
         
-        with patch('trade_modules.trade_engine.process_ticker_input', side_effect=lambda x: x), \
-             patch('trade_modules.trade_engine.get_ticker_for_display', side_effect=lambda x: x):
+        with patch('trade_modules.data_processing_service.process_ticker_input', side_effect=lambda x: x), \
+             patch('trade_modules.data_processing_service.get_ticker_for_display', side_effect=lambda x: x):
             
             import time
             start_time = time.perf_counter()
