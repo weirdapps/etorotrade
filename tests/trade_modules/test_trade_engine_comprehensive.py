@@ -694,7 +694,8 @@ class TestAsyncBatchProcessing:
         """Test batch processing with no results."""
         tickers = ['INVALID']
         
-        with patch.object(trading_engine.data_processing_service, '_process_batch', return_value=[]):
+        # Mock the process_batch_async function to return empty dict
+        with patch('yahoofinance.utils.async_utils.enhanced.process_batch_async', return_value={}):
             result = await trading_engine.process_ticker_batch(tickers)
         
         # Should return empty DataFrame
