@@ -305,10 +305,13 @@ class PositionSizer:
         """
         try:
             # Base position size based on risk level
-            risk_multipliers = {"low": 0.5, "medium": 1.0, "high": 1.5}
-
-            risk_multiplier = risk_multipliers.get(risk_level, 1.0)
-            base_size = self.max_position_size * risk_multiplier
+            # Start with different base sizes for each risk level to ensure differentiation
+            if risk_level == "low":
+                base_size = self.min_position_size + (self.max_position_size - self.min_position_size) * 0.3
+            elif risk_level == "medium":
+                base_size = self.min_position_size + (self.max_position_size - self.min_position_size) * 0.6
+            else:  # high
+                base_size = self.max_position_size
 
             # Adjust based on volatility (beta)
             beta = market_data.get("beta", 1.0)
