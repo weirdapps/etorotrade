@@ -198,6 +198,7 @@ class TestMarketDataDisplay:
                 assert "empty" in str(e).lower() or "no data" in str(e).lower()
     
     def test_display_with_large_dataframe(self, market_display):
+        rng = np.random.default_rng(42)
         """Test display with large DataFrame."""
         # Create large test DataFrame
         large_df = pd.DataFrame({
@@ -333,6 +334,7 @@ class TestDisplayIntegration:
         assert formatter_no_colors.use_colors == display_no_colors.formatter.use_colors
     
     def test_performance_with_large_dataset(self):
+        rng = np.random.default_rng(42)
         """Test performance with large dataset."""
         # Create large DataFrame
         large_df = pd.DataFrame({
