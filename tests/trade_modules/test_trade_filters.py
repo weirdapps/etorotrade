@@ -577,6 +577,7 @@ class TestPerformance:
     """Test filter performance with large datasets."""
     
     def test_criteria_filter_performance(self, trading_criteria_config):
+        rng = np.random.default_rng(42)
         """Test criteria filter performance with large dataset."""
         # Create large dataset
         large_data = pd.DataFrame({
@@ -605,6 +606,7 @@ class TestPerformance:
         assert end_time - start_time < 1.0  # Less than 1 second
     
     def test_quality_filter_performance(self):
+        rng = np.random.default_rng(42)
         """Test quality filter performance with large dataset."""
         # Create large dataset with some missing values
         large_data = pd.DataFrame({
