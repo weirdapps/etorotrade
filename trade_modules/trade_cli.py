@@ -427,7 +427,7 @@ async def display_existing_csv_data(
                             app_logger.info(
                                 f"Loaded {len(excl_df)} exclusion tickers from {exclusion_file}"
                             )
-                    except Exception as e:
+                    except Exception:
                         pass  # Silent error handling
 
         # Apply exclusion filtering only for BUY and HOLD (not for SELL) using ticker equivalence

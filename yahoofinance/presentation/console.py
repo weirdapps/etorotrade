@@ -430,7 +430,7 @@ class MarketDisplay:
                 cap_value = _parse_market_cap(cap_str)
                 tier = _determine_market_cap_tier(cap_value)
                 tiers.append(tier)
-            except Exception as e:
+            except Exception:
                 # Fallback to BETS tier if calculation fails
                 tiers.append("B")
         
@@ -984,7 +984,7 @@ class MarketDisplay:
                 if callable(result):
                     return result()
                 return result
-            except Exception as e:
+            except Exception:
                 return ["AAPL", "MSFT"]  # Default tickers for error cases
         else:
             raise ValueError(f"Unknown source type: {source_type}")
@@ -1044,7 +1044,7 @@ class MarketDisplay:
                         tickers.append(ticker)
 
             return tickers
-        except YFinanceError as e:
+        except YFinanceError:
             pass  # Silent error handling
             return []
 
