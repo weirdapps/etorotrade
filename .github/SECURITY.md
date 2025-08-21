@@ -30,9 +30,9 @@ Please report security vulnerabilities to the repository maintainers through Git
 
 #### All Other Actions
 All other GitHub Actions are pinned to specific commit SHAs for security:
-- `actions/checkout`: SHA `11bd71901bbe5b1630ceea73d27597364c9af683` (v4.2.2)
+- `actions/checkout`: SHA `08c6903cd8c0fde910a37f88322edcfb5dd907a8` (v5.0.0)
 - `actions/setup-python`: SHA `f677139bbe7f9c59b41e40162b753c062f5d49a3` (v5.2.0)
-- `actions/cache`: SHA `6849a6489940f00c2f30c0fb92c6274307ccb58a` (v4.1.2)
+- `actions/cache`: SHA `0400d5f644dc74513175e3cd8d07132dd4860809` (v4.2.4)
 - `codecov/codecov-action`: SHA `b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238` (v4.6.0)
 - `actions/upload-artifact`: SHA `b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882` (v4.4.3)
 
