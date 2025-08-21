@@ -70,12 +70,17 @@ class BaseCacheTest(unittest.TestCase):
         if hasattr(self.cache, "memory_cache") and self.cache.memory_cache:
             # Manipulate the cache entry to make it expired
             with self.cache.memory_cache._lock:
-                if key in self.cache.memory_cache.cache:
+                # Check the actual attribute name - could be 'cache' or '_memory_cache'
+                cache_dict = getattr(self.cache.memory_cache, 'cache', None)
+                if cache_dict is None:
+                    cache_dict = getattr(self.cache.memory_cache, '_memory_cache', None)
+                
+                if cache_dict and key in cache_dict:
                     # Get current tuple
-                    current_value, _, expiry = self.cache.memory_cache.cache[key]
+                    current_value, _, expiry = cache_dict[key]
                     # Set with expired timestamp (way in the past)
                     expired_time = time.time() - (minutes_expired * 60) - expiry - 1
-                    self.cache.memory_cache.cache[key] = (current_value, expired_time, expiry)
+                    cache_dict[key] = (current_value, expired_time, expiry)
 
         # Also manually clear thread-local cache if it exists
         if (hasattr(self.cache.memory_cache, "_local") and 
