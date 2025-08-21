@@ -220,7 +220,7 @@ class MarketDataRepository(IMarketDataRepository):
                         self.logger.error(f"Failed to backup {data_type} market data")
             
             if all_success:
-                self.logger.info(f"Successfully backed up all market data files")
+                self.logger.info("Successfully backed up all market data files")
             
             return all_success
             

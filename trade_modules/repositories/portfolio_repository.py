@@ -125,7 +125,7 @@ class PortfolioRepository(IPortfolioRepository):
             
         except Exception as e:
             self.logger.error(f"Error reading portfolio: {e}")
-            raise DataProcessingError(f"Failed to read portfolio data") from e
+            raise DataProcessingError("Failed to read portfolio data") from e
     
     def update_portfolio(self, data: pd.DataFrame, **kwargs) -> bool:
         """

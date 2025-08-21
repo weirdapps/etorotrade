@@ -692,8 +692,8 @@ class TestPerformance:
         # Create large DataFrame
         large_df = pd.DataFrame({
             'Symbol': [f'STOCK{i}' for i in range(10000)],
-            'Price': np.random.uniform(10, 1000, 10000),
-            'Volume': np.random.randint(1000, 1000000, 10000),
+            'Price': rng.uniform(10, 1000, 10000),
+            'Volume': rng.integers(1000, 1000000, 10000),
         })
         
         import time

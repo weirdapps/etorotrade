@@ -11,27 +11,27 @@ from trade_modules.analysis_engine import calculate_action_vectorized
 
 def create_test_dataframe(size=100):
     """Create test DataFrame with realistic financial data."""
-    np.random.seed(42)  # For reproducible tests
+    rng = np.random.default_rng(42)  # For reproducible tests
     
     data = {
         'ticker': [f'STOCK{i:04d}' for i in range(size)],
-        'price': np.random.uniform(10, 500, size),
-        'market_cap': np.random.uniform(1e9, 1e12, size),
-        'pe_forward': np.random.uniform(5, 50, size),
-        'pe_trailing': np.random.uniform(8, 60, size),
-        'peg_ratio': np.random.uniform(0.5, 3.0, size),
-        'short_percent': np.random.uniform(0, 20, size),
-        'beta': np.random.uniform(0.3, 2.5, size),
-        'EXRET': np.random.uniform(-5, 25, size),
-        'upside': np.random.uniform(-30, 80, size),
-        'buy_percentage': np.random.uniform(0, 100, size),
-        'analyst_count': np.random.randint(1, 50, size),
-        'total_ratings': np.random.randint(1, 30, size),
+        'price': rng.uniform(10, 500, size),
+        'market_cap': rng.uniform(1e9, 1e12, size),
+        'pe_forward': rng.uniform(5, 50, size),
+        'pe_trailing': rng.uniform(8, 60, size),
+        'peg_ratio': rng.uniform(0.5, 3.0, size),
+        'short_percent': rng.uniform(0, 20, size),
+        'beta': rng.uniform(0.3, 2.5, size),
+        'EXRET': rng.uniform(-5, 25, size),
+        'upside': rng.uniform(-30, 80, size),
+        'buy_percentage': rng.uniform(0, 100, size),
+        'analyst_count': rng.integers(1, 50, size),
+        'total_ratings': rng.integers(1, 30, size),
     }
     
     # Add some NaN values to test missing data handling
     for col in ['pe_forward', 'pe_trailing', 'peg_ratio', 'short_percent', 'beta']:
-        mask = np.random.random(size) < 0.15  # 15% missing values
+        mask = rng.random(size) < 0.15  # 15% missing values
         data[col][mask] = np.nan
     
     return pd.DataFrame(data)
@@ -127,6 +127,6 @@ if __name__ == "__main__":
     test_edge_cases() 
     test_data_types()
     
-    print(f"\n🎉 ALL TESTS PASSED!")
-    print(f"✅ Vectorized implementation is working correctly!")
-    print(f"🚀 Ready for production use!")
+    print("\n🎉 ALL TESTS PASSED!")
+    print("✅ Vectorized implementation is working correctly!")
+    print("🚀 Ready for production use!")

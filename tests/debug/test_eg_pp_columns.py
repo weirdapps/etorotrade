@@ -48,7 +48,7 @@ def test_portfolio_csv_columns():
             print(f"❌ Missing column: {col}")
     
     # Show all columns
-    print(f"\nAll columns in portfolio.csv:")
+    print("\nAll columns in portfolio.csv:")
     for i, col in enumerate(df.columns):
         print(f"  {i+1:2d}. {col}")
     
@@ -60,7 +60,7 @@ def test_standard_display_columns():
     print("2. Testing STANDARD_DISPLAY_COLUMNS configuration")
     print("=" * 60)
     
-    print(f"STANDARD_DISPLAY_COLUMNS:")
+    print("STANDARD_DISPLAY_COLUMNS:")
     for i, col in enumerate(STANDARD_DISPLAY_COLUMNS):
         marker = "✅" if col in ['EG', 'PP'] else "  "
         print(f"  {i+1:2d}. {marker} {col}")
@@ -69,12 +69,12 @@ def test_standard_display_columns():
     if 'EG' in STANDARD_DISPLAY_COLUMNS:
         print(f"\n✅ EG column found at position {STANDARD_DISPLAY_COLUMNS.index('EG') + 1}")
     else:
-        print(f"\n❌ EG column not found in STANDARD_DISPLAY_COLUMNS")
+        print("\n❌ EG column not found in STANDARD_DISPLAY_COLUMNS")
     
     if 'PP' in STANDARD_DISPLAY_COLUMNS:
         print(f"✅ PP column found at position {STANDARD_DISPLAY_COLUMNS.index('PP') + 1}")
     else:
-        print(f"❌ PP column not found in STANDARD_DISPLAY_COLUMNS")
+        print("❌ PP column not found in STANDARD_DISPLAY_COLUMNS")
 
 def test_column_mapping():
     """Test the column mapping logic in MarketDisplay."""
@@ -92,28 +92,28 @@ def test_column_mapping():
     }
     
     df = pd.DataFrame(sample_data)
-    print(f"Sample DataFrame before mapping:")
+    print("Sample DataFrame before mapping:")
     print(df)
     
     # Test the column mapping logic
     display = MarketDisplay()
     formatted_df = display._format_dataframe(df)
     
-    print(f"\nDataFrame after format mapping:")
+    print("\nDataFrame after format mapping:")
     print(formatted_df)
     
     # Check if EG and PP columns exist
     if 'EG' in formatted_df.columns:
-        print(f"\n✅ EG column successfully mapped!")
+        print("\n✅ EG column successfully mapped!")
         print(f"   EG values: {formatted_df['EG'].tolist()}")
     else:
-        print(f"\n❌ EG column not found after mapping")
+        print("\n❌ EG column not found after mapping")
     
     if 'PP' in formatted_df.columns:
-        print(f"✅ PP column successfully mapped!")
+        print("✅ PP column successfully mapped!")
         print(f"   PP values: {formatted_df['PP'].tolist()}")
     else:
-        print(f"❌ PP column not found after mapping")
+        print("❌ PP column not found after mapping")
 
 def test_final_column_filtering():
     """Test the final column filtering logic."""
@@ -135,24 +135,24 @@ def test_final_column_filtering():
     }
     
     df = pd.DataFrame(sample_data)
-    print(f"Sample DataFrame with all columns:")
+    print("Sample DataFrame with all columns:")
     print(df.columns.tolist())
     
     # Test final column filtering
     final_col_order = [col for col in STANDARD_DISPLAY_COLUMNS if col in df.columns]
-    print(f"\nFinal column order (filtered):")
+    print("\nFinal column order (filtered):")
     for i, col in enumerate(final_col_order):
         marker = "✅" if col in ['EG', 'PP'] else "  "
         print(f"  {i+1:2d}. {marker} {col}")
     
     # Apply the filtering
     filtered_df = df[final_col_order]
-    print(f"\nFiltered DataFrame:")
+    print("\nFiltered DataFrame:")
     print(filtered_df)
     
     # Check if EG and PP are in the final result
     if 'EG' in filtered_df.columns and 'PP' in filtered_df.columns:
-        print(f"\n✅ Both EG and PP columns are present in final output!")
+        print("\n✅ Both EG and PP columns are present in final output!")
     else:
         missing = [col for col in ['EG', 'PP'] if col not in filtered_df.columns]
         print(f"\n❌ Missing columns in final output: {missing}")

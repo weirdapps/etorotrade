@@ -99,29 +99,29 @@ class MockYahooFinanceResponses:
     def create_mock_dataframe(size: int = 100) -> pd.DataFrame:
         """Create mock financial DataFrame for testing."""
         import numpy as np
-        np.random.seed(42)
+        rng = np.random.default_rng(42)
         
         data = {
             'ticker': [f'STOCK{i:04d}' for i in range(size)],
-            'price': np.random.uniform(10, 500, size),
-            'market_cap': np.random.uniform(1e9, 1e12, size),
-            'pe_forward': np.random.uniform(5, 50, size),
-            'pe_trailing': np.random.uniform(8, 60, size),
-            'peg_ratio': np.random.uniform(0.5, 3.0, size),
-            'short_percent': np.random.uniform(0, 20, size),
-            'beta': np.random.uniform(0.3, 2.5, size),
-            'EXRET': np.random.uniform(-5, 25, size),
-            'upside': np.random.uniform(-30, 80, size),
-            'buy_percentage': np.random.uniform(0, 100, size),
-            'analyst_count': np.random.randint(1, 50, size),
-            'total_ratings': np.random.randint(1, 30, size),
-            'BS': np.random.choice(['B', 'S', 'H', 'I'], size),
-            'CAP': [f'{np.random.uniform(1, 1000):.1f}B' for _ in range(size)]
+            'price': rng.uniform(10, 500, size),
+            'market_cap': rng.uniform(1e9, 1e12, size),
+            'pe_forward': rng.uniform(5, 50, size),
+            'pe_trailing': rng.uniform(8, 60, size),
+            'peg_ratio': rng.uniform(0.5, 3.0, size),
+            'short_percent': rng.uniform(0, 20, size),
+            'beta': rng.uniform(0.3, 2.5, size),
+            'EXRET': rng.uniform(-5, 25, size),
+            'upside': rng.uniform(-30, 80, size),
+            'buy_percentage': rng.uniform(0, 100, size),
+            'analyst_count': rng.integers(1, 50, size),
+            'total_ratings': rng.integers(1, 30, size),
+            'BS': rng.choice(['B', 'S', 'H', 'I'], size),
+            'CAP': [f'{rng.uniform(1, 1000):.1f}B' for _ in range(size)]
         }
         
         # Add some NaN values for realistic testing
         for col in ['pe_forward', 'pe_trailing', 'peg_ratio', 'short_percent', 'beta']:
-            mask = np.random.random(size) < 0.15
+            mask = rng.random(size) < 0.15
             data[col] = np.where(mask, np.nan, data[col])
         
         return pd.DataFrame(data)

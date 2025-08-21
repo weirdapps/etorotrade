@@ -350,7 +350,7 @@ class PortfolioFilter:
 
             self.logger.info(
                 f"Portfolio filter (existing): {initial_count} → {len(filtered_df)} "
-                f"(portfolio holdings only via equivalence check)"
+                "(portfolio holdings only via equivalence check)"
             )
 
             return filtered_df

@@ -801,7 +801,7 @@ class OutputManager:
             # Export to files
             output_files = export_results_to_files(display_results, report_source)
 
-            self.logger.info(f"✅ Analysis results saved successfully")
+            self.logger.info("✅ Analysis results saved successfully")
             return output_files
 
         except Exception as e:

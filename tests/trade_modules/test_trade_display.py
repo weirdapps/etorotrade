@@ -202,8 +202,8 @@ class TestMarketDataDisplay:
         # Create large test DataFrame
         large_df = pd.DataFrame({
             'TICKER': [f'STOCK{i}' for i in range(1000)],
-            'PRICE': np.random.uniform(10, 1000, 1000),
-            'UPSIDE': np.random.uniform(0, 50, 1000),
+            'PRICE': rng.uniform(10, 1000, 1000),
+            'UPSIDE': rng.uniform(0, 50, 1000),
         })
         
         if hasattr(market_display, 'display_market_data'):
@@ -338,9 +338,9 @@ class TestDisplayIntegration:
         large_df = pd.DataFrame({
             'TICKER': [f'STOCK{i}' for i in range(5000)],
             'COMPANY': [f'Company {i}' for i in range(5000)],
-            'PRICE': np.random.uniform(10, 1000, 5000),
-            'UPSIDE': np.random.uniform(0, 50, 5000),
-            'ACT': np.random.choice(['B', 'S', 'H'], 5000),
+            'PRICE': rng.uniform(10, 1000, 5000),
+            'UPSIDE': rng.uniform(0, 50, 5000),
+            'ACT': rng.choice(['B', 'S', 'H'], 5000),
         })
         
         formatter = create_display_formatter()

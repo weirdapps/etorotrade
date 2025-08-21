@@ -989,7 +989,7 @@ def _save_etoro_portfolio_csv(data: list, output_path: str, run_id: str):
     # Print summary
     total_investment = sum(row['totalInvestmentPct'] for row in data)
     total_profit = sum(row['totalNetProfit'] for row in data)
-    print(f"\neToro Portfolio Summary:")
+    print("\neToro Portfolio Summary:")
     print(f"Total unique symbols: {len(data)}")
     print(f"Total investment: {total_investment:.2f}%")
     print(f"Total net profit: {total_profit:.2f}")

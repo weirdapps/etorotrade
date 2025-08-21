@@ -11,17 +11,17 @@ from trade_modules.analysis_engine import process_buy_opportunities
 
 def create_test_buy_opportunities(size=1000):
     """Create test DataFrame with buy opportunities."""
-    np.random.seed(42)
+    rng = np.random.default_rng(42)
     
     data = {
         'ticker': [f'STOCK{i:04d}' for i in range(size)],
-        'price': np.random.uniform(10, 500, size),
-        'market_cap': np.random.uniform(1e9, 1e12, size),
-        'upside': np.random.uniform(20, 80, size),  # High upside for buy opportunities
-        'buy_percentage': np.random.uniform(75, 100, size),  # High buy % for buy opportunities
-        'analyst_count': np.random.randint(5, 50, size),  # High analyst coverage
-        'total_ratings': np.random.randint(5, 30, size),  # High ratings
-        'EXRET': np.random.uniform(15, 25, size),  # High expected return
+        'price': rng.uniform(10, 500, size),
+        'market_cap': rng.uniform(1e9, 1e12, size),
+        'upside': rng.uniform(20, 80, size),  # High upside for buy opportunities
+        'buy_percentage': rng.uniform(75, 100, size),  # High buy % for buy opportunities
+        'analyst_count': rng.integers(5, 50, size),  # High analyst coverage
+        'total_ratings': rng.integers(5, 30, size),  # High ratings
+        'EXRET': rng.uniform(15, 25, size),  # High expected return
         'BS': ['B'] * size  # All buy opportunities
     }
     
@@ -29,7 +29,7 @@ def create_test_buy_opportunities(size=1000):
 
 def create_test_portfolio_tickers(size=100):
     """Create test portfolio with some overlapping tickers."""
-    np.random.seed(123)
+    rng = np.random.default_rng(123)
     
     # Mix of overlapping and non-overlapping tickers
     overlapping = [f'STOCK{i:04d}' for i in range(0, size//2)]  # First half overlap
@@ -118,6 +118,6 @@ if __name__ == "__main__":
     test_portfolio_filtering_performance()
     test_edge_cases()
     
-    print(f"\n🎉 ALL PERFORMANCE TESTS PASSED!")
-    print(f"✅ Vectorized portfolio filtering is working optimally!")
-    print(f"🚀 Achieved O(n*m) → O(n+m) complexity reduction!")
+    print("\n🎉 ALL PERFORMANCE TESTS PASSED!")
+    print("✅ Vectorized portfolio filtering is working optimally!")
+    print("🚀 Achieved O(n*m) → O(n+m) complexity reduction!")

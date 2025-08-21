@@ -909,7 +909,7 @@ class PriorityAsyncRateLimiter(AsyncRateLimiter):
         }
 
         logger.debug(
-            f"Initialized PriorityAsyncRateLimiter with quotas: "
+            "Initialized PriorityAsyncRateLimiter with quotas: "
             f"HIGH={self.high_priority_quota}, "
             f"MEDIUM={self.medium_priority_quota}, "
             f"LOW={self.low_priority_quota}"

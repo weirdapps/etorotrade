@@ -100,9 +100,10 @@ class TestCalculateExret:
     def test_calculate_exret_performance(self):
         """Test EXRET calculation performance with large dataset."""
         # Create large test dataset
+        rng = np.random.default_rng(42)
         large_df = pd.DataFrame({
-            'upside': np.random.uniform(0, 50, 10000),
-            'buy_percentage': np.random.uniform(0, 100, 10000),
+            'upside': rng.uniform(0, 50, 10000),
+            'buy_percentage': rng.uniform(0, 100, 10000),
         })
         
         import time
@@ -155,17 +156,18 @@ class TestCalculateActionVectorized:
     def test_vectorized_action_performance(self):
         """Test vectorized action calculation performance."""
         # Create large test dataset
+        rng = np.random.default_rng(42)
         large_df = pd.DataFrame({
-            'upside': np.random.uniform(0, 50, 10000),
-            'buy_percentage': np.random.uniform(0, 100, 10000),
-            'analyst_count': np.random.randint(1, 30, 10000),
-            'total_ratings': np.random.randint(1, 35, 10000),
-            'pe_forward': np.random.uniform(5, 50, 10000),
-            'pe_trailing': np.random.uniform(5, 60, 10000),
-            'peg_ratio': np.random.uniform(0.5, 5, 10000),
-            'short_percent': np.random.uniform(0, 10, 10000),
-            'beta': np.random.uniform(0.5, 3, 10000),
-            'EXRET': np.random.uniform(0, 40, 10000),
+            'upside': rng.uniform(0, 50, 10000),
+            'buy_percentage': rng.uniform(0, 100, 10000),
+            'analyst_count': rng.integers(1, 30, 10000),
+            'total_ratings': rng.integers(1, 35, 10000),
+            'pe_forward': rng.uniform(5, 50, 10000),
+            'pe_trailing': rng.uniform(5, 60, 10000),
+            'peg_ratio': rng.uniform(0.5, 5, 10000),
+            'short_percent': rng.uniform(0, 10, 10000),
+            'beta': rng.uniform(0.5, 3, 10000),
+            'EXRET': rng.uniform(0, 40, 10000),
         })
         
         import time
@@ -227,7 +229,7 @@ class TestFilterFunctions:
         # Add BS column first
         df = calculate_action(sample_dataframe)
         
-        with patch('trade_modules.analysis_engine.filter_buy_opportunities') as mock_filter:
+        with patch('yahoofinance.analysis.market.filter_buy_opportunities') as mock_filter:
             mock_filter.return_value = df[df['BS'] == 'B']
             
             result = filter_buy_opportunities_wrapper(df)
@@ -239,7 +241,7 @@ class TestFilterFunctions:
         """Test sell candidates filter wrapper."""
         df = calculate_action(sample_dataframe)
         
-        with patch('trade_modules.analysis_engine.filter_sell_candidates') as mock_filter:
+        with patch('yahoofinance.analysis.market.filter_sell_candidates') as mock_filter:
             mock_filter.return_value = df[df['BS'] == 'S']
             
             result = filter_sell_candidates_wrapper(df)
@@ -250,7 +252,7 @@ class TestFilterFunctions:
         """Test hold candidates filter wrapper."""
         df = calculate_action(sample_dataframe)
         
-        with patch('trade_modules.analysis_engine.filter_hold_candidates') as mock_filter:
+        with patch('yahoofinance.analysis.market.filter_hold_candidates') as mock_filter:
             mock_filter.return_value = df[df['BS'] == 'H']
             
             result = filter_hold_candidates_wrapper(df)
@@ -264,17 +266,18 @@ class TestPerformanceComparison:
     def test_vectorized_vs_apply_performance(self):
         """Compare performance of vectorized vs apply-based operations."""
         # Create test dataset
+        rng = np.random.default_rng(42)
         test_df = pd.DataFrame({
-            'upside': np.random.uniform(0, 50, 1000),
-            'buy_percentage': np.random.uniform(0, 100, 1000),
-            'analyst_count': np.random.randint(1, 30, 1000),
-            'total_ratings': np.random.randint(1, 35, 1000),
-            'pe_forward': np.random.uniform(5, 50, 1000),
-            'pe_trailing': np.random.uniform(5, 60, 1000),
-            'peg_ratio': np.random.uniform(0.5, 5, 1000),
-            'short_percent': np.random.uniform(0, 10, 1000),
-            'beta': np.random.uniform(0.5, 3, 1000),
-            'EXRET': np.random.uniform(0, 40, 1000),
+            'upside': rng.uniform(0, 50, 1000),
+            'buy_percentage': rng.uniform(0, 100, 1000),
+            'analyst_count': rng.integers(1, 30, 1000),
+            'total_ratings': rng.integers(1, 35, 1000),
+            'pe_forward': rng.uniform(5, 50, 1000),
+            'pe_trailing': rng.uniform(5, 60, 1000),
+            'peg_ratio': rng.uniform(0.5, 5, 1000),
+            'short_percent': rng.uniform(0, 10, 1000),
+            'beta': rng.uniform(0.5, 3, 1000),
+            'EXRET': rng.uniform(0, 40, 1000),
         })
         
         import time
