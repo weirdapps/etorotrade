@@ -106,6 +106,10 @@ class ConfigManager:
             "MAX_POSITION_USD": 40_000,
             "MAX_POSITION_PCT": 8.9,
             "BASE_POSITION_PCT": 0.5,
+            "HIGH_CONVICTION_PCT": 8.0,
+            "SMALL_CAP_THRESHOLD": 2_000_000_000,  # $2B
+            "MID_CAP_THRESHOLD": 10_000_000_000,    # $10B
+            "LARGE_CAP_THRESHOLD": 50_000_000_000,   # $50B
         }
         
         # Override with YAML if available
