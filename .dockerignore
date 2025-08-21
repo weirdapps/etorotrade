@@ -1,19 +1,39 @@
 # Git files
-.git
+.git/
 .gitignore
+.gitattributes
+
+# GitHub
+.github/
 
 # Python cache
-__pycache__
-*.pyc
-*.pyo
-*.pyd
-.Python
+__pycache__/
+*.py[cod]
+*$py.class
 *.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
 # Virtual environments
 venv/
 env/
 ENV/
+.venv/
+.ENV/
 
 # IDE files
 .vscode/
@@ -21,55 +41,103 @@ ENV/
 *.swp
 *.swo
 *~
+.DS_Store
 
-# Test files
+# Testing
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
+.tox/
+.hypothesis/
 *.cover
 coverage.xml
 *.log
-
-# Build files
-build/
-dist/
-*.egg-info/
-.eggs/
+pytest_cache/
 
 # Documentation
 docs/
 *.md
 README.md
 LICENSE
+CHANGELOG
 
-# CI/CD
+# CI/CD and config
 .github/
+.gitlab-ci.yml
+.travis.yml
+sonar-project.properties
+.sonar/
 
-# Sensitive data
+# Sensitive files
 *.env
 .env.*
 secrets/
 *.key
 *.pem
 *.crt
+*.cert
+*.p12
+config.yaml
+config.yml
+settings.json
+credentials.json
 
-# Data files that should be mounted
+# Data files
+*.csv
+*.xlsx
+*.xls
+*.json
+*.db
+*.sqlite
+*.sqlite3
+
+# Output directories
+yahoofinance/output/
+yahoofinance/input/
 yahoofinance/data/
-yahoofinance/output/*.csv
-yahoofinance/output/*.html
-yahoofinance/input/*.csv
+logs/
+tmp/
+temp/
 
 # Backup files
 *.backup
 *.backup.*
 *.bak
+*.orig
+*.save
+*.old
+*.tmp
 
 # Test/debug files
 tests/
 test_*.py
 debug_*.py
 *_test.py
+benchmark*.py
 
-# SonarQube
-.sonar/
-sonar-project.properties
+# Docker files (avoid recursion)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Examples (can be documented separately)
+examples/
+
+# Tools and scripts that aren't needed in container
+tools/
+scripts/
+
+# MacOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+.directory
+.Trash-*
