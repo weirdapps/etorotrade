@@ -55,7 +55,7 @@ def filter_buy_opportunities_v2(market_df: pd.DataFrame) -> pd.DataFrame:
         df_row = pd.DataFrame([row])
         actions = calculate_action_vectorized(df_row, "market")
         action = actions.iloc[0] if not actions.empty else "H"
-        reason = f"Calculated using centralized TradeConfig"
+        reason = "Calculated using centralized TradeConfig"
         
         # Check if it's AUSS.OL for debugging
         ticker = row_dict.get(ticker_col, "")

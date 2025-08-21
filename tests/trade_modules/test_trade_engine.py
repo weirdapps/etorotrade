@@ -465,10 +465,10 @@ class TestIntegration:
         # Create large market data
         large_market_data = pd.DataFrame({
             'symbol': [f'STOCK{i}' for i in range(1000)],
-            'price': np.random.uniform(10, 1000, 1000),
-            'upside': np.random.uniform(0, 50, 1000),
-            'buy_percentage': np.random.uniform(40, 100, 1000),
-            'analyst_count': np.random.randint(5, 30, 1000),
+            'price': rng.uniform(10, 1000, 1000),
+            'upside': rng.uniform(0, 50, 1000),
+            'buy_percentage': rng.uniform(40, 100, 1000),
+            'analyst_count': rng.integers(5, 30, 1000),
         })
         
         engine = create_trading_engine()

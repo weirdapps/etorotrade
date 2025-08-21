@@ -485,12 +485,12 @@ class TestPerformanceIntegration:
         n_stocks = 1000
         large_data = pd.DataFrame({
             'symbol': [f'STOCK{i:04d}' for i in range(n_stocks)],
-            'price': np.random.uniform(10, 1000, n_stocks),
-            'target_price': np.random.uniform(15, 1200, n_stocks),
-            'upside': np.random.uniform(-20, 50, n_stocks),
-            'analyst_count': np.random.randint(5, 40, n_stocks),
-            'total_ratings': np.random.randint(5, 40, n_stocks),
-            'BS': np.random.choice(['B', 'H', 'S'], n_stocks)
+            'price': rng.uniform(10, 1000, n_stocks),
+            'target_price': rng.uniform(15, 1200, n_stocks),
+            'upside': rng.uniform(-20, 50, n_stocks),
+            'analyst_count': rng.integers(5, 40, n_stocks),
+            'total_ratings': rng.integers(5, 40, n_stocks),
+            'BS': rng.choice(['B', 'H', 'S'], n_stocks)
         }).set_index('symbol')
         
         import time

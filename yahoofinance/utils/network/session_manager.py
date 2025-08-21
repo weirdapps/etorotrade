@@ -165,7 +165,7 @@ class SharedSessionManager:
             self._connection_stats["session_recreations"] += 1
             
             logger.info(
-                f"Created new HTTP session with connection pool: "
+                "Created new HTTP session with connection pool: "
                 f"max_total={self._max_total_connections}, "
                 f"max_per_host={self._max_connections_per_host}, "
                 f"keepalive={self._keepalive_timeout}s"

@@ -341,7 +341,7 @@ def analyze_portfolio_sectors():
         cyclical_pct = (cyclical_value / total_categorized) * 100
         defensive_pct = (defensive_value / total_categorized) * 100
         
-        print(f"\n📊 CYCLICAL vs DEFENSIVE BALANCE:")
+        print("\n📊 CYCLICAL vs DEFENSIVE BALANCE:")
         print(f"   Cyclical Sectors: {cyclical_pct:.1f}% (${cyclical_value:,.0f})")
         print(f"   Defensive Sectors: {defensive_pct:.1f}% (${defensive_value:,.0f})")
         
@@ -364,7 +364,7 @@ def analyze_portfolio_sectors():
         growth_pct = (growth_value / total_style) * 100
         value_pct = (value_value / total_style) * 100
         
-        print(f"\n📈 GROWTH vs VALUE TILT:")
+        print("\n📈 GROWTH vs VALUE TILT:")
         print(f"   Growth-oriented: {growth_pct:.1f}% (${growth_value:,.0f})")
         print(f"   Value-oriented: {value_pct:.1f}% (${value_value:,.0f})")
         
