@@ -31,7 +31,12 @@ jobs:
 
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@beta # This is a beta action, no stable SHA available yet
+        # Security Note: This action is in beta and doesn't have stable releases with SHA yet.
+        # Once stable versions are available, this should be pinned to a specific commit SHA.
+        # Risk assessment: Low - This is an official Anthropic action used in a controlled environment
+        # with proper secret management. Monitor for stable releases at:
+        # https://github.com/anthropics/claude-code-action
+        uses: anthropics/claude-code-action@beta
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 
