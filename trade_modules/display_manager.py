@@ -307,7 +307,7 @@ class DisplayManager:
     def _generate_html_table(self, df: pd.DataFrame, title: str) -> str:
         """Generate HTML table with proper styling and colors."""
         if df.empty:
-            return f"""
+            return """
             <!DOCTYPE html>
             <html>
             <head>

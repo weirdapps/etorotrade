@@ -20,28 +20,28 @@ print("=" * 60)
 
 def create_large_test_dataset(size=5000):
     """Create large realistic financial dataset for testing."""
-    np.random.seed(42)
+    rng = np.random.default_rng(42)
     
     data = {
         'ticker': [f'STOCK{i:04d}' for i in range(size)],
-        'price': np.random.uniform(10, 500, size),
-        'market_cap': np.random.uniform(1e9, 1e12, size),
-        'pe_forward': np.random.uniform(5, 50, size),
-        'pe_trailing': np.random.uniform(8, 60, size),
-        'peg_ratio': np.random.uniform(0.5, 3.0, size),
-        'short_percent': np.random.uniform(0, 20, size),
-        'beta': np.random.uniform(0.3, 2.5, size),
-        'EXRET': np.random.uniform(-5, 25, size),
-        'upside': np.random.uniform(-30, 80, size),
-        'buy_percentage': np.random.uniform(0, 100, size),
-        'analyst_count': np.random.randint(1, 50, size),
-        'total_ratings': np.random.randint(1, 30, size),
-        'CAP': [f'{np.random.uniform(1, 1000):.1f}B' for _ in range(size)]  # Test market cap parsing
+        'price': rng.uniform(10, 500, size),
+        'market_cap': rng.uniform(1e9, 1e12, size),
+        'pe_forward': rng.uniform(5, 50, size),
+        'pe_trailing': rng.uniform(8, 60, size),
+        'peg_ratio': rng.uniform(0.5, 3.0, size),
+        'short_percent': rng.uniform(0, 20, size),
+        'beta': rng.uniform(0.3, 2.5, size),
+        'EXRET': rng.uniform(-5, 25, size),
+        'upside': rng.uniform(-30, 80, size),
+        'buy_percentage': rng.uniform(0, 100, size),
+        'analyst_count': rng.integers(1, 50, size),
+        'total_ratings': rng.integers(1, 30, size),
+        'CAP': [f'{rng.uniform(1, 1000):.1f}B' for _ in range(size)]  # Test market cap parsing
     }
     
     # Add some NaN values for realistic testing
     for col in ['pe_forward', 'pe_trailing', 'peg_ratio', 'short_percent', 'beta']:
-        mask = np.random.random(size) < 0.15
+        mask = rng.random(size) < 0.15
         data[col][mask] = np.nan
     
     return pd.DataFrame(data)
@@ -87,7 +87,7 @@ def test_vectorized_performance():
 
 def test_portfolio_filtering_optimization():
     """Test O(n*m) → O(n+m) portfolio filtering optimization."""
-    print(f"\n🔧 PORTFOLIO FILTERING OPTIMIZATION")
+    print("\n🔧 PORTFOLIO FILTERING OPTIMIZATION")
     print("-" * 40)
     
     # Create scenarios with different complexity levels
@@ -132,11 +132,11 @@ def test_portfolio_filtering_optimization():
         print(f"   ⏱️  Filtering time: {filtering_time:.4f} seconds")
         print(f"   🚀 Theoretical speedup: {theoretical_speedup:.1f}x")
         print(f"   📉 Filtered: {opps_size:,} → {filtered_count:,} opportunities")
-        print(f"   🎯 Complexity: O(n*m) → O(n+m)")
+        print("   🎯 Complexity: O(n*m) → O(n+m)")
 
 def test_memory_optimizations():
     """Test memory efficiency improvements."""
-    print(f"\n🧠 MEMORY OPTIMIZATION SUMMARY")
+    print("\n🧠 MEMORY OPTIMIZATION SUMMARY")
     print("-" * 35)
     
     print("✅ Optimizations implemented:")
@@ -163,7 +163,7 @@ def test_memory_optimizations():
 
 def print_final_summary():
     """Print final optimization summary."""
-    print(f"\n🎉 OPTIMIZATION ACHIEVEMENTS SUMMARY")
+    print("\n🎉 OPTIMIZATION ACHIEVEMENTS SUMMARY")
     print("=" * 50)
     
     achievements = [
@@ -182,9 +182,9 @@ def print_final_summary():
     for achievement in achievements:
         print(f"  {achievement}")
     
-    print(f"\n🚀 READY FOR PRODUCTION!")
-    print(f"   All optimizations maintain exact behavioral compatibility")
-    print(f"   while delivering significant performance improvements.")
+    print("\n🚀 READY FOR PRODUCTION!")
+    print("   All optimizations maintain exact behavioral compatibility")
+    print("   while delivering significant performance improvements.")
 
 if __name__ == "__main__":
     test_vectorized_performance()

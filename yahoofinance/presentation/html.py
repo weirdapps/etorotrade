@@ -189,7 +189,7 @@ class HTMLGenerator:
         columns = section.get("columns", 4)
         width = section.get("width", "100%")
 
-        html = f"""
+        html = """
         <div class="section" style="width: {width}; margin-bottom: 30px;">
             <h2 class="section-title">{section_title}</h2>
             <div class="metrics-grid" style="grid-template-columns: repeat({columns}, 1fr); gap: 20px;">
@@ -202,7 +202,7 @@ class HTMLGenerator:
             formatted_value = metric.get("formatted_value", "--")
             color_class = metric.get("color", "normal")
 
-            html += f"""
+            html += """
                 <div class="metric-card">
                     <div class="metric-label">{label}</div>
                     <div class="metric-value {color_class}">{formatted_value}</div>
@@ -229,7 +229,7 @@ class HTMLGenerator:
         """
         try:
             # Enhanced HTML template with modern meta tags and optimizations
-            html = f"""<!DOCTYPE html>
+            html = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -282,7 +282,7 @@ class HTMLGenerator:
 
             # Close HTML with updated date and footer
             current_time = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
-            html += f"""
+            html += """
         </div>
         <div class="updated-date">
             Last updated: {current_time}
@@ -448,7 +448,7 @@ class HTMLGenerator:
 
     def _generate_empty_results_html(self, title: str) -> str:
         """Generate HTML content for empty results."""
-        return f"""<!DOCTYPE html>
+        return """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -526,14 +526,14 @@ class HTMLGenerator:
             rows.append(f"<tr>{''.join(cells)}</tr>")
         
         # Build complete HTML
-        table_html = f"""
+        table_html = """
         <table class="results-table">
             <thead>{header_row}</thead>
             <tbody>{''.join(rows)}</tbody>
         </table>
         """
         
-        return f"""<!DOCTYPE html>
+        return """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -898,7 +898,7 @@ class HTMLGenerator:
                 rows.append(row_html)
 
             # Combine all rows into a table
-            table_html = f"""
+            table_html = """
             <table class="stock-table" border="0">
                 <thead>
                     {header_row}
@@ -910,7 +910,7 @@ class HTMLGenerator:
             """
 
             # Full HTML document with improved styling
-            html_content = f"""<!DOCTYPE html>
+            html_content = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">

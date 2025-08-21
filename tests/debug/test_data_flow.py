@@ -38,7 +38,7 @@ async def test_data_flow():
             return
         
         # Step 2: Create DataFrame from results
-        print(f"\nStep 2: Creating DataFrame from results...")
+        print("\nStep 2: Creating DataFrame from results...")
         df = pd.DataFrame([result])
         
         print(f"DataFrame columns: {list(df.columns)}")
@@ -53,7 +53,7 @@ async def test_data_flow():
             print("❌ DataFrame missing twelve_month_performance")
         
         # Step 3: Test MarketDisplay formatting
-        print(f"\nStep 3: Testing MarketDisplay formatting...")
+        print("\nStep 3: Testing MarketDisplay formatting...")
         display = MarketDisplay(provider=provider)
         
         # Test _format_dataframe
@@ -72,7 +72,7 @@ async def test_data_flow():
             print("❌ Formatted DataFrame missing PP")
         
         # Step 4: Test _add_position_size_column
-        print(f"\nStep 4: Testing _add_position_size_column...")
+        print("\nStep 4: Testing _add_position_size_column...")
         
         # Add position size column
         final_df = display._add_position_size_column(formatted_df)
@@ -89,7 +89,7 @@ async def test_data_flow():
             print("❌ Final DataFrame missing PP")
         
         # Step 5: Show the full row
-        print(f"\nStep 5: Full row data...")
+        print("\nStep 5: Full row data...")
         print(f"Full row: {final_df.iloc[0].to_dict()}")
         
     except Exception as e:

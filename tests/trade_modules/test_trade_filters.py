@@ -581,13 +581,13 @@ class TestPerformance:
         # Create large dataset
         large_data = pd.DataFrame({
             'symbol': [f'STOCK{i}' for i in range(5000)],
-            'upside': np.random.uniform(0, 50, 5000),
-            'buy_percentage': np.random.uniform(40, 100, 5000),
-            'analyst_count': np.random.randint(1, 40, 5000),
-            'pe_forward': np.random.uniform(10, 100, 5000),
-            'peg_ratio': np.random.uniform(0.5, 5, 5000),
-            'beta': np.random.uniform(0.5, 3, 5000),
-            'short_percent': np.random.uniform(0, 15, 5000),
+            'upside': rng.uniform(0, 50, 5000),
+            'buy_percentage': rng.uniform(40, 100, 5000),
+            'analyst_count': rng.integers(1, 40, 5000),
+            'pe_forward': rng.uniform(10, 100, 5000),
+            'peg_ratio': rng.uniform(0.5, 5, 5000),
+            'beta': rng.uniform(0.5, 3, 5000),
+            'short_percent': rng.uniform(0, 15, 5000),
         })
         
         criteria_filter = create_criteria_filter(trading_criteria_config)
@@ -609,12 +609,12 @@ class TestPerformance:
         # Create large dataset with some missing values
         large_data = pd.DataFrame({
             'symbol': [f'STOCK{i}' for i in range(5000)],
-            'price': np.random.uniform(10, 1000, 5000),
-            'upside': np.random.uniform(0, 50, 5000),
+            'price': rng.uniform(10, 1000, 5000),
+            'upside': rng.uniform(0, 50, 5000),
         })
         
         # Add some missing values
-        missing_indices = np.random.choice(5000, 500, replace=False)
+        missing_indices = rng.choice(5000, 500, replace=False)
         large_data.loc[missing_indices, 'upside'] = np.nan
         
         quality_filter = create_quality_filter(min_completeness=0.8)
