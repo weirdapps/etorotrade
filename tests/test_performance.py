@@ -24,4 +24,5 @@ def test_config_validation():
         text=True,
         cwd=str(PROJECT_ROOT)
     )
-    assert "Loaded unified configuration" in result.stdout
+    # Config validation is now silent - just check for successful exit
+    assert result.returncode == 0
