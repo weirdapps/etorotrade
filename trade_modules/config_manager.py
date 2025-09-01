@@ -224,6 +224,7 @@ class ConfigManager:
             "NOVO-B.CO": "EU",
             "SAN.PA": "EU", 
             "ASML.NV": "EU",
+            "PRX.AS": "EU",
             "SHEL.L": "UK",
             "ULVR.L": "UK",
             "SAP.DE": "EU",
@@ -270,6 +271,11 @@ class ConfigManager:
                         ticker_upper = 'NOVO-B.CO'
                     elif base_ticker == 'COLOB':
                         ticker_upper = 'COLO-B.CO'
+        
+        # Special case: .NV tickers should not be normalized
+        # (conversion to .AS only happens in get_data_fetch_ticker)
+        if ticker_upper.endswith('.NV'):
+            return ticker_upper
         
         # If this is a US ticker with a mapped original, return the original
         if ticker_upper in self.dual_listed_mappings:
@@ -330,6 +336,21 @@ class ConfigManager:
         if ticker and ticker.upper().startswith('VIX') and (ticker.upper() == 'VIX' or ticker.upper().startswith('VIX.')):
             return '^VIX'
         
+        # Special case: .NV tickers should remain as .NV for display
+        # .AS tickers should be displayed as .NV if they were originally .NV
+        ticker_upper = ticker.upper() if ticker else ''
+        
+        # Keep .NV tickers as .NV for display
+        if ticker_upper.endswith('.NV'):
+            return ticker_upper
+        
+        # Convert .AS back to .NV for display if it was originally a .NV ticker
+        if ticker_upper.endswith('.AS'):
+            base_ticker = ticker_upper[:-3]  # Remove .AS
+            # Check if this was originally a .NV ticker (PRX, ASML are known .NV tickers)
+            if base_ticker in ['PRX', 'ASML']:
+                return base_ticker + '.NV'
+        
         return self.get_normalized_ticker(ticker)
     
     def get_data_fetch_ticker(self, ticker: str) -> str:
@@ -345,6 +366,13 @@ class ConfigManager:
         # Handle VIX pattern replacement: VIX, VIX.??? -> ^VIX for data retrieval
         if ticker and ticker.upper().startswith('VIX') and (ticker.upper() == 'VIX' or ticker.upper().startswith('VIX.')):
             return '^VIX'  # Yahoo Finance uses ^VIX for the VIX index
+        
+        # Special case: .NV (Euronext Amsterdam) tickers should fetch as .AS
+        # Yahoo Finance doesn't recognize .NV but does recognize .AS
+        if ticker and ticker.upper().endswith('.NV'):
+            # Replace .NV with .AS for data fetching
+            base_ticker = ticker.upper()[:-3]  # Remove .NV
+            return base_ticker + '.AS'
         
         # For data fetching, we might want to use US tickers when available
         # as they often have better data coverage, but we'll normalize the results
@@ -404,9 +432,16 @@ class ConfigManager:
         if not ticker1 or not ticker2:
             return False
         
+        # Special case: PRX.NV and PRX.AS are the same asset
+        ticker1_upper = ticker1.upper()
+        ticker2_upper = ticker2.upper()
+        if (ticker1_upper == 'PRX.NV' and ticker2_upper == 'PRX.AS') or \
+           (ticker1_upper == 'PRX.AS' and ticker2_upper == 'PRX.NV'):
+            return True
+        
         # Normalize both tickers to their canonical forms
-        normalized1 = self.get_normalized_ticker(ticker1.upper())
-        normalized2 = self.get_normalized_ticker(ticker2.upper())
+        normalized1 = self.get_normalized_ticker(ticker1_upper)
+        normalized2 = self.get_normalized_ticker(ticker2_upper)
         
         # If normalized forms are the same, they're equivalent
         if normalized1 == normalized2:

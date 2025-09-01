@@ -69,7 +69,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
             "SILVER": "SI=F",  # Silver Futures
             "NATURAL_GAS": "NG=F",  # Natural Gas Futures
             "EURUSD": "EURUSD=X",  # Forex
-            "ASML.NV": "ASML",  # ASML Holding NV
+            # Don't hardcode .NV mappings here - let config_manager handle them
             # Add other mappings as needed
         }
 
@@ -81,13 +81,23 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
         """
         # Use original ticker for the final result keys
         original_ticker = ticker
-        # Apply mapping for provider calls
+        
+        # Use config_manager for ticker mapping instead of hardcoded mappings
+        from trade_modules.config_manager import get_config
+        config = get_config()
+        
+        # First check our internal mappings for crypto/commodities
         mapped_ticker = self._ticker_mappings.get(original_ticker, original_ticker)
+        
+        # If no internal mapping, use config_manager's data fetch ticker
+        # This handles .NV -> .AS conversions and other mappings
+        if mapped_ticker == original_ticker:
+            mapped_ticker = config.get_data_fetch_ticker(original_ticker)
 
         yf_data = {}
         yq_data = {}
         # Initialize with mapped ticker for symbol (SOL -> SOL-USD) but keep original ticker
-        merged_data = {"symbol": mapped_ticker, "ticker": original_ticker}
+        merged_data = {"symbol": original_ticker, "ticker": original_ticker}
         errors = []
 
         # SMART SUPPLEMENTATION: First get yfinance data, then conditionally fetch yahooquery
@@ -101,8 +111,15 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
             logger.warning(f"Error fetching yfinance data for {ticker}: {e}", exc_info=False)
             yf_data = {}
         
-        # Start with yfinance data
-        merged_data.update(yf_data)
+        # Start with yfinance data but preserve original ticker/symbol
+        if yf_data:
+            # Save the original ticker/symbol values
+            original_symbol = original_ticker
+            # Update with yf_data
+            merged_data.update(yf_data)
+            # Restore the original ticker/symbol values
+            merged_data["symbol"] = original_symbol
+            merged_data["ticker"] = original_symbol
         
         # Smart supplementation: Only fetch from yahooquery if we have missing critical fields
         needs_supplement = False
@@ -200,7 +217,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
             )  # Use original ticker for placeholder
 
         # Ensure essential keys exist even if fetching failed partially/fully
-        merged_data.setdefault("symbol", mapped_ticker)
+        merged_data.setdefault("symbol", original_ticker)  # Use original ticker
         merged_data.setdefault("ticker", original_ticker)  # Ensure original ticker
         # Ensure company uses original ticker if name is missing
         merged_data.setdefault("company", merged_data.get("name", original_ticker)[:14].upper())
