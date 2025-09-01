@@ -704,9 +704,10 @@ async def process_batch_async(
             progress_bar = tqdm(
                 total=total_items,
                 desc=description,
-                unit="item",
-                bar_format="{desc} {percentage:3.0f}% |{bar:30}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]",
-                ncols=100,
+                unit="ticker",
+                bar_format="{desc:15} {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]",
+                ncols=80,
+                colour="green",
             )
         except ImportError:
             show_progress = False
@@ -724,14 +725,14 @@ async def process_batch_async(
             remaining_items = total_items - (success_count + error_count)
             estimated_remaining = remaining_items / items_per_second
 
-            # Show the last item being processed in the description
+            # Show the last item being processed in the description with cleaner format
             current_item = batch[-1] if batch else ""
-            item_str = f"{current_item:<10}" if current_item else ""
-            progress_bar.set_description(f"⚡ {item_str} Batch {batch_num:2d}/{total_batches:2d}")
+            item_str = f"{current_item:<12}" if current_item else ""
+            progress_bar.set_description(f"Processing {item_str}")
 
-            # Also update postfix with rate and ETA
+            # Update postfix with cleaner rate display
             progress_bar.set_postfix_str(
-                f"{items_per_second:.2f} item/s, ETA: {time.strftime('%M:%S', time.gmtime(estimated_remaining))}"
+                f"{items_per_second:.1f}/s"
             )
 
         logger.debug(f"Processing batch {batch_num}/{total_batches} ({len(batch)} items)")
@@ -804,7 +805,7 @@ async def process_batch_async(
         # Delay between batches (except for the last batch) - OPTIMIZED: No delay for maximum performance
         if i + batch_size < total_items and delay_between_batches > 0:
             if show_progress:
-                progress_bar.set_description(f"⏳ Waiting {delay_between_batches:.1f}s")
+                progress_bar.set_description(f"Throttling...")
 
             logger.debug(f"Batch delay disabled for optimal performance (was {delay_between_batches}s)")
             # await asyncio.sleep(delay_between_batches)  # Disabled for performance optimization
@@ -813,40 +814,42 @@ async def process_batch_async(
     if show_progress:
         progress_bar.close()
 
-    # Store statistics for later display
+    # Calculate final statistics
     elapsed = time.time() - start_time
     items_per_second = total_items / max(elapsed, 0.1)
+    seconds_per_item = elapsed / max(total_items, 1)
     
-    # Store statistics in results metadata (if not already stored)
-    if hasattr(results, '__dict__'):
-        results._processing_stats = {
-            'total_items': total_items,
-            'elapsed': elapsed,
-            'items_per_second': items_per_second,
-            'success_count': success_count,
-            'error_count': error_count,
-            'cache_hits': cache_hits
-        }
-    
-    # Store stats in global variable for display after table
+    # Store statistics globally for later display (after table output)
     global _last_processing_stats
     _last_processing_stats = {
         'total_items': total_items,
         'elapsed': elapsed,
         'items_per_second': items_per_second,
+        'seconds_per_item': seconds_per_item,
         'success_count': success_count,
         'error_count': error_count,
-        'cache_hits': cache_hits
+        'cache_hits': cache_hits,
+        'show_progress': show_progress
     }
+    
+    # Store statistics in results metadata as well
+    if hasattr(results, '__dict__'):
+        results._processing_stats = _last_processing_stats
 
     return results
 
 
 def display_processing_stats():
-    """Display the stored processing statistics."""
+    """Display the stored processing statistics after table output."""
     global _last_processing_stats
-    # Silent processing - no output for clean display
-    if _last_processing_stats:
+    if _last_processing_stats and _last_processing_stats.get('show_progress'):
+        stats = _last_processing_stats
+        total = stats['total_items']
+        if total > 0:
+            print(f"\n✅ Processing complete: {stats['success_count']}/{total} succeeded, "
+                  f"{stats['error_count']} failed | {stats['elapsed']:.1f}s total ({stats['seconds_per_item']:.1f}s/ticker)")
+            if stats['cache_hits'] > 0:
+                print(f"   Cache hits: {stats['cache_hits']} ({stats['cache_hits']*100//total}% from cache)")
         _last_processing_stats = None  # Clear after displaying
 
 
