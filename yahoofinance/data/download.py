@@ -720,7 +720,7 @@ async def download_etoro_portfolio(provider=None):
 
     try:
         # Fetch portfolio data
-        print("Fetching eToro portfolio data...")
+        print("📊 Fetching eToro portfolio data...")
         logger.info(f"[{run_id}] Fetching portfolio for user: {username}")
         
         portfolio = await _fetch_etoro_portfolio(username, api_key, user_key, run_id)
@@ -730,27 +730,22 @@ async def download_etoro_portfolio(provider=None):
         # Extract instrument IDs
         positions = portfolio.get("positions", [])
         if not positions:
-            print("No positions found in portfolio")
+            print("❌ No positions found in portfolio")
             logger.warning(f"[{run_id}] No positions found in portfolio")
             return False
 
         instrument_ids = [pos.get("instrumentId") for pos in positions if pos.get("instrumentId")]
-        print(f"Found {len(positions)} positions with {len(instrument_ids)} unique instruments")
+        print(f"   Found {len(positions)} positions ({len(set(instrument_ids))} unique instruments)")
         logger.info(f"[{run_id}] Found {len(positions)} positions with {len(instrument_ids)} instruments")
 
-        # Fetch instrument metadata
-        print("Fetching instrument metadata...")
+        # Fetch instrument metadata and process data in one step
         metadata = await _fetch_etoro_instrument_metadata(instrument_ids, api_key, user_key, run_id)
-
-        # Combine and process data
-        print("Processing portfolio data and fixing ticker formats...")
         processed_data = _process_etoro_portfolio_data(portfolio, metadata, run_id)
 
         # Save to the expected location
         output_path = os.path.join(PATHS["INPUT_DIR"], "portfolio.csv")
         _save_etoro_portfolio_csv(processed_data, output_path, run_id)
 
-        print(f"eToro portfolio data saved successfully to {output_path}")
         logger.info(f"[{run_id}] eToro portfolio download completed successfully")
         return True
 
@@ -986,14 +981,10 @@ def _save_etoro_portfolio_csv(data: list, output_path: str, run_id: str):
 
     logger.info(f"[{run_id}] eToro portfolio data saved to {output_path}")
     
-    # Print summary
+    # Print compact summary
     total_investment = sum(row['totalInvestmentPct'] for row in data)
     total_profit = sum(row['totalNetProfit'] for row in data)
-    print("\neToro Portfolio Summary:")
-    print(f"Total unique symbols: {len(data)}")
-    print(f"Total investment: {total_investment:.2f}%")
-    print(f"Total net profit: {total_profit:.2f}")
-    print("Note: Ticker formats have been automatically fixed for Yahoo Finance compatibility")
+    print(f"\n✅ Portfolio saved: {len(data)} symbols | Investment: {total_investment:.1f}% | Net P&L: ${total_profit:,.0f}")
 
 
 # Test function

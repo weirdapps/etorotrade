@@ -67,6 +67,13 @@ class YFinanceErrorFilter(logging.Filter):
 
 def suppress_yfinance_noise():
     """Apply filter to suppress yfinance delisting/earnings/HTTP error messages."""
+    import warnings
+    
+    # Suppress yfinance deprecation warnings about earnings
+    warnings.filterwarnings("ignore", category=DeprecationWarning, module="yfinance")
+    warnings.filterwarnings("ignore", message=".*Ticker.earnings.*")
+    warnings.filterwarnings("ignore", message=".*Net Income.*")
+    
     # Apply filter to multiple loggers that might generate noise
     logger_names = ['yfinance', 'urllib3', 'requests', 'yahooquery']
     

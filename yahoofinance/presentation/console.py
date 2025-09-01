@@ -803,6 +803,10 @@ class MarketDisplay:
             colalign=colalign,
         )
         print(table)
+        
+        # Display processing statistics if available
+        from yahoofinance.utils.async_utils.enhanced import display_processing_stats
+        display_processing_stats()
 
         # No color key display
 

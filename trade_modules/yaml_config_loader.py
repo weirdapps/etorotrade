@@ -51,7 +51,7 @@ class YamlConfigLoader:
             if os.path.exists(self.config_path):
                 with open(self.config_path, 'r', encoding='utf-8') as f:
                     self._config_cache = yaml.safe_load(f) or {}
-                print(f"✅ Loaded unified configuration from: {self.config_path}")
+                # Configuration loaded silently
                 return self._config_cache
             else:
                 print(f"⚠️ Unified config file not found: {self.config_path}")

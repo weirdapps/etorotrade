@@ -531,8 +531,17 @@ class YahooFinanceBaseProvider(ABC):
         """
         # Validate the ticker format
         validate_ticker(ticker)
+        
+        # Apply ticker mapping for data fetching
+        # Import here to avoid circular dependency
+        from trade_modules.config_manager import get_config
+        config = get_config()
+        fetch_ticker = config.get_data_fetch_ticker(ticker)
+        
+        if fetch_ticker != ticker:
+            logger.debug(f"Mapping ticker {ticker} to {fetch_ticker} for data fetching")
 
-        # Use cache key based on ticker
+        # Use cache key based on original ticker
         cache_key = f"ticker_obj:{ticker}"
 
         # Check in global cache first
@@ -546,11 +555,11 @@ class YahooFinanceBaseProvider(ABC):
             logger.debug(f"Using cached ticker object for {ticker} from local cache")
             return self._ticker_cache[ticker]
 
-        # Create new ticker object
+        # Create new ticker object with mapped ticker
         try:
-            ticker_obj = yf.Ticker(ticker)
+            ticker_obj = yf.Ticker(fetch_ticker)
 
-            # Store in both caches
+            # Store in both caches using original ticker as key
             self._ticker_cache[ticker] = ticker_obj
             default_cache_manager.set(cache_key, ticker_obj, data_type="ticker_info")
 

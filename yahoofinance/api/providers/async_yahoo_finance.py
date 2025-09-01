@@ -171,15 +171,23 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         try:
             import yfinance as yf
 
+            # Apply ticker mapping for data fetching
+            from trade_modules.config_manager import get_config
+            config = get_config()
+            fetch_ticker = config.get_data_fetch_ticker(ticker)
+            
+            if fetch_ticker != ticker:
+                logger.debug(f"Mapping ticker {ticker} to {fetch_ticker} for data fetching")
+            
             # Create ticker object temporarily - don't store it in cache to prevent memory leaks
             try:
                 # Use safe_create_ticker from yfinance_utils if available
                 from ...utils.yfinance_utils import safe_create_ticker
 
-                yticker = safe_create_ticker(ticker)
+                yticker = safe_create_ticker(fetch_ticker)
             except ImportError:
                 # Fall back to regular creation if the utility isn't available
-                yticker = yf.Ticker(ticker)
+                yticker = yf.Ticker(fetch_ticker)
 
             # Handle potential NoneType errors with info
             try:
@@ -196,7 +204,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 )
                 ticker_info = {}
 
-            info: Dict[str, Any] = {"symbol": ticker}
+            info: Dict[str, Any] = {"symbol": ticker, "ticker": ticker}
 
             # Extract key fields
             info["name"] = ticker_info.get("longName", ticker_info.get("shortName", ""))

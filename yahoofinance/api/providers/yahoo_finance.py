@@ -158,6 +158,7 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 # Extract key metrics using the base class helper
                 result = self._extract_common_ticker_info(info)
                 result["symbol"] = ticker  # Ensure the symbol is set correctly
+                result["ticker"] = ticker  # Also set ticker field for consistency
 
                 # Track missing data for performance optimization
 

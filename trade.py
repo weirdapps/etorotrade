@@ -11,6 +11,9 @@ import warnings
 
 # Suppress warnings for cleaner output
 warnings.filterwarnings("ignore")
+# Specifically suppress yfinance deprecation warnings
+warnings.filterwarnings("ignore", message=".*Ticker.earnings.*", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message=".*Net Income.*", category=DeprecationWarning)
 
 # Configure logging early
 from yahoofinance.core.logging import suppress_yfinance_noise
