@@ -277,9 +277,9 @@ def calculate_position_size(
     except (ImportError, KeyError):
         # Fallback to hardcoded configuration to ensure position sizing works
         PORTFOLIO_CONFIG = {
-            "PORTFOLIO_VALUE": 500_000,  # Updated to $500K
+            "PORTFOLIO_VALUE": 550_000,  # Updated to $550K
             "MIN_POSITION_USD": 1_000,   # 0.2% of portfolio minimum
-            "MAX_POSITION_USD": 40_000,  # 8% of portfolio maximum
+            "MAX_POSITION_USD": 40_000,  # 7.3% of portfolio maximum
             "MAX_POSITION_PCT": 8.0,     # 8% max position size
             "BASE_POSITION_PCT": 0.5,
             "HIGH_CONVICTION_PCT": 8.0,  # Updated to match max position
