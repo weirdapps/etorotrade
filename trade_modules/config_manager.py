@@ -101,7 +101,7 @@ class ConfigManager:
         """Get portfolio configuration, merging YAML with defaults."""
         # Defaults from Python config
         defaults = {
-            "PORTFOLIO_VALUE": 450_000,
+            "PORTFOLIO_VALUE": 550_000,
             "MIN_POSITION_USD": 1_000,
             "MAX_POSITION_USD": 40_000,
             "MAX_POSITION_PCT": 8.9,
