@@ -67,12 +67,16 @@ class ConfigBoundary(IConfigBoundary):
         """
         if 'trading_criteria' not in self._config_cache:
             try:
-                from trade_modules.config_manager import get_config
-                config = get_config()
-                # Merge tier criteria for backward compatibility
+                from trade_modules.trade_config import TradeConfig
+                # Get universal thresholds and US mid-tier criteria as defaults
+                universal = TradeConfig.get_universal_thresholds()
+                buy_criteria = TradeConfig.get_thresholds('m', 'buy', ticker='AAPL', market_cap=100e9)
+                sell_criteria = TradeConfig.get_thresholds('m', 'sell', ticker='AAPL', market_cap=100e9)
+
                 self._config_cache['trading_criteria'] = {
-                    **config.get_tier_criteria('value'),
-                    **config.get_universal_thresholds()
+                    'buy': buy_criteria,
+                    'sell': sell_criteria,
+                    **universal
                 }
             except ImportError:
                 logger.warning("Could not import config manager, using defaults")

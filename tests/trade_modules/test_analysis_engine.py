@@ -28,7 +28,7 @@ def sample_dataframe():
     """Create a sample DataFrame for testing."""
     return pd.DataFrame({
         'symbol': ['AAPL', 'MSFT', 'GOOGL', 'TSLA', 'AMZN'],
-        'upside': [25.5, 15.2, 8.7, 45.1, 12.3],
+        'upside': [30.0, 15.2, 8.7, 45.1, 12.3],
         'buy_percentage': [85.0, 90.0, 65.0, 80.0, 75.0],
         'analyst_count': [15, 20, 8, 12, 18],
         'total_ratings': [25, 30, 10, 18, 22],
@@ -37,7 +37,8 @@ def sample_dataframe():
         'peg_ratio': [1.2, 1.8, 2.5, 3.5, 2.1],
         'short_percent': [0.5, 1.2, 2.5, 1.8, 0.8],
         'beta': [1.1, 0.9, 1.3, 2.1, 1.4],
-        'EXRET': [21.7, 13.7, 5.7, 36.1, 9.2],
+        'EXRET': [25.5, 13.7, 5.7, 36.1, 9.2],  # Updated to match upside * buy_percentage / 100
+        'market_cap': [3e12, 3e12, 2e12, 1e12, 2e12],  # Added market cap for tier determination
     })
 
 
@@ -124,13 +125,12 @@ class TestCalculateActionVectorized:
     def test_vectorized_action_buy_conditions(self, sample_dataframe):
         """Test vectorized BUY action detection."""
         result = calculate_action_vectorized(sample_dataframe)
-        
-        # AAPL should be BUY (upside 25.5%, buy% 85%, meets criteria)
+
+        # AAPL should be BUY (upside 30%, buy% 85%, EXRET 25.5%, meets MEGA tier criteria)
         assert result.iloc[0] == 'B'
-        
-        # MSFT should be BUY (upside 15.2%, buy% 90%, but check full criteria)
-        # May be 'H' if it doesn't meet full BUY criteria
-        assert result.iloc[1] in ['B', 'H']
+
+        # MSFT should be BUY (upside 15.2% > 5% min for MEGA tier, buy% 90% > 65%)
+        assert result.iloc[1] == 'B'
     
     def test_vectorized_action_sell_conditions(self, sample_dataframe):
         """Test vectorized SELL action detection."""
