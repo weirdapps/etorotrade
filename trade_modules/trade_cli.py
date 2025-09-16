@@ -9,7 +9,8 @@ import asyncio
 import os
 import sys
 from pathlib import Path
-from typing import Optional
+
+import pandas as pd
 
 from yahoofinance.core.di_container import with_logger
 from yahoofinance.core.errors import YFinanceError
@@ -200,7 +201,6 @@ async def handle_trade_analysis(get_provider=None, app_logger=None):
         # Run market analysis using trade modules
         from trade import run_market_analysis
         from trade_modules.utils import get_file_paths
-        import pandas as pd
 
         # Load market data
         paths = get_file_paths()
@@ -230,10 +230,6 @@ async def handle_trade_analysis_direct(display, trade_choice, get_provider=None,
         get_provider: Provider factory function (optional)
         app_logger: Logger instance (optional)
     """
-    import pandas as pd
-    import os
-    from trade_modules.utils import get_file_paths
-
     try:
         # Get file paths
         output_dir, input_dir, market_file, portfolio_file, _ = get_file_paths()
@@ -317,9 +313,8 @@ async def generate_trade_opportunities_from_market(
         app_logger: Logger instance
     """
     try:
-        import pandas as pd
         from trade_modules.trade_engine import TradingEngine
-        
+
         # Load market data
         if not os.path.exists(market_file):
             if app_logger:
@@ -399,10 +394,6 @@ async def display_existing_csv_data(
         trade_choice: Trade choice (B, S, H)
         app_logger: Logger instance
     """
-    import pandas as pd
-    import os
-    from trade_modules.utils import get_file_paths
-
     try:
         # Load the main data file
         df = pd.read_csv(data_file)
@@ -771,11 +762,26 @@ async def main_async_with_args(args, app_logger=None):
                 if app_logger:
                     app_logger.info("Portfolio download completed")
 
-            # Display portfolio data
-            tickers = display.load_tickers("P")
-            await display_market_report(
-                display, tickers, "P", verbose=False, get_provider=provider, app_logger=app_logger
-            )
+            # Display portfolio data from existing CSV if available
+            output_dir, _, _, _, _ = get_file_paths()
+            portfolio_csv = os.path.join(output_dir, "portfolio.csv")
+
+            if os.path.exists(portfolio_csv):
+                # Load and display existing portfolio data directly
+                if app_logger:
+                    app_logger.info(f"Loading existing portfolio from {portfolio_csv}")
+                df = pd.read_csv(portfolio_csv)
+                data = df.to_dict('records')
+
+                # Display the portfolio table
+                display.display_stock_table(data, "Portfolio Analysis")
+                # HTML generation happens automatically in display_stock_table
+            else:
+                # No existing portfolio, fetch from source
+                tickers = display.load_tickers("P")
+                await display_market_report(
+                    display, tickers, "P", verbose=False, get_provider=provider, app_logger=app_logger
+                )
 
         # Handle trade analysis operations
         elif args.operation in ["t", "trade"]:
@@ -870,6 +876,13 @@ def main(app_logger=None):
 
     # Handle command line arguments if provided
     if args.operation or args.legacy_args:
+        # Handle legacy single argument format (e.g., "python trade.py p")
+        if not args.operation and args.legacy_args and len(args.legacy_args) == 1:
+            legacy_arg = args.legacy_args[0].lower()
+            if legacy_arg in ['p', 'm', 'e', 't', 'i']:
+                args.operation = legacy_arg
+                args.legacy_args = []  # Clear legacy args after processing
+
         if app_logger:
             app_logger.info(
                 f"Running with arguments: operation={args.operation}, target={args.target}"

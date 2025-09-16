@@ -186,11 +186,10 @@ def _determine_market_cap_tier(cap_value: float) -> str:
 
 def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> pd.Series:
     """Vectorized calculation of trading actions for improved performance.
-    
-    Uses tier-based thresholds based on market cap to restore original behavior:
-    - VALUE tier (≥$100B): 15% min upside 
-    - GROWTH tier ($5B-$100B): 20% min upside
-    - BETS tier (<$5B): 25% min upside
+
+    Uses new 5-tier geographic system:
+    - MEGA (≥$500B), LARGE ($100-500B), MID ($10-100B), SMALL ($2-10B), MICRO (<$2B)
+    - Regions: US, EU, HK based on ticker suffix
 
     Parameters
     ----------
@@ -202,8 +201,10 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
     pd.Series
         Series with action values (B/S/H/I)
     """
-    # Initialize config
+    # Initialize config and YAML loader
     config = TradeConfig()
+    from trade_modules.yaml_config_loader import get_yaml_config
+    yaml_config = get_yaml_config()
     
     # Parse percentage columns that may contain strings like "2.6%" or "94%"
     # Handle both normalized and CSV column names
@@ -257,17 +258,28 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
     actions = pd.Series("H", index=df.index)  # Default to HOLD
     actions[~has_confidence] = "I"  # INCONCLUSIVE for low confidence
     
-    # Process each row with tier-specific thresholds
+    # Get ticker column for region detection
+    ticker_col = df.get("ticker", df.get("TICKER", pd.Series("", index=df.index)))
+
+    # Process each row with region-tier specific thresholds
     for idx in df.index:
         if not has_confidence.loc[idx]:
             continue  # Already set to "I"
-            
-        # Determine tier for this stock
-        tier = _determine_market_cap_tier(cap_values.loc[idx])
-        
-        # Get tier-specific thresholds
-        buy_criteria = config.get_tier_thresholds(tier, "buy")
-        sell_criteria = config.get_tier_thresholds(tier, "sell")
+
+        # Determine region and tier for this stock
+        ticker = str(ticker_col.loc[idx]) if not pd.isna(ticker_col.loc[idx]) else ""
+        region = config.get_region_from_ticker(ticker)
+        tier = config.get_tier_from_market_cap(cap_values.loc[idx])
+
+        # Get region-tier specific thresholds from YAML
+        if yaml_config.is_config_available():
+            criteria = yaml_config.get_region_tier_criteria(region, tier)
+            buy_criteria = criteria.get("buy", {})
+            sell_criteria = criteria.get("sell", {})
+        else:
+            # Fallback to old system if YAML not available
+            buy_criteria = config.get_tier_thresholds(tier, "buy")
+            sell_criteria = config.get_tier_thresholds(tier, "sell")
         
         # Extract values for this row
         row_upside = upside.loc[idx]
@@ -279,15 +291,20 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
         row_si = si.loc[idx]
         row_beta = beta.loc[idx]
         
-        # SELL criteria - ANY condition triggers SELL (YAML-only criteria)
+        # SELL criteria - ANY condition triggers SELL
         sell_conditions = []
-        
-        # Basic criteria from YAML
-        if row_upside < sell_criteria.get("max_upside", 5.0):
+
+        # Basic criteria from config
+        max_upside = sell_criteria.get("max_upside", 100.0)  # Default to not trigger
+        if row_upside <= max_upside:
             sell_conditions.append(True)
-        if row_buy_pct < sell_criteria.get("min_buy_percentage", 65.0):
+
+        min_buy_pct = sell_criteria.get("min_buy_percentage", 0.0)  # Default to not trigger
+        if row_buy_pct <= min_buy_pct:
             sell_conditions.append(True)
-        if row_exret < sell_criteria.get("max_exret", 0.05) * 100:
+
+        max_exret = sell_criteria.get("max_exret", 100.0)  # Default to not trigger
+        if row_exret <= max_exret:
             sell_conditions.append(True)
             
         # Optional criteria from YAML (only apply if defined in YAML)
@@ -315,23 +332,31 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
             actions.loc[idx] = "S"
             continue
             
-        # BUY criteria - ALL conditions must be true (YAML-only criteria)
+        # BUY criteria - ALL conditions must be true
         buy_conditions = []
-        
-        # Required criteria from YAML
-        if row_upside >= buy_criteria.get("min_upside", 20.0):
+
+        # Required criteria
+        min_upside = buy_criteria.get("min_upside", 20.0)
+        if row_upside >= min_upside:
             buy_conditions.append(True)
         else:
             buy_conditions.append(False)
-            
-        if row_buy_pct >= buy_criteria.get("min_buy_percentage", 75.0):
+
+        min_buy_pct = buy_criteria.get("min_buy_percentage", 75.0)
+        if row_buy_pct >= min_buy_pct:
             buy_conditions.append(True)
         else:
             buy_conditions.append(False)
-            
-        if row_exret >= buy_criteria.get("min_exret", 0.15) * 100:
+
+        min_exret = buy_criteria.get("min_exret", 15.0)  # Now in percentage
+        if row_exret >= min_exret:
             buy_conditions.append(True)
         else:
+            buy_conditions.append(False)
+
+        # Check analyst requirements
+        min_analysts = buy_criteria.get("min_analysts", 4)
+        if analyst_count.loc[idx] < min_analysts:
             buy_conditions.append(False)
         
         # Optional criteria from YAML (only apply if defined in YAML)

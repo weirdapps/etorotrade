@@ -75,15 +75,30 @@ class YamlConfigLoader:
     def get_tier_criteria(self, tier: str) -> Dict[str, Any]:
         """
         Get criteria for a specific tier.
-        
+
         Args:
             tier: Tier name ('value', 'growth', 'bets')
-            
+
         Returns:
             Dictionary with buy/sell criteria for the tier
         """
         config = self.load_config()
         return config.get(tier, {})
+
+    def get_region_tier_criteria(self, region: str, tier: str) -> Dict[str, Any]:
+        """
+        Get criteria for a specific region and tier combination.
+
+        Args:
+            region: Region name ('us', 'eu', 'hk')
+            tier: Tier name ('mega', 'large', 'mid', 'small', 'micro')
+
+        Returns:
+            Dictionary with buy/sell criteria for the region-tier combination
+        """
+        config = self.load_config()
+        key = f"{region}_{tier}"
+        return config.get(key, {})
     
     def get_position_sizing_config(self) -> Dict[str, Any]:
         """Get position sizing configuration."""
