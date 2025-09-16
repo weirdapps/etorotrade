@@ -445,8 +445,7 @@ COLUMN_NAMES = {
     "SHORT_INTEREST": "SI",
     "EARNINGS": "EARNINGS",
     "EARNINGS_GROWTH": "EG",
-    "PRICE_PERFORMANCE": "PP", 
-    "MODEL_TIER": "M",
+    "PRICE_PERFORMANCE": "PP",
     "RANKING": "#",
 }
 
@@ -476,7 +475,6 @@ STANDARD_DISPLAY_COLUMNS = [
     "PP",
     "EARNINGS",
     "SIZE",
-    "M",
     "BS",
 ]
 
