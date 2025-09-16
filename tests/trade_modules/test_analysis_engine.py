@@ -71,7 +71,7 @@ class TestCalculateExret:
         
         # Verify calculations are correct
         expected_exret = [
-            25.5 * 85.0 / 100.0,  # AAPL: 21.675
+            30.0 * 85.0 / 100.0,  # AAPL: 25.5
             15.2 * 90.0 / 100.0,  # MSFT: 13.68
             8.7 * 65.0 / 100.0,   # GOOGL: 5.655
             45.1 * 80.0 / 100.0,  # TSLA: 36.08
@@ -138,10 +138,15 @@ class TestCalculateActionVectorized:
         df = sample_dataframe.copy()
         df.loc[2, 'upside'] = 3.0  # Low upside
         df.loc[2, 'buy_percentage'] = 60.0  # Low buy percentage
-        
+
+        # Must recalculate EXRET after modifying upside and buy_percentage
+        df = calculate_exret(df)
+
         result = calculate_action_vectorized(df)
-        
-        # GOOGL should be SELL due to low upside and buy percentage
+
+        # GOOGL with $2T market cap is LARGE tier
+        # LARGE tier: max_upside=2.5%, max_exret=2.0%
+        # With upside=3% and EXRET=1.8%, it meets SELL criteria
         assert result.iloc[2] == 'S'
     
     def test_vectorized_action_inconclusive_conditions(self, edge_case_dataframe):
