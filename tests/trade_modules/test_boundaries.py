@@ -205,9 +205,10 @@ class TestConfigBoundary:
         assert 'max_trailing_pe' in config['buy']  # This is the max_pe_ratio equivalent
         assert 'min_upside' in config['buy']
         
-        # Check sell criteria structure  
+        # Check sell criteria structure
         assert isinstance(config['sell'], dict)
-        assert 'max_forward_pe' in config['sell']
+        # New criteria uses min_forward_pe for sell thresholds
+        assert 'min_forward_pe' in config['sell'] or 'max_upside' in config['sell']
         
         # Check universal thresholds
         assert isinstance(config['min_market_cap'], (int, float))

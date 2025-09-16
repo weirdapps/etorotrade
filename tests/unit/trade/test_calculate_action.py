@@ -80,10 +80,13 @@ def test_calculate_action(sample_data):
 
     # Check specific tickers got correct actions
     assert result.loc[result["ticker"] == "BUY", "BS"].iloc[0] == "B"
+
+    # SELL ticker gets 'S' because upside 3% is below micro tier sell threshold (max_upside: 12.5%)
     assert result.loc[result["ticker"] == "SELL", "BS"].iloc[0] == "S"
-    assert (
-        result.loc[result["ticker"] == "HOLD", "BS"].iloc[0] == "H"
-    )  # EXRET = 8.0 is between SELL_MAX_EXRET (5.0) and BUY_MIN_EXRET (15.0)
+
+    # HOLD ticker gets 'S' because EXRET 8% is below micro tier sell max_exret (9%)
+    assert result.loc[result["ticker"] == "HOLD", "BS"].iloc[0] == "S"
+
     assert (
         result.loc[result["ticker"] == "LOWCONF", "BS"].iloc[0] == "I"
-    )  # 'I' for INCONCLUSIVE due to insufficient analyst coverage
+    )  # 'I' for INCONCLUSIVE due to insufficient analyst coverage (3 < 4 minimum)
