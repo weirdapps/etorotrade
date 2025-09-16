@@ -1,12 +1,4 @@
 
-# Import utilities from decomposed modules
-try:
-    from .console_utils.formatters import ConsoleFormatter
-    from .console_utils.colors import ConsoleColors
-    from .console_utils.tables import TableRenderer
-except ImportError:
-    # Fallback if modules not yet available
-    pass
 
 
 """
@@ -21,17 +13,14 @@ import csv
 import os
 import time
 from collections import deque
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from tabulate import tabulate
 from tqdm import tqdm
 
-from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
+from yahoofinance.core.errors import YFinanceError
 from ..utils.error_handling import (
-    enrich_error_context,
-    safe_operation,
     translate_error,
     with_retry,
 )
@@ -278,38 +267,23 @@ class MarketDisplay:
         if 'A' in df.columns:
             new_df['A'] = df['A']
         
-        # Copy any M column if present  
-        if 'M' in df.columns:
-            new_df['M'] = df['M']
-        
-        # Copy any BS/ACTION column if present to preserve existing values
-        for action_col in ['BS', 'ACTION', 'ACT', 'action']:
-            if action_col in df.columns:
-                new_df[action_col] = df[action_col]
-                break  # Only copy the first one found
-        
         df = new_df
-        
-        # Note: Position numbers (#) will be added after all sorting and formatting is complete
-            
-        # Handle BS/ACTION column - preserve existing values
+
+        # Handle BS/ACTION column - preserve existing values or calculate new ones
         bs_col = COLUMN_NAMES['ACTION']
-        
-        # Check if any action column already exists
-        existing_action_cols = [col for col in ["BS", "action", "ACTION", "ACT"] if col in df.columns]
-        
+
+        # Check if any action column already exists in the DataFrame
+        existing_action_cols = [col for col in ["BS", "ACTION", "ACT", "action"] if col in df.columns]
+
         if existing_action_cols:
             # Use the first existing action column found
             source_col = existing_action_cols[0]
             if source_col != bs_col:
-                # Copy the values to the standard column name
+                # Rename the column to the standard name
                 df[bs_col] = df[source_col].copy()
-                # Remove the original column if it's different
                 df = df.drop(columns=[source_col])
-            # If source_col == bs_col (e.g., both are "BS"), keep the existing values as-is
-            # No need to do anything, the column already has the right name and values
         else:
-            # Only calculate if no action column exists
+            # Calculate actions only if no action column exists
             df[bs_col] = self._calculate_actions(df)
 
         # Apply number formatting based on FORMATTERS configuration
@@ -725,13 +699,6 @@ class MarketDisplay:
             # Ensure SIZE column exists for column filtering
             df['SIZE'] = '--'
         
-        # Add market cap tier (M column)
-        try:
-            df['M'] = self._calculate_market_cap_tiers(df)
-        except Exception as e:
-            # If tier calculation fails, default to B (BETS)
-            logger.warning(f"Failed to add market cap tier column: {e}")
-            df['M'] = 'B'
 
         # Sort data AFTER all formatting and calculations are complete
         df = self._sort_market_data(df)
@@ -741,23 +708,17 @@ class MarketDisplay:
             df.insert(0, "#", range(1, len(df) + 1))
 
         # Get the standard column order from config
-        from ..core.config import STANDARD_DISPLAY_COLUMNS
+        from ..core.config import STANDARD_DISPLAY_COLUMNS, COLUMN_NAMES
+
+        # Get BS column name from config
+        bs_col = COLUMN_NAMES['ACTION']
 
         # Only include columns that exist in both the DataFrame and standard columns
         final_col_order = [col for col in STANDARD_DISPLAY_COLUMNS if col in df.columns]
-        
-        # Ensure M column is in final order if it exists
-        bs_col = COLUMN_NAMES['ACTION']
-        if 'M' in df.columns and 'M' not in final_col_order:
-            # Find where to insert M column (before BS)
-            if bs_col in final_col_order:
-                act_index = final_col_order.index(bs_col)
-                final_col_order.insert(act_index, 'M')
-            else:
-                final_col_order.append('M')
+
 
         # If we have fewer than 5 essential columns, fall back to basic set
-        essential_cols = ["#", "TICKER", "COMPANY", "PRICE", "M", bs_col]
+        essential_cols = ["#", "TICKER", "COMPANY", "PRICE", bs_col]
         if len(final_col_order) < 5:
             final_col_order = [col for col in essential_cols if col in df.columns]
 
@@ -770,7 +731,6 @@ class MarketDisplay:
             colored_row = row.copy()
 
             # Apply color based on ACTION or BS value
-            bs_col = COLUMN_NAMES['ACTION']
             action = row.get(bs_col, "") if bs_col in row else row.get("ACTION", "")
             if action == "B":  # BUY
                 colored_row = {k: f"\033[92m{v}\033[0m" for k, v in colored_row.items()}  # Green
@@ -842,32 +802,16 @@ class MarketDisplay:
                 df = self._format_dataframe(df)
                 df = self._add_position_size_column(df)
                 
-                # Add market cap tier (M column) 
-                try:
-                    df['M'] = self._calculate_market_cap_tiers(df)
-                except Exception as e:
-                    logger.warning(f"Failed to add market cap tier to CSV: {e}")
-                    df['M'] = 'B'  # Default to BETS tier
-                
                 # Sort data AFTER all formatting and calculations are complete (same as display method)
                 df = self._sort_market_data(df)
                 
                 # Apply column filtering to match display format
-                from ..core.config import STANDARD_DISPLAY_COLUMNS
-                final_col_order = [col for col in STANDARD_DISPLAY_COLUMNS if col in df.columns]
-                
-                # Ensure M column is in final order if it exists
+                from ..core.config import STANDARD_DISPLAY_COLUMNS, COLUMN_NAMES
                 bs_col = COLUMN_NAMES['ACTION']
-                if 'M' in df.columns and 'M' not in final_col_order:
-                    # Find where to insert M column (before BS)
-                    if bs_col in final_col_order:
-                        act_index = final_col_order.index(bs_col)
-                        final_col_order.insert(act_index, 'M')
-                    else:
-                        final_col_order.append('M')
-                
+                final_col_order = [col for col in STANDARD_DISPLAY_COLUMNS if col in df.columns]
+
                 # If we have fewer than 5 essential columns, fall back to basic set
-                essential_cols = ["#", "TICKER", "COMPANY", "PRICE", "M", bs_col]
+                essential_cols = ["#", "TICKER", "COMPANY", "PRICE", bs_col]
                 if len(final_col_order) < 5:
                     final_col_order = [col for col in essential_cols if col in df.columns]
                 

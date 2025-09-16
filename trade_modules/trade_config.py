@@ -65,9 +65,11 @@ class TradeConfig:
     # Market cap tier definitions
     # These will be overridden by YAML config if available
     TIER_THRESHOLDS = {
-        "value_tier_min": 100_000_000_000,  # $100B
-        "growth_tier_min": 5_000_000_000,   # $5B
-        # Below $5B = BETS tier
+        "mega_tier_min": 500_000_000_000,    # $500B+
+        "large_tier_min": 100_000_000_000,   # $100B-500B
+        "mid_tier_min": 10_000_000_000,      # $10B-100B
+        "small_tier_min": 2_000_000_000,     # $2B-10B
+        # Below $2B = MICRO tier
     }
     
     @classmethod
@@ -405,52 +407,116 @@ class TradeConfig:
     # ============================================
 
     @classmethod
-    def get_thresholds(cls, option: str, action: str, tier: str = None) -> Dict[str, Any]:
+    def get_thresholds(cls, option: str, action: str, ticker: str = None, market_cap: float = None) -> Dict[str, Any]:
         """
-        Get trading thresholds for a specific option and action, optionally tier-specific.
-        
+        Get trading thresholds based on geographic region and market cap tier.
+
         Args:
             option: Trading option (p, m, e, t, i)
             action: Trading action (buy, sell, hold, inconclusive)
-            tier: Market cap tier (V, G, B) for tier-specific thresholds
-            
+            ticker: Stock ticker to determine region
+            market_cap: Market capitalization to determine tier
+
         Returns:
             Dictionary of thresholds
         """
+        # Determine region from ticker
+        region = cls.get_region_from_ticker(ticker) if ticker else "us"
+
+        # Determine tier from market cap
+        tier = cls.get_tier_from_market_cap(market_cap) if market_cap else "mid"
+
+        # Get region-tier specific thresholds from YAML
+        yaml_config = get_yaml_config()
+        if yaml_config.is_config_available():
+            region_tier_criteria = yaml_config.get_region_tier_criteria(region, tier)
+            if region_tier_criteria:
+                return region_tier_criteria.get(action, {})
+
+        # Fallback to old system if YAML not configured
         option_map = {
             "p": "portfolio",
-            "m": "market", 
+            "m": "market",
             "e": "etoro",
             "t": "trade",
             "i": "input"
         }
-        
+
         option_key = option_map.get(option, option)
-        base_thresholds = cls.THRESHOLDS.get(option_key, {}).get(action, {})
-        
-        # If tier is specified, get tier-specific thresholds
-        if tier:
-            tier_thresholds = cls.get_tier_thresholds(tier, action)
-            # Merge tier-specific thresholds with base thresholds
-            combined = base_thresholds.copy()
-            combined.update(tier_thresholds)
-            return combined
-        
-        return base_thresholds
+        return cls.THRESHOLDS.get(option_key, {}).get(action, {})
     
     @classmethod
+    def get_region_from_ticker(cls, ticker: str) -> str:
+        """
+        Determine geographic region from ticker symbol.
+
+        Args:
+            ticker: Stock ticker symbol
+
+        Returns:
+            Region code: 'us', 'eu', or 'hk'
+        """
+        if not ticker:
+            return "us"
+
+        ticker = ticker.upper()
+
+        # Hong Kong / China stocks
+        if ticker.endswith(".HK"):
+            return "hk"
+
+        # European stocks
+        eu_suffixes = [".L", ".CO", ".DE", ".PA", ".AS", ".BR", ".MI", ".MC", ".LI",
+                       ".OL", ".ST", ".HE", ".WA", ".PR", ".AT", ".IR", ".IC"]
+        if any(ticker.endswith(suffix) for suffix in eu_suffixes):
+            return "eu"
+
+        # Japanese stocks (could be added to Asia category if needed)
+        if ticker.endswith(".T"):
+            return "us"  # Treating Japan as developed similar to US for now
+
+        # Default to US for stocks without suffix or with US suffixes
+        return "us"
+
+    @classmethod
+    def get_tier_from_market_cap(cls, market_cap: float) -> str:
+        """
+        Determine tier from market capitalization.
+
+        Args:
+            market_cap: Market capitalization in dollars
+
+        Returns:
+            Tier name: 'mega', 'large', 'mid', 'small', or 'micro'
+        """
+        if not market_cap or market_cap <= 0:
+            return "micro"
+
+        # Get thresholds from YAML or use defaults
+        thresholds = cls.get_tier_definitions()
+
+        if market_cap >= thresholds.get("mega_tier_min", 500_000_000_000):
+            return "mega"
+        elif market_cap >= thresholds.get("large_tier_min", 100_000_000_000):
+            return "large"
+        elif market_cap >= thresholds.get("mid_tier_min", 10_000_000_000):
+            return "mid"
+        elif market_cap >= thresholds.get("small_tier_min", 2_000_000_000):
+            return "small"
+        else:
+            return "micro"
+
+    @classmethod
     def get_tier_thresholds(cls, tier: str, action: str) -> Dict[str, Any]:
-        """Get tier-specific thresholds for VALUE/GROWTH/BETS tiers."""
-        # Try to load from YAML first
+        """Legacy method for backward compatibility."""
+        # Map old tier names to new system
+        tier_map = {"V": "large", "G": "mid", "B": "small"}
+        new_tier = tier_map.get(tier, "mid")
+
         yaml_config = get_yaml_config()
-        
-        tier_map = {"V": "value", "G": "growth", "B": "bets"}
-        tier_name = tier_map.get(tier, "bets")
-        
         if yaml_config.is_config_available():
-            # Load from YAML configuration
-            tier_criteria = yaml_config.get_tier_criteria(tier_name)
-            return tier_criteria.get(action, {})
+            # Default to US region for legacy calls
+            return yaml_config.get_region_tier_criteria("us", new_tier).get(action, {})
         
         # Fallback to hardcoded values if YAML not available
         if action == "buy":
