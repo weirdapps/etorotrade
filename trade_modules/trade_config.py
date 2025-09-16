@@ -520,7 +520,7 @@ class TradeConfig:
         
         # Fallback to hardcoded values if YAML not available
         if action == "buy":
-            if tier_name == "value":
+            if new_tier == "large":
                 return {
                     "min_upside": 15.0,              # Reasonable upside for large-caps
                     "min_buy_percentage": 70.0,      # Strong analyst consensus required
@@ -536,7 +536,7 @@ class TradeConfig:
                     "min_earnings_growth": -15.0,    # More tolerance for earnings variation
                     "min_price_performance": -15.0,  # More tolerance for price performance
                 }
-            elif tier_name == "growth":
+            elif new_tier == "mid":
                 return {
                     "min_upside": 20.0,              # Standard upside requirement
                     "min_buy_percentage": 75.0,      # Standard analyst consensus
@@ -552,7 +552,7 @@ class TradeConfig:
                     "min_earnings_growth": -10.0,    # Standard earnings tolerance
                     "min_price_performance": -10.0,  # Standard price performance tolerance
                 }
-            else:  # bets
+            else:  # small
                 return {
                     "min_upside": 25.0,              # Higher upside for small caps
                     "min_buy_percentage": 80.0,      # Strong consensus required
@@ -569,7 +569,7 @@ class TradeConfig:
                     "min_price_performance": -5.0,   # Less tolerance for poor performance
                 }
         elif action == "sell":
-            if tier_name == "value":
+            if new_tier == "large":
                 return {
                     "max_upside": 8.0,               # Modest upside trigger for large caps
                     "min_buy_percentage": 60.0,      # Lower consensus for sell
@@ -580,7 +580,7 @@ class TradeConfig:
                     "max_earnings_growth": -20.0,    # More tolerance for earnings decline
                     "max_price_performance": -40.0,  # More tolerance for price decline
                 }
-            elif tier_name == "growth":
+            elif new_tier == "mid":
                 return {
                     "max_upside": 5.0,               # Lower upside trigger for growth
                     "min_buy_percentage": 65.0,      # Standard sell consensus
@@ -591,7 +591,7 @@ class TradeConfig:
                     "max_earnings_growth": -15.0,    # Standard earnings tolerance
                     "max_price_performance": -35.0,  # Standard price performance
                 }
-            else:  # bets
+            else:  # small
                 return {
                     "max_upside": 3.0,               # Very low upside trigger for speculation
                     "min_buy_percentage": 70.0,      # Higher consensus needed for sell
