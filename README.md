@@ -108,11 +108,15 @@ When you see a recommendation, here's what it means:
 - **PP** - 3-month price performance
 - **EG** - Earnings growth year-over-year
 
-### 🎨 **Risk Tiers**
-The system automatically classifies stocks into three risk levels:
-- **VALUE** (V) - Blue chips >$100B market cap
-- **GROWTH** (G) - Mid-caps $5B-$100B  
-- **BETS** (B) - Small-caps <$5B
+### 🎨 **Market Cap Tiers**
+The system now uses a sophisticated 5-tier classification system based on market capitalization:
+- **MEGA** 🏆 - Mega-cap champions (≥$500B market cap)
+- **LARGE** 💎 - Large-cap established ($100B-$500B)
+- **MID** 🚀 - Mid-cap growth ($10B-$100B)
+- **SMALL** 🌱 - Small-cap opportunities ($2B-$10B)
+- **MICRO** ⚡ - Micro-cap speculative (<$2B)
+
+Each tier has tailored buy/sell criteria optimized for its risk-return profile.
 
 ## 🌟 Real-World Usage & Validation
 
@@ -132,9 +136,19 @@ The system has helped me:
 - **Real-Time Data**: Yahoo Finance + YahooQuery APIs
 - **Smart Caching**: Reduces API calls, speeds up analysis
 - **Error Resilient**: Automatic retries and fallbacks
-- **Production Ready**: 90%+ test coverage, CI/CD pipeline
+- **Production Ready**: Comprehensive test coverage, CI/CD pipeline
+- **5-Tier Analysis**: Sophisticated market cap based classification
+- **Geographic Awareness**: Region-specific criteria (US/EU/HK)
+- **YAML Configuration**: Flexible, externalized trading thresholds
 
 ## ⚙️ Configuration (Optional)
+
+### Trading Thresholds
+The system uses a sophisticated configuration in `config.yaml` that defines:
+- **5 Market Cap Tiers**: MEGA, LARGE, MID, SMALL, MICRO
+- **3 Geographic Regions**: US, EU, HK
+- **Tier-specific criteria**: Each tier has optimized buy/sell thresholds
+- **Portfolio value-based sizing**: Dynamic position sizing based on portfolio size
 
 ### Portfolio Input
 Export your eToro portfolio to `yahoofinance/input/portfolio.csv`:
@@ -142,6 +156,11 @@ Export your eToro portfolio to `yahoofinance/input/portfolio.csv`:
 symbol,totalInvestmentPct,totalNetProfitPct,instrumentDisplayName
 AAPL,5.2,12.5,Apple Inc
 MSFT,4.8,8.3,Microsoft Corp
+```
+
+You can also specify portfolio value for position sizing:
+```bash
+python trade.py -o p -pv 50000  # $50,000 portfolio
 ```
 
 ### Environment Variables (Optional)

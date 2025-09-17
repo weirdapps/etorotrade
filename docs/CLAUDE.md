@@ -54,23 +54,33 @@ market_in_portfolio = market_df[
 
 ## 🔐 Trading Logic
 
-### Three-Tier Risk System
+### Five-Tier Market Cap System
 ```python
 TIER_THRESHOLDS = {
-    'VALUE': {
-        'market_cap_min': 100_000_000_000,  # $100B+
-        'upside_threshold': 15,
+    'MEGA': {
+        'market_cap_min': 500_000_000_000,  # $500B+
+        'upside_threshold': 5,
+        'consensus_threshold': 65
+    },
+    'LARGE': {
+        'market_cap_min': 100_000_000_000,  # $100B-$500B
+        'upside_threshold': 10,
         'consensus_threshold': 70
     },
-    'GROWTH': {
-        'market_cap_min': 5_000_000_000,    # $5B-$100B
-        'upside_threshold': 20,
+    'MID': {
+        'market_cap_min': 10_000_000_000,   # $10B-$100B
+        'upside_threshold': 15,
         'consensus_threshold': 75
     },
-    'BETS': {
-        'market_cap_min': 0,                # <$5B
-        'upside_threshold': 25,
+    'SMALL': {
+        'market_cap_min': 2_000_000_000,    # $2B-$10B
+        'upside_threshold': 20,
         'consensus_threshold': 80
+    },
+    'MICRO': {
+        'market_cap_min': 0,                # <$2B
+        'upside_threshold': 25,
+        'consensus_threshold': 85
     }
 }
 ```
@@ -79,13 +89,19 @@ TIER_THRESHOLDS = {
 ```python
 def calculate_position_size(exret, tier, portfolio_value):
     base_position = portfolio_value * 0.005  # 0.5% base
-    
+
     # EXRET multiplier (0.5x to 5.0x)
     exret_mult = min(5.0, max(0.5, exret / 10))
-    
-    # Tier multiplier
-    tier_mult = {'VALUE': 2.5, 'GROWTH': 1.5, 'BETS': 0.5}[tier]
-    
+
+    # 5-Tier multiplier system
+    tier_mult = {
+        'MEGA': 3.0,    # Mega-cap premium
+        'LARGE': 2.5,   # Large-cap stability
+        'MID': 1.5,     # Mid-cap balanced
+        'SMALL': 0.75,  # Small-cap opportunity
+        'MICRO': 0.5    # Micro-cap risk control
+    }[tier]
+
     position = base_position * exret_mult * tier_mult
     return max(1000, min(40000, position))  # $1K-$40K bounds
 ```
@@ -217,12 +233,16 @@ CMD ["python", "trade.py"]
 
 ## 📈 Recent Improvements (Jan 2025)
 
-1. **Module Decomposition**: Split 3000+ line files into <200 line modules
-2. **Circular Import Fix**: Lazy loading and dependency injection
-3. **ETF Transparency**: Geographic and sector exposure analysis
-4. **Asset Classification**: Proper handling of crypto, commodities, derivatives
-5. **Performance**: 7x speed improvement through vectorization
-6. **Test Coverage**: Increased to 90%+ for critical paths
+1. **5-Tier Trading System**: Upgraded from 3-tier to 5-tier market cap classification (MEGA/LARGE/MID/SMALL/MICRO)
+2. **Geographic-Aware Criteria**: Region-specific thresholds for US/EU/HK markets
+3. **YAML Configuration**: Externalized all trading thresholds to `config.yaml` for flexibility
+4. **Portfolio-Based Sizing**: Dynamic position sizing with portfolio value parameter support
+5. **Module Decomposition**: Split 3000+ line files into <200 line modules
+6. **Circular Import Fix**: Lazy loading and dependency injection
+7. **ETF Transparency**: Geographic and sector exposure analysis
+8. **Asset Classification**: Proper handling of crypto, commodities, derivatives
+9. **Performance**: 7x speed improvement through vectorization
+10. **Test Coverage**: Comprehensive testing for all tier combinations
 
 ## 🔗 Key Files Reference
 
