@@ -42,13 +42,15 @@ The EXRET (Expected Return) multiplier provides the primary position sizing sign
 
 ### Step 3: Market Cap Tier Scaling (Secondary Driver)
 
-Market capitalization tier provides risk-adjusted scaling based on company stability:
+Market capitalization tier provides risk-adjusted scaling based on company stability using the new 5-tier system:
 
 | Tier | Market Cap Range | Multiplier | Rationale |
 |------|------------------|------------|-----------|
-| **VALUE** | ≥$100B | 2.5x | Large-cap stability premium |
-| **GROWTH** | $5B-$100B | 1.5x | Standard mid-cap allocation |
-| **BETS** | <$5B | 0.5x | Small-cap risk management |
+| **MEGA** | ≥$500B | 3.0x | Mega-cap champions premium |
+| **LARGE** | $100B-$500B | 2.5x | Large-cap stability premium |
+| **MID** | $10B-$100B | 1.5x | Mid-cap balanced allocation |
+| **SMALL** | $2B-$10B | 0.75x | Small-cap opportunity/risk balance |
+| **MICRO** | <$2B | 0.5x | Micro-cap risk management |
 
 **Academic Basis**:
 - Fama-French size factor research
@@ -74,8 +76,8 @@ Position Size = Base Position × EXRET Multiplier × Market Cap Tier × Geograph
 
 ## Implementation Examples
 
-### VALUE Tier: Large-Cap Technology (AAPL-like)
-- **Market Cap**: $3T (VALUE tier)
+### MEGA Tier: Mega-Cap Technology (AAPL-like)
+- **Market Cap**: $3T (MEGA tier)
 - **EXRET**: 15%
 - **Geographic**: US
 
@@ -83,14 +85,14 @@ Position Size = Base Position × EXRET Multiplier × Market Cap Tier × Geograph
 ```
 Base: $2,250 (0.5% of $450K)
 EXRET: 1.5x (15% opportunity)
-Market Cap: 2.5x (VALUE tier)
+Market Cap: 3.0x (MEGA tier)
 Geographic: 1.0x (US stock)
 
-Position = $2,250 × 1.5 × 2.5 × 1.0 = $8,438
+Position = $2,250 × 1.5 × 3.0 × 1.0 = $10,125
 ```
 
-### GROWTH Tier: Mid-Cap Growth
-- **Market Cap**: $25B (GROWTH tier)
+### MID Tier: Mid-Cap Growth
+- **Market Cap**: $25B (MID tier)
 - **EXRET**: 22%
 - **Geographic**: US
 
@@ -98,14 +100,14 @@ Position = $2,250 × 1.5 × 2.5 × 1.0 = $8,438
 ```
 Base: $2,250 (0.5% of $450K)
 EXRET: 2.0x (22% opportunity)
-Market Cap: 1.5x (GROWTH tier)
+Market Cap: 1.5x (MID tier)
 Geographic: 1.0x (US stock)
 
 Position = $2,250 × 2.0 × 1.5 × 1.0 = $6,750
 ```
 
-### BETS Tier: Small-Cap with Hong Kong Risk
-- **Market Cap**: $2B (BETS tier)
+### MICRO Tier: Micro-Cap with Hong Kong Risk
+- **Market Cap**: $1.5B (MICRO tier)
 - **EXRET**: 28%
 - **Geographic**: Hong Kong
 
@@ -113,7 +115,7 @@ Position = $2,250 × 2.0 × 1.5 × 1.0 = $6,750
 ```
 Base: $2,250 (0.5% of $450K)
 EXRET: 3.0x (28% opportunity)
-Market Cap: 0.5x (BETS tier)
+Market Cap: 0.5x (MICRO tier)
 Geographic: 0.75x (Hong Kong risk)
 
 Position = $2,250 × 3.0 × 0.5 × 0.75 = $2,531
@@ -148,9 +150,12 @@ Position = $2,250 × 3.0 × 0.5 × 0.75 = $2,531
 | Primary Driver | Market cap tiers | EXRET scaling | Opportunity-focused |
 | EXRET Range | 0.0167 coefficient | 0.5x-5.0x steps | Intuitive scaling |
 | Beta Adjustment | Linear formula | Removed | Simplified system |
-| VALUE Multiplier | 2.0x base | 2.5x tier | Enhanced large-cap |
-| GROWTH Multiplier | 1.0x base | 1.5x tier | Balanced approach |
-| BETS Multiplier | 0.2x base | 0.5x tier | Better small-cap |
+| Tier System | 3 tiers | 5 tiers | Granular classification |
+| MEGA Multiplier | N/A | 3.0x tier | New mega-cap category |
+| LARGE Multiplier | 2.0x base | 2.5x tier | Enhanced large-cap |
+| MID Multiplier | 1.0x base | 1.5x tier | Balanced approach |
+| SMALL Multiplier | N/A | 0.75x tier | New small-cap balance |
+| MICRO Multiplier | 0.2x base | 0.5x tier | Better micro-cap |
 
 ## Implementation Location
 
@@ -165,15 +170,20 @@ The position sizing logic is implemented in:
 Key constants controlling position sizing behavior:
 
 ```python
-# From trade_modules/constants.py
+# From trade_modules/trade_config.py
 PORTFOLIO_VALUE = 450_000            # Total portfolio value
 BASE_POSITION_PERCENTAGE = 0.5      # 0.5% base position
 MIN_POSITION_SIZE = 1_000           # $1K minimum
 MAX_POSITION_SIZE = 40_000          # $40K maximum
 
-# Market cap tier thresholds
-MARKET_CAP_LARGE_THRESHOLD = 100_000_000_000  # $100B for VALUE
-MARKET_CAP_SMALL_THRESHOLD = 5_000_000_000    # $5B for GROWTH/BETS
+# Market cap tier thresholds (5-tier system)
+TIER_THRESHOLDS = {
+    "mega_tier_min": 500_000_000_000,    # $500B+ = MEGA
+    "large_tier_min": 100_000_000_000,   # $100B-500B = LARGE
+    "mid_tier_min": 10_000_000_000,      # $10B-100B = MID
+    "small_tier_min": 2_000_000_000,     # $2B-10B = SMALL
+    # Below $2B = MICRO
+}
 ```
 
 ## Testing & Validation
