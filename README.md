@@ -1,257 +1,243 @@
-# eToro Trade Analysis Tool 🚀
+# eToro Trade Analysis Tool
 
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=weirdapps_etorotrade&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=weirdapps_etorotrade)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=weirdapps_etorotrade&metric=coverage)](https://sonarcloud.io/summary/new_code?id=weirdapps_etorotrade)
 [![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=weirdapps_etorotrade&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=weirdapps_etorotrade)
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=weirdapps_etorotrade&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=weirdapps_etorotrade)
 
-**Turn market chaos into clear, actionable BUY/SELL/HOLD signals in seconds using the same algorithms hedge funds pay millions for.**
+A quantitative analysis framework for systematic evaluation of equity securities using analyst consensus data and fundamental metrics.
 
 ![eToro Trade Analysis Tool](docs/assets/etorotrade.png)
 
-## 🎯 Why This Tool Exists
+## Overview
 
-**The Problem:** 95% of retail traders lose money because they:
-- Trade on emotions instead of data
-- Can't analyze 5000+ stocks manually
-- Miss critical signals buried in financial metrics
-- Don't know proper position sizing
+This tool implements a rules-based approach to security analysis by aggregating multiple data sources and applying consistent evaluation criteria across market capitalizations and geographic regions. It processes financial metrics through a multi-tier classification system to generate actionable trading signals.
 
-**The Solution:** This tool analyzes stocks like institutional investors do:
-- ✅ Aggregates recommendations from 20+ major banks
-- ✅ Calculates risk-adjusted position sizes automatically
-- ✅ Processes 5000+ stocks in under 15 minutes
-- ✅ Identifies opportunities humans miss
+## Technical Specifications
 
-## 📊 Real Performance Metrics
+### Data Processing Capabilities
+- **Throughput**: ~100 securities per second (vectorized operations)
+- **Batch Processing**: 5,544 securities in approximately 15 minutes
+- **API Optimization**: 48-hour cache layer reducing redundant API calls by ~80%
+- **Concurrency**: 15 parallel request threads with adaptive rate limiting
 
-### Speed & Scale
-- **Analyzes:** 100+ stocks/second
-- **Processes:** 5,544 eToro stocks in ~15 minutes
-- **API Efficiency:** Smart caching reduces calls by 80%
-- **Concurrent Processing:** 15 parallel API requests
+### Data Sources
+- **Primary**: Yahoo Finance API (yfinance)
+- **Supplementary**: YahooQuery API (PEG ratios, missing metrics)
+- **Coverage**: 20+ investment bank analyst recommendations
+- **Update Frequency**: Real-time market data with cached analyst consensus
 
-### Accuracy & Intelligence
-- **Data Sources:** Yahoo Finance + YahooQuery hybrid
-- **Analyst Coverage:** Aggregates from 20+ investment banks
-- **Success Rate:** 70%+ win rate on BUY signals*
-- **Risk Management:** 5-tier position sizing system
+## Methodology
 
-*Based on backtesting 2023-2024 recommendations
+### Classification System
 
-## 🚀 Quick Start (2 Minutes)
+The framework employs a five-tier market capitalization classification with region-specific adjustments:
+
+```
+Tier Classification:
+- MEGA:  Market Cap ≥ $500B
+- LARGE: Market Cap $100B - $500B
+- MID:   Market Cap $10B - $100B
+- SMALL: Market Cap $2B - $10B
+- MICRO: Market Cap < $2B
+
+Regional Adjustments:
+- US: Baseline criteria
+- EU: Modified thresholds for European markets
+- HK: Adjusted parameters for Asian markets
+```
+
+### Signal Generation
+
+Trading signals are generated through a systematic evaluation process:
+
+1. **Data Collection**: Aggregate analyst recommendations, price targets, and fundamental metrics
+2. **Confidence Validation**: Require minimum 4 analysts and 4 price targets
+3. **Criteria Application**: Apply tier and region-specific thresholds
+4. **Signal Classification**: Categorize as BUY, SELL, HOLD, or INCONCLUSIVE
+
+### Position Sizing Algorithm
+
+Position sizes are calculated using a risk-adjusted framework:
+- Base position scaled by market capitalization tier
+- Adjustments for expected return (EXRET)
+- Beta-weighted volatility adjustments
+- Maximum position constraints
+
+## Installation
 
 ```bash
-# 1. Clone and setup
+# Clone repository
 git clone https://github.com/weirdapps/etorotrade
 cd etorotrade
+
+# Create virtual environment
 python -m venv myenv
 source myenv/bin/activate  # Windows: myenv\Scripts\activate
-pip install -r requirements.txt
 
-# 2. Run your first analysis
+# Install dependencies
+pip install -r requirements.txt
+```
+
+## Usage
+
+### Basic Analysis
+
+```bash
+# Interactive mode
 python trade.py
 
-# 3. Find opportunities (optional)
-python trade.py -o t -t b  # Find BUY opportunities now
+# Analyze portfolio
+python trade.py -o p
+
+# Market screening
+python trade.py -o m
+
+# Trade signal generation
+python trade.py -o t -t b  # Buy signals
+python trade.py -o t -t s  # Sell signals
 ```
 
-## 💡 What Makes This Different
+### Advanced Analysis
 
-### 1. **Institutional-Grade Analysis**
-While retail traders look at price charts, this tool analyzes:
-- Forward P/E vs Trailing P/E trends (earnings momentum)
-- PEG ratios with YahooQuery supplementation
-- Short interest spikes (smart money movements)
-- Analyst conviction levels (not just price targets)
-
-### 2. **5-Tier Risk Management System**
-```
-MEGA  (≥$500B) → Conservative 5x base position
-LARGE ($100-500B) → Stable 4x base position
-MID   ($10-100B) → Balanced 3x base position
-SMALL ($2-10B) → Growth 2x base position
-MICRO (<$2B) → Speculative 1x base position
-```
-
-### 3. **Geographic Intelligence**
-Automatically adjusts criteria for:
-- 🇺🇸 **US Markets** - Standard thresholds
-- 🇪🇺 **European Markets** - Higher risk premiums required
-- 🇭🇰 **Asian Markets** - Strictest criteria
-
-### 4. **ETF X-Ray Vision**
-See through ETF holdings to understand:
-- True geographic exposure (e.g., S&P 500 = 100% US)
-- Actual sector allocation
-- Hidden concentration risks
-
-## 📈 How Professionals Use This
-
-### Morning Routine (5 minutes)
 ```bash
-# 1. Check portfolio for SELL signals
-python trade.py -o t -t s
+# Portfolio analysis with position sizing
+python trade.py -o p -pv 50000  # $50,000 portfolio value
 
-# 2. Find new BUY opportunities
-python trade.py -o t -t b
-
-# 3. Review geographic exposure
+# Geographic exposure analysis
 python scripts/analyze_geography.py
-```
 
-### Weekly Deep Dive (15 minutes)
-```bash
-# Full portfolio analysis with position sizing
-python trade.py -o p -pv 50000  # $50K portfolio
-
-# Sector rotation check
+# Sector allocation analysis
 python scripts/analyze_industry.py
 
-# eToro market scan (5500+ stocks)
-python trade.py -o e
+# Specific ticker analysis
+python trade.py -o i -t AAPL,MSFT,GOOGL
 ```
 
-## 🎨 Understanding the Signals
+## Output Format
 
-### Signal Interpretation
-| Signal | What It Really Means | Your Action |
-|--------|---------------------|-------------|
-| **BUY** 🟢 | • Analysts upgrading targets<br>• Strong consensus (>75% buy)<br>• Risk/reward favorable | Open position at suggested size |
-| **SELL** 🔴 | • Deteriorating fundamentals<br>• Analysts downgrading<br>• Better opportunities exist | Take profits, reallocate |
-| **HOLD** 🟡 | • Fairly valued<br>• Wait for better entry<br>• Momentum unclear | Keep if owned, don't add |
-| **INCONCLUSIVE** ⚪ | • Insufficient data<br>• Low analyst coverage<br>• High uncertainty | Research manually |
+### Signal Definitions
 
-### Key Metrics Decoded
-```
-UPSIDE: 25%        → Price target vs current price
-%BUY: 85%          → Analyst buy recommendations
-EXRET: 21.3%       → Expected return (probability-weighted)
-SIZE: $7,500       → Suggested position size
-PP: +15.2%         → 12-month price performance
-EG: +8.5%          → Earnings growth rate
-PEF/PET: 25/30     → Forward PE better than trailing (good!)
-```
+| Signal | Criteria | Interpretation |
+|--------|----------|----------------|
+| **BUY** | Meets all tier-specific buy thresholds | Positive analyst consensus with favorable risk/reward |
+| **SELL** | Triggers any sell condition | Deteriorating fundamentals or overvaluation |
+| **HOLD** | Between buy and sell thresholds | Fairly valued at current levels |
+| **INCONCLUSIVE** | Insufficient analyst coverage | Requires additional research |
 
-## 🏆 Success Stories
+### Key Metrics
 
-### Real Portfolio Performance
-> "Using this system on my eToro portfolio helped me identify NVDA at $420 (BUY signal) and exit PYPL at $92 (SELL signal) before the 30% drop."
->
-> **[@plessas on eToro](https://www.etoro.com/people/plessas)** - Tool Creator
+- **UPSIDE**: Percentage difference between current price and analyst target
+- **%BUY**: Percentage of analysts with buy recommendations
+- **EXRET**: Expected return (upside × buy percentage / 100)
+- **SIZE**: Calculated position size based on risk parameters
+- **PP**: Twelve-month price performance
+- **EG**: Year-over-year earnings growth
+- **PEF/PET**: Forward P/E to Trailing P/E ratio comparison
 
-### Key Wins
-- ✅ **NVDA:** BUY signal at $420 → $850 (102% gain)
-- ✅ **PYPL:** SELL signal at $92 → $55 (avoided 40% loss)
-- ✅ **MSFT:** Position sized at $15K → Largest winner
-- ✅ **Portfolio:** +32% YTD vs S&P 500 +24%
+### Output Files
 
-## ⚙️ Advanced Configuration
+The system generates both CSV and HTML reports in `yahoofinance/output/`:
+- `portfolio.csv/html` - Current holdings analysis
+- `market.csv/html` - Market screening results
+- `buy.csv/html` - Securities meeting buy criteria
+- `sell.csv/html` - Securities meeting sell criteria
 
-### Custom Position Sizing
-```bash
-# Small account ($10K)
-python trade.py -o p -pv 10000
+## Configuration
 
-# Large account ($500K)
-python trade.py -o p -pv 500000
-```
+### Portfolio Input Format
 
-### Portfolio File Format
-`yahoofinance/input/portfolio.csv`:
+Create `yahoofinance/input/portfolio.csv`:
 ```csv
 symbol,totalInvestmentPct,totalNetProfitPct,instrumentDisplayName
 AAPL,5.2,12.5,Apple Inc
-MSFT,4.8,8.3,Microsoft Corp
+MSFT,4.8,8.3,Microsoft Corporation
 ```
 
-### Fine-Tune Thresholds
-Edit `config.yaml` to adjust:
-- Buy/sell criteria per tier
+### Threshold Customization
+
+Trading thresholds can be modified in `config.yaml`:
+- Tier-specific buy/sell criteria
 - Regional adjustments
-- Position size multipliers
-- Risk parameters
+- Position size parameters
+- Risk management constraints
 
-## 📊 Output Examples
-
-### Console Output
-```
-╭─────┬────────┬───────────┬───────┬────────┬────────┬───────┬─────┬──────╮
-│  #  │ TICKER │  COMPANY  │ PRICE │ TARGET │ UPSIDE │ %BUY  │ ACT │ SIZE │
-├─────┼────────┼───────────┼───────┼────────┼────────┼───────┼─────┼──────┤
-│  1  │  NVDA  │ NVIDIA    │ 850.5 │ 1050.0 │  23.4% │  92%  │  B  │ 12.5K│
-│  2  │  AAPL  │ APPLE INC │ 195.2 │  210.0 │   7.6% │  71%  │  H  │  --  │
-│  3  │  TSLA  │ TESLA INC │ 162.3 │  150.0 │  -7.6% │  45%  │  S  │  --  │
-╰─────┴────────┴───────────┴───────┴────────┴────────┴───────┴─────┴──────╯
-```
-
-### HTML Reports
-Beautiful, sortable HTML tables generated in `yahoofinance/output/`:
-- `portfolio.html` - Your holdings analysis
-- `buy.html` - Purchase recommendations
-- `sell.html` - Exit recommendations
-- `market.html` - Full market scan
-
-## 🛡️ Risk Management
-
-### Built-in Safeguards
-- **Position Limits:** Max $50K per position
-- **Tier-Based Sizing:** Smaller positions for riskier stocks
-- **Confidence Filters:** Requires 4+ analysts consensus
-- **Volatility Adjustments:** Beta-weighted position sizes
-
-### What This Tool DOESN'T Do
-- ❌ No day trading signals
-- ❌ No penny stock pumps
-- ❌ No options strategies
-- ❌ No crypto predictions
-- ❌ No guaranteed returns
-
-## 🔬 Technical Excellence
-
-### Architecture
-- **Async Processing:** 15x faster than sequential
-- **Smart Caching:** 48-hour TTL reduces API load
-- **Error Recovery:** Automatic retries with exponential backoff
-- **Clean Code:** 95% test coverage, type hints throughout
+## Architecture
 
 ### Performance Optimizations
-- Vectorized pandas operations (7x faster)
-- Set-based filtering (900x faster for large datasets)
-- Batch API requests with connection pooling
-- Memory-efficient streaming for large files
+- Vectorized pandas operations for efficient data processing
+- Set-based filtering algorithms (O(n) vs O(n²))
+- Asynchronous API requests with connection pooling
+- Memory-efficient streaming for large datasets
 
-## 📚 Documentation
+### Error Handling
+- Automatic retry with exponential backoff
+- Graceful degradation for missing data
+- Comprehensive logging for debugging
+- Circuit breaker pattern for API failures
 
-- **[Developer Guide](docs/CLAUDE.md)** - Technical architecture & API details
-- **[Position Sizing](docs/POSITION_SIZING.md)** - Risk management algorithms
-- **[CI/CD Pipeline](docs/CI_CD.md)** - Testing & deployment
+### Code Quality
+- Type hints throughout codebase
+- Comprehensive test coverage
+- Continuous integration pipeline
+- SonarCloud quality gates
 
-## 🤝 Contributing
+## ETF Analysis
 
-We welcome contributions! See [Contributing Guidelines](CONTRIBUTING.md).
+The tool provides transparency into ETF holdings:
+- Geographic exposure decomposition
+- Sector allocation analysis
+- Underlying asset classification
+- Concentration risk assessment
 
-### Quick Contribution
+## Risk Considerations
+
+### Limitations
+- Analysis based on publicly available data
+- No intraday trading signals
+- No derivative strategies
+- Historical performance not indicative of future results
+
+### Important Disclaimers
+- This tool provides analysis only, not investment advice
+- All investment decisions should incorporate multiple sources
+- Past signals do not guarantee future performance
+- Users assume all investment risk
+
+## Development
+
+### Testing
 ```bash
-# Run tests before submitting
+# Run test suite
 pytest tests/
-flake8 trade_modules/
+
+# Code quality checks
+flake8 trade_modules/ --max-line-length=120
+
+# Type checking
+mypy trade_modules/
 ```
 
-## 📄 License
+### Contributing
+Contributions are welcome. Please ensure:
+- All tests pass
+- Code follows PEP 8 style guidelines
+- Documentation is updated accordingly
 
-MIT License - Use freely in your own projects.
+## Documentation
 
-## ⚠️ Disclaimer
+- [Technical Architecture](docs/CLAUDE.md) - System design and implementation details
+- [Position Sizing](docs/POSITION_SIZING.md) - Risk management algorithms
+- [CI/CD Pipeline](docs/CI_CD.md) - Testing and deployment procedures
 
-This tool provides analysis based on public data. Always:
-- Do your own research
-- Understand the risks
-- Never invest more than you can afford to lose
-- Consider this tool as ONE input in your decision process
+## License
+
+MIT License - See LICENSE file for details
+
+## Support
+
+For issues or questions, please use the [GitHub issue tracker](https://github.com/weirdapps/etorotrade/issues).
 
 ---
 
-**Built by traders, for traders.** Not another "trading guru" scam - just solid engineering applied to financial analysis.
-
-*Questions? Issues? [Open a GitHub issue](https://github.com/weirdapps/etorotrade/issues)*
+*This tool is designed for quantitative analysis and research purposes. It does not constitute investment advice. Users should conduct their own due diligence and consider consulting with qualified financial advisors before making investment decisions.*
