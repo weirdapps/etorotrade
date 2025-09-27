@@ -7,20 +7,11 @@ especially for metrics like PEG ratio.
 """
 
 import asyncio
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional
 
 import pandas as pd  # Add pandas import
 
-from yahoofinance.core.errors import APIError, DataError, NetworkError, ValidationError, YFinanceError
-from ...utils.error_handling import (
-    enrich_error_context,
-    safe_operation,
-    translate_error,
-    with_retry,
-)
-
-from ...core.errors import YFinanceError
+from yahoofinance.core.errors import APIError, NetworkError, ValidationError, YFinanceError
 from ...core.logging import get_logger
 from ...utils.async_utils.enhanced import gather_with_concurrency  # Use the same concurrency helper
 from .async_yahooquery_provider import AsyncYahooQueryProvider
@@ -261,7 +252,6 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
 
         return merged_data
 
-    @with_retry
     async def batch_get_ticker_info(
         self, tickers: List[str], skip_insider_metrics: bool = False
     ) -> Dict[str, Dict[str, Any]]:

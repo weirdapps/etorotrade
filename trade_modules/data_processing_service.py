@@ -31,12 +31,12 @@ class DataProcessingService:
         from yahoofinance.utils.async_utils.enhanced import process_batch_async
         from yahoofinance.core.config import get_max_concurrent_requests
         from trade_modules.config_manager import get_config
-        
+
         # Use config values if not provided
         if batch_size is None:
             config = get_config()
             batch_size = config.get('performance.batch_size', 25)
-        
+
         # Use enhanced async processing with smooth progress updates
         results_dict = await process_batch_async(
             items=tickers,
@@ -46,7 +46,7 @@ class DataProcessingService:
             show_progress=True,
             description="Processing tickers"
         )
-        
+
         # Convert results dict to list format, filtering out None values
         results = [result for result in results_dict.values() if result is not None]
 
