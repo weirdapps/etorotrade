@@ -15,17 +15,17 @@ def sample_data():
         [
             {
                 "ticker": "BUY",
-                "upside": 25.0,
-                "buy_percentage": 90.0,  # Increased to ensure it meets criteria
+                "upside": 40.0,  # Increased to meet MICRO tier min_upside (35)
+                "buy_percentage": 95.0,  # Increased to meet MICRO tier min_buy_percentage (92)
                 "pe_trailing": 20.0,
                 "pe_forward": 15.0,
                 "peg_ratio": 1.2,
                 "beta": 1.5,
-                "short_percent": 1.0,  # Changed to be below BUY_MAX_SHORT_INTEREST (1.5)
-                "analyst_count": 10,
+                "short_percent": 1.0,  # Below max_short_interest for MICRO tier
+                "analyst_count": 10,  # Above min_analysts for MICRO tier (6)
                 "total_ratings": 8,
-                "EXRET": 22.5,  # Added to ensure it's above BUY_MIN_EXRET (15.0)
-                "market_cap": 1_000_000_000,  # $1B - above $500M requirement
+                "EXRET": 38.0,  # 40 * 95 / 100 = 38, above MICRO tier min_exret (30)
+                "market_cap": 1_000_000_000,  # $1B - MICRO tier
             },
             {
                 "ticker": "SELL",
