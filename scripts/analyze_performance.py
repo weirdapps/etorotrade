@@ -382,6 +382,10 @@ class EtoroPortfolioAnalyzer:
                     row = [period]
                     portfolio_ret = portfolio_performance[period]
 
+                    # Add portfolio return as reference
+                    color = '\033[92m' if portfolio_ret > 0 else '\033[91m' if portfolio_ret < 0 else '\033[0m'
+                    row.append(f"{color}{portfolio_ret:+.2f}%\033[0m")
+
                     for symbol in self.BENCHMARK_INDICES:
                         if symbol in benchmark_returns and period in benchmark_returns[symbol]:
                             bench_ret = benchmark_returns[symbol][period]
@@ -399,7 +403,7 @@ class EtoroPortfolioAnalyzer:
 
             if outperformance_data:
                 # Create headers for outperformance
-                out_headers = ["Period"] + [f"vs {symbol}" for symbol in self.BENCHMARK_INDICES if symbol in self.benchmark_data]
+                out_headers = ["Period", "Portfolio"] + [f"vs {symbol}" for symbol in self.BENCHMARK_INDICES if symbol in self.benchmark_data]
 
                 # Print outperformance table
                 print("\n")
