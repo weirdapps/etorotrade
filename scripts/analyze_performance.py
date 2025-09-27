@@ -337,7 +337,7 @@ class EtoroPortfolioAnalyzer:
                     self.benchmark_data[symbol]['Close']
                 )
 
-            # Prepare data for performance comparison table
+            # Prepare data for combined performance and outperformance table
             periods = ['1D', '1W', '1M', '3M', '6M', 'YTD', '1Y', '2Y']
             table_data = []
 
@@ -346,68 +346,49 @@ class EtoroPortfolioAnalyzer:
 
                 # Portfolio return
                 if period in portfolio_performance:
-                    ret = portfolio_performance[period]
-                    color = '\033[92m' if ret > 0 else '\033[91m' if ret < 0 else '\033[0m'
-                    row.append(f"{color}{ret:+.2f}%\033[0m")
+                    portfolio_ret = portfolio_performance[period]
+                    color = '\033[92m' if portfolio_ret > 0 else '\033[91m' if portfolio_ret < 0 else '\033[0m'
+                    row.append(f"{color}{portfolio_ret:+.2f}%\033[0m")
                 else:
+                    portfolio_ret = None
                     row.append("--")
 
-                # Benchmark returns
+                # Benchmark returns and outperformance
                 for symbol in self.BENCHMARK_INDICES:
                     if symbol in benchmark_returns and period in benchmark_returns[symbol]:
-                        ret = benchmark_returns[symbol][period]
-                        if ret != 0:
-                            color = '\033[92m' if ret > 0 else '\033[91m'
-                            row.append(f"{color}{ret:+.2f}%\033[0m")
+                        bench_ret = benchmark_returns[symbol][period]
+
+                        # Benchmark return
+                        if bench_ret != 0:
+                            color = '\033[92m' if bench_ret > 0 else '\033[91m'
+                            row.append(f"{color}{bench_ret:+.2f}%\033[0m")
                         else:
                             row.append("0.00%")
+
+                        # Outperformance vs this benchmark
+                        if portfolio_ret is not None:
+                            outperformance = portfolio_ret - bench_ret
+                            color = '\033[92m' if outperformance > 0 else '\033[91m'
+                            sign = '+' if outperformance > 0 else ''
+                            row.append(f"{color}{sign}{outperformance:.2f}%\033[0m")
+                        else:
+                            row.append("--")
                     else:
+                        row.append("--")
                         row.append("--")
 
                 table_data.append(row)
 
-            # Create headers
-            headers = ["Period", "Portfolio"] + [symbol for symbol in self.BENCHMARK_INDICES if symbol in self.benchmark_data]
+            # Create headers with alternating index and vs columns
+            headers = ["Period", "Portfolio"]
+            for symbol in self.BENCHMARK_INDICES:
+                if symbol in self.benchmark_data:
+                    headers.append(symbol)
+                    headers.append(f"vs {symbol}")
 
-            # Print performance comparison table
+            # Print combined table
             print("\n")
             print(tabulate(table_data, headers=headers, tablefmt="fancy_grid", floatfmt=".2f"))
-
-            # Calculate and display outperformance
-            outperformance_data = []
-            key_periods = ['1M', '3M', '6M', 'YTD', '1Y', '2Y']
-
-            for period in key_periods:
-                if period in portfolio_performance:
-                    row = [period]
-                    portfolio_ret = portfolio_performance[period]
-
-                    # Add portfolio return as reference
-                    color = '\033[92m' if portfolio_ret > 0 else '\033[91m' if portfolio_ret < 0 else '\033[0m'
-                    row.append(f"{color}{portfolio_ret:+.2f}%\033[0m")
-
-                    for symbol in self.BENCHMARK_INDICES:
-                        if symbol in benchmark_returns and period in benchmark_returns[symbol]:
-                            bench_ret = benchmark_returns[symbol][period]
-                            if bench_ret != 0 or portfolio_ret != 0:
-                                outperformance = portfolio_ret - bench_ret
-                                color = '\033[92m' if outperformance > 0 else '\033[91m'
-                                sign = '+' if outperformance > 0 else ''
-                                row.append(f"{color}{sign}{outperformance:.2f}%\033[0m")
-                            else:
-                                row.append("--")
-                        else:
-                            row.append("--")
-
-                    outperformance_data.append(row)
-
-            if outperformance_data:
-                # Create headers for outperformance
-                out_headers = ["Period", "Portfolio"] + [f"vs {symbol}" for symbol in self.BENCHMARK_INDICES if symbol in self.benchmark_data]
-
-                # Print outperformance table
-                print("\n")
-                print(tabulate(outperformance_data, headers=out_headers, tablefmt="fancy_grid"))
 
 
 def main():
