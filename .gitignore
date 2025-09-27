@@ -163,3 +163,6 @@ output/
 yahoofinance/data/circuit_state.json
 yahoofinance/data/portfolio_cache.pkl
 yahoofinance/data/portfolio_prices.json
+
+# Config parameter exports
+config_parameters*.csv

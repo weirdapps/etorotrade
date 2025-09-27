@@ -1,549 +1,454 @@
-# ================================================================
-# ETORO TRADING ANALYSIS - UNIFIED CONFIGURATION
-# ================================================================
-# This file contains ALL trading parameters for the etorotrade system.
-# Criteria are applied based on GEOGRAPHIC REGION and MARKET CAP TIER.
-#
-# ACTIONS:
-# - B (Buy): Strong buying opportunity based on criteria
-# - S (Sell): Sell recommendation or exit signal
-# - H (Hold): Neutral position, meets some but not all criteria
-# - I (Inconclusive): Insufficient data or mixed signals
-#
-# GEOGRAPHIC REGIONS:
-# - US: United States markets (growth premium)
-# - EU: European markets including UK (value focus)
-# - HK: Hong Kong/China markets (risk premium)
-#
-# MARKET CAP TIERS:
-# - MEGA: ≥$500B (Mega-cap champions)
-# - LARGE: $100B-$500B (Large-cap established)
-# - MID: $10B-$100B (Mid-cap growth)
-# - SMALL: $2B-$10B (Small-cap opportunity)
-# - MICRO: <$2B (Micro-cap speculative)
-# ================================================================
-
-# Data Sources
 data:
-  portfolio_csv: "yahoofinance/input/portfolio.csv"
+  portfolio_csv: yahoofinance/input/portfolio.csv
   cache_enabled: true
-  cache_ttl_hours: 24  # Cache stable data for 24 hours
-
-# ================================================================
-# MARKET CAP TIER DEFINITIONS
-# ================================================================
+  cache_ttl_hours: 24
 tier_thresholds:
-  mega_tier_min: 500000000000       # $500B+ = MEGA tier
-  large_tier_min: 100000000000      # $100B-500B = LARGE tier
-  mid_tier_min: 10000000000         # $10B-100B = MID tier
-  small_tier_min: 2000000000        # $2B-10B = SMALL tier
-  # Below $2B = MICRO tier
-
-# ================================================================
-# UNIVERSAL THRESHOLDS (Applied to all regions and tiers)
-# ================================================================
+  mega_tier_min: 500000000000
+  large_tier_min: 100000000000
+  mid_tier_min: 10000000000
+  small_tier_min: 2000000000
 universal_thresholds:
-  min_analyst_count: 4               # Absolute minimum analyst coverage
-  min_price_targets: 4               # Absolute minimum price targets
-  min_market_cap: 100000000          # $100M absolute minimum
-
-# ================================================================
-# US MARKET CRITERIA (Growth Premium)
-# ================================================================
-
-# US MEGA TIER (≥$500B)
+  min_analyst_count: 4
+  min_price_targets: 4
+  min_market_cap: 1000000000
 us_mega:
   buy:
-    min_upside: 5.0
-    min_buy_percentage: 65.0
-    min_beta: 0.15
-    max_beta: 2.5
+    min_upside: 5
+    min_buy_percentage: 65
+    min_beta: 0.2
+    max_beta: 3
     min_forward_pe: 0.5
-    max_forward_pe: 55.0
+    max_forward_pe: 60
     min_trailing_pe: 0.5
-    max_trailing_pe: 85.0
+    max_trailing_pe: 90
     max_peg: 2.5
-    max_short_interest: 2.0
-    min_exret: 4.0
-    min_earnings_growth: -15.0
-    min_price_performance: -15.0
-    min_analysts: 15
+    max_short_interest: 2
+    min_exret: 4
+    min_earnings_growth: -25
+    min_price_performance: -25
+    min_analysts: 14
     min_price_targets: 10
   sell:
     max_upside: 2.5
-    min_buy_percentage: 50.0
-    min_beta: 3.0
-    min_forward_pe: 110.0
-    min_trailing_pe: 170.0
-    min_peg: 3.0
-    min_short_interest: 4.0
-    max_exret: 2.0
-    max_earnings_growth: -35.0
-    max_price_performance: -35.0
-
-# US LARGE TIER ($100B-$500B)
+    min_buy_percentage: 50
+    min_beta: 3.5
+    min_forward_pe: 80
+    min_trailing_pe: 170
+    min_peg: 3.5
+    min_short_interest: 4
+    max_exret: 2
+    max_earnings_growth: -45
+    max_price_performance: -45
 us_large:
   buy:
-    min_upside: 10.0
-    min_buy_percentage: 70.0
-    min_beta: 0.15
+    min_upside: 10
+    min_buy_percentage: 70
+    min_beta: 0.2
     max_beta: 2.5
     min_forward_pe: 0.5
-    max_forward_pe: 60.0
+    max_forward_pe: 55
     min_trailing_pe: 0.5
-    max_trailing_pe: 90.0
-    max_peg: 2.5
-    max_short_interest: 2.5
-    min_exret: 7.0
-    min_earnings_growth: -15.0
-    min_price_performance: -15.0
+    max_trailing_pe: 85
+    max_peg: 2.25
+    max_short_interest: 2.25
+    min_exret: 7
+    min_earnings_growth: -22.5
+    min_price_performance: -22.5
     min_analysts: 12
     min_price_targets: 8
   sell:
-    max_upside: 5.0
-    min_buy_percentage: 55.0
-    min_beta: 3.0
-    min_forward_pe: 120.0
-    min_trailing_pe: 180.0
+    max_upside: 5
+    min_buy_percentage: 55
+    min_beta: 3
+    min_forward_pe: 75
+    min_trailing_pe: 180
     min_peg: 3.0
-    min_short_interest: 5.0
-    max_exret: 3.0
-    max_earnings_growth: -35.0
-    max_price_performance: -35.0
-
-# US MID TIER ($10B-$100B)
+    min_short_interest: 4.25
+    max_exret: 3
+    max_earnings_growth: -42.5
+    max_price_performance: -42.5
 us_mid:
   buy:
-    min_upside: 15.0
-    min_buy_percentage: 75.0
-    min_beta: 0.15
+    min_upside: 15
+    min_buy_percentage: 75
+    min_beta: 0.2
     max_beta: 2.5
     min_forward_pe: 0.5
-    max_forward_pe: 65.0
+    max_forward_pe: 50
     min_trailing_pe: 0.5
-    max_trailing_pe: 95.0
-    max_peg: 2.5
-    max_short_interest: 3.0
-    min_exret: 12.0
-    min_earnings_growth: -15.0
-    min_price_performance: -15.0
-    min_analysts: 8
-    min_price_targets: 6
-  sell:
-    max_upside: 7.5
-    min_buy_percentage: 60.0
-    min_beta: 3.0
-    min_forward_pe: 130.0
-    min_trailing_pe: 190.0
-    min_peg: 3.0
-    min_short_interest: 6.0
-    max_exret: 5.0
-    max_earnings_growth: -35.0
-    max_price_performance: -35.0
-
-# US SMALL TIER ($2B-$10B)
-us_small:
-  buy:
-    min_upside: 20.0
-    min_buy_percentage: 80.0
-    min_beta: 0.15
-    max_beta: 2.5
-    min_forward_pe: 0.5
-    max_forward_pe: 70.0
-    min_trailing_pe: 0.5
-    max_trailing_pe: 100.0
-    max_peg: 2.5
-    max_short_interest: 3.5
-    min_exret: 16.0
-    min_earnings_growth: -15.0
-    min_price_performance: -15.0
-    min_analysts: 5
-    min_price_targets: 4
-  sell:
-    max_upside: 10.0
-    min_buy_percentage: 65.0
-    min_beta: 3.0
-    min_forward_pe: 140.0
-    min_trailing_pe: 200.0
-    min_peg: 3.0
-    min_short_interest: 7.0
-    max_exret: 7.0
-    max_earnings_growth: -35.0
-    max_price_performance: -35.0
-
-# US MICRO TIER (<$2B)
-us_micro:
-  buy:
-    min_upside: 25.0
-    min_buy_percentage: 85.0
-    min_beta: 0.15
-    max_beta: 2.5
-    min_forward_pe: 0.5
-    max_forward_pe: 75.0
-    min_trailing_pe: 0.5
-    max_trailing_pe: 105.0
-    max_peg: 2.5
-    max_short_interest: 4.0
-    min_exret: 22.0
-    min_earnings_growth: -15.0
-    min_price_performance: -15.0
-    min_analysts: 4
-    min_price_targets: 4
-  sell:
-    max_upside: 12.5
-    min_buy_percentage: 70.0
-    min_beta: 3.0
-    min_forward_pe: 150.0
-    min_trailing_pe: 210.0
-    min_peg: 3.0
-    min_short_interest: 8.0
-    max_exret: 9.0
-    max_earnings_growth: -35.0
-    max_price_performance: -35.0
-
-# ================================================================
-# EU MARKET CRITERIA (Value Focus)
-# ================================================================
-
-# EU MEGA TIER (≥$500B)
-eu_mega:
-  buy:
-    min_upside: 10.0
-    min_buy_percentage: 65.0
-    min_beta: 0.15
-    max_beta: 2.0
-    min_forward_pe: 0.5
-    max_forward_pe: 45.0
-    min_trailing_pe: 0.5
-    max_trailing_pe: 75.0
-    max_peg: 2.0
-    max_short_interest: 2.0
-    min_exret: 7.0
-    min_earnings_growth: -15.0
-    min_price_performance: -15.0
-    min_analysts: 15
-    min_price_targets: 10
-  sell:
-    max_upside: 5.0
-    min_buy_percentage: 50.0
-    min_beta: 2.5
-    min_forward_pe: 90.0
-    min_trailing_pe: 150.0
-    min_peg: 2.5
-    min_short_interest: 4.0
-    max_exret: 3.0
-    max_earnings_growth: -35.0
-    max_price_performance: -35.0
-
-# EU LARGE TIER ($100B-$500B)
-eu_large:
-  buy:
-    min_upside: 15.0
-    min_buy_percentage: 70.0
-    min_beta: 0.15
-    max_beta: 2.0
-    min_forward_pe: 0.5
-    max_forward_pe: 50.0
-    min_trailing_pe: 0.5
-    max_trailing_pe: 80.0
+    max_trailing_pe: 80
     max_peg: 2.0
     max_short_interest: 2.5
-    min_exret: 11.0
-    min_earnings_growth: -15.0
-    min_price_performance: -15.0
-    min_analysts: 12
-    min_price_targets: 8
-  sell:
-    max_upside: 7.5
-    min_buy_percentage: 55.0
-    min_beta: 2.5
-    min_forward_pe: 100.0
-    min_trailing_pe: 160.0
-    min_peg: 2.5
-    min_short_interest: 5.0
-    max_exret: 5.0
-    max_earnings_growth: -35.0
-    max_price_performance: -35.0
-
-# EU MID TIER ($10B-$100B)
-eu_mid:
-  buy:
-    min_upside: 20.0
-    min_buy_percentage: 75.0
-    min_beta: 0.15
-    max_beta: 2.0
-    min_forward_pe: 0.5
-    max_forward_pe: 55.0
-    min_trailing_pe: 0.5
-    max_trailing_pe: 85.0
-    max_peg: 2.0
-    max_short_interest: 3.0
-    min_exret: 15.0
-    min_earnings_growth: -15.0
-    min_price_performance: -15.0
-    min_analysts: 8
-    min_price_targets: 6
-  sell:
-    max_upside: 10.0
-    min_buy_percentage: 60.0
-    min_beta: 2.5
-    min_forward_pe: 110.0
-    min_trailing_pe: 170.0
-    min_peg: 2.5
-    min_short_interest: 6.0
-    max_exret: 6.0
-    max_earnings_growth: -35.0
-    max_price_performance: -35.0
-
-# EU SMALL TIER ($2B-$10B)
-eu_small:
-  buy:
-    min_upside: 25.0
-    min_buy_percentage: 80.0
-    min_beta: 0.15
-    max_beta: 2.0
-    min_forward_pe: 0.5
-    max_forward_pe: 60.0
-    min_trailing_pe: 0.5
-    max_trailing_pe: 90.0
-    max_peg: 2.0
-    max_short_interest: 3.5
-    min_exret: 20.0
-    min_earnings_growth: -15.0
-    min_price_performance: -15.0
-    min_analysts: 5
-    min_price_targets: 4
-  sell:
-    max_upside: 12.5
-    min_buy_percentage: 65.0
-    min_beta: 2.5
-    min_forward_pe: 120.0
-    min_trailing_pe: 180.0
-    min_peg: 2.5
-    min_short_interest: 7.0
-    max_exret: 9.0
-    max_earnings_growth: -35.0
-    max_price_performance: -35.0
-
-# EU MICRO TIER (<$2B)
-eu_micro:
-  buy:
-    min_upside: 30.0
-    min_buy_percentage: 85.0
-    min_beta: 0.15
-    max_beta: 2.0
-    min_forward_pe: 0.5
-    max_forward_pe: 65.0
-    min_trailing_pe: 0.5
-    max_trailing_pe: 95.0
-    max_peg: 2.0
-    max_short_interest: 4.0
-    min_exret: 26.0
-    min_earnings_growth: -15.0
-    min_price_performance: -15.0
-    min_analysts: 4
-    min_price_targets: 4
-  sell:
-    max_upside: 15.0
-    min_buy_percentage: 70.0
-    min_beta: 2.5
-    min_forward_pe: 130.0
-    min_trailing_pe: 190.0
-    min_peg: 2.5
-    min_short_interest: 8.0
-    max_exret: 11.0
-    max_earnings_growth: -35.0
-    max_price_performance: -35.0
-
-# ================================================================
-# HK/CHINA MARKET CRITERIA (Risk Premium)
-# ================================================================
-
-# HK MEGA TIER (≥$500B)
-hk_mega:
-  buy:
-    min_upside: 15.0
-    min_buy_percentage: 70.0
-    min_beta: 0.15
-    max_beta: 2.0
-    min_forward_pe: 0.5
-    max_forward_pe: 40.0
-    min_trailing_pe: 0.5
-    max_trailing_pe: 70.0
-    max_peg: 2.0
-    max_short_interest: 2.0
-    min_exret: 11.0
-    min_earnings_growth: -15.0
-    min_price_performance: -15.0
-    min_analysts: 12
-    min_price_targets: 8
-  sell:
-    max_upside: 7.5
-    min_buy_percentage: 55.0
-    min_beta: 2.5
-    min_forward_pe: 80.0
-    min_trailing_pe: 140.0
-    min_peg: 2.5
-    min_short_interest: 4.0
-    max_exret: 5.0
-    max_earnings_growth: -35.0
-    max_price_performance: -35.0
-
-# HK LARGE TIER ($100B-$500B)
-hk_large:
-  buy:
-    min_upside: 20.0
-    min_buy_percentage: 75.0
-    min_beta: 0.15
-    max_beta: 2.0
-    min_forward_pe: 0.5
-    max_forward_pe: 45.0
-    min_trailing_pe: 0.5
-    max_trailing_pe: 75.0
-    max_peg: 2.0
-    max_short_interest: 2.5
-    min_exret: 15.0
-    min_earnings_growth: -15.0
-    min_price_performance: -15.0
+    min_exret: 12
+    min_earnings_growth: -20
+    min_price_performance: -20
     min_analysts: 10
     min_price_targets: 6
   sell:
-    max_upside: 10.0
-    min_buy_percentage: 60.0
-    min_beta: 2.5
-    min_forward_pe: 90.0
-    min_trailing_pe: 150.0
-    min_peg: 2.5
-    min_short_interest: 5.0
-    max_exret: 6.0
-    max_earnings_growth: -35.0
-    max_price_performance: -35.0
-
-# HK MID TIER ($10B-$100B)
-hk_mid:
+    max_upside: 7.5
+    min_buy_percentage: 60
+    min_beta: 3
+    min_forward_pe: 70
+    min_trailing_pe: 190
+    min_peg: 2.75
+    min_short_interest: 4.5
+    max_exret: 5
+    max_earnings_growth: -40
+    max_price_performance: -40
+us_small:
   buy:
-    min_upside: 25.0
-    min_buy_percentage: 80.0
-    min_beta: 0.15
-    max_beta: 2.0
+    min_upside: 25
+    min_buy_percentage: 85
+    min_beta: 0.2
+    max_beta: 2.5
     min_forward_pe: 0.5
-    max_forward_pe: 50.0
+    max_forward_pe: 45
     min_trailing_pe: 0.5
-    max_trailing_pe: 80.0
-    max_peg: 2.0
-    max_short_interest: 3.0
-    min_exret: 20.0
-    min_earnings_growth: -15.0
-    min_price_performance: -15.0
+    max_trailing_pe: 75
+    max_peg: 1.75
+    max_short_interest: 2.75
+    min_exret: 22
+    min_earnings_growth: -17.5
+    min_price_performance: -17.5
+    min_analysts: 8
+    min_price_targets: 5
+  sell:
+    max_upside: 10
+    min_buy_percentage: 65
+    min_beta: 3
+    min_forward_pe: 65
+    min_trailing_pe: 200
+    min_peg: 2.5
+    min_short_interest: 4.75
+    max_exret: 7
+    max_earnings_growth: -37.5
+    max_price_performance: -37.5
+us_micro:
+  buy:
+    min_upside: 35
+    min_buy_percentage: 92
+    min_beta: 0.2
+    max_beta: 2.5
+    min_forward_pe: 0.5
+    max_forward_pe: 40
+    min_trailing_pe: 0.5
+    max_trailing_pe: 70
+    max_peg: 1.5
+    max_short_interest: 3
+    min_exret: 30
+    min_earnings_growth: -15
+    min_price_performance: -15
     min_analysts: 6
+    min_price_targets: 4
+  sell:
+    max_upside: 12.5
+    min_buy_percentage: 70
+    min_beta: 3
+    min_forward_pe: 60
+    min_trailing_pe: 210
+    min_peg: 2.25
+    min_short_interest: 5
+    max_exret: 9
+    max_earnings_growth: -35
+    max_price_performance: -35
+eu_mega:
+  buy:
+    min_upside: 10
+    min_buy_percentage: 65
+    min_beta: 0.2
+    max_beta: 2.5
+    min_forward_pe: 0.5
+    max_forward_pe: 60
+    min_trailing_pe: 0.5
+    max_trailing_pe: 90
+    max_peg: 2.5
+    max_short_interest: 2
+    min_exret: 7
+    min_earnings_growth: -25
+    min_price_performance: -25
+    min_analysts: 14
+    min_price_targets: 10
+  sell:
+    max_upside: 5
+    min_buy_percentage: 50
+    min_beta: 2.5
+    min_forward_pe: 80
+    min_trailing_pe: 150
+    min_peg: 3.5
+    min_short_interest: 4
+    max_exret: 3
+    max_earnings_growth: -45
+    max_price_performance: -45
+eu_large:
+  buy:
+    min_upside: 15
+    min_buy_percentage: 70
+    min_beta: 0.2
+    max_beta: 2.5
+    min_forward_pe: 0.5
+    max_forward_pe: 55
+    min_trailing_pe: 0.5
+    max_trailing_pe: 85
+    max_peg: 2.25
+    max_short_interest: 2.25
+    min_exret: 11
+    min_earnings_growth: -22.5
+    min_price_performance: -22.5
+    min_analysts: 12
+    min_price_targets: 8
+  sell:
+    max_upside: 7.5
+    min_buy_percentage: 55
+    min_beta: 3
+    min_forward_pe: 75
+    min_trailing_pe: 160
+    min_peg: 3.0
+    min_short_interest: 4.25
+    max_exret: 5
+    max_earnings_growth: -42.5
+    max_price_performance: -42.5
+eu_mid:
+  buy:
+    min_upside: 20
+    min_buy_percentage: 75
+    min_beta: 0.2
+    max_beta: 2
+    min_forward_pe: 0.5
+    max_forward_pe: 50
+    min_trailing_pe: 0.5
+    max_trailing_pe: 80
+    max_peg: 2.0
+    max_short_interest: 2.5
+    min_exret: 15
+    min_earnings_growth: -20
+    min_price_performance: -20
+    min_analysts: 10
+    min_price_targets: 6
+  sell:
+    max_upside: 10
+    min_buy_percentage: 60
+    min_beta: 2.5
+    min_forward_pe: 70
+    min_trailing_pe: 170
+    min_peg: 2.75
+    min_short_interest: 4.5
+    max_exret: 6
+    max_earnings_growth: -40
+    max_price_performance: -40
+eu_small:
+  buy:
+    min_upside: 30
+    min_buy_percentage: 87
+    min_beta: 0.2
+    max_beta: 2
+    min_forward_pe: 0.5
+    max_forward_pe: 45
+    min_trailing_pe: 0.5
+    max_trailing_pe: 75
+    max_peg: 1.75
+    max_short_interest: 2.75
+    min_exret: 26
+    min_earnings_growth: -17.5
+    min_price_performance: -17.5
+    min_analysts: 8
     min_price_targets: 5
   sell:
     max_upside: 12.5
-    min_buy_percentage: 65.0
+    min_buy_percentage: 65
     min_beta: 2.5
-    min_forward_pe: 100.0
-    min_trailing_pe: 160.0
+    min_forward_pe: 65
+    min_trailing_pe: 180
     min_peg: 2.5
-    min_short_interest: 6.0
-    max_exret: 9.0
-    max_earnings_growth: -35.0
-    max_price_performance: -35.0
-
-# HK SMALL TIER ($2B-$10B)
-hk_small:
+    min_short_interest: 4.75
+    max_exret: 9
+    max_earnings_growth: -37.5
+    max_price_performance: -37.5
+eu_micro:
   buy:
-    min_upside: 30.0
-    min_buy_percentage: 85.0
-    min_beta: 0.15
-    max_beta: 2.0
+    min_upside: 40
+    min_buy_percentage: 94
+    min_beta: 0.2
+    max_beta: 2
     min_forward_pe: 0.5
-    max_forward_pe: 55.0
+    max_forward_pe: 40
     min_trailing_pe: 0.5
-    max_trailing_pe: 85.0
-    max_peg: 2.0
-    max_short_interest: 3.5
-    min_exret: 26.0
-    min_earnings_growth: -15.0
-    min_price_performance: -15.0
-    min_analysts: 4
+    max_trailing_pe: 70
+    max_peg: 1.5
+    max_short_interest: 3
+    min_exret: 34
+    min_earnings_growth: -15
+    min_price_performance: -15
+    min_analysts: 6
     min_price_targets: 4
   sell:
-    max_upside: 15.0
-    min_buy_percentage: 70.0
+    max_upside: 15
+    min_buy_percentage: 70
     min_beta: 2.5
-    min_forward_pe: 110.0
-    min_trailing_pe: 170.0
+    min_forward_pe: 60
+    min_trailing_pe: 190
+    min_peg: 2.25
+    min_short_interest: 5
+    max_exret: 11
+    max_earnings_growth: -35
+    max_price_performance: -35
+hk_mega:
+  buy:
+    min_upside: 15
+    min_buy_percentage: 70
+    min_beta: 0.2
+    max_beta: 2.5
+    min_forward_pe: 0.5
+    max_forward_pe: 60
+    min_trailing_pe: 0.5
+    max_trailing_pe: 90
+    max_peg: 2.5
+    max_short_interest: 2
+    min_exret: 11
+    min_earnings_growth: -25
+    min_price_performance: -25
+    min_analysts: 14
+    min_price_targets: 10
+  sell:
+    max_upside: 7.5
+    min_buy_percentage: 55
+    min_beta: 3
+    min_forward_pe: 80
+    min_trailing_pe: 140
+    min_peg: 3.5
+    min_short_interest: 4
+    max_exret: 5
+    max_earnings_growth: -45
+    max_price_performance: -45
+hk_large:
+  buy:
+    min_upside: 20
+    min_buy_percentage: 75
+    min_beta: 0.2
+    max_beta: 2
+    min_forward_pe: 0.5
+    max_forward_pe: 55
+    min_trailing_pe: 0.5
+    max_trailing_pe: 85
+    max_peg: 2.25
+    max_short_interest: 2.25
+    min_exret: 15
+    min_earnings_growth: -22.5
+    min_price_performance: -22.5
+    min_analysts: 12
+    min_price_targets: 8
+  sell:
+    max_upside: 10
+    min_buy_percentage: 60
+    min_beta: 2.5
+    min_forward_pe: 75
+    min_trailing_pe: 150
+    min_peg: 3.0
+    min_short_interest: 4.25
+    max_exret: 6
+    max_earnings_growth: -42.5
+    max_price_performance: -42.5
+hk_mid:
+  buy:
+    min_upside: 25
+    min_buy_percentage: 80
+    min_beta: 0.2
+    max_beta: 2
+    min_forward_pe: 0.5
+    max_forward_pe: 50
+    min_trailing_pe: 0.5
+    max_trailing_pe: 80
+    max_peg: 2.0
+    max_short_interest: 2.5
+    min_exret: 20
+    min_earnings_growth: -20
+    min_price_performance: -20
+    min_analysts: 10
+    min_price_targets: 6
+  sell:
+    max_upside: 12.5
+    min_buy_percentage: 65
+    min_beta: 2.5
+    min_forward_pe: 70
+    min_trailing_pe: 160
+    min_peg: 2.75
+    min_short_interest: 4.5
+    max_exret: 9
+    max_earnings_growth: -40
+    max_price_performance: -40
+hk_small:
+  buy:
+    min_upside: 35
+    min_buy_percentage: 90
+    min_beta: 0.2
+    max_beta: 2
+    min_forward_pe: 0.5
+    max_forward_pe: 45
+    min_trailing_pe: 0.5
+    max_trailing_pe: 75
+    max_peg: 1.75
+    max_short_interest: 2.75
+    min_exret: 30
+    min_earnings_growth: -17.5
+    min_price_performance: -17.5
+    min_analysts: 8
+    min_price_targets: 5
+  sell:
+    max_upside: 15
+    min_buy_percentage: 70
+    min_beta: 2.5
+    min_forward_pe: 65
+    min_trailing_pe: 170
     min_peg: 2.5
-    min_short_interest: 7.0
-    max_exret: 11.0
-    max_earnings_growth: -35.0
-    max_price_performance: -35.0
-
-# HK MICRO TIER (<$2B)
+    min_short_interest: 4.75
+    max_exret: 11
+    max_earnings_growth: -37.5
+    max_price_performance: -37.5
 hk_micro:
   buy:
-    min_upside: 35.0
-    min_buy_percentage: 90.0
-    min_beta: 0.15
-    max_beta: 2.0
+    min_upside: 45
+    min_buy_percentage: 97
+    min_beta: 0.2
+    max_beta: 2
     min_forward_pe: 0.5
-    max_forward_pe: 60.0
+    max_forward_pe: 40
     min_trailing_pe: 0.5
-    max_trailing_pe: 90.0
-    max_peg: 2.0
-    max_short_interest: 4.0
-    min_exret: 32.0
-    min_earnings_growth: -15.0
-    min_price_performance: -15.0
-    min_analysts: 4
+    max_trailing_pe: 70
+    max_peg: 1.5
+    max_short_interest: 3
+    min_exret: 38
+    min_earnings_growth: -15
+    min_price_performance: -15
+    min_analysts: 6
     min_price_targets: 4
   sell:
     max_upside: 17.5
-    min_buy_percentage: 75.0
+    min_buy_percentage: 75
     min_beta: 2.5
-    min_forward_pe: 120.0
-    min_trailing_pe: 180.0
-    min_peg: 2.5
-    min_short_interest: 8.0
-    max_exret: 14.0
-    max_earnings_growth: -35.0
-    max_price_performance: -35.0
-
-# ================================================================
-# POSITION SIZING MULTIPLIERS BY TIER
-# ================================================================
+    min_forward_pe: 60
+    min_trailing_pe: 180
+    min_peg: 2.25
+    min_short_interest: 5
+    max_exret: 14
+    max_earnings_growth: -35
+    max_price_performance: -35
 position_sizing:
-  base_position_size: 2500          # Base position size in dollars
-
-  # Tier-specific position multipliers
+  base_position_size: 2500
   tier_multipliers:
-    mega: 5                         # Mega-cap multiplier
-    large: 4                        # Large-cap multiplier
-    mid: 3                          # Mid-cap multiplier
-    small: 2                        # Small-cap multiplier
-    micro: 1                        # Micro-cap multiplier
-
-# ================================================================
-# OUTPUT PREFERENCES
-# ================================================================
+    mega: 5
+    large: 4
+    mid: 3
+    small: 2
+    micro: 1
 output:
   save_to_csv: true
   save_to_html: true
   display_colors: true
   max_display_rows: 99999999
-
-# ================================================================
-# PERFORMANCE SETTINGS
-# ================================================================
 performance:
   max_concurrent_requests: 15
   request_timeout_seconds: 30
   retry_attempts: 3
-
-# ================================================================
-# LOGGING CONFIGURATION
-# ================================================================
 logging:
-  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
-  file: "logs/trading_analysis.log"
+  level: INFO
+  file: logs/trading_analysis.log
   console: true

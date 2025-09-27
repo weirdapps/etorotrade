@@ -1,259 +1,403 @@
-# Technical Reference - etorotrade
+# eToro Trade Analysis - Developer & AI Assistant Guide
 
-## 🏗️ Architecture Overview
+## 🏗️ System Architecture
 
-### Clean Modular Design
+### Core Components
+
 ```
 etorotrade/
-├── trade_modules/          # Business Logic Layer
-│   ├── analysis_engine.py  # Trading algorithms
-│   ├── trade_engine.py     # Orchestration
-│   ├── cache_service.py    # Caching layer
-│   └── boundaries/         # Clean interfaces
+├── trade.py                     # Main CLI entry point (41 lines)
+├── trade_modules/               # Business Logic Layer
+│   ├── analysis_engine.py       # Trading algorithms (1053 lines)
+│   ├── trade_engine.py          # Orchestration & flow control
+│   ├── trade_config.py          # 5-tier configuration system
+│   ├── yaml_config_loader.py    # YAML config management
+│   ├── data_processing_service.py # Ticker batch processing
+│   └── boundaries/              # Clean architecture interfaces
 │
-├── yahoofinance/          # Data Layer
-│   ├── api/providers/     # Yahoo Finance/Query APIs
-│   ├── analysis/          # Financial calculations
-│   ├── presentation/      # Output formatting
-│   └── utils/             # Shared utilities
+├── yahoofinance/               # Data & Analysis Layer
+│   ├── api/providers/          # Data provider implementations
+│   │   ├── async_hybrid_provider.py # Primary data provider
+│   │   ├── async_yahoo_finance.py   # yfinance async wrapper
+│   │   └── async_yahooquery_provider.py # YahooQuery wrapper
+│   ├── analysis/               # Financial calculations
+│   ├── presentation/           # Output formatting (console/HTML)
+│   │   └── console.py          # Main display logic (1463 lines)
+│   └── utils/                  # Shared utilities
 │
-└── scripts/               # Analysis Tools
-    ├── analyze_geography.py  # Geographic exposure (ETF-aware)
-    └── analyze_industry.py   # Sector analysis (ETF-aware)
+├── scripts/                    # Analysis Tools
+│   ├── analyze_geography.py    # Geographic exposure (ETF-aware)
+│   └── analyze_industry.py     # Sector analysis (ETF-aware)
+│
+└── config.yaml                 # Trading thresholds configuration
 ```
 
-### Key Design Patterns
-- **Provider Pattern**: Swappable data sources (Yahoo Finance/Query)
-- **Repository Pattern**: Abstract data persistence layer
-- **Dependency Injection**: No circular dependencies
-- **Service Layer**: Business logic separated from data access
+### Data Flow
 
-## ⚡ Performance Characteristics
+```
+User Input (trade.py)
+    ↓
+TradingEngine.run()
+    ↓
+Load Tickers (CSV/Manual)
+    ↓
+DataProcessingService.process_ticker_batch()
+    ↓
+AsyncHybridProvider.batch_get_ticker_info()
+    ├→ YFinance API (primary)
+    └→ YahooQuery API (supplement for PEG, etc.)
+    ↓
+Cache Layer (48hr TTL)
+    ↓
+analysis_engine.calculate_action_vectorized()
+    ↓
+Position Size Calculation
+    ↓
+ConsoleDisplay + HTML Reports
+```
 
-### Speed Metrics
-- **Processing**: >1M rows/second (vectorized operations)
-- **API Throughput**: 390 tickers/min (optimized rate limiting)
-- **Portfolio Filter**: O(n+m) complexity (was O(n*m))
-- **Cache Hit Rate**: ~80% for repeated operations
+## 🔑 Key Concepts
 
-### Optimization Techniques
+### 5-Tier Market Cap System
+
+The system classifies stocks into 5 tiers with region-specific criteria:
+
 ```python
-# Vectorized operations example
-df['ACT'] = np.where(
-    df['condition'].values,
-    'BUY',
-    'SELL'
-)  # 7x faster than apply()
+# Market Cap Tiers (config.yaml)
+MEGA:  ≥$500B  (e.g., AAPL, MSFT)
+LARGE: $100-500B (e.g., NFLX, DIS)
+MID:   $10-100B  (e.g., ROKU, SNAP)
+SMALL: $2-10B   (e.g., small caps)
+MICRO: <$2B     (e.g., penny stocks)
 
-# Efficient filtering
-portfolio_set = set(portfolio_df['ticker'])
-market_in_portfolio = market_df[
-    market_df['ticker'].isin(portfolio_set)
-]  # 909x faster for large datasets
+# Regions
+US: United States (default)
+EU: Europe (.L, .PA, .AS suffixes)
+HK: Hong Kong/Asia (.HK suffix)
 ```
 
-## 🔐 Trading Logic
+Each tier×region combination has specific thresholds in `config.yaml`:
+- `min_upside`, `min_buy_percentage`, `min_exret`
+- `min/max_beta`, `min/max_forward_pe`, `max_peg`
+- `min_analysts`, `min_price_targets`
 
-### Five-Tier Market Cap System
+### Trading Logic (analysis_engine.py)
+
 ```python
-TIER_THRESHOLDS = {
-    'MEGA': {
-        'market_cap_min': 500_000_000_000,  # $500B+
-        'upside_threshold': 5,
-        'consensus_threshold': 65
-    },
-    'LARGE': {
-        'market_cap_min': 100_000_000_000,  # $100B-$500B
-        'upside_threshold': 10,
-        'consensus_threshold': 70
-    },
-    'MID': {
-        'market_cap_min': 10_000_000_000,   # $10B-$100B
-        'upside_threshold': 15,
-        'consensus_threshold': 75
-    },
-    'SMALL': {
-        'market_cap_min': 2_000_000_000,    # $2B-$10B
-        'upside_threshold': 20,
-        'consensus_threshold': 80
-    },
-    'MICRO': {
-        'market_cap_min': 0,                # <$2B
-        'upside_threshold': 25,
-        'consensus_threshold': 85
-    }
-}
+def calculate_action_vectorized(df: pd.DataFrame) -> pd.Series:
+    """
+    Determines BUY/SELL/HOLD/INCONCLUSIVE for each stock.
+
+    INCONCLUSIVE: < 4 analysts or < 4 price targets
+    SELL: Any sell condition met (low upside, high PE, etc.)
+    BUY: All buy conditions met
+    HOLD: Default (between buy and sell)
+    """
 ```
+
+Key decision factors:
+1. **Confidence Check**: Min 4 analysts + 4 price targets
+2. **SELL Triggers** (ANY condition):
+   - Upside below tier threshold
+   - Buy% below tier threshold
+   - EXRET below tier threshold
+   - PEF > PET × 1.2 (deteriorating earnings)
+   - Optional: High PEG, high beta, high short interest
+3. **BUY Requirements** (ALL conditions):
+   - Upside above tier threshold
+   - Buy% above tier threshold
+   - EXRET above tier threshold
+   - PEF < PET × 1.1 (improving earnings)
+   - Beta within range
+   - Optional: Forward PE, PEG within limits
 
 ### Position Sizing Algorithm
+
 ```python
-def calculate_position_size(exret, tier, portfolio_value):
-    base_position = portfolio_value * 0.005  # 0.5% base
+def calculate_position_size(market_cap, exret, ticker, earnings_growth, perf, beta):
+    """Dynamic position sizing based on multiple factors"""
 
-    # EXRET multiplier (0.5x to 5.0x)
-    exret_mult = min(5.0, max(0.5, exret / 10))
+    base_position = 2500  # Base $2,500
 
-    # 5-Tier multiplier system
+    # Tier multipliers
     tier_mult = {
-        'MEGA': 3.0,    # Mega-cap premium
-        'LARGE': 2.5,   # Large-cap stability
-        'MID': 1.5,     # Mid-cap balanced
-        'SMALL': 0.75,  # Small-cap opportunity
-        'MICRO': 0.5    # Micro-cap risk control
-    }[tier]
+        'MEGA': 5,   # $12,500 base
+        'LARGE': 4,  # $10,000 base
+        'MID': 3,    # $7,500 base
+        'SMALL': 2,  # $5,000 base
+        'MICRO': 1   # $2,500 base
+    }
 
-    position = base_position * exret_mult * tier_mult
-    return max(1000, min(40000, position))  # $1K-$40K bounds
+    # EXRET multiplier (0.5x to 2.0x)
+    # Additional adjustments for earnings, performance, beta
+
+    return min(50000, max(1000, final_position))
 ```
 
-## 🛠️ Development Workflow
+## 🚀 Performance Optimizations
 
-### Quick Commands
-```bash
-# Run analysis
-python trade.py -o t -t b              # Find BUY opportunities
-python scripts/analyze_geography.py    # Geographic analysis
-python scripts/analyze_industry.py     # Sector analysis
-
-# Testing
-pytest tests/unit/                     # Unit tests
-pytest tests/integration/              # Integration tests
-pytest --cov=trade_modules             # Coverage report
-
-# Code quality
-./tools/lint.sh                        # Run all linters
-flake8 trade_modules/                  # Style check
-mypy trade_modules/                    # Type checking
-```
-
-### Adding New Features
-1. **Data Provider**: Implement `FinanceDataProvider` interface
-2. **Analysis Module**: Add to `yahoofinance/analysis/`
-3. **Trade Logic**: Extend `trade_modules/analysis_engine.py`
-4. **Output Format**: Modify `yahoofinance/presentation/`
-
-## 🔄 API Integration
-
-### Provider Interface
+### Vectorized Operations
 ```python
-class FinanceDataProvider(ABC):
-    @abstractmethod
-    async def get_ticker_info(self, ticker: str) -> Dict:
-        """Get comprehensive ticker data"""
-        pass
-    
-    @abstractmethod
-    async def get_analyst_info(self, ticker: str) -> AnalystData:
-        """Get analyst recommendations"""
-        pass
+# GOOD: Vectorized (7x faster)
+df['action'] = np.where(condition, 'BUY', 'SELL')
+
+# BAD: Row-by-row apply
+df['action'] = df.apply(lambda row: calc_action(row), axis=1)
 ```
 
-### Rate Limiting
-- **Yahoo Finance**: 2000 requests/hour
-- **YahooQuery**: Adaptive based on response times
-- **Circuit Breaker**: Auto-disable after 5 consecutive failures
-
-## 🐛 Error Handling
-
-### Exception Hierarchy
+### Efficient Filtering
 ```python
-YFinanceError (base)
-├── APIError          # External API failures
-├── RateLimitError    # Rate limit exceeded
-├── ValidationError   # Data validation issues
-├── ConfigError       # Configuration problems
-└── DataError         # Data processing errors
+# GOOD: Set operations (909x faster for 5000+ tickers)
+portfolio_set = set(portfolio_tickers)
+filtered = market_df[~market_df['ticker'].isin(portfolio_set)]
+
+# BAD: Nested loops
+for market_ticker in market_df['ticker']:
+    for portfolio_ticker in portfolio_tickers:
+        if market_ticker == portfolio_ticker: ...
 ```
 
-### Resilience Patterns
-- **Exponential Backoff**: For transient failures
-- **Circuit Breaker**: Prevent cascade failures
-- **Fallback Provider**: YahooQuery → Yahoo Finance
-- **Cache First**: Use cached data when API unavailable
+### Batch Processing
+- Process tickers in batches of 25
+- Max 15 concurrent API requests
+- Progress bars with ETA for long operations
+- Cache with 48-hour TTL
 
-## 📊 Data Flow
+## 🐛 Common Issues & Solutions
 
-```
-User Input → Trade CLI → Trading Engine
-                              ↓
-                    Data Provider (API/Cache)
-                              ↓
-                      Analysis Engine
-                              ↓
-                    Position Calculator
-                              ↓
-                     Output Manager
-                              ↓
-                    CSV/HTML Reports
-```
+### Issue 1: Slow eToro Market Analysis (5544 tickers)
+**Problem**: Takes 15+ minutes to analyze all eToro tickers
+**Current Solution**: Batch processing with progress bars
+**Note**: Market cap pre-filtering was attempted but removed (no API for lightweight market cap data)
+
+### Issue 2: Missing PEG Ratios
+**Problem**: yfinance often returns None for PEG
+**Solution**: AsyncHybridProvider supplements with YahooQuery data
+
+### Issue 3: Ticker Format Issues
+**Problem**: eToro uses different formats (e.g., ASML.AS vs ASML.NV)
+**Solution**: `ticker_utils.py` handles normalization and equivalence checking
+
+### Issue 4: Rate Limiting
+**Problem**: Yahoo Finance rate limits at ~2000 req/hour
+**Solution**: Adaptive rate limiting with exponential backoff
+
+### Issue 5: Circular Imports
+**Problem**: Complex interdependencies between modules
+**Solution**: Lazy imports, dependency injection, boundaries pattern
+
+## 📝 Recent Changes Log
+
+### September 2024 - Market Cap Pre-filtering (REVERTED)
+- **Attempted**: Pre-filter stocks below $1B market cap to speed up eToro analysis
+- **Issue**: No lightweight API endpoint for market cap only
+- **Result**: Fetching market cap took as long as full data
+- **Action**: Feature completely reverted, code cleaned
+
+### September 2024 - 5-Tier System Implementation
+- Upgraded from 3-tier (VALUE/GROWTH/BETS) to 5-tier system
+- Added MEGA and MICRO tiers for better granularity
+- Region-specific thresholds (US/EU/HK)
+- YAML-based configuration
+
+### August 2024 - Performance Optimizations
+- Vectorized operations in analysis_engine
+- Set-based filtering for portfolio exclusion
+- Async batch processing with progress bars
+- Cache system implementation
 
 ## 🧪 Testing Strategy
 
-### Test Categories
-- **Unit Tests**: Individual functions/methods
-- **Integration Tests**: Component interactions
-- **Performance Tests**: Speed benchmarks
-- **Mock Tests**: API response simulation
+### Running Tests
+```bash
+# All tests
+pytest tests/
+
+# Specific module
+pytest tests/unit/trade_modules/test_analysis_engine_coverage.py
+
+# With coverage
+pytest --cov=trade_modules --cov-report=html
+
+# Linting
+flake8 trade_modules/ --max-line-length=120
+```
 
 ### Key Test Files
-```
-tests/
-├── unit/
-│   ├── test_analysis_engine.py
-│   └── test_position_sizing.py
-├── integration/
-│   ├── test_trade_flow.py
-│   └── test_portfolio_analysis.py
-└── fixtures/
-    └── mock_api_responses.py
-```
+- `test_analysis_engine_coverage.py` - Core trading logic
+- `test_trade_engine_coverage.py` - Orchestration flow
+- `test_enhanced.py` - Async utilities
 
-## 🚀 Deployment
-
-### Environment Variables
-```bash
-# Required for full functionality
-ETORO_API_KEY=xxx
-ETORO_USER_KEY=xxx
-
-# Optional
-ETOROTRADE_LOG_LEVEL=INFO
-ETOROTRADE_CACHE_TTL=3600
+### Test Data Patterns
+```python
+# Create test DataFrame
+test_df = pd.DataFrame({
+    'ticker': ['AAPL', 'MSFT'],
+    'upside': [20.0, 15.0],
+    'buy_percentage': [85.0, 70.0],
+    'analyst_count': [25, 18],
+    'market_cap': ['3.14T', '2.85T']
+})
 ```
 
-### Docker Support
-```dockerfile
-FROM python:3.11-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
-CMD ["python", "trade.py"]
+## 🔧 Development Guidelines
+
+### Adding New Features
+
+1. **New Data Field**:
+   - Add to `AsyncHybridProvider.get_ticker_info()`
+   - Update `DataProcessingService._process_single_ticker()`
+   - Add to display columns in `console.py`
+
+2. **New Trading Criteria**:
+   - Update `config.yaml` with thresholds
+   - Modify `calculate_action_vectorized()` in analysis_engine
+   - Add tests in `test_analysis_engine_coverage.py`
+
+3. **New Analysis Script**:
+   - Create in `scripts/` directory
+   - Use existing patterns from `analyze_geography.py`
+   - Import from `trade_modules` for consistency
+
+### Code Patterns
+
+```python
+# Async data fetching
+async def fetch_data(tickers):
+    from yahoofinance.utils.async_utils.enhanced import process_batch_async
+
+    results = await process_batch_async(
+        items=tickers,
+        processor=provider.get_ticker_info,
+        batch_size=25,
+        concurrency=15,
+        show_progress=True
+    )
+    return results
+
+# DataFrame processing
+def process_market_data(df):
+    # Always copy to avoid warnings
+    df = df.copy()
+
+    # Vectorized operations
+    df['new_col'] = df['col1'] * df['col2']
+
+    # Efficient filtering
+    mask = (df['upside'] > 20) & (df['beta'] < 2)
+    filtered_df = df[mask]
+
+    return filtered_df
 ```
 
-## 📈 Recent Improvements (Jan 2025)
+## 🔌 API Integration
 
-1. **5-Tier Trading System**: Upgraded from 3-tier to 5-tier market cap classification (MEGA/LARGE/MID/SMALL/MICRO)
-2. **Geographic-Aware Criteria**: Region-specific thresholds for US/EU/HK markets
-3. **YAML Configuration**: Externalized all trading thresholds to `config.yaml` for flexibility
-4. **Portfolio-Based Sizing**: Dynamic position sizing with portfolio value parameter support
-5. **Module Decomposition**: Split 3000+ line files into <200 line modules
-6. **Circular Import Fix**: Lazy loading and dependency injection
-7. **ETF Transparency**: Geographic and sector exposure analysis
-8. **Asset Classification**: Proper handling of crypto, commodities, derivatives
-9. **Performance**: 7x speed improvement through vectorization
-10. **Test Coverage**: Comprehensive testing for all tier combinations
+### Provider Hierarchy
+```
+AsyncHybridProvider (primary)
+├── AsyncYahooFinanceProvider (yfinance wrapper)
+└── AsyncYahooQueryProvider (yahooquery supplement)
+```
 
-## 🔗 Key Files Reference
+### Key API Limitations
+- **No lightweight endpoints**: Must fetch full ticker info
+- **Rate limits**: ~2000/hour for Yahoo Finance
+- **Missing data**: PEG often None in yfinance
+- **Delisted stocks**: Return empty/error responses
 
-| File | Purpose | Lines |
-|------|---------|-------|
-| `trade.py` | Main entry point | 41 |
-| `trade_modules/analysis_engine.py` | Trading logic | 850 |
-| `trade_modules/trade_engine.py` | Orchestration | 245 |
-| `scripts/analyze_geography.py` | Geographic analysis | 265 |
-| `scripts/analyze_industry.py` | Sector analysis | 295 |
+### Cache Strategy
+- 48-hour TTL for market data
+- Separate cache keys for different data types
+- File-based cache in `yahoofinance/cache/`
+
+## 🎯 Common Tasks
+
+### Analyze Specific Tickers
+```python
+from trade_modules.analysis_engine import calculate_action_vectorized
+
+# Create DataFrame with ticker data
+df = pd.DataFrame(ticker_data)
+
+# Calculate actions
+df['BS'] = calculate_action_vectorized(df)
+
+# Filter results
+buy_opportunities = df[df['BS'] == 'B']
+```
+
+### Process Large Ticker Lists
+```python
+# Use DataProcessingService for efficiency
+from trade_modules.data_processing_service import DataProcessingService
+
+service = DataProcessingService(provider, logger)
+results_df = await service.process_ticker_batch(tickers, batch_size=25)
+```
+
+### Generate Reports
+```python
+from yahoofinance.presentation.console import MarketDisplay
+
+display = MarketDisplay(provider)
+display.display_stock_table(results, "Analysis Results")
+display.save_to_csv(results, "output.csv")
+```
+
+## 📊 Data Structures
+
+### Ticker Info Dictionary
+```python
+{
+    'ticker': 'AAPL',
+    'company': 'Apple Inc',
+    'price': 185.50,
+    'target_price': 210.00,
+    'upside': 13.2,
+    'buy_percentage': 76.0,
+    'analyst_count': 25,
+    'market_cap': '3.14T',
+    'pe_forward': 28.5,
+    'pe_trailing': 31.2,
+    'peg_ratio': 2.1,
+    'beta': 1.25,
+    'short_percent': 0.8,
+    'dividend_yield': 0.5,
+    'earnings_date': '2024-10-25',
+    'EXRET': 10.0,  # upside * buy% / 100
+    'twelve_month_performance': 15.2,
+    'earnings_growth': 8.5
+}
+```
+
+## 🔒 Security & Best Practices
+
+1. **Never commit sensitive data**:
+   - Keep portfolio.csv in .gitignore
+   - Don't log API keys or personal data
+
+2. **Error handling**:
+   - Always use try/except in data fetching
+   - Provide fallback values for missing data
+   - Log errors for debugging
+
+3. **Performance**:
+   - Use vectorized operations
+   - Implement caching for expensive operations
+   - Show progress bars for long operations
+
+4. **Code quality**:
+   - Run linting before commits
+   - Keep functions under 50 lines
+   - Write tests for new features
+
+## 📚 Additional Resources
+
+- [Position Sizing Details](POSITION_SIZING.md)
+- [CI/CD Pipeline](CI_CD.md)
+- [User Guide](USER_GUIDE.md)
+- [GitHub Repository](https://github.com/weirdapps/etorotrade)
 
 ---
+*Last updated: September 2024*
 *For user documentation, see [README.md](../README.md)*
-*For CI/CD details, see [CI_CD.md](CI_CD.md)*
