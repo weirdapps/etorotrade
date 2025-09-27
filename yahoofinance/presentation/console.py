@@ -1100,7 +1100,7 @@ class MarketDisplay:
 
         # Use batch processing for async provider with enhanced progress
         from ..core.config import get_max_concurrent_requests, RATE_LIMIT
-        
+
         results_dict = await process_batch_async(
             tickers,
             self.provider.get_ticker_info,  # type: ignore (we know it's async)

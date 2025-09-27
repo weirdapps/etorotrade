@@ -9,15 +9,13 @@ import logging
 import os
 import pandas as pd
 import numpy as np
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Any, List, Tuple
 
 # Import trading criteria and configuration
-from yahoofinance.core.config import TRADING_CRITERIA, COLUMN_NAMES
+from yahoofinance.core.config import TRADING_CRITERIA
 from yahoofinance.core.errors import YFinanceError
 # from etorotrade.trading.trade_config import TradeConfig  # Commented to avoid circular import
 from trade_modules.trade_config import TradeConfig
-from yahoofinance.utils.error_handling import enrich_error_context
-from yahoofinance.utils.trade_criteria import calculate_action_for_row
 # Import removed to avoid circular import - functions will be imported locally when needed
 from yahoofinance.utils.data.ticker_utils import are_equivalent_tickers
 
@@ -86,12 +84,12 @@ def _safe_calc_exret(row: pd.Series) -> float:
 
 def _parse_percentage(pct_str) -> float:
     """Parse percentage string like '2.6%', '94%' to numeric value.
-    
+
     Parameters
     ----------
     pct_str : str or float
         Percentage as string with % suffix or numeric value
-        
+
     Returns
     -------
     float
@@ -99,18 +97,18 @@ def _parse_percentage(pct_str) -> float:
     """
     if pd.isna(pct_str) or pct_str == "" or pct_str == "--":
         return 0.0
-        
+
     # If already numeric, return as is
     if isinstance(pct_str, (int, float)):
         return float(pct_str)
-    
+
     # Convert to string and clean
     pct_str = str(pct_str).strip()
-    
+
     # Handle empty or invalid strings
     if not pct_str or pct_str.upper() == "NAN":
         return 0.0
-    
+
     try:
         # Remove % sign and convert to float
         if pct_str.endswith('%'):
@@ -123,12 +121,12 @@ def _parse_percentage(pct_str) -> float:
 
 def _parse_market_cap(cap_str) -> float:
     """Parse market cap string like '2.47T', '628B', '4.03B' to numeric value.
-    
+
     Parameters
     ----------
     cap_str : str or float
         Market cap as string with suffix (T/B/M) or numeric value
-        
+
     Returns
     -------
     float
@@ -136,18 +134,18 @@ def _parse_market_cap(cap_str) -> float:
     """
     if pd.isna(cap_str) or cap_str == "" or cap_str == "--":
         return 0.0
-        
+
     # If already numeric, return as is
     if isinstance(cap_str, (int, float)):
         return float(cap_str)
-    
+
     # Convert to string and clean
     cap_str = str(cap_str).strip().upper()
-    
+
     # Handle empty or invalid strings
     if not cap_str or cap_str == "NAN":
         return 0.0
-    
+
     try:
         # Extract numeric part and suffix
         if cap_str.endswith('T'):
@@ -165,12 +163,12 @@ def _parse_market_cap(cap_str) -> float:
 
 def _determine_market_cap_tier(cap_value: float) -> str:
     """Determine market cap tier (V/G/B) based on market cap value.
-    
+
     Parameters
     ----------
     cap_value : float
         Market cap value in dollars
-        
+
     Returns
     -------
     str
@@ -205,19 +203,19 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
     config = TradeConfig()
     from trade_modules.yaml_config_loader import get_yaml_config
     yaml_config = get_yaml_config()
-    
+
     # Parse percentage columns that may contain strings like "2.6%" or "94%"
     # Handle both normalized and CSV column names
     upside_raw = df.get("upside", df.get("UPSIDE", pd.Series([0] * len(df), index=df.index)))
     upside = pd.Series([_parse_percentage(val) for val in upside_raw], index=df.index)
-    
+
     buy_pct_raw = df.get("buy_percentage", df.get("%BUY", pd.Series([0] * len(df), index=df.index)))
     buy_pct = pd.Series([_parse_percentage(val) for val in buy_pct_raw], index=df.index)
 
     # Handle both raw CSV column names and normalized column names
     analyst_count_raw = df.get("analyst_count", df.get("#T", df.get("# T", pd.Series([0] * len(df), index=df.index))))
     analyst_count = pd.to_numeric(analyst_count_raw, errors="coerce").fillna(0)
-    
+
     total_ratings_raw = df.get("total_ratings", df.get("#A", df.get("# A", pd.Series([0] * len(df), index=df.index))))
     total_ratings = pd.to_numeric(total_ratings_raw, errors="coerce").fillna(0)
 
@@ -229,7 +227,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
     # Get market cap and parse formatted strings (e.g., "2.47T", "628B")
     cap_raw = df.get("market_cap", df.get("CAP", pd.Series([0] * len(df), index=df.index)))
     cap_values = pd.Series([_parse_market_cap(cap) for cap in cap_raw], index=df.index)
-    
+
     # Additional SELL/BUY criteria for stocks with data
     # Ensure we create pandas Series with proper index alignment
     pef = pd.to_numeric(
@@ -257,7 +255,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
     # Initialize action series
     actions = pd.Series("H", index=df.index)  # Default to HOLD
     actions[~has_confidence] = "I"  # INCONCLUSIVE for low confidence
-    
+
     # Get ticker column for region detection
     ticker_col = df.get("ticker", df.get("TICKER", pd.Series("", index=df.index)))
 
@@ -280,7 +278,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
             # Fallback to old system if YAML not available
             buy_criteria = config.get_tier_thresholds(tier, "buy")
             sell_criteria = config.get_tier_thresholds(tier, "sell")
-        
+
         # Extract values for this row
         row_upside = upside.loc[idx]
         row_buy_pct = buy_pct.loc[idx]
@@ -290,7 +288,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
         row_peg = peg.loc[idx]
         row_si = si.loc[idx]
         row_beta = beta.loc[idx]
-        
+
         # SELL criteria - ANY condition triggers SELL
         sell_conditions = []
 
@@ -306,87 +304,98 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
         max_exret = sell_criteria.get("max_exret", 100.0)  # Default to not trigger
         if row_exret <= max_exret:
             sell_conditions.append(True)
-            
+
         # Optional criteria from YAML (only apply if defined in YAML)
         if "max_forward_pe" in sell_criteria and not pd.isna(row_pef):
             if row_pef > sell_criteria.get("max_forward_pe"):
                 sell_conditions.append(True)
-                
+
         if "max_trailing_pe" in sell_criteria and not pd.isna(row_pet):
             if row_pet > sell_criteria.get("max_trailing_pe"):
                 sell_conditions.append(True)
-                
+
+        # PEF > PET requirement for SELL: Forward PE significantly higher than Trailing PE (deteriorating earnings)
+        # Only apply this check when both values are meaningful (> 10)
+        if not pd.isna(row_pef) and not pd.isna(row_pet) and row_pet > 10 and row_pef > 10:
+            # PEF more than 20% higher than PET suggests deteriorating earnings outlook
+            if row_pef > row_pet * 1.2:
+                sell_conditions.append(True)
+                logger.debug(f"Ticker {ticker}: Sell signal - PEF:{row_pef:.1f} > PET*1.2:{row_pet * 1.2:.1f} (deteriorating earnings)")
+
         if "max_peg" in sell_criteria and not pd.isna(row_peg):
             if row_peg > sell_criteria.get("max_peg"):
                 sell_conditions.append(True)
-                
+
         if "min_short_interest" in sell_criteria and not pd.isna(row_si):
             if row_si > sell_criteria.get("min_short_interest"):
                 sell_conditions.append(True)
-                
+
         if "min_beta" in sell_criteria and not pd.isna(row_beta):
             if row_beta > sell_criteria.get("min_beta"):
                 sell_conditions.append(True)
-        
+
         if any(sell_conditions):
             actions.loc[idx] = "S"
             continue
-            
+
         # BUY criteria - ALL conditions must be true
-        buy_conditions = []
+        # Start with assuming all conditions pass
+        is_buy_candidate = True
 
         # Required criteria
         min_upside = buy_criteria.get("min_upside", 20.0)
-        if row_upside >= min_upside:
-            buy_conditions.append(True)
-        else:
-            buy_conditions.append(False)
+        if row_upside < min_upside:
+            is_buy_candidate = False
 
         min_buy_pct = buy_criteria.get("min_buy_percentage", 75.0)
-        if row_buy_pct >= min_buy_pct:
-            buy_conditions.append(True)
-        else:
-            buy_conditions.append(False)
+        if row_buy_pct < min_buy_pct:
+            is_buy_candidate = False
 
         min_exret = buy_criteria.get("min_exret", 15.0)  # Now in percentage
-        if row_exret >= min_exret:
-            buy_conditions.append(True)
-        else:
-            buy_conditions.append(False)
+        if row_exret < min_exret:
+            is_buy_candidate = False
 
         # Check analyst requirements
         min_analysts = buy_criteria.get("min_analysts", 4)
         if analyst_count.loc[idx] < min_analysts:
-            buy_conditions.append(False)
-        
+            is_buy_candidate = False
+
         # Optional criteria from YAML (only apply if defined in YAML)
         if "min_beta" in buy_criteria and "max_beta" in buy_criteria and not pd.isna(row_beta):
             beta_min = buy_criteria.get("min_beta")
             beta_max = buy_criteria.get("max_beta")
             if not (beta_min <= row_beta <= beta_max):
-                buy_conditions.append(False)
-                
+                is_buy_candidate = False
+
         if "min_forward_pe" in buy_criteria and "max_forward_pe" in buy_criteria and not pd.isna(row_pef):
             pef_min = buy_criteria.get("min_forward_pe")
             pef_max = buy_criteria.get("max_forward_pe")
             if not (pef_min < row_pef <= pef_max):
-                buy_conditions.append(False)
-                
+                is_buy_candidate = False
+
         if "min_trailing_pe" in buy_criteria and "max_trailing_pe" in buy_criteria and not pd.isna(row_pet):
             pet_min = buy_criteria.get("min_trailing_pe")
             pet_max = buy_criteria.get("max_trailing_pe")
             if not (pet_min < row_pet <= pet_max):
-                buy_conditions.append(False)
-                
+                is_buy_candidate = False
+
+        # PEF < PET requirement: Forward PE should be lower than Trailing PE (improving earnings)
+        # Only apply this check when both values are meaningful (> 10) and PEF is significantly higher
+        if not pd.isna(row_pef) and not pd.isna(row_pet) and row_pet > 10 and row_pef > 10:
+            # PEF should not be more than 10% higher than PET
+            if row_pef > row_pet * 1.1:
+                is_buy_candidate = False
+                logger.debug(f"Ticker {ticker}: Failed PEF<PET check - PEF:{row_pef:.1f} > PET*1.1:{row_pet * 1.1:.1f}")
+
         if "max_peg" in buy_criteria and not pd.isna(row_peg):
             if row_peg > buy_criteria.get("max_peg"):
-                buy_conditions.append(False)
-                
+                is_buy_candidate = False
+
         if "max_short_interest" in buy_criteria and not pd.isna(row_si):
             if row_si > buy_criteria.get("max_short_interest"):
-                buy_conditions.append(False)
-        
-        if all(buy_conditions):
+                is_buy_candidate = False
+
+        if is_buy_candidate:
             actions.loc[idx] = "B"
         # Otherwise remains "H" (HOLD)
 
@@ -437,7 +446,7 @@ def filter_buy_opportunities_wrapper(market_df: pd.DataFrame) -> pd.DataFrame:
 
         # Import locally to avoid circular import
         from yahoofinance.analysis.market import filter_buy_opportunities
-        
+
         # Use the centralized filter function
         buy_opps = filter_buy_opportunities(market_df)
 
@@ -463,7 +472,7 @@ def filter_sell_candidates_wrapper(portfolio_df: pd.DataFrame) -> pd.DataFrame:
 
         # Import locally to avoid circular import
         from yahoofinance.analysis.market import filter_sell_candidates
-        
+
         # Use the centralized filter function
         sell_candidates = filter_sell_candidates(portfolio_df)
 
@@ -489,7 +498,7 @@ def filter_hold_candidates_wrapper(market_df: pd.DataFrame) -> pd.DataFrame:
 
         # Import locally to avoid circular import
         from yahoofinance.analysis.market import filter_hold_candidates
-        
+
         # Use the centralized filter function
         hold_candidates = filter_hold_candidates(market_df)
 
@@ -842,7 +851,7 @@ def process_buy_opportunities(
 
         # Import locally to avoid circular import
         from yahoofinance.analysis.market import filter_risk_first_buy_opportunities
-        
+
         # Use risk-first filtering for buy opportunities
         buy_opportunities = filter_risk_first_buy_opportunities(market_df)
 
