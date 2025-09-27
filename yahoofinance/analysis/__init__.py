@@ -26,15 +26,6 @@ from .analyzer_factory import (
     with_analyzer,
     with_portfolio_analyzer,
 )
-from .backtest import (
-    Backtester,
-    BacktestOptimizer,
-    BacktestPosition,
-    BacktestResult,
-    BacktestSettings,
-    optimize_criteria,
-    run_backtest,
-)
 from .earnings import EarningsAnalyzer, EarningsCalendar, format_earnings_table
 from .insiders import InsiderAnalyzer
 from .market import MarketAnalyzer, MarketMetrics, SectorAnalysis
@@ -69,14 +60,6 @@ __all__ = [
     # Stock Analysis
     "StockAnalyzer",
     "AnalysisResults",
-    # Backtesting
-    "BacktestSettings",
-    "BacktestResult",
-    "BacktestPosition",
-    "Backtester",
-    "BacktestOptimizer",
-    "run_backtest",
-    "optimize_criteria",
     # Portfolio Optimization
     "PortfolioOptimizer",
     "optimize_portfolio",
