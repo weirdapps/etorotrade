@@ -173,18 +173,88 @@ class EtoroPortfolioAnalyzer:
                     week_ago = prices.index[-1] - timedelta(days=7)
                     prev_price = prices.loc[prices.index <= week_ago].iloc[-1] if any(prices.index <= week_ago) else prices.iloc[0]
                     returns[period] = ((current_price / prev_price) - 1) * 100
-                elif period == '1M' and len(prices) > 20:
-                    month_ago = prices.index[-1] - timedelta(days=30)
-                    prev_price = prices.loc[prices.index <= month_ago].iloc[-1] if any(prices.index <= month_ago) else prices.iloc[0]
-                    returns[period] = ((current_price / prev_price) - 1) * 100
-                elif period == '3M' and len(prices) > 60:
-                    three_months_ago = prices.index[-1] - timedelta(days=90)
-                    prev_price = prices.loc[prices.index <= three_months_ago].iloc[-1] if any(prices.index <= three_months_ago) else prices.iloc[0]
-                    returns[period] = ((current_price / prev_price) - 1) * 100
-                elif period == '6M' and len(prices) > 120:
-                    six_months_ago = prices.index[-1] - timedelta(days=180)
-                    prev_price = prices.loc[prices.index <= six_months_ago].iloc[-1] if any(prices.index <= six_months_ago) else prices.iloc[0]
-                    returns[period] = ((current_price / prev_price) - 1) * 100
+                elif period == '1M':
+                    # Calendar month: from first trading day of current month to now
+                    current_date = prices.index[-1]
+                    current_year = current_date.year
+                    current_month = current_date.month
+
+                    # Get first trading day of current month
+                    month_start = pd.Timestamp(year=current_year, month=current_month, day=1)
+
+                    # Handle timezone-aware comparison
+                    if prices.index.tz is not None:
+                        month_start = month_start.tz_localize(prices.index.tz)
+
+                    month_prices = prices[prices.index >= month_start]
+
+                    if len(month_prices) > 1:
+                        first_price_of_month = month_prices.iloc[0]
+                        returns[period] = ((current_price / first_price_of_month) - 1) * 100
+                    else:
+                        # Use last trading day of previous month
+                        prev_month_prices = prices[prices.index < month_start]
+                        if len(prev_month_prices) > 0:
+                            last_price_prev_month = prev_month_prices.iloc[-1]
+                            returns[period] = ((current_price / last_price_prev_month) - 1) * 100
+                        else:
+                            returns[period] = 0
+                elif period == '3M':
+                    # Three calendar months: from first day of 3 months ago to now
+                    current_date = prices.index[-1]
+                    current_year = current_date.year
+                    current_month = current_date.month
+
+                    # Calculate start of 3 months ago
+                    if current_month > 3:
+                        three_months_start = pd.Timestamp(year=current_year, month=current_month - 3, day=1)
+                    else:
+                        three_months_start = pd.Timestamp(year=current_year - 1, month=current_month + 9, day=1)
+
+                    # Handle timezone-aware comparison
+                    if prices.index.tz is not None:
+                        three_months_start = three_months_start.tz_localize(prices.index.tz)
+
+                    # Get first trading day of period
+                    period_prices = prices[prices.index >= three_months_start]
+                    if len(period_prices) > 1:
+                        first_price = period_prices.iloc[0]
+                        returns[period] = ((current_price / first_price) - 1) * 100
+                    else:
+                        # Fallback to last available price before period
+                        prev_prices = prices[prices.index < three_months_start]
+                        if len(prev_prices) > 0:
+                            returns[period] = ((current_price / prev_prices.iloc[-1]) - 1) * 100
+                        else:
+                            returns[period] = 0
+                elif period == '6M':
+                    # Six calendar months: from first day of 6 months ago to now
+                    current_date = prices.index[-1]
+                    current_year = current_date.year
+                    current_month = current_date.month
+
+                    # Calculate start of 6 months ago
+                    if current_month > 6:
+                        six_months_start = pd.Timestamp(year=current_year, month=current_month - 6, day=1)
+                    else:
+                        six_months_start = pd.Timestamp(year=current_year - 1, month=current_month + 6, day=1)
+
+                    # Handle timezone-aware comparison
+                    if prices.index.tz is not None:
+                        six_months_start = six_months_start.tz_localize(prices.index.tz)
+
+                    # Get first trading day of period
+                    period_prices = prices[prices.index >= six_months_start]
+                    if len(period_prices) > 1:
+                        first_price = period_prices.iloc[0]
+                        returns[period] = ((current_price / first_price) - 1) * 100
+                    else:
+                        # Fallback to last available price before period
+                        prev_prices = prices[prices.index < six_months_start]
+                        if len(prev_prices) > 0:
+                            returns[period] = ((current_price / prev_prices.iloc[-1]) - 1) * 100
+                        else:
+                            returns[period] = 0
                 elif period == 'YTD':
                     try:
                         # Get current date and year
@@ -248,22 +318,56 @@ class EtoroPortfolioAnalyzer:
                         if self.debug:
                             print("  ERROR calculating YTD")
                         returns[period] = 0
-                elif period == '1Y' and len(prices) > 252:
-                    year_ago = prices.index[-1] - timedelta(days=365)
-                    prev_price = prices.loc[prices.index <= year_ago].iloc[-1] if any(prices.index <= year_ago) else prices.iloc[0]
-                    returns[period] = ((current_price / prev_price) - 1) * 100
+                elif period == '1Y':
+                    # One year: from same month one year ago
+                    current_date = prices.index[-1]
+                    current_year = current_date.year
+                    current_month = current_date.month
+
+                    # Get first day of same month last year
+                    one_year_start = pd.Timestamp(year=current_year - 1, month=current_month, day=1)
+
+                    # Handle timezone-aware comparison
+                    if prices.index.tz is not None:
+                        one_year_start = one_year_start.tz_localize(prices.index.tz)
+
+                    # Get first trading day of period
+                    period_prices = prices[prices.index >= one_year_start]
+                    if len(period_prices) > 1:
+                        first_price = period_prices.iloc[0]
+                        returns[period] = ((current_price / first_price) - 1) * 100
+                    else:
+                        # Fallback to closest available price
+                        year_ago = current_date - timedelta(days=365)
+                        prev_prices = prices[prices.index <= year_ago]
+                        if len(prev_prices) > 0:
+                            returns[period] = ((current_price / prev_prices.iloc[-1]) - 1) * 100
+                        else:
+                            returns[period] = 0
                 elif period == '2Y':
-                    two_years_ago = prices.index[-1] - timedelta(days=730)
-                    if any(prices.index <= two_years_ago):
-                        prev_price = prices.loc[prices.index <= two_years_ago].iloc[-1]
-                    elif len(prices) > 0:
-                        prev_price = prices.iloc[0]  # Use earliest available data
+                    # Two years: from same month two years ago
+                    current_date = prices.index[-1]
+                    current_year = current_date.year
+                    current_month = current_date.month
+
+                    # Get first day of same month two years ago
+                    two_year_start = pd.Timestamp(year=current_year - 2, month=current_month, day=1)
+
+                    # Handle timezone-aware comparison
+                    if prices.index.tz is not None:
+                        two_year_start = two_year_start.tz_localize(prices.index.tz)
+
+                    # Get first trading day of period
+                    period_prices = prices[prices.index >= two_year_start]
+                    if len(period_prices) > 1:
+                        first_price = period_prices.iloc[0]
+                        returns[period] = ((current_price / first_price) - 1) * 100
                     else:
-                        prev_price = current_price
-                    if prev_price > 0:
-                        returns[period] = ((current_price / prev_price) - 1) * 100
-                    else:
-                        returns[period] = 0
+                        # Use earliest available data
+                        if len(prices) > 1:
+                            returns[period] = ((current_price / prices.iloc[0]) - 1) * 100
+                        else:
+                            returns[period] = 0
                 else:
                     returns[period] = 0
             except Exception:
