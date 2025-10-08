@@ -92,6 +92,8 @@ class DataProcessingService:
                 "earnings_growth": safe_float_conversion(data.get("earnings_growth")),
                 "peg_ratio": safe_float_conversion(data.get("peg_ratio")),
                 "short_percent": safe_float_conversion(data.get("short_percent")),
+                "return_on_equity": safe_float_conversion(data.get("return_on_equity")),
+                "debt_to_equity": safe_float_conversion(data.get("debt_to_equity")),
             }
 
             return result
