@@ -42,13 +42,15 @@ python trade.py -o t -t b
 |--------|---------|-------|
 | **UPSIDE** | Price target vs current | Higher = more potential |
 | **%BUY** | Analyst buy ratings | 80%+ is strong consensus |
-| **M** | Market cap tier | V=Value, G=Growth, B=Bets |
+| **M** | Market cap tier | MEGA/LARGE/MID/SMALL/MICRO |
 | **BS** | Recommendation | B/S/H/I for Buy/Sell/Hold/Inconclusive |
 
-### Market Cap Tiers
-- **V (VALUE)**: $100B+ companies, 15% upside needed for BUY
-- **G (GROWTH)**: $5B-$100B companies, 20% upside needed  
-- **B (BETS)**: <$5B companies, 25% upside needed
+### Market Cap Tiers (5-Tier System)
+- **MEGA**: $500B+ companies (e.g., AAPL, MSFT)
+- **LARGE**: $100B-$500B companies (e.g., NFLX, DIS)
+- **MID**: $10B-$100B companies (e.g., ROKU, SNAP)
+- **SMALL**: $2B-$10B companies (smaller growth stocks)
+- **MICRO**: <$2B companies (higher risk opportunities)
 
 ---
 
@@ -57,21 +59,30 @@ python trade.py -o t -t b
 Edit `config.yaml` to customize:
 
 ```yaml
-# Trading criteria
-trading:
-  value_threshold: 100    # VALUE tier threshold ($100B)
-  growth_threshold: 5     # GROWTH tier threshold ($5B)
-  min_analysts: 5         # Minimum analyst coverage
+# 5-Tier Market Cap System
+tiers:
+  mega:
+    market_cap_min: 500_000_000_000  # $500B+
+    min_upside: 10
+    min_buy_percentage: 65
+  large:
+    market_cap_min: 100_000_000_000  # $100B-$500B
+    min_upside: 12
+    min_buy_percentage: 70
+  mid:
+    market_cap_min: 10_000_000_000   # $10B-$100B
+    min_upside: 15
+    min_buy_percentage: 70
+  small:
+    market_cap_min: 2_000_000_000    # $2B-$10B
+    min_upside: 20
+    min_buy_percentage: 75
+  micro:
+    market_cap_min: 0                 # <$2B
+    min_upside: 25
+    min_buy_percentage: 80
 
-# Performance  
-performance:
-  max_concurrent_requests: 10  # API request limit
-  cache_ttl_hours: 24         # Cache data for 24 hours
-
-# Output
-output:
-  display_colors: true        # Enable color coding
-  max_display_rows: 50       # Limit console output
+# See config.yaml for full configuration
 ```
 
 ---

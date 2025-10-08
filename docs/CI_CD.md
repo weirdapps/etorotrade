@@ -93,7 +93,7 @@ pytest tests/integration/ -v --maxfail=3
 
 # Local development testing
 pytest tests/unit/          # Unit tests only
-pytest tests/debug/         # Performance benchmarks
+pytest tests/benchmarks/    # Performance benchmarks
 ```
 
 ## Version Management
@@ -175,24 +175,13 @@ Follow conventional commits format:
 - `test:` Test additions or modifications
 - `chore:` Maintenance tasks
 
-## Continuous Monitoring
+## Performance Monitoring
 
-### Health Checks
-
-The application includes health endpoints for monitoring:
-
-```bash
-# Run with health monitoring
-python scripts/run_enhanced_monitoring.py --health-port 8081
-```
-
-### Performance Monitoring
-
-Track performance metrics:
-- Response times
-- Error rates
-- Resource usage
-- API call patterns
+Monitor key metrics during development:
+- **Response times**: API call latency tracking
+- **Cache hit rates**: Data retrieval efficiency
+- **Resource usage**: Memory and CPU profiling
+- **API call patterns**: Rate limiting and optimization
 
 ## Best Practices
 
@@ -255,11 +244,16 @@ Track performance metrics:
 - **Branch Protection**: Quality gates prevent broken code in main branches
 - **Local Development**: CI commands work identically in local environment
 
+## Recent Improvements (January 2025)
+
+- [x] ✅ Code coverage reporting with XML/HTML reports
+- [x] ✅ Automated security scanning (Bandit + Safety)
+- [x] ✅ Performance benchmarking in CI pipeline
+- [x] ✅ Removed debug test files and unused monitoring modules
+- [x] ✅ Streamlined test structure
+
 ## Future Enhancements
 
-- [x] ~~Add code coverage reporting to CI~~ ✅ **Completed**: Codecov integration with XML/HTML reports
-- [x] ~~Implement automated security scanning~~ ✅ **Completed**: Bandit + Safety integration
-- [x] ~~Add performance benchmarking to CI~~ ✅ **Completed**: Automated performance validation
 - [ ] Set up automated dependency updates (Dependabot/Renovate)
 - [ ] Implement deployment automation for production releases
 - [ ] Add container security scanning for Docker builds

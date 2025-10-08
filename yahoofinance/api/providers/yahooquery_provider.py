@@ -124,6 +124,8 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 "pe_forward": key_stats.get("forwardPE", None),
                 "peg_ratio": key_stats.get("pegRatio", None),
                 "short_percent": key_stats.get("shortPercentOfFloat", None),
+                "return_on_equity": key_stats.get("returnOnEquity", None),
+                "debt_to_equity": financial_data.get("debtToEquity", None),
                 "dividend_yield": (
                     summary_data.get("dividendYield", None) * 100
                     if summary_data.get("dividendYield")

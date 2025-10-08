@@ -224,9 +224,10 @@ flake8 trade_modules/ --max-line-length=120
 ```
 
 ### Key Test Files
-- `test_analysis_engine_coverage.py` - Core trading logic
-- `test_trade_engine_coverage.py` - Orchestration flow
-- `test_enhanced.py` - Async utilities
+- `tests/unit/trade_modules/test_analysis_engine_coverage.py` - Core trading logic
+- `tests/unit/trade_modules/test_trade_engine_coverage.py` - Orchestration flow
+- `tests/unit/utils/async/test_enhanced.py` - Async utilities
+- `tests/e2e/test_trade_workflows.py` - End-to-end integration tests
 
 ### Test Data Patterns
 ```python
@@ -307,8 +308,9 @@ AsyncHybridProvider (primary)
 
 ### Cache Strategy
 - 48-hour TTL for market data
-- Separate cache keys for different data types
-- File-based cache in `yahoofinance/cache/`
+- Unified cache service via `trade_modules/cache_service.py`
+- Backward compatibility via `yahoofinance/data/cache_compatibility.py`
+- In-memory caching with TTL support
 
 ## 🎯 Common Tasks
 
@@ -399,5 +401,6 @@ display.save_to_csv(results, "output.csv")
 - [GitHub Repository](https://github.com/weirdapps/etorotrade)
 
 ---
-*Last updated: September 2024*
+*Last updated: January 2025*
+*Codebase cleaned and optimized - removed debug tests and unused monitoring modules*
 *For user documentation, see [README.md](../README.md)*
