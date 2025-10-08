@@ -469,6 +469,30 @@ def format_display_dataframe(display_df: pd.DataFrame) -> pd.DataFrame:
         if "PP" in formatted_df.columns:
             formatted_df["PP"] = formatted_df["PP"].apply(_format_eg_pp_value)
 
+        # Format ROE as percentage value with 1 decimal (no % sign, like EG and PP columns)
+        if "ROE" in formatted_df.columns:
+            def format_roe(x):
+                try:
+                    if pd.notna(x) and x != "" and x != "--":
+                        # Convert to percentage value with 1 decimal place (no % sign)
+                        return f"{float(x)*100:.1f}"
+                    return "--"
+                except:
+                    return "--"
+            formatted_df["ROE"] = formatted_df["ROE"].apply(format_roe)
+
+        # Format DE with 1 decimal place for consistency
+        if "DE" in formatted_df.columns:
+            def format_de(x):
+                try:
+                    if pd.notna(x) and x != "" and x != "--":
+                        # Format to 1 decimal place
+                        return f"{float(x):.1f}"
+                    return "--"
+                except:
+                    return "--"
+            formatted_df["DE"] = formatted_df["DE"].apply(format_de)
+
         # Format earnings date
         earnings_columns = ["EARNINGS", "EARN"]
         for col in earnings_columns:

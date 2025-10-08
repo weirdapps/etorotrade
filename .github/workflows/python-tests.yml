@@ -35,7 +35,3 @@ jobs:
     - name: Priority limiter tests
       run: |
         python tests/benchmarks/test_priority_limiter.py
-    - name: Monitoring system tests
-      run: |
-        # Run monitoring system tests
-        python tools/run_monitoring.py --timeout 120

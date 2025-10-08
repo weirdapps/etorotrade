@@ -240,6 +240,8 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             info["pe_forward"] = ticker_info.get("forwardPE", None)
             info["peg_ratio"] = ticker_info.get("pegRatio", None)
             info["short_percent"] = ticker_info.get("shortPercentOfFloat", None)
+            info["return_on_equity"] = ticker_info.get("returnOnEquity", None)
+            info["debt_to_equity"] = ticker_info.get("debtToEquity", None)
             if info["short_percent"] is not None:
                 info["short_percent"] = info["short_percent"] * 100
             info["target_price"] = ticker_info.get("targetMeanPrice", None)
