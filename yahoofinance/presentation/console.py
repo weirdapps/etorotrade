@@ -210,6 +210,8 @@ class MarketDisplay:
             'E': 'E',  # Earnings filter type column
             'earnings_growth': 'EG',
             'twelve_month_performance': 'PP',
+            'return_on_equity': 'ROE',
+            'debt_to_equity': 'DE',
             'EXRET': 'EXRET',
             'A': 'A',
             # Identity mappings for columns already in display format
@@ -231,6 +233,8 @@ class MarketDisplay:
             'EARNINGS': 'EARNINGS',
             'EG': 'EG',
             'PP': 'PP',
+            'ROE': 'ROE',
+            'DE': 'DE',
             'SIZE': 'SIZE',
             'M': 'M'
         }
@@ -258,6 +262,10 @@ class MarketDisplay:
             new_df['EG'] = df['earnings_growth']
         if 'twelve_month_performance' in df.columns and 'PP' not in new_df.columns:
             new_df['PP'] = df['twelve_month_performance']
+        if 'return_on_equity' in df.columns and 'ROE' not in new_df.columns:
+            new_df['ROE'] = df['return_on_equity']
+        if 'debt_to_equity' in df.columns and 'DE' not in new_df.columns:
+            new_df['DE'] = df['debt_to_equity']
         
         # Copy any EXRET column if present
         if 'EXRET' in df.columns:
@@ -296,16 +304,18 @@ class MarketDisplay:
         # Column mapping from display name to formatter key
         format_mapping = {
             'PRICE': 'price',
-            'TARGET': 'target_price', 
+            'TARGET': 'target_price',
             'UPSIDE': 'upside',
             '%BUY': 'buy_percentage',  # Updated to match new column header
             'BETA': 'beta',
             'PET': 'pe_trailing',
-            'PEF': 'pe_forward', 
+            'PEF': 'pe_forward',
             'PEG': 'peg_ratio',
             'DIV%': 'dividend_yield',  # Updated to match new column header
             'SI': 'short_float_pct',
-            'EXRET': 'exret'
+            'EXRET': 'exret',
+            'ROE': 'return_on_equity',
+            'DE': 'debt_to_equity'
         }
         
         # Clean up NaN, None, and 0 values with "--" for better display
@@ -330,11 +340,40 @@ class MarketDisplay:
                     return date_str
                 except Exception:
                     return "--"
-            
+
             df["EARNINGS"] = df["EARNINGS"].apply(format_earnings_date)
+
+        # Special handling for ROE formatting (convert decimal to percentage)
+        if "ROE" in df.columns:
+            def format_roe(value):
+                try:
+                    if value is None or (isinstance(value, float) and (math.isnan(value) or math.isinf(value))):
+                        return "--"
+                    if isinstance(value, (int, float)) and value != 0:
+                        # Convert decimal to percentage (0.1983 -> 19.8)
+                        return f"{float(value)*100:.1f}"
+                    return "--"
+                except Exception:
+                    return "--"
+
+            df["ROE"] = df["ROE"].apply(format_roe)
+
+        # Special handling for DE formatting (1 decimal place)
+        if "DE" in df.columns:
+            def format_de(value):
+                try:
+                    if value is None or (isinstance(value, float) and (math.isnan(value) or math.isinf(value))):
+                        return "--"
+                    if isinstance(value, (int, float)) and value != 0:
+                        return f"{float(value):.1f}"
+                    return "--"
+                except Exception:
+                    return "--"
+
+            df["DE"] = df["DE"].apply(format_de)
         
         for col in df.columns:
-            if col not in ["#", "TICKER", "COMPANY", "EARNINGS"]:  # Don't format these columns
+            if col not in ["#", "TICKER", "COMPANY", "EARNINGS", "ROE", "DE"]:  # Don't format these columns
                 # Apply specific formatting if configured
                 if col in format_mapping:
                     formatter_key = format_mapping[col]
