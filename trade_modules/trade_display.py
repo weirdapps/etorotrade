@@ -197,6 +197,29 @@ class DisplayFormatter:
                         return "N/A"
                 df[col] = df[col].apply(format_price_conditional)
 
+        # Format ROE as percentage value with 1 decimal (no % sign)
+        if "ROE" in df.columns:
+            def format_roe(x):
+                try:
+                    if pd.notna(x) and x != "" and x != "--":
+                        # Convert decimal to percentage (0.1983 -> 19.8)
+                        return f"{float(x)*100:.1f}"
+                    return "N/A"
+                except:
+                    return "N/A"
+            df["ROE"] = df["ROE"].apply(format_roe)
+
+        # Format DE with 1 decimal place
+        if "DE" in df.columns:
+            def format_de(x):
+                try:
+                    if pd.notna(x) and x != "" and x != "--":
+                        return f"{float(x):.1f}"
+                    return "N/A"
+                except:
+                    return "N/A"
+            df["DE"] = df["DE"].apply(format_de)
+
         # Format percentage columns
         percentage_columns = ["expected_return", "exret", "dividend_yield", "confidence_score"]
         for col in percentage_columns:
