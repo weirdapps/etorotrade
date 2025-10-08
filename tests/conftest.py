@@ -18,7 +18,6 @@ from yahoofinance.presentation.console import MarketDisplay
 # This allows us to use fixtures defined in the fixture modules throughout the test suite
 # without needing to import them directly in each test file
 pytest_plugins = [
-    "tests.fixtures.api_responses.api_errors",
     "tests.fixtures.async_fixtures",
     "tests.fixtures.rate_limiter_fixtures",
     "tests.fixtures.market_data.stock_data",

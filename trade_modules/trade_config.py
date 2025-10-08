@@ -245,7 +245,7 @@ class TradeConfig:
         # Portfolio Analysis (option: p)
         "portfolio": {
             "console": ["#", "TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "EXRET", "BS"],
-            "csv": ["TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "%BUY", "BETA", "PEF", "EXRET", "BS"],
+            "csv": ["TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "%BUY", "BETA", "PEF", "PP", "ROE", "DE", "EXRET", "BS"],
             "html": ["#", "TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "EXRET", "BS"],
             "sort_by": "EXRET",
             "sort_order": "desc",
@@ -255,7 +255,7 @@ class TradeConfig:
         # Market Analysis (option: m)
         "market": {
             "console": ["#", "TICKER", "COMPANY", "CAP", "PRICE", "UPSIDE", "%BUY", "EXRET", "BS"],
-            "csv": ["TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "%BUY", "BETA", "PEF", "EXRET", "BS"],
+            "csv": ["TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "%BUY", "BETA", "PEF", "PP", "ROE", "DE", "EXRET", "BS"],
             "html": ["#", "TICKER", "COMPANY", "CAP", "PRICE", "UPSIDE", "%BUY", "EXRET", "BS"],
             "sort_by": "UPSIDE",
             "sort_order": "desc",
@@ -265,7 +265,7 @@ class TradeConfig:
         # eToro Analysis (option: e)
         "etoro": {
             "console": ["#", "TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "EXRET", "BS"],
-            "csv": ["TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "%BUY", "EXRET", "BS"],
+            "csv": ["TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "%BUY", "PP", "ROE", "DE", "EXRET", "BS"],
             "html": ["#", "TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "EXRET", "BS"],
             "sort_by": "EXRET",
             "sort_order": "desc",
@@ -275,7 +275,7 @@ class TradeConfig:
         # Trade Opportunities - Buy (option: t, sub: b)
         "trade_buy": {
             "console": ["#", "TICKER", "COMPANY", "UPSIDE", "%BUY", "EXRET", "BS"],
-            "csv": ["TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "%BUY", "EXRET", "BS"],
+            "csv": ["TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "%BUY", "PP", "ROE", "DE", "EXRET", "BS"],
             "html": ["#", "TICKER", "COMPANY", "UPSIDE", "%BUY", "EXRET", "BS"],
             "sort_by": "UPSIDE",
             "sort_order": "desc",
@@ -305,7 +305,7 @@ class TradeConfig:
         # Manual Input (option: i)
         "input": {
             "console": ["#", "TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "EXRET", "BS"],
-            "csv": ["TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "%BUY", "EXRET", "BS"],
+            "csv": ["TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "%BUY", "PP", "ROE", "DE", "EXRET", "BS"],
             "html": ["#", "TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "EXRET", "BS"],
             "sort_by": "EXRET",
             "sort_order": "desc",
@@ -374,6 +374,14 @@ class TradeConfig:
             "type": "percentage",
             "decimals": 1,
             "suffix": "%",
+        },
+        "ROE": {
+            "type": "decimal",
+            "decimals": 1,
+        },
+        "DE": {
+            "type": "decimal",
+            "decimals": 1,
         },
         "BS": {
             "type": "action",

@@ -29,23 +29,22 @@ This tool implements a rules-based approach to security analysis by aggregating 
 
 ## Methodology
 
-### Classification System
+### 5-Tier Market Capitalization System
 
-The framework employs a five-tier market capitalization classification with region-specific adjustments:
+The framework employs a sophisticated five-tier classification with region-specific adjustments:
 
-```
-Tier Classification:
-- MEGA:  Market Cap ≥ $500B
-- LARGE: Market Cap $100B - $500B
-- MID:   Market Cap $10B - $100B
-- SMALL: Market Cap $2B - $10B
-- MICRO: Market Cap < $2B
+| Tier | Market Cap Range | Example Companies | Strategy Focus |
+|------|------------------|-------------------|----------------|
+| **MEGA** | ≥ $500B | AAPL, MSFT, GOOGL | Blue-chip stability |
+| **LARGE** | $100B - $500B | NFLX, DIS, UBER | Established growth |
+| **MID** | $10B - $100B | ROKU, SNAP, DOCN | Growth opportunities |
+| **SMALL** | $2B - $10B | Emerging leaders | Higher growth potential |
+| **MICRO** | < $2B | Micro-cap stocks | Speculative positions |
 
-Regional Adjustments:
-- US: Baseline criteria
-- EU: Modified thresholds for European markets
-- HK: Adjusted parameters for Asian markets
-```
+**Regional Adjustments:**
+- **US**: Baseline criteria for NYSE/NASDAQ securities
+- **EU**: Modified thresholds for European exchanges (.L, .PA, .AS)
+- **HK**: Adjusted parameters for Hong Kong/Asian markets (.HK)
 
 ### Signal Generation
 
@@ -208,27 +207,36 @@ The tool provides transparency into ETF holdings:
 
 ### Testing
 ```bash
-# Run test suite
+# Run all tests
 pytest tests/
 
-# Code quality checks
-flake8 trade_modules/ --max-line-length=120
+# Run specific test suites
+pytest tests/unit/           # Unit tests
+pytest tests/integration/    # Integration tests
+pytest tests/e2e/           # End-to-end tests
 
-# Type checking
-mypy trade_modules/
+# Code quality checks
+flake8 yahoofinance/ trade_modules/ --max-line-length=100
+mypy yahoofinance/ trade_modules/ --ignore-missing-imports
+
+# Coverage report
+pytest --cov=yahoofinance --cov=trade_modules --cov-report=html
 ```
 
 ### Contributing
 Contributions are welcome. Please ensure:
-- All tests pass
+- All tests pass (`pytest tests/`)
 - Code follows PEP 8 style guidelines
+- Type hints are included for new functions
 - Documentation is updated accordingly
+- Security best practices are followed
 
 ## Documentation
 
+- [User Guide](docs/USER_GUIDE.md) - Getting started and common workflows
 - [Technical Architecture](docs/CLAUDE.md) - System design and implementation details
-- [Position Sizing](docs/POSITION_SIZING.md) - Risk management algorithms
-- [CI/CD Pipeline](docs/CI_CD.md) - Testing and deployment procedures
+- [Position Sizing](docs/POSITION_SIZING.md) - Risk management algorithms and methodology
+- [CI/CD Pipeline](docs/CI_CD.md) - Testing, quality gates, and deployment procedures
 
 ## License
 
@@ -240,4 +248,6 @@ For issues or questions, please use the [GitHub issue tracker](https://github.co
 
 ---
 
-*This tool is designed for quantitative analysis and research purposes. It does not constitute investment advice. Users should conduct their own due diligence and consider consulting with qualified financial advisors before making investment decisions.*
+*Last Updated: January 2025*
+
+**Disclaimer**: This tool is designed for quantitative analysis and research purposes only. It does not constitute investment advice. Users should conduct their own due diligence and consider consulting with qualified financial advisors before making investment decisions. Past performance does not guarantee future results.

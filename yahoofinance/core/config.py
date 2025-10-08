@@ -446,6 +446,8 @@ COLUMN_NAMES = {
     "EARNINGS": "EARNINGS",
     "EARNINGS_GROWTH": "EG",
     "PRICE_PERFORMANCE": "PP",
+    "RETURN_ON_EQUITY": "ROE",
+    "DEBT_TO_EQUITY": "DE",
     "RANKING": "#",
 }
 
@@ -473,6 +475,8 @@ STANDARD_DISPLAY_COLUMNS = [
     "SI",
     "EG",
     "PP",
+    "ROE",
+    "DE",
     "EARNINGS",
     "SIZE",
     "BS",
