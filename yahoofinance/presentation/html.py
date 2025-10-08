@@ -451,7 +451,7 @@ class HTMLGenerator:
 
     def _generate_empty_results_html(self, title: str) -> str:
         """Generate HTML content for empty results."""
-        return """<!DOCTYPE html>
+        return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -529,14 +529,14 @@ class HTMLGenerator:
             rows.append(f"<tr>{''.join(cells)}</tr>")
         
         # Build complete HTML
-        table_html = """
+        table_html = f"""
         <table class="results-table">
             <thead>{header_row}</thead>
             <tbody>{''.join(rows)}</tbody>
         </table>
         """
-        
-        return """<!DOCTYPE html>
+
+        return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -901,7 +901,7 @@ class HTMLGenerator:
                 rows.append(row_html)
 
             # Combine all rows into a table
-            table_html = """
+            table_html = f"""
             <table class="stock-table" border="0">
                 <thead>
                     {header_row}
@@ -913,7 +913,7 @@ class HTMLGenerator:
             """
 
             # Full HTML document with improved styling
-            html_content = """<!DOCTYPE html>
+            html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
