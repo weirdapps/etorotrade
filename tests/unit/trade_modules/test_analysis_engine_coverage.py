@@ -140,15 +140,16 @@ class TestAnalysisEngineComprehensive(unittest.TestCase):
     def test_vectorization_performance(self):
         """Test that vectorized operations handle large datasets efficiently."""
         large_df = MockYahooFinanceResponses.create_mock_dataframe(1000)
-        
+
         import time
         start_time = time.time()
         result = calculate_action_vectorized(large_df, "market")
         end_time = time.time()
-        
-        # Should complete in reasonable time (< 3 seconds for 1000 rows)
-        # CI environments can be slower than local development
-        self.assertLess(end_time - start_time, 3.0)
+
+        # Should complete in reasonable time (< 5 seconds for 1000 rows)
+        # CI environments can be slower and more variable than local development
+        # Local runs typically complete in <1 second, but CI can take significantly longer
+        self.assertLess(end_time - start_time, 5.0)
         self.assertEqual(len(result), 1000)
         
     def test_data_type_conversions(self):
