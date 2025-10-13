@@ -95,7 +95,11 @@ def enhanced_market_data(market_csv_data):
     enhanced['beta'] = rng.uniform(0.5, 2.5, n_stocks)
     enhanced['pe_ratio'] = rng.uniform(10, 50, n_stocks)
     enhanced['dividend_yield'] = rng.uniform(0, 5, n_stocks)
-    
+
+    # Add ROE and Debt-to-Equity fields (required for new trading criteria)
+    enhanced['return_on_equity'] = rng.uniform(10, 30, n_stocks)  # ROE 10-30%
+    enhanced['debt_to_equity'] = rng.uniform(50, 150, n_stocks)   # DE 50-150%
+
     # Add trading signals based on upside
     enhanced['BS'] = np.where(enhanced['upside'] > 15, 'B',
                               np.where(enhanced['upside'] < 5, 'S', 'H'))
@@ -137,19 +141,29 @@ class TestBehavioralValidation:
             all_indices.extend(df.index.tolist())
         assert len(all_indices) == len(set(all_indices))
         
-        # Buy opportunities should only contain BS == 'B'
-        buy_signals = enhanced_market_data.loc[result['buy_opportunities'].index, 'BS']
-        assert all(signal == 'B' for signal in buy_signals)
-        
-        # Sell opportunities should only contain BS == 'S'
+        # Verify that BS column exists in each result DataFrame (recalculated by engine)
+        # Note: TradingEngine drops input BS column and recalculates it based on current criteria
+        for category, df in result.items():
+            if len(df) > 0:
+                assert 'BS' in df.columns, f"{category} should have BS column"
+
+        # Buy opportunities should only contain recalculated BS == 'B'
+        if len(result['buy_opportunities']) > 0:
+            buy_df = result['buy_opportunities']
+            assert 'BS' in buy_df.columns
+            assert all(buy_df['BS'] == 'B')
+
+        # Sell opportunities should only contain recalculated BS == 'S'
         if len(result['sell_opportunities']) > 0:
-            sell_signals = enhanced_market_data.loc[result['sell_opportunities'].index, 'BS']
-            assert all(signal == 'S' for signal in sell_signals)
-        
-        # Hold opportunities should only contain BS == 'H'
+            sell_df = result['sell_opportunities']
+            assert 'BS' in sell_df.columns
+            assert all(sell_df['BS'] == 'S')
+
+        # Hold opportunities should only contain recalculated BS == 'H'
         if len(result['hold_opportunities']) > 0:
-            hold_signals = enhanced_market_data.loc[result['hold_opportunities'].index, 'BS']
-            assert all(signal == 'H' for signal in hold_signals)
+            hold_df = result['hold_opportunities']
+            assert 'BS' in hold_df.columns
+            assert all(hold_df['BS'] == 'H')
     
     @pytest.mark.asyncio
     async def test_portfolio_filtering_baseline_behavior(self, enhanced_market_data, portfolio_csv_data):
