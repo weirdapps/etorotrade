@@ -128,18 +128,20 @@ class TradingEngine:
             if notrade_path and Path(notrade_path).exists():
                 processed_market = self.filter_service.filter_notrade_tickers(processed_market, notrade_path)
 
-            # Always recalculate trading signals - don't trust existing BS/ACT columns
-            # This ensures ROE/DE and other new criteria are properly applied
-            if "BS" in processed_market.columns:
-                self.logger.info("Dropping existing BS column to force recalculation with current criteria")
-                processed_market = processed_market.drop(columns=["BS"])
+            # Use existing BS/ACT columns if present (from saved CSV files)
+            # Otherwise calculate trading signals for freshly fetched data
+            has_signals = False
 
-            if "ACT" in processed_market.columns:
-                self.logger.info("Dropping existing ACT column to force recalculation with current criteria")
-                processed_market = processed_market.drop(columns=["ACT"])
+            if "ACT" in processed_market.columns and "BS" not in processed_market.columns:
+                self.logger.info("Using ACT column values as BS column from market data")
+                processed_market["BS"] = processed_market["ACT"]
+                has_signals = True
+            elif "BS" in processed_market.columns:
+                has_signals = True
 
-            # Always calculate trading signals to ensure current criteria are applied
-            processed_market = self.analysis_service.calculate_trading_signals(processed_market)
+            # Only calculate if signals are missing (fresh data fetch)
+            if not has_signals:
+                processed_market = self.analysis_service.calculate_trading_signals(processed_market)
 
             # Categorize opportunities
             results["buy_opportunities"] = self.filter_service.filter_buy_opportunities(processed_market)

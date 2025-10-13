@@ -66,6 +66,8 @@ def sample_market_data_with_bs():
         'market_cap': [2.5e12, 2.1e12, 1.8e12, 0.8e12, 1.5e12],
         'pe_ratio': [25.5, 28.2, 22.8, 45.2, 35.1],
         'beta': [1.1, 0.9, 1.3, 2.1, 1.4],
+        'return_on_equity': [15.0, 12.0, 5.0, 18.0, 10.0],  # ROE for trading criteria
+        'debt_to_equity': [120.0, 80.0, 250.0, 100.0, 150.0],  # DE for trading criteria
         'BS': ['B', 'H', 'S', 'B', 'H'],  # Buy/Hold/Sell signals
         'EXRET': [12.5, 3.2, -8.1, 15.3, 2.8],
         'expected_return': [12.5, 3.2, -8.1, 15.3, 2.8]
