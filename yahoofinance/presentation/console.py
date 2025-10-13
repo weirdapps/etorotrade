@@ -277,22 +277,18 @@ class MarketDisplay:
         
         df = new_df
 
-        # Handle BS/ACTION column - preserve existing values or calculate new ones
+        # Handle BS/ACTION column - ALWAYS recalculate to ensure current criteria are applied
         bs_col = COLUMN_NAMES['ACTION']
 
-        # Check if any action column already exists in the DataFrame
+        # Drop any existing action columns to force recalculation with current criteria
+        # This ensures ROE/DE and other new criteria are properly applied
         existing_action_cols = [col for col in ["BS", "ACTION", "ACT", "action"] if col in df.columns]
-
         if existing_action_cols:
-            # Use the first existing action column found
-            source_col = existing_action_cols[0]
-            if source_col != bs_col:
-                # Rename the column to the standard name
-                df[bs_col] = df[source_col].copy()
-                df = df.drop(columns=[source_col])
-        else:
-            # Calculate actions only if no action column exists
-            df[bs_col] = self._calculate_actions(df)
+            logger.info(f"Dropping existing action columns {existing_action_cols} to force recalculation")
+            df = df.drop(columns=existing_action_cols)
+
+        # Always calculate actions using current trading criteria
+        df[bs_col] = self._calculate_actions(df)
 
         # Apply number formatting based on FORMATTERS configuration
         import math
@@ -343,15 +339,15 @@ class MarketDisplay:
 
             df["EARNINGS"] = df["EARNINGS"].apply(format_earnings_date)
 
-        # Special handling for ROE formatting (convert decimal to percentage)
+        # Special handling for ROE formatting (already in percentage from API)
         if "ROE" in df.columns:
             def format_roe(value):
                 try:
                     if value is None or (isinstance(value, float) and (math.isnan(value) or math.isinf(value))):
                         return "--"
                     if isinstance(value, (int, float)) and value != 0:
-                        # Convert decimal to percentage (0.1983 -> 19.8)
-                        return f"{float(value)*100:.1f}"
+                        # API now returns percentage format (109.417), just format with 1 decimal
+                        return f"{float(value):.1f}"
                     return "--"
                 except Exception:
                     return "--"

@@ -28,6 +28,8 @@ us_mega:
     min_price_performance: -25
     min_analysts: 14
     min_price_targets: 10
+    min_roe: 8.0
+    max_debt_equity: 200.0
   sell:
     max_upside: 2.5
     min_buy_percentage: 50
@@ -39,6 +41,8 @@ us_mega:
     max_exret: 2
     max_earnings_growth: -45
     max_price_performance: -45
+    min_roe: 5.0
+    max_debt_equity: 250.0
 us_large:
   buy:
     min_upside: 10
@@ -56,6 +60,8 @@ us_large:
     min_price_performance: -22.5
     min_analysts: 12
     min_price_targets: 8
+    min_roe: 8.0
+    max_debt_equity: 200.0
   sell:
     max_upside: 5
     min_buy_percentage: 55
@@ -67,6 +73,8 @@ us_large:
     max_exret: 3
     max_earnings_growth: -42.5
     max_price_performance: -42.5
+    min_roe: 5.0
+    max_debt_equity: 250.0
 us_mid:
   buy:
     min_upside: 15
@@ -84,6 +92,8 @@ us_mid:
     min_price_performance: -20
     min_analysts: 10
     min_price_targets: 6
+    min_roe: 8.0
+    max_debt_equity: 200.0
   sell:
     max_upside: 7.5
     min_buy_percentage: 60
@@ -95,6 +105,8 @@ us_mid:
     max_exret: 5
     max_earnings_growth: -40
     max_price_performance: -40
+    min_roe: 5.0
+    max_debt_equity: 250.0
 us_small:
   buy:
     min_upside: 25
@@ -112,6 +124,8 @@ us_small:
     min_price_performance: -17.5
     min_analysts: 8
     min_price_targets: 5
+    min_roe: 8.0
+    max_debt_equity: 200.0
   sell:
     max_upside: 10
     min_buy_percentage: 65
@@ -123,6 +137,8 @@ us_small:
     max_exret: 7
     max_earnings_growth: -37.5
     max_price_performance: -37.5
+    min_roe: 5.0
+    max_debt_equity: 250.0
 us_micro:
   buy:
     min_upside: 35
@@ -140,6 +156,8 @@ us_micro:
     min_price_performance: -15
     min_analysts: 6
     min_price_targets: 4
+    min_roe: 8.0
+    max_debt_equity: 200.0
   sell:
     max_upside: 12.5
     min_buy_percentage: 70
@@ -151,6 +169,8 @@ us_micro:
     max_exret: 9
     max_earnings_growth: -35
     max_price_performance: -35
+    min_roe: 5.0
+    max_debt_equity: 250.0
 eu_mega:
   buy:
     min_upside: 10
@@ -168,6 +188,8 @@ eu_mega:
     min_price_performance: -25
     min_analysts: 14
     min_price_targets: 10
+    min_roe: 8.0
+    max_debt_equity: 200.0
   sell:
     max_upside: 5
     min_buy_percentage: 50
@@ -179,6 +201,8 @@ eu_mega:
     max_exret: 3
     max_earnings_growth: -45
     max_price_performance: -45
+    min_roe: 5.0
+    max_debt_equity: 250.0
 eu_large:
   buy:
     min_upside: 15
@@ -196,6 +220,8 @@ eu_large:
     min_price_performance: -22.5
     min_analysts: 12
     min_price_targets: 8
+    min_roe: 8.0
+    max_debt_equity: 200.0
   sell:
     max_upside: 7.5
     min_buy_percentage: 55
@@ -207,6 +233,8 @@ eu_large:
     max_exret: 5
     max_earnings_growth: -42.5
     max_price_performance: -42.5
+    min_roe: 5.0
+    max_debt_equity: 250.0
 eu_mid:
   buy:
     min_upside: 20
@@ -224,6 +252,8 @@ eu_mid:
     min_price_performance: -20
     min_analysts: 10
     min_price_targets: 6
+    min_roe: 8.0
+    max_debt_equity: 200.0
   sell:
     max_upside: 10
     min_buy_percentage: 60
@@ -235,6 +265,8 @@ eu_mid:
     max_exret: 6
     max_earnings_growth: -40
     max_price_performance: -40
+    min_roe: 5.0
+    max_debt_equity: 250.0
 eu_small:
   buy:
     min_upside: 30
@@ -252,6 +284,8 @@ eu_small:
     min_price_performance: -17.5
     min_analysts: 8
     min_price_targets: 5
+    min_roe: 8.0
+    max_debt_equity: 200.0
   sell:
     max_upside: 12.5
     min_buy_percentage: 65
@@ -263,6 +297,8 @@ eu_small:
     max_exret: 9
     max_earnings_growth: -37.5
     max_price_performance: -37.5
+    min_roe: 5.0
+    max_debt_equity: 250.0
 eu_micro:
   buy:
     min_upside: 40
@@ -280,6 +316,8 @@ eu_micro:
     min_price_performance: -15
     min_analysts: 6
     min_price_targets: 4
+    min_roe: 8.0
+    max_debt_equity: 200.0
   sell:
     max_upside: 15
     min_buy_percentage: 70
@@ -291,6 +329,8 @@ eu_micro:
     max_exret: 11
     max_earnings_growth: -35
     max_price_performance: -35
+    min_roe: 5.0
+    max_debt_equity: 250.0
 hk_mega:
   buy:
     min_upside: 15
@@ -308,6 +348,8 @@ hk_mega:
     min_price_performance: -25
     min_analysts: 14
     min_price_targets: 10
+    min_roe: 8.0
+    max_debt_equity: 200.0
   sell:
     max_upside: 7.5
     min_buy_percentage: 55
@@ -319,6 +361,8 @@ hk_mega:
     max_exret: 5
     max_earnings_growth: -45
     max_price_performance: -45
+    min_roe: 5.0
+    max_debt_equity: 250.0
 hk_large:
   buy:
     min_upside: 20
@@ -336,6 +380,8 @@ hk_large:
     min_price_performance: -22.5
     min_analysts: 12
     min_price_targets: 8
+    min_roe: 8.0
+    max_debt_equity: 200.0
   sell:
     max_upside: 10
     min_buy_percentage: 60
@@ -347,6 +393,8 @@ hk_large:
     max_exret: 6
     max_earnings_growth: -42.5
     max_price_performance: -42.5
+    min_roe: 5.0
+    max_debt_equity: 250.0
 hk_mid:
   buy:
     min_upside: 25
@@ -364,6 +412,8 @@ hk_mid:
     min_price_performance: -20
     min_analysts: 10
     min_price_targets: 6
+    min_roe: 8.0
+    max_debt_equity: 200.0
   sell:
     max_upside: 12.5
     min_buy_percentage: 65
@@ -375,6 +425,8 @@ hk_mid:
     max_exret: 9
     max_earnings_growth: -40
     max_price_performance: -40
+    min_roe: 5.0
+    max_debt_equity: 250.0
 hk_small:
   buy:
     min_upside: 35
@@ -392,6 +444,8 @@ hk_small:
     min_price_performance: -17.5
     min_analysts: 8
     min_price_targets: 5
+    min_roe: 8.0
+    max_debt_equity: 200.0
   sell:
     max_upside: 15
     min_buy_percentage: 70
@@ -403,6 +457,8 @@ hk_small:
     max_exret: 11
     max_earnings_growth: -37.5
     max_price_performance: -37.5
+    min_roe: 5.0
+    max_debt_equity: 250.0
 hk_micro:
   buy:
     min_upside: 45
@@ -420,6 +476,8 @@ hk_micro:
     min_price_performance: -15
     min_analysts: 6
     min_price_targets: 4
+    min_roe: 8.0
+    max_debt_equity: 200.0
   sell:
     max_upside: 17.5
     min_buy_percentage: 75
@@ -431,6 +489,8 @@ hk_micro:
     max_exret: 14
     max_earnings_growth: -35
     max_price_performance: -35
+    min_roe: 5.0
+    max_debt_equity: 250.0
 position_sizing:
   base_position_size: 2500
   tier_multipliers:

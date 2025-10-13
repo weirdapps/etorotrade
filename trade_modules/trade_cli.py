@@ -762,26 +762,18 @@ async def main_async_with_args(args, app_logger=None):
                 if app_logger:
                     app_logger.info("Portfolio download completed")
 
-            # Display portfolio data from existing CSV if available
-            output_dir, _, _, _, _ = get_file_paths()
-            portfolio_csv = os.path.join(output_dir, "portfolio.csv")
+            # Fetch and display portfolio data using the standard workflow:
+            # 1. Load tickers from portfolio file
+            # 2. Fetch full market data from provider (includes ROE, DE, etc.)
+            # 3. Analysis engine applies TradeConfig thresholds
+            # 4. Display and save results
+            tickers = display.load_tickers("P")
+            if app_logger:
+                app_logger.info(f"Loaded {len(tickers)} tickers from portfolio")
 
-            if os.path.exists(portfolio_csv):
-                # Load and display existing portfolio data directly
-                if app_logger:
-                    app_logger.info(f"Loading existing portfolio from {portfolio_csv}")
-                df = pd.read_csv(portfolio_csv)
-                data = df.to_dict('records')
-
-                # Display the portfolio table
-                display.display_stock_table(data, "Portfolio Analysis")
-                # HTML generation happens automatically in display_stock_table
-            else:
-                # No existing portfolio, fetch from source
-                tickers = display.load_tickers("P")
-                await display_market_report(
-                    display, tickers, "P", verbose=False, get_provider=provider, app_logger=app_logger
-                )
+            await display_market_report(
+                display, tickers, "P", verbose=False, get_provider=provider, app_logger=app_logger
+            )
 
         # Handle trade analysis operations
         elif args.operation in ["t", "trade"]:
