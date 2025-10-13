@@ -124,7 +124,11 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 "pe_forward": key_stats.get("forwardPE", None),
                 "peg_ratio": key_stats.get("pegRatio", None),
                 "short_percent": key_stats.get("shortPercentOfFloat", None),
-                "return_on_equity": key_stats.get("returnOnEquity", None),
+                "return_on_equity": (
+                    financial_data.get("returnOnEquity") * 100
+                    if financial_data.get("returnOnEquity") is not None
+                    else None
+                ),
                 "debt_to_equity": financial_data.get("debtToEquity", None),
                 "dividend_yield": (
                     summary_data.get("dividendYield", None) * 100
@@ -709,6 +713,12 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                     "pe_forward": ticker_stats.get("forwardPE", None),
                     "peg_ratio": ticker_stats.get("pegRatio", None),
                     "short_percent": ticker_stats.get("shortPercentOfFloat", None),
+                    "return_on_equity": (
+                        ticker_financial.get("returnOnEquity") * 100
+                        if ticker_financial.get("returnOnEquity") is not None
+                        else None
+                    ),
+                    "debt_to_equity": ticker_financial.get("debtToEquity", None),
                     "dividend_yield": (
                         ticker_summary.get("dividendYield", None) * 100
                         if ticker_summary.get("dividendYield")
