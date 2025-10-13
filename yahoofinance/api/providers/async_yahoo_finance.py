@@ -244,6 +244,9 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             info["debt_to_equity"] = ticker_info.get("debtToEquity", None)
             if info["short_percent"] is not None:
                 info["short_percent"] = info["short_percent"] * 100
+            # Convert ROE from decimal to percentage (1.09417 -> 109.417)
+            if info["return_on_equity"] is not None:
+                info["return_on_equity"] = info["return_on_equity"] * 100
             info["target_price"] = ticker_info.get("targetMeanPrice", None)
             info["recommendation"] = ticker_info.get("recommendationMean", None)
 

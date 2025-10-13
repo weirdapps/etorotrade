@@ -5,13 +5,54 @@
 [![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=weirdapps_etorotrade&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=weirdapps_etorotrade)
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=weirdapps_etorotrade&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=weirdapps_etorotrade)
 
-A quantitative analysis framework for systematic evaluation of equity securities using analyst consensus data and fundamental metrics.
+**Make data-driven investment decisions with confidence.** This tool aggregates analyst recommendations, price targets, and fundamental metrics into a single, clear display—helping you identify opportunities, manage your portfolio, and make educated investment choices.
 
 ![eToro Trade Analysis Tool](docs/assets/etorotrade.png)
 
-## Overview
+> **Created by**: [plessas](https://www.etoro.com/people/plessas) - eToro Popular Investor
+> **Important**: This tool provides analysis only, not investment advice. All investment decisions are your own responsibility.
 
-This tool implements a rules-based approach to security analysis by aggregating multiple data sources and applying consistent evaluation criteria across market capitalizations and geographic regions. It processes financial metrics through a multi-tier classification system to generate actionable trading signals.
+## What Does This Tool Do?
+
+Instead of manually checking multiple websites for analyst ratings, price targets, and financial metrics, this tool:
+
+✅ **Aggregates Data**: Pulls analyst consensus from 20+ investment banks via Yahoo Finance
+✅ **Analyzes Metrics**: Evaluates 15+ financial indicators (upside potential, analyst ratings, P/E ratios, ROE, etc.)
+✅ **Generates Signals**: Applies systematic criteria to suggest BUY, SELL, HOLD, or INCONCLUSIVE
+✅ **Calculates Position Sizes**: Recommends allocation based on risk-adjusted framework
+✅ **Produces Reports**: Exports results to CSV and HTML for easy review
+
+**What this is**: A research tool that organizes publicly available analyst data into actionable insights.
+**What this is NOT**: Investment advice, a guarantee of returns, or a fully automated trading system.
+
+## Quick Start
+
+### For eToro Users
+
+1. **Export your portfolio** from eToro (Portfolio → Export to CSV)
+2. **Save as** `yahoofinance/input/portfolio.csv`
+3. **Run analysis**: `python trade.py -o p`
+4. **View results** in console or check `yahoofinance/output/portfolio.html`
+
+That's it! You'll see color-coded recommendations (🟢 BUY, 🔴 SELL, ⚪ HOLD) for each position.
+
+### For All Investors
+
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Analyze specific stocks
+python trade.py -o i -t AAPL,MSFT,GOOGL
+
+# 3. Screen market opportunities
+python trade.py -o m
+
+# 4. Generate buy recommendations
+python trade.py -o t -t b
+```
+
+📖 **New to this?** See the complete [User Guide](docs/USER_GUIDE.md) for detailed instructions.
 
 ## Technical Specifications
 
@@ -234,7 +275,7 @@ Contributions are welcome. Please ensure:
 ## Documentation
 
 - [User Guide](docs/USER_GUIDE.md) - Getting started and common workflows
-- [Technical Architecture](docs/CLAUDE.md) - System design and implementation details
+- [Technical Architecture](docs/TECHNICAL.md) - System design and implementation details
 - [Position Sizing](docs/POSITION_SIZING.md) - Risk management algorithms and methodology
 - [CI/CD Pipeline](docs/CI_CD.md) - Testing, quality gates, and deployment procedures
 
@@ -248,6 +289,6 @@ For issues or questions, please use the [GitHub issue tracker](https://github.co
 
 ---
 
-*Last Updated: January 2025*
+*Last Updated: October 2025*
 
 **Disclaimer**: This tool is designed for quantitative analysis and research purposes only. It does not constitute investment advice. Users should conduct their own due diligence and consider consulting with qualified financial advisors before making investment decisions. Past performance does not guarantee future results.

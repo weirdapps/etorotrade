@@ -100,6 +100,8 @@ class TradeConfig:
                 "min_exret": 0.15,  # 15%
                 "min_earnings_growth": -10.0,
                 "min_price_performance": -15.0,
+                "min_roe": 8.0,  # Return on Equity minimum (%)
+                "max_debt_equity": 200.0,  # Debt-to-Equity maximum (%)
             },
             "sell": {
                 "max_upside": 5.0,
@@ -110,6 +112,8 @@ class TradeConfig:
                 "max_exret": 0.025,  # 2.5%
                 "max_earnings_growth": -15.0,
                 "max_price_performance": -35.0,
+                "min_roe": 5.0,  # SELL if ROE drops below 5%
+                "max_debt_equity": 250.0,  # SELL if DE exceeds 250%
             },
             "hold": {
                 # Anything between buy and sell criteria
@@ -136,6 +140,8 @@ class TradeConfig:
                 "min_exret": 0.20,  # 20%
                 "min_earnings_growth": -15.0,
                 "min_price_performance": -10.0,
+                "min_roe": 8.0,  # Return on Equity minimum (%)
+                "max_debt_equity": 200.0,  # Debt-to-Equity maximum (%)
             },
             "sell": {
                 "max_upside": 8.0,
@@ -146,6 +152,8 @@ class TradeConfig:
                 "max_exret": 0.08,  # 8%
                 "max_earnings_growth": -15.0,
                 "max_price_performance": -35.0,
+                "min_roe": 5.0,  # SELL if ROE drops below 5%
+                "max_debt_equity": 250.0,  # SELL if DE exceeds 250%
             }
         },
 
@@ -165,6 +173,8 @@ class TradeConfig:
                 "min_exret": 0.10,  # 10%
                 "min_earnings_growth": -5.0,
                 "min_price_performance": -20.0,
+                "min_roe": 8.0,  # Return on Equity minimum (%)
+                "max_debt_equity": 200.0,  # Debt-to-Equity maximum (%)
             },
             "sell": {
                 "max_upside": 5.0,
@@ -175,6 +185,8 @@ class TradeConfig:
                 "max_exret": 0.05,  # 5%
                 "max_earnings_growth": -15.0,
                 "max_price_performance": -35.0,
+                "min_roe": 5.0,  # SELL if ROE drops below 5%
+                "max_debt_equity": 250.0,  # SELL if DE exceeds 250%
             }
         },
 
@@ -194,6 +206,8 @@ class TradeConfig:
                 "min_exret": 0.20,  # 20%
                 "min_earnings_growth": -15.0,
                 "min_price_performance": -10.0,
+                "min_roe": 8.0,  # Return on Equity minimum (%)
+                "max_debt_equity": 200.0,  # Debt-to-Equity maximum (%)
             },
             "sell": {
                 "max_upside": 12.0,
@@ -204,6 +218,8 @@ class TradeConfig:
                 "max_exret": 0.10,  # 10%
                 "max_earnings_growth": -15.0,
                 "max_price_performance": -35.0,
+                "min_roe": 5.0,  # SELL if ROE drops below 5%
+                "max_debt_equity": 250.0,  # SELL if DE exceeds 250%
             }
         },
 
@@ -223,6 +239,8 @@ class TradeConfig:
                 "min_exret": 0.15,  # 15%
                 "min_earnings_growth": -10.0,
                 "min_price_performance": -15.0,
+                "min_roe": 8.0,  # Return on Equity minimum (%)
+                "max_debt_equity": 200.0,  # Debt-to-Equity maximum (%)
             },
             "sell": {
                 "max_upside": 5.0,
@@ -233,9 +251,134 @@ class TradeConfig:
                 "max_exret": 0.025,  # 2.5%
                 "max_earnings_growth": -15.0,
                 "max_price_performance": -35.0,
+                "min_roe": 5.0,  # SELL if ROE drops below 5%
+                "max_debt_equity": 250.0,  # SELL if DE exceeds 250%
             }
         }
     }
+
+    # ============================================
+    # SECTION 1B: SECTOR-SPECIFIC RULES
+    # ============================================
+    # These rules override standard ROE/DE thresholds for specific sectors
+    # where different capital structures are normal/expected
+
+    SECTOR_RULES = {
+        'FINANCIAL': {
+            'description': 'Banks, Asset Managers, Insurance - Leverage is their business model',
+            'min_roe_buy': 6.0,  # Lower threshold for mature financials
+            'min_roe_sell': 3.0,  # SELL if drops below 3%
+            'max_debt_equity_buy': 500.0,  # Much higher - banks typically 500-1500%
+            'max_debt_equity_sell': 800.0,  # SELL if exceeds 800%
+            'tickers': ['C', 'STT', 'WBS', 'RITM', 'MET', 'GL', 'SCHW', 'BAC', 'JPM', 'WFC', 'GS', 'MS'],
+        },
+        'REIT': {
+            'description': 'REITs - Negative ROE due to depreciation is normal',
+            'skip_roe': True,  # Ignore ROE entirely for REITs
+            'max_debt_equity_buy': 300.0,
+            'max_debt_equity_sell': 400.0,
+            'tickers': ['CCI', 'AMT', 'SBAC', 'EQIX', 'DLR', 'PLD'],
+        },
+        'MLP': {
+            'description': 'Master Limited Partnerships - Energy infrastructure with extreme leverage',
+            'min_roe_buy': 15.0,  # Should have high ROE to justify the leverage
+            'min_roe_sell': 8.0,
+            'max_debt_equity_buy': 800.0,  # Very high leverage is structural
+            'max_debt_equity_sell': 1000.0,
+            'tickers': ['TRGP', 'EPD', 'ET', 'MMP', 'MPLX'],
+        },
+        'PHARMA_HIGH_LEVERAGE': {
+            'description': 'Pharma companies with strategic R&D/acquisition leverage',
+            'min_roe_buy': 20.0,  # Must have excellent ROE to justify leverage
+            'min_roe_sell': 12.0,
+            'max_debt_equity_buy': 300.0,  # Allow higher for R&D financing
+            'max_debt_equity_sell': 400.0,
+            'tickers': ['LLY', 'BMY', 'ABBV', 'GILD'],
+        },
+        'EQUIPMENT_FINANCING': {
+            'description': 'Equipment manufacturers with captive financing arms',
+            'min_roe_buy': 12.0,
+            'min_roe_sell': 8.0,
+            'max_debt_equity_buy': 300.0,  # Financing operations inflate DE
+            'max_debt_equity_sell': 400.0,
+            'tickers': ['DE', 'CAT', 'CNH'],
+        },
+        'UTILITY': {
+            'description': 'Utilities and infrastructure - Capital intensive with stable cash flows',
+            'min_roe_buy': 8.0,  # Stable but lower ROE is normal
+            'min_roe_sell': 5.0,
+            'max_debt_equity_buy': 250.0,  # Higher leverage for infrastructure
+            'max_debt_equity_sell': 350.0,
+            'tickers': ['VIE.PA', 'NEE', 'DUK', 'SO', 'D'],
+        },
+    }
+
+    @classmethod
+    def get_sector_from_ticker(cls, ticker: str) -> Optional[str]:
+        """
+        Detect which sector a ticker belongs to based on SECTOR_RULES.
+
+        Args:
+            ticker: Stock ticker symbol
+
+        Returns:
+            Sector name if found, None otherwise
+        """
+        if not ticker:
+            return None
+
+        ticker_upper = ticker.upper()
+
+        for sector_name, sector_config in cls.SECTOR_RULES.items():
+            if ticker_upper in sector_config.get('tickers', []):
+                return sector_name
+
+        return None
+
+    @classmethod
+    def get_sector_adjusted_thresholds(cls, ticker: str, action: str, base_criteria: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Get sector-adjusted ROE and DE thresholds for a specific ticker.
+
+        Args:
+            ticker: Stock ticker symbol
+            action: 'buy' or 'sell'
+            base_criteria: Base criteria dictionary from THRESHOLDS
+
+        Returns:
+            Adjusted criteria dictionary with sector-specific ROE/DE thresholds
+        """
+        sector = cls.get_sector_from_ticker(ticker)
+
+        if not sector:
+            # No sector override, return base criteria as-is
+            return base_criteria
+
+        sector_config = cls.SECTOR_RULES.get(sector, {})
+        adjusted_criteria = base_criteria.copy()
+
+        # Apply sector-specific ROE thresholds
+        if action == 'buy':
+            if 'skip_roe' in sector_config and sector_config['skip_roe']:
+                # Remove ROE requirement entirely (for REITs)
+                adjusted_criteria.pop('min_roe', None)
+            elif 'min_roe_buy' in sector_config:
+                adjusted_criteria['min_roe'] = sector_config['min_roe_buy']
+
+            if 'max_debt_equity_buy' in sector_config:
+                adjusted_criteria['max_debt_equity'] = sector_config['max_debt_equity_buy']
+
+        elif action == 'sell':
+            if 'skip_roe' in sector_config and sector_config['skip_roe']:
+                # Remove ROE requirement entirely (for REITs)
+                adjusted_criteria.pop('min_roe', None)
+            elif 'min_roe_sell' in sector_config:
+                adjusted_criteria['min_roe'] = sector_config['min_roe_sell']
+
+            if 'max_debt_equity_sell' in sector_config:
+                adjusted_criteria['max_debt_equity'] = sector_config['max_debt_equity_sell']
+
+        return adjusted_criteria
 
     # ============================================
     # SECTION 2: DISPLAY COLUMN PROFILES

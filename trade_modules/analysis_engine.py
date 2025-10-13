@@ -40,9 +40,23 @@ def calculate_exret(df: pd.DataFrame) -> pd.DataFrame:
 
     try:
         # Calculate EXRET = upside * (buy_percentage / 100)
+        # Use proper default Series instead of scalar to avoid fillna() error
+        # Handle both normalized (upside, buy_percentage) and CSV (%BUY, UPSIDE) column names
+        upside_col = working_df.get("upside", working_df.get("UPSIDE"))
+        if upside_col is None:
+            upside_col = pd.Series([0] * len(working_df), index=working_df.index)
+
+        buy_pct_col = working_df.get("buy_percentage", working_df.get("%BUY"))
+        if buy_pct_col is None:
+            buy_pct_col = pd.Series([0] * len(working_df), index=working_df.index)
+
+        # Parse percentage values - handle strings like "18.1%" or numeric values
+        upside_numeric = pd.to_numeric(upside_col.str.rstrip('%') if hasattr(upside_col, 'str') else upside_col, errors="coerce").fillna(0)
+        buy_pct_numeric = pd.to_numeric(buy_pct_col.str.rstrip('%') if hasattr(buy_pct_col, 'str') else buy_pct_col, errors="coerce").fillna(0)
+
         working_df["EXRET"] = (
-            pd.to_numeric(working_df.get("upside", 0), errors="coerce").fillna(0)
-            * pd.to_numeric(working_df.get("buy_percentage", 0), errors="coerce").fillna(0)
+            upside_numeric
+            * buy_pct_numeric
             / 100.0
         )
 
@@ -53,7 +67,8 @@ def calculate_exret(df: pd.DataFrame) -> pd.DataFrame:
         return working_df
     except Exception as e:
         logger.error(f"Error calculating EXRET: {str(e)}")
-        working_df["EXRET"] = 0
+        # Set to Series of zeros, not scalar
+        working_df["EXRET"] = pd.Series([0] * len(working_df), index=working_df.index)
         return working_df
 
 
@@ -199,6 +214,12 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
     pd.Series
         Series with action values (B/S/H/I)
     """
+    # Remove duplicate index values to prevent ambiguous .loc[] lookups
+    # Keep first occurrence of each ticker
+    if df.index.duplicated().any():
+        logger.warning(f"Found {df.index.duplicated().sum()} duplicate tickers, keeping first occurrence")
+        df = df[~df.index.duplicated(keep='first')]
+
     # Initialize config and YAML loader
     config = TradeConfig()
     from trade_modules.yaml_config_loader import get_yaml_config
@@ -252,12 +273,29 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
     else:
         exret = pd.Series([_parse_percentage(val) for val in exret_col], index=df.index)
 
+    # Parse ROE and DE columns - handle missing data gracefully
+    # ROE comes from provider already in percentage format (e.g., 109.4 for 109.4%)
+    roe_raw = df.get("return_on_equity", df.get("ROE", pd.Series([np.nan] * len(df), index=df.index)))
+    # Replace "--" and empty strings with NaN before converting to numeric
+    roe_clean = roe_raw.replace(["--", "", " ", "nan"], np.nan)
+    roe = pd.to_numeric(roe_clean, errors="coerce").fillna(np.nan)
+
+    # DE comes from provider already in percentage format
+    de_raw = df.get("debt_to_equity", df.get("DE", pd.Series([np.nan] * len(df), index=df.index)))
+    # Replace "--" and empty strings with NaN before converting to numeric
+    de_clean = de_raw.replace(["--", "", " ", "nan"], np.nan)
+    de = pd.to_numeric(de_clean, errors="coerce").fillna(np.nan)
+
     # Initialize action series
     actions = pd.Series("H", index=df.index)  # Default to HOLD
     actions[~has_confidence] = "I"  # INCONCLUSIVE for low confidence
 
     # Get ticker column for region detection
-    ticker_col = df.get("ticker", df.get("TICKER", pd.Series("", index=df.index)))
+    # Check if TICKER is the index (from CSV with index_col=0) or a column
+    if df.index.name == "TICKER" or (hasattr(df.index, 'name') and df.index.name and "ticker" in df.index.name.lower()):
+        ticker_col = pd.Series(df.index, index=df.index)
+    else:
+        ticker_col = df.get("ticker", df.get("TICKER", pd.Series([""] * len(df), index=df.index)))
 
     # Process each row with region-tier specific thresholds
     for idx in df.index:
@@ -274,10 +312,16 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
             criteria = yaml_config.get_region_tier_criteria(region, tier)
             buy_criteria = criteria.get("buy", {})
             sell_criteria = criteria.get("sell", {})
+            logger.debug(f"Ticker {ticker}: region={region}, tier={tier}, sell_criteria keys={list(sell_criteria.keys())}")
         else:
             # Fallback to old system if YAML not available
             buy_criteria = config.get_tier_thresholds(tier, "buy")
             sell_criteria = config.get_tier_thresholds(tier, "sell")
+            logger.warning(f"Ticker {ticker}: YAML config not available, using fallback")
+
+        # Apply sector-specific ROE/DE threshold adjustments
+        buy_criteria = config.get_sector_adjusted_thresholds(ticker, "buy", buy_criteria)
+        sell_criteria = config.get_sector_adjusted_thresholds(ticker, "sell", sell_criteria)
 
         # Extract values for this row
         row_upside = upside.loc[idx]
@@ -288,22 +332,30 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
         row_peg = peg.loc[idx]
         row_si = si.loc[idx]
         row_beta = beta.loc[idx]
+        row_roe = roe.loc[idx]
+        row_de = de.loc[idx]
 
         # SELL criteria - ANY condition triggers SELL
         sell_conditions = []
 
-        # Basic criteria from config
-        max_upside = sell_criteria.get("max_upside", 100.0)  # Default to not trigger
-        if row_upside <= max_upside:
-            sell_conditions.append(True)
+        logger.debug(f"Ticker {ticker}: SELL CHECK START - upside={row_upside:.1f}%, buy%={row_buy_pct:.1f}%, exret={row_exret:.1f}%, roe={row_roe}, de={row_de}")
 
-        min_buy_pct = sell_criteria.get("min_buy_percentage", 0.0)  # Default to not trigger
-        if row_buy_pct <= min_buy_pct:
-            sell_conditions.append(True)
+        # Basic criteria from config - only apply if explicitly defined in YAML
+        # NO DEFAULTS - criteria must be explicitly configured to avoid false positives
+        if "max_upside" in sell_criteria:
+            if row_upside <= sell_criteria["max_upside"]:
+                sell_conditions.append("max_upside")
+                logger.info(f"Ticker {ticker}: SELL TRIGGER - upside {row_upside:.1f}% <= {sell_criteria['max_upside']:.1f}%")
 
-        max_exret = sell_criteria.get("max_exret", 100.0)  # Default to not trigger
-        if row_exret <= max_exret:
-            sell_conditions.append(True)
+        if "min_buy_percentage" in sell_criteria:
+            if row_buy_pct <= sell_criteria["min_buy_percentage"]:
+                sell_conditions.append("min_buy_percentage")
+                logger.info(f"Ticker {ticker}: SELL TRIGGER - buy% {row_buy_pct:.1f}% <= {sell_criteria['min_buy_percentage']:.1f}%")
+
+        if "max_exret" in sell_criteria:
+            if row_exret <= sell_criteria["max_exret"]:
+                sell_conditions.append("max_exret")
+                logger.info(f"Ticker {ticker}: SELL TRIGGER - exret {row_exret:.1f}% <= {sell_criteria['max_exret']:.1f}%")
 
         # Optional criteria from YAML (only apply if defined in YAML)
         if "max_forward_pe" in sell_criteria and not pd.isna(row_pef):
@@ -334,31 +386,50 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
             if row_beta > sell_criteria.get("min_beta"):
                 sell_conditions.append(True)
 
+        # ROE and DE SELL criteria (with sector adjustments)
+        if "min_roe" in sell_criteria and not pd.isna(row_roe):
+            if row_roe < sell_criteria.get("min_roe"):
+                sell_conditions.append(True)
+                logger.debug(f"Ticker {ticker}: Sell signal - ROE:{row_roe:.1f}% < min:{sell_criteria['min_roe']:.1f}%")
+
+        if "max_debt_equity" in sell_criteria and not pd.isna(row_de):
+            if row_de > sell_criteria.get("max_debt_equity"):
+                sell_conditions.append(True)
+                logger.debug(f"Ticker {ticker}: Sell signal - DE:{row_de:.1f}% > max:{sell_criteria['max_debt_equity']:.1f}%")
+
         if any(sell_conditions):
+            logger.info(f"Ticker {ticker}: MARKED AS SELL - triggered by: {', '.join(str(c) for c in sell_conditions)}")
             actions.loc[idx] = "S"
             continue
+
+        logger.debug(f"Ticker {ticker}: Passed SELL checks, evaluating BUY criteria")
 
         # BUY criteria - ALL conditions must be true
         # Start with assuming all conditions pass
         is_buy_candidate = True
 
-        # Required criteria
-        min_upside = buy_criteria.get("min_upside", 20.0)
-        if row_upside < min_upside:
-            is_buy_candidate = False
+        # Required criteria - only apply if explicitly defined in YAML
+        # NO DEFAULTS - criteria must be explicitly configured
+        if "min_upside" in buy_criteria:
+            if row_upside < buy_criteria["min_upside"]:
+                is_buy_candidate = False
+                logger.debug(f"Ticker {ticker}: No buy - upside {row_upside:.1f}% < {buy_criteria['min_upside']:.1f}%")
 
-        min_buy_pct = buy_criteria.get("min_buy_percentage", 75.0)
-        if row_buy_pct < min_buy_pct:
-            is_buy_candidate = False
+        if "min_buy_percentage" in buy_criteria:
+            if row_buy_pct < buy_criteria["min_buy_percentage"]:
+                is_buy_candidate = False
+                logger.debug(f"Ticker {ticker}: No buy - buy% {row_buy_pct:.1f}% < {buy_criteria['min_buy_percentage']:.1f}%")
 
-        min_exret = buy_criteria.get("min_exret", 15.0)  # Now in percentage
-        if row_exret < min_exret:
-            is_buy_candidate = False
+        if "min_exret" in buy_criteria:
+            if row_exret < buy_criteria["min_exret"]:
+                is_buy_candidate = False
+                logger.debug(f"Ticker {ticker}: No buy - exret {row_exret:.1f}% < {buy_criteria['min_exret']:.1f}%")
 
         # Check analyst requirements
-        min_analysts = buy_criteria.get("min_analysts", 4)
-        if analyst_count.loc[idx] < min_analysts:
-            is_buy_candidate = False
+        if "min_analysts" in buy_criteria:
+            if analyst_count.loc[idx] < buy_criteria["min_analysts"]:
+                is_buy_candidate = False
+                logger.debug(f"Ticker {ticker}: No buy - analysts {analyst_count.loc[idx]} < {buy_criteria['min_analysts']}")
 
         # Optional criteria from YAML (only apply if defined in YAML)
         if "min_beta" in buy_criteria and "max_beta" in buy_criteria and not pd.isna(row_beta):
@@ -395,6 +466,17 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
             if row_si > buy_criteria.get("max_short_interest"):
                 is_buy_candidate = False
 
+        # ROE and DE BUY criteria (with sector adjustments)
+        if "min_roe" in buy_criteria and not pd.isna(row_roe):
+            if row_roe < buy_criteria.get("min_roe"):
+                is_buy_candidate = False
+                logger.debug(f"Ticker {ticker}: Failed ROE check - ROE:{row_roe:.1f}% < min:{buy_criteria['min_roe']:.1f}%")
+
+        if "max_debt_equity" in buy_criteria and not pd.isna(row_de):
+            if row_de > buy_criteria.get("max_debt_equity"):
+                is_buy_candidate = False
+                logger.debug(f"Ticker {ticker}: Failed DE check - DE:{row_de:.1f}% > max:{buy_criteria['max_debt_equity']:.1f}%")
+
         if is_buy_candidate:
             actions.loc[idx] = "B"
         # Otherwise remains "H" (HOLD)
@@ -426,7 +508,9 @@ def calculate_action(df: pd.DataFrame) -> pd.DataFrame:
         logger.debug(f"Calculated actions for {len(working_df)} rows using vectorized operations")
         return working_df
     except Exception as e:
+        import traceback
         logger.error(f"Error calculating actions: {str(e)}")
+        logger.error(f"Full traceback:\n{traceback.format_exc()}")
         working_df["BS"] = "H"  # Default to HOLD
         return working_df
 
