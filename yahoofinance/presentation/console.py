@@ -350,13 +350,14 @@ class MarketDisplay:
         if "ROE" in df.columns:
             def format_roe(value):
                 try:
-                    if value is None or (isinstance(value, float) and (math.isnan(value) or math.isinf(value))):
+                    if value is None or value == '' or value == '--':
                         return "--"
-                    if isinstance(value, (int, float)) and value != 0:
-                        # API now returns percentage format (109.417), just format with 1 decimal
-                        return f"{float(value):.1f}"
-                    return "--"
-                except Exception:
+                    # Try to convert to float (handles both numeric and string inputs from CSV/API)
+                    float_value = float(value)
+                    if math.isnan(float_value) or math.isinf(float_value) or float_value == 0:
+                        return "--"
+                    return f"{float_value:.1f}"
+                except (ValueError, TypeError):
                     return "--"
 
             df["ROE"] = df["ROE"].apply(format_roe)
@@ -365,12 +366,14 @@ class MarketDisplay:
         if "DE" in df.columns:
             def format_de(value):
                 try:
-                    if value is None or (isinstance(value, float) and (math.isnan(value) or math.isinf(value))):
+                    if value is None or value == '' or value == '--':
                         return "--"
-                    if isinstance(value, (int, float)) and value != 0:
-                        return f"{float(value):.1f}"
-                    return "--"
-                except Exception:
+                    # Try to convert to float (handles both numeric and string inputs from CSV/API)
+                    float_value = float(value)
+                    if math.isnan(float_value) or math.isinf(float_value) or float_value == 0:
+                        return "--"
+                    return f"{float_value:.1f}"
+                except (ValueError, TypeError):
                     return "--"
 
             df["DE"] = df["DE"].apply(format_de)
