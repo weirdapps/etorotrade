@@ -287,6 +287,13 @@ class MarketDisplay:
             logger.info(f"Dropping existing action columns {existing_action_cols} to force recalculation")
             df = df.drop(columns=existing_action_cols)
 
+        # Create reverse aliases for short column names to long names
+        # This allows _calculate_actions() to find ROE/DE when reading from CSV
+        if 'ROE' in df.columns and 'return_on_equity' not in df.columns:
+            df['return_on_equity'] = df['ROE']
+        if 'DE' in df.columns and 'debt_to_equity' not in df.columns:
+            df['debt_to_equity'] = df['DE']
+
         # Always calculate actions using current trading criteria
         df[bs_col] = self._calculate_actions(df)
 
