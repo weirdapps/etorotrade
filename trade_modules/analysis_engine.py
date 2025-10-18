@@ -290,6 +290,17 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
     actions = pd.Series("H", index=df.index)  # Default to HOLD
     actions[~has_confidence] = "I"  # INCONCLUSIVE for low confidence
 
+    # Apply minimum market cap filter (from config.yaml universal_thresholds.min_market_cap)
+    # Stocks below minimum are marked as INCONCLUSIVE to prevent trading in illiquid micro-caps
+    min_market_cap = config.UNIVERSAL_THRESHOLDS.get("min_market_cap", 1_000_000_000)  # Default $1B
+    below_min_cap = cap_values < min_market_cap
+    if below_min_cap.sum() > 0:
+        actions[below_min_cap] = "I"  # INCONCLUSIVE for stocks below minimum market cap
+        logger.info(
+            f"Market cap filter: {below_min_cap.sum()} stocks below ${min_market_cap/1e9:.1f}B "
+            f"minimum threshold set to INCONCLUSIVE"
+        )
+
     # Get ticker column for region detection
     # Check if TICKER is the index (from CSV with index_col=0) or a column
     if df.index.name == "TICKER" or (hasattr(df.index, 'name') and df.index.name and "ticker" in df.index.name.lower()):
