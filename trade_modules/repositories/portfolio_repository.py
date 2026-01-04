@@ -355,7 +355,7 @@ class PortfolioRepository(IPortfolioRepository):
             self.logger.error(f"Error getting portfolio summary: {e}")
             return {}
     
-    def backup_portfolio(self, backup_suffix: str = None) -> bool:
+    def backup_portfolio(self, backup_suffix: Optional[str] = None) -> bool:
         """
         Create backup of portfolio file.
         
