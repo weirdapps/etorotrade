@@ -204,7 +204,7 @@ class CsvRepository(ICsvRepository):
             self.logger.error(f"Error listing files with pattern {pattern}: {e}")
             return []
     
-    def backup_file(self, identifier: str, backup_suffix: str = None) -> bool:
+    def backup_file(self, identifier: str, backup_suffix: Optional[str] = None) -> bool:
         """
         Create backup of CSV file.
         

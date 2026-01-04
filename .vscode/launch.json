@@ -1,0 +1,49 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Trade Analysis - Individual Ticker",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/trade.py",
+      "args": ["-o", "i", "-t", "AAPL"],
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Trade Analysis - Portfolio",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/trade.py",
+      "args": ["-o", "p"],
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Trade Analysis - Market Screening",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/trade.py",
+      "args": ["-o", "m"],
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Python: Current File",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Python: Pytest Current File",
+      "type": "python",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["${file}", "-v"],
+      "console": "integratedTerminal",
+      "justMyCode": false
+    }
+  ]
+}

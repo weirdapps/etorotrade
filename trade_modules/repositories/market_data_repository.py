@@ -198,7 +198,7 @@ class MarketDataRepository(IMarketDataRepository):
             self.logger.error(f"Error clearing {data_type} market data: {e}")
             return False
     
-    def backup_market_data(self, backup_suffix: str = None) -> bool:
+    def backup_market_data(self, backup_suffix: Optional[str] = None) -> bool:
         """
         Create backup of all market data files.
         

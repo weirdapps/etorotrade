@@ -39,7 +39,7 @@ class ITradingCriteriaProvider(ABC):
     """Interface for trading criteria providers."""
     
     @abstractmethod
-    def get_thresholds(self, option: str, action: str, tier: str = None) -> Dict[str, Any]:
+    def get_thresholds(self, option: str, action: str, tier: Optional[str] = None) -> Dict[str, Any]:
         """Get trading thresholds for specific option and action."""
         pass
     
@@ -58,13 +58,13 @@ class IDisplayProvider(ABC):
     """Interface for display configuration providers."""
     
     @abstractmethod
-    def get_display_columns(self, option: str, sub_option: str = None, 
+    def get_display_columns(self, option: str, sub_option: Optional[str] = None,
                           output_type: str = "console") -> List[str]:
         """Get display columns for specific option and output type."""
         pass
-    
+
     @abstractmethod
-    def get_sort_config(self, option: str, sub_option: str = None) -> Dict[str, str]:
+    def get_sort_config(self, option: str, sub_option: Optional[str] = None) -> Dict[str, str]:
         """Get sorting configuration."""
         pass
     

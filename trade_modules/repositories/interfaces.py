@@ -108,6 +108,6 @@ class IMarketDataRepository(IDataRepository):
         pass
     
     @abstractmethod
-    def backup_market_data(self, backup_suffix: str = None) -> bool:
+    def backup_market_data(self, backup_suffix: Optional[str] = None) -> bool:
         """Create backup of market data files."""
         pass
