@@ -63,7 +63,7 @@ venv.bak/
 
 # IDEs and editors
 .idea/
-.vscode/
+# .vscode/ - Now tracked for team settings
 *.swp
 *.swo
 *~
@@ -117,6 +117,7 @@ test_error_handling.py
 update_error_handling.py
 update_logger.py
 update_root_logger.py
+profile_core_functions.py
 
 
 # Logs
