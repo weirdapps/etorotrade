@@ -41,7 +41,7 @@ class TestFormatMarketCap:
     def test_format_market_cap_none(self):
         """Handle None market cap."""
         result = format_market_cap(None)
-        assert result is None or result == "--" or result == "N/A"
+        assert result is None
 
     def test_format_market_cap_zero(self):
         """Handle zero market cap."""
@@ -55,12 +55,12 @@ class TestCalculateUpside:
     def test_calculate_upside_positive(self):
         """Calculate positive upside."""
         result = calculate_upside(100, 120)
-        assert result == 20.0 or abs(result - 20.0) < 0.01
+        assert result == pytest.approx(20.0)
 
     def test_calculate_upside_negative(self):
         """Calculate negative upside."""
         result = calculate_upside(100, 90)
-        assert result == -10.0 or abs(result + 10.0) < 0.01
+        assert result == pytest.approx(-10.0)
 
     def test_calculate_upside_none_price(self):
         """Handle None current price."""
@@ -168,7 +168,7 @@ class TestFormattingEdgeCases:
         """Handle negative values gracefully."""
         # Negative market cap (shouldn't happen but test gracefully)
         result_cap = format_market_cap(-100000000)
-        assert isinstance(result_cap, str) or result_cap is None
+        assert result_cap is None or isinstance(result_cap, str)
 
 
 class TestFormattingConsistency:
@@ -180,7 +180,7 @@ class TestFormattingConsistency:
         size_result = format_position_size(None)
 
         # All should return consistent null representation
-        assert cap_result is None or cap_result == "--"
-        assert size_result is None or size_result == "--"
+        assert cap_result is None
+        assert size_result in (None, "--")
 
 
