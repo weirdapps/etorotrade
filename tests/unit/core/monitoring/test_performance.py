@@ -351,6 +351,24 @@ class TestCircuitBreakerState:
 class TestCircuitBreakerMonitor:
     """Test CircuitBreakerMonitor class."""
 
+    @pytest.fixture(autouse=True)
+    def cleanup_state(self):
+        """Clean up circuit breaker state file and global instance before and after each test."""
+        # Get the project root (4 levels up from this test file)
+        project_root = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
+        state_file = os.path.join(project_root, "yahoofinance", "data", "monitoring", "circuit_breakers.json")
+        # Clean file before test
+        if os.path.exists(state_file):
+            os.remove(state_file)
+        # Clear global singleton state
+        circuit_breaker_monitor._states.clear()
+        yield
+        # Clean file after test
+        if os.path.exists(state_file):
+            os.remove(state_file)
+        # Clear global singleton state after test
+        circuit_breaker_monitor._states.clear()
+
     def test_monitor_creation(self):
         """CircuitBreakerMonitor can be created."""
         monitor = CircuitBreakerMonitor()
