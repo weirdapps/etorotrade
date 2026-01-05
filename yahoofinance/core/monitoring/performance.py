@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from functools import wraps
-from threading import Lock
+from threading import RLock
 from typing import (
     Any,
     Callable,
@@ -80,7 +80,7 @@ class HealthMonitor:
     def __init__(self) -> None:
         """Initialize health monitor."""
         self._health_checks: Dict[str, HealthCheck] = {}
-        self._lock = Lock()
+        self._lock = RLock()
         self._checkers: Dict[str, Callable[[], HealthCheck]] = {}
         self._executor = ThreadPoolExecutor(max_workers=2)
 
@@ -276,7 +276,7 @@ class CircuitBreakerMonitor:
     def __init__(self) -> None:
         """Initialize circuit breaker monitor."""
         self._states: Dict[str, CircuitBreakerState] = {}
-        self._lock = Lock()
+        self._lock = RLock()
         self._state_file = os.path.join(MONITOR_DIR, "circuit_breakers.json")
 
         # Try to load existing states
@@ -399,7 +399,7 @@ class RequestTracker:
         """Initialize request tracker."""
         self._active_requests: Dict[str, RequestContext] = {}
         self._request_history: deque = deque(maxlen=max_history)
-        self._lock = Lock()
+        self._lock = RLock()
         self._next_request_id = 0
 
     def start_request(
