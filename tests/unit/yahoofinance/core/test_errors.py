@@ -98,7 +98,7 @@ class TestRateLimitError:
         error = RateLimitError("Rate limited", retry_after=60.0)
 
         assert error.message == "Rate limited"
-        assert error.retry_after == 60.0
+        assert error.retry_after == pytest.approx(60.0)
         assert "retry after 60.0 seconds" in str(error)
 
     def test_rate_limit_with_details_and_retry(self):
@@ -108,7 +108,7 @@ class TestRateLimitError:
         details = {"endpoint": "/api/data"}
         error = RateLimitError("Rate limited", retry_after=30.0, details=details)
 
-        assert error.retry_after == 30.0
+        assert error.retry_after == pytest.approx(30.0)
         assert error.details == details
         assert "endpoint=/api/data" in str(error)
         assert "retry after 30.0 seconds" in str(error)

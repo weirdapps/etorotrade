@@ -233,7 +233,7 @@ class TestExretCalculation:
         }]).set_index('ticker')
 
         result = calculate_exret(df)
-        assert result.loc['TEST', 'EXRET'] == 0.0, "EXRET should be 0 with 0% buy recommendations"
+        assert result.loc['TEST', 'EXRET'] == pytest.approx(0.0), "EXRET should be 0 with 0% buy recommendations"
 
     def test_exret_negative_upside(self):
         """EXRET is negative when price is below target."""

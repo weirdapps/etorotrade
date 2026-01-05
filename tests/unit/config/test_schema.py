@@ -56,9 +56,9 @@ class TestBuyCriteria:
             min_buy_percentage=70.0,
             min_exret=5.0
         )
-        assert criteria.min_upside == 10.0
-        assert criteria.min_buy_percentage == 70.0
-        assert criteria.min_exret == 5.0
+        assert criteria.min_upside == pytest.approx(10.0)
+        assert criteria.min_buy_percentage == pytest.approx(70.0)
+        assert criteria.min_exret == pytest.approx(5.0)
 
     def test_buy_criteria_validation_upside_range(self):
         """BuyCriteria validates upside is between 0-100"""
@@ -91,8 +91,8 @@ class TestSellCriteria:
             max_upside=5.0,
             max_exret=2.0
         )
-        assert criteria.max_upside == 5.0
-        assert criteria.max_exret == 2.0
+        assert criteria.max_upside == pytest.approx(5.0)
+        assert criteria.max_exret == pytest.approx(2.0)
 
     def test_sell_criteria_validation_upside_range(self):
         """SellCriteria validates upside is between 0-100"""
@@ -242,8 +242,8 @@ class TestTierCriteriaAccess:
         criteria = config.get_tier_criteria("US", "MEGA")
 
         assert criteria is not None
-        assert criteria.buy.min_upside == 5.0
-        assert criteria.sell.max_upside == 2.5
+        assert criteria.buy.min_upside == pytest.approx(5.0)
+        assert criteria.sell.max_upside == pytest.approx(2.5)
 
     def test_get_tier_criteria_with_enums(self):
         """get_tier_criteria works with enum values"""

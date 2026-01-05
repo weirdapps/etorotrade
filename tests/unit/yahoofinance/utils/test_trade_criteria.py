@@ -130,7 +130,7 @@ class TestNormalizeRowForCriteria:
 
         result = normalize_row_for_criteria(row)
 
-        assert result["upside"] == 15.5
+        assert result["upside"] == pytest.approx(15.5)
 
     def test_normalize_buy_percentage(self):
         """Normalize % BUY field."""
@@ -140,7 +140,7 @@ class TestNormalizeRowForCriteria:
 
         result = normalize_row_for_criteria(row)
 
-        assert result["buy_percentage"] == 60.0
+        assert result["buy_percentage"] == pytest.approx(60.0)
 
     def test_normalize_pe_ratios(self):
         """Normalize P/E ratio fields."""
@@ -153,8 +153,8 @@ class TestNormalizeRowForCriteria:
 
         result = normalize_row_for_criteria(row)
 
-        assert result["pe_forward"] == 20.5
-        assert result["pe_trailing"] == 22.0
+        assert result["pe_forward"] == pytest.approx(20.5)
+        assert result["pe_trailing"] == pytest.approx(22.0)
 
     def test_preserve_other_fields(self):
         """Preserve fields not explicitly normalized."""
@@ -188,12 +188,12 @@ class TestNormalizeRowForCriteria:
 
         result = normalize_row_for_criteria(row)
 
-        assert result["upside"] == 15.0
-        assert result["buy_percentage"] == 60.0
-        assert result["pe_forward"] == 20.5
-        assert result["pe_trailing"] == 22.0
-        assert result["peg_ratio"] == 1.5
-        assert result["beta"] == 1.2
+        assert result["upside"] == pytest.approx(15.0)
+        assert result["buy_percentage"] == pytest.approx(60.0)
+        assert result["pe_forward"] == pytest.approx(20.5)
+        assert result["pe_trailing"] == pytest.approx(22.0)
+        assert result["peg_ratio"] == pytest.approx(1.5)
+        assert result["beta"] == pytest.approx(1.2)
         assert result["analyst_count"] == 10
         assert result["total_ratings"] == 10
 
@@ -209,8 +209,8 @@ class TestNormalizeRowColumns:
 
         result = normalize_row_columns(row)
 
-        assert result["upside"] == 15.0
-        assert result["buy_percentage"] == 60.0
+        assert result["upside"] == pytest.approx(15.0)
+        assert result["buy_percentage"] == pytest.approx(60.0)
 
     def test_normalize_series(self):
         """Normalize pandas Series row."""
@@ -220,8 +220,8 @@ class TestNormalizeRowColumns:
 
         result = normalize_row_columns(row)
 
-        assert result["upside"] == 15.0
-        assert result["buy_percentage"] == 60.0
+        assert result["upside"] == pytest.approx(15.0)
+        assert result["buy_percentage"] == pytest.approx(60.0)
 
     def test_with_column_mapping(self):
         """Accept column mapping parameter (for compatibility)."""
@@ -232,7 +232,7 @@ class TestNormalizeRowColumns:
 
         result = normalize_row_columns(row, column_mapping=mapping)
 
-        assert result["upside"] == 15.0
+        assert result["upside"] == pytest.approx(15.0)
 
 
 class TestCalculateAction:
@@ -282,9 +282,9 @@ class TestFormatNumericValues:
 
         result = format_numeric_values(df, ["value"])
 
-        assert result["value"].iloc[0] == 10.0
-        assert result["value"].iloc[1] == 20.0
-        assert result["value"].iloc[2] == 30.0
+        assert result["value"].iloc[0] == pytest.approx(10.0)
+        assert result["value"].iloc[1] == pytest.approx(20.0)
+        assert result["value"].iloc[2] == pytest.approx(30.0)
 
     def test_format_numeric_strings(self):
         """Format numeric strings to floats."""
@@ -296,9 +296,9 @@ class TestFormatNumericValues:
 
         result = format_numeric_values(df, ["value"])
 
-        assert result["value"].iloc[0] == 10.0
-        assert result["value"].iloc[1] == 20.0
-        assert result["value"].iloc[2] == 30.0
+        assert result["value"].iloc[0] == pytest.approx(10.0)
+        assert result["value"].iloc[1] == pytest.approx(20.0)
+        assert result["value"].iloc[2] == pytest.approx(30.0)
 
     def test_handle_missing_values(self):
         """Handle missing values as NaN."""
@@ -310,9 +310,9 @@ class TestFormatNumericValues:
 
         result = format_numeric_values(df, ["value"])
 
-        assert result["value"].iloc[0] == 10.0
+        assert result["value"].iloc[0] == pytest.approx(10.0)
         assert pd.isna(result["value"].iloc[1])
-        assert result["value"].iloc[2] == 30.0
+        assert result["value"].iloc[2] == pytest.approx(30.0)
 
     def test_handle_invalid_values(self):
         """Coerce invalid values to NaN."""
@@ -324,9 +324,9 @@ class TestFormatNumericValues:
 
         result = format_numeric_values(df, ["value"])
 
-        assert result["value"].iloc[0] == 10.0
+        assert result["value"].iloc[0] == pytest.approx(10.0)
         assert pd.isna(result["value"].iloc[1])
-        assert result["value"].iloc[2] == 30.0
+        assert result["value"].iloc[2] == pytest.approx(30.0)
 
     def test_preserve_non_numeric_columns(self):
         """Preserve columns not in numeric_columns list."""
@@ -339,7 +339,7 @@ class TestFormatNumericValues:
 
         result = format_numeric_values(df, ["numeric"])
 
-        assert result["numeric"].iloc[0] == 10.0
+        assert result["numeric"].iloc[0] == pytest.approx(10.0)
         assert result["text"].iloc[0] == "A"
 
     def test_handle_already_numeric(self):
@@ -352,8 +352,8 @@ class TestFormatNumericValues:
 
         result = format_numeric_values(df, ["value"])
 
-        assert result["value"].iloc[0] == 10.0
-        assert result["value"].iloc[1] == 20.0
+        assert result["value"].iloc[0] == pytest.approx(10.0)
+        assert result["value"].iloc[1] == pytest.approx(20.0)
 
 
 class TestCalculateActionForRow:

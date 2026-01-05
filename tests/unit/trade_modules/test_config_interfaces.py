@@ -203,7 +203,7 @@ class TestMockProviders:
     def test_mock_trading_criteria_provider(self):
         """Mock trading criteria provider works."""
         provider = MockTradingCriteriaProvider()
-        assert provider.get_thresholds("market", "BUY")["min_upside"] == 10.0
+        assert provider.get_thresholds("market", "BUY")["min_upside"] == pytest.approx(10.0)
         assert provider.get_universal_thresholds()["min_analysts"] == 4
         assert provider.get_tier_thresholds("MEGA", "BUY")["tier"] == "MEGA"
 

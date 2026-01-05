@@ -31,7 +31,7 @@ class TestStockDataInitialization:
         assert stock.name == "Apple Inc."
         assert stock.sector == "Technology"
         assert stock.market_cap == 3000000000000
-        assert stock.current_price == 150.25
+        assert stock.current_price == pytest.approx(150.25)
 
     def test_create_stock_data_with_all_fields(self):
         """Create StockData with all fields populated."""
@@ -70,11 +70,11 @@ class TestStockDataInitialization:
             insider_transactions=10,
         )
         assert stock.name == "Test Company"
-        assert stock.current_price == 100.0
-        assert stock.target_price == 120.0
+        assert stock.current_price == pytest.approx(100.0)
+        assert stock.target_price == pytest.approx(120.0)
         assert stock.analyst_count == 15
-        assert stock.pe_trailing == 20.0
-        assert stock.beta == 1.1
+        assert stock.pe_trailing == pytest.approx(20.0)
+        assert stock.beta == pytest.approx(1.1)
 
 
 class TestStockDataToDict:
@@ -146,7 +146,7 @@ class TestStockDataFromDict:
         stock = StockData.from_dict(data)
         assert stock.name == "Test Company"
         assert stock.market_cap == 1000000000
-        assert stock.current_price == 100.0
+        assert stock.current_price == pytest.approx(100.0)
         assert stock.analyst_count == 15
 
     def test_from_dict_filters_unknown_keys(self):

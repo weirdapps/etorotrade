@@ -29,7 +29,7 @@ class TestAsyncYahooFinanceProvider:
     def test_init_defaults(self, provider):
         """Initialize with default values."""
         assert provider.max_retries == 3
-        assert provider.retry_delay == 1.0
+        assert provider.retry_delay == pytest.approx(1.0)
         assert provider.max_concurrency == 5
         assert provider.enable_circuit_breaker is True
 
@@ -42,7 +42,7 @@ class TestAsyncYahooFinanceProvider:
             enable_circuit_breaker=False
         )
         assert provider.max_retries == 5
-        assert provider.retry_delay == 2.0
+        assert provider.retry_delay == pytest.approx(2.0)
         assert provider.max_concurrency == 10
         assert provider.enable_circuit_breaker is False
 
@@ -141,7 +141,7 @@ class TestCacheOperations:
         """Can add data to ticker cache."""
         provider._ticker_cache["AAPL"] = {"price": 150.0}
         assert "AAPL" in provider._ticker_cache
-        assert provider._ticker_cache["AAPL"]["price"] == 150.0
+        assert provider._ticker_cache["AAPL"]["price"] == pytest.approx(150.0)
 
     def test_can_add_to_ratings_cache(self, provider):
         """Can add data to ratings cache."""
@@ -203,7 +203,7 @@ class TestProviderConfiguration:
     def test_retry_delay_configurable(self):
         """Retry delay is configurable."""
         provider = AsyncYahooFinanceProvider(retry_delay=5.0)
-        assert provider.retry_delay == 5.0
+        assert provider.retry_delay == pytest.approx(5.0)
 
     def test_max_concurrency_configurable(self):
         """Max concurrency is configurable."""

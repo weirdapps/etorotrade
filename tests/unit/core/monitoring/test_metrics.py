@@ -146,27 +146,27 @@ class TestGaugeMetric:
         """Gauge is initialized with zero value."""
         gauge = GaugeMetric(name="test_gauge", type=MetricType.GAUGE, description="Test")
 
-        assert gauge.value == 0.0
+        assert gauge.value == pytest.approx(0.0)
 
     def test_gauge_set(self):
         """Gauge can be set to specific value."""
         gauge = GaugeMetric(name="test_gauge", type=MetricType.GAUGE, description="Test")
 
         gauge.set(42.5)
-        assert gauge.value == 42.5
+        assert gauge.value == pytest.approx(42.5)
 
         gauge.set(100.0)
-        assert gauge.value == 100.0
+        assert gauge.value == pytest.approx(100.0)
 
     def test_gauge_increment(self):
         """Gauge can be incremented."""
         gauge = GaugeMetric(name="test_gauge", type=MetricType.GAUGE, description="Test")
 
         gauge.increment(10.5)
-        assert gauge.value == 10.5
+        assert gauge.value == pytest.approx(10.5)
 
         gauge.increment(5.0)
-        assert gauge.value == 15.5
+        assert gauge.value == pytest.approx(15.5)
 
     def test_gauge_decrement(self):
         """Gauge can be decremented."""
@@ -174,10 +174,10 @@ class TestGaugeMetric:
 
         gauge.set(100.0)
         gauge.decrement(25.0)
-        assert gauge.value == 75.0
+        assert gauge.value == pytest.approx(75.0)
 
         gauge.decrement(10.0)
-        assert gauge.value == 65.0
+        assert gauge.value == pytest.approx(65.0)
 
     def test_gauge_timestamp_updates(self):
         """Gauge timestamp updates on changes."""
@@ -197,7 +197,7 @@ class TestGaugeMetric:
         result = gauge.to_dict()
 
         assert result["name"] == "test_gauge"
-        assert result["value"] == 3.14
+        assert result["value"] == pytest.approx(3.14)
 
 
 class TestHistogramMetric:
@@ -281,10 +281,10 @@ class TestHistogramMetric:
         result = histogram.to_dict()
 
         assert result["count"] == 3
-        assert result["sum"] == 60.0
-        assert result["min"] == 10.0
-        assert result["max"] == 30.0
-        assert result["mean"] == 20.0
+        assert result["sum"] == pytest.approx(60.0)
+        assert result["min"] == pytest.approx(10.0)
+        assert result["max"] == pytest.approx(30.0)
+        assert result["mean"] == pytest.approx(20.0)
         assert "buckets" in result
         assert "bucket_counts" in result
 
@@ -403,7 +403,7 @@ class TestMetricsRegistry:
         assert "counter" in result
         assert result["counter"]["value"] == 5
         assert "gauge" in result
-        assert result["gauge"]["value"] == 42.0
+        assert result["gauge"]["value"] == pytest.approx(42.0)
 
     def test_thread_safety(self):
         """Registry is thread-safe."""

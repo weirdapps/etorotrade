@@ -230,9 +230,9 @@ async def test_stats_tracking(mock_providers):
 
     stats = strategy.get_stats()
 
-    assert stats[DataSource.PRIMARY.value] == 100.0  # 100% from primary
-    assert stats[DataSource.FALLBACK.value] == 0.0
-    assert stats[DataSource.ERROR.value] == 0.0
+    assert stats[DataSource.PRIMARY.value] == pytest.approx(100.0) # 100% from primary
+    assert stats[DataSource.FALLBACK.value] == pytest.approx(0.0)
+    assert stats[DataSource.ERROR.value] == pytest.approx(0.0)
 
 
 @pytest.mark.asyncio
@@ -255,8 +255,8 @@ async def test_stats_mixed_sources(mock_providers):
 
     stats = strategy.get_stats()
 
-    assert stats[DataSource.PRIMARY.value] == 70.0  # 7 out of 10
-    assert stats[DataSource.FALLBACK.value] == 30.0  # 3 out of 10
+    assert stats[DataSource.PRIMARY.value] == pytest.approx(70.0) # 7 out of 10
+    assert stats[DataSource.FALLBACK.value] == pytest.approx(30.0) # 3 out of 10
 
 
 @pytest.mark.asyncio
@@ -333,7 +333,7 @@ async def test_reset_stats(mock_providers):
     # Check stats are zero
     stats = strategy.get_stats()
     for value in stats.values():
-        assert value == 0.0
+        assert value == pytest.approx(0.0)
 
 
 @pytest.mark.asyncio

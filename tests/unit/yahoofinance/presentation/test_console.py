@@ -28,9 +28,9 @@ class TestRateLimitTracker:
         """Initialize with default values."""
         assert tracker.window_size == 60
         assert tracker.max_calls == 60
-        assert tracker.base_delay == 1.0
-        assert tracker.min_delay == 0.5
-        assert tracker.max_delay == 30.0
+        assert tracker.base_delay == pytest.approx(1.0)
+        assert tracker.min_delay == pytest.approx(0.5)
+        assert tracker.max_delay == pytest.approx(30.0)
         assert tracker.success_streak == 0
 
     def test_add_call_records_timestamp(self, tracker):

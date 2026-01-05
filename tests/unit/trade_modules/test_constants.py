@@ -28,13 +28,13 @@ class TestFinancialRatioConstants:
 
     def test_pe_ratio_thresholds(self):
         """Verify PE ratio thresholds."""
-        assert constants.PE_RATIO_LOW_THRESHOLD == 15.0
-        assert constants.PE_RATIO_HIGH_THRESHOLD == 25.0
+        assert constants.PE_RATIO_LOW_THRESHOLD == pytest.approx(15.0)
+        assert constants.PE_RATIO_HIGH_THRESHOLD == pytest.approx(25.0)
 
     def test_peg_ratio_thresholds(self):
         """Verify PEG ratio thresholds."""
-        assert constants.PEG_RATIO_GOOD_THRESHOLD == 1.0
-        assert constants.PEG_RATIO_EXPENSIVE_THRESHOLD == 2.0
+        assert constants.PEG_RATIO_GOOD_THRESHOLD == pytest.approx(1.0)
+        assert constants.PEG_RATIO_EXPENSIVE_THRESHOLD == pytest.approx(2.0)
 
 
 class TestRiskMetrics:
@@ -42,12 +42,12 @@ class TestRiskMetrics:
 
     def test_beta_thresholds(self):
         """Verify beta risk thresholds."""
-        assert constants.BETA_LOW_RISK_THRESHOLD == 1.0
-        assert constants.BETA_HIGH_RISK_THRESHOLD == 1.5
+        assert constants.BETA_LOW_RISK_THRESHOLD == pytest.approx(1.0)
+        assert constants.BETA_HIGH_RISK_THRESHOLD == pytest.approx(1.5)
 
     def test_short_interest_threshold(self):
         """Verify short interest threshold."""
-        assert constants.SHORT_PERCENT_HIGH_THRESHOLD == 10.0
+        assert constants.SHORT_PERCENT_HIGH_THRESHOLD == pytest.approx(10.0)
 
 
 class TestPerformanceThresholds:
@@ -55,13 +55,13 @@ class TestPerformanceThresholds:
 
     def test_upside_thresholds(self):
         """Verify upside potential thresholds."""
-        assert constants.UPSIDE_STRONG_THRESHOLD == 20.0
-        assert constants.UPSIDE_MODERATE_THRESHOLD == 10.0
+        assert constants.UPSIDE_STRONG_THRESHOLD == pytest.approx(20.0)
+        assert constants.UPSIDE_MODERATE_THRESHOLD == pytest.approx(10.0)
 
     def test_buy_percentage_thresholds(self):
         """Verify analyst buy percentage thresholds."""
-        assert constants.BUY_PERCENTAGE_HIGH_THRESHOLD == 70.0
-        assert constants.BUY_PERCENTAGE_MODERATE_THRESHOLD == 50.0
+        assert constants.BUY_PERCENTAGE_HIGH_THRESHOLD == pytest.approx(70.0)
+        assert constants.BUY_PERCENTAGE_MODERATE_THRESHOLD == pytest.approx(50.0)
 
 
 class TestAnalystCoverage:
@@ -78,10 +78,10 @@ class TestDefaultValues:
 
     def test_numeric_defaults(self):
         """Verify default numeric values."""
-        assert constants.DEFAULT_NUMERIC_VALUE == 0.0
-        assert constants.DEFAULT_PE_RATIO == 20.0
-        assert constants.DEFAULT_PEG_RATIO == 1.5
-        assert constants.DEFAULT_BETA == 1.0
+        assert constants.DEFAULT_NUMERIC_VALUE == pytest.approx(0.0)
+        assert constants.DEFAULT_PE_RATIO == pytest.approx(20.0)
+        assert constants.DEFAULT_PEG_RATIO == pytest.approx(1.5)
+        assert constants.DEFAULT_BETA == pytest.approx(1.0)
 
 
 class TestActionClassifications:
@@ -130,9 +130,9 @@ class TestValidationThresholds:
 
     def test_reasonable_value_limits(self):
         """Verify reasonable value limit constants."""
-        assert constants.MAX_REASONABLE_PE == 1000.0
+        assert constants.MAX_REASONABLE_PE == pytest.approx(1000.0)
         assert constants.MAX_REASONABLE_MARKET_CAP == 10e12
-        assert constants.MIN_REASONABLE_PRICE == 0.01
+        assert constants.MIN_REASONABLE_PRICE == pytest.approx(0.01)
 
 
 class TestDisplayFormatting:
@@ -151,7 +151,7 @@ class TestErrorHandling:
     def test_retry_settings(self):
         """Verify retry-related constants."""
         assert constants.MAX_RETRY_ATTEMPTS == 3
-        assert constants.RETRY_DELAY_SECONDS == 1.0
+        assert constants.RETRY_DELAY_SECONDS == pytest.approx(1.0)
 
 
 class TestDataQuality:
@@ -159,8 +159,8 @@ class TestDataQuality:
 
     def test_quality_thresholds(self):
         """Verify data quality threshold constants."""
-        assert constants.MIN_DATA_COMPLETENESS == 0.8
-        assert constants.MAX_OUTLIER_FACTOR == 3.0
+        assert constants.MIN_DATA_COMPLETENESS == pytest.approx(0.8)
+        assert constants.MAX_OUTLIER_FACTOR == pytest.approx(3.0)
 
 
 class TestPerformanceBenchmarks:
@@ -177,10 +177,10 @@ class TestTradingSignalWeights:
 
     def test_signal_weights(self):
         """Verify signal weight constants sum to 1.0."""
-        assert constants.UPSIDE_WEIGHT == 0.4
-        assert constants.BUY_PERCENTAGE_WEIGHT == 0.3
-        assert constants.PE_RATIO_WEIGHT == 0.2
-        assert constants.PEG_RATIO_WEIGHT == 0.1
+        assert constants.UPSIDE_WEIGHT == pytest.approx(0.4)
+        assert constants.BUY_PERCENTAGE_WEIGHT == pytest.approx(0.3)
+        assert constants.PE_RATIO_WEIGHT == pytest.approx(0.2)
+        assert constants.PEG_RATIO_WEIGHT == pytest.approx(0.1)
 
         # Verify weights sum to 1.0
         total_weight = (
@@ -197,4 +197,4 @@ class TestExretCalculation:
 
     def test_exret_divisor(self):
         """Verify EXRET percentage divisor."""
-        assert constants.EXRET_PERCENTAGE_DIVISOR == 100.0
+        assert constants.EXRET_PERCENTAGE_DIVISOR == pytest.approx(100.0)
