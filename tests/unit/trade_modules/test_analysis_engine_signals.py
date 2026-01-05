@@ -2,6 +2,8 @@
 """
 ITERATION 1: Signal Generation Tests for MEGA-US Tier
 Target: Test calculate_action_vectorized() for MEGA-US tier with all conditions
+
+All floating-point comparisons use pytest.approx() for reliable testing.
 """
 
 import pytest
