@@ -532,15 +532,11 @@ class TestRequestTracker:
             assert "start_time" in req
 
 
-@patch("time.time")
-def test_track_request_decorator(mock_time):
+def test_track_request_decorator():
     """Test the track_request decorator."""
-    # Mock time.time to return predictable values
-    mock_time.side_effect = [100.0, 101.0]  # Start and end times
-
     # Create mocks
-    request_tracker = MagicMock()
-    request_tracker.start_request.return_value = "req-123"
+    mock_tracker = MagicMock()
+    mock_tracker.start_request.return_value = "req-123"
 
     # Define a function with the decorator
     @track_request(endpoint="/api/test", parameters={"source": "test"})
@@ -548,7 +544,7 @@ def test_track_request_decorator(mock_time):
         return "result"
 
     # Replace the global request_tracker with our mock
-    with patch("yahoofinance.core.monitoring.request_tracker", request_tracker):
+    with patch("yahoofinance.core.monitoring.performance.request_tracker", mock_tracker):
         # Call the function
         result = test_function()
 
@@ -556,19 +552,15 @@ def test_track_request_decorator(mock_time):
     assert result == "result"
 
     # Check tracker interactions
-    request_tracker.start_request.assert_called_once_with("/api/test", {"source": "test"})
-    request_tracker.end_request.assert_called_once_with("req-123")
+    mock_tracker.start_request.assert_called_once_with("/api/test", {"source": "test"})
+    mock_tracker.end_request.assert_called_once_with("req-123")
 
 
-@patch("time.time")
-def test_track_request_with_error(mock_time):
+def test_track_request_with_error():
     """Test the track_request decorator with an error."""
-    # Mock time.time
-    mock_time.return_value = 100.0
-
     # Create mocks
-    request_tracker = MagicMock()
-    request_tracker.start_request.return_value = "req-123"
+    mock_tracker = MagicMock()
+    mock_tracker.start_request.return_value = "req-123"
 
     # Define a function with the decorator
     @track_request(endpoint="/api/error")
@@ -576,33 +568,29 @@ def test_track_request_with_error(mock_time):
         raise ValueError("Test error")
 
     # Replace the global request_tracker with our mock
-    with patch("yahoofinance.core.monitoring.request_tracker", request_tracker):
+    with patch("yahoofinance.core.monitoring.performance.request_tracker", mock_tracker):
         # Call the function, expecting an error
         with pytest.raises(ValueError):
             error_function()
 
     # Check tracker interactions
-    request_tracker.start_request.assert_called_once()
+    mock_tracker.start_request.assert_called_once()
 
     # Check that end_request was called with req-123 and an error
     # Instead of using pytest.any, we can check the call args directly
-    assert request_tracker.end_request.call_count == 1
-    args, kwargs = request_tracker.end_request.call_args
+    assert mock_tracker.end_request.call_count == 1
+    args, kwargs = mock_tracker.end_request.call_args
     assert args[0] == "req-123"
     assert "error" in kwargs
     assert isinstance(kwargs["error"], ValueError)
 
 
-@patch("time.time")
 @pytest.mark.asyncio
-async def test_track_request_async(mock_time):
+async def test_track_request_async():
     """Test the track_request decorator with an async function."""
-    # Mock time.time
-    mock_time.side_effect = [100.0, 101.0]  # Start and end times
-
     # Create mocks
-    request_tracker = MagicMock()
-    request_tracker.start_request.return_value = "req-123"
+    mock_tracker = MagicMock()
+    mock_tracker.start_request.return_value = "req-123"
 
     # Define an async function with the decorator
     @track_request(endpoint="/api/async")
@@ -612,7 +600,7 @@ async def test_track_request_async(mock_time):
         return "async result"
 
     # Replace the global request_tracker with our mock
-    with patch("yahoofinance.core.monitoring.request_tracker", request_tracker):
+    with patch("yahoofinance.core.monitoring.performance.request_tracker", mock_tracker):
         # Call the function
         result = await async_function()
 
@@ -620,12 +608,12 @@ async def test_track_request_async(mock_time):
     assert result == "async result"
 
     # Check tracker interactions
-    request_tracker.start_request.assert_called_once_with("/api/async", {})
-    request_tracker.end_request.assert_called_once_with("req-123")
+    mock_tracker.start_request.assert_called_once_with("/api/async", {})
+    mock_tracker.end_request.assert_called_once_with("req-123")
 
 
-@patch("yahoofinance.core.monitoring.metrics_registry")
-@patch("yahoofinance.core.monitoring.health_monitor")
+@patch("yahoofinance.core.monitoring.performance.metrics_registry")
+@patch("yahoofinance.core.monitoring.performance.health_monitor")
 @patch("threading.Thread")
 def test_periodic_export_metrics(mock_thread, mock_health_monitor, mock_metrics_registry):
     """Test the periodic_export_metrics function."""
