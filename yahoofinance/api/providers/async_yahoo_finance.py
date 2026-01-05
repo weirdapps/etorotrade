@@ -45,6 +45,19 @@ from ...utils.network.circuit_breaker import CircuitOpenError
 from .base_provider import AsyncFinanceDataProvider
 from ...utils.network.session_manager import get_shared_session
 
+# Import from split modules
+from .async_modules import (
+    calculate_earnings_growth,
+    calculate_upside_potential,
+    format_date,
+    format_market_cap,
+    get_last_earnings_date,
+    has_post_earnings_ratings,
+    is_us_ticker,
+    parse_analyst_recommendations,
+    POSITIVE_GRADES,
+)
+
 
 logger = get_logger(__name__)
 
@@ -92,17 +105,9 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         self._rate_limiter = AsyncRateLimiter()
         self._ratings_cache: Dict[str, Dict[str, Any]] = {}  # Cache for post-earnings ratings
         self._stock_cache: Dict[str, Any] = {}  # Cache for yf.Ticker objects
-        self.POSITIVE_GRADES = [
-            "Buy",
-            "Overweight",
-            "Outperform",
-            "Strong Buy",
-            "Long-Term Buy",
-            "Positive",
-            "Market Outperform",
-            "Add",
-            "Sector Outperform",
-        ]
+
+        # Backward compatibility: expose POSITIVE_GRADES as instance attribute
+        self.POSITIVE_GRADES = POSITIVE_GRADES
 
         # Circuit breaker configuration - used for all methods
         self._circuit_name = "yahoofinance_api"
@@ -250,219 +255,22 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             info["target_price"] = ticker_info.get("targetMeanPrice", None)
             info["recommendation"] = ticker_info.get("recommendationMean", None)
 
-            # Add analyst data directly to reduce extra API calls
-            number_of_analysts = ticker_info.get("numberOfAnalystOpinions", 0)
-            info["analyst_count"] = number_of_analysts
-            info["total_ratings"] = number_of_analysts
-
-            # Get recommendations data
-            try:
-                # First check if we have any recommendation data
-                if number_of_analysts > 0:
-                    try:
-                        # Try to directly get buy percentage from recommendationKey
-                        rec_key = ticker_info.get("recommendationKey", "").lower()
-                        if rec_key in ["buy", "strongbuy"]:
-                            info["buy_percentage"] = 85.0
-                        elif rec_key in ["outperform"]:
-                            info["buy_percentage"] = 75.0
-                        elif rec_key in ["hold"]:
-                            info["buy_percentage"] = 50.0
-                        elif rec_key in ["underperform"]:
-                            info["buy_percentage"] = 25.0
-                        elif rec_key in ["sell"]:
-                            info["buy_percentage"] = 15.0
-                        else:
-                            # Use recommendationMean to estimate buy percentage if available
-                            rec_mean = ticker_info.get("recommendationMean", None)
-                            if rec_mean is not None:
-                                # Convert 1-5 scale to percentage (1=Strong Buy, 5=Sell)
-                                # 1 = 90%, 3 = 50%, 5 = 10%
-                                info["buy_percentage"] = max(0, min(100, 110 - (rec_mean * 20)))
-                            else:
-                                info["buy_percentage"] = None
-                    except Exception as e:
-                        logger.warning(f"Error getting recommendation data for {ticker}: {e}")
-                        info["buy_percentage"] = None
-                else:
-                    # No analysts covering
-                    info["buy_percentage"] = None
-            except (APIError, NetworkError) as e:
-                logger.warning(f"API/Network error processing recommendations for {ticker}: {e}")
-                info["buy_percentage"] = None
-            except (ValueError, TypeError, KeyError, AttributeError) as e:
-                logger.warning(f"Data processing error with recommendations for {ticker}: {e}")
-                info["buy_percentage"] = None
-            except Exception as e:
-                logger.warning(f"Unexpected error processing recommendations for {ticker}: {e}")
-                info["buy_percentage"] = None
-
-            # Rating type - default to "A" for all-time
-            info["A"] = "A"
-
-            # --- Start: Improved Recommendations Logic ---
-            # Ensure default values are set
-            info["analyst_count"] = 0
-            info["total_ratings"] = 0
-            info["buy_percentage"] = None
-
-            try:
-                # First check if ticker_info has analyst data
-                number_of_analysts = ticker_info.get("numberOfAnalystOpinions", 0)
-                if number_of_analysts > 0:
-                    info["analyst_count"] = number_of_analysts
-                    info["total_ratings"] = number_of_analysts
-
-                    # Try to get recommendation key first
-                    rec_key = ticker_info.get("recommendationKey", "").lower()
-                    rec_mean = ticker_info.get("recommendationMean", None)
-
-                    # If we have a recommendation key, map it to a buy percentage
-                    if rec_key:
-                        if rec_key in ["buy", "strongbuy"]:
-                            info["buy_percentage"] = 85.0
-                            logger.debug(
-                                f"Using recommendationKey '{rec_key}' to set buy_percentage=85.0 for {ticker}"
-                            )
-                        elif rec_key in ["outperform"]:
-                            info["buy_percentage"] = 75.0
-                            logger.debug(
-                                f"Using recommendationKey '{rec_key}' to set buy_percentage=75.0 for {ticker}"
-                            )
-                        elif rec_key in ["hold"]:
-                            info["buy_percentage"] = 50.0
-                            logger.debug(
-                                f"Using recommendationKey '{rec_key}' to set buy_percentage=50.0 for {ticker}"
-                            )
-                        elif rec_key in ["underperform"]:
-                            info["buy_percentage"] = 25.0
-                            logger.debug(
-                                f"Using recommendationKey '{rec_key}' to set buy_percentage=25.0 for {ticker}"
-                            )
-                        elif rec_key in ["sell"]:
-                            info["buy_percentage"] = 15.0
-                            logger.debug(
-                                f"Using recommendationKey '{rec_key}' to set buy_percentage=15.0 for {ticker}"
-                            )
-                    # If no key but we have recommendation mean, use it to estimate buy percentage
-                    elif rec_mean is not None:
-                        # Convert 1-5 scale to percentage (1=Strong Buy, 5=Sell)
-                        # 1 = 90%, 3 = 50%, 5 = 10%
-                        info["buy_percentage"] = max(0, min(100, 110 - (rec_mean * 20)))
-                        logger.debug(
-                            f"Using recommendationMean {rec_mean} to set buy_percentage={info['buy_percentage']} for {ticker}"
-                        )
-
-                # Try to get detailed recommendations from recommendations DataFrame
-                recommendations_df = getattr(yticker, "recommendations", None)
-                if recommendations_df is not None and not recommendations_df.empty:
-                    try:
-                        # Get the most recent recommendations
-                        latest_date = recommendations_df.index.max()
-                        latest_recs = recommendations_df.loc[latest_date]
-
-                        # Extract counts
-                        strong_buy = int(latest_recs.get("strongBuy", 0))
-                        buy = int(latest_recs.get("buy", 0))
-                        hold = int(latest_recs.get("hold", 0))
-                        sell = int(latest_recs.get("sell", 0))
-                        strong_sell = int(latest_recs.get("strongSell", 0))
-
-                        # Calculate the total
-                        total = strong_buy + buy + hold + sell + strong_sell
-
-                        # Only update if we have valid data
-                        if total > 0:
-                            buy_count = strong_buy + buy
-                            buy_percentage = (buy_count / total) * 100
-
-                            # This is the most accurate source of data, always update
-                            info["buy_percentage"] = buy_percentage
-                            info["total_ratings"] = total
-                            info["analyst_count"] = total
-
-                            logger.debug(
-                                f"Using recommendations DataFrame to set analyst data for {ticker}: "
-                                f"buy_percentage={buy_percentage}, total_ratings={total}"
-                            )
-                    except (IndexError, KeyError, ValueError, TypeError) as e:
-                        logger.warning(
-                            f"Error extracting recommendations data for {ticker}: {e}. Using fallback values."
-                        )
-
-                # Fall back to analyzing upgrades_downgrades if needed
-                if info["buy_percentage"] is None:
-                    try:
-                        upgrades_downgrades = getattr(yticker, "upgrades_downgrades", None)
-                        if upgrades_downgrades is not None and not upgrades_downgrades.empty:
-                            # Count grades
-                            positive_grades = [
-                                "Buy",
-                                "Overweight",
-                                "Outperform",
-                                "Strong Buy",
-                                "Long-Term Buy",
-                                "Positive",
-                                "Market Outperform",
-                                "Add",
-                                "Sector Outperform",
-                            ]
-
-                            # Count positive grades in ToGrade column
-                            if "ToGrade" in upgrades_downgrades.columns:
-                                total_grades = len(upgrades_downgrades)
-                                positive_count = upgrades_downgrades[
-                                    upgrades_downgrades["ToGrade"].isin(positive_grades)
-                                ].shape[0]
-
-                                if total_grades > 0:
-                                    buy_percentage = (positive_count / total_grades) * 100
-                                    info["buy_percentage"] = buy_percentage
-                                    info["total_ratings"] = total_grades
-                                    info["analyst_count"] = total_grades
-
-                                    logger.debug(
-                                        f"Using upgrades_downgrades to set analyst data for {ticker}: "
-                                        f"buy_percentage={buy_percentage}, total_ratings={total_grades}"
-                                    )
-                    except Exception as e:
-                        logger.warning(
-                            f"Error analyzing upgrades_downgrades for {ticker}: {e}. Using fallback values."
-                        )
-
-                # If we still don't have a buy percentage but have analyst count,
-                # use recommendationMean as a last resort
-                if (
-                    info["analyst_count"] > 0
-                    and info["buy_percentage"] is None
-                    and rec_mean is not None
-                ):
-                    # Convert 1-5 scale to percentage (1=Strong Buy, 5=Sell)
-                    info["buy_percentage"] = max(0, min(100, 110 - (rec_mean * 20)))
-                    logger.debug(
-                        f"Final fallback: Using recommendationMean {rec_mean} to set buy_percentage={info['buy_percentage']} for {ticker}"
-                    )
-
-            except Exception as e:
-                logger.warning(f"Error processing analyst data for {ticker}: {e}", exc_info=False)
-                # Ensure default values if all attempts fail
-                if info.get("analyst_count") is None:
-                    info["analyst_count"] = 0
-                if info.get("total_ratings") is None:
-                    info["total_ratings"] = 0
-                if info.get("buy_percentage") is None:
-                    info["buy_percentage"] = None
+            # Parse analyst recommendations using extracted module
+            analyst_data = parse_analyst_recommendations(ticker_info, yticker)
+            info["analyst_count"] = analyst_data["analyst_count"]
+            info["total_ratings"] = analyst_data["total_ratings"]
+            info["buy_percentage"] = analyst_data["buy_percentage"]
 
             # Determine Rating Type ('A' or 'E')
             # Only check post-earnings ratings for stock tickers, not ETFs/commodities/crypto
-            if self._is_us_ticker(ticker) and is_stock_ticker(ticker) and info.get("total_ratings", 0) > 0:
-                has_post_earnings = self._has_post_earnings_ratings(ticker, yticker)
-                if has_post_earnings and ticker in self._ratings_cache:
-                    ratings_data = self._ratings_cache[ticker]
+            if is_us_ticker(ticker) and is_stock_ticker(ticker) and info.get("total_ratings", 0) > 0:
+                post_earnings_result = has_post_earnings_ratings(ticker, yticker, True, POSITIVE_GRADES)
+                if post_earnings_result["has_ratings"]:
+                    ratings_data = post_earnings_result["ratings_data"]
                     info["buy_percentage"] = ratings_data["buy_percentage"]
                     info["total_ratings"] = ratings_data["total_ratings"]
                     info["A"] = "E"
-                    # Recalculate EXRET potentially needed here if buy_percentage changed
+                    # Recalculate EXRET since buy_percentage changed
                     if info.get("upside") is not None:
                         try:
                             info["EXRET"] = info["upside"] * info["buy_percentage"] / 100
@@ -474,14 +282,11 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 info["A"] = (
                     "A" if info.get("total_ratings", 0) > 0 else ""
                 )  # Set A based on whether ratings exist
-            # --- End: Reinstated Recommendations Logic ---
-            # --- End: Reinstated Recommendations Logic ---
 
-            # --- Start: Reinstated Earnings Date Logic ---
-            # Only fetch earnings dates for stock tickers, not ETFs/commodities/crypto
+            # Get earnings date for stock tickers (not ETFs/commodities/crypto)
             if is_stock_ticker(ticker):
                 try:
-                    last_earnings_date = self._get_last_earnings_date(yticker)
+                    last_earnings_date = get_last_earnings_date(yticker)
                     info["last_earnings"] = last_earnings_date
                     info["earnings_date"] = last_earnings_date  # Also set earnings_date for console display
                     logger.debug(f"Set earnings_date for {ticker} to LAST earnings: {last_earnings_date}")
@@ -496,10 +301,9 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 logger.debug(f"Skipping earnings date for non-stock asset {ticker}")
                 info["last_earnings"] = None
                 info["earnings_date"] = None
-            # --- End: Reinstated Earnings Date Logic ---
 
             # Calculate earnings growth from quarterly data
-            info["earnings_growth"] = self._calculate_earnings_growth(ticker)
+            info["earnings_growth"] = calculate_earnings_growth(ticker)
 
             # Re-add missing PEG and ensure Dividend Yield has the original raw value
             info["dividend_yield"] = ticker_info.get(
@@ -510,12 +314,12 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
 
             # Format market cap
             if info.get("market_cap"):
-                info["market_cap_fmt"] = self._format_market_cap(info["market_cap"])
+                info["market_cap_fmt"] = format_market_cap(info["market_cap"])
 
             # Calculate upside potential
             price = info.get("current_price")
             target = info.get("target_price")
-            info["upside"] = self._calculate_upside_potential(price, target)
+            info["upside"] = calculate_upside_potential(price, target)
 
             # Calculate EXRET (after potential ratings update)
             if info.get("upside") is not None and info.get("buy_percentage") is not None:
@@ -857,308 +661,6 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             "two_hundred_day_avg": info.get("two_hundred_day_avg"),
         }
 
-    # --- Start: Added Helper Methods (at class level) ---
-    def _has_post_earnings_ratings(self, ticker: str, yticker) -> bool:
-        """Check if there are ratings available since the last earnings date."""
-        try:
-            is_us = self._is_us_ticker(ticker)
-            if not is_us:
-                return False
-            last_earnings = self._get_last_earnings_date(yticker)
-            if last_earnings is None:
-                return False
-            try:
-                # Get upgrades_downgrades but ensure we free memory afterward
-                upgrades_downgrades = None
-                try:
-                    upgrades_downgrades = getattr(yticker, "upgrades_downgrades", None)
-                    if upgrades_downgrades is None or upgrades_downgrades.empty:
-                        return False
-
-                    # Create a copy of the data to avoid reference issues
-                    if hasattr(upgrades_downgrades, "reset_index"):
-                        df = upgrades_downgrades.reset_index().copy()
-                    else:
-                        df = upgrades_downgrades.copy()
-
-                    # Process the GradeDate column
-                    if "GradeDate" not in df.columns:
-                        if "index" in df.columns and pd.api.types.is_datetime64_any_dtype(
-                            df["index"]
-                        ):
-                            df.rename(columns={"index": "GradeDate"}, inplace=True)
-                        elif hasattr(upgrades_downgrades, "index") and isinstance(
-                            upgrades_downgrades.index, pd.DatetimeIndex
-                        ):
-                            df["GradeDate"] = upgrades_downgrades.index
-                        else:
-                            logger.warning(f"Could not find GradeDate column for {ticker}")
-                            return False
-
-                    # Convert dates
-                    df["GradeDate"] = pd.to_datetime(df["GradeDate"], errors="coerce")
-                    df.dropna(subset=["GradeDate"], inplace=True)
-
-                    # Get post-earnings data
-                    # Convert with consistent timezone handling
-                    earnings_date = pd.to_datetime(last_earnings)
-
-                    # Make sure both dates have the same timezone information
-                    if "GradeDate" in df.columns:
-                        if any(
-                            date.tzinfo is not None
-                            for date in df["GradeDate"]
-                            if hasattr(date, "tzinfo")
-                        ):
-                            # GradeDates have timezone info but earnings_date might not
-                            if earnings_date.tzinfo is None:
-                                # Use the timezone from the first date with timezone info
-                                for date in df["GradeDate"]:
-                                    if hasattr(date, "tzinfo") and date.tzinfo is not None:
-                                        earnings_date = earnings_date.tz_localize(date.tzinfo)
-                                        break
-                        elif earnings_date.tzinfo is not None:
-                            # GradeDates don't have timezone but earnings_date does
-                            earnings_date = earnings_date.tz_localize(None)
-
-                    # Filter with now timezone-compatible dates
-                    post_earnings_df = df[df["GradeDate"] >= earnings_date]
-
-                    # Calculate statistics if we have data
-                    if not post_earnings_df.empty:
-                        total_ratings = len(post_earnings_df)
-                        positive_ratings = post_earnings_df[
-                            post_earnings_df["ToGrade"].isin(self.POSITIVE_GRADES)
-                        ].shape[0]
-
-                        # Cache only the results, not the dataframes
-                        self._ratings_cache[ticker] = {
-                            "buy_percentage": (
-                                (positive_ratings / total_ratings * 100) if total_ratings > 0 else 0
-                            ),
-                            "total_ratings": total_ratings,
-                            "ratings_type": "E",
-                        }
-                        return True
-
-                    return False
-
-                finally:
-                    # Explicitly clear references to free memory
-                    del upgrades_downgrades
-
-            except YFinanceError as e:
-                logger.warning(
-                    f"Error getting post-earnings ratings for {ticker}: {e}", exc_info=False
-                )
-            return False
-        except YFinanceError as e:
-            logger.warning(f"Error in _has_post_earnings_ratings for {ticker}: {e}", exc_info=False)
-            return False
-
-    def _get_last_earnings_date(self, yticker):
-        """Get the last earnings date with optimized memory handling."""
-        # Try quarterly income statement first - this is the most reliable source
-        try:
-            quarterly_income = getattr(yticker, "quarterly_income_stmt", None)
-            if quarterly_income is not None and not quarterly_income.empty:
-                # Get the most recent quarter date
-                latest_date = quarterly_income.columns[0]  # Most recent is first column
-                result = latest_date.strftime("%Y-%m-%d")
-                logger.debug(f"Found last earnings date from quarterly_income_stmt for {yticker.ticker}: {result}")
-                return result
-        except Exception as e:
-            logger.debug(f"Error getting earnings from quarterly_income_stmt for {yticker.ticker}: {e}")
-        
-        try:  # Try calendar second
-            calendar = None
-            earnings_date_list = None
-            today = None
-            past_earnings = None
-            result = None
-
-            try:
-                calendar = getattr(yticker, "calendar", None)
-                if isinstance(calendar, dict) and COLUMN_NAMES["EARNINGS_DATE"] in calendar:
-                    earnings_date_list = calendar[COLUMN_NAMES["EARNINGS_DATE"]]
-                    if isinstance(earnings_date_list, list) and len(earnings_date_list) > 0:
-                        today = pd.Timestamp.now().date()
-                        # Filter without creating a new list to avoid memory leaks
-                        latest_date = None
-                        for d in earnings_date_list:
-                            if isinstance(d, datetime.date) and d < today:
-                                if latest_date is None or d > latest_date:
-                                    latest_date = d
-
-                        if latest_date is not None:
-                            result = latest_date.strftime("%Y-%m-%d")
-                            return result
-            finally:
-                # Explicitly delete references to free memory
-                del calendar
-                del earnings_date_list
-                del today
-                del past_earnings
-
-        except YFinanceError as e:
-            logger.debug(
-                f"Error getting earnings from calendar for {yticker.ticker}: {e}", exc_info=False
-            )
-
-        try:  # Try earnings_dates attribute
-            earnings_dates = None
-            today = None
-            tz = None
-            past_dates = None
-            result = None
-
-            try:
-                earnings_dates = getattr(yticker, "earnings_dates", None)
-                if earnings_dates is not None and not earnings_dates.empty:
-                    today = pd.Timestamp.now()
-
-                    # Handle timezone issues without creating unnecessary objects
-                    tz = earnings_dates.index.tz
-
-                    # Find the latest date without creating a new list
-                    latest_date = None
-                    for date in earnings_dates.index:
-                        # Create comparison variables to handle timezone issues
-                        compare_date = date
-                        compare_today = today
-
-                        # Handle timezone differences by making timestamps comparable
-                        if date.tzinfo is not None and today.tzinfo is None:
-                            # Convert today to have the same timezone as date
-                            try:
-                                compare_today = today.tz_localize(date.tzinfo)
-                            except:
-                                # If localization fails, convert to UTC for comparison
-                                compare_today = today.tz_localize('UTC')
-                                compare_date = date.tz_convert('UTC')
-                        elif date.tzinfo is None and today.tzinfo is not None:
-                            # Convert date to have the same timezone as today
-                            try:
-                                compare_date = date.tz_localize(today.tzinfo)
-                            except:
-                                # If localization fails, convert both to UTC
-                                compare_today = today.tz_convert('UTC')
-                                compare_date = pd.Timestamp(date).tz_localize('UTC')
-                        elif date.tzinfo is not None and today.tzinfo is not None:
-                            # Both have timezone info, convert to UTC for safe comparison
-                            compare_today = today.tz_convert('UTC')
-                            compare_date = date.tz_convert('UTC')
-
-                        # Compare and keep the latest
-                        if compare_date < compare_today:
-                            if latest_date is None or compare_date > latest_date:
-                                latest_date = compare_date
-
-                    # Format the date if found
-                    if latest_date is not None:
-                        result = latest_date.strftime("%Y-%m-%d")
-                        return result
-            finally:
-                # Explicitly delete references to free memory
-                del earnings_dates
-                del today
-                del tz
-                del past_dates
-
-        except YFinanceError as e:
-            logger.debug(
-                f"Error getting earnings from earnings_dates for {yticker.ticker}: {e}",
-                exc_info=False,
-            )
-
-        return None
-
-    def _is_us_ticker(self, ticker: str) -> bool:  # Keep this helper
-        """Check if a ticker is a US ticker based on suffix (kept identical)."""
-        try:
-            from ...utils.market.ticker_utils import is_us_ticker as util_is_us_ticker
-
-            return util_is_us_ticker(ticker)
-        except ImportError:
-            logger.warning("Could not import is_us_ticker utility, using inline logic.")
-            if ticker in ["BRK.A", "BRK.B", "BF.A", "BF.B"]:
-                return True
-            if "." not in ticker:
-                return True
-            if ticker.endswith(".US"):
-                return True
-            return False
-
-    def _format_market_cap(self, value: Optional[float]) -> Optional[str]:
-        """Format market cap value."""
-        if value is None:
-            return None
-        try:
-            val = float(value)
-            if val >= 1e12:
-                return f"{val / 1e12:.1f}T" if val >= 10e12 else f"{val / 1e12:.2f}T"
-            elif val >= 1e9:
-                if val >= 100e9:
-                    return f"{int(val / 1e9)}B"
-                elif val >= 10e9:
-                    return f"{val / 1e9:.1f}B"
-                else:
-                    return f"{val / 1e9:.2f}B"
-            elif val >= 1e6:
-                if val >= 100e6:
-                    return f"{int(val / 1e6)}M"
-                elif val >= 10e6:
-                    return f"{val / 1e6:.1f}M"
-                else:
-                    return f"{val / 1e6:.2f}M"
-            else:
-                return f"{int(val):,}"
-        except (ValueError, TypeError):
-            return str(value)
-
-    def _calculate_upside_potential(
-        self, current_price: Optional[float], target_price: Optional[float]
-    ) -> Optional[float]:
-        """Calculate upside potential percentage."""
-        if current_price is not None and target_price is not None and current_price > 0:
-            try:
-                return ((float(target_price) / float(current_price)) - 1) * 100
-            except (ValueError, TypeError, ZeroDivisionError):
-                pass
-        return None
-
-    def _format_date(self, date: Any) -> Optional[str]:
-        """Format date object to YYYY-MM-DD string."""
-        if date is None:
-            return None
-        if isinstance(date, str):
-            return date[:10]
-
-        # Handle datetime/date objects without retaining references that could cause tzinfo leaks
-        if hasattr(date, "strftime"):
-            try:
-                # Convert to simple string immediately to avoid holding timezone references
-                formatted = date.strftime("%Y-%m-%d")
-                # Force date object to be garbage collected
-                date = None
-                return formatted
-            except AttributeError:
-                # If strftime fails for some reason
-                pass
-
-        # Fall back to string conversion
-        try:
-            result = str(date)[:10]
-            # Explicitly remove reference to the original object
-            date = None
-            return result
-        except Exception as e:
-            # Translate standard exception to our error hierarchy
-            custom_error = translate_error(e, context={"location": __name__})
-            raise custom_error
-        return None
-
-    # --- End: Added Helper Methods ---
 
     async def batch_get_ticker_info(
         self, tickers: List[str], skip_insider_metrics: bool = False
@@ -1337,89 +839,3 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             # Silently ignore any errors during cleanup to prevent issues during shutdown
             pass
 
-    def _calculate_earnings_growth(self, ticker: str) -> Optional[float]:
-        """
-        Calculate earnings growth by comparing recent quarters.
-        
-        Uses quarterly income statement data since quarterly_earnings is deprecated.
-        Tries year-over-year growth first, falls back to quarter-over-quarter if needed.
-        
-        Args:
-            ticker: Stock ticker symbol
-            
-        Returns:
-            Earnings growth as percentage, or None if unable to calculate
-        """
-        try:
-            import yfinance as yf
-            import pandas as pd
-            
-            yticker = yf.Ticker(ticker)
-            
-            # Use quarterly income statement (quarterly_earnings is deprecated)
-            quarterly_income = yticker.quarterly_income_stmt
-            if quarterly_income is None or quarterly_income.empty:
-                logger.debug(f"No quarterly income statement data for {ticker}")
-                return None
-            
-            # Look for net income fields in order of preference
-            earnings_row = None
-            potential_keys = [
-                'Net Income From Continuing Operation Net Minority Interest',
-                'Net Income Common Stockholders', 
-                'Net Income',
-                'Net Income Including Noncontrolling Interests',
-                'Net Income Continuous Operations'
-            ]
-            
-            for potential_key in potential_keys:
-                if potential_key in quarterly_income.index:
-                    earnings_row = quarterly_income.loc[potential_key]
-                    logger.debug(f"Using earnings field '{potential_key}' for {ticker}")
-                    break
-            
-            if earnings_row is None:
-                logger.debug(f"No earnings row found in quarterly income statement for {ticker}")
-                return None
-            
-            # Remove NaN values and sort by date descending (most recent first)
-            earnings_data = earnings_row.dropna().sort_index(ascending=False)
-            
-            if len(earnings_data) < 2:
-                logger.debug(f"Insufficient income statement data for {ticker} (only {len(earnings_data)} quarters)")
-                return None
-            
-            # Convert to numeric and handle any string/object types
-            earnings_data = pd.to_numeric(earnings_data, errors='coerce').dropna()
-            
-            if len(earnings_data) < 2:
-                logger.debug(f"Insufficient numeric earnings data for {ticker}")
-                return None
-            
-            # Try year-over-year calculation first (preferred)
-            if len(earnings_data) >= 4:
-                current_quarter = float(earnings_data.iloc[0])  # Most recent
-                year_ago_quarter = float(earnings_data.iloc[3])  # 4 quarters ago
-                
-                if year_ago_quarter != 0 and abs(year_ago_quarter) > 1000:  # Avoid division by small numbers
-                    # Year-over-year growth
-                    yoy_growth = ((current_quarter - year_ago_quarter) / abs(year_ago_quarter)) * 100
-                    logger.debug(f"Calculated YoY earnings growth for {ticker}: {yoy_growth:.1f}% (current: {current_quarter:,.0f}, year ago: {year_ago_quarter:,.0f})")
-                    return round(yoy_growth, 1)
-            
-            # Fall back to quarter-over-quarter calculation
-            current_quarter = float(earnings_data.iloc[0])  # Most recent
-            previous_quarter = float(earnings_data.iloc[1])  # Previous quarter
-            
-            if previous_quarter != 0 and abs(previous_quarter) > 1000:  # Avoid division by small numbers
-                # Quarter-over-quarter growth (not annualized for display)
-                qoq_growth = ((current_quarter - previous_quarter) / abs(previous_quarter)) * 100
-                logger.debug(f"Calculated QoQ earnings growth for {ticker}: {qoq_growth:.1f}% (current: {current_quarter:,.0f}, previous: {previous_quarter:,.0f})")
-                return round(qoq_growth, 1)
-            
-            logger.debug(f"Unable to calculate earnings growth for {ticker} - zero or insufficient base earnings")
-            return None
-                
-        except Exception as e:
-            logger.debug(f"Error calculating earnings growth for {ticker}: {e}")
-            return None

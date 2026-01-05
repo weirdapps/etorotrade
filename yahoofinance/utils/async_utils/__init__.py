@@ -8,17 +8,23 @@ This is the canonical location for async utilities. Code in yahoofinance.utils.a
 is deprecated and will be removed in a future version.
 """
 
-# Import from enhanced module - these are the canonical implementations
-from .enhanced import (
+# Import from split modules - these are the canonical implementations
+from .retry import retry_async_with_backoff
+from .batch import (
+    gather_with_concurrency,
+    process_batch_async,
+    display_processing_stats,
+    get_processing_stats,
+)
+from .semaphore import (
     AsyncRateLimiter,
     PriorityAsyncRateLimiter,
-    async_rate_limited,
-    enhanced_async_rate_limited,
-    gather_with_concurrency,
     global_async_rate_limiter,
     global_priority_rate_limiter,
-    process_batch_async,
-    retry_async_with_backoff,
+    async_rate_limited,
+    enhanced_async_rate_limited,
+    RATE_LIMIT_ERROR_MESSAGE,
+    TOO_MANY_REQUESTS_ERROR_MESSAGE,
 )
 
 # Import helper functions
@@ -43,14 +49,20 @@ __all__ = [
     "global_async_rate_limiter",
     "global_priority_rate_limiter",
     "enhanced_async_rate_limited",
-    # Helper functions
+    "RATE_LIMIT_ERROR_MESSAGE",
+    "TOO_MANY_REQUESTS_ERROR_MESSAGE",
+    # Batch processing
     "gather_with_concurrency",
     "gather_with_rate_limit",  # Alias for compatibility
-    "gather_with_semaphore",
-    "async_bulk_fetch",
     "process_batch_async",
+    "display_processing_stats",
+    "get_processing_stats",
+    # Retry
     "retry_async",  # Alias for compatibility
     "retry_async_with_backoff",
+    # Helper functions
+    "gather_with_semaphore",
+    "async_bulk_fetch",
     "async_retry",
     "prioritized_batch_process",
     "adaptive_fetch",

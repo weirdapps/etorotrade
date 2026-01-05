@@ -305,6 +305,8 @@ def format_earnings_table(df: pd.DataFrame, start_date: str, end_date: str) -> N
     """
     Format and print earnings calendar table.
 
+    VECTORIZED: Uses string formatting on entire DataFrame for better performance.
+
     Args:
         df: DataFrame with earnings calendar
         start_date: Start date
@@ -322,16 +324,19 @@ def format_earnings_table(df: pd.DataFrame, start_date: str, end_date: str) -> N
 
         print(tabulate(df, headers="keys", tablefmt="fancy_grid", showindex=False))
     except ImportError:
-        # Fall back to simple formatting if tabulate is not available
+        # Fall back to simple formatting if tabulate is not available (VECTORIZED)
         print("=" * 60)
         print(f"{'Symbol':<6} {'Market Cap':<10} {'Date':<12} {'EPS Est':<8}")
         print("-" * 60)
 
-        # Print each row
-        for _, row in df.iterrows():
-            print(
-                f"{row['Symbol']:<6} {row['Market Cap']:<10} {row['Date']:<12} {row['EPS Est']:<8}"
-            )
+        # Format all rows at once using vectorized string formatting
+        formatted_rows = (
+            df["Symbol"].str.ljust(6) + " " +
+            df["Market Cap"].str.ljust(10) + " " +
+            df["Date"].str.ljust(12) + " " +
+            df["EPS Est"].str.ljust(8)
+        )
+        print("\n".join(formatted_rows.values))
 
         # Print footer
         print("=" * 60)

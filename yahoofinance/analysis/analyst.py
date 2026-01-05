@@ -166,27 +166,19 @@ class CompatAnalystData:
             if ratings_df is None or len(ratings_df) == 0:
                 return {"positive_percentage": None, "total_ratings": None, "ratings_type": None}
 
-            # Calculate percentage of positive ratings
+            # Calculate percentage of positive ratings (VECTORIZED)
             total = len(ratings_df)
-            positive = sum(1 for grade in ratings_df["ToGrade"] if grade in POSITIVE_GRADES)
+            positive = ratings_df["ToGrade"].isin(POSITIVE_GRADES).sum()
             positive_percentage = (positive / total) * 100 if total > 0 else 0
 
-            # Add bucketed recommendations
-            buy_count = sum(
-                1
-                for grade in ratings_df["ToGrade"]
-                if grade in ["Buy", "Strong Buy", "Outperform", "Overweight"]
-            )
-            hold_count = sum(
-                1
-                for grade in ratings_df["ToGrade"]
-                if grade in ["Hold", "Neutral", "Market Perform"]
-            )
-            sell_count = sum(
-                1
-                for grade in ratings_df["ToGrade"]
-                if grade in ["Sell", "Strong Sell", "Underperform", "Underweight"]
-            )
+            # Add bucketed recommendations (VECTORIZED)
+            buy_grades = ["Buy", "Strong Buy", "Outperform", "Overweight"]
+            hold_grades = ["Hold", "Neutral", "Market Perform"]
+            sell_grades = ["Sell", "Strong Sell", "Underperform", "Underweight"]
+
+            buy_count = ratings_df["ToGrade"].isin(buy_grades).sum()
+            hold_count = ratings_df["ToGrade"].isin(hold_grades).sum()
+            sell_count = ratings_df["ToGrade"].isin(sell_grades).sum()
 
             return {
                 "positive_percentage": positive_percentage,
@@ -232,18 +224,22 @@ class CompatAnalystData:
             # Filter by date threshold
             recent_df = ratings_df[ratings_df["GradeDate"] >= threshold]
 
-            # Convert to list of dictionaries
-            changes = []
-            for _, row in recent_df.iterrows():
-                changes.append(
-                    {
-                        "date": row["GradeDate"].strftime("%Y-%m-%d"),
-                        "firm": row["Firm"],
-                        "from_grade": row["FromGrade"],
-                        "to_grade": row["ToGrade"],
-                        "action": row["Action"],
-                    }
-                )
+            # Convert to list of dictionaries (VECTORIZED - no iterrows)
+            if recent_df.empty:
+                return []
+
+            # Format dates efficiently
+            recent_df = recent_df.copy()
+            recent_df["GradeDate"] = recent_df["GradeDate"].dt.strftime("%Y-%m-%d")
+
+            # Convert to records and rename columns
+            changes = recent_df.rename(columns={
+                "GradeDate": "date",
+                "Firm": "firm",
+                "FromGrade": "from_grade",
+                "ToGrade": "to_grade",
+                "Action": "action"
+            })[["date", "firm", "from_grade", "to_grade", "action"]].to_dict('records')
 
             return changes
         except YFinanceError as e:
