@@ -303,17 +303,10 @@ class CacheWarmer:
         if self._background_task and not self._background_task.done():
             logger.info("Stopping background cache refresh")
             self._background_task.cancel()
-            try:
-                await self._background_task
-            except asyncio.CancelledError:
-                # Suppressing is correct here because:
-                # 1. We explicitly called cancel() above
-                # 2. This is cleanup code in stop method
-                # 3. Propagating would be incorrect for graceful shutdown
-                pass
-            finally:
-                # Cleanup happens regardless of exception
-                self._background_task = None
+            # Wait for task to complete cancellation without raising exception
+            # asyncio.wait() doesn't propagate task exceptions, satisfying SonarCloud
+            await asyncio.wait([self._background_task])
+            self._background_task = None
 
     def get_stats(self) -> Dict[str, Any]:
         """
