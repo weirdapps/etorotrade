@@ -28,7 +28,17 @@ jobs:
         pip check
     - name: Run tests
       run: |
-        pytest tests/ --cov=yahoofinance
+        pytest tests/ \
+          --cov=yahoofinance \
+          --cov=trade_modules \
+          --cov-report=xml \
+          --cov-report=term \
+          --cov-fail-under=41 \
+          --maxfail=10 \
+          -x \
+          --ignore=tests/integration/ \
+          --ignore=tests/e2e/ \
+          -v
     - name: Memory leak tests
       run: |
         python tests/benchmarks/test_memory_leak.py
