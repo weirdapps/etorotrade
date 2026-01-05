@@ -214,14 +214,14 @@ class TestCalculateAction:
         assert isinstance(result, pd.DataFrame)
         # Should handle empty DataFrame gracefully
     
-    @patch('trade_modules.analysis_engine.calculate_action_vectorized')
+    @patch('trade_modules.analysis.signals.calculate_action_vectorized')
     def test_calculate_action_calls_vectorized(self, mock_vectorized, sample_dataframe):
         """Test that calculate_action calls the vectorized version."""
-        mock_vectorized.return_value = pd.Series(['B', 'S', 'H', 'I', 'B'], 
+        mock_vectorized.return_value = pd.Series(['B', 'S', 'H', 'I', 'B'],
                                                  index=sample_dataframe.index)
-        
+
         result = calculate_action(sample_dataframe)
-        
+
         # Verify vectorized function was called
         mock_vectorized.assert_called_once()
         assert 'BS' in result.columns

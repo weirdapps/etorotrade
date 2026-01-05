@@ -156,7 +156,7 @@ async def test_retry_async_with_backoff_with_circuit_breaker():
 
     # Mock the circuit breaker functionality at the module level
     with patch(
-        "yahoofinance.utils.async_utils.enhanced.get_async_circuit_breaker"
+        "yahoofinance.utils.async_utils.retry.get_async_circuit_breaker"
     ) as mock_get_circuit:
         # Create a mock circuit breaker that allows requests
         mock_circuit = MagicMock()
@@ -193,7 +193,7 @@ async def test_retry_async_with_backoff_never_retries_circuit_open():
 
     # Mock the module-level get_async_circuit_breaker function
     with patch(
-        "yahoofinance.utils.async_utils.enhanced.get_async_circuit_breaker"
+        "yahoofinance.utils.async_utils.retry.get_async_circuit_breaker"
     ) as mock_get_circuit:
         # Create a mock circuit breaker that rejects requests
         mock_circuit = MagicMock()

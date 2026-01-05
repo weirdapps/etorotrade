@@ -445,13 +445,14 @@ class TestMeasureExecutionTime(unittest.TestCase):
         # Create a context manager to test
         with patch("time.time") as mock_time:
             # Mock time.time to return predictable values
-            mock_time.side_effect = [100.0, 100.5]  # Start and end times
+            # Need 3 values: start time, end time, and timestamp in observe()
+            mock_time.side_effect = [100.0, 100.5, 100.5]
 
             # Create a mock for the histogram
             mock_histogram = MagicMock()
 
             # Patch the metrics_registry.histogram to return our mock
-            with patch("yahoofinance.core.monitoring.metrics_registry") as mock_registry:
+            with patch("yahoofinance.core.monitoring.metrics.metrics_registry") as mock_registry:
                 mock_registry.histogram.return_value = mock_histogram
 
                 # Use the context manager
@@ -472,12 +473,12 @@ class TestMeasureExecutionTime(unittest.TestCase):
                 self.assertAlmostEqual(called_value, 500.0, delta=1e-9)
 
 
-@patch("yahoofinance.core.monitoring.metrics_registry")
-@patch("yahoofinance.core.monitoring.health_monitor")
+@patch("yahoofinance.core.monitoring.performance.metrics_registry")
+@patch("yahoofinance.core.monitoring.performance.health_monitor")
 def test_setup_monitoring(mock_health_monitor, mock_metrics_registry):
     """Test the setup_monitoring function."""
     # Create a mock for monitoring_service
-    with patch("yahoofinance.core.monitoring.monitoring_service") as mock_service:
+    with patch("yahoofinance.core.monitoring.performance.monitoring_service") as mock_service:
         # Call setup_monitoring
         setup_monitoring(export_interval=30)
 
