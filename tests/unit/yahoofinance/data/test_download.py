@@ -56,7 +56,7 @@ class TestProcessEToroPortfolioData:
         assert len(result) == 1
         assert result[0]["symbol"] == "AAPL"
         assert result[0]["numPositions"] == 1
-        assert result[0]["totalInvestmentPct"] == 10.5
+        assert result[0]["totalInvestmentPct"] == pytest.approx(10.5)
 
     def test_process_grouped_positions(self):
         """Process multiple positions of same symbol."""
@@ -95,8 +95,8 @@ class TestProcessEToroPortfolioData:
 
         assert len(result) == 1
         assert result[0]["numPositions"] == 2
-        assert result[0]["totalInvestmentPct"] == 15.0
-        assert result[0]["totalNetProfit"] == 150.0
+        assert result[0]["totalInvestmentPct"] == pytest.approx(15.0)
+        assert result[0]["totalNetProfit"] == pytest.approx(150.0)
 
 
 class TestSaveEToroPortfolioCsv:

@@ -293,7 +293,7 @@ class CacheWarmer:
 
             except asyncio.CancelledError:
                 logger.info("Background refresh cancelled")
-                break
+                raise  # Re-raise to allow proper task cancellation
             except Exception as e:
                 logger.error(f"Error in background refresh: {e}")
                 # Continue loop despite error
@@ -306,7 +306,7 @@ class CacheWarmer:
             try:
                 await self._background_task
             except asyncio.CancelledError:
-                pass
+                pass  # Expected during cleanup, OK to suppress
             self._background_task = None
 
     def get_stats(self) -> Dict[str, Any]:

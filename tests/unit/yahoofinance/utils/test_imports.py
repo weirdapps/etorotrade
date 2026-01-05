@@ -34,7 +34,7 @@ class TestLazyImport:
         """Call a lazy-imported function."""
         lazy_sqrt = LazyImport('math', 'sqrt')
         result = lazy_sqrt(16)
-        assert result == 4.0
+        assert result == pytest.approx(4.0)
 
     def test_lazy_import_call_non_callable_raises(self):
         """Calling non-callable object raises TypeError."""
@@ -53,7 +53,7 @@ class TestLazyImport:
         lazy_math = LazyImport('math')
         sqrt_func = lazy_math.sqrt
         assert callable(sqrt_func)
-        assert sqrt_func(9) == 3.0
+        assert sqrt_func(9) == pytest.approx(3.0)
 
 
 class TestLazyImportEdgeCases:
@@ -70,14 +70,14 @@ class TestLazyImportEdgeCases:
         lazy_sqrt = LazyImport('math', 'sqrt')
         result1 = lazy_sqrt(16)
         result2 = lazy_sqrt(25)
-        assert result1 == 4.0
-        assert result2 == 5.0
+        assert result1 == pytest.approx(4.0)
+        assert result2 == pytest.approx(5.0)
 
     def test_lazy_import_with_kwargs(self):
         """Call with keyword arguments."""
         lazy_round = LazyImport('builtins', 'round')
         result = lazy_round(3.14159, ndigits=2)
-        assert result == 3.14
+        assert result == pytest.approx(3.14)
 
     def test_lazy_import_getattr_nested(self):
         """Access nested attributes."""
@@ -129,7 +129,7 @@ class TestLazyImportCallable:
         """Call with mixed positional and keyword arguments."""
         lazy_round = LazyImport('builtins', 'round')
         result = lazy_round(3.14159, 2)
-        assert result == 3.14
+        assert result == pytest.approx(3.14)
 
 
 class TestLazyImportAttributes:

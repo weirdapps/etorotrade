@@ -44,8 +44,8 @@ class TestAlert:
         assert alert.name == "test_alert"
         assert alert.severity == "warning"
         assert alert.message == "Test alert message"
-        assert alert.value == 75.0
-        assert alert.threshold == 70.0
+        assert alert.value == pytest.approx(75.0)
+        assert alert.threshold == pytest.approx(70.0)
         assert alert.tags == {"env": "test"}
         assert isinstance(alert.timestamp, float)
 
@@ -65,8 +65,8 @@ class TestAlert:
         assert result["name"] == "test_alert"
         assert result["severity"] == "error"
         assert result["message"] == "Error occurred"
-        assert result["value"] == 100.0
-        assert result["threshold"] == 80.0
+        assert result["value"] == pytest.approx(100.0)
+        assert result["threshold"] == pytest.approx(80.0)
         assert result["tags"] == {"service": "api"}
         assert "timestamp" in result
 
@@ -463,7 +463,7 @@ class TestCheckMetricThreshold:
                 mock_trigger.assert_called_once()
                 alert = mock_trigger.call_args[0][0]
                 assert alert.value == 100
-                assert alert.threshold == 50.0
+                assert alert.threshold == pytest.approx(50.0)
 
     def test_check_counter_threshold_gt_not_breached(self):
         """Counter threshold check with no breach."""
@@ -723,7 +723,7 @@ class TestAlertIntegration:
         alert = triggered_alerts[0]
         assert alert.name == "error_count_gt_100.0"
         assert alert.severity == "critical"
-        assert alert.value == 150.0
-        assert alert.threshold == 100.0
+        assert alert.value == pytest.approx(150.0)
+        assert alert.threshold == pytest.approx(100.0)
         assert alert.tags == {"service": "api"}
         assert "Error count exceeded" in alert.message

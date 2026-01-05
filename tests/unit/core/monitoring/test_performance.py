@@ -345,7 +345,7 @@ class TestCircuitBreakerState:
         assert result["name"] == "api_breaker"
         assert result["status"] == "open"
         assert result["failure_count"] == 5
-        assert result["last_failure_time"] == 123.456
+        assert result["last_failure_time"] == pytest.approx(123.456)
 
 
 class TestCircuitBreakerMonitor:
