@@ -392,7 +392,7 @@ class TradingConfig(BaseModel):
         with open(yaml_path, 'w') as f:
             yaml.dump(data, f, default_flow_style=False, sort_keys=False)
 
-    def get_tier_criteria(self, region: str | Region, tier: str | AssetTier) -> TierCriteria:
+    def get_tier_criteria(self, region: Union[str, Region], tier: Union[str, AssetTier]) -> TierCriteria:
         """Get trading criteria for specific region and tier"""
         region_str = region.value if isinstance(region, Region) else region
         tier_str = tier.value if isinstance(tier, AssetTier) else tier
