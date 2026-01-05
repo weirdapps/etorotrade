@@ -306,8 +306,14 @@ class CacheWarmer:
             try:
                 await self._background_task
             except asyncio.CancelledError:
-                pass  # Expected during cleanup, OK to suppress
-            self._background_task = None
+                # Suppressing is correct here because:
+                # 1. We explicitly called cancel() above
+                # 2. This is cleanup code in stop method
+                # 3. Propagating would be incorrect for graceful shutdown
+                pass
+            finally:
+                # Cleanup happens regardless of exception
+                self._background_task = None
 
     def get_stats(self) -> Dict[str, Any]:
         """
