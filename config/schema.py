@@ -6,7 +6,7 @@ validated source of truth.
 """
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 import warnings
 
@@ -373,7 +373,7 @@ class TradingConfig(BaseModel):
     )
 
     @classmethod
-    def from_yaml(cls, yaml_path: str | Path) -> "TradingConfig":
+    def from_yaml(cls, yaml_path: Union[str, Path]) -> "TradingConfig":
         """Load configuration from YAML file with validation"""
         import yaml
 
@@ -382,7 +382,7 @@ class TradingConfig(BaseModel):
 
         return cls(**data)
 
-    def to_yaml(self, yaml_path: str | Path) -> None:
+    def to_yaml(self, yaml_path: Union[str, Path]) -> None:
         """Export configuration to YAML file"""
         import yaml
 
