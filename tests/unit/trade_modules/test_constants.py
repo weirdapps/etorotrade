@@ -131,7 +131,7 @@ class TestValidationThresholds:
     def test_reasonable_value_limits(self):
         """Verify reasonable value limit constants."""
         assert constants.MAX_REASONABLE_PE == pytest.approx(1000.0)
-        assert constants.MAX_REASONABLE_MARKET_CAP == 10e12
+        assert constants.MAX_REASONABLE_MARKET_CAP == pytest.approx(10e12)
         assert constants.MIN_REASONABLE_PRICE == pytest.approx(0.01)
 
 
