@@ -174,14 +174,13 @@ class TestYahooFinanceConfigAdapter:
         adapter = YahooFinanceConfigAdapter(yahoo_config=None)
         result = adapter.get_concurrent_limits()
 
-        # First verify result is not None - this is a critical precondition
-        assert result is not None, "get_concurrent_limits() should never return None"
-        # Now we can safely access result as a dict
-        assert isinstance(result, dict)
-        # Check required keys are present
-        required_keys = ['max_concurrent_calls', 'batch_size', 'max_total_connections', 'max_connections_per_host']
-        for key in required_keys:
-            assert key in result, f"Missing required key: {key}"
+        # isinstance check serves as both type assertion and null guard for SonarCloud
+        assert isinstance(result, dict), f"Expected dict, got {type(result)}"
+        # Check required keys are present - result is guaranteed to be dict here
+        assert 'max_concurrent_calls' in result, "Missing key: max_concurrent_calls"
+        assert 'batch_size' in result, "Missing key: batch_size"
+        assert 'max_total_connections' in result, "Missing key: max_total_connections"
+        assert 'max_connections_per_host' in result, "Missing key: max_connections_per_host"
 
     def test_get_input_dir(self):
         """Test get_input_dir returns a path string."""
