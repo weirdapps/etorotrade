@@ -174,7 +174,9 @@ class TestYahooFinanceConfigAdapter:
         adapter = YahooFinanceConfigAdapter(yahoo_config=None)
         result = adapter.get_concurrent_limits()
 
-        assert result is not None
+        # Guard against None before accessing dict keys
+        if result is None:
+            pytest.fail("get_concurrent_limits() returned None")
         assert isinstance(result, dict)
         assert 'max_concurrent_calls' in result
         assert 'batch_size' in result
