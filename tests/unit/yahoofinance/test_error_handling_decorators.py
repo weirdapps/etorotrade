@@ -301,9 +301,9 @@ class TestUserFriendlyErrors:
         from yahoofinance.utils.error_handling import format_user_error
         error = YFinanceError("Custom error message")
         result = format_user_error(error)
-        # Guard against None before string operations
-        if result is None:
-            pytest.fail("format_user_error() returned None")
+        # First verify result is not None - this is a critical precondition
+        assert result is not None, "format_user_error() should never return None"
+        # Now we can safely perform string operations on result
         assert "Custom error message" in result
         assert "Check logs" in result
 

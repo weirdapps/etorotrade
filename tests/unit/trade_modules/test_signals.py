@@ -340,7 +340,7 @@ class TestProcessBuyOpportunities:
         # Mock the function as it requires many dependencies
         with patch('trade_modules.analysis_engine.process_buy_opportunities') as mock_fn:
             mock_fn.return_value = market_df[market_df['BS'] == 'B']
-            result = mock_fn(market_df, [], '/tmp', '/tmp/notrade.csv', MagicMock())
+            result = mock_fn(market_df, [], '/mock/test/output', '/mock/test/notrade.csv', MagicMock())
 
             # Should return buy opportunities as DataFrame
             assert isinstance(result, pd.DataFrame)
