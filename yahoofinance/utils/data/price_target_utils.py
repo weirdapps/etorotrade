@@ -5,7 +5,7 @@ This module provides functions for validating price target quality and
 identifying stocks with unreliable analyst coverage, including earnings-aware filtering.
 """
 
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import math
 from datetime import datetime, timedelta
 
@@ -36,19 +36,20 @@ def calculate_price_target_robustness(
     Returns:
         Dict containing robustness metrics and flags
     """
-    result = {
+    warning_flags: List[str] = []
+    result: Dict[str, Any] = {
         "is_robust": False,
         "robustness_score": 0.0,  # 0-100 scale
         "spread_percent": None,
         "mean_median_diff_percent": None,
         "outlier_ratio": None,
-        "warning_flags": [],
+        "warning_flags": warning_flags,
         "quality_grade": "F",  # A, B, C, D, F
     }
 
     # Early return if we don't have basic data
     if not all([mean, median, high, low, current_price]) or current_price <= 0:
-        result["warning_flags"].append("Insufficient price target data")
+        warning_flags.append("Insufficient price target data")
         return result
 
     try:
@@ -75,21 +76,21 @@ def calculate_price_target_robustness(
         # Wide disagreement among analysts indicates uncertainty
         if spread_percent > 100:
             score -= 50  # Increased from 40
-            result["warning_flags"].append(f"Extreme price target spread ({spread_percent:.1f}%)")
+            warning_flags.append(f"Extreme price target spread ({spread_percent:.1f}%)")
         elif spread_percent > 75:
             score -= 35  # New threshold for 75-100% spread
-            result["warning_flags"].append(f"Very high price target spread ({spread_percent:.1f}%)")
+            warning_flags.append(f"Very high price target spread ({spread_percent:.1f}%)")
         elif spread_percent > 50:
             score -= 25  # Increased from 20
-            result["warning_flags"].append(f"High price target spread ({spread_percent:.1f}%)")
+            warning_flags.append(f"High price target spread ({spread_percent:.1f}%)")
         elif spread_percent > 30:
             score -= 15  # Increased from 10, lowered threshold from 25%
-            result["warning_flags"].append(f"Moderate price target spread ({spread_percent:.1f}%)")
+            warning_flags.append(f"Moderate price target spread ({spread_percent:.1f}%)")
 
         # Penalize mean-median skewness (>10% indicates outliers)
         if mean_median_diff_percent > 20:
             score -= 25
-            result["warning_flags"].append(
+            warning_flags.append(
                 f"High mean-median difference ({mean_median_diff_percent:.1f}%)"
             )
         elif mean_median_diff_percent > 10:
@@ -100,7 +101,7 @@ def calculate_price_target_robustness(
         # Penalize extreme outliers (>100% deviation from mean)
         if max_deviation > 200:
             score -= 25
-            result["warning_flags"].append(
+            warning_flags.append(
                 f"Extreme outlier price targets ({max_deviation:.1f}% deviation)"
             )
         elif max_deviation > 100:
@@ -115,13 +116,13 @@ def calculate_price_target_robustness(
             score += 2
         elif analyst_count and analyst_count < 3:
             score -= 15
-            result["warning_flags"].append(f"Low analyst coverage ({analyst_count} analysts)")
+            warning_flags.append(f"Low analyst coverage ({analyst_count} analysts)")
 
         # Check for extreme price targets vs current price
         median_vs_current = abs(median - current_price) / current_price * 100
         if median_vs_current > 300:  # >300% upside/downside
             score -= 30
-            result["warning_flags"].append(
+            warning_flags.append(
                 f"Extreme median price target vs current price ({median_vs_current:.1f}%)"
             )
         elif median_vs_current > 150:  # >150% upside/downside
@@ -156,7 +157,7 @@ def calculate_price_target_robustness(
 
     except (ValueError, TypeError, ZeroDivisionError) as e:
         logger.warning(f"Error calculating price target robustness: {e}")
-        result["warning_flags"].append("Error calculating robustness metrics")
+        warning_flags.append("Error calculating robustness metrics")
 
     return result
 
@@ -309,7 +310,7 @@ def validate_price_target_data_with_earnings(
                             # If no format worked, log and continue with standard validation
                             logger.debug(f"Could not parse price target date format: {target_date}")
                             return is_valid, validation_info
-                    except Exception as e:
+                    except (ValueError, TypeError, AttributeError) as e:
                         logger.debug(f"Error parsing price target date: {e}")
                         return is_valid, validation_info
                 elif hasattr(target_date, 'date'):
@@ -340,8 +341,8 @@ def validate_price_target_data_with_earnings(
             else:
                 # No price target date available, use standard validation
                 logger.debug("No price target date available for earnings filtering")
-                
-        except Exception as e:
+
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
             logger.debug(f"Error in earnings-aware price target validation: {e}")
             # Fall back to standard validation on error
     

@@ -926,6 +926,6 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             logger.debug(f"Unable to calculate earnings growth for {ticker} - zero or insufficient base earnings")
             return None
                 
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError, IndexError, ZeroDivisionError) as e:
             logger.debug(f"Error calculating earnings growth for {ticker}: {e}")
             return None

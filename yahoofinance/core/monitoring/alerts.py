@@ -88,7 +88,7 @@ class AlertManager:
             for handler in self._handlers.values():
                 try:
                     handler(alert)
-                except Exception as e:
+                except (RuntimeError, ValueError, TypeError, OSError, IOError) as e:
                     logger.error(f"Alert handler failed: {e}")
 
     def _log_alert(self, alert: Alert) -> None:
@@ -113,7 +113,7 @@ class AlertManager:
             # Write alerts back to file
             with open(self._alert_file, "w") as f:
                 json.dump(alerts, f, indent=2)
-        except Exception as e:
+        except (OSError, IOError, json.JSONDecodeError, TypeError) as e:
             logger.error(f"Failed to write alert to file: {e}")
 
     def get_alerts(

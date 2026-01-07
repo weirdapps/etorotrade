@@ -11,7 +11,7 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional, Union
 
-import aiofiles
+import aiofiles  # type: ignore[import-untyped]
 import aiohttp
 import pandas as pd
 import requests
@@ -240,13 +240,13 @@ def handle_password_submit(driver, password_input, password):
         try:
             # First try with safe_click
             safe_click(driver, sign_in_button, "Sign in button")
-        except Exception as e:
+        except (ElementClickInterceptedException, WebDriverException) as e:
             logger.warning(f"Error with safe_click: {str(e)}, trying direct click")
             try:
                 # Then try direct click if JavaScript click fails
                 sign_in_button.click()
                 logger.info("Direct click succeeded")
-            except Exception as e2:
+            except (ElementClickInterceptedException, WebDriverException) as e2:
                 logger.warning(f"Direct click failed: {str(e2)}, trying Enter key")
                 password_input.send_keys(Keys.RETURN)
     else:
@@ -259,7 +259,7 @@ def handle_password_submit(driver, password_input, password):
                 try:
                     driver.execute_script("arguments[0].submit();", form)
                     logger.info("Form submitted successfully")
-                except Exception as e:
+                except WebDriverException as e:
                     logger.warning(f"Error submitting form with JavaScript: {str(e)}")
                     logger.info("Trying to submit with Enter key instead")
                     password_input.send_keys(Keys.RETURN)
@@ -483,7 +483,7 @@ def download_market_data(
         return {}
 
     # Initialize provider (async for better performance)
-    provider = get_provider(async_api=True, provider_name=provider_name)
+    provider: Any = get_provider(async_api=True, provider_name=provider_name)
 
     # Define the data download function
     async def fetch_all_data():
@@ -537,16 +537,19 @@ def download_market_data(
         except YFinanceError as e:
             logger.error(f"Error downloading market data: {str(e)}")
             raise
-        except Exception as e:
-            logger.error(f"Unexpected error downloading market data: {str(e)}")
-            raise APIError(f"Unexpected error downloading market data: {str(e)}")
+        except (ValueError, TypeError, KeyError, AttributeError) as e:
+            logger.error(f"Data processing error downloading market data: {str(e)}")
+            raise DataError(f"Data processing error downloading market data: {str(e)}")
 
     # Run the async function
     try:
         return asyncio.run(fetch_all_data())
-    except Exception as e:
-        logger.error(f"Error in download_market_data: {str(e)}")
+    except (APIError, YFinanceError, DataError):
+        # Re-raise known errors as-is
         raise
+    except (RuntimeError, asyncio.CancelledError) as e:
+        logger.error(f"Async runtime error in download_market_data: {str(e)}")
+        raise APIError(f"Async runtime error in download_market_data: {str(e)}")
 
 
 async def fallback_portfolio_download():
@@ -610,7 +613,7 @@ async def fallback_portfolio_download():
                     else:
                         logger.error(f"[{fallback_id}] No CSV files found in {input_dir}")
                         return False
-            except Exception as e:
+            except (OSError, IOError, PermissionError) as e:
                 logger.error(f"[{fallback_id}] Error checking alternative files: {str(e)}")
                 return False
 
@@ -628,7 +631,7 @@ async def fallback_portfolio_download():
                 header = await f.readline()
                 header = header.strip()
                 logger.info(f"[{fallback_id}] File header: {header}")
-        except Exception as e:
+        except (OSError, IOError, UnicodeDecodeError) as e:
             logger.error(f"[{fallback_id}] Error checking source file: {str(e)}")
             # Continue anyway, as the copy operation might still succeed
 
@@ -662,12 +665,12 @@ async def fallback_portfolio_download():
                     logger.warning(
                         f"[{fallback_id}] Warning: 'ticker' column missing from portfolio file"
                     )
-            except Exception as e:
+            except (pd.errors.ParserError, pd.errors.EmptyDataError, ValueError) as e:
                 logger.error(f"[{fallback_id}] Error reading copied file: {str(e)}")
                 # This is not fatal as long as the file was copied
 
         return True
-    except Exception as e:
+    except (OSError, IOError, shutil.Error) as e:
         logger.error(f"[{fallback_id}] Error in fallback portfolio download: {str(e)}")
         import traceback
 
@@ -749,8 +752,18 @@ async def download_etoro_portfolio(provider=None):
         logger.info(f"[{run_id}] eToro portfolio download completed successfully")
         return True
 
-    except Exception as e:
-        error_msg = f"Error during eToro portfolio download: {str(e)}"
+    except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+        error_msg = f"Network error during eToro portfolio download: {str(e)}"
+        logger.error(f"[{run_id}] {error_msg}")
+        print(error_msg)
+        return False
+    except (KeyError, ValueError, TypeError) as e:
+        error_msg = f"Data processing error during eToro portfolio download: {str(e)}"
+        logger.error(f"[{run_id}] {error_msg}")
+        print(error_msg)
+        return False
+    except (OSError, IOError) as e:
+        error_msg = f"File system error during eToro portfolio download: {str(e)}"
         logger.error(f"[{run_id}] {error_msg}")
         print(error_msg)
         return False

@@ -7,7 +7,7 @@ automatic page fetching, rate limiting, and result aggregation.
 
 import logging
 import time
-from typing import Any, Callable, Dict, Generic, Iterator, List, Optional, TypeVar, Union
+from typing import Any, Callable, cast, Dict, Generic, Iterator, List, Optional, TypeVar, Union
 
 from ...core.config import PAGINATION
 from ...core.errors import APIError, DataError, ValidationError, YFinanceError
@@ -64,10 +64,10 @@ class PaginatedResults:
         self.fetch_page_func = fetch_page_func
         self.process_results_func = process_results_func
         self.get_next_page_token_func = get_next_page_token_func
-        self.page_size = page_size or PAGINATION["PAGE_SIZE"]
-        self.max_pages = max_pages or PAGINATION["MAX_PAGES"]
-        self.max_retries = max_retries or PAGINATION["MAX_RETRIES"]
-        self.retry_delay = retry_delay or PAGINATION["RETRY_DELAY"]
+        self.page_size: int = page_size if page_size is not None else cast(int, PAGINATION.get("PAGE_SIZE", 50))
+        self.max_pages: int = max_pages if max_pages is not None else cast(int, PAGINATION.get("MAX_PAGES", 10))
+        self.max_retries: int = max_retries if max_retries is not None else cast(int, PAGINATION.get("MAX_RETRIES", 3))
+        self.retry_delay: float = retry_delay if retry_delay is not None else cast(float, PAGINATION.get("RETRY_DELAY", 1.0))
 
         logger.debug(f"Initialized paginated results handler with page_size={page_size}")
 
@@ -100,6 +100,8 @@ class PaginatedResults:
                     raise APIError(
                         f"Failed to fetch page after {self.max_retries} attempts: {str(e)}"
                     )
+        # This should never be reached, but mypy needs a return statement
+        raise APIError("No retries configured")
 
     def fetch_all(self) -> List[T]:
         """
@@ -139,7 +141,7 @@ class PaginatedResults:
                 break
 
         logger.debug(f"Fetched {page_count} pages with {len(all_results)} total results")
-        return all_results
+        return all_results  # type: ignore[return-value]
 
     def fetch_first_page(self) -> List[T]:
         """
@@ -155,7 +157,7 @@ class PaginatedResults:
         page_response = self._fetch_page_with_rate_limiting(None)
         page_results = self.process_results_func(page_response)
         logger.debug(f"Fetched first page with {len(page_results)} results")
-        return page_results
+        return page_results  # type: ignore[return-value]
 
     def iter_pages(self) -> Iterator[List[T]]:
         """
@@ -177,7 +179,7 @@ class PaginatedResults:
 
             # Process the results
             page_results = self.process_results_func(page_response)
-            yield page_results
+            yield page_results  # type: ignore[misc]
 
             # Get the next page token
             next_page_token = self.get_next_page_token_func(page_response)

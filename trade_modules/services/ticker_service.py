@@ -58,7 +58,7 @@ class TickerService:
         """
         try:
             return normalize_ticker(ticker)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error normalizing ticker {ticker}: {e}")
             raise DataProcessingError(f"Failed to normalize ticker {ticker}") from e
     
@@ -74,7 +74,7 @@ class TickerService:
         """
         try:
             return process_ticker_input(ticker)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error processing ticker input {ticker}: {e}")
             raise DataProcessingError(f"Failed to process ticker input {ticker}") from e
     
@@ -90,7 +90,7 @@ class TickerService:
         """
         try:
             return get_ticker_for_display(ticker)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error formatting ticker for display {ticker}: {e}")
             raise DataProcessingError(f"Failed to format ticker for display {ticker}") from e
     
@@ -106,7 +106,7 @@ class TickerService:
         """
         try:
             return validate_ticker_format(ticker)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error validating ticker format {ticker}: {e}")
             return False
     
@@ -129,7 +129,7 @@ class TickerService:
                         normalized.append(normalized_ticker)
                     else:
                         logger.warning(f"Invalid ticker format after normalization: {ticker}")
-                except Exception as e:
+                except (ValueError, TypeError, AttributeError) as e:
                     logger.warning(f"Failed to normalize ticker {ticker}: {e}")
         return normalized
     
@@ -153,7 +153,7 @@ class TickerService:
                 lambda x: self.process_input(x) if pd.notna(x) and x else x
             )
             return df
-        except Exception as e:
+        except (KeyError, TypeError, ValueError, AttributeError) as e:
             logger.error(f"Error normalizing DataFrame ticker column {ticker_column}: {e}")
             raise DataProcessingError(f"Failed to normalize DataFrame ticker column {ticker_column}") from e
     
@@ -169,7 +169,7 @@ class TickerService:
         """
         try:
             return get_ticker_equivalents(ticker)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             logger.error(f"Error getting ticker equivalents for {ticker}: {e}")
             raise DataProcessingError(f"Failed to get ticker equivalents for {ticker}") from e
     
@@ -186,7 +186,7 @@ class TickerService:
         """
         try:
             return check_equivalent_tickers(ticker1, ticker2)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error checking ticker equivalence {ticker1} vs {ticker2}: {e}")
             return False
     
@@ -202,7 +202,7 @@ class TickerService:
         """
         try:
             return get_ticker_info_summary(ticker)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             logger.error(f"Error getting ticker info summary for {ticker}: {e}")
             raise DataProcessingError(f"Failed to get ticker info summary for {ticker}") from e
     
@@ -218,7 +218,7 @@ class TickerService:
         """
         try:
             return get_geographic_region(ticker)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             logger.error(f"Error getting geographic region for {ticker}: {e}")
             raise DataProcessingError(f"Failed to get geographic region for {ticker}") from e
     
@@ -234,7 +234,7 @@ class TickerService:
         """
         try:
             return is_ticker_dual_listed(ticker)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error checking dual listing status for {ticker}: {e}")
             return False
 

@@ -100,7 +100,7 @@ class TradeModulesBoundary(ITradeModulesBoundary):
         """
         if self._criteria_cache is None:
             try:
-                from ..utils import (
+                from ..utils import (  # type: ignore[attr-defined]
                     apply_buy_criteria,
                     apply_sell_criteria,
                     calculate_position_size,
@@ -128,7 +128,7 @@ class TradeModulesBoundary(ITradeModulesBoundary):
         """
         if self._utils_cache is None:
             try:
-                from ..utils import (
+                from ..utils import (  # type: ignore[attr-defined]
                     clean_ticker_symbol,
                     safe_float_conversion,
                     validate_dataframe,

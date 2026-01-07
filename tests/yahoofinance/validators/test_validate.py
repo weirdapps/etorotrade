@@ -76,7 +76,7 @@ class TestValidate(unittest.TestCase):
     def test_is_valid_ticker_exception(self, mock_ticker):
         """Test validation of a ticker that raises an exception."""
         # Setup mock
-        mock_ticker.side_effect = Exception("API Error")
+        mock_ticker.side_effect = ValueError("API Error")
 
         # Test
         result = is_valid_ticker("ERROR")
@@ -169,7 +169,7 @@ class TestValidate(unittest.TestCase):
         """Test batch validation with an exception."""
         # Setup mock
         mock_future = MagicMock()
-        mock_future.result.side_effect = Exception("Test error")
+        mock_future.result.side_effect = ValueError("Test error")
 
         mock_executor_instance = MagicMock()
         mock_executor_instance.__enter__.return_value.submit.return_value = mock_future
@@ -191,7 +191,7 @@ class TestValidate(unittest.TestCase):
     def test_save_valid_tickers_exception(self, mock_to_csv):
         """Test saving valid tickers with an exception."""
         # Setup mock
-        mock_to_csv.side_effect = Exception("Save error")
+        mock_to_csv.side_effect = OSError("Save error")
 
         # Test
         # Should not raise an exception

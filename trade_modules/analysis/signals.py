@@ -8,7 +8,7 @@ Uses vectorized operations for performance on large datasets.
 import logging
 import pandas as pd
 import numpy as np
-from typing import Dict, Any
+from typing import Dict, Any, List, Union
 
 # Import tier utilities
 from .tiers import _parse_percentage, _parse_market_cap
@@ -170,7 +170,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
         row_de = de.loc[idx]
 
         # SELL criteria - ANY condition triggers SELL
-        sell_conditions = []
+        sell_conditions: List[Union[str, bool]] = []
 
         logger.debug(f"Ticker {ticker}: SELL CHECK START - upside={row_upside:.1f}%, buy%={row_buy_pct:.1f}%, exret={row_exret:.1f}%, roe={row_roe}, de={row_de}")
 
@@ -341,9 +341,15 @@ def calculate_action(df: pd.DataFrame) -> pd.DataFrame:
 
         logger.debug(f"Calculated actions for {len(working_df)} rows using vectorized operations")
         return working_df
-    except Exception as e:
+    except (KeyError, TypeError, ValueError) as e:
+        # Data-related errors: missing columns, type mismatches
+        logger.warning(f"Data error calculating actions: {str(e)}")
+        working_df["BS"] = "H"  # Default to HOLD
+        return working_df
+    except (AttributeError, IndexError, pd.errors.InvalidIndexError) as e:
+        # Unexpected pandas/index errors - log with full traceback for debugging
         import traceback
-        logger.error(f"Error calculating actions: {str(e)}")
+        logger.error(f"Unexpected error calculating actions: {str(e)}")
         logger.error(f"Full traceback:\n{traceback.format_exc()}")
         working_df["BS"] = "H"  # Default to HOLD
         return working_df
@@ -359,6 +365,8 @@ def filter_buy_opportunities_wrapper(market_df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         pd.DataFrame: Filtered buy opportunities
     """
+    from yahoofinance.core.errors import DataError, ValidationError
+
     try:
         logger.info("Filtering buy opportunities...")
 
@@ -370,8 +378,14 @@ def filter_buy_opportunities_wrapper(market_df: pd.DataFrame) -> pd.DataFrame:
 
         logger.info(f"Found {len(buy_opps)} buy opportunities")
         return buy_opps
-    except Exception as e:
-        logger.error(f"Error filtering buy opportunities: {str(e)}")
+    except (DataError, ValidationError) as e:
+        logger.warning(f"Data validation error filtering buy opportunities: {str(e)}")
+        return pd.DataFrame()
+    except (KeyError, ValueError, TypeError) as e:
+        logger.warning(f"Data error filtering buy opportunities: {str(e)}")
+        return pd.DataFrame()
+    except (AttributeError, IndexError, ImportError, pd.errors.InvalidIndexError) as e:
+        logger.error(f"Unexpected error filtering buy opportunities: {str(e)}")
         return pd.DataFrame()
 
 
@@ -385,6 +399,8 @@ def filter_sell_candidates_wrapper(portfolio_df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         pd.DataFrame: Filtered sell candidates
     """
+    from yahoofinance.core.errors import DataError, ValidationError
+
     try:
         logger.info("Filtering sell candidates...")
 
@@ -396,8 +412,14 @@ def filter_sell_candidates_wrapper(portfolio_df: pd.DataFrame) -> pd.DataFrame:
 
         logger.info(f"Found {len(sell_candidates)} sell candidates")
         return sell_candidates
-    except Exception as e:
-        logger.error(f"Error filtering sell candidates: {str(e)}")
+    except (DataError, ValidationError) as e:
+        logger.warning(f"Data validation error filtering sell candidates: {str(e)}")
+        return pd.DataFrame()
+    except (KeyError, ValueError, TypeError) as e:
+        logger.warning(f"Data error filtering sell candidates: {str(e)}")
+        return pd.DataFrame()
+    except (AttributeError, IndexError, ImportError, pd.errors.InvalidIndexError) as e:
+        logger.error(f"Unexpected error filtering sell candidates: {str(e)}")
         return pd.DataFrame()
 
 
@@ -411,6 +433,8 @@ def filter_hold_candidates_wrapper(market_df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         pd.DataFrame: Filtered hold candidates
     """
+    from yahoofinance.core.errors import DataError, ValidationError
+
     try:
         logger.info("Filtering hold candidates...")
 
@@ -422,6 +446,12 @@ def filter_hold_candidates_wrapper(market_df: pd.DataFrame) -> pd.DataFrame:
 
         logger.info(f"Found {len(hold_candidates)} hold candidates")
         return hold_candidates
-    except Exception as e:
-        logger.error(f"Error filtering hold candidates: {str(e)}")
+    except (DataError, ValidationError) as e:
+        logger.warning(f"Data validation error filtering hold candidates: {str(e)}")
+        return pd.DataFrame()
+    except (KeyError, ValueError, TypeError) as e:
+        logger.warning(f"Data error filtering hold candidates: {str(e)}")
+        return pd.DataFrame()
+    except (AttributeError, IndexError, ImportError, pd.errors.InvalidIndexError) as e:
+        logger.error(f"Unexpected error filtering hold candidates: {str(e)}")
         return pd.DataFrame()

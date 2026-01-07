@@ -52,7 +52,7 @@ def _check_confidence_criteria(
 
         return confidence_met, confidence_status
 
-    except Exception as e:
+    except (KeyError, ValueError, TypeError, AttributeError) as e:
         logger.debug(f"Error checking confidence criteria: {str(e)}")
         return False, "LOW (Error)"
 
@@ -110,7 +110,7 @@ def _check_sell_criteria(
 
         return meets_sell
 
-    except Exception as e:
+    except (KeyError, ValueError, TypeError, AttributeError) as e:
         logger.debug(f"Error checking sell criteria: {str(e)}")
         return False
 
@@ -171,7 +171,7 @@ def _check_buy_criteria(
 
         return meets_buy
 
-    except Exception as e:
+    except (KeyError, ValueError, TypeError, AttributeError) as e:
         logger.debug(f"Error checking buy criteria: {str(e)}")
         return False
 
@@ -212,7 +212,7 @@ def _process_color_based_on_criteria(
         # Default to HOLD (YELLOW)
         return "YELLOW"
 
-    except Exception as e:
+    except (KeyError, ValueError, TypeError, AttributeError) as e:
         logger.debug(f"Error processing color criteria: {str(e)}")
         return ""
 
@@ -244,14 +244,14 @@ def _apply_color_coding(display_df: pd.DataFrame, trading_criteria: Dict[str, An
                 # This can be used later for formatting output
                 result_df.at[idx, "_color"] = color
 
-            except Exception as e:
+            except (KeyError, ValueError, TypeError, AttributeError) as e:
                 logger.debug(f"Error applying color to row {idx}: {str(e)}")
                 result_df.at[idx, "_color"] = ""
 
         logger.debug(f"Applied color coding to {len(result_df)} rows")
         return result_df
 
-    except Exception as e:
+    except (KeyError, ValueError, TypeError, AttributeError) as e:
         logger.error(f"Error applying color coding: {str(e)}")
         return result_df
 
@@ -329,7 +329,7 @@ def _filter_notrade_tickers(opportunities_df: pd.DataFrame, notrade_path: str) -
             logger.warning("No ticker column found in opportunities DataFrame")
             return opportunities_df
 
-    except Exception as e:
+    except (FileNotFoundError, pd.errors.EmptyDataError, KeyError, ValueError, TypeError) as e:
         logger.error(f"Error filtering no-trade tickers: {str(e)}")
         return opportunities_df
 
@@ -406,6 +406,6 @@ def process_buy_opportunities(
         logger.info(f"Final buy opportunities: {len(buy_opportunities)}")
         return buy_opportunities
 
-    except Exception as e:
+    except (KeyError, ValueError, TypeError, AttributeError, ImportError) as e:
         logger.error(f"Error processing buy opportunities: {str(e)}")
         return pd.DataFrame()

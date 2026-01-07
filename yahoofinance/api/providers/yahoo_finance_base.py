@@ -37,6 +37,26 @@ from ...utils.market.ticker_utils import is_us_ticker, validate_ticker
 logger = get_logger(__name__)
 
 
+def safe_extract_value(data: Any, key: str, default: Any = None) -> Any:
+    """
+    Safely extract a value from a dictionary with type checking.
+
+    Args:
+        data: Dictionary or object to extract from
+        key: Key to look up
+        default: Default value if key not found
+
+    Returns:
+        Extracted value or default
+    """
+    try:
+        if isinstance(data, dict) and key in data and data[key] is not None:
+            return data[key]
+    except (TypeError, AttributeError, KeyError) as e:
+        logger.debug(f"Error extracting {key}: {str(e)}")
+    return default
+
+
 class YahooFinanceBaseProvider(ABC):
     """
     Base class for Yahoo Finance data providers.
@@ -61,7 +81,7 @@ class YahooFinanceBaseProvider(ABC):
         self.retry_delay = retry_delay
 
         # Initialize cache
-        self._ticker_cache = {}
+        self._ticker_cache: dict[str, Any] = {}
 
         logger.debug(
             f"Initialized YahooFinanceBaseProvider with max_retries={max_retries}, retry_delay={retry_delay}"
@@ -219,17 +239,6 @@ class YahooFinanceBaseProvider(ABC):
             logger.warning(f"Invalid info object type: {type(info)}. Using empty info.")
             info = {"symbol": info.get("symbol", "unknown") if hasattr(info, "get") else "unknown"}
 
-        # Helper function to safely extract values with type checking
-        global safe_extract_value
-
-        def safe_extract_value(data, key, default=None):
-            try:
-                if isinstance(data, dict) and key in data and data[key] is not None:
-                    return data[key]
-            except (TypeError, AttributeError, KeyError) as e:
-                logger.debug(f"Error extracting {key}: {str(e)}")
-            return default
-
         # Get ticker symbol for logging
         symbol = safe_extract_value(info, "symbol", safe_extract_value(info, "ticker", "unknown"))
 
@@ -344,7 +353,7 @@ class YahooFinanceBaseProvider(ABC):
 
             # Get earnings dates and populate the result
             try:
-                earnings_dates = self.get_earnings_dates(symbol)
+                earnings_dates = self.get_earnings_dates(symbol)  # type: ignore[attr-defined]
                 if earnings_dates and earnings_dates[0]:
                     result["earnings_date"] = earnings_dates[0]
                     result["last_earnings"] = earnings_dates[0]
@@ -818,7 +827,7 @@ class YahooFinanceBaseProvider(ABC):
                                 )
 
                 # If we got analyst count but no buy percentage, try to get it from recommendations
-                if result["analyst_count"] > 0 and result["buy_percentage"] is None:
+                if isinstance(result["analyst_count"], int) and result["analyst_count"] > 0 and result["buy_percentage"] is None:
                     logger.debug(
                         f"Got analyst count but no buy percentage from info for {ticker}, trying recommendations"
                     )
@@ -848,7 +857,7 @@ class YahooFinanceBaseProvider(ABC):
                 
                 try:
                     # Get earnings dates to filter recommendations after earnings announcement
-                    earnings_dates = self.get_earnings_dates(ticker)
+                    earnings_dates = self.get_earnings_dates(ticker)  # type: ignore[attr-defined]
                     latest_earnings_date = earnings_dates[0] if earnings_dates[0] else None
                     
                     if latest_earnings_date:
@@ -919,7 +928,7 @@ class YahooFinanceBaseProvider(ABC):
                 logger.warning(f"Error getting recommendations for {ticker}: {str(e)}")
 
             # If we still don't have buy percentage but have total ratings, try one more approach
-            if result["total_ratings"] > 0 and result["buy_percentage"] is None:
+            if isinstance(result["total_ratings"], int) and result["total_ratings"] > 0 and result["buy_percentage"] is None:
                 try:
                     # Try to get upgrades_downgrades as a last resort
                     upgrades_downgrades = getattr(ticker_obj, "upgrades_downgrades", None)

@@ -44,47 +44,12 @@ from yahoofinance.core.config import TRADING_CRITERIA
 logger = logging.getLogger(__name__)
 
 
-# Backward compatibility aliases for old function names
-def filter_buy_opportunities(df):
-    """Backward compatibility wrapper for filter_buy_opportunities."""
-    # Filter to only buy signals
-    if 'BS' in df.columns:
-        return df[df['BS'] == 'B']
-    return df
-
-
-def filter_sell_candidates(df):
-    """Backward compatibility wrapper for filter_sell_candidates."""
-    # Filter to only sell signals
-    if 'BS' in df.columns:
-        return df[df['BS'] == 'S']
-    return df
-
-
-def filter_hold_candidates(df):
-    """Backward compatibility wrapper for filter_hold_candidates."""
-    # Filter to only hold signals
-    if 'BS' in df.columns:
-        return df[df['BS'] == 'H']
-    return df
-
-
-def process_sell_opportunities(market_df, portfolio_df=None, *args, **kwargs):
-    """Backward compatibility wrapper."""
-    # Just return market data filtered for sell signals
-    return filter_sell_candidates(market_df)
-
-
-def process_hold_opportunities(market_df, portfolio_df=None, *args, **kwargs):
-    """Backward compatibility wrapper."""
-    # Just return market data filtered for hold signals
-    return filter_hold_candidates(market_df)
-
-
-def generate_trade_reports(*args, **kwargs):
-    """Backward compatibility stub."""
-    # Return empty dict for now
-    return {}
+# NOTE: Backward compatibility functions removed as part of architecture cleanup.
+# The proper filter functions are available in trade_modules.analysis:
+#   - filter_buy_opportunities_wrapper
+#   - filter_sell_candidates_wrapper
+#   - filter_hold_candidates_wrapper
+# See IMPROVEMENT_PLAN.md for details on this refactoring.
 
 
 class AnalysisEngine:
@@ -120,7 +85,7 @@ class AnalysisEngine:
             self.logger.info("Portfolio analysis completed")
             return results
 
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
             error_msg = f"Portfolio analysis failed: {str(e)}"
             self.logger.error(error_msg)
             raise YFinanceError(error_msg) from e
@@ -145,7 +110,7 @@ class AnalysisEngine:
             self.logger.info("Market analysis completed")
             return results
 
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
             error_msg = f"Market analysis failed: {str(e)}"
             self.logger.error(error_msg)
             raise YFinanceError(error_msg) from e
@@ -174,7 +139,7 @@ class AnalysisEngine:
                 ),
             }
             return summary
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
             self.logger.error(f"Error generating portfolio summary: {str(e)}")
             return {}
 
@@ -188,6 +153,6 @@ class AnalysisEngine:
                 "avg_market_upside": market_df.get("upside", pd.Series()).mean(),
             }
             return summary
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
             self.logger.error(f"Error generating market summary: {str(e)}")
             return {}

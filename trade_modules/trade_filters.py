@@ -96,7 +96,7 @@ class TradingCriteriaFilter:
 
             return filtered_df
 
-        except Exception as e:
+        except (KeyError, TypeError, ValueError, AttributeError) as e:
             self.logger.error(f"Error applying trading criteria: {str(e)}")
             raise TradingFilterError(f"Criteria filtering failed: {str(e)}") from e
 
@@ -310,7 +310,7 @@ class PortfolioFilter:
 
             return filtered_df
 
-        except Exception as e:
+        except (KeyError, TypeError, ValueError, AttributeError) as e:
             self.logger.error(f"Error filtering new opportunities: {str(e)}")
             return df
 
@@ -355,7 +355,7 @@ class PortfolioFilter:
 
             return filtered_df
 
-        except Exception as e:
+        except (KeyError, TypeError, ValueError, AttributeError) as e:
             self.logger.error(f"Error filtering existing holdings: {str(e)}")
             return df
 
@@ -383,7 +383,7 @@ class PortfolioFilter:
 
             return metrics
 
-        except Exception as e:
+        except (KeyError, TypeError, ValueError, AttributeError) as e:
             self.logger.error(f"Error calculating portfolio metrics: {str(e)}")
             return {}
 
@@ -441,7 +441,7 @@ class DataQualityFilter:
 
             return filtered_df
 
-        except Exception as e:
+        except (KeyError, TypeError, ValueError, AttributeError) as e:
             self.logger.error(f"Error filtering by data quality: {str(e)}")
             return df
 
@@ -545,7 +545,7 @@ class CustomFilter:
                         f"Custom filter '{filter_info['name']}': " f"removed {removed_count} rows"
                     )
 
-                except Exception as e:
+                except (KeyError, TypeError, ValueError, AttributeError) as e:
                     self.logger.error(f"Error in custom filter '{filter_info['name']}': {str(e)}")
                     continue
 
@@ -559,7 +559,7 @@ class CustomFilter:
 
             return filtered_df
 
-        except Exception as e:
+        except (KeyError, TypeError, ValueError, AttributeError) as e:
             self.logger.error(f"Error applying custom filters: {str(e)}")
             return df
 

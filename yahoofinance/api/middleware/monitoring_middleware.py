@@ -145,7 +145,7 @@ class MonitoringMiddleware:
         # Register circuit breaker for this endpoint
         try:
             circuit_breaker_monitor.register_breaker(endpoint)
-        except Exception:
+        except (KeyError, ValueError, TypeError, AttributeError):
             # Handle exceptions during registration, which might occur in tests
             pass
 

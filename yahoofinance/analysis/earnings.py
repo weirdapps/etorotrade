@@ -408,10 +408,10 @@ class EarningsAnalyzer(BaseAnalysisService):
             earnings_dates = self.provider.get_earnings_dates(ticker)
 
             # Fetch earnings history (if available)
-            earnings_history = self.provider.get_earnings_history(ticker)
+            earnings_history = self.provider.get_earnings_history(ticker)  # type: ignore[union-attr]
 
             # Process the data into EarningsData object
-            return self._process_earnings_data(earnings_dates, earnings_history)
+            return self._process_earnings_data(earnings_dates, earnings_history)  # type: ignore[arg-type]
 
         except YFinanceError as e:
             logger.error(f"Error fetching earnings data for {ticker}: {str(e)}")
@@ -435,13 +435,13 @@ class EarningsAnalyzer(BaseAnalysisService):
 
         try:
             # Fetch earnings dates asynchronously
-            earnings_dates = await self.provider.get_earnings_dates(ticker)
+            earnings_dates = await self.provider.get_earnings_dates(ticker)  # type: ignore[misc]
 
             # Fetch earnings history (if available) asynchronously
-            earnings_history = await self.provider.get_earnings_history(ticker)
+            earnings_history = await self.provider.get_earnings_history(ticker)  # type: ignore[union-attr]
 
             # Process the data into EarningsData object
-            return self._process_earnings_data(earnings_dates, earnings_history)
+            return self._process_earnings_data(earnings_dates, earnings_history)  # type: ignore[arg-type]
 
         except YFinanceError as e:
             logger.error(f"Error fetching earnings data for {ticker}: {str(e)}")
@@ -499,13 +499,13 @@ class EarningsAnalyzer(BaseAnalysisService):
         results_list = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Process results
-        results = {}
+        results: Dict[str, EarningsData] = {}
         for ticker, result in zip(tickers, results_list):
             if isinstance(result, Exception):
                 logger.error(f"Error fetching earnings data for {ticker}: {str(result)}")
                 results[ticker] = EarningsData()
             else:
-                results[ticker] = result
+                results[ticker] = result  # type: ignore[assignment]
 
         return results
 

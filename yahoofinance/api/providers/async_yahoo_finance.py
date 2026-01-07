@@ -425,7 +425,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             import yfinance as yf
 
             yticker = yf.Ticker(ticker)
-            earnings_data = {"symbol": ticker, "earnings_dates": [], "earnings_history": []}
+            earnings_data: Dict[str, Any] = {"symbol": ticker, "earnings_dates": [], "earnings_history": []}
             # Get calendar for earnings dates
             try:
                 calendar = yticker.calendar
@@ -531,7 +531,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         Get insider transactions for a ticker asynchronously.
         """
         validate_ticker(ticker)
-        if not self._is_us_ticker(ticker):
+        if not is_us_ticker(ticker):
             logger.debug(f"Skipping insider transactions for non-US ticker {ticker}")
             return []
 
@@ -559,7 +559,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                         "name": transaction.get("filerName", ""),
                         "title": transaction.get("filerRelation", ""),
                         "date": (
-                            self._format_date(
+                            format_date(
                                 pd.to_datetime(transaction["startDate"]["raw"], unit="s")
                             )
                             if "startDate" in transaction and "raw" in transaction["startDate"]
@@ -835,7 +835,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                     gc.collect()
                 except (ImportError, AttributeError):
                     pass
-        except Exception:
+        except (RuntimeError, ValueError, TypeError, OSError, IOError, AttributeError):
             # Silently ignore any errors during cleanup to prevent issues during shutdown
             pass
 

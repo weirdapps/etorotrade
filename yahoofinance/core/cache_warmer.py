@@ -181,7 +181,7 @@ class CacheWarmer:
                 if isinstance(result, Exception):
                     failed += 1
                     logger.debug(f"Failed to warm {ticker}: {result}")
-                elif result and "error" not in result:
+                elif result and isinstance(result, dict) and "error" not in result:
                     warmed += 1
                     # Data is already cached by provider
                     self.stats["total_warmed"] += 1
@@ -241,7 +241,7 @@ class CacheWarmer:
             logger.info(f"Found {len(tickers)} tickers in portfolio")
             return tickers
 
-        except Exception as e:
+        except (OSError, IOError, pd.errors.ParserError, pd.errors.EmptyDataError, KeyError, ValueError) as e:
             logger.error(f"Error reading portfolio: {e}")
             return []
 
@@ -294,7 +294,7 @@ class CacheWarmer:
             except asyncio.CancelledError:
                 logger.info("Background refresh cancelled")
                 raise  # Re-raise to allow proper task cancellation
-            except Exception as e:
+            except (asyncio.TimeoutError, RuntimeError, ValueError, TypeError, OSError) as e:
                 logger.error(f"Error in background refresh: {e}")
                 # Continue loop despite error
 

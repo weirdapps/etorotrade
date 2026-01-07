@@ -303,7 +303,7 @@ class HTMLGenerator:
 
             logger.info(f"Generated HTML file: {output_file}")
 
-        except Exception as e:
+        except (OSError, IOError, ValueError, TypeError, KeyError, AttributeError) as e:
             logger.error(f"Error generating HTML file {output_file}: {str(e)}")
             # Create fallback empty file
             self._generate_empty_results_html(title)
@@ -1122,7 +1122,7 @@ class HTMLGenerator:
             elif col == "SIZE":
                 formatted_df[col] = formatted_df[col].apply(
                     lambda x: (
-                        format_position_size(x)
+                        format_position_size(float(x) if isinstance(x, (int, float, str)) and x not in ["--", ""] else None)
                         if isinstance(x, (int, float))
                         or (
                             isinstance(x, str)

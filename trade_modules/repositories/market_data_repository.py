@@ -112,7 +112,7 @@ class MarketDataRepository(IMarketDataRepository):
             self.logger.debug(f"Retrieved {data_type} market data with {len(df)} records")
             return df
             
-        except Exception as e:
+        except (FileNotFoundError, pd.errors.EmptyDataError, KeyError, ValueError, OSError) as e:
             self.logger.error(f"Error reading {data_type} market data: {e}")
             # Return empty DataFrame with consistent structure for backward compatibility
             return pd.DataFrame()
@@ -143,7 +143,7 @@ class MarketDataRepository(IMarketDataRepository):
                 self.logger.info(f"Saved {data_type} market data with {len(data)} records")
             return success
             
-        except Exception as e:
+        except (OSError, IOError, PermissionError, ValueError, KeyError) as e:
             self.logger.error(f"Error saving {data_type} market data: {e}")
             return False
     
@@ -174,7 +174,7 @@ class MarketDataRepository(IMarketDataRepository):
             self.logger.debug(f"Available market data types: {available_types}")
             return available_types
             
-        except Exception as e:
+        except (OSError, IOError, PermissionError, FileNotFoundError) as e:
             self.logger.error(f"Error getting available data types: {e}")
             return self.STANDARD_DATA_TYPES.copy()
     
@@ -194,7 +194,7 @@ class MarketDataRepository(IMarketDataRepository):
                 self.logger.info(f"Cleared {data_type} market data")
             return success
             
-        except Exception as e:
+        except (OSError, IOError, PermissionError, FileNotFoundError) as e:
             self.logger.error(f"Error clearing {data_type} market data: {e}")
             return False
     
@@ -224,7 +224,7 @@ class MarketDataRepository(IMarketDataRepository):
             
             return all_success
             
-        except Exception as e:
+        except (OSError, IOError, PermissionError, FileNotFoundError) as e:
             self.logger.error(f"Error backing up market data: {e}")
             return False
     
@@ -264,13 +264,13 @@ class MarketDataRepository(IMarketDataRepository):
                     else:
                         summary[data_type]['has_data'] = False
                         
-                except Exception as e:
+                except (KeyError, ValueError, TypeError, OSError) as e:
                     self.logger.error(f"Error summarizing {data_type}: {e}")
                     summary[data_type] = {'error': str(e)}
-            
+
             return summary
-            
-        except Exception as e:
+
+        except (KeyError, ValueError, TypeError, OSError) as e:
             self.logger.error(f"Error getting market data summary: {e}")
             return {}
     
@@ -316,7 +316,7 @@ class MarketDataRepository(IMarketDataRepository):
             
             return success
             
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, OSError, pd.errors.EmptyDataError) as e:
             self.logger.error(f"Error consolidating market data: {e}")
             return False
     
@@ -369,6 +369,6 @@ class MarketDataRepository(IMarketDataRepository):
             
             return True
             
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
             self.logger.error(f"Error validating market data: {e}")
             return False

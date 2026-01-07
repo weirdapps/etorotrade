@@ -205,7 +205,7 @@ class TestHealthMonitor:
         monitor = HealthMonitor()
 
         def failing_check():
-            raise Exception("Health check failed")
+            raise RuntimeError("Health check failed")
 
         monitor.register_health_check("failing", failing_check)
 

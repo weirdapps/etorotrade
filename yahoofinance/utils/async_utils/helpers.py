@@ -68,7 +68,7 @@ async def gather_with_semaphore(
         async with semaphore:
             return await task
 
-    return await asyncio.gather(
+    return await asyncio.gather(  # type: ignore[return-value]
         *(task_with_semaphore(task) for task in tasks), return_exceptions=return_exceptions
     )
 

@@ -163,7 +163,7 @@ def clean_yfinance_caches():
                 yf._SHARED_TICKER_SESSION.close()
                 yf._SHARED_TICKER_SESSION = None
                 cleaned += 1
-            except Exception as e:
+            except (OSError, IOError, AttributeError, RuntimeError) as e:
                 logger.warning(f"Error closing yfinance shared session: {e}")
 
         # Clear other yfinance caches that might exist
@@ -176,7 +176,7 @@ def clean_yfinance_caches():
         return cleaned
     except ImportError:
         return 0
-    except Exception as e:
+    except (OSError, IOError, AttributeError, RuntimeError) as e:
         logger.warning(f"Error cleaning yfinance caches: {e}")
         return 0
 

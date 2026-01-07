@@ -76,8 +76,8 @@ def calculate_validated_upside(ticker_data: Dict[str, Any]) -> Tuple[Optional[fl
             return upside, source_desc
         else:
             return None, "calculation_failed"
-            
-    except Exception as e:
+
+    except (KeyError, ValueError, TypeError, ZeroDivisionError) as e:
         logger.warning(f"Error calculating validated upside: {e}")
         return None, "error_occurred"
 
@@ -359,7 +359,7 @@ def calculate_position_size(
             else:  # BETS (<$5B)
                 base_position = 2500 * 1  # $2,500
                 tier_name = "BETS"
-    except Exception:
+    except (KeyError, ValueError, TypeError, OSError, IOError):
         # If YAML loading fails, use hardcoded fallback
         if market_cap >= 100_000_000_000:  # VALUE (≥$100B)
             base_position = 2500 * 4  # $10,000
@@ -489,7 +489,7 @@ def format_market_metrics(
             formatted[key] = format_number(
                 value,
                 precision=rules.get("precision", 2),
-                as_percentage=rules.get("as_percentage", False),
+                as_percentage=bool(rules.get("as_percentage", False)),
             )
         elif key == "market_cap" and value is not None:
             formatted[key] = format_market_cap(value)

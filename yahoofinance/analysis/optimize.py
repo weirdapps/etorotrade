@@ -93,8 +93,8 @@ class PortfolioOptimizer:
 
         # Initialize portfolio data
         self.portfolio_df = None
-        self.tickers = []
-        self.valid_tickers = []
+        self.tickers: list[str] = []
+        self.valid_tickers: list[str] = []
 
         # Initialize rate limiter for API calls
         self.rate_limiter = rate_limiter if rate_limiter is not None else RateLimiter()
@@ -709,9 +709,9 @@ class PortfolioOptimizer:
             except (FileNotFoundError, ValueError) as e:
                 print(f"Error loading from cache: {str(e)}")
                 print("Falling back to fresh data retrieval...")
-                historical_data, valid_tickers = self.get_historical_data()
+                historical_data, valid_tickers = self.get_historical_data()  # type: ignore[assignment]
         else:
-            historical_data, valid_tickers = self.get_historical_data()
+            historical_data, valid_tickers = self.get_historical_data()  # type: ignore[assignment]
 
         if not valid_tickers:
             logger.warning("No valid ticker data found")

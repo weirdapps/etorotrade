@@ -195,7 +195,7 @@ class AsyncRateLimiter:
             # Record this call
             call_time = time.time()
             self.call_times.append(call_time)
-            self.last_call_time = call_time
+            self.last_call_time = int(call_time)
 
             # Calculate actual delay that was enforced
             actual_delay = time_since_last_call if additional_delay <= 0 else delay
@@ -296,34 +296,34 @@ class AsyncRateLimiter:
         Returns:
             Dictionary of metrics
         """
-        with asyncio.Lock():
-            success_rate = self.successful_calls / max(self.total_calls, 1) * 100
-            failure_rate = self.failed_calls / max(self.total_calls, 1) * 100
-            rate_limit_rate = self.rate_limited_calls / max(self.total_calls, 1) * 100
+        # Calculate metrics without lock since these are read-only operations
+        success_rate = self.successful_calls / max(self.total_calls, 1) * 100
+        failure_rate = self.failed_calls / max(self.total_calls, 1) * 100
+        rate_limit_rate = self.rate_limited_calls / max(self.total_calls, 1) * 100
 
-            avg_wait_time = self.total_wait_time / max(self.total_calls, 1)
+        avg_wait_time = self.total_wait_time / max(self.total_calls, 1)
 
-            metrics = {
-                "current_delay": round(self.current_delay, 3),
-                "success_streak": self.success_streak,
-                "failure_streak": self.failure_streak,
-                "total_calls": self.total_calls,
-                "successful_calls": self.successful_calls,
-                "failed_calls": self.failed_calls,
-                "rate_limited_calls": self.rate_limited_calls,
-                "success_rate": round(success_rate, 1),
-                "failure_rate": round(failure_rate, 1),
-                "rate_limit_rate": round(rate_limit_rate, 1),
-                "avg_wait_time": round(avg_wait_time, 3),
-                "max_wait_time": round(self.max_wait_time, 3),
-                "min_wait_time": (
-                    round(self.min_wait_time, 3) if self.min_wait_time != float("inf") else 0
-                ),
-                "window_utilization": round(len(self.call_times) / self.max_calls * 100, 1),
-                "active_adaptive_strategy": self.enable_adaptive_strategy,
-            }
+        metrics = {
+            "current_delay": round(self.current_delay, 3),
+            "success_streak": self.success_streak,
+            "failure_streak": self.failure_streak,
+            "total_calls": self.total_calls,
+            "successful_calls": self.successful_calls,
+            "failed_calls": self.failed_calls,
+            "rate_limited_calls": self.rate_limited_calls,
+            "success_rate": round(success_rate, 1),
+            "failure_rate": round(failure_rate, 1),
+            "rate_limit_rate": round(rate_limit_rate, 1),
+            "avg_wait_time": round(avg_wait_time, 3),
+            "max_wait_time": round(self.max_wait_time, 3),
+            "min_wait_time": (
+                round(self.min_wait_time, 3) if self.min_wait_time != float("inf") else 0
+            ),
+            "window_utilization": round(len(self.call_times) / self.max_calls * 100, 1),
+            "active_adaptive_strategy": self.enable_adaptive_strategy,
+        }
 
-            return metrics
+        return metrics
 
     def _get_delay_for_ticker(self, ticker: Optional[str] = None) -> float:
         """
@@ -461,7 +461,7 @@ class PriorityAsyncRateLimiter(AsyncRateLimiter):
         self.low_priority_quota = max_calls * 0.2 if max_calls else 15  # 20% for low priority
 
         # Separate call tracking per priority
-        self.priority_call_times = {"HIGH": [], "MEDIUM": [], "LOW": []}
+        self.priority_call_times: dict[str, list[float]] = {"HIGH": [], "MEDIUM": [], "LOW": []}
 
         # Metrics per priority
         self.priority_metrics = {
@@ -599,7 +599,7 @@ class PriorityAsyncRateLimiter(AsyncRateLimiter):
             call_time = time.time()
             self.call_times.append(call_time)
             self.priority_call_times[priority].append(call_time)
-            self.last_call_time = call_time
+            self.last_call_time = int(call_time)
 
             # Calculate actual delay
             actual_delay = time_since_last_call if additional_delay <= 0 else delay

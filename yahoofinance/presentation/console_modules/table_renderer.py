@@ -208,7 +208,7 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
                 elif len(date_str) >= 8:
                     return date_str[:8]  # Already in YYYYMMDD format
                 return date_str
-            except Exception:
+            except (ValueError, TypeError, AttributeError):
                 return "--"
 
         df["EARNINGS"] = df["EARNINGS"].apply(format_earnings_date)
@@ -250,7 +250,7 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
             # Apply specific formatting if configured
             if col in format_mapping:
                 formatter_key = format_mapping[col]
-                formatter_config = formatters.get(formatter_key, {})
+                formatter_config = formatters.get(formatter_key, {})  # type: ignore[union-attr, attr-defined]
 
                 # Format numbers using the configuration
                 formatted_values = []
@@ -297,7 +297,7 @@ def calculate_actions(df: pd.DataFrame) -> pd.Series:
             action, _ = calculate_action_for_row(row, TRADING_CRITERIA, "short_percent")
             # Preserve all valid actions including "I" (Inconclusive), only default empty/None to "H"
             actions.append(action if action is not None and action != "" else "H")
-        except Exception:
+        except (ImportError, KeyError, ValueError, TypeError, AttributeError):
             # Fallback action calculation
             actions.append("H")  # Default to Hold
 
@@ -324,7 +324,7 @@ def display_stock_table(stock_data: List[Dict[str, Any]], title: str = "Stock An
     # Add position size calculation
     try:
         df = add_position_size_column(df)
-    except Exception as e:
+    except (KeyError, ValueError, TypeError, AttributeError) as e:
         # If position size calculation fails, continue without it
         logger.warning(f"Failed to add position size column: {e}")
         # Ensure SIZE column exists for column filtering

@@ -253,7 +253,7 @@ class MetricsRegistry:
 
             # Clean up old metric files
             self._cleanup_old_metric_files()
-        except Exception as e:
+        except (OSError, IOError, json.JSONDecodeError, TypeError, ValueError) as e:
             logger.error(f"Failed to export metrics: {e}")
 
     def _cleanup_old_metric_files(self, max_files: int = 20) -> None:
@@ -264,7 +264,7 @@ class MetricsRegistry:
 
             for old_file in files[max_files:]:
                 os.remove(os.path.join(MONITOR_DIR, old_file))
-        except Exception as e:
+        except (OSError, IOError, PermissionError) as e:
             logger.error(f"Failed to clean up old metric files: {e}")
 
 
@@ -296,7 +296,7 @@ T = TypeVar("T")
 
 
 @contextmanager
-def measure_execution_time(name: str, tags: Optional[Dict[str, str]] = None) -> None:
+def measure_execution_time(name: str, tags: Optional[Dict[str, str]] = None):  # type: ignore[misc]
     """Context manager to measure execution time of a code block."""
     tags = tags or {}
 

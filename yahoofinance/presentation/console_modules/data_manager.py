@@ -7,7 +7,7 @@ This module provides data loading from files, CSV saving, and report orchestrati
 import asyncio
 import csv
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import pandas as pd
 
@@ -87,7 +87,7 @@ def load_tickers(source_type: str) -> List[str]:
             if callable(result):
                 return result()
             return result
-        except Exception:
+        except (EOFError, ValueError, TypeError, AttributeError):
             return ["AAPL", "MSFT"]  # Default tickers for error cases
     else:
         raise ValueError(f"Unknown source type: {source_type}")
@@ -215,7 +215,7 @@ def filter_by_trade_action(results: List[Dict], trade_filter: str) -> List[Dict]
             if 'TICKER' in sell_df.columns:
                 sell_tickers = set(sell_df['TICKER'].astype(str).apply(normalize_ticker))
 
-    except Exception as e:
+    except (OSError, IOError, pd.errors.ParserError, pd.errors.EmptyDataError, KeyError, ValueError) as e:
         logger.warning(f"Failed to load portfolio/sell files for filtering: {e}")
 
     filtered_results = []
@@ -244,7 +244,7 @@ def filter_by_trade_action(results: List[Dict], trade_filter: str) -> List[Dict]
                 if action == "H" and ticker not in exclusion_tickers:
                     filtered_results.append(ticker_data)
 
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
             logger.warning(f"Error filtering ticker {ticker_data.get('symbol', 'unknown')}: {e}")
             # If action calculation fails, include in HOLD filter only if not excluded
             if trade_filter == "H":
@@ -310,7 +310,7 @@ def save_to_csv(
             # Reorder the DataFrame to only show standard display columns
             df = df[final_col_order]
 
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, pd.errors.InvalidIndexError) as e:
             logger.warning(f"Failed to add position size to CSV: {e}")
 
         # Save to CSV
@@ -352,7 +352,7 @@ def save_to_csv(
                 include_columns=list(df.columns)
             )
             logger.info(f"Generated HTML report: {html_path}")
-        except Exception as e:
+        except (OSError, IOError, ValueError, TypeError, YFinanceError) as e:
             logger.warning(f"Failed to generate HTML file: {str(e)}")
 
         return output_path
@@ -365,8 +365,8 @@ def display_report(
     tickers: List[str],
     report_type: Optional[str],
     provider: Optional[AsyncFinanceDataProvider],
-    display_table_fn: callable,
-    process_tickers_fn: callable = None
+    display_table_fn: Callable[..., Any],
+    process_tickers_fn: Optional[Callable[..., Any]] = None
 ) -> None:
     """
     Display report for tickers.
@@ -392,15 +392,15 @@ def display_report(
         asyncio.run(_async_display_report(tickers, report_type, provider, display_table_fn))
     else:
         # Handle sync provider
-        _sync_display_report(tickers, report_type, provider, display_table_fn, process_tickers_fn)
+        _sync_display_report(tickers, report_type, provider, display_table_fn, process_tickers_fn)  # type: ignore[arg-type]
 
 
 def _sync_display_report(
     tickers: List[str],
     report_type: Optional[str],
     provider: FinanceDataProvider,
-    display_table_fn: callable,
-    process_tickers_fn: callable
+    display_table_fn: Callable[..., Any],
+    process_tickers_fn: Callable[..., Any]
 ) -> None:
     """
     Display report for tickers using synchronous provider.
@@ -455,7 +455,7 @@ async def _async_display_report(
     tickers: List[str],
     report_type: Optional[str],
     provider: AsyncFinanceDataProvider,
-    display_table_fn: callable,
+    display_table_fn: Callable[..., Any],
     trade_filter: Optional[str] = None
 ) -> None:
     """
@@ -484,7 +484,7 @@ async def _async_display_report(
     # Use batch processing for async provider with enhanced progress
     results_dict = await process_batch_async(
         tickers,
-        provider.get_ticker_info,  # type: ignore (we know it's async)
+        provider.get_ticker_info,  # type: ignore[arg-type]
         batch_size=1,  # Process one ticker at a time for real-time progress updates
         concurrency=get_max_concurrent_requests(),
         delay_between_batches=RATE_LIMIT.get("BATCH_DELAY", 0.0),

@@ -791,14 +791,14 @@ class HybridProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                             if twelve_month_perf is not None:
                                 data["twelve_month_performance"] = twelve_month_perf
                                 logger.debug(f"Added 12-month performance for {ticker} in fallback: {twelve_month_perf:.2f}%")
-                        except Exception as e:
-                            logger.debug(f"Error calculating 12-month performance for {ticker} in fallback: {str(e)}")
+                        except Exception as perf_err:
+                            logger.debug(f"Error calculating 12-month performance for {ticker} in fallback: {str(perf_err)}")
 
                 return normalized_yq_results
             except YFinanceError as yq_error:
                 # If both fail, raise the original error
                 logger.error(f"Both providers failed for batch ticker info: {str(yq_error)}")
-                raise YFinanceError(f"Error fetching batch ticker info: {str(e)}")
+                raise YFinanceError(f"Error fetching batch ticker info: {str(yq_error)}")
 
     def clear_cache(self) -> None:
         """

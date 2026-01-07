@@ -179,7 +179,7 @@ class StockAnalyzer:
             raise YFinanceError(MESSAGES["ERROR_FETCHING_DATA"].format(ticker=ticker, error=str(e)))
 
         # Process the data (use normalized ticker for consistency)
-        return self._process_analysis(normalized_ticker, ticker_info, analyst_ratings, earnings_dates)
+        return self._process_analysis(normalized_ticker, ticker_info, analyst_ratings, earnings_dates)  # type: ignore[arg-type]
 
     async def analyze_async(self, ticker: str) -> AnalysisResults:
         """
@@ -202,9 +202,9 @@ class StockAnalyzer:
 
         # Fetch stock data asynchronously
         try:
-            ticker_info = await self.provider.get_ticker_info(normalized_ticker)
-            analyst_ratings = await self.provider.get_analyst_ratings(normalized_ticker)
-            earnings_dates = await self.provider.get_earnings_dates(normalized_ticker)
+            ticker_info = await self.provider.get_ticker_info(normalized_ticker)  # type: ignore[misc]
+            analyst_ratings = await self.provider.get_analyst_ratings(normalized_ticker)  # type: ignore[misc]
+            earnings_dates = await self.provider.get_earnings_dates(normalized_ticker)  # type: ignore[misc]
         except APIError as e:
             # Re-raise API errors directly with original context
             raise e
@@ -241,12 +241,12 @@ class StockAnalyzer:
         
         # Fetch stock data in batch
         try:
-            ticker_info_batch = self.provider.batch_get_ticker_info(normalized_tickers)
+            ticker_info_batch = self.provider.batch_get_ticker_info(normalized_tickers)  # type: ignore[misc]
 
             # For each ticker, fetch analyst ratings and earnings dates
-            results = {}
+            results: Dict[str, AnalysisResults] = {}
             for original_ticker, normalized_ticker in zip(tickers, normalized_tickers):
-                if normalized_ticker not in ticker_info_batch or ticker_info_batch[normalized_ticker] is None:
+                if normalized_ticker not in ticker_info_batch or ticker_info_batch[normalized_ticker] is None:  # type: ignore[operator, index]
                     logger.warning(MESSAGES["NO_DATA_FOUND_TICKER"].format(ticker=original_ticker))
                     continue
 
@@ -254,7 +254,7 @@ class StockAnalyzer:
                     analyst_ratings = self.provider.get_analyst_ratings(normalized_ticker)
                     earnings_dates = self.provider.get_earnings_dates(normalized_ticker)
                     results[original_ticker] = self._process_analysis(
-                        normalized_ticker, ticker_info_batch[normalized_ticker], analyst_ratings, earnings_dates
+                        normalized_ticker, ticker_info_batch[normalized_ticker], analyst_ratings, earnings_dates  # type: ignore[arg-type, index]
                     )
                 except YFinanceError as e:
                     logger.error(
@@ -262,8 +262,8 @@ class StockAnalyzer:
                     )
                     results[original_ticker] = AnalysisResults(
                         ticker=normalized_ticker,
-                        name=ticker_info_batch[normalized_ticker].get("name", original_ticker),
-                        price=ticker_info_batch[normalized_ticker].get("price", 0.0),
+                        name=ticker_info_batch[normalized_ticker].get("name", original_ticker),  # type: ignore[index]
+                        price=ticker_info_batch[normalized_ticker].get("price", 0.0),  # type: ignore[index]
                         warning=MESSAGES["ANALYSIS_FAILED"].format(error=str(e)),
                     )
         except APIError as e:
@@ -301,7 +301,7 @@ class StockAnalyzer:
         
         # Fetch stock data in batch asynchronously
         try:
-            ticker_info_batch = await self.provider.batch_get_ticker_info(normalized_tickers)
+            ticker_info_batch = await self.provider.batch_get_ticker_info(normalized_tickers)  # type: ignore[misc]
 
             # For each ticker, asynchronously fetch analyst ratings and earnings dates
             import asyncio
@@ -318,9 +318,9 @@ class StockAnalyzer:
             results_list = await asyncio.gather(*tasks, return_exceptions=True)
 
             # Convert list of results to dictionary
-            results = {}
+            results: Dict[str, AnalysisResults] = {}
             for ticker, result in [
-                (item[0], item[1]) for item in results_list if not isinstance(item, Exception)
+                (item[0], item[1]) for item in results_list if not isinstance(item, Exception)  # type: ignore[index]
             ]:
                 results[ticker] = result
 
@@ -356,8 +356,8 @@ class StockAnalyzer:
             Tuple containing the original ticker symbol and its analysis results
         """
         try:
-            analyst_ratings = await self.provider.get_analyst_ratings(normalized_ticker)
-            earnings_dates = await self.provider.get_earnings_dates(normalized_ticker)
+            analyst_ratings = await self.provider.get_analyst_ratings(normalized_ticker)  # type: ignore[misc]
+            earnings_dates = await self.provider.get_earnings_dates(normalized_ticker)  # type: ignore[misc]
             analysis = self._process_analysis(normalized_ticker, ticker_info, analyst_ratings, earnings_dates)
             return original_ticker, analysis
         except APIError as e:

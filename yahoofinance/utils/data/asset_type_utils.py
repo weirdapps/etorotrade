@@ -204,8 +204,8 @@ def _parse_market_cap_string(value: str) -> float:
             return float(value_clean)
         except ValueError:
             return 0.0
-            
-    except Exception:
+
+    except (ValueError, TypeError, AttributeError):
         return 0.0
 
 
@@ -303,8 +303,8 @@ def universal_sort_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         
         logger.debug(f"Applied universal sorting to {len(sorted_df)} rows")
         return sorted_df
-        
-    except Exception as e:
+
+    except (KeyError, ValueError, TypeError, AttributeError) as e:
         logger.error(f"Error in universal sorting: {str(e)}")
         return df
 
@@ -331,8 +331,8 @@ def get_asset_type_summary(df: pd.DataFrame) -> Dict[str, int]:
                 summary[asset_type] = 0
         
         return summary
-        
-    except Exception as e:
+
+    except (KeyError, ValueError, TypeError, AttributeError) as e:
         logger.error(f"Error creating asset type summary: {str(e)}")
         return {}
 

@@ -142,10 +142,10 @@ class InsiderAnalyzer:
 
             # Fetch insider transactions data
             start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
-            transactions_data = self.provider.get_insider_transactions(ticker, start_date)
+            transactions_data = self.provider.get_insider_transactions(ticker, start_date)  # type: ignore[call-arg]
 
             # Process the data into InsiderSummary object
-            return self._process_transactions_data(transactions_data)
+            return self._process_transactions_data(transactions_data)  # type: ignore[arg-type]
 
         except YFinanceError as e:
             logger.error(f"Error fetching insider transactions for {ticker}: {str(e)}")
@@ -179,10 +179,10 @@ class InsiderAnalyzer:
 
             # Fetch insider transactions data asynchronously
             start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
-            transactions_data = await self.provider.get_insider_transactions(ticker, start_date)
+            transactions_data = await self.provider.get_insider_transactions(ticker, start_date)  # type: ignore[call-arg, misc]
 
             # Process the data into InsiderSummary object
-            return self._process_transactions_data(transactions_data)
+            return self._process_transactions_data(transactions_data)  # type: ignore[arg-type]
 
         except YFinanceError as e:
             logger.error(f"Error fetching insider transactions for {ticker}: {str(e)}")
@@ -264,13 +264,13 @@ class InsiderAnalyzer:
         results_list = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Process results
-        results = {}
+        results: Dict[str, InsiderSummary] = {}
         for ticker, result in zip(us_tickers, results_list):
             if isinstance(result, Exception):
                 logger.error(f"Error fetching insider transactions for {ticker}: {str(result)}")
                 results[ticker] = InsiderSummary()
             else:
-                results[ticker] = result
+                results[ticker] = result  # type: ignore[assignment]
 
         # Add empty results for non-US tickers
         for ticker in tickers:

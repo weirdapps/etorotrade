@@ -78,7 +78,7 @@ class ConfigurationValidator:
 
     def validate_environment_variables(self) -> bool:
         """Validate required environment variables with proper sanitization."""
-        required_vars = []  # Add required env vars here
+        required_vars: list[str] = []  # Add required env vars here
 
         for var in required_vars:
             value = os.getenv(var)
@@ -120,7 +120,7 @@ class ConfigurationValidator:
             if not self._is_safe_path(input_path, project_root):
                 self.errors.append(f"Input directory outside project: {input_path}")
 
-        except Exception as e:
+        except (OSError, ValueError, KeyError) as e:
             self.errors.append(f"Path validation error: {str(e)}")
             return False
 
@@ -181,7 +181,7 @@ def get_provider_instance():
         # Try to get provider from dependency injection first
         provider = registry.resolve("get_provider")(async_mode=True, max_concurrency=10)
         return provider
-    except Exception:
+    except (KeyError, AttributeError, TypeError):
         # Fallback to direct instantiation
         return AsyncHybridProvider(max_concurrency=get_max_concurrent_requests())
 
@@ -418,7 +418,7 @@ async def display_existing_csv_data(
                             app_logger.info(
                                 f"Loaded {len(excl_df)} exclusion tickers from {exclusion_file}"
                             )
-                    except Exception:
+                    except (FileNotFoundError, pd.errors.EmptyDataError, KeyError, ValueError):
                         pass  # Silent error handling
 
         # Apply exclusion filtering only for BUY and HOLD (not for SELL) using ticker equivalence
@@ -736,7 +736,7 @@ async def main_async_with_args(args, app_logger=None):
             provider = registry.resolve("get_provider")(async_mode=True, max_concurrency=10)
             if app_logger:
                 app_logger.info(f"Using injected provider: {provider.__class__.__name__}")
-        except Exception:
+        except (KeyError, AttributeError, TypeError):
             provider = AsyncHybridProvider(max_concurrency=get_max_concurrent_requests())
             if app_logger:
                 app_logger.info("Using default AsyncHybridProvider")

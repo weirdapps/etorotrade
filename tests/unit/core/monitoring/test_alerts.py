@@ -158,7 +158,7 @@ class TestAlertManager:
         successful_calls = []
 
         def failing_handler(alert):
-            raise Exception("Handler failed")
+            raise RuntimeError("Handler failed")
 
         def successful_handler(alert):
             successful_calls.append(alert)

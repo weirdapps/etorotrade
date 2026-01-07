@@ -21,7 +21,7 @@ class YamlConfigLoader:
             config_path: Path to YAML config file. If None, searches for config.yaml
         """
         self.config_path = config_path or self._find_config_file()
-        self._config_cache = None
+        self._config_cache: Optional[Dict[str, Any]] = None
     
     def _find_config_file(self) -> str:
         """Find the unified config file in the project root."""
@@ -50,14 +50,15 @@ class YamlConfigLoader:
         try:
             if os.path.exists(self.config_path):
                 with open(self.config_path, 'r', encoding='utf-8') as f:
-                    self._config_cache = yaml.safe_load(f) or {}
+                    loaded = yaml.safe_load(f)
+                self._config_cache = loaded if isinstance(loaded, dict) else {}
                 # Configuration loaded silently
                 return self._config_cache
             else:
                 print(f"⚠️ Unified config file not found: {self.config_path}")
                 print("   Using hardcoded defaults from trade_config.py")
                 return {}
-        except Exception as e:
+        except (yaml.YAMLError, OSError, IOError, UnicodeDecodeError) as e:
             print(f"❌ Error loading unified config: {str(e)}")
             print("   Using hardcoded defaults from trade_config.py")
             return {}

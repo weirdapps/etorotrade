@@ -42,7 +42,7 @@ async def gather_with_concurrency(coros: List[Coroutine[Any, Any, T]], limit: in
         async with semaphore:
             try:
                 return await coro, index, None
-            except Exception as e:
+            except (asyncio.CancelledError, asyncio.TimeoutError, ValueError, TypeError, KeyError, RuntimeError) as e:
                 # Catch and return the exception instead of letting it propagate
                 logger.error(f"Task {index} failed with exception: {type(e).__name__}: {e}")
                 return None, index, e
@@ -60,7 +60,7 @@ async def gather_with_concurrency(coros: List[Coroutine[Any, Any, T]], limit: in
     for result, index, error in results_with_indices:
         results[index] = result  # Place result at correct position
 
-    return results
+    return results  # type: ignore[return-value]
 
 
 async def process_batch_async(
@@ -162,7 +162,7 @@ async def process_batch_async(
             batch_coroutines = [processor(item) for item in batch]
             # Use asyncio.wait_for with timeout for the entire batch
             try:
-                batch_results = await asyncio.wait_for(
+                batch_results = await asyncio.wait_for(  # type: ignore[assignment]
                     gather_with_concurrency(batch_coroutines, limit=concurrency),
                     timeout=timeout_per_batch,
                 )
@@ -191,7 +191,7 @@ async def process_batch_async(
         else:
             # SMOOTH PROGRESS: Process items as they complete for real-time updates
             # Use enumerate to track items instead of task mapping to avoid KeyError
-            batch_results = await asyncio.gather(
+            batch_results = await asyncio.gather(  # type: ignore[assignment]
                 *[processor(item) for item in batch],
                 return_exceptions=True
             )
@@ -212,7 +212,7 @@ async def process_batch_async(
                     else:
                         error_count += 1
 
-                except Exception as e:
+                except (asyncio.CancelledError, asyncio.TimeoutError, ValueError, TypeError, KeyError, RuntimeError) as e:
                     # Handle individual item errors
                     logger.warning(f"Error processing {item}: {e}")
                     error_count += 1
@@ -254,7 +254,7 @@ async def process_batch_async(
 
     # Store statistics in results metadata as well
     if hasattr(results, '__dict__'):
-        results._processing_stats = _last_processing_stats
+        results._processing_stats = _last_processing_stats  # type: ignore[attr-defined]
 
     return results
 

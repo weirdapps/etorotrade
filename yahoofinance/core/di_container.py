@@ -56,7 +56,7 @@ def setup_application():
         registry.register_instance("config_service", config_service)
 
         logger.debug("Registered core services")
-    except Exception as e:
+    except (ImportError, KeyError, ValueError, TypeError, AttributeError) as e:
         logger.error(f"Failed to register core services: {str(e)}")
 
     # Register helper services
@@ -94,7 +94,7 @@ def setup_application():
         registry.register_instance("session_manager", session_manager)
 
         logger.debug("Registered helper services")
-    except Exception as e:
+    except (ImportError, KeyError, ValueError, TypeError, AttributeError) as e:
         logger.error(f"Failed to register helper services: {str(e)}")
 
     # Register data access services
@@ -115,7 +115,7 @@ def setup_application():
         registry.register("download_market_data", download_market_data)
 
         logger.debug("Registered data access services")
-    except Exception as e:
+    except (ImportError, KeyError, ValueError, TypeError, AttributeError) as e:
         logger.error(f"Failed to register data access services: {str(e)}")
 
     # Register presentation services
@@ -129,7 +129,7 @@ def setup_application():
         registry.register("console_display", ConsoleDisplay)
 
         logger.debug("Registered presentation services")
-    except Exception as e:
+    except (ImportError, KeyError, ValueError, TypeError, AttributeError) as e:
         logger.error(f"Failed to register presentation services: {str(e)}")
 
     # Register factories for the main application components
@@ -144,7 +144,7 @@ def setup_application():
         registry.register("get_portfolio_analyzer", create_portfolio_analyzer)
 
         logger.debug("Registered analysis factories")
-    except Exception as e:
+    except (ImportError, KeyError, ValueError, TypeError, AttributeError) as e:
         logger.error(f"Failed to register analysis factories: {str(e)}")
 
     logger.info("Dependency injection container setup complete")
@@ -175,15 +175,15 @@ def create_display(output_format: str = "console", **kwargs) -> Any:
 
             return ConsoleDisplay(**kwargs)
         elif output_format == "html":
-            from ..presentation.html import HTMLDisplay
+            from ..presentation.html import HTMLGenerator
 
-            return HTMLDisplay(**kwargs)
+            return HTMLGenerator(**kwargs)
         else:
             raise ValidationError(f"Invalid display format: {output_format}")
     except ImportError as e:
         logger.error(f"Failed to create display for format '{output_format}': {str(e)}")
         raise ValidationError(f"Display format '{output_format}' is not available") from e
-    except Exception as e:
+    except (TypeError, AttributeError, ValueError) as e:
         logger.error(f"Failed to create display: {str(e)}")
         raise ValidationError(f"Failed to create display: {str(e)}") from e
 
@@ -209,7 +209,7 @@ def initialize(app_logger=None):
             app_logger.info("Dependency injection container initialized successfully")
 
         return True
-    except Exception as e:
+    except (ImportError, KeyError, ValueError, TypeError, AttributeError, RuntimeError) as e:
         # Log failure
         if app_logger:
             app_logger.error(f"Failed to initialize dependency injection container: {str(e)}")

@@ -85,7 +85,7 @@ class DisplayManager:
         
         # Limit rows if specified
         max_rows = sort_config.get("max_rows")
-        if max_rows and len(result_df) > max_rows:
+        if max_rows and isinstance(max_rows, int) and len(result_df) > max_rows:
             result_df = result_df.head(max_rows)
         
         # Add row numbers for console and HTML

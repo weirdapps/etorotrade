@@ -588,6 +588,6 @@ display.save_to_csv(results, "output.csv")
 - [GitHub Repository](https://github.com/weirdapps/etorotrade)
 
 ---
-*Last updated: October 2025*
+*Last updated: January 2026*
 *Codebase cleaned and optimized - removed debug tests and unused monitoring modules*
 *For user documentation, see [README.md](../README.md)*

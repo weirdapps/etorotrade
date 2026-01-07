@@ -375,7 +375,7 @@ class MarketAnalyzer:
             ticker_info_batch = self.provider.batch_get_ticker_info(tickers)
 
             # Process batch results
-            market_data = process_ticker_batch_result(tickers, ticker_info_batch)
+            market_data = process_ticker_batch_result(tickers, ticker_info_batch)  # type: ignore[arg-type]
 
             # Create and return DataFrame
             market_df = pd.DataFrame(market_data)
@@ -405,7 +405,7 @@ class MarketAnalyzer:
 
         try:
             # Fetch data in batch asynchronously
-            ticker_info_batch = await self.provider.batch_get_ticker_info(tickers)
+            ticker_info_batch = await self.provider.batch_get_ticker_info(tickers)  # type: ignore[misc]
 
             # Process batch results
             market_data = process_ticker_batch_result(tickers, ticker_info_batch)
@@ -500,7 +500,7 @@ class MarketAnalyzer:
         Returns:
             List of SectorAnalysis objects with sector-specific metrics
         """
-        sector_analysis = []
+        sector_analysis: list[SectorAnalysis] = []
 
         # Check if the DataFrame is empty or doesn't have a sector column
         if market_df.empty or "sector" not in market_df.columns:
@@ -842,7 +842,7 @@ def get_market_data(tickers: List[str] = None, provider=None) -> pd.DataFrame:
         if loop.is_running():
             # If we're already in an async context, create a new task
             task = asyncio.create_task(_get_data())
-            return asyncio.run_until_complete(task)
+            return loop.run_until_complete(task)
         else:
             return asyncio.run(_get_data())
     except RuntimeError:

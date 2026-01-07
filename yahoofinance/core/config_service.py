@@ -8,35 +8,19 @@ allowing for better testability and isolation of configuration concerns.
 import threading
 from typing import Any, Dict, Optional
 
-try:
-    from .config import (
-        CACHE_CONFIG,
-        CIRCUIT_BREAKER,
-        COLUMN_NAMES,
-        FILE_PATHS,
-        MESSAGES,
-        PATHS,
-        PORTFOLIO_CONFIG,
-        PROVIDER_CONFIG,
-        RATE_LIMIT,
-        STANDARD_DISPLAY_COLUMNS,
-        TRADING_CRITERIA,
-    )
-except ImportError:
-    # Import from the config/__init__.py fallback if main config not available
-    from . import (
-        CACHE_CONFIG,
-        CIRCUIT_BREAKER,
-        COLUMN_NAMES,
-        FILE_PATHS,
-        MESSAGES,
-        PATHS,
-        PORTFOLIO_CONFIG,
-        PROVIDER_CONFIG,
-        RATE_LIMIT,
-        STANDARD_DISPLAY_COLUMNS,
-        TRADING_CRITERIA,
-    )
+from .config import (
+    CACHE_CONFIG,
+    CIRCUIT_BREAKER,
+    COLUMN_NAMES,
+    FILE_PATHS,
+    MESSAGES,
+    PATHS,
+    PORTFOLIO_CONFIG,
+    PROVIDER_CONFIG,
+    RATE_LIMIT,
+    STANDARD_DISPLAY_COLUMNS,
+    TRADING_CRITERIA,
+)
 from .logging import get_logger
 
 
@@ -179,7 +163,7 @@ class ConfigurationContext:
         """
         self.config_service = config_service
         self.overrides = overrides
-        self.previous_values = {}
+        self.previous_values: Dict[str, Any] = {}
     
     def __enter__(self):
         """Enter the configuration context."""

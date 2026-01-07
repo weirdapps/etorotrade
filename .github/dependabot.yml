@@ -8,9 +8,9 @@ updates:
       time: "09:00"
     open-pull-requests-limit: 5
     reviewers:
-      - "plessas"
+      - "weirdapps"
     assignees:
-      - "plessas"
+      - "weirdapps"
     labels:
       - "dependencies"
       - "security"

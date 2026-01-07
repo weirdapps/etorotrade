@@ -123,7 +123,7 @@ class PortfolioRepository(IPortfolioRepository):
             self.logger.debug(f"Retrieved portfolio with {len(df)} holdings")
             return df
             
-        except Exception as e:
+        except (FileNotFoundError, pd.errors.EmptyDataError, OSError, IOError, KeyError, ValueError) as e:
             self.logger.error(f"Error reading portfolio: {e}")
             raise DataProcessingError("Failed to read portfolio data") from e
     
@@ -149,7 +149,7 @@ class PortfolioRepository(IPortfolioRepository):
                 self.logger.info(f"Updated portfolio with {len(data)} holdings")
             return success
             
-        except Exception as e:
+        except (OSError, IOError, PermissionError, KeyError, ValueError, TypeError) as e:
             self.logger.error(f"Error updating portfolio: {e}")
             return False
     
@@ -203,7 +203,7 @@ class PortfolioRepository(IPortfolioRepository):
             
             return None
             
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
             self.logger.error(f"Error getting holdings for ticker {ticker}: {e}")
             return None
     
@@ -252,7 +252,7 @@ class PortfolioRepository(IPortfolioRepository):
                 self.logger.info(f"Added holding: {ticker} ({quantity} shares)")
             return success
             
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError, OSError, IOError) as e:
             self.logger.error(f"Error adding holding {ticker}: {e}")
             return False
     
@@ -312,7 +312,7 @@ class PortfolioRepository(IPortfolioRepository):
                 self.logger.info(f"Removed holding: {ticker}")
             return success
             
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError, OSError, IOError) as e:
             self.logger.error(f"Error removing holding {ticker}: {e}")
             return False
     
@@ -351,7 +351,7 @@ class PortfolioRepository(IPortfolioRepository):
             
             return summary
             
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
             self.logger.error(f"Error getting portfolio summary: {e}")
             return {}
     

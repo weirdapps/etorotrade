@@ -58,7 +58,7 @@ def calculate_exret(df: pd.DataFrame) -> pd.DataFrame:
 
         logger.debug(f"Calculated EXRET for {len(working_df)} rows")
         return working_df
-    except Exception as e:
+    except (KeyError, ValueError, TypeError, AttributeError) as e:
         logger.error(f"Error calculating EXRET: {str(e)}")
         # Set to Series of zeros, not scalar
         working_df["EXRET"] = pd.Series([0] * len(working_df), index=working_df.index)
@@ -86,7 +86,7 @@ def _safe_calc_exret(row: pd.Series) -> float:
             return 0.0
 
         return round(upside * buy_pct / 100.0, 1)
-    except Exception:
+    except (KeyError, ValueError, TypeError):
         return 0.0
 
 

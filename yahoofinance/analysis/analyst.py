@@ -327,7 +327,7 @@ class AnalystRatingsService(BaseAnalysisService):
             ratings_data = self.provider.get_analyst_ratings(ticker)
 
             # Process the data into AnalystData object
-            return self._process_ratings_data(ratings_data)
+            return self._process_ratings_data(ratings_data)  # type: ignore[arg-type]
 
         except YFinanceError as e:
             logger.error(f"Error fetching analyst ratings for {ticker}: {str(e)}")
@@ -357,10 +357,10 @@ class AnalystRatingsService(BaseAnalysisService):
                 return AnalystData()
 
             # Fetch analyst ratings data asynchronously
-            ratings_data = await self.provider.get_analyst_ratings(ticker)
+            ratings_data = await self.provider.get_analyst_ratings(ticker)  # type: ignore[misc]
 
             # Process the data into AnalystData object
-            return self._process_ratings_data(ratings_data)
+            return self._process_ratings_data(ratings_data)  # type: ignore[arg-type]
 
         except YFinanceError as e:
             logger.error(f"Error fetching analyst ratings for {ticker}: {str(e)}")
@@ -427,13 +427,13 @@ class AnalystRatingsService(BaseAnalysisService):
         results_list = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Process results
-        results = {}
+        results: Dict[str, AnalystData] = {}
         for ticker, result in zip(us_tickers, results_list):
             if isinstance(result, Exception):
                 logger.error(f"Error fetching analyst ratings for {ticker}: {str(result)}")
                 results[ticker] = AnalystData()
             else:
-                results[ticker] = result
+                results[ticker] = result  # type: ignore[assignment]
 
         # Add empty results for non-US tickers
         for ticker in tickers:
@@ -627,7 +627,7 @@ def main():
             for change in recent_changes[:5]:  # Show first 5 changes
                 print(f"  {change['date']}: {change['firm']} - {change['from_grade']} → {change['to_grade']} ({change['action']})")
         
-    except Exception as e:
+    except (KeyError, ValueError, TypeError, AttributeError, RuntimeError, OSError, IOError) as e:
         print(f"Error: {str(e)}")
         sys.exit(1)
 

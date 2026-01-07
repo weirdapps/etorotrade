@@ -321,7 +321,7 @@ def clean_ticker_symbol(ticker: str) -> str:
     try:
         # Use the new ticker processing pipeline
         return process_ticker_input(ticker)
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.warning(f"Error processing ticker {ticker}: {str(e)}")
         # Fallback to basic cleaning
         return str(ticker).strip().upper()
@@ -339,7 +339,7 @@ def normalize_ticker_for_display(ticker: str) -> str:
     """
     try:
         return get_ticker_for_display(process_ticker_input(ticker))
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.warning(f"Error normalizing ticker for display {ticker}: {str(e)}")
         return str(ticker).strip().upper()
 
@@ -365,7 +365,7 @@ def normalize_ticker_list_for_processing(tickers: list) -> list:
                     logger.warning(
                         f"Invalid ticker format after normalization: {ticker} -> {normalized}"
                     )
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.warning(f"Error normalizing ticker {ticker}: {str(e)}")
 
     return normalized_tickers

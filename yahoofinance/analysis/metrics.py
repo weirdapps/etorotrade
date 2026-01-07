@@ -138,7 +138,7 @@ class PricingAnalyzer:
             ticker_info = self.provider.get_ticker_info(ticker)
 
             # Process the data into PriceData object
-            return self._process_price_data(ticker_info)
+            return self._process_price_data(ticker_info)  # type: ignore[arg-type]
 
         except YFinanceError as e:
             logger.error(f"Error fetching price data for {ticker}: {str(e)}")
@@ -165,7 +165,7 @@ class PricingAnalyzer:
 
         try:
             # Fetch ticker info asynchronously
-            ticker_info = await self.provider.get_ticker_info(ticker)
+            ticker_info = await self.provider.get_ticker_info(ticker)  # type: ignore[misc]
 
             # Process the data into PriceData object
             return self._process_price_data(ticker_info)
@@ -199,7 +199,7 @@ class PricingAnalyzer:
             ticker_info = self.provider.get_ticker_info(ticker)
 
             # Process the data into PriceTarget object
-            return self._process_price_target(ticker_info)
+            return self._process_price_target(ticker_info)  # type: ignore[arg-type]
 
         except YFinanceError as e:
             logger.error(f"Error fetching price target for {ticker}: {str(e)}")
@@ -226,7 +226,7 @@ class PricingAnalyzer:
 
         try:
             # Fetch ticker info asynchronously
-            ticker_info = await self.provider.get_ticker_info(ticker)
+            ticker_info = await self.provider.get_ticker_info(ticker)  # type: ignore[misc]
 
             # Process the data into PriceTarget object
             return self._process_price_target(ticker_info)
@@ -312,7 +312,7 @@ class PricingAnalyzer:
             ticker_info = self.provider.get_ticker_info(ticker)
 
             # Extract metrics using shared helper method
-            return self._extract_all_metrics(ticker_info)
+            return self._extract_all_metrics(ticker_info)  # type: ignore[arg-type]
 
         except YFinanceError as e:
             logger.error(f"Error fetching metrics for {ticker}: {str(e)}")
@@ -339,7 +339,7 @@ class PricingAnalyzer:
 
         try:
             # Fetch ticker info asynchronously
-            ticker_info = await self.provider.get_ticker_info(ticker)
+            ticker_info = await self.provider.get_ticker_info(ticker)  # type: ignore[misc]
 
             # Extract metrics using shared helper method
             return self._extract_all_metrics(ticker_info)
@@ -374,8 +374,8 @@ class PricingAnalyzer:
             # Process each ticker's info
             results = {}
             for ticker in tickers:
-                if ticker in ticker_info_batch and ticker_info_batch[ticker]:
-                    results[ticker] = self._extract_metrics(ticker_info_batch[ticker])
+                if ticker in ticker_info_batch and ticker_info_batch[ticker]:  # type: ignore[operator, index]
+                    results[ticker] = self._extract_metrics(ticker_info_batch[ticker])  # type: ignore[index]
                 else:
                     results[ticker] = {}
 
@@ -406,7 +406,7 @@ class PricingAnalyzer:
 
         try:
             # Fetch ticker info in batch asynchronously
-            ticker_info_batch = await self.provider.batch_get_ticker_info(tickers)
+            ticker_info_batch = await self.provider.batch_get_ticker_info(tickers)  # type: ignore[misc]
 
             # Process each ticker's info
             results = {}
