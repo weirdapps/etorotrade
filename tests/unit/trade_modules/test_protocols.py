@@ -78,7 +78,8 @@ class TestFinanceDataProviderProtocol:
     def test_protocol_is_runtime_checkable(self):
         """Test that protocol is runtime checkable."""
         # Protocol should be able to be used with isinstance
-        assert hasattr(FinanceDataProviderProtocol, "__protocol_attrs__")
+        # _is_runtime_protocol is set by @runtime_checkable decorator
+        assert getattr(FinanceDataProviderProtocol, "_is_runtime_protocol", False)
 
     def test_mock_provider_not_matching(self):
         """Test that object without methods doesn't match."""
@@ -106,7 +107,7 @@ class TestTradingCriteriaProtocol:
 
     def test_protocol_is_runtime_checkable(self):
         """Test that protocol is runtime checkable."""
-        assert hasattr(TradingCriteriaProtocol, "__protocol_attrs__")
+        assert getattr(TradingCriteriaProtocol, "_is_runtime_protocol", False)
 
     def test_mock_criteria_not_matching(self):
         """Test that object without attributes doesn't match."""
@@ -122,7 +123,7 @@ class TestAnalysisServiceProtocol:
 
     def test_protocol_is_runtime_checkable(self):
         """Test that protocol is runtime checkable."""
-        assert hasattr(AnalysisServiceProtocol, "__protocol_attrs__")
+        assert getattr(AnalysisServiceProtocol, "_is_runtime_protocol", False)
 
     def test_implementation_check(self):
         """Test that proper implementation matches protocol."""
@@ -142,7 +143,7 @@ class TestFilterServiceProtocol:
 
     def test_protocol_is_runtime_checkable(self):
         """Test that protocol is runtime checkable."""
-        assert hasattr(FilterServiceProtocol, "__protocol_attrs__")
+        assert getattr(FilterServiceProtocol, "_is_runtime_protocol", False)
 
     def test_implementation_check(self):
         """Test that proper implementation matches protocol."""
@@ -168,7 +169,7 @@ class TestPortfolioServiceProtocol:
 
     def test_protocol_is_runtime_checkable(self):
         """Test that protocol is runtime checkable."""
-        assert hasattr(PortfolioServiceProtocol, "__protocol_attrs__")
+        assert getattr(PortfolioServiceProtocol, "_is_runtime_protocol", False)
 
     def test_implementation_check(self):
         """Test that proper implementation matches protocol."""
@@ -192,7 +193,7 @@ class TestDataProcessingServiceProtocol:
 
     def test_protocol_is_runtime_checkable(self):
         """Test that protocol is runtime checkable."""
-        assert hasattr(DataProcessingServiceProtocol, "__protocol_attrs__")
+        assert getattr(DataProcessingServiceProtocol, "_is_runtime_protocol", False)
 
 
 class TestProtocolIntegration:
@@ -212,8 +213,8 @@ class TestProtocolIntegration:
         ]
 
         for protocol in protocols:
-            # All should have _is_runtime_protocol attribute
-            assert hasattr(protocol, "_is_runtime_protocol") or hasattr(protocol, "__protocol_attrs__")
+            # All should have _is_runtime_protocol attribute set by @runtime_checkable
+            assert getattr(protocol, "_is_runtime_protocol", False)
 
     def test_protocols_have_no_concrete_implementation(self):
         """Test that protocols define abstract methods only."""
