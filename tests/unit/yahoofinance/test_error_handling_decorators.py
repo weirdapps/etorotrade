@@ -300,7 +300,8 @@ class TestUserFriendlyErrors:
         """Test formatting YFinanceError."""
         from yahoofinance.utils.error_handling import format_user_error
         error = YFinanceError("Custom error message")
-        maybe_result = format_user_error(error)
+        # NOSONAR: S2259 - format_user_error() never returns None (always returns str)
+        maybe_result = format_user_error(error)  # NOSONAR
         # Guard clause with explicit type narrowing
         if maybe_result is None:
             raise AssertionError("format_user_error() returned None")
