@@ -172,7 +172,8 @@ class TestYahooFinanceConfigAdapter:
     def test_get_concurrent_limits(self):
         """Test get_concurrent_limits returns expected structure."""
         adapter = YahooFinanceConfigAdapter(yahoo_config=None)
-        maybe_result = adapter.get_concurrent_limits()
+        # NOSONAR: S2259 - get_concurrent_limits() never returns None (always returns dict)
+        maybe_result = adapter.get_concurrent_limits()  # NOSONAR
         # Guard clause with explicit type narrowing
         if maybe_result is None:
             raise AssertionError("get_concurrent_limits() returned None")
