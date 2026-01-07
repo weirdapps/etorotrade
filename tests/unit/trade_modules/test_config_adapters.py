@@ -172,16 +172,14 @@ class TestYahooFinanceConfigAdapter:
     def test_get_concurrent_limits(self):
         """Test get_concurrent_limits returns expected structure."""
         adapter = YahooFinanceConfigAdapter(yahoo_config=None)
+        # Store result and verify it's a dict before any key access
         result = adapter.get_concurrent_limits()
-        # SonarCloud S2259 fix: explicit None check with return to terminate code path
-        if result is None:
-            pytest.fail("get_concurrent_limits() returned None unexpectedly")
-            return  # Explicit return after fail to satisfy static analyzer
-        # Check required keys are present
-        assert 'max_concurrent_calls' in result, "Missing key: max_concurrent_calls"
-        assert 'batch_size' in result, "Missing key: batch_size"
-        assert 'max_total_connections' in result, "Missing key: max_total_connections"
-        assert 'max_connections_per_host' in result, "Missing key: max_connections_per_host"
+        assert result is not None and isinstance(result, dict)
+        # Use dict.keys() which doesn't require attribute access on potentially None value
+        keys = set(result.keys())
+        expected_keys = {'max_concurrent_calls', 'batch_size', 'max_total_connections', 'max_connections_per_host'}
+        missing = expected_keys - keys
+        assert not missing, f"Missing keys: {missing}"
 
     def test_get_input_dir(self):
         """Test get_input_dir returns a path string."""
