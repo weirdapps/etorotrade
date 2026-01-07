@@ -323,7 +323,7 @@ class TestCacheManagerEdgeCases:
         """Test set with float value."""
         manager = CacheManager()
         manager.set("float_key", 3.14159)
-        assert manager.get("float_key") == 3.14159
+        assert manager.get("float_key") == pytest.approx(3.14159)
 
     def test_set_with_dict_value(self):
         """Test set with dictionary value."""

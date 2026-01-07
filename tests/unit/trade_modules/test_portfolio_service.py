@@ -116,7 +116,8 @@ class TestApplyPortfolioFilters:
 
         hold_opportunities = result["hold_opportunities"]
         # Should include GOOGL (in portfolio and market hold)
-        assert "GOOGL" in hold_opportunities.index or len(hold_opportunities) >= 0
+        # hold_opportunities should be a valid DataFrame
+        assert isinstance(hold_opportunities, pd.DataFrame)
 
     def test_empty_portfolio_no_changes(
         self, portfolio_service, sample_opportunities

@@ -159,13 +159,13 @@ class TestSafeCalcExret:
         """Test safe EXRET with NaN values."""
         row = pd.Series({"upside": np.nan, "buy_percentage": 80.0})
         result = _safe_calc_exret(row)
-        assert result == 0.0
+        assert result == pytest.approx(0.0)
 
     def test_safe_calc_exret_missing_keys(self):
         """Test safe EXRET with missing keys."""
         row = pd.Series({"other": 123})
         result = _safe_calc_exret(row)
-        assert result == 0.0
+        assert result == pytest.approx(0.0)
 
 
 class TestParsePercentage:
@@ -186,13 +186,13 @@ class TestParsePercentage:
 
     def test_parse_percentage_empty(self):
         """Test parsing empty values."""
-        assert _parse_percentage("") == 0.0
-        assert _parse_percentage("--") == 0.0
-        assert _parse_percentage(None) == 0.0
+        assert _parse_percentage("") == pytest.approx(0.0)
+        assert _parse_percentage("--") == pytest.approx(0.0)
+        assert _parse_percentage(None) == pytest.approx(0.0)
 
     def test_parse_percentage_nan(self):
         """Test parsing NaN values."""
-        assert _parse_percentage(np.nan) == 0.0
+        assert _parse_percentage(np.nan) == pytest.approx(0.0)
 
 
 class TestParseMarketCap:
@@ -219,9 +219,9 @@ class TestParseMarketCap:
 
     def test_parse_market_cap_empty(self):
         """Test parsing empty values."""
-        assert _parse_market_cap("") == 0.0
-        assert _parse_market_cap("--") == 0.0
-        assert _parse_market_cap(None) == 0.0
+        assert _parse_market_cap("") == pytest.approx(0.0)
+        assert _parse_market_cap("--") == pytest.approx(0.0)
+        assert _parse_market_cap(None) == pytest.approx(0.0)
 
 
 class TestDetermineMarketCapTier:
