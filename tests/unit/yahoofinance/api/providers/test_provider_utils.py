@@ -69,7 +69,7 @@ class TestSafeExtractValue:
         """Test extracting value from dictionary."""
         obj = {"price": 175.50}
         result = safe_extract_value(obj, "price")
-        assert result == 175.50
+        assert result == pytest.approx(175.50)
 
     def test_extract_from_object_attribute(self):
         """Test extracting value from object attribute."""
@@ -77,7 +77,7 @@ class TestSafeExtractValue:
             price = 175.50
         obj = PriceObj()
         result = safe_extract_value(obj, "price")
-        assert result == 175.50
+        assert result == pytest.approx(175.50)
 
     def test_returns_default_for_missing_key(self):
         """Test returns default when key is missing."""
@@ -95,13 +95,13 @@ class TestSafeExtractValue:
         """Test converts string numbers to float."""
         obj = {"price": "175.50"}
         result = safe_extract_value(obj, "price")
-        assert result == 175.50
+        assert result == pytest.approx(175.50)
 
     def test_handles_int_to_float(self):
         """Test converts int to float."""
         obj = {"count": 100}
         result = safe_extract_value(obj, "count")
-        assert result == 100.0
+        assert result == pytest.approx(100.0)
 
     def test_returns_default_for_invalid_value(self):
         """Test returns default for non-numeric value."""
@@ -255,8 +255,8 @@ class TestMergeTickerResults:
         merged = merge_ticker_results(results, failed_tickers, errors)
 
         assert len(merged) == 2
-        assert merged["AAPL"]["price"] == 175.0
-        assert merged["MSFT"]["price"] == 380.0
+        assert merged["AAPL"]["price"] == pytest.approx(175.0)
+        assert merged["MSFT"]["price"] == pytest.approx(380.0)
 
     def test_merge_with_failed_tickers(self):
         """Test merging with failed tickers."""
@@ -267,7 +267,7 @@ class TestMergeTickerResults:
         merged = merge_ticker_results(results, failed_tickers, errors)
 
         assert len(merged) == 2
-        assert merged["AAPL"]["price"] == 175.0
+        assert merged["AAPL"]["price"] == pytest.approx(175.0)
         assert merged["INVALID"]["error"] == "Failed to process"
 
     def test_merge_with_errors(self):
@@ -279,7 +279,7 @@ class TestMergeTickerResults:
         merged = merge_ticker_results(results, failed_tickers, errors)
 
         assert len(merged) == 2
-        assert merged["AAPL"]["price"] == 175.0
+        assert merged["AAPL"]["price"] == pytest.approx(175.0)
         assert merged["MSFT"]["error"] == "API timeout"
 
     def test_merge_all_types(self):
@@ -291,7 +291,7 @@ class TestMergeTickerResults:
         merged = merge_ticker_results(results, failed_tickers, errors)
 
         assert len(merged) == 3
-        assert merged["AAPL"]["price"] == 175.0
+        assert merged["AAPL"]["price"] == pytest.approx(175.0)
         assert merged["INVALID"]["error"] == "Failed to process"
         assert merged["MSFT"]["error"] == "Network error"
 

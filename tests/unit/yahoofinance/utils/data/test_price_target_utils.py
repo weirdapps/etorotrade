@@ -83,7 +83,7 @@ class TestCalculatePriceTargetRobustness:
             low=80.0,
             current_price=95.0,
         )
-        assert result["mean_median_diff_percent"] == 30.0
+        assert result["mean_median_diff_percent"] == pytest.approx(30.0)
         assert "High mean-median difference" in str(result["warning_flags"])
 
     def test_extreme_outliers_penalty(self):
@@ -154,7 +154,7 @@ class TestCalculatePriceTargetRobustness:
             current_price=95.0,
         )
         # Spread = 130 - 70 = 60, spread_percent = 60/100 * 100 = 60%
-        assert result["spread_percent"] == 60.0
+        assert result["spread_percent"] == pytest.approx(60.0)
 
 
 class TestValidatePriceTargetData:
@@ -265,4 +265,4 @@ class TestEdgeCases:
             current_price=100.0,
         )
         assert result is not None
-        assert result["spread_percent"] == 0.0
+        assert result["spread_percent"] == pytest.approx(0.0)

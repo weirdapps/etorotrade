@@ -39,8 +39,8 @@ class TestConfigBoundary:
         """Test get_file_paths_config returns dict."""
         result = config_boundary.get_file_paths_config()
         assert isinstance(result, dict)
-        # Should contain standard path keys
-        assert 'base_directory' in result or len(result) >= 0
+        # Result should be a valid dict (may or may not have base_directory)
+        assert 'base_directory' in result or isinstance(result, dict)
 
     def test_get_provider_config(self, config_boundary):
         """Test get_provider_config returns dict."""

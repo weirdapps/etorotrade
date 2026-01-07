@@ -68,7 +68,7 @@ class TestProcessSingleTicker:
 
         assert result is not None
         assert result["ticker"] == "AAPL"
-        assert result["price"] == 175.0
+        assert result["price"] == pytest.approx(175.0)
         assert result["market_cap"] == 3000000000000
 
     @pytest.mark.asyncio
@@ -166,7 +166,7 @@ class TestProcessSingleTicker:
         result = await data_service._process_single_ticker("AAPL")
 
         assert result is not None
-        assert result["price"] == 175.0
+        assert result["price"] == pytest.approx(175.0)
 
 
 class TestProcessTickerBatch:
@@ -306,7 +306,7 @@ class TestDataProcessingServiceIntegration:
             result = await data_service.process_ticker_batch(["AAPL", "MSFT", "GOOGL"])
 
             assert len(result) == 3
-            assert result.loc["AAPL", "price"] == 175.0
-            assert result.loc["MSFT", "price"] == 380.0
+            assert result.loc["AAPL", "price"] == pytest.approx(175.0)
+            assert result.loc["MSFT", "price"] == pytest.approx(380.0)
             # GOOGL normalizes to GOOG
             assert "GOOG" in result.index

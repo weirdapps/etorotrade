@@ -30,7 +30,7 @@ class TestBatchProcessorInit:
             max_workers=5,
         )
         assert processor.batch_size == 10
-        assert processor.batch_delay == 0.1
+        assert processor.batch_delay == pytest.approx(0.1)
         assert processor.max_workers == 5
 
 

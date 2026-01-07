@@ -39,7 +39,7 @@ class TestMarketMetrics:
             hold_count=40,
             total_count=100,
         )
-        assert metrics.avg_upside == 15.5
+        assert metrics.avg_upside == pytest.approx(15.5)
         assert metrics.buy_count == 50
         assert metrics.total_count == 100
 
@@ -51,8 +51,8 @@ class TestMarketMetrics:
             hold_percentage=40.0,
             net_breadth=40.0,
         )
-        assert metrics.buy_percentage == 50.0
-        assert metrics.net_breadth == 40.0
+        assert metrics.buy_percentage == pytest.approx(50.0)
+        assert metrics.net_breadth == pytest.approx(40.0)
 
     def test_sector_counts(self):
         """Test sector counts dictionary."""
@@ -227,8 +227,8 @@ class TestMarketMetricsCalculation:
             total_count=len(df),
         )
 
-        assert metrics.avg_upside == 20.0
-        assert metrics.median_upside == 20.0
+        assert metrics.avg_upside == pytest.approx(20.0)
+        assert metrics.median_upside == pytest.approx(20.0)
         assert metrics.buy_count == 3
         assert metrics.sell_count == 1
         assert metrics.hold_count == 1

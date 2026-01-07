@@ -128,7 +128,7 @@ class TestCacheServiceDataTypes:
     def test_cache_float(self, cache_service):
         """Test caching floats."""
         cache_service.set("float_key", 3.14159)
-        assert cache_service.get("float_key") == 3.14159
+        assert cache_service.get("float_key") == pytest.approx(3.14159)
 
     def test_cache_list(self, cache_service):
         """Test caching lists."""

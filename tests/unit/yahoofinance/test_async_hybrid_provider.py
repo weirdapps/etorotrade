@@ -145,7 +145,7 @@ class TestAsyncHybridProviderTickerInfo:
             result = await provider.get_ticker_info("AAPL")
 
             assert result["ticker"] == "AAPL"
-            assert result["price"] == 150.0
+            assert result["price"] == pytest.approx(150.0)
             assert result["data_source"] == "yfinance"
             mock_yf_instance.get_ticker_info.assert_called_once()
 
@@ -185,7 +185,7 @@ class TestAsyncHybridProviderTickerInfo:
 
             assert result["ticker"] == "AAPL"
             # peg_ratio should be supplemented from yahooquery
-            assert result.get("peg_ratio") == 1.9
+            assert result.get("peg_ratio") == pytest.approx(1.9)
             assert result["data_source"] == "hybrid (yf+yq)"
 
     @pytest.mark.asyncio

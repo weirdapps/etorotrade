@@ -37,12 +37,12 @@ class TestTradingCriteriaFilterInit:
         """Test default criteria values."""
         filter_obj = TradingCriteriaFilter()
         defaults = filter_obj._get_default_criteria()
-        assert defaults["min_market_cap"] == 1e9
+        assert defaults["min_market_cap"] == pytest.approx(1e9)
         assert defaults["max_pe_ratio"] == 25
         assert defaults["min_volume"] == 100000
-        assert defaults["max_beta"] == 2.0
-        assert defaults["min_price"] == 5.0
-        assert defaults["max_price"] == 1000.0
+        assert defaults["max_beta"] == pytest.approx(2.0)
+        assert defaults["min_price"] == pytest.approx(5.0)
+        assert defaults["max_price"] == pytest.approx(1000.0)
 
 
 class TestTradingCriteriaFilterMarketCap:

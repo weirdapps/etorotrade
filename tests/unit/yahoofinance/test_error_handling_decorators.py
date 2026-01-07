@@ -301,6 +301,7 @@ class TestUserFriendlyErrors:
         from yahoofinance.utils.error_handling import format_user_error
         error = YFinanceError("Custom error message")
         result = format_user_error(error)
+        assert result is not None
         assert "Custom error message" in result
         assert "Check logs" in result
 
