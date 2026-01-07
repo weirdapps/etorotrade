@@ -317,9 +317,9 @@ class TestAddMarketCapColumn:
         })
         result = add_market_cap_column(df)
         assert "market_cap" in result.columns
-        assert result.iloc[0]["market_cap"] == 3.0e12
-        assert result.iloc[1]["market_cap"] == 2.8e12
-        assert result.iloc[2]["market_cap"] == 500e6
+        assert result.iloc[0]["market_cap"] == pytest.approx(3.0e12)
+        assert result.iloc[1]["market_cap"] == pytest.approx(2.8e12)
+        assert result.iloc[2]["market_cap"] == pytest.approx(500e6)
 
     def test_add_market_cap_billion(self):
         """Test parsing billion market cap."""
@@ -329,7 +329,7 @@ class TestAddMarketCapColumn:
             "CAP": ["500B"],
         })
         result = add_market_cap_column(df)
-        assert result.iloc[0]["market_cap"] == 500e9
+        assert result.iloc[0]["market_cap"] == pytest.approx(500e9)
 
     def test_add_market_cap_without_cap_column(self):
         """Test handling DataFrame without CAP column."""
@@ -348,25 +348,25 @@ class TestParseMarketCapString:
     def test_parse_trillion(self):
         """Test parsing trillion values."""
         from trade_modules.data_processor import _parse_market_cap_string
-        assert _parse_market_cap_string("3.0T") == 3.0e12
-        assert _parse_market_cap_string("1.5t") == 1.5e12
+        assert _parse_market_cap_string("3.0T") == pytest.approx(3.0e12)
+        assert _parse_market_cap_string("1.5t") == pytest.approx(1.5e12)
 
     def test_parse_billion(self):
         """Test parsing billion values."""
         from trade_modules.data_processor import _parse_market_cap_string
-        assert _parse_market_cap_string("500B") == 500e9
-        assert _parse_market_cap_string("50.5b") == 50.5e9
+        assert _parse_market_cap_string("500B") == pytest.approx(500e9)
+        assert _parse_market_cap_string("50.5b") == pytest.approx(50.5e9)
 
     def test_parse_million(self):
         """Test parsing million values."""
         from trade_modules.data_processor import _parse_market_cap_string
-        assert _parse_market_cap_string("500M") == 500e6
-        assert _parse_market_cap_string("250.5m") == 250.5e6
+        assert _parse_market_cap_string("500M") == pytest.approx(500e6)
+        assert _parse_market_cap_string("250.5m") == pytest.approx(250.5e6)
 
     def test_parse_plain_number(self):
         """Test parsing plain numeric string."""
         from trade_modules.data_processor import _parse_market_cap_string
-        assert _parse_market_cap_string("1000000") == 1000000.0
+        assert _parse_market_cap_string("1000000") == pytest.approx(1000000.0)
 
     def test_parse_invalid_values(self):
         """Test parsing invalid values returns None."""
@@ -392,8 +392,8 @@ class TestCalculateExpectedReturn:
         result = calculate_expected_return(df)
         assert "EXRET" in result.columns
         # EXRET = upside * (buy_percentage / 100)
-        assert result.iloc[0]["EXRET"] == 20.0 * 0.80  # 16.0
-        assert result.iloc[1]["EXRET"] == 15.0 * 0.60  # 9.0
+        assert result.iloc[0]["EXRET"] == pytest.approx(20.0 * 0.80)  # 16.0
+        assert result.iloc[1]["EXRET"] == pytest.approx(15.0 * 0.60)  # 9.0
 
     def test_calculate_exret_missing_columns(self):
         """Test calculating EXRET with missing columns."""
@@ -403,7 +403,7 @@ class TestCalculateExpectedReturn:
         })
         result = calculate_expected_return(df)
         assert "EXRET" in result.columns
-        assert result.iloc[0]["EXRET"] == 0.0
+        assert result.iloc[0]["EXRET"] == pytest.approx(0.0)
 
     def test_calculate_exret_with_nan(self):
         """Test calculating EXRET with NaN values."""
@@ -414,8 +414,8 @@ class TestCalculateExpectedReturn:
             "buy_percentage": [80.0, 60.0],
         })
         result = calculate_expected_return(df)
-        assert result.iloc[0]["EXRET"] == 16.0
-        assert result.iloc[1]["EXRET"] == 0.0
+        assert result.iloc[0]["EXRET"] == pytest.approx(16.0)
+        assert result.iloc[1]["EXRET"] == pytest.approx(0.0)
 
 
 class TestNormalizeDataframeColumns:
@@ -629,8 +629,8 @@ class TestDataProcessorClass:
         assert result["ticker"] == "AAPL"
         assert result["company_name"] == "Apple Inc."
         # Note: numeric fields are converted to strings by process_ticker_data
-        assert float(result["market_cap"]) == 3e12
-        assert float(result["upside"]) == 14.0
+        assert float(result["market_cap"]) == pytest.approx(3e12)
+        assert float(result["upside"]) == pytest.approx(14.0)
 
     def test_process_ticker_data_empty_ticker(self):
         """Test processing data with empty ticker."""
@@ -647,20 +647,20 @@ class TestDataProcessorClass:
         """Test safe numeric conversion."""
         from trade_modules.data_processor import DataProcessor
         processor = DataProcessor()
-        assert processor._safe_numeric_conversion(123.45) == 123.45
-        assert processor._safe_numeric_conversion("100") == 100.0
-        assert processor._safe_numeric_conversion(None) == 0.0
-        assert processor._safe_numeric_conversion("--") == 0.0
-        assert processor._safe_numeric_conversion("invalid") == 0.0
+        assert processor._safe_numeric_conversion(123.45) == pytest.approx(123.45)
+        assert processor._safe_numeric_conversion("100") == pytest.approx(100.0)
+        assert processor._safe_numeric_conversion(None) == pytest.approx(0.0)
+        assert processor._safe_numeric_conversion("--") == pytest.approx(0.0)
+        assert processor._safe_numeric_conversion("invalid") == pytest.approx(0.0)
 
     def test_safe_percentage_conversion(self):
         """Test safe percentage conversion."""
         from trade_modules.data_processor import DataProcessor
         processor = DataProcessor()
         # Already a percentage (> 1)
-        assert processor._safe_percentage_conversion(85.0) == 85.0
+        assert processor._safe_percentage_conversion(85.0) == pytest.approx(85.0)
         # Decimal that should be converted
-        assert processor._safe_percentage_conversion(0.85) == 85.0
+        assert processor._safe_percentage_conversion(0.85) == pytest.approx(85.0)
         # NA values
-        assert processor._safe_percentage_conversion(None) == 0.0
-        assert processor._safe_percentage_conversion("--") == 0.0
+        assert processor._safe_percentage_conversion(None) == pytest.approx(0.0)
+        assert processor._safe_percentage_conversion("--") == pytest.approx(0.0)

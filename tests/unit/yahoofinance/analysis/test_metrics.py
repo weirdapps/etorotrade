@@ -46,22 +46,22 @@ class TestPriceData:
             from_low=17.0,
         )
 
-        assert data.price == 175.50
-        assert data.change == 2.50
-        assert data.change_percent == 1.45
+        assert data.price == pytest.approx(175.50)
+        assert data.change == pytest.approx(2.50)
+        assert data.change_percent == pytest.approx(1.45)
         assert data.volume == 50000000
         assert data.average_volume == 40000000
-        assert data.volume_ratio == 1.25
-        assert data.high_52week == 200.0
-        assert data.low_52week == 150.0
+        assert data.volume_ratio == pytest.approx(1.25)
+        assert data.high_52week == pytest.approx(200.0)
+        assert data.low_52week == pytest.approx(150.0)
         assert data.from_high == -12.25
-        assert data.from_low == 17.0
+        assert data.from_low == pytest.approx(17.0)
 
     def test_partial_initialization(self):
         """Test partial initialization."""
         data = PriceData(price=175.50, volume=50000000)
 
-        assert data.price == 175.50
+        assert data.price == pytest.approx(175.50)
         assert data.volume == 50000000
         assert data.change is None
 
@@ -90,19 +90,19 @@ class TestPriceTarget:
             analyst_count=25,
         )
 
-        assert target.average == 200.0
-        assert target.median == 195.0
-        assert target.high == 250.0
-        assert target.low == 180.0
-        assert target.upside == 14.0
+        assert target.average == pytest.approx(200.0)
+        assert target.median == pytest.approx(195.0)
+        assert target.high == pytest.approx(250.0)
+        assert target.low == pytest.approx(180.0)
+        assert target.upside == pytest.approx(14.0)
         assert target.analyst_count == 25
 
     def test_partial_initialization(self):
         """Test partial initialization."""
         target = PriceTarget(average=200.0, upside=14.0)
 
-        assert target.average == 200.0
-        assert target.upside == 14.0
+        assert target.average == pytest.approx(200.0)
+        assert target.upside == pytest.approx(14.0)
         assert target.median is None
 
 
@@ -188,7 +188,7 @@ class TestPricingAnalyzerGetPriceData:
         result = analyzer.get_price_data("AAPL")
 
         assert isinstance(result, PriceData)
-        assert result.price == 175.0
+        assert result.price == pytest.approx(175.0)
 
 
 class TestDataclassEquality:

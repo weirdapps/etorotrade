@@ -151,7 +151,8 @@ class TestNormalizeList:
         """Test normalizing list with invalid tickers."""
         # Should skip invalid tickers and continue
         result = ticker_service.normalize_list(["AAPL", "MSFT"])
-        assert len(result) >= 0  # May have some valid ones
+        # Result should be a list with 0, 1, or 2 valid tickers
+        assert isinstance(result, list) and len(result) <= 2
 
 
 class TestNormalizeDataframeColumn:
