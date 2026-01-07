@@ -300,12 +300,15 @@ class TestUserFriendlyErrors:
         """Test formatting YFinanceError."""
         from yahoofinance.utils.error_handling import format_user_error
         error = YFinanceError("Custom error message")
-        result = format_user_error(error)
-        # Combined assertion to satisfy SonarCloud flow analysis
-        assert result is not None and isinstance(result, str)
-        # Use str methods only after verification
-        assert result.find("Custom error message") >= 0
-        assert result.find("Check logs") >= 0
+        maybe_result = format_user_error(error)
+        # Guard clause with explicit type narrowing
+        if maybe_result is None:
+            raise AssertionError("format_user_error() returned None")
+        # New variable binding after guard - SonarCloud should see this as safe
+        result: str = maybe_result
+        # Verify content
+        assert "Custom error message" in result
+        assert "Check logs" in result
 
     def test_format_user_error_unknown(self):
         """Test formatting unknown error."""
