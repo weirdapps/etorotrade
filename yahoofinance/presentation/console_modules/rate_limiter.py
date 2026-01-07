@@ -6,6 +6,7 @@ This module provides rate limiting and adaptive delay management for API request
 
 import time
 from collections import deque
+from typing import Deque, Dict
 
 from yahoofinance.core.logging import get_logger
 
@@ -26,13 +27,13 @@ class RateLimitTracker:
         """
         self.window_size = window_size
         self.max_calls = max_calls
-        self.calls = deque(maxlen=1000)  # Timestamp queue
-        self.errors = deque(maxlen=20)  # Recent errors
+        self.calls: Deque[float] = deque(maxlen=1000)  # Timestamp queue
+        self.errors: Deque[float] = deque(maxlen=20)  # Recent errors
         self.base_delay = 1.0  # Base delay between calls
         self.min_delay = 0.5  # Minimum delay
         self.max_delay = 30.0  # Maximum delay
         self.batch_delay = 0.0   # No delay between batches for optimal performance
-        self.error_counts = {}  # Track error counts per ticker
+        self.error_counts: Dict[str, int] = {}  # Track error counts per ticker
         self.success_streak = 0  # Track successful calls
 
     def add_call(self):

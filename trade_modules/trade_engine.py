@@ -158,9 +158,12 @@ class TradingEngine:
                 f"{len(results['hold_opportunities'])} hold opportunities"
             )
 
-        except Exception as e:
-            self.logger.error(f"Error analyzing market opportunities: {str(e)}")
-            raise TradingEngineError(f"Market analysis failed: {str(e)}") from e
+        except (KeyError, TypeError, ValueError) as e:
+            self.logger.error(f"Data error analyzing market opportunities: {str(e)}")
+            raise TradingEngineError(f"Market analysis failed due to data error: {str(e)}") from e
+        except ValidationError as e:
+            self.logger.error(f"Validation error analyzing market opportunities: {str(e)}")
+            raise TradingEngineError(f"Market analysis validation failed: {str(e)}") from e
 
         return results
 
@@ -168,78 +171,21 @@ class TradingEngine:
         """Process a batch of tickers for market data."""
         return await self.data_processing_service.process_ticker_batch(tickers, batch_size)
     
-    # Backward compatibility methods
-    def analyze_buy_opportunities(self, market_df=None, **kwargs) -> pd.DataFrame:
-        """Backward compatibility wrapper for analyzing buy opportunities (sync).
-        
-        Args:
-            market_df: Market data DataFrame (optional)
-            **kwargs: Additional arguments for compatibility:
-                - provider: Data provider (ignored, uses self.provider)
-                - ticker_list: List of tickers to analyze
-        """
-        # Handle old signature with ticker_list
-        if 'ticker_list' in kwargs and market_df is None:
-            # Old API: fetch market data for ticker list
-            from yahoofinance.analysis.market import get_market_data
-            ticker_list = kwargs['ticker_list']
-            try:
-                market_df = get_market_data(ticker_list, provider=self.provider)
-            except:
-                market_df = pd.DataFrame()
-        
-        if market_df is None:
-            market_df = pd.DataFrame()
-            
-        # This is a sync method for backward compatibility
-        import asyncio
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # Can't run async in already running loop
-                return pd.DataFrame()
-            else:
-                results = loop.run_until_complete(self.analyze_market_opportunities(market_df))
-                return results.get("buy_opportunities", pd.DataFrame())
-        except:
-            return pd.DataFrame()
-    
-    def analyze_sell_opportunities(self, portfolio_df=None, **kwargs) -> pd.DataFrame:
-        """Backward compatibility wrapper for analyzing sell opportunities (sync)."""
-        # Accept kwargs for compatibility but ignore them
-        if portfolio_df is None:
-            portfolio_df = pd.DataFrame()
-            
-        import asyncio
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                return pd.DataFrame()
-            else:
-                results = loop.run_until_complete(self.analyze_market_opportunities(pd.DataFrame(), portfolio_df))
-                return results.get("sell_opportunities", pd.DataFrame())
-        except:
-            return pd.DataFrame()
-    
-    def analyze_hold_opportunities(self, portfolio_df=None, **kwargs) -> pd.DataFrame:
-        """Backward compatibility wrapper for analyzing hold opportunities (sync)."""
-        # Accept kwargs for compatibility but ignore them
-        if portfolio_df is None:
-            portfolio_df = pd.DataFrame()
-            
-        import asyncio
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                return pd.DataFrame()
-            else:
-                results = loop.run_until_complete(self.analyze_market_opportunities(pd.DataFrame(), portfolio_df))
-                return results.get("hold_opportunities", pd.DataFrame())
-        except:
-            return pd.DataFrame()
-    
+    # NOTE: Sync wrapper methods removed as part of architecture cleanup.
+    # Use the async methods directly:
+    #   - await analyze_market_opportunities(market_df, portfolio_df, notrade_path)
+    #   - await process_ticker_batch(tickers, batch_size)
+    # See IMPROVEMENT_PLAN.md for details on this refactoring.
+
     def load_portfolio(self, portfolio_file: str = None) -> pd.DataFrame:
-        """Backward compatibility method to load portfolio."""
+        """Load portfolio from CSV file.
+
+        Args:
+            portfolio_file: Path to portfolio CSV file
+
+        Returns:
+            Portfolio DataFrame
+        """
         if not portfolio_file:
             portfolio_file = self.config.get("portfolio_file", "portfolio.csv")
         try:
@@ -247,29 +193,17 @@ class TradingEngine:
         except FileNotFoundError:
             self.logger.warning(f"Portfolio file not found: {portfolio_file}")
             return pd.DataFrame()
-    
-    def generate_reports(self, opportunities=None, **kwargs) -> None:
-        """Backward compatibility method for report generation."""
-        # Accept kwargs for compatibility but ignore them
-        # This functionality was moved to display/output modules
-        self.logger.info("Report generation moved to display modules")
-        pass
-    
+
     def _calculate_trading_signals(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Backward compatibility wrapper for trading signal calculation."""
+        """Calculate trading signals for a DataFrame.
+
+        Args:
+            df: Market data DataFrame
+
+        Returns:
+            DataFrame with trading signals added
+        """
         return self.analysis_service.calculate_trading_signals(df)
-    
-    def get_ticker_data(self, tickers: List[str]) -> pd.DataFrame:
-        """Backward compatibility method to get ticker data."""
-        import asyncio
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                return pd.DataFrame()
-            else:
-                return loop.run_until_complete(self.process_ticker_batch(tickers))
-        except:
-            return pd.DataFrame()
 
 
 
@@ -347,9 +281,12 @@ class PositionSizer:
 
             return position_value
 
-        except Exception as e:
-            self.logger.warning(f"Error calculating position size for {ticker}: {str(e)}")
+        except (KeyError, TypeError, ValueError) as e:
+            self.logger.warning(f"Data error calculating position size for {ticker}: {str(e)}")
             # Return minimum position size as fallback
+            return portfolio_value * self.min_position_size
+        except ZeroDivisionError:
+            self.logger.warning(f"Zero division error calculating position size for {ticker}")
             return portfolio_value * self.min_position_size
 
 

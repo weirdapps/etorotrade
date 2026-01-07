@@ -476,7 +476,7 @@ def create_display(output_format="console", **kwargs):
             logger.error(f"Invalid display format: {output_format}")
             raise ValidationError(f"Invalid display format: {output_format}")
 
-    except Exception as e:
+    except (ImportError, TypeError, ValueError, AttributeError) as e:
         logger.error(f"Error creating display: {str(e)}")
         # Fall back to basic display if possible
         try:
@@ -484,7 +484,7 @@ def create_display(output_format="console", **kwargs):
 
             logger.info("Falling back to console display")
             return ConsoleDisplay(**kwargs)
-        except Exception:
+        except (ImportError, TypeError, ValueError):
             raise ValidationError(f"Could not create any display: {str(e)}")
 
 

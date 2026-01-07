@@ -88,7 +88,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
         yf_data = {}
         yq_data = {}
         # Initialize with mapped ticker for symbol (SOL -> SOL-USD) but keep original ticker
-        merged_data = {"symbol": original_ticker, "ticker": original_ticker}
+        merged_data: Dict[str, Any] = {"symbol": original_ticker, "ticker": original_ticker}
         errors = []
 
         # SMART SUPPLEMENTATION: First get yfinance data, then conditionally fetch yahooquery
@@ -341,12 +341,15 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
             except (APIError, NetworkError) as e:
                 # Handle API/Network errors gracefully in batch processing
                 logger.warning(f"API/Network error in hybrid batch fetch for {ticker}: {e}")
+                return {"symbol": ticker, "ticker": ticker, "error": str(e)}
             except (ValidationError, ValueError, TypeError) as e:
                 # Handle validation and data processing errors
                 logger.warning(f"Data processing error in hybrid batch fetch for {ticker}: {e}")
+                return {"symbol": ticker, "ticker": ticker, "error": str(e)}
             except YFinanceError as e:
                 # Handle other YFinance-specific errors
                 logger.warning(f"YFinance error in hybrid batch fetch for {ticker}: {e}")
+                return {"symbol": ticker, "ticker": ticker, "error": str(e)}
             except Exception as e:
                 # Catch any truly unexpected exception to prevent the entire batch from failing
                 logger.error(f"Unexpected error in hybrid batch fetch for {ticker}: {e}")
@@ -475,7 +478,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
             )
             return {"symbol": ticker, "earnings_dates": [], "earnings_history": [], "error": str(e)}
 
-    async def get_earnings_dates(self, ticker: str) -> List[str]:
+    async def get_earnings_dates(self, ticker: str) -> List[str]:  # type: ignore[override]
         """Get earnings dates for a ticker."""
         try:
             # Use yf_provider to get earnings dates

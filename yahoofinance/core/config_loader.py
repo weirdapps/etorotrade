@@ -83,7 +83,7 @@ class ConfigLoader:
                 print(f"Config file not found at {self.config_path}, using defaults")
                 self._config = DEFAULT_CONFIG.copy()
                 
-        except Exception as e:
+        except (OSError, IOError, yaml.YAMLError, KeyError, ValueError, TypeError) as e:
             print(f"Error loading config: {e}, using defaults")
             self._config = DEFAULT_CONFIG.copy()
         

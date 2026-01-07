@@ -115,7 +115,7 @@ class TestSafeCreateTicker:
         """Handle exception during ticker creation."""
         from yahoofinance.utils.yfinance_utils import safe_create_ticker
 
-        with patch('yfinance.Ticker', side_effect=Exception("API error")):
+        with patch('yfinance.Ticker', side_effect=RuntimeError("API error")):
             result = safe_create_ticker("AAPL")
 
         assert result is None
@@ -174,7 +174,7 @@ class TestExtractInfoSafely:
 
         mock_ticker = Mock()
         # Make info property raise exception when accessed
-        type(mock_ticker).info = property(lambda self: (_ for _ in ()).throw(Exception("Error")))
+        type(mock_ticker).info = property(lambda self: (_ for _ in ()).throw(RuntimeError("Error")))
 
         result = extract_info_safely(mock_ticker)
 

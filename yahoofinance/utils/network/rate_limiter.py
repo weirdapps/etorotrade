@@ -276,7 +276,7 @@ class RateLimiter:
 
                     # Collect metrics and maybe adapt strategy
                     self._adapt_rate_limiting_strategy()
-                except Exception as e:
+                except (RuntimeError, ValueError, TypeError, KeyError, ZeroDivisionError, OSError) as e:
                     # Don't let any error stop the monitoring thread
                     logger.error(f"Error in adaptive monitoring: {str(e)}")
 
@@ -405,7 +405,7 @@ class RateLimiter:
         # Only check periodically to reduce overhead
         if now - self.last_market_hours_check > self.market_hours_check_interval:
             self.is_market_hours = self.is_market_open(ticker)
-            self.last_market_hours_check = now
+            self.last_market_hours_check = int(now)
 
     def get_delay_for_ticker(self, ticker: Optional[str] = None) -> float:
         """
@@ -528,7 +528,7 @@ class RateLimiter:
                     # Calculate when that timestamp will be outside the window
                     next_available = oldest_ts + self.window_size
                     # Calculate how long to wait
-                    window_wait_time = next_available - time.time()
+                    window_wait_time = int(next_available - time.time())
                     if window_wait_time > 0:
                         # Only log if warnings are not suppressed
                         if not self.suppress_warnings:
@@ -1101,4 +1101,4 @@ def rate_limited(
     if func is not None:
         return decorator(func)
 
-    return decorator
+    return decorator  # type: ignore[return-value]

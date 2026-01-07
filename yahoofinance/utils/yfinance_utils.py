@@ -8,7 +8,7 @@ internal caching mechanisms and object tracking.
 
 import gc
 import logging
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict
 
 
 logger = logging.getLogger(__name__)
@@ -71,7 +71,7 @@ def clean_ticker_object(ticker_obj: Any) -> None:
         try:
             ticker_obj.session.close()
             ticker_obj.session = None
-        except Exception as e:
+        except (OSError, IOError, AttributeError, RuntimeError) as e:
             logger.debug(f"Error closing ticker session: {e}")
 
 
@@ -106,7 +106,7 @@ def safe_create_ticker(ticker_symbol: str) -> Any:
     except ImportError:
         logger.error("yfinance package not installed")
         return None
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, RuntimeError, OSError) as e:
         logger.error(f"Error creating ticker object for {ticker_symbol}: {e}")
         return None
 
@@ -136,8 +136,6 @@ def with_safe_ticker(ticker_arg_name: str = "ticker") -> Callable:
 
             if not ticker_symbol:
                 return func(*args, **kwargs)
-
-            import yfinance as yf
 
             ticker_obj = None
 
@@ -195,6 +193,6 @@ def extract_info_safely(ticker_obj: Any) -> Dict[str, Any]:
         gc.collect()
 
         return result
-    except Exception as e:
+    except (KeyError, ValueError, TypeError, AttributeError, RuntimeError) as e:
         logger.error(f"Error extracting info from ticker object: {e}")
         return {}

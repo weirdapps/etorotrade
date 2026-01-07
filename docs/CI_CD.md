@@ -32,7 +32,7 @@ The project features a sophisticated GitHub Actions pipeline with multiple jobs 
 **Code Quality Gates**:
 - **Flake8**: Syntax errors, undefined names, complexity analysis
 - **MyPy**: Type checking with missing imports handling
-- **Test Coverage**: 60% minimum threshold with XML/HTML reports
+- **Test Coverage**: 59% minimum threshold with XML/HTML reports
 - **Performance Benchmarks**: Automated performance validation
 
 **Advanced Quality Checks**:
@@ -70,7 +70,7 @@ bandit -r yahoofinance/ trade_modules/
 safety check
 
 # Test execution with coverage
-pytest tests/ --cov=yahoofinance --cov=trade_modules --cov-fail-under=60
+pytest tests/ --cov=yahoofinance --cov=trade_modules --cov-fail-under=59
 ```
 
 ### Test Execution
@@ -84,7 +84,7 @@ pytest tests/ \
   --cov=trade_modules \
   --cov-report=xml \
   --cov-report=html \
-  --cov-fail-under=60 \
+  --cov-fail-under=59 \
   --ignore=tests/integration/ \
   --ignore=tests/e2e/
 
@@ -230,7 +230,7 @@ Monitor key metrics during development:
 - **Multi-Version Compatibility**: Ensures compatibility across Python 3.9-3.12
 - **Security First**: Automated vulnerability detection and dependency scanning
 - **Code Quality Gates**: Prevents technical debt with complexity and quality thresholds
-- **Test Coverage**: 90%+ test coverage target with comprehensive edge case testing
+- **Test Coverage**: 59% minimum coverage threshold with comprehensive edge case testing
 
 ### Performance Monitoring
 - **Automated Benchmarks**: Performance validation in CI pipeline

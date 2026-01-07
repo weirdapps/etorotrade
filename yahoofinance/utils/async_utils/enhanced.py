@@ -8,6 +8,11 @@ moved to focused sub-modules.
 New code should import from yahoofinance.utils.async_utils directly.
 """
 
+from typing import Any, Dict, Optional
+
+# Module-level variable for storing processing stats (set by progress.py)
+_last_processing_stats: Optional[Dict[str, Any]] = None
+
 # Import everything from the new split modules for backward compatibility
 from .retry import retry_async_with_backoff
 from .batch import (

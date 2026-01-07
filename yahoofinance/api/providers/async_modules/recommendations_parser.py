@@ -63,12 +63,14 @@ def parse_analyst_recommendations(ticker_info: Dict[str, Any], yticker) -> Dict[
 
             # If we have a recommendation key, map it to a buy percentage
             if rec_key:
-                result["buy_percentage"] = _map_recommendation_key_to_percentage(rec_key, yticker.ticker)
+                mapped_pct = _map_recommendation_key_to_percentage(rec_key, yticker.ticker)
+                if mapped_pct is not None:
+                    result["buy_percentage"] = int(mapped_pct)
             # If no key but we have recommendation mean, use it to estimate buy percentage
             elif rec_mean is not None:
                 # Convert 1-5 scale to percentage (1=Strong Buy, 5=Sell)
                 # 1 = 90%, 3 = 50%, 5 = 10%
-                result["buy_percentage"] = max(0, min(100, 110 - (rec_mean * 20)))
+                result["buy_percentage"] = int(max(0, min(100, 110 - (rec_mean * 20))))
                 logger.debug(
                     f"Using recommendationMean {rec_mean} to set buy_percentage={result['buy_percentage']} for {yticker.ticker}"
                 )
@@ -97,7 +99,7 @@ def parse_analyst_recommendations(ticker_info: Dict[str, Any], yticker) -> Dict[
                     buy_percentage = (buy_count / total) * 100
 
                     # This is the most accurate source of data, always update
-                    result["buy_percentage"] = buy_percentage
+                    result["buy_percentage"] = int(buy_percentage)
                     result["total_ratings"] = total
                     result["analyst_count"] = total
 
@@ -124,7 +126,7 @@ def parse_analyst_recommendations(ticker_info: Dict[str, Any], yticker) -> Dict[
 
                         if total_grades > 0:
                             buy_percentage = (positive_count / total_grades) * 100
-                            result["buy_percentage"] = buy_percentage
+                            result["buy_percentage"] = int(buy_percentage)
                             result["total_ratings"] = total_grades
                             result["analyst_count"] = total_grades
 
@@ -132,7 +134,7 @@ def parse_analyst_recommendations(ticker_info: Dict[str, Any], yticker) -> Dict[
                                 f"Using upgrades_downgrades to set analyst data for {yticker.ticker}: "
                                 f"buy_percentage={buy_percentage}, total_ratings={total_grades}"
                             )
-            except Exception as e:
+            except (KeyError, ValueError, TypeError, AttributeError, IndexError) as e:
                 logger.warning(
                     f"Error analyzing upgrades_downgrades for {yticker.ticker}: {e}. Using fallback values."
                 )
@@ -150,7 +152,7 @@ def parse_analyst_recommendations(ticker_info: Dict[str, Any], yticker) -> Dict[
                 f"Final fallback: Using recommendationMean {rec_mean} to set buy_percentage={result['buy_percentage']} for {yticker.ticker}"
             )
 
-    except Exception as e:
+    except (KeyError, ValueError, TypeError, AttributeError) as e:
         logger.warning(f"Error processing analyst data for {yticker.ticker}: {e}", exc_info=False)
 
     return result
@@ -201,7 +203,7 @@ def get_last_earnings_date(yticker) -> Optional[str]:
             result = latest_date.strftime("%Y-%m-%d")
             logger.debug(f"Found last earnings date from quarterly_income_stmt for {yticker.ticker}: {result}")
             return result
-    except Exception as e:
+    except (KeyError, ValueError, TypeError, AttributeError, IndexError) as e:
         logger.debug(f"Error getting earnings from quarterly_income_stmt for {yticker.ticker}: {e}")
 
     # Try calendar second
@@ -260,13 +262,13 @@ def get_last_earnings_date(yticker) -> Optional[str]:
                     if date.tzinfo is not None and today.tzinfo is None:
                         try:
                             compare_today = today.tz_localize(date.tzinfo)
-                        except Exception:
+                        except (ValueError, TypeError):
                             compare_today = today.tz_localize('UTC')
                             compare_date = date.tz_convert('UTC')
                     elif date.tzinfo is None and today.tzinfo is not None:
                         try:
                             compare_date = date.tz_localize(today.tzinfo)
-                        except Exception:
+                        except (ValueError, TypeError):
                             compare_today = today.tz_convert('UTC')
                             compare_date = pd.Timestamp(date).tz_localize('UTC')
                     elif date.tzinfo is not None and today.tzinfo is not None:

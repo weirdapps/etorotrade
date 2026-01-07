@@ -21,7 +21,7 @@ from .stock import StockAnalyzer
 
 
 # Register factory for creating StockAnalyzer instances
-@registry.register("stock_analyzer")
+@registry.register("stock_analyzer")  # type: ignore[arg-type]
 def create_stock_analyzer(
     provider: Optional[Union[FinanceDataProvider, AsyncFinanceDataProvider]] = None,
     async_mode: bool = False,
@@ -51,7 +51,7 @@ def create_stock_analyzer(
         try:
             get_provider = registry.resolve("get_provider")
             provider = get_provider(async_mode=async_mode, enhanced=enhanced)
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, ImportError, RuntimeError) as e:
             logger.error(f"Failed to create provider for StockAnalyzer: {str(e)}")
             raise ValidationError(f"Failed to create provider for StockAnalyzer: {str(e)}") from e
 
@@ -117,7 +117,7 @@ def create_portfolio_analyzer(
             from ..api.provider_registry import get_provider
 
             provider = get_provider(async_mode=async_mode, enhanced=enhanced)
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, ImportError, RuntimeError) as e:
             logger.error(f"Failed to create provider for PortfolioAnalyzer: {str(e)}")
             raise ValidationError(
                 f"Failed to create provider for PortfolioAnalyzer: {str(e)}"

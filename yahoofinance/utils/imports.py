@@ -55,8 +55,8 @@ class LazyImport:
         """
         self._module_name = module_name
         self._object_name = object_name
-        self._module = None
-        self._object = None
+        self._module: Optional[Any] = None
+        self._object: Optional[Any] = None
 
     def __call__(self, *args, **kwargs):
         """

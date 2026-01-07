@@ -74,7 +74,7 @@ def get_date_range(
         if days is None:
             # Default to 1 year
             days = 365
-        start_date = end_date - datetime.timedelta(days=days)
+        start_date = end_date - datetime.timedelta(days=days)  # type: ignore[operator]
     # Convert start date to datetime.date if string
     elif isinstance(start_date, str):
         if not validate_date_format(start_date, fmt):
@@ -85,10 +85,10 @@ def get_date_range(
         start_date = start_date.date()
 
     # Validate date range
-    if start_date > end_date:
+    if start_date > end_date:  # type: ignore[operator]
         raise ValueError(f"Start date ({start_date}) is after end date ({end_date})")
 
-    return start_date, end_date
+    return start_date, end_date  # type: ignore[return-value]
 
 
 @with_retry
@@ -125,7 +125,7 @@ def format_date_for_display(
             date_obj = datetime.datetime.strptime(date_obj, "%Y-%m-%d").date()
         except ValueError:
             # Return original string if not in expected format
-            return date_obj
+            return date_obj  # type: ignore[return-value]
 
     if isinstance(date_obj, pd.Timestamp):
         date_obj = date_obj.date()
@@ -170,7 +170,7 @@ def get_trading_days(
     if not include_holidays:
         # This is a simplified version - a real implementation would
         # need a list of holidays
-        us_holidays = []
+        us_holidays: list[datetime.date] = []
         trading_days = [d for d in trading_days if d not in us_holidays]
 
     return trading_days

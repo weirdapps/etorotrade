@@ -98,8 +98,15 @@ class DataProcessingService:
 
             return result
 
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
             self.logger.debug(f"Error processing ticker {ticker}: {str(e)}")
+            return None
+        except (ConnectionError, TimeoutError, OSError) as e:
+            self.logger.debug(f"Network error processing ticker {ticker}: {str(e)}")
+            return None
+        except Exception as e:
+            # Catch-all for unexpected API errors (network libs can raise various exceptions)
+            self.logger.debug(f"Unexpected error processing ticker {ticker}: {str(e)}")
             return None
     
     # Backward compatibility method

@@ -37,7 +37,7 @@ class AnalysisService:
             # Add confidence scores
             df["confidence_score"] = self.calculate_confidence_score(df)
 
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
             self.logger.error(f"Error calculating trading signals: {str(e)}")
             raise
 
@@ -84,7 +84,7 @@ class AnalysisService:
             # Normalize to 0-1 range
             confidence = pd.Series(np.clip(confidence, 0, 1), index=df.index)
 
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
             self.logger.warning(f"Error calculating confidence scores: {str(e)}")
             confidence = pd.Series(0.7, index=df.index)  # Default high confidence
 

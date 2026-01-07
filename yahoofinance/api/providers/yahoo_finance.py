@@ -116,7 +116,7 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         try:
             cached_info = default_cache_manager.get(cache_key)
             logger.debug(f"Cache result: {'hit' if cached_info is not None else 'miss'}")
-        except Exception as e:
+        except (KeyError, TypeError, ValueError, OSError) as e:
             logger.error(f"Error getting from cache: {str(e)}")
             cached_info = None
         if cached_info is not None:
@@ -186,7 +186,7 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                                     ticker, "short_interest", is_us
                                 )
                                 logger.debug(f"Marked short interest as missing for {ticker}")
-                        except Exception as e:
+                        except (KeyError, ValueError, TypeError) as e:
                             logger.warning(
                                 f"Error processing short interest for {ticker}: {str(e)}"
                             )
@@ -315,6 +315,8 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 # Use the shared retry logic handler from the base class
                 delay = self._handle_retry_logic(e, attempt, ticker, "historical data")
                 time.sleep(delay)
+        # Return empty DataFrame if all retries failed
+        return pd.DataFrame()
 
     @rate_limited
     def get_earnings_dates(self, ticker: str) -> Tuple[Optional[str], Optional[str]]:
@@ -431,6 +433,8 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                     time.sleep(delay)
                 else:
                     raise YFinanceError(f"Failed to get data after {self.max_retries} attempts")
+        # This should not be reached, but mypy needs a return
+        return (None, None)
 
     @rate_limited
     def get_analyst_ratings(self, ticker: str) -> Dict[str, Any]:
@@ -477,7 +481,7 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                     # This is expected for non-stock assets like ETFs, commodities, crypto
 
                 # Add symbol and date if available
-                result = {"symbol": ticker}
+                result: Dict[str, Any] = {"symbol": ticker}
 
                 # Add date if we have recommendations
                 if recommendations is not None and not recommendations.empty:
@@ -528,6 +532,8 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                     time.sleep(delay)
                 else:
                     raise YFinanceError(f"Failed to get data after {self.max_retries} attempts")
+        # This should not be reached, but mypy needs a return
+        return {}
 
     @rate_limited
     def get_insider_transactions(self, ticker: str) -> List[Dict[str, Any]]:
@@ -591,6 +597,8 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                     time.sleep(delay)
                 else:
                     raise YFinanceError(f"Failed to get data after {self.max_retries} attempts")
+        # This should not be reached, but mypy needs a return
+        return []
 
     @rate_limited
     def search_tickers(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
@@ -649,6 +657,8 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                     time.sleep(delay)
                 else:
                     raise YFinanceError(f"Failed to get data after {self.max_retries} attempts")
+        # Fallback return for mypy
+        return []
 
     @with_retry
     def batch_get_ticker_info(
@@ -676,7 +686,7 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
 
         # Ultra-optimized first pass - bulk check cache with batch_get
         cache_keys = [f"ticker_info:{ticker}" for ticker in tickers]
-        cached_results = default_cache_manager.batch_get(cache_keys, data_type="ticker_info")
+        cached_results = default_cache_manager.batch_get(cache_keys, data_type="ticker_info")  # type: ignore[attr-defined]
 
         # Process cached results and identify tickers to fetch
         for ticker in tickers:
@@ -698,7 +708,7 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             if not is_us:
                 # For non-US stocks, SI data is almost always missing
                 if not default_cache_manager.is_data_known_missing(ticker, "short_interest"):
-                    default_cache_manager.set_missing_data(
+                    default_cache_manager.set_missing_data(  # type: ignore[call-arg]
                         ticker, "short_interest", is_us_stock=False
                     )
                     logger.debug(
@@ -763,7 +773,7 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         # Batch update the cache for all successful fetches
         if cache_batch_items:
             # Use the optimized batch_set method for maximum performance
-            default_cache_manager.batch_set(cache_batch_items)
+            default_cache_manager.batch_set(cache_batch_items)  # type: ignore[attr-defined]
             logger.debug(f"Batch cached {len(cache_batch_items)} ticker info items")
 
         return results
@@ -818,7 +828,7 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         # For short interest, typically only US stocks have this data
         if data_field == "short_interest" and not is_us_ticker(ticker):
             # Mark it as missing for future reference
-            default_cache_manager.set_missing_data(ticker, data_field, is_us_stock=False)
+            default_cache_manager.set_missing_data(ticker, data_field, is_us_stock=False)  # type: ignore[call-arg]
             logger.debug(f"Pre-emptively marked {data_field} as missing for non-US ticker {ticker}")
             return True
 
@@ -838,7 +848,7 @@ class YahooFinanceProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             Dict containing performance statistics
         """
         # Get cache manager stats
-        cache_stats = default_cache_manager.get_stats()
+        cache_stats = default_cache_manager.get_stats()  # type: ignore[attr-defined]
 
         # Get known missing data count by type
         missing_si_count = 0

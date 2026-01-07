@@ -280,8 +280,8 @@ class CacheService:
             expiry = time.time() + ttl
             self._memory_cache[key] = (value, expiry)
             return True
-            
-        except Exception:
+
+        except (TypeError, KeyError, StopIteration) as e:
             self._stats['errors'] += 1
             return False
     
@@ -300,9 +300,9 @@ class CacheService:
                     else:
                         # Expired, delete it
                         disk_path.unlink()
-        except Exception:
+        except (OSError, IOError, pickle.PickleError, KeyError, TypeError) as e:
             self._stats['errors'] += 1
-        
+
         return None
     
     def _set_disk(self, key: str, value: Any, ttl: int) -> bool:
@@ -320,7 +320,7 @@ class CacheService:
             with open(disk_path, 'wb') as f:
                 pickle.dump(data, f)
             return True
-        except Exception:
+        except (OSError, IOError, pickle.PickleError, TypeError) as e:
             self._stats['errors'] += 1
             return False
 
