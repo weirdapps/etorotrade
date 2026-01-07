@@ -338,4 +338,4 @@ class TestFilterServiceIntegration:
         # Modifying result should not affect original
         if len(result) > 0:
             result.loc[result.index[0], "price"] = 999.0
-            assert sample_market_df.loc["AAPL", "price"] != 999.0
+            assert sample_market_df.loc["AAPL", "price"] != pytest.approx(999.0)
