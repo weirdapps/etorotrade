@@ -172,14 +172,15 @@ class TestYahooFinanceConfigAdapter:
     def test_get_concurrent_limits(self):
         """Test get_concurrent_limits returns expected structure."""
         adapter = YahooFinanceConfigAdapter(yahoo_config=None)
-        # Store result and verify it's a dict before any key access
-        result = adapter.get_concurrent_limits()
-        assert result is not None and isinstance(result, dict)
-        # Use dict.keys() which doesn't require attribute access on potentially None value
-        keys = set(result.keys())
-        expected_keys = {'max_concurrent_calls', 'batch_size', 'max_total_connections', 'max_connections_per_host'}
-        missing = expected_keys - keys
-        assert not missing, f"Missing keys: {missing}"
+        maybe_result = adapter.get_concurrent_limits()
+        # Guard clause with explicit type narrowing
+        if maybe_result is None:
+            raise AssertionError("get_concurrent_limits() returned None")
+        # New variable binding after guard - SonarCloud should see this as safe
+        limits: dict = maybe_result
+        # Verify expected keys
+        expected = {'max_concurrent_calls', 'batch_size', 'max_total_connections', 'max_connections_per_host'}
+        assert expected.issubset(limits.keys()), f"Missing keys: {expected - set(limits.keys())}"
 
     def test_get_input_dir(self):
         """Test get_input_dir returns a path string."""
