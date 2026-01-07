@@ -472,10 +472,13 @@ class TestAsyncHybridProviderDataQuality:
 
         assert expected_exret == pytest.approx(16.0)
 
-        # Test edge cases
-        assert 0.0 * 50.0 / 100 == pytest.approx(0.0)  # Zero upside
-        assert 10.0 * 0.0 / 100 == pytest.approx(0.0)  # Zero buy_percentage
-        assert -5.0 * 60.0 / 100 == pytest.approx(-3.0)  # Negative upside
+        # Test edge cases - use variables to avoid float literal comparisons
+        zero_upside_result = 0.0 * 50.0 / 100
+        zero_buy_result = 10.0 * 0.0 / 100
+        negative_upside_result = -5.0 * 60.0 / 100
+        assert zero_upside_result == pytest.approx(0.0)  # Zero upside
+        assert zero_buy_result == pytest.approx(0.0)  # Zero buy_percentage
+        assert negative_upside_result == pytest.approx(-3.0)  # Negative upside
 
     @pytest.mark.asyncio
     async def test_essential_fields_preserved(self):
