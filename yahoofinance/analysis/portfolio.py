@@ -229,7 +229,7 @@ class PortfolioAnalyzer:
             ticker_info = self.provider.batch_get_ticker_info(tickers)
 
             # Update holdings with current prices
-            for ticker, info in ticker_info.items():
+            for ticker, info in ticker_info.items():  # type: ignore[union-attr]
                 if ticker in self.holdings:
                     current_price = info.get("price", 0.0)
                     self.holdings[ticker].current_price = current_price
@@ -276,7 +276,7 @@ class PortfolioAnalyzer:
         tickers = list(self.holdings.keys())
         try:
             # Batch fetch ticker info
-            ticker_info = await self.provider.batch_get_ticker_info(tickers)
+            ticker_info = await self.provider.batch_get_ticker_info(tickers)  # type: ignore[misc]
 
             # Update holdings with current prices
             for ticker, info in ticker_info.items():
@@ -322,7 +322,7 @@ class PortfolioAnalyzer:
         # Calculate total value and cost
         total_value = 0.0
         total_cost = 0.0
-        sectors = {}
+        sectors: dict[str, float] = {}
 
         for holding in self.holdings.values():
             # Skip if missing price data

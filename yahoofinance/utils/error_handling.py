@@ -8,7 +8,7 @@ error translation, and recovery strategies throughout the application.
 import functools
 import logging
 import time
-from typing import Any, Callable, Dict, List, Optional, Set, Type, TypeVar, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Set, Type, TypeVar, Union, cast, overload
 
 from ..core.errors import (
     APIError,
@@ -191,12 +191,27 @@ def with_error_context(
     return decorator
 
 
+@overload
 def with_retry(
-    max_retries: int = 3,
+    max_retries: Callable[..., T],
+) -> Callable[..., T]: ...
+
+
+@overload
+def with_retry(
+    max_retries: int = ...,
+    retry_delay: float = ...,
+    backoff_factor: float = ...,
+    retryable_errors: Optional[Set[Type[Exception]]] = ...,
+) -> Callable[[Callable[..., T]], Callable[..., T]]: ...
+
+
+def with_retry(
+    max_retries: Union[int, Callable[..., T]] = 3,
     retry_delay: float = 1.0,
     backoff_factor: float = 2.0,
     retryable_errors: Optional[Set[Type[Exception]]] = None,
-) -> Callable[[Callable[..., T]], Callable[..., T]]:
+) -> Union[Callable[..., T], Callable[[Callable[..., T]], Callable[..., T]]]:
     """
     Decorator to automatically retry a function on certain errors.
 

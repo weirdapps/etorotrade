@@ -289,9 +289,9 @@ def configure_logging(
     # Add handlers to config
     for i, handler in enumerate(handlers):
         handler_name = f"handler_{i}"
-        logging_config["handlers"][handler_name] = handler
-        logging_config["root"]["handlers"].append(handler_name)
-        logging_config["loggers"]["yahoofinance"]["handlers"].append(handler_name)
+        logging_config["handlers"][handler_name] = handler  # type: ignore[index]
+        logging_config["root"]["handlers"].append(handler_name)  # type: ignore[index]
+        logging_config["loggers"]["yahoofinance"]["handlers"].append(handler_name)  # type: ignore[index]
 
     # Apply configuration if any handlers are defined
     if handlers:
@@ -584,7 +584,7 @@ class JSONFormatter(logging.Formatter):
                     result[key] = "****"
             elif isinstance(value, dict):
                 # Recursively sanitize nested dictionaries
-                result[key] = self._sanitize_dict(value)
+                result[key] = self._sanitize_dict(value)  # type: ignore[assignment]
             else:
                 result[key] = value
         return result
@@ -617,7 +617,7 @@ class ContextAdapter(logging.LoggerAdapter):
             self.context["request_id"] = request_id
         super().__init__(logger, self.context)
 
-    def process(self, msg: str, kwargs: Dict[str, Any]) -> tuple:
+    def process(self, msg: str, kwargs: Dict[str, Any]) -> tuple:  # type: ignore[override]
         """
         Process the logging message and keywords.
 

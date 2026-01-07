@@ -16,7 +16,7 @@ import time
 from datetime import datetime, timedelta
 from enum import Enum
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar, cast
 
 from ...core.config import CIRCUIT_BREAKER
 from ...core.errors import APIError, DataError, ValidationError, YFinanceError
@@ -78,28 +78,24 @@ class CircuitBreaker:
             state_file: File to persist circuit state
         """
         self.name = name
-        # Use sensible defaults if CIRCUIT_BREAKER global config is not available or incomplete
-        try:
-            from ...core.config import CIRCUIT_BREAKER as config
-        except ImportError:
-            config = {}
-        
-        self.failure_threshold = failure_threshold or config.get("FAILURE_THRESHOLD", 5)
-        self.failure_window = failure_window or config.get("FAILURE_WINDOW", 60)
-        self.recovery_timeout = recovery_timeout or config.get("RECOVERY_TIMEOUT", 300)
-        self.success_threshold = success_threshold or config.get("SUCCESS_THRESHOLD", 3)
-        self.half_open_allow_percentage = (
-            half_open_allow_percentage or config.get("HALF_OPEN_ALLOW_PERCENTAGE", 10)
+        # Use sensible defaults from module-level CIRCUIT_BREAKER config
+        cb_config: Dict[str, Any] = CIRCUIT_BREAKER if CIRCUIT_BREAKER else {}
+
+        self.failure_threshold: int = failure_threshold if failure_threshold is not None else int(cb_config.get("FAILURE_THRESHOLD", 5))
+        self.failure_window: int = failure_window if failure_window is not None else int(cb_config.get("FAILURE_WINDOW", 60))
+        self.recovery_timeout: int = recovery_timeout if recovery_timeout is not None else int(cb_config.get("RECOVERY_TIMEOUT", 300))
+        self.success_threshold: int = success_threshold if success_threshold is not None else int(cb_config.get("SUCCESS_THRESHOLD", 3))
+        self.half_open_allow_percentage: int = (
+            half_open_allow_percentage if half_open_allow_percentage is not None else int(cb_config.get("HALF_OPEN_ALLOW_PERCENTAGE", 10))
         )
-        self.max_open_timeout = max_open_timeout or config.get("MAX_OPEN_TIMEOUT", 1800)
-        self.timeout = timeout or config.get("TIMEOUT", 10.0)
-        self.enabled = enabled if enabled is not None else config.get("ENABLED", True)
+        self.max_open_timeout: int = max_open_timeout if max_open_timeout is not None else int(cb_config.get("MAX_OPEN_TIMEOUT", 1800))
+        self.timeout: float = timeout if timeout is not None else float(cb_config.get("TIMEOUT", 10.0))
+        self.enabled: bool = enabled if enabled is not None else bool(cb_config.get("ENABLED", True))
         # Use secure temporary directory location
         import tempfile
-        import os
         secure_temp_dir = tempfile.gettempdir()
         default_state_file = os.path.join(secure_temp_dir, f"circuit_breaker_{name}.json")
-        self.state_file = state_file or config.get("STATE_FILE", default_state_file)
+        self.state_file: Optional[str] = state_file if state_file is not None else str(cb_config.get("STATE_FILE", default_state_file))
 
         # State tracking
         self.state = CircuitState.CLOSED
@@ -107,8 +103,8 @@ class CircuitBreaker:
         self.failure_timestamps: List[float] = []
         self.success_count = 0
         self.last_state_change = time.time()
-        self.last_failure_time = 0
-        self.last_success_time = 0
+        self.last_failure_time: float = 0.0
+        self.last_success_time: float = 0.0
         self.total_failures = 0
         self.total_successes = 0
         self.total_requests = 0
@@ -562,7 +558,7 @@ class CircuitBreakerRegistry:
                 
                 # Map configuration keys to constructor parameters
                 # Handle missing keys gracefully for backward compatibility
-                constructor_args = {
+                constructor_args: Dict[str, Any] = {
                     "failure_threshold": final_config.get("FAILURE_THRESHOLD"),
                     "failure_window": final_config.get("FAILURE_WINDOW", 60),  # Default to 60 if missing
                     "recovery_timeout": final_config.get("RECOVERY_TIMEOUT"),
@@ -573,11 +569,11 @@ class CircuitBreakerRegistry:
                     "enabled": final_config.get("ENABLED", True),  # Default to True if missing
                     "state_file": final_config.get("STATE_FILE"),
                 }
-                
+
                 # Remove None values
                 constructor_args = {k: v for k, v in constructor_args.items() if v is not None}
-                
-                self._circuit_breakers[name] = CircuitBreaker(name=name, **constructor_args)
+
+                self._circuit_breakers[name] = CircuitBreaker(name=name, **constructor_args)  # type: ignore[arg-type]
                 logger.debug(f"Created circuit breaker '{name}' with config: {constructor_args}")
             
             return self._circuit_breakers[name]
@@ -599,7 +595,7 @@ class CircuitBreakerRegistry:
         
         # Map configuration keys to constructor parameters
         # Handle missing keys gracefully for backward compatibility
-        constructor_args = {
+        constructor_args: Dict[str, Any] = {
             "failure_threshold": final_config.get("FAILURE_THRESHOLD"),
             "failure_window": final_config.get("FAILURE_WINDOW", 60),  # Default to 60 if missing
             "recovery_timeout": final_config.get("RECOVERY_TIMEOUT"),
@@ -610,11 +606,11 @@ class CircuitBreakerRegistry:
             "enabled": final_config.get("ENABLED", True),  # Default to True if missing
             "state_file": final_config.get("STATE_FILE"),
         }
-        
+
         # Remove None values
         constructor_args = {k: v for k, v in constructor_args.items() if v is not None}
-        
-        return CircuitBreaker(name=name, **constructor_args)
+
+        return CircuitBreaker(name=name, **constructor_args)  # type: ignore[arg-type]
     
     def get_all_circuits(self) -> Dict[str, CircuitBreaker]:
         """
@@ -720,8 +716,8 @@ def reset_all_circuits() -> None:
         _circuit_breakers.clear()
 
     # Clear the state file to ensure a clean slate
-    state_file = CIRCUIT_BREAKER["STATE_FILE"]
-    if os.path.exists(state_file):
+    state_file = str(CIRCUIT_BREAKER.get("STATE_FILE", ""))
+    if state_file and os.path.exists(state_file):
         try:
             with open(state_file, "w") as f:
                 f.write("{}")

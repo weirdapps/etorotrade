@@ -77,7 +77,7 @@ class AsyncYahooQueryProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvider
 
     # Temporarily remove decorator for debugging
     # @async_rate_limited
-    async def get_ticker_info(
+    async def get_ticker_info(  # type: ignore[override]
         self, ticker: str, skip_insider_metrics: bool = False
     ) -> Dict[str, Any]:
         """
@@ -98,7 +98,7 @@ class AsyncYahooQueryProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvider
             self._sync_provider.get_ticker_info, ticker, skip_insider_metrics
         )
 
-    @async_rate_limited
+    @async_rate_limited  # type: ignore[arg-type]
     async def get_price_data(self, ticker: str) -> Dict[str, Any]:
         """
         Get current price data for a ticker asynchronously.
@@ -115,7 +115,7 @@ class AsyncYahooQueryProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvider
         # Run the synchronous version in an executor to make it non-blocking
         return await self._run_in_executor(self._sync_provider.get_price_data, ticker)
 
-    @async_rate_limited
+    @async_rate_limited  # type: ignore[arg-type]
     async def get_historical_data(
         self, ticker: str, period: str = "1y", interval: str = "1d"
     ) -> pd.DataFrame:
@@ -138,7 +138,7 @@ class AsyncYahooQueryProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvider
             self._sync_provider.get_historical_data, ticker, period, interval
         )
 
-    @async_rate_limited
+    @async_rate_limited  # type: ignore[arg-type]
     async def get_earnings_dates(self, ticker: str) -> Tuple[Optional[str], Optional[str]]:
         """
         Get the last two earnings dates for a stock asynchronously.
@@ -158,7 +158,7 @@ class AsyncYahooQueryProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvider
         # Run the synchronous version in an executor to make it non-blocking
         return await self._run_in_executor(self._sync_provider.get_earnings_dates, ticker)
 
-    @async_rate_limited
+    @async_rate_limited  # type: ignore[arg-type]
     async def get_analyst_ratings(self, ticker: str) -> Dict[str, Any]:
         """
         Get analyst ratings for a ticker asynchronously.
@@ -175,7 +175,7 @@ class AsyncYahooQueryProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvider
         # Run the synchronous version in an executor to make it non-blocking
         return await self._run_in_executor(self._sync_provider.get_analyst_ratings, ticker)
 
-    @async_rate_limited
+    @async_rate_limited  # type: ignore[arg-type]
     async def get_insider_transactions(self, ticker: str) -> List[Dict[str, Any]]:
         """
         Get insider transactions for a ticker asynchronously.
@@ -192,7 +192,7 @@ class AsyncYahooQueryProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvider
         # Run the synchronous version in an executor to make it non-blocking
         return await self._run_in_executor(self._sync_provider.get_insider_transactions, ticker)
 
-    @async_rate_limited
+    @async_rate_limited  # type: ignore[arg-type]
     async def search_tickers(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
         """
         Search for tickers matching a query asynchronously.
@@ -210,7 +210,7 @@ class AsyncYahooQueryProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvider
         # Run the synchronous version in an executor to make it non-blocking
         return await self._run_in_executor(self._sync_provider.search_tickers, query, limit)
 
-    @async_rate_limited
+    @async_rate_limited  # type: ignore[arg-type]
     async def batch_get_ticker_info(
         self, tickers: List[str], skip_insider_metrics: bool = False
     ) -> Dict[str, Dict[str, Any]]:

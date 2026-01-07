@@ -5,6 +5,7 @@ This module provides a registry for all available finance data providers,
 ensuring consistent access and configuration across the application.
 """
 
+import asyncio
 from typing import Any, Dict, List, Optional, Set, Type, Union, cast
 
 from ..core.errors import ValidationError
@@ -76,7 +77,7 @@ def initialize_registry():
                         raise ValidationError(
                             f"Provider {class_name} is not properly implemented"
                         ) from e
-                    except Exception as e:
+                    except (TypeError, ValueError, RuntimeError, OSError) as e:
                         logger.error(f"Failed to create provider {class_name}: {str(e)}")
                         raise ValidationError(f"Failed to create provider {class_name}") from e
 
@@ -91,11 +92,11 @@ def initialize_registry():
 
 # Create a cache for provider instances to prevent repeated creation
 # This helps reduce memory leaks from creating/destroying providers
-_provider_cache = {}
+_provider_cache: dict[str, Union[FinanceDataProvider, AsyncFinanceDataProvider]] = {}
 
 
 # Register factory for the get_provider function
-@registry.register("get_provider")
+@registry.register("get_provider")  # type: ignore[arg-type]
 def get_provider(
     provider_type: str = None,
     async_mode: bool = None,
@@ -182,13 +183,13 @@ def get_provider(
             _provider_cache[cache_key] = provider
 
         return provider
-    except Exception as e:
+    except (KeyError, ValueError, TypeError, ImportError, RuntimeError) as e:
         logger.error(f"Failed to create provider {provider_key}: {str(e)}")
         raise ValidationError(f"Failed to create provider {provider_key}") from e
 
 
 # Register factory for getting all provider types
-@registry.register("get_all_providers")
+@registry.register("get_all_providers")  # type: ignore[arg-type]
 def get_all_providers(
     async_mode: bool = None, **kwargs
 ) -> Dict[str, Union[FinanceDataProvider, AsyncFinanceDataProvider]]:
@@ -208,7 +209,7 @@ def get_all_providers(
     async_mode = async_mode if async_mode is not None else DEFAULT_ASYNC_MODE
 
     # Create a provider instance for each type
-    providers = {}
+    providers: Dict[str, Union[FinanceDataProvider, AsyncFinanceDataProvider]] = {}
     for provider_type in PROVIDER_TYPES:
         try:
             providers[provider_type] = get_provider(provider_type, async_mode, **kwargs)
@@ -220,7 +221,7 @@ def get_all_providers(
 
 
 # Register factory for the default provider
-@registry.register("default_provider")
+@registry.register("default_provider")  # type: ignore[arg-type]
 def get_default_provider(**kwargs) -> Union[FinanceDataProvider, AsyncFinanceDataProvider]:
     """
     Get the default provider instance.
@@ -263,7 +264,7 @@ def clear_provider_cache():
                         loop.create_task(provider.close())
                     else:
                         loop.run_until_complete(provider.close())
-                except Exception as e:
+                except (RuntimeError, asyncio.CancelledError, asyncio.TimeoutError, OSError) as e:
                     logger.warning(f"Error closing provider {key}: {str(e)}")
 
             # Clear provider caches
@@ -276,7 +277,7 @@ def clear_provider_cache():
             # Explicitly set to None to help garbage collection
             provider = None
 
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, RuntimeError, OSError, AttributeError) as e:
             logger.warning(f"Error cleaning up provider {key}: {str(e)}")
 
     # Clear the cache

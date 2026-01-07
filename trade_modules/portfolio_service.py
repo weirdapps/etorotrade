@@ -127,7 +127,7 @@ class PortfolioService:
                 
                 opportunities["buy_opportunities"] = opportunities["buy_opportunities"][buy_mask]
 
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
             self.logger.warning(f"Error applying portfolio filters: {str(e)}")
 
         return opportunities

@@ -102,7 +102,7 @@ def format_date(date: Any) -> Optional[str]:
         # Explicitly remove reference to the original object
         date = None
         return result
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         from yahoofinance.utils.error_handling import translate_error
         # Translate standard exception to our error hierarchy
         custom_error = translate_error(e, context={"location": __name__})
@@ -192,7 +192,7 @@ def calculate_earnings_growth(ticker: str) -> Optional[float]:
         logger.debug(f"Unable to calculate earnings growth for {ticker} - zero or insufficient base earnings")
         return None
 
-    except Exception as e:
+    except (KeyError, ValueError, TypeError, AttributeError, IndexError, ZeroDivisionError) as e:
         logger.debug(f"Error calculating earnings growth for {ticker}: {e}")
         return None
 

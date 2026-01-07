@@ -11,6 +11,7 @@ from typing import Dict
 import pandas as pd
 
 from yahoofinance.utils.data.ticker_utils import are_equivalent_tickers
+from yahoofinance.core.errors import DataError
 
 
 class FilterService:
@@ -59,8 +60,12 @@ class FilterService:
                     self.logger.info(
                         f"Filtered out {filtered_count} notrade tickers via equivalence check"
                     )
-        except Exception as e:
-            self.logger.warning(f"Could not filter notrade tickers: {str(e)}")
+        except FileNotFoundError:
+            self.logger.debug(f"Notrade file not found at {notrade_path}")
+        except pd.errors.EmptyDataError:
+            self.logger.debug(f"Notrade file is empty: {notrade_path}")
+        except (KeyError, ValueError) as e:
+            self.logger.warning(f"Data error in notrade file: {str(e)}")
 
         return df
 

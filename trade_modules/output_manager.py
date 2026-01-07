@@ -49,7 +49,7 @@ def ensure_output_directory(output_dir: str) -> None:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
             logger.debug(f"Created output directory: {output_dir}")
-    except Exception as e:
+    except OSError as e:
         logger.error(f"Error creating output directory {output_dir}: {str(e)}")
 
 
@@ -83,7 +83,7 @@ def _setup_output_files(report_source: str) -> Tuple[str, str, str]:
 
         return buy_file, sell_file, hold_file
 
-    except Exception as e:
+    except (KeyError, OSError) as e:
         logger.error(f"Error setting up output files: {str(e)}")
         # Return default paths as fallback
         return (FILE_PATHS["BUY_OUTPUT"], FILE_PATHS["SELL_OUTPUT"], FILE_PATHS["HOLD_OUTPUT"])
@@ -139,7 +139,7 @@ def _prepare_csv_dataframe(display_df: pd.DataFrame) -> pd.DataFrame:
         )
         return csv_df
 
-    except Exception as e:
+    except (KeyError, TypeError, ValueError, AttributeError) as e:
         logger.error(f"Error preparing CSV dataframe: {str(e)}")
         return display_df
 
@@ -187,7 +187,7 @@ def _add_ranking_column(df: pd.DataFrame) -> pd.DataFrame:
 
         return result_df
 
-    except Exception as e:
+    except (KeyError, ValueError) as e:
         logger.error(f"Error adding ranking column: {str(e)}")
         return df
 
@@ -215,7 +215,7 @@ def get_column_alignments(display_df: pd.DataFrame) -> List[str]:
 
         return alignments
 
-    except Exception as e:
+    except (KeyError, AttributeError) as e:
         logger.error(f"Error getting column alignments: {str(e)}")
         return ["left"] * len(display_df.columns)
 
@@ -270,7 +270,7 @@ def _apply_color_to_dataframe(display_df: pd.DataFrame, color_code: str) -> pd.D
 
         return colored_df
 
-    except Exception as e:
+    except (KeyError, TypeError, AttributeError) as e:
         logger.error(f"Error applying color to dataframe: {str(e)}")
         return display_df
 
@@ -334,7 +334,7 @@ def display_and_save_results(display_df: pd.DataFrame, title: str, output_file: 
         )
         print(f"🌐 HTML report saved to: {html_file}")
 
-    except Exception as e:
+    except (KeyError, TypeError, ValueError, OSError, IOError, AttributeError) as e:
         logger.error(f"Error displaying and saving results: {str(e)}")
         print(f"❌ Error saving results: {str(e)}")
 
@@ -373,7 +373,7 @@ def create_empty_results_file(output_file: str) -> None:
 
         logger.debug(f"Created empty results files: {output_file}, {html_file}")
 
-    except Exception as e:
+    except (KeyError, OSError, IOError, AttributeError) as e:
         logger.error(f"Error creating empty results file: {str(e)}")
 
 
@@ -410,7 +410,7 @@ def _sort_display_dataframe(display_df: pd.DataFrame) -> pd.DataFrame:
         logger.debug(f"Applied universal sorting to dataframe: {len(sorted_df)} rows")
         return sorted_df
 
-    except Exception as e:
+    except (KeyError, TypeError, ValueError, AttributeError) as e:
         logger.error(f"Error sorting display dataframe: {str(e)}")
         return display_df
 
@@ -512,7 +512,7 @@ def format_display_dataframe(display_df: pd.DataFrame) -> pd.DataFrame:
         logger.debug(f"Formatted display dataframe with {len(formatted_df.columns)} columns")
         return formatted_df
 
-    except Exception as e:
+    except (KeyError, TypeError, ValueError, AttributeError) as e:
         logger.error(f"Error formatting display dataframe: {str(e)}")
         return display_df
 
@@ -578,7 +578,7 @@ def _format_date_value(value: Any) -> str:
         elif len(date_str) >= 8:
             return date_str[:8]  # Already in YYYYMMDD format
         return date_str
-    except Exception:
+    except (TypeError, ValueError, AttributeError):
         return "--"
 
 
@@ -591,7 +591,7 @@ def _format_size_value(value: Any) -> str:
         # Use the canonical position size formatter from utils
         return format_position_size(value)
 
-    except Exception:
+    except (ValueError, TypeError):
         return "--"
 
 
@@ -733,7 +733,7 @@ def prepare_display_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         logger.debug(f"Prepared display dataframe: {len(display_df)} rows")
         return display_df
 
-    except Exception as e:
+    except (KeyError, TypeError, ValueError, AttributeError) as e:
         logger.error(f"Error preparing display dataframe: {str(e)}")
         return df
 
@@ -778,7 +778,7 @@ def export_results_to_files(
         logger.info(f"Exported {len(output_files)} result files")
         return output_files
 
-    except Exception as e:
+    except (KeyError, TypeError, ValueError, OSError, IOError) as e:
         logger.error(f"Error exporting results to files: {str(e)}")
         return {}
 
@@ -828,10 +828,10 @@ class OutputManager:
             self.logger.info("✅ Analysis results saved successfully")
             return output_files
 
-        except Exception as e:
+        except (KeyError, TypeError, ValueError, OSError, IOError) as e:
             error_msg = f"Failed to save analysis results: {str(e)}"
             self.logger.error(error_msg)
-            raise Exception(error_msg) from e
+            raise RuntimeError(error_msg) from e
 
     def generate_summary_report(self, results: Dict[str, Any]) -> str:
         """
@@ -858,6 +858,6 @@ class OutputManager:
 
             return "\n".join(summary_lines)
 
-        except Exception as e:
+        except (KeyError, TypeError, AttributeError) as e:
             self.logger.error(f"Error generating summary report: {str(e)}")
             return "Error generating summary report"

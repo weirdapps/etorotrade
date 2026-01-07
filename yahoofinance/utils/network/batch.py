@@ -260,6 +260,6 @@ def bulk_fetch(
 
     # Apply transform function if provided
     if transform_func is not None:
-        return transform_func(results)
+        return transform_func(results)  # type: ignore[return-value]
 
-    return results
+    return results  # type: ignore[return-value]

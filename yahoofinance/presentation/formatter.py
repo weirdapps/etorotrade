@@ -555,9 +555,9 @@ def create_formatter(
         elif output_format == "html":
             # Import HTML formatter dynamically to avoid circular imports
             try:
-                from yahoofinance.presentation.html import HTMLFormatter
+                from yahoofinance.presentation.html import HTMLGenerator
 
-                return HTMLFormatter(compact_mode=compact_mode, **kwargs)
+                return HTMLGenerator(**kwargs)  # type: ignore[return-value]
             except ImportError:
                 logger.error("HTML formatter not available")
                 raise ValidationError("HTML formatter not available")
@@ -577,7 +577,7 @@ def create_formatter(
             logger.error(f"Invalid output format: {output_format}")
             raise ValidationError(f"Invalid output format: {output_format}")
 
-    except Exception as e:
+    except (ImportError, KeyError, ValueError, TypeError, AttributeError) as e:
         logger.error(f"Error creating formatter: {str(e)}")
         # Fall back to basic formatter if possible
         logger.info("Falling back to basic display formatter")

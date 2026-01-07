@@ -70,7 +70,7 @@ def format_company_names(working_df: pd.DataFrame) -> pd.DataFrame:
                 lambda x: _clean_company_name(x) if pd.notna(x) else "N/A"
             )
         return working_df
-    except Exception as e:
+    except (KeyError, TypeError, AttributeError) as e:
         logger.debug(f"Error formatting company names: {str(e)}")
         return working_df
 
@@ -144,7 +144,7 @@ def format_numeric_columns(
         if col in df.columns:
             try:
                 df[col] = df[col].apply(lambda x: _safe_numeric_format(x, format_str))
-            except Exception as e:
+            except (KeyError, TypeError, ValueError) as e:
                 logger.debug(f"Error formatting column {col}: {str(e)}")
 
     return df
@@ -188,7 +188,7 @@ def format_percentage_columns(display_df: pd.DataFrame, columns: List[str]) -> p
         if col in df.columns:
             try:
                 df[col] = df[col].apply(_safe_percentage_format)
-            except Exception as e:
+            except (KeyError, TypeError, ValueError) as e:
                 logger.debug(f"Error formatting percentage column {col}: {str(e)}")
 
     return df
@@ -229,7 +229,7 @@ def format_earnings_date(display_df: pd.DataFrame) -> pd.DataFrame:
     if "earnings_date" in df.columns:
         try:
             df["earnings_date"] = df["earnings_date"].apply(_format_date_string)
-        except Exception as e:
+        except (KeyError, TypeError, ValueError, AttributeError) as e:
             logger.debug(f"Error formatting earnings date: {str(e)}")
 
     return df
@@ -258,7 +258,7 @@ def _format_date_string(date_str: Any) -> str:
             return date_str[:10]
 
         return date_str
-    except Exception:
+    except (TypeError, ValueError, AttributeError):
         return "--"
 
 
@@ -278,7 +278,7 @@ def add_market_cap_column(working_df: pd.DataFrame) -> pd.DataFrame:
         try:
             df["market_cap"] = df["CAP"].apply(_parse_market_cap_string)
             logger.debug("Added market_cap values based on CAP strings")
-        except Exception as e:
+        except (KeyError, TypeError, ValueError) as e:
             logger.debug(f"Error adding market cap column: {str(e)}")
 
     return df
@@ -325,15 +325,17 @@ def calculate_expected_return(df: pd.DataFrame) -> pd.DataFrame:
 
     try:
         # EXRET = upside * (buy_percentage / 100)
-        upside_numeric = pd.to_numeric(result_df.get("upside", 0), errors="coerce").fillna(0)
-        buy_pct_numeric = pd.to_numeric(result_df.get("buy_percentage", 0), errors="coerce").fillna(
+        upside_col = result_df.get("upside") if "upside" in result_df.columns else pd.Series(0, index=result_df.index)
+        buy_pct_col = result_df.get("buy_percentage") if "buy_percentage" in result_df.columns else pd.Series(0, index=result_df.index)
+        upside_numeric = pd.to_numeric(upside_col, errors="coerce").fillna(0)
+        buy_pct_numeric = pd.to_numeric(buy_pct_col, errors="coerce").fillna(
             0
         )
 
         result_df["EXRET"] = upside_numeric * (buy_pct_numeric / 100.0)
 
         logger.debug(f"Calculated EXRET for {len(result_df)} rows")
-    except Exception as e:
+    except (KeyError, TypeError, ValueError) as e:
         logger.debug(f"Error calculating EXRET: {str(e)}")
         result_df["EXRET"] = 0
 
@@ -415,7 +417,7 @@ def clean_dataframe_for_output(df: pd.DataFrame) -> pd.DataFrame:
                 result_df[col] = result_df[col].fillna(0)
 
         logger.debug(f"Cleaned DataFrame with {len(result_df)} rows")
-    except Exception as e:
+    except (KeyError, TypeError, ValueError) as e:
         logger.debug(f"Error cleaning DataFrame: {str(e)}")
 
     return result_df
@@ -447,7 +449,7 @@ def normalize_dataframe_tickers(df: pd.DataFrame, ticker_column: str = "ticker")
         else:
             logger.warning(f"Ticker column '{ticker_column}' not found in DataFrame")
 
-    except Exception as e:
+    except (KeyError, TypeError, ValueError, AttributeError) as e:
         logger.error(f"Error normalizing DataFrame tickers: {str(e)}")
 
     return result_df
@@ -487,7 +489,7 @@ def apply_data_filters(df: pd.DataFrame, filters: Dict[str, Any]) -> pd.DataFram
                     result_df = result_df[result_df[column] == criteria]
 
         logger.debug(f"Applied filters, {len(result_df)} rows remaining")
-    except Exception as e:
+    except (KeyError, TypeError, ValueError) as e:
         logger.debug(f"Error applying filters: {str(e)}")
 
     return result_df
@@ -527,16 +529,16 @@ class DataProcessor:
             numeric_fields = ["market_cap", "pe_forward", "pe_trailing", "peg_ratio", "beta"]
             for field in numeric_fields:
                 value = raw_data.get(field)
-                processed_data[field] = self._safe_numeric_conversion(value)
+                processed_data[field] = str(self._safe_numeric_conversion(value))
 
             # Process percentage fields
             pct_fields = ["upside", "buy_percentage", "dividend_yield", "short_percent"]
             for field in pct_fields:
                 value = raw_data.get(field)
-                processed_data[field] = self._safe_percentage_conversion(value)
+                processed_data[field] = str(self._safe_percentage_conversion(value))
 
             return processed_data
-        except Exception as e:
+        except (KeyError, TypeError, ValueError, AttributeError) as e:
             self.logger.error(f"Error processing ticker data: {str(e)}")
             return raw_data
 

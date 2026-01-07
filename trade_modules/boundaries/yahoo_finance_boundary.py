@@ -90,7 +90,7 @@ class YahooFinanceBoundary(IYahooFinanceBoundary):
         """
         if self._config_cache is None:
             try:
-                from yahoofinance.core.config import get_base_config
+                from yahoofinance.core.config import get_base_config  # type: ignore[attr-defined]
                 self._config_cache = get_base_config()
             except ImportError:
                 logger.warning("Could not import yahoofinance config, using defaults")
@@ -155,7 +155,7 @@ class YahooFinanceBoundary(IYahooFinanceBoundary):
         """
         if self._error_classes_cache is None:
             try:
-                from yahoofinance.core.errors import (
+                from yahoofinance.core.errors import (  # type: ignore[attr-defined]
                     YFinanceError,
                     ValidationError,
                     DataError,
@@ -183,7 +183,7 @@ class YahooFinanceBoundary(IYahooFinanceBoundary):
         """
         if self._data_utils_cache is None:
             try:
-                from yahoofinance.utils.data.format_utils import (
+                from yahoofinance.utils.data.format_utils import (  # type: ignore[attr-defined]
                     safe_float_conversion,
                     format_currency,
                     format_percentage,

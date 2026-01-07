@@ -5,8 +5,6 @@ This module provides utilities to validate stock tickers and save valid ones.
 """
 
 import concurrent.futures
-import logging
-import time
 from pathlib import Path
 
 import pandas as pd
@@ -32,7 +30,7 @@ def is_valid_ticker(ticker_symbol: str) -> bool:
     try:
         # Normalize the ticker before validation
         normalized_ticker = normalize_ticker(ticker_symbol)
-        
+
         # Initialize a ticker object
         ticker = yf.Ticker(normalized_ticker)
 
@@ -49,7 +47,7 @@ def is_valid_ticker(ticker_symbol: str) -> bool:
 
         logger.info(f"Ticker {ticker_symbol} (normalized: {normalized_ticker}) is valid")
         return True
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, OSError, IOError) as e:
         logger.error(f"Error validating ticker {ticker_symbol}: {str(e)}")
         return False
 
@@ -84,11 +82,11 @@ def validate_tickers_batch(tickers: list, max_workers: int = 5) -> list:
                     is_valid = future.result()
                     if is_valid:
                         valid_tickers.append(ticker)
-                except Exception as e:
+                except (ValueError, TypeError, concurrent.futures.CancelledError, concurrent.futures.TimeoutError) as e:
                     logger.error(f"Exception when processing ticker {ticker}: {str(e)}")
 
             logger.info(f"Found {len(valid_tickers)} valid tickers")
-    except Exception as e:
+    except (ValueError, TypeError, RuntimeError, OSError) as e:
         logger.error(f"Error in batch validation: {str(e)}")
 
     return valid_tickers
@@ -114,7 +112,7 @@ def save_valid_tickers(valid_tickers: list, output_dir: str = "output") -> None:
         output_file = output_path / "valid_tickers.csv"
         df.to_csv(output_file, index=False)
         logger.info(f"Saved {len(valid_tickers)} valid tickers to {output_file}")
-    except Exception as e:
+    except (OSError, IOError, PermissionError, ValueError) as e:
         logger.error(f"Error saving valid tickers: {str(e)}")
 
 

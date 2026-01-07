@@ -162,7 +162,7 @@ class ConfigBoundary(IConfigBoundary):
             logger.info(f"Updated configuration section: {section}")
             return True
             
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error updating configuration section {section}: {e}")
             return False
     
@@ -275,7 +275,7 @@ class ConfigBoundary(IConfigBoundary):
             logger.info("Configuration reloaded successfully")
             return True
             
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError, ImportError) as e:
             logger.error(f"Error reloading configuration: {e}")
             return False
     
@@ -305,7 +305,7 @@ class ConfigBoundary(IConfigBoundary):
             provider = self.get_provider_config()
             results['provider'] = self._validate_provider_config(provider)
             
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error validating configuration: {e}")
             results['validation_error'] = False
         

@@ -92,7 +92,7 @@ class DisplayFormatter:
 
             return "\n".join(output_parts)
 
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
             self.logger.error(f"Error formatting trading opportunities: {str(e)}")
             return f"Error formatting display: {str(e)}"
 
@@ -282,7 +282,7 @@ class DisplayFormatter:
 
                 df["expected_return"] = df["expected_return"].apply(color_return)
 
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
             self.logger.warning(f"Error applying color coding: {str(e)}")
 
         return df
@@ -305,7 +305,7 @@ class DisplayFormatter:
 
             return table_str
 
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
             self.logger.error(f"Error creating table: {str(e)}")
             return f"Error formatting table: {str(e)}"
 
@@ -328,7 +328,7 @@ class DisplayFormatter:
 
             return html_str
 
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
             self.logger.error(f"Error creating HTML: {str(e)}")
             return f"<p>Error formatting HTML: {str(e)}</p>"
 
@@ -382,7 +382,7 @@ class DisplayFormatter:
 
             return "\n".join(summary_parts)
 
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
             self.logger.error(f"Error formatting summary statistics: {str(e)}")
             return f"Error formatting summary: {str(e)}"
 
@@ -419,7 +419,7 @@ class DisplayFormatter:
             self.logger.info(f"Successfully saved output to {file_path}")
             return True
 
-        except Exception as e:
+        except (OSError, IOError, PermissionError, ValueError) as e:
             self.logger.error(f"Error saving to file {file_path}: {str(e)}")
             return False
 
@@ -482,7 +482,7 @@ class MarketDataDisplay:
             if save_path:
                 self.formatter.save_to_file(full_output, save_path)
 
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError, OSError) as e:
             self.logger.error(f"Error displaying market analysis: {str(e)}")
             print(f"Error displaying results: {str(e)}")
 

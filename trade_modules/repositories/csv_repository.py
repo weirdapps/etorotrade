@@ -98,7 +98,7 @@ class CsvRepository(ICsvRepository):
                 self.logger.info(f"Deleted file: {file_path}")
                 return True
             return False
-        except Exception as e:
+        except (OSError, IOError, PermissionError, FileNotFoundError) as e:
             self.logger.error(f"Error deleting file {identifier}: {e}")
             return False
     
@@ -134,7 +134,7 @@ class CsvRepository(ICsvRepository):
             self.logger.debug(f"Read CSV file: {file_path} ({len(df)} rows)")
             return df
             
-        except Exception as e:
+        except (FileNotFoundError, pd.errors.EmptyDataError, OSError, IOError, ValueError, KeyError) as e:
             self.logger.error(f"Error reading CSV file {file_path}: {e}")
             raise DataProcessingError(f"Failed to read CSV file {file_path}") from e
     
@@ -168,7 +168,7 @@ class CsvRepository(ICsvRepository):
             self.logger.info(f"Wrote CSV file: {file_path} ({len(data)} rows)")
             return True
             
-        except Exception as e:
+        except (OSError, IOError, PermissionError, ValueError) as e:
             self.logger.error(f"Error writing CSV file {file_path}: {e}")
             return False
     
@@ -200,7 +200,7 @@ class CsvRepository(ICsvRepository):
         """
         try:
             return list(self.base_directory.glob(pattern))
-        except Exception as e:
+        except (OSError, IOError, ValueError) as e:
             self.logger.error(f"Error listing files with pattern {pattern}: {e}")
             return []
     
@@ -232,7 +232,7 @@ class CsvRepository(ICsvRepository):
             self.logger.info(f"Created backup: {backup_path}")
             return True
             
-        except Exception as e:
+        except (OSError, IOError, PermissionError, FileNotFoundError) as e:
             self.logger.error(f"Error creating backup for {identifier}: {e}")
             return False
     
@@ -258,6 +258,6 @@ class CsvRepository(ICsvRepository):
                 'modified': stat.st_mtime,
                 'exists': True
             }
-        except Exception as e:
+        except (OSError, IOError, FileNotFoundError) as e:
             self.logger.error(f"Error getting file info for {identifier}: {e}")
             return {'exists': False}

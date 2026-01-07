@@ -9,7 +9,7 @@ Author: EtoroTrade System
 Version: 1.0.0 (Production)
 """
 
-from typing import Dict, List, Any, Optional
+from typing import ClassVar, Dict, List, Any, Optional, Union
 from enum import Enum
 from .yaml_config_loader import get_yaml_config
 
@@ -83,7 +83,7 @@ class TradeConfig:
         return cls.TIER_THRESHOLDS
 
     # Option-specific trading thresholds
-    THRESHOLDS = {
+    THRESHOLDS: ClassVar[Dict[str, Dict[str, Dict[str, Any]]]] = {
         # Portfolio Analysis (option: p)
         "portfolio": {
             "buy": {
@@ -263,7 +263,7 @@ class TradeConfig:
     # These rules override standard ROE/DE thresholds for specific sectors
     # where different capital structures are normal/expected
 
-    SECTOR_RULES = {
+    SECTOR_RULES: ClassVar[Dict[str, Dict[str, Any]]] = {
         'FINANCIAL': {
             'description': 'Banks, Asset Managers, Insurance - Leverage is their business model',
             'min_roe_buy': 6.0,  # Lower threshold for mature financials
@@ -384,7 +384,7 @@ class TradeConfig:
     # SECTION 2: DISPLAY COLUMN PROFILES
     # ============================================
 
-    DISPLAY_PROFILES = {
+    DISPLAY_PROFILES: ClassVar[Dict[str, Dict[str, Any]]] = {
         # Portfolio Analysis (option: p)
         "portfolio": {
             "console": ["#", "TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "EXRET", "BS"],
@@ -460,7 +460,7 @@ class TradeConfig:
     # SECTION 3: FORMATTING RULES
     # ============================================
 
-    FORMAT_RULES = {
+    FORMAT_RULES: ClassVar[Dict[str, Dict[str, Any]]] = {
         "PRICE": {
             "type": "currency",
             "decimals": 2,

@@ -5,7 +5,7 @@ This module provides a stable interface for data operations
 between trade_modules and yahoofinance packages.
 """
 
-from typing import Dict, List, Optional, Any, Union, AsyncGenerator
+from typing import Callable, Dict, List, Optional, Any, Union, AsyncGenerator
 import pandas as pd
 import logging
 from abc import ABC, abstractmethod
@@ -74,7 +74,7 @@ class DataBoundary(IDataBoundary):
                 logger.warning(f"No provider available for ticker {ticker}")
                 return self._get_fallback_ticker_data(ticker)
                 
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError, ConnectionError, TimeoutError) as e:
             logger.error(f"Error fetching data for ticker {ticker}: {e}")
             return self._get_fallback_ticker_data(ticker)
     
@@ -106,7 +106,7 @@ class DataBoundary(IDataBoundary):
                         ticker_data = await self.fetch_ticker_data(ticker)
                         if ticker_data:
                             results[ticker] = ticker_data
-                    except Exception as e:
+                    except (KeyError, ValueError, TypeError, AttributeError, ConnectionError, TimeoutError) as e:
                         logger.warning(f"Failed to fetch data for {ticker}: {e}")
                 
                 return pd.DataFrame.from_dict(results, orient='index')
@@ -114,7 +114,7 @@ class DataBoundary(IDataBoundary):
                 logger.warning("No provider available for multiple tickers")
                 return self._get_fallback_multiple_ticker_data(tickers)
                 
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError, ConnectionError, TimeoutError) as e:
             logger.error(f"Error fetching data for multiple tickers: {e}")
             return self._get_fallback_multiple_ticker_data(tickers)
     
@@ -135,7 +135,7 @@ class DataBoundary(IDataBoundary):
                     'cache_size': len(self._cache),
                     'cache_entries': list(self._cache.keys())
                 }
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error getting cache info: {e}")
             return {'error': str(e)}
     
@@ -156,7 +156,7 @@ class DataBoundary(IDataBoundary):
             logger.info("Data cache cleared")
             return True
             
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error clearing cache: {e}")
             return False
     
@@ -228,7 +228,7 @@ class DataBoundary(IDataBoundary):
         self, 
         tickers: List[str], 
         batch_size: int = 50,
-        progress_callback: Optional[callable] = None
+        progress_callback: Optional[Callable[..., Any]] = None
     ) -> pd.DataFrame:
         """
         Fetch ticker data in batches with progress reporting.
@@ -257,7 +257,7 @@ class DataBoundary(IDataBoundary):
                 # Small delay to be respectful to data provider
                 await asyncio.sleep(0.1)
                 
-            except Exception as e:
+            except (KeyError, ValueError, TypeError, AttributeError, ConnectionError, TimeoutError) as e:
                 logger.error(f"Error fetching batch {i//batch_size + 1}: {e}")
                 continue
         
@@ -279,7 +279,7 @@ class DataBoundary(IDataBoundary):
                 return provider.get_supported_exchanges()
             else:
                 return ['NASDAQ', 'NYSE', 'AMEX', 'TSX', 'LSE', 'HKG']
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error getting supported exchanges: {e}")
             return []
     
@@ -301,7 +301,7 @@ class DataBoundary(IDataBoundary):
                     'eps', 'book_value', 'price_to_book', 'debt_to_equity',
                     'roe', 'roa', 'profit_margin', 'operating_margin'
                 ]
-        except Exception as e:
+        except (KeyError, ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error getting available data fields: {e}")
             return []
     
@@ -337,7 +337,7 @@ class DataBoundary(IDataBoundary):
                 
                 results[ticker] = True
                 
-            except Exception as e:
+            except (KeyError, ValueError, TypeError, AttributeError) as e:
                 logger.error(f"Error validating ticker {ticker}: {e}")
                 results[ticker] = False
         

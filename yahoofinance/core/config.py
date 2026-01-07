@@ -576,16 +576,31 @@ PERFORMANCE_CONFIG = {
 }
 
 
-def get_max_concurrent_requests():
-    """Get max concurrent requests from config.yaml or fallback to default."""
-    try:
-        from .config_loader import get_config_value
-        # Try to get from config.yaml first
-        max_concurrent = get_config_value('performance.max_concurrent_requests')
-        if max_concurrent is not None:
-            return int(max_concurrent)
-    except Exception:
-        pass
-    
-    # Fallback to hardcoded default
-    return RATE_LIMIT["MAX_CONCURRENT_CALLS"]
+def get_display_config() -> Dict[str, Any]:
+    """Get display configuration.
+
+    Returns:
+        Dictionary with display configuration including formatting settings
+    """
+    # Return a config structure that includes both DISPLAY constants
+    # and the formatting settings expected by ConfigBoundary
+    return {
+        'decimal_places': 2,
+        'currency_symbol': '$',
+        'percentage_format': '%.2f%%',
+        'date_format': '%Y-%m-%d',
+        'number_format': '{:,.2f}',
+        'table_max_rows': 50,
+        'max_company_name_length': DISPLAY.get('MAX_COMPANY_NAME_LENGTH', 14),
+        'default_columns': DISPLAY.get('DEFAULT_COLUMNS', []),
+        'formatters': DISPLAY.get('FORMATTERS', {}),
+    }
+
+
+def get_file_paths_config() -> Dict[str, Any]:
+    """Get file paths configuration.
+
+    Returns:
+        Dictionary with file paths configuration
+    """
+    return FILE_PATHS

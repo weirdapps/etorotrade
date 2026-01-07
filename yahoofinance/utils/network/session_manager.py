@@ -171,7 +171,7 @@ class SharedSessionManager:
                 f"keepalive={self._keepalive_timeout}s"
             )
             
-        except Exception as e:
+        except (OSError, IOError, ValueError, TypeError, RuntimeError, aiohttp.ClientError) as e:
             logger.error(f"Failed to create HTTP session: {str(e)}")
             raise NetworkError(f"Session creation failed: {str(e)}") from e
     
@@ -192,7 +192,7 @@ class SharedSessionManager:
                     "active_connections": len(connector._conns),
                     "pool_size_limit": connector._limit,
                     "per_host_limit": connector._limit_per_host,
-                    "dns_cache_enabled": connector._use_dns_cache,
+                    "dns_cache_enabled": getattr(connector, '_use_dns_cache', False),
                     "session_age_seconds": time.time() - self._session_created_at if self._session_created_at else 0,
                     "session_closed": False,
                 })

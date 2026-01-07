@@ -289,6 +289,6 @@ For issues or questions, please use the [GitHub issue tracker](https://github.co
 
 ---
 
-*Last Updated: October 2025*
+*Last Updated: January 2026*
 
 **Disclaimer**: This tool is designed for quantitative analysis and research purposes only. It does not constitute investment advice. Users should conduct their own due diligence and consider consulting with qualified financial advisors before making investment decisions. Past performance does not guarantee future results.

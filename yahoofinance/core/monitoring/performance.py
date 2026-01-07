@@ -121,7 +121,7 @@ class HealthMonitor:
                     health_check = checker()
                     self.update_health(health_check)
                     results.append(health_check)
-                except Exception as e:
+                except (RuntimeError, ValueError, TypeError, AttributeError, OSError) as e:
                     logger.error(f"Health check failed for {component}: {e}")
                     results.append(
                         HealthCheck(
@@ -181,7 +181,7 @@ class HealthMonitor:
                 json.dump(health_data, f, indent=2)
 
             logger.debug(f"Exported health status to {filename}")
-        except Exception as e:
+        except (OSError, IOError, json.JSONDecodeError, TypeError) as e:
             logger.error(f"Failed to export health status: {e}")
 
 
@@ -346,7 +346,7 @@ class CircuitBreakerMonitor:
                         last_failure_time=state_data.get("last_failure_time"),
                         last_success_time=state_data.get("last_success_time"),
                     )
-        except Exception as e:
+        except (OSError, IOError, json.JSONDecodeError, KeyError, ValueError, TypeError) as e:
             logger.error(f"Failed to load circuit breaker states: {e}")
 
     def _save_states(self) -> None:
@@ -359,7 +359,7 @@ class CircuitBreakerMonitor:
 
             with open(self._state_file, "w") as f:
                 json.dump(data, f, indent=2)
-        except Exception as e:
+        except (OSError, IOError, TypeError, ValueError) as e:
             logger.error(f"Failed to save circuit breaker states: {e}")
 
     def to_dict(self) -> Dict[str, Any]:
@@ -555,7 +555,7 @@ def periodic_export_metrics(interval_seconds: int = 60) -> None:
 
                 # Sleep for the specified interval
                 time.sleep(interval_seconds)
-            except Exception as e:
+            except (OSError, IOError, RuntimeError, json.JSONDecodeError) as e:
                 logger.error(f"Error in metrics export loop: {e}")
                 time.sleep(5)  # Sleep for a shorter time on error
 
@@ -619,7 +619,7 @@ class MonitoringService:
                 json.dump(status, f, indent=2)
 
             logger.debug(f"Exported monitoring status to {filename}")
-        except Exception as e:
+        except (OSError, IOError, TypeError, ValueError, json.JSONDecodeError) as e:
             logger.error(f"Failed to export monitoring status: {e}")
 
 
