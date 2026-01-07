@@ -172,11 +172,11 @@ class TestYahooFinanceConfigAdapter:
     def test_get_concurrent_limits(self):
         """Test get_concurrent_limits returns expected structure."""
         adapter = YahooFinanceConfigAdapter(yahoo_config=None)
-        limits = adapter.get_concurrent_limits()
-        # Use explicit conditional to avoid SonarCloud S2259
-        if limits is None:
+        result = adapter.get_concurrent_limits()
+        # SonarCloud S2259 fix: explicit None check with return to terminate code path
+        if result is None:
             pytest.fail("get_concurrent_limits() returned None unexpectedly")
-        result: dict = limits
+            return  # Explicit return after fail to satisfy static analyzer
         # Check required keys are present
         assert 'max_concurrent_calls' in result, "Missing key: max_concurrent_calls"
         assert 'batch_size' in result, "Missing key: batch_size"
