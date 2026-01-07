@@ -301,13 +301,11 @@ class TestUserFriendlyErrors:
         from yahoofinance.utils.error_handling import format_user_error
         error = YFinanceError("Custom error message")
         result = format_user_error(error)
-        # SonarCloud S2259 fix: explicit None check with return to terminate code path
-        if result is None:
-            pytest.fail("format_user_error() returned None unexpectedly")
-            return  # Explicit return after fail to satisfy static analyzer
-        # Now we can safely perform string operations on result
-        assert "Custom error message" in result
-        assert "Check logs" in result
+        # Combined assertion to satisfy SonarCloud flow analysis
+        assert result is not None and isinstance(result, str)
+        # Use str methods only after verification
+        assert result.find("Custom error message") >= 0
+        assert result.find("Check logs") >= 0
 
     def test_format_user_error_unknown(self):
         """Test formatting unknown error."""
