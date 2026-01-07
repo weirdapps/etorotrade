@@ -300,9 +300,11 @@ class TestUserFriendlyErrors:
         """Test formatting YFinanceError."""
         from yahoofinance.utils.error_handling import format_user_error
         error = YFinanceError("Custom error message")
-        result = format_user_error(error)
-        # isinstance check serves as both type assertion and null guard for SonarCloud
-        assert isinstance(result, str), f"Expected str, got {type(result)}"
+        formatted = format_user_error(error)
+        # Use explicit conditional to avoid SonarCloud S2259
+        if formatted is None:
+            pytest.fail("format_user_error() returned None unexpectedly")
+        result: str = formatted
         # Now we can safely perform string operations on result
         assert "Custom error message" in result
         assert "Check logs" in result
