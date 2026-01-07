@@ -468,7 +468,7 @@ class TestProcessBuyOpportunities:
         result = process_buy_opportunities(
             market_df=pd.DataFrame(),
             portfolio_tickers=[],
-            output_dir="/tmp",
+            output_dir="/mock/test/output",
             notrade_path="/nonexistent",
             provider=MagicMock()
         )
@@ -485,7 +485,7 @@ class TestProcessBuyOpportunities:
         result = process_buy_opportunities(
             market_df=pd.DataFrame({"ticker": ["AAPL", "MSFT", "GOOGL"]}),
             portfolio_tickers=["AAPL"],
-            output_dir="/tmp",
+            output_dir="/mock/test/output",
             notrade_path="/nonexistent",
             provider=MagicMock()
         )
@@ -504,7 +504,7 @@ class TestProcessBuyOpportunities:
         result = process_buy_opportunities(
             market_df=pd.DataFrame({"ticker": ["MSFT", "GOOGL"]}),
             portfolio_tickers=[],
-            output_dir="/tmp",
+            output_dir="/mock/test/output",
             notrade_path="/nonexistent",
             provider=MagicMock()
         )

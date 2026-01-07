@@ -174,14 +174,14 @@ class TestYahooFinanceConfigAdapter:
         adapter = YahooFinanceConfigAdapter(yahoo_config=None)
         result = adapter.get_concurrent_limits()
 
-        # Guard against None before accessing dict keys
-        if result is None:
-            pytest.fail("get_concurrent_limits() returned None")
+        # First verify result is not None - this is a critical precondition
+        assert result is not None, "get_concurrent_limits() should never return None"
+        # Now we can safely access result as a dict
         assert isinstance(result, dict)
-        assert 'max_concurrent_calls' in result
-        assert 'batch_size' in result
-        assert 'max_total_connections' in result
-        assert 'max_connections_per_host' in result
+        # Check required keys are present
+        required_keys = ['max_concurrent_calls', 'batch_size', 'max_total_connections', 'max_connections_per_host']
+        for key in required_keys:
+            assert key in result, f"Missing required key: {key}"
 
     def test_get_input_dir(self):
         """Test get_input_dir returns a path string."""
