@@ -47,6 +47,8 @@ from ...utils.network.session_manager import get_shared_session
 
 # Import from split modules
 from .async_modules import (
+    calculate_analyst_momentum,
+    calculate_pe_vs_sector,
     calculate_earnings_growth,
     calculate_upside_potential,
     format_date,
@@ -255,11 +257,36 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             info["target_price"] = ticker_info.get("targetMeanPrice", None)
             info["recommendation"] = ticker_info.get("recommendationMean", None)
 
+            # Price Momentum: 50/200-day moving averages
+            info["fifty_day_average"] = ticker_info.get("fiftyDayAverage", None)
+            info["two_hundred_day_average"] = ticker_info.get("twoHundredDayAverage", None)
+
+            # Calculate momentum metrics
+            if info["current_price"] and info["fifty_two_week_high"]:
+                info["pct_from_52w_high"] = (info["current_price"] / info["fifty_two_week_high"]) * 100
+            else:
+                info["pct_from_52w_high"] = None
+
+            if info["current_price"] and info["two_hundred_day_average"]:
+                info["above_200dma"] = info["current_price"] > info["two_hundred_day_average"]
+            else:
+                info["above_200dma"] = None
+
             # Parse analyst recommendations using extracted module
             analyst_data = parse_analyst_recommendations(ticker_info, yticker)
             info["analyst_count"] = analyst_data["analyst_count"]
             info["total_ratings"] = analyst_data["total_ratings"]
             info["buy_percentage"] = analyst_data["buy_percentage"]
+
+            # Calculate analyst momentum (3-month change in buy%)
+            momentum_data = calculate_analyst_momentum(yticker)
+            info["analyst_momentum"] = momentum_data["analyst_momentum"]
+            info["analyst_count_trend"] = momentum_data["analyst_count_trend"]
+
+            # Calculate PE vs sector median (sector-relative valuation)
+            info["pe_vs_sector"] = calculate_pe_vs_sector(
+                info.get("pe_forward"), info.get("sector")
+            )
 
             # Determine Rating Type ('A' or 'E')
             # Only check post-earnings ratings for stock tickers, not ETFs/commodities/crypto

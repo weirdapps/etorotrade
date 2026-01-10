@@ -219,3 +219,68 @@ def is_us_ticker(ticker: str) -> bool:
         if ticker.endswith(".US"):
             return True
         return False
+
+
+# GICS Sector median PE benchmarks (Q1 2025)
+# Used for sector-relative valuations
+SECTOR_MEDIAN_PE = {
+    "Technology": 28.0,
+    "Information Technology": 28.0,
+    "Healthcare": 22.0,
+    "Health Care": 22.0,
+    "Financials": 12.0,
+    "Financial Services": 12.0,
+    "Financial": 12.0,
+    "Consumer Discretionary": 20.0,
+    "Consumer Cyclical": 20.0,
+    "Consumer Staples": 22.0,
+    "Consumer Defensive": 22.0,
+    "Energy": 12.0,
+    "Industrials": 18.0,
+    "Materials": 14.0,
+    "Basic Materials": 14.0,
+    "Real Estate": 35.0,
+    "Utilities": 18.0,
+    "Communication Services": 18.0,
+}
+DEFAULT_MEDIAN_PE = 20.0
+
+
+def calculate_pe_vs_sector(pe_forward: Optional[float], sector: Optional[str], use_dynamic: bool = True) -> Optional[float]:
+    """
+    Calculate PE relative to sector median.
+
+    This provides a sector-relative valuation metric. A value of 1.0 means
+    the stock trades at sector median PE. >1.0 means more expensive than sector,
+    <1.0 means cheaper than sector.
+
+    P1 Improvement: Now uses dynamic sector PE from ETFs when available,
+    falling back to static defaults if ETF data unavailable.
+
+    Args:
+        pe_forward: Forward PE ratio
+        sector: Sector name from yfinance (e.g., "Technology", "Financial Services")
+        use_dynamic: If True, fetch live sector PE from ETFs (default: True)
+
+    Returns:
+        Ratio of PE to sector median (e.g., 1.5 means 50% above sector),
+        or None if calculation not possible
+    """
+    if pe_forward is None or pe_forward <= 0:
+        return None
+
+    # Get sector median PE - try dynamic first, fall back to static
+    if use_dynamic:
+        try:
+            from trade_modules.sector_pe_provider import get_dynamic_sector_pe
+            sector_median = get_dynamic_sector_pe(sector) if sector else DEFAULT_MEDIAN_PE
+        except ImportError:
+            # Fall back to static if provider not available
+            sector_median = SECTOR_MEDIAN_PE.get(sector, DEFAULT_MEDIAN_PE) if sector else DEFAULT_MEDIAN_PE
+    else:
+        sector_median = SECTOR_MEDIAN_PE.get(sector, DEFAULT_MEDIAN_PE) if sector else DEFAULT_MEDIAN_PE
+
+    if sector_median <= 0:
+        return None
+
+    return round(pe_forward / sector_median, 2)

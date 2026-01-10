@@ -419,67 +419,97 @@ SPECIAL_TICKERS = {
     },
 }
 
-# Column and field name constants
+# Column and field name constants (short headers for compact display)
 COLUMN_NAMES = {
-    # Display column names
+    # Display column names - kept short to minimize table width
     "EARNINGS_DATE": "Earnings Date",
-    "BUY_PERCENTAGE": "%BUY",
-    "DIVIDEND_YIELD_DISPLAY": "DIV%",
-    "COMPANY_NAME": "COMPANY",
-    "TICKER": "TICKER",
+    "BUY_PERCENTAGE": "%B",      # Shortened from %BUY
+    "DIVIDEND_YIELD_DISPLAY": "DV",  # Shortened from DIV%
+    "COMPANY_NAME": "NAME",      # Shortened from COMPANY
+    "TICKER": "TKR",             # Shortened from TICKER
     "MARKET_CAP": "CAP",
-    "PRICE": "PRICE",
-    "TARGET_PRICE": "TARGET",
-    "UPSIDE": "UPSIDE",
+    "PRICE": "PRC",              # Shortened from PRICE
+    "TARGET_PRICE": "TGT",       # Shortened from TARGET
+    "UPSIDE": "UP%",             # Shortened from UPSIDE
     "ANALYST_COUNT": "#T",
     "TOTAL_RATINGS": "#A",
     "ACTION": "BS",
-    "POSITION_SIZE": "SIZE",
+    "POSITION_SIZE": "SZ",       # Shortened from SIZE
     "RATING_TYPE": "A",
     "EARNINGS_FILTER": "E",
-    "EXPECTED_RETURN": "EXRET",
-    "BETA": "BETA",
+    "EXPECTED_RETURN": "EXR",    # Shortened from EXRET
+    "BETA": "B",                 # Shortened from BETA
     "PE_TRAILING": "PET",
     "PE_FORWARD": "PEF",
     "PEG_RATIO": "PEG",
     "SHORT_INTEREST": "SI",
-    "EARNINGS": "EARNINGS",
+    "EARNINGS": "ERN",           # Shortened from EARNINGS
     "EARNINGS_GROWTH": "EG",
     "PRICE_PERFORMANCE": "PP",
     "RETURN_ON_EQUITY": "ROE",
     "DEBT_TO_EQUITY": "DE",
     "RANKING": "#",
+    # New momentum metrics
+    "ANALYST_MOMENTUM": "AM",    # Shortened from AMOM
+    "PCT_FROM_52W_HIGH": "52W",  # Shortened from 52W%
+    "ABOVE_200DMA": "2H",        # Shortened from >200D (2 Hundred day)
+    "PE_VS_SECTOR": "P/S",       # Shortened from PE/S
 }
 
-# Standard display column order for all views
-# This is the canonical column order that must be used for all displays
+# Compact display columns for console (fits ~160 chars width)
+# Removes less critical columns for quick scanning
+COMPACT_DISPLAY_COLUMNS = [
+    "#",
+    "TKR",
+    "NAME",
+    "CAP",
+    "PRC",
+    "UP%",
+    "%B",
+    "AM",
+    "EXR",
+    "52W",
+    "2H",
+    "PEF",
+    "P/S",
+    "ROE",
+    "ERN",
+    "BS",
+]
+
+# Full display column order for CSV/HTML (all columns)
+# Uses short column names for compact display
 STANDARD_DISPLAY_COLUMNS = [
     "#",
-    "TICKER",
-    "COMPANY",
-    "CAP",
-    "PRICE",
-    "TARGET",
-    "UPSIDE",
-    "#T",
-    "%BUY",
-    "#A",
-    "A",
-    "E",
-    "EXRET",
-    "BETA",
-    "PET",
-    "PEF",
-    "PEG",
-    "DIV%",
-    "SI",
-    "EG",
-    "PP",
-    "ROE",
-    "DE",
-    "EARNINGS",
-    "SIZE",
-    "BS",
+    "TKR",       # Ticker symbol
+    "NAME",      # Company name
+    "CAP",       # Market cap
+    "PRC",       # Current price
+    "TGT",       # Target price
+    "UP%",       # Upside percentage
+    "#T",        # Number of price targets
+    "%B",        # Buy percentage
+    "#A",        # Number of analysts
+    "AM",        # Analyst momentum
+    "A",         # Rating type
+    "E",         # Earnings filter
+    "EXR",       # Expected return
+    "B",         # Beta
+    "52W",       # Percent from 52-week high
+    "2H",        # Above 200-day MA
+    "PET",       # PE trailing
+    "PEF",       # PE forward
+    "P/S",       # PE vs sector
+    "PEG",       # PEG ratio
+    "DV",        # Dividend yield
+    "SI",        # Short interest
+    "EG",        # Earnings growth
+    "PP",        # Price performance
+    "ROE",       # Return on equity
+    "DE",        # Debt to equity
+    "ERN",       # Earnings date
+    "SZ",        # Position size
+    "BS",        # Buy/Sell signal
 ]
 
 
