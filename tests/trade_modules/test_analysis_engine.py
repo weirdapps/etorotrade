@@ -158,10 +158,13 @@ class TestCalculateActionVectorized:
         # Second row should be INCONCLUSIVE due to low analyst coverage (2 analysts < 5 minimum)
         assert result.iloc[1] == 'I'
     
-    @patch('trade_modules.vix_regime_provider.adjust_buy_criteria', side_effect=lambda x: x)
-    @patch('trade_modules.vix_regime_provider.adjust_sell_criteria', side_effect=lambda x: x)
-    def test_vectorized_action_performance(self, mock_sell, mock_buy):
+    @patch('trade_modules.vix_regime_provider.get_current_vix', return_value=20.0)
+    @patch('trade_modules.signal_tracker.get_tracker')
+    def test_vectorized_action_performance(self, mock_tracker, mock_vix):
         """Test vectorized action calculation performance."""
+        # Mock the signal tracker to avoid file I/O during performance test
+        mock_tracker.return_value.log_signal.return_value = True
+
         # Create large test dataset
         rng = np.random.default_rng(42)
         large_df = pd.DataFrame({
