@@ -429,11 +429,15 @@ class TestIntegration:
             
             portfolio_value = 100000.0
             for _, opportunity in opportunities.iterrows():
-                if hasattr(opportunity, 'target_allocation'):
-                    position_size = sizer.calculate_position_size(
-                        portfolio_value, opportunity.target_allocation
-                    )
-                    assert position_size >= 0
+                ticker = opportunity.get('symbol', 'TEST') if hasattr(opportunity, 'get') else 'TEST'
+                market_data = {
+                    'beta': opportunity.get('beta', 1.0) if hasattr(opportunity, 'get') else 1.0,
+                    'market_cap': opportunity.get('market_cap', 10e9) if hasattr(opportunity, 'get') else 10e9,
+                }
+                position_size = sizer.calculate_position_size(
+                    ticker, market_data, portfolio_value
+                )
+                assert position_size >= 0
     
     def test_full_trading_workflow(self, sample_market_data, sample_portfolio_data):
         """Test complete trading workflow."""
