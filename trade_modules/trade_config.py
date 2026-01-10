@@ -11,6 +11,8 @@ Version: 1.0.0 (Production)
 
 from typing import ClassVar, Dict, List, Any, Optional, Union
 from enum import Enum
+from pathlib import Path
+import yaml
 from .yaml_config_loader import get_yaml_config
 
 
@@ -379,6 +381,88 @@ class TradeConfig:
                 adjusted_criteria['max_debt_equity'] = sector_config['max_debt_equity_sell']
 
         return adjusted_criteria
+
+    # ============================================
+    # SECTION 1C: SECTOR BENCHMARKS (GICS-based)
+    # ============================================
+    # Used for sector-relative valuations (PE vs sector median)
+
+    _sector_benchmarks_cache: ClassVar[Optional[Dict[str, Any]]] = None
+
+    @classmethod
+    def load_sector_benchmarks(cls) -> Dict[str, Any]:
+        """Load sector benchmark valuations from YAML file."""
+        if cls._sector_benchmarks_cache is not None:
+            return cls._sector_benchmarks_cache
+
+        benchmark_path = Path(__file__).parent / "sector_benchmarks.yaml"
+        if benchmark_path.exists():
+            try:
+                with open(benchmark_path, 'r') as f:
+                    cls._sector_benchmarks_cache = yaml.safe_load(f)
+                    return cls._sector_benchmarks_cache
+            except Exception:
+                pass
+
+        # Return empty dict if file not found
+        cls._sector_benchmarks_cache = {}
+        return cls._sector_benchmarks_cache
+
+    @classmethod
+    def get_sector_benchmarks(cls, sector: str) -> Dict[str, float]:
+        """
+        Get benchmark valuations for a GICS sector.
+
+        Args:
+            sector: Sector name from yfinance (e.g., "Technology", "Financial Services")
+
+        Returns:
+            Dictionary with median_pe, median_roe, median_de for the sector
+        """
+        benchmarks = cls.load_sector_benchmarks()
+        if not benchmarks:
+            return {"median_pe": 20.0, "median_roe": 15.0, "median_de": 80.0}
+
+        # Get sector mapping
+        mapping = benchmarks.get("sector_mapping", {})
+        sectors = benchmarks.get("sectors", {})
+        default = benchmarks.get("default", {"median_pe": 20.0, "median_roe": 15.0, "median_de": 80.0})
+
+        # Apply mapping if sector name needs normalization
+        mapped_sector = mapping.get(sector, sector) if sector else None
+
+        if mapped_sector and mapped_sector in sectors:
+            sector_data = sectors[mapped_sector]
+            return {
+                "median_pe": sector_data.get("median_pe", default["median_pe"]),
+                "median_roe": sector_data.get("median_roe", default["median_roe"]),
+                "median_de": sector_data.get("median_de", default["median_de"]),
+            }
+
+        return default
+
+    @classmethod
+    def calculate_pe_vs_sector(cls, pe_forward: Optional[float], sector: str) -> Optional[float]:
+        """
+        Calculate PE relative to sector median.
+
+        Args:
+            pe_forward: Forward PE ratio
+            sector: Sector name from yfinance
+
+        Returns:
+            Ratio of PE to sector median (e.g., 1.5 means 50% above sector)
+        """
+        if pe_forward is None or pe_forward <= 0:
+            return None
+
+        benchmarks = cls.get_sector_benchmarks(sector)
+        sector_median_pe = benchmarks.get("median_pe", 20.0)
+
+        if sector_median_pe <= 0:
+            return None
+
+        return round(pe_forward / sector_median_pe, 2)
 
     # ============================================
     # SECTION 2: DISPLAY COLUMN PROFILES

@@ -179,6 +179,94 @@ def _map_recommendation_key_to_percentage(rec_key: str, ticker: str) -> Optional
     return None
 
 
+def calculate_analyst_momentum(yticker) -> Dict[str, Any]:
+    """
+    Calculate analyst momentum by comparing current vs 3-month-ago recommendations.
+
+    Analyst momentum measures whether analysts are becoming more bullish (positive)
+    or more bearish (negative) on a stock over time.
+
+    Args:
+        yticker: yfinance Ticker object
+
+    Returns:
+        Dictionary with:
+        - analyst_momentum: Change in buy% over 3 months (positive = upgrading)
+        - analyst_count_trend: "increasing", "stable", or "decreasing"
+    """
+    result = {
+        "analyst_momentum": None,
+        "analyst_count_trend": None
+    }
+
+    try:
+        recommendations_df = getattr(yticker, "recommendations", None)
+        if recommendations_df is None or len(recommendations_df) < 2:
+            return result  # Need at least 2 months of data
+
+        # Sort by date and get rows
+        sorted_df = recommendations_df.sort_index()
+
+        # Get latest and approximately 3 months ago (or earliest available)
+        latest = sorted_df.iloc[-1]
+        # Try to get 3 months ago, otherwise use earliest
+        past_idx = max(0, len(sorted_df) - 3)
+        past = sorted_df.iloc[past_idx]
+
+        # Calculate buy percentages
+        def calc_buy_pct(row):
+            total = (
+                row.get("strongBuy", 0) +
+                row.get("buy", 0) +
+                row.get("hold", 0) +
+                row.get("sell", 0) +
+                row.get("strongSell", 0)
+            )
+            if total == 0:
+                return None
+            return ((row.get("strongBuy", 0) + row.get("buy", 0)) / total) * 100
+
+        current_pct = calc_buy_pct(latest)
+        past_pct = calc_buy_pct(past)
+
+        if current_pct is not None and past_pct is not None:
+            result["analyst_momentum"] = round(current_pct - past_pct, 1)
+
+        # Calculate count trend
+        current_count = sum([
+            latest.get("strongBuy", 0),
+            latest.get("buy", 0),
+            latest.get("hold", 0),
+            latest.get("sell", 0),
+            latest.get("strongSell", 0)
+        ])
+        past_count = sum([
+            past.get("strongBuy", 0),
+            past.get("buy", 0),
+            past.get("hold", 0),
+            past.get("sell", 0),
+            past.get("strongSell", 0)
+        ])
+
+        if past_count > 0:
+            if current_count > past_count * 1.1:
+                result["analyst_count_trend"] = "increasing"
+            elif current_count < past_count * 0.9:
+                result["analyst_count_trend"] = "decreasing"
+            else:
+                result["analyst_count_trend"] = "stable"
+
+        logger.debug(
+            f"Analyst momentum for {yticker.ticker}: momentum={result['analyst_momentum']}, "
+            f"trend={result['analyst_count_trend']}"
+        )
+
+    except Exception as e:
+        logger.warning(f"Error calculating analyst momentum for {yticker.ticker}: {e}")
+
+    return result
+
+
 def get_last_earnings_date(yticker) -> Optional[str]:
     """
     Get the last earnings date with optimized memory handling.
