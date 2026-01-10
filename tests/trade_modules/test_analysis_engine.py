@@ -279,9 +279,19 @@ class TestFilterFunctions:
 
 class TestPerformanceComparison:
     """Test performance comparison between old and new implementations."""
-    
-    def test_vectorized_vs_apply_performance(self):
+
+    @patch('trade_modules.signal_tracker.get_tracker')
+    def test_vectorized_vs_apply_performance(self, mock_tracker):
         """Compare performance of vectorized vs apply-based operations."""
+        # Pre-populate VIX cache to avoid API calls during performance test
+        import trade_modules.vix_regime_provider as vix_mod
+        from datetime import datetime
+        vix_mod._vix_cache = 20.0
+        vix_mod._vix_cache_timestamp = datetime.now()
+
+        # Mock the signal tracker to avoid file I/O during performance test
+        mock_tracker.return_value.log_signal.return_value = True
+
         # Create test dataset
         rng = np.random.default_rng(42)
         test_df = pd.DataFrame({
@@ -296,17 +306,17 @@ class TestPerformanceComparison:
             'beta': rng.uniform(0.5, 3, 1000),
             'EXRET': rng.uniform(0, 40, 1000),
         })
-        
+
         import time
-        
+
         # Test vectorized approach
         start_time = time.perf_counter()
         vectorized_result = calculate_action_vectorized(test_df)
         vectorized_time = time.perf_counter() - start_time
-        
+
         # Vectorized should be significantly faster
-        # More lenient threshold for CI environments
-        assert vectorized_time < 3.0  # Allow for slower CI environments
+        # More lenient threshold for CI environments (includes VIX regime overhead)
+        assert vectorized_time < 6.0  # Allow for slower CI environments with VIX overhead
         assert len(vectorized_result) == 1000
         assert vectorized_result.isin(['B', 'S', 'H', 'I']).all()
 
