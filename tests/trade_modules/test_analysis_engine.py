@@ -158,7 +158,9 @@ class TestCalculateActionVectorized:
         # Second row should be INCONCLUSIVE due to low analyst coverage (2 analysts < 5 minimum)
         assert result.iloc[1] == 'I'
     
-    def test_vectorized_action_performance(self):
+    @patch('trade_modules.vix_regime_provider.adjust_buy_criteria', side_effect=lambda x: x)
+    @patch('trade_modules.vix_regime_provider.adjust_sell_criteria', side_effect=lambda x: x)
+    def test_vectorized_action_performance(self, mock_sell, mock_buy):
         """Test vectorized action calculation performance."""
         # Create large test dataset
         rng = np.random.default_rng(42)
@@ -174,12 +176,12 @@ class TestCalculateActionVectorized:
             'beta': rng.uniform(0.5, 3, 10000),
             'EXRET': rng.uniform(0, 40, 10000),
         })
-        
+
         import time
         start_time = time.perf_counter()
         result = calculate_action_vectorized(large_df)
         end_time = time.perf_counter()
-        
+
         # Should complete in reasonable time
         # Use a more lenient threshold for CI environments which can be slower
         # CI can be VERY slow and variable, allow up to 30 seconds for 10,000 rows
