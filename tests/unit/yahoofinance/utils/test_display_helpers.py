@@ -402,10 +402,11 @@ class TestHasRequiredMetrics:
 
     def test_all_metrics_present(self):
         """Test returns True when all required metrics present."""
+        # Use %B as the column name (matches COLUMN_NAMES["BUY_PERCENTAGE"])
         row = pd.Series({
             "EXRET": 5.0,
             "UPSIDE": 10.0,
-            "%BUY": 75.0,
+            "%B": 75.0,  # Changed from %BUY to %B to match actual config
             "SI": 2.0,
             "PEF": 20.0,
             "BETA": 1.2,

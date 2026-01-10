@@ -299,6 +299,63 @@ class DisplayFormatter:
                 return f"{Color.PURPLE.value}{value}{Color.RESET.value}"
             return value
 
+    def format_52w_percent(self, value: Optional[float]) -> str:
+        """
+        Format percent from 52-week high.
+
+        Args:
+            value: Percentage from 52-week high (e.g., 85 means at 85% of 52w high)
+
+        Returns:
+            Formatted percentage string
+        """
+        if value is None:
+            return "--"
+        return f"{value:.0f}%"
+
+    def format_above_200dma(self, value: Optional[bool]) -> str:
+        """
+        Format above 200DMA indicator.
+
+        Args:
+            value: Boolean indicating if price is above 200-day MA
+
+        Returns:
+            Check mark or X indicator
+        """
+        if value is None:
+            return "--"
+        return "Y" if value else "N"
+
+    def format_analyst_momentum(self, value: Optional[float]) -> str:
+        """
+        Format analyst momentum with sign.
+
+        Args:
+            value: Change in buy percentage over 3 months
+
+        Returns:
+            Formatted momentum string with sign (e.g., "+5%", "-12%")
+        """
+        if value is None:
+            return "--"
+        sign = "+" if value > 0 else ""
+        return f"{sign}{value:.0f}%"
+
+    def format_pe_vs_sector(self, value: Optional[float]) -> str:
+        """
+        Format PE vs sector ratio.
+
+        Args:
+            value: Ratio of PE to sector median (e.g., 1.2 means 20% above sector)
+
+        Returns:
+            Formatted ratio string (e.g., "1.2x")
+        """
+        if value is None:
+            return "--"
+        return f"{value:.1f}x"
+
     def _calculate_signal(self, ticker_data: Dict[str, Any]) -> str:
         """
         Calculate the trading signal (BUY, SELL, HOLD, NEUTRAL) based on financial metrics.

@@ -243,7 +243,8 @@ class TestTierCriteriaAccess:
 
         assert criteria is not None
         assert criteria.buy.min_upside == pytest.approx(5.0)
-        assert criteria.sell.max_upside == pytest.approx(2.5)
+        # P0 improvement: max_upside changed from 2.5 to 0.0 - only sell MEGA-cap if negative upside
+        assert criteria.sell.max_upside == pytest.approx(0.0)
 
     def test_get_tier_criteria_with_enums(self):
         """get_tier_criteria works with enum values"""

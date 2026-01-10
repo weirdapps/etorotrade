@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 from tabulate import tabulate
 
-from yahoofinance.core.config import COLUMN_NAMES, DISPLAY, STANDARD_DISPLAY_COLUMNS
+from yahoofinance.core.config import COLUMN_NAMES, COMPACT_DISPLAY_COLUMNS, DISPLAY, STANDARD_DISPLAY_COLUMNS
 from yahoofinance.core.logging import get_logger
 from yahoofinance.utils.data.asset_type_utils import universal_sort_dataframe
 from yahoofinance.utils.data.format_utils import (
@@ -57,41 +57,41 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
 
-    # Map raw column names to display column names using config values
+    # Map raw column names to short display column names for compact output
     column_mapping = {
-        'symbol': 'TICKER',
-        'ticker': 'TICKER',
-        'company': 'COMPANY',
-        'name': 'COMPANY',
-        'current_price': 'PRICE',
-        'price': 'PRICE',
-        'target_price': 'TARGET',
-        'upside': 'UPSIDE',
-        'analyst_count': COLUMN_NAMES['ANALYST_COUNT'],
-        'total_ratings': COLUMN_NAMES['TOTAL_RATINGS'],
-        'buy_percentage': COLUMN_NAMES['BUY_PERCENTAGE'],
+        'symbol': 'TKR',
+        'ticker': 'TKR',
+        'company': 'NAME',
+        'name': 'NAME',
+        'current_price': 'PRC',
+        'price': 'PRC',
+        'target_price': 'TGT',
+        'upside': 'UP%',
+        'analyst_count': COLUMN_NAMES['ANALYST_COUNT'],  # #T
+        'total_ratings': COLUMN_NAMES['TOTAL_RATINGS'],  # #A
+        'buy_percentage': COLUMN_NAMES['BUY_PERCENTAGE'],  # %B
         'market_cap_fmt': 'CAP',
         'market_cap': 'CAP',
         'pe_trailing': 'PET',
         'pe_forward': 'PEF',
         'peg_ratio': 'PEG',
-        'beta': 'BETA',
+        'beta': 'B',
         'short_percent': 'SI',
-        'dividend_yield': COLUMN_NAMES['DIVIDEND_YIELD_DISPLAY'],
-        'earnings_date': 'EARNINGS',
+        'dividend_yield': COLUMN_NAMES['DIVIDEND_YIELD_DISPLAY'],  # DV
+        'earnings_date': 'ERN',
         'E': 'E',  # Earnings filter type column
         'earnings_growth': 'EG',
         'twelve_month_performance': 'PP',
         'return_on_equity': 'ROE',
         'debt_to_equity': 'DE',
-        'EXRET': 'EXRET',
+        'EXRET': 'EXR',
         'A': 'A',
-        # Identity mappings for columns already in display format
-        'TICKER': 'TICKER',
-        'COMPANY': 'COMPANY',
-        'PRICE': 'PRICE',
-        'TARGET': 'TARGET',
-        'UPSIDE': 'UPSIDE',
+        # Identity mappings for columns already in display format (old names -> new short names)
+        'TICKER': 'TKR',
+        'COMPANY': 'NAME',
+        'PRICE': 'PRC',
+        'TARGET': 'TGT',
+        'UPSIDE': 'UP%',
         COLUMN_NAMES['ANALYST_COUNT']: COLUMN_NAMES['ANALYST_COUNT'],
         COLUMN_NAMES['TOTAL_RATINGS']: COLUMN_NAMES['TOTAL_RATINGS'],
         COLUMN_NAMES['BUY_PERCENTAGE']: COLUMN_NAMES['BUY_PERCENTAGE'],
@@ -99,16 +99,37 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         'PET': 'PET',
         'PEF': 'PEF',
         'PEG': 'PEG',
-        'BETA': 'BETA',
+        'BETA': 'B',
         'SI': 'SI',
         COLUMN_NAMES['DIVIDEND_YIELD_DISPLAY']: COLUMN_NAMES['DIVIDEND_YIELD_DISPLAY'],
-        'EARNINGS': 'EARNINGS',
+        'EARNINGS': 'ERN',
         'EG': 'EG',
         'PP': 'PP',
         'ROE': 'ROE',
         'DE': 'DE',
-        'SIZE': 'SIZE',
-        'M': 'M'
+        'SIZE': 'SZ',
+        'M': 'M',
+        # New momentum metrics (short names)
+        'pct_from_52w_high': '52W',
+        'above_200dma': '2H',
+        'analyst_momentum': 'AM',
+        'pe_vs_sector': 'P/S',
+        # Identity mappings for new short display columns
+        '52W': '52W',
+        '2H': '2H',
+        'AM': 'AM',
+        'P/S': 'P/S',
+        'TKR': 'TKR',
+        'NAME': 'NAME',
+        'PRC': 'PRC',
+        'TGT': 'TGT',
+        'UP%': 'UP%',
+        'EXR': 'EXR',
+        'B': 'B',
+        'ERN': 'ERN',
+        'SZ': 'SZ',
+        'DV': 'DV',
+        '%B': '%B',
     }
 
     # Create new DataFrame with only mapped columns to avoid duplicates
@@ -171,19 +192,19 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     # Apply number formatting based on FORMATTERS configuration
     formatters = DISPLAY.get("FORMATTERS", {})
 
-    # Column mapping from display name to formatter key
+    # Column mapping from short display name to formatter key
     format_mapping = {
-        'PRICE': 'price',
-        'TARGET': 'target_price',
-        'UPSIDE': 'upside',
-        '%BUY': 'buy_percentage',  # Updated to match new column header
-        'BETA': 'beta',
+        'PRC': 'price',          # Price
+        'TGT': 'target_price',   # Target
+        'UP%': 'upside',         # Upside
+        '%B': 'buy_percentage',  # Buy percentage
+        'B': 'beta',             # Beta
         'PET': 'pe_trailing',
         'PEF': 'pe_forward',
         'PEG': 'peg_ratio',
-        'DIV%': 'dividend_yield',  # Updated to match new column header
+        'DV': 'dividend_yield',  # Dividend yield
         'SI': 'short_float_pct',
-        'EXRET': 'exret',
+        'EXR': 'exret',          # Expected return
         'ROE': 'return_on_equity',
         'DE': 'debt_to_equity'
     }
@@ -195,23 +216,27 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     zero_to_dash_cols = [COLUMN_NAMES['ANALYST_COUNT'], COLUMN_NAMES['BUY_PERCENTAGE'],
                         COLUMN_NAMES['TOTAL_RATINGS'], "SI", COLUMN_NAMES['DIVIDEND_YIELD_DISPLAY']]
 
-    # Special handling for EARNINGS date formatting
-    if "EARNINGS" in df.columns:
+    # Special handling for ERN (earnings date) formatting - compact MM/DD format
+    if "ERN" in df.columns:
         def format_earnings_date(value):
             try:
                 if value is None or (isinstance(value, float) and (math.isnan(value) or math.isinf(value))):
                     return "--"
                 date_str = str(value).strip()
-                # Remove dashes from date format (YYYY-MM-DD -> YYYYMMDD)
+                # Convert to compact MM/DD format
                 if len(date_str) >= 10 and "-" in date_str:
-                    return date_str.replace("-", "")[:8]  # YYYYMMDD format
+                    # YYYY-MM-DD format -> MM/DD
+                    parts = date_str.split("-")
+                    if len(parts) >= 3:
+                        return f"{parts[1]}/{parts[2][:2]}"
                 elif len(date_str) >= 8:
-                    return date_str[:8]  # Already in YYYYMMDD format
-                return date_str
+                    # YYYYMMDD format -> MM/DD
+                    return f"{date_str[4:6]}/{date_str[6:8]}"
+                return "--"
             except (ValueError, TypeError, AttributeError):
                 return "--"
 
-        df["EARNINGS"] = df["EARNINGS"].apply(format_earnings_date)
+        df["ERN"] = df["ERN"].apply(format_earnings_date)
 
     # Special handling for ROE formatting (already in percentage from API)
     if "ROE" in df.columns:
@@ -245,8 +270,91 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
         df["DE"] = df["DE"].apply(format_de)
 
+    # Special handling for 52W formatting (percent from 52-week high)
+    if "52W" in df.columns:
+        def format_52w_pct(value):
+            try:
+                if value is None or value == '' or value == '--':
+                    return "--"
+                float_value = float(value)
+                if math.isnan(float_value) or math.isinf(float_value):
+                    return "--"
+                return f"{float_value:.0f}"  # Integer percentage without % sign
+            except (ValueError, TypeError):
+                return "--"
+
+        df["52W"] = df["52W"].apply(format_52w_pct)
+
+    # Special handling for 2H (above 200-day MA indicator)
+    if "2H" in df.columns:
+        def format_above_200dma(value):
+            try:
+                if value is None or value == '' or value == '--':
+                    return "-"
+                if isinstance(value, bool):
+                    return "Y" if value else "N"
+                if isinstance(value, str):
+                    if value.lower() in ['true', 'yes', '1', 'y']:
+                        return "Y"
+                    elif value.lower() in ['false', 'no', '0', 'n']:
+                        return "N"
+                return "-"
+            except (ValueError, TypeError):
+                return "-"
+
+        df["2H"] = df["2H"].apply(format_above_200dma)
+
+    # Special handling for AM (analyst momentum)
+    if "AM" in df.columns:
+        def format_amom(value):
+            try:
+                if value is None or value == '' or value == '--':
+                    return "--"
+                float_value = float(value)
+                if math.isnan(float_value) or math.isinf(float_value):
+                    return "--"
+                # Show signed integer
+                if float_value > 0:
+                    return f"+{float_value:.0f}"
+                elif float_value < 0:
+                    return f"{float_value:.0f}"
+                else:
+                    return "0"
+            except (ValueError, TypeError):
+                return "--"
+
+        df["AM"] = df["AM"].apply(format_amom)
+
+    # Special handling for P/S (PE vs sector)
+    if "P/S" in df.columns:
+        def format_pe_vs_sector(value):
+            try:
+                if value is None or value == '' or value == '--':
+                    return "--"
+                float_value = float(value)
+                if math.isnan(float_value) or math.isinf(float_value):
+                    return "--"
+                return f"{float_value:.1f}"  # 1 decimal place
+            except (ValueError, TypeError):
+                return "--"
+
+        df["P/S"] = df["P/S"].apply(format_pe_vs_sector)
+
+    # Truncate NAME to 10 characters for compact display
+    if "NAME" in df.columns:
+        def truncate_company(value):
+            if value is None or value == '--':
+                return "--"
+            name = str(value)
+            if len(name) > 10:
+                return name[:9] + "."
+            return name
+
+        df["NAME"] = df["NAME"].apply(truncate_company)
+
     for col in df.columns:
-        if col not in ["#", "TICKER", "COMPANY", "EARNINGS", "ROE", "DE"]:  # Don't format these columns
+        # Don't re-format columns that have been specially formatted above
+        if col not in ["#", "TKR", "NAME", "ERN", "ROE", "DE", "52W", "2H", "AM", "P/S"]:
             # Apply specific formatting if configured
             if col in format_mapping:
                 formatter_key = format_mapping[col]
@@ -328,7 +436,7 @@ def display_stock_table(stock_data: List[Dict[str, Any]], title: str = "Stock An
         # If position size calculation fails, continue without it
         logger.warning(f"Failed to add position size column: {e}")
         # Ensure SIZE column exists for column filtering
-        df['SIZE'] = '--'
+        df['SZ'] = '--'
 
     # Sort data AFTER all formatting and calculations are complete
     df = sort_market_data(df)
@@ -340,7 +448,7 @@ def display_stock_table(stock_data: List[Dict[str, Any]], title: str = "Stock An
     # Get the standard column order from config
     bs_col = COLUMN_NAMES['ACTION']
 
-    # Only include columns that exist in both the DataFrame and standard columns
+    # Use standard display columns (all columns with compact formatting)
     final_col_order = [col for col in STANDARD_DISPLAY_COLUMNS if col in df.columns]
 
     # If we have fewer than 5 essential columns, fall back to basic set
@@ -372,7 +480,7 @@ def display_stock_table(stock_data: List[Dict[str, Any]], title: str = "Stock An
     # Define column alignment based on content type
     colalign = []
     for col in df.columns:
-        if col in ["TICKER", "COMPANY"]:
+        if col in ["TKR", "NAME"]:  # Left-align text columns
             colalign.append("left")
         elif col == "#":
             colalign.append("right")
@@ -381,12 +489,14 @@ def display_stock_table(stock_data: List[Dict[str, Any]], title: str = "Stock An
 
     # Display the table without title/generation time
 
-    # Use tabulate for display with the defined alignment and fancy_grid format
+    # Use tabulate for display with horizontal lines for easier row tracking
+    # "simple_grid" format adds horizontal separators between rows
     table = tabulate(
         colored_data if colored_data else df.values,
         headers=df.columns,
-        tablefmt="fancy_grid",
+        tablefmt="simple_grid",
         colalign=colalign,
+        disable_numparse=True,  # Prevent width expansion from number parsing
     )
     print(table)
 
@@ -519,7 +629,7 @@ def add_position_size_column(df: pd.DataFrame) -> pd.DataFrame:
         position_sizes.append(position_size)
 
     # Add formatted position size column
-    df['SIZE'] = [format_position_size(size) for size in position_sizes]
+    df['SZ'] = [format_position_size(size) for size in position_sizes]
 
     return df
 

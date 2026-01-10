@@ -365,3 +365,112 @@ except Exception as e:
 - 60% is achievable with 1-2 days of focused effort on high-value tests
 
 **Current Status**: Codebase is production-ready with solid architecture, comprehensive testing (2,604 tests), and zero critical issues.
+
+---
+
+## January 2026 Momentum Improvements Implementation
+
+### Overview
+
+Based on senior investment banker review recommendations, the following three high-impact improvements were implemented:
+
+1. **Price Momentum** - 52-week high proximity and 200-day moving average signals
+2. **Analyst Momentum** - 3-month change in buy percentage
+3. **Sector-Relative Valuations** - PE ratio compared to sector median
+
+### New Display Columns
+
+| Column | Header | Format | Description |
+|--------|--------|--------|-------------|
+| `pct_from_52w_high` | 52W% | Percentage | Distance from 52-week high (e.g., "89%") |
+| `above_200dma` | >200D | Boolean | Above 200-day moving average (True/False) |
+| `analyst_momentum` | AMOM | Signed % | 3-month change in buy% (e.g., "+5%", "-12%") |
+| `pe_vs_sector` | PE/S | Ratio | PE vs sector median (e.g., "1.2x") |
+
+### New Config Thresholds
+
+Each tier/region combination now includes:
+
+**BUY criteria:**
+- `min_pct_from_52w_high`: Must be within X% of 52-week high (60-75% by tier)
+- `require_above_200dma`: Must be above 200-day MA (true for all)
+- `min_analyst_momentum`: Minimum 3-month buy% change (-3% to -12% by tier)
+- `max_pe_vs_sector`: Maximum PE relative to sector (1.2x to 1.6x by tier)
+- `min_pe_vs_sector`: Minimum PE relative to sector (0.25x to 0.4x for value trap detection)
+
+**SELL criteria:**
+- `max_pct_from_52w_high`: SELL if below X% of 52-week high (30-50% by tier)
+- `max_analyst_momentum`: SELL if buy% dropped more than X% (-12% to -25% by tier)
+- `max_pe_vs_sector`: SELL if PE way above sector median (1.5x to 2.2x by tier)
+
+### Tier-Based Threshold Philosophy
+
+| Tier | 52W% Min | AMOM Min | PE/S Max | Rationale |
+|------|----------|----------|----------|-----------|
+| MEGA | 60% | -10% | 1.5x | More lenient - established leaders |
+| LARGE | 60% | -10% | 1.5x | Similar to MEGA |
+| MID | 65% | -8% | 1.4x | Moderate strictness |
+| SMALL | 70% | -5% | 1.3x | Higher standards |
+| MICRO | 75% | -3% | 1.2x | Most conservative |
+
+### Signal Comparison: Before vs After
+
+| Ticker | Before | After | Change Reason |
+|--------|--------|-------|---------------|
+| NVDA | B | B | No change - strong momentum (52W%=89%, >200D=True, PE/S=0.89x) |
+| GOOG | H | H | No change - low upside (2.6%) |
+| AAPL | H | H | No change - low buy% (77%) |
+| MSFT | B | B | No change - strong momentum (52W%=87%, >200D=True, PE/S=0.92x) |
+| AMZN | B | **H** | **PE/S = 1.54x exceeds max 1.5x for MEGA tier** |
+| META | B | **H** | **>200D = False (below 200-day moving average)** |
+| JPM | H | H | No change - low upside (3.4%) |
+| XOM | H | H | No change - low buy% (73%) |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `yahoofinance/api/providers/async_yahoo_finance.py` | Extract 50/200 DMA, calculate momentum metrics |
+| `yahoofinance/api/providers/async_modules/recommendations_parser.py` | Add `calculate_analyst_momentum()` function |
+| `yahoofinance/api/providers/async_modules/data_normalizer.py` | Add `calculate_pe_vs_sector()` function |
+| `trade_modules/sector_benchmarks.yaml` | **NEW** - GICS sector median PE/ROE/DE benchmarks |
+| `trade_modules/trade_config.py` | Add sector benchmark loading methods |
+| `trade_modules/analysis/signals.py` | Add new BUY/SELL criteria checks |
+| `yahoofinance/core/config.py` | Add new column names to display config |
+| `yahoofinance/presentation/console_modules/table_renderer.py` | Add column mappings |
+| `yahoofinance/presentation/formatter.py` | Add formatting methods for new columns |
+| `config.yaml` | Add momentum thresholds to all 15 tier×region combinations |
+
+### Sector Benchmarks (sector_benchmarks.yaml)
+
+Created GICS sector median valuations for 11 sectors:
+
+| Sector | Median PE | Median ROE | Median D/E |
+|--------|-----------|------------|------------|
+| Technology | 28.0 | 18.0% | 45% |
+| Healthcare | 22.0 | 15.0% | 55% |
+| Financials | 12.0 | 12.0% | 200% |
+| Consumer Discretionary | 20.0 | 20.0% | 80% |
+| Consumer Staples | 22.0 | 25.0% | 100% |
+| Energy | 12.0 | 15.0% | 40% |
+| Industrials | 18.0 | 16.0% | 70% |
+| Materials | 14.0 | 12.0% | 50% |
+| Real Estate | 35.0 | 8.0% | 120% |
+| Utilities | 18.0 | 10.0% | 130% |
+| Communication Services | 18.0 | 12.0% | 80% |
+
+### Test Results
+
+- All 2,899 tests pass (22 skipped, 3 xfailed, 1 xpassed)
+- Coverage increased to 58%
+- No regressions introduced
+
+### Impact Assessment
+
+The new momentum criteria provide:
+
+1. **Price Momentum Check**: Prevents buying stocks in strong downtrends (below 200DMA)
+2. **Analyst Trend Detection**: Catches deteriorating analyst sentiment before full downgrades
+3. **Sector-Relative Valuation**: Removes sector bias from PE comparisons (Tech at PE 40 vs Financials at PE 12)
+
+Expected outcome: Fewer false BUY signals during market corrections, improved risk-adjusted returns.

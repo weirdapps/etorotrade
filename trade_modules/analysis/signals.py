@@ -8,7 +8,7 @@ Uses vectorized operations for performance on large datasets.
 import logging
 import pandas as pd
 import numpy as np
-from typing import Dict, Any, List, Union
+from typing import List, Union
 
 # Import tier utilities
 from .tiers import _parse_percentage, _parse_market_cap
@@ -49,18 +49,20 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
     yaml_config = get_yaml_config()
 
     # Parse percentage columns that may contain strings like "2.6%" or "94%"
-    # Handle both normalized and CSV column names
-    upside_raw = df.get("upside", df.get("UPSIDE", pd.Series([0] * len(df), index=df.index)))
+    # Handle both normalized and CSV column names (including short display names)
+    upside_raw = df.get("upside", df.get("UPSIDE", df.get("UP%", pd.Series([0] * len(df), index=df.index))))
     upside = pd.Series([_parse_percentage(val) for val in upside_raw], index=df.index)
 
-    buy_pct_raw = df.get("buy_percentage", df.get("%BUY", pd.Series([0] * len(df), index=df.index)))
+    buy_pct_raw = df.get("buy_percentage", df.get("%BUY", df.get("%B", pd.Series([0] * len(df), index=df.index))))
     buy_pct = pd.Series([_parse_percentage(val) for val in buy_pct_raw], index=df.index)
 
     # Handle both raw CSV column names and normalized column names
-    analyst_count_raw = df.get("analyst_count", df.get("#T", df.get("# T", pd.Series([0] * len(df), index=df.index))))
+    # NOTE: #T = target count (price targets), #A = analyst count
+    analyst_count_raw = df.get("analyst_count", df.get("#A", df.get("# A", pd.Series([0] * len(df), index=df.index))))
     analyst_count = pd.to_numeric(analyst_count_raw, errors="coerce").fillna(0)
 
-    total_ratings_raw = df.get("total_ratings", df.get("#A", df.get("# A", pd.Series([0] * len(df), index=df.index))))
+    # total_ratings = number of price targets (#T)
+    total_ratings_raw = df.get("total_ratings", df.get("#T", df.get("# T", df.get("target_count", pd.Series([0] * len(df), index=df.index)))))
     total_ratings = pd.to_numeric(total_ratings_raw, errors="coerce").fillna(0)
 
     # Confidence check - vectorized
@@ -88,11 +90,15 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
         errors="coerce",
     )
     beta = pd.to_numeric(
-        df.get("beta", df.get("BETA", pd.Series([np.nan] * len(df), index=df.index))), errors="coerce"
+        df.get("beta", df.get("BETA", df.get("B", pd.Series([np.nan] * len(df), index=df.index)))), errors="coerce"
     )
-    exret_col = df.get("EXRET")
+    # Try EXRET, then EXR (short display name), else calculate from upside and buy%
+    exret_col = df.get("EXRET", df.get("EXR"))
     if exret_col is None:
-        exret = pd.Series(0, index=df.index)
+        # Calculate EXRET from upside and buy_percentage if not provided
+        # EXRET = upside × (buy_percentage / 100)
+        exret = upside * (buy_pct / 100.0)
+        logger.debug("EXRET column not found, calculated from upside and buy_percentage")
     else:
         exret = pd.Series([_parse_percentage(val) for val in exret_col], index=df.index)
 
@@ -109,6 +115,29 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
     de_clean = de_raw.replace(["--", "", " ", "nan"], np.nan)
     de = pd.to_numeric(de_clean, errors="coerce").fillna(np.nan)
 
+    # NEW MOMENTUM METRICS
+    # Price Momentum: Percent from 52-week high
+    # Fallback to "52W" (short display name from table_renderer)
+    pct_52w_raw = df.get("pct_from_52w_high", df.get("52W", pd.Series([np.nan] * len(df), index=df.index)))
+    pct_52w = pd.to_numeric(pct_52w_raw, errors="coerce").fillna(np.nan)
+
+    # Price Momentum: Above 200-day moving average (boolean)
+    # Fallback to "2H" (short display name from table_renderer - "200DMA" abbreviated)
+    above_200dma_raw = df.get("above_200dma", df.get("2H", pd.Series([np.nan] * len(df), index=df.index)))
+    # Handle boolean-like values
+    above_200dma = above_200dma_raw.map(lambda x: True if x in [True, "True", "true", 1, "1", "Y", "y"] else
+                                        (False if x in [False, "False", "false", 0, "0", "N", "n"] else np.nan))
+
+    # Analyst Momentum: 3-month change in buy percentage
+    # Fallback to "AM" (short display name from table_renderer)
+    amom_raw = df.get("analyst_momentum", df.get("AM", pd.Series([np.nan] * len(df), index=df.index)))
+    amom = pd.to_numeric(amom_raw, errors="coerce").fillna(np.nan)
+
+    # Sector-Relative Valuation: PE vs sector median
+    # Fallback to "P/S" (short display name from table_renderer)
+    pe_vs_sector_raw = df.get("pe_vs_sector", df.get("P/S", pd.Series([np.nan] * len(df), index=df.index)))
+    pe_vs_sector = pd.to_numeric(pe_vs_sector_raw, errors="coerce").fillna(np.nan)
+
     # Initialize action series
     actions = pd.Series("H", index=df.index)  # Default to HOLD
     actions[~has_confidence] = "I"  # INCONCLUSIVE for low confidence
@@ -120,7 +149,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
     if below_min_cap.sum() > 0:
         actions[below_min_cap] = "I"  # INCONCLUSIVE for stocks below minimum market cap
         logger.info(
-            f"Market cap filter: {below_min_cap.sum()} stocks below ${min_market_cap/1e9:.1f}B "
+            f"Market cap filter: {below_min_cap.sum()} stocks below ${min_market_cap / 1e9:.1f}B "
             f"minimum threshold set to INCONCLUSIVE"
         )
 
@@ -157,6 +186,15 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
         buy_criteria = config.get_sector_adjusted_thresholds(ticker, "buy", buy_criteria)
         sell_criteria = config.get_sector_adjusted_thresholds(ticker, "sell", sell_criteria)
 
+        # Apply VIX regime adjustments (P1 improvement)
+        # More conservative in high volatility, more aggressive in low volatility
+        try:
+            from trade_modules.vix_regime_provider import adjust_buy_criteria, adjust_sell_criteria
+            buy_criteria = adjust_buy_criteria(buy_criteria)
+            sell_criteria = adjust_sell_criteria(sell_criteria)
+        except ImportError:
+            pass  # VIX regime provider not available, use unadjusted criteria
+
         # Extract values for this row
         row_upside = upside.loc[idx]
         row_buy_pct = buy_pct.loc[idx]
@@ -168,6 +206,11 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
         row_beta = beta.loc[idx]
         row_roe = roe.loc[idx]
         row_de = de.loc[idx]
+        # New momentum metrics
+        row_pct_52w = pct_52w.loc[idx]
+        row_above_200dma = above_200dma.loc[idx]
+        row_amom = amom.loc[idx]
+        row_pe_vs_sector = pe_vs_sector.loc[idx]
 
         # SELL criteria - ANY condition triggers SELL
         sell_conditions: List[Union[str, bool]] = []
@@ -231,6 +274,25 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                 sell_conditions.append(True)
                 logger.debug(f"Ticker {ticker}: Sell signal - DE:{row_de:.1f}% > max:{sell_criteria['max_debt_equity']:.1f}%")
 
+        # NEW MOMENTUM SELL CRITERIA
+        # Price Momentum: SELL if fallen too far from 52-week high
+        if "max_pct_from_52w_high" in sell_criteria and not pd.isna(row_pct_52w):
+            if row_pct_52w < sell_criteria.get("max_pct_from_52w_high"):
+                sell_conditions.append("max_pct_from_52w_high")
+                logger.info(f"Ticker {ticker}: SELL TRIGGER - 52w% {row_pct_52w:.1f}% < {sell_criteria['max_pct_from_52w_high']:.1f}%")
+
+        # Analyst Momentum: SELL if analysts are significantly downgrading
+        if "max_analyst_momentum" in sell_criteria and not pd.isna(row_amom):
+            if row_amom < sell_criteria.get("max_analyst_momentum"):
+                sell_conditions.append("max_analyst_momentum")
+                logger.info(f"Ticker {ticker}: SELL TRIGGER - analyst momentum {row_amom:.1f}% < {sell_criteria['max_analyst_momentum']:.1f}%")
+
+        # Sector-Relative Valuation: SELL if PE way above sector median
+        if "max_pe_vs_sector" in sell_criteria and not pd.isna(row_pe_vs_sector):
+            if row_pe_vs_sector > sell_criteria.get("max_pe_vs_sector"):
+                sell_conditions.append("max_pe_vs_sector")
+                logger.info(f"Ticker {ticker}: SELL TRIGGER - PE/sector {row_pe_vs_sector:.2f}x > {sell_criteria['max_pe_vs_sector']:.2f}x")
+
         if any(sell_conditions):
             logger.info(f"Ticker {ticker}: MARKED AS SELL - triggered by: {', '.join(str(c) for c in sell_conditions)}")
             actions.loc[idx] = "S"
@@ -253,6 +315,13 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
             if row_buy_pct < buy_criteria["min_buy_percentage"]:
                 is_buy_candidate = False
                 logger.debug(f"Ticker {ticker}: No buy - buy% {row_buy_pct:.1f}% < {buy_criteria['min_buy_percentage']:.1f}%")
+
+        # High Consensus Contrarian Warning (P0 improvement)
+        # When >95% of analysts agree, it may indicate overcrowding
+        if "max_buy_percentage" in buy_criteria:
+            if row_buy_pct > buy_criteria["max_buy_percentage"]:
+                is_buy_candidate = False
+                logger.info(f"Ticker {ticker}: Contrarian warning - buy% {row_buy_pct:.1f}% > {buy_criteria['max_buy_percentage']:.1f}% (overcrowded)")
 
         if "min_exret" in buy_criteria:
             if row_exret < buy_criteria["min_exret"]:
@@ -311,9 +380,69 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                 is_buy_candidate = False
                 logger.debug(f"Ticker {ticker}: Failed DE check - DE:{row_de:.1f}% > max:{buy_criteria['max_debt_equity']:.1f}%")
 
+        # NEW MOMENTUM BUY CRITERIA
+        # Price Momentum: Must be within range of 52-week high
+        if "min_pct_from_52w_high" in buy_criteria and not pd.isna(row_pct_52w):
+            if row_pct_52w < buy_criteria.get("min_pct_from_52w_high"):
+                is_buy_candidate = False
+                logger.debug(f"Ticker {ticker}: Failed 52w% check - {row_pct_52w:.1f}% < min:{buy_criteria['min_pct_from_52w_high']:.1f}%")
+
+        # Price Momentum: Must be above 200-day moving average (if required)
+        if buy_criteria.get("require_above_200dma", False):
+            if row_above_200dma is False and not pd.isna(row_above_200dma):  # Explicitly False, not NaN
+                is_buy_candidate = False
+                logger.debug(f"Ticker {ticker}: Failed above 200DMA check - trading below 200-day MA")
+
+        # Analyst Momentum: Don't buy if analysts are significantly downgrading
+        if "min_analyst_momentum" in buy_criteria and not pd.isna(row_amom):
+            if row_amom < buy_criteria.get("min_analyst_momentum"):
+                is_buy_candidate = False
+                logger.debug(f"Ticker {ticker}: Failed analyst momentum check - {row_amom:.1f}% < min:{buy_criteria['min_analyst_momentum']:.1f}%")
+
+        # Sector-Relative Valuation: PE should not be too far above sector median
+        if "max_pe_vs_sector" in buy_criteria and not pd.isna(row_pe_vs_sector):
+            if row_pe_vs_sector > buy_criteria.get("max_pe_vs_sector"):
+                is_buy_candidate = False
+                logger.debug(f"Ticker {ticker}: Failed PE/sector check - {row_pe_vs_sector:.2f}x > max:{buy_criteria['max_pe_vs_sector']:.2f}x")
+
+        # Sector-Relative Valuation: PE should not be too far below sector (value trap warning)
+        if "min_pe_vs_sector" in buy_criteria and not pd.isna(row_pe_vs_sector):
+            if row_pe_vs_sector < buy_criteria.get("min_pe_vs_sector"):
+                is_buy_candidate = False
+                logger.debug(f"Ticker {ticker}: Failed PE/sector check - {row_pe_vs_sector:.2f}x < min:{buy_criteria['min_pe_vs_sector']:.2f}x (value trap)")
+
         if is_buy_candidate:
             actions.loc[idx] = "B"
         # Otherwise remains "H" (HOLD)
+
+        # Log signal for forward validation (P1 improvement)
+        try:
+            from trade_modules.signal_tracker import log_signal
+            # Get price data if available
+            price_raw = df.get("price", df.get("PRICE", pd.Series([None] * len(df), index=df.index)))
+            row_price = price_raw.loc[idx] if idx in price_raw.index else None
+            target_raw = df.get("target_price", df.get("TARGET", pd.Series([None] * len(df), index=df.index)))
+            row_target = target_raw.loc[idx] if idx in target_raw.index else None
+            sector_raw = df.get("sector", df.get("SECTOR", pd.Series([None] * len(df), index=df.index)))
+            row_sector = sector_raw.loc[idx] if idx in sector_raw.index else None
+
+            log_signal(
+                ticker=ticker,
+                signal=actions.loc[idx],
+                price=float(row_price) if row_price and not pd.isna(row_price) else None,
+                target=float(row_target) if row_target and not pd.isna(row_target) else None,
+                upside=row_upside,
+                buy_pct=row_buy_pct,
+                exret=row_exret,
+                market_cap=cap_values.loc[idx] if idx in cap_values.index else None,
+                tier=tier,
+                region=region,
+                sector=str(row_sector) if row_sector and not pd.isna(row_sector) else None,
+            )
+        except ImportError:
+            pass  # Signal tracker not available
+        except Exception as e:
+            logger.debug(f"Failed to log signal for {ticker}: {e}")
 
     return actions
 
