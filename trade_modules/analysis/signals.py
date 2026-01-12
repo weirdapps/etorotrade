@@ -158,7 +158,8 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
     if df.index.name == "TICKER" or (hasattr(df.index, 'name') and df.index.name and "ticker" in df.index.name.lower()):
         ticker_col = pd.Series(df.index, index=df.index)
     else:
-        ticker_col = df.get("ticker", df.get("TICKER", pd.Series([""] * len(df), index=df.index)))
+        # Check for various ticker column names: ticker, TICKER, TKR, symbol
+        ticker_col = df.get("ticker", df.get("TICKER", df.get("TKR", df.get("symbol", pd.Series([""] * len(df), index=df.index)))))
 
     # Process each row with region-tier specific thresholds
     for idx in df.index:
