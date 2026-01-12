@@ -1,0 +1,95 @@
+# GICS Sector Benchmark Valuations
+# Updated quarterly from S&P 500 sector medians (Q1 2025)
+# Used for sector-relative valuations (PE vs sector, ROE vs sector)
+
+sectors:
+  Technology:
+    median_pe: 28.0
+    median_roe: 18.0
+    median_de: 45.0
+    description: "Software, hardware, semiconductors"
+
+  Healthcare:
+    median_pe: 22.0
+    median_roe: 15.0
+    median_de: 55.0
+    description: "Pharma, biotech, healthcare services"
+
+  Financials:
+    median_pe: 12.0
+    median_roe: 12.0
+    median_de: 200.0
+    description: "Banks, insurance, asset managers - high leverage normal"
+
+  Consumer Discretionary:
+    median_pe: 20.0
+    median_roe: 20.0
+    median_de: 80.0
+    description: "Retail, autos, leisure, media"
+
+  Consumer Staples:
+    median_pe: 22.0
+    median_roe: 25.0
+    median_de: 100.0
+    description: "Food, beverage, household products"
+
+  Energy:
+    median_pe: 12.0
+    median_roe: 15.0
+    median_de: 40.0
+    description: "Oil, gas, energy equipment"
+
+  Industrials:
+    median_pe: 18.0
+    median_roe: 16.0
+    median_de: 70.0
+    description: "Aerospace, defense, machinery, transportation"
+
+  Materials:
+    median_pe: 14.0
+    median_roe: 12.0
+    median_de: 50.0
+    description: "Chemicals, metals, mining, packaging"
+
+  Real Estate:
+    median_pe: 35.0
+    median_roe: 8.0
+    median_de: 120.0
+    description: "REITs, real estate services"
+
+  Utilities:
+    median_pe: 18.0
+    median_roe: 10.0
+    median_de: 130.0
+    description: "Electric, gas, water utilities"
+
+  Communication Services:
+    median_pe: 18.0
+    median_roe: 12.0
+    median_de: 80.0
+    description: "Telecom, media, entertainment"
+
+# Sector name mapping (yfinance sector -> our key)
+# yfinance uses various names that need normalization
+sector_mapping:
+  "Information Technology": "Technology"
+  "Health Care": "Healthcare"
+  "Consumer Cyclical": "Consumer Discretionary"
+  "Consumer Defensive": "Consumer Staples"
+  "Basic Materials": "Materials"
+  "Communication Services": "Communication Services"
+  "Financial Services": "Financials"
+  "Financial": "Financials"
+  "Real Estate": "Real Estate"
+  "Utilities": "Utilities"
+  "Energy": "Energy"
+  "Industrials": "Industrials"
+  "Materials": "Materials"
+  "Technology": "Technology"
+  "Healthcare": "Healthcare"
+
+# Default values for unknown sectors
+default:
+  median_pe: 20.0
+  median_roe: 15.0
+  median_de: 80.0

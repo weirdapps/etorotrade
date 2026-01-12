@@ -475,7 +475,7 @@ eu_micro:
 hk_mega:
   buy:
     min_upside: 15
-    min_buy_percentage: 70
+    min_buy_percentage: 75
     min_beta: 0.2
     max_beta: 2.5
     min_forward_pe: 0.5
@@ -484,7 +484,7 @@ hk_mega:
     max_trailing_pe: 90
     max_peg: 2.5
     max_short_interest: 2
-    min_exret: 11
+    min_exret: 13
     min_earnings_growth: -25
     min_price_performance: -25
     min_analysts: 14
@@ -492,13 +492,13 @@ hk_mega:
     min_roe: 8.0
     max_debt_equity: 200.0
     # Price Momentum
-    min_pct_from_52w_high: 55
+    min_pct_from_52w_high: 60
     require_above_200dma: true
     # Analyst Momentum
-    min_analyst_momentum: -12
+    min_analyst_momentum: -10
     # Sector-Relative Valuation
-    max_pe_vs_sector: 1.6
-    min_pe_vs_sector: 0.25
+    max_pe_vs_sector: 1.5
+    min_pe_vs_sector: 0.3
   sell:
     max_upside: 7.5
     min_buy_percentage: 55
@@ -530,7 +530,7 @@ hk_large:
     max_trailing_pe: 85
     max_peg: 2.25
     max_short_interest: 2.25
-    min_exret: 15
+    min_exret: 17
     min_earnings_growth: -22.5
     min_price_performance: -22.5
     min_analysts: 12
@@ -538,13 +538,13 @@ hk_large:
     min_roe: 8.0
     max_debt_equity: 200.0
     # Price Momentum
-    min_pct_from_52w_high: 55
+    min_pct_from_52w_high: 60
     require_above_200dma: true
     # Analyst Momentum
-    min_analyst_momentum: -12
+    min_analyst_momentum: -10
     # Sector-Relative Valuation
-    max_pe_vs_sector: 1.6
-    min_pe_vs_sector: 0.25
+    max_pe_vs_sector: 1.5
+    min_pe_vs_sector: 0.3
   sell:
     max_upside: 10
     min_buy_percentage: 60
@@ -576,7 +576,7 @@ hk_mid:
     max_trailing_pe: 80
     max_peg: 2.0
     max_short_interest: 2.5
-    min_exret: 20
+    min_exret: 22
     min_earnings_growth: -20
     min_price_performance: -20
     min_analysts: 10
