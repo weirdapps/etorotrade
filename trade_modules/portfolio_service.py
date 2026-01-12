@@ -25,7 +25,9 @@ class PortfolioService:
             # Extract portfolio tickers (no normalization needed for equivalence checking)
             # Check for various column name variations
             ticker_col = None
-            if "TICKER" in portfolio_df.columns:
+            if "TKR" in portfolio_df.columns:
+                ticker_col = "TKR"
+            elif "TICKER" in portfolio_df.columns:
                 ticker_col = "TICKER"
             elif "Ticker" in portfolio_df.columns:
                 ticker_col = "Ticker"

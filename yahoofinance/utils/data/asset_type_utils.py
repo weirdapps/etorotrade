@@ -226,20 +226,20 @@ def add_asset_type_classification(df: pd.DataFrame) -> pd.DataFrame:
     
     # Determine ticker column name
     ticker_col = None
-    for col in ['TICKER', 'ticker', 'symbol', 'Symbol', 'SYMBOL']:
+    for col in ['TKR', 'TICKER', 'ticker', 'symbol', 'Symbol', 'SYMBOL']:
         if col in result_df.columns:
             ticker_col = col
             break
-    
+
     if not ticker_col:
         logger.warning("No ticker column found for asset classification")
         result_df['asset_type'] = 'other'
         result_df['asset_priority'] = ASSET_TYPE_PRIORITY['other']
         return result_df
-    
+
     # Determine company name column
     company_col = None
-    for col in ['COMPANY', 'company_name', 'name', 'Name', 'company', 'longName']:
+    for col in ['NAME', 'COMPANY', 'company_name', 'name', 'Name', 'company', 'longName']:
         if col in result_df.columns:
             company_col = col
             break

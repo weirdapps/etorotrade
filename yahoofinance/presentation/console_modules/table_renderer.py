@@ -167,27 +167,52 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     if 'A' in df.columns:
         new_df['A'] = df['A']
 
+    # Copy BS/ACTION column if present (critical for trade analysis display)
+    for bs_col_name in ["BS", "ACTION", "ACT", "action"]:
+        if bs_col_name in df.columns and 'BS' not in new_df.columns:
+            new_df['BS'] = df[bs_col_name]
+            break
+
     df = new_df
 
-    # Handle BS/ACTION column - ALWAYS recalculate to ensure current criteria are applied
+    # Handle BS/ACTION column - only recalculate if missing
+    # For trade analysis display, we trust the pre-filtered BS values
     bs_col = COLUMN_NAMES['ACTION']
 
-    # Drop any existing action columns to force recalculation with current criteria
-    # This ensures ROE/DE and other new criteria are properly applied
+    # Check if BS column already exists with valid values
     existing_action_cols = [col for col in ["BS", "ACTION", "ACT", "action"] if col in df.columns]
+    has_valid_bs = False
     if existing_action_cols:
-        logger.info(f"Dropping existing action columns {existing_action_cols} to force recalculation")
-        df = df.drop(columns=existing_action_cols)
+        for col in existing_action_cols:
+            valid_values = df[col].isin(['B', 'S', 'H', 'I']).sum()
+            if valid_values > 0:
+                has_valid_bs = True
+                # Rename to standard BS column if needed
+                if col != bs_col:
+                    df[bs_col] = df[col]
+                    if col != bs_col:
+                        df = df.drop(columns=[c for c in existing_action_cols if c != bs_col and c in df.columns])
+                break
 
-    # Create reverse aliases for short column names to long names
-    # This allows _calculate_actions() to find ROE/DE when reading from CSV
-    if 'ROE' in df.columns and 'return_on_equity' not in df.columns:
-        df['return_on_equity'] = df['ROE']
-    if 'DE' in df.columns and 'debt_to_equity' not in df.columns:
-        df['debt_to_equity'] = df['DE']
+    # Only recalculate if no valid BS column exists
+    if not has_valid_bs:
+        # Drop any existing invalid action columns
+        existing_action_cols = [col for col in ["BS", "ACTION", "ACT", "action"] if col in df.columns]
+        if existing_action_cols:
+            logger.info(f"Dropping existing action columns {existing_action_cols} to force recalculation")
+            df = df.drop(columns=existing_action_cols)
 
-    # Always calculate actions using current trading criteria
-    df[bs_col] = calculate_actions(df)
+        # Create reverse aliases for short column names to long names
+        # This allows _calculate_actions() to find ROE/DE when reading from CSV
+        if 'ROE' in df.columns and 'return_on_equity' not in df.columns:
+            df['return_on_equity'] = df['ROE']
+        if 'DE' in df.columns and 'debt_to_equity' not in df.columns:
+            df['debt_to_equity'] = df['DE']
+
+        # Calculate actions using current trading criteria
+        df[bs_col] = calculate_actions(df)
+    else:
+        logger.debug(f"Using existing BS column values, skipping recalculation")
 
     # Apply number formatting based on FORMATTERS configuration
     formatters = DISPLAY.get("FORMATTERS", {})
