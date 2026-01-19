@@ -84,6 +84,11 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         'twelve_month_performance': 'PP',
         'return_on_equity': 'ROE',
         'debt_to_equity': 'DE',
+        # FCF and Revenue Growth - for signal calculation and display
+        'fcf_yield': 'FCF',
+        'revenue_growth': 'revenue_growth',
+        'free_cash_flow': 'free_cash_flow',
+        'FCF': 'FCF',
         'EXRET': 'EXR',
         'A': 'A',
         # Identity mappings for columns already in display format (old names -> new short names)
@@ -295,6 +300,22 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
         df["DE"] = df["DE"].apply(format_de)
 
+    # Special handling for FCF yield formatting (1 decimal place with % sign)
+    if "FCF" in df.columns:
+        def format_fcf(value):
+            try:
+                if value is None or value == '' or value == '--':
+                    return "--"
+                # Try to convert to float (handles both numeric and string inputs from CSV/API)
+                float_value = float(value)
+                if math.isnan(float_value) or math.isinf(float_value):
+                    return "--"
+                return f"{float_value:.1f}%"
+            except (ValueError, TypeError):
+                return "--"
+
+        df["FCF"] = df["FCF"].apply(format_fcf)
+
     # Special handling for 52W formatting (percent from 52-week high)
     if "52W" in df.columns:
         def format_52w_pct(value):
@@ -379,7 +400,7 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     for col in df.columns:
         # Don't re-format columns that have been specially formatted above
-        if col not in ["#", "TKR", "NAME", "ERN", "ROE", "DE", "52W", "2H", "AM", "P/S"]:
+        if col not in ["#", "TKR", "NAME", "ERN", "ROE", "DE", "FCF", "52W", "2H", "AM", "P/S"]:
             # Apply specific formatting if configured
             if col in format_mapping:
                 formatter_key = format_mapping[col]
@@ -419,22 +440,28 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def calculate_actions(df: pd.DataFrame) -> pd.Series:
-    """Calculate trading actions for each row in the DataFrame."""
-    actions = []
+    """Calculate trading actions for each row in the DataFrame.
 
-    for _, row in df.iterrows():
-        try:
-            # Import the calculation function and trading criteria
-            from yahoofinance.utils.trade_criteria import calculate_action_for_row
-            from yahoofinance.core.config import TRADING_CRITERIA
-            action, _ = calculate_action_for_row(row, TRADING_CRITERIA, "short_percent")
-            # Preserve all valid actions including "I" (Inconclusive), only default empty/None to "H"
-            actions.append(action if action is not None and action != "" else "H")
-        except (ImportError, KeyError, ValueError, TypeError, AttributeError):
-            # Fallback action calculation
-            actions.append("H")  # Default to Hold
-
-    return pd.Series(actions, index=df.index)
+    Uses the vectorized signal calculation from trade_modules.analysis.signals
+    which includes FCF yield and revenue growth checks.
+    """
+    try:
+        # Use the new vectorized signal calculation system
+        from trade_modules.analysis.signals import calculate_action_vectorized
+        return calculate_action_vectorized(df, option="portfolio")
+    except ImportError:
+        # Fallback to old row-by-row system if new system not available
+        logger.warning("Could not import vectorized signals, falling back to row-by-row")
+        actions = []
+        for _, row in df.iterrows():
+            try:
+                from yahoofinance.utils.trade_criteria import calculate_action_for_row
+                from yahoofinance.core.config import TRADING_CRITERIA
+                action, _ = calculate_action_for_row(row, TRADING_CRITERIA, "short_percent")
+                actions.append(action if action is not None and action != "" else "H")
+            except (ImportError, KeyError, ValueError, TypeError, AttributeError):
+                actions.append("H")
+        return pd.Series(actions, index=df.index)
 
 
 def display_stock_table(stock_data: List[Dict[str, Any]], title: str = "Stock Analysis") -> None:

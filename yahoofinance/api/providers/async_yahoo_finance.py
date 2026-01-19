@@ -257,6 +257,22 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             info["target_price"] = ticker_info.get("targetMeanPrice", None)
             info["recommendation"] = ticker_info.get("recommendationMean", None)
 
+            # Free Cash Flow - for FCF Yield calculation (academically proven alpha factor)
+            info["free_cash_flow"] = ticker_info.get("freeCashflow", None)
+
+            # Calculate FCF Yield = FCF / Market Cap * 100
+            if info["free_cash_flow"] and info["market_cap"] and info["market_cap"] > 0:
+                info["fcf_yield"] = (info["free_cash_flow"] / info["market_cap"]) * 100
+            else:
+                info["fcf_yield"] = None
+
+            # Revenue Growth (yfinance provides revenueGrowth as decimal, e.g., 0.15 = 15%)
+            revenue_growth = ticker_info.get("revenueGrowth", None)
+            if revenue_growth is not None:
+                info["revenue_growth"] = revenue_growth * 100  # Convert to percentage
+            else:
+                info["revenue_growth"] = None
+
             # Price Momentum: 50/200-day moving averages
             info["fifty_day_average"] = ticker_info.get("fiftyDayAverage", None)
             info["two_hundred_day_average"] = ticker_info.get("twoHundredDayAverage", None)

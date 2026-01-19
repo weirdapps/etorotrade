@@ -155,15 +155,15 @@ class TestMidHKTierSignals:
     def test_mid_hk_buy_signal(self, mid_hk_base_data):
         """BUY signal for MID-HK tier.
 
-        MID-HK BUY criteria:
-        - min_upside: 25
-        - min_buy_percentage: 80
-        - min_exret: 20
+        MID-HK BUY criteria (tightened per hedge fund review):
+        - min_upside: 30 (was 25)
+        - min_buy_percentage: 85 (was 80)
+        - min_exret: 26 (was 20)
         """
         data = mid_hk_base_data.copy()
-        data['upside'] = 28.0
-        data['buy_percentage'] = 82.0
-        data['EXRET'] = 23.0
+        data['upside'] = 32.0              # ✓ ≥30%
+        data['buy_percentage'] = 87.0      # ✓ ≥85%
+        data['EXRET'] = 28.0               # ✓ ≥26
 
         df = pd.DataFrame([data]).set_index('ticker')
         result = calculate_action(df)

@@ -25,6 +25,40 @@ DEFAULT_SIGNAL_LOG_PATH = Path(__file__).parent.parent / "yahoofinance" / "outpu
 # Lock for thread-safe file operations
 _file_lock = threading.Lock()
 
+# SPY price cache (refreshed periodically)
+_spy_cache: Dict[str, Any] = {"price": None, "timestamp": None}
+_SPY_CACHE_TTL_SECONDS = 300  # 5 minute cache
+
+
+def _get_spy_price() -> Optional[float]:
+    """
+    Get current SPY price for benchmark comparison.
+
+    Uses yfinance with caching to avoid excessive API calls.
+    Returns None if price cannot be fetched.
+    """
+    global _spy_cache
+
+    # Check cache validity
+    if _spy_cache["timestamp"] is not None:
+        cache_age = (datetime.now() - _spy_cache["timestamp"]).total_seconds()
+        if cache_age < _SPY_CACHE_TTL_SECONDS and _spy_cache["price"] is not None:
+            return _spy_cache["price"]
+
+    try:
+        import yfinance as yf
+        spy = yf.Ticker("SPY")
+        # Use fast_info for quick price lookup
+        price = spy.fast_info.get("lastPrice") or spy.fast_info.get("regularMarketPrice")
+        if price:
+            _spy_cache["price"] = float(price)
+            _spy_cache["timestamp"] = datetime.now()
+            return _spy_cache["price"]
+    except Exception as e:
+        logger.debug(f"Failed to fetch SPY price: {e}")
+
+    return None
+
 
 class SignalRecord:
     """Represents a single trading signal record."""
@@ -44,6 +78,18 @@ class SignalRecord:
         region: Optional[str] = None,
         vix_level: Optional[float] = None,
         sector: Optional[str] = None,
+        # Additional metrics for comprehensive tracking
+        pe_forward: Optional[float] = None,
+        pe_trailing: Optional[float] = None,
+        peg: Optional[float] = None,
+        short_interest: Optional[float] = None,
+        roe: Optional[float] = None,
+        debt_equity: Optional[float] = None,
+        pct_52w_high: Optional[float] = None,
+        # Benchmark tracking
+        spy_price: Optional[float] = None,
+        # Sell trigger details
+        sell_triggers: Optional[List[str]] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ):
         self.ticker = ticker
@@ -59,6 +105,17 @@ class SignalRecord:
         self.region = region
         self.vix_level = vix_level
         self.sector = sector
+        # Additional metrics
+        self.pe_forward = pe_forward
+        self.pe_trailing = pe_trailing
+        self.peg = peg
+        self.short_interest = short_interest
+        self.roe = roe
+        self.debt_equity = debt_equity
+        self.pct_52w_high = pct_52w_high
+        # Benchmark
+        self.spy_price = spy_price
+        self.sell_triggers = sell_triggers or []
         self.metadata = metadata or {}
 
     def to_dict(self) -> Dict[str, Any]:
@@ -77,6 +134,17 @@ class SignalRecord:
             "region": self.region,
             "vix_level": self.vix_level,
             "sector": self.sector,
+            # Additional metrics
+            "pe_forward": self.pe_forward,
+            "pe_trailing": self.pe_trailing,
+            "peg": self.peg,
+            "short_interest": self.short_interest,
+            "roe": self.roe,
+            "debt_equity": self.debt_equity,
+            "pct_52w_high": self.pct_52w_high,
+            # Benchmark
+            "spy_price": self.spy_price,
+            "sell_triggers": self.sell_triggers,
             "metadata": self.metadata,
         }
 
@@ -97,6 +165,17 @@ class SignalRecord:
             region=data.get("region"),
             vix_level=data.get("vix_level"),
             sector=data.get("sector"),
+            # Additional metrics
+            pe_forward=data.get("pe_forward"),
+            pe_trailing=data.get("pe_trailing"),
+            peg=data.get("peg"),
+            short_interest=data.get("short_interest"),
+            roe=data.get("roe"),
+            debt_equity=data.get("debt_equity"),
+            pct_52w_high=data.get("pct_52w_high"),
+            # Benchmark
+            spy_price=data.get("spy_price"),
+            sell_triggers=data.get("sell_triggers", []),
             metadata=data.get("metadata", {}),
         )
 
@@ -312,6 +391,15 @@ def log_signal(
     tier: Optional[str] = None,
     region: Optional[str] = None,
     sector: Optional[str] = None,
+    # Additional metrics for comprehensive tracking
+    pe_forward: Optional[float] = None,
+    pe_trailing: Optional[float] = None,
+    peg: Optional[float] = None,
+    short_interest: Optional[float] = None,
+    roe: Optional[float] = None,
+    debt_equity: Optional[float] = None,
+    pct_52w_high: Optional[float] = None,
+    sell_triggers: Optional[List[str]] = None,
     **kwargs,
 ) -> bool:
     """
@@ -329,6 +417,14 @@ def log_signal(
         tier: Market cap tier
         region: Geographic region
         sector: Stock sector
+        pe_forward: Forward P/E ratio
+        pe_trailing: Trailing P/E ratio
+        peg: PEG ratio
+        short_interest: Short interest percentage
+        roe: Return on Equity percentage
+        debt_equity: Debt to Equity ratio percentage
+        pct_52w_high: Percentage of 52-week high
+        sell_triggers: List of sell conditions triggered (for SELL signals)
         **kwargs: Additional metadata
 
     Returns:
@@ -340,6 +436,13 @@ def log_signal(
         from trade_modules.vix_regime_provider import get_current_vix
         vix_level = get_current_vix()
     except ImportError:
+        pass
+
+    # Get SPY price for benchmark comparison
+    spy_price = None
+    try:
+        spy_price = _get_spy_price()
+    except Exception:
         pass
 
     record = SignalRecord(
@@ -355,6 +458,17 @@ def log_signal(
         region=region,
         vix_level=vix_level,
         sector=sector,
+        # Additional metrics
+        pe_forward=pe_forward,
+        pe_trailing=pe_trailing,
+        peg=peg,
+        short_interest=short_interest,
+        roe=roe,
+        debt_equity=debt_equity,
+        pct_52w_high=pct_52w_high,
+        # Benchmark
+        spy_price=spy_price,
+        sell_triggers=sell_triggers or [],
         metadata=kwargs,
     )
 
