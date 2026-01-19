@@ -286,6 +286,10 @@ class TestFilterFunctions:
 class TestPerformanceComparison:
     """Test performance comparison between old and new implementations."""
 
+    @pytest.mark.skipif(
+        os.environ.get('CI') == 'true' or os.environ.get('GITHUB_ACTIONS') == 'true',
+        reason="Performance test skipped in CI - runner performance is too variable"
+    )
     @patch('trade_modules.signal_tracker.get_tracker')
     def test_vectorized_vs_apply_performance(self, mock_tracker):
         """Compare performance of vectorized vs apply-based operations."""
