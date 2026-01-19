@@ -116,7 +116,7 @@ class TestImprovementAnalyzer:
         assert doc.generated_at is not None
         assert len(doc.metric_analysis) > 0
         assert doc.data_quality is not None
-        assert len(doc.suggestions) >= 0
+        assert isinstance(doc.suggestions, list)
         assert len(doc.key_insights) > 0
 
     def test_save_document(self, temp_market_csv):
@@ -153,7 +153,7 @@ class TestMetricEffectiveness:
         )
 
         assert metric.metric_name == "EXR"
-        assert metric.ratio == 3.0
+        assert abs(metric.ratio - 3.0) < 0.01
         assert metric.is_effective is True
 
 
@@ -173,7 +173,7 @@ class TestDataQualityReport:
         )
 
         assert report.total_stocks == 5000
-        assert report.inconclusive_rate == 50.0
+        assert abs(report.inconclusive_rate - 50.0) < 0.01
 
 
 class TestImprovementSuggestion:

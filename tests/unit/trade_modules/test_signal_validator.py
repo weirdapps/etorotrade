@@ -114,8 +114,8 @@ class TestSignalValidator:
         assert isinstance(result, ValidationResult)
         assert result.ticker == "AAPL"
         assert result.signal == "B"
-        assert result.price_at_signal == 150.0
-        assert result.current_price == 170.0
+        assert abs(result.price_at_signal - 150.0) < 0.01
+        assert abs(result.current_price - 170.0) < 0.01
         assert result.price_change_pct is not None
         assert abs(result.price_change_pct - 13.33) < 0.1
 
@@ -176,7 +176,7 @@ class TestSignalValidator:
         assert isinstance(summary, ValidationSummary)
         assert summary.total_signals == 2
         assert summary.validated_signals == 2
-        assert summary.hit_rate == 50.0
+        assert abs(summary.hit_rate - 50.0) < 0.01
         assert summary.avg_return > 0
 
     def test_empty_log(self):
@@ -238,4 +238,4 @@ class TestValidationSummary:
         )
 
         assert summary.total_signals == 100
-        assert summary.hit_rate == 65.0
+        assert abs(summary.hit_rate - 65.0) < 0.01

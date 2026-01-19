@@ -511,7 +511,7 @@ with {data_quality.inconclusive_rate:.1f}% INCONCLUSIVE signals due to limited a
         lines.append("| Metric | BUY Median | SELL Median | Ratio | Effective | Recommendation |")
         lines.append("|--------|------------|-------------|-------|-----------|----------------|")
         for m in doc.metric_analysis:
-            eff = "" if m.is_effective else ""
+            eff = "Yes" if m.is_effective else "No"
             lines.append(f"| {m.metric_name} | {m.buy_median:.2f} | {m.sell_median:.2f} | {m.ratio:.2f}x | {eff} | {m.recommendation[:40]}... |")
         lines.append("")
         lines.append("---")
