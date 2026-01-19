@@ -37,8 +37,6 @@ def _get_spy_price() -> Optional[float]:
     Uses yfinance with caching to avoid excessive API calls.
     Returns None if price cannot be fetched.
     """
-    global _spy_cache
-
     # Check cache validity
     if _spy_cache["timestamp"] is not None:
         cache_age = (datetime.now() - _spy_cache["timestamp"]).total_seconds()
