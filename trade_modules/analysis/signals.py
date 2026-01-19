@@ -138,6 +138,14 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
     pe_vs_sector_raw = df.get("pe_vs_sector", df.get("P/S", pd.Series([np.nan] * len(df), index=df.index)))
     pe_vs_sector = pd.to_numeric(pe_vs_sector_raw, errors="coerce").fillna(np.nan)
 
+    # NEW: FCF Yield - academically proven alpha factor (Sloan 1996, Lakonishok 1994)
+    fcf_yield_raw = df.get("fcf_yield", df.get("FCF", pd.Series([np.nan] * len(df), index=df.index)))
+    fcf_yield = pd.to_numeric(fcf_yield_raw, errors="coerce").fillna(np.nan)
+
+    # NEW: Revenue Growth - harder to manipulate than EPS
+    rev_growth_raw = df.get("revenue_growth", df.get("RG", pd.Series([np.nan] * len(df), index=df.index)))
+    rev_growth = pd.to_numeric(rev_growth_raw, errors="coerce").fillna(np.nan)
+
     # Initialize action series
     actions = pd.Series("H", index=df.index)  # Default to HOLD
     actions[~has_confidence] = "I"  # INCONCLUSIVE for low confidence
@@ -212,6 +220,9 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
         row_above_200dma = above_200dma.loc[idx]
         row_amom = amom.loc[idx]
         row_pe_vs_sector = pe_vs_sector.loc[idx]
+        # NEW: FCF and Revenue Growth
+        row_fcf_yield = fcf_yield.loc[idx]
+        row_rev_growth = rev_growth.loc[idx]
 
         # SELL criteria - ANY condition triggers SELL
         sell_conditions: List[Union[str, bool]] = []
@@ -297,6 +308,42 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
         if any(sell_conditions):
             logger.info(f"Ticker {ticker}: MARKED AS SELL - triggered by: {', '.join(str(c) for c in sell_conditions)}")
             actions.loc[idx] = "S"
+            # Log SELL signal for forward validation (must log before continue)
+            try:
+                from trade_modules.signal_tracker import log_signal
+                price_raw = df.get("price", df.get("PRICE", pd.Series([None] * len(df), index=df.index)))
+                row_price = price_raw.loc[idx] if idx in price_raw.index else None
+                target_raw = df.get("target_price", df.get("TARGET", pd.Series([None] * len(df), index=df.index)))
+                row_target = target_raw.loc[idx] if idx in target_raw.index else None
+                sector_raw = df.get("sector", df.get("SECTOR", pd.Series([None] * len(df), index=df.index)))
+                row_sector = sector_raw.loc[idx] if idx in sector_raw.index else None
+
+                log_signal(
+                    ticker=ticker,
+                    signal="S",
+                    price=float(row_price) if row_price and not pd.isna(row_price) else None,
+                    target=float(row_target) if row_target and not pd.isna(row_target) else None,
+                    upside=row_upside,
+                    buy_pct=row_buy_pct,
+                    exret=row_exret,
+                    market_cap=cap_values.loc[idx] if idx in cap_values.index else None,
+                    tier=tier,
+                    region=region,
+                    sector=str(row_sector) if row_sector and not pd.isna(row_sector) else None,
+                    # Add additional metrics for comprehensive tracking
+                    pe_forward=float(row_pef) if not pd.isna(row_pef) else None,
+                    pe_trailing=float(row_pet) if not pd.isna(row_pet) else None,
+                    peg=float(row_peg) if not pd.isna(row_peg) else None,
+                    short_interest=float(row_si) if not pd.isna(row_si) else None,
+                    roe=float(row_roe) if not pd.isna(row_roe) else None,
+                    debt_equity=float(row_de) if not pd.isna(row_de) else None,
+                    pct_52w_high=float(row_pct_52w) if not pd.isna(row_pct_52w) else None,
+                    sell_triggers=list(str(c) for c in sell_conditions),
+                )
+            except ImportError:
+                pass
+            except Exception as e:
+                logger.debug(f"Failed to log SELL signal for {ticker}: {e}")
             continue
 
         logger.debug(f"Ticker {ticker}: Passed SELL checks, evaluating BUY criteria")
@@ -412,6 +459,20 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                 is_buy_candidate = False
                 logger.debug(f"Ticker {ticker}: Failed PE/sector check - {row_pe_vs_sector:.2f}x < min:{buy_criteria['min_pe_vs_sector']:.2f}x (value trap)")
 
+        # NEW: FCF Yield - academically proven alpha factor (Sloan 1996, Lakonishok 1994)
+        # Positive FCF indicates business generates real cash, not just accounting profits
+        if "min_fcf_yield" in buy_criteria and not pd.isna(row_fcf_yield):
+            if row_fcf_yield < buy_criteria.get("min_fcf_yield"):
+                is_buy_candidate = False
+                logger.debug(f"Ticker {ticker}: Failed FCF yield check - {row_fcf_yield:.1f}% < min:{buy_criteria['min_fcf_yield']:.1f}%")
+
+        # NEW: Revenue Growth - harder to manipulate than EPS
+        # Avoid companies with collapsing top-line (can be signal of structural decline)
+        if "min_revenue_growth" in buy_criteria and not pd.isna(row_rev_growth):
+            if row_rev_growth < buy_criteria.get("min_revenue_growth"):
+                is_buy_candidate = False
+                logger.debug(f"Ticker {ticker}: Failed revenue growth check - {row_rev_growth:.1f}% < min:{buy_criteria['min_revenue_growth']:.1f}%")
+
         if is_buy_candidate:
             actions.loc[idx] = "B"
         # Otherwise remains "H" (HOLD)
@@ -439,6 +500,14 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                 tier=tier,
                 region=region,
                 sector=str(row_sector) if row_sector and not pd.isna(row_sector) else None,
+                # Additional metrics for comprehensive tracking
+                pe_forward=float(row_pef) if not pd.isna(row_pef) else None,
+                pe_trailing=float(row_pet) if not pd.isna(row_pet) else None,
+                peg=float(row_peg) if not pd.isna(row_peg) else None,
+                short_interest=float(row_si) if not pd.isna(row_si) else None,
+                roe=float(row_roe) if not pd.isna(row_roe) else None,
+                debt_equity=float(row_de) if not pd.isna(row_de) else None,
+                pct_52w_high=float(row_pct_52w) if not pd.isna(row_pct_52w) else None,
             )
         except ImportError:
             pass  # Signal tracker not available

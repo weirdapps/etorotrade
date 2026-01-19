@@ -177,15 +177,15 @@ class TestLargeHKTierSignals:
     def test_large_hk_buy_signal(self, large_hk_base_data):
         """BUY signal for LARGE-HK tier.
 
-        LARGE-HK BUY criteria (from config.yaml):
-        - min_upside: 20
-        - min_buy_percentage: 75
-        - min_exret: 15
+        LARGE-HK BUY criteria (from config.yaml - tightened per hedge fund review):
+        - min_upside: 25 (was 20)
+        - min_buy_percentage: 80 (was 75)
+        - min_exret: 20 (was 15)
         """
         data = large_hk_base_data.copy()
-        data['upside'] = 22.0              # ✓ ≥20%
-        data['buy_percentage'] = 78.0      # ✓ ≥75%
-        data['EXRET'] = 17.0               # ✓ ≥15
+        data['upside'] = 27.0              # ✓ ≥25%
+        data['buy_percentage'] = 82.0      # ✓ ≥80%
+        data['EXRET'] = 22.0               # ✓ ≥20
 
         df = pd.DataFrame([data]).set_index('ticker')
         result = calculate_action(df)

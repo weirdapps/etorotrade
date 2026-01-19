@@ -242,8 +242,8 @@ class TestTierCriteriaAccess:
         criteria = config.get_tier_criteria("US", "MEGA")
 
         assert criteria is not None
-        assert criteria.buy.min_upside == pytest.approx(5.0)
-        # P0 improvement: max_upside changed from 2.5 to 0.0 - only sell MEGA-cap if negative upside
+        assert criteria.buy.min_upside == pytest.approx(8.0)
+        # Updated: min_upside increased from 5.0 to 8.0 per hedge fund manager review (5% is noise for MEGA-cap)
         assert criteria.sell.max_upside == pytest.approx(0.0)
 
     def test_get_tier_criteria_with_enums(self):

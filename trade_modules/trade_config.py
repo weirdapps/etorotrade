@@ -313,6 +313,24 @@ class TradeConfig:
             'max_debt_equity_sell': 350.0,
             'tickers': ['VIE.PA', 'NEE', 'DUK', 'SO', 'D'],
         },
+        'PAYMENT_PROCESSORS': {
+            'description': 'Asset-light payment networks with operating leverage from share buybacks',
+            'min_roe_buy': 30.0,  # Must have excellent ROE to justify leverage
+            'min_roe_sell': 20.0,
+            'max_debt_equity_buy': 250.0,  # Higher threshold - leverage from buybacks, not operational debt
+            'max_debt_equity_sell': 400.0,
+            'max_pe_vs_sector_buy': 1.8,  # Payment networks trade at premium to fin services (tech moat)
+            'tickers': ['V', 'MA', 'AXP', 'PYPL'],
+        },
+        'TELECOM': {
+            'description': 'Telecommunications - Capital intensive with stable recurring revenues',
+            'min_roe_buy': 10.0,  # Lower ROE threshold - infrastructure heavy
+            'min_roe_sell': 5.0,
+            'max_debt_equity_buy': 220.0,  # Higher leverage for spectrum/infrastructure
+            'max_debt_equity_sell': 350.0,
+            'max_short_interest_buy': 4.0,  # Higher SI tolerance - often shorted for yield
+            'tickers': ['TMUS', 'VZ', 'T', 'VOD', 'ORAN'],
+        },
     }
 
     @classmethod
@@ -369,6 +387,12 @@ class TradeConfig:
 
             if 'max_debt_equity_buy' in sector_config:
                 adjusted_criteria['max_debt_equity'] = sector_config['max_debt_equity_buy']
+
+            if 'max_short_interest_buy' in sector_config:
+                adjusted_criteria['max_short_interest'] = sector_config['max_short_interest_buy']
+
+            if 'max_pe_vs_sector_buy' in sector_config:
+                adjusted_criteria['max_pe_vs_sector'] = sector_config['max_pe_vs_sector_buy']
 
         elif action == 'sell':
             if 'skip_roe' in sector_config and sector_config['skip_roe']:
