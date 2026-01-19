@@ -507,6 +507,7 @@ STANDARD_DISPLAY_COLUMNS = [
     "PP",        # Price performance
     "ROE",       # Return on equity
     "DE",        # Debt to equity
+    "FCF",       # Free cash flow yield
     "ERN",       # Earnings date
     "SZ",        # Position size
     "BS",        # Buy/Sell signal
