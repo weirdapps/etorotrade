@@ -500,6 +500,9 @@ def display_stock_table(stock_data: List[Dict[str, Any]], title: str = "Stock An
     # Get the standard column order from config
     bs_col = COLUMN_NAMES['ACTION']
 
+    # Save original dataframe for concentration analysis (before column filtering)
+    original_df = df.copy()
+
     # Use standard display columns (all columns with compact formatting)
     final_col_order = [col for col in STANDARD_DISPLAY_COLUMNS if col in df.columns]
 
@@ -551,6 +554,20 @@ def display_stock_table(stock_data: List[Dict[str, Any]], title: str = "Stock An
         disable_numparse=True,  # Prevent width expansion from number parsing
     )
     print(table)
+
+    # Display concentration warnings for BUY signals
+    try:
+        from trade_modules.concentration_analyzer import analyze_concentration, format_concentration_warnings
+        # Count BUY signals in the original dataframe
+        buy_count = (original_df[bs_col] == "B").sum() if bs_col in original_df.columns else 0
+        if buy_count >= 3:
+            warnings = analyze_concentration(original_df, signal_column=bs_col, target_signal="B")
+            if warnings:
+                print(format_concentration_warnings(warnings))
+    except ImportError:
+        pass  # Concentration analyzer not available
+    except Exception as e:
+        logger.debug(f"Error analyzing concentration: {e}")
 
     # Display processing statistics if available
     from yahoofinance.utils.async_utils.enhanced import display_processing_stats

@@ -98,7 +98,7 @@ class FilterService:
 
     def filter_hold_opportunities(self, df: pd.DataFrame) -> pd.DataFrame:
         """Filter for hold opportunities based on action and criteria."""
-        # Use BS column which contains 'B', 'S', 'H' values
+        # Use BS column which contains 'B', 'S', 'H', 'I' values
         if "BS" not in df.columns:
             return pd.DataFrame()
 
