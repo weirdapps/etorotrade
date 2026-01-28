@@ -39,6 +39,9 @@ us_mega:
     max_pe_vs_sector: 1.5
     min_pe_vs_sector: 0.3
   sell:
+    # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
+    fully_valued_upside_threshold: 3.0
+    fully_valued_buy_pct_threshold: 80.0
     max_upside: 0
     min_buy_percentage: 50
     min_beta: 3.5
@@ -80,6 +83,9 @@ us_large:
     max_pe_vs_sector: 1.5
     min_pe_vs_sector: 0.3
   sell:
+    # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
+    fully_valued_upside_threshold: 3.0
+    fully_valued_buy_pct_threshold: 80.0
     max_upside: 5
     min_buy_percentage: 55
     min_beta: 3
@@ -121,6 +127,9 @@ us_mid:
     max_pe_vs_sector: 1.4
     min_pe_vs_sector: 0.3
   sell:
+    # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
+    fully_valued_upside_threshold: 3.0
+    fully_valued_buy_pct_threshold: 80.0
     max_upside: 7.5
     min_buy_percentage: 60
     min_beta: 3
@@ -162,6 +171,9 @@ us_small:
     max_pe_vs_sector: 1.3
     min_pe_vs_sector: 0.35
   sell:
+    # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
+    fully_valued_upside_threshold: 3.0
+    fully_valued_buy_pct_threshold: 80.0
     max_upside: 10
     min_buy_percentage: 65
     min_beta: 3
@@ -202,6 +214,9 @@ us_micro:
     max_pe_vs_sector: 1.2
     min_pe_vs_sector: 0.4
   sell:
+    # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
+    fully_valued_upside_threshold: 3.0
+    fully_valued_buy_pct_threshold: 80.0
     max_upside: 12.5
     min_buy_percentage: 70
     min_beta: 3
@@ -243,6 +258,9 @@ eu_mega:
     max_pe_vs_sector: 1.5
     min_pe_vs_sector: 0.3
   sell:
+    # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
+    fully_valued_upside_threshold: 3.0
+    fully_valued_buy_pct_threshold: 80.0
     max_upside: 5
     min_buy_percentage: 50
     min_beta: 2.5
@@ -284,6 +302,9 @@ eu_large:
     max_pe_vs_sector: 1.5
     min_pe_vs_sector: 0.3
   sell:
+    # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
+    fully_valued_upside_threshold: 3.0
+    fully_valued_buy_pct_threshold: 80.0
     max_upside: 7.5
     min_buy_percentage: 55
     min_beta: 3
@@ -325,6 +346,9 @@ eu_mid:
     max_pe_vs_sector: 1.4
     min_pe_vs_sector: 0.3
   sell:
+    # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
+    fully_valued_upside_threshold: 3.0
+    fully_valued_buy_pct_threshold: 80.0
     max_upside: 10
     min_buy_percentage: 60
     min_beta: 2.5
@@ -366,6 +390,9 @@ eu_small:
     max_pe_vs_sector: 1.3
     min_pe_vs_sector: 0.35
   sell:
+    # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
+    fully_valued_upside_threshold: 3.0
+    fully_valued_buy_pct_threshold: 80.0
     max_upside: 12.5
     min_buy_percentage: 65
     min_beta: 2.5
@@ -406,6 +433,9 @@ eu_micro:
     max_pe_vs_sector: 1.2
     min_pe_vs_sector: 0.4
   sell:
+    # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
+    fully_valued_upside_threshold: 3.0
+    fully_valued_buy_pct_threshold: 80.0
     max_upside: 15
     min_buy_percentage: 70
     min_beta: 2.5
@@ -447,6 +477,9 @@ hk_mega:
     max_pe_vs_sector: 1.5
     min_pe_vs_sector: 0.3
   sell:
+    # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
+    fully_valued_upside_threshold: 3.0
+    fully_valued_buy_pct_threshold: 80.0
     max_upside: 7.5
     min_buy_percentage: 55
     min_beta: 3
@@ -488,6 +521,9 @@ hk_large:
     max_pe_vs_sector: 1.5
     min_pe_vs_sector: 0.3
   sell:
+    # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
+    fully_valued_upside_threshold: 3.0
+    fully_valued_buy_pct_threshold: 80.0
     max_upside: 10
     min_buy_percentage: 60
     min_beta: 2.5
@@ -529,6 +565,9 @@ hk_mid:
     max_pe_vs_sector: 1.5
     min_pe_vs_sector: 0.3
   sell:
+    # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
+    fully_valued_upside_threshold: 3.0
+    fully_valued_buy_pct_threshold: 80.0
     max_upside: 12.5
     min_buy_percentage: 65
     min_beta: 2.5
@@ -570,6 +609,9 @@ hk_small:
     max_pe_vs_sector: 1.4
     min_pe_vs_sector: 0.3
   sell:
+    # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
+    fully_valued_upside_threshold: 3.0
+    fully_valued_buy_pct_threshold: 80.0
     max_upside: 15
     min_buy_percentage: 70
     min_beta: 2.5
@@ -610,6 +652,9 @@ hk_micro:
     max_pe_vs_sector: 1.3
     min_pe_vs_sector: 0.35
   sell:
+    # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
+    fully_valued_upside_threshold: 3.0
+    fully_valued_buy_pct_threshold: 80.0
     max_upside: 17.5
     min_buy_percentage: 75
     min_beta: 2.5

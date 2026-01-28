@@ -374,9 +374,9 @@ class TestSignalPriority:
             'ticker': ['TEST'],
             'market_cap': [3e12],
             'region': ['US'],
-            'upside': [1.0],          # Triggers SELL (below threshold)
-            'buy_percentage': [80.0],  # Would be BUY
-            'EXRET': [0.8],           # Low EXRET
+            'upside': [-5.0],          # Triggers SELL (negative upside, well below threshold)
+            'buy_percentage': [70.0],  # Decent buy% but not enough with negative upside
+            'EXRET': [-3.5],           # Negative EXRET also triggers SELL
             'analyst_count': [20],
             'total_ratings': [20],
             'pe_forward': [20.0],
