@@ -169,13 +169,77 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
         # Check for various ticker column names: ticker, TICKER, TKR, symbol
         ticker_col = df.get("ticker", df.get("TICKER", df.get("TKR", df.get("symbol", pd.Series([""] * len(df), index=df.index)))))
 
+    # Import asset type classification
+    try:
+        from yahoofinance.utils.data.asset_type_utils import classify_asset_type
+    except ImportError:
+        classify_asset_type = None
+
+    # Get company name column for asset classification
+    company_col = df.get("company_name", df.get("NAME", df.get("name", pd.Series([None] * len(df), index=df.index))))
+
     # Process each row with region-tier specific thresholds
     for idx in df.index:
+        # Determine ticker first (needed for asset type check)
+        ticker = str(ticker_col.loc[idx]) if not pd.isna(ticker_col.loc[idx]) else ""
+
+        # Check asset type and use momentum-based signals for non-equity assets
+        if classify_asset_type:
+            company_name = company_col.loc[idx] if idx in company_col.index and not pd.isna(company_col.loc[idx]) else None
+            asset_type = classify_asset_type(ticker, cap_values.loc[idx], company_name)
+
+            # For non-equity assets (crypto, ETF, commodity), use momentum-based signals
+            # since analyst coverage is not applicable
+            if asset_type in ("crypto", "etf", "commodity"):
+                # Use price momentum (52-week high %) and technical indicators
+                row_pct_52w = pct_52w.loc[idx]
+                row_above_200dma = above_200dma.loc[idx]
+
+                # Simple momentum-based signal logic for non-equity assets
+                if pd.isna(row_pct_52w):
+                    actions.loc[idx] = "I"  # INCONCLUSIVE if no momentum data
+                    logger.info(f"Ticker {ticker}: {asset_type.upper()} marked INCONCLUSIVE - no momentum data")
+                elif row_pct_52w >= 85:
+                    # Strong momentum - near 52-week high
+                    if row_above_200dma is True:
+                        actions.loc[idx] = "B"  # BUY for strong uptrend
+                        logger.info(f"Ticker {ticker}: {asset_type.upper()} marked BUY - strong momentum ({row_pct_52w:.1f}% of 52w high, above 200DMA)")
+                    else:
+                        actions.loc[idx] = "H"  # HOLD if not above 200DMA
+                        logger.info(f"Ticker {ticker}: {asset_type.upper()} marked HOLD - good momentum but below 200DMA")
+                elif row_pct_52w <= 60:
+                    # Weak momentum - significantly below 52-week high
+                    actions.loc[idx] = "S"  # SELL for weak momentum
+                    logger.info(f"Ticker {ticker}: {asset_type.upper()} marked SELL - weak momentum ({row_pct_52w:.1f}% of 52w high)")
+                else:
+                    actions.loc[idx] = "H"  # HOLD for neutral momentum
+                    logger.info(f"Ticker {ticker}: {asset_type.upper()} marked HOLD - neutral momentum ({row_pct_52w:.1f}% of 52w high)")
+
+                # Log signal for forward validation
+                try:
+                    from trade_modules.signal_tracker import log_signal
+                    log_signal(
+                        ticker=ticker,
+                        signal=actions.loc[idx],
+                        upside=upside.loc[idx] if idx in upside.index else None,
+                        buy_pct=buy_pct.loc[idx] if idx in buy_pct.index else None,
+                        exret=exret.loc[idx] if idx in exret.index else None,
+                        market_cap=cap_values.loc[idx] if idx in cap_values.index else None,
+                        tier=config.get_tier_from_market_cap(cap_values.loc[idx]),
+                        region=config.get_region_from_ticker(ticker),
+                        pct_52w_high=float(row_pct_52w) if not pd.isna(row_pct_52w) else None,
+                        sell_triggers=[f"momentum_based_{asset_type}"] if actions.loc[idx] == "S" else [],
+                    )
+                except ImportError:
+                    pass
+                except Exception as e:
+                    logger.debug(f"Failed to log {asset_type} signal for {ticker}: {e}")
+                continue  # Skip analyst-based evaluation for non-equity assets
+
         if not has_confidence.loc[idx]:
             continue  # Already set to "I"
 
         # Determine region and tier for this stock
-        ticker = str(ticker_col.loc[idx]) if not pd.isna(ticker_col.loc[idx]) else ""
         region = config.get_region_from_ticker(ticker)
         tier = config.get_tier_from_market_cap(cap_values.loc[idx])
 
@@ -228,6 +292,56 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
         sell_conditions: List[Union[str, bool]] = []
 
         logger.debug(f"Ticker {ticker}: SELL CHECK START - upside={row_upside:.1f}%, buy%={row_buy_pct:.1f}%, exret={row_exret:.1f}%, roe={row_roe}, de={row_de}")
+
+        # FULLY VALUED check (P0 improvement - GOOG false positive fix)
+        # Stocks at fair value with high analyst consensus should not be SELL
+        # Conditions: upside within ±3%, buy% > 80%
+        fully_valued_upside_threshold = sell_criteria.get("fully_valued_upside_threshold", 3.0)
+        fully_valued_buy_pct_threshold = sell_criteria.get("fully_valued_buy_pct_threshold", 80.0)
+
+        is_fully_valued = (
+            abs(row_upside) <= fully_valued_upside_threshold
+            and row_buy_pct >= fully_valued_buy_pct_threshold
+        )
+
+        if is_fully_valued:
+            logger.info(f"Ticker {ticker}: FULLY VALUED (HOLD) - upside {row_upside:.1f}% (within ±{fully_valued_upside_threshold}%), buy% {row_buy_pct:.1f}% >= {fully_valued_buy_pct_threshold}%")
+            actions.loc[idx] = "H"  # Fully Valued stocks are HOLD (skip SELL evaluation)
+            # Log signal for forward validation
+            try:
+                from trade_modules.signal_tracker import log_signal
+                price_raw = df.get("price", df.get("PRICE", pd.Series([None] * len(df), index=df.index)))
+                row_price = price_raw.loc[idx] if idx in price_raw.index else None
+                target_raw = df.get("target_price", df.get("TARGET", pd.Series([None] * len(df), index=df.index)))
+                row_target = target_raw.loc[idx] if idx in target_raw.index else None
+                sector_raw = df.get("sector", df.get("SECTOR", pd.Series([None] * len(df), index=df.index)))
+                row_sector = sector_raw.loc[idx] if idx in sector_raw.index else None
+
+                log_signal(
+                    ticker=ticker,
+                    signal="H",  # Fully valued stocks logged as HOLD
+                    price=float(row_price) if row_price and not pd.isna(row_price) else None,
+                    target=float(row_target) if row_target and not pd.isna(row_target) else None,
+                    upside=row_upside,
+                    buy_pct=row_buy_pct,
+                    exret=row_exret,
+                    market_cap=cap_values.loc[idx] if idx in cap_values.index else None,
+                    tier=tier,
+                    region=region,
+                    sector=str(row_sector) if row_sector and not pd.isna(row_sector) else None,
+                    pe_forward=float(row_pef) if not pd.isna(row_pef) else None,
+                    pe_trailing=float(row_pet) if not pd.isna(row_pet) else None,
+                    peg=float(row_peg) if not pd.isna(row_peg) else None,
+                    short_interest=float(row_si) if not pd.isna(row_si) else None,
+                    roe=float(row_roe) if not pd.isna(row_roe) else None,
+                    debt_equity=float(row_de) if not pd.isna(row_de) else None,
+                    pct_52w_high=float(row_pct_52w) if not pd.isna(row_pct_52w) else None,
+                )
+            except ImportError:
+                pass
+            except Exception as e:
+                logger.debug(f"Failed to log FULLY VALUED signal for {ticker}: {e}")
+            continue  # Skip SELL/BUY evaluation for fully valued stocks
 
         # Basic criteria from config - only apply if explicitly defined in YAML
         # NO DEFAULTS - criteria must be explicitly configured to avoid false positives
