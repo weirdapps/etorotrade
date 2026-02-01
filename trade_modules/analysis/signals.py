@@ -3,12 +3,17 @@ Trading Signal Generation Module
 
 This module contains the core signal generation logic for buy/sell/hold decisions.
 Uses vectorized operations for performance on large datasets.
+
+Enhanced with multi-factor weighted scoring system:
+- SELL scoring with quality override protection
+- BUY conviction scoring for candidate ranking
 """
 
 import logging
 import pandas as pd
 import numpy as np
-from typing import List, Union
+from typing import List, Union, Tuple, Dict, Any
+from datetime import datetime, timedelta
 
 # Import tier utilities
 from .tiers import _parse_percentage, _parse_market_cap
@@ -18,6 +23,413 @@ from trade_modules.trade_config import TradeConfig
 
 # Get logger for this module
 logger = logging.getLogger(__name__)
+
+
+def is_recent_ipo(ticker: str, yaml_config, grace_period_months: int = 12) -> bool:
+    """
+    Check if a stock is a recent IPO within the grace period.
+
+    Args:
+        ticker: Stock ticker symbol
+        yaml_config: YAML config loader instance
+        grace_period_months: Number of months after IPO to consider "recent"
+
+    Returns:
+        True if the stock IPO'd within the grace period
+    """
+    config = yaml_config.load_config()
+    ipo_config = config.get('ipo_grace_period', {})
+
+    if not ipo_config.get('enabled', False):
+        return False
+
+    known_ipos = ipo_config.get('known_ipos', {})
+
+    if ticker not in known_ipos:
+        return False
+
+    try:
+        ipo_date_str = known_ipos[ticker]
+        ipo_date = datetime.strptime(ipo_date_str, '%Y-%m-%d')
+        grace_period = timedelta(days=grace_period_months * 30)  # Approximate months
+        cutoff_date = datetime.now() - grace_period
+
+        return ipo_date > cutoff_date
+    except (ValueError, TypeError):
+        return False
+
+
+def calculate_sell_score(
+    upside: float,
+    buy_pct: float,
+    exret: float,
+    pct_52w: float,
+    pef: float,
+    pet: float,
+    roe: float,
+    de: float,
+    sell_scoring_config: Dict[str, Any],
+) -> Tuple[float, List[str]]:
+    """
+    Calculate weighted SELL score (0-100) using multi-factor analysis.
+
+    The score is calculated from four components:
+    - Analyst sentiment (upside, buy%, EXRET) - 35% weight
+    - Momentum (52W, PEF/PET deterioration) - 25% weight
+    - Valuation (implicit in other factors) - 20% weight
+    - Fundamentals (ROE, DE) - 20% weight
+
+    Args:
+        upside: Upside to price target (%)
+        buy_pct: Percentage of analysts with buy rating
+        exret: Expected return (upside * buy% / 100)
+        pct_52w: Percentage from 52-week high
+        pef: Forward P/E ratio
+        pet: Trailing P/E ratio
+        roe: Return on equity (%)
+        de: Debt to equity ratio (%)
+        sell_scoring_config: Configuration dict with weights and thresholds
+
+    Returns:
+        Tuple of (score 0-100, list of triggered factor descriptions)
+    """
+    factors: List[str] = []
+
+    # Get weights from config (defaults if not specified)
+    w_analyst = sell_scoring_config.get('weight_analyst', 0.35)
+    w_momentum = sell_scoring_config.get('weight_momentum', 0.25)
+    w_valuation = sell_scoring_config.get('weight_valuation', 0.20)
+    w_fundamental = sell_scoring_config.get('weight_fundamental', 0.20)
+
+    # === ANALYST SENTIMENT COMPONENT (0-100 raw score) ===
+    analyst_score = 0.0
+
+    # Upside penalty (0-40 points within analyst bucket)
+    if upside <= -10:
+        analyst_score += 40
+        factors.append(f"severe_negative_upside:{upside:.1f}%")
+    elif upside <= 0:
+        analyst_score += 30
+        factors.append(f"negative_upside:{upside:.1f}%")
+    elif upside < 5:
+        analyst_score += 20
+        factors.append(f"low_upside:{upside:.1f}%")
+    elif upside < 10:
+        analyst_score += 10
+
+    # Buy% penalty (0-40 points)
+    if buy_pct < 30:
+        analyst_score += 40
+        factors.append(f"very_low_buy_pct:{buy_pct:.1f}%")
+    elif buy_pct < 45:
+        analyst_score += 30
+        factors.append(f"low_buy_pct:{buy_pct:.1f}%")
+    elif buy_pct < 55:
+        analyst_score += 20
+    elif buy_pct < 65:
+        analyst_score += 10
+
+    # EXRET penalty (0-20 points)
+    if exret < 0:
+        analyst_score += 20
+        factors.append(f"negative_exret:{exret:.1f}")
+    elif exret < 3:
+        analyst_score += 15
+        factors.append(f"very_low_exret:{exret:.1f}")
+    elif exret < 5:
+        analyst_score += 8
+
+    # === MOMENTUM COMPONENT (0-100 raw score) ===
+    momentum_score = 0.0
+
+    # 52-week high penalty
+    if not pd.isna(pct_52w):
+        if pct_52w < 35:
+            momentum_score += 50
+            factors.append(f"severe_52w_decline:{pct_52w:.1f}%")
+        elif pct_52w < 50:
+            momentum_score += 35
+            factors.append(f"significant_52w_decline:{pct_52w:.1f}%")
+        elif pct_52w < 60:
+            momentum_score += 20
+            factors.append(f"52w_decline:{pct_52w:.1f}%")
+        elif pct_52w < 70:
+            momentum_score += 10
+
+    # PEF >> PET (deteriorating earnings outlook)
+    if not pd.isna(pef) and not pd.isna(pet) and pet > 10 and pef > 10:
+        pef_pet_ratio = pef / pet
+        if pef_pet_ratio > 1.4:
+            momentum_score += 35
+            factors.append(f"severe_earnings_deterioration:PEF/PET={pef_pet_ratio:.2f}")
+        elif pef_pet_ratio > 1.3:
+            momentum_score += 25
+            factors.append(f"earnings_deterioration:PEF/PET={pef_pet_ratio:.2f}")
+        elif pef_pet_ratio > 1.2:
+            momentum_score += 15
+
+    # === VALUATION COMPONENT (0-100 raw score) ===
+    # Valuation signals are partially captured through PE checks
+    valuation_score = 0.0
+
+    # High PE penalty
+    if not pd.isna(pef):
+        if pef > 80:
+            valuation_score += 40
+            factors.append(f"extreme_pe:{pef:.1f}")
+        elif pef > 60:
+            valuation_score += 25
+        elif pef > 45:
+            valuation_score += 10
+
+    # Negative PE (losses)
+    if not pd.isna(pef) and pef < 0:
+        valuation_score += 30
+        factors.append("negative_earnings")
+    elif not pd.isna(pet) and pet < 0:
+        valuation_score += 25
+        factors.append("trailing_losses")
+
+    # === FUNDAMENTAL COMPONENT (0-100 raw score) ===
+    fundamental_score = 0.0
+
+    # Low ROE penalty
+    if not pd.isna(roe):
+        if roe < 0:
+            fundamental_score += 40
+            factors.append(f"negative_roe:{roe:.1f}%")
+        elif roe < 5:
+            fundamental_score += 25
+            factors.append(f"very_low_roe:{roe:.1f}%")
+        elif roe < 8:
+            fundamental_score += 10
+
+    # High D/E penalty
+    if not pd.isna(de):
+        if de > 300:
+            fundamental_score += 40
+            factors.append(f"extreme_leverage:{de:.1f}%")
+        elif de > 200:
+            fundamental_score += 25
+            factors.append(f"high_leverage:{de:.1f}%")
+        elif de > 150:
+            fundamental_score += 15
+
+    # === CALCULATE WEIGHTED TOTAL ===
+    # Normalize each component to max 100, then apply weights
+    analyst_normalized = min(analyst_score, 100)
+    momentum_normalized = min(momentum_score, 85) / 85 * 100  # Max raw is ~85
+    valuation_normalized = min(valuation_score, 70) / 70 * 100  # Max raw is ~70
+    fundamental_normalized = min(fundamental_score, 80) / 80 * 100  # Max raw is ~80
+
+    total_score = (
+        analyst_normalized * w_analyst +
+        momentum_normalized * w_momentum +
+        valuation_normalized * w_valuation +
+        fundamental_normalized * w_fundamental
+    )
+
+    return total_score, factors
+
+
+def calculate_buy_score(
+    upside: float,
+    buy_pct: float,
+    exret: float,
+    pct_52w: float,
+    above_200dma: bool,
+    pef: float,
+    pet: float,
+    roe: float,
+    de: float,
+    fcf_yield: float,
+    buy_scoring_config: Dict[str, Any],
+) -> float:
+    """
+    Calculate BUY conviction score (0-100) for ranking candidates.
+
+    Higher score = higher conviction in the BUY signal.
+
+    Components:
+    - Upside (higher upside = higher score) - 30% weight
+    - Consensus (higher buy% = higher score) - 25% weight
+    - Momentum (near 52W high, above 200DMA) - 20% weight
+    - Valuation (reasonable PE) - 15% weight
+    - Fundamentals (strong ROE, low DE, positive FCF) - 10% weight
+
+    Args:
+        upside: Upside to price target (%)
+        buy_pct: Percentage of analysts with buy rating
+        exret: Expected return
+        pct_52w: Percentage from 52-week high
+        above_200dma: Whether price is above 200-day MA
+        pef: Forward P/E ratio
+        pet: Trailing P/E ratio
+        roe: Return on equity (%)
+        de: Debt to equity ratio (%)
+        fcf_yield: Free cash flow yield (%)
+        buy_scoring_config: Configuration dict with weights
+
+    Returns:
+        Score 0-100 (higher = stronger BUY conviction)
+    """
+    # Get weights from config
+    w_upside = buy_scoring_config.get('weight_upside', 0.30)
+    w_consensus = buy_scoring_config.get('weight_consensus', 0.25)
+    w_momentum = buy_scoring_config.get('weight_momentum', 0.20)
+    w_valuation = buy_scoring_config.get('weight_valuation', 0.15)
+    w_fundamental = buy_scoring_config.get('weight_fundamental', 0.10)
+
+    # === UPSIDE COMPONENT (0-100) ===
+    upside_score = 0.0
+    if upside >= 50:
+        upside_score = 100
+    elif upside >= 40:
+        upside_score = 90
+    elif upside >= 30:
+        upside_score = 80
+    elif upside >= 25:
+        upside_score = 70
+    elif upside >= 20:
+        upside_score = 60
+    elif upside >= 15:
+        upside_score = 50
+    elif upside >= 12:
+        upside_score = 40
+    elif upside >= 10:
+        upside_score = 30
+    elif upside >= 8:
+        upside_score = 20
+    elif upside > 0:
+        upside_score = 10
+
+    # === CONSENSUS COMPONENT (0-100) ===
+    consensus_score = 0.0
+    if buy_pct >= 95:
+        consensus_score = 100
+    elif buy_pct >= 92:
+        consensus_score = 95
+    elif buy_pct >= 88:
+        consensus_score = 85
+    elif buy_pct >= 85:
+        consensus_score = 75
+    elif buy_pct >= 82:
+        consensus_score = 65
+    elif buy_pct >= 80:
+        consensus_score = 55
+    elif buy_pct >= 77:
+        consensus_score = 45
+    elif buy_pct >= 75:
+        consensus_score = 35
+    elif buy_pct >= 70:
+        consensus_score = 25
+    else:
+        consensus_score = 10
+
+    # === MOMENTUM COMPONENT (0-100) ===
+    momentum_score = 0.0
+
+    # 52-week position
+    if not pd.isna(pct_52w):
+        if pct_52w >= 95:
+            momentum_score += 50
+        elif pct_52w >= 90:
+            momentum_score += 45
+        elif pct_52w >= 85:
+            momentum_score += 40
+        elif pct_52w >= 80:
+            momentum_score += 35
+        elif pct_52w >= 75:
+            momentum_score += 30
+        elif pct_52w >= 70:
+            momentum_score += 25
+        elif pct_52w >= 65:
+            momentum_score += 15
+        else:
+            momentum_score += 5
+
+    # Above 200DMA bonus
+    if above_200dma is True:
+        momentum_score += 50
+    elif above_200dma is False:
+        momentum_score += 0  # Penalty already implied by not getting bonus
+    else:
+        momentum_score += 20  # Unknown - give partial score
+
+    # === VALUATION COMPONENT (0-100) ===
+    valuation_score = 50  # Start neutral
+
+    # PEF < PET is good (improving earnings)
+    if not pd.isna(pef) and not pd.isna(pet) and pet > 10 and pef > 10:
+        pef_pet_ratio = pef / pet
+        if pef_pet_ratio < 0.8:
+            valuation_score = 100  # Strong earnings improvement
+        elif pef_pet_ratio < 0.9:
+            valuation_score = 85
+        elif pef_pet_ratio < 1.0:
+            valuation_score = 70
+        elif pef_pet_ratio < 1.1:
+            valuation_score = 55
+        else:
+            valuation_score = 30  # Deteriorating
+
+    # Reasonable PE levels
+    if not pd.isna(pef):
+        if 10 <= pef <= 25:
+            valuation_score = min(valuation_score + 20, 100)
+        elif 25 < pef <= 40:
+            valuation_score = min(valuation_score + 10, 100)
+
+    # === FUNDAMENTAL COMPONENT (0-100) ===
+    fundamental_score = 50  # Start neutral
+
+    # ROE bonus
+    if not pd.isna(roe):
+        if roe >= 25:
+            fundamental_score = 90
+        elif roe >= 20:
+            fundamental_score = 80
+        elif roe >= 15:
+            fundamental_score = 70
+        elif roe >= 12:
+            fundamental_score = 60
+        elif roe >= 10:
+            fundamental_score = 50
+        elif roe >= 8:
+            fundamental_score = 40
+        else:
+            fundamental_score = 20
+
+    # D/E penalty (lower is better)
+    if not pd.isna(de):
+        if de < 30:
+            fundamental_score = min(fundamental_score + 20, 100)
+        elif de < 50:
+            fundamental_score = min(fundamental_score + 10, 100)
+        elif de > 150:
+            fundamental_score = max(fundamental_score - 20, 0)
+        elif de > 100:
+            fundamental_score = max(fundamental_score - 10, 0)
+
+    # FCF yield bonus
+    if not pd.isna(fcf_yield):
+        if fcf_yield > 5:
+            fundamental_score = min(fundamental_score + 15, 100)
+        elif fcf_yield > 2:
+            fundamental_score = min(fundamental_score + 10, 100)
+        elif fcf_yield > 0:
+            fundamental_score = min(fundamental_score + 5, 100)
+
+    # === CALCULATE WEIGHTED TOTAL ===
+    total_score = (
+        upside_score * w_upside +
+        consensus_score * w_consensus +
+        momentum_score * w_momentum +
+        valuation_score * w_valuation +
+        fundamental_score * w_fundamental
+    )
+
+    return total_score
 
 
 def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> pd.Series:
@@ -150,6 +562,9 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
     actions = pd.Series("H", index=df.index)  # Default to HOLD
     actions[~has_confidence] = "I"  # INCONCLUSIVE for low confidence
 
+    # Initialize BUY conviction scores (0-100, NaN for non-BUY)
+    buy_scores = pd.Series(np.nan, index=df.index)
+
     # Apply minimum market cap filter (from config.yaml universal_thresholds.min_market_cap)
     # Stocks below minimum are marked as INCONCLUSIVE to prevent trading in illiquid micro-caps
     min_market_cap = config.UNIVERSAL_THRESHOLDS.get("min_market_cap", 1_000_000_000)  # Default $1B
@@ -162,8 +577,9 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
         )
 
     # Get ticker column for region detection
-    # Check if TICKER is the index (from CSV with index_col=0) or a column
-    if df.index.name == "TICKER" or (hasattr(df.index, 'name') and df.index.name and "ticker" in df.index.name.lower()):
+    # Check if TICKER/TKR is the index (from CSV with index_col=0) or a column
+    index_name = df.index.name.upper() if hasattr(df.index, 'name') and df.index.name else ""
+    if index_name in ("TICKER", "TKR") or "ticker" in index_name.lower():
         ticker_col = pd.Series(df.index, index=df.index)
     else:
         # Check for various ticker column names: ticker, TICKER, TKR, symbol
@@ -188,6 +604,88 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
             company_name = company_col.loc[idx] if idx in company_col.index and not pd.isna(company_col.loc[idx]) else None
             asset_type = classify_asset_type(ticker, cap_values.loc[idx], company_name)
 
+            # For bitcoin proxy stocks, use hybrid momentum + analyst scoring
+            # Traditional analyst metrics may not apply well to BTC-correlated stocks
+            if asset_type == "bitcoin_proxy":
+                row_pct_52w = pct_52w.loc[idx]
+                row_above_200dma = above_200dma.loc[idx]
+                row_upside = upside.loc[idx]
+                row_buy_pct = buy_pct.loc[idx]
+                row_exret = exret.loc[idx]
+
+                # Get configurable thresholds for bitcoin proxy
+                btc_proxy_config = yaml_config.load_config().get('bitcoin_proxy', {})
+                buy_momentum_threshold = btc_proxy_config.get('momentum_buy_threshold', 70)
+                sell_momentum_threshold = btc_proxy_config.get('momentum_sell_threshold', 35)
+                min_buy_pct = btc_proxy_config.get('min_buy_pct_override', 60)
+                require_200dma = btc_proxy_config.get('require_above_200dma', True)
+
+                # Hybrid logic: combine momentum with relaxed analyst thresholds
+                # Bitcoin proxies are highly volatile, so standard thresholds don't apply
+                momentum_ok = not pd.isna(row_pct_52w) and row_pct_52w >= 50  # Minimum momentum
+                analyst_ok = row_buy_pct >= min_buy_pct and row_upside >= 0  # Relaxed thresholds
+
+                if pd.isna(row_pct_52w):
+                    # No momentum data - fall through to standard equity evaluation
+                    logger.info(f"Ticker {ticker}: BITCOIN_PROXY has no momentum data, using equity eval")
+                    pass  # Will continue to standard evaluation
+                elif momentum_ok and analyst_ok:
+                    # Both momentum and analyst sentiment positive
+                    meets_200dma = row_above_200dma is True or not require_200dma
+                    if meets_200dma and row_pct_52w >= buy_momentum_threshold:
+                        actions.loc[idx] = "B"
+                        logger.info(f"Ticker {ticker}: BITCOIN_PROXY marked BUY - momentum {row_pct_52w:.1f}% >= {buy_momentum_threshold}%, buy% {row_buy_pct:.1f}%")
+                    else:
+                        actions.loc[idx] = "H"
+                        logger.info(f"Ticker {ticker}: BITCOIN_PROXY marked HOLD - momentum/analyst mixed")
+
+                    # Log signal
+                    try:
+                        from trade_modules.signal_tracker import log_signal
+                        log_signal(
+                            ticker=ticker,
+                            signal=actions.loc[idx],
+                            upside=row_upside,
+                            buy_pct=row_buy_pct,
+                            exret=row_exret,
+                            market_cap=cap_values.loc[idx] if idx in cap_values.index else None,
+                            tier=config.get_tier_from_market_cap(cap_values.loc[idx]),
+                            region=config.get_region_from_ticker(ticker),
+                            pct_52w_high=float(row_pct_52w) if not pd.isna(row_pct_52w) else None,
+                            sell_triggers=[],
+                        )
+                    except (ImportError, Exception):
+                        pass
+                    continue
+                elif row_pct_52w <= sell_momentum_threshold:
+                    # Severe momentum decline - SELL regardless of analyst sentiment
+                    actions.loc[idx] = "S"
+                    logger.info(f"Ticker {ticker}: BITCOIN_PROXY marked SELL - momentum {row_pct_52w:.1f}% <= {sell_momentum_threshold}%")
+
+                    # Log signal
+                    try:
+                        from trade_modules.signal_tracker import log_signal
+                        log_signal(
+                            ticker=ticker,
+                            signal="S",
+                            upside=row_upside,
+                            buy_pct=row_buy_pct,
+                            exret=row_exret,
+                            market_cap=cap_values.loc[idx] if idx in cap_values.index else None,
+                            tier=config.get_tier_from_market_cap(cap_values.loc[idx]),
+                            region=config.get_region_from_ticker(ticker),
+                            pct_52w_high=float(row_pct_52w) if not pd.isna(row_pct_52w) else None,
+                            sell_triggers=["bitcoin_proxy_momentum_crash"],
+                        )
+                    except (ImportError, Exception):
+                        pass
+                    continue
+                else:
+                    # Moderate momentum - HOLD
+                    actions.loc[idx] = "H"
+                    logger.info(f"Ticker {ticker}: BITCOIN_PROXY marked HOLD - moderate conditions")
+                    continue
+
             # For non-equity assets (crypto, ETF, commodity), use momentum-based signals
             # since analyst coverage is not applicable
             if asset_type in ("crypto", "etf", "commodity"):
@@ -195,25 +693,37 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                 row_pct_52w = pct_52w.loc[idx]
                 row_above_200dma = above_200dma.loc[idx]
 
-                # Simple momentum-based signal logic for non-equity assets
+                # Get configurable thresholds for crypto
+                crypto_config = yaml_config.load_config().get('crypto_momentum', {})
+                major_crypto_tickers = crypto_config.get('major', {}).get('tickers', ['BTC-USD', 'ETH-USD'])
+
+                # Use different thresholds for major crypto vs altcoins
+                if ticker in major_crypto_tickers:
+                    buy_threshold = crypto_config.get('major', {}).get('buy_threshold', 85)
+                    sell_threshold = crypto_config.get('major', {}).get('hold_threshold', 60)
+                else:
+                    buy_threshold = crypto_config.get('altcoins', {}).get('buy_threshold', 85)
+                    sell_threshold = crypto_config.get('altcoins', {}).get('hold_threshold', 55)
+
+                # Momentum-based signal logic for non-equity assets
                 if pd.isna(row_pct_52w):
                     actions.loc[idx] = "I"  # INCONCLUSIVE if no momentum data
                     logger.info(f"Ticker {ticker}: {asset_type.upper()} marked INCONCLUSIVE - no momentum data")
-                elif row_pct_52w >= 85:
+                elif row_pct_52w >= buy_threshold:
                     # Strong momentum - near 52-week high
                     if row_above_200dma is True:
                         actions.loc[idx] = "B"  # BUY for strong uptrend
-                        logger.info(f"Ticker {ticker}: {asset_type.upper()} marked BUY - strong momentum ({row_pct_52w:.1f}% of 52w high, above 200DMA)")
+                        logger.info(f"Ticker {ticker}: {asset_type.upper()} marked BUY - strong momentum ({row_pct_52w:.1f}% >= {buy_threshold}%, above 200DMA)")
                     else:
                         actions.loc[idx] = "H"  # HOLD if not above 200DMA
                         logger.info(f"Ticker {ticker}: {asset_type.upper()} marked HOLD - good momentum but below 200DMA")
-                elif row_pct_52w <= 60:
+                elif row_pct_52w <= sell_threshold:
                     # Weak momentum - significantly below 52-week high
                     actions.loc[idx] = "S"  # SELL for weak momentum
-                    logger.info(f"Ticker {ticker}: {asset_type.upper()} marked SELL - weak momentum ({row_pct_52w:.1f}% of 52w high)")
+                    logger.info(f"Ticker {ticker}: {asset_type.upper()} marked SELL - weak momentum ({row_pct_52w:.1f}% <= {sell_threshold}%)")
                 else:
                     actions.loc[idx] = "H"  # HOLD for neutral momentum
-                    logger.info(f"Ticker {ticker}: {asset_type.upper()} marked HOLD - neutral momentum ({row_pct_52w:.1f}% of 52w high)")
+                    logger.info(f"Ticker {ticker}: {asset_type.upper()} marked HOLD - neutral momentum ({row_pct_52w:.1f}%)")
 
                 # Log signal for forward validation
                 try:
@@ -268,6 +778,26 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
         except ImportError:
             pass  # VIX regime provider not available, use unadjusted criteria
 
+        # Check for IPO grace period - recent IPOs get relaxed momentum criteria
+        ipo_config = yaml_config.load_config().get('ipo_grace_period', {})
+        is_ipo_stock = is_recent_ipo(ticker, yaml_config, ipo_config.get('grace_period_months', 12))
+
+        if is_ipo_stock:
+            # Apply relaxed thresholds for recent IPOs
+            relaxed_momentum = ipo_config.get('relaxed_momentum_threshold', 40)
+            ignore_analyst_momentum = ipo_config.get('ignore_analyst_momentum', True)
+
+            # Relax momentum thresholds in sell criteria
+            if 'max_pct_from_52w_high' in sell_criteria:
+                original_threshold = sell_criteria['max_pct_from_52w_high']
+                sell_criteria['max_pct_from_52w_high'] = min(relaxed_momentum, original_threshold)
+                logger.info(f"Ticker {ticker}: IPO GRACE PERIOD - relaxing 52W threshold from {original_threshold}% to {sell_criteria['max_pct_from_52w_high']}%")
+
+            # Ignore analyst momentum for recent IPOs (volatile and unreliable)
+            if ignore_analyst_momentum and 'max_analyst_momentum' in sell_criteria:
+                del sell_criteria['max_analyst_momentum']
+                logger.info(f"Ticker {ticker}: IPO GRACE PERIOD - ignoring analyst momentum trigger")
+
         # Extract values for this row
         row_upside = upside.loc[idx]
         row_buy_pct = buy_pct.loc[idx]
@@ -288,8 +818,9 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
         row_fcf_yield = fcf_yield.loc[idx]
         row_rev_growth = rev_growth.loc[idx]
 
-        # SELL criteria - ANY condition triggers SELL
+        # Initialize for signal tracking
         sell_conditions: List[Union[str, bool]] = []
+        sell_score = 0.0
 
         logger.debug(f"Ticker {ticker}: SELL CHECK START - upside={row_upside:.1f}%, buy%={row_buy_pct:.1f}%, exret={row_exret:.1f}%, roe={row_roe}, de={row_de}")
 
@@ -343,128 +874,307 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                 logger.debug(f"Failed to log FULLY VALUED signal for {ticker}: {e}")
             continue  # Skip SELL/BUY evaluation for fully valued stocks
 
-        # Basic criteria from config - only apply if explicitly defined in YAML
-        # NO DEFAULTS - criteria must be explicitly configured to avoid false positives
-        if "max_upside" in sell_criteria:
-            if row_upside <= sell_criteria["max_upside"]:
-                sell_conditions.append("max_upside")
-                logger.info(f"Ticker {ticker}: SELL TRIGGER - upside {row_upside:.1f}% <= {sell_criteria['max_upside']:.1f}%")
+        # ================================================================
+        # ENHANCED SELL SIGNAL FRAMEWORK
+        # Uses multi-factor weighted scoring OR legacy ANY-trigger logic
+        # ================================================================
 
-        if "min_buy_percentage" in sell_criteria:
-            if row_buy_pct <= sell_criteria["min_buy_percentage"]:
-                sell_conditions.append("min_buy_percentage")
-                logger.info(f"Ticker {ticker}: SELL TRIGGER - buy% {row_buy_pct:.1f}% <= {sell_criteria['min_buy_percentage']:.1f}%")
+        # Check if enhanced signal scoring is enabled
+        use_scoring = yaml_config.is_signal_scoring_enabled()
 
-        if "max_exret" in sell_criteria:
-            if row_exret <= sell_criteria["max_exret"]:
-                sell_conditions.append("max_exret")
-                logger.info(f"Ticker {ticker}: SELL TRIGGER - exret {row_exret:.1f}% <= {sell_criteria['max_exret']:.1f}%")
+        if use_scoring:
+            # Get sell scoring config for this region-tier
+            sell_scoring_config = yaml_config.get_sell_scoring_config(region, tier)
 
-        # Optional criteria from YAML (only apply if defined in YAML)
-        if "max_forward_pe" in sell_criteria and not pd.isna(row_pef):
-            if row_pef > sell_criteria.get("max_forward_pe"):
-                sell_conditions.append(True)
+            # === QUALITY OVERRIDE CHECK ===
+            # Never SELL stocks with exceptionally strong fundamentals
+            quality_override_buy_pct = sell_scoring_config.get('quality_override_buy_pct', 85)
+            quality_override_upside = sell_scoring_config.get('quality_override_upside', 20)
+            quality_override_exret = sell_scoring_config.get('quality_override_exret', 15)
 
-        if "max_trailing_pe" in sell_criteria and not pd.isna(row_pet):
-            if row_pet > sell_criteria.get("max_trailing_pe"):
-                sell_conditions.append(True)
+            is_quality_stock = (
+                row_buy_pct >= quality_override_buy_pct and
+                row_upside >= quality_override_upside and
+                row_exret >= quality_override_exret
+            )
 
-        # PEF > PET requirement for SELL: Forward PE significantly higher than Trailing PE (deteriorating earnings)
-        # Only apply this check when both values are meaningful (> 10)
-        if not pd.isna(row_pef) and not pd.isna(row_pet) and row_pet > 10 and row_pef > 10:
-            # PEF more than 20% higher than PET suggests deteriorating earnings outlook
-            if row_pef > row_pet * 1.2:
-                sell_conditions.append(True)
-                logger.debug(f"Ticker {ticker}: Sell signal - PEF:{row_pef:.1f} > PET*1.2:{row_pet * 1.2:.1f} (deteriorating earnings)")
+            if is_quality_stock:
+                logger.info(
+                    f"Ticker {ticker}: QUALITY OVERRIDE - strong fundamentals protect from SELL "
+                    f"(buy%={row_buy_pct:.1f}% >= {quality_override_buy_pct}%, "
+                    f"upside={row_upside:.1f}% >= {quality_override_upside}%, "
+                    f"exret={row_exret:.1f}% >= {quality_override_exret}%)"
+                )
+                # Skip SELL evaluation entirely for quality stocks
+                # They will be evaluated for BUY criteria below
+                pass  # Fall through to BUY evaluation
+            else:
+                # === HARD TRIGGERS (Immediate SELL, bypass scoring) ===
+                hard_trigger_upside = sell_scoring_config.get('hard_trigger_upside', -5)
+                hard_trigger_buy_pct = sell_scoring_config.get('hard_trigger_buy_pct', 35)
 
-        if "max_peg" in sell_criteria and not pd.isna(row_peg):
-            if row_peg > sell_criteria.get("max_peg"):
-                sell_conditions.append(True)
+                # Hard sell conditions:
+                # 1. Negative upside (stock at/below target) with weak-to-moderate sentiment
+                # 2. Very low buy% (most analysts bearish) regardless of upside
+                # 3. Severe negative upside (-10%+) with moderate sentiment
+                is_hard_sell = (
+                    (row_upside <= hard_trigger_upside and row_buy_pct <= 55)  # Negative upside + weak/moderate sentiment
+                    or (row_buy_pct <= hard_trigger_buy_pct)  # Very low analyst buy%
+                    or (row_upside <= -10 and row_buy_pct < 65)  # Severe negative upside (-10%+) with moderate sentiment
+                )
 
-        if "min_short_interest" in sell_criteria and not pd.isna(row_si):
-            if row_si > sell_criteria.get("min_short_interest"):
-                sell_conditions.append(True)
+                if is_hard_sell:
+                    sell_conditions.append("hard_trigger")
+                    if row_upside <= hard_trigger_upside:
+                        sell_conditions.append(f"severe_negative_upside:{row_upside:.1f}%")
+                    if row_buy_pct <= hard_trigger_buy_pct:
+                        sell_conditions.append(f"very_low_buy_pct:{row_buy_pct:.1f}%")
 
-        if "min_beta" in sell_criteria and not pd.isna(row_beta):
-            if row_beta > sell_criteria.get("min_beta"):
-                sell_conditions.append(True)
+                    logger.info(f"Ticker {ticker}: HARD SELL TRIGGER - upside={row_upside:.1f}%, buy%={row_buy_pct:.1f}%")
+                    actions.loc[idx] = "S"
 
-        # ROE and DE SELL criteria (with sector adjustments)
-        if "min_roe" in sell_criteria and not pd.isna(row_roe):
-            if row_roe < sell_criteria.get("min_roe"):
-                sell_conditions.append(True)
-                logger.debug(f"Ticker {ticker}: Sell signal - ROE:{row_roe:.1f}% < min:{sell_criteria['min_roe']:.1f}%")
+                    # Log SELL signal
+                    try:
+                        from trade_modules.signal_tracker import log_signal
+                        price_raw = df.get("price", df.get("PRICE", pd.Series([None] * len(df), index=df.index)))
+                        row_price = price_raw.loc[idx] if idx in price_raw.index else None
+                        target_raw = df.get("target_price", df.get("TARGET", pd.Series([None] * len(df), index=df.index)))
+                        row_target = target_raw.loc[idx] if idx in target_raw.index else None
+                        sector_raw = df.get("sector", df.get("SECTOR", pd.Series([None] * len(df), index=df.index)))
+                        row_sector = sector_raw.loc[idx] if idx in sector_raw.index else None
 
-        if "max_debt_equity" in sell_criteria and not pd.isna(row_de):
-            if row_de > sell_criteria.get("max_debt_equity"):
-                sell_conditions.append(True)
-                logger.debug(f"Ticker {ticker}: Sell signal - DE:{row_de:.1f}% > max:{sell_criteria['max_debt_equity']:.1f}%")
+                        log_signal(
+                            ticker=ticker,
+                            signal="S",
+                            price=float(row_price) if row_price and not pd.isna(row_price) else None,
+                            target=float(row_target) if row_target and not pd.isna(row_target) else None,
+                            upside=row_upside,
+                            buy_pct=row_buy_pct,
+                            exret=row_exret,
+                            market_cap=cap_values.loc[idx] if idx in cap_values.index else None,
+                            tier=tier,
+                            region=region,
+                            sector=str(row_sector) if row_sector and not pd.isna(row_sector) else None,
+                            pe_forward=float(row_pef) if not pd.isna(row_pef) else None,
+                            pe_trailing=float(row_pet) if not pd.isna(row_pet) else None,
+                            peg=float(row_peg) if not pd.isna(row_peg) else None,
+                            short_interest=float(row_si) if not pd.isna(row_si) else None,
+                            roe=float(row_roe) if not pd.isna(row_roe) else None,
+                            debt_equity=float(row_de) if not pd.isna(row_de) else None,
+                            pct_52w_high=float(row_pct_52w) if not pd.isna(row_pct_52w) else None,
+                            sell_triggers=list(str(c) for c in sell_conditions),
+                        )
+                    except ImportError:
+                        pass
+                    except Exception as e:
+                        logger.debug(f"Failed to log HARD SELL signal for {ticker}: {e}")
+                    continue
 
-        # NEW MOMENTUM SELL CRITERIA
-        # Price Momentum: SELL if fallen too far from 52-week high
-        if "max_pct_from_52w_high" in sell_criteria and not pd.isna(row_pct_52w):
-            if row_pct_52w < sell_criteria.get("max_pct_from_52w_high"):
-                sell_conditions.append("max_pct_from_52w_high")
-                logger.info(f"Ticker {ticker}: SELL TRIGGER - 52w% {row_pct_52w:.1f}% < {sell_criteria['max_pct_from_52w_high']:.1f}%")
-
-        # Analyst Momentum: SELL if analysts are significantly downgrading
-        if "max_analyst_momentum" in sell_criteria and not pd.isna(row_amom):
-            if row_amom < sell_criteria.get("max_analyst_momentum"):
-                sell_conditions.append("max_analyst_momentum")
-                logger.info(f"Ticker {ticker}: SELL TRIGGER - analyst momentum {row_amom:.1f}% < {sell_criteria['max_analyst_momentum']:.1f}%")
-
-        # Sector-Relative Valuation: SELL if PE way above sector median
-        if "max_pe_vs_sector" in sell_criteria and not pd.isna(row_pe_vs_sector):
-            if row_pe_vs_sector > sell_criteria.get("max_pe_vs_sector"):
-                sell_conditions.append("max_pe_vs_sector")
-                logger.info(f"Ticker {ticker}: SELL TRIGGER - PE/sector {row_pe_vs_sector:.2f}x > {sell_criteria['max_pe_vs_sector']:.2f}x")
-
-        if any(sell_conditions):
-            logger.info(f"Ticker {ticker}: MARKED AS SELL - triggered by: {', '.join(str(c) for c in sell_conditions)}")
-            actions.loc[idx] = "S"
-            # Log SELL signal for forward validation (must log before continue)
-            try:
-                from trade_modules.signal_tracker import log_signal
-                price_raw = df.get("price", df.get("PRICE", pd.Series([None] * len(df), index=df.index)))
-                row_price = price_raw.loc[idx] if idx in price_raw.index else None
-                target_raw = df.get("target_price", df.get("TARGET", pd.Series([None] * len(df), index=df.index)))
-                row_target = target_raw.loc[idx] if idx in target_raw.index else None
-                sector_raw = df.get("sector", df.get("SECTOR", pd.Series([None] * len(df), index=df.index)))
-                row_sector = sector_raw.loc[idx] if idx in sector_raw.index else None
-
-                log_signal(
-                    ticker=ticker,
-                    signal="S",
-                    price=float(row_price) if row_price and not pd.isna(row_price) else None,
-                    target=float(row_target) if row_target and not pd.isna(row_target) else None,
+                # === MULTI-FACTOR SCORING ===
+                sell_score, sell_factors = calculate_sell_score(
                     upside=row_upside,
                     buy_pct=row_buy_pct,
                     exret=row_exret,
-                    market_cap=cap_values.loc[idx] if idx in cap_values.index else None,
-                    tier=tier,
-                    region=region,
-                    sector=str(row_sector) if row_sector and not pd.isna(row_sector) else None,
-                    # Add additional metrics for comprehensive tracking
-                    pe_forward=float(row_pef) if not pd.isna(row_pef) else None,
-                    pe_trailing=float(row_pet) if not pd.isna(row_pet) else None,
-                    peg=float(row_peg) if not pd.isna(row_peg) else None,
-                    short_interest=float(row_si) if not pd.isna(row_si) else None,
-                    roe=float(row_roe) if not pd.isna(row_roe) else None,
-                    debt_equity=float(row_de) if not pd.isna(row_de) else None,
-                    pct_52w_high=float(row_pct_52w) if not pd.isna(row_pct_52w) else None,
-                    sell_triggers=list(str(c) for c in sell_conditions),
+                    pct_52w=row_pct_52w,
+                    pef=row_pef,
+                    pet=row_pet,
+                    roe=row_roe,
+                    de=row_de,
+                    sell_scoring_config=sell_scoring_config,
                 )
-            except ImportError:
-                pass
-            except Exception as e:
-                logger.debug(f"Failed to log SELL signal for {ticker}: {e}")
-            continue
+
+                score_threshold = sell_scoring_config.get('score_threshold', 65)
+
+                if sell_score >= score_threshold:
+                    sell_conditions = sell_factors
+                    logger.info(
+                        f"Ticker {ticker}: SCORED SELL (score={sell_score:.1f} >= {score_threshold}) - "
+                        f"factors: {', '.join(sell_factors[:5])}"  # Log first 5 factors
+                    )
+                    actions.loc[idx] = "S"
+
+                    # Log SELL signal
+                    try:
+                        from trade_modules.signal_tracker import log_signal
+                        price_raw = df.get("price", df.get("PRICE", pd.Series([None] * len(df), index=df.index)))
+                        row_price = price_raw.loc[idx] if idx in price_raw.index else None
+                        target_raw = df.get("target_price", df.get("TARGET", pd.Series([None] * len(df), index=df.index)))
+                        row_target = target_raw.loc[idx] if idx in target_raw.index else None
+                        sector_raw = df.get("sector", df.get("SECTOR", pd.Series([None] * len(df), index=df.index)))
+                        row_sector = sector_raw.loc[idx] if idx in sector_raw.index else None
+
+                        log_signal(
+                            ticker=ticker,
+                            signal="S",
+                            price=float(row_price) if row_price and not pd.isna(row_price) else None,
+                            target=float(row_target) if row_target and not pd.isna(row_target) else None,
+                            upside=row_upside,
+                            buy_pct=row_buy_pct,
+                            exret=row_exret,
+                            market_cap=cap_values.loc[idx] if idx in cap_values.index else None,
+                            tier=tier,
+                            region=region,
+                            sector=str(row_sector) if row_sector and not pd.isna(row_sector) else None,
+                            pe_forward=float(row_pef) if not pd.isna(row_pef) else None,
+                            pe_trailing=float(row_pet) if not pd.isna(row_pet) else None,
+                            peg=float(row_peg) if not pd.isna(row_peg) else None,
+                            short_interest=float(row_si) if not pd.isna(row_si) else None,
+                            roe=float(row_roe) if not pd.isna(row_roe) else None,
+                            debt_equity=float(row_de) if not pd.isna(row_de) else None,
+                            pct_52w_high=float(row_pct_52w) if not pd.isna(row_pct_52w) else None,
+                            sell_triggers=list(str(c) for c in sell_conditions),
+                        )
+                    except ImportError:
+                        pass
+                    except Exception as e:
+                        logger.debug(f"Failed to log SCORED SELL signal for {ticker}: {e}")
+                    continue
+
+                elif sell_score >= 50:
+                    # Weak sell - log for monitoring but don't mark as SELL
+                    logger.debug(
+                        f"Ticker {ticker}: WEAK_SELL (score={sell_score:.1f}, threshold={score_threshold}) - monitoring"
+                    )
+                    # Stays as HOLD unless BUY criteria met
+
+        else:
+            # ================================================================
+            # LEGACY ANY-TRIGGER SELL LOGIC (when scoring disabled)
+            # ================================================================
+
+            # Basic criteria from config - only apply if explicitly defined in YAML
+            # NO DEFAULTS - criteria must be explicitly configured to avoid false positives
+            if "max_upside" in sell_criteria:
+                if row_upside <= sell_criteria["max_upside"]:
+                    sell_conditions.append("max_upside")
+                    logger.info(f"Ticker {ticker}: SELL TRIGGER - upside {row_upside:.1f}% <= {sell_criteria['max_upside']:.1f}%")
+
+            if "min_buy_percentage" in sell_criteria:
+                if row_buy_pct <= sell_criteria["min_buy_percentage"]:
+                    sell_conditions.append("min_buy_percentage")
+                    logger.info(f"Ticker {ticker}: SELL TRIGGER - buy% {row_buy_pct:.1f}% <= {sell_criteria['min_buy_percentage']:.1f}%")
+
+            if "max_exret" in sell_criteria:
+                if row_exret <= sell_criteria["max_exret"]:
+                    sell_conditions.append("max_exret")
+                    logger.info(f"Ticker {ticker}: SELL TRIGGER - exret {row_exret:.1f}% <= {sell_criteria['max_exret']:.1f}%")
+
+            # Optional criteria from YAML (only apply if defined in YAML)
+            if "max_forward_pe" in sell_criteria and not pd.isna(row_pef):
+                if row_pef > sell_criteria.get("max_forward_pe"):
+                    sell_conditions.append("max_forward_pe")
+                    logger.debug(f"Ticker {ticker}: SELL TRIGGER - forward PE {row_pef:.1f} > {sell_criteria['max_forward_pe']:.1f}")
+
+            if "max_trailing_pe" in sell_criteria and not pd.isna(row_pet):
+                if row_pet > sell_criteria.get("max_trailing_pe"):
+                    sell_conditions.append("max_trailing_pe")
+                    logger.debug(f"Ticker {ticker}: SELL TRIGGER - trailing PE {row_pet:.1f} > {sell_criteria['max_trailing_pe']:.1f}")
+
+            # PEF > PET requirement for SELL: Forward PE significantly higher than Trailing PE (deteriorating earnings)
+            # Only apply this check when both values are meaningful (> 10)
+            if not pd.isna(row_pef) and not pd.isna(row_pet) and row_pet > 10 and row_pef > 10:
+                # PEF more than 20% higher than PET suggests deteriorating earnings outlook
+                if row_pef > row_pet * 1.2:
+                    sell_conditions.append("pef_greater_pet_deteriorating")
+                    logger.debug(f"Ticker {ticker}: SELL TRIGGER - PEF:{row_pef:.1f} > PET*1.2:{row_pet * 1.2:.1f} (deteriorating earnings)")
+
+            if "max_peg" in sell_criteria and not pd.isna(row_peg):
+                if row_peg > sell_criteria.get("max_peg"):
+                    sell_conditions.append("max_peg")
+                    logger.debug(f"Ticker {ticker}: SELL TRIGGER - PEG {row_peg:.2f} > {sell_criteria['max_peg']:.2f}")
+
+            if "min_short_interest" in sell_criteria and not pd.isna(row_si):
+                if row_si > sell_criteria.get("min_short_interest"):
+                    sell_conditions.append("high_short_interest")
+                    logger.debug(f"Ticker {ticker}: SELL TRIGGER - short interest {row_si:.1f}% > {sell_criteria['min_short_interest']:.1f}%")
+
+            if "min_beta" in sell_criteria and not pd.isna(row_beta):
+                if row_beta > sell_criteria.get("min_beta"):
+                    sell_conditions.append("high_beta")
+                    logger.debug(f"Ticker {ticker}: SELL TRIGGER - beta {row_beta:.2f} > {sell_criteria['min_beta']:.2f}")
+
+            # ROE and DE SELL criteria (with sector adjustments)
+            if "min_roe" in sell_criteria and not pd.isna(row_roe):
+                if row_roe < sell_criteria.get("min_roe"):
+                    sell_conditions.append("low_roe")
+                    logger.debug(f"Ticker {ticker}: SELL TRIGGER - ROE:{row_roe:.1f}% < min:{sell_criteria['min_roe']:.1f}%")
+
+            if "max_debt_equity" in sell_criteria and not pd.isna(row_de):
+                if row_de > sell_criteria.get("max_debt_equity"):
+                    sell_conditions.append("high_debt_equity")
+                    logger.debug(f"Ticker {ticker}: SELL TRIGGER - DE:{row_de:.1f}% > max:{sell_criteria['max_debt_equity']:.1f}%")
+
+            # NEW MOMENTUM SELL CRITERIA
+            # Price Momentum: SELL if fallen too far from 52-week high
+            if "max_pct_from_52w_high" in sell_criteria and not pd.isna(row_pct_52w):
+                if row_pct_52w < sell_criteria.get("max_pct_from_52w_high"):
+                    sell_conditions.append("max_pct_from_52w_high")
+                    logger.info(f"Ticker {ticker}: SELL TRIGGER - 52w% {row_pct_52w:.1f}% < {sell_criteria['max_pct_from_52w_high']:.1f}%")
+
+            # Analyst Momentum: SELL if analysts are significantly downgrading
+            if "max_analyst_momentum" in sell_criteria and not pd.isna(row_amom):
+                if row_amom < sell_criteria.get("max_analyst_momentum"):
+                    sell_conditions.append("max_analyst_momentum")
+                    logger.info(f"Ticker {ticker}: SELL TRIGGER - analyst momentum {row_amom:.1f}% < {sell_criteria['max_analyst_momentum']:.1f}%")
+
+            # Sector-Relative Valuation: SELL if PE way above sector median
+            if "max_pe_vs_sector" in sell_criteria and not pd.isna(row_pe_vs_sector):
+                if row_pe_vs_sector > sell_criteria.get("max_pe_vs_sector"):
+                    sell_conditions.append("max_pe_vs_sector")
+                    logger.info(f"Ticker {ticker}: SELL TRIGGER - PE/sector {row_pe_vs_sector:.2f}x > {sell_criteria['max_pe_vs_sector']:.2f}x")
+
+            if any(sell_conditions):
+                logger.info(f"Ticker {ticker}: MARKED AS SELL - triggered by: {', '.join(str(c) for c in sell_conditions)}")
+                actions.loc[idx] = "S"
+                # Log SELL signal for forward validation (must log before continue)
+                try:
+                    from trade_modules.signal_tracker import log_signal
+                    price_raw = df.get("price", df.get("PRICE", pd.Series([None] * len(df), index=df.index)))
+                    row_price = price_raw.loc[idx] if idx in price_raw.index else None
+                    target_raw = df.get("target_price", df.get("TARGET", pd.Series([None] * len(df), index=df.index)))
+                    row_target = target_raw.loc[idx] if idx in target_raw.index else None
+                    sector_raw = df.get("sector", df.get("SECTOR", pd.Series([None] * len(df), index=df.index)))
+                    row_sector = sector_raw.loc[idx] if idx in sector_raw.index else None
+
+                    log_signal(
+                        ticker=ticker,
+                        signal="S",
+                        price=float(row_price) if row_price and not pd.isna(row_price) else None,
+                        target=float(row_target) if row_target and not pd.isna(row_target) else None,
+                        upside=row_upside,
+                        buy_pct=row_buy_pct,
+                        exret=row_exret,
+                        market_cap=cap_values.loc[idx] if idx in cap_values.index else None,
+                        tier=tier,
+                        region=region,
+                        sector=str(row_sector) if row_sector and not pd.isna(row_sector) else None,
+                        # Add additional metrics for comprehensive tracking
+                        pe_forward=float(row_pef) if not pd.isna(row_pef) else None,
+                        pe_trailing=float(row_pet) if not pd.isna(row_pet) else None,
+                        peg=float(row_peg) if not pd.isna(row_peg) else None,
+                        short_interest=float(row_si) if not pd.isna(row_si) else None,
+                        roe=float(row_roe) if not pd.isna(row_roe) else None,
+                        debt_equity=float(row_de) if not pd.isna(row_de) else None,
+                        pct_52w_high=float(row_pct_52w) if not pd.isna(row_pct_52w) else None,
+                        sell_triggers=list(str(c) for c in sell_conditions),
+                    )
+                except ImportError:
+                    pass
+                except Exception as e:
+                    logger.debug(f"Failed to log SELL signal for {ticker}: {e}")
+                continue
 
         logger.debug(f"Ticker {ticker}: Passed SELL checks, evaluating BUY criteria")
 
         # BUY criteria - ALL conditions must be true
         # Start with assuming all conditions pass
         is_buy_candidate = True
+
+        # CRITICAL SAFETY CHECK: Never mark negative upside stocks as BUY
+        # This is a hard constraint regardless of configuration to prevent catastrophic errors
+        if row_upside < 0:
+            is_buy_candidate = False
+            logger.debug(f"Ticker {ticker}: No buy - negative upside {row_upside:.1f}% (safety check)")
 
         # Required criteria - only apply if explicitly defined in YAML
         # NO DEFAULTS - criteria must be explicitly configured
@@ -589,6 +1299,27 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
 
         if is_buy_candidate:
             actions.loc[idx] = "B"
+
+            # Calculate BUY conviction score for ranking candidates
+            if yaml_config.is_signal_scoring_enabled():
+                buy_scoring_config = yaml_config.get_buy_scoring_config(region, tier)
+                if buy_scoring_config.get('enabled', True):
+                    buy_conviction_score = calculate_buy_score(
+                        upside=row_upside,
+                        buy_pct=row_buy_pct,
+                        exret=row_exret,
+                        pct_52w=row_pct_52w,
+                        above_200dma=row_above_200dma,
+                        pef=row_pef,
+                        pet=row_pet,
+                        roe=row_roe,
+                        de=row_de,
+                        fcf_yield=row_fcf_yield,
+                        buy_scoring_config=buy_scoring_config,
+                    )
+                    buy_scores.loc[idx] = buy_conviction_score
+                    logger.debug(f"Ticker {ticker}: BUY with conviction score {buy_conviction_score:.1f}")
+
         # Otherwise remains "H" (HOLD)
 
         # Log signal for forward validation (P1 improvement)
@@ -628,13 +1359,14 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
         except Exception as e:
             logger.debug(f"Failed to log signal for {ticker}: {e}")
 
-    return actions
+    return actions, buy_scores
 
 
 def calculate_action(df: pd.DataFrame) -> pd.DataFrame:
     """Calculate trading action (B/S/H) for each row based on trading criteria.
 
     Uses vectorized operations instead of row-by-row apply for better performance.
+    Adds BUY_SCORE column for BUY candidates when signal scoring is enabled.
 
     Parameters
     ----------
@@ -644,13 +1376,19 @@ def calculate_action(df: pd.DataFrame) -> pd.DataFrame:
     Returns
     -------
     pd.DataFrame
-        DataFrame with BS column added
+        DataFrame with BS column added (and BUY_SCORE if scoring enabled)
     """
     working_df = df.copy()
 
     try:
         # Use vectorized action calculation for better performance
-        working_df["BS"] = calculate_action_vectorized(working_df)
+        actions, buy_scores = calculate_action_vectorized(working_df)
+        working_df["BS"] = actions
+
+        # Add BUY_SCORE column if any BUY candidates have scores
+        if buy_scores.notna().any():
+            working_df["BUY_SCORE"] = buy_scores
+            logger.debug(f"Added BUY_SCORE for {buy_scores.notna().sum()} BUY candidates")
 
         logger.debug(f"Calculated actions for {len(working_df)} rows using vectorized operations")
         return working_df

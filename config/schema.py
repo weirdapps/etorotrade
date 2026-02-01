@@ -94,6 +94,227 @@ class TierCriteria(BaseModel):
     sell: SellCriteria
 
 
+class SellScoringConfig(BaseModel):
+    """Enhanced SELL signal scoring configuration"""
+    model_config = ConfigDict(frozen=True)
+
+    # Score threshold (0-100) for SELL signal
+    score_threshold: int = Field(
+        default=65,
+        ge=0,
+        le=100,
+        description="Score threshold for SELL signal (0-100)"
+    )
+
+    # Hard triggers (bypass scoring - immediate SELL)
+    hard_trigger_upside: float = Field(
+        default=-5.0,
+        description="Hard trigger: upside below this triggers immediate SELL"
+    )
+    hard_trigger_buy_pct: float = Field(
+        default=35.0,
+        ge=0,
+        le=100,
+        description="Hard trigger: buy% below this triggers immediate SELL"
+    )
+
+    # Quality override (bypass SELL - protect strong stocks)
+    quality_override_buy_pct: float = Field(
+        default=85.0,
+        ge=0,
+        le=100,
+        description="Quality override: buy% above this protects from SELL"
+    )
+    quality_override_upside: float = Field(
+        default=20.0,
+        description="Quality override: upside above this protects from SELL"
+    )
+    quality_override_exret: float = Field(
+        default=15.0,
+        description="Quality override: EXRET above this protects from SELL"
+    )
+
+    # Component weights (must sum to 1.0)
+    weight_analyst: float = Field(
+        default=0.35,
+        ge=0,
+        le=1,
+        description="Weight for analyst sentiment component"
+    )
+    weight_momentum: float = Field(
+        default=0.25,
+        ge=0,
+        le=1,
+        description="Weight for momentum component"
+    )
+    weight_valuation: float = Field(
+        default=0.20,
+        ge=0,
+        le=1,
+        description="Weight for valuation component"
+    )
+    weight_fundamental: float = Field(
+        default=0.20,
+        ge=0,
+        le=1,
+        description="Weight for fundamental component"
+    )
+
+
+class BuyScoringConfig(BaseModel):
+    """BUY conviction scoring configuration"""
+    model_config = ConfigDict(frozen=True)
+
+    enabled: bool = Field(
+        default=True,
+        description="Enable BUY conviction scoring"
+    )
+
+    # Component weights (must sum to 1.0)
+    weight_upside: float = Field(
+        default=0.30,
+        ge=0,
+        le=1,
+        description="Weight for upside component"
+    )
+    weight_consensus: float = Field(
+        default=0.25,
+        ge=0,
+        le=1,
+        description="Weight for analyst consensus component"
+    )
+    weight_momentum: float = Field(
+        default=0.20,
+        ge=0,
+        le=1,
+        description="Weight for momentum component"
+    )
+    weight_valuation: float = Field(
+        default=0.15,
+        ge=0,
+        le=1,
+        description="Weight for valuation component"
+    )
+    weight_fundamental: float = Field(
+        default=0.10,
+        ge=0,
+        le=1,
+        description="Weight for fundamental component"
+    )
+
+
+class CryptoMomentumMajorConfig(BaseModel):
+    """Momentum thresholds for major cryptocurrencies (BTC, ETH)"""
+    model_config = ConfigDict(frozen=True)
+
+    buy_threshold: float = Field(
+        default=85.0,
+        ge=0,
+        le=100,
+        description="% of 52-week high required for BUY"
+    )
+    hold_threshold: float = Field(
+        default=60.0,
+        ge=0,
+        le=100,
+        description="% of 52-week high - below this triggers SELL"
+    )
+    tickers: List[str] = Field(
+        default_factory=lambda: ['BTC-USD', 'ETH-USD'],
+        description="List of major crypto tickers"
+    )
+
+
+class CryptoMomentumAltcoinConfig(BaseModel):
+    """Momentum thresholds for altcoins"""
+    model_config = ConfigDict(frozen=True)
+
+    buy_threshold: float = Field(
+        default=85.0,
+        ge=0,
+        le=100,
+        description="% of 52-week high required for BUY"
+    )
+    hold_threshold: float = Field(
+        default=55.0,
+        ge=0,
+        le=100,
+        description="% of 52-week high - below this triggers SELL"
+    )
+
+
+class CryptoMomentumConfig(BaseModel):
+    """Crypto momentum configuration"""
+    model_config = ConfigDict(frozen=True)
+
+    major: CryptoMomentumMajorConfig = Field(
+        default_factory=CryptoMomentumMajorConfig,
+        description="Config for major cryptos (BTC, ETH)"
+    )
+    altcoins: CryptoMomentumAltcoinConfig = Field(
+        default_factory=CryptoMomentumAltcoinConfig,
+        description="Config for altcoins"
+    )
+
+
+class BitcoinProxyConfig(BaseModel):
+    """Bitcoin proxy stock configuration"""
+    model_config = ConfigDict(frozen=True)
+
+    momentum_buy_threshold: float = Field(
+        default=70.0,
+        ge=0,
+        le=100,
+        description="% of 52-week high required for BUY consideration"
+    )
+    momentum_sell_threshold: float = Field(
+        default=35.0,
+        ge=0,
+        le=100,
+        description="% of 52-week high - below this triggers SELL"
+    )
+    min_buy_pct_override: float = Field(
+        default=60.0,
+        ge=0,
+        le=100,
+        description="Relaxed analyst buy% threshold"
+    )
+    require_above_200dma: bool = Field(
+        default=True,
+        description="Require above 200DMA for BUY signal"
+    )
+
+
+class IPOGracePeriodConfig(BaseModel):
+    """IPO grace period configuration"""
+    model_config = ConfigDict(frozen=True)
+
+    enabled: bool = Field(
+        default=True,
+        description="Enable IPO grace period"
+    )
+    grace_period_months: int = Field(
+        default=12,
+        ge=1,
+        le=36,
+        description="Months after IPO to apply relaxed criteria"
+    )
+    relaxed_momentum_threshold: float = Field(
+        default=40.0,
+        ge=0,
+        le=100,
+        description="More lenient 52W% threshold for recent IPOs"
+    )
+    ignore_analyst_momentum: bool = Field(
+        default=True,
+        description="Ignore analyst momentum for recent IPOs"
+    )
+    known_ipos: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Known IPOs: ticker -> YYYY-MM-DD"
+    )
+
+
 class TierThresholds(BaseModel):
     """Market cap thresholds for tier classification"""
     model_config = ConfigDict(frozen=True)
@@ -370,6 +591,51 @@ class TradingConfig(BaseModel):
     dual_listed_mappings: Optional[Dict[str, str]] = Field(
         default_factory=dict,
         description="Dual-listed ticker mappings"
+    )
+
+    # Feature flag for signal scoring
+    use_signal_scoring: bool = Field(
+        default=False,
+        description="Enable enhanced signal scoring system"
+    )
+
+    # Default scoring configs
+    default_sell_scoring: Optional[SellScoringConfig] = None
+    default_buy_scoring: Optional[BuyScoringConfig] = None
+
+    # US sell scoring per tier
+    us_mega_sell_scoring: Optional[SellScoringConfig] = None
+    us_large_sell_scoring: Optional[SellScoringConfig] = None
+    us_mid_sell_scoring: Optional[SellScoringConfig] = None
+    us_small_sell_scoring: Optional[SellScoringConfig] = None
+    us_micro_sell_scoring: Optional[SellScoringConfig] = None
+
+    # EU sell scoring per tier
+    eu_mega_sell_scoring: Optional[SellScoringConfig] = None
+    eu_large_sell_scoring: Optional[SellScoringConfig] = None
+    eu_mid_sell_scoring: Optional[SellScoringConfig] = None
+    eu_small_sell_scoring: Optional[SellScoringConfig] = None
+    eu_micro_sell_scoring: Optional[SellScoringConfig] = None
+
+    # HK sell scoring per tier
+    hk_mega_sell_scoring: Optional[SellScoringConfig] = None
+    hk_large_sell_scoring: Optional[SellScoringConfig] = None
+    hk_mid_sell_scoring: Optional[SellScoringConfig] = None
+    hk_small_sell_scoring: Optional[SellScoringConfig] = None
+    hk_micro_sell_scoring: Optional[SellScoringConfig] = None
+
+    # Crypto and non-equity asset configuration
+    crypto_momentum: Optional[CryptoMomentumConfig] = Field(
+        default_factory=CryptoMomentumConfig,
+        description="Crypto momentum thresholds"
+    )
+    bitcoin_proxy: Optional[BitcoinProxyConfig] = Field(
+        default_factory=BitcoinProxyConfig,
+        description="Bitcoin proxy stock configuration"
+    )
+    ipo_grace_period: Optional[IPOGracePeriodConfig] = Field(
+        default_factory=IPOGracePeriodConfig,
+        description="IPO grace period configuration"
     )
 
     @classmethod

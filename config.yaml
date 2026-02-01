@@ -8,13 +8,14 @@ tier_thresholds:
   mid_tier_min: 10000000000
   small_tier_min: 2000000000
 universal_thresholds:
-  min_analyst_count: 4
-  min_price_targets: 4
-  min_market_cap: 1000000000
+  min_analyst_count: 6
+  min_price_targets: 6
+  min_market_cap: 5000000000
 us_mega:
   buy:
-    min_upside: 8
-    min_buy_percentage: 70
+    # US MEGA: More lenient thresholds - large liquid names with strong coverage
+    min_upside: 10
+    min_buy_percentage: 75
     max_buy_percentage: 98
     min_beta: 0.2
     max_beta: 3
@@ -24,18 +25,18 @@ us_mega:
     max_trailing_pe: 90
     max_peg: 5.0
     max_short_interest: 2
-    min_exret: 5
+    min_exret: 6
     min_earnings_growth: -25
     min_price_performance: -25
-    min_analysts: 10
-    min_price_targets: 6
+    min_analysts: 12
+    min_price_targets: 8
     min_roe: 8.0
     max_debt_equity: 150.0
     min_fcf_yield: 0.5
     min_revenue_growth: -5
-    min_pct_from_52w_high: 60
-    require_above_200dma: false
-    min_analyst_momentum: -10
+    min_pct_from_52w_high: 65
+    require_above_200dma: true
+    min_analyst_momentum: -8
     max_pe_vs_sector: 1.5
     min_pe_vs_sector: 0.3
   sell:
@@ -59,8 +60,9 @@ us_mega:
     max_pe_vs_sector: 2.0
 us_large:
   buy:
-    min_upside: 10
-    min_buy_percentage: 70
+    # US LARGE: More lenient thresholds - good coverage, liquid names
+    min_upside: 12
+    min_buy_percentage: 77
     min_beta: 0.2
     max_beta: 2.5
     min_forward_pe: 0.5
@@ -69,17 +71,17 @@ us_large:
     max_trailing_pe: 85
     max_peg: 5.0
     max_short_interest: 2.25
-    min_exret: 7
+    min_exret: 8
     min_earnings_growth: -22.5
     min_price_performance: -22.5
-    min_analysts: 8
-    min_price_targets: 5
+    min_analysts: 10
+    min_price_targets: 6
     min_roe: 8.0
     max_debt_equity: 150.0
     min_fcf_yield: 0.25
-    min_pct_from_52w_high: 60
-    require_above_200dma: false
-    min_analyst_momentum: -10
+    min_pct_from_52w_high: 70
+    require_above_200dma: true
+    min_analyst_momentum: -8
     max_pe_vs_sector: 1.5
     min_pe_vs_sector: 0.3
   sell:
@@ -103,8 +105,9 @@ us_large:
     max_pe_vs_sector: 2.0
 us_mid:
   buy:
+    # US MID: Moderate thresholds - need stronger conviction for smaller caps
     min_upside: 15
-    min_buy_percentage: 75
+    min_buy_percentage: 80
     min_beta: 0.2
     max_beta: 2.5
     min_forward_pe: 0.5
@@ -116,14 +119,14 @@ us_mid:
     min_exret: 12
     min_earnings_growth: -20
     min_price_performance: -20
-    min_analysts: 7
-    min_price_targets: 4
-    min_roe: 8.0
-    max_debt_equity: 150.0
+    min_analysts: 8
+    min_price_targets: 5
+    min_roe: 10.0
+    max_debt_equity: 130.0
     min_fcf_yield: 0.0
-    min_pct_from_52w_high: 65
+    min_pct_from_52w_high: 75
     require_above_200dma: true
-    min_analyst_momentum: -8
+    min_analyst_momentum: -5
     max_pe_vs_sector: 1.4
     min_pe_vs_sector: 0.3
   sell:
@@ -147,8 +150,9 @@ us_mid:
     max_pe_vs_sector: 1.8
 us_small:
   buy:
+    # US SMALL: Stricter - higher risk requires higher conviction
     min_upside: 25
-    min_buy_percentage: 85
+    min_buy_percentage: 88
     min_beta: 0.2
     max_beta: 2.5
     min_forward_pe: 0.5
@@ -160,12 +164,12 @@ us_small:
     min_exret: 22
     min_earnings_growth: -17.5
     min_price_performance: -17.5
-    min_analysts: 5
-    min_price_targets: 3
-    min_roe: 8.0
-    max_debt_equity: 150.0
+    min_analysts: 6
+    min_price_targets: 4
+    min_roe: 10.0
+    max_debt_equity: 120.0
     min_fcf_yield: -1.0
-    min_pct_from_52w_high: 70
+    min_pct_from_52w_high: 75
     require_above_200dma: true
     min_analyst_momentum: -5
     max_pe_vs_sector: 1.3
@@ -191,8 +195,9 @@ us_small:
     max_pe_vs_sector: 1.6
 us_micro:
   buy:
-    min_upside: 35
-    min_buy_percentage: 92
+    # US MICRO: Very strict - highest risk tier (mostly filtered by min_market_cap anyway)
+    min_upside: 40
+    min_buy_percentage: 95
     min_beta: 0.2
     max_beta: 2.5
     min_forward_pe: 0.5
@@ -201,14 +206,14 @@ us_micro:
     max_trailing_pe: 70
     max_peg: 5.0
     max_short_interest: 3
-    min_exret: 30
+    min_exret: 35
     min_earnings_growth: -15
     min_price_performance: -15
-    min_analysts: 4
-    min_price_targets: 3
-    min_roe: 8.0
-    max_debt_equity: 150.0
-    min_pct_from_52w_high: 75
+    min_analysts: 6
+    min_price_targets: 4
+    min_roe: 10.0
+    max_debt_equity: 100.0
+    min_pct_from_52w_high: 80
     require_above_200dma: true
     min_analyst_momentum: -3
     max_pe_vs_sector: 1.2
@@ -234,8 +239,9 @@ us_micro:
     max_pe_vs_sector: 1.5
 eu_mega:
   buy:
+    # EU MEGA: Slightly relaxed to capture more EU opportunities
     min_upside: 10
-    min_buy_percentage: 65
+    min_buy_percentage: 70
     min_beta: 0.2
     max_beta: 2.5
     min_forward_pe: 0.5
@@ -252,8 +258,8 @@ eu_mega:
     min_roe: 8.0
     max_debt_equity: 150.0
     min_fcf_yield: 0.5
-    min_pct_from_52w_high: 60
-    require_above_200dma: false
+    min_pct_from_52w_high: 65
+    require_above_200dma: true
     min_analyst_momentum: -10
     max_pe_vs_sector: 1.5
     min_pe_vs_sector: 0.3
@@ -278,8 +284,9 @@ eu_mega:
     max_pe_vs_sector: 2.0
 eu_large:
   buy:
-    min_upside: 15
-    min_buy_percentage: 70
+    # EU LARGE: Slightly relaxed to capture more EU opportunities
+    min_upside: 12
+    min_buy_percentage: 75
     min_beta: 0.2
     max_beta: 2.5
     min_forward_pe: 0.5
@@ -288,7 +295,7 @@ eu_large:
     max_trailing_pe: 85
     max_peg: 5.0
     max_short_interest: 2.25
-    min_exret: 11
+    min_exret: 9
     min_earnings_growth: -22.5
     min_price_performance: -22.5
     min_analysts: 8
@@ -296,8 +303,8 @@ eu_large:
     min_roe: 8.0
     max_debt_equity: 150.0
     min_fcf_yield: 0.25
-    min_pct_from_52w_high: 60
-    require_above_200dma: false
+    min_pct_from_52w_high: 70
+    require_above_200dma: true
     min_analyst_momentum: -10
     max_pe_vs_sector: 1.5
     min_pe_vs_sector: 0.3
@@ -322,8 +329,9 @@ eu_large:
     max_pe_vs_sector: 2.0
 eu_mid:
   buy:
-    min_upside: 20
-    min_buy_percentage: 75
+    # EU MID: Slightly relaxed to capture more EU opportunities
+    min_upside: 18
+    min_buy_percentage: 78
     min_beta: 0.2
     max_beta: 2
     min_forward_pe: 0.5
@@ -332,15 +340,15 @@ eu_mid:
     max_trailing_pe: 80
     max_peg: 5.0
     max_short_interest: 2.5
-    min_exret: 15
+    min_exret: 14
     min_earnings_growth: -20
     min_price_performance: -20
-    min_analysts: 7
-    min_price_targets: 4
+    min_analysts: 8
+    min_price_targets: 5
     min_roe: 8.0
     max_debt_equity: 150.0
     min_fcf_yield: 0.0
-    min_pct_from_52w_high: 65
+    min_pct_from_52w_high: 75
     require_above_200dma: true
     min_analyst_momentum: -8
     max_pe_vs_sector: 1.4
@@ -366,8 +374,9 @@ eu_mid:
     max_pe_vs_sector: 1.8
 eu_small:
   buy:
-    min_upside: 30
-    min_buy_percentage: 87
+    # EU SMALL: Moderately strict - balance EU capture with quality
+    min_upside: 28
+    min_buy_percentage: 85
     min_beta: 0.2
     max_beta: 2
     min_forward_pe: 0.5
@@ -376,15 +385,15 @@ eu_small:
     max_trailing_pe: 75
     max_peg: 5.0
     max_short_interest: 2.75
-    min_exret: 26
+    min_exret: 24
     min_earnings_growth: -17.5
     min_price_performance: -17.5
-    min_analysts: 5
-    min_price_targets: 3
+    min_analysts: 6
+    min_price_targets: 4
     min_roe: 8.0
     max_debt_equity: 150.0
     min_fcf_yield: -1.0
-    min_pct_from_52w_high: 70
+    min_pct_from_52w_high: 75
     require_above_200dma: true
     min_analyst_momentum: -5
     max_pe_vs_sector: 1.3
@@ -410,8 +419,9 @@ eu_small:
     max_pe_vs_sector: 1.6
 eu_micro:
   buy:
-    min_upside: 40
-    min_buy_percentage: 94
+    # EU MICRO: Strict - mostly filtered by min_market_cap anyway
+    min_upside: 38
+    min_buy_percentage: 92
     min_beta: 0.2
     max_beta: 2
     min_forward_pe: 0.5
@@ -420,14 +430,14 @@ eu_micro:
     max_trailing_pe: 70
     max_peg: 5.0
     max_short_interest: 3
-    min_exret: 34
+    min_exret: 35
     min_earnings_growth: -15
     min_price_performance: -15
-    min_analysts: 4
-    min_price_targets: 3
-    min_roe: 8.0
-    max_debt_equity: 150.0
-    min_pct_from_52w_high: 75
+    min_analysts: 6
+    min_price_targets: 4
+    min_roe: 10.0
+    max_debt_equity: 120.0
+    min_pct_from_52w_high: 80
     require_above_200dma: true
     min_analyst_momentum: -3
     max_pe_vs_sector: 1.2
@@ -453,8 +463,9 @@ eu_micro:
     max_pe_vs_sector: 1.5
 hk_mega:
   buy:
-    min_upside: 18
-    min_buy_percentage: 80
+    # HK MEGA: Stricter to limit HK picks (prefer US/EU)
+    min_upside: 22
+    min_buy_percentage: 88
     min_beta: 0.2
     max_beta: 2.5
     min_forward_pe: 0.5
@@ -463,17 +474,17 @@ hk_mega:
     max_trailing_pe: 90
     max_peg: 5.0
     max_short_interest: 2
-    min_exret: 15
+    min_exret: 20
     min_earnings_growth: -25
     min_price_performance: -25
-    min_analysts: 10
-    min_price_targets: 6
-    min_roe: 8.0
-    max_debt_equity: 150.0
+    min_analysts: 15
+    min_price_targets: 8
+    min_roe: 10.0
+    max_debt_equity: 120.0
     min_fcf_yield: 0.75
-    min_pct_from_52w_high: 60
-    require_above_200dma: false
-    min_analyst_momentum: -10
+    min_pct_from_52w_high: 70
+    require_above_200dma: true
+    min_analyst_momentum: -8
     max_pe_vs_sector: 1.5
     min_pe_vs_sector: 0.3
   sell:
@@ -497,8 +508,9 @@ hk_mega:
     max_pe_vs_sector: 2.2
 hk_large:
   buy:
-    min_upside: 25
-    min_buy_percentage: 80
+    # HK LARGE: Stricter to limit HK picks (prefer US/EU)
+    min_upside: 28
+    min_buy_percentage: 90
     min_beta: 0.2
     max_beta: 2
     min_forward_pe: 0.5
@@ -507,17 +519,17 @@ hk_large:
     max_trailing_pe: 85
     max_peg: 5.0
     max_short_interest: 2.25
-    min_exret: 20
+    min_exret: 25
     min_earnings_growth: -22.5
     min_price_performance: -22.5
-    min_analysts: 8
-    min_price_targets: 5
-    min_roe: 8.0
-    max_debt_equity: 150.0
+    min_analysts: 12
+    min_price_targets: 6
+    min_roe: 10.0
+    max_debt_equity: 120.0
     min_fcf_yield: 0.5
-    min_pct_from_52w_high: 60
-    require_above_200dma: false
-    min_analyst_momentum: -10
+    min_pct_from_52w_high: 75
+    require_above_200dma: true
+    min_analyst_momentum: -8
     max_pe_vs_sector: 1.5
     min_pe_vs_sector: 0.3
   sell:
@@ -541,8 +553,9 @@ hk_large:
     max_pe_vs_sector: 2.2
 hk_mid:
   buy:
-    min_upside: 30
-    min_buy_percentage: 85
+    # HK MID: Stricter to limit HK picks (prefer US/EU)
+    min_upside: 32
+    min_buy_percentage: 92
     min_beta: 0.2
     max_beta: 2
     min_forward_pe: 0.5
@@ -551,17 +564,17 @@ hk_mid:
     max_trailing_pe: 80
     max_peg: 5.0
     max_short_interest: 2.5
-    min_exret: 26
+    min_exret: 30
     min_earnings_growth: -20
     min_price_performance: -20
-    min_analysts: 7
-    min_price_targets: 4
-    min_roe: 8.0
-    max_debt_equity: 150.0
+    min_analysts: 10
+    min_price_targets: 5
+    min_roe: 10.0
+    max_debt_equity: 120.0
     min_fcf_yield: 0.25
-    min_pct_from_52w_high: 60
+    min_pct_from_52w_high: 80
     require_above_200dma: true
-    min_analyst_momentum: -10
+    min_analyst_momentum: -5
     max_pe_vs_sector: 1.5
     min_pe_vs_sector: 0.3
   sell:
@@ -585,8 +598,9 @@ hk_mid:
     max_pe_vs_sector: 2.0
 hk_small:
   buy:
-    min_upside: 35
-    min_buy_percentage: 90
+    # HK SMALL: Very strict - higher risk, prefer US/EU
+    min_upside: 40
+    min_buy_percentage: 95
     min_beta: 0.2
     max_beta: 2
     min_forward_pe: 0.5
@@ -595,17 +609,17 @@ hk_small:
     max_trailing_pe: 75
     max_peg: 5.0
     max_short_interest: 2.75
-    min_exret: 30
+    min_exret: 38
     min_earnings_growth: -17.5
     min_price_performance: -17.5
-    min_analysts: 5
-    min_price_targets: 3
-    min_roe: 8.0
-    max_debt_equity: 150.0
+    min_analysts: 8
+    min_price_targets: 4
+    min_roe: 12.0
+    max_debt_equity: 100.0
     min_fcf_yield: 0.0
-    min_pct_from_52w_high: 65
+    min_pct_from_52w_high: 80
     require_above_200dma: true
-    min_analyst_momentum: -8
+    min_analyst_momentum: -5
     max_pe_vs_sector: 1.4
     min_pe_vs_sector: 0.3
   sell:
@@ -629,8 +643,9 @@ hk_small:
     max_pe_vs_sector: 1.8
 hk_micro:
   buy:
-    min_upside: 45
-    min_buy_percentage: 97
+    # HK MICRO: Extremely strict - mostly filtered by min_market_cap anyway
+    min_upside: 50
+    min_buy_percentage: 98
     min_beta: 0.2
     max_beta: 2
     min_forward_pe: 0.5
@@ -639,16 +654,16 @@ hk_micro:
     max_trailing_pe: 70
     max_peg: 5.0
     max_short_interest: 3
-    min_exret: 38
+    min_exret: 45
     min_earnings_growth: -15
     min_price_performance: -15
-    min_analysts: 4
-    min_price_targets: 3
-    min_roe: 8.0
-    max_debt_equity: 150.0
-    min_pct_from_52w_high: 70
+    min_analysts: 8
+    min_price_targets: 4
+    min_roe: 12.0
+    max_debt_equity: 80.0
+    min_pct_from_52w_high: 85
     require_above_200dma: true
-    min_analyst_momentum: -5
+    min_analyst_momentum: -3
     max_pe_vs_sector: 1.3
     min_pe_vs_sector: 0.35
   sell:
@@ -691,3 +706,190 @@ logging:
   level: INFO
   file: logs/trading_analysis.log
   console: true
+
+# Crypto and Non-Equity Asset Configuration
+# Momentum thresholds for crypto assets (no analyst coverage)
+crypto_momentum:
+  # Major crypto (BTC, ETH) - higher thresholds due to relative stability
+  major:
+    buy_threshold: 85    # % of 52-week high required for BUY
+    hold_threshold: 60   # % of 52-week high - below this triggers SELL
+    tickers: ['BTC-USD', 'ETH-USD']
+  # Altcoins - slightly more aggressive thresholds
+  altcoins:
+    buy_threshold: 85    # % of 52-week high required for BUY
+    hold_threshold: 55   # % of 52-week high - below this triggers SELL
+
+# Bitcoin proxy stock configuration
+# Stocks whose value is primarily tied to Bitcoin holdings or mining
+bitcoin_proxy:
+  momentum_buy_threshold: 70      # % of 52-week high required for BUY consideration
+  momentum_sell_threshold: 35     # % of 52-week high - below this triggers SELL
+  min_buy_pct_override: 60        # Relaxed analyst buy% threshold
+  require_above_200dma: true      # Require above 200DMA for BUY signal
+
+# IPO Grace Period Configuration
+# Recent IPOs exhibit extreme volatility that triggers false SELL signals
+# Apply relaxed criteria during grace period
+ipo_grace_period:
+  enabled: true
+  grace_period_months: 12         # Months after IPO to apply relaxed criteria
+  relaxed_momentum_threshold: 40  # More lenient 52W% threshold (vs 50% standard)
+  ignore_analyst_momentum: true   # Ignore AM column (analyst momentum) for recent IPOs
+  # Known recent IPOs (add tickers here for manual override)
+  # Format: TICKER: IPO_DATE (YYYY-MM-DD)
+  known_ipos:
+    ETOR: '2025-05-14'           # eToro Group - May 2025 IPO
+    ARM: '2023-09-14'            # ARM Holdings - September 2023 IPO
+    BIRK: '2023-10-11'           # Birkenstock - October 2023 IPO
+
+# Enhanced Signal Scoring Framework
+# Feature flag to enable multi-factor scoring (set to false to use legacy ANY-trigger logic)
+use_signal_scoring: true
+
+# Default scoring configuration (used if region-tier specific config not found)
+default_sell_scoring:
+  # Score threshold (0-100) for SELL signal
+  score_threshold: 65
+  # Hard triggers (bypass scoring - immediate SELL)
+  hard_trigger_upside: -5          # Below target by 5%+
+  hard_trigger_buy_pct: 35         # Less than 35% buy
+  # Quality override (bypass SELL - protect strong stocks)
+  quality_override_buy_pct: 85     # 85%+ analyst buy
+  quality_override_upside: 20      # 20%+ upside
+  quality_override_exret: 15       # 15%+ expected return
+  # Component weights (must sum to 1.0)
+  weight_analyst: 0.35
+  weight_momentum: 0.25
+  weight_valuation: 0.20
+  weight_fundamental: 0.20
+
+default_buy_scoring:
+  enabled: true
+  # Component weights (must sum to 1.0)
+  weight_upside: 0.30
+  weight_consensus: 0.25
+  weight_momentum: 0.20
+  weight_valuation: 0.15
+  weight_fundamental: 0.10
+
+# Tier-specific scoring overrides (inherits from default if not specified)
+us_mega_sell_scoring:
+  score_threshold: 65
+  hard_trigger_upside: -5
+  hard_trigger_buy_pct: 35
+  quality_override_buy_pct: 85
+  quality_override_upside: 20
+  quality_override_exret: 15
+
+us_large_sell_scoring:
+  score_threshold: 65
+  hard_trigger_upside: -3
+  hard_trigger_buy_pct: 38
+  quality_override_buy_pct: 85
+  quality_override_upside: 18
+  quality_override_exret: 14
+
+us_mid_sell_scoring:
+  score_threshold: 60
+  hard_trigger_upside: -3
+  hard_trigger_buy_pct: 40
+  quality_override_buy_pct: 88
+  quality_override_upside: 22
+  quality_override_exret: 16
+
+us_small_sell_scoring:
+  score_threshold: 55
+  hard_trigger_upside: 0
+  hard_trigger_buy_pct: 45
+  quality_override_buy_pct: 90
+  quality_override_upside: 25
+  quality_override_exret: 20
+
+us_micro_sell_scoring:
+  score_threshold: 50
+  hard_trigger_upside: 0
+  hard_trigger_buy_pct: 50
+  quality_override_buy_pct: 92
+  quality_override_upside: 30
+  quality_override_exret: 25
+
+eu_mega_sell_scoring:
+  score_threshold: 65
+  hard_trigger_upside: -5
+  hard_trigger_buy_pct: 35
+  quality_override_buy_pct: 82
+  quality_override_upside: 18
+  quality_override_exret: 13
+
+eu_large_sell_scoring:
+  score_threshold: 62
+  hard_trigger_upside: -3
+  hard_trigger_buy_pct: 38
+  quality_override_buy_pct: 83
+  quality_override_upside: 18
+  quality_override_exret: 14
+
+eu_mid_sell_scoring:
+  score_threshold: 58
+  hard_trigger_upside: -3
+  hard_trigger_buy_pct: 42
+  quality_override_buy_pct: 85
+  quality_override_upside: 20
+  quality_override_exret: 15
+
+eu_small_sell_scoring:
+  score_threshold: 55
+  hard_trigger_upside: 0
+  hard_trigger_buy_pct: 45
+  quality_override_buy_pct: 88
+  quality_override_upside: 23
+  quality_override_exret: 18
+
+eu_micro_sell_scoring:
+  score_threshold: 50
+  hard_trigger_upside: 0
+  hard_trigger_buy_pct: 50
+  quality_override_buy_pct: 90
+  quality_override_upside: 28
+  quality_override_exret: 22
+
+hk_mega_sell_scoring:
+  score_threshold: 68
+  hard_trigger_upside: -5
+  hard_trigger_buy_pct: 38
+  quality_override_buy_pct: 88
+  quality_override_upside: 22
+  quality_override_exret: 18
+
+hk_large_sell_scoring:
+  score_threshold: 65
+  hard_trigger_upside: -3
+  hard_trigger_buy_pct: 40
+  quality_override_buy_pct: 88
+  quality_override_upside: 23
+  quality_override_exret: 18
+
+hk_mid_sell_scoring:
+  score_threshold: 62
+  hard_trigger_upside: -3
+  hard_trigger_buy_pct: 42
+  quality_override_buy_pct: 90
+  quality_override_upside: 25
+  quality_override_exret: 20
+
+hk_small_sell_scoring:
+  score_threshold: 58
+  hard_trigger_upside: 0
+  hard_trigger_buy_pct: 48
+  quality_override_buy_pct: 92
+  quality_override_upside: 28
+  quality_override_exret: 23
+
+hk_micro_sell_scoring:
+  score_threshold: 55
+  hard_trigger_upside: 0
+  hard_trigger_buy_pct: 52
+  quality_override_buy_pct: 95
+  quality_override_upside: 32
+  quality_override_exret: 28
