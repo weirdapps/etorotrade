@@ -90,6 +90,39 @@ class TestThresholdAnalyzerFunctions:
         assert result is not None
         assert result.test_values is not None
 
+    def test_threshold_sensitivity_analysis_below(self):
+        """Test threshold sensitivity analysis with 'below' direction."""
+        from trade_modules.threshold_analyzer import threshold_sensitivity_analysis
+
+        data = pd.DataFrame({
+            'ticker': ['AAPL', 'MSFT', 'GOOGL'],
+            'UP%': ['15%', '20%', '25%'],
+        })
+
+        result = threshold_sensitivity_analysis(data, 'UP%', (10.0, 30.0), 5.0, direction='below')
+        assert result is not None
+        assert result.signal_counts is not None
+
+    def test_generate_threshold_report(self):
+        """Test threshold report generation."""
+        from trade_modules.threshold_analyzer import generate_threshold_report
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create a mock market.csv file with all required columns
+            market_path = Path(tmpdir) / "market.csv"
+            market_path.write_text(
+                "ticker,UP%,%B,BS\n"
+                "AAPL,15%,85%,B\n"
+                "MSFT,20%,90%,B\n"
+                "TSLA,5%,40%,S\n"
+            )
+
+            report = generate_threshold_report(market_path)
+            assert report is not None
+            assert isinstance(report, str)
+
 
 class TestCryptoMomentumConfig:
     """Test crypto momentum configuration."""
