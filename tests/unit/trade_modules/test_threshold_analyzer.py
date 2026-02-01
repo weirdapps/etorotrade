@@ -28,8 +28,8 @@ class TestThresholdAnalyzerImports:
             recommendation=10.0,
             reasoning="Optimal balance"
         )
-        assert analysis.current_value == 10.0
-        assert analysis.recommendation == 10.0
+        assert analysis.current_value == pytest.approx(10.0)
+        assert analysis.recommendation == pytest.approx(10.0)
 
 
 class TestThresholdAnalyzerFunctions:
@@ -39,9 +39,9 @@ class TestThresholdAnalyzerFunctions:
         """Test percentage parsing."""
         from trade_modules.threshold_analyzer import parse_percentage
 
-        assert parse_percentage("15%") == 15.0
-        assert parse_percentage("15") == 15.0
-        assert parse_percentage(15.0) == 15.0
+        assert parse_percentage("15%") == pytest.approx(15.0)
+        assert parse_percentage("15") == pytest.approx(15.0)
+        assert parse_percentage(15.0) == pytest.approx(15.0)
         assert np.isnan(parse_percentage("--"))
         assert np.isnan(parse_percentage(None))
 
@@ -156,16 +156,16 @@ class TestConfigSchemaNewModels:
         from config.schema import CryptoMomentumConfig
 
         config = CryptoMomentumConfig()
-        assert config.major.buy_threshold == 85.0
-        assert config.altcoins.hold_threshold == 55.0
+        assert config.major.buy_threshold == pytest.approx(85.0)
+        assert config.altcoins.hold_threshold == pytest.approx(55.0)
 
     def test_bitcoin_proxy_config(self):
         """Test BitcoinProxyConfig model."""
         from config.schema import BitcoinProxyConfig
 
         config = BitcoinProxyConfig()
-        assert config.momentum_buy_threshold == 70.0
-        assert config.momentum_sell_threshold == 35.0
+        assert config.momentum_buy_threshold == pytest.approx(70.0)
+        assert config.momentum_sell_threshold == pytest.approx(35.0)
 
     def test_ipo_grace_period_config(self):
         """Test IPOGracePeriodConfig model."""
