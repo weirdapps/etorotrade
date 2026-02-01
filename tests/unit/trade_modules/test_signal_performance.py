@@ -31,7 +31,7 @@ class TestSignalPerformanceImports:
         )
         assert perf.ticker == "AAPL"
         assert perf.signal == "B"
-        assert perf.signal_price == 150.0
+        assert perf.signal_price == pytest.approx(150.0)
         assert perf.price_t7 is None
 
     def test_default_paths(self):
