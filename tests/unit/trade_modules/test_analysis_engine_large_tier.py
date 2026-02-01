@@ -36,13 +36,13 @@ class TestLargeUSTierSignals:
 
         LARGE-US BUY criteria (from config.yaml):
         - min_upside: 10
-        - min_buy_percentage: 70
-        - min_exret: 7
+        - min_buy_percentage: 75
+        - min_exret: 7.5
         """
         data = large_us_base_data.copy()
-        data['upside'] = 12.0              # ✓ ≥10%
-        data['buy_percentage'] = 75.0      # ✓ ≥70%
-        data['EXRET'] = 9.0                # ✓ ≥7.0
+        data['upside'] = 15.0              # ✓ ≥10%
+        data['buy_percentage'] = 80.0      # ✓ ≥75%
+        data['EXRET'] = 12.0               # ✓ ≥7.5
 
         df = pd.DataFrame([data]).set_index('ticker')
         result = calculate_action(df)
@@ -50,32 +50,32 @@ class TestLargeUSTierSignals:
         assert result.loc['NFLX', 'BS'] == 'B', "Should generate BUY for LARGE-US with all conditions met"
 
     def test_large_us_sell_signal_low_upside(self, large_us_base_data):
-        """SELL signal when upside <= 5% (LARGE-US threshold).
+        """SELL signal with enhanced scoring: negative upside + weak sentiment.
 
-        LARGE-US SELL criteria (from config.yaml):
-        - max_upside: 5
+        Enhanced SELL criteria uses hard triggers:
+        - upside <= -5% with buy% <= 55%
         """
         data = large_us_base_data.copy()
-        data['upside'] = 4.0               # ✗ <=5% → SELL
-        data['buy_percentage'] = 75.0
-        data['EXRET'] = 3.0
+        data['upside'] = -10.0             # Severe negative upside (hard trigger)
+        data['buy_percentage'] = 50.0      # Below 55% threshold
+        data['EXRET'] = -5.0               # Negative EXRET
 
         df = pd.DataFrame([data]).set_index('ticker')
         result = calculate_action(df)
 
-        assert result.loc['NFLX', 'BS'] == 'S', "Should SELL when upside <= 5%"
+        assert result.loc['NFLX', 'BS'] == 'S', "Should SELL with severe negative upside + weak sentiment"
 
     def test_large_us_sell_signal_low_buy_percentage(self, large_us_base_data):
-        """SELL signal when buy_percentage < 55% (LARGE-US threshold)."""
+        """SELL signal with enhanced scoring: very low buy% (hard trigger)."""
         data = large_us_base_data.copy()
-        data['upside'] = 12.0
-        data['buy_percentage'] = 50.0      # ✗ <55% → SELL
-        data['EXRET'] = 6.0
+        data['upside'] = 5.0
+        data['buy_percentage'] = 35.0      # ✗ <=35% → hard trigger SELL
+        data['EXRET'] = 1.75
 
         df = pd.DataFrame([data]).set_index('ticker')
         result = calculate_action(df)
 
-        assert result.loc['NFLX', 'BS'] == 'S', "Should SELL when buy% < 55%"
+        assert result.loc['NFLX', 'BS'] == 'S', "Should SELL when buy% <= 35% (hard trigger)"
 
     def test_large_us_hold_signal(self, large_us_base_data):
         """HOLD signal when between BUY and SELL thresholds.
@@ -130,20 +130,19 @@ class TestLargeEUTierSignals:
         assert result.loc['SAP.DE', 'BS'] == 'B', "Should generate BUY for LARGE-EU"
 
     def test_large_eu_sell_signal(self, large_eu_base_data):
-        """SELL signal for LARGE-EU tier.
+        """SELL signal for LARGE-EU tier with enhanced scoring.
 
-        LARGE-EU SELL criteria:
-        - max_upside: 6
+        Enhanced SELL criteria: hard trigger conditions.
         """
         data = large_eu_base_data.copy()
-        data['upside'] = 5.0               # ✗ <=6% → SELL
-        data['buy_percentage'] = 75.0
-        data['EXRET'] = 3.75
+        data['upside'] = -8.0              # Negative upside (hard trigger component)
+        data['buy_percentage'] = 45.0      # Below 55% threshold
+        data['EXRET'] = -3.6               # Negative EXRET
 
         df = pd.DataFrame([data]).set_index('ticker')
         result = calculate_action(df)
 
-        assert result.loc['SAP.DE', 'BS'] == 'S', "Should SELL when upside <= 6%"
+        assert result.loc['SAP.DE', 'BS'] == 'S', "Should SELL with negative upside + weak sentiment"
 
     def test_large_eu_hold_signal(self, large_eu_base_data):
         """HOLD signal for LARGE-EU tier when between thresholds."""
@@ -179,13 +178,13 @@ class TestLargeHKTierSignals:
 
         LARGE-HK BUY criteria (from config.yaml - tightened per hedge fund review):
         - min_upside: 25 (was 20)
-        - min_buy_percentage: 80 (was 75)
-        - min_exret: 20 (was 15)
+        - min_buy_percentage: 90 (tightened for HK)
+        - min_exret: 22.5 (tightened)
         """
         data = large_hk_base_data.copy()
-        data['upside'] = 27.0              # ✓ ≥25%
-        data['buy_percentage'] = 82.0      # ✓ ≥80%
-        data['EXRET'] = 22.0               # ✓ ≥20
+        data['upside'] = 32.0              # ✓ ≥25%
+        data['buy_percentage'] = 92.0      # ✓ ≥90%
+        data['EXRET'] = 29.4               # ✓ ≥22.5
 
         df = pd.DataFrame([data]).set_index('ticker')
         result = calculate_action(df)
@@ -193,20 +192,19 @@ class TestLargeHKTierSignals:
         assert result.loc['BABA.HK', 'BS'] == 'B', "Should generate BUY for LARGE-HK"
 
     def test_large_hk_sell_signal(self, large_hk_base_data):
-        """SELL signal for LARGE-HK tier.
+        """SELL signal for LARGE-HK tier with enhanced scoring.
 
-        LARGE-HK SELL criteria:
-        - max_upside: 10
+        Enhanced SELL criteria: hard trigger conditions.
         """
         data = large_hk_base_data.copy()
-        data['upside'] = 9.0               # ✗ <=10% → SELL
-        data['buy_percentage'] = 78.0
-        data['EXRET'] = 7.0
+        data['upside'] = -12.0             # Severe negative upside
+        data['buy_percentage'] = 50.0      # Below 55% threshold
+        data['EXRET'] = -6.0               # Negative EXRET
 
         df = pd.DataFrame([data]).set_index('ticker')
         result = calculate_action(df)
 
-        assert result.loc['BABA.HK', 'BS'] == 'S', "Should SELL when upside <= 10%"
+        assert result.loc['BABA.HK', 'BS'] == 'S', "Should SELL with severe negative upside + weak sentiment"
 
     def test_large_hk_hold_signal(self, large_hk_base_data):
         """HOLD signal for LARGE-HK tier when between thresholds."""

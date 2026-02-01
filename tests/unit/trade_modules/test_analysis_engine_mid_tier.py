@@ -45,20 +45,19 @@ class TestMidUSTierSignals:
         assert result.loc['ROKU', 'BS'] == 'B', "Should generate BUY for MID-US"
 
     def test_mid_us_sell_signal(self, mid_us_base_data):
-        """SELL signal for MID-US tier.
+        """SELL signal for MID-US tier with enhanced scoring.
 
-        MID-US SELL criteria:
-        - max_upside: 7.5
+        Enhanced SELL criteria: hard trigger conditions.
         """
         data = mid_us_base_data.copy()
-        data['upside'] = 6.0              # ✗ <=7.5%
-        data['buy_percentage'] = 80.0
-        data['EXRET'] = 4.8
+        data['upside'] = -10.0            # Severe negative upside (hard trigger)
+        data['buy_percentage'] = 50.0     # Below 55% threshold
+        data['EXRET'] = -5.0              # Negative EXRET
 
         df = pd.DataFrame([data]).set_index('ticker')
         result = calculate_action(df)
 
-        assert result.loc['ROKU', 'BS'] == 'S', "Should SELL when upside <= 7.5%"
+        assert result.loc['ROKU', 'BS'] == 'S', "Should SELL with severe negative upside + weak sentiment"
 
     def test_mid_us_hold_signal(self, mid_us_base_data):
         """HOLD signal for MID-US tier."""
@@ -108,20 +107,19 @@ class TestMidEUTierSignals:
         assert result.loc['ASML.DE', 'BS'] == 'B', "Should generate BUY for MID-EU"
 
     def test_mid_eu_sell_signal(self, mid_eu_base_data):
-        """SELL signal for MID-EU tier.
+        """SELL signal for MID-EU tier with enhanced scoring.
 
-        MID-EU SELL criteria:
-        - max_upside: 10
+        Enhanced SELL criteria: hard trigger conditions.
         """
         data = mid_eu_base_data.copy()
-        data['upside'] = 9.0              # ✗ <=10%
-        data['buy_percentage'] = 78.0
-        data['EXRET'] = 7.0
+        data['upside'] = -8.0             # Negative upside (hard trigger component)
+        data['buy_percentage'] = 45.0     # Below 55% threshold
+        data['EXRET'] = -3.6              # Negative EXRET
 
         df = pd.DataFrame([data]).set_index('ticker')
         result = calculate_action(df)
 
-        assert result.loc['ASML.DE', 'BS'] == 'S', "Should SELL when upside <= 10%"
+        assert result.loc['ASML.DE', 'BS'] == 'S', "Should SELL with negative upside + weak sentiment"
 
     def test_mid_eu_hold_signal(self, mid_eu_base_data):
         """HOLD signal for MID-EU tier."""
@@ -157,13 +155,13 @@ class TestMidHKTierSignals:
 
         MID-HK BUY criteria (tightened per hedge fund review):
         - min_upside: 30 (was 25)
-        - min_buy_percentage: 85 (was 80)
-        - min_exret: 26 (was 20)
+        - min_buy_percentage: 92 (tightened for HK)
+        - min_exret: 27.6 (30 * 92 / 100)
         """
         data = mid_hk_base_data.copy()
-        data['upside'] = 32.0              # ✓ ≥30%
-        data['buy_percentage'] = 87.0      # ✓ ≥85%
-        data['EXRET'] = 28.0               # ✓ ≥26
+        data['upside'] = 35.0              # ✓ ≥30%
+        data['buy_percentage'] = 94.0      # ✓ ≥92%
+        data['EXRET'] = 32.9               # ✓ ≥27.6
 
         df = pd.DataFrame([data]).set_index('ticker')
         result = calculate_action(df)
@@ -171,20 +169,19 @@ class TestMidHKTierSignals:
         assert result.loc['BIDU.HK', 'BS'] == 'B', "Should generate BUY for MID-HK"
 
     def test_mid_hk_sell_signal(self, mid_hk_base_data):
-        """SELL signal for MID-HK tier.
+        """SELL signal for MID-HK tier with enhanced scoring.
 
-        MID-HK SELL criteria:
-        - max_upside: 12.5
+        Enhanced SELL criteria: hard trigger conditions.
         """
         data = mid_hk_base_data.copy()
-        data['upside'] = 11.0             # ✗ <=12.5%
-        data['buy_percentage'] = 82.0
-        data['EXRET'] = 9.0
+        data['upside'] = -12.0            # Severe negative upside (hard trigger)
+        data['buy_percentage'] = 50.0     # Below 55% threshold
+        data['EXRET'] = -6.0              # Negative EXRET
 
         df = pd.DataFrame([data]).set_index('ticker')
         result = calculate_action(df)
 
-        assert result.loc['BIDU.HK', 'BS'] == 'S', "Should SELL when upside <= 12.5%"
+        assert result.loc['BIDU.HK', 'BS'] == 'S', "Should SELL with severe negative upside + weak sentiment"
 
     def test_mid_hk_hold_signal(self, mid_hk_base_data):
         """HOLD signal for MID-HK tier."""

@@ -30,26 +30,30 @@ class TestAnalysisEngineComprehensive(unittest.TestCase):
     def test_calculate_action_vectorized_all_scenarios(self):
         """Test action calculation with all possible scenarios."""
         # Test with valid data
-        result = calculate_action_vectorized(self.mock_df, "market")
+        # Note: calculate_action_vectorized now returns (actions, buy_scores) tuple
+        result_tuple = calculate_action_vectorized(self.mock_df, "market")
+        self.assertIsInstance(result_tuple, tuple)
+        result, buy_scores = result_tuple
         self.assertIsInstance(result, pd.Series)
+        self.assertIsInstance(buy_scores, pd.Series)
         self.assertTrue(all(action in ['B', 'S', 'H', 'I'] for action in result))
-        
+
         # Test with empty DataFrame
         empty_df = pd.DataFrame()
-        result_empty = calculate_action_vectorized(empty_df, "market")
+        result_empty, _ = calculate_action_vectorized(empty_df, "market")
         self.assertEqual(len(result_empty), 0)
-        
+
         # Test with single row
         single_row = self.mock_df.iloc[:1].copy()
-        result_single = calculate_action_vectorized(single_row, "market")
+        result_single, _ = calculate_action_vectorized(single_row, "market")
         self.assertEqual(len(result_single), 1)
-        
+
         # Test with all NaN values
         nan_df = self.mock_df.copy()
         for col in ['pe_forward', 'pe_trailing', 'peg_ratio', 'upside', 'buy_percentage']:
             if col in nan_df.columns:
                 nan_df[col] = np.nan
-        result_nan = calculate_action_vectorized(nan_df, "market")
+        result_nan, _ = calculate_action_vectorized(nan_df, "market")
         self.assertEqual(len(result_nan), len(nan_df))
         
         
@@ -125,16 +129,16 @@ class TestAnalysisEngineComprehensive(unittest.TestCase):
             'ticker': ['TEST'],
             'invalid_column': ['invalid_data']
         })
-        
+
         # Should handle missing columns gracefully
-        result = calculate_action_vectorized(bad_df, "market")
+        result, _ = calculate_action_vectorized(bad_df, "market")
         self.assertEqual(len(result), len(bad_df))
-        
+
         # Test with mixed data types
         mixed_df = self.mock_df.copy()
         mixed_df['pe_forward'] = mixed_df['pe_forward'].astype(str)
-        
-        result_mixed = calculate_action_vectorized(mixed_df, "market")
+
+        result_mixed, _ = calculate_action_vectorized(mixed_df, "market")
         self.assertEqual(len(result_mixed), len(mixed_df))
         
     @unittest.skipIf(
@@ -147,7 +151,7 @@ class TestAnalysisEngineComprehensive(unittest.TestCase):
 
         import time
         start_time = time.time()
-        result = calculate_action_vectorized(large_df, "market")
+        result, _ = calculate_action_vectorized(large_df, "market")
         end_time = time.time()
 
         # Should complete in reasonable time (< 5 seconds for 1000 rows)
@@ -162,16 +166,58 @@ class TestAnalysisEngineComprehensive(unittest.TestCase):
         string_df = self.mock_df.copy()
         string_df['upside'] = string_df['upside'].astype(str)
         string_df['buy_percentage'] = string_df['buy_percentage'].astype(str)
-        
-        result = calculate_action_vectorized(string_df, "market")
+
+        result, _ = calculate_action_vectorized(string_df, "market")
         self.assertEqual(len(result), len(string_df))
-        
+
         # Test with percentage strings
         perc_df = self.mock_df.copy()
         perc_df['short_percent'] = perc_df['short_percent'].apply(lambda x: f"{x}%" if pd.notna(x) else x)
-        
-        result_perc = calculate_action_vectorized(perc_df, "market")
+
+        result_perc, _ = calculate_action_vectorized(perc_df, "market")
         self.assertEqual(len(result_perc), len(perc_df))
+
+    def test_negative_upside_never_buy_safety_check(self):
+        """
+        CRITICAL TEST: Stocks with negative upside should NEVER be marked as BUY.
+
+        This is a safety check added after review identified that stocks with
+        negative upside were incorrectly appearing in buy.csv output.
+        """
+        # Create test data with negative upside stocks that have all other metrics favorable
+        test_data = pd.DataFrame({
+            'ticker': ['NEG_HIGH_CONSENSUS', 'NEG_LOW_CONSENSUS', 'ZERO_UPSIDE', 'POS_UPSIDE'],
+            'upside': [-20.0, -5.0, 0.0, 25.0],  # Various negative and zero upside
+            'buy_percentage': [95.0, 90.0, 85.0, 85.0],  # High buy consensus
+            'analyst_count': [15, 10, 10, 10],  # Sufficient coverage
+            'total_ratings': [15, 10, 10, 10],
+            'market_cap': [100e9, 100e9, 100e9, 100e9],  # LARGE tier
+            'pe_forward': [18.0, 18.0, 18.0, 18.0],  # Reasonable PE
+            'pe_trailing': [20.0, 20.0, 20.0, 20.0],
+            'beta': [1.0, 1.0, 1.0, 1.0],
+            'pct_from_52w_high': [90.0, 90.0, 90.0, 90.0],  # Near highs
+            'return_on_equity': [15.0, 15.0, 15.0, 15.0],  # Good ROE
+            'debt_to_equity': [50.0, 50.0, 50.0, 50.0],  # Low debt
+        })
+        test_data.index = test_data['ticker']
+
+        # Calculate actions - now returns tuple (actions, buy_scores)
+        actions, _ = calculate_action_vectorized(test_data, "market")
+
+        # CRITICAL ASSERTIONS: Negative upside MUST NOT be BUY
+        self.assertNotEqual(actions['NEG_HIGH_CONSENSUS'], 'B',
+            "SAFETY FAILURE: -20% upside marked as BUY despite high consensus")
+        self.assertNotEqual(actions['NEG_LOW_CONSENSUS'], 'B',
+            "SAFETY FAILURE: -5% upside marked as BUY")
+
+        # Zero upside should also not be BUY (no profit potential)
+        self.assertNotEqual(actions['ZERO_UPSIDE'], 'B',
+            "Zero upside marked as BUY - no profit potential")
+
+        # Positive upside with good metrics SHOULD be able to be BUY
+        # (depending on thresholds, may or may not pass all criteria)
+        # This is not a failure if it's H or S, just verify no error
+        self.assertIn(actions['POS_UPSIDE'], ['B', 'S', 'H', 'I'])
 
 
 if __name__ == '__main__':

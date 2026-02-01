@@ -45,16 +45,19 @@ class TestSmallUSTierSignals:
         assert result.loc['SNAP', 'BS'] == 'B', "Should generate BUY for SMALL-US"
 
     def test_small_us_sell_signal(self, small_us_base_data):
-        """SELL signal for SMALL-US tier."""
+        """SELL signal for SMALL-US tier with enhanced scoring.
+
+        Enhanced SELL criteria: hard trigger conditions.
+        """
         data = small_us_base_data.copy()
-        data['upside'] = 8.0              # Below buy threshold
-        data['buy_percentage'] = 88.0
-        data['EXRET'] = 7.0
+        data['upside'] = -15.0            # Severe negative upside (hard trigger)
+        data['buy_percentage'] = 45.0     # Below 55% threshold
+        data['EXRET'] = -6.75             # Negative EXRET
 
         df = pd.DataFrame([data]).set_index('ticker')
         result = calculate_action(df)
 
-        assert result.loc['SNAP', 'BS'] == 'S', "Should SELL for SMALL-US with low metrics"
+        assert result.loc['SNAP', 'BS'] == 'S', "Should SELL with severe negative upside + weak sentiment"
 
     def test_small_us_hold_signal(self, small_us_base_data):
         """HOLD signal for SMALL-US tier."""

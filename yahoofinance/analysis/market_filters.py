@@ -39,7 +39,8 @@ def filter_buy_opportunities_v2(market_df: pd.DataFrame) -> pd.DataFrame:
         return market_df.copy()
 
     # Calculate actions for entire DataFrame at once (VECTORIZED)
-    actions = calculate_action_vectorized(market_df, "market")
+    # Returns tuple (actions, buy_scores)
+    actions, _ = calculate_action_vectorized(market_df, "market")
 
     # Debug logging for AUSS.OL if present
     ticker_col = "TICKER" if "TICKER" in market_df.columns else "ticker"
@@ -72,7 +73,8 @@ def filter_sell_candidates_v2(portfolio_df: pd.DataFrame) -> pd.DataFrame:
         return portfolio_df.copy()
 
     # Calculate actions for entire DataFrame at once (VECTORIZED)
-    actions = calculate_action_vectorized(portfolio_df, "market")
+    # Returns tuple (actions, buy_scores)
+    actions, _ = calculate_action_vectorized(portfolio_df, "market")
 
     # Filter for SELL actions (VECTORIZED)
     sell_mask = actions == "S"
@@ -100,7 +102,9 @@ def add_action_column(df: pd.DataFrame) -> pd.DataFrame:
     result_df = df.copy()
 
     # Calculate actions for entire DataFrame at once (VECTORIZED)
-    result_df["ACT"] = calculate_action_vectorized(result_df, "market")
+    # Returns tuple (actions, buy_scores)
+    actions, _ = calculate_action_vectorized(result_df, "market")
+    result_df["ACT"] = actions
 
     return result_df
 
@@ -126,7 +130,8 @@ def filter_hold_candidates_v2(market_df: pd.DataFrame) -> pd.DataFrame:
         return market_df.copy()
 
     # Calculate actions for entire DataFrame at once (VECTORIZED)
-    actions = calculate_action_vectorized(market_df, "market")
+    # Returns tuple (actions, buy_scores)
+    actions, _ = calculate_action_vectorized(market_df, "market")
 
     # Filter for HOLD actions (VECTORIZED)
     hold_mask = actions == "H"

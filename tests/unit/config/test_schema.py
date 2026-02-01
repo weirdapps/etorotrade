@@ -206,7 +206,7 @@ class TestTradingConfigLoading:
         assert config.output is not None
 
         # Verify values
-        assert config.universal_thresholds.min_analyst_count == 4
+        assert config.universal_thresholds.min_analyst_count == 6
         assert config.position_sizing.base_position_size == 2500
         assert config.performance.max_concurrent_requests == 15
 
@@ -242,8 +242,8 @@ class TestTierCriteriaAccess:
         criteria = config.get_tier_criteria("US", "MEGA")
 
         assert criteria is not None
-        assert criteria.buy.min_upside == pytest.approx(8.0)
-        # Updated: min_upside increased from 5.0 to 8.0 per hedge fund manager review (5% is noise for MEGA-cap)
+        assert criteria.buy.min_upside == pytest.approx(10.0)
+        # Updated: min_upside increased from 8.0 to 10.0 per enhanced signal framework
         assert criteria.sell.max_upside == pytest.approx(0.0)
 
     def test_get_tier_criteria_with_enums(self):

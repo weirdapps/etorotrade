@@ -125,7 +125,7 @@ class TestCalculateActionVectorized:
     
     def test_vectorized_action_buy_conditions(self, sample_dataframe):
         """Test vectorized BUY action detection."""
-        result = calculate_action_vectorized(sample_dataframe)
+        result, _ = calculate_action_vectorized(sample_dataframe)
 
         # AAPL should be BUY (upside 30%, buy% 85%, EXRET 25.5%, meets MEGA tier criteria)
         assert result.iloc[0] == 'B'
@@ -134,25 +134,24 @@ class TestCalculateActionVectorized:
         assert result.iloc[1] == 'B'
     
     def test_vectorized_action_sell_conditions(self, sample_dataframe):
-        """Test vectorized SELL action detection."""
-        # Modify data to trigger SELL conditions
+        """Test vectorized SELL action detection with enhanced scoring system."""
+        # Modify data to trigger SELL conditions (hard triggers)
         df = sample_dataframe.copy()
-        df.loc[2, 'upside'] = 3.0  # Low upside
-        df.loc[2, 'buy_percentage'] = 60.0  # Low buy percentage
+        df.loc[2, 'upside'] = -8.0  # Negative upside (hard trigger)
+        df.loc[2, 'buy_percentage'] = 30.0  # Very low buy% (hard trigger)
 
         # Must recalculate EXRET after modifying upside and buy_percentage
         df = calculate_exret(df)
 
-        result = calculate_action_vectorized(df)
+        result, _ = calculate_action_vectorized(df)
 
         # GOOGL with $2T market cap is LARGE tier
-        # LARGE tier: max_upside=2.5%, max_exret=2.0%
-        # With upside=3% and EXRET=1.8%, it meets SELL criteria
+        # With negative upside and very low buy%, triggers hard SELL
         assert result.iloc[2] == 'S'
     
     def test_vectorized_action_inconclusive_conditions(self, edge_case_dataframe):
         """Test vectorized INCONCLUSIVE action detection."""
-        result = calculate_action_vectorized(edge_case_dataframe)
+        result, _ = calculate_action_vectorized(edge_case_dataframe)
         
         # First row should be INCONCLUSIVE due to low analyst coverage (0 analysts)
         assert result.iloc[0] == 'I'
@@ -192,7 +191,7 @@ class TestCalculateActionVectorized:
 
         import time
         start_time = time.perf_counter()
-        result = calculate_action_vectorized(large_df)
+        result, _ = calculate_action_vectorized(large_df)
         end_time = time.perf_counter()
 
         # Should complete in reasonable time
@@ -321,7 +320,7 @@ class TestPerformanceComparison:
 
         # Test vectorized approach
         start_time = time.perf_counter()
-        vectorized_result = calculate_action_vectorized(test_df)
+        vectorized_result, _ = calculate_action_vectorized(test_df)
         vectorized_time = time.perf_counter() - start_time
 
         # Vectorized should be significantly faster
