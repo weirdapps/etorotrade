@@ -34,12 +34,12 @@ def calculate_exret(df: pd.DataFrame) -> pd.DataFrame:
     try:
         # Calculate EXRET = upside * (buy_percentage / 100)
         # Use proper default Series instead of scalar to avoid fillna() error
-        # Handle both normalized (upside, buy_percentage) and CSV (%BUY, UPSIDE) column names
-        upside_col = working_df.get("upside", working_df.get("UPSIDE"))
+        # Handle all possible column name variants: upside, UPSIDE, UP% and buy_percentage, %BUY, %B
+        upside_col = working_df.get("upside", working_df.get("UPSIDE", working_df.get("UP%")))
         if upside_col is None:
             upside_col = pd.Series([0] * len(working_df), index=working_df.index)
 
-        buy_pct_col = working_df.get("buy_percentage", working_df.get("%BUY"))
+        buy_pct_col = working_df.get("buy_percentage", working_df.get("%BUY", working_df.get("%B")))
         if buy_pct_col is None:
             buy_pct_col = pd.Series([0] * len(working_df), index=working_df.index)
 
