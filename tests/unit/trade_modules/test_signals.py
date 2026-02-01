@@ -214,8 +214,9 @@ class TestVectorizedOperationsPerformance:
              'upside': 10.0, 'buy_percentage': 80.0, 'EXRET': 8.0,
              'analyst_count': 25, 'total_ratings': 25,
              'pe_forward': 30.0, 'pe_trailing': 32.0},
+            # Enhanced scoring: -10% upside + 35% buy = clear SELL (hard trigger)
             {'ticker': 'GOOGL', 'market_cap': 1.8e12, 'region': 'US',
-             'upside': -2.0, 'buy_percentage': 40.0, 'EXRET': -0.8,
+             'upside': -10.0, 'buy_percentage': 35.0, 'EXRET': -3.5,
              'analyst_count': 15, 'total_ratings': 15,
              'pe_forward': 22.0, 'pe_trailing': 20.0},
         ]).set_index('ticker')
@@ -224,7 +225,7 @@ class TestVectorizedOperationsPerformance:
 
         # All should have signals
         assert not result['BS'].isna().any()
-        # Third stock should be SELL (negative upside, low buy%)
+        # Third stock should be SELL (severe negative upside, low buy% = hard trigger)
         assert result.loc['GOOGL', 'BS'] == 'S'
 
     def test_large_batch_vectorized(self):
@@ -370,13 +371,15 @@ class TestSignalPriority:
 
     def test_sell_overrides_buy(self):
         """SELL conditions should override BUY conditions."""
+        # Enhanced scoring system: need stronger SELL signal
+        # -10% upside + 50% buy% = hard trigger SELL
         data = pd.DataFrame({
             'ticker': ['TEST'],
             'market_cap': [3e12],
             'region': ['US'],
-            'upside': [-5.0],          # Triggers SELL (negative upside, well below threshold)
-            'buy_percentage': [70.0],  # Decent buy% but not enough with negative upside
-            'EXRET': [-3.5],           # Negative EXRET also triggers SELL
+            'upside': [-10.0],          # Severe negative upside (hard trigger)
+            'buy_percentage': [50.0],  # Below 55% threshold with negative upside
+            'EXRET': [-5.0],           # Negative EXRET
             'analyst_count': [20],
             'total_ratings': [20],
             'pe_forward': [20.0],

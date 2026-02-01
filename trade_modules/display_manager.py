@@ -15,6 +15,38 @@ import os
 from pathlib import Path
 
 from .trade_config import TradeConfig
+from .analysis.tiers import _parse_market_cap
+
+
+def sort_by_market_cap_descending(df: pd.DataFrame) -> pd.DataFrame:
+    """Sort DataFrame by market cap in descending order.
+
+    Args:
+        df: DataFrame with CAP column (market cap as strings like '4.65T', '283B')
+
+    Returns:
+        DataFrame sorted by market cap descending
+    """
+    if df.empty:
+        return df
+
+    # Find the market cap column (could be CAP or market_cap)
+    cap_col = None
+    for col_name in ['CAP', 'cap', 'market_cap', 'MARKET_CAP']:
+        if col_name in df.columns:
+            cap_col = col_name
+            break
+
+    if cap_col is None:
+        return df
+
+    # Parse market cap values for sorting
+    df = df.copy()
+    df['_cap_numeric'] = df[cap_col].apply(_parse_market_cap)
+    df = df.sort_values('_cap_numeric', ascending=False)
+    df = df.drop(columns=['_cap_numeric'])
+
+    return df
 
 
 class DisplayManager:
@@ -266,18 +298,20 @@ class DisplayManager:
     def save_csv(self, df: pd.DataFrame, file_path: str, option: str, sub_option: str = None) -> None:
         """
         Save DataFrame as CSV with proper formatting.
-        
+
         Args:
             df: DataFrame to save
             file_path: Output file path
             option: Trading option
             sub_option: Sub-option if applicable
         """
+        # Sort by market cap descending before formatting
+        df = sort_by_market_cap_descending(df)
         formatted_df = self.format_csv(df, option, sub_option)
-        
+
         # Ensure output directory exists
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        
+
         # Save CSV
         formatted_df.to_csv(file_path, index=False)
 

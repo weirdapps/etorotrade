@@ -37,16 +37,16 @@ class TestMegaUSTierSignals:
         """BUY signal when ALL buy conditions met for MEGA-US.
 
         MEGA-US BUY criteria (from config.yaml):
-        - min_upside: 5 (upside ≥ 5%)
-        - min_buy_percentage: 65 (buy_percentage ≥ 65%)
-        - min_exret: 4 (EXRET ≥ 4.0)
+        - min_upside: 8 (upside ≥ 8%)
+        - min_buy_percentage: 75 (buy_percentage ≥ 75%)
+        - min_exret: 6 (EXRET ≥ 6.0)
         - PEF < PET × 1.1 (earnings trajectory improving)
         """
         # Arrange - Set data that meets ALL buy criteria
         data = mega_us_base_data.copy()
-        data['upside'] = 10.0              # ✓ ≥5%
-        data['buy_percentage'] = 70.0      # ✓ ≥65%
-        data['EXRET'] = 7.0                # ✓ ≥4.0 (10.0 * 70.0 / 100)
+        data['upside'] = 15.0              # ✓ ≥8%
+        data['buy_percentage'] = 80.0      # ✓ ≥75%
+        data['EXRET'] = 12.0               # ✓ ≥6.0 (15.0 * 80.0 / 100)
         # PEF (25.0) < PET (28.0) × 1.1 = 30.8 ✓
 
         df = pd.DataFrame([data]).set_index('ticker')
@@ -59,60 +59,61 @@ class TestMegaUSTierSignals:
         assert result.loc['AAPL', 'BS'] == 'B', "Should generate BUY signal when all conditions met"
 
     def test_mega_us_sell_signal_low_upside(self, mega_us_base_data):
-        """SELL signal when upside <= 2.5% (MEGA-US threshold).
+        """SELL signal with enhanced scoring: negative upside + weak sentiment.
 
-        MEGA-US SELL criteria (from config.yaml):
-        - max_upside: 2.5 (upside <= 2.5% triggers SELL)
+        Enhanced SELL criteria uses multi-factor scoring:
+        - Hard trigger: upside <= -5% with buy% <= 55%
+        - Negative upside alone doesn't trigger SELL without weak sentiment
         """
-        # Arrange
+        # Arrange - strong SELL signal: negative upside + weak buy%
         data = mega_us_base_data.copy()
-        data['upside'] = 2.0              # ✗ <=2.5% → SELL
-        data['buy_percentage'] = 70.0     # Good
-        data['EXRET'] = 1.4                # 2.0 * 70.0 / 100
+        data['upside'] = -10.0            # Severe negative upside (hard trigger)
+        data['buy_percentage'] = 50.0     # Below 55% threshold
+        data['EXRET'] = -5.0              # Negative EXRET
 
         df = pd.DataFrame([data]).set_index('ticker')
 
         # Act
         result = calculate_action(df)
 
-        # Assert
-        assert result.loc['AAPL', 'BS'] == 'S', "Should generate SELL when upside <= 2.5%"
+        # Assert - should SELL due to hard trigger (negative upside + weak sentiment)
+        assert result.loc['AAPL', 'BS'] == 'S', "Should generate SELL for negative upside with weak sentiment"
 
     def test_mega_us_sell_signal_low_buy_percentage(self, mega_us_base_data):
-        """SELL signal when buy_percentage < 45% (MEGA-US threshold)."""
-        # Arrange
+        """SELL signal with enhanced scoring: very low buy% (hard trigger)."""
+        # Arrange - hard trigger: buy% <= 35%
         data = mega_us_base_data.copy()
-        data['upside'] = 10.0
-        data['buy_percentage'] = 40.0     # ✗ <45% → SELL
-        data['EXRET'] = 4.0                # 10.0 * 40.0 / 100
+        data['upside'] = 5.0
+        data['buy_percentage'] = 35.0     # Hard trigger: very low buy%
+        data['EXRET'] = 1.75              # 5.0 * 35.0 / 100
 
         df = pd.DataFrame([data]).set_index('ticker')
 
         # Act
         result = calculate_action(df)
 
-        # Assert
-        assert result.loc['AAPL', 'BS'] == 'S', "Should SELL when buy% < 45%"
+        # Assert - should SELL due to hard trigger (very low buy%)
+        assert result.loc['AAPL', 'BS'] == 'S', "Should SELL when buy% <= 35% (hard trigger)"
 
     def test_mega_us_sell_signal_low_exret(self, mega_us_base_data):
-        """SELL signal when EXRET <= 2.0 (MEGA-US threshold).
+        """SELL signal with enhanced scoring: negative upside + moderate sentiment.
 
-        MEGA-US SELL criteria (from config.yaml):
-        - max_exret: 2 (EXRET <= 2.0 triggers SELL)
+        Enhanced scoring requires stronger signals than old system.
+        Single low EXRET alone doesn't trigger SELL anymore.
         """
-        # Arrange
+        # Arrange - SELL via hard trigger: negative upside + moderate sentiment
         data = mega_us_base_data.copy()
-        data['upside'] = 4.0
-        data['buy_percentage'] = 50.0
-        data['EXRET'] = 2.0                # ✗ <=2.0 → SELL
+        data['upside'] = -8.0             # Significant negative upside
+        data['buy_percentage'] = 45.0     # Below 55% threshold
+        data['EXRET'] = -3.6              # Negative EXRET
 
         df = pd.DataFrame([data]).set_index('ticker')
 
         # Act
         result = calculate_action(df)
 
-        # Assert
-        assert result.loc['AAPL', 'BS'] == 'S', "Should SELL when EXRET <= 2.0"
+        # Assert - should SELL (hard trigger: negative upside + weak sentiment)
+        assert result.loc['AAPL', 'BS'] == 'S', "Should SELL with negative upside and weak sentiment"
 
     def test_mega_us_hold_signal_between_buy_sell(self, mega_us_base_data):
         """HOLD signal when between BUY and SELL thresholds.
@@ -194,22 +195,22 @@ class TestMegaUSTierSignals:
         assert result.loc['AAPL', 'BS'] == 'I', "INCONCLUSIVE must override BUY"
 
     def test_signal_priority_sell_overrides_buy(self, mega_us_base_data):
-        """SELL overrides BUY when ANY sell condition met."""
-        # Arrange - Meets most BUY criteria but one SELL criterion
+        """SELL overrides BUY when multi-factor score triggers SELL."""
+        # Arrange - Meets some BUY criteria but SELL hard trigger is met
         data = mega_us_base_data.copy()
         data['analyst_count'] = 20
         data['total_ratings'] = 15
-        data['upside'] = 10.0               # ✓ BUY
-        data['buy_percentage'] = 70.0       # ✓ BUY
-        data['EXRET'] = 2.0                 # ✗ <3.0 → SELL
+        data['upside'] = -8.0               # Negative upside (hard trigger component)
+        data['buy_percentage'] = 50.0       # Below 55% threshold (completes hard trigger)
+        data['EXRET'] = -4.0                # Negative EXRET
 
         df = pd.DataFrame([data]).set_index('ticker')
 
         # Act
         result = calculate_action(df)
 
-        # Assert - SELL wins over BUY
-        assert result.loc['AAPL', 'BS'] == 'S', "ANY sell condition should trigger SELL"
+        # Assert - SELL wins (hard trigger: negative upside + weak sentiment)
+        assert result.loc['AAPL', 'BS'] == 'S', "Multi-factor SELL should override when hard trigger is met"
 
 
 class TestExretCalculation:

@@ -27,6 +27,38 @@ from yahoofinance.utils.data.asset_type_utils import (
     format_asset_type_summary,
 )
 from yahoofinance.core.config import STANDARD_DISPLAY_COLUMNS, FILE_PATHS, PATHS
+from .analysis.tiers import _parse_market_cap
+
+
+def sort_by_market_cap_descending(df: pd.DataFrame) -> pd.DataFrame:
+    """Sort DataFrame by market cap in descending order.
+
+    Args:
+        df: DataFrame with CAP column (market cap as strings like '4.65T', '283B')
+
+    Returns:
+        DataFrame sorted by market cap descending
+    """
+    if df.empty:
+        return df
+
+    # Find the market cap column (could be CAP or market_cap)
+    cap_col = None
+    for col_name in ['CAP', 'cap', 'market_cap', 'MARKET_CAP']:
+        if col_name in df.columns:
+            cap_col = col_name
+            break
+
+    if cap_col is None:
+        return df
+
+    # Parse market cap values for sorting
+    df = df.copy()
+    df['_cap_numeric'] = df[cap_col].apply(_parse_market_cap)
+    df = df.sort_values('_cap_numeric', ascending=False)
+    df = df.drop(columns=['_cap_numeric'])
+
+    return df
 
 # Color constants for terminal output
 COLOR_GREEN = "\033[92m"
@@ -289,6 +321,9 @@ def display_and_save_results(display_df: pd.DataFrame, title: str, output_file: 
             create_empty_results_file(output_file)
             _display_empty_result(title)
             return
+
+        # Sort by market cap descending for consistent output ordering
+        display_df = sort_by_market_cap_descending(display_df)
 
         # Prepare data for display
         colored_df = display_df.copy()

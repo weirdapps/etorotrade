@@ -111,6 +111,77 @@ class YamlConfigLoader:
         config = self.load_config()
         return len(config) > 0
 
+    def is_signal_scoring_enabled(self) -> bool:
+        """Check if multi-factor signal scoring is enabled."""
+        config = self.load_config()
+        return config.get('use_signal_scoring', False)
+
+    def get_sell_scoring_config(self, region: str, tier: str) -> Dict[str, Any]:
+        """
+        Get sell scoring configuration for a specific region and tier.
+
+        Args:
+            region: Region name ('us', 'eu', 'hk')
+            tier: Tier name ('mega', 'large', 'mid', 'small', 'micro')
+
+        Returns:
+            Dictionary with sell scoring thresholds and weights
+        """
+        config = self.load_config()
+
+        # Try region-tier specific config first
+        key = f"{region}_{tier}_sell_scoring"
+        tier_config = config.get(key, {})
+
+        # Get default config
+        default_config = config.get('default_sell_scoring', {
+            'score_threshold': 65,
+            'hard_trigger_upside': -5,
+            'hard_trigger_buy_pct': 35,
+            'quality_override_buy_pct': 85,
+            'quality_override_upside': 20,
+            'quality_override_exret': 15,
+            'weight_analyst': 0.35,
+            'weight_momentum': 0.25,
+            'weight_valuation': 0.20,
+            'weight_fundamental': 0.20,
+        })
+
+        # Merge tier-specific with defaults (tier overrides defaults)
+        merged = {**default_config, **tier_config}
+        return merged
+
+    def get_buy_scoring_config(self, region: str, tier: str) -> Dict[str, Any]:
+        """
+        Get buy scoring configuration for a specific region and tier.
+
+        Args:
+            region: Region name ('us', 'eu', 'hk')
+            tier: Tier name ('mega', 'large', 'mid', 'small', 'micro')
+
+        Returns:
+            Dictionary with buy scoring weights
+        """
+        config = self.load_config()
+
+        # Try region-tier specific config first
+        key = f"{region}_{tier}_buy_scoring"
+        tier_config = config.get(key, {})
+
+        # Get default config
+        default_config = config.get('default_buy_scoring', {
+            'enabled': True,
+            'weight_upside': 0.30,
+            'weight_consensus': 0.25,
+            'weight_momentum': 0.20,
+            'weight_valuation': 0.15,
+            'weight_fundamental': 0.10,
+        })
+
+        # Merge tier-specific with defaults (tier overrides defaults)
+        merged = {**default_config, **tier_config}
+        return merged
+
 
 # Global instance for easy access
 _yaml_loader = YamlConfigLoader()

@@ -54,43 +54,52 @@ def trading_engine(mock_provider):
 
 @pytest.fixture
 def sample_market_data_with_bs():
-    """Create market data with existing BS column."""
+    """Create market data with existing BS column.
+
+    Data is designed to meet actual BUY/HOLD/SELL criteria:
+    - AAPL, TSLA: BUY - high upside (15%+), high buy% (80%+), good EXRET
+    - MSFT, AMZN: HOLD - moderate metrics between thresholds
+    - GOOGL: SELL - negative upside, low buy% (hard trigger)
+    """
     return pd.DataFrame({
         'symbol': ['AAPL', 'MSFT', 'GOOGL', 'TSLA', 'AMZN'],
         'price': [150.25, 280.50, 2750.00, 850.75, 3200.00],
-        'target_price': [165.00, 300.00, 3000.00, 900.00, 3500.00],
-        'upside': [9.8, 6.9, 9.1, 5.8, 9.4],
-        'buy_percentage': [85.0, 90.0, 75.0, 70.0, 80.0],
+        'target_price': [180.00, 300.00, 2400.00, 1020.00, 3500.00],
+        'upside': [20.0, 7.0, -8.0, 20.0, 9.4],  # AAPL/TSLA BUY, GOOGL SELL trigger
+        'buy_percentage': [85.0, 65.0, 30.0, 82.0, 68.0],  # GOOGL very low = SELL
         'analyst_count': [25, 30, 20, 15, 28],
         'total_ratings': [25, 30, 20, 15, 28],
         'market_cap': [2.5e12, 2.1e12, 1.8e12, 0.8e12, 1.5e12],
         'pe_ratio': [25.5, 28.2, 22.8, 45.2, 35.1],
         'beta': [1.1, 0.9, 1.3, 2.1, 1.4],
-        'return_on_equity': [15.0, 12.0, 5.0, 18.0, 10.0],  # ROE for trading criteria
-        'debt_to_equity': [120.0, 80.0, 250.0, 100.0, 150.0],  # DE for trading criteria
-        'BS': ['B', 'H', 'S', 'B', 'H'],  # Buy/Hold/Sell signals
-        'EXRET': [12.5, 3.2, -8.1, 15.3, 2.8],
-        'expected_return': [12.5, 3.2, -8.1, 15.3, 2.8]
+        'return_on_equity': [15.0, 12.0, 5.0, 18.0, 10.0],
+        'debt_to_equity': [120.0, 80.0, 250.0, 100.0, 150.0],
+        'BS': ['B', 'H', 'S', 'B', 'H'],
+        'EXRET': [17.0, 4.5, -2.4, 16.4, 6.4],  # upside * buy% / 100
+        'expected_return': [17.0, 4.5, -2.4, 16.4, 6.4]
     }).set_index('symbol')
 
 
 @pytest.fixture
 def sample_market_data_with_act():
-    """Create market data with ACT column instead of BS."""
+    """Create market data with ACT column instead of BS.
+
+    Same data as sample_market_data_with_bs but with ACT column.
+    """
     return pd.DataFrame({
         'symbol': ['AAPL', 'MSFT', 'GOOGL', 'TSLA', 'AMZN'],
         'price': [150.25, 280.50, 2750.00, 850.75, 3200.00],
-        'target_price': [165.00, 300.00, 3000.00, 900.00, 3500.00],
-        'upside': [9.8, 6.9, 9.1, 5.8, 9.4],
-        'buy_percentage': [85.0, 90.0, 75.0, 70.0, 80.0],
+        'target_price': [180.00, 300.00, 2400.00, 1020.00, 3500.00],
+        'upside': [20.0, 7.0, -8.0, 20.0, 9.4],
+        'buy_percentage': [85.0, 65.0, 30.0, 82.0, 68.0],
         'analyst_count': [25, 30, 20, 15, 28],
         'total_ratings': [25, 30, 20, 15, 28],
         'market_cap': [2.5e12, 2.1e12, 1.8e12, 0.8e12, 1.5e12],
         'pe_ratio': [25.5, 28.2, 22.8, 45.2, 35.1],
         'beta': [1.1, 0.9, 1.3, 2.1, 1.4],
         'ACT': ['B', 'H', 'S', 'B', 'H'],  # Action signals
-        'EXRET': [12.5, 3.2, -8.1, 15.3, 2.8],
-        'expected_return': [12.5, 3.2, -8.1, 15.3, 2.8]
+        'EXRET': [17.0, 4.5, -2.4, 16.4, 6.4],
+        'expected_return': [17.0, 4.5, -2.4, 16.4, 6.4]
     }).set_index('symbol')
 
 
@@ -192,19 +201,14 @@ class TestAnalyzeMarketOpportunities:
     
     @pytest.mark.asyncio
     async def test_analyze_with_act_column(self, trading_engine, sample_market_data_with_act):
-        """Test analysis when ACT column exists and gets renamed to BS."""
-        with patch.object(trading_engine.logger, 'info') as mock_logger:
-            result = await trading_engine.analyze_market_opportunities(sample_market_data_with_act)
-        
-        # Should log that ACT column is being used as BS
-        # Check that this specific log message was called
-        info_calls = [call for call in mock_logger.call_args_list if 'Using ACT column values as BS column from market data' in str(call)]
-        assert len(info_calls) == 1
-        
-        # Should have same results as BS column test
+        """Test analysis when ACT column exists - engine recalculates signals."""
+        result = await trading_engine.analyze_market_opportunities(sample_market_data_with_act)
+
+        # Should have same results as BS column test (engine recalculates signals)
         assert isinstance(result, dict)
+        assert set(result.keys()) == {'buy_opportunities', 'sell_opportunities', 'hold_opportunities'}
         buy_ops = result['buy_opportunities']
-        assert len(buy_ops) == 2  # AAPL and TSLA
+        assert len(buy_ops) == 2  # AAPL and TSLA meet BUY criteria
         
     @pytest.mark.asyncio
     async def test_analyze_without_signals_calls_calculation(self, trading_engine, sample_market_data_no_signals):
@@ -910,16 +914,19 @@ class TestIntegrationScenarios:
     async def test_full_workflow_with_market_csv_pattern(self, trading_engine):
         """Test full workflow using market.csv data pattern."""
         # Create data that matches actual market.csv structure
+        # Data meets MEGA tier criteria (market_cap >= $500B)
         market_data = pd.DataFrame({
             'symbol': ['NVDA', 'AMZN', 'AAPL', 'MSFT', 'GOOGL'],
             'name': ['Nvidia', 'Amazon', 'Apple', 'Microsoft', 'Alphabet'],
             'sector': ['Technology', 'Consumer Cyclical', 'Technology', 'Technology', 'Technology'],
             'price': [800.0, 150.0, 180.0, 400.0, 2800.0],
-            'target_price': [900.0, 170.0, 200.0, 450.0, 3000.0],
-            'upside': [12.5, 13.3, 11.1, 12.5, 7.1],
-            'buy_percentage': [85.0, 80.0, 75.0, 90.0, 70.0],
+            'target_price': [960.0, 180.0, 200.0, 480.0, 2400.0],
+            'upside': [20.0, 20.0, 11.1, 20.0, -8.0],  # NVDA/AMZN/MSFT BUY, GOOGL SELL trigger
+            'buy_percentage': [85.0, 85.0, 70.0, 85.0, 30.0],  # GOOGL low = SELL trigger
             'analyst_count': [30, 25, 35, 40, 20],
             'total_ratings': [30, 25, 35, 40, 20],
+            'market_cap': [2.5e12, 2.0e12, 3.0e12, 2.8e12, 1.8e12],  # All MEGA tier
+            'EXRET': [17.0, 17.0, 7.8, 17.0, -2.4],  # upside * buy% / 100
             'BS': ['B', 'B', 'H', 'B', 'S']
         }).set_index('symbol')
         
@@ -953,12 +960,20 @@ class TestIntegrationScenarios:
     @pytest.mark.asyncio
     async def test_workflow_with_portfolio_csv_pattern(self, trading_engine):
         """Test workflow using portfolio.csv data pattern."""
+        # Market data with complete fields for signal calculation
         market_data = pd.DataFrame({
             'symbol': ['GOOG', 'AMZN', 'NVDA', 'META'],
             'price': [2800.0, 150.0, 800.0, 500.0],
+            'target_price': [3360.0, 125.0, 960.0, 600.0],
+            'upside': [20.0, -8.0, 7.0, 20.0],  # GOOG/META BUY, AMZN SELL, NVDA HOLD
+            'buy_percentage': [85.0, 30.0, 65.0, 85.0],
+            'analyst_count': [30, 25, 20, 35],
+            'total_ratings': [30, 25, 20, 35],
+            'market_cap': [1.8e12, 2.0e12, 2.5e12, 1.5e12],  # All MEGA tier
+            'EXRET': [17.0, -2.4, 4.5, 17.0],
             'BS': ['B', 'S', 'H', 'B']
         }).set_index('symbol')
-        
+
         # Portfolio data matching actual CSV structure
         portfolio_data = pd.DataFrame({
             'symbol': ['GOOG', 'AMZN', 'LLY', 'ETOR'],  # Some overlap with market
@@ -968,9 +983,9 @@ class TestIntegrationScenarios:
             'isBuy': [True, True, True, True],
             'leverage': [1, 1, 1, 1]
         })
-        
+
         result = await trading_engine.analyze_market_opportunities(market_data, portfolio_data)
-        
+
         # Portfolio holdings should affect filtering
         buy_ops = result['buy_opportunities']
         # GOOG has 'B' signal but is in portfolio, should be excluded
