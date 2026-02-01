@@ -499,6 +499,10 @@ class TestPerformanceIntegration:
     
     @pytest.mark.asyncio
     @pytest.mark.benchmark
+    @pytest.mark.skipif(
+        os.environ.get('CI') == 'true' or os.environ.get('GITHUB_ACTIONS') == 'true',
+        reason="Performance test skipped in CI due to variable timing"
+    )
     async def test_large_dataset_performance(self):
         """Test performance with large dataset (realistic market size)."""
         rng = np.random.default_rng(42)
