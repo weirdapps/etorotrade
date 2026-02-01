@@ -70,15 +70,55 @@ class FilterService:
         return df
 
     def filter_buy_opportunities(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Filter for buy opportunities based on BS column classification."""
+        """Filter for buy opportunities based on BS column classification.
+
+        Includes safety validation to reject any stocks with negative upside
+        that may have been incorrectly marked as BUY from stale cached data.
+        """
         # Use BS column which contains 'B', 'S', 'H' values
         if "BS" not in df.columns:
             return pd.DataFrame()
 
-        # Filter for stocks marked as BUY - trust the BS column classification
+        # Filter for stocks marked as BUY
         buy_mask = df["BS"] == "B"
         filtered_df = df[buy_mask].copy()
-        
+
+        # SAFETY CHECK: Reject any negative upside stocks that got through
+        # This catches stale cached signals that may have been calculated
+        # before the negative upside safety check was added
+        upside_col = None
+        for col in ["upside", "UPSIDE", "UP%"]:
+            if col in filtered_df.columns:
+                upside_col = col
+                break
+
+        if upside_col and len(filtered_df) > 0:
+            # Parse upside values (handle percentage strings)
+            def parse_upside(val):
+                if pd.isna(val) or val == '--':
+                    return 0.0  # Default to 0 if missing
+                try:
+                    return float(str(val).rstrip('%'))
+                except (ValueError, TypeError):
+                    return 0.0
+
+            upside_values = filtered_df[upside_col].apply(parse_upside)
+            negative_mask = upside_values < 0
+
+            if negative_mask.any():
+                rejected_count = negative_mask.sum()
+                rejected_tickers = filtered_df[negative_mask].index.tolist()[:5]
+                self.logger.warning(
+                    f"SAFETY: Rejected {rejected_count} BUY signals with negative upside "
+                    f"(likely stale cached data): {rejected_tickers}"
+                )
+                filtered_df = filtered_df[~negative_mask]
+
+        # Sort by BUY_SCORE (highest conviction first) if column exists
+        if "BUY_SCORE" in filtered_df.columns and len(filtered_df) > 0:
+            filtered_df = filtered_df.sort_values("BUY_SCORE", ascending=False)
+            self.logger.debug(f"Sorted {len(filtered_df)} BUY opportunities by conviction score")
+
         return filtered_df
 
     def filter_sell_opportunities(self, df: pd.DataFrame) -> pd.DataFrame:

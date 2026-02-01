@@ -23,6 +23,38 @@ from yahoofinance.utils.data.ticker_utils import are_equivalent_tickers
 
 from .cli import get_user_source_choice
 from .utils import get_file_paths
+from .analysis.tiers import _parse_market_cap
+
+
+def sort_by_market_cap_descending(df: pd.DataFrame) -> pd.DataFrame:
+    """Sort DataFrame by market cap in descending order.
+
+    Args:
+        df: DataFrame with CAP column (market cap as strings like '4.65T', '283B')
+
+    Returns:
+        DataFrame sorted by market cap descending
+    """
+    if df.empty:
+        return df
+
+    # Find the market cap column (could be CAP or market_cap)
+    cap_col = None
+    for col_name in ['CAP', 'cap', 'market_cap', 'MARKET_CAP']:
+        if col_name in df.columns:
+            cap_col = col_name
+            break
+
+    if cap_col is None:
+        return df
+
+    # Parse market cap values for sorting
+    df = df.copy()
+    df['_cap_numeric'] = df[cap_col].apply(_parse_market_cap)
+    df = df.sort_values('_cap_numeric', ascending=False)
+    df = df.drop(columns=['_cap_numeric'])
+
+    return df
 
 
 # Global configuration
@@ -341,6 +373,7 @@ async def generate_trade_opportunities_from_market(
             buy_opps = opportunities.get("buy_opportunities", pd.DataFrame())
             output_file = os.path.join(output_dir, "buy.csv")
             if not buy_opps.empty:
+                buy_opps = sort_by_market_cap_descending(buy_opps)
                 buy_opps.to_csv(output_file)
                 if app_logger:
                     app_logger.info(f"Generated {len(buy_opps)} buy opportunities -> {output_file}")
@@ -354,6 +387,7 @@ async def generate_trade_opportunities_from_market(
             sell_opps = opportunities.get("sell_opportunities", pd.DataFrame())
             output_file = os.path.join(output_dir, "sell.csv")
             if not sell_opps.empty:
+                sell_opps = sort_by_market_cap_descending(sell_opps)
                 sell_opps.to_csv(output_file)
                 if app_logger:
                     app_logger.info(f"Generated {len(sell_opps)} sell opportunities -> {output_file}")
@@ -366,6 +400,7 @@ async def generate_trade_opportunities_from_market(
             hold_opps = opportunities.get("hold_opportunities", pd.DataFrame())
             output_file = os.path.join(output_dir, "hold.csv")
             if not hold_opps.empty:
+                hold_opps = sort_by_market_cap_descending(hold_opps)
                 hold_opps.to_csv(output_file)
                 if app_logger:
                     app_logger.info(f"Generated {len(hold_opps)} hold opportunities -> {output_file}")

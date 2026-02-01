@@ -15,22 +15,22 @@ def sample_data():
         [
             {
                 "ticker": "BUY",
-                "upside": 40.0,  # Increased to meet MICRO tier min_upside (35)
-                "buy_percentage": 95.0,  # Increased to meet MICRO tier min_buy_percentage (92)
+                "upside": 40.0,  # Strong upside for SMALL tier
+                "buy_percentage": 95.0,  # Strong buy% for SMALL tier
                 "pe_trailing": 20.0,
                 "pe_forward": 15.0,
                 "peg_ratio": 1.2,
                 "beta": 1.5,
-                "short_percent": 1.0,  # Below max_short_interest for MICRO tier
-                "analyst_count": 10,  # Above min_analysts for MICRO tier (6)
+                "short_percent": 1.0,
+                "analyst_count": 10,
                 "total_ratings": 8,
-                "EXRET": 38.0,  # 40 * 95 / 100 = 38, above MICRO tier min_exret (30)
-                "market_cap": 1_000_000_000,  # $1B - MICRO tier
+                "EXRET": 38.0,  # 40 * 95 / 100 = 38
+                "market_cap": 5_000_000_000,  # $5B - SMALL tier (above $1B minimum)
             },
             {
                 "ticker": "SELL",
-                "upside": 3.0,  # Below SELL_MAX_UPSIDE threshold
-                "buy_percentage": 70.0,
+                "upside": -8.0,  # Negative upside - strong SELL signal (hard trigger)
+                "buy_percentage": 30.0,  # Very low buy% - triggers hard SELL
                 "pe_trailing": 25.0,
                 "pe_forward": 20.0,
                 "peg_ratio": 2.0,
@@ -38,21 +38,22 @@ def sample_data():
                 "short_percent": 3.5,
                 "analyst_count": 8,
                 "total_ratings": 7,
-                "market_cap": 800_000_000,  # $800M - above $500M requirement
+                "EXRET": -2.4,  # Negative EXRET
+                "market_cap": 3_000_000_000,  # $3B - SMALL tier (above $1B minimum)
             },
             {
                 "ticker": "HOLD",
-                "upside": 15.0,  # Not enough for BUY_MIN_UPSIDE
-                "buy_percentage": 80.0,  # Not enough for BUY_MIN_BUY_PERCENTAGE
+                "upside": 12.0,  # Not enough for BUY in SMALL tier
+                "buy_percentage": 72.0,  # Between thresholds
                 "pe_trailing": 18.0,
                 "pe_forward": 16.0,
                 "peg_ratio": 1.5,
                 "beta": 1.2,
-                "short_percent": 1.5,  # At BUY_MAX_SHORT_INTEREST, below SELL_MIN_SHORT_INTEREST
-                "analyst_count": 6,
-                "total_ratings": 5,
-                "EXRET": 8.0,  # Between SELL_MAX_EXRET (5.0) and BUY_MIN_EXRET (15.0)
-                "market_cap": 600_000_000,  # $600M - above $500M requirement
+                "short_percent": 1.5,
+                "analyst_count": 8,
+                "total_ratings": 7,
+                "EXRET": 8.6,  # Moderate EXRET
+                "market_cap": 3_000_000_000,  # $3B - SMALL tier (above $1B minimum)
             },
             {
                 "ticker": "LOWCONF",
@@ -63,9 +64,9 @@ def sample_data():
                 "peg_ratio": 1.0,
                 "beta": 1.0,
                 "short_percent": 1.0,
-                "analyst_count": 3,  # Below MIN_ANALYST_COUNT
-                "total_ratings": 2,  # Below MIN_PRICE_TARGETS
-                "market_cap": 700_000_000,  # $700M - above $500M requirement
+                "analyst_count": 3,  # Below MIN_ANALYST_COUNT (6)
+                "total_ratings": 2,  # Below MIN_PRICE_TARGETS (6)
+                "market_cap": 3_000_000_000,  # $3B - SMALL tier (above $1B minimum)
             },
         ]
     )
@@ -81,11 +82,11 @@ def test_calculate_action(sample_data):
     # Check specific tickers got correct actions
     assert result.loc[result["ticker"] == "BUY", "BS"].iloc[0] == "B"
 
-    # SELL ticker gets 'S' because upside 3% is below micro tier sell threshold (max_upside: 12.5%)
+    # SELL ticker gets 'S' because of hard trigger: negative upside + very low buy%
     assert result.loc[result["ticker"] == "SELL", "BS"].iloc[0] == "S"
 
-    # HOLD ticker gets 'S' because EXRET 8% is below micro tier sell max_exret (9%)
-    assert result.loc[result["ticker"] == "HOLD", "BS"].iloc[0] == "S"
+    # HOLD ticker gets 'H' because it's between BUY and SELL thresholds
+    assert result.loc[result["ticker"] == "HOLD", "BS"].iloc[0] == "H"
 
     assert (
         result.loc[result["ticker"] == "LOWCONF", "BS"].iloc[0] == "I"

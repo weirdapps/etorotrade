@@ -36,8 +36,10 @@ def sample_market_data():
 
 @pytest.fixture
 def sample_actions():
-    """Mock actions for testing."""
-    return pd.Series(["B", "H", "B", "S", "H"], index=[0, 1, 2, 3, 4])
+    """Mock actions for testing (returns tuple like calculate_action_vectorized)."""
+    actions = pd.Series(["B", "H", "B", "S", "H"], index=[0, 1, 2, 3, 4])
+    buy_scores = pd.Series([np.nan, np.nan, np.nan, np.nan, np.nan], index=[0, 1, 2, 3, 4])
+    return (actions, buy_scores)
 
 
 class TestFilterBuyOpportunities:
@@ -86,7 +88,7 @@ class TestFilterBuyOpportunities:
     @patch('yahoofinance.analysis.market_filters.calculate_action_vectorized')
     def test_no_buy_signals(self, mock_calculate, sample_market_data):
         """Returns empty DataFrame when no BUY signals."""
-        mock_calculate.return_value = pd.Series(["H", "S", "H", "S", "H"], index=[0, 1, 2, 3, 4])
+        mock_calculate.return_value = (pd.Series(["H", "S", "H", "S", "H"], index=[0, 1, 2, 3, 4]), pd.Series([np.nan]*5, index=[0, 1, 2, 3, 4]))
 
         result = filter_buy_opportunities_v2(sample_market_data)
 
@@ -139,7 +141,7 @@ class TestAddActionColumn:
         result = add_action_column(sample_market_data)
 
         assert "ACT" in result.columns
-        assert list(result["ACT"]) == list(sample_actions)
+        assert list(result["ACT"]) == list(sample_actions[0])
 
     @patch('yahoofinance.analysis.market_filters.calculate_action_vectorized')
     def test_preserves_original_columns(self, mock_calculate, sample_market_data, sample_actions):
@@ -256,8 +258,9 @@ class TestVectorizationPerformance:
             np.random.choice(["B", "S", "H", "I"], n_rows),
             index=range(n_rows)
         )
+        mock_buy_scores = pd.Series([np.nan] * n_rows, index=range(n_rows))
 
-        with patch('yahoofinance.analysis.market_filters.calculate_action_vectorized', return_value=mock_actions):
+        with patch('yahoofinance.analysis.market_filters.calculate_action_vectorized', return_value=(mock_actions, mock_buy_scores)):
             # This should complete quickly (< 100ms for 1000 rows)
             import time
             start = time.perf_counter()

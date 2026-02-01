@@ -128,20 +128,11 @@ class TradingEngine:
             if notrade_path and Path(notrade_path).exists():
                 processed_market = self.filter_service.filter_notrade_tickers(processed_market, notrade_path)
 
-            # Use existing BS/ACT columns if present (from saved CSV files)
-            # Otherwise calculate trading signals for freshly fetched data
-            has_signals = False
-
-            if "ACT" in processed_market.columns and "BS" not in processed_market.columns:
-                self.logger.info("Using ACT column values as BS column from market data")
-                processed_market["BS"] = processed_market["ACT"]
-                has_signals = True
-            elif "BS" in processed_market.columns:
-                has_signals = True
-
-            # Only calculate if signals are missing (fresh data fetch)
-            if not has_signals:
-                processed_market = self.analysis_service.calculate_trading_signals(processed_market)
+            # ALWAYS recalculate signals to ensure latest criteria are applied
+            # This prevents stale signals from persisted CSV files from being used
+            # which could result in incorrect BUY signals (e.g., negative upside stocks)
+            self.logger.info("Calculating trading signals with current criteria...")
+            processed_market = self.analysis_service.calculate_trading_signals(processed_market)
 
             # Categorize opportunities
             results["buy_opportunities"] = self.filter_service.filter_buy_opportunities(processed_market)
@@ -269,6 +260,18 @@ class PositionSizer:
                     size_adjustment = 0.8
 
                 base_size *= size_adjustment
+
+            # Adjust based on signal strength (EXRET)
+            # Higher expected return = larger position (conviction sizing)
+            exret = market_data.get("exret", 0)
+            if exret and exret > 0:
+                # Scale position by EXRET, capped at 1.5x for very high conviction
+                # EXRET 10% = 1.0x, EXRET 20% = 1.2x, EXRET 30%+ = 1.5x
+                exret_adjustment = min(1.5, 1.0 + (exret / 50.0))
+                base_size *= exret_adjustment
+            elif exret and exret < 0:
+                # Negative EXRET should reduce position (should rarely happen for BUY)
+                base_size *= 0.5
 
             # Ensure within bounds
             final_size = max(self.min_position_size, min(base_size, self.max_position_size))
