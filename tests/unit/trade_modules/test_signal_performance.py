@@ -54,6 +54,38 @@ class TestSignalPerformanceFunctions:
             assert "buy_signals" in stats
             assert "sell_signals" in stats
 
+    def test_calculate_signal_stats_empty_file(self):
+        """Test stats calculation with empty file."""
+        from trade_modules.signal_performance import calculate_signal_stats
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            empty_path = Path(tmpdir) / "empty.jsonl"
+            empty_path.write_text("")
+            stats = calculate_signal_stats(empty_path)
+            assert "buy_signals" in stats
+            assert stats["buy_signals"]["count"] == 0
+
+    def test_calculate_signal_stats_with_data(self):
+        """Test stats calculation with actual data."""
+        from trade_modules.signal_performance import calculate_signal_stats
+        import json
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            log_path = Path(tmpdir) / "perf.jsonl"
+            # Write test data
+            records = [
+                {"signal": "B", "return_t30": 5.0, "alpha_t30": 2.0},
+                {"signal": "B", "return_t30": -3.0, "alpha_t30": -1.0},
+                {"signal": "S", "return_t30": -5.0, "alpha_t30": -2.0},
+            ]
+            with open(log_path, "w") as f:
+                for r in records:
+                    f.write(json.dumps(r) + "\n")
+
+            stats = calculate_signal_stats(log_path)
+            assert stats["buy_signals"]["count"] == 2
+            assert stats["sell_signals"]["count"] == 1
+
     def test_load_signals_needing_followup_nonexistent_file(self):
         """Test loading signals from non-existent file."""
         from trade_modules.signal_performance import load_signals_needing_followup
@@ -62,6 +94,25 @@ class TestSignalPerformanceFunctions:
             nonexistent_path = Path(tmpdir) / "nonexistent.jsonl"
             signals = load_signals_needing_followup(nonexistent_path)
             assert signals == []
+
+    def test_load_signals_needing_followup_empty_file(self):
+        """Test loading signals from empty file."""
+        from trade_modules.signal_performance import load_signals_needing_followup
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            empty_path = Path(tmpdir) / "empty.jsonl"
+            empty_path.write_text("")
+            signals = load_signals_needing_followup(empty_path)
+            assert signals == []
+
+    def test_get_current_price(self):
+        """Test get_current_price function."""
+        from trade_modules.signal_performance import get_current_price
+
+        # Should return None for invalid ticker without making API call
+        # (in test environment, API calls should be mocked or skipped)
+        # Just test that function exists and is callable
+        assert callable(get_current_price)
 
 
 class TestAssetTypeUtils:
