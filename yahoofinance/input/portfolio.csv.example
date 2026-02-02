@@ -1,0 +1,8 @@
+symbol,totalInvestmentPct,totalNetProfitPct,instrumentDisplayName
+AAPL,5.2,12.5,Apple Inc.
+MSFT,4.8,8.3,Microsoft Corporation
+GOOGL,3.5,15.2,Alphabet Inc.
+AMZN,4.0,22.1,Amazon.com Inc.
+NVDA,3.2,45.8,NVIDIA Corporation
+META,2.5,18.7,Meta Platforms Inc.
+TSLA,2.0,-5.3,Tesla Inc.
