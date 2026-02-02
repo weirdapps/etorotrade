@@ -8,9 +8,12 @@ tier_thresholds:
   mid_tier_min: 10000000000
   small_tier_min: 2000000000
 universal_thresholds:
-  min_analyst_count: 6
-  min_price_targets: 6
-  min_market_cap: 5000000000
+  # Market cap gate: hard floor at $2B, tiered analyst requirements
+  min_market_cap: 2000000000  # $2B hard floor - no stocks below this
+  small_cap_threshold: 5000000000  # $5B - boundary between small and standard
+  small_cap_min_analysts: 6  # $2-5B requires 6+ analysts (institutional interest)
+  min_analyst_count: 4  # $5B+ requires 4+ analysts (standard)
+  min_price_targets: 4  # Standard price target requirement
 us_mega:
   buy:
     # US MEGA: More lenient thresholds - large liquid names with strong coverage

@@ -364,9 +364,20 @@ class UniversalThresholds(BaseModel):
         description="Minimum price targets required"
     )
     min_market_cap: float = Field(
-        default=1_000_000_000,  # $1B
+        default=2_000_000_000,  # $2B hard floor
         ge=100_000_000,  # $100M
-        description="Minimum market cap for trading ($)"
+        description="Minimum market cap for trading ($) - hard floor"
+    )
+    small_cap_threshold: float = Field(
+        default=5_000_000_000,  # $5B
+        ge=1_000_000_000,
+        description="Market cap below which small_cap_min_analysts applies"
+    )
+    small_cap_min_analysts: int = Field(
+        default=6,
+        ge=1,
+        le=50,
+        description="Minimum analysts for $2-5B stocks (institutional interest signal)"
     )
 
 

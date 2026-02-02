@@ -75,14 +75,14 @@ class TestSmallUSTierSignals:
 class TestMinimumMarketCapFilter:
     """Test minimum market cap filtering (config.yaml universal_thresholds.min_market_cap)."""
 
-    def test_micro_cap_inconclusive_below_1b(self):
-        """Stocks below $1B market cap should be INCONCLUSIVE (universal filter).
+    def test_micro_cap_inconclusive_below_2b(self):
+        """Stocks below $2B market cap should be INCONCLUSIVE (universal filter).
 
-        Universal threshold: min_market_cap: 1000000000 ($1B)
+        Universal threshold: min_market_cap: 2000000000 ($2B)
         """
         df = pd.DataFrame([{
             'ticker': 'MICROCAP',
-            'market_cap': 800000000,  # $800M < $1B minimum
+            'market_cap': 1_500_000_000,  # $1.5B < $2B minimum
             'analyst_count': 15,
             'total_ratings': 10,
             'upside': 50.0,              # Would be BUY otherwise
@@ -92,14 +92,14 @@ class TestMinimumMarketCapFilter:
 
         result = calculate_action(df)
 
-        assert result.loc['MICROCAP', 'BS'] == 'I', "Should be INCONCLUSIVE below $1B market cap"
+        assert result.loc['MICROCAP', 'BS'] == 'I', "Should be INCONCLUSIVE below $2B market cap"
 
-    def test_micro_cap_just_above_threshold(self):
-        """Stocks just above $1B minimum should process normally."""
+    def test_small_cap_just_above_threshold(self):
+        """Stocks just above $2B minimum with sufficient analysts should process normally."""
         df = pd.DataFrame([{
             'ticker': 'SMALLCAP',
-            'market_cap': 1100000000,  # $1.1B > $1B minimum
-            'analyst_count': 12,
+            'market_cap': 2_100_000_000,  # $2.1B > $2B minimum
+            'analyst_count': 8,  # 8 analysts (needs 6+ for $2-5B range)
             'total_ratings': 8,
             'upside': 28.0,
             'buy_percentage': 88.0,
@@ -109,7 +109,7 @@ class TestMinimumMarketCapFilter:
         result = calculate_action(df)
 
         # Should not be filtered out, will get a real signal
-        assert result.loc['SMALLCAP', 'BS'] in ['B', 'H', 'S'], "Should get valid signal above $1B"
+        assert result.loc['SMALLCAP', 'BS'] in ['B', 'H', 'S'], "Should get valid signal above $2B with sufficient analysts"
 
 
 class TestMultiRegionProcessing:

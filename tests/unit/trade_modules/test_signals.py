@@ -26,12 +26,14 @@ from trade_modules.analysis.signals import (
 
 
 # Define tier market cap boundaries
+# Note: MICRO tier market cap is set to $2.1B (just above $2B floor)
+# because stocks below $2B are now filtered as INCONCLUSIVE
 TIER_MARKET_CAPS = {
     "MEGA": 600_000_000_000,    # $600B
     "LARGE": 200_000_000_000,   # $200B
     "MID": 50_000_000_000,      # $50B
     "SMALL": 5_000_000_000,     # $5B
-    "MICRO": 500_000_000,       # $500M
+    "MICRO": 2_100_000_000,     # $2.1B (just above $2B floor)
 }
 
 # Define region suffixes
@@ -60,7 +62,7 @@ class TestParametrizedTierRegionSignals:
         ("LARGE", 200_000_000_000),
         ("MID", 50_000_000_000),
         ("SMALL", 5_000_000_000),
-        ("MICRO", 500_000_000),
+        ("MICRO", 2_100_000_000),  # Above $2B floor
     ])
     @pytest.mark.parametrize("region,suffix", [
         ("US", ""),
@@ -93,7 +95,7 @@ class TestParametrizedTierRegionSignals:
         ("LARGE", 200_000_000_000),
         ("MID", 50_000_000_000),
         ("SMALL", 5_000_000_000),
-        ("MICRO", 500_000_000),
+        ("MICRO", 2_100_000_000),  # Above $2B floor
     ])
     @pytest.mark.parametrize("region,suffix", [
         ("US", ""),
@@ -125,7 +127,7 @@ class TestParametrizedTierRegionSignals:
         ("LARGE", 200_000_000_000),
         ("MID", 50_000_000_000),
         ("SMALL", 5_000_000_000),
-        ("MICRO", 500_000_000),
+        ("MICRO", 2_100_000_000),  # Above $2B floor
     ])
     @pytest.mark.parametrize("region,suffix", [
         ("US", ""),
@@ -590,3 +592,86 @@ class TestPEGDisabled:
         # (result depends on other criteria, but not PEG)
         assert result.loc['TEST', 'BS'] in ['B', 'H'], \
             f"High PEG should not trigger SELL (got {result.loc['TEST', 'BS']})"
+
+
+class TestMarketCapGate:
+    """Tests for market cap gate and tiered analyst requirements."""
+
+    def test_micro_cap_below_floor_is_inconclusive(self):
+        """Stocks below $2B hard floor should be INCONCLUSIVE."""
+        data = pd.DataFrame({
+            'ticker': ['MICRO'],
+            'market_cap': [1.5e9],  # $1.5B - below $2B floor
+            'region': ['US'],
+            'upside': [50.0],  # Great upside
+            'buy_percentage': [95.0],  # Great buy%
+            'EXRET': [47.5],
+            'analyst_count': [10],  # Sufficient analysts
+            'total_ratings': [10],
+            'pe_forward': [15.0],
+            'pe_trailing': [20.0],
+        }).set_index('ticker')
+
+        result = calculate_action(data)
+        assert result.loc['MICRO', 'BS'] == 'I', \
+            "Stock below $2B floor should be INCONCLUSIVE regardless of fundamentals"
+
+    def test_small_cap_needs_more_analysts(self):
+        """$2-5B stocks need 6+ analysts, not just 4."""
+        # Stock with only 4 analysts in $2-5B range should be INCONCLUSIVE
+        data = pd.DataFrame({
+            'ticker': ['SMALL'],
+            'market_cap': [3e9],  # $3B - in $2-5B range
+            'region': ['US'],
+            'upside': [30.0],
+            'buy_percentage': [90.0],
+            'EXRET': [27.0],
+            'analyst_count': [4],  # Only 4 analysts (needs 6 for small cap)
+            'total_ratings': [4],
+            'pe_forward': [15.0],
+            'pe_trailing': [20.0],
+        }).set_index('ticker')
+
+        result = calculate_action(data)
+        assert result.loc['SMALL', 'BS'] == 'I', \
+            "$2-5B stock with only 4 analysts should be INCONCLUSIVE (needs 6+)"
+
+    def test_small_cap_with_sufficient_analysts_processed(self):
+        """$2-5B stocks with 6+ analysts should be processed normally."""
+        data = pd.DataFrame({
+            'ticker': ['SMALL'],
+            'market_cap': [3e9],  # $3B - in $2-5B range
+            'region': ['US'],
+            'upside': [30.0],
+            'buy_percentage': [90.0],
+            'EXRET': [27.0],
+            'analyst_count': [8],  # 8 analysts (>= 6 required)
+            'total_ratings': [8],
+            'pe_forward': [15.0],
+            'pe_trailing': [20.0],
+        }).set_index('ticker')
+
+        result = calculate_action(data)
+        # Should NOT be INCONCLUSIVE - has sufficient analysts
+        assert result.loc['SMALL', 'BS'] != 'I', \
+            "$2-5B stock with 8 analysts should not be INCONCLUSIVE"
+
+    def test_large_cap_needs_only_4_analysts(self):
+        """$5B+ stocks only need 4 analysts."""
+        data = pd.DataFrame({
+            'ticker': ['LARGE'],
+            'market_cap': [10e9],  # $10B - above $5B threshold
+            'region': ['US'],
+            'upside': [20.0],
+            'buy_percentage': [85.0],
+            'EXRET': [17.0],
+            'analyst_count': [4],  # Only 4 analysts (sufficient for large cap)
+            'total_ratings': [4],
+            'pe_forward': [18.0],
+            'pe_trailing': [22.0],
+        }).set_index('ticker')
+
+        result = calculate_action(data)
+        # Should NOT be INCONCLUSIVE - 4 analysts is enough for $10B stock
+        assert result.loc['LARGE', 'BS'] != 'I', \
+            "$10B stock with 4 analysts should not be INCONCLUSIVE"
