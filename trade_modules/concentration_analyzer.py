@@ -79,7 +79,7 @@ def analyze_concentration(
     Returns:
         List of ConcentrationWarning objects
     """
-    warnings = []
+    warnings: List[ConcentrationWarning] = []
 
     if df.empty or signal_column not in df.columns:
         return warnings
@@ -115,7 +115,7 @@ def _analyze_sector_concentration(
     df: pd.DataFrame, total: int, max_concentration: float
 ) -> List[ConcentrationWarning]:
     """Analyze sector concentration."""
-    warnings = []
+    warnings: List[ConcentrationWarning] = []
 
     # Find sector column
     sector_col = None
@@ -171,7 +171,7 @@ def _analyze_region_concentration(
     df: pd.DataFrame, total: int, max_concentration: float
 ) -> List[ConcentrationWarning]:
     """Analyze region concentration."""
-    warnings = []
+    warnings: List[ConcentrationWarning] = []
 
     # Find region column or infer from ticker
     region_col = None

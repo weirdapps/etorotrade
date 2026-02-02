@@ -311,26 +311,30 @@ class SignalTracker:
         if not records:
             return {"total": 0, "by_signal": {}, "by_tier": {}, "by_region": {}}
 
-        stats = {
+        by_signal: Dict[str, int] = {}
+        by_tier: Dict[str, int] = {}
+        by_region: Dict[str, int] = {}
+
+        for record in records:
+            # Count by signal type
+            by_signal[record.signal] = by_signal.get(record.signal, 0) + 1
+            # Count by tier
+            if record.tier:
+                by_tier[record.tier] = by_tier.get(record.tier, 0) + 1
+            # Count by region
+            if record.region:
+                by_region[record.region] = by_region.get(record.region, 0) + 1
+
+        stats: Dict[str, Any] = {
             "total": len(records),
-            "by_signal": {},
-            "by_tier": {},
-            "by_region": {},
+            "by_signal": by_signal,
+            "by_tier": by_tier,
+            "by_region": by_region,
             "date_range": {
                 "first": min(r.timestamp for r in records).isoformat(),
                 "last": max(r.timestamp for r in records).isoformat(),
             },
         }
-
-        for record in records:
-            # Count by signal type
-            stats["by_signal"][record.signal] = stats["by_signal"].get(record.signal, 0) + 1
-            # Count by tier
-            if record.tier:
-                stats["by_tier"][record.tier] = stats["by_tier"].get(record.tier, 0) + 1
-            # Count by region
-            if record.region:
-                stats["by_region"][record.region] = stats["by_region"].get(record.region, 0) + 1
 
         return stats
 
