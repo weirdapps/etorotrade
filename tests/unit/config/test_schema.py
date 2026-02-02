@@ -206,7 +206,8 @@ class TestTradingConfigLoading:
         assert config.output is not None
 
         # Verify values
-        assert config.universal_thresholds.min_analyst_count == 6
+        # min_analyst_count is 4 for $5B+ stocks (6 for $2-5B small caps via small_cap_min_analysts)
+        assert config.universal_thresholds.min_analyst_count == 4
         assert config.position_sizing.base_position_size == 2500
         assert config.performance.max_concurrent_requests == 15
 

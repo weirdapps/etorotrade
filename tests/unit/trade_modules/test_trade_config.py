@@ -122,9 +122,14 @@ class TestThresholdRetrieval:
         assert hasattr(config, "UNIVERSAL_THRESHOLDS")
         assert "min_analyst_count" in config.UNIVERSAL_THRESHOLDS
         assert "min_price_targets" in config.UNIVERSAL_THRESHOLDS
-        assert config.UNIVERSAL_THRESHOLDS["min_analyst_count"] == 5
-        assert config.UNIVERSAL_THRESHOLDS["min_price_targets"] == 5
-        assert config.UNIVERSAL_THRESHOLDS["min_market_cap"] == 1_000_000_000
+        # Standard analyst count for $5B+ stocks
+        assert config.UNIVERSAL_THRESHOLDS["min_analyst_count"] == 4
+        assert config.UNIVERSAL_THRESHOLDS["min_price_targets"] == 4
+        # $2B hard floor for market cap
+        assert config.UNIVERSAL_THRESHOLDS["min_market_cap"] == 2_000_000_000
+        # Tiered analyst requirements
+        assert config.UNIVERSAL_THRESHOLDS["small_cap_threshold"] == 5_000_000_000
+        assert config.UNIVERSAL_THRESHOLDS["small_cap_min_analysts"] == 6
 
 
 class TestTierThresholdConsistency:
