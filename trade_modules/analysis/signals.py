@@ -956,6 +956,23 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                     logger.info(f"Ticker {ticker}: HARD SELL TRIGGER - upside={row_upside:.1f}%, buy%={row_buy_pct:.1f}%")
                     actions.loc[idx] = "S"
 
+                # === SOFT TRIGGERS (Combined condition - SELL when BOTH conditions met) ===
+                # Negative upside + weak sentiment = SELL (even if not extreme)
+                soft_trigger_upside = sell_scoring_config.get('soft_trigger_upside', 0)
+                soft_trigger_buy_pct = sell_scoring_config.get('soft_trigger_buy_pct', 50)
+
+                is_soft_sell = (
+                    row_upside < soft_trigger_upside and  # Negative upside (below target)
+                    row_buy_pct < soft_trigger_buy_pct    # Less than 50% buy consensus
+                )
+
+                if is_soft_sell and actions.loc[idx] != "S":  # Don't override hard trigger
+                    sell_conditions.append("soft_trigger")
+                    sell_conditions.append(f"negative_upside_weak_sentiment:{row_upside:.1f}%/{row_buy_pct:.1f}%")
+
+                    logger.info(f"Ticker {ticker}: SOFT SELL TRIGGER - upside={row_upside:.1f}% < 0% AND buy%={row_buy_pct:.1f}% < {soft_trigger_buy_pct}%")
+                    actions.loc[idx] = "S"
+
                     # Log SELL signal
                     try:
                         from trade_modules.signal_tracker import log_signal
@@ -990,7 +1007,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                     except ImportError:
                         pass
                     except Exception as e:
-                        logger.debug(f"Failed to log HARD SELL signal for {ticker}: {e}")
+                        logger.debug(f"Failed to log SOFT SELL signal for {ticker}: {e}")
                     continue
 
                 # === MULTI-FACTOR SCORING ===
