@@ -283,38 +283,43 @@ class TestConfigBoundary:
 
 class TestDataBoundary:
     """Test Data boundary implementation."""
-    
+
     @pytest.fixture
     def boundary(self):
-        """Create Data boundary instance."""
-        return DataBoundary()
-    
+        """Create Data boundary instance with mocked provider to avoid real API calls."""
+        boundary = DataBoundary()
+        # Force provider to be None so fallback data is used
+        boundary._provider = None
+        boundary._provider_initialized = True
+        return boundary
+
     def test_interface_compliance(self, boundary):
         """Test that boundary implements required interface."""
         assert isinstance(boundary, IDataBoundary)
-    
+
     @pytest.mark.asyncio
     async def test_fetch_ticker_data(self, boundary):
-        """Test single ticker data fetching."""
-        # This will use fallback data since no real provider is available
+        """Test single ticker data fetching with fallback data."""
+        # This uses fallback data since provider is mocked to None
         data = await boundary.fetch_ticker_data('AAPL')
         assert isinstance(data, dict)
-        
-        # Should contain basic ticker information
+
+        # Should contain basic ticker information from fallback
         assert 'symbol' in data
         assert data['symbol'] == 'AAPL'
         assert 'price' in data
         assert isinstance(data['price'], (int, float))
-    
+        assert data['data_source'] == 'fallback'
+
     @pytest.mark.asyncio
     async def test_fetch_multiple_tickers(self, boundary):
-        """Test multiple ticker data fetching."""
+        """Test multiple ticker data fetching with fallback data."""
         tickers = ['AAPL', 'MSFT', 'GOOGL']
         df = await boundary.fetch_multiple_tickers(tickers)
-        
+
         assert isinstance(df, pd.DataFrame)
         assert len(df) == len(tickers)
-        
+
         # Should contain the requested tickers
         for ticker in tickers:
             assert ticker in df.index
@@ -337,19 +342,19 @@ class TestDataBoundary:
     
     @pytest.mark.asyncio
     async def test_fetch_batch_with_progress(self, boundary):
-        """Test batch fetching with progress reporting."""
+        """Test batch fetching with progress reporting using fallback data."""
         tickers = ['AAPL', 'MSFT', 'GOOGL', 'TSLA', 'AMZN']
         progress_calls = []
-        
+
         def progress_callback(progress):
             progress_calls.append(progress)
-        
+
         df = await boundary.fetch_batch_with_progress(
-            tickers, 
-            batch_size=2, 
+            tickers,
+            batch_size=2,
             progress_callback=progress_callback
         )
-        
+
         assert isinstance(df, pd.DataFrame)
         assert len(progress_calls) > 0
         assert max(progress_calls) <= 1.0
@@ -440,13 +445,17 @@ class TestBoundaryIntegration:
     
     @pytest.mark.asyncio
     async def test_async_operations(self):
-        """Test async operations work correctly."""
+        """Test async operations work correctly with fallback data."""
         data_boundary = DataBoundary()
-        
-        # Should handle async operations without errors
+        # Mock provider to avoid real API calls
+        data_boundary._provider = None
+        data_boundary._provider_initialized = True
+
+        # Should handle async operations without errors (using fallback)
         data = await data_boundary.fetch_ticker_data('AAPL')
         assert isinstance(data, dict)
-        
+        assert data['data_source'] == 'fallback'
+
         # Should handle multiple async operations
         df = await data_boundary.fetch_multiple_tickers(['AAPL', 'MSFT'])
         assert isinstance(df, pd.DataFrame)
