@@ -194,7 +194,7 @@ def calculate_analyst_momentum(yticker) -> Dict[str, Any]:
         - analyst_momentum: Change in buy% over 3 months (positive = upgrading)
         - analyst_count_trend: "increasing", "stable", or "decreasing"
     """
-    result = {
+    result: Dict[str, Any] = {
         "analyst_momentum": None,
         "analyst_count_trend": None
     }
