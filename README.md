@@ -80,7 +80,8 @@ The framework employs a sophisticated five-tier classification with region-speci
 | **LARGE** | $100B - $500B | NFLX, DIS, UBER | Established growth |
 | **MID** | $10B - $100B | ROKU, SNAP, DOCN | Growth opportunities |
 | **SMALL** | $2B - $10B | Emerging leaders | Higher growth potential |
-| **MICRO** | < $2B | Micro-cap stocks | Speculative positions |
+
+> **Note**: Stocks below $2B market cap are automatically marked as INCONCLUSIVE due to insufficient institutional coverage. Small caps ($2-5B) require 6+ analysts, while larger caps require 4+ analysts.
 
 **Regional Adjustments:**
 - **US**: Baseline criteria for NYSE/NASDAQ securities
@@ -289,6 +290,6 @@ For issues or questions, please use the [GitHub issue tracker](https://github.co
 
 ---
 
-*Last Updated: January 2026*
+*Last Updated: February 2026*
 
 **Disclaimer**: This tool is designed for quantitative analysis and research purposes only. It does not constitute investment advice. Users should conduct their own due diligence and consider consulting with qualified financial advisors before making investment decisions. Past performance does not guarantee future results.
