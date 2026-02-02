@@ -819,7 +819,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
         row_rev_growth = rev_growth.loc[idx]
 
         # Initialize for signal tracking
-        sell_conditions: List[Union[str, bool]] = []
+        sell_conditions: List[str] = []
         sell_score = 0.0
 
         logger.debug(f"Ticker {ticker}: SELL CHECK START - upside={row_upside:.1f}%, buy%={row_buy_pct:.1f}%, exret={row_exret:.1f}%, roe={row_roe}, de={row_de}")

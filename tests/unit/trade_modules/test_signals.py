@@ -15,10 +15,8 @@ import numpy as np
 from unittest.mock import patch, MagicMock
 
 from trade_modules.analysis_engine import (
-    calculate_action_vectorized,
     calculate_action,
     calculate_exret,
-    process_buy_opportunities,
 )
 from trade_modules.analysis.signals import (
     filter_buy_opportunities_wrapper,
@@ -319,9 +317,6 @@ class TestProcessBuyOpportunities:
 
     def test_process_buy_opportunities_with_mocked_provider(self):
         """Process buy opportunities requires provider and other args - use mock."""
-        import tempfile
-        import os
-
         # Create sample market data with BS column already set
         market_df = pd.DataFrame({
             'ticker': ['AAPL', 'MSFT', 'GOOGL'],
@@ -358,7 +353,7 @@ class TestSignalPriority:
             'market_cap': [3e12],
             'region': ['US'],
             'upside': [20.0],        # Would be BUY
-            'buy_percentage': [80.0], # Would be BUY
+            'buy_percentage': [80.0],  # Would be BUY
             'EXRET': [16.0],         # Would be BUY
             'analyst_count': [2],     # But insufficient → INCONCLUSIVE
             'total_ratings': [2],
@@ -407,3 +402,191 @@ class TestSignalPriority:
         result = calculate_action(data)
         # Should be HOLD when between thresholds
         assert result.loc['TEST', 'BS'] in ['H', 'B', 'S']  # Depends on exact thresholds
+
+
+class TestBuySignalQualityValidation:
+    """Tests to validate that BUY signals meet minimum quality criteria.
+
+    These tests ensure the signal generation prevents false positives by
+    validating that stocks marked as BUY actually meet the required criteria.
+    """
+
+    def test_buy_signal_requires_positive_upside(self):
+        """BUY signals must have positive upside (safety check)."""
+        # Negative upside should NEVER be marked as BUY
+        data = pd.DataFrame({
+            'ticker': ['TEST'],
+            'market_cap': [500e9],  # MEGA cap
+            'region': ['US'],
+            'upside': [-5.0],  # Negative upside
+            'buy_percentage': [95.0],  # Very high buy%
+            'EXRET': [-4.75],
+            'analyst_count': [30],
+            'total_ratings': [30],
+            'pe_forward': [20.0],
+            'pe_trailing': [25.0],
+        }).set_index('ticker')
+
+        result = calculate_action(data)
+        # Must NOT be BUY with negative upside
+        assert result.loc['TEST', 'BS'] != 'B', \
+            "Negative upside stock should never be BUY"
+
+    def test_buy_signal_requires_minimum_buy_percentage(self):
+        """BUY signals require minimum analyst buy percentage."""
+        # Low buy% should not be marked as BUY
+        data = pd.DataFrame({
+            'ticker': ['TEST'],
+            'market_cap': [500e9],  # MEGA cap
+            'region': ['US'],
+            'upside': [25.0],  # Good upside
+            'buy_percentage': [50.0],  # Low buy%
+            'EXRET': [12.5],
+            'analyst_count': [30],
+            'total_ratings': [30],
+            'pe_forward': [20.0],
+            'pe_trailing': [25.0],
+        }).set_index('ticker')
+
+        result = calculate_action(data)
+        # Must NOT be BUY with low buy percentage
+        assert result.loc['TEST', 'BS'] != 'B', \
+            "Low buy% stock should not be BUY"
+
+    def test_buy_signal_requires_sufficient_analyst_coverage(self):
+        """BUY signals require minimum analyst coverage."""
+        # Insufficient analyst coverage → INCONCLUSIVE, not BUY
+        data = pd.DataFrame({
+            'ticker': ['TEST'],
+            'market_cap': [500e9],
+            'region': ['US'],
+            'upside': [30.0],
+            'buy_percentage': [95.0],
+            'EXRET': [28.5],
+            'analyst_count': [3],  # Below minimum (6)
+            'total_ratings': [3],
+            'pe_forward': [20.0],
+            'pe_trailing': [25.0],
+        }).set_index('ticker')
+
+        result = calculate_action(data)
+        # Should be INCONCLUSIVE, not BUY
+        assert result.loc['TEST', 'BS'] == 'I', \
+            "Insufficient analyst coverage should be INCONCLUSIVE"
+
+    def test_buy_signal_requires_minimum_exret(self):
+        """BUY signals require minimum expected return (EXRET)."""
+        # Low EXRET should not trigger BUY
+        data = pd.DataFrame({
+            'ticker': ['TEST'],
+            'market_cap': [500e9],
+            'region': ['US'],
+            'upside': [5.0],  # Low upside
+            'buy_percentage': [76.0],  # Moderate buy%
+            'EXRET': [3.8],  # Low EXRET (5 * 76 / 100)
+            'analyst_count': [30],
+            'total_ratings': [30],
+            'pe_forward': [20.0],
+            'pe_trailing': [25.0],
+        }).set_index('ticker')
+
+        result = calculate_action(data)
+        # Must NOT be BUY with low EXRET
+        assert result.loc['TEST', 'BS'] != 'B', \
+            "Low EXRET stock should not be BUY"
+
+
+class TestSellSignalHardTriggers:
+    """Tests for SELL signal hard triggers that bypass scoring."""
+
+    def test_severe_negative_upside_triggers_sell(self):
+        """Severe negative upside (-5%+) with weak sentiment is hard SELL."""
+        data = pd.DataFrame({
+            'ticker': ['TEST'],
+            'market_cap': [500e9],
+            'region': ['US'],
+            'upside': [-8.0],  # Severe negative upside
+            'buy_percentage': [50.0],  # Weak sentiment
+            'EXRET': [-4.0],
+            'analyst_count': [30],
+            'total_ratings': [30],
+            'pe_forward': [20.0],
+            'pe_trailing': [25.0],
+        }).set_index('ticker')
+
+        result = calculate_action(data)
+        assert result.loc['TEST', 'BS'] == 'S', \
+            "Severe negative upside with weak sentiment should be SELL"
+
+    def test_very_low_buy_percentage_triggers_sell(self):
+        """Very low buy% (<35%) is hard SELL trigger."""
+        data = pd.DataFrame({
+            'ticker': ['TEST'],
+            'market_cap': [500e9],
+            'region': ['US'],
+            'upside': [10.0],  # Positive upside
+            'buy_percentage': [30.0],  # Very low buy%
+            'EXRET': [3.0],
+            'analyst_count': [30],
+            'total_ratings': [30],
+            'pe_forward': [20.0],
+            'pe_trailing': [25.0],
+        }).set_index('ticker')
+
+        result = calculate_action(data)
+        assert result.loc['TEST', 'BS'] == 'S', \
+            "Very low buy% should trigger SELL"
+
+
+class TestQualityOverrideProtection:
+    """Tests for quality override that protects strong stocks from SELL."""
+
+    def test_high_quality_stock_protected_from_sell(self):
+        """Stocks with exceptional fundamentals should not be SELL."""
+        # A stock with 90% buy, 25% upside, 22.5% EXRET should be protected
+        data = pd.DataFrame({
+            'ticker': ['TEST'],
+            'market_cap': [500e9],
+            'region': ['US'],
+            'upside': [25.0],  # Strong upside
+            'buy_percentage': [90.0],  # High buy%
+            'EXRET': [22.5],  # Strong EXRET
+            'analyst_count': [30],
+            'total_ratings': [30],
+            'pe_forward': [20.0],
+            'pe_trailing': [25.0],
+            'pct_from_52w_high': [45.0],  # Would trigger momentum SELL
+        }).set_index('ticker')
+
+        result = calculate_action(data)
+        # Should NOT be SELL due to quality override
+        assert result.loc['TEST', 'BS'] != 'S', \
+            "High quality stock should be protected from SELL via quality override"
+
+
+class TestPEGDisabled:
+    """Tests to verify PEG ratio is effectively disabled."""
+
+    def test_high_peg_does_not_block_buy(self):
+        """High PEG should not block BUY since PEG is disabled."""
+        data = pd.DataFrame({
+            'ticker': ['TEST'],
+            'market_cap': [500e9],
+            'region': ['US'],
+            'upside': [20.0],
+            'buy_percentage': [85.0],
+            'EXRET': [17.0],
+            'analyst_count': [30],
+            'total_ratings': [30],
+            'pe_forward': [18.0],  # Lower than trailing = good
+            'pe_trailing': [20.0],
+            'peg_ratio': [10.0],  # Very high PEG (would fail old criteria)
+            'pct_from_52w_high': [85.0],
+            'above_200dma': [True],
+        }).set_index('ticker')
+
+        result = calculate_action(data)
+        # PEG is disabled, so high PEG should not prevent BUY
+        # (result depends on other criteria, but not PEG)
+        assert result.loc['TEST', 'BS'] in ['B', 'H'], \
+            f"High PEG should not trigger SELL (got {result.loc['TEST', 'BS']})"
