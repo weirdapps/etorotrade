@@ -154,8 +154,9 @@ us_mid:
 us_small:
   buy:
     # US SMALL: Stricter - higher risk requires higher conviction
+    # Reduced buy% from 88→85 to capture strong opportunities while staying selective
     min_upside: 25
-    min_buy_percentage: 88
+    min_buy_percentage: 85
     min_beta: 0.2
     max_beta: 2.5
     min_forward_pe: 0.5
@@ -378,8 +379,9 @@ eu_mid:
 eu_small:
   buy:
     # EU SMALL: Moderately strict - balance EU capture with quality
+    # Reduced buy% from 85→82 to capture strong opportunities while staying selective
     min_upside: 28
-    min_buy_percentage: 85
+    min_buy_percentage: 82
     min_beta: 0.2
     max_beta: 2
     min_forward_pe: 0.5
@@ -466,9 +468,10 @@ eu_micro:
     max_pe_vs_sector: 1.5
 hk_mega:
   buy:
-    # HK MEGA: Stricter to limit HK picks (prefer US/EU)
-    min_upside: 22
-    min_buy_percentage: 88
+    # HK MEGA: Stricter than US/EU but achievable for quality stocks
+    # Relaxed from 22/88/20 to 15/82/12 - still 50% stricter than US MEGA
+    min_upside: 15
+    min_buy_percentage: 82
     min_beta: 0.2
     max_beta: 2.5
     min_forward_pe: 0.5
@@ -477,7 +480,7 @@ hk_mega:
     max_trailing_pe: 90
     max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
     max_short_interest: 2
-    min_exret: 20
+    min_exret: 12
     min_earnings_growth: -25
     min_price_performance: -25
     min_analysts: 15
@@ -511,9 +514,10 @@ hk_mega:
     max_pe_vs_sector: 2.2
 hk_large:
   buy:
-    # HK LARGE: Stricter to limit HK picks (prefer US/EU)
-    min_upside: 28
-    min_buy_percentage: 90
+    # HK LARGE: Stricter than US/EU but achievable for quality stocks
+    # Relaxed from 28/90/25 to 18/85/15 - still 50% stricter than US LARGE
+    min_upside: 18
+    min_buy_percentage: 85
     min_beta: 0.2
     max_beta: 2
     min_forward_pe: 0.5
@@ -522,7 +526,7 @@ hk_large:
     max_trailing_pe: 85
     max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
     max_short_interest: 2.25
-    min_exret: 25
+    min_exret: 15
     min_earnings_growth: -22.5
     min_price_performance: -22.5
     min_analysts: 12
@@ -556,9 +560,10 @@ hk_large:
     max_pe_vs_sector: 2.2
 hk_mid:
   buy:
-    # HK MID: Stricter to limit HK picks (prefer US/EU)
-    min_upside: 32
-    min_buy_percentage: 92
+    # HK MID: Stricter than US/EU but achievable for quality stocks
+    # Relaxed from 32/92/30 to 22/88/18 - still 50% stricter than US MID
+    min_upside: 22
+    min_buy_percentage: 88
     min_beta: 0.2
     max_beta: 2
     min_forward_pe: 0.5
@@ -567,7 +572,7 @@ hk_mid:
     max_trailing_pe: 80
     max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
     max_short_interest: 2.5
-    min_exret: 30
+    min_exret: 18
     min_earnings_growth: -20
     min_price_performance: -20
     min_analysts: 10
@@ -602,8 +607,9 @@ hk_mid:
 hk_small:
   buy:
     # HK SMALL: Very strict - higher risk, prefer US/EU
-    min_upside: 40
-    min_buy_percentage: 95
+    # Relaxed from 40/95/38 to 30/90/25 - still stricter than US SMALL
+    min_upside: 30
+    min_buy_percentage: 90
     min_beta: 0.2
     max_beta: 2
     min_forward_pe: 0.5
@@ -612,7 +618,7 @@ hk_small:
     max_trailing_pe: 75
     max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
     max_short_interest: 2.75
-    min_exret: 38
+    min_exret: 25
     min_earnings_growth: -17.5
     min_price_performance: -17.5
     min_analysts: 8
@@ -757,6 +763,9 @@ default_sell_scoring:
   # Hard triggers (bypass scoring - immediate SELL)
   hard_trigger_upside: -5          # Below target by 5%+
   hard_trigger_buy_pct: 35         # Less than 35% buy
+  # Soft triggers (combined condition - SELL when BOTH conditions met)
+  soft_trigger_upside: 0           # Negative upside (below target)
+  soft_trigger_buy_pct: 50         # Less than 50% buy consensus
   # Quality override (bypass SELL - protect strong stocks)
   quality_override_buy_pct: 85     # 85%+ analyst buy
   quality_override_upside: 20      # 20%+ upside
