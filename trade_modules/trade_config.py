@@ -48,9 +48,11 @@ class TradeConfig:
     # Universal thresholds applied to all options
     # These will be overridden by YAML config if available
     UNIVERSAL_THRESHOLDS = {
-        "min_analyst_count": 5,
-        "min_price_targets": 5,
-        "min_market_cap": 1_000_000_000,  # $1B minimum
+        "min_analyst_count": 4,  # Standard for $5B+ stocks
+        "min_price_targets": 4,
+        "min_market_cap": 2_000_000_000,  # $2B hard floor
+        "small_cap_threshold": 5_000_000_000,  # $5B boundary
+        "small_cap_min_analysts": 6,  # $2-5B needs more coverage
         "max_processing_time": 300,  # 5 minutes max
     }
     

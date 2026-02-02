@@ -460,6 +460,9 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
     from trade_modules.yaml_config_loader import get_yaml_config
     yaml_config = get_yaml_config()
 
+    # Use YAML config thresholds if available, otherwise fallback to defaults
+    universal_thresholds = config.get_universal_thresholds()
+
     # Parse percentage columns that may contain strings like "2.6%" or "94%"
     # Handle both normalized and CSV column names (including short display names)
     upside_raw = df.get("upside", df.get("UPSIDE", df.get("UP%", pd.Series([0] * len(df), index=df.index))))
@@ -477,14 +480,30 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
     total_ratings_raw = df.get("total_ratings", df.get("#T", df.get("# T", df.get("target_count", pd.Series([0] * len(df), index=df.index)))))
     total_ratings = pd.to_numeric(total_ratings_raw, errors="coerce").fillna(0)
 
-    # Confidence check - vectorized
-    has_confidence = (analyst_count >= config.UNIVERSAL_THRESHOLDS["min_analyst_count"]) & (
-        total_ratings >= config.UNIVERSAL_THRESHOLDS["min_price_targets"]
-    )
-
     # Get market cap and parse formatted strings (e.g., "2.47T", "628B")
+    # Need this before confidence check for tiered analyst requirements
     cap_raw = df.get("market_cap", df.get("CAP", pd.Series([0] * len(df), index=df.index)))
     cap_values = pd.Series([_parse_market_cap(cap) for cap in cap_raw], index=df.index)
+
+    # Tiered analyst requirements based on market cap
+    # $2-5B (small cap): requires more analysts (institutional interest signal)
+    # $5B+: standard analyst requirement
+    small_cap_threshold = universal_thresholds.get("small_cap_threshold", 5_000_000_000)
+    small_cap_min_analysts = universal_thresholds.get("small_cap_min_analysts", 6)
+    standard_min_analysts = universal_thresholds.get("min_analyst_count", 4)
+    min_price_targets = universal_thresholds.get("min_price_targets", 4)
+
+    # Market cap gate: hard floor at $2B
+    min_market_cap = universal_thresholds.get("min_market_cap", 2_000_000_000)
+    above_min_cap = cap_values >= min_market_cap
+
+    # Apply tiered analyst requirement: small caps need more coverage
+    is_small_cap = cap_values < small_cap_threshold
+    required_analysts = pd.Series(standard_min_analysts, index=df.index)
+    required_analysts[is_small_cap] = small_cap_min_analysts
+
+    # Confidence check - vectorized with tiered requirements AND market cap gate
+    has_confidence = above_min_cap & (analyst_count >= required_analysts) & (total_ratings >= min_price_targets)
 
     # Additional SELL/BUY criteria for stocks with data
     # Ensure we create pandas Series with proper index alignment
@@ -565,15 +584,19 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
     # Initialize BUY conviction scores (0-100, NaN for non-BUY)
     buy_scores = pd.Series(np.nan, index=df.index)
 
-    # Apply minimum market cap filter (from config.yaml universal_thresholds.min_market_cap)
-    # Stocks below minimum are marked as INCONCLUSIVE to prevent trading in illiquid micro-caps
-    min_market_cap = config.UNIVERSAL_THRESHOLDS.get("min_market_cap", 1_000_000_000)  # Default $1B
-    below_min_cap = cap_values < min_market_cap
-    if below_min_cap.sum() > 0:
-        actions[below_min_cap] = "I"  # INCONCLUSIVE for stocks below minimum market cap
+    # Log market cap and tiered analyst gate stats
+    below_min_cap_count = (~above_min_cap).sum()
+    if below_min_cap_count > 0:
         logger.info(
-            f"Market cap filter: {below_min_cap.sum()} stocks below ${min_market_cap / 1e9:.1f}B "
-            f"minimum threshold set to INCONCLUSIVE"
+            f"Market cap gate: {below_min_cap_count} stocks below ${min_market_cap / 1e9:.1f}B "
+            f"hard floor excluded"
+        )
+
+    small_cap_count = (is_small_cap & above_min_cap).sum()
+    if small_cap_count > 0:
+        logger.debug(
+            f"Tiered analyst gate: {small_cap_count} stocks in $2-5B range require "
+            f"{small_cap_min_analysts}+ analysts (vs {standard_min_analysts} for larger caps)"
         )
 
     # Get ticker column for region detection
