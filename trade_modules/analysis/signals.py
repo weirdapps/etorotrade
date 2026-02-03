@@ -1228,13 +1228,6 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                 is_buy_candidate = False
                 logger.debug(f"Ticker {ticker}: No buy - buy% {row_buy_pct:.1f}% < {buy_criteria['min_buy_percentage']:.1f}%")
 
-        # High Consensus Contrarian Warning (P0 improvement)
-        # When >95% of analysts agree, it may indicate overcrowding
-        if "max_buy_percentage" in buy_criteria:
-            if row_buy_pct > buy_criteria["max_buy_percentage"]:
-                is_buy_candidate = False
-                logger.info(f"Ticker {ticker}: Contrarian warning - buy% {row_buy_pct:.1f}% > {buy_criteria['max_buy_percentage']:.1f}% (overcrowded)")
-
         if "min_exret" in buy_criteria:
             if row_exret < buy_criteria["min_exret"]:
                 is_buy_candidate = False
