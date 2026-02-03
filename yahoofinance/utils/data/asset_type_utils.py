@@ -133,8 +133,38 @@ def _is_crypto_asset(ticker: str) -> bool:
 
 def _is_etf_asset(ticker: str, company_name: Optional[str] = None) -> bool:
     """Check if ticker represents an ETF."""
-    # Common ETF patterns
-    etf_patterns = ['ETF', 'FUND', 'INDEX', 'TRUST']
+    # Known NON-ETF tickers (fund management companies, etc.)
+    # These are stocks of companies that manage funds, not ETFs themselves
+    known_non_etfs = {
+        'JUP.L',   # Jupiter Fund Management
+        'BLK',     # BlackRock
+        'TROW',    # T. Rowe Price
+        'BEN',     # Franklin Resources
+        'IVZ',     # Invesco
+        'SEIC',    # SEI Investments
+        'AMG',     # Affiliated Managers Group
+        'JHG',     # Janus Henderson
+        'VCTR',    # Victory Capital
+        'APAM',    # Artisan Partners
+        'VRTS',    # Virtus Investment Partners
+    }
+
+    if ticker in known_non_etfs:
+        return False
+
+    # Check company name for fund MANAGEMENT companies (not ETFs)
+    if company_name:
+        company_upper = company_name.upper()
+        management_indicators = [
+            'MANAGEMENT', 'MANAGERS', 'ASSET MANAGEMENT', 'FUND MANAGEMENT',
+            'INVESTMENT MANAGEMENT', 'CAPITAL MANAGEMENT', 'WEALTH MANAGEMENT',
+        ]
+        for indicator in management_indicators:
+            if indicator in company_upper:
+                return False
+
+    # Common ETF patterns - only match actual ETF names
+    etf_patterns = ['ETF', 'INDEX', 'TRUST']
 
     # Check company name for ETF indicators using whole word matching
     if company_name:
@@ -143,6 +173,12 @@ def _is_etf_asset(ticker: str, company_name: Optional[str] = None) -> bool:
         company_words = company_upper.replace(',', ' ').replace('.', ' ').split()
         for pattern in etf_patterns:
             if pattern in company_words:
+                return True
+
+        # Check for specific ETF naming patterns
+        if 'ISHARES' in company_upper or 'VANGUARD' in company_upper or 'SPDR' in company_upper:
+            # These are ETF brand names
+            if 'ETF' in company_upper or 'INDEX' in company_upper or 'FUND' in company_upper:
                 return True
 
     # Known major ETF tickers
@@ -166,27 +202,64 @@ def _is_etf_asset(ticker: str, company_name: Optional[str] = None) -> bool:
 
 
 def _is_commodity_asset(ticker: str, company_name: Optional[str] = None) -> bool:
-    """Check if ticker represents a commodity."""
+    """Check if ticker represents a commodity futures contract or fund."""
     # Handle VIX patterns (volatility index)
     if ticker.startswith(('VIX', '^VIX')):
         return True
 
-    # Known commodity tickers
+    # Known commodity futures tickers (these have =F suffix typically)
     known_commodities = {
         'GC=F', 'SI=F', 'CL=F', 'NG=F', 'HG=F', 'PA=F', 'PL=F',
-        'GOLD', 'SILVER', 'OIL', 'GAS', 'COPPER', 'PLATINUM', 'PALLADIUM',
+        'GOLD', 'SILVER', 'COPPER', 'PLATINUM', 'PALLADIUM',
         'WHEAT', 'CORN', 'SOYBEAN', 'SUGAR', 'COFFEE', 'COTTON'
     }
 
     if ticker in known_commodities:
         return True
 
-    # Check company name for commodity indicators
+    # Known tickers that are NOT commodities (oil companies, utilities, mining companies)
+    # These should be treated as regular stocks
+    known_non_commodities = {
+        # Oil & Gas companies
+        'XOM', 'CVX', 'COP', 'EOG', 'SLB', 'OXY', 'PSX', 'VLO', 'MPC', 'HES',
+        'IMO', 'CNQ', 'SU', 'CVE', 'TRP', 'ENB', 'BP', 'SHEL', 'TTE',
+        # European oil/gas
+        'BP.L', 'SHEL.L', 'TTE.PA', 'ENI.MI', 'REP.MC', 'EQNR.OL',
+        # Utilities with "gas" in name
+        'IG.MI',  # Italgas
+        # Mining companies (not commodities themselves)
+        'ANTO.L', 'RIO', 'BHP', 'VALE', 'FCX', 'NEM', 'GOLD', 'AEM',
+    }
+
+    if ticker in known_non_commodities:
+        return False
+
+    # Check company name for commodity FUND/TRUST indicators only
+    # Do NOT match regular oil companies, utilities, or miners
     if company_name:
         company_upper = company_name.upper()
-        commodity_keywords = ['GOLD', 'SILVER', 'OIL', 'GAS', 'COPPER', 'PLATINUM', 'COMMODITY']
-        for keyword in commodity_keywords:
-            if keyword in company_upper:
+
+        # Exclusion patterns: these are companies, not commodity instruments
+        exclusion_patterns = [
+            'INC', 'CORP', 'LTD', 'LIMITED', 'PLC', 'LLC', 'CO.',
+            'COMPANY', 'HOLDINGS', 'GROUP', 'PARTNERS', 'RESOURCES',
+            'ENERGY', 'PETROLEUM', 'EXPLORATION', 'PRODUCTION',
+            'MINING', 'MINERALS', 'UTILITIES', 'SERVICES',
+        ]
+
+        # If company name contains company indicators, it's not a commodity
+        for pattern in exclusion_patterns:
+            if pattern in company_upper:
+                return False
+
+        # Only match specific commodity FUND patterns
+        commodity_fund_patterns = [
+            'COMMODITY FUND', 'COMMODITY ETF', 'GOLD FUND', 'GOLD ETF',
+            'SILVER FUND', 'SILVER ETF', 'OIL FUND', 'OIL ETF',
+            'NATURAL GAS FUND', 'COPPER FUND', 'PLATINUM FUND',
+        ]
+        for pattern in commodity_fund_patterns:
+            if pattern in company_upper:
                 return True
 
     return False

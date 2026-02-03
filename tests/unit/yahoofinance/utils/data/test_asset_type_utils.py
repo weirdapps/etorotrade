@@ -299,9 +299,14 @@ class TestAssetTypeEdgeCases:
         assert result == "stock"
 
     def test_etf_name_word_boundary(self):
-        """ETF detection uses word boundaries."""
-        # "FUND" should match in "ABC Fund" but not "Fundamental Inc"
-        assert _is_etf_asset("TEST", "ABC Fund") is True
+        """ETF detection uses word boundaries and excludes fund management companies."""
+        # "FUND" alone no longer triggers ETF classification to avoid
+        # misclassifying fund management companies (e.g., Jupiter Fund Management)
+        # Only specific ETF patterns (ETF, TRUST, INDEX) or brand names trigger ETF
+        assert _is_etf_asset("TEST", "ABC Fund") is False  # Just "Fund" is not enough
+        assert _is_etf_asset("TEST", "ABC ETF") is True  # "ETF" keyword triggers
+        assert _is_etf_asset("TEST", "ABC Index Trust") is True  # "Index" + "Trust"
+        assert _is_etf_asset("TEST", "Jupiter Fund Management") is False  # Fund management company
 
 
 class TestSortingPriority:
