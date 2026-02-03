@@ -19,7 +19,6 @@ us_mega:
     # US MEGA: More lenient thresholds - large liquid names with strong coverage
     min_upside: 10
     min_buy_percentage: 75
-    max_buy_percentage: 99  # Raised from 98 - MEGA caps commonly have high consensus
     min_beta: 0.2
     max_beta: 3
     min_forward_pe: 0.5
