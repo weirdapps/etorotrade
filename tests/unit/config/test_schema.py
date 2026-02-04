@@ -154,9 +154,10 @@ class TestPerformanceConfig:
     def test_performance_config_creation(self):
         """PerformanceConfig can be created with defaults"""
         config = PerformanceConfig()
-        assert config.max_concurrent_requests == 15
+        assert config.max_concurrent_requests == 20  # Increased for better throughput
         assert config.request_timeout_seconds == 30
         assert config.retry_attempts == 3
+        assert config.batch_size == 25
 
     def test_performance_config_validation_concurrent_range(self):
         """PerformanceConfig validates concurrent requests range"""
@@ -209,7 +210,7 @@ class TestTradingConfigLoading:
         # min_analyst_count is 4 for $5B+ stocks (6 for $2-5B small caps via small_cap_min_analysts)
         assert config.universal_thresholds.min_analyst_count == 4
         assert config.position_sizing.base_position_size == 2500
-        assert config.performance.max_concurrent_requests == 15
+        assert config.performance.max_concurrent_requests == 20  # Increased for better throughput
 
     def test_load_nonexistent_file(self):
         """TradingConfig raises error for nonexistent file"""
