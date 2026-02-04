@@ -302,11 +302,30 @@ class TestAssetTypeEdgeCases:
         """ETF detection uses word boundaries and excludes fund management companies."""
         # "FUND" alone no longer triggers ETF classification to avoid
         # misclassifying fund management companies (e.g., Jupiter Fund Management)
-        # Only specific ETF patterns (ETF, TRUST, INDEX) or brand names trigger ETF
+        # Only specific ETF patterns (ETF, INDEX) or brand names trigger ETF
         assert _is_etf_asset("TEST", "ABC Fund") is False  # Just "Fund" is not enough
         assert _is_etf_asset("TEST", "ABC ETF") is True  # "ETF" keyword triggers
-        assert _is_etf_asset("TEST", "ABC Index Trust") is True  # "Index" + "Trust"
+        assert _is_etf_asset("TEST", "ABC Index Fund") is True  # "Index" keyword triggers
         assert _is_etf_asset("TEST", "Jupiter Fund Management") is False  # Fund management company
+
+    def test_trust_in_name_not_etf_for_financial_services(self):
+        """TRUST in company name should not classify financial services as ETF."""
+        # Banks and financial services with "TRUST" in name are NOT ETFs
+        assert _is_etf_asset("NTRS", "NORTHERN TRUST CORP.") is False  # Bank
+        assert _is_etf_asset("STB.L", "SECURE TRUST BANK PLC") is False  # Bank
+        assert _is_etf_asset("BNY", "BANK OF NEW YORK MELLON") is False  # Bank
+        # Only specific investment trust patterns should be ETF
+        assert _is_etf_asset("TEST", "ABC Investment Trust") is True  # Investment trust is ETF
+        assert _is_etf_asset("TEST", "XYZ Unit Trust") is True  # Unit trust is ETF
+
+    def test_crypto_ticker_collision(self):
+        """Crypto tickers should not match stocks with same ticker but different business."""
+        # VET is Vechain crypto, but Vermilion Energy is also ticker VET
+        assert _is_crypto_asset("VET") is True  # No company name = crypto
+        assert _is_crypto_asset("VET", "VERMILION ENERGY INC.") is False  # Energy company
+        # Other collision scenarios
+        assert _is_crypto_asset("LINK") is True  # Chainlink crypto
+        assert _is_crypto_asset("LINK", "LINK REIT LIMITED") is False  # REIT company
 
 
 class TestSortingPriority:

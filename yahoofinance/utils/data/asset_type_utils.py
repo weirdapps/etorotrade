@@ -57,7 +57,8 @@ def classify_asset_type(ticker: str, market_cap: Optional[float] = None,
     ticker_upper = ticker.upper().strip()
 
     # Crypto classification (highest priority for crypto patterns)
-    if _is_crypto_asset(ticker_upper):
+    # Pass company_name to handle ticker collisions (e.g., VET stock vs VET crypto)
+    if _is_crypto_asset(ticker_upper, company_name):
         return "crypto"
 
     # Bitcoin proxy classification (before ETF since some might have "TRUST" in name)
@@ -114,8 +115,16 @@ def is_bitcoin_proxy(ticker: str, company_name: Optional[str] = None) -> bool:
     return _is_bitcoin_proxy(ticker.upper().strip(), company_name)
 
 
-def _is_crypto_asset(ticker: str) -> bool:
-    """Check if ticker represents a cryptocurrency."""
+def _is_crypto_asset(ticker: str, company_name: Optional[str] = None) -> bool:
+    """Check if ticker represents a cryptocurrency.
+
+    Args:
+        ticker: Ticker symbol (uppercase)
+        company_name: Company name to check for ticker collisions
+
+    Returns:
+        True if the ticker is a cryptocurrency
+    """
     # Crypto tickers typically end with -USD
     if ticker.endswith('-USD'):
         return True
@@ -128,13 +137,28 @@ def _is_crypto_asset(ticker: str) -> bool:
         'DASH', 'ZEC', 'NEO', 'QTUM', 'ONT', 'IOTA', 'XTZ'
     }
 
-    return ticker in known_crypto
+    if ticker in known_crypto:
+        # Check for ticker collision: if company name suggests a non-crypto business
+        # e.g., VET (Vechain crypto) vs VET (Vermilion Energy stock)
+        if company_name:
+            company_upper = company_name.upper()
+            non_crypto_indicators = [
+                'ENERGY', 'OIL', 'GAS', 'PETROLEUM', 'MINING', 'MINERALS',
+                'INC', 'CORP', 'LTD', 'LIMITED', 'PLC', 'LLC', 'CO.',
+                'BANK', 'FINANCIAL', 'INSURANCE', 'MANUFACTURING',
+                'RESOURCES', 'EXPLORATION', 'PRODUCTION', 'SERVICES',
+            ]
+            if any(indicator in company_upper for indicator in non_crypto_indicators):
+                return False
+        return True
+
+    return False
 
 
 def _is_etf_asset(ticker: str, company_name: Optional[str] = None) -> bool:
     """Check if ticker represents an ETF."""
-    # Known NON-ETF tickers (fund management companies, etc.)
-    # These are stocks of companies that manage funds, not ETFs themselves
+    # Known NON-ETF tickers (fund management companies, financial services, etc.)
+    # These are stocks of companies that manage funds or have "TRUST" in name
     known_non_etfs = {
         'JUP.L',   # Jupiter Fund Management
         'BLK',     # BlackRock
@@ -147,24 +171,36 @@ def _is_etf_asset(ticker: str, company_name: Optional[str] = None) -> bool:
         'VCTR',    # Victory Capital
         'APAM',    # Artisan Partners
         'VRTS',    # Virtus Investment Partners
+        # Financial services with "TRUST" in name (not ETFs)
+        'NTRS',    # Northern Trust Corp
+        'BNY',     # Bank of New York Mellon
+        'STB.L',   # Secure Trust Bank
+        'TFC',     # Truist Financial
+        'FITB',    # Fifth Third Bancorp
+        'CFG',     # Citizens Financial Group
     }
 
     if ticker in known_non_etfs:
         return False
 
-    # Check company name for fund MANAGEMENT companies (not ETFs)
+    # Check company name for fund MANAGEMENT companies and financial services (not ETFs)
     if company_name:
         company_upper = company_name.upper()
+        # These patterns indicate a company, not an ETF
         management_indicators = [
             'MANAGEMENT', 'MANAGERS', 'ASSET MANAGEMENT', 'FUND MANAGEMENT',
             'INVESTMENT MANAGEMENT', 'CAPITAL MANAGEMENT', 'WEALTH MANAGEMENT',
+            # Financial services companies with "TRUST" in name
+            'BANK', 'BANCORP', 'FINANCIAL SERVICES', 'TRUST CORP', 'TRUST BANK',
+            'FINANCIAL GROUP', 'TRUST COMPANY', 'BANKING',
         ]
         for indicator in management_indicators:
             if indicator in company_upper:
                 return False
 
     # Common ETF patterns - only match actual ETF names
-    etf_patterns = ['ETF', 'INDEX', 'TRUST']
+    # Note: "TRUST" alone is no longer sufficient - must be combined with ETF indicators
+    etf_patterns = ['ETF', 'INDEX']
 
     # Check company name for ETF indicators using whole word matching
     if company_name:
@@ -173,6 +209,12 @@ def _is_etf_asset(ticker: str, company_name: Optional[str] = None) -> bool:
         company_words = company_upper.replace(',', ' ').replace('.', ' ').split()
         for pattern in etf_patterns:
             if pattern in company_words:
+                return True
+
+        # "TRUST" only counts as ETF if combined with investment-related terms
+        if 'TRUST' in company_words:
+            etf_trust_patterns = ['INVESTMENT TRUST', 'UNIT TRUST', 'EXCHANGE TRADED']
+            if any(p in company_upper for p in etf_trust_patterns):
                 return True
 
         # Check for specific ETF naming patterns
