@@ -66,23 +66,38 @@ class CacheService:
             'errors': 0
         }
         
-        # Configuration
+        # Configuration defaults
         self.enable_memory = True  # Always enabled
-        self.enable_disk = False  # Disabled by default for performance
-        self.default_ttl = 300  # 5 minutes default
-        self.max_memory_items = 10000
-        
+        self.enable_disk = True  # Enabled by default for cross-run performance
+        self.default_ttl = 14400  # 4 hours default
+        self.max_memory_items = 15000
+
         # Load cache configuration if available
+        cache_config = None
         if hasattr(self.config, 'cache'):
             cache_config = self.config.cache
-            self.enable_disk = cache_config.get('enable_disk', False)
-            self.default_ttl = cache_config.get('default_ttl', 300)
-            self.max_memory_items = cache_config.get('max_items', 10000)
-        
+        elif hasattr(self.config, 'get'):
+            cache_config = self.config.get('cache', {})
+        elif isinstance(self.config, dict):
+            cache_config = self.config.get('cache', {})
+
+        if cache_config:
+            self.enable_disk = cache_config.get('enable_disk', True)
+            self.default_ttl = cache_config.get('default_ttl', 14400)
+            self.max_memory_items = cache_config.get('max_items', 15000)
+
         # Setup disk cache directory if enabled
         if self.enable_disk:
-            self.cache_dir = Path(self.config.paths['DATA_DIR']) / 'cache'
-            self.cache_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                if hasattr(self.config, 'paths') and self.config.paths:
+                    self.cache_dir = Path(self.config.paths.get('DATA_DIR', 'yahoofinance/data')) / 'cache'
+                else:
+                    self.cache_dir = Path('yahoofinance/data/cache')
+                self.cache_dir.mkdir(parents=True, exist_ok=True)
+            except (OSError, PermissionError):
+                # Fallback if directory creation fails
+                self.cache_dir = None
+                self.enable_disk = False
         else:
             self.cache_dir = None
             

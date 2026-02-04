@@ -95,19 +95,57 @@ def load_tickers(source_type: str) -> List[str]:
 
 def _load_tickers_from_file(file_path: str, ticker_column: List[str]) -> List[str]:
     """
-    Load tickers from CSV file.
+    Load tickers from CSV file with smart ordering.
+
+    For etoro.csv, tickers are ordered by analyst_count (descending) to prioritize
+    high-value stocks that have better data quality. This ensures important stocks
+    are processed first if the user interrupts.
 
     Args:
         file_path: Path to CSV file
         ticker_column: Possible column names for tickers
 
     Returns:
-        List of tickers
+        List of tickers (ordered by priority for etoro files)
     """
     if not os.path.exists(file_path):
         return []
 
     try:
+        # Check if this is an etoro file for smart ordering
+        is_etoro = "etoro" in file_path.lower()
+
+        # For etoro files, use pandas for efficient sorting
+        if is_etoro:
+            try:
+                df = pd.read_csv(file_path)
+                # Find ticker column
+                ticker_col = None
+                for col in ticker_column:
+                    if col in df.columns:
+                        ticker_col = col
+                        break
+
+                if ticker_col is None:
+                    return []
+
+                # Sort by analyst_count descending (more analysts = higher priority)
+                if 'analyst_count' in df.columns:
+                    df = df.sort_values(
+                        by='analyst_count',
+                        ascending=False,
+                        na_position='last'
+                    )
+                    logger.debug(f"Smart ordering: {len(df)} tickers sorted by analyst_count")
+
+                tickers = df[ticker_col].dropna().astype(str).str.strip().tolist()
+                return [t for t in tickers if t]
+
+            except Exception as e:
+                logger.debug(f"Fallback to standard loading: {e}")
+                # Fall through to standard loading
+
+        # Standard loading for non-etoro files or if pandas fails
         tickers = []
         column_found = False
 
