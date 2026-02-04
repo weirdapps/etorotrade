@@ -33,11 +33,11 @@ us_mega:
     min_analysts: 12
     min_price_targets: 8
     min_roe: 8.0
-    max_debt_equity: 150.0
-    min_fcf_yield: 0.5
+    max_debt_equity: 200.0  # Increased from 150 - MEGA caps can carry higher debt post-acquisitions
+    min_fcf_yield: -5.0  # Changed from 0.5 - growth companies may have negative FCF during expansion
     min_revenue_growth: -5
     min_pct_from_52w_high: 65
-    require_above_200dma: true
+    require_above_200dma: false  # Relaxed for MEGA caps - quality stocks may dip below temporarily
     min_analyst_momentum: -8
     max_pe_vs_sector: 1.5
     min_pe_vs_sector: 0.3
@@ -79,10 +79,10 @@ us_large:
     min_analysts: 10
     min_price_targets: 6
     min_roe: 8.0
-    max_debt_equity: 150.0
-    min_fcf_yield: 0.25
+    max_debt_equity: 175.0  # Increased from 150 - large caps can carry moderate debt
+    min_fcf_yield: -3.0  # Changed from 0.25 - growth companies may have negative FCF
     min_pct_from_52w_high: 70
-    require_above_200dma: true
+    require_above_200dma: false  # Relaxed for LARGE caps - quality stocks may dip below temporarily
     min_analyst_momentum: -8
     max_pe_vs_sector: 1.5
     min_pe_vs_sector: 0.3
