@@ -103,7 +103,8 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         self.retry_delay = retry_delay
         self.max_concurrency = max_concurrency
         self.enable_circuit_breaker = enable_circuit_breaker
-        self._ticker_cache: Dict[str, Dict[str, Any]] = {}  # Simple cache for now
+        # Smart cache with timestamps for TTL-based expiration
+        self._ticker_cache: Dict[str, Dict[str, Any]] = {}  # {ticker: {data: {...}, timestamp: float}}
         self._rate_limiter = AsyncRateLimiter()
         self._ratings_cache: Dict[str, Dict[str, Any]] = {}  # Cache for post-earnings ratings
         self._stock_cache: Dict[str, Any] = {}  # Cache for yf.Ticker objects
@@ -113,6 +114,22 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
 
         # Circuit breaker configuration - used for all methods
         self._circuit_name = "yahoofinance_api"
+
+        # Price-sensitive fields that should NEVER be cached (always fresh)
+        self._never_cache_fields = {
+            "price", "current_price", "regularMarketPrice",
+            "target_price", "targetMeanPrice",
+            "upside", "pe_trailing", "trailingPE",
+            "pe_forward", "forwardPE", "peg_ratio", "pegRatio",
+            "price_performance", "twelve_month_performance",
+            "expected_return", "EXRET",
+            "pct_from_52w_high", "fiftyTwoWeekHighChangePercent",
+            "above_200dma", "volume", "regularMarketVolume",
+            "action", "signal",
+        }
+
+        # Cache TTL for non-price fields (4 hours = 14400 seconds)
+        self._cache_ttl_seconds = 14400
 
     async def _ensure_session(self) -> aiohttp.ClientSession:
         """
@@ -167,13 +184,28 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
     ) -> Dict[str, Any]:
         """
         Get comprehensive information for a ticker asynchronously.
+
+        Uses smart caching:
+        - Price-sensitive fields are ALWAYS fetched fresh (never cached)
+        - Non-price fields use 4-hour TTL cache
         """
         validate_ticker(ticker)
         logger.debug(f"Getting ticker info for {ticker}")
 
-        if ticker in self._ticker_cache:
-            logger.debug(f"Using cached data for {ticker}")
-            return self._ticker_cache[ticker].copy()  # Return a copy to avoid reference issues
+        # Check if we have valid cached non-price data (within TTL)
+        cached_entry = self._ticker_cache.get(ticker)
+        use_cached_static = False
+        cached_static_data = {}
+
+        if cached_entry:
+            cache_age = time.time() - cached_entry.get("timestamp", 0)
+            if cache_age < self._cache_ttl_seconds:
+                # Cache is valid - we can use non-price fields
+                use_cached_static = True
+                cached_static_data = cached_entry.get("data", {})
+                logger.debug(f"Using cached static data for {ticker} (age: {cache_age:.0f}s)")
+            else:
+                logger.debug(f"Cache expired for {ticker} (age: {cache_age:.0f}s > {self._cache_ttl_seconds}s)")
 
         try:
             import yfinance as yf
@@ -373,8 +405,14 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             else:
                 info["EXRET"] = None
 
-            # Add to simple cache
-            self._ticker_cache[ticker] = info
+            # Smart caching: store static (non-price) fields with timestamp
+            # Price fields are always fresh - we don't need to cache them
+            static_data = {k: v for k, v in info.items() if k not in self._never_cache_fields}
+            self._ticker_cache[ticker] = {
+                "data": static_data,
+                "timestamp": time.time()
+            }
+            logger.debug(f"Cached {len(static_data)} static fields for {ticker}")
             return info
 
         except (APIError, ValidationError, RateLimitError, NetworkError) as e:

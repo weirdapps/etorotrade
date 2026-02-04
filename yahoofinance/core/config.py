@@ -112,18 +112,18 @@ CIRCUIT_BREAKER = {
 }
 
 # Caching configuration - OPTIMIZED WITH SMART TTLs
-# Re-enabled with appropriate TTLs for different data types to reduce API calls
+# Disk cache enabled for persistence across runs, with field-specific TTLs
 CACHE_CONFIG = {
     # Memory cache enabled with smart TTLs for different data types
     "ENABLE_MEMORY_CACHE": True,
-    # Disk cache disabled - keep I/O overhead minimal
-    "ENABLE_DISK_CACHE": False,
-    # Memory-only mode (not relevant when both caches disabled)
-    "MEMORY_ONLY_MODE": True,
+    # Disk cache ENABLED - persists cache across runs for major speed improvement
+    "ENABLE_DISK_CACHE": True,
+    # Memory-only mode disabled since disk cache is enabled
+    "MEMORY_ONLY_MODE": False,
     # Memory cache size (items) - significantly increased for better hit rates
     "MEMORY_CACHE_SIZE": 10000,
-    # Default memory cache TTL (seconds) - reduced for fresher data
-    "MEMORY_CACHE_TTL": 60,  # 1 minute
+    # Default memory cache TTL (seconds) - short for in-session freshness
+    "MEMORY_CACHE_TTL": 300,  # 5 minutes for in-memory
     # Thread-local cache size for frequently accessed keys
     "THREAD_LOCAL_CACHE_SIZE": 100,
     # Enable ultra-fast path optimizations
@@ -134,74 +134,119 @@ CACHE_CONFIG = {
     "CACHE_ERRORS": True,
     # Error cache TTL (shorter TTL for error responses)
     "ERROR_CACHE_TTL": 60,  # 1 minute
-    # Disk cache size (MB) - not used when disabled
-    "DISK_CACHE_SIZE_MB": 100,
-    # Default disk cache TTL (seconds) - not used when disabled
-    "DISK_CACHE_TTL": 3600,  # 1 hour
+    # Disk cache size (MB) - increased for full universe caching
+    "DISK_CACHE_SIZE_MB": 500,
+    # Default disk cache TTL (seconds) - 4 hours for non-price data
+    "DISK_CACHE_TTL": 14400,  # 4 hours
     # Disk cache directory
     "DISK_CACHE_DIR": os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "cache"),
     # TTL settings by data type (seconds)
-    # Basic company information
-    "TICKER_INFO_MEMORY_TTL": 86400,  # 1 day
-    "TICKER_INFO_DISK_TTL": 604800,  # 1 week
-    # Current price, volume data
-    "MARKET_DATA_MEMORY_TTL": 60,  # 1 minute
-    "MARKET_DATA_DISK_TTL": 180,  # 3 minutes
-    # PE ratios, PEG, financial metrics
-    "FUNDAMENTALS_MEMORY_TTL": 60,  # 1 minute
-    "FUNDAMENTALS_DISK_TTL": 180,  # 3 minutes
+    # Basic company information - stable, cache longer
+    "TICKER_INFO_MEMORY_TTL": 14400,  # 4 hours
+    "TICKER_INFO_DISK_TTL": 14400,  # 4 hours
+    # Current price, volume data - NEVER CACHED (always fresh via NEVER_CACHE_FIELDS)
+    "MARKET_DATA_MEMORY_TTL": 0,  # No caching for prices
+    "MARKET_DATA_DISK_TTL": 0,  # No caching for prices
+    # PE ratios, PEG, financial metrics - derived from price, refresh frequently
+    "FUNDAMENTALS_MEMORY_TTL": 300,  # 5 minutes
+    "FUNDAMENTALS_DISK_TTL": 900,  # 15 minutes
     # News articles and headlines
-    "NEWS_MEMORY_TTL": 600,  # 10 minutes
-    "NEWS_DISK_TTL": 1200,  # 20 minutes
-    # Analyst ratings and recommendations
-    "ANALYSIS_MEMORY_TTL": 600,  # 10 minutes
-    "ANALYSIS_DISK_TTL": 1200,  # 20 minutes
-    # Historical price data
-    "HISTORICAL_DATA_MEMORY_TTL": 86400,  # 1 day
-    "HISTORICAL_DATA_DISK_TTL": 172800,  # 2 days
-    # Earnings dates and data
-    "EARNINGS_DATA_MEMORY_TTL": 600,  # 10 minutes
-    "EARNINGS_DATA_DISK_TTL": 1200,  # 20 minutes
-    # Insider trading information
-    "INSIDER_TRADES_MEMORY_TTL": 86400,  # 1 day
-    "INSIDER_TRADES_DISK_TTL": 172800,  # 2 days
-    # Dividend information
-    "DIVIDEND_DATA_MEMORY_TTL": 86400,  # 1 day
-    "DIVIDEND_DATA_DISK_TTL": 172800,  # 2 days
-    # Target price information
-    "TARGET_PRICE_MEMORY_TTL": 600,  # 10 minutes
-    "TARGET_PRICE_DISK_TTL": 1200,  # 20 minutes
+    "NEWS_MEMORY_TTL": 3600,  # 1 hour
+    "NEWS_DISK_TTL": 14400,  # 4 hours
+    # Analyst ratings and recommendations - 4 hour cache
+    "ANALYSIS_MEMORY_TTL": 3600,  # 1 hour
+    "ANALYSIS_DISK_TTL": 14400,  # 4 hours
+    # Historical price data - stable, cache longer
+    "HISTORICAL_DATA_MEMORY_TTL": 14400,  # 4 hours
+    "HISTORICAL_DATA_DISK_TTL": 14400,  # 4 hours
+    # Earnings dates and data - 4 hour cache
+    "EARNINGS_DATA_MEMORY_TTL": 3600,  # 1 hour
+    "EARNINGS_DATA_DISK_TTL": 14400,  # 4 hours
+    # Insider trading information - stable, cache longer
+    "INSIDER_TRADES_MEMORY_TTL": 14400,  # 4 hours
+    "INSIDER_TRADES_DISK_TTL": 14400,  # 4 hours
+    # Dividend information - stable, cache longer
+    "DIVIDEND_DATA_MEMORY_TTL": 14400,  # 4 hours
+    "DIVIDEND_DATA_DISK_TTL": 14400,  # 4 hours
+    # Target price information - 4 hour cache
+    "TARGET_PRICE_MEMORY_TTL": 3600,  # 1 hour
+    "TARGET_PRICE_DISK_TTL": 14400,  # 4 hours
     # Missing data cache (special longer TTL for known missing data)
-    "MISSING_DATA_MEMORY_TTL": 259200,  # 3 days
-    "MISSING_DATA_DISK_TTL": 604800,  # 7 days
+    "MISSING_DATA_MEMORY_TTL": 14400,  # 4 hours
+    "MISSING_DATA_DISK_TTL": 14400,  # 4 hours
     # Differential TTL based on stock origin
     "US_STOCK_TTL_MULTIPLIER": 1.0,  # Standard TTL for US stocks
-    "NON_US_STOCK_TTL_MULTIPLIER": 2.0,  # Double TTL for non-US stocks that update less frequently
+    "NON_US_STOCK_TTL_MULTIPLIER": 1.0,  # Same TTL for all stocks (4 hours max)
 }
 
 # Field-level cache configuration (as per user requirements)
-# Default: Field-level caching disabled for safety
+# Price fields NEVER cached, other fields cached up to 4 hours
 FIELD_CACHE_CONFIG = {
     # Core control
-    "ENABLED": False,  # Default OFF for safety - enable via environment or code
-    
-    # User-defined field classifications (exact requirements specification)
+    "ENABLED": True,  # Enabled for performance optimization
+
+    # User-defined field classifications
+    # PRICE FIELDS - NEVER CACHED (always fresh from API)
     "NEVER_CACHE_FIELDS": {
-        # Never cache - always API call (11 columns as specified)
-        "PRICE", "TARGET", "UPSIDE", "#T", "#A", "%BUY", 
-        "PET", "PEF", "PEG", "PP", "EXRET", "A", "BS"
+        # Price-sensitive fields - always fetch fresh
+        "PRICE", "price", "current_price", "regularMarketPrice",
+        "TARGET", "target_price", "targetMeanPrice",
+        "UPSIDE", "upside",
+        "PET", "pe_trailing", "trailingPE",
+        "PEF", "pe_forward", "forwardPE",
+        "PEG", "peg_ratio", "pegRatio",
+        "PP", "price_performance", "twelve_month_performance",
+        "EXRET", "expected_return",
+        "52W", "pct_from_52w_high", "fiftyTwoWeekHighChangePercent",
+        "2H", "above_200dma",
+        "volume", "regularMarketVolume",
+        "BS", "action", "signal",
     },
-    
+
+    # 4-HOUR CACHE FIELDS (14400 seconds) - stable data
     "DAILY_CACHE_FIELDS": {
-        # 24 hour cache (8 columns with TTL = 86400 seconds as specified)
-        "TICKER": 86400,    # 24 hours
-        "COMPANY": 86400,   # 24 hours
-        "CAP": 86400,       # 24 hours
-        "BETA": 86400,      # 24 hours
-        "SI": 86400,        # 24 hours
-        "DIV%": 86400,      # 24 hours
-        "EARNINGS": 86400,  # 24 hours
-        "EG": 86400         # 24 hours
+        "TICKER": 14400,        # 4 hours
+        "ticker": 14400,
+        "COMPANY": 14400,       # 4 hours
+        "company": 14400,
+        "company_name": 14400,
+        "shortName": 14400,
+        "longName": 14400,
+        "CAP": 14400,           # 4 hours (market cap changes slowly)
+        "market_cap": 14400,
+        "marketCap": 14400,
+        "BETA": 14400,          # 4 hours
+        "beta": 14400,
+        "SI": 14400,            # 4 hours
+        "short_percent": 14400,
+        "shortPercentOfFloat": 14400,
+        "DIV%": 14400,          # 4 hours
+        "dividend_yield": 14400,
+        "dividendYield": 14400,
+        "EARNINGS": 14400,      # 4 hours
+        "earnings_date": 14400,
+        "EG": 14400,            # 4 hours
+        "earnings_growth": 14400,
+        "ROE": 14400,           # 4 hours
+        "return_on_equity": 14400,
+        "returnOnEquity": 14400,
+        "DE": 14400,            # 4 hours
+        "debt_to_equity": 14400,
+        "debtToEquity": 14400,
+        "FCF": 14400,           # 4 hours
+        "fcf_yield": 14400,
+        "freeCashflow": 14400,
+        "#T": 14400,            # 4 hours (analyst counts)
+        "analyst_count": 14400,
+        "numberOfAnalystOpinions": 14400,
+        "#A": 14400,            # 4 hours
+        "total_ratings": 14400,
+        "%BUY": 14400,          # 4 hours (analyst ratings)
+        "buy_percentage": 14400,
+        "AM": 14400,            # 4 hours (analyst momentum)
+        "analyst_momentum": 14400,
+        "sector": 14400,
+        "industry": 14400,
     },
     
     # Performance and reliability settings

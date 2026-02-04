@@ -471,7 +471,7 @@ class PositionSizingConfig(BaseModel):
 class PerformanceConfig(BaseModel):
     """Performance and execution configuration"""
     max_concurrent_requests: int = Field(
-        default=15,
+        default=20,
         ge=1,
         le=50,
         description="Maximum concurrent API requests"
@@ -487,6 +487,12 @@ class PerformanceConfig(BaseModel):
         ge=0,
         le=10,
         description="Number of retry attempts"
+    )
+    batch_size: int = Field(
+        default=25,
+        ge=5,
+        le=100,
+        description="Number of tickers per batch"
     )
 
 
@@ -540,6 +546,34 @@ class OutputConfig(BaseModel):
         return v
 
 
+class CacheConfig(BaseModel):
+    """Cache configuration for performance optimization"""
+    enabled: bool = Field(
+        default=True,
+        description="Enable caching"
+    )
+    enable_disk: bool = Field(
+        default=True,
+        description="Enable disk cache for persistence across runs"
+    )
+    default_ttl: int = Field(
+        default=14400,  # 4 hours
+        ge=60,
+        le=86400,  # 24 hours
+        description="Default cache TTL in seconds (4 hours for non-price data)"
+    )
+    max_items: int = Field(
+        default=15000,
+        ge=1000,
+        le=100000,
+        description="Maximum items in memory cache"
+    )
+    disk_cache_dir: Path = Field(
+        default=Path("yahoofinance/data/cache"),
+        description="Disk cache directory"
+    )
+
+
 class TradingConfig(BaseModel):
     """
     Complete trading system configuration with validation.
@@ -575,6 +609,7 @@ class TradingConfig(BaseModel):
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     output: OutputConfig = Field(default_factory=OutputConfig)
     api: Optional[APIConfig] = Field(default_factory=APIConfig)
+    cache: Optional[CacheConfig] = Field(default_factory=CacheConfig)
 
     # Region-tier specific criteria
     # US criteria

@@ -1,7 +1,7 @@
 data:
   portfolio_csv: yahoofinance/input/portfolio.csv
   cache_enabled: true
-  cache_ttl_hours: 24
+  cache_ttl_hours: 4  # Max 4 hours for non-price data (prices always fresh)
 tier_thresholds:
   mega_tier_min: 500000000000
   large_tier_min: 100000000000
@@ -707,13 +707,24 @@ output:
   display_colors: true
   max_display_rows: 99999999
 performance:
-  max_concurrent_requests: 15
+  max_concurrent_requests: 20  # Increased from 15 for better throughput
   request_timeout_seconds: 30
   retry_attempts: 3
+  batch_size: 25  # Tickers per batch
 logging:
   level: INFO
   file: logs/trading_analysis.log
   console: true
+
+# Cache Configuration
+# Disk cache persists across runs for significant speed improvement
+cache:
+  enabled: true
+  enable_disk: true  # Enable disk cache for persistence across runs
+  default_ttl: 14400  # 4 hours for non-price data
+  max_items: 15000  # Max items in memory cache
+  disk_cache_dir: yahoofinance/data/cache
+  # Price fields are NEVER cached - see yahoofinance/core/config.py FIELD_CACHE_CONFIG
 
 # Crypto and Non-Equity Asset Configuration
 # Momentum thresholds for crypto assets (no analyst coverage)
