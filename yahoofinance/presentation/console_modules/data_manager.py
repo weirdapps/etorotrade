@@ -25,11 +25,12 @@ logger = get_logger(__name__)
 
 # Known duplicate securities (same company, different tickers)
 # Format: {ticker_to_remove: primary_ticker_to_keep}
+# Policy: Favor GOOG, BRK.B, and original listings over ADRs
 DUPLICATE_TICKERS = {
-    'GOOG': 'GOOGL',      # Alphabet Class C vs Class A (keep Class A)
-    'SAP': 'SAP.DE',      # SAP US ADR vs Frankfurt listing (keep primary listing)
+    'GOOGL': 'GOOG',      # Alphabet Class A vs Class C (keep Class C)
+    'SAP': 'SAP.DE',      # SAP US ADR vs Frankfurt listing (keep original listing)
     'BRK.A': 'BRK.B',     # Berkshire Class A vs B (keep more liquid Class B)
-    '9988.HK': 'BABA',    # Alibaba HK vs US ADR (keep more liquid US ADR)
+    'BABA': '9988.HK',    # Alibaba US ADR vs HK listing (keep original listing)
 }
 
 
