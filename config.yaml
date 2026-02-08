@@ -30,15 +30,17 @@ us_mega:
     min_exret: 6
     min_earnings_growth: -25
     min_price_performance: -25
-    min_analysts: 12
-    min_price_targets: 8
+    min_analysts: 8  # Reduced from 12 - MEGA caps are well-covered even with fewer analysts
+    min_analysts_earnings: 5  # Lower threshold for Type E ratings (post-earnings, more relevant)
+    min_price_targets: 6  # Reduced from 8
     min_roe: 8.0
-    max_debt_equity: 200.0  # Increased from 150 - MEGA caps can carry higher debt post-acquisitions
+    max_debt_equity: 300.0  # Increased from 200 - payment networks (V, MA) operate with high leverage by design
     min_fcf_yield: -5.0  # Changed from 0.5 - growth companies may have negative FCF during expansion
     min_revenue_growth: -5
-    min_pct_from_52w_high: 65
+    min_pct_from_52w_high: 45  # Reduced from 65 - value opportunities often trade far from highs
     require_above_200dma: false  # Relaxed for MEGA caps - quality stocks may dip below temporarily
-    min_analyst_momentum: -8
+    min_analyst_momentum: -10  # Relaxed from -8 - allow more AM flexibility for MEGA caps
+    quality_override: true  # Allow positive AM to lower analyst threshold by 1
     max_pe_vs_sector: 1.5
     min_pe_vs_sector: 0.3
   sell:
@@ -72,18 +74,20 @@ us_large:
     min_trailing_pe: 0.5
     max_trailing_pe: 85
     max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
-    max_short_interest: 2.25
+    max_short_interest: 3.5  # Increased from 2.25 - research shows SI only predictive for distressed stocks
     min_exret: 8
     min_earnings_growth: -22.5
     min_price_performance: -22.5
-    min_analysts: 10
-    min_price_targets: 6
+    min_analysts: 8  # Reduced from 10 - quality coverage exists with 8+ analysts
+    min_analysts_earnings: 5  # Lowered from 6 - adds TMO ($204B, 100% buy, 22% upside)
+    min_price_targets: 5  # Reduced from 6
     min_roe: 8.0
     max_debt_equity: 175.0  # Increased from 150 - large caps can carry moderate debt
     min_fcf_yield: -3.0  # Changed from 0.25 - growth companies may have negative FCF
-    min_pct_from_52w_high: 70
+    min_pct_from_52w_high: 50  # Reduced from 70 - value opportunities often trade far from highs
     require_above_200dma: false  # Relaxed for LARGE caps - quality stocks may dip below temporarily
-    min_analyst_momentum: -8
+    min_analyst_momentum: -10  # Relaxed from -8 - allow more AM flexibility for LARGE caps
+    quality_override: true  # Allow positive AM to lower analyst threshold by 1
     max_pe_vs_sector: 1.5
     min_pe_vs_sector: 0.3
   sell:
@@ -256,14 +260,16 @@ eu_mega:
     min_exret: 7
     min_earnings_growth: -25
     min_price_performance: -25
-    min_analysts: 10
-    min_price_targets: 6
+    min_analysts: 6  # Reduced from 10 - EU has fewer analysts but quality coverage
+    min_analysts_earnings: 4  # Lower threshold for Type E ratings (post-earnings, more relevant)
+    min_price_targets: 4  # Reduced from 6
     min_roe: 8.0
-    max_debt_equity: 150.0
-    min_fcf_yield: 0.5
-    min_pct_from_52w_high: 65
-    require_above_200dma: true
-    min_analyst_momentum: -10
+    max_debt_equity: 200.0  # Increased from 150 - match US MEGA treatment
+    min_fcf_yield: -5.0  # Standard threshold - sector adjustments handled in code
+    min_pct_from_52w_high: 45  # Reduced from 65 - value opportunities often trade far from highs
+    require_above_200dma: false  # CHANGED from true - quality stocks may dip below temporarily
+    min_analyst_momentum: -12  # Relaxed from -10 - allow more AM flexibility for EU MEGA caps
+    quality_override: true  # Allow positive AM to lower analyst threshold by 1
     max_pe_vs_sector: 1.5
     min_pe_vs_sector: 0.3
   sell:
@@ -297,18 +303,20 @@ eu_large:
     min_trailing_pe: 0.5
     max_trailing_pe: 85
     max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
-    max_short_interest: 2.25
+    max_short_interest: 3.5  # Increased from 2.25 - research shows SI only predictive for distressed stocks
     min_exret: 9
     min_earnings_growth: -22.5
     min_price_performance: -22.5
-    min_analysts: 8
-    min_price_targets: 5
+    min_analysts: 6  # Reduced from 8 - EU has fewer analysts but quality coverage
+    min_analysts_earnings: 4  # Lower threshold for Type E ratings (post-earnings, more relevant)
+    min_price_targets: 4  # Reduced from 5
     min_roe: 8.0
-    max_debt_equity: 150.0
-    min_fcf_yield: 0.25
-    min_pct_from_52w_high: 70
-    require_above_200dma: true
-    min_analyst_momentum: -10
+    max_debt_equity: 175.0  # Increased from 150 - match US LARGE treatment
+    min_fcf_yield: -3.0  # Standard threshold - sector adjustments handled in code
+    min_pct_from_52w_high: 50  # Reduced from 70 - value opportunities often trade far from highs
+    require_above_200dma: false  # CHANGED from true - quality stocks may dip below temporarily
+    min_analyst_momentum: -12  # Relaxed from -10 - allow more AM flexibility for EU LARGE caps
+    quality_override: true  # Allow positive AM to lower analyst threshold by 1
     max_pe_vs_sector: 1.5
     min_pe_vs_sector: 0.3
   sell:
@@ -488,8 +496,8 @@ hk_mega:
     max_debt_equity: 120.0
     min_fcf_yield: 0.75
     min_pct_from_52w_high: 70
-    require_above_200dma: true
-    min_analyst_momentum: -8
+    require_above_200dma: false  # Relaxed - HK market in prolonged downtrend, quality stocks below 200DMA
+    min_analyst_momentum: -12  # Relaxed from -8 - allow more AM flexibility for HK MEGA caps
     max_pe_vs_sector: 1.5
     min_pe_vs_sector: 0.3
   sell:
@@ -534,8 +542,8 @@ hk_large:
     max_debt_equity: 120.0
     min_fcf_yield: 0.5
     min_pct_from_52w_high: 75
-    require_above_200dma: true
-    min_analyst_momentum: -8
+    require_above_200dma: false  # Relaxed - HK market in prolonged downtrend, quality stocks below 200DMA
+    min_analyst_momentum: -12  # Relaxed from -8 - allow more AM flexibility for HK LARGE caps
     max_pe_vs_sector: 1.5
     min_pe_vs_sector: 0.3
   sell:

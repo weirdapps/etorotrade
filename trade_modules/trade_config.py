@@ -277,8 +277,9 @@ class TradeConfig:
             'tickers': ['C', 'STT', 'WBS', 'RITM', 'MET', 'GL', 'SCHW', 'BAC', 'JPM', 'WFC', 'GS', 'MS'],
         },
         'REIT': {
-            'description': 'REITs - Negative ROE due to depreciation is normal',
+            'description': 'REITs - Negative ROE/FCF due to depreciation is normal',
             'skip_roe': True,  # Ignore ROE entirely for REITs
+            'skip_fcf': True,  # FCF is meaningless for REITs - use FFO instead
             'max_debt_equity_buy': 300.0,
             'max_debt_equity_sell': 400.0,
             'tickers': ['CCI', 'AMT', 'SBAC', 'EQIX', 'DLR', 'PLD'],
@@ -313,6 +314,7 @@ class TradeConfig:
             'min_roe_sell': 5.0,
             'max_debt_equity_buy': 250.0,  # Higher leverage for infrastructure
             'max_debt_equity_sell': 350.0,
+            'min_fcf_yield_buy': -10.0,  # Utilities often have negative FCF due to infrastructure capex
             'tickers': ['VIE.PA', 'NEE', 'DUK', 'SO', 'D'],
         },
         'PAYMENT_PROCESSORS': {
@@ -331,7 +333,13 @@ class TradeConfig:
             'max_debt_equity_buy': 220.0,  # Higher leverage for spectrum/infrastructure
             'max_debt_equity_sell': 350.0,
             'max_short_interest_buy': 4.0,  # Higher SI tolerance - often shorted for yield
+            'min_fcf_yield_buy': -5.0,  # Telecom capex can depress FCF
             'tickers': ['TMUS', 'VZ', 'T', 'VOD', 'ORAN'],
+        },
+        'TECHNOLOGY_HARDWARE': {
+            'description': 'Tech hardware/semiconductors - Heavy capex cycles, FCF data quality issues with ADRs',
+            'min_fcf_yield_buy': -15.0,  # Allow lower FCF during capex cycles
+            'tickers': ['SMSN.L', 'TSM', 'INTC', 'QCOM', 'MU', 'ASML'],
         },
     }
 
@@ -395,6 +403,13 @@ class TradeConfig:
 
             if 'max_pe_vs_sector_buy' in sector_config:
                 adjusted_criteria['max_pe_vs_sector'] = sector_config['max_pe_vs_sector_buy']
+
+            # FCF adjustments: skip or lower threshold based on sector
+            if 'skip_fcf' in sector_config and sector_config['skip_fcf']:
+                # Remove FCF requirement entirely (for REITs)
+                adjusted_criteria.pop('min_fcf_yield', None)
+            elif 'min_fcf_yield_buy' in sector_config:
+                adjusted_criteria['min_fcf_yield'] = sector_config['min_fcf_yield_buy']
 
         elif action == 'sell':
             if 'skip_roe' in sector_config and sector_config['skip_roe']:

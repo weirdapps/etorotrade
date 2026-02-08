@@ -23,6 +23,63 @@ from yahoofinance.utils.error_handling import with_retry
 logger = get_logger(__name__)
 
 
+# Known duplicate securities (same company, different tickers)
+# Format: {ticker_to_remove: primary_ticker_to_keep}
+DUPLICATE_TICKERS = {
+    'GOOG': 'GOOGL',      # Alphabet Class C vs Class A (keep Class A)
+    'SAP': 'SAP.DE',      # SAP US ADR vs Frankfurt listing (keep primary listing)
+    'BRK.A': 'BRK.B',     # Berkshire Class A vs B (keep more liquid Class B)
+}
+
+
+def deduplicate_securities(df: pd.DataFrame, ticker_col: Optional[str] = None) -> pd.DataFrame:
+    """
+    Remove duplicate securities from DataFrame.
+
+    Handles:
+    - Dual share classes (GOOGL/GOOG)
+    - Cross-listed ADRs (SAP/SAP.DE)
+
+    Args:
+        df: DataFrame with security data
+        ticker_col: Name of the ticker column (auto-detected if None)
+
+    Returns:
+        DataFrame with duplicates removed
+    """
+    if df.empty:
+        return df
+
+    # Auto-detect ticker column if not specified
+    if ticker_col is None:
+        # Check common column names in order of preference
+        for col_name in ['ticker', 'TICKER', 'TKR', 'Symbol', 'symbol']:
+            if col_name in df.columns:
+                ticker_col = col_name
+                break
+
+    if ticker_col is None or ticker_col not in df.columns:
+        logger.debug("No ticker column found for deduplication")
+        return df
+
+    # Get list of tickers to remove
+    tickers_to_remove = []
+    for dup_ticker, primary_ticker in DUPLICATE_TICKERS.items():
+        # Only remove if both tickers exist in the data
+        if dup_ticker in df[ticker_col].values and primary_ticker in df[ticker_col].values:
+            tickers_to_remove.append(dup_ticker)
+            logger.debug(f"Deduplicating: removing {dup_ticker} (keeping {primary_ticker})")
+
+    if tickers_to_remove:
+        original_count = len(df)
+        df = df[~df[ticker_col].isin(tickers_to_remove)]
+        removed_count = original_count - len(df)
+        if removed_count > 0:
+            logger.info(f"Deduplicated {removed_count} duplicate securities: {tickers_to_remove}")
+
+    return df
+
+
 def load_tickers(source_type: str) -> List[str]:
     """
     Load tickers from file based on source type.
@@ -322,6 +379,9 @@ def save_to_csv(
 
         # Convert to DataFrame
         df = pd.DataFrame(data)
+
+        # Deduplicate securities (remove dual share classes and cross-listed ADRs)
+        df = deduplicate_securities(df)
 
         # Apply same processing as display (format, then sort, add position sizes, and add tiers)
         try:
