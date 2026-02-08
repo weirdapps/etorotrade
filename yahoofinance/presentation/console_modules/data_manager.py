@@ -29,6 +29,7 @@ DUPLICATE_TICKERS = {
     'GOOG': 'GOOGL',      # Alphabet Class C vs Class A (keep Class A)
     'SAP': 'SAP.DE',      # SAP US ADR vs Frankfurt listing (keep primary listing)
     'BRK.A': 'BRK.B',     # Berkshire Class A vs B (keep more liquid Class B)
+    '9988.HK': 'BABA',    # Alibaba HK vs US ADR (keep more liquid US ADR)
 }
 
 
