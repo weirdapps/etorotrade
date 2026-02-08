@@ -84,7 +84,8 @@ us_large:
     min_roe: 8.0
     max_debt_equity: 175.0  # Increased from 150 - large caps can carry moderate debt
     min_fcf_yield: -3.0  # Changed from 0.25 - growth companies may have negative FCF
-    min_pct_from_52w_high: 50  # Reduced from 70 - value opportunities often trade far from highs
+    min_pct_from_52w_high: 60  # Increased from 50 - avoid deep drawdowns like INTU at 55%
+    max_upside_buy: 100  # Filter unrealistic targets (>100% upside suggests stale/outlier estimates)
     require_above_200dma: false  # Relaxed for LARGE caps - quality stocks may dip below temporarily
     min_analyst_momentum: -10  # Relaxed from -8 - allow more AM flexibility for LARGE caps
     quality_override: true  # Allow positive AM to lower analyst threshold by 1
@@ -754,6 +755,8 @@ bitcoin_proxy:
   momentum_sell_threshold: 35     # % of 52-week high - below this triggers SELL
   min_buy_pct_override: 60        # Relaxed analyst buy% threshold
   require_above_200dma: true      # Require above 200DMA for BUY signal
+  max_beta: 4.0                   # Cap extreme volatility - filter out beta > 4.0
+  max_short_interest: 10.0        # Cap extreme short interest - filter out SI > 10%
 
 # IPO Grace Period Configuration
 # Recent IPOs exhibit extreme volatility that triggers false SELL signals

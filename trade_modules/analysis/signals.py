@@ -642,72 +642,86 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                 sell_momentum_threshold = btc_proxy_config.get('momentum_sell_threshold', 35)
                 min_buy_pct = btc_proxy_config.get('min_buy_pct_override', 60)
                 require_200dma = btc_proxy_config.get('require_above_200dma', True)
+                max_beta_btc = btc_proxy_config.get('max_beta', 4.0)
+                max_si_btc = btc_proxy_config.get('max_short_interest', 10.0)
 
-                # Hybrid logic: combine momentum with relaxed analyst thresholds
-                # Bitcoin proxies are highly volatile, so standard thresholds don't apply
-                momentum_ok = not pd.isna(row_pct_52w) and row_pct_52w >= 50  # Minimum momentum
-                analyst_ok = row_buy_pct >= min_buy_pct and row_upside >= 0  # Relaxed thresholds
+                # Risk guardrails for bitcoin proxies - check beta and short interest
+                row_beta_val = beta.loc[idx] if idx in beta.index else np.nan
+                row_si_val = si.loc[idx] if idx in si.index else np.nan
 
-                if pd.isna(row_pct_52w):
-                    # No momentum data - fall through to standard equity evaluation
-                    logger.info(f"Ticker {ticker}: BITCOIN_PROXY has no momentum data, using equity eval")
-                    pass  # Will continue to standard evaluation
-                elif momentum_ok and analyst_ok:
-                    # Both momentum and analyst sentiment positive
-                    meets_200dma = row_above_200dma is True or not require_200dma
-                    if meets_200dma and row_pct_52w >= buy_momentum_threshold:
-                        actions.loc[idx] = "B"
-                        logger.info(f"Ticker {ticker}: BITCOIN_PROXY marked BUY - momentum {row_pct_52w:.1f}% >= {buy_momentum_threshold}%, buy% {row_buy_pct:.1f}%")
-                    else:
-                        actions.loc[idx] = "H"
-                        logger.info(f"Ticker {ticker}: BITCOIN_PROXY marked HOLD - momentum/analyst mixed")
-
-                    # Log signal
-                    try:
-                        from trade_modules.signal_tracker import log_signal
-                        log_signal(
-                            ticker=ticker,
-                            signal=actions.loc[idx],
-                            upside=row_upside,
-                            buy_pct=row_buy_pct,
-                            exret=row_exret,
-                            market_cap=cap_values.loc[idx] if idx in cap_values.index else None,
-                            tier=config.get_tier_from_market_cap(cap_values.loc[idx]),
-                            region=config.get_region_from_ticker(ticker),
-                            pct_52w_high=float(row_pct_52w) if not pd.isna(row_pct_52w) else None,
-                            sell_triggers=[],
-                        )
-                    except (ImportError, Exception):
-                        pass
-                    continue
-                elif row_pct_52w <= sell_momentum_threshold:
-                    # Severe momentum decline - SELL regardless of analyst sentiment
-                    actions.loc[idx] = "S"
-                    logger.info(f"Ticker {ticker}: BITCOIN_PROXY marked SELL - momentum {row_pct_52w:.1f}% <= {sell_momentum_threshold}%")
-
-                    # Log signal
-                    try:
-                        from trade_modules.signal_tracker import log_signal
-                        log_signal(
-                            ticker=ticker,
-                            signal="S",
-                            upside=row_upside,
-                            buy_pct=row_buy_pct,
-                            exret=row_exret,
-                            market_cap=cap_values.loc[idx] if idx in cap_values.index else None,
-                            tier=config.get_tier_from_market_cap(cap_values.loc[idx]),
-                            region=config.get_region_from_ticker(ticker),
-                            pct_52w_high=float(row_pct_52w) if not pd.isna(row_pct_52w) else None,
-                            sell_triggers=["bitcoin_proxy_momentum_crash"],
-                        )
-                    except (ImportError, Exception):
-                        pass
-                    continue
+                # If beta or SI exceed thresholds, fall through to standard equity evaluation
+                if not pd.isna(row_beta_val) and row_beta_val > max_beta_btc:
+                    logger.info(f"Ticker {ticker}: BITCOIN_PROXY beta {row_beta_val:.1f} > {max_beta_btc}, using equity eval")
+                    pass  # Fall through to standard evaluation
+                elif not pd.isna(row_si_val) and row_si_val > max_si_btc:
+                    logger.info(f"Ticker {ticker}: BITCOIN_PROXY SI {row_si_val:.1f}% > {max_si_btc}%, using equity eval")
+                    pass  # Fall through to standard evaluation
                 else:
-                    # Moderate momentum - HOLD
-                    actions.loc[idx] = "H"
-                    logger.info(f"Ticker {ticker}: BITCOIN_PROXY marked HOLD - moderate conditions")
-                    continue
+                    # Hybrid logic: combine momentum with relaxed analyst thresholds
+                    # Bitcoin proxies are highly volatile, so standard thresholds don't apply
+                    momentum_ok = not pd.isna(row_pct_52w) and row_pct_52w >= 50  # Minimum momentum
+                    analyst_ok = row_buy_pct >= min_buy_pct and row_upside >= 0  # Relaxed thresholds
+
+                    if pd.isna(row_pct_52w):
+                        # No momentum data - fall through to standard equity evaluation
+                        logger.info(f"Ticker {ticker}: BITCOIN_PROXY has no momentum data, using equity eval")
+                        pass  # Will continue to standard evaluation
+                    elif momentum_ok and analyst_ok:
+                        # Both momentum and analyst sentiment positive
+                        meets_200dma = row_above_200dma is True or not require_200dma
+                        if meets_200dma and row_pct_52w >= buy_momentum_threshold:
+                            actions.loc[idx] = "B"
+                            logger.info(f"Ticker {ticker}: BITCOIN_PROXY marked BUY - momentum {row_pct_52w:.1f}% >= {buy_momentum_threshold}%, buy% {row_buy_pct:.1f}%")
+                        else:
+                            actions.loc[idx] = "H"
+                            logger.info(f"Ticker {ticker}: BITCOIN_PROXY marked HOLD - momentum/analyst mixed")
+
+                        # Log signal
+                        try:
+                            from trade_modules.signal_tracker import log_signal
+                            log_signal(
+                                ticker=ticker,
+                                signal=actions.loc[idx],
+                                upside=row_upside,
+                                buy_pct=row_buy_pct,
+                                exret=row_exret,
+                                market_cap=cap_values.loc[idx] if idx in cap_values.index else None,
+                                tier=config.get_tier_from_market_cap(cap_values.loc[idx]),
+                                region=config.get_region_from_ticker(ticker),
+                                pct_52w_high=float(row_pct_52w) if not pd.isna(row_pct_52w) else None,
+                                sell_triggers=[],
+                            )
+                        except (ImportError, Exception):
+                            pass
+                        continue
+                    elif row_pct_52w <= sell_momentum_threshold:
+                        # Severe momentum decline - SELL regardless of analyst sentiment
+                        actions.loc[idx] = "S"
+                        logger.info(f"Ticker {ticker}: BITCOIN_PROXY marked SELL - momentum {row_pct_52w:.1f}% <= {sell_momentum_threshold}%")
+
+                        # Log signal
+                        try:
+                            from trade_modules.signal_tracker import log_signal
+                            log_signal(
+                                ticker=ticker,
+                                signal="S",
+                                upside=row_upside,
+                                buy_pct=row_buy_pct,
+                                exret=row_exret,
+                                market_cap=cap_values.loc[idx] if idx in cap_values.index else None,
+                                tier=config.get_tier_from_market_cap(cap_values.loc[idx]),
+                                region=config.get_region_from_ticker(ticker),
+                                pct_52w_high=float(row_pct_52w) if not pd.isna(row_pct_52w) else None,
+                                sell_triggers=["bitcoin_proxy_momentum_crash"],
+                            )
+                        except (ImportError, Exception):
+                            pass
+                        continue
+                    else:
+                        # Moderate momentum - HOLD
+                        actions.loc[idx] = "H"
+                        logger.info(f"Ticker {ticker}: BITCOIN_PROXY marked HOLD - moderate conditions")
+                        continue
 
             # For non-equity assets (crypto, ETF, commodity), use momentum-based signals
             # since analyst coverage is not applicable
@@ -1222,6 +1236,12 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
             if row_upside < buy_criteria["min_upside"]:
                 is_buy_candidate = False
                 logger.debug(f"Ticker {ticker}: No buy - upside {row_upside:.1f}% < {buy_criteria['min_upside']:.1f}%")
+
+        # Filter unrealistically high upside targets (stale/outlier estimates)
+        if "max_upside_buy" in buy_criteria:
+            if row_upside > buy_criteria["max_upside_buy"]:
+                is_buy_candidate = False
+                logger.debug(f"Ticker {ticker}: No buy - upside {row_upside:.1f}% > max {buy_criteria['max_upside_buy']:.1f}% (unrealistic target)")
 
         if "min_buy_percentage" in buy_criteria:
             if row_buy_pct < buy_criteria["min_buy_percentage"]:
