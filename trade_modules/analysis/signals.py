@@ -565,8 +565,8 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
     amom = pd.to_numeric(amom_raw, errors="coerce").fillna(np.nan)
 
     # Sector-Relative Valuation: PE vs sector median
-    # Fallback to "P/S" (short display name from table_renderer)
-    pe_vs_sector_raw = df.get("pe_vs_sector", df.get("P/S", pd.Series([np.nan] * len(df), index=df.index)))
+    # NOTE: "P/S" in output is price-to-sales ratio, NOT pe_vs_sector - do not fallback to it
+    pe_vs_sector_raw = df.get("pe_vs_sector", pd.Series([np.nan] * len(df), index=df.index))
     pe_vs_sector = pd.to_numeric(pe_vs_sector_raw, errors="coerce").fillna(np.nan)
 
     # NEW: FCF Yield - academically proven alpha factor (Sloan 1996, Lakonishok 1994)
@@ -1233,11 +1233,34 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                 is_buy_candidate = False
                 logger.debug(f"Ticker {ticker}: No buy - exret {row_exret:.1f}% < {buy_criteria['min_exret']:.1f}%")
 
-        # Check analyst requirements
+        # Check analyst requirements with rating type differentiation
+        # Type "E" = ratings since last earnings (more relevant, lower threshold)
+        # Type "A" = all-time ratings (less relevant, higher threshold)
         if "min_analysts" in buy_criteria:
-            if analyst_count.loc[idx] < buy_criteria["min_analysts"]:
+            # Get rating type from DataFrame - column "A" contains E/A rating type
+            rating_type_col = df.get("A", df.get("rating_type", pd.Series(["A"] * len(df), index=df.index)))
+            rating_type = str(rating_type_col.loc[idx]) if idx in rating_type_col.index else "A"
+
+            # Determine base threshold based on rating type
+            if rating_type == "E" and "min_analysts_earnings" in buy_criteria:
+                # Post-earnings ratings: use lower threshold
+                threshold = buy_criteria["min_analysts_earnings"]
+            else:
+                # All-time ratings: use standard threshold
+                threshold = buy_criteria["min_analysts"]
+
+            # Quality override: positive analyst momentum can lower threshold by 1
+            # This rewards stocks where analyst sentiment is improving
+            if buy_criteria.get("quality_override", False):
+                if not pd.isna(row_amom) and row_amom >= 0:
+                    original_threshold = threshold
+                    threshold = max(4, threshold - 1)  # Never go below 4 analysts
+                    if threshold < original_threshold:
+                        logger.debug(f"Ticker {ticker}: Quality override - lowered analyst threshold from {original_threshold} to {threshold} (AM={row_amom:.1f}%)")
+
+            if analyst_count.loc[idx] < threshold:
                 is_buy_candidate = False
-                logger.debug(f"Ticker {ticker}: No buy - analysts {analyst_count.loc[idx]} < {buy_criteria['min_analysts']}")
+                logger.debug(f"Ticker {ticker}: No buy - analysts {analyst_count.loc[idx]} < {threshold} (type={rating_type})")
 
         # Optional criteria from YAML (only apply if defined in YAML)
         if "min_beta" in buy_criteria and "max_beta" in buy_criteria and not pd.isna(row_beta):
@@ -1260,11 +1283,14 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
 
         # PEF < PET requirement: Forward PE should be lower than Trailing PE (improving earnings)
         # Only apply this check when both values are meaningful (> 10) and PEF is significantly higher
+        # Academic research (Liu, Nissim & Thomas 2002) shows 10-15% differentials are estimate noise
+        # Using 20% threshold (1.2x) better distinguishes genuine deterioration from analyst variance
         if not pd.isna(row_pef) and not pd.isna(row_pet) and row_pet > 10 and row_pef > 10:
-            # PEF should not be more than 10% higher than PET
-            if row_pef > row_pet * 1.1:
+            # PEF should not be more than 20% higher than PET (configurable, default 1.2x)
+            pef_pet_threshold = buy_criteria.get('max_pef_pet_ratio', 1.20)
+            if row_pef > row_pet * pef_pet_threshold:
                 is_buy_candidate = False
-                logger.debug(f"Ticker {ticker}: Failed PEF<PET check - PEF:{row_pef:.1f} > PET*1.1:{row_pet * 1.1:.1f}")
+                logger.debug(f"Ticker {ticker}: Failed PEF<PET check - PEF:{row_pef:.1f} > PET*{pef_pet_threshold}:{row_pet * pef_pet_threshold:.1f}")
 
         if "max_peg" in buy_criteria and not pd.isna(row_peg):
             if row_peg > buy_criteria.get("max_peg"):
@@ -1318,8 +1344,12 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
 
         # NEW: FCF Yield - academically proven alpha factor (Sloan 1996, Lakonishok 1994)
         # Positive FCF indicates business generates real cash, not just accounting profits
+        # Data quality check: FCF < -100% is likely bad data (e.g., ADR data issues)
         if "min_fcf_yield" in buy_criteria and not pd.isna(row_fcf_yield):
-            if row_fcf_yield < buy_criteria.get("min_fcf_yield"):
+            # Skip FCF check if value is clearly bad data (< -100% is impossible in reality)
+            if row_fcf_yield < -100:
+                logger.debug(f"Ticker {ticker}: Skipping FCF check - value {row_fcf_yield:.1f}% appears to be bad data")
+            elif row_fcf_yield < buy_criteria.get("min_fcf_yield"):
                 is_buy_candidate = False
                 logger.debug(f"Ticker {ticker}: Failed FCF yield check - {row_fcf_yield:.1f}% < min:{buy_criteria['min_fcf_yield']:.1f}%")
 
