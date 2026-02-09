@@ -2,9 +2,12 @@ name: Daily Trading Signals
 
 on:
   schedule:
-    # Run at 04:30 UTC on weekdays (after census completes at 00:00 UTC)
-    # This is 06:30 Athens time (winter) or 07:30 Athens time (summer)
-    - cron: '30 4 * * 1-5'
+    # Run at 22:00 UTC on weekdays (after US market close at 21:00 UTC)
+    # This is 00:00 Athens time (winter) or 01:00 Athens time (summer)
+    # Trade e takes ~4 hours, so finishes by ~02:00 UTC
+    # Census runs at 00:00 UTC (~02:00-03:00 UTC actual)
+    # Both complete well before morning briefing at 12:00 UTC (07:00 ET)
+    - cron: '0 22 * * 1-5'
   workflow_dispatch: # Allow manual triggering
 
 permissions:
