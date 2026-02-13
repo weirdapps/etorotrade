@@ -108,10 +108,8 @@ async def retry_async_with_backoff(
 
             if attempt > max_retries:
                 logger.warning(f"Max retries ({max_retries}) exceeded")
-                # If using circuit breaker, ensure failure is recorded
-                # This is redundant but ensures consistency
-                if circuit and not isinstance(e, CircuitOpenError):
-                    circuit.record_failure()
+                # Note: Failure already recorded at line 94 - no double recording needed
+                # Double recording causes circuit breaker to trip too early
                 raise e
 
             # Calculate delay with jitter

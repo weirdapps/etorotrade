@@ -861,6 +861,46 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
 
         logger.debug(f"Ticker {ticker}: SELL CHECK START - upside={row_upside:.1f}%, buy%={row_buy_pct:.1f}%, exret={row_exret:.1f}%, roe={row_roe}, de={row_de}")
 
+        # ================================================================
+        # HARD STOP-LOSS: Catastrophic drawdown protection
+        # If stock is down 80%+ from 52-week high, force SELL regardless of other metrics
+        # This is a safety valve that overrides all other logic including quality override
+        # ================================================================
+        catastrophic_drawdown_threshold = sell_criteria.get("catastrophic_drawdown_threshold", 20)
+        if not pd.isna(row_pct_52w) and row_pct_52w < catastrophic_drawdown_threshold:
+            logger.info(f"Ticker {ticker}: CATASTROPHIC DRAWDOWN - 52W%={row_pct_52w:.1f}% < {catastrophic_drawdown_threshold}% (down {100 - row_pct_52w:.0f}% from high)")
+            actions.loc[idx] = "S"
+            sell_conditions.append(f"catastrophic_drawdown:{row_pct_52w:.1f}%")
+            # Log SELL signal
+            try:
+                from trade_modules.signal_tracker import log_signal
+                price_raw = df.get("price", df.get("PRICE", pd.Series([None] * len(df), index=df.index)))
+                row_price = price_raw.loc[idx] if idx in price_raw.index else None
+                target_raw = df.get("target_price", df.get("TARGET", pd.Series([None] * len(df), index=df.index)))
+                row_target = target_raw.loc[idx] if idx in target_raw.index else None
+                sector_raw = df.get("sector", df.get("SECTOR", pd.Series([None] * len(df), index=df.index)))
+                row_sector = sector_raw.loc[idx] if idx in sector_raw.index else None
+                log_signal(
+                    ticker=ticker,
+                    signal="S",
+                    price=float(row_price) if row_price and not pd.isna(row_price) else None,
+                    target=float(row_target) if row_target and not pd.isna(row_target) else None,
+                    upside=row_upside,
+                    buy_pct=row_buy_pct,
+                    exret=row_exret,
+                    market_cap=cap_values.loc[idx] if idx in cap_values.index else None,
+                    tier=tier,
+                    region=region,
+                    sector=str(row_sector) if row_sector and not pd.isna(row_sector) else None,
+                    pct_52w_high=float(row_pct_52w) if not pd.isna(row_pct_52w) else None,
+                    sell_triggers=["catastrophic_drawdown"],
+                )
+            except ImportError:
+                pass
+            except Exception as e:
+                logger.debug(f"Failed to log CATASTROPHIC DRAWDOWN signal for {ticker}: {e}")
+            continue  # Skip all other evaluation - this is a hard stop
+
         # FULLY VALUED check (P0 improvement - GOOG false positive fix)
         # Stocks at fair value with high analyst consensus should not be SELL
         # Conditions: upside within ±3%, buy% > 80%
@@ -929,10 +969,14 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
             quality_override_upside = sell_scoring_config.get('quality_override_upside', 20)
             quality_override_exret = sell_scoring_config.get('quality_override_exret', 15)
 
+            # Quality Override with fundamental floors to prevent protecting bankrupt/over-leveraged stocks
+            # ROE > 0 ensures profitability, DE < 200 limits leverage (NaN values pass to avoid blocking missing data)
             is_quality_stock = (
                 row_buy_pct >= quality_override_buy_pct and
                 row_upside >= quality_override_upside and
-                row_exret >= quality_override_exret
+                row_exret >= quality_override_exret and
+                (pd.isna(row_roe) or row_roe > 0) and      # Require profitability (or no data)
+                (pd.isna(row_de) or row_de < 200)          # Limit leverage (or no data)
             )
 
             if is_quality_stock:
@@ -975,9 +1019,12 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                 soft_trigger_upside = sell_scoring_config.get('soft_trigger_upside', 0)
                 soft_trigger_buy_pct = sell_scoring_config.get('soft_trigger_buy_pct', 50)
 
+                # Soft Sell uses OR logic to catch sell opportunities:
+                # 1. Negative upside with weak sentiment (< 70% buy)
+                # 2. OR very weak sentiment alone (< soft_trigger_buy_pct)
                 is_soft_sell = (
-                    row_upside < soft_trigger_upside and  # Negative upside (below target)
-                    row_buy_pct < soft_trigger_buy_pct    # Less than 50% buy consensus
+                    (row_upside < soft_trigger_upside and row_buy_pct < 70) or  # Weak price + sentiment
+                    (row_buy_pct < soft_trigger_buy_pct)                        # OR very weak sentiment alone
                 )
 
                 if is_soft_sell and actions.loc[idx] != "S":  # Don't override hard trigger
@@ -1306,8 +1353,9 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
         # Academic research (Liu, Nissim & Thomas 2002) shows 10-15% differentials are estimate noise
         # Using 20% threshold (1.2x) better distinguishes genuine deterioration from analyst variance
         if not pd.isna(row_pef) and not pd.isna(row_pet) and row_pet > 10 and row_pef > 10:
-            # PEF should not be more than 20% higher than PET (configurable, default 1.2x)
-            pef_pet_threshold = buy_criteria.get('max_pef_pet_ratio', 1.20)
+            # PEF should not be more than 25% higher than PET (configurable, default 1.25x)
+            # Research (Liu, Nissim & Thomas 2002) shows 10-15% differentials are estimate noise
+            pef_pet_threshold = buy_criteria.get('max_pef_pet_ratio', 1.25)
             if row_pef > row_pet * pef_pet_threshold:
                 is_buy_candidate = False
                 logger.debug(f"Ticker {ticker}: Failed PEF<PET check - PEF:{row_pef:.1f} > PET*{pef_pet_threshold}:{row_pet * pef_pet_threshold:.1f}")

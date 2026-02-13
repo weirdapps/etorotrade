@@ -516,23 +516,30 @@ def display_stock_table(stock_data: List[Dict[str, Any]], title: str = "Stock An
     # Reorder the DataFrame to only show standard display columns
     df = df[final_col_order]
 
-    # Apply color coding based on ACTION column
-    colored_data = []
-    for _, row in df.iterrows():
-        colored_row = row.copy()
+    # Apply color coding based on ACTION column (vectorized for performance)
+    # ANSI color codes
+    GREEN = "\033[92m"
+    RED = "\033[91m"
+    YELLOW = "\033[93m"
+    RESET = "\033[0m"
 
-        # Apply color based on ACTION or BS value
-        action = row.get(bs_col, "") if bs_col in row else row.get("ACTION", "")
-        if action == "B":  # BUY
-            colored_row = {k: f"\033[92m{v}\033[0m" for k, v in colored_row.items()}  # Green
-        elif action == "S":  # SELL
-            colored_row = {k: f"\033[91m{v}\033[0m" for k, v in colored_row.items()}  # Red
-        elif action == "I":  # INCONCLUSIVE
-            colored_row = {k: f"\033[93m{v}\033[0m" for k, v in colored_row.items()}  # Yellow
-        # No special coloring for HOLD ('H')
+    # Get action column
+    action_col = df[bs_col] if bs_col in df.columns else df.get("ACTION", pd.Series([""] * len(df), index=df.index))
 
-        # Keep column order
-        colored_data.append([colored_row.get(col, "") for col in df.columns])
+    # Vectorized: determine color prefix/suffix for each row
+    import numpy as np
+    prefix = np.where(action_col == "B", GREEN,
+             np.where(action_col == "S", RED,
+             np.where(action_col == "I", YELLOW, "")))
+    suffix = np.where(prefix != "", RESET, "")
+
+    # Apply colors to all columns at once (column-wise loop is O(columns), not O(rows))
+    colored_df = df.astype(str)
+    for col in colored_df.columns:
+        colored_df[col] = prefix + colored_df[col].values + suffix
+
+    # Convert to list for tabulate
+    colored_data = colored_df.values.tolist()
 
     # Define column alignment based on content type
     colalign = []

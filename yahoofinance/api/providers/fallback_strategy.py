@@ -88,7 +88,7 @@ class CascadingFallbackStrategy(FallbackStrategy):
         fallback_provider=None,
         cache=None,
         stale_threshold: timedelta = timedelta(hours=48),
-        max_stale_age: timedelta = timedelta(days=7)
+        max_stale_age: timedelta = timedelta(hours=72)  # Reduced from 7 days to 3 days - stale data is risky for trading
     ):
         """
         Initialize cascading fallback strategy.
