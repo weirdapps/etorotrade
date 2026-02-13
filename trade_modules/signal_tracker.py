@@ -12,7 +12,7 @@ this system enables forward validation of signal quality.
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 import threading
@@ -480,3 +480,338 @@ def log_signal(
 def get_signal_summary() -> Dict[str, Any]:
     """Get summary of logged signals."""
     return get_tracker().get_signal_stats()
+
+
+# ============================================
+# SIGNAL CHANGE DETECTION (P1.3 Enhancement)
+# ============================================
+
+
+class SignalChangeDetector:
+    """
+    Detect and classify signal changes between runs.
+
+    Used to identify when signals change (especially BUY -> SELL which
+    requires immediate action). Implements urgency classification.
+    """
+
+    # Signal transition classifications
+    SIGNAL_PRIORITY = {"B": 1, "H": 2, "S": 3, "I": 4}
+
+    # Urgency levels for signal transitions
+    # (from_signal, to_signal) -> urgency
+    CHANGE_URGENCY = {
+        ("B", "S"): "CRITICAL",  # BUY -> SELL: Immediate action required
+        ("B", "H"): "HIGH",  # BUY -> HOLD: Monitor closely
+        ("H", "S"): "MEDIUM",  # HOLD -> SELL: Consider action
+        ("S", "B"): "OPPORTUNITY",  # SELL -> BUY: New opportunity
+        ("H", "B"): "OPPORTUNITY",  # HOLD -> BUY: New opportunity
+        ("S", "H"): "LOW",  # SELL -> HOLD: Stabilizing
+        ("I", "B"): "OPPORTUNITY",  # INCONCLUSIVE -> BUY: New signal
+        ("I", "S"): "MEDIUM",  # INCONCLUSIVE -> SELL: New concern
+        ("B", "I"): "HIGH",  # BUY -> INCONCLUSIVE: Lost coverage
+        ("S", "I"): "LOW",  # SELL -> INCONCLUSIVE: Lost coverage
+        ("H", "I"): "LOW",  # HOLD -> INCONCLUSIVE: Lost coverage
+    }
+
+    def __init__(self, tracker: Optional[SignalTracker] = None):
+        """
+        Initialize signal change detector.
+
+        Args:
+            tracker: SignalTracker instance (uses global if not provided)
+        """
+        self.tracker = tracker or get_tracker()
+
+    def get_latest_signals_by_date(
+        self, date_str: Optional[str] = None
+    ) -> Dict[str, SignalRecord]:
+        """
+        Get the most recent signal for each ticker on a given date.
+
+        Args:
+            date_str: Date string (YYYY-MM-DD) or None for today
+
+        Returns:
+            Dict mapping ticker -> SignalRecord
+        """
+        if date_str:
+            target_date = datetime.fromisoformat(date_str)
+        else:
+            target_date = datetime.now()
+
+        start = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = start + timedelta(days=1)
+
+        records = self.tracker.get_signals(start_date=start, end_date=end, limit=10000)
+
+        # Keep latest record per ticker
+        latest: Dict[str, SignalRecord] = {}
+        for record in records:
+            if (
+                record.ticker not in latest
+                or record.timestamp > latest[record.ticker].timestamp
+            ):
+                latest[record.ticker] = record
+
+        return latest
+
+    def detect_changes(
+        self,
+        current_date: str,
+        previous_date: str,
+    ) -> List[Dict[str, Any]]:
+        """
+        Compare signals between two dates and identify changes.
+
+        Args:
+            current_date: Current date string (YYYY-MM-DD)
+            previous_date: Previous date string (YYYY-MM-DD)
+
+        Returns:
+            List of change dictionaries with urgency classification
+        """
+        current = self.get_latest_signals_by_date(current_date)
+        previous = self.get_latest_signals_by_date(previous_date)
+
+        changes: List[Dict[str, Any]] = []
+
+        # Check all tickers in both sets
+        all_tickers = set(current.keys()) | set(previous.keys())
+
+        for ticker in all_tickers:
+            curr_signal = current.get(ticker)
+            prev_signal = previous.get(ticker)
+
+            # Track new stocks
+            if curr_signal and not prev_signal:
+                changes.append(
+                    {
+                        "ticker": ticker,
+                        "previous_signal": None,
+                        "current_signal": curr_signal.signal,
+                        "urgency": "INFO",
+                        "change_type": "NEW",
+                        "previous_price": None,
+                        "current_price": curr_signal.price_at_signal,
+                        "price_change_pct": None,
+                        "current_upside": curr_signal.upside,
+                        "current_buy_pct": curr_signal.buy_percentage,
+                    }
+                )
+                continue
+
+            # Track removed stocks
+            if prev_signal and not curr_signal:
+                changes.append(
+                    {
+                        "ticker": ticker,
+                        "previous_signal": prev_signal.signal,
+                        "current_signal": None,
+                        "urgency": "INFO",
+                        "change_type": "REMOVED",
+                        "previous_price": prev_signal.price_at_signal,
+                        "current_price": None,
+                        "price_change_pct": None,
+                        "current_upside": None,
+                        "current_buy_pct": None,
+                    }
+                )
+                continue
+
+            # Both exist - check for signal change
+            if curr_signal.signal != prev_signal.signal:
+                urgency = self.CHANGE_URGENCY.get(
+                    (prev_signal.signal, curr_signal.signal), "INFO"
+                )
+
+                price_change = None
+                if (
+                    prev_signal.price_at_signal
+                    and curr_signal.price_at_signal
+                    and prev_signal.price_at_signal > 0
+                ):
+                    price_change = (
+                        (curr_signal.price_at_signal - prev_signal.price_at_signal)
+                        / prev_signal.price_at_signal
+                        * 100
+                    )
+
+                changes.append(
+                    {
+                        "ticker": ticker,
+                        "previous_signal": prev_signal.signal,
+                        "current_signal": curr_signal.signal,
+                        "urgency": urgency,
+                        "change_type": "TRANSITION",
+                        "previous_price": prev_signal.price_at_signal,
+                        "current_price": curr_signal.price_at_signal,
+                        "price_change_pct": price_change,
+                        "current_upside": curr_signal.upside,
+                        "current_buy_pct": curr_signal.buy_percentage,
+                    }
+                )
+
+        # Sort by urgency (CRITICAL first)
+        urgency_order = {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "OPPORTUNITY": 2,
+            "MEDIUM": 3,
+            "LOW": 4,
+            "INFO": 5,
+        }
+        changes.sort(key=lambda x: urgency_order.get(x["urgency"], 99))
+
+        return changes
+
+    def format_change_alert(self, change: Dict[str, Any]) -> str:
+        """
+        Format a change as a human-readable alert.
+
+        Args:
+            change: Change dictionary from detect_changes()
+
+        Returns:
+            Formatted alert string
+        """
+        urgency_emoji = {
+            "CRITICAL": "\U0001F6A8",  # Police car light
+            "HIGH": "\u26A0\uFE0F",  # Warning sign
+            "OPPORTUNITY": "\U0001F7E2",  # Green circle
+            "MEDIUM": "\U0001F7E1",  # Yellow circle
+            "LOW": "\U0001F535",  # Blue circle
+            "INFO": "\u2139\uFE0F",  # Information
+        }
+        emoji = urgency_emoji.get(change["urgency"], "\U0001F4CA")
+
+        signal_names = {"B": "BUY", "S": "SELL", "H": "HOLD", "I": "INCONCLUSIVE"}
+
+        if change["change_type"] == "NEW":
+            curr_name = signal_names.get(
+                change["current_signal"], change["current_signal"]
+            )
+            return f"{emoji} {change['ticker']}: NEW ({curr_name})"
+
+        if change["change_type"] == "REMOVED":
+            prev_name = signal_names.get(
+                change["previous_signal"], change["previous_signal"]
+            )
+            return f"{emoji} {change['ticker']}: REMOVED (was {prev_name})"
+
+        prev_name = signal_names.get(
+            change["previous_signal"], change["previous_signal"]
+        )
+        curr_name = signal_names.get(
+            change["current_signal"], change["current_signal"]
+        )
+
+        price_info = ""
+        if change.get("price_change_pct") is not None:
+            price_info = f" (price: {change['price_change_pct']:+.1f}%)"
+
+        return f"{emoji} {change['ticker']}: {prev_name} -> {curr_name}{price_info}"
+
+    def get_critical_alerts(
+        self,
+        current_date: str,
+        previous_date: str,
+    ) -> List[Dict[str, Any]]:
+        """
+        Get only CRITICAL and HIGH urgency changes.
+
+        Args:
+            current_date: Current date string (YYYY-MM-DD)
+            previous_date: Previous date string (YYYY-MM-DD)
+
+        Returns:
+            List of critical/high urgency changes only
+        """
+        all_changes = self.detect_changes(current_date, previous_date)
+        return [c for c in all_changes if c["urgency"] in ("CRITICAL", "HIGH")]
+
+    def get_opportunities(
+        self,
+        current_date: str,
+        previous_date: str,
+    ) -> List[Dict[str, Any]]:
+        """
+        Get only OPPORTUNITY urgency changes (new buy signals).
+
+        Args:
+            current_date: Current date string (YYYY-MM-DD)
+            previous_date: Previous date string (YYYY-MM-DD)
+
+        Returns:
+            List of opportunity changes only
+        """
+        all_changes = self.detect_changes(current_date, previous_date)
+        return [c for c in all_changes if c["urgency"] == "OPPORTUNITY"]
+
+
+def get_signal_changes(current_date: str, previous_date: str) -> List[Dict[str, Any]]:
+    """
+    Convenience function to get signal changes between two dates.
+
+    Args:
+        current_date: Current date (YYYY-MM-DD)
+        previous_date: Previous date (YYYY-MM-DD)
+
+    Returns:
+        List of signal change dictionaries
+    """
+    detector = SignalChangeDetector(get_tracker())
+    return detector.detect_changes(current_date, previous_date)
+
+
+def format_signal_changes(changes: List[Dict[str, Any]]) -> List[str]:
+    """
+    Format a list of signal changes as human-readable alerts.
+
+    Args:
+        changes: List of change dictionaries
+
+    Returns:
+        List of formatted alert strings
+    """
+    detector = SignalChangeDetector()
+    return [detector.format_change_alert(c) for c in changes]
+
+
+def get_signal_change_summary(
+    current_date: str, previous_date: str
+) -> Dict[str, Any]:
+    """
+    Get a summary of signal changes between two dates.
+
+    Args:
+        current_date: Current date (YYYY-MM-DD)
+        previous_date: Previous date (YYYY-MM-DD)
+
+    Returns:
+        Dictionary with change counts by urgency and type
+    """
+    detector = SignalChangeDetector(get_tracker())
+    changes = detector.detect_changes(current_date, previous_date)
+
+    # Count by urgency
+    by_urgency: Dict[str, int] = {}
+    for c in changes:
+        urgency = c["urgency"]
+        by_urgency[urgency] = by_urgency.get(urgency, 0) + 1
+
+    # Count by change type
+    by_type: Dict[str, int] = {}
+    for c in changes:
+        change_type = c["change_type"]
+        by_type[change_type] = by_type.get(change_type, 0) + 1
+
+    return {
+        "total_changes": len(changes),
+        "by_urgency": by_urgency,
+        "by_type": by_type,
+        "critical_count": by_urgency.get("CRITICAL", 0),
+        "high_count": by_urgency.get("HIGH", 0),
+        "opportunity_count": by_urgency.get("OPPORTUNITY", 0),
+        "changes": changes,
+    }

@@ -343,6 +343,91 @@ class TradeConfig:
         },
     }
 
+    # ============================================
+    # SECTION 1D: DYNAMIC SECTOR DETECTION MAPS
+    # ============================================
+    # Maps yfinance sector/industry names to our SECTOR_RULES categories
+    # Enables automatic sector detection without hardcoded ticker lists
+
+    YFINANCE_SECTOR_MAP: ClassVar[Dict[str, str]] = {
+        # Financial Services - Banks, Insurance, Asset Management
+        'Financial Services': 'FINANCIAL',
+        'Financial': 'FINANCIAL',
+
+        # Real Estate - REITs and property
+        'Real Estate': 'REIT',
+
+        # Utilities - Regulated utilities
+        'Utilities': 'UTILITY',
+
+        # Communication Services (Telecom handled via industry)
+        # 'Communication Services': handled by industry check
+    }
+
+    YFINANCE_INDUSTRY_MAP: ClassVar[Dict[str, str]] = {
+        # Banks and Financial Institutions
+        'Banks—Regional': 'FINANCIAL',
+        'Banks—Diversified': 'FINANCIAL',
+        'Insurance—Life': 'FINANCIAL',
+        'Insurance—Property & Casualty': 'FINANCIAL',
+        'Insurance—Diversified': 'FINANCIAL',
+        'Insurance—Specialty': 'FINANCIAL',
+        'Asset Management': 'FINANCIAL',
+        'Capital Markets': 'FINANCIAL',
+        'Savings & Cooperative Banks': 'FINANCIAL',
+        'Banks - Regional': 'FINANCIAL',  # Alternative naming
+
+        # REITs - Multiple types
+        'REIT—Industrial': 'REIT',
+        'REIT—Residential': 'REIT',
+        'REIT—Retail': 'REIT',
+        'REIT—Healthcare Facilities': 'REIT',
+        'REIT—Specialty': 'REIT',
+        'REIT—Office': 'REIT',
+        'REIT—Diversified': 'REIT',
+        'REIT—Mortgage': 'REIT',
+        'REIT—Hotel & Motel': 'REIT',
+        'Real Estate Services': 'REIT',
+
+        # Utilities
+        'Utilities—Regulated Electric': 'UTILITY',
+        'Utilities—Diversified': 'UTILITY',
+        'Utilities—Regulated Gas': 'UTILITY',
+        'Utilities—Regulated Water': 'UTILITY',
+        'Utilities—Independent Power Producers': 'UTILITY',
+        'Utilities—Renewable': 'UTILITY',
+
+        # Telecom
+        'Telecom Services': 'TELECOM',
+        'Wireless Telecommunications Services': 'TELECOM',
+        'Integrated Telecommunications Services': 'TELECOM',
+        'Alternative Telecommunications Services': 'TELECOM',
+
+        # Technology Hardware / Semiconductors
+        'Semiconductor Equipment & Materials': 'TECHNOLOGY_HARDWARE',
+        'Semiconductors': 'TECHNOLOGY_HARDWARE',
+        'Computer Hardware': 'TECHNOLOGY_HARDWARE',
+        'Electronic Components': 'TECHNOLOGY_HARDWARE',
+        'Scientific & Technical Instruments': 'TECHNOLOGY_HARDWARE',
+
+        # Payment Processors
+        'Credit Services': 'PAYMENT_PROCESSORS',
+        'Financial Data & Stock Exchanges': 'PAYMENT_PROCESSORS',
+
+        # Pharma with high leverage
+        'Drug Manufacturers—General': 'PHARMA_HIGH_LEVERAGE',
+        'Drug Manufacturers—Specialty & Generic': 'PHARMA_HIGH_LEVERAGE',
+        'Biotechnology': 'PHARMA_HIGH_LEVERAGE',
+
+        # Equipment Financing (Captive Finance Arms)
+        'Farm & Heavy Construction Machinery': 'EQUIPMENT_FINANCING',
+        'Industrial Distribution': 'EQUIPMENT_FINANCING',
+
+        # MLPs - Energy infrastructure
+        'Oil & Gas Midstream': 'MLP',
+        'Oil & Gas Pipelines': 'MLP',
+    }
+
     @classmethod
     def get_sector_from_ticker(cls, ticker: str) -> Optional[str]:
         """
@@ -364,6 +449,53 @@ class TradeConfig:
                 return sector_name
 
         return None
+
+    @classmethod
+    def get_sector_from_ticker_dynamic(
+        cls,
+        ticker: str,
+        sector: Optional[str] = None,
+        industry: Optional[str] = None,
+    ) -> Optional[str]:
+        """
+        Detect sector category using dynamic sector/industry from API.
+
+        This method improves on get_sector_from_ticker by using
+        yfinance sector/industry data instead of hardcoded ticker lists.
+        Falls back to hardcoded list for edge cases.
+
+        Args:
+            ticker: Stock ticker symbol
+            sector: Sector from yfinance info['sector']
+            industry: Industry from yfinance info['industry']
+
+        Returns:
+            Sector category name (e.g., 'FINANCIAL', 'REIT') or None
+        """
+        # First check hardcoded overrides (for edge cases and known exceptions)
+        hardcoded = cls.get_sector_from_ticker(ticker)
+        if hardcoded:
+            return hardcoded
+
+        # Check industry first (more specific)
+        if industry and industry in cls.YFINANCE_INDUSTRY_MAP:
+            return cls.YFINANCE_INDUSTRY_MAP[industry]
+
+        # Fall back to sector (broader category)
+        if sector and sector in cls.YFINANCE_SECTOR_MAP:
+            return cls.YFINANCE_SECTOR_MAP[sector]
+
+        return None
+
+    @classmethod
+    def get_all_sector_categories(cls) -> List[str]:
+        """
+        Get list of all sector categories defined in SECTOR_RULES.
+
+        Returns:
+            List of sector category names
+        """
+        return list(cls.SECTOR_RULES.keys())
 
     @classmethod
     def get_sector_adjusted_thresholds(cls, ticker: str, action: str, base_criteria: Dict[str, Any]) -> Dict[str, Any]:
