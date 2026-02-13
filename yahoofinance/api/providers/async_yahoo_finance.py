@@ -44,6 +44,7 @@ from ...utils.market.ticker_utils import validate_ticker, is_stock_ticker  # Kee
 from ...utils.network.circuit_breaker import CircuitOpenError
 from .base_provider import AsyncFinanceDataProvider
 from ...utils.network.session_manager import get_shared_session
+from ...utils.lru_cache import LRUCache
 
 # Import from split modules
 from .async_modules import (
@@ -104,10 +105,11 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         self.max_concurrency = max_concurrency
         self.enable_circuit_breaker = enable_circuit_breaker
         # Smart cache with timestamps for TTL-based expiration
-        self._ticker_cache: Dict[str, Dict[str, Any]] = {}  # {ticker: {data: {...}, timestamp: float}}
+        # Using LRU cache to prevent unbounded memory growth (max 1000 tickers)
+        self._ticker_cache: LRUCache[str, Dict[str, Any]] = LRUCache(max_size=1000)  # {ticker: {data: {...}, timestamp: float}}
         self._rate_limiter = AsyncRateLimiter()
-        self._ratings_cache: Dict[str, Dict[str, Any]] = {}  # Cache for post-earnings ratings
-        self._stock_cache: Dict[str, Any] = {}  # Cache for yf.Ticker objects
+        self._ratings_cache: LRUCache[str, Dict[str, Any]] = LRUCache(max_size=500)  # Cache for post-earnings ratings
+        self._stock_cache: LRUCache[str, Any] = LRUCache(max_size=500)  # Cache for yf.Ticker objects
 
         # Backward compatibility: expose POSITIVE_GRADES as instance attribute
         self.POSITIVE_GRADES = POSITIVE_GRADES
@@ -853,13 +855,21 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         logger.info("Async provider internal caches cleared and memory freed.")
 
     def get_cache_info(self) -> Dict[str, Any]:
-        """Get information about the internal caches."""
+        """Get information about the internal caches including LRU stats."""
         # Note: This only reflects the simple instance cache, not CacheManager
-        return {
+        info = {
             "ticker_cache_size": len(self._ticker_cache),
             "stock_object_cache_size": len(self._stock_cache),
             "ratings_cache_size": len(self._ratings_cache),
         }
+        # Add LRU cache stats if available
+        if hasattr(self._ticker_cache, 'get_stats'):
+            info["ticker_cache_stats"] = self._ticker_cache.get_stats()
+        if hasattr(self._ratings_cache, 'get_stats'):
+            info["ratings_cache_stats"] = self._ratings_cache.get_stats()
+        if hasattr(self._stock_cache, 'get_stats'):
+            info["stock_cache_stats"] = self._stock_cache.get_stats()
+        return info
 
     async def __aenter__(self):
         # SharedSessionManager handles session lifecycle, no setup needed

@@ -13,9 +13,10 @@ The etorotrade project implements a **production-grade CI/CD pipeline** with mul
 The project features a sophisticated GitHub Actions pipeline with multiple jobs and quality gates:
 
 - **Location**: `.github/workflows/ci.yml`
-- **Triggers**: 
+- **Triggers**:
   - Push to main, master, develop branches
   - Pull requests to main, master branches
+  - **Nightly Schedule**: 2 AM UTC (for integration tests)
 - **Multi-Version Testing**: Python 3.9, 3.10, 3.11, 3.12
 - **Pipeline Jobs**:
   - **test**: Core testing with security and quality checks
@@ -244,7 +245,13 @@ Monitor key metrics during development:
 - **Branch Protection**: Quality gates prevent broken code in main branches
 - **Local Development**: CI commands work identically in local environment
 
-## Recent Improvements (January 2025)
+## Recent Improvements (February 2026)
+
+- [x] ✅ Nightly integration tests at 2 AM UTC
+- [x] ✅ Integration tests run on schedule and main branch pushes
+- [x] ✅ Non-blocking integration tests (continue-on-error) to handle API rate limits
+
+## Previous Improvements (January 2025)
 
 - [x] ✅ Code coverage reporting with XML/HTML reports
 - [x] ✅ Automated security scanning (Bandit + Safety)

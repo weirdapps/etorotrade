@@ -716,6 +716,11 @@ hk_micro:
     max_pe_vs_sector: 1.6
 position_sizing:
   base_position_size: 2500
+  # Risk management limits
+  max_position_pct: 5.0           # Max 5% of portfolio in single position (reduced from ~8.89%)
+  max_position_usd: 22500         # Max USD in single position (reduced from 40000)
+  max_positions: 30               # Max number of positions
+  max_sector_pct: 25.0            # Max 25% sector concentration
   tier_multipliers:
     mega: 5
     large: 4

@@ -86,8 +86,8 @@ async def test_stale_cache_usage(mock_providers):
     primary.get_ticker_info.side_effect = Exception("Primary error")
     fallback.get_ticker_info.side_effect = Exception("Fallback error")
 
-    # Cache returns stale data (3 days old)
-    cached_time = datetime.now() - timedelta(days=3)
+    # Cache returns stale data (2.5 days old = 60 hours, > 48h stale threshold but < 72h max_stale_age)
+    cached_time = datetime.now() - timedelta(hours=60)
     cache.get.return_value = {
         "symbol": "AAPL",
         "price": 140.0,
@@ -98,7 +98,8 @@ async def test_stale_cache_usage(mock_providers):
         primary,
         fallback,
         cache,
-        stale_threshold=timedelta(hours=48)  # 2 days
+        stale_threshold=timedelta(hours=48),  # 2 days - data older than this is stale
+        max_stale_age=timedelta(hours=72)     # 3 days - data older than this is rejected
     )
     result = await strategy.fetch("AAPL")
 

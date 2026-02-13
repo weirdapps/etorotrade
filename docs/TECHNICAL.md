@@ -97,12 +97,14 @@ etorotrade/
 │                          CACHE LAYER                                 │
 │                                                                      │
 │  ┌────────────────────────────────────────────────────────┐         │
-│  │ 48-Hour TTL In-Memory Cache                            │         │
+│  │ LRU Cache with 48-Hour TTL                             │         │
 │  │                                                         │         │
 │  │  Key: ticker_symbol                                    │         │
 │  │  Value: {price, target, analysts, metrics, ...}        │         │
 │  │                                                         │         │
-│  │  Reduces API calls by ~80%                             │         │
+│  │  • Max 1000 tickers (LRU eviction)                     │         │
+│  │  • Prevents unbounded memory growth                    │         │
+│  │  • Reduces API calls by ~80%                           │         │
 │  └────────────────────────────────────────────────────────┘         │
 └──────────────────────────────┬──────────────────────────────────────┘
                                │
@@ -283,18 +285,23 @@ def calculate_action_vectorized(df: pd.DataFrame) -> pd.Series:
 ```
 
 Key decision factors:
-1. **Confidence Check**: Min 4 analysts + 4 price targets
-2. **SELL Triggers** (ANY condition):
+1. **Hard Stop-Loss** (overrides all other logic):
+   - If stock is down 80%+ from 52-week high → SELL (catastrophic drawdown protection)
+2. **Confidence Check**: Min 4 analysts + 4 price targets
+3. **Quality Override** (protects quality stocks from SELL):
+   - Buy% ≥ 85%, Upside ≥ 20%, EXRET high
+   - Plus: ROE > 0 (profitable), DE < 200 (not over-leveraged)
+4. **SELL Triggers** (ANY condition):
    - Upside below tier threshold
-   - Buy% below tier threshold
+   - Buy% below tier threshold (OR negative upside with weak sentiment)
    - EXRET below tier threshold
-   - PEF > PET × 1.2 (deteriorating earnings)
+   - PEF > PET × 1.25 (deteriorating earnings)
    - Optional: High PEG, high beta, high short interest
-3. **BUY Requirements** (ALL conditions):
+5. **BUY Requirements** (ALL conditions):
    - Upside above tier threshold
    - Buy% above tier threshold
    - EXRET above tier threshold
-   - PEF < PET × 1.1 (improving earnings)
+   - PEF < PET × 1.25 (stable or improving earnings)
    - Beta within range
    - Optional: Forward PE, PEG within limits
 
