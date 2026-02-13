@@ -54,10 +54,12 @@ class TestAsyncYahooFinanceProvider:
         assert len(provider.POSITIVE_GRADES) > 0
 
     def test_caches_initialized(self, provider):
-        """Internal caches are initialized."""
-        assert isinstance(provider._ticker_cache, dict)
-        assert isinstance(provider._ratings_cache, dict)
-        assert isinstance(provider._stock_cache, dict)
+        """Internal caches are initialized (dict or LRUCache)."""
+        # Caches can be dict or LRUCache - both support dict-like operations
+        from yahoofinance.utils.lru_cache import LRUCache
+        assert isinstance(provider._ticker_cache, (dict, LRUCache))
+        assert isinstance(provider._ratings_cache, (dict, LRUCache))
+        assert isinstance(provider._stock_cache, (dict, LRUCache))
 
     def test_circuit_name_set(self, provider):
         """Circuit breaker name is set."""
