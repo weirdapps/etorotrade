@@ -178,6 +178,12 @@ test_output/
 
 # Generated Data
 output/
+# Exception: Track signal CSV outputs for morning briefing
+!yahoofinance/output/
+yahoofinance/output/*
+!yahoofinance/output/*.csv
+!yahoofinance/output/script.js
+!yahoofinance/output/styles.css
 yahoofinance/data/circuit_state.json
 yahoofinance/data/portfolio_cache.pkl
 yahoofinance/data/portfolio_prices.json
