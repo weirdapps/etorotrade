@@ -637,6 +637,73 @@ async def display_market_report(
         raise
 
 
+def display_portfolio_risk_warnings(output_dir: str, app_logger=None):
+    """
+    Display portfolio risk warnings after portfolio analysis.
+
+    Loads the portfolio.csv from output directory and runs risk analysis
+    to flag concentration risks and high correlations.
+
+    Args:
+        output_dir: Path to output directory containing portfolio.csv
+        app_logger: Logger instance (optional)
+    """
+    try:
+        from trade_modules.portfolio_risk import PortfolioRiskAnalyzer
+
+        portfolio_file = os.path.join(output_dir, "portfolio.csv")
+
+        if not os.path.exists(portfolio_file):
+            if app_logger:
+                app_logger.debug("No portfolio.csv found for risk analysis")
+            return
+
+        portfolio_df = pd.read_csv(portfolio_file)
+
+        if portfolio_df.empty:
+            return
+
+        # Run risk analysis
+        analyzer = PortfolioRiskAnalyzer(
+            max_sector_concentration=0.25,  # 25% max per sector
+            correlation_threshold=0.70,  # Flag pairs above 70% correlation
+        )
+
+        # Get risk summary (skip correlation for speed - that requires API calls)
+        # Just do sector concentration which is fast
+        concentration_warnings = analyzer.flag_concentration_risks(portfolio_df)
+
+        if concentration_warnings:
+            print("\n" + "=" * 60)
+            print("PORTFOLIO RISK ANALYSIS")
+            print("=" * 60)
+            for warning in concentration_warnings:
+                print(f"  {warning}")
+            print("=" * 60 + "\n")
+
+        # Calculate portfolio beta if available
+        portfolio_beta = analyzer.calculate_portfolio_beta(portfolio_df)
+        if portfolio_beta is not None:
+            risk_level = (
+                "LOW" if portfolio_beta < 0.8
+                else "MODERATE" if portfolio_beta < 1.2
+                else "HIGH"
+            )
+            print(f"Portfolio Beta: {portfolio_beta:.2f} ({risk_level} volatility)")
+
+        if app_logger:
+            app_logger.info(
+                f"Portfolio risk analysis: {len(concentration_warnings)} warnings"
+            )
+
+    except ImportError:
+        if app_logger:
+            app_logger.debug("portfolio_risk module not available")
+    except Exception as e:
+        if app_logger:
+            app_logger.debug(f"Portfolio risk analysis error: {e}")
+
+
 async def main_async(get_provider=None, app_logger=None):
     """
     Async main function for CLI interface.
@@ -733,6 +800,11 @@ async def main_async(get_provider=None, app_logger=None):
             trade_filter=None,  # No trade filter for regular flow
         )
 
+        # Display portfolio risk warnings for portfolio analysis
+        if source == "P":
+            output_dir, _, _, _, _ = get_file_paths()
+            display_portfolio_risk_warnings(output_dir, app_logger)
+
     except YFinanceError as e:
         error_collector.add_error(f"YFinance error in main_async: {str(e)}", context="main_async")
         if app_logger:
@@ -809,6 +881,10 @@ async def main_async_with_args(args, app_logger=None):
             await display_market_report(
                 display, tickers, "P", verbose=False, get_provider=provider, app_logger=app_logger
             )
+
+            # Display portfolio risk warnings after analysis
+            output_dir, _, _, _, _ = get_file_paths()
+            display_portfolio_risk_warnings(output_dir, app_logger)
 
         # Handle trade analysis operations
         elif args.operation in ["t", "trade"]:
