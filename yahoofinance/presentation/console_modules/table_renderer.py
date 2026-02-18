@@ -505,8 +505,8 @@ def display_stock_table(stock_data: List[Dict[str, Any]], title: str = "Stock An
     # Save original dataframe for concentration analysis (before column filtering)
     original_df = df.copy()
 
-    # Use standard display columns (all columns with compact formatting)
-    final_col_order = [col for col in STANDARD_DISPLAY_COLUMNS if col in df.columns]
+    # Use compact display columns for console (fits terminal width)
+    final_col_order = [col for col in COMPACT_DISPLAY_COLUMNS if col in df.columns]
 
     # If we have fewer than 5 essential columns, fall back to basic set
     essential_cols = ["#", "TICKER", "COMPANY", "PRICE", bs_col]
