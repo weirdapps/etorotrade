@@ -531,8 +531,14 @@ def _sync_display_report(
                 filename = "portfolio.csv"
             elif report_type == "I":
                 filename = "manual.csv"
-            else:
+            elif report_type == "E":
+                filename = "etoro.csv"
+            elif report_type == "M":
                 filename = "market.csv"
+            else:
+                # Unknown report type - log warning and skip saving to prevent accidental overwrites
+                logger.warning(f"Unknown report_type '{report_type}', skipping CSV save to prevent accidental overwrites")
+                return
 
             # Import formatting functions
             from yahoofinance.presentation.console_modules.table_renderer import (
@@ -648,8 +654,14 @@ async def _async_display_report(
                 filename = "portfolio.csv"
             elif report_type == "I":
                 filename = "manual.csv"
-            else:
+            elif report_type == "E":
+                filename = "etoro.csv"
+            elif report_type == "M":
                 filename = "market.csv"
+            else:
+                # Unknown report type - log warning and skip saving to avoid overwriting important files
+                logger.warning(f"Unknown report_type '{report_type}', skipping CSV save to prevent accidental overwrites")
+                return
             save_to_csv(
                 results,
                 filename,
