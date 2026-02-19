@@ -266,51 +266,42 @@ async def handle_trade_analysis_direct(display, trade_choice, get_provider=None,
         # Get file paths
         output_dir, input_dir, market_file, portfolio_file, _ = get_file_paths()
 
+        # Use etoro.csv as the source data since it contains the analyzed market data with BS signals
+        # The market.csv file may be empty or small; etoro.csv has the full analyzed universe
+        etoro_file = os.path.join(output_dir, "etoro.csv")
+
+        # Use processed portfolio file from output directory for exclusions
+        processed_portfolio_file = os.path.join(output_dir, "portfolio.csv")
+
+        # Generate opportunities from etoro.csv (the main analyzed data source)
+        await generate_trade_opportunities_from_etoro(
+            etoro_file, processed_portfolio_file, trade_choice, output_dir, app_logger
+        )
+
         # Determine which file to load - use the pre-generated result files
         if trade_choice == "B":
-            # BUY: Use the pre-generated buy.csv file which already has the filtered results
             data_file = os.path.join(output_dir, "buy.csv")
             exclusion_files = []  # No additional exclusion needed since file is pre-filtered
             title = "Trade Analysis - BUY Opportunities"
             output_filename = "buy.csv"
-            if app_logger:
-                app_logger.info("Loading pre-generated BUY opportunities from buy.csv")
 
         elif trade_choice == "S":
-            # SELL: Use the pre-generated sell.csv file which already has the filtered results
             data_file = os.path.join(output_dir, "sell.csv")
             exclusion_files = []  # No additional exclusion needed since file is pre-filtered
             title = "Trade Analysis - SELL Opportunities"
             output_filename = "sell.csv"
-            if app_logger:
-                app_logger.info("Loading pre-generated SELL opportunities from sell.csv")
 
         elif trade_choice == "H":
-            # HOLD: Use the pre-generated hold.csv file which already has the filtered results  
             data_file = os.path.join(output_dir, "hold.csv")
             exclusion_files = []  # No additional exclusion needed since file is pre-filtered
             title = "Trade Analysis - HOLD Opportunities"
             output_filename = "hold.csv"
-            if app_logger:
-                app_logger.info("Loading pre-generated HOLD opportunities from hold.csv")
 
         else:
             if app_logger:
                 app_logger.error(f"Invalid trade choice: {trade_choice}")
             return
 
-        # Always generate fresh opportunities from market.csv (no caching)
-        if app_logger:
-            app_logger.info(f"Generating fresh {trade_choice} opportunities from market.csv")
-        
-        # Use processed portfolio file from output directory for trade opportunities
-        processed_portfolio_file = os.path.join(output_dir, "portfolio.csv")
-        
-        # Generate opportunities from market.csv
-        await generate_trade_opportunities_from_market(
-            market_file, processed_portfolio_file, trade_choice, output_dir, app_logger
-        )
-        
         # Check if file was created
         if not os.path.exists(data_file):
             if app_logger:
@@ -331,12 +322,116 @@ async def handle_trade_analysis_direct(display, trade_choice, get_provider=None,
         raise
 
 
+async def generate_trade_opportunities_from_etoro(
+    etoro_file, portfolio_file, trade_choice, output_dir, app_logger
+):
+    """
+    Generate trade opportunities from etoro.csv data by filtering on the existing BS signal column.
+
+    Args:
+        etoro_file: Path to etoro.csv (contains full analyzed market data with BS signals)
+        portfolio_file: Path to portfolio.csv (for exclusion/inclusion filtering)
+        trade_choice: Trade type (B/S/H)
+        output_dir: Output directory
+        app_logger: Logger instance
+    """
+    try:
+        # Load etoro data (the main analyzed market data source)
+        if not os.path.exists(etoro_file):
+            if app_logger:
+                app_logger.error(f"eToro file not found: {etoro_file}")
+            return
+
+        etoro_df = pd.read_csv(etoro_file)
+        if app_logger:
+            app_logger.info(f"Loaded eToro data: {len(etoro_df)} stocks")
+
+        # Find the ticker and BS columns (handle different column names)
+        ticker_col = None
+        for col in ['TKR', 'TICKER', 'ticker', 'symbol', 'Symbol']:
+            if col in etoro_df.columns:
+                ticker_col = col
+                break
+
+        bs_col = None
+        for col in ['BS', 'ACTION', 'action', 'Act']:
+            if col in etoro_df.columns:
+                bs_col = col
+                break
+
+        if ticker_col is None or bs_col is None:
+            if app_logger:
+                app_logger.error(f"Required columns not found. Ticker col: {ticker_col}, BS col: {bs_col}")
+            return
+
+        # Load portfolio tickers for exclusion/inclusion
+        portfolio_tickers = set()
+        if os.path.exists(portfolio_file):
+            portfolio_df = pd.read_csv(portfolio_file)
+            # Find ticker column in portfolio
+            for col in ['TKR', 'TICKER', 'ticker', 'symbol', 'Symbol']:
+                if col in portfolio_df.columns:
+                    portfolio_tickers = set(portfolio_df[col].astype(str).str.upper())
+                    break
+            if app_logger:
+                app_logger.info(f"Loaded {len(portfolio_tickers)} portfolio tickers for filtering")
+
+        # Filter by trade choice
+        if trade_choice == "B":
+            # BUY: Filter for B signals, exclude portfolio holdings
+            filtered_df = etoro_df[etoro_df[bs_col] == 'B'].copy()
+            if portfolio_tickers:
+                filtered_df = filtered_df[~filtered_df[ticker_col].str.upper().isin(portfolio_tickers)]
+            output_file = os.path.join(output_dir, "buy.csv")
+            signal_name = "BUY"
+
+        elif trade_choice == "S":
+            # SELL: Filter for S signals, only include portfolio holdings
+            filtered_df = etoro_df[etoro_df[bs_col] == 'S'].copy()
+            if portfolio_tickers:
+                filtered_df = filtered_df[filtered_df[ticker_col].str.upper().isin(portfolio_tickers)]
+            output_file = os.path.join(output_dir, "sell.csv")
+            signal_name = "SELL"
+
+        elif trade_choice == "H":
+            # HOLD: Filter for H signals, exclude portfolio holdings (show market HOLD opportunities)
+            filtered_df = etoro_df[etoro_df[bs_col] == 'H'].copy()
+            if portfolio_tickers:
+                filtered_df = filtered_df[~filtered_df[ticker_col].str.upper().isin(portfolio_tickers)]
+            output_file = os.path.join(output_dir, "hold.csv")
+            signal_name = "HOLD"
+        else:
+            if app_logger:
+                app_logger.error(f"Invalid trade choice: {trade_choice}")
+            return
+
+        # Sort by market cap descending and save
+        if not filtered_df.empty:
+            filtered_df = sort_by_market_cap_descending(filtered_df)
+            filtered_df.to_csv(output_file, index=False)
+            if app_logger:
+                app_logger.info(f"Generated {len(filtered_df)} {signal_name} opportunities -> {output_file}")
+        else:
+            # Create empty file with header
+            pd.DataFrame(columns=etoro_df.columns).to_csv(output_file, index=False)
+            if app_logger:
+                app_logger.info(f"No {signal_name} opportunities found, created empty file")
+
+    except Exception as e:
+        if app_logger:
+            app_logger.error(f"Error generating trade opportunities from eToro: {str(e)}")
+        raise
+
+
 async def generate_trade_opportunities_from_market(
     market_file, portfolio_file, trade_choice, output_dir, app_logger
 ):
     """
     Generate trade opportunities from market.csv data.
-    
+
+    Note: This function is deprecated in favor of generate_trade_opportunities_from_etoro.
+    Kept for backwards compatibility.
+
     Args:
         market_file: Path to market.csv
         portfolio_file: Path to portfolio.csv
@@ -352,22 +447,22 @@ async def generate_trade_opportunities_from_market(
             if app_logger:
                 app_logger.error(f"Market file not found: {market_file}")
             return
-            
+
         market_df = pd.read_csv(market_file, index_col=0)
         if app_logger:
             app_logger.info(f"Loaded market data: {len(market_df)} stocks")
-        
+
         # Load portfolio data if it exists
         portfolio_df = None
         if os.path.exists(portfolio_file):
             portfolio_df = pd.read_csv(portfolio_file)
             if app_logger:
                 app_logger.info(f"Loaded portfolio data: {len(portfolio_df)} holdings")
-        
+
         # Create trading engine and analyze opportunities
         engine = TradingEngine()
         opportunities = await engine.analyze_market_opportunities(market_df, portfolio_df)
-        
+
         # Save the appropriate opportunities file
         if trade_choice == "B":
             buy_opps = opportunities.get("buy_opportunities", pd.DataFrame())
@@ -382,7 +477,7 @@ async def generate_trade_opportunities_from_market(
                 pd.DataFrame().to_csv(output_file)
                 if app_logger:
                     app_logger.info("No buy opportunities found, created empty file")
-                    
+
         elif trade_choice == "S":
             sell_opps = opportunities.get("sell_opportunities", pd.DataFrame())
             output_file = os.path.join(output_dir, "sell.csv")
@@ -395,7 +490,7 @@ async def generate_trade_opportunities_from_market(
                 pd.DataFrame().to_csv(output_file)
                 if app_logger:
                     app_logger.info("No sell opportunities found, created empty file")
-                    
+
         elif trade_choice == "H":
             hold_opps = opportunities.get("hold_opportunities", pd.DataFrame())
             output_file = os.path.join(output_dir, "hold.csv")
@@ -408,7 +503,7 @@ async def generate_trade_opportunities_from_market(
                 pd.DataFrame().to_csv(output_file)
                 if app_logger:
                     app_logger.info("No hold opportunities found, created empty file")
-        
+
     except Exception as e:
         if app_logger:
             app_logger.error(f"Error generating trade opportunities: {str(e)}")
