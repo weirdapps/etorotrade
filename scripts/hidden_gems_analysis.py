@@ -159,7 +159,8 @@ def analyze_hidden_gems(census_data: dict, my_portfolio: set, market_signals: di
     # Extract Top 100 performers by gain
     top_performers = extract_top_performers(investors, 100)
     print(f"\nAnalyzing {len(top_performers)} top performers by YTD gain")
-    print(f"Top 3 performers: {[f'{inv.get('userName')} ({inv.get('gain', 0):.1f}%)' for inv in top_performers[:3]]}")
+    top3_names = [f"{inv.get('userName')} ({inv.get('gain', 0):.1f}%)" for inv in top_performers[:3]]
+    print(f"Top 3 performers: {top3_names}")
 
     # Build aggregated holdings from top performers' portfolios
     performer_holdings = defaultdict(lambda: {'count': 0, 'total_alloc': 0, 'holders': set()})
