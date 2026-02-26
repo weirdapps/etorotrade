@@ -62,6 +62,16 @@ jobs:
           python trade.py -o e
           echo "✅ Market signals complete"
 
+      - name: Generate filtered trade files (buy/sell/hold)
+        run: |
+          echo "📊 Generating BUY opportunities..."
+          python trade.py -o t -t b
+          echo "📊 Generating SELL opportunities..."
+          python trade.py -o t -t s
+          echo "📊 Generating HOLD opportunities..."
+          python trade.py -o t -t h
+          echo "✅ Trade filtering complete"
+
       - name: Configure Git
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
@@ -104,9 +114,10 @@ jobs:
           path: |
             yahoofinance/input/portfolio.csv
             yahoofinance/output/portfolio.csv
-            yahoofinance/output/market.csv
+            yahoofinance/output/etoro.csv
             yahoofinance/output/buy.csv
             yahoofinance/output/sell.csv
+            yahoofinance/output/hold.csv
           retention-days: 30
 
   # Failure notification
