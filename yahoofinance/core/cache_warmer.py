@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional, Set, Dict, Any
 from pathlib import Path
 
-from yahoofinance.core.cache import default_cache_manager
+from yahoofinance.data.cache_compatibility import default_cache_manager
 
 
 logger = logging.getLogger(__name__)
