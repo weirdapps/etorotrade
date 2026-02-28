@@ -19,7 +19,7 @@ class TestConcentrationWarning:
         w = ConcentrationWarning("sector", "Technology", 0.5, 5, 10, ["AAPL", "MSFT"])
         assert w.warning_type == "sector"
         assert w.concentrated_value == "Technology"
-        assert w.percentage == 0.5
+        assert w.percentage == pytest.approx(0.5)
         assert w.count == 5
         assert w.total == 10
         assert w.tickers == ["AAPL", "MSFT"]
@@ -36,7 +36,7 @@ class TestConcentrationWarning:
         d = w.to_dict()
         assert d["warning_type"] == "region"
         assert d["concentrated_value"] == "US"
-        assert d["percentage"] == 0.7
+        assert d["percentage"] == pytest.approx(0.7)
         assert d["count"] == 7
         assert d["total"] == 10
         assert d["tickers"] == ["AAPL", "MSFT"]
@@ -182,13 +182,13 @@ class TestGetDiversificationScore:
     def test_empty_dataframe(self):
         df = pd.DataFrame()
         score, desc = get_diversification_score(df)
-        assert score == 0.0
+        assert score == pytest.approx(0.0)
         assert desc == "No data"
 
     def test_too_few_signals(self):
         df = pd.DataFrame({"BS": ["B"], "sector": ["Tech"]})
         score, desc = get_diversification_score(df)
-        assert score == 100.0
+        assert score == pytest.approx(100.0)
         assert "Too few" in desc
 
     def test_perfectly_concentrated(self):
@@ -197,7 +197,7 @@ class TestGetDiversificationScore:
             "sector": ["Tech", "Tech", "Tech"],
         })
         score, desc = get_diversification_score(df)
-        assert score == 0.0
+        assert score == pytest.approx(0.0)
         assert "concentrated" in desc.lower()
 
     def test_well_diversified(self):

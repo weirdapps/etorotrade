@@ -28,8 +28,8 @@ class TestPortfolioRiskAnalyzer:
     def test_init_default_values(self):
         """Test initialization with default values."""
         analyzer = PortfolioRiskAnalyzer()
-        assert analyzer.max_sector_concentration == 0.25
-        assert analyzer.correlation_threshold == 0.70
+        assert analyzer.max_sector_concentration == pytest.approx(0.25)
+        assert analyzer.correlation_threshold == pytest.approx(0.70)
         assert analyzer.lookback_days == 252
 
     def test_init_custom_values(self):
@@ -39,8 +39,8 @@ class TestPortfolioRiskAnalyzer:
             correlation_threshold=0.80,
             lookback_days=180,
         )
-        assert analyzer.max_sector_concentration == 0.30
-        assert analyzer.correlation_threshold == 0.80
+        assert analyzer.max_sector_concentration == pytest.approx(0.30)
+        assert analyzer.correlation_threshold == pytest.approx(0.80)
         assert analyzer.lookback_days == 180
 
 
@@ -245,7 +245,7 @@ class TestCorrelationPairs:
 
         pairs = analyzer.identify_high_correlation_pairs(corr_matrix)
         # Should be sorted: (A, C, 0.80) first, then (A, B, 0.70), then (B, C, 0.65)
-        assert pairs[0][2] == 0.80
+        assert pairs[0][2] == pytest.approx(0.80)
 
 
 class TestRiskSummary:
