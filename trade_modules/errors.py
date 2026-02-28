@@ -57,8 +57,3 @@ class ConfigurationError(TradeModuleError):
     all trade modules.
     """
     pass
-
-
-# Backward compatibility aliases - these ensure existing code continues to work
-TradingError = TradingEngineError  # Legacy alias
-FilterError = TradingFilterError   # Legacy alias
