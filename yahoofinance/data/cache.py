@@ -1,12 +1,10 @@
 """
-Cache Compatibility Bridge
+Cache module - redirects to unified CacheService.
 
-This module redirects all cache operations to the new unified CacheService
-through the compatibility layer. This ensures backward compatibility while
-migrating to the simplified cache architecture.
+All cache operations go through trade_modules.cache_service.
+For backward compatibility, CacheManager is provided as an alias.
 """
 
-# Re-export everything from the compatibility layer
 from yahoofinance.data.cache_compatibility import (
     CacheKeyGenerator,
     LRUCache,
@@ -22,7 +20,6 @@ from yahoofinance.data.cache_compatibility import (
     wrap_provider_with_cache,
 )
 
-# Additional exports for full backward compatibility
 __all__ = [
     'CacheKeyGenerator',
     'LRUCache',
@@ -36,13 +33,4 @@ __all__ = [
     'configure_caching',
     'create_cache_aware_wrapper',
     'wrap_provider_with_cache',
-    'CACHE_CONFIG',
 ]
-
-# Default cache configuration for backward compatibility
-CACHE_CONFIG = {
-    'ttl': 3600,  # 1 hour default TTL
-    'max_size': 1000,
-    'enabled': True,
-    'directory': '.cache',
-}
