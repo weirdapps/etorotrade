@@ -176,6 +176,9 @@ docs/internal/
 .tmp/
 test_output/
 
+# Git worktrees
+.worktrees/
+
 # Generated Data
 output/
 # Exception: Track signal CSV outputs for morning briefing
