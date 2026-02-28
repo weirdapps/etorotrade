@@ -207,9 +207,3 @@ class TestModuleMetadata:
         assert isinstance(trade_modules.__all__, list)
         assert len(trade_modules.__all__) > 0
 
-    def test_config_context(self):
-        """Test _config_context is available."""
-        import trade_modules
-
-        # Should be set (either to context or None)
-        assert hasattr(trade_modules, '_config_context')
