@@ -96,23 +96,35 @@ class CacheManager:
 
 
 class LRUCache:
-    """Compatibility wrapper for old LRUCache."""
-    
-    def __init__(self, *args, **kwargs):
-        """Initialize with unified cache."""
-        self.cache = get_unified_cache()
-    
-    def get(self, key: str) -> Any:
-        """Get from cache."""
-        return self.cache.get(key)
-    
+    """Simple in-memory LRU cache with dict-like interface."""
+
+    def __init__(self, max_size: int = 1000, **kwargs):
+        self._max_size = max_size
+        self._data: dict = {}
+
+    def get(self, key: str, default=None) -> Any:
+        return self._data.get(key, default)
+
     def put(self, key: str, value: Any) -> None:
-        """Put in cache."""
-        self.cache.set(key, value)
-    
+        if len(self._data) >= self._max_size and key not in self._data:
+            oldest = next(iter(self._data))
+            del self._data[oldest]
+        self._data[key] = value
+
     def clear(self) -> None:
-        """Clear cache."""
-        self.cache.clear()
+        self._data.clear()
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self.put(key, value)
+
+    def __getitem__(self, key: str) -> Any:
+        return self._data[key]
+
+    def __contains__(self, key: str) -> bool:
+        return key in self._data
+
+    def __len__(self) -> int:
+        return len(self._data)
 
 
 class DiskCache:

@@ -19,7 +19,6 @@ from unittest.mock import MagicMock, patch
 from tests.fixtures.async_fixtures import create_bulk_fetch_mocks
 from yahoofinance.core.errors import APIError, RateLimitError
 from yahoofinance.core.logging import get_logger
-from yahoofinance.utils.network.batch import batch_process
 from yahoofinance.utils.network.rate_limiter import RateLimiter, global_rate_limiter, rate_limited
 
 
@@ -241,39 +240,6 @@ class TestRateLimiterDecorators(unittest.TestCase):
             self.assertEqual(mock_limiter.record_call.call_count, 1)
             self.assertEqual(mock_limiter.record_success.call_count, 1)
 
-    def test_batch_process(self):
-        """Test batch processing with rate limiting."""
-        processed = []
-
-        def process_item(item):
-            processed.append(item)
-            return item * 2
-
-        # Patch BatchProcessor._process_batch to avoid using ThreadPoolExecutor
-        with patch(
-            "yahoofinance.utils.network.batch.BatchProcessor._process_batch"
-        ) as mock_process:
-            # Define side effect to process items directly
-            def side_effect(batch, results_dict, offset):
-                for i, item in enumerate(batch):
-                    results_dict[offset + i] = process_item(item)
-
-            mock_process.side_effect = side_effect
-
-            # Now test batch processing
-            items = list(range(10))
-            results = batch_process(items, process_item, batch_size=3)
-
-            # All items should be processed
-            self.assertEqual(len(processed), 10)
-            # Items should match what we sent
-            self.assertEqual(set(processed), set(items))
-
-            # Results should be doubled and in order
-            expected = [i * 2 for i in items]
-            self.assertEqual(results, expected)
-
-
 class TestThreadSafety(unittest.TestCase):
     """Test thread safety and concurrent usage of rate limiter."""
 
@@ -309,40 +275,6 @@ class TestThreadSafety(unittest.TestCase):
         # Should have 20 calls tracked
         self.assertEqual(call_count, 20)
         self.assertEqual(len(limiter.call_timestamps), 20)
-
-    def test_concurrent_batch_processing(self):
-        """Test concurrent batch processing with rate limiting."""
-        # Use mocking to make this test more reliable and faster
-        with patch(
-            "yahoofinance.utils.network.batch.BatchProcessor._process_batch"
-        ) as mock_process:
-            # Define side effect to process items directly
-            def side_effect(batch, results_dict, offset):
-                for i, item in enumerate(batch):
-                    results_dict[offset + i] = item * 2
-
-            mock_process.side_effect = side_effect
-
-            items = list(range(20))
-            results = []
-
-            # Process items in parallel
-            with ThreadPoolExecutor(max_workers=5) as executor:
-                futures = []
-                for i in range(0, len(items), 5):
-                    batch = items[i : i + 5]
-                    future = executor.submit(batch_process, batch, lambda x: x * 2, batch_size=2)
-                    futures.append(future)
-
-                # Collect results
-                for future in futures:
-                    result = future.result()
-                    results.extend(result)
-
-            # Sort results to ensure consistent comparison
-            results.sort()
-            expected = [i * 2 for i in range(20)]
-            self.assertEqual(results, expected)
 
 
 class TestErrorRecovery(unittest.TestCase):

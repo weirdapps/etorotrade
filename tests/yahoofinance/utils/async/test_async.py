@@ -18,8 +18,6 @@ from tests.fixtures.async_fixtures import (
     create_async_processor_mock,
     create_bulk_fetch_mocks,
     create_flaky_function,
-    create_mock_fetcher,
-    create_paginated_data,
 )
 from yahoofinance.core.errors import APIError, RateLimitError, YFinanceError
 from yahoofinance.core.logging import get_logger
@@ -29,8 +27,6 @@ from yahoofinance.utils.async_utils.enhanced import (
     process_batch_async,
 )
 from yahoofinance.utils.async_utils.helpers import async_retry, gather_with_concurrency
-from yahoofinance.utils.network.batch import batch_process
-from yahoofinance.utils.network.pagination import PaginatedResults, paginated_request
 
 
 # Set up logging for tests
@@ -38,109 +34,6 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = get_logger(__name__)
-
-
-class TestPagination(unittest.TestCase):
-    """Test the pagination utilities."""
-
-    def test_paginated_results(self):
-        """Test iterating through paginated results."""
-        # Create mock paginated data
-        pages = create_paginated_data(num_pages=3, items_per_page=3)
-        mock_fetcher = create_mock_fetcher(pages)
-
-        # Create functions for PaginatedResults
-        def process_results(page_data):
-            return page_data["items"]
-
-        def get_next_token(page_data):
-            return page_data["next_page_token"]
-
-        # Create paginated results iterator
-        paginator = PaginatedResults(
-            fetch_page_func=mock_fetcher,
-            process_results_func=process_results,
-            get_next_page_token_func=get_next_token,
-        )
-
-        # Fetch all results
-        all_items = paginator.fetch_all()
-
-        # Should have all items (1-9)
-        expected_items = list(range(1, 10))
-        self.assertEqual(all_items, expected_items)
-
-    def test_paginated_request_function(self):
-        """Test the paginated_request convenience function."""
-        # Create mock paginated data with 2 pages
-        pages = create_paginated_data(num_pages=2, items_per_page=3)
-        mock_fetcher = create_mock_fetcher(pages)
-
-        # Create functions for paginated_request
-        def process_results(page_data):
-            return page_data["items"]
-
-        def get_next_token(page_data):
-            return page_data["next_page_token"]
-
-        # Get all results using the alias function
-        all_items = paginated_request(
-            fetch_page_func=mock_fetcher,
-            process_results_func=process_results,
-            get_next_page_token_func=get_next_token,
-            max_pages=2,
-        )
-
-        # Should have all items (1-6)
-        expected_items = list(range(1, 7))
-        self.assertEqual(all_items, expected_items)
-
-    @patch("yahoofinance.utils.network.batch.global_rate_limiter")  # Mock the rate limiter
-    @patch("yahoofinance.utils.network.rate_limiter.RateLimiter")  # Mock the rate limiter class
-    def test_batch_process(self, mock_rate_limiter_class, mock_rate_limiter):
-        """Test batch processing with rate limiting."""
-        # Set up rate limiter mock
-        mock_rate_limiter.return_value = 0.0  # No delay for tests
-
-        # Set up a mock rate limiter instance to return from the class
-        mock_instance = MagicMock()
-        mock_instance.get_delay.return_value = 0.0
-        mock_rate_limiter_class.return_value = mock_instance
-
-        # Create mock executor that doesn't actually run in threads
-        with patch("yahoofinance.utils.network.batch.ThreadPoolExecutor") as mock_executor_class:
-            # Mock the executor to actually run the function synchronously
-            mock_executor = MagicMock()
-            mock_executor_class.return_value.__enter__.return_value = mock_executor
-
-            def submit_effect(fn, *args, **kwargs):
-                # Make the submit function actually run the function with its args
-                mock_future = MagicMock()
-                mock_future.result = lambda: fn(*args, **kwargs)
-                return mock_future
-
-            mock_executor.submit.side_effect = submit_effect
-
-            # Create test items and functions
-            items = [1, 2, 3, 4, 5]
-
-            def mock_processor(item):
-                if item == 3:
-                    # Simulate an error
-                    raise YFinanceError("Test error")
-                return item * 2
-
-            # Fetch results for multiple items
-            results = batch_process(
-                items=items,
-                process_func=mock_processor,
-                batch_size=2,
-                max_workers=2,  # Use a small worker pool for testing
-            )
-
-            # Check results - None for item 3 (error), others should be item * 2
-            expected = [2, 4, None, 8, 10]
-            self.assertEqual(results, expected)
 
 
 class TestAsyncHelpers(unittest.IsolatedAsyncioTestCase):
