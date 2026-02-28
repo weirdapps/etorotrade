@@ -170,30 +170,22 @@ class DataBoundary(IDataBoundary):
                 self._provider_initialized = True
                 logger.debug("Initialized AsyncHybridProvider")
             except ImportError:
-                try:
-                    # Fallback to sync provider
-                    from yahoofinance.api.providers.yahoo_finance import YahooFinanceProvider
-                    self._provider = YahooFinanceProvider()
-                    self._provider_initialized = True
-                    logger.debug("Initialized YahooFinanceProvider (sync)")
-                except ImportError:
-                    logger.warning("Could not import any data provider")
-                    self._provider = None
-                    self._provider_initialized = True
+                logger.warning("Could not import AsyncHybridProvider")
+                self._provider = None
+                self._provider_initialized = True
         
         return self._provider
     
     def _get_provider_sync(self):
-        """Get data provider instance synchronously."""
+        """Get data provider instance synchronously (returns async provider)."""
         if not self._provider_initialized:
             try:
-                # Try to initialize sync provider
-                from yahoofinance.api.providers.yahoo_finance import YahooFinanceProvider
-                self._provider = YahooFinanceProvider()
+                from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
+                self._provider = AsyncHybridProvider()
                 self._provider_initialized = True
-                logger.debug("Initialized YahooFinanceProvider (sync)")
+                logger.debug("Initialized AsyncHybridProvider (for sync boundary)")
             except ImportError:
-                logger.warning("Could not import sync data provider")
+                logger.warning("Could not import data provider")
                 self._provider = None
                 self._provider_initialized = True
         

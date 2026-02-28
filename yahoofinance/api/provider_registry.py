@@ -22,25 +22,22 @@ from .providers.base_provider import AsyncFinanceDataProvider, FinanceDataProvid
 # Set up logging
 logger = get_logger(__name__)
 
-# Provider type mapping
+# Provider type mapping (async-only — sync providers have been removed)
 PROVIDER_TYPES = {
     "yahoo": {
-        "sync": "yahoofinance.api.providers.yahoo_finance.YahooFinanceProvider",
         "async": "yahoofinance.api.providers.async_yahoo_finance.AsyncYahooFinanceProvider",
     },
     "yahooquery": {
-        "sync": "yahoofinance.api.providers.yahooquery_provider.YahooQueryProvider",
         "async": "yahoofinance.api.providers.async_yahooquery_provider.AsyncYahooQueryProvider",
     },
     "hybrid": {
-        "sync": "yahoofinance.api.providers.hybrid_provider.HybridProvider",
         "async": "yahoofinance.api.providers.async_hybrid_provider.AsyncHybridProvider",
     },
 }
 
 # Default provider configuration
 DEFAULT_PROVIDER_TYPE = "hybrid"
-DEFAULT_ASYNC_MODE = False
+DEFAULT_ASYNC_MODE = True
 DEFAULT_ENHANCED = False
 
 

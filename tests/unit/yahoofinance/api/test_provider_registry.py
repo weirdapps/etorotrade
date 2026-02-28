@@ -16,7 +16,6 @@ class TestProviderTypes:
         from yahoofinance.api.provider_registry import PROVIDER_TYPES
 
         assert "yahoo" in PROVIDER_TYPES
-        assert "sync" in PROVIDER_TYPES["yahoo"]
         assert "async" in PROVIDER_TYPES["yahoo"]
 
     def test_provider_types_has_yahooquery(self):
@@ -24,7 +23,6 @@ class TestProviderTypes:
         from yahoofinance.api.provider_registry import PROVIDER_TYPES
 
         assert "yahooquery" in PROVIDER_TYPES
-        assert "sync" in PROVIDER_TYPES["yahooquery"]
         assert "async" in PROVIDER_TYPES["yahooquery"]
 
     def test_provider_types_has_hybrid(self):
@@ -32,7 +30,6 @@ class TestProviderTypes:
         from yahoofinance.api.provider_registry import PROVIDER_TYPES
 
         assert "hybrid" in PROVIDER_TYPES
-        assert "sync" in PROVIDER_TYPES["hybrid"]
         assert "async" in PROVIDER_TYPES["hybrid"]
 
 
@@ -44,30 +41,6 @@ class TestGetProvider:
         from yahoofinance.api.provider_registry import get_provider
 
         provider = get_provider()
-
-        assert provider is not None
-
-    def test_get_provider_yahoo_sync(self):
-        """Get Yahoo sync provider."""
-        from yahoofinance.api.provider_registry import get_provider
-
-        provider = get_provider(provider_type="yahoo", async_mode=False, use_cache=False)
-
-        assert provider is not None
-
-    def test_get_provider_yahooquery_sync(self):
-        """Get YahooQuery sync provider."""
-        from yahoofinance.api.provider_registry import get_provider
-
-        provider = get_provider(provider_type="yahooquery", async_mode=False, use_cache=False)
-
-        assert provider is not None
-
-    def test_get_provider_hybrid_sync(self):
-        """Get Hybrid sync provider."""
-        from yahoofinance.api.provider_registry import get_provider
-
-        provider = get_provider(provider_type="hybrid", async_mode=False, use_cache=False)
 
         assert provider is not None
 
@@ -91,9 +64,17 @@ class TestGetProvider:
         """Provider type is case insensitive."""
         from yahoofinance.api.provider_registry import get_provider
 
-        provider = get_provider(provider_type="HYBRID", async_mode=False, use_cache=False)
+        provider = get_provider(provider_type="HYBRID", async_mode=True, use_cache=False)
 
         assert provider is not None
+
+    def test_get_provider_sync_raises(self):
+        """Requesting sync provider raises ValidationError since sync providers are removed."""
+        from yahoofinance.api.provider_registry import get_provider
+        from yahoofinance.core.errors import ValidationError
+
+        with pytest.raises(ValidationError, match="No sync provider available"):
+            get_provider(provider_type="hybrid", async_mode=False, use_cache=False)
 
     def test_get_provider_caching(self):
         """Provider caching works."""
@@ -120,15 +101,6 @@ class TestGetProvider:
 class TestGetAllProviders:
     """Test get_all_providers function."""
 
-    def test_get_all_providers(self):
-        """Get all providers returns dict."""
-        from yahoofinance.api.provider_registry import get_all_providers
-
-        providers = get_all_providers(async_mode=False)
-
-        assert isinstance(providers, dict)
-        assert len(providers) > 0
-
     def test_get_all_providers_async(self):
         """Get all async providers."""
         from yahoofinance.api.provider_registry import get_all_providers
@@ -136,6 +108,7 @@ class TestGetAllProviders:
         providers = get_all_providers(async_mode=True)
 
         assert isinstance(providers, dict)
+        assert len(providers) > 0
 
 
 class TestGetDefaultProvider:
@@ -198,10 +171,10 @@ class TestConstants:
         assert DEFAULT_PROVIDER_TYPE == "hybrid"
 
     def test_default_async_mode(self):
-        """Default async mode is set."""
+        """Default async mode is True (async-only)."""
         from yahoofinance.api.provider_registry import DEFAULT_ASYNC_MODE
 
-        assert DEFAULT_ASYNC_MODE is False
+        assert DEFAULT_ASYNC_MODE is True
 
     def test_default_enhanced(self):
         """Default enhanced is set."""
@@ -237,7 +210,7 @@ class TestEdgeCases:
 
         provider = get_provider(
             provider_type="hybrid",
-            async_mode=False,
+            async_mode=True,
             use_cache=False,
             max_retries=3
         )

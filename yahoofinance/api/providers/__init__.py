@@ -12,55 +12,41 @@ Importing:
 
     # Get specific provider
     async_provider = get_provider(async_api=True)
-
-    # Custom provider implementation
-    custom_provider = get_provider(provider_name="custom")
 """
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Union
 
 from .async_hybrid_provider import AsyncHybridProvider
 from .async_yahoo_finance import AsyncYahooFinanceProvider
 from .async_yahooquery_provider import AsyncYahooQueryProvider
 from .base_provider import AsyncFinanceDataProvider, FinanceDataProvider
-from .hybrid_provider import HybridProvider
-from .yahoo_finance import YahooFinanceProvider
-from .yahoo_finance_base import YahooFinanceBaseProvider
-from .yahooquery_provider import YahooQueryProvider
 
 
 __all__ = [
     "get_provider",
     "FinanceDataProvider",
     "AsyncFinanceDataProvider",
-    "YahooFinanceBaseProvider",
-    "YahooFinanceProvider",
     "AsyncYahooFinanceProvider",
-    "YahooQueryProvider",
     "AsyncYahooQueryProvider",
-    "HybridProvider",
     "AsyncHybridProvider",
 ]
 
 _PROVIDERS = {
-    "yahoo": YahooFinanceProvider,
     "yahoo_async": AsyncYahooFinanceProvider,
-    "yahooquery": YahooQueryProvider,
     "yahooquery_async": AsyncYahooQueryProvider,
-    "hybrid": HybridProvider,
     "hybrid_async": AsyncHybridProvider,
 }
 
 
 def get_provider(
-    provider_name: str = "hybrid", async_api: bool = False, **kwargs  # Updated default to hybrid
+    provider_name: str = "hybrid", async_api: bool = True, **kwargs
 ) -> Union[FinanceDataProvider, AsyncFinanceDataProvider]:
     """
     Get an instance of a finance data provider.
 
     Args:
         provider_name: Name of the provider to use (default: 'hybrid')
-        async_api: Whether to return an async provider
+        async_api: Whether to return an async provider (default: True)
         **kwargs: Additional arguments to pass to the provider constructor
 
     Returns:
@@ -69,18 +55,11 @@ def get_provider(
     Raises:
         ValueError: If an invalid provider name is provided
     """
-    if async_api:
-        # Check if there's a direct async provider first
-        if f"{provider_name}_async" in _PROVIDERS:
-            return _PROVIDERS[f"{provider_name}_async"](**kwargs)
-        # For special case of hybrid_async
-        elif provider_name == "hybrid":
-            return _PROVIDERS["hybrid_async"](**kwargs)
-        # For other cases, raise an error
-        else:
-            raise ValueError(f"Async provider '{provider_name}' not found")
+    key = f"{provider_name}_async" if async_api else provider_name
 
-    if provider_name not in _PROVIDERS:
-        raise ValueError(f"Provider '{provider_name}' not found")
+    if key not in _PROVIDERS:
+        raise ValueError(
+            f"Provider '{key}' not found. Available: {list(_PROVIDERS.keys())}"
+        )
 
-    return _PROVIDERS[provider_name](**kwargs)
+    return _PROVIDERS[key](**kwargs)

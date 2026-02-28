@@ -222,21 +222,14 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
         # Try to get earnings date if it's missing
         if merged_data.get("earnings_date") is None:
             try:
-                # Try to get earnings date directly through the YahooFinanceProvider
-                # Import here to avoid circular imports
-                from yahoofinance.api.providers.yahoo_finance import YahooFinanceProvider
-
-                yf_api = YahooFinanceProvider()
-                next_earnings, _ = yf_api.get_earnings_dates(original_ticker)
-                if next_earnings:
-                    merged_data["earnings_date"] = next_earnings
+                dates = await self.yf_provider.get_earnings_dates(original_ticker)
+                if dates:
+                    merged_data["earnings_date"] = dates[0]
                     logger.debug(
-                        f"Added earnings date for {original_ticker} via direct API: {next_earnings}"
+                        f"Added earnings date for {original_ticker} via async provider: {dates[0]}"
                     )
             except (APIError, NetworkError, ValidationError) as e:
                 logger.debug(f"API/Network error getting earnings date for {original_ticker}: {str(e)}")
-            except (ImportError, AttributeError) as e:
-                logger.debug(f"Import/Attribute error getting earnings date for {original_ticker}: {str(e)}")
             except Exception as e:
                 logger.warning(f"Unexpected error getting earnings date for {original_ticker}: {str(e)}")
 
@@ -294,25 +287,15 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
                     # Try to add earnings date if missing
                     if "earnings_date" not in result or result["earnings_date"] is None:
                         try:
-                            # Try to get earnings date directly through the YahooFinanceProvider
-                            from yahoofinance.api.providers.yahoo_finance import (
-                                YahooFinanceProvider,
-                            )
-
-                            yf_api = YahooFinanceProvider()
-                            next_earnings, _ = yf_api.get_earnings_dates(ticker)
-                            if next_earnings:
-                                result["earnings_date"] = next_earnings
+                            dates = await self.yf_provider.get_earnings_dates(ticker)
+                            if dates:
+                                result["earnings_date"] = dates[0]
                                 logger.debug(
-                                    f"Added earnings date for {ticker} in batch processing: {next_earnings}"
+                                    f"Added earnings date for {ticker} in batch processing: {dates[0]}"
                                 )
                         except (APIError, NetworkError, ValidationError) as e:
                             logger.debug(
                                 f"API/Network error getting earnings date for {ticker} in batch: {str(e)}"
-                            )
-                        except (ImportError, AttributeError) as e:
-                            logger.debug(
-                                f"Import/Attribute error getting earnings date for {ticker} in batch: {str(e)}"
                             )
                         except Exception as e:
                             logger.warning(
@@ -484,30 +467,26 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
             # Use yf_provider to get earnings dates
             dates = await self.yf_provider.get_earnings_dates(ticker)
 
-            # If the API call didn't provide earnings dates, use the synchronous YahooFinanceProvider
+            # If primary provider didn't return dates, try yahooquery fallback
             if not dates:
                 logger.debug(
-                    f"No earnings dates from async provider for {ticker}, trying direct API"
+                    f"No earnings dates from async provider for {ticker}, trying yahooquery fallback"
                 )
                 try:
-                    # Import here to avoid circular imports
-                    from yahoofinance.api.providers.yahoo_finance import YahooFinanceProvider
-
-                    yf_api = YahooFinanceProvider()
-                    next_earnings, last_earnings = yf_api.get_earnings_dates(ticker)
-
-                    # Build list of earnings dates with next_earnings first if available
-                    dates = []
-                    if next_earnings:
-                        dates.append(next_earnings)
-                    if last_earnings:
-                        dates.append(last_earnings)
-
-                    if dates:
-                        logger.debug(f"Found earnings dates from direct API for {ticker}: {dates}")
+                    yq_dates = await self.yq_provider.get_earnings_dates(ticker)
+                    if yq_dates:
+                        # yq_provider returns Tuple[Optional[str], Optional[str]]
+                        next_earnings, last_earnings = yq_dates
+                        dates = []
+                        if next_earnings:
+                            dates.append(next_earnings)
+                        if last_earnings:
+                            dates.append(last_earnings)
+                        if dates:
+                            logger.debug(f"Found earnings dates from yahooquery for {ticker}: {dates}")
                 except Exception as e:
                     logger.warning(
-                        f"Error getting earnings dates from direct API for {ticker}: {str(e)}"
+                        f"Error getting earnings dates from yahooquery for {ticker}: {str(e)}"
                     )
 
             return dates

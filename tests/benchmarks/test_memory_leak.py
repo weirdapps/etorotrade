@@ -69,17 +69,18 @@ class TestMemoryLeaks(unittest.TestCase):
     def test_data_provider_memory(self):
         """Test that data providers don't leak memory."""
         try:
-            from yahoofinance.api.providers.yahoo_finance import YahooFinanceProvider
-            
-            provider = YahooFinanceProvider()
-            
+            from yahoofinance.api.providers.async_yahoo_finance import AsyncYahooFinanceProvider
+
+            provider = AsyncYahooFinanceProvider()
+
             # Clear any cached data
-            provider.clear_cache()
-            
+            if hasattr(provider, 'clear_cache'):
+                provider.clear_cache()
+
             # Memory should be minimal
             self.assertIsNotNone(provider)
         except ImportError:
-            self.skipTest("YahooFinanceProvider not available")
+            self.skipTest("AsyncYahooFinanceProvider not available")
     
     def test_dataframe_operations_memory(self):
         """Test that DataFrame operations don't leak memory."""
