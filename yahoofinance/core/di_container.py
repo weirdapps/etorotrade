@@ -49,12 +49,6 @@ def setup_application():
         app_logger.setLevel(logging.WARNING)  # Suppress INFO messages for clean display
         registry.register_instance("app_logger", app_logger)
         
-        # Register configuration service
-        from .config_service import ConfigurationService
-        
-        config_service = ConfigurationService()
-        registry.register_instance("config_service", config_service)
-
         logger.debug("Registered core services")
     except (ImportError, KeyError, ValueError, TypeError, AttributeError) as e:
         logger.error(f"Failed to register core services: {str(e)}")
@@ -230,5 +224,4 @@ with_formatter = inject("formatter_factory")
 with_cache = inject("get_cache")
 with_rate_limiter_factory = inject("rate_limiter_factory")
 with_circuit_breaker_registry = inject("circuit_breaker_registry")
-with_config_service = inject("config_service")
 with_session_manager = inject("session_manager")
