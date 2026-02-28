@@ -18,7 +18,7 @@ from trade_modules.trade_engine import TradingEngine
 @pytest.fixture
 def project_root():
     """Get the project root directory."""
-    return Path(__file__).parent.parent.parent
+    return Path(__file__).parent.parent.parent.parent
 
 
 @pytest.fixture
