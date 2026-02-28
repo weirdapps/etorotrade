@@ -126,7 +126,7 @@ class TestLRUCache:
     def test_init_creates_cache(self):
         """Test initialization creates a cache."""
         cache = LRUCache()
-        assert cache.cache is not None
+        assert len(cache) == 0
 
     def test_get_returns_none_for_missing(self):
         """Test get returns None for missing key."""

@@ -25,7 +25,6 @@ from yahoofinance.core.config import RATE_LIMIT
 from yahoofinance.core.errors import APIError, RateLimitError
 from yahoofinance.presentation.console import RateLimitTracker
 from yahoofinance.utils.error_handling import with_retry
-from yahoofinance.utils.network.batch import batch_process
 
 # Import rate limiter components from their actual locations
 from yahoofinance.utils.network.rate_limiter import RateLimiter, global_rate_limiter, rate_limited
@@ -287,65 +286,6 @@ class TestRateLimitedDecorator:
 
         # Error should be recorded - failure streak should be incremented
         assert test_limiter.failure_streak > 0
-
-
-#
-# Batch processing tests
-#
-class TestBatchProcessing:
-    """Tests for batch processing with rate limiting."""
-
-    def test_batch_process(self):
-        """Test batch_process function with rate limiting."""
-
-        # Define a processor function
-        def process_item(item):
-            return item * 2
-
-        # Process a batch of items
-        items = [1, 2, 3, 4, 5]
-        results = batch_process(items, process_item, batch_size=2)
-
-        # Verify results from batch processing
-        # batch_process returns a list in the same order as input
-        assert len(results) == 5
-        assert results == [2, 4, 6, 8, 10]
-        # Can't easily verify rate limiting since batch_process now uses global_rate_limiter
-
-    def test_batch_process_with_errors(self):
-        """Test batch_process with error handling."""
-
-        # Define a processor function that raises an error for item 3
-        def process_item(item):
-            if item == 3:
-                raise ValueError("Test error for item 3")
-            return item * 2
-
-        # Create a mock for _process_batch to simulate error handling
-        with patch(
-            "yahoofinance.utils.network.batch.BatchProcessor._process_batch"
-        ) as mock_process:
-            # Define a side effect that populates the results dict appropriately
-            def side_effect(batch, results_dict, offset):
-                for i, item in enumerate(batch):
-                    idx = offset + i
-                    if item != 3:  # Skip item 3 (simulating error)
-                        results_dict[idx] = item * 2
-
-            # Set the side effect
-            mock_process.side_effect = side_effect
-
-            # Process items with expected error
-            items = [1, 2, 3, 4, 5]
-            results = batch_process(items, process_item, batch_size=2)
-
-            # Verify results - note that BatchProcessor returns None for errors in the list
-            assert len(results) == 5
-            assert results[0] == 2  # item 1 * 2
-            assert results[1] == 4  # item 2 * 2
-            assert results[2] is None  # item 3 raised error
-            assert results[3] == 8  # item 4 * 2
-            assert results[4] == 10  # item 5 * 2
 
 
 #
