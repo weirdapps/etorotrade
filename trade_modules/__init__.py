@@ -10,22 +10,10 @@ Modules:
 - data_processor: Data fetching, processing, and transformation
 - analysis_engine: Core trading analysis and criteria evaluation
 - output_manager: File output and report generation
-- config_interfaces: Abstract configuration interfaces for dependency injection
-- config_adapters: Concrete adapters implementing interfaces with existing configs
 """
 
 __version__ = "1.0.0"
 __author__ = "etorotrade"
-
-# Initialize dependency injection context on import
-# This enables gradual migration without breaking existing code
-try:
-    from .config_adapters import initialize_default_adapters
-    # Set up the global configuration context
-    _config_context = initialize_default_adapters()
-except ImportError:
-    # Graceful fallback if configuration modules not available
-    _config_context = None
 
 # Lazy imports to avoid circular dependencies at initialization
 # Functions will be imported on first use
@@ -133,6 +121,4 @@ __all__ = [
     "format_display_dataframe",
     "export_results_to_files",
     "OutputManager",
-    # Configuration interfaces and adapters
-    "_config_context",
 ]
