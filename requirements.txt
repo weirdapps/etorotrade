@@ -3,49 +3,22 @@ setuptools>=42.0.0
 wheel>=0.37.0
 
 # Core dependencies
-pandas>=2.0.3,<3.0.0  # Updated to accommodate yahooquery 2.3.7+ requirement
+pandas>=2.0.3,<3.0.0
 numpy>=1.20.0,<3.0.0
 matplotlib>=3.4.0,<4.0.0
-yfinance>=0.2.12,<2.0.0  # Pin to <1.0.0 for Python 3.9 compatibility (1.0+ uses Python 3.10+ type syntax)
+yfinance>=0.2.12,<2.0.0
 yahooquery>=2.3.7
 requests>=2.25.0,<3.0.0
-scipy>=1.10.0  # For optimization algorithms
+scipy>=1.10.0
 
 # Output formatting
 tabulate>=0.8.9
 tqdm>=4.60.0
 colorama>=0.4.4
 
-# Testing
-pytest>=7.0.0
-pytest-cov>=2.12.0
-pytest-asyncio>=0.18.0
-
-# Type hints
-types-requests>=2.25.0
-types-setuptools>=80.7.0
-types-PyYAML>=6.0.0
-types-tabulate>=0.9.0
-mypy>=0.910
-
 # Date handling
 python-dateutil>=2.8.0
-pytz>=2021.1  # For timezone handling
-
-# Development tools
-black>=22.3.0
-isort>=5.9.0
-flake8>=3.9.0
-
-# Web dashboard
-jinja2>=3.0.0
-flask>=2.0.0
-
-# Data storage
-sqlalchemy>=1.4.0  # For potential future database storage
-
-# FRED API for economic data
-fredapi>=0.5.0
+pytz>=2021.1
 
 # Async support
 aiohttp>=3.8.0
@@ -54,11 +27,7 @@ aiofiles>=23.1.0
 # Web scraping and automation
 selenium>=4.1.0
 python-dotenv>=0.19.0
-beautifulsoup4>=4.11.0
 certifi>=2023.7.22
-
-# Text analysis
-vaderSentiment>=3.3.2  # For sentiment analysis in news module
 
 # Monitoring and profiling
 psutil>=5.9.0
