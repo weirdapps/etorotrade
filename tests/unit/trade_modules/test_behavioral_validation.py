@@ -247,7 +247,7 @@ class TestBehavioralValidation:
         engine = TradingEngine(provider=mock_provider)
         
         # Test confidence calculation directly
-        confidence_scores = engine._calculate_confidence_score(enhanced_market_data)
+        confidence_scores = engine.analysis_service.calculate_confidence_score(enhanced_market_data)
         
         # Should return Series with same length as input
         assert isinstance(confidence_scores, pd.Series)
@@ -386,7 +386,7 @@ class TestBehavioralValidation:
         })
         
         # This should work without errors due to pd.to_numeric error handling
-        scores = engine._calculate_confidence_score(problematic_data)
+        scores = engine.analysis_service.calculate_confidence_score(problematic_data)
         
         # Should return calculated scores (starting at 0.6 baseline)
         assert all(0.5 <= score <= 0.7 for score in scores)
@@ -394,18 +394,14 @@ class TestBehavioralValidation:
         # Test actual exception handling by forcing an error
         with patch.object(engine.analysis_service, 'calculate_confidence_score') as mock_calc:
             mock_calc.side_effect = Exception("Test error")
-            
-            # Since _calculate_confidence_score is a direct reference, we need to patch it on the engine
-            with patch.object(engine, '_calculate_confidence_score') as mock_engine_calc:
-                mock_engine_calc.side_effect = Exception("Test error")
-                
-                # This should handle the exception gracefully
-                # In the actual implementation, exceptions are caught at a higher level
-                try:
-                    scores = mock_engine_calc(problematic_data)
-                except Exception:
-                    # Exception is expected here
-                    pass
+
+            # This should handle the exception gracefully
+            # In the actual implementation, exceptions are caught at a higher level
+            try:
+                scores = engine.analysis_service.calculate_confidence_score(problematic_data)
+            except Exception:
+                # Exception is expected here
+                pass
 
 
 class TestBehavioralRegression:

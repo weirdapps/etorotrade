@@ -303,7 +303,7 @@ class TestFilteringMethods:
     
     def test_filter_buy_opportunities_basic(self, trading_engine, sample_market_data_with_bs):
         """Test basic buy filtering."""
-        result = trading_engine._filter_buy_opportunities(sample_market_data_with_bs)
+        result = trading_engine.filter_service.filter_buy_opportunities(sample_market_data_with_bs)
         
         # Should only return stocks with BS == 'B'
         assert len(result) == 2
@@ -314,7 +314,7 @@ class TestFilteringMethods:
     def test_filter_buy_opportunities_no_bs_column(self, trading_engine):
         """Test buy filtering with no BS column returns empty DataFrame."""
         df_no_bs = pd.DataFrame({'symbol': ['AAPL'], 'price': [150]}).set_index('symbol')
-        result = trading_engine._filter_buy_opportunities(df_no_bs)
+        result = trading_engine.filter_service.filter_buy_opportunities(df_no_bs)
         
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 0
@@ -325,7 +325,7 @@ class TestFilteringMethods:
         df = sample_market_data_with_bs.copy()
         df['confidence_score'] = [0.8, 0.7, 0.9, 0.5, 0.65]  # GOOGL (sell) has 0.9 confidence
         
-        result = trading_engine._filter_sell_opportunities(df)
+        result = trading_engine.filter_service.filter_sell_opportunities(df)
         
         # Should return only GOOGL (BS='S' and confidence > 0.6)
         assert len(result) == 1
@@ -337,7 +337,7 @@ class TestFilteringMethods:
         df = sample_market_data_with_bs.copy()
         df['confidence_score'] = [0.8, 0.7, 0.5, 0.75, 0.65]  # GOOGL (sell) has 0.5 confidence
         
-        result = trading_engine._filter_sell_opportunities(df)
+        result = trading_engine.filter_service.filter_sell_opportunities(df)
         
         # Should return empty (GOOGL confidence <= 0.6)
         assert len(result) == 0
@@ -347,14 +347,14 @@ class TestFilteringMethods:
         df = sample_market_data_with_bs.copy()
         df['confidence_score'] = [0.8, 0.7, np.nan, 0.75, 0.65]  # GOOGL has NaN confidence
         
-        result = trading_engine._filter_sell_opportunities(df)
+        result = trading_engine.filter_service.filter_sell_opportunities(df)
         
         # Should return empty (NaN filled with 0.5, which is <= 0.6)
         assert len(result) == 0
     
     def test_filter_hold_opportunities_basic(self, trading_engine, sample_market_data_with_bs):
         """Test basic hold filtering."""
-        result = trading_engine._filter_hold_opportunities(sample_market_data_with_bs)
+        result = trading_engine.filter_service.filter_hold_opportunities(sample_market_data_with_bs)
         
         # Should only return stocks with BS == 'H'
         assert len(result) == 2
@@ -369,9 +369,9 @@ class TestPortfolioFiltering:
     def test_apply_portfolio_filters_ticker_column_variations(self, trading_engine, sample_market_data_with_bs):
         """Test portfolio filtering works with different ticker column names."""
         opportunities = {
-            'buy_opportunities': trading_engine._filter_buy_opportunities(sample_market_data_with_bs),
-            'sell_opportunities': trading_engine._filter_sell_opportunities(sample_market_data_with_bs),
-            'hold_opportunities': trading_engine._filter_hold_opportunities(sample_market_data_with_bs)
+            'buy_opportunities': trading_engine.filter_service.filter_buy_opportunities(sample_market_data_with_bs),
+            'sell_opportunities': trading_engine.filter_service.filter_sell_opportunities(sample_market_data_with_bs),
+            'hold_opportunities': trading_engine.filter_service.filter_hold_opportunities(sample_market_data_with_bs)
         }
         
         # Test different column name variations
@@ -383,7 +383,7 @@ class TestPortfolioFiltering:
                 'quantity': [100, 50]
             })
             
-            result = trading_engine._apply_portfolio_filters(opportunities, portfolio_df)
+            result = trading_engine.portfolio_service.apply_portfolio_filters(opportunities, portfolio_df)
             
             # Buy opportunities should exclude portfolio holdings
             assert 'AAPL' not in result['buy_opportunities'].index
@@ -394,13 +394,13 @@ class TestPortfolioFiltering:
     def test_apply_portfolio_filters_with_portfolio_bs_signals(self, trading_engine, sample_market_data_with_bs, sample_portfolio_with_bs):
         """Test portfolio filtering with BS signals in portfolio data."""
         opportunities = {
-            'buy_opportunities': trading_engine._filter_buy_opportunities(sample_market_data_with_bs),
-            'sell_opportunities': trading_engine._filter_sell_opportunities(sample_market_data_with_bs),
-            'hold_opportunities': trading_engine._filter_hold_opportunities(sample_market_data_with_bs)
+            'buy_opportunities': trading_engine.filter_service.filter_buy_opportunities(sample_market_data_with_bs),
+            'sell_opportunities': trading_engine.filter_service.filter_sell_opportunities(sample_market_data_with_bs),
+            'hold_opportunities': trading_engine.filter_service.filter_hold_opportunities(sample_market_data_with_bs)
         }
         
         with patch.object(trading_engine.logger, 'info') as mock_logger:
-            result = trading_engine._apply_portfolio_filters(opportunities, sample_portfolio_with_bs)
+            result = trading_engine.portfolio_service.apply_portfolio_filters(opportunities, sample_portfolio_with_bs)
         
         # Should log addition of portfolio SELL stocks
         sell_log_calls = [call for call in mock_logger.call_args_list 
@@ -415,9 +415,9 @@ class TestPortfolioFiltering:
     def test_apply_portfolio_filters_ticker_equivalence(self, trading_engine, sample_market_data_with_bs):
         """Test portfolio filtering uses ticker equivalence logic."""
         opportunities = {
-            'buy_opportunities': trading_engine._filter_buy_opportunities(sample_market_data_with_bs),
-            'sell_opportunities': trading_engine._filter_sell_opportunities(sample_market_data_with_bs),
-            'hold_opportunities': trading_engine._filter_hold_opportunities(sample_market_data_with_bs)
+            'buy_opportunities': trading_engine.filter_service.filter_buy_opportunities(sample_market_data_with_bs),
+            'sell_opportunities': trading_engine.filter_service.filter_sell_opportunities(sample_market_data_with_bs),
+            'hold_opportunities': trading_engine.filter_service.filter_hold_opportunities(sample_market_data_with_bs)
         }
         
         # Portfolio with equivalent ticker formats
@@ -429,7 +429,7 @@ class TestPortfolioFiltering:
         with patch('trade_modules.portfolio_service.are_equivalent_tickers') as mock_equiv:
             mock_equiv.side_effect = lambda t1, t2: (t1 == 'AAPL' and t2 == 'AAPL.US') or t1 == t2
             
-            result = trading_engine._apply_portfolio_filters(opportunities, portfolio_df)
+            result = trading_engine.portfolio_service.apply_portfolio_filters(opportunities, portfolio_df)
         
         # Should have called equivalence checking
         assert mock_equiv.called
@@ -440,15 +440,15 @@ class TestPortfolioFiltering:
     def test_apply_portfolio_filters_error_handling(self, trading_engine, sample_market_data_with_bs):
         """Test portfolio filtering handles invalid data gracefully."""
         opportunities = {
-            'buy_opportunities': trading_engine._filter_buy_opportunities(sample_market_data_with_bs),
-            'sell_opportunities': trading_engine._filter_sell_opportunities(sample_market_data_with_bs),
-            'hold_opportunities': trading_engine._filter_hold_opportunities(sample_market_data_with_bs)
+            'buy_opportunities': trading_engine.filter_service.filter_buy_opportunities(sample_market_data_with_bs),
+            'sell_opportunities': trading_engine.filter_service.filter_sell_opportunities(sample_market_data_with_bs),
+            'hold_opportunities': trading_engine.filter_service.filter_hold_opportunities(sample_market_data_with_bs)
         }
         
         # Invalid portfolio data (no recognized ticker column)
         invalid_portfolio = pd.DataFrame({'invalid_column': [1, 2, 3]})
         
-        result = trading_engine._apply_portfolio_filters(opportunities, invalid_portfolio)
+        result = trading_engine.portfolio_service.apply_portfolio_filters(opportunities, invalid_portfolio)
         
         # Should return original opportunities unchanged when no ticker column found
         # (No error/warning is logged - it's handled gracefully)
@@ -471,7 +471,7 @@ class TestConfidenceScoreCalculation:
             'buy_percentage': [80.0, 60.0, np.nan, 90.0]
         })
         
-        scores = trading_engine._calculate_confidence_score(df)
+        scores = trading_engine.analysis_service.calculate_confidence_score(df)
         
         # Should return Series with same length
         assert len(scores) == len(df)
@@ -495,7 +495,7 @@ class TestConfidenceScoreCalculation:
             'total_ratings': [3, 5, 10, 15]
         })
         
-        scores = trading_engine._calculate_confidence_score(df)
+        scores = trading_engine.analysis_service.calculate_confidence_score(df)
         
         # Base confidence is 0.6
         # >= 5 analysts: +0.2 (analyst_count boost)
@@ -514,7 +514,7 @@ class TestConfidenceScoreCalculation:
             'buy_percentage': [80.0, 75.0, np.nan]
         })
         
-        scores = trading_engine._calculate_confidence_score(df)
+        scores = trading_engine.analysis_service.calculate_confidence_score(df)
         
         # Missing upside should reduce confidence by 0.2
         expected_base = 0.6 + 0.2 + 0.1  # 10 analysts + total_ratings >= 5 = 0.9
@@ -531,7 +531,7 @@ class TestConfidenceScoreCalculation:
             'bad_column': [1, 2, 3]
         })
         
-        scores = trading_engine._calculate_confidence_score(df)
+        scores = trading_engine.analysis_service.calculate_confidence_score(df)
         
         # Should return valid scores (invalid/None values get coerced to NaN/0)
         assert len(scores) == len(df)
@@ -551,7 +551,7 @@ class TestConfidenceScoreCalculation:
             'EXRET': [100.0]
         })
         
-        scores = trading_engine._calculate_confidence_score(df)
+        scores = trading_engine.analysis_service.calculate_confidence_score(df)
         
         # Should be clipped to 1.0
         assert scores.iloc[0] == pytest.approx(1.0, 0.01)
@@ -565,7 +565,7 @@ class TestNotradeFiltering:
         initial_count = len(sample_market_data_with_bs)
         
         with patch.object(trading_engine.logger, 'info') as mock_logger:
-            result = trading_engine._filter_notrade_tickers(sample_market_data_with_bs, temp_notrade_file)
+            result = trading_engine.filter_service.filter_notrade_tickers(sample_market_data_with_bs, temp_notrade_file)
         
         # Should filter out AMZN and TSLA
         assert len(result) == initial_count - 2
@@ -584,7 +584,7 @@ class TestNotradeFiltering:
             # Make AAPL equivalent to AMZN for testing
             mock_equiv.side_effect = lambda t1, t2: (t1 == 'AAPL' and t2 == 'AMZN') or t1 == t2
             
-            result = trading_engine._filter_notrade_tickers(sample_market_data_with_bs, temp_notrade_file)
+            result = trading_engine.filter_service.filter_notrade_tickers(sample_market_data_with_bs, temp_notrade_file)
         
         # Should have called equivalence checking
         assert mock_equiv.called
@@ -594,7 +594,7 @@ class TestNotradeFiltering:
     
     def test_filter_notrade_tickers_missing_file(self, trading_engine, sample_market_data_with_bs):
         """Test notrade filtering with missing file returns original data."""
-        result = trading_engine._filter_notrade_tickers(sample_market_data_with_bs, 'nonexistent.csv')
+        result = trading_engine.filter_service.filter_notrade_tickers(sample_market_data_with_bs, 'nonexistent.csv')
 
         # Should return original data unchanged (missing file is silently handled)
         pd.testing.assert_frame_equal(result, sample_market_data_with_bs)
@@ -608,7 +608,7 @@ class TestNotradeFiltering:
         
         try:
             with patch.object(trading_engine.logger, 'warning') as mock_logger:
-                result = trading_engine._filter_notrade_tickers(sample_market_data_with_bs, temp_path)
+                result = trading_engine.filter_service.filter_notrade_tickers(sample_market_data_with_bs, temp_path)
             
             # Should return original data unchanged
             pd.testing.assert_frame_equal(result, sample_market_data_with_bs)
@@ -1030,7 +1030,7 @@ class TestErrorHandlingAndEdgeCases:
             'upside': [np.nan, np.nan]
         })
         
-        scores = trading_engine._calculate_confidence_score(df)
+        scores = trading_engine.analysis_service.calculate_confidence_score(df)
         
         # Should return base confidence (0.6) minus upside penalty (0.2) = 0.4
         # Since upside is NaN, it gets a penalty
