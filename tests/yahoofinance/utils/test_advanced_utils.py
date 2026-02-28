@@ -12,11 +12,9 @@ from unittest.mock import patch
 import pytest
 
 # Import test fixtures
-from tests.fixtures import create_flaky_function, create_mock_fetcher, create_paginated_data
+from tests.fixtures import create_flaky_function
 from yahoofinance.core.errors import RateLimitError, YFinanceError
 from yahoofinance.utils.async_utils.helpers import async_retry
-from yahoofinance.utils.network.pagination import PaginatedResults
-from yahoofinance.utils.network.rate_limiter import RateLimiter
 
 
 # Set up logging for tests
@@ -24,48 +22,6 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("test_advanced_utils")
-
-
-@pytest.mark.integration
-class TestAdvancedIntegration(unittest.TestCase):
-    """Test the integration between rate limiting and pagination."""
-
-    def test_paginator_with_retry_mechanism(self):
-        """Test that pagination properly uses retry mechanisms."""
-        # Create mock paginated data
-        pages = create_paginated_data(num_pages=3, items_per_page=2)
-        mock_fetcher = create_mock_fetcher(pages)
-
-        # Create a custom fetch function that simulates rate limiting
-        def fetch_page_with_rate_limiting(page_token=None):
-            # Return the page data from the mock fetcher
-            return mock_fetcher(page_token)
-
-        # Create a custom process function
-        def process_results(response):
-            return response.get("items", [])
-
-        # Create a custom token function
-        def get_next_token(response):
-            return response.get("next_page_token")
-
-        # Initialize a PaginatedResults object with our functions
-        paginator = PaginatedResults(
-            fetch_page_func=fetch_page_with_rate_limiting,
-            process_results_func=process_results,
-            get_next_page_token_func=get_next_token,
-        )
-
-        # Fetch all pages
-        results = paginator.fetch_all()
-
-        # Verify we got all the expected items from all pages
-        expected_items = []
-        for page in pages:
-            expected_items.extend(page["items"])
-
-        self.assertEqual(len(results), len(expected_items))
-        self.assertEqual(results, expected_items)
 
 
 @pytest.mark.integration

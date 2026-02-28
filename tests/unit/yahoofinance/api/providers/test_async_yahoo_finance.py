@@ -55,8 +55,7 @@ class TestAsyncYahooFinanceProvider:
 
     def test_caches_initialized(self, provider):
         """Internal caches are initialized (dict or LRUCache)."""
-        # Caches can be dict or LRUCache - both support dict-like operations
-        from yahoofinance.utils.lru_cache import LRUCache
+        from yahoofinance.data.cache_compatibility import LRUCache
         assert isinstance(provider._ticker_cache, (dict, LRUCache))
         assert isinstance(provider._ratings_cache, (dict, LRUCache))
         assert isinstance(provider._stock_cache, (dict, LRUCache))

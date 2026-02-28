@@ -44,7 +44,7 @@ from ...utils.market.ticker_utils import validate_ticker, is_stock_ticker  # Kee
 from ...utils.network.circuit_breaker import CircuitOpenError
 from .base_provider import AsyncFinanceDataProvider
 from ...utils.network.session_manager import get_shared_session
-from ...utils.lru_cache import LRUCache
+from ...data.cache_compatibility import LRUCache
 
 # Import from split modules
 from .async_modules import (
