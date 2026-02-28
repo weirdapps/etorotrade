@@ -4,7 +4,7 @@ on:
   schedule:
     # Run at 22:00 UTC on weekdays (after US market close at 21:00 UTC)
     # This is 00:00 Athens time (winter) or 01:00 Athens time (summer)
-    # Trade e takes ~4 hours, so finishes by ~02:00 UTC
+    # Trade takes ~4 hours, so finishes by ~02:00 UTC
     # Census runs at 00:00 UTC (~02:00-03:00 UTC actual)
     # Both complete well before morning briefing at 12:00 UTC (07:00 ET)
     - cron: '0 22 * * 1-5'
@@ -18,17 +18,18 @@ concurrency:
 jobs:
   generate-signals:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     permissions:
       contents: write  # Required for git push
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3 # v5.2.0
         with:
           python-version: '3.11'
           cache: 'pip'
@@ -46,31 +47,49 @@ jobs:
           ETORO_API_KEY: ${{ secrets.ETORO_API_KEY }}
           ETORO_USER_KEY: ${{ secrets.ETORO_USER_KEY }}
         run: |
-          echo "📥 Downloading portfolio from eToro..."
+          echo "Downloading portfolio from eToro..."
           python trade.py -o p -t n
-          echo "✅ Portfolio download complete"
+          echo "Portfolio download complete"
 
       - name: Run portfolio signals (trade p)
         run: |
-          echo "🔍 Running portfolio analysis..."
+          echo "Running portfolio analysis..."
           python trade.py -o p
-          echo "✅ Portfolio signals complete"
+          echo "Portfolio signals complete"
 
       - name: Run market/eToro signals (trade e)
         run: |
-          echo "🔍 Running market analysis..."
+          echo "Running market analysis..."
           python trade.py -o e
-          echo "✅ Market signals complete"
+          echo "Market signals complete"
 
       - name: Generate filtered trade files (buy/sell/hold)
         run: |
-          echo "📊 Generating BUY opportunities..."
+          echo "Generating BUY opportunities..."
           python trade.py -o t -t b
-          echo "📊 Generating SELL opportunities..."
+          echo "Generating SELL opportunities..."
           python trade.py -o t -t s
-          echo "📊 Generating HOLD opportunities..."
+          echo "Generating HOLD opportunities..."
           python trade.py -o t -t h
-          echo "✅ Trade filtering complete"
+          echo "Trade filtering complete"
+
+      - name: Health check - verify output files
+        run: |
+          echo "Verifying output files..."
+          for file in portfolio.csv etoro.csv buy.csv sell.csv hold.csv; do
+            filepath="yahoofinance/output/$file"
+            if [ ! -f "$filepath" ]; then
+              echo "ERROR: Missing output file: $filepath"
+              exit 1
+            fi
+            rows=$(wc -l < "$filepath")
+            echo "  $file: $rows lines"
+            if [ "$rows" -lt 2 ]; then
+              echo "ERROR: $filepath has fewer than 2 lines (header + data)"
+              exit 1
+            fi
+          done
+          echo "All output files verified"
 
       - name: Configure Git
         run: |
@@ -87,7 +106,7 @@ jobs:
 
           # Only commit if there are changes
           if git diff --staged --quiet; then
-            echo "⚠️  No changes to commit"
+            echo "No changes to commit"
           else
             COMMIT_DATE=$(date -u +'%Y-%m-%d %H:%M UTC')
             git commit -m "Daily signals - $COMMIT_DATE
@@ -104,11 +123,11 @@ jobs:
               echo "Attempt $i failed, retrying in 5 seconds..."
               sleep 5
             done
-            echo "✅ Portfolio and signals committed and pushed"
+            echo "Portfolio and signals committed and pushed"
           fi
 
       - name: Upload portfolio and signal outputs as artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: signals-${{ github.run_id }}
           path: |
@@ -129,7 +148,7 @@ jobs:
       issues: write  # Required for creating failure issues
     steps:
       - name: Create failure issue
-        uses: actions/github-script@v7
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -153,13 +172,13 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: existingIssue.number,
-                body: `## ⚠️ Another failure occurred\n\n**Date**: ${date}\n**Run**: ${runUrl}`
+                body: `## Another failure occurred\n\n**Date**: ${date}\n**Run**: ${runUrl}`
               });
             } else {
               await github.rest.issues.create({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                title: `🚨 Daily Signals Failed - ${date}`,
+                title: `Daily Signals Failed - ${date}`,
                 body: `## Daily Trading Signals Generation Failed\n\n**Date**: ${date}\n**Workflow Run**: ${runUrl}\n\n### Common Issues\n- Yahoo Finance API rate limiting\n- Network timeouts\n- Configuration validation failure\n\n---\n*Auto-created by signals failure alerting*`,
                 labels: ['signals-failure', 'automated', 'bug']
               });
