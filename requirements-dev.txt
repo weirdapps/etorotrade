@@ -1,0 +1,19 @@
+# Development dependencies - install with: pip install -r requirements-dev.txt
+-r requirements.txt
+
+# Testing
+pytest>=7.0.0
+pytest-cov>=2.12.0
+pytest-asyncio>=0.18.0
+
+# Type checking
+mypy>=0.910
+types-requests>=2.25.0
+types-setuptools>=80.7.0
+types-PyYAML>=6.0.0
+types-tabulate>=0.9.0
+
+# Linting and formatting
+black>=22.3.0
+isort>=5.9.0
+flake8>=3.9.0
