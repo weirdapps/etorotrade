@@ -371,10 +371,18 @@ async def generate_trade_opportunities_from_etoro(
             # Find ticker column in portfolio
             for col in ['TKR', 'TICKER', 'ticker', 'symbol', 'Symbol']:
                 if col in portfolio_df.columns:
-                    portfolio_tickers = set(portfolio_df[col].astype(str).str.upper())
+                    raw_tickers = set(portfolio_df[col].astype(str).str.upper())
+                    # Expand portfolio tickers to include all equivalent forms
+                    # (e.g., 6758.T -> also add SONY, NOVO-B.CO -> also add NVO)
+                    # This ensures dual-listed stocks are properly excluded
+                    from yahoofinance.utils.ticker_mappings import get_all_equivalent_tickers
+                    for ticker in raw_tickers:
+                        portfolio_tickers.add(ticker)
+                        equivalents = get_all_equivalent_tickers(ticker)
+                        portfolio_tickers.update(eq.upper() for eq in equivalents)
                     break
             if app_logger:
-                app_logger.info(f"Loaded {len(portfolio_tickers)} portfolio tickers for filtering")
+                app_logger.info(f"Loaded {len(portfolio_tickers)} portfolio tickers for filtering (with dual-listed equivalents)")
 
         # Filter by trade choice
         if trade_choice == "B":
