@@ -412,5 +412,89 @@ class TestErrorHandling:
         assert collector.errors[0]["context"] == "test context"
 
 
+class TestDualListedPortfolioExclusion:
+    """Test that dual-listed stocks are properly excluded from buy opportunities."""
+
+    @pytest.mark.asyncio
+    async def test_dual_listed_excluded_from_buy(self, tmp_path):
+        """Test that SONY is excluded from buy list when 6758.T is in portfolio."""
+        from trade_modules.trade_cli import generate_trade_opportunities_from_etoro
+
+        # Create etoro.csv with SONY as a BUY signal
+        etoro_data = pd.DataFrame({
+            'TKR': ['AAPL', 'SONY', 'MSFT', 'NVO', 'TCEHY'],
+            'NAME': ['Apple', 'Sony', 'Microsoft', 'Novo Nordisk', 'Tencent'],
+            'BS': ['B', 'B', 'B', 'B', 'B'],
+            'CAP': ['3T', '100B', '2T', '500B', '400B'],
+        })
+        etoro_file = str(tmp_path / "etoro.csv")
+        etoro_data.to_csv(etoro_file, index=False)
+
+        # Create portfolio.csv with original-exchange tickers (as output portfolio uses)
+        portfolio_data = pd.DataFrame({
+            'TKR': ['6758.T', 'NOVO-B.CO', '0700.HK', 'GOOG'],
+        })
+        portfolio_file = str(tmp_path / "portfolio.csv")
+        portfolio_data.to_csv(portfolio_file, index=False)
+
+        output_dir = str(tmp_path)
+        await generate_trade_opportunities_from_etoro(
+            etoro_file, portfolio_file, "B", output_dir, app_logger=None
+        )
+
+        # Read the generated buy.csv
+        buy_file = tmp_path / "buy.csv"
+        assert buy_file.exists()
+        buy_df = pd.read_csv(buy_file)
+
+        buy_tickers = set(buy_df['TKR'].tolist())
+        # SONY should be excluded (equivalent to 6758.T in portfolio)
+        assert 'SONY' not in buy_tickers, "SONY should be excluded (6758.T in portfolio)"
+        # NVO should be excluded (equivalent to NOVO-B.CO in portfolio)
+        assert 'NVO' not in buy_tickers, "NVO should be excluded (NOVO-B.CO in portfolio)"
+        # TCEHY should be excluded (equivalent to 0700.HK in portfolio)
+        assert 'TCEHY' not in buy_tickers, "TCEHY should be excluded (0700.HK in portfolio)"
+        # AAPL and MSFT should remain
+        assert 'AAPL' in buy_tickers, "AAPL should not be excluded"
+        assert 'MSFT' in buy_tickers, "MSFT should not be excluded"
+
+    @pytest.mark.asyncio
+    async def test_dual_listed_sell_includes_equivalents(self, tmp_path):
+        """Test that SELL filter includes dual-listed equivalents from portfolio."""
+        from trade_modules.trade_cli import generate_trade_opportunities_from_etoro
+
+        # Create etoro.csv with original-exchange tickers showing SELL signals
+        etoro_data = pd.DataFrame({
+            'TKR': ['SONY', 'AAPL', 'NVO'],
+            'NAME': ['Sony', 'Apple', 'Novo Nordisk'],
+            'BS': ['S', 'S', 'S'],
+            'CAP': ['100B', '3T', '500B'],
+        })
+        etoro_file = str(tmp_path / "etoro.csv")
+        etoro_data.to_csv(etoro_file, index=False)
+
+        # Portfolio has the original-exchange versions
+        portfolio_data = pd.DataFrame({
+            'TKR': ['6758.T', 'AAPL', 'NOVO-B.CO'],
+        })
+        portfolio_file = str(tmp_path / "portfolio.csv")
+        portfolio_data.to_csv(portfolio_file, index=False)
+
+        output_dir = str(tmp_path)
+        await generate_trade_opportunities_from_etoro(
+            etoro_file, portfolio_file, "S", output_dir, app_logger=None
+        )
+
+        sell_file = tmp_path / "sell.csv"
+        assert sell_file.exists()
+        sell_df = pd.read_csv(sell_file)
+
+        sell_tickers = set(sell_df['TKR'].tolist())
+        # All three should be included because their equivalents are in portfolio
+        assert 'SONY' in sell_tickers, "SONY should be included (6758.T in portfolio)"
+        assert 'AAPL' in sell_tickers, "AAPL should be included (AAPL in portfolio)"
+        assert 'NVO' in sell_tickers, "NVO should be included (NOVO-B.CO in portfolio)"
+
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])
