@@ -25,12 +25,25 @@ logger = get_logger(__name__)
 
 # Known duplicate securities (same company, different tickers)
 # Format: {ticker_to_remove: primary_ticker_to_keep}
-# Policy: Favor GOOG, BRK.B, and original listings over ADRs
+# Policy: Favor original listings over ADRs, GOOG over GOOGL, BRK.B over BRK.A
+# Note: Bidirectional — if EITHER ticker exists in the data alongside its pair, the secondary is removed
 DUPLICATE_TICKERS = {
     'GOOGL': 'GOOG',      # Alphabet Class A vs Class C (keep Class C)
-    'SAP': 'SAP.DE',      # SAP US ADR vs Frankfurt listing (keep original listing)
     'BRK.A': 'BRK.B',     # Berkshire Class A vs B (keep more liquid Class B)
-    'BABA': '9988.HK',    # Alibaba US ADR vs HK listing (keep original listing)
+    # US ADRs → keep original exchange listing
+    'BABA': '9988.HK',    # Alibaba ADR → Hong Kong
+    'NVO': 'NOVO-B.CO',   # Novo Nordisk ADR → Copenhagen
+    'SAP': 'SAP.DE',      # SAP ADR → Frankfurt
+    'SONY': '6758.T',     # Sony ADR → Tokyo
+    'TCEHY': '0700.HK',   # Tencent ADR → Hong Kong
+    'JD': '9618.HK',      # JD.com ADR → Hong Kong
+    'SHEL': 'SHEL.L',     # Shell ADR → London
+    'BYDDY': '1211.HK',   # BYD ADR → Hong Kong
+    'SNY': 'SAN.PA',      # Sanofi ADR → Paris
+    'TM': '7203.T',       # Toyota ADR → Tokyo
+    'UL': 'ULVR.L',       # Unilever ADR → London
+    'RIO': 'RIO.L',       # Rio Tinto ADR → London
+    'BHP': 'BHP.AX',      # BHP ADR → Australia
 }
 
 
