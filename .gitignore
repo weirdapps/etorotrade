@@ -188,6 +188,9 @@ yahoofinance/output/*
 !yahoofinance/output/script.js
 !yahoofinance/output/styles.css
 
+# Backtest cache
+yahoofinance/output/.backtest_price_cache.parquet
+
 # Signal logs (can get very large)
 yahoofinance/output/signal_log.jsonl
 yahoofinance/output/signal_log.jsonl.bak

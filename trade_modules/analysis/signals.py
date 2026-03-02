@@ -679,9 +679,12 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                         # Log signal
                         try:
                             from trade_modules.signal_tracker import log_signal
+                            price_raw = df.get("price", df.get("PRICE", pd.Series([None] * len(df), index=df.index)))
+                            row_price = price_raw.loc[idx] if idx in price_raw.index else None
                             log_signal(
                                 ticker=ticker,
                                 signal=actions.loc[idx],
+                                price=float(row_price) if row_price and not pd.isna(row_price) else None,
                                 upside=row_upside,
                                 buy_pct=row_buy_pct,
                                 exret=row_exret,
@@ -702,9 +705,12 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                         # Log signal
                         try:
                             from trade_modules.signal_tracker import log_signal
+                            price_raw = df.get("price", df.get("PRICE", pd.Series([None] * len(df), index=df.index)))
+                            row_price = price_raw.loc[idx] if idx in price_raw.index else None
                             log_signal(
                                 ticker=ticker,
                                 signal="S",
+                                price=float(row_price) if row_price and not pd.isna(row_price) else None,
                                 upside=row_upside,
                                 buy_pct=row_buy_pct,
                                 exret=row_exret,
@@ -765,9 +771,12 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                 # Log signal for forward validation
                 try:
                     from trade_modules.signal_tracker import log_signal
+                    price_raw = df.get("price", df.get("PRICE", pd.Series([None] * len(df), index=df.index)))
+                    row_price = price_raw.loc[idx] if idx in price_raw.index else None
                     log_signal(
                         ticker=ticker,
                         signal=actions.loc[idx],
+                        price=float(row_price) if row_price and not pd.isna(row_price) else None,
                         upside=upside.loc[idx] if idx in upside.index else None,
                         buy_pct=buy_pct.loc[idx] if idx in buy_pct.index else None,
                         exret=exret.loc[idx] if idx in exret.index else None,
