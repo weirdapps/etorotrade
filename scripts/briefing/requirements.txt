@@ -1,0 +1,6 @@
+anthropic[vertex]
+google-api-python-client
+google-auth
+google-auth-oauthlib
+yfinance
+pandas
