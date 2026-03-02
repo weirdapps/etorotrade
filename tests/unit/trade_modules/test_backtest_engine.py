@@ -5,7 +5,6 @@ Uses synthetic data only - no API calls.
 """
 
 import json
-import random
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -498,14 +497,14 @@ def merged_data():
         'tier': np.random.choice(['mega', 'large', 'mid', 'small'], n),
         'region': ['us'] * n,
         'sell_triggers': [
-            random.choice([
+            [
                 ['max_exret', 'min_buy_percentage'],
                 ['low_roe'],
                 ['hard_trigger'],
                 ['max_upside'],
                 [],
-            ])
-            for _ in range(n)
+            ][i]
+            for i in np.random.randint(0, 5, n)
         ],
     }
 
