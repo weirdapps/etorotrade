@@ -149,8 +149,8 @@ yahoofinance/output/performance.json
 # CSV outputs are tracked for morning briefing (portfolio.csv, market.csv, buy.csv, sell.csv)
 # yahoofinance/output/*.csv  # Uncomment to exclude from git
 
-# User portfolio data (now tracked - contains only ticker symbols and public position data)
-# yahoofinance/input/portfolio.csv  # Uncomment to exclude from git
+# User portfolio data (personal financial data - excluded from git)
+yahoofinance/input/portfolio.csv
 
 # Monitoring data (generated)
 yahoofinance/data/monitoring/alerts.json
