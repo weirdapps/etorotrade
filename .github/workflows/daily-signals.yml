@@ -73,6 +73,15 @@ jobs:
           python trade.py -o t -t h
           echo "Trade filtering complete"
 
+      - name: Capture signal performance (T+7 follow-up)
+        run: |
+          echo "Running signal performance capture..."
+          python -c "
+          from trade_modules.signal_performance import run_performance_capture
+          run_performance_capture()
+          "
+          echo "Signal performance capture complete"
+
       - name: Health check - verify output files
         run: |
           echo "Verifying output files..."

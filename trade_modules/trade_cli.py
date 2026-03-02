@@ -81,8 +81,8 @@ Examples:
     parser.add_argument(
         "-o",
         "--operation",
-        choices=["p", "portfolio", "m", "market", "e", "etoro", "t", "trade", "i", "input"],
-        help="Operation mode: (p)ortfolio, (m)arket, (e)toro, (t)rade analysis, (i)nput manual",
+        choices=["p", "portfolio", "m", "market", "e", "etoro", "t", "trade", "i", "input", "b", "backtest"],
+        help="Operation mode: (p)ortfolio, (m)arket, (e)toro, (t)rade analysis, (i)nput manual, (b)acktest",
     )
 
     parser.add_argument(
@@ -1018,6 +1018,14 @@ async def main_async_with_args(args, app_logger=None):
                 display, tickers, "E", verbose=True, get_provider=provider, app_logger=app_logger
             )
 
+        # Handle backtest operations
+        elif args.operation in ["b", "backtest"]:
+            if app_logger:
+                app_logger.info("Running backtest analysis")
+            from trade_modules.backtest_engine import run_backtest
+            run_backtest()
+            return
+
         # Handle manual input operations
         elif args.operation in ["i", "input"]:
             if args.target:
@@ -1085,7 +1093,7 @@ def main(app_logger=None):
         # Handle legacy single argument format (e.g., "python trade.py p")
         if not args.operation and args.legacy_args and len(args.legacy_args) == 1:
             legacy_arg = args.legacy_args[0].lower()
-            if legacy_arg in ['p', 'm', 'e', 't', 'i']:
+            if legacy_arg in ['p', 'm', 'e', 't', 'i', 'b']:
                 args.operation = legacy_arg
                 args.legacy_args = []  # Clear legacy args after processing
 
