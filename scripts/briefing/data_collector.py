@@ -5,9 +5,7 @@ import glob
 import json
 import os
 from datetime import datetime
-from pathlib import Path
 
-import pandas as pd
 import yfinance as yf
 
 
@@ -53,21 +51,18 @@ def read_sell_signals(base_dir):
     return read_signal_csv(filepath)
 
 
-def read_hold_signals(base_dir):
-    """Read hold.csv and return parsed rows."""
-    filepath = os.path.join(base_dir, 'yahoofinance/output/hold.csv')
-    return read_signal_csv(filepath)
-
-
 def summarize_portfolio(rows):
-    """Create a summary of portfolio positions."""
+    """Create a comprehensive summary of portfolio positions."""
     if not rows:
-        return {'count': 0, 'positions': [], 'buys': [], 'sells': [], 'holds': []}
+        return {'count': 0, 'positions': [], 'buys': [], 'sells': [],
+                'holds': [], 'inconclusive': [], 'avg_beta': '--',
+                'avg_w52': '--', 'avg_pp': '--'}
 
     positions = []
     buys = []
     sells = []
     holds = []
+    inconclusive = []
 
     for row in rows:
         pos = {
@@ -97,6 +92,18 @@ def summarize_portfolio(rows):
             sells.append(pos)
         elif signal == 'H':
             holds.append(pos)
+        elif signal == 'I':
+            inconclusive.append(pos)
+
+    # Compute averages
+    betas = [safe_float(p['beta']) for p in positions if safe_float(p['beta']) is not None]
+    avg_beta = f"{sum(betas)/len(betas):.2f}" if betas else '--'
+
+    w52s = [safe_float(p['w52']) for p in positions if safe_float(p['w52']) is not None]
+    avg_w52 = f"{sum(w52s)/len(w52s):.1f}" if w52s else '--'
+
+    pps = [safe_float(p['pp']) for p in positions if safe_float(p['pp']) is not None]
+    avg_pp = f"{sum(pps)/len(pps):+.2f}" if pps else '--'
 
     return {
         'count': len(positions),
@@ -104,6 +111,10 @@ def summarize_portfolio(rows):
         'buys': buys,
         'sells': sells,
         'holds': holds,
+        'inconclusive': inconclusive,
+        'avg_beta': avg_beta,
+        'avg_w52': avg_w52,
+        'avg_pp': avg_pp,
     }
 
 
@@ -124,12 +135,7 @@ def summarize_buy_opportunities(rows, limit=15):
 
 
 def read_census(census_dir):
-    """Read the latest census JSON file.
-
-    Supports two layouts:
-    - data-archive branch: census_dir/data/etoro-data-*.json
-    - local worktree:      census_dir/archive/data/etoro-data-*.json
-    """
+    """Read the latest census JSON file with full data extraction."""
     # Try data-archive branch layout first, then local worktree layout
     archive_dir = os.path.join(census_dir, 'data')
     if not os.path.isdir(archive_dir):
@@ -150,69 +156,171 @@ def read_census(census_dir):
         'metadata': data.get('metadata', {}),
     }
 
-    # Extract analyses (first entry = top 100 PIs)
     analyses = data.get('analyses', [])
-    if analyses:
-        top_analysis = analyses[0]
-        result['fear_greed'] = top_analysis.get('fearGreedIndex')
-        result['averages'] = top_analysis.get('averages', {})
-        result['distributions'] = top_analysis.get('distributions', {})
+    if not analyses:
+        return result
 
-        top_holdings = top_analysis.get('topHoldings', [])
-        result['top_holdings'] = [
+    # Top 100 analysis (analyses[0])
+    top = analyses[0]
+    result['top100'] = {
+        'investor_count': top.get('investorCount', 100),
+        'fear_greed': top.get('fearGreedIndex'),
+        'averages': top.get('averages', {}),
+        'top_holdings': [
             {
                 'symbol': h.get('symbol', ''),
                 'name': h.get('instrumentName', ''),
                 'holders_pct': h.get('holdersPercentage', 0),
                 'avg_alloc': h.get('averageAllocation', 0),
-                'mtd_return': round(h.get('monthTDReturn', 0), 2),
             }
-            for h in top_holdings[:15]
-        ]
+            for h in top.get('topHoldings', [])[:15]
+        ],
+    }
+
+    # Top investors by category from topPerformers
+    performers = top.get('topPerformers', [])
+    if performers:
+        by_copiers = sorted(performers, key=lambda x: -x.get('copiers', 0))[:3]
+        by_gain = sorted(performers, key=lambda x: -x.get('gain', 0))[:3]
+        by_trades = sorted(performers, key=lambda x: -x.get('trades', 0))[:3]
+        by_risk = sorted(performers, key=lambda x: x.get('riskScore', 10))[:3]
+
+        result['top_investors'] = {
+            'by_copiers': [
+                {'username': p['username'], 'copiers': p.get('copiers', 0),
+                 'gain': p.get('gain', 0), 'risk': p.get('riskScore', 0)}
+                for p in by_copiers
+            ],
+            'by_gain': [
+                {'username': p['username'], 'copiers': p.get('copiers', 0),
+                 'gain': p.get('gain', 0), 'risk': p.get('riskScore', 0)}
+                for p in by_gain
+            ],
+            'by_trades': [
+                {'username': p['username'], 'trades': p.get('trades', 0),
+                 'gain': p.get('gain', 0), 'risk': p.get('riskScore', 0)}
+                for p in by_trades
+            ],
+            'by_risk': [
+                {'username': p['username'], 'copiers': p.get('copiers', 0),
+                 'gain': p.get('gain', 0), 'risk': p.get('riskScore', 0)}
+                for p in by_risk
+            ],
+        }
+
+    # Broad analysis (last analysis = all investors)
+    broad = analyses[-1]
+    result['broad'] = {
+        'investor_count': broad.get('investorCount', 0),
+        'fear_greed': broad.get('fearGreedIndex'),
+        'averages': broad.get('averages', {}),
+        'top_holdings': [
+            {
+                'symbol': h.get('symbol', ''),
+                'name': h.get('instrumentName', ''),
+                'holders_pct': h.get('holdersPercentage', 0),
+                'avg_alloc': h.get('averageAllocation', 0),
+            }
+            for h in broad.get('topHoldings', [])[:10]
+        ],
+    }
+
+    # Back-compat aliases
+    result['fear_greed'] = result['top100']['fear_greed']
+    result['averages'] = result['top100']['averages']
+    result['top_holdings'] = result['top100']['top_holdings']
 
     return result
 
 
-def read_pi_feeds(census_dir, date_str=None):
-    """Read PI feeds JSON for today or a given date."""
-    feeds_dir = os.path.join(census_dir, 'analysis/output')
-    if not os.path.isdir(feeds_dir):
-        return None
+def read_pi_feeds(census_dir, pi_feeds_dir=None, date_str=None):
+    """Read PI feeds JSON from standalone file or census JSON.
 
-    if date_str:
-        filepath = os.path.join(feeds_dir, f'pi-feeds-{date_str}.json')
-    else:
+    Tries multiple paths in order:
+    1. Explicit pi_feeds_dir (for GH Actions separate checkout)
+    2. census_dir/analysis/output/ (local worktree)
+    """
+    # Build list of directories to try
+    dirs_to_try = []
+    if pi_feeds_dir:
+        dirs_to_try.append(pi_feeds_dir)
+    dirs_to_try.append(os.path.join(census_dir, 'analysis/output'))
+
+    for feeds_dir in dirs_to_try:
+        if not os.path.isdir(feeds_dir):
+            continue
+
+        if date_str:
+            # Try exact date and day before
+            for d in [date_str]:
+                filepath = os.path.join(feeds_dir, f'pi-feeds-{d}.json')
+                if os.path.exists(filepath):
+                    return _parse_pi_feeds(filepath)
+            # Try day before
+            from datetime import timedelta
+            try:
+                dt = datetime.strptime(date_str, '%Y-%m-%d')
+                prev = (dt - timedelta(days=1)).strftime('%Y-%m-%d')
+                filepath = os.path.join(feeds_dir, f'pi-feeds-{prev}.json')
+                if os.path.exists(filepath):
+                    return _parse_pi_feeds(filepath)
+            except ValueError:
+                pass
+
+        # Fall back to latest file
         files = sorted(glob.glob(os.path.join(feeds_dir, 'pi-feeds-*.json')))
-        if not files:
-            return None
-        filepath = files[-1]
+        if files:
+            return _parse_pi_feeds(files[-1])
 
-    if not os.path.exists(filepath):
-        return None
+    return None
 
+
+def _parse_pi_feeds(filepath):
+    """Parse a PI feeds JSON file into structured data."""
     with open(filepath, 'r') as f:
         data = json.load(f)
 
     result = {
+        'file': os.path.basename(filepath),
         'total_posts': data.get('totalPosts', 0),
         'total_pis': data.get('totalPIs', 0),
         'top_tickers': data.get('topTickers', [])[:10],
-        'stats': data.get('stats', {}),
     }
 
-    # Summarize by category
+    # Extract posts by category with full text
     by_category = data.get('byCategory', {})
     result['categories'] = {}
-    for cat, posts in by_category.items():
-        result['categories'][cat] = {
-            'count': len(posts),
-            'tickers_mentioned': [],
-        }
-        ticker_set = set()
-        for post in posts:
-            for t in post.get('tickers', []):
-                ticker_set.add(t)
-        result['categories'][cat]['tickers_mentioned'] = sorted(ticker_set)[:10]
+    cat_labels = {
+        'elite': 'Elite Investors (Top by Copiers)',
+        'performers': 'Top Performers',
+        'conservative': 'Conservative Investors',
+        'active': 'Most Active Traders',
+        'engaging': 'Most Engaging',
+    }
+
+    for cat_key, cat_label in cat_labels.items():
+        cat_posts = by_category.get(cat_key, [])
+        posts = []
+        for p in cat_posts[:2]:  # Top 2 per category
+            text = p.get('text', '')
+            # Truncate long posts
+            if len(text) > 300:
+                text = text[:297] + '...'
+            posts.append({
+                'author': p.get('author', ''),
+                'copiers': p.get('copiers', 0),
+                'gain': p.get('gain', 0),
+                'risk': p.get('riskScore', 0),
+                'tickers': p.get('tickers', []),
+                'text': text,
+                'created': p.get('created', ''),
+                'label': cat_label,
+            })
+        if posts:
+            result['categories'][cat_key] = {
+                'label': cat_label,
+                'posts': posts,
+            }
 
     return result
 
@@ -276,17 +384,8 @@ def fetch_market_data():
     return {'indices': indices, 'commodities': commodities}
 
 
-def collect_data(base_dir, census_dir, date_str=None):
-    """Collect all data needed for the morning briefing.
-
-    Args:
-        base_dir: Path to etorotrade repo root
-        census_dir: Path to etoro_census repo root
-        date_str: Optional date string (YYYY-MM-DD) for historical data
-
-    Returns:
-        dict with all collected data
-    """
+def collect_data(base_dir, census_dir, pi_feeds_dir=None, date_str=None):
+    """Collect all data needed for the morning briefing."""
     if date_str is None:
         date_str = datetime.utcnow().strftime('%Y-%m-%d')
 
@@ -300,7 +399,7 @@ def collect_data(base_dir, census_dir, date_str=None):
 
     # Read census
     census = read_census(census_dir)
-    pi_feeds = read_pi_feeds(census_dir, date_str)
+    pi_feeds = read_pi_feeds(census_dir, pi_feeds_dir, date_str)
 
     # Fetch live market data
     market_data = fetch_market_data()
@@ -318,16 +417,6 @@ def collect_data(base_dir, census_dir, date_str=None):
         'signals_updated': signals_mtime,
         'portfolio': portfolio_summary,
         'buy_opportunities': buy_summary,
-        'sell_signals_count': len(sell_rows),
-        'sell_top': [
-            {
-                'ticker': r.get('TKR', ''),
-                'name': r.get('NAME', ''),
-                'upside': r.get('UP%', ''),
-                'buy_pct': r.get('%B', ''),
-            }
-            for r in sell_rows[:10]
-        ],
         'census': census,
         'pi_feeds': pi_feeds,
         'market': market_data,

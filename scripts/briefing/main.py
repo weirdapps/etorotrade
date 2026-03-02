@@ -36,6 +36,10 @@ def main():
         help='Path to etoro_census repo root. Defaults to ./etoro_census'
     )
     parser.add_argument(
+        '--pi-feeds-dir', type=str, default=None,
+        help='Path to PI feeds directory (analysis/output). Defaults to census_dir.'
+    )
+    parser.add_argument(
         '--recipient', type=str, default=None,
         help='Override email recipient.'
     )
@@ -61,24 +65,37 @@ def main():
 
     date_str = args.date or datetime.utcnow().strftime('%Y-%m-%d')
 
+    # PI feeds directory
+    pi_feeds_dir = args.pi_feeds_dir
+    if pi_feeds_dir is None:
+        # In GitHub Actions, PI feeds may be in a separate checkout
+        candidate = os.path.join(base_dir, 'etoro_census_main', 'analysis', 'output')
+        if os.path.isdir(candidate):
+            pi_feeds_dir = candidate
+
     print(f"=== Morning Briefing Generator ===")
     print(f"Date: {date_str}")
     print(f"Base dir: {base_dir}")
     print(f"Census dir: {census_dir}")
+    if pi_feeds_dir:
+        print(f"PI feeds dir: {pi_feeds_dir}")
     print()
 
     # Step 1: Collect data
     print("Step 1/3: Collecting data...")
     try:
-        data = collect_data(base_dir, census_dir, date_str)
+        data = collect_data(base_dir, census_dir, pi_feeds_dir, date_str)
     except Exception as e:
         print(f"ERROR: Data collection failed: {e}", file=sys.stderr)
         sys.exit(1)
 
     print(f"  Portfolio: {data['portfolio']['count']} positions")
     print(f"  Buy opportunities: {data['buy_opportunities']['count']}")
-    print(f"  Sell signals: {data['sell_signals_count']}")
+    sells_count = len(data['portfolio'].get('sells', []))
+    print(f"  Sell signals: {sells_count}")
     print(f"  Census: {'loaded' if data['census'] else 'not available'}")
+    pi = data.get('pi_feeds')
+    print(f"  PI feeds: {pi['total_posts']} posts" if pi else "  PI feeds: not available")
     print(f"  Market data: {len(data['market'].get('indices', {}))} indices")
     print()
 
