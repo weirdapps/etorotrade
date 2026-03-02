@@ -124,8 +124,16 @@ def summarize_buy_opportunities(rows, limit=15):
 
 
 def read_census(census_dir):
-    """Read the latest census JSON file."""
-    archive_dir = os.path.join(census_dir, 'archive/data')
+    """Read the latest census JSON file.
+
+    Supports two layouts:
+    - data-archive branch: census_dir/data/etoro-data-*.json
+    - local worktree:      census_dir/archive/data/etoro-data-*.json
+    """
+    # Try data-archive branch layout first, then local worktree layout
+    archive_dir = os.path.join(census_dir, 'data')
+    if not os.path.isdir(archive_dir):
+        archive_dir = os.path.join(census_dir, 'archive/data')
     if not os.path.isdir(archive_dir):
         return None
 
