@@ -21,12 +21,20 @@ jobs:
       - name: Checkout etorotrade
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
-      - name: Checkout etoro_census (data-archive branch)
+      - name: Checkout etoro_census (data-archive branch for census)
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           repository: weirdapps/etoro_census
           ref: data-archive
           path: etoro_census
+
+      - name: Checkout etoro_census (main branch for PI feeds)
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          repository: weirdapps/etoro_census
+          ref: main
+          path: etoro_census_main
+          sparse-checkout: analysis/output
 
       - name: Set up Python 3.11
         uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3 # v5.2.0
