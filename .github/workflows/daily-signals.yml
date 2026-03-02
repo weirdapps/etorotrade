@@ -46,6 +46,7 @@ jobs:
         env:
           ETORO_API_KEY: ${{ secrets.ETORO_API_KEY }}
           ETORO_USER_KEY: ${{ secrets.ETORO_USER_KEY }}
+          ETORO_USERNAME: ${{ secrets.ETORO_USERNAME }}
         run: |
           echo "Downloading portfolio from eToro..."
           python trade.py -o p -t n
