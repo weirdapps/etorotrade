@@ -711,7 +711,9 @@ async def download_etoro_portfolio(provider=None):
     logger.info(f"Starting eToro portfolio download (run ID: {run_id})")
 
     # Get credentials from environment variables
-    username = os.getenv("ETORO_USERNAME", "plessas")
+    username = os.getenv("ETORO_USERNAME")
+    if not username:
+        raise ValueError("ETORO_USERNAME environment variable is required")
     api_key = os.getenv("ETORO_API_KEY")
     user_key = os.getenv("ETORO_USER_KEY")
 
