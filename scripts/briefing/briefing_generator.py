@@ -198,7 +198,7 @@ def generate_briefing(data):
 
     message = client.messages.create(
         model="claude-sonnet-4-6@default",
-        max_tokens=8192,
+        max_tokens=16384,
         messages=[
             {"role": "user", "content": prompt}
         ],
