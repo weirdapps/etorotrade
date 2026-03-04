@@ -4,7 +4,7 @@ on:
   schedule:
     # Run at 22:00 UTC daily (after US market close at 21:00 UTC)
     # This is 00:00 Athens time (winter) or 01:00 Athens time (summer)
-    # Trade takes ~4 hours, so finishes by ~02:00 UTC
+    # Trade takes ~4-5 hours, so finishes by ~02:00-03:00 UTC
     # Census runs at 00:00 UTC (~02:00-03:00 UTC actual)
     # Both complete well before morning briefing at 12:00 UTC (07:00 ET)
     - cron: '0 22 * * *'
@@ -18,7 +18,7 @@ concurrency:
 jobs:
   generate-signals:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 360
     permissions:
       contents: write  # Required for git push
 
