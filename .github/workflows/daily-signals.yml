@@ -86,7 +86,8 @@ jobs:
       - name: Health check - verify output files
         run: |
           echo "Verifying output files..."
-          for file in portfolio.csv etoro.csv buy.csv sell.csv hold.csv; do
+          # These files must always have header + data rows
+          for file in portfolio.csv etoro.csv; do
             filepath="yahoofinance/output/$file"
             if [ ! -f "$filepath" ]; then
               echo "ERROR: Missing output file: $filepath"
@@ -98,6 +99,16 @@ jobs:
               echo "ERROR: $filepath has fewer than 2 lines (header + data)"
               exit 1
             fi
+          done
+          # Filtered files may legitimately have only a header (e.g. no SELL signals)
+          for file in buy.csv sell.csv hold.csv; do
+            filepath="yahoofinance/output/$file"
+            if [ ! -f "$filepath" ]; then
+              echo "ERROR: Missing output file: $filepath"
+              exit 1
+            fi
+            rows=$(wc -l < "$filepath")
+            echo "  $file: $rows lines (header-only OK)"
           done
           echo "All output files verified"
 
