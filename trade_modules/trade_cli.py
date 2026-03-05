@@ -338,13 +338,11 @@ async def generate_trade_opportunities_from_etoro(
     try:
         # Load etoro data (the main analyzed market data source)
         if not os.path.exists(etoro_file):
-            if app_logger:
-                app_logger.error(f"eToro file not found: {etoro_file}")
+            print(f"  [trade-filter] ERROR: eToro file not found: {etoro_file}")
             return
 
         etoro_df = pd.read_csv(etoro_file)
-        if app_logger:
-            app_logger.info(f"Loaded eToro data: {len(etoro_df)} stocks")
+        print(f"  [trade-filter] Loaded eToro data: {len(etoro_df)} stocks")
 
         # Find the ticker and BS columns (handle different column names)
         ticker_col = None
@@ -360,14 +358,15 @@ async def generate_trade_opportunities_from_etoro(
                 break
 
         if ticker_col is None or bs_col is None:
-            if app_logger:
-                app_logger.error(f"Required columns not found. Ticker col: {ticker_col}, BS col: {bs_col}")
+            print(f"  [trade-filter] ERROR: Required columns not found. Ticker col: {ticker_col}, BS col: {bs_col}")
+            print(f"  [trade-filter] Available columns: {list(etoro_df.columns)}")
             return
 
         # Load portfolio tickers for exclusion/inclusion
         portfolio_tickers = set()
         if os.path.exists(portfolio_file):
             portfolio_df = pd.read_csv(portfolio_file)
+            print(f"  [trade-filter] Portfolio file loaded: {len(portfolio_df)} rows, columns: {list(portfolio_df.columns)[:5]}")
             # Find ticker column in portfolio
             for col in ['TKR', 'TICKER', 'ticker', 'symbol', 'Symbol']:
                 if col in portfolio_df.columns:
@@ -381,8 +380,13 @@ async def generate_trade_opportunities_from_etoro(
                         equivalents = get_all_equivalent_tickers(ticker)
                         portfolio_tickers.update(eq.upper() for eq in equivalents)
                     break
-            if app_logger:
-                app_logger.info(f"Loaded {len(portfolio_tickers)} portfolio tickers for filtering (with dual-listed equivalents)")
+            print(f"  [trade-filter] Portfolio tickers ({len(portfolio_tickers)}): {sorted(portfolio_tickers)}")
+        else:
+            print(f"  [trade-filter] WARNING: Portfolio file not found: {portfolio_file}")
+
+        # Count signals by type
+        signal_counts = etoro_df[bs_col].value_counts().to_dict()
+        print(f"  [trade-filter] Signal distribution: {signal_counts}")
 
         # Filter by trade choice
         if trade_choice == "B":
@@ -396,7 +400,12 @@ async def generate_trade_opportunities_from_etoro(
         elif trade_choice == "S":
             # SELL: Filter for S signals, only include portfolio holdings
             filtered_df = etoro_df[etoro_df[bs_col] == 'S'].copy()
+            print(f"  [trade-filter] Stocks with S signal: {len(filtered_df)}")
             if portfolio_tickers:
+                # Show which S-signal tickers match portfolio before filtering
+                s_tickers = set(filtered_df[ticker_col].str.upper())
+                matching = s_tickers & portfolio_tickers
+                print(f"  [trade-filter] S-signal tickers matching portfolio: {sorted(matching)}")
                 filtered_df = filtered_df[filtered_df[ticker_col].str.upper().isin(portfolio_tickers)]
             output_file = os.path.join(output_dir, "sell.csv")
             signal_name = "SELL"
@@ -409,21 +418,18 @@ async def generate_trade_opportunities_from_etoro(
             output_file = os.path.join(output_dir, "hold.csv")
             signal_name = "HOLD"
         else:
-            if app_logger:
-                app_logger.error(f"Invalid trade choice: {trade_choice}")
+            print(f"  [trade-filter] ERROR: Invalid trade choice: {trade_choice}")
             return
 
         # Sort by market cap descending and save
+        print(f"  [trade-filter] {signal_name} result: {len(filtered_df)} opportunities")
         if not filtered_df.empty:
             filtered_df = sort_by_market_cap_descending(filtered_df)
             filtered_df.to_csv(output_file, index=False)
-            if app_logger:
-                app_logger.info(f"Generated {len(filtered_df)} {signal_name} opportunities -> {output_file}")
         else:
             # Create empty file with header
             pd.DataFrame(columns=etoro_df.columns).to_csv(output_file, index=False)
-            if app_logger:
-                app_logger.info(f"No {signal_name} opportunities found, created empty file")
+            print(f"  [trade-filter] WARNING: No {signal_name} opportunities found, created header-only file")
 
     except Exception as e:
         if app_logger:
