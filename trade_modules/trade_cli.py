@@ -523,6 +523,32 @@ async def generate_trade_opportunities_from_market(
         raise
 
 
+def _display_empty_results(columns, title, output_filename, app_logger):
+    """Display a header-only table in console and generate header-only HTML."""
+    from yahoofinance.presentation.console_modules.table_renderer import display_empty_table
+    display_empty_table(columns, title)
+
+    try:
+        from yahoofinance.presentation.html import HTMLGenerator
+        from trade_modules.utils import get_file_paths
+
+        output_dir, _, _, _, _ = get_file_paths()
+        html_filename = output_filename.replace('.csv', '.html')
+        base_filename = os.path.splitext(html_filename)[0]
+
+        html_columns = ['ACTION' if c == 'BS' else c for c in columns]
+
+        html_generator = HTMLGenerator()
+        html_generator.generate_empty_stock_table(
+            columns=html_columns,
+            title=title,
+            output_filename=base_filename,
+        )
+    except Exception as e:
+        if app_logger:
+            app_logger.warning(f"Failed to generate HTML file: {str(e)}")
+
+
 async def display_existing_csv_data(
     data_file, exclusion_files, title, output_filename, trade_choice, app_logger
 ):
@@ -544,33 +570,7 @@ async def display_existing_csv_data(
             app_logger.info(f"Loaded {len(df)} records from {data_file}")
 
         if df.empty:
-            # Display header-only table and generate header-only HTML/CSV
-            from yahoofinance.presentation.console_modules.table_renderer import display_empty_table
-            display_empty_table(df.columns.tolist(), title)
-
-            # Generate header-only HTML
-            try:
-                from yahoofinance.presentation.html import HTMLGenerator
-                from trade_modules.utils import get_file_paths
-
-                output_dir, _, _, _, _ = get_file_paths()
-                html_filename = output_filename.replace('.csv', '.html')
-                base_filename = os.path.splitext(html_filename)[0]
-
-                df_for_html = df.copy()
-                if 'BS' in df_for_html.columns:
-                    df_for_html = df_for_html.rename(columns={'BS': 'ACTION'})
-
-                html_generator = HTMLGenerator()
-                html_generator.generate_empty_stock_table(
-                    columns=list(df_for_html.columns),
-                    title=title,
-                    output_filename=base_filename,
-                )
-            except Exception as e:
-                if app_logger:
-                    app_logger.warning(f"Failed to generate HTML file: {str(e)}")
-
+            _display_empty_results(df.columns.tolist(), title, output_filename, app_logger)
             return
 
         # Load exclusion tickers if needed
@@ -687,31 +687,7 @@ async def display_existing_csv_data(
             if app_logger:
                 app_logger.info(f"Displayed {len(all_data)} {trade_choice} opportunities")
         else:
-            # Display header-only table and generate header-only HTML
-            from yahoofinance.presentation.console_modules.table_renderer import display_empty_table
-            display_empty_table(df.columns.tolist(), title)
-
-            try:
-                from yahoofinance.presentation.html import HTMLGenerator
-                from trade_modules.utils import get_file_paths
-
-                output_dir, _, _, _, _ = get_file_paths()
-                html_filename = output_filename.replace('.csv', '.html')
-                base_filename = os.path.splitext(html_filename)[0]
-
-                df_for_html = df.copy()
-                if 'BS' in df_for_html.columns:
-                    df_for_html = df_for_html.rename(columns={'BS': 'ACTION'})
-
-                html_generator = HTMLGenerator()
-                html_generator.generate_empty_stock_table(
-                    columns=list(df_for_html.columns),
-                    title=title,
-                    output_filename=base_filename,
-                )
-            except Exception as e:
-                if app_logger:
-                    app_logger.warning(f"Failed to generate HTML file: {str(e)}")
+            _display_empty_results(df.columns.tolist(), title, output_filename, app_logger)
             if app_logger:
                 app_logger.info(f"No {trade_choice} opportunities found")
 
