@@ -583,6 +583,19 @@ def display_stock_table(stock_data: List[Dict[str, Any]], title: str = "Stock An
     display_processing_stats()
 
 
+def display_empty_table(columns: List[str], title: str = "Stock Analysis") -> None:
+    """Display a table with only headers (no data rows)."""
+    bs_col = COLUMN_NAMES['ACTION']
+    display_cols = [col for col in COMPACT_DISPLAY_COLUMNS if col in columns]
+    if len(display_cols) < 5:
+        display_cols = [col for col in ["#", "TICKER", "COMPANY", "PRICE", bs_col] if col in columns]
+
+    print(f"\n📊 {title}")
+    print("=" * len(title))
+    table = tabulate([], headers=display_cols, tablefmt="simple_grid")
+    print(table)
+
+
 def add_position_size_column(df: pd.DataFrame) -> pd.DataFrame:
     """
     Add position size column and new metrics (EG, PP) to DataFrame.

@@ -1022,6 +1022,66 @@ class HTMLGenerator:
             logger.error(f"Error generating stock table: {str(e)}")
             return None
 
+    def generate_empty_stock_table(
+        self,
+        columns: List[str],
+        title: str = "Stock Analysis",
+        output_filename: str = "stock_analysis",
+    ) -> Optional[str]:
+        """Generate an HTML table with headers only (no data rows)."""
+        try:
+            header_row = "<tr>" + "".join(
+                f'<th class="sort-header">{col}</th>' for col in columns
+            ) + "</tr>"
+
+            table_html = f"""
+            <table class="stock-table" border="0">
+                <thead>{header_row}</thead>
+                <tbody></tbody>
+            </table>
+            """
+
+            from datetime import datetime
+            footer_text = f"{title} | Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+
+            html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title}</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f5f5f7; color: #333; }}
+        .container {{ max-width: 1400px; margin: 0 auto; padding: 20px; }}
+        h1 {{ text-align: center; margin-bottom: 20px; color: #333; font-weight: 600; }}
+        .table-container {{ background-color: white; border-radius: 8px; box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1); overflow: auto; padding: 5px; }}
+        .stock-table {{ width: 100%; border-collapse: collapse; font-size: 12px; }}
+        .stock-table th {{ background-color: #f8f8f8; color: #444; font-weight: 600; padding: 12px 8px; border-bottom: 2px solid #e0e0e0; }}
+        .footer {{ text-align: center; margin-top: 20px; color: #999; font-size: 11px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>{title}</h1>
+        <div class="table-container">{table_html}</div>
+        <div class="footer">{footer_text}</div>
+    </div>
+</body>
+</html>
+"""
+            html_path = f"{self.output_dir}/{output_filename}.html"
+            with open(html_path, "w") as f:
+                f.write(html_content)
+
+            self._ensure_assets_exist()
+            logger.debug(f"Generated empty HTML table at {html_path}")
+            return html_path
+
+        except Exception as e:
+            logger.error(f"Error generating empty stock table: {str(e)}")
+            return None
+
     def _generate_footer_text(
         self, title: str, processing_stats: Optional[Dict[str, Any]] = None
     ) -> str:

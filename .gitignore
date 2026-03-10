@@ -119,6 +119,16 @@ update_logger.py
 update_root_logger.py
 profile_core_functions.py
 
+# Ad-hoc analysis scripts (session artifacts with hardcoded data)
+analyze_census.py
+fundamental_analysis.py
+fundamental_analysis_committee.py
+macro_regime_analysis.py
+opportunity_scanner.py
+opportunity_scanner_enhanced.py
+risk_manager.py
+technical_analysis.py
+
 
 # Logs
 logs/
@@ -188,8 +198,9 @@ yahoofinance/output/*
 !yahoofinance/output/script.js
 !yahoofinance/output/styles.css
 
-# Backtest cache
+# Backtest cache and output
 yahoofinance/output/.backtest_price_cache.parquet
+yahoofinance/output/backtest_*.csv
 
 # Signal logs (can get very large)
 yahoofinance/output/signal_log.jsonl
