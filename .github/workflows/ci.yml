@@ -9,6 +9,9 @@ on:
     # Run nightly at 2 AM UTC for integration tests
     - cron: '0 2 * * *'
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest

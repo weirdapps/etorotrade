@@ -15,6 +15,9 @@ concurrency:
   group: daily-signals
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   generate-signals:
     runs-on: ubuntu-latest
@@ -166,6 +169,7 @@ jobs:
     needs: generate-signals
     if: failure()
     permissions:
+      contents: read
       issues: write  # Required for creating failure issues
     steps:
       - name: Create failure issue
