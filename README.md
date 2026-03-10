@@ -137,6 +137,9 @@ python trade.py -o m
 # Trade signal generation
 python trade.py -o t -t b  # Buy signals
 python trade.py -o t -t s  # Sell signals
+
+# Backtest signal accuracy
+python trade.py -o b
 ```
 
 ### Advanced Analysis
@@ -223,6 +226,21 @@ Trading thresholds can be modified in `config.yaml`:
 - Continuous integration pipeline
 - SonarCloud quality gates
 
+## Backtesting
+
+The tool includes a forward-validation backtest engine that measures how well trading signals predict actual price movements. Since Yahoo Finance doesn't provide historical analyst recommendations, the engine uses the `signal_log.jsonl` (accumulated since January 2026) to track signals and compare them against actual returns at T+7 and T+30 trading days.
+
+```bash
+# Run backtest validation
+python trade.py -o b
+```
+
+**Output includes:**
+- Per-signal accuracy (BUY vs SELL vs HOLD performance)
+- Tier and region breakdowns
+- Comparison against SPY benchmark
+- Results exported to `yahoofinance/output/backtest_*.csv`
+
 ## ETF Analysis
 
 The tool provides transparency into ETF holdings:
@@ -290,6 +308,6 @@ For issues or questions, please use the [GitHub issue tracker](https://github.co
 
 ---
 
-*Last Updated: February 2026*
+*Last Updated: March 2026*
 
 **Disclaimer**: This tool is designed for quantitative analysis and research purposes only. It does not constitute investment advice. Users should conduct their own due diligence and consider consulting with qualified financial advisors before making investment decisions. Past performance does not guarantee future results.
