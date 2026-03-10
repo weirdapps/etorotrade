@@ -13,6 +13,10 @@ etorotrade/
 │   ├── trade_config.py          # 5-tier configuration system
 │   ├── yaml_config_loader.py    # YAML config management
 │   ├── data_processing_service.py # Ticker batch processing
+│   ├── backtest_engine.py       # Forward validation of signals
+│   ├── signal_tracker.py        # Signal logging to JSONL
+│   ├── signal_validator.py      # Signal validation logic
+│   ├── signal_performance.py    # Performance measurement
 │   └── boundaries/              # Clean architecture interfaces
 │
 ├── yahoofinance/               # Data & Analysis Layer
