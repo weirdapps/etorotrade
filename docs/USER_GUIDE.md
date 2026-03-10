@@ -203,6 +203,14 @@ python trade.py -o t -t s
 python trade.py -o t -t h
 ```
 
+### Backtest Signal Accuracy
+```bash
+# Validate historical signal performance
+python trade.py -o b
+```
+
+This runs forward-validation of past trading signals, measuring actual price changes at T+7 and T+30 trading days. Results are broken down by signal type, tier, and region, with SPY benchmark comparison.
+
 ### Individual Stock Analysis
 ```bash
 # Analyze specific tickers
