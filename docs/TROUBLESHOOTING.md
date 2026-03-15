@@ -191,7 +191,7 @@ Yahoo Finance limits API requests to prevent abuse:
    - Exponential backoff on errors
 
 2. **Caching:**
-   - 48-hour cache for market data
+   - 4-hour cache for non-price data (prices always fresh)
    - Reduces redundant API calls by ~80%
 
 ### If you still hit limits:
@@ -364,7 +364,7 @@ This package requires Python 3.9+
 1. **First run is always slower:**
    - No cached data yet
    - API calls for all tickers
-   - Subsequent runs use 48-hour cache
+   - Subsequent runs use 4-hour cache
 
 2. **Network speed:**
    - Slow connection affects API calls

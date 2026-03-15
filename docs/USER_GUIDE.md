@@ -78,7 +78,7 @@ python trade.py -o p
 - 20 stocks: ~20 seconds
 - 50 stocks: ~1 minute
 
-**First run is slower** (no cache). Subsequent runs within 48 hours use cached data.
+**First run is slower** (no cache). Subsequent runs within 4 hours use cached data.
 
 ### 3. View Results
 

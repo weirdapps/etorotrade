@@ -92,8 +92,8 @@ The eToro integration simply provides a convenient CSV format for portfolio impo
   - Check for SELL signals before entering
 
 **Cache considerations:**
-- Tool uses 48-hour cache
-- Fresh analyst data available after 48 hours
+- Tool uses 4-hour cache for non-price data (prices always fresh)
+- Fresh analyst data available after cache expires
 - Run too frequently = same results
 
 ### Can I use this for day trading?
@@ -131,7 +131,7 @@ It is NOT designed for:
 **Data quality:**
 - Real-time market prices
 - Analyst consensus updated regularly
-- 48-hour cache to reduce API load
+- 4-hour cache for non-price data to reduce API load
 
 ### How is the BUY/SELL signal calculated?
 
@@ -254,12 +254,12 @@ git checkout config.yaml
 
 **Factors affecting speed:**
 - Network connection speed
-- First run vs cached run (48hr cache)
+- First run vs cached run (4-hour cache)
 - Yahoo Finance API response time
 - Number of concurrent requests (max 15)
 
 **Speeding up analysis:**
-- Run analysis once, review cached data within 48 hours
+- Run analysis once, review cached data within 4 hours
 - Analyze in smaller batches
 - Use faster internet connection
 

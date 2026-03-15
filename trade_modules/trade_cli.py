@@ -81,8 +81,8 @@ Examples:
     parser.add_argument(
         "-o",
         "--operation",
-        choices=["p", "portfolio", "m", "market", "e", "etoro", "t", "trade", "i", "input", "b", "backtest"],
-        help="Operation mode: (p)ortfolio, (m)arket, (e)toro, (t)rade analysis, (i)nput manual, (b)acktest",
+        choices=["p", "portfolio", "m", "market", "e", "etoro", "t", "trade", "i", "input", "b", "backtest", "sc", "scorecard"],
+        help="Operation mode: (p)ortfolio, (m)arket, (e)toro, (t)rade analysis, (i)nput manual, (b)acktest, (sc)orecard",
     )
 
     parser.add_argument(
@@ -1051,6 +1051,14 @@ async def main_async_with_args(args, app_logger=None):
                 app_logger.info("Running backtest analysis")
             from trade_modules.backtest_engine import run_backtest
             run_backtest()
+            return
+
+        # Handle scorecard operations
+        elif args.operation in ["sc", "scorecard"]:
+            if app_logger:
+                app_logger.info("Running signal scorecard")
+            from trade_modules.signal_scorecard import run_scorecard
+            run_scorecard()
             return
 
         # Handle manual input operations

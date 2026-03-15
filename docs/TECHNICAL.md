@@ -359,7 +359,7 @@ for market_ticker in market_df['ticker']:
 - Process tickers in batches of 25
 - Max 15 concurrent API requests
 - Progress bars with ETA for long operations
-- Cache with 48-hour TTL
+- Cache with 4-hour TTL (non-price data; prices always fresh)
 
 ## 🐛 Common Issues & Solutions
 
@@ -505,7 +505,9 @@ AsyncHybridProvider (primary)
 - **Delisted stocks**: Return empty/error responses
 
 ### Cache Strategy
-- 48-hour TTL for market data
+- 4-hour TTL for non-price data (analyst counts, targets, fundamentals)
+- Prices are never cached (always fetched fresh)
+- Note: Consider reducing TTL during earnings season for reporting stocks
 - Unified cache service via `trade_modules/cache_service.py`
 - Backward compatibility via `yahoofinance/data/cache_compatibility.py`
 - In-memory caching with TTL support
