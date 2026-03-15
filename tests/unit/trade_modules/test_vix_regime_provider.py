@@ -1,10 +1,15 @@
-"""Tests for VIX regime provider with comprehensive threshold adjustments."""
+"""Tests for VIX regime provider.
+
+CIO Review v2: Threshold adjustments neutralized. Signal criteria held constant;
+risk is managed through position sizing only. All multipliers are 1.0, all offsets are 0.
+"""
 
 import pytest
 from unittest.mock import patch
 from trade_modules.vix_regime_provider import (
     VixRegime,
     REGIME_ADJUSTMENTS,
+    REGIME_POSITION_MULTIPLIERS,
     adjust_buy_criteria,
     adjust_sell_criteria,
     get_adjusted_thresholds,
@@ -44,37 +49,24 @@ class TestRegimeAdjustments:
         assert adj["max_pct_52w_buy_multiplier"] == 1.0
         assert adj["max_pe_multiplier"] == 1.0
 
-    def test_low_vix_tightens_buy(self):
-        """Low VIX (risk-on) should make BUY criteria stricter."""
-        adj = REGIME_ADJUSTMENTS[VixRegime.LOW]
-        # Higher multiplier = require more upside
-        assert adj["min_upside_multiplier"] > 1.0
-        assert adj["min_buy_pct_multiplier"] >= 1.0
-        assert adj["min_exret_multiplier"] > 1.0
-        # Tighter PE caps
-        assert adj["max_pe_multiplier"] < 1.0
+    def test_all_regimes_are_neutral(self):
+        """CIO v2: All regimes should be neutral (no threshold adjustments)."""
+        for regime in VixRegime:
+            adj = REGIME_ADJUSTMENTS[regime]
+            assert adj["min_upside_multiplier"] == 1.0, f"{regime.value} upside not neutral"
+            assert adj["min_buy_pct_multiplier"] == 1.0, f"{regime.value} buy_pct not neutral"
+            assert adj["min_exret_multiplier"] == 1.0, f"{regime.value} exret not neutral"
+            assert adj["min_analysts_offset"] == 0, f"{regime.value} analysts not neutral"
+            assert adj["max_upside_sell_offset"] == 0.0, f"{regime.value} sell offset not neutral"
+            assert adj["max_pct_52w_buy_multiplier"] == 1.0, f"{regime.value} 52w not neutral"
+            assert adj["max_pe_multiplier"] == 1.0, f"{regime.value} PE not neutral"
 
-    def test_high_vix_loosens_buy(self):
-        """High VIX (risk-off) should make BUY criteria more forgiving."""
-        adj = REGIME_ADJUSTMENTS[VixRegime.HIGH]
-        # Lower multiplier = require less upside
-        assert adj["min_upside_multiplier"] < 1.0
-        assert adj["min_buy_pct_multiplier"] < 1.0
-        assert adj["min_exret_multiplier"] < 1.0
-        # Looser PE caps
-        assert adj["max_pe_multiplier"] > 1.0
-        # Less aggressive sells
-        assert adj["max_upside_sell_offset"] > 0
-
-    def test_elevated_is_between_normal_and_high(self):
-        """Elevated should be moderate risk-off adjustments."""
-        normal = REGIME_ADJUSTMENTS[VixRegime.NORMAL]
-        elevated = REGIME_ADJUSTMENTS[VixRegime.ELEVATED]
-        high = REGIME_ADJUSTMENTS[VixRegime.HIGH]
-
-        # Elevated should be between normal and high for sell offset
-        assert normal["max_upside_sell_offset"] < elevated["max_upside_sell_offset"]
-        assert elevated["max_upside_sell_offset"] < high["max_upside_sell_offset"]
+    def test_position_sizing_still_varies_by_regime(self):
+        """CIO v2: Position sizing multipliers should still vary by regime."""
+        assert REGIME_POSITION_MULTIPLIERS[VixRegime.LOW] == 1.00
+        assert REGIME_POSITION_MULTIPLIERS[VixRegime.NORMAL] == 1.00
+        assert REGIME_POSITION_MULTIPLIERS[VixRegime.ELEVATED] == 0.75
+        assert REGIME_POSITION_MULTIPLIERS[VixRegime.HIGH] == 0.50
 
 
 class TestAdjustBuyCriteria:
@@ -91,31 +83,17 @@ class TestAdjustBuyCriteria:
     }
 
     @patch("trade_modules.vix_regime_provider.get_regime_adjustments")
-    def test_normal_regime_no_change(self, mock_adj):
-        mock_adj.return_value = REGIME_ADJUSTMENTS[VixRegime.NORMAL].copy()
-        result = adjust_buy_criteria(self.SAMPLE_BUY_CONFIG)
-        assert result["min_upside"] == 10
-        assert result["min_buy_percentage"] == 75
-        assert result["min_exret"] == 6
-        assert result["min_analysts"] == 8
-
-    @patch("trade_modules.vix_regime_provider.get_regime_adjustments")
-    def test_high_vix_loosens_thresholds(self, mock_adj):
-        mock_adj.return_value = REGIME_ADJUSTMENTS[VixRegime.HIGH].copy()
-        result = adjust_buy_criteria(self.SAMPLE_BUY_CONFIG)
-        # Should be lower than original (more forgiving)
-        assert result["min_upside"] < 10
-        assert result["min_buy_percentage"] < 75
-        assert result["min_exret"] < 6
-        assert result["min_analysts"] == 7  # -1 offset, min 4
-
-    @patch("trade_modules.vix_regime_provider.get_regime_adjustments")
-    def test_low_vix_tightens_thresholds(self, mock_adj):
-        mock_adj.return_value = REGIME_ADJUSTMENTS[VixRegime.LOW].copy()
-        result = adjust_buy_criteria(self.SAMPLE_BUY_CONFIG)
-        assert result["min_upside"] > 10
-        assert result["max_forward_pe"] < 60
-        assert result["max_trailing_pe"] < 90
+    def test_all_regimes_no_change(self, mock_adj):
+        """CIO v2: All regimes should produce no threshold changes."""
+        for regime in VixRegime:
+            mock_adj.return_value = REGIME_ADJUSTMENTS[regime].copy()
+            result = adjust_buy_criteria(self.SAMPLE_BUY_CONFIG)
+            assert result["min_upside"] == 10
+            assert result["min_buy_percentage"] == 75
+            assert result["min_exret"] == 6
+            assert result["min_analysts"] == 8
+            assert result["max_forward_pe"] == 60
+            assert result["max_trailing_pe"] == 90
 
     def test_no_adjustment_when_disabled(self):
         result = adjust_buy_criteria(self.SAMPLE_BUY_CONFIG, apply_adjustments=False)
@@ -125,7 +103,7 @@ class TestAdjustBuyCriteria:
     def test_min_analysts_floor(self, mock_adj):
         """min_analysts should never go below 4."""
         mock_adj.return_value = REGIME_ADJUSTMENTS[VixRegime.HIGH].copy()
-        config = {"min_analysts": 4}  # Already at minimum
+        config = {"min_analysts": 4}
         result = adjust_buy_criteria(config)
         assert result["min_analysts"] >= 4
 
@@ -147,12 +125,13 @@ class TestAdjustSellCriteria:
     }
 
     @patch("trade_modules.vix_regime_provider.get_regime_adjustments")
-    def test_high_vix_relaxes_sells(self, mock_adj):
-        mock_adj.return_value = REGIME_ADJUSTMENTS[VixRegime.HIGH].copy()
-        result = adjust_sell_criteria(self.SAMPLE_SELL_CONFIG)
-        # Should add buffer to sell triggers (harder to trigger sell)
-        assert result["max_upside"] > 0
-        assert result["max_exret"] > 2
+    def test_all_regimes_no_change(self, mock_adj):
+        """CIO v2: All regimes should produce no sell threshold changes."""
+        for regime in VixRegime:
+            mock_adj.return_value = REGIME_ADJUSTMENTS[regime].copy()
+            result = adjust_sell_criteria(self.SAMPLE_SELL_CONFIG)
+            assert result["max_upside"] == 0
+            assert result["max_exret"] == 2
 
 
 class TestGetAdjustedThresholds:
