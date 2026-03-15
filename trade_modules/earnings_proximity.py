@@ -9,7 +9,7 @@ CIO Review Finding M4: No earnings proximity adjustment in signal engine.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 import threading
 
@@ -122,8 +122,11 @@ def check_earnings_proximity(ticker: str) -> Dict[str, Any]:
         }
 
     now = datetime.now()
+    # Handle date vs datetime — yfinance may return either
+    if isinstance(earnings_date, date) and not isinstance(earnings_date, datetime):
+        earnings_date = datetime(earnings_date.year, earnings_date.month, earnings_date.day)
     # Handle timezone-aware dates
-    if earnings_date.tzinfo is not None:
+    if hasattr(earnings_date, 'tzinfo') and earnings_date.tzinfo is not None:
         from datetime import timezone
         now = now.replace(tzinfo=timezone.utc)
 

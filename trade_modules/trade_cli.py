@@ -1125,12 +1125,16 @@ def main(app_logger=None):
 
     # Handle command line arguments if provided
     if args.operation or args.legacy_args:
-        # Handle legacy single argument format (e.g., "python trade.py p")
-        if not args.operation and args.legacy_args and len(args.legacy_args) == 1:
+        # Handle legacy argument formats (e.g., "python trade.py p" or "python trade.py p n")
+        if not args.operation and args.legacy_args:
             legacy_arg = args.legacy_args[0].lower()
-            if legacy_arg in ['p', 'm', 'e', 't', 'i', 'b']:
+            if legacy_arg in ['p', 'm', 'e', 't', 'i', 'b', 'sc']:
                 args.operation = legacy_arg
-                args.legacy_args = []  # Clear legacy args after processing
+                if len(args.legacy_args) >= 2 and not args.target:
+                    args.target = args.legacy_args[1]
+                    args.legacy_args = args.legacy_args[2:]
+                else:
+                    args.legacy_args = args.legacy_args[1:]
 
         if app_logger:
             app_logger.info(
