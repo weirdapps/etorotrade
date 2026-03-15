@@ -10,6 +10,7 @@ Tests cover:
 - High correlation pair identification
 """
 
+import numpy as np
 import pandas as pd
 import pytest
 from unittest.mock import MagicMock, patch
@@ -359,3 +360,318 @@ class TestCorrelationMatrixIntegration:
         analyzer = PortfolioRiskAnalyzer()
         corr_matrix = analyzer.calculate_correlation_matrix([])
         assert corr_matrix.empty
+
+
+class TestEffectiveConcentration:
+    """Tests for effective concentration calculation."""
+
+    @patch("trade_modules.portfolio_risk.PortfolioRiskAnalyzer.calculate_correlation_matrix")
+    def test_effective_concentration_uncorrelated(self, mock_corr):
+        """Test effective concentration with uncorrelated stocks."""
+        # Identity matrix = completely uncorrelated
+        mock_corr.return_value = pd.DataFrame(
+            np.eye(4),
+            index=["A", "B", "C", "D"],
+            columns=["A", "B", "C", "D"],
+        )
+        analyzer = PortfolioRiskAnalyzer()
+        result = analyzer.calculate_effective_concentration(["A", "B", "C", "D"])
+
+        # With zero off-diagonal correlations, effective = n^2/n = n
+        assert result["effective_positions"] == 4.0
+        assert result["diversification_ratio"] == 1.0
+
+    @patch("trade_modules.portfolio_risk.PortfolioRiskAnalyzer.calculate_correlation_matrix")
+    def test_effective_concentration_perfectly_correlated(self, mock_corr):
+        """Test effective concentration with perfectly correlated stocks."""
+        # All correlations = 1.0
+        mock_corr.return_value = pd.DataFrame(
+            np.ones((3, 3)),
+            index=["A", "B", "C"],
+            columns=["A", "B", "C"],
+        )
+        analyzer = PortfolioRiskAnalyzer()
+        result = analyzer.calculate_effective_concentration(["A", "B", "C"])
+
+        # n^2 / (n*n) = 1.0 effective position
+        assert result["effective_positions"] == 1.0
+        assert result["diversification_ratio"] == round(1.0 / 3, 2)
+
+    def test_effective_concentration_single_stock(self):
+        """Test with single stock - no correlation possible."""
+        analyzer = PortfolioRiskAnalyzer()
+        result = analyzer.calculate_effective_concentration(["AAPL"])
+
+        assert result["effective_positions"] == 1
+        assert result["diversification_ratio"] == 1.0
+
+    def test_effective_concentration_empty(self):
+        """Test with empty list."""
+        analyzer = PortfolioRiskAnalyzer()
+        result = analyzer.calculate_effective_concentration([])
+
+        assert result["effective_positions"] == 0
+        assert result["diversification_ratio"] == 1.0
+
+    @patch("trade_modules.portfolio_risk.PortfolioRiskAnalyzer.calculate_correlation_matrix")
+    def test_effective_concentration_no_data(self, mock_corr):
+        """Test when correlation matrix cannot be computed."""
+        mock_corr.return_value = pd.DataFrame()
+        analyzer = PortfolioRiskAnalyzer()
+        result = analyzer.calculate_effective_concentration(["A", "B"])
+
+        # Falls back to n positions
+        assert result["effective_positions"] == 2
+        assert result["diversification_ratio"] == 1.0
+
+
+class TestCorrelationClusters:
+    """Tests for correlation cluster detection."""
+
+    def test_flag_clusters_with_correlated_group(self):
+        """Test detecting a cluster of 3+ correlated stocks."""
+        analyzer = PortfolioRiskAnalyzer()
+        corr_matrix = pd.DataFrame(
+            {
+                "A": [1.00, 0.85, 0.80, 0.20],
+                "B": [0.85, 1.00, 0.90, 0.15],
+                "C": [0.80, 0.90, 1.00, 0.10],
+                "D": [0.20, 0.15, 0.10, 1.00],
+            },
+            index=["A", "B", "C", "D"],
+        )
+
+        clusters = analyzer.flag_correlation_clusters(corr_matrix, min_cluster_size=3, threshold=0.75)
+        assert len(clusters) == 1
+        assert set(clusters[0]["tickers"]) == {"A", "B", "C"}
+        assert clusters[0]["avg_correlation"] > 0.80
+
+    def test_flag_clusters_no_cluster(self):
+        """Test when no cluster exists."""
+        analyzer = PortfolioRiskAnalyzer()
+        corr_matrix = pd.DataFrame(
+            {
+                "A": [1.00, 0.30, 0.20],
+                "B": [0.30, 1.00, 0.25],
+                "C": [0.20, 0.25, 1.00],
+            },
+            index=["A", "B", "C"],
+        )
+
+        clusters = analyzer.flag_correlation_clusters(corr_matrix, min_cluster_size=3, threshold=0.75)
+        assert len(clusters) == 0
+
+    def test_flag_clusters_empty_matrix(self):
+        """Test with empty correlation matrix."""
+        analyzer = PortfolioRiskAnalyzer()
+        clusters = analyzer.flag_correlation_clusters(pd.DataFrame())
+        assert clusters == []
+
+    def test_flag_clusters_too_few_stocks(self):
+        """Test with fewer stocks than min_cluster_size."""
+        analyzer = PortfolioRiskAnalyzer()
+        corr_matrix = pd.DataFrame(
+            {"A": [1.0, 0.9], "B": [0.9, 1.0]},
+            index=["A", "B"],
+        )
+
+        clusters = analyzer.flag_correlation_clusters(corr_matrix, min_cluster_size=3)
+        assert len(clusters) == 0
+
+    def test_flag_clusters_combined_weight_warning(self):
+        """Test that cluster warning message is generated."""
+        analyzer = PortfolioRiskAnalyzer()
+        corr_matrix = pd.DataFrame(
+            {
+                "X": [1.00, 0.80, 0.85],
+                "Y": [0.80, 1.00, 0.78],
+                "Z": [0.85, 0.78, 1.00],
+            },
+            index=["X", "Y", "Z"],
+        )
+
+        clusters = analyzer.flag_correlation_clusters(corr_matrix, min_cluster_size=3, threshold=0.75)
+        assert len(clusters) == 1
+        assert "3 stocks acting as ~1 position" in clusters[0]["combined_weight_warning"]
+
+
+class TestDrawdownAlerts:
+    """Tests for drawdown alert functionality."""
+
+    def test_check_drawdowns_critical(self):
+        """Test CRITICAL drawdown detection."""
+        analyzer = PortfolioRiskAnalyzer()
+        df = pd.DataFrame({
+            "TKR": ["AAPL"],
+            "52W": [40],  # 60% drawdown from 52W high
+            "CAP": ["3.5T"],  # MEGA tier, expected vol 15%
+        })
+
+        alerts = analyzer.check_drawdowns(df)
+        assert len(alerts) == 1
+        assert alerts[0]["severity"] == "CRITICAL"
+        assert alerts[0]["ticker"] == "AAPL"
+        assert alerts[0]["drawdown_pct"] == 60.0
+
+    def test_check_drawdowns_warning(self):
+        """Test WARNING drawdown detection."""
+        analyzer = PortfolioRiskAnalyzer()
+        # MID tier expected vol = 25%, WARNING = >1.5x = >37.5%, CRITICAL = >50%
+        df = pd.DataFrame({
+            "TKR": ["SNAP"],
+            "52W": [58],  # 42% drawdown
+            "CAP": ["20B"],  # MID tier
+        })
+
+        alerts = analyzer.check_drawdowns(df)
+        assert len(alerts) == 1
+        assert alerts[0]["severity"] == "WARNING"
+
+    def test_check_drawdowns_watch(self):
+        """Test WATCH drawdown detection."""
+        analyzer = PortfolioRiskAnalyzer()
+        # MEGA tier expected vol = 15%, WATCH = >15%, WARNING = >22.5%
+        df = pd.DataFrame({
+            "TKR": ["MSFT"],
+            "52W": [78],  # 22% drawdown
+            "CAP": ["3T"],  # MEGA
+        })
+
+        alerts = analyzer.check_drawdowns(df)
+        assert len(alerts) == 1
+        assert alerts[0]["severity"] == "WATCH"
+
+    def test_check_drawdowns_within_normal(self):
+        """Test no alert when drawdown within normal range."""
+        analyzer = PortfolioRiskAnalyzer()
+        df = pd.DataFrame({
+            "TKR": ["AAPL"],
+            "52W": [92],  # 8% drawdown, within MEGA 15% expected vol
+            "CAP": ["3.5T"],
+        })
+
+        alerts = analyzer.check_drawdowns(df)
+        assert len(alerts) == 0
+
+    def test_check_drawdowns_at_high(self):
+        """Test no alert at 52-week high."""
+        analyzer = PortfolioRiskAnalyzer()
+        df = pd.DataFrame({
+            "TKR": ["AAPL"],
+            "52W": [100],
+            "CAP": ["3.5T"],
+        })
+
+        alerts = analyzer.check_drawdowns(df)
+        assert len(alerts) == 0
+
+    def test_check_drawdowns_empty_df(self):
+        """Test with empty DataFrame."""
+        analyzer = PortfolioRiskAnalyzer()
+        alerts = analyzer.check_drawdowns(pd.DataFrame())
+        assert alerts == []
+
+    def test_check_drawdowns_no_52w_column(self):
+        """Test when 52W column is missing."""
+        analyzer = PortfolioRiskAnalyzer()
+        df = pd.DataFrame({"TKR": ["AAPL"], "CAP": ["3.5T"]})
+
+        alerts = analyzer.check_drawdowns(df)
+        assert alerts == []
+
+    def test_check_drawdowns_sorted_by_severity(self):
+        """Test that alerts are sorted by severity."""
+        analyzer = PortfolioRiskAnalyzer()
+        df = pd.DataFrame({
+            "TKR": ["WATCH_STOCK", "CRITICAL_STOCK", "WARNING_STOCK"],
+            "52W": [78, 40, 58],
+            "CAP": ["3T", "3T", "20B"],
+        })
+
+        alerts = analyzer.check_drawdowns(df)
+        assert len(alerts) == 3
+        assert alerts[0]["severity"] == "CRITICAL"
+        assert alerts[1]["severity"] == "WARNING"
+        assert alerts[2]["severity"] == "WATCH"
+
+    def test_check_drawdowns_with_tier_column(self):
+        """Test drawdowns using explicit tier column."""
+        analyzer = PortfolioRiskAnalyzer()
+        df = pd.DataFrame({
+            "TKR": ["AAPL"],
+            "52W": [40],
+            "tier": ["MEGA"],
+        })
+
+        alerts = analyzer.check_drawdowns(df, tier_col="tier")
+        assert len(alerts) == 1
+        assert alerts[0]["tier"] == "MEGA"
+
+
+class TestFormatRiskReportExtended:
+    """Tests for extended risk report formatting."""
+
+    def test_format_effective_concentration(self):
+        """Test formatting of effective concentration section."""
+        analyzer = PortfolioRiskAnalyzer()
+        summary = {
+            "portfolio_beta": None,
+            "concentration_warnings": [],
+            "high_correlation_pairs": [],
+            "effective_concentration": {
+                "effective_positions": 8.5,
+                "diversification_ratio": 0.85,
+            },
+            "correlation_clusters": [],
+            "drawdown_alerts": [],
+        }
+
+        report = analyzer.format_risk_report(summary)
+        report_text = "\n".join(report)
+        assert "Effective Independent Positions: 8.5" in report_text
+        assert "85%" in report_text
+
+    def test_format_correlation_clusters(self):
+        """Test formatting of correlation clusters."""
+        analyzer = PortfolioRiskAnalyzer()
+        summary = {
+            "portfolio_beta": None,
+            "concentration_warnings": [],
+            "high_correlation_pairs": [],
+            "effective_concentration": None,
+            "correlation_clusters": [{
+                "tickers": ["AAPL", "MSFT", "GOOGL"],
+                "avg_correlation": 0.85,
+                "combined_weight_warning": "3 stocks acting as ~1 position (avg correlation 85%)",
+            }],
+            "drawdown_alerts": [],
+        }
+
+        report = analyzer.format_risk_report(summary)
+        report_text = "\n".join(report)
+        assert "Correlation Clusters" in report_text
+        assert "AAPL" in report_text
+
+    def test_format_drawdown_alerts(self):
+        """Test formatting of drawdown alerts."""
+        analyzer = PortfolioRiskAnalyzer()
+        summary = {
+            "portfolio_beta": None,
+            "concentration_warnings": [],
+            "high_correlation_pairs": [],
+            "effective_concentration": None,
+            "correlation_clusters": [],
+            "drawdown_alerts": [{
+                "ticker": "SNAP",
+                "drawdown_pct": 45.0,
+                "tier": "MID",
+                "expected_vol": 25.0,
+                "severity": "WARNING",
+            }],
+        }
+
+        report = analyzer.format_risk_report(summary)
+        report_text = "\n".join(report)
+        assert "Drawdown Alerts" in report_text
+        assert "WARNING: SNAP" in report_text
+        assert "45.0%" in report_text

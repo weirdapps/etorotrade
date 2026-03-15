@@ -24,10 +24,32 @@ from trade_modules.trade_config import TradeConfig
 # Get logger for this module
 logger = logging.getLogger(__name__)
 
+# --- Sell score normalization constants ---
+# Each component scores raw points from multiple sub-factors.
+# These constants represent the maximum achievable raw score per component,
+# derived by summing the highest possible points from each sub-factor.
+# They are used to normalize each component to a 0-100 scale before weighting.
+
+# Analyst: upside penalty (max 40) + buy% penalty (max 40) + EXRET penalty (max 20) = 100
+SELL_ANALYST_MAX_RAW = 100
+# Momentum: 52-week decline (max 50) + PEF/PET deterioration (max 35) = 85
+SELL_MOMENTUM_MAX_RAW = 85
+# Valuation: high PE penalty (max 40) + negative PE penalty (max 30) = 70
+SELL_VALUATION_MAX_RAW = 70
+# Fundamentals: low ROE penalty (max 40) + high D/E penalty (max 40) = 80
+SELL_FUNDAMENTAL_MAX_RAW = 80
+
+
+# Module-level cache for IPO date lookups from yfinance
+_ipo_date_cache: Dict[str, Any] = {}
+
 
 def is_recent_ipo(ticker: str, yaml_config, grace_period_months: int = 12) -> bool:
     """
     Check if a stock is a recent IPO within the grace period.
+
+    Uses config.yaml known_ipos as the primary source, then falls back to
+    yfinance first available trading date if the ticker is not in the config.
 
     Args:
         ticker: Stock ticker symbol
@@ -44,18 +66,44 @@ def is_recent_ipo(ticker: str, yaml_config, grace_period_months: int = 12) -> bo
         return False
 
     known_ipos = ipo_config.get('known_ipos', {})
+    grace_period = timedelta(days=grace_period_months * 30)
+    cutoff_date = datetime.now() - grace_period
 
-    if ticker not in known_ipos:
+    # Primary: check config.yaml known_ipos
+    if ticker in known_ipos:
+        try:
+            ipo_date = datetime.strptime(known_ipos[ticker], '%Y-%m-%d')
+            return ipo_date > cutoff_date
+        except (ValueError, TypeError):
+            return False
+
+    # Fallback: auto-detect from yfinance first trading date
+    if not ipo_config.get('auto_detect', True):
         return False
 
-    try:
-        ipo_date_str = known_ipos[ticker]
-        ipo_date = datetime.strptime(ipo_date_str, '%Y-%m-%d')
-        grace_period = timedelta(days=grace_period_months * 30)  # Approximate months
-        cutoff_date = datetime.now() - grace_period
+    # Check module-level cache first
+    if ticker in _ipo_date_cache:
+        cached = _ipo_date_cache[ticker]
+        if cached is None:
+            return False
+        return cached > cutoff_date
 
-        return ipo_date > cutoff_date
-    except (ValueError, TypeError):
+    # Query yfinance for first available trading date
+    try:
+        import yfinance as yf
+        stock = yf.Ticker(ticker)
+        hist = stock.history(period="max", timeout=5)
+        if hist.empty:
+            _ipo_date_cache[ticker] = None
+            return False
+        first_date = hist.index[0].to_pydatetime().replace(tzinfo=None)
+        _ipo_date_cache[ticker] = first_date
+        if first_date > cutoff_date:
+            logger.info(f"Ticker {ticker}: auto-detected IPO date {first_date.strftime('%Y-%m-%d')}")
+        return first_date > cutoff_date
+    except Exception as e:
+        logger.debug(f"Ticker {ticker}: failed to auto-detect IPO date: {e}")
+        _ipo_date_cache[ticker] = None
         return False
 
 
@@ -69,15 +117,17 @@ def calculate_sell_score(
     roe: float,
     de: float,
     sell_scoring_config: Dict[str, Any],
+    analyst_momentum: float = np.nan,
 ) -> Tuple[float, List[str]]:
     """
     Calculate weighted SELL score (0-100) using multi-factor analysis.
 
-    The score is calculated from four components:
-    - Analyst sentiment (upside, buy%, EXRET) - 35% weight
-    - Momentum (52W, PEF/PET deterioration) - 25% weight
-    - Valuation (implicit in other factors) - 20% weight
-    - Fundamentals (ROE, DE) - 20% weight
+    The score is calculated from five components:
+    - Analyst sentiment (upside, buy%, EXRET) - 31.5% weight (default)
+    - Momentum (52W, PEF/PET deterioration) - 22.5% weight (default)
+    - Valuation (implicit in other factors) - 18% weight (default)
+    - Fundamentals (ROE, DE) - 18% weight (default)
+    - Analyst momentum (3-month change in buy%) - 10% weight (default)
 
     Args:
         upside: Upside to price target (%)
@@ -89,6 +139,7 @@ def calculate_sell_score(
         roe: Return on equity (%)
         de: Debt to equity ratio (%)
         sell_scoring_config: Configuration dict with weights and thresholds
+        analyst_momentum: 3-month change in buy% (e.g., -5 means buy% dropped 5pp)
 
     Returns:
         Tuple of (score 0-100, list of triggered factor descriptions)
@@ -96,10 +147,12 @@ def calculate_sell_score(
     factors: List[str] = []
 
     # Get weights from config (defaults if not specified)
-    w_analyst = sell_scoring_config.get('weight_analyst', 0.35)
-    w_momentum = sell_scoring_config.get('weight_momentum', 0.25)
-    w_valuation = sell_scoring_config.get('weight_valuation', 0.20)
-    w_fundamental = sell_scoring_config.get('weight_fundamental', 0.20)
+    # Default weights: original ratios (35:25:20:20) scaled by 0.9 to make room for AM at 10%
+    w_analyst = sell_scoring_config.get('weight_analyst', 0.315)
+    w_momentum = sell_scoring_config.get('weight_momentum', 0.225)
+    w_valuation = sell_scoring_config.get('weight_valuation', 0.18)
+    w_fundamental = sell_scoring_config.get('weight_fundamental', 0.18)
+    w_analyst_momentum = sell_scoring_config.get('weight_analyst_momentum', 0.10)
 
     # === ANALYST SENTIMENT COMPONENT (0-100 raw score) ===
     analyst_score = 0.0
@@ -215,18 +268,38 @@ def calculate_sell_score(
         elif de > 150:
             fundamental_score += 15
 
+    # === ANALYST MOMENTUM COMPONENT (0-100 raw score) ===
+    # Declining AM increases sell score; rising AM reduces it
+    am_score = 0.0
+    if not pd.isna(analyst_momentum):
+        if analyst_momentum <= -15:
+            am_score = 100
+            factors.append(f"severe_am_decline:{analyst_momentum:.1f}pp")
+        elif analyst_momentum <= -10:
+            am_score = 80
+            factors.append(f"strong_am_decline:{analyst_momentum:.1f}pp")
+        elif analyst_momentum <= -5:
+            am_score = 60
+            factors.append(f"am_decline:{analyst_momentum:.1f}pp")
+        elif analyst_momentum < 0:
+            am_score = 30
+        elif analyst_momentum >= 5:
+            am_score = 0  # Rising AM counters sell pressure
+
     # === CALCULATE WEIGHTED TOTAL ===
-    # Normalize each component to max 100, then apply weights
-    analyst_normalized = min(analyst_score, 100)
-    momentum_normalized = min(momentum_score, 85) / 85 * 100  # Max raw is ~85
-    valuation_normalized = min(valuation_score, 70) / 70 * 100  # Max raw is ~70
-    fundamental_normalized = min(fundamental_score, 80) / 80 * 100  # Max raw is ~80
+    # Normalize each component to 0-100 scale using known max raw scores
+    analyst_normalized = min(analyst_score, SELL_ANALYST_MAX_RAW) / SELL_ANALYST_MAX_RAW * 100
+    momentum_normalized = min(momentum_score, SELL_MOMENTUM_MAX_RAW) / SELL_MOMENTUM_MAX_RAW * 100
+    valuation_normalized = min(valuation_score, SELL_VALUATION_MAX_RAW) / SELL_VALUATION_MAX_RAW * 100
+    fundamental_normalized = min(fundamental_score, SELL_FUNDAMENTAL_MAX_RAW) / SELL_FUNDAMENTAL_MAX_RAW * 100
+    am_normalized = min(am_score, 100)  # Already on 0-100 scale
 
     total_score = (
         analyst_normalized * w_analyst +
         momentum_normalized * w_momentum +
         valuation_normalized * w_valuation +
-        fundamental_normalized * w_fundamental
+        fundamental_normalized * w_fundamental +
+        am_normalized * w_analyst_momentum
     )
 
     return total_score, factors
@@ -244,6 +317,7 @@ def calculate_buy_score(
     de: float,
     fcf_yield: float,
     buy_scoring_config: Dict[str, Any],
+    analyst_momentum: float = np.nan,
 ) -> float:
     """
     Calculate BUY conviction score (0-100) for ranking candidates.
@@ -251,11 +325,12 @@ def calculate_buy_score(
     Higher score = higher conviction in the BUY signal.
 
     Components:
-    - Upside (higher upside = higher score) - 30% weight
-    - Consensus (higher buy% = higher score) - 25% weight
-    - Momentum (near 52W high, above 200DMA) - 20% weight
-    - Valuation (reasonable PE) - 15% weight
-    - Fundamentals (strong ROE, low DE, positive FCF) - 10% weight
+    - Upside (higher upside = higher score) - 27% weight (default)
+    - Consensus (higher buy% = higher score) - 22.5% weight (default)
+    - Momentum (near 52W high, above 200DMA) - 18% weight (default)
+    - Valuation (reasonable PE) - 13.5% weight (default)
+    - Fundamentals (strong ROE, low DE, positive FCF) - 9% weight (default)
+    - Analyst momentum (rising buy% trend) - 10% weight (default)
 
     Args:
         upside: Upside to price target (%)
@@ -269,16 +344,19 @@ def calculate_buy_score(
         de: Debt to equity ratio (%)
         fcf_yield: Free cash flow yield (%)
         buy_scoring_config: Configuration dict with weights
+        analyst_momentum: 3-month change in buy% (e.g., +5 means buy% rose 5pp)
 
     Returns:
         Score 0-100 (higher = stronger BUY conviction)
     """
     # Get weights from config
-    w_upside = buy_scoring_config.get('weight_upside', 0.30)
-    w_consensus = buy_scoring_config.get('weight_consensus', 0.25)
-    w_momentum = buy_scoring_config.get('weight_momentum', 0.20)
-    w_valuation = buy_scoring_config.get('weight_valuation', 0.15)
-    w_fundamental = buy_scoring_config.get('weight_fundamental', 0.10)
+    # Default weights: original ratios (30:25:20:15:10) scaled by 0.9 for AM at 10%
+    w_upside = buy_scoring_config.get('weight_upside', 0.27)
+    w_consensus = buy_scoring_config.get('weight_consensus', 0.225)
+    w_momentum = buy_scoring_config.get('weight_momentum', 0.18)
+    w_valuation = buy_scoring_config.get('weight_valuation', 0.135)
+    w_fundamental = buy_scoring_config.get('weight_fundamental', 0.09)
+    w_analyst_momentum = buy_scoring_config.get('weight_analyst_momentum', 0.10)
 
     # === UPSIDE COMPONENT (0-100) ===
     upside_score = 0.0
@@ -420,13 +498,33 @@ def calculate_buy_score(
         elif fcf_yield > 0:
             fundamental_score = min(fundamental_score + 5, 100)
 
+    # === ANALYST MOMENTUM COMPONENT (0-100) ===
+    # Rising AM increases buy conviction; declining AM reduces it
+    am_score = 50.0  # Neutral default
+    if not pd.isna(analyst_momentum):
+        if analyst_momentum >= 15:
+            am_score = 100
+        elif analyst_momentum >= 10:
+            am_score = 85
+        elif analyst_momentum >= 5:
+            am_score = 70
+        elif analyst_momentum >= 0:
+            am_score = 50
+        elif analyst_momentum >= -5:
+            am_score = 30
+        elif analyst_momentum >= -10:
+            am_score = 15
+        else:
+            am_score = 0
+
     # === CALCULATE WEIGHTED TOTAL ===
     total_score = (
         upside_score * w_upside +
         consensus_score * w_consensus +
         momentum_score * w_momentum +
         valuation_score * w_valuation +
-        fundamental_score * w_fundamental
+        fundamental_score * w_fundamental +
+        am_score * w_analyst_momentum
     )
 
     return total_score
@@ -1091,6 +1189,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                     roe=row_roe,
                     de=row_de,
                     sell_scoring_config=sell_scoring_config,
+                    analyst_momentum=row_amom,
                 )
 
                 score_threshold = sell_scoring_config.get('score_threshold', 65)
@@ -1456,6 +1555,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                         de=row_de,
                         fcf_yield=row_fcf_yield,
                         buy_scoring_config=buy_scoring_config,
+                        analyst_momentum=row_amom,
                     )
                     buy_scores.loc[idx] = buy_conviction_score
                     logger.debug(f"Ticker {ticker}: BUY with conviction score {buy_conviction_score:.1f}")
