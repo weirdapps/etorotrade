@@ -315,6 +315,63 @@ class IPOGracePeriodConfig(BaseModel):
     )
 
 
+class ConvictionSizingMultiplier(BaseModel):
+    """Single conviction sizing band"""
+    model_config = ConfigDict(frozen=True)
+
+    min_score: int = Field(ge=0, le=100)
+    max_score: int = Field(ge=0, le=100)
+    multiplier: float = Field(ge=0, le=2.0)
+
+
+class ConvictionSizingConfig(BaseModel):
+    """Conviction-modulated position sizing (CIO E1)"""
+    model_config = ConfigDict(frozen=True)
+
+    enabled: bool = Field(default=True)
+    multipliers: List[ConvictionSizingMultiplier] = Field(default_factory=list)
+    min_cost_adjusted_return: float = Field(default=1.0, ge=0)
+
+
+class DataFreshnessConfig(BaseModel):
+    """Data freshness thresholds (CIO M5)"""
+    model_config = ConfigDict(frozen=True)
+
+    fresh_days: int = Field(default=30, ge=1, le=365)
+    aging_days: int = Field(default=60, ge=1, le=365)
+    stale_days: int = Field(default=90, ge=1, le=365)
+
+
+class EarningsProximityConfig(BaseModel):
+    """Earnings proximity configuration (CIO M4)"""
+    model_config = ConfigDict(frozen=True)
+
+    enabled: bool = Field(default=True)
+    imminent_days: int = Field(default=7, ge=1, le=30)
+    recent_days: int = Field(default=5, ge=1, le=30)
+    post_earnings_boost_days: int = Field(default=30, ge=1, le=90)
+
+
+class LiquidityConfig(BaseModel):
+    """Liquidity filter and cost model (CIO S5)"""
+    model_config = ConfigDict(frozen=True)
+
+    enabled: bool = Field(default=True)
+    min_adv: Dict[str, float] = Field(default_factory=dict)
+    spread_bps: Dict[str, float] = Field(default_factory=dict)
+    etoro_overnight_annual_rate: float = Field(default=0.064, ge=0)
+
+
+class SectorRotationConfig(BaseModel):
+    """Sector rotation detection (CIO M6)"""
+    model_config = ConfigDict(frozen=True)
+
+    enabled: bool = Field(default=True)
+    lookback_days: int = Field(default=30, ge=7, le=365)
+    threshold_pp: float = Field(default=15.0, ge=0)
+    min_sector_stocks: int = Field(default=3, ge=1)
+
+
 class TierThresholds(BaseModel):
     """Market cap thresholds for tier classification"""
     model_config = ConfigDict(frozen=True)
@@ -682,6 +739,28 @@ class TradingConfig(BaseModel):
     ipo_grace_period: Optional[IPOGracePeriodConfig] = Field(
         default_factory=IPOGracePeriodConfig,
         description="IPO grace period configuration"
+    )
+
+    # CIO review finding configs
+    conviction_sizing: Optional[ConvictionSizingConfig] = Field(
+        default=None,
+        description="Conviction-modulated position sizing (CIO E1)"
+    )
+    data_freshness: Optional[DataFreshnessConfig] = Field(
+        default=None,
+        description="Data freshness thresholds (CIO M5)"
+    )
+    earnings_proximity: Optional[EarningsProximityConfig] = Field(
+        default=None,
+        description="Earnings proximity configuration (CIO M4)"
+    )
+    liquidity: Optional[LiquidityConfig] = Field(
+        default=None,
+        description="Liquidity filter and cost model (CIO S5)"
+    )
+    sector_rotation: Optional[SectorRotationConfig] = Field(
+        default=None,
+        description="Sector rotation detection (CIO M6)"
     )
 
     @classmethod

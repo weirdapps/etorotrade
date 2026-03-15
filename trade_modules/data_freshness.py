@@ -92,12 +92,12 @@ class DataFreshnessTracker:
         return results
 
     def get_stale_tickers(self) -> Dict[str, Dict[str, Any]]:
-        """Convenience method returning only stale tickers."""
+        """Convenience method returning stale and dead tickers."""
         all_freshness = self.check_freshness()
         return {
             ticker: info
             for ticker, info in all_freshness.items()
-            if info['staleness'] == 'stale'
+            if info['staleness'] in ('stale', 'dead')
         }
 
     def _load_metric_history(self) -> Dict[str, List[Dict[str, Any]]]:
