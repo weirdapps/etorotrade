@@ -19,14 +19,18 @@ from trade_modules.backtest_engine import SIGNAL_LOG_PATH, TEST_TICKER_RE, VALID
 logger = logging.getLogger(__name__)
 
 # Staleness thresholds (days since last metric change)
+# CIO Review Finding M5: Original penalties were too gentle.
+# 90-day stale data at 25% penalty still produced actionable signals — unacceptable.
 FRESH_THRESHOLD = 30
-AGING_THRESHOLD = 90
+AGING_THRESHOLD = 60
+STALE_THRESHOLD = 90  # Beyond this, signal becomes INCONCLUSIVE
 
-# Confidence penalties
+# Confidence penalties — stiffened per CIO review
 PENALTIES = {
-    'fresh': 0.0,
-    'aging': 0.1,
-    'stale': 0.25,
+    'fresh': 0.0,       # < 30 days: no penalty
+    'aging': 0.25,      # 30-60 days: 25% penalty (was 10%)
+    'stale': 0.50,      # 60-90 days: 50% penalty (was 25%)
+    'dead': 1.0,        # 90+ days: signal is INCONCLUSIVE (new tier)
 }
 
 # Metrics to track for changes
@@ -201,13 +205,15 @@ class DataFreshnessTracker:
         change_date = datetime.strptime(last_change_date, '%Y-%m-%d').date()
         days_since = (today - change_date).days
 
-        # Classify staleness
+        # Classify staleness — CIO Review M5: stiffened thresholds
         if days_since < FRESH_THRESHOLD:
             staleness = 'fresh'
         elif days_since < AGING_THRESHOLD:
             staleness = 'aging'
-        else:
+        elif days_since < STALE_THRESHOLD:
             staleness = 'stale'
+        else:
+            staleness = 'dead'  # 90+ days: effectively INCONCLUSIVE
 
         return {
             'days_since_change': days_since,
@@ -216,4 +222,5 @@ class DataFreshnessTracker:
             'last_change_date': last_change_date,
             'metrics_changed': metrics_changed,
             'total_observations': len(records),
+            'is_inconclusive': staleness == 'dead',  # Signal should be marked I
         }
