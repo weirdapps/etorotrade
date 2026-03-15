@@ -125,6 +125,26 @@ def test_dataframe():
     )
 
 
+@pytest.fixture(autouse=True)
+def _mock_signal_tracker(request):
+    """Prevent tests from writing to production signal_log.jsonl.
+
+    Tests that create their own SignalTracker with a temp path can opt out
+    by marking with @pytest.mark.uses_signal_tracker.
+    """
+    if "uses_signal_tracker" in [m.name for m in request.node.iter_markers()]:
+        yield
+        return
+    # Check if the test module explicitly tests the signal tracker
+    module = request.node.module.__name__ if request.node.module else ""
+    if "test_signal_change_detector" in module or "test_signal_scorecard" in module:
+        yield
+        return
+    with patch("trade_modules.signal_tracker.SignalTracker.log_signal", return_value=True), \
+         patch("trade_modules.signal_tracker.SignalTracker.log_signals_batch", return_value=0):
+        yield
+
+
 def pytest_configure(config):
     """
     Configure pytest with custom markers.
@@ -138,3 +158,4 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "api: mark test as requiring API access")
     config.addinivalue_line("markers", "network: mark test as requiring network connectivity")
     config.addinivalue_line("markers", "asyncio: mark test as requiring asyncio support")
+    config.addinivalue_line("markers", "uses_signal_tracker: opt out of signal tracker mocking")

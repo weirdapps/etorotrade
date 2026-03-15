@@ -12,12 +12,23 @@ this system enables forward validation of signal quality.
 
 import json
 import logging
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 import threading
 
 logger = logging.getLogger(__name__)
+
+# Pattern to reject obviously fake/test tickers from being logged
+_INVALID_TICKER_PATTERN = re.compile(
+    r'^(TICK\d+|TICKER\d+|EDGE\d+|STOCK\d+|TEST\.|SMALLCAP|MICRO|SMALL|LARGE|'
+    r'SELL|BUY|STRONG|HOLD|NEG|ZERO_UPSIDE|NEG_UPSIDE|POS_UPSIDE|'
+    r'NEG_LOW_CONSENSUS|NEG_HIGH_CONSENSUS|HIGH_RISK|QUALITY_BUY|'
+    r'GOOD_BUY|FULLY_VALUED|SELL_TRIGGER|BADPE|SICPQ)$',
+    re.IGNORECASE
+)
+_VALID_SIGNALS = {'B', 'S', 'H', 'I'}
 
 # Default storage location
 DEFAULT_SIGNAL_LOG_PATH = Path(__file__).parent.parent / "yahoofinance" / "output" / "signal_log.jsonl"
@@ -212,6 +223,10 @@ class SignalTracker:
         Returns:
             True if logged successfully, False otherwise
         """
+        if not record.ticker or _INVALID_TICKER_PATTERN.match(record.ticker) \
+                or record.signal not in _VALID_SIGNALS:
+            logger.debug(f"Skipping test/invalid ticker: {record.ticker}")
+            return False
         try:
             with _file_lock:
                 with open(self.log_path, "a") as f:
@@ -234,9 +249,13 @@ class SignalTracker:
         """
         logged = 0
         try:
+            valid_records = [
+                r for r in records
+                if r.ticker and not _INVALID_TICKER_PATTERN.match(r.ticker)
+            ]
             with _file_lock:
                 with open(self.log_path, "a") as f:
-                    for record in records:
+                    for record in valid_records:
                         f.write(json.dumps(record.to_dict()) + "\n")
                         logged += 1
             logger.info(f"Logged {logged} signals to tracker")
