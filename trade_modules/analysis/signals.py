@@ -147,11 +147,14 @@ def calculate_sell_score(
     factors: List[str] = []
 
     # Get weights from config (defaults if not specified)
-    # Default weights: original ratios (35:25:20:20) scaled by 0.9 to make room for AM at 10%
-    w_analyst = sell_scoring_config.get('weight_analyst', 0.315)
-    w_momentum = sell_scoring_config.get('weight_momentum', 0.225)
-    w_valuation = sell_scoring_config.get('weight_valuation', 0.18)
-    w_fundamental = sell_scoring_config.get('weight_fundamental', 0.18)
+    # CIO Review Finding S2: Reduced analyst weight (which includes EXRET, a tautology
+    # of upside × buy%). Increased fundamental and momentum weights as orthogonal factors.
+    # Original: analyst=0.315, momentum=0.225, valuation=0.18, fundamental=0.18, AM=0.10
+    # Revised:  analyst=0.25,  momentum=0.25,  valuation=0.15, fundamental=0.25, AM=0.10
+    w_analyst = sell_scoring_config.get('weight_analyst', 0.25)
+    w_momentum = sell_scoring_config.get('weight_momentum', 0.25)
+    w_valuation = sell_scoring_config.get('weight_valuation', 0.15)
+    w_fundamental = sell_scoring_config.get('weight_fundamental', 0.25)
     w_analyst_momentum = sell_scoring_config.get('weight_analyst_momentum', 0.10)
 
     # === ANALYST SENTIMENT COMPONENT (0-100 raw score) ===
@@ -350,12 +353,15 @@ def calculate_buy_score(
         Score 0-100 (higher = stronger BUY conviction)
     """
     # Get weights from config
-    # Default weights: original ratios (30:25:20:15:10) scaled by 0.9 for AM at 10%
-    w_upside = buy_scoring_config.get('weight_upside', 0.27)
-    w_consensus = buy_scoring_config.get('weight_consensus', 0.225)
-    w_momentum = buy_scoring_config.get('weight_momentum', 0.18)
-    w_valuation = buy_scoring_config.get('weight_valuation', 0.135)
-    w_fundamental = buy_scoring_config.get('weight_fundamental', 0.09)
+    # CIO Review Finding S2: Reduced upside/consensus weight (analyst-derived, partially tautological
+    # via EXRET). Increased fundamental weight (FCF yield, ROE — genuinely orthogonal factors).
+    # Original: upside=0.27, consensus=0.225, momentum=0.18, valuation=0.135, fundamental=0.09, AM=0.10
+    # Revised:  upside=0.22, consensus=0.18,  momentum=0.20, valuation=0.13,  fundamental=0.17, AM=0.10
+    w_upside = buy_scoring_config.get('weight_upside', 0.22)
+    w_consensus = buy_scoring_config.get('weight_consensus', 0.18)
+    w_momentum = buy_scoring_config.get('weight_momentum', 0.20)
+    w_valuation = buy_scoring_config.get('weight_valuation', 0.13)
+    w_fundamental = buy_scoring_config.get('weight_fundamental', 0.17)
     w_analyst_momentum = buy_scoring_config.get('weight_analyst_momentum', 0.10)
 
     # === UPSIDE COMPONENT (0-100) ===
@@ -897,6 +903,35 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
         region = config.get_region_from_ticker(ticker)
         tier = config.get_tier_from_market_cap(cap_values.loc[idx])
 
+        # CIO Review Finding M4: Earnings proximity check
+        # Stocks within 7 days of earnings → force HOLD (binary event risk)
+        try:
+            from trade_modules.earnings_proximity import check_earnings_proximity
+            earnings_info = check_earnings_proximity(ticker)
+            if earnings_info["should_hold"]:
+                actions.loc[idx] = "H"
+                logger.info(
+                    f"Ticker {ticker}: EARNINGS PROXIMITY HOLD - "
+                    f"earnings in {earnings_info['days_until']} days, forcing HOLD"
+                )
+                # Log signal
+                try:
+                    from trade_modules.signal_tracker import log_signal
+                    price_raw = df.get("price", df.get("PRICE", pd.Series([None] * len(df), index=df.index)))
+                    row_price = price_raw.loc[idx] if idx in price_raw.index else None
+                    log_signal(
+                        ticker=ticker, signal="H",
+                        price=float(row_price) if row_price and not pd.isna(row_price) else None,
+                        upside=upside.loc[idx], buy_pct=buy_pct.loc[idx], exret=exret.loc[idx],
+                        market_cap=cap_values.loc[idx], tier=tier, region=region,
+                        sell_triggers=["earnings_proximity_hold"],
+                    )
+                except (ImportError, Exception):
+                    pass
+                continue
+        except ImportError:
+            pass  # Module not available
+
         # Get region-tier specific thresholds from YAML
         if yaml_config.is_config_available():
             criteria = yaml_config.get_region_tier_criteria(region, tier)
@@ -1072,18 +1107,27 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
 
             # === QUALITY OVERRIDE CHECK ===
             # Never SELL stocks with exceptionally strong fundamentals
+            # CIO Review Finding M1: Added momentum gate — if analyst momentum
+            # is declining (AM <= -5), the quality override is disabled.
+            # This prevents protecting stocks in slow deterioration.
             quality_override_buy_pct = sell_scoring_config.get('quality_override_buy_pct', 85)
             quality_override_upside = sell_scoring_config.get('quality_override_upside', 20)
             quality_override_exret = sell_scoring_config.get('quality_override_exret', 15)
 
-            # Quality Override with fundamental floors to prevent protecting bankrupt/over-leveraged stocks
-            # ROE > 0 ensures profitability, DE < 200 limits leverage (NaN values pass to avoid blocking missing data)
+            # M1: Momentum gate for quality override
+            # If analyst momentum is declining >= 5pp, override is disabled
+            am_blocks_override = (
+                not pd.isna(row_amom) and row_amom <= -5
+            )
+
+            # Quality Override with fundamental floors + momentum gate
             is_quality_stock = (
                 row_buy_pct >= quality_override_buy_pct and
                 row_upside >= quality_override_upside and
                 row_exret >= quality_override_exret and
                 (pd.isna(row_roe) or row_roe > 0) and      # Require profitability (or no data)
-                (pd.isna(row_de) or row_de < 200)          # Limit leverage (or no data)
+                (pd.isna(row_de) or row_de < 200) and       # Limit leverage (or no data)
+                not am_blocks_override                       # M1: Momentum gate
             )
 
             if is_quality_stock:
@@ -1096,6 +1140,11 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                 # Skip SELL evaluation entirely for quality stocks
                 # They will be evaluated for BUY criteria below
                 pass  # Fall through to BUY evaluation
+            elif am_blocks_override and row_buy_pct >= quality_override_buy_pct:
+                logger.info(
+                    f"Ticker {ticker}: QUALITY OVERRIDE BLOCKED by momentum gate "
+                    f"(AM={row_amom:.1f}pp <= -5pp, despite buy%={row_buy_pct:.1f}%)"
+                )
             else:
                 # === HARD TRIGGERS (Immediate SELL, bypass scoring) ===
                 hard_trigger_upside = sell_scoring_config.get('hard_trigger_upside', -5)

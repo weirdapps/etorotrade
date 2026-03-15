@@ -79,6 +79,18 @@ REGIME_ADJUSTMENTS: Dict[VixRegime, Dict[str, float]] = {
     },
 }
 
+# CIO Review Finding M2: Position sizing multipliers per regime
+# In high volatility, reduce position sizes to manage risk.
+# The signal engine loosens BUY criteria to capture quality at a discount,
+# but we must simultaneously reduce position sizes.
+REGIME_POSITION_MULTIPLIERS: Dict[VixRegime, float] = {
+    VixRegime.LOW: 1.00,       # Normal sizing
+    VixRegime.NORMAL: 1.00,    # Normal sizing
+    VixRegime.ELEVATED: 0.75,  # Reduce 25%
+    VixRegime.HIGH: 0.50,      # Reduce 50%
+}
+
+
 # Cache for VIX data
 _vix_cache: Optional[float] = None
 _vix_cache_timestamp: Optional[datetime] = None
@@ -297,6 +309,25 @@ def get_adjusted_thresholds(base_config: Dict, config_type: str = "buy") -> Dict
     if config_type == "sell":
         return adjust_sell_criteria(base_config)
     return adjust_buy_criteria(base_config)
+
+
+def get_position_size_multiplier() -> float:
+    """
+    Get position size multiplier for current VIX regime.
+
+    CIO Review Finding M2: In high volatility environments,
+    reduce position sizes even when BUY criteria are loosened.
+
+    Returns:
+        Multiplier between 0.5 and 1.0
+    """
+    regime = get_vix_regime()
+    multiplier = REGIME_POSITION_MULTIPLIERS.get(regime, 1.0)
+    if multiplier < 1.0:
+        logger.info(
+            f"VIX regime {regime.value}: position size multiplier = {multiplier:.2f}"
+        )
+    return multiplier
 
 
 def get_regime_context() -> Dict:
