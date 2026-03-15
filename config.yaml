@@ -808,20 +808,82 @@ default_sell_scoring:
   quality_override_buy_pct: 85     # 85%+ analyst buy
   quality_override_upside: 20      # 20%+ upside
   quality_override_exret: 15       # 15%+ expected return
-  # Component weights (must sum to 1.0)
-  weight_analyst: 0.35
+  # CIO Review S2: Rebalanced weights - reduced analyst (EXRET tautology),
+  # increased fundamentals and momentum (orthogonal factors)
+  # Original: analyst=0.35, momentum=0.25, valuation=0.20, fundamental=0.20
+  weight_analyst: 0.25
   weight_momentum: 0.25
-  weight_valuation: 0.20
-  weight_fundamental: 0.20
+  weight_valuation: 0.15
+  weight_fundamental: 0.25
+  weight_analyst_momentum: 0.10
 
 default_buy_scoring:
   enabled: true
-  # Component weights (must sum to 1.0)
-  weight_upside: 0.30
-  weight_consensus: 0.25
+  # CIO Review S2: Rebalanced weights - reduced upside/consensus dependency,
+  # increased fundamental weight (FCF yield, ROE are genuinely orthogonal)
+  # Original: upside=0.30, consensus=0.25, momentum=0.20, valuation=0.15, fundamental=0.10
+  weight_upside: 0.22
+  weight_consensus: 0.18
   weight_momentum: 0.20
-  weight_valuation: 0.15
-  weight_fundamental: 0.10
+  weight_valuation: 0.13
+  weight_fundamental: 0.17
+  weight_analyst_momentum: 0.10
+
+# === CIO REVIEW: NEW CONFIGURATION SECTIONS ===
+
+# Liquidity Filter Configuration (CIO Review S5)
+# Minimum Average Daily Dollar Volume by tier
+liquidity:
+  enabled: true
+  min_adv:
+    MEGA: 50000000      # $50M
+    LARGE: 20000000     # $20M
+    MID: 10000000       # $10M
+    SMALL: 5000000      # $5M
+    MICRO: 2000000      # $2M
+  # Estimated spread costs in basis points (for cost-adjusted returns)
+  spread_bps:
+    MEGA: 2
+    LARGE: 5
+    MID: 10
+    SMALL: 20
+    MICRO: 40
+  etoro_overnight_annual_rate: 0.064
+
+# Conviction-Based Position Sizing (CIO Review E1 + M2)
+conviction_sizing:
+  enabled: true
+  # Conviction score → position size multiplier
+  multipliers:
+    - {min_score: 90, max_score: 100, multiplier: 1.00}
+    - {min_score: 80, max_score: 89, multiplier: 0.90}
+    - {min_score: 70, max_score: 79, multiplier: 0.80}
+    - {min_score: 60, max_score: 69, multiplier: 0.65}
+    - {min_score: 50, max_score: 59, multiplier: 0.50}
+    - {min_score: 0, max_score: 49, multiplier: 0.35}
+  # Minimum cost-adjusted return to proceed with position (%)
+  min_cost_adjusted_return: 1.0
+
+# Earnings Proximity (CIO Review M4)
+earnings_proximity:
+  enabled: true
+  imminent_days: 7         # Force HOLD within this many days of earnings
+  recent_days: 5           # Days after earnings where signal may be adjusting
+  post_earnings_boost_days: 30  # Post-earnings signals get conviction boost
+
+# Sector Rotation Detection (CIO Review M6)
+sector_rotation:
+  enabled: true
+  lookback_days: 30         # Days to compare between periods
+  threshold_pp: 15          # Minimum BUY% change to flag rotation (percentage points)
+  min_sector_stocks: 3      # Minimum stocks in sector to be meaningful
+
+# Data Freshness (CIO Review M5)
+data_freshness:
+  fresh_days: 30            # < 30 days: no penalty
+  aging_days: 60            # 30-60 days: 25% penalty
+  stale_days: 90            # 60-90 days: 50% penalty
+  # Beyond stale_days: signal becomes INCONCLUSIVE
 
 # Tier-specific scoring overrides (inherits from default if not specified)
 us_mega_sell_scoring:
