@@ -106,23 +106,28 @@ class TestConvictionSizer:
     """Tests for trade_modules/conviction_sizer.py"""
 
     def test_high_conviction_full_size(self):
-        """Score 90+ gets full position size."""
+        """Score 100 gets full position size (continuous function)."""
         from trade_modules.conviction_sizer import get_conviction_multiplier
 
-        assert get_conviction_multiplier(95) == 1.0
-        assert get_conviction_multiplier(90) == 1.0
+        # Continuous function: 0.35 + (score/100) * 0.65
+        assert get_conviction_multiplier(100) == 1.0
+        assert get_conviction_multiplier(95) == pytest.approx(0.9675, abs=0.001)
+        assert get_conviction_multiplier(90) == pytest.approx(0.935, abs=0.001)
 
     def test_low_conviction_reduced_size(self):
-        """Score 50-59 gets half position size."""
+        """Mid-range conviction gets proportional size (continuous function)."""
         from trade_modules.conviction_sizer import get_conviction_multiplier
 
-        assert get_conviction_multiplier(55) == 0.50
+        # 55 → 0.35 + 0.55*0.65 = 0.7075
+        assert get_conviction_multiplier(55) == pytest.approx(0.7075, abs=0.001)
 
     def test_very_low_conviction_minimal_size(self):
-        """Score below 50 gets minimal position size."""
+        """Score 0 gets minimal position size (continuous function)."""
         from trade_modules.conviction_sizer import get_conviction_multiplier
 
-        assert get_conviction_multiplier(30) == 0.35
+        assert get_conviction_multiplier(0) == 0.35
+        # 30 → 0.35 + 0.30*0.65 = 0.545
+        assert get_conviction_multiplier(30) == pytest.approx(0.545, abs=0.001)
 
     def test_regime_multiplier_normal(self):
         """Normal VIX regime gets 1.0x sizing."""
@@ -144,13 +149,13 @@ class TestConvictionSizer:
         assert get_regime_multiplier("high") == 0.50
 
     def test_calculate_conviction_size_full(self):
-        """Full conviction + normal regime = tier size."""
+        """Full conviction + normal regime = tier size (continuous function)."""
         from trade_modules.conviction_sizer import calculate_conviction_size
 
         result = calculate_conviction_size(
             base_position_size=2500,
             tier_multiplier=5,  # MEGA
-            conviction_score=95,
+            conviction_score=100,  # Changed from 95 to 100 for 1.0 multiplier
             regime="normal",
         )
         assert result["position_size"] == 12500.0  # 2500 * 5 * 1.0 * 1.0
@@ -158,7 +163,7 @@ class TestConvictionSizer:
         assert result["regime_multiplier"] == 1.0
 
     def test_calculate_conviction_size_reduced(self):
-        """Moderate conviction + elevated regime = significantly reduced."""
+        """Moderate conviction + elevated regime = significantly reduced (continuous function)."""
         from trade_modules.conviction_sizer import calculate_conviction_size
 
         result = calculate_conviction_size(
@@ -167,9 +172,11 @@ class TestConvictionSizer:
             conviction_score=65,
             regime="elevated",
         )
-        # 2500 * 5 * 0.65 * 0.75 = 6093.75
-        assert result["position_size"] == 6093.75
-        assert result["conviction_multiplier"] == 0.65
+        # Conviction 65 → 0.35 + 0.65*0.65 = 0.7725
+        # 2500 * 5 * 0.7725 * 0.75 = 7257.8125
+        expected_size = 2500 * 5 * 0.7725 * 0.75
+        assert result["position_size"] == pytest.approx(expected_size, abs=1)
+        assert result["conviction_multiplier"] == pytest.approx(0.7725, abs=0.001)
         assert result["regime_multiplier"] == 0.75
 
     def test_cost_blocks_position(self):
