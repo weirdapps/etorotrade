@@ -1,8 +1,14 @@
 """
 VIX Regime Provider
 
-Fetches live VIX data to adjust trading criteria based on market volatility regime.
-During high volatility, we become more conservative; during low volatility, more aggressive.
+Fetches live VIX data and provides regime context for trading decisions.
+
+CIO Review v2 Decision: Signal criteria are held constant across all VIX regimes.
+Risk is managed exclusively through position sizing (REGIME_POSITION_MULTIPLIERS).
+
+Rationale: Adjusting both thresholds AND position sizes was contradictory - loosening
+BUY criteria in high VIX while also reducing size led to confused signals. Now we
+maintain consistent signal quality and only vary bet sizing.
 
 P1 Improvement - Implemented from HEDGE_FUND_REVIEW.md recommendations.
 """
@@ -31,22 +37,24 @@ VIX_THRESHOLDS = {
     "elevated_max": 35.0,
 }
 
-# Threshold adjustments per regime (multipliers for criteria)
-# Values < 1.0 make criteria stricter, > 1.0 make criteria looser
+# Threshold adjustments per regime (NEUTRALIZED in CIO Review v2)
+# All values set to 1.0 (multipliers) or 0 (offsets) - NO threshold adjustments
 #
-# CIO Review Finding #7: Comprehensive regime-aware threshold adjustment
-# In bull markets (low VIX), forward estimates are optimistic -> tighten BUY criteria
-# In bear markets (high VIX), everything looks expensive -> loosen BUY criteria
+# CIO Review v2 Decision: Signal criteria held constant across all VIX regimes.
+# Risk management occurs ONLY through position sizing (see REGIME_POSITION_MULTIPLIERS).
+#
+# Historical context: Previously adjusted thresholds based on VIX regime, but this
+# contradicted position sizing adjustments (loosening BUY criteria while reducing size).
+# New philosophy: Consistent signal quality, variable bet sizing.
 REGIME_ADJUSTMENTS: Dict[VixRegime, Dict[str, float]] = {
     VixRegime.LOW: {
-        # Risk-on: Everything looks cheap on forward estimates, be MORE selective
-        "min_upside_multiplier": 1.10,     # Require 10% more upside (avoid buying at consensus peak)
-        "min_buy_pct_multiplier": 1.05,    # Slightly higher consensus required
-        "min_exret_multiplier": 1.10,      # Require higher expected return
-        "min_analysts_offset": 1,          # Require 1 more analyst for conviction
-        "max_upside_sell_offset": -1.0,    # Slightly more aggressive on sells
-        "max_pct_52w_buy_multiplier": 1.05,  # Tolerate closer to highs
-        "max_pe_multiplier": 0.90,         # Tighten PE caps (valuations stretched in low-vol)
+        "min_upside_multiplier": 1.0,      # No adjustment
+        "min_buy_pct_multiplier": 1.0,     # No adjustment
+        "min_exret_multiplier": 1.0,       # No adjustment
+        "min_analysts_offset": 0,          # No adjustment
+        "max_upside_sell_offset": 0.0,     # No adjustment
+        "max_pct_52w_buy_multiplier": 1.0, # No adjustment
+        "max_pe_multiplier": 1.0,          # No adjustment
     },
     VixRegime.NORMAL: {
         "min_upside_multiplier": 1.0,
@@ -58,24 +66,22 @@ REGIME_ADJUSTMENTS: Dict[VixRegime, Dict[str, float]] = {
         "max_pe_multiplier": 1.0,
     },
     VixRegime.ELEVATED: {
-        # Risk-off lite: Good stocks look expensive, be more forgiving on BUY
-        "min_upside_multiplier": 0.90,     # Accept 10% less upside (stocks beaten down)
-        "min_buy_pct_multiplier": 0.95,    # Accept slightly lower consensus
-        "min_exret_multiplier": 0.90,      # Accept lower expected return
-        "min_analysts_offset": 0,
-        "max_upside_sell_offset": 2.0,     # Less aggressive on sells (add 2% buffer)
-        "max_pct_52w_buy_multiplier": 0.90,  # Accept larger drawdowns from highs
-        "max_pe_multiplier": 1.10,         # Loosen PE caps (depressed earnings inflate PE)
+        "min_upside_multiplier": 1.0,      # No adjustment
+        "min_buy_pct_multiplier": 1.0,     # No adjustment
+        "min_exret_multiplier": 1.0,       # No adjustment
+        "min_analysts_offset": 0,          # No adjustment
+        "max_upside_sell_offset": 0.0,     # No adjustment
+        "max_pct_52w_buy_multiplier": 1.0, # No adjustment
+        "max_pe_multiplier": 1.0,          # No adjustment
     },
     VixRegime.HIGH: {
-        # Risk-off: Deep fear, be significantly more forgiving on BUY criteria
-        "min_upside_multiplier": 0.80,     # Accept 20% less upside (quality at a discount)
-        "min_buy_pct_multiplier": 0.90,    # Accept 10% lower consensus
-        "min_exret_multiplier": 0.80,      # Accept lower expected return
-        "min_analysts_offset": -1,         # Require 1 fewer analyst (coverage drops in crisis)
-        "max_upside_sell_offset": 5.0,     # Much less aggressive on sells
-        "max_pct_52w_buy_multiplier": 0.80,  # Accept large drawdowns (everything is down)
-        "max_pe_multiplier": 1.20,         # Loosen PE caps significantly
+        "min_upside_multiplier": 1.0,      # No adjustment
+        "min_buy_pct_multiplier": 1.0,     # No adjustment
+        "min_exret_multiplier": 1.0,       # No adjustment
+        "min_analysts_offset": 0,          # No adjustment
+        "max_upside_sell_offset": 0.0,     # No adjustment
+        "max_pct_52w_buy_multiplier": 1.0, # No adjustment
+        "max_pe_multiplier": 1.0,          # No adjustment
     },
 }
 
@@ -184,16 +190,16 @@ def adjust_buy_criteria(criteria: Dict, apply_adjustments: bool = True) -> Dict:
     """
     Adjust buy criteria based on current VIX regime.
 
-    Applies comprehensive threshold adjustments per CIO Review Finding #7:
-    - In low VIX (risk-on): tighten criteria (everything looks cheap, be selective)
-    - In high VIX (risk-off): loosen criteria (quality at a discount)
+    CIO Review v2: This function is now a NO-OP. All adjustments are neutralized (1.0/0).
+    Signal criteria remain constant across VIX regimes. Risk management occurs only
+    through position sizing (see get_position_size_multiplier).
 
     Args:
         criteria: Original buy criteria dictionary
-        apply_adjustments: Whether to apply VIX-based adjustments
+        apply_adjustments: Whether to apply VIX-based adjustments (now ineffective)
 
     Returns:
-        Adjusted criteria dictionary
+        Criteria dictionary (unchanged due to neutral adjustments)
     """
     if not apply_adjustments:
         return criteria.copy()
@@ -255,15 +261,16 @@ def adjust_sell_criteria(criteria: Dict, apply_adjustments: bool = True) -> Dict
     """
     Adjust sell criteria based on current VIX regime.
 
-    In high VIX environments, we become less aggressive on sells to avoid
-    panic-selling quality stocks during temporary market dislocations.
+    CIO Review v2: This function is now a NO-OP. All adjustments are neutralized (1.0/0).
+    Signal criteria remain constant across VIX regimes. Risk management occurs only
+    through position sizing (see get_position_size_multiplier).
 
     Args:
         criteria: Original sell criteria dictionary
-        apply_adjustments: Whether to apply VIX-based adjustments
+        apply_adjustments: Whether to apply VIX-based adjustments (now ineffective)
 
     Returns:
-        Adjusted criteria dictionary
+        Criteria dictionary (unchanged due to neutral adjustments)
     """
     if not apply_adjustments:
         return criteria.copy()
@@ -348,24 +355,21 @@ def get_regime_context() -> Dict:
     if regime == VixRegime.LOW:
         implications = [
             "Market complacency - forward estimates likely optimistic",
-            "BUY thresholds tightened 10% to avoid buying at consensus peak",
-            "PE caps tightened 10% - valuations stretched in low-vol environments",
-            "SELL thresholds slightly more aggressive",
+            "Signal criteria held constant (CIO v2: no threshold adjustments)",
+            "Position sizes unchanged (normal market conditions)",
         ]
     elif regime == VixRegime.ELEVATED:
         implications = [
-            "Elevated fear - quality stocks trading at discounts",
-            "BUY thresholds loosened 10% to capture beaten-down quality",
-            "PE caps loosened 10% - depressed earnings inflate PE ratios",
-            "SELL triggers relaxed with 2% upside buffer",
+            "Elevated volatility - increased market uncertainty",
+            "Signal criteria held constant (CIO v2: no threshold adjustments)",
+            "Position sizes reduced 25% to manage increased risk",
         ]
     elif regime == VixRegime.HIGH:
         implications = [
-            "High fear / crisis mode - significant market dislocation",
-            "BUY thresholds loosened 20% to capture deep value",
-            "Analyst requirements reduced by 1 (coverage drops in crisis)",
-            "SELL triggers significantly relaxed to prevent panic selling",
-            "52-week high threshold loosened 20% (everything is down)",
+            "High volatility / crisis mode - significant market dislocation",
+            "Signal criteria held constant (CIO v2: no threshold adjustments)",
+            "Position sizes reduced 50% to manage extreme risk",
+            "Consistent signal quality, variable bet sizing",
         ]
 
     return {
