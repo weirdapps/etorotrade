@@ -70,7 +70,7 @@ This guide provides practical examples of how to use the tool in different scena
 
 **What to expect:**
 - First run takes 30-60 seconds for a 10-stock portfolio
-- Subsequent runs are faster (48-hour cache)
+- Subsequent runs are faster (4-hour cache)
 - Some stocks may show INCONCLUSIVE if they're small-cap with limited analyst coverage
 
 ---

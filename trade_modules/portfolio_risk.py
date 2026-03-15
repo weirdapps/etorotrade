@@ -313,6 +313,265 @@ class PortfolioRiskAnalyzer:
         # Sort by absolute correlation, descending
         return sorted(pairs, key=lambda x: abs(x[2]), reverse=True)
 
+    # Tier-specific expected volatility (annualized)
+    TIER_EXPECTED_VOLATILITY = {
+        "MEGA": 0.15,
+        "LARGE": 0.20,
+        "MID": 0.25,
+        "SMALL": 0.30,
+        "MICRO": 0.35,
+        # V/G/B tier system mapping
+        "V": 0.175,   # Value (~MEGA/LARGE blend)
+        "G": 0.25,    # Growth (~MID)
+        "B": 0.325,   # Bets (~SMALL/MICRO blend)
+    }
+
+    def calculate_effective_concentration(
+        self, tickers: List[str], period: int = 60
+    ) -> Dict[str, Any]:
+        """
+        Calculate effective number of independent positions using correlations.
+
+        Uses the diversification ratio: effective_positions = n^2 / sum(all correlations).
+
+        Args:
+            tickers: List of ticker symbols
+            period: Number of trading days for correlation calc
+
+        Returns:
+            Dict with effective_positions, diversification_ratio, correlated_clusters
+        """
+        result: Dict[str, Any] = {
+            "effective_positions": len(tickers),
+            "diversification_ratio": 1.0,
+            "correlated_clusters": [],
+        }
+
+        if len(tickers) < 2:
+            return result
+
+        corr_matrix = self.calculate_correlation_matrix(tickers, period=period)
+        if corr_matrix.empty:
+            return result
+
+        n = len(corr_matrix)
+        # Sum of all pairwise correlations (including diagonal = 1.0 for each)
+        total_correlation = corr_matrix.values.sum()
+
+        if total_correlation > 0:
+            effective = (n * n) / total_correlation
+            result["effective_positions"] = round(effective, 1)
+            result["diversification_ratio"] = round(effective / n, 2)
+
+        # Find correlated clusters
+        result["correlated_clusters"] = self.flag_correlation_clusters(
+            corr_matrix, min_cluster_size=3, threshold=0.75
+        )
+
+        return result
+
+    def flag_correlation_clusters(
+        self,
+        correlation_matrix: pd.DataFrame,
+        min_cluster_size: int = 3,
+        threshold: float = 0.75,
+    ) -> List[Dict[str, Any]]:
+        """
+        Find groups of 3+ stocks with mutual correlation above threshold.
+
+        Args:
+            correlation_matrix: Pairwise correlation DataFrame
+            min_cluster_size: Minimum stocks to form a cluster
+            threshold: Minimum correlation to consider stocks related
+
+        Returns:
+            List of cluster dicts with tickers, avg_correlation, combined_weight_warning
+        """
+        if correlation_matrix.empty or len(correlation_matrix) < min_cluster_size:
+            return []
+
+        tickers = correlation_matrix.columns.tolist()
+        clusters: List[Dict[str, Any]] = []
+        used_tickers: set = set()
+
+        # For each ticker, find all tickers correlated above threshold
+        neighbor_map: Dict[str, set] = {}
+        for ticker in tickers:
+            neighbors = set()
+            for other in tickers:
+                if other != ticker:
+                    if abs(correlation_matrix.loc[ticker, other]) >= threshold:
+                        neighbors.add(other)
+            neighbor_map[ticker] = neighbors
+
+        # Find clusters: groups where all members are mutually correlated
+        for ticker in tickers:
+            if ticker in used_tickers:
+                continue
+            candidates = neighbor_map[ticker] | {ticker}
+            # Filter to only those mutually correlated with each other
+            cluster_tickers = [ticker]
+            for candidate in sorted(candidates - {ticker}):
+                # Check if candidate is correlated with all current cluster members
+                is_mutual = all(
+                    abs(correlation_matrix.loc[candidate, member]) >= threshold
+                    for member in cluster_tickers
+                )
+                if is_mutual:
+                    cluster_tickers.append(candidate)
+
+            if len(cluster_tickers) >= min_cluster_size:
+                # Calculate average pairwise correlation within cluster
+                corr_sum = 0.0
+                pair_count = 0
+                for i, t1 in enumerate(cluster_tickers):
+                    for t2 in cluster_tickers[i + 1:]:
+                        corr_sum += abs(correlation_matrix.loc[t1, t2])
+                        pair_count += 1
+
+                avg_corr = corr_sum / pair_count if pair_count > 0 else 0.0
+
+                clusters.append({
+                    "tickers": cluster_tickers,
+                    "avg_correlation": round(avg_corr, 2),
+                    "combined_weight_warning": (
+                        f"{len(cluster_tickers)} stocks acting as ~1 position "
+                        f"(avg correlation {avg_corr:.0%})"
+                    ),
+                })
+                used_tickers.update(cluster_tickers)
+
+        return clusters
+
+    def check_drawdowns(
+        self,
+        portfolio_df: pd.DataFrame,
+        tier_col: str = "tier",
+    ) -> List[Dict[str, Any]]:
+        """
+        Check for stocks with drawdowns exceeding tier-expected volatility.
+
+        Uses the 52-week high percentage to measure drawdown, then compares
+        against expected volatility for each tier.
+
+        Args:
+            portfolio_df: DataFrame with portfolio positions
+            tier_col: Column name containing tier classification
+
+        Returns:
+            List of dicts with ticker, drawdown_pct, tier, expected_vol, severity
+        """
+        alerts: List[Dict[str, Any]] = []
+
+        if portfolio_df.empty:
+            return alerts
+
+        # Find the 52-week high column
+        high_col = None
+        for col in ["52W", "pct_52w_high", "52w", "PCT_52W_HIGH"]:
+            if col in portfolio_df.columns:
+                high_col = col
+                break
+
+        if high_col is None:
+            return alerts
+
+        # Find ticker column
+        tkr_col = None
+        for col in ["TKR", "ticker", "TICKER", "symbol"]:
+            if col in portfolio_df.columns:
+                tkr_col = col
+                break
+
+        if tkr_col is None:
+            return alerts
+
+        # Determine tier for each stock
+        cap_col = None
+        for col in [tier_col, "tier", "TIER", "CAP", "cap", "market_cap"]:
+            if col in portfolio_df.columns:
+                cap_col = col
+                break
+
+        for _, row in portfolio_df.iterrows():
+            ticker = row.get(tkr_col)
+            high_val = row.get(high_col)
+
+            if pd.isna(ticker) or pd.isna(high_val):
+                continue
+
+            # Parse 52W value - it's percentage of 52-week high (e.g., 72 means at 72% of high)
+            try:
+                pct_of_high = float(high_val)
+            except (ValueError, TypeError):
+                continue
+
+            # Drawdown = how far below the 52-week high (100 - pct_of_high)
+            drawdown_pct = (100 - pct_of_high) / 100.0  # Convert to decimal
+
+            if drawdown_pct <= 0:
+                continue  # At or above 52-week high
+
+            # Determine tier and expected volatility
+            tier = self._resolve_tier(row, cap_col)
+            expected_vol = self.TIER_EXPECTED_VOLATILITY.get(tier, 0.25)
+
+            # Determine severity
+            if drawdown_pct > 2.0 * expected_vol:
+                severity = "CRITICAL"
+            elif drawdown_pct > 1.5 * expected_vol:
+                severity = "WARNING"
+            elif drawdown_pct > 1.0 * expected_vol:
+                severity = "WATCH"
+            else:
+                continue  # Within normal range
+
+            alerts.append({
+                "ticker": ticker,
+                "drawdown_pct": round(drawdown_pct * 100, 1),
+                "tier": tier,
+                "expected_vol": round(expected_vol * 100, 1),
+                "severity": severity,
+            })
+
+        # Sort by severity (CRITICAL first) then drawdown
+        severity_order = {"CRITICAL": 0, "WARNING": 1, "WATCH": 2}
+        alerts.sort(key=lambda x: (severity_order.get(x["severity"], 3), -x["drawdown_pct"]))
+
+        return alerts
+
+    def _resolve_tier(self, row: pd.Series, cap_col: Optional[str]) -> str:
+        """Resolve the tier for a row based on available columns."""
+        if cap_col and cap_col in ("tier", "TIER"):
+            tier_val = row.get(cap_col)
+            if not pd.isna(tier_val) and str(tier_val) in self.TIER_EXPECTED_VOLATILITY:
+                return str(tier_val)
+
+        # Try to determine from market cap
+        cap_val = row.get(cap_col) if cap_col else None
+        if cap_val is not None and not pd.isna(cap_val):
+            try:
+                if isinstance(cap_val, str):
+                    from .analysis.tiers import _parse_market_cap
+                    cap_num = _parse_market_cap(cap_val)
+                else:
+                    cap_num = float(cap_val)
+
+                if cap_num >= 500_000_000_000:
+                    return "MEGA"
+                elif cap_num >= 100_000_000_000:
+                    return "LARGE"
+                elif cap_num >= 10_000_000_000:
+                    return "MID"
+                elif cap_num >= 2_000_000_000:
+                    return "SMALL"
+                else:
+                    return "MICRO"
+            except (ValueError, TypeError):
+                pass
+
+        return "MID"  # Default fallback
+
     def get_risk_summary(
         self, portfolio_df: pd.DataFrame, ticker_col: str = "ticker"
     ) -> Dict[str, Any]:
@@ -332,13 +591,16 @@ class PortfolioRiskAnalyzer:
             "concentration_warnings": [],
             "high_correlation_pairs": [],
             "correlation_matrix_available": False,
+            "effective_concentration": None,
+            "correlation_clusters": [],
+            "drawdown_alerts": [],
         }
 
         if portfolio_df.empty:
             return summary
 
         # Find ticker column
-        for col in ["ticker", "TICKER", "Ticker", "symbol", "SYMBOL"]:
+        for col in ["ticker", "TICKER", "Ticker", "symbol", "SYMBOL", "TKR"]:
             if col in portfolio_df.columns:
                 ticker_col = col
                 break
@@ -362,6 +624,18 @@ class PortfolioRiskAnalyzer:
                     summary["high_correlation_pairs"] = (
                         self.identify_high_correlation_pairs(corr_matrix)
                     )
+
+            # Effective concentration
+            if len(tickers) >= 2:
+                summary["effective_concentration"] = (
+                    self.calculate_effective_concentration(tickers[:50])
+                )
+                summary["correlation_clusters"] = (
+                    summary["effective_concentration"].get("correlated_clusters", [])
+                )
+
+        # Drawdown alerts
+        summary["drawdown_alerts"] = self.check_drawdowns(portfolio_df)
 
         return summary
 
@@ -397,6 +671,38 @@ class PortfolioRiskAnalyzer:
                 lines.append(f"  {ticker1} <-> {ticker2}: {corr:.2f}")
             if len(pairs) > 5:
                 lines.append(f"  ... and {len(pairs) - 5} more")
+
+        # Effective concentration
+        eff_conc = summary.get("effective_concentration")
+        if eff_conc:
+            eff_pos = eff_conc.get("effective_positions", 0)
+            div_ratio = eff_conc.get("diversification_ratio", 0)
+            lines.append(
+                f"Effective Independent Positions: {eff_pos} "
+                f"(diversification ratio: {div_ratio:.0%})"
+            )
+
+        # Correlation clusters
+        clusters = summary.get("correlation_clusters", [])
+        if clusters:
+            lines.append(f"Correlation Clusters ({len(clusters)} found):")
+            for cluster in clusters:
+                tickers_str = ", ".join(cluster["tickers"])
+                lines.append(
+                    f"  [{tickers_str}] avg corr: {cluster['avg_correlation']:.2f} "
+                    f"- {cluster['combined_weight_warning']}"
+                )
+
+        # Drawdown alerts
+        alerts = summary.get("drawdown_alerts", [])
+        if alerts:
+            lines.append(f"Drawdown Alerts ({len(alerts)} found):")
+            for alert in alerts:
+                lines.append(
+                    f"  {alert['severity']}: {alert['ticker']} "
+                    f"down {alert['drawdown_pct']:.1f}% from 52W high "
+                    f"(tier {alert['tier']}, expected vol {alert['expected_vol']:.0f}%)"
+                )
 
         return lines
 

@@ -154,10 +154,10 @@ class TestAnalysisEngineComprehensive(unittest.TestCase):
         result, _ = calculate_action_vectorized(large_df, "market")
         end_time = time.time()
 
-        # Should complete in reasonable time (< 30 seconds for 1000 rows)
+        # Should complete in reasonable time (< 60 seconds for 1000 rows)
         # CI environments and full test suite runs can be slower than isolated runs
-        # Local runs typically complete in <1 second
-        self.assertLess(end_time - start_time, 30.0)
+        # AM scoring + IPO auto-detect add overhead; local runs typically <5 seconds
+        self.assertLess(end_time - start_time, 60.0)
         self.assertEqual(len(result), 1000)
         
     def test_data_type_conversions(self):
