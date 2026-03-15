@@ -125,12 +125,12 @@ class TestDataFreshnessTracker:
         assert result["MSFT"]["confidence_penalty"] == PENALTIES["aging"]
 
     def test_stale_ticker(self, tmp_dir):
-        """Ticker with no metric changes for >90 days should be stale."""
+        """Ticker with no metric changes for 60-90 days should be stale."""
         now = datetime.now()
-        # All records have the same metrics - no change ever
+        # Change happened 75 days ago, none since
         records = _make_records(
-            "OLDCO", "H", now - timedelta(days=120), num_days=120,
-            buy_pct_start=50.0,
+            "OLDCO", "H", now - timedelta(days=80), num_days=80,
+            buy_pct_start=50.0, buy_pct_change_day=5, buy_pct_new=60.0,
         )
         log_path = _write_signal_log(tmp_dir / "signal_log.jsonl", records)
 
@@ -141,8 +141,24 @@ class TestDataFreshnessTracker:
         assert result["OLDCO"]["staleness"] == "stale"
         assert result["OLDCO"]["confidence_penalty"] == PENALTIES["stale"]
 
+    def test_dead_ticker(self, tmp_dir):
+        """Ticker with no metric changes for >90 days should be dead (CIO M5)."""
+        now = datetime.now()
+        records = _make_records(
+            "DEADCO", "H", now - timedelta(days=120), num_days=120,
+            buy_pct_start=50.0,
+        )
+        log_path = _write_signal_log(tmp_dir / "signal_log.jsonl", records)
+
+        tracker = DataFreshnessTracker(signal_log_path=log_path)
+        result = tracker.check_freshness(tickers=["DEADCO"])
+
+        assert "DEADCO" in result
+        assert result["DEADCO"]["staleness"] == "dead"
+        assert result["DEADCO"]["confidence_penalty"] == PENALTIES["dead"]
+
     def test_get_stale_tickers(self, tmp_dir):
-        """get_stale_tickers returns only stale tickers."""
+        """get_stale_tickers returns stale and dead tickers."""
         now = datetime.now()
 
         # Fresh ticker
@@ -150,21 +166,27 @@ class TestDataFreshnessTracker:
             "FRESH", "B", now - timedelta(days=10), num_days=10,
             buy_pct_start=70.0, buy_pct_change_day=5, buy_pct_new=80.0,
         )
-        # Stale ticker
+        # Stale ticker (75 days since last change)
         stale_records = _make_records(
-            "STALE", "H", now - timedelta(days=120), num_days=120,
+            "STALE", "H", now - timedelta(days=80), num_days=80,
+            buy_pct_start=50.0, buy_pct_change_day=5, buy_pct_new=60.0,
+        )
+        # Dead ticker (120 days, no change)
+        dead_records = _make_records(
+            "DEAD", "H", now - timedelta(days=120), num_days=120,
             buy_pct_start=50.0,
         )
 
         log_path = _write_signal_log(
             tmp_dir / "signal_log.jsonl",
-            fresh_records + stale_records,
+            fresh_records + stale_records + dead_records,
         )
 
         tracker = DataFreshnessTracker(signal_log_path=log_path)
         stale = tracker.get_stale_tickers()
 
         assert "STALE" in stale
+        assert "DEAD" in stale
         assert "FRESH" not in stale
 
     def test_filter_by_tickers(self, tmp_dir):
@@ -282,8 +304,8 @@ class TestDataFreshnessTracker:
         result = tracker.check_freshness(tickers=["TINY"])
 
         assert "TINY" in result
-        # Small change should be ignored, so the ticker appears stale
-        assert result["TINY"]["staleness"] == "stale"
+        # Small change should be ignored, so the ticker appears dead (100 days > 90)
+        assert result["TINY"]["staleness"] == "dead"
 
     def test_result_fields(self, tmp_dir):
         """Check all expected fields are present in result."""
