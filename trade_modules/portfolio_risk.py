@@ -572,6 +572,231 @@ class PortfolioRiskAnalyzer:
 
         return "MID"  # Default fallback
 
+    def calculate_portfolio_var(
+        self,
+        portfolio_df: pd.DataFrame,
+        horizon_days: int = 1,
+        confidence_95: bool = True,
+        confidence_99: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        Calculate Portfolio Value at Risk (VaR) using parametric method.
+
+        Uses the existing correlation matrix and individual stock volatilities
+        to compute portfolio-level VaR at 95% and 99% confidence levels.
+
+        Args:
+            portfolio_df: DataFrame with portfolio positions
+            horizon_days: Time horizon for VaR calculation (default: 1 day)
+            confidence_95: Include 95% VaR (default: True)
+            confidence_99: Include 99% VaR (default: True)
+
+        Returns:
+            Dict with var_95, var_99, var_95_pct, var_99_pct, portfolio_vol, effective_positions
+        """
+        result: Dict[str, Any] = {
+            "var_95": None,
+            "var_99": None,
+            "var_95_pct": None,
+            "var_99_pct": None,
+            "portfolio_vol": None,
+            "effective_positions": None,
+            "var_alert": False,
+        }
+
+        if portfolio_df.empty:
+            return result
+
+        # Find ticker column
+        tkr_col = None
+        for col in ["TKR", "ticker", "TICKER", "symbol"]:
+            if col in portfolio_df.columns:
+                tkr_col = col
+                break
+
+        if tkr_col is None:
+            return result
+
+        tickers = portfolio_df[tkr_col].dropna().unique().tolist()
+        if len(tickers) < 2:
+            return result
+
+        # Get correlation matrix
+        corr_matrix = self.calculate_correlation_matrix(tickers, period=60)
+        if corr_matrix.empty:
+            return result
+
+        # Calculate individual stock volatilities from returns
+        returns_data: Dict[str, pd.Series] = {}
+        for ticker in corr_matrix.columns:
+            prices = self._get_historical_prices(ticker, period_days=60)
+            if prices is not None and len(prices) > 20:
+                returns = prices.pct_change().dropna()
+                if len(returns) > 10:
+                    returns_data[ticker] = returns
+
+        if len(returns_data) < 2:
+            return result
+
+        # Align returns and calculate volatilities
+        returns_df = pd.DataFrame(returns_data).dropna()
+        if len(returns_df) < 20:
+            return result
+
+        volatilities = returns_df.std()
+
+        # Determine weights (equal weights if position sizes not available)
+        weights_dict = {}
+        weight_col = None
+        for col in ["SZ", "size", "position_size", "market_cap", "CAP"]:
+            if col in portfolio_df.columns:
+                weight_col = col
+                break
+
+        if weight_col:
+            # Use position sizes as weights
+            for _, row in portfolio_df.iterrows():
+                ticker = row.get(tkr_col)
+                if ticker in corr_matrix.columns:
+                    try:
+                        size_val = row.get(weight_col)
+                        if pd.notna(size_val):
+                            if isinstance(size_val, str):
+                                # Parse percentage like "2.5%"
+                                size_val = float(size_val.strip('%')) / 100.0
+                            weights_dict[ticker] = float(size_val)
+                    except (ValueError, TypeError):
+                        pass
+
+        if not weights_dict:
+            # Equal weights fallback
+            n = len(corr_matrix)
+            weights_dict = {ticker: 1.0 / n for ticker in corr_matrix.columns}
+
+        # Normalize weights to sum to 1
+        total_weight = sum(weights_dict.values())
+        if total_weight > 0:
+            weights_dict = {k: v / total_weight for k, v in weights_dict.items()}
+
+        # Align weights with correlation matrix
+        tickers_aligned = [t for t in corr_matrix.columns if t in weights_dict]
+        if len(tickers_aligned) < 2:
+            return result
+
+        weights = np.array([weights_dict[t] for t in tickers_aligned])
+        vols = volatilities[tickers_aligned].values
+        corr_aligned = corr_matrix.loc[tickers_aligned, tickers_aligned].values
+
+        # Calculate covariance matrix
+        # Cov = diag(vol) @ Corr @ diag(vol)
+        vol_diag = np.diag(vols)
+        cov_matrix = vol_diag @ corr_aligned @ vol_diag
+
+        # Portfolio variance: w^T @ Cov @ w
+        portfolio_variance = weights.T @ cov_matrix @ weights
+        portfolio_vol = np.sqrt(portfolio_variance)
+
+        # Annualize for reporting
+        portfolio_vol_annual = portfolio_vol * np.sqrt(252)
+        result["portfolio_vol"] = round(portfolio_vol_annual, 4)
+
+        # Scale volatility by horizon
+        portfolio_vol_horizon = portfolio_vol * np.sqrt(horizon_days)
+
+        # VaR calculation: VaR = z * σ * sqrt(horizon/252)
+        # Note: We already have daily vol, so we scale by sqrt(horizon_days)
+        # For a 1-day horizon with daily vol, this is just z * daily_vol
+
+        if confidence_95:
+            z_95 = 1.645
+            var_95_pct = z_95 * portfolio_vol_horizon
+            result["var_95_pct"] = round(var_95_pct * 100, 2)
+            # If we had portfolio value, we'd calculate dollar VaR
+            # For now, report as percentage
+            result["var_95"] = result["var_95_pct"]
+
+        if confidence_99:
+            z_99 = 2.326
+            var_99_pct = z_99 * portfolio_vol_horizon
+            result["var_99_pct"] = round(var_99_pct * 100, 2)
+            result["var_99"] = result["var_99_pct"]
+
+        # Alert if VaR exceeds 12% threshold
+        if result["var_95_pct"] and result["var_95_pct"] > 12.0:
+            result["var_alert"] = True
+
+        # Effective positions (for context)
+        eff_conc = self.calculate_effective_concentration(tickers_aligned, period=60)
+        result["effective_positions"] = eff_conc.get("effective_positions")
+
+        return result
+
+    def get_drawdown_actions(
+        self, drawdown_alerts: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Generate actionable recommendations based on drawdown alerts.
+
+        Connects drawdown severity to portfolio re-evaluation decisions:
+        - CRITICAL: Force sell review with tightened thresholds
+        - WARNING: Flag for review and close monitoring
+        - WATCH: Monitor without immediate action
+
+        Args:
+            drawdown_alerts: Output from check_drawdowns()
+
+        Returns:
+            List of action dicts with ticker, severity, action, and recommendation
+        """
+        actions: List[Dict[str, Any]] = []
+
+        for alert in drawdown_alerts:
+            ticker = alert.get("ticker")
+            severity = alert.get("severity")
+            drawdown_pct = alert.get("drawdown_pct")
+
+            action_dict: Dict[str, Any] = {
+                "ticker": ticker,
+                "severity": severity,
+                "drawdown_pct": drawdown_pct,
+            }
+
+            if severity == "CRITICAL":
+                action_dict["action"] = "FORCE_SELL_REVIEW"
+                action_dict["recommendation"] = (
+                    f"Immediate review required. Consider tightening sell thresholds "
+                    f"by 20% (multiply by 0.8) for this position. Drawdown exceeds "
+                    f"2x expected volatility."
+                )
+                action_dict["threshold_adjustment"] = 0.8
+
+            elif severity == "WARNING":
+                action_dict["action"] = "REVIEW"
+                action_dict["recommendation"] = (
+                    f"Position under stress. Review fundamentals and analyst changes. "
+                    f"Drawdown exceeds 1.5x expected volatility. Watch closely for "
+                    f"deterioration to CRITICAL."
+                )
+                action_dict["threshold_adjustment"] = None
+
+            elif severity == "WATCH":
+                action_dict["action"] = "MONITOR"
+                action_dict["recommendation"] = (
+                    f"Normal volatility range exceeded. Monitor for trend continuation. "
+                    f"No immediate action required."
+                )
+                action_dict["threshold_adjustment"] = None
+
+            else:
+                # Unknown severity
+                action_dict["action"] = "UNKNOWN"
+                action_dict["recommendation"] = "Review manually."
+                action_dict["threshold_adjustment"] = None
+
+            actions.append(action_dict)
+
+        return actions
+
     def get_risk_summary(
         self, portfolio_df: pd.DataFrame, ticker_col: str = "ticker"
     ) -> Dict[str, Any]:
@@ -594,6 +819,8 @@ class PortfolioRiskAnalyzer:
             "effective_concentration": None,
             "correlation_clusters": [],
             "drawdown_alerts": [],
+            "portfolio_var": None,
+            "drawdown_actions": [],
         }
 
         if portfolio_df.empty:
@@ -637,6 +864,15 @@ class PortfolioRiskAnalyzer:
         # Drawdown alerts
         summary["drawdown_alerts"] = self.check_drawdowns(portfolio_df)
 
+        # Portfolio VaR
+        summary["portfolio_var"] = self.calculate_portfolio_var(portfolio_df)
+
+        # Drawdown actions
+        if summary["drawdown_alerts"]:
+            summary["drawdown_actions"] = self.get_drawdown_actions(
+                summary["drawdown_alerts"]
+            )
+
         return summary
 
     def format_risk_report(self, summary: Dict[str, Any]) -> List[str]:
@@ -658,6 +894,26 @@ class PortfolioRiskAnalyzer:
                 "LOW" if beta < 0.8 else "MODERATE" if beta < 1.2 else "HIGH"
             )
             lines.append(f"Portfolio Beta: {beta:.2f} ({risk_level} volatility)")
+
+        # Portfolio VaR
+        var_data = summary.get("portfolio_var")
+        if var_data and var_data.get("var_95_pct") is not None:
+            var_95 = var_data["var_95_pct"]
+            var_99 = var_data.get("var_99_pct")
+            portfolio_vol = var_data.get("portfolio_vol")
+
+            var_line = f"Portfolio VaR: {var_95:.2f}% at 95% confidence"
+            if var_99:
+                var_line += f", {var_99:.2f}% at 99%"
+            if portfolio_vol:
+                var_line += f" (annual vol: {portfolio_vol*100:.1f}%)"
+            lines.append(var_line)
+
+            # Alert if VaR exceeds threshold
+            if var_data.get("var_alert"):
+                lines.append(
+                    f"  WARNING: VaR exceeds 12% threshold - portfolio at elevated risk"
+                )
 
         # Concentration warnings
         for warning in summary.get("concentration_warnings", []):
@@ -703,6 +959,22 @@ class PortfolioRiskAnalyzer:
                     f"down {alert['drawdown_pct']:.1f}% from 52W high "
                     f"(tier {alert['tier']}, expected vol {alert['expected_vol']:.0f}%)"
                 )
+
+        # Drawdown actions
+        actions = summary.get("drawdown_actions", [])
+        if actions:
+            lines.append(f"Drawdown Actions ({len(actions)} recommendations):")
+            for action in actions:
+                lines.append(
+                    f"  {action['ticker']} ({action['severity']}): "
+                    f"{action['action']}"
+                )
+                lines.append(f"    → {action['recommendation']}")
+                if action.get("threshold_adjustment"):
+                    lines.append(
+                        f"    → Suggested threshold multiplier: "
+                        f"{action['threshold_adjustment']:.1f}"
+                    )
 
         return lines
 
