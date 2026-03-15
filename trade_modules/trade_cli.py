@@ -935,10 +935,7 @@ async def main_async(get_provider=None, app_logger=None):
             trade_filter=None,  # No trade filter for regular flow
         )
 
-        # Display portfolio risk warnings for portfolio analysis
-        if source == "P":
-            output_dir, _, _, _, _ = get_file_paths()
-            display_portfolio_risk_warnings(output_dir, app_logger)
+        # Portfolio risk warnings disabled (run stats only)
 
     except YFinanceError as e:
         error_collector.add_error(f"YFinance error in main_async: {str(e)}", context="main_async")
@@ -1017,9 +1014,7 @@ async def main_async_with_args(args, app_logger=None):
                 display, tickers, "P", verbose=False, get_provider=provider, app_logger=app_logger
             )
 
-            # Display portfolio risk warnings after analysis
-            output_dir, _, _, _, _ = get_file_paths()
-            display_portfolio_risk_warnings(output_dir, app_logger)
+            # Portfolio risk warnings disabled (run stats only)
 
         # Handle trade analysis operations
         elif args.operation in ["t", "trade"]:
