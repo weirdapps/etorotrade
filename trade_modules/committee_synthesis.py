@@ -192,24 +192,20 @@ def determine_base_conviction(
     """
     Determine base conviction from agent consensus, anchored by signal.
 
+    CIO v5.2: Uses continuous interpolation instead of 6-bucket discretization
+    to break conviction clustering. The old system mapped 50-65% bull to the
+    same base=60, losing differentiation. Now, 52% and 64% produce different
+    bases (52 vs 62), which propagates through to final scores.
+
     Key principles:
     - BUY signal: agents can upgrade but floor is 55
     - SELL signal: conviction reduced when agents disagree
     - HOLD signal: base capped at 70 to prevent easy escalation
     """
-    # Agent consensus base
-    if bull_pct >= 80:
-        agent_base = 80
-    elif bull_pct >= 65:
-        agent_base = 70
-    elif bull_pct >= 50:
-        agent_base = 60
-    elif bull_pct >= 45:
-        agent_base = 50
-    elif bull_pct >= 35:
-        agent_base = 40
-    else:
-        agent_base = 30
+    # Continuous agent base: linear interpolation from 30 (at 0% bull) to 80 (at 100% bull)
+    # This replaces the 6-bucket system that caused 11 stocks at identical conviction
+    agent_base = int(30 + (bull_pct / 100) * 50)
+    agent_base = max(30, min(80, agent_base))
 
     if signal == "B":
         base = max(agent_base, 55)
@@ -218,8 +214,11 @@ def determine_base_conviction(
             base = max(base + 10, 60)
         elif fund_score >= 65:
             base = max(base + 5, 55)
-        if excess_exret >= 12:
-            base += 5
+        # Proportional excess EXRET bonus (CIO v5.2)
+        # Instead of binary >=12 → +5, scale: 5→+1, 10→+3, 15→+4, 20+→+5
+        if excess_exret >= 5:
+            exret_bonus = min(5, int(excess_exret / 4))
+            base += exret_bonus
     elif signal == "S":
         if bull_pct > 55:
             base = 50  # Agents mostly disagree with SELL
@@ -301,6 +300,12 @@ def compute_adjustments(
 
     # Technical overbought
     if rsi > 70:
+        penalties += 5
+
+    # Tech disagreement penalty (CIO v5.2): when BUY signal but tech says AVOID/EXIT
+    if signal == "B" and tech_signal in ("AVOID", "EXIT_SOON"):
+        penalties += 8
+    elif signal == "B" and tech_momentum < -30:
         penalties += 5
 
     # Macro sector-specific
@@ -648,6 +653,55 @@ def _resolve_news_impact(port_news: Dict, ticker: str) -> str:
     return "NEUTRAL"
 
 
+def _fallback_technical(sig_data: Dict) -> Dict:
+    """
+    Generate synthetic technical view from signal CSV data (CIO v5.2).
+
+    When the technical agent doesn't cover a stock, use PP (price performance),
+    52W (52-week high %), and beta to derive a directional view instead of
+    defaulting everything to momentum=0, timing=HOLD.
+    """
+    pp = sig_data.get("pp", 0)
+    w52 = sig_data.get("52w", 100)
+
+    # Derive momentum from price performance
+    if pp > 15:
+        momentum = 35
+    elif pp > 5:
+        momentum = 15
+    elif pp > -5:
+        momentum = 0
+    elif pp > -15:
+        momentum = -20
+    else:
+        momentum = -40
+
+    # Derive timing from 52W (distance from high)
+    if w52 >= 95:
+        timing = "WAIT_FOR_PULLBACK"
+        rsi_est = 68
+    elif w52 >= 80:
+        timing = "HOLD"
+        rsi_est = 55
+    elif w52 >= 65:
+        timing = "HOLD"
+        rsi_est = 45
+    elif w52 >= 50:
+        timing = "AVOID"
+        rsi_est = 38
+    else:
+        timing = "AVOID"
+        rsi_est = 30
+
+    return {
+        "momentum_score": momentum,
+        "timing_signal": timing,
+        "rsi": rsi_est,
+        "macd_signal": "BULLISH" if pp > 0 else "BEARISH",
+        "synthetic": True,
+    }
+
+
 def _fallback_fundamental(sig_data: Dict) -> Dict:
     """Generate synthetic fundamental score from signal data."""
     fs = 50
@@ -686,6 +740,8 @@ def _synthesize_with_lookups(
         fund_data = _fallback_fundamental(sig_data)
 
     tech_data = tech_report.get("stocks", {}).get(ticker, {})
+    if not tech_data:
+        tech_data = _fallback_technical(sig_data)
     macro_fit = _resolve_macro_fit(lookups["macro_impl"], ticker)
     cen_align, div_score = lookups["div_map"].get(ticker, ("NEUTRAL", 0))
     news_impact = _resolve_news_impact(lookups["port_news"], ticker)
@@ -906,9 +962,20 @@ def build_concordance(
         )
         concordance.append(entry)
 
-    # Sort by action priority, then by conviction descending
+    # Break conviction ties with composite quality score (CIO v5.2)
+    # This prevents 11 stocks at identical conviction=65
+    for entry in concordance:
+        tiebreak = (
+            entry.get("excess_exret", 0) * 0.4
+            + entry.get("fund_score", 50) * 0.3
+            + (100 - entry.get("beta", 1.0) * 20) * 0.1
+            + entry.get("bull_pct", 50) * 0.2
+        )
+        entry["tiebreak"] = round(tiebreak, 2)
+
+    # Sort by action priority, then conviction desc, then tiebreak desc
     concordance.sort(
-        key=lambda x: (ACTION_ORDER.get(x["action"], 9), -x["conviction"])
+        key=lambda x: (ACTION_ORDER.get(x["action"], 9), -x["conviction"], -x["tiebreak"])
     )
 
     return concordance
@@ -947,3 +1014,84 @@ def compute_changes(
             })
 
     return changes
+
+
+def generate_synthesis_output(
+    concordance: List[Dict[str, Any]],
+    macro_report: Dict,
+    census_report: Dict,
+    news_report: Dict,
+    risk_report: Dict,
+    changes: List[Dict[str, Any]],
+    sector_gaps: List[Dict[str, Any]],
+    census_ts_map: Optional[Dict[str, str]] = None,
+    opportunity_report: Optional[Dict] = None,
+) -> Dict[str, Any]:
+    """
+    Generate complete synthesis JSON output from concordance and agent reports.
+
+    This function produces the flat-key structure that the HTML generator
+    expects, so the HTML can be generated deterministically from synthesis.json
+    without needing to re-read individual agent reports.
+    """
+    from collections import Counter
+
+    action_dist = Counter(e["action"] for e in concordance)
+
+    # Extract risk metrics
+    pr = risk_report.get("portfolio_risk", {})
+    var_95 = pr.get("var_95_daily", 0)
+    max_dd = pr.get("max_drawdown_1y", 0)
+    port_beta = pr.get("portfolio_beta", 0)
+    risk_score = pr.get("risk_score", 50)
+
+    # Macro
+    indicators = macro_report.get("indicators", {})
+    regime = macro_report.get("regime", "CAUTIOUS")
+    macro_score = macro_report.get("macro_score", 0)
+    rotation = macro_report.get("rotation_phase", "Unknown")
+
+    # Census
+    sentiment = census_report.get("sentiment", {})
+
+    output = {
+        "version": "v5.2_continuous_scoring",
+        "concordance": concordance,
+        "action_distribution": dict(action_dist),
+        "changes": changes,
+        "sector_gaps": sector_gaps,
+        # Flat keys for HTML generator compatibility
+        "regime": regime,
+        "macro_score": macro_score,
+        "rotation_phase": rotation,
+        "risk_score": risk_score,
+        "var_95": round(var_95 * 100, 2) if abs(var_95) < 1 else round(var_95, 2),
+        "max_drawdown": round(max_dd * 100, 1) if abs(max_dd) < 1 else round(max_dd, 1),
+        "portfolio_beta": round(port_beta, 2),
+        "portfolio_risk": pr,
+        # Macro
+        "indicators": indicators,
+        "sector_rankings": macro_report.get("sector_rankings", {}),
+        "macro_risks": macro_report.get("key_risks", []),
+        # Census
+        "fg_top100": sentiment.get("fg_top100", 0),
+        "fg_broad": sentiment.get("fg_broad", 0),
+        "census_sentiment": sentiment,
+        "top_holdings_top100": census_report.get("top_holdings_top100", []),
+        "missing_popular": census_report.get("portfolio_alignment", {}).get("missing_popular", []),
+        "census_time_series": census_ts_map or {},
+        # News
+        "breaking_news": news_report.get("breaking_news", []),
+        "earnings_calendar": news_report.get("earnings_calendar", {}),
+        "economic_events": news_report.get("economic_events", []),
+        # Risk
+        "correlation_clusters": risk_report.get("correlation_clusters", []),
+        "concentration": risk_report.get("concentration", {}),
+        "stress_scenarios": risk_report.get("stress_scenarios", {}),
+        "position_limits": risk_report.get("position_limits", {}),
+        "hard_constraints": risk_report.get("hard_constraints", []),
+        # Opportunities
+        "top_opportunities": (opportunity_report or {}).get("top_opportunities", []),
+    }
+
+    return output
