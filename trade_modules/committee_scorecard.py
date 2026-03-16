@@ -10,10 +10,14 @@ committee runs to reward conviction consistency.
 CIO Review v4 Finding F10: Automated performance check of previous
 committee recommendations with current prices.
 
+CIO Review v4 Finding F11: Kill thesis monitoring — structured storage
+and automated heuristic checking of kill theses for BUY/ADD positions.
+
 Logs committee action items with timestamps, then evaluates hit rates
 at T+7, T+30 against actual price movements.
 """
 
+import csv
 import json
 import logging
 from datetime import datetime, timedelta
@@ -28,10 +32,20 @@ COMMITTEE_LOG_DIR = Path.home() / ".weirdapps-trading" / "committee"
 COMMITTEE_LOG_PATH = COMMITTEE_LOG_DIR / "action_log.jsonl"
 SCORECARD_OUTPUT_PATH = COMMITTEE_LOG_DIR / "committee_scorecard.json"
 OPPORTUNITY_HISTORY_PATH = COMMITTEE_LOG_DIR / "opportunity_history.json"
+KILL_THESIS_LOG_PATH = COMMITTEE_LOG_DIR / "kill_thesis_log.json"
 
 # F5: Maximum conviction bonus from consecutive appearances
 MAX_CONSECUTIVE_BONUS = 9
 BONUS_PER_APPEARANCE = 3
+
+# F11: Default portfolio signals path
+DEFAULT_PORTFOLIO_SIGNALS_PATH = (
+    Path.home() / "SourceCode" / "etorotrade"
+    / "yahoofinance" / "output" / "portfolio.csv"
+)
+
+# F11: Kill thesis expiry default (days)
+KILL_THESIS_DEFAULT_EXPIRY_DAYS = 90
 
 
 def log_committee_actions(
@@ -493,6 +507,316 @@ def get_track_record_summary(
         return f"Track record: {hit_rate_7d:.0f}% BUY hit rate at T+7 (n={total})"
 
     return f"Track record: {total} BUY recommendations logged, awaiting T+30 data"
+
+
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    """Safely convert a value to float, stripping % signs and handling edge cases."""
+    if value is None:
+        return default
+    try:
+        s = str(value).strip().rstrip("%")
+        if s in ("", "--", "N/A", "nan", "NaN"):
+            return default
+        return float(s)
+    except (ValueError, TypeError):
+        return default
+
+
+# ============================================================
+# F11: Kill Thesis Monitoring
+# ============================================================
+
+
+def log_kill_theses(
+    date: str,
+    theses: List[Dict[str, Any]],
+    log_path: Optional[Path] = None,
+) -> None:
+    """
+    Store kill theses as structured JSON.
+
+    CIO Review v4 Finding F11: Persist kill theses from committee
+    BUY/ADD recommendations for automated monitoring.
+
+    Args:
+        date: Committee date (YYYY-MM-DD)
+        theses: List of thesis dicts, each with at least:
+            - ticker: str
+            - kill_thesis: str
+            Optional:
+            - status: str (default "active")
+            - expiry_date: str or None
+        log_path: Path to kill thesis log JSON file
+    """
+    path = log_path or KILL_THESIS_LOG_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Load existing theses
+    existing = _load_kill_theses(path)
+
+    # Build a set of (ticker, committee_date) for dedup
+    existing_keys = {
+        (t["ticker"], t["committee_date"])
+        for t in existing
+    }
+
+    new_count = 0
+    for thesis in theses:
+        ticker = thesis.get("ticker")
+        if not ticker:
+            continue
+
+        key = (ticker, date)
+        if key in existing_keys:
+            continue  # Skip duplicate
+
+        entry = {
+            "ticker": ticker,
+            "kill_thesis": thesis.get("kill_thesis", ""),
+            "committee_date": date,
+            "status": thesis.get("status", "active"),
+            "expiry_date": thesis.get("expiry_date"),
+        }
+
+        existing.append(entry)
+        existing_keys.add(key)
+        new_count += 1
+
+    # Save back
+    _save_kill_theses(existing, path)
+    logger.info(
+        f"Logged {new_count} kill theses for {date} "
+        f"({len(existing)} total)"
+    )
+
+
+def check_kill_theses(
+    portfolio_signals_path: Optional[Path] = None,
+    log_path: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """
+    Check if any active kill theses have triggered based on signal data.
+
+    CIO Review v4 Finding F11: Heuristic kill thesis monitoring using
+    available signal data to flag deteriorating positions.
+
+    Heuristic triggers:
+        - signal_deteriorated: ticker signal changed to S (SELL)
+        - price_collapsed: 52-week performance dropped below 40
+        - analyst_downgrade: analyst momentum (AM) strongly negative (< -5)
+
+    Args:
+        portfolio_signals_path: Path to portfolio.csv with current signals
+        log_path: Path to kill thesis log JSON file
+
+    Returns:
+        Dict with:
+            - active_theses: list of still-active theses
+            - triggered_theses: list of theses where heuristic triggers fired
+            - expired_theses: list of theses past 90-day expiry
+    """
+    path = log_path or KILL_THESIS_LOG_PATH
+    signals_path = portfolio_signals_path or DEFAULT_PORTFOLIO_SIGNALS_PATH
+
+    all_theses = _load_kill_theses(path)
+
+    if not all_theses:
+        return {
+            "active_theses": [],
+            "triggered_theses": [],
+            "expired_theses": [],
+        }
+
+    # Load portfolio signals
+    signals = _load_portfolio_signals(signals_path)
+
+    now = datetime.now()
+    cutoff = now - timedelta(days=KILL_THESIS_DEFAULT_EXPIRY_DAYS)
+
+    active = []
+    triggered = []
+    expired = []
+
+    for thesis in all_theses:
+        status = thesis.get("status", "active")
+
+        # Already resolved
+        if status in ("triggered", "expired"):
+            if status == "expired":
+                expired.append(thesis)
+            else:
+                triggered.append(thesis)
+            continue
+
+        # Check expiry
+        committee_date_str = thesis.get("committee_date", "")
+        try:
+            committee_dt = datetime.strptime(committee_date_str, "%Y-%m-%d")
+        except (ValueError, TypeError):
+            active.append(thesis)
+            continue
+
+        # Check explicit expiry_date first
+        expiry_str = thesis.get("expiry_date")
+        if expiry_str:
+            try:
+                expiry_dt = datetime.strptime(expiry_str, "%Y-%m-%d")
+                if now > expiry_dt:
+                    thesis["status"] = "expired"
+                    expired.append(thesis)
+                    continue
+            except (ValueError, TypeError):
+                pass
+
+        # Check 90-day default expiry
+        if committee_dt < cutoff:
+            thesis["status"] = "expired"
+            expired.append(thesis)
+            continue
+
+        # Check heuristic triggers against signal data
+        ticker = thesis.get("ticker", "")
+        signal_data = signals.get(ticker)
+
+        triggers = []
+        if signal_data:
+            # Signal deterioration: ticker now has SELL signal
+            if signal_data.get("BS") == "S":
+                triggers.append("signal_deteriorated")
+
+            # Price collapse: 52-week performance below 40
+            perf_52w = _safe_float(signal_data.get("52W"), default=100.0)
+            if perf_52w < 40:
+                triggers.append("price_collapsed")
+
+            # Analyst downgrade: AM strongly negative
+            am = _safe_float(signal_data.get("AM"), default=0.0)
+            if am < -5:
+                triggers.append("analyst_downgrade")
+
+        if triggers:
+            thesis["status"] = "triggered"
+            thesis["triggers"] = triggers
+            triggered.append(thesis)
+        else:
+            active.append(thesis)
+
+    # Persist updated statuses
+    _save_kill_theses(all_theses, path)
+
+    logger.info(
+        f"Kill thesis check: {len(active)} active, "
+        f"{len(triggered)} triggered, {len(expired)} expired"
+    )
+
+    return {
+        "active_theses": active,
+        "triggered_theses": triggered,
+        "expired_theses": expired,
+    }
+
+
+def expire_old_theses(
+    days: int = 90,
+    log_path: Optional[Path] = None,
+) -> int:
+    """
+    Mark theses older than ``days`` as expired.
+
+    CIO Review v4 Finding F11: Housekeeping to prevent stale kill
+    theses from accumulating indefinitely.
+
+    Args:
+        days: Age threshold in days (default 90)
+        log_path: Path to kill thesis log JSON file
+
+    Returns:
+        Number of theses that were expired
+    """
+    path = log_path or KILL_THESIS_LOG_PATH
+    all_theses = _load_kill_theses(path)
+
+    if not all_theses:
+        return 0
+
+    cutoff = datetime.now() - timedelta(days=days)
+    expired_count = 0
+
+    for thesis in all_theses:
+        if thesis.get("status") != "active":
+            continue
+
+        committee_date_str = thesis.get("committee_date", "")
+        try:
+            committee_dt = datetime.strptime(committee_date_str, "%Y-%m-%d")
+        except (ValueError, TypeError):
+            continue
+
+        if committee_dt < cutoff:
+            thesis["status"] = "expired"
+            expired_count += 1
+
+    if expired_count > 0:
+        _save_kill_theses(all_theses, path)
+        logger.info(f"Expired {expired_count} kill theses older than {days} days")
+
+    return expired_count
+
+
+def _load_kill_theses(path: Path) -> List[Dict[str, Any]]:
+    """Load kill theses from JSON file."""
+    if not path.exists():
+        return []
+
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+        if isinstance(data, list):
+            return data
+        return []
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning(f"Failed to load kill theses: {e}")
+        return []
+
+
+def _save_kill_theses(
+    theses: List[Dict[str, Any]],
+    path: Path,
+) -> None:
+    """Save kill theses to JSON file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with open(path, "w") as f:
+            json.dump(theses, f, indent=2, default=str)
+    except OSError as e:
+        logger.error(f"Failed to save kill theses: {e}")
+
+
+def _load_portfolio_signals(path: Path) -> Dict[str, Dict[str, str]]:
+    """
+    Load portfolio signals from CSV into a dict keyed by ticker.
+
+    The CSV has headers:
+    TKR,NAME,CAP,PRC,TGT,UP%,#T,%B,#A,AM,A,EXR,B,52W,2H,...,BS
+
+    Returns:
+        Dict mapping ticker -> dict of column values
+    """
+    if not path.exists():
+        return {}
+
+    try:
+        signals: Dict[str, Dict[str, str]] = {}
+        with open(path, "r") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                ticker = row.get("TKR", "").strip()
+                if ticker:
+                    signals[ticker] = dict(row)
+        return signals
+    except (OSError, csv.Error) as e:
+        logger.warning(f"Failed to load portfolio signals: {e}")
+        return {}
 
 
 def _load_all_actions(path: Path) -> List[Dict[str, Any]]:
