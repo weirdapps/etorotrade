@@ -536,12 +536,22 @@ def synthesize_stock(
     # Step 6: Determine action
     action = determine_action(conviction, signal, tech_signal, risk_warning)
 
-    # Risk manager override
-    if signal == "H" and tech_signal in ("AVOID",) and risk_warning:
+    # Risk manager override: downgrade to WEAK HOLD when tech is bearish + risk warns
+    if signal == "H" and tech_signal in ("AVOID", "EXIT_SOON") and risk_warning:
         if action not in ("SELL", "REDUCE", "TRIM"):
             action = "WEAK HOLD"
 
-    # TRIM conviction recalculation
+    # Trim escalation: HOLD-signal stocks that are severely overbought or have
+    # bearish tech + risk warnings should be TRIM, not stuck at WEAK HOLD.
+    # This ensures stocks like PANW (RSI=93) get proper trim treatment.
+    if action == "WEAK HOLD" and signal == "H":
+        if rsi > 80 and tech_signal in ("AVOID", "EXIT_SOON"):
+            action = "TRIM"
+        elif risk_warning and tech_signal == "AVOID":
+            action = "TRIM"
+
+    # TRIM conviction recalculation — replace residual buy-case score with
+    # trim confidence (how confident we are the position should be reduced)
     if action == "TRIM":
         conviction = recalculate_trim_conviction(
             tech_signal, macro_fit, risk_warning, beta, rsi,
@@ -629,15 +639,54 @@ def _build_agent_lookups(
     }
 
 
-def _resolve_macro_fit(macro_impl: Dict, ticker: str) -> str:
-    """Normalize macro fit string to FAVORABLE/UNFAVORABLE/NEUTRAL."""
+def _resolve_macro_fit(
+    macro_impl: Dict,
+    ticker: str,
+    sector: str = "",
+    regime: str = "",
+) -> str:
+    """
+    Normalize macro fit string to FAVORABLE/UNFAVORABLE/NEUTRAL.
+
+    CIO Review F2: When macro agent doesn't cover a stock, derive fit
+    from sector + regime mapping instead of defaulting to NEUTRAL.
+    """
     mf = macro_impl.get(ticker, {})
-    v = mf.get("macro_fit", "neutral") if isinstance(mf, dict) else str(mf)
+    v = mf.get("macro_fit", "") if isinstance(mf, dict) else str(mf)
     v = v.lower()
     if "positive" in v or "favorable" in v:
         return "FAVORABLE"
     if "negative" in v or "unfavorable" in v:
         return "UNFAVORABLE"
+    if v and v != "neutral":
+        return "NEUTRAL"
+
+    # F2: Sector-regime derivation when agent provides no assessment
+    if regime and sector:
+        sector_lower = sector.lower()
+        if regime == "RISK_OFF":
+            if any(kw in sector_lower for kw in [
+                "health", "pharma", "medical", "utilit", "staple",
+                "defense", "commodit", "gold",
+            ]):
+                return "FAVORABLE"
+            if any(kw in sector_lower for kw in [
+                "tech", "software", "semi", "consumer elec",
+                "e-commerce", "social", "entertainment",
+                "fintech", "banking", "financial",
+            ]):
+                return "UNFAVORABLE"
+        elif regime == "RISK_ON":
+            if any(kw in sector_lower for kw in [
+                "tech", "software", "semi", "consumer",
+                "e-commerce", "social", "entertainment",
+            ]):
+                return "FAVORABLE"
+            if any(kw in sector_lower for kw in [
+                "utilit", "staple",
+            ]):
+                return "NEUTRAL"
+
     return "NEUTRAL"
 
 
@@ -733,6 +782,7 @@ def _synthesize_with_lookups(
     sector: str,
     sec_median: float,
     census_ts_map: Dict[str, str],
+    regime: str = "",
 ) -> Dict[str, Any]:
     """Run synthesize_stock using pre-built agent lookups."""
     fund_data = fund_report.get("stocks", {}).get(ticker, {})
@@ -742,7 +792,9 @@ def _synthesize_with_lookups(
     tech_data = tech_report.get("stocks", {}).get(ticker, {})
     if not tech_data:
         tech_data = _fallback_technical(sig_data)
-    macro_fit = _resolve_macro_fit(lookups["macro_impl"], ticker)
+    macro_fit = _resolve_macro_fit(
+        lookups["macro_impl"], ticker, sector=sector, regime=regime,
+    )
     cen_align, div_score = lookups["div_map"].get(ticker, ("NEUTRAL", 0))
     news_impact = _resolve_news_impact(lookups["port_news"], ticker)
     rl = lookups["risk_limits"].get(ticker, {})
@@ -819,15 +871,19 @@ def apply_opportunity_gate(
     entry["conviction"] = min(entry["conviction"], 75)
     entry["conviction"] = max(entry["conviction"], 0)
 
-    # Re-determine action with capped conviction
-    entry["action"] = determine_action(
-        entry["conviction"], entry["signal"],
-        entry.get("tech_signal", "HOLD"), entry.get("risk_warning", False),
-    )
-
-    # Mark as new opportunity
-    if entry["action"] in ("BUY", "ADD"):
+    # Determine action for new opportunities using conviction threshold.
+    # Opportunities use conviction-based action mapping (per spec: conv > 55 = BUY NEW)
+    # instead of signal-dependent thresholds, because the signal character (B/H/S)
+    # already influenced the base conviction. A HOLD-signal stock at conv=60 means
+    # the committee found enough merit despite the signal system's caution.
+    if entry["conviction"] >= 55:
         entry["action"] = "BUY NEW"
+    else:
+        # Below BUY NEW threshold: HOLD (watch candidate).
+        # Opportunities never get SELL/REDUCE/TRIM — can't reduce
+        # a position you don't hold. Low conviction simply means
+        # "not compelling enough to buy."
+        entry["action"] = "HOLD"
 
     entry["is_opportunity"] = True
     entry["confirmations"] = confirmations
@@ -932,13 +988,19 @@ def build_concordance(
 
     concordance = []
 
+    # Extract regime for sector-regime macro fit derivation (CIO Review F2)
+    regime = macro_report.get("regime", "")
+    if not regime:
+        es = macro_report.get("executive_summary", {})
+        regime = es.get("regime", "")
+
     # Process portfolio stocks
     for ticker, sig_data in portfolio_signals.items():
         sector = sector_map.get(ticker, "Other")
         sec_median = sector_medians.get(sector, universe_median)
         entry = _synthesize_with_lookups(
             ticker, sig_data, lookups, fund_report, tech_report,
-            sector, sec_median, census_ts_map,
+            sector, sec_median, census_ts_map, regime=regime,
         )
         entry["is_opportunity"] = False
         concordance.append(entry)
@@ -949,10 +1011,29 @@ def build_concordance(
             continue  # Already in portfolio
         sector = opportunity_sector_map.get(ticker, "Other")
         sec_median = sector_medians.get(sector, universe_median)
+
+        # CIO Review F1: Inject opportunity score for dual-synthetic stocks
+        # When both fundamental and technical agents don't cover a stock,
+        # use the Opportunity Scanner's own score to differentiate
+        has_fund = bool(fund_report.get("stocks", {}).get(ticker))
+        has_tech = bool(tech_report.get("stocks", {}).get(ticker))
+        opp_score = sig_data.get("opportunity_score", 0)
+
         entry = _synthesize_with_lookups(
             ticker, sig_data, lookups, fund_report, tech_report,
-            sector, sec_median, census_ts_map,
+            sector, sec_median, census_ts_map, regime=regime,
         )
+
+        # F1: Override base conviction for dual-synthetic stocks using opp_score
+        if not has_fund and not has_tech and opp_score > 0:
+            opp_base = max(55, min(70, int(opp_score * 0.8)))
+            if opp_base > entry["base"]:
+                entry["base"] = opp_base
+                entry["conviction"] = max(
+                    entry["conviction"],
+                    opp_base + entry.get("bonuses", 0) - entry.get("penalties", 0),
+                )
+                entry["opp_score_injected"] = True
         # Apply C2 validation gate
         macro_fit = _resolve_macro_fit(lookups["macro_impl"], ticker)
         cen_align = lookups["div_map"].get(ticker, ("NEUTRAL", 0))[0]
@@ -983,10 +1064,19 @@ def build_concordance(
 
 def compute_changes(
     current: List[Dict[str, Any]],
-    previous: List[Dict[str, Any]],
+    previous,
 ) -> List[Dict[str, Any]]:
-    """Compare current and previous concordance to detect changes."""
-    prev_map = {c["ticker"]: c for c in previous}
+    """
+    Compare current and previous concordance to detect changes.
+
+    Previous can be either:
+    - A list of dicts (each with 'ticker' key)
+    - A dict of ticker -> data (from concordance.json 'stocks' key)
+    """
+    if isinstance(previous, dict):
+        prev_map = {k: dict(v, ticker=k) for k, v in previous.items()}
+    else:
+        prev_map = {c["ticker"]: c for c in previous}
     changes = []
 
     for c in current:
@@ -1038,17 +1128,18 @@ def generate_synthesis_output(
 
     action_dist = Counter(e["action"] for e in concordance)
 
-    # Extract risk metrics
+    # Extract risk metrics — try multiple field name conventions
     pr = risk_report.get("portfolio_risk", {})
-    var_95 = pr.get("var_95_daily", 0)
-    max_dd = pr.get("max_drawdown_1y", 0)
+    var_95 = pr.get("var_95_daily") or pr.get("var_95") or 0
+    max_dd = pr.get("max_drawdown_1y") or pr.get("max_drawdown") or 0
     port_beta = pr.get("portfolio_beta", 0)
-    risk_score = pr.get("risk_score", 50)
+    risk_score = pr.get("risk_score") or 50
 
-    # Macro
-    indicators = macro_report.get("indicators", {})
-    regime = macro_report.get("regime", "CAUTIOUS")
-    macro_score = macro_report.get("macro_score", 0)
+    # Macro — try nested paths for agent report compatibility
+    indicators = macro_report.get("indicators") or macro_report.get("macro_indicators", {})
+    es = macro_report.get("executive_summary", {})
+    regime = macro_report.get("regime") or (es.get("regime") if isinstance(es, dict) else "") or "CAUTIOUS"
+    macro_score = macro_report.get("macro_score") or (es.get("macro_score") if isinstance(es, dict) else 0) or 0
     rotation = macro_report.get("rotation_phase", "Unknown")
 
     # Census
