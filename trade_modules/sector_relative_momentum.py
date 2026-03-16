@@ -125,7 +125,7 @@ def get_relative_momentum_flags(
             'underperforming': bool (True if >15% below sector)
         }
     """
-    global _momentum_cache, _cache_timestamp
+    global _cache_timestamp
 
     results = {}
 
