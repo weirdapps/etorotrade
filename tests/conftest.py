@@ -137,7 +137,8 @@ def _mock_signal_tracker(request):
         return
     # Check if the test module explicitly tests the signal tracker
     module = request.node.module.__name__ if request.node.module else ""
-    if "test_signal_change_detector" in module or "test_signal_scorecard" in module:
+    if "test_signal_change_detector" in module or "test_signal_scorecard" in module \
+            or "test_signal_velocity" in module:
         yield
         return
     with patch("trade_modules.signal_tracker.SignalTracker.log_signal", return_value=True), \

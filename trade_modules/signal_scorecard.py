@@ -105,6 +105,9 @@ class SignalScorecard:
             'by_tier': self._compute_breakdown(horizon_results, 'tier'),
             'by_region': self._compute_breakdown(horizon_results, 'region'),
             'calibration_alerts': self._generate_alerts(horizon_results),
+            'consensus_calibration': self._compute_consensus_calibration(
+                horizon_results, signals_df
+            ),
         }
 
         # Save to file
@@ -300,6 +303,106 @@ class SignalScorecard:
 
         return breakdown
 
+    def _compute_consensus_calibration(
+        self,
+        horizon_results: Dict[str, pd.DataFrame],
+        signals_df: pd.DataFrame,
+    ) -> Dict[str, Dict[str, float]]:
+        """
+        Compute BUY signal accuracy grouped by analyst consensus (%BUY) buckets.
+
+        For BUY signals at the 1M horizon, groups by %BUY ranges and computes
+        hit rate, average return, and outperformance rate for each bucket.
+
+        Args:
+            horizon_results: Dict mapping horizon label to results DataFrame
+                (output of calculate_returns with tier/region merged).
+            signals_df: The full signals DataFrame from load_signals(),
+                which contains the ``buy_percentage`` field.
+
+        Returns:
+            Dict mapping bucket labels (e.g. '50-60%') to stats dicts with
+            keys: count, hit_rate, avg_return, outperformance_rate.
+            Returns empty dict if buy_percentage data is unavailable.
+        """
+        # Need 1M horizon results
+        results_1m = horizon_results.get('1m', pd.DataFrame())
+        if results_1m.empty:
+            return {}
+
+        # Check that signals_df has buy_percentage
+        if 'buy_percentage' not in signals_df.columns:
+            logger.info("buy_percentage not in signal data; skipping consensus calibration")
+            return {}
+
+        # Filter to BUY signals only
+        buy_results = results_1m[results_1m['signal'] == 'B'].copy()
+        if buy_results.empty:
+            return {}
+
+        # Merge buy_percentage from signals_df into buy_results
+        # Join on ticker + signal_date matching signals_df ticker + date
+        bp_lookup = signals_df[['ticker', 'date', 'buy_percentage']].copy()
+        bp_lookup = bp_lookup.dropna(subset=['buy_percentage'])
+        if bp_lookup.empty:
+            return {}
+
+        bp_lookup['_date_str'] = bp_lookup['date'].astype(str)
+        buy_results['_date_str'] = buy_results['signal_date'].astype(str)
+
+        merged = buy_results.merge(
+            bp_lookup[['ticker', '_date_str', 'buy_percentage']],
+            on=['ticker', '_date_str'],
+            how='left',
+        )
+        merged = merged.drop(columns=['_date_str'], errors='ignore')
+
+        # Drop rows where buy_percentage could not be matched
+        merged = merged.dropna(subset=['buy_percentage'])
+        if merged.empty:
+            return {}
+
+        # Define consensus buckets
+        bucket_edges = [50, 60, 70, 80, 90, 101]
+        bucket_labels = ['50-60%', '60-70%', '70-80%', '80-90%', '90%+']
+
+        merged['consensus_bucket'] = pd.cut(
+            merged['buy_percentage'],
+            bins=bucket_edges,
+            labels=bucket_labels,
+            right=False,
+        )
+
+        calibration: Dict[str, Dict[str, float]] = {}
+
+        for label in bucket_labels:
+            bucket_df = merged[merged['consensus_bucket'] == label]
+            n = len(bucket_df)
+            if n == 0:
+                continue
+
+            returns = bucket_df['stock_return'].dropna()
+            alphas = bucket_df['alpha'].dropna()
+            n_returns = len(returns)
+
+            if n_returns == 0:
+                continue
+
+            hit_rate = float((returns > 0).mean() * 100)
+            avg_return = float(returns.mean())
+            outperformance_rate = (
+                float((alphas > 0).mean() * 100) if len(alphas) > 0 else 0.0
+            )
+
+            calibration[label] = {
+                'count': n,
+                'hit_rate': round(hit_rate, 1),
+                'avg_return': round(avg_return, 2),
+                'outperformance_rate': round(outperformance_rate, 1),
+            }
+
+        return calibration
+
     def _generate_alerts(
         self, horizon_results: Dict[str, pd.DataFrame]
     ) -> List[str]:
@@ -425,6 +528,7 @@ class SignalScorecard:
             'by_tier': {},
             'by_region': {},
             'calibration_alerts': [],
+            'consensus_calibration': {},
         }
 
 
