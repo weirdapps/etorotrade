@@ -18,7 +18,9 @@ logger = logging.getLogger(__name__)
 # Proximity thresholds (calendar days)
 EARNINGS_IMMINENT_DAYS = 7    # Within 7 calendar days of earnings
 EARNINGS_RECENT_DAYS = 5      # Within 5 calendar days AFTER earnings
-POST_EARNINGS_BOOST_DAYS = 30  # Signals within 30 days after earnings are higher quality
+POST_EARNINGS_BOOST_DAYS = 14  # Signals within 14 days after earnings are freshest
+POST_EARNINGS_NORMAL_DAYS = 45  # 14-45 days: moderate accuracy
+# Beyond 45 days: estimates getting stale (CIO v3 F4)
 
 # Cache for earnings dates
 _earnings_cache: Dict[str, Tuple[Optional[datetime], datetime]] = {}
@@ -132,22 +134,39 @@ def check_earnings_proximity(ticker: str) -> Dict[str, Any]:
 
     delta = (earnings_date - now).days
 
+    # CIO v3 F4: Earnings recency decay factor
+    # Analyst estimates are most accurate right after earnings and decay over the quarter.
+    # conviction_adjustment: positive = boost, negative = penalty, 0 = neutral
     if 0 <= delta <= EARNINGS_IMMINENT_DAYS:
         status = "imminent"
         should_hold = True
         conviction_boost = False
+        conviction_adjustment = 0  # Don't adjust — holding anyway
     elif -EARNINGS_RECENT_DAYS <= delta < 0:
         status = "recent"
         should_hold = False  # Just reported — signal may be adjusting
         conviction_boost = False
+        conviction_adjustment = 0  # Too soon for estimates to update
     elif -POST_EARNINGS_BOOST_DAYS <= delta < -EARNINGS_RECENT_DAYS:
         status = "post_earnings_window"
         should_hold = False
-        conviction_boost = True  # Post-earnings signals are higher quality
+        conviction_boost = True  # Post-earnings signals are highest quality
+        conviction_adjustment = 5  # Fresh estimates boost
+    elif -POST_EARNINGS_NORMAL_DAYS <= delta < -POST_EARNINGS_BOOST_DAYS:
+        status = "normal_window"
+        should_hold = False
+        conviction_boost = False
+        conviction_adjustment = 0  # Normal accuracy
+    elif delta < -POST_EARNINGS_NORMAL_DAYS:
+        status = "stale_estimates"
+        should_hold = False
+        conviction_boost = False
+        conviction_adjustment = -3  # Estimates getting stale
     else:
         status = "clear"
         should_hold = False
         conviction_boost = False
+        conviction_adjustment = 0
 
     return {
         "earnings_date": earnings_date,
@@ -155,6 +174,7 @@ def check_earnings_proximity(ticker: str) -> Dict[str, Any]:
         "status": status,
         "should_hold": should_hold,
         "conviction_boost": conviction_boost,
+        "conviction_adjustment": conviction_adjustment,
     }
 
 

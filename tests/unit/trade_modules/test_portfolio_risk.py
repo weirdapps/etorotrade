@@ -494,6 +494,51 @@ class TestCorrelationClusters:
         assert len(clusters) == 1
         assert "3 stocks acting as ~1 position" in clusters[0]["combined_weight_warning"]
 
+    def test_flag_clusters_hub_and_spoke(self):
+        """CIO v3 F8: Hub-and-spoke pattern should be detected with relaxed mutual."""
+        analyzer = PortfolioRiskAnalyzer()
+        # A correlates with B, C, D (all >0.75)
+        # But B-C=0.65, B-D=0.60 — below threshold
+        corr_matrix = pd.DataFrame(
+            {
+                "A": [1.00, 0.80, 0.85, 0.78],
+                "B": [0.80, 1.00, 0.65, 0.60],
+                "C": [0.85, 0.65, 1.00, 0.70],
+                "D": [0.78, 0.60, 0.70, 1.00],
+            },
+            index=["A", "B", "C", "D"],
+        )
+
+        # With strict mutual, only A+C+D might form (if C-D >= threshold)
+        # With 2/3 relaxed, A acts as hub connecting B, C, D
+        clusters = analyzer.flag_correlation_clusters(
+            corr_matrix, min_cluster_size=3, threshold=0.75
+        )
+        assert len(clusters) >= 1
+        # A should be in the cluster as the hub
+        cluster_tickers = clusters[0]["tickers"]
+        assert "A" in cluster_tickers
+        assert len(cluster_tickers) >= 3
+
+    def test_flag_clusters_no_false_positive_with_low_correlation(self):
+        """CIO v3 F8: Relaxed threshold shouldn't create clusters from weak correlations."""
+        analyzer = PortfolioRiskAnalyzer()
+        # All correlations below threshold — no cluster should form
+        corr_matrix = pd.DataFrame(
+            {
+                "A": [1.00, 0.50, 0.55, 0.45],
+                "B": [0.50, 1.00, 0.40, 0.60],
+                "C": [0.55, 0.40, 1.00, 0.35],
+                "D": [0.45, 0.60, 0.35, 1.00],
+            },
+            index=["A", "B", "C", "D"],
+        )
+
+        clusters = analyzer.flag_correlation_clusters(
+            corr_matrix, min_cluster_size=3, threshold=0.75
+        )
+        assert len(clusters) == 0
+
 
 class TestDrawdownAlerts:
     """Tests for drawdown alert functionality."""
@@ -606,6 +651,70 @@ class TestDrawdownAlerts:
         alerts = analyzer.check_drawdowns(df, tier_col="tier")
         assert len(alerts) == 1
         assert alerts[0]["tier"] == "MEGA"
+
+    def test_check_drawdowns_recovery_downgrade(self):
+        """CIO v3 F12: Recovery >20% should downgrade severity."""
+        analyzer = PortfolioRiskAnalyzer()
+        df = pd.DataFrame({
+            "TKR": ["AAPL"],
+            "52W": [40],  # 60% drawdown — CRITICAL for MEGA
+            "CAP": ["3.5T"],
+        })
+
+        # Previous drawdown was 80% — now at 60%, recovered 25%
+        previous = {"AAPL": 80.0}
+        alerts = analyzer.check_drawdowns(df, previous_drawdowns=previous)
+        assert len(alerts) == 1
+        assert alerts[0]["severity"] == "WARNING"  # Downgraded from CRITICAL
+        assert alerts[0]["recovery_pct"] == 25.0
+        assert "recovery_note" in alerts[0]
+        assert "Downgraded from CRITICAL" in alerts[0]["recovery_note"]
+
+    def test_check_drawdowns_no_recovery_no_downgrade(self):
+        """CIO v3 F12: Worsening drawdown should NOT be downgraded."""
+        analyzer = PortfolioRiskAnalyzer()
+        df = pd.DataFrame({
+            "TKR": ["AAPL"],
+            "52W": [40],  # 60% drawdown — CRITICAL
+            "CAP": ["3.5T"],
+        })
+
+        # Previous was better (50%) — now worse at 60%, no recovery
+        previous = {"AAPL": 50.0}
+        alerts = analyzer.check_drawdowns(df, previous_drawdowns=previous)
+        assert len(alerts) == 1
+        assert alerts[0]["severity"] == "CRITICAL"  # No downgrade
+        assert "recovery_pct" not in alerts[0]
+
+    def test_check_drawdowns_small_recovery_no_downgrade(self):
+        """CIO v3 F12: Recovery <20% should NOT downgrade."""
+        analyzer = PortfolioRiskAnalyzer()
+        df = pd.DataFrame({
+            "TKR": ["AAPL"],
+            "52W": [40],  # 60% drawdown — CRITICAL
+            "CAP": ["3.5T"],
+        })
+
+        # Previous was 65% — 7.7% recovery, below 20% threshold
+        previous = {"AAPL": 65.0}
+        alerts = analyzer.check_drawdowns(df, previous_drawdowns=previous)
+        assert len(alerts) == 1
+        assert alerts[0]["severity"] == "CRITICAL"  # Not enough recovery
+        assert alerts[0]["recovery_pct"] < 20
+
+    def test_check_drawdowns_without_previous(self):
+        """CIO v3 F12: Without previous data, no recovery tracking."""
+        analyzer = PortfolioRiskAnalyzer()
+        df = pd.DataFrame({
+            "TKR": ["AAPL"],
+            "52W": [40],
+            "CAP": ["3.5T"],
+        })
+
+        alerts = analyzer.check_drawdowns(df)
+        assert len(alerts) == 1
+        assert alerts[0]["severity"] == "CRITICAL"
+        assert "recovery_pct" not in alerts[0]
 
 
 class TestFormatRiskReportExtended:

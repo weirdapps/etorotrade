@@ -404,21 +404,30 @@ class PortfolioRiskAnalyzer:
                         neighbors.add(other)
             neighbor_map[ticker] = neighbors
 
-        # Find clusters: groups where all members are mutually correlated
+        # Find clusters: groups where members are mostly mutually correlated
+        # CIO v3 F8: Relaxed from strict mutual (all pairs) to 2/3 majority
+        # to capture hub-and-spoke patterns (e.g., AAPL correlated with all
+        # FAANG but META-GOOGL weaker)
         for ticker in tickers:
             if ticker in used_tickers:
                 continue
             candidates = neighbor_map[ticker] | {ticker}
-            # Filter to only those mutually correlated with each other
+            # Filter to those correlated with majority of current cluster members
             cluster_tickers = [ticker]
             for candidate in sorted(candidates - {ticker}):
-                # Check if candidate is correlated with all current cluster members
-                is_mutual = all(
-                    abs(correlation_matrix.loc[candidate, member]) >= threshold
-                    for member in cluster_tickers
-                )
-                if is_mutual:
-                    cluster_tickers.append(candidate)
+                if len(cluster_tickers) == 1:
+                    # First addition only needs correlation with seed ticker
+                    if abs(correlation_matrix.loc[candidate, cluster_tickers[0]]) >= threshold:
+                        cluster_tickers.append(candidate)
+                else:
+                    # Subsequent additions need correlation with ≥2/3 of cluster
+                    mutual_count = sum(
+                        abs(correlation_matrix.loc[candidate, member]) >= threshold
+                        for member in cluster_tickers
+                    )
+                    required = max(1, int(len(cluster_tickers) * 0.67))
+                    if mutual_count >= required:
+                        cluster_tickers.append(candidate)
 
             if len(cluster_tickers) >= min_cluster_size:
                 # Calculate average pairwise correlation within cluster
@@ -447,6 +456,7 @@ class PortfolioRiskAnalyzer:
         self,
         portfolio_df: pd.DataFrame,
         tier_col: str = "tier",
+        previous_drawdowns: Optional[Dict[str, float]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Check for stocks with drawdowns exceeding tier-expected volatility.
@@ -454,12 +464,19 @@ class PortfolioRiskAnalyzer:
         Uses the 52-week high percentage to measure drawdown, then compares
         against expected volatility for each tier.
 
+        CIO v3 F12: When previous_drawdowns are provided, stocks that have
+        recovered >20% of their drawdown get severity downgraded (e.g.,
+        CRITICAL → WARNING). This prevents over-reaction on recovering positions.
+
         Args:
             portfolio_df: DataFrame with portfolio positions
             tier_col: Column name containing tier classification
+            previous_drawdowns: Optional dict mapping ticker -> previous drawdown_pct
+                (from a prior check_drawdowns call). Used for recovery tracking.
 
         Returns:
-            List of dicts with ticker, drawdown_pct, tier, expected_vol, severity
+            List of dicts with ticker, drawdown_pct, tier, expected_vol, severity,
+            and optionally recovery_pct, previous_drawdown_pct
         """
         alerts: List[Dict[str, Any]] = []
 
@@ -526,13 +543,37 @@ class PortfolioRiskAnalyzer:
             else:
                 continue  # Within normal range
 
-            alerts.append({
+            alert = {
                 "ticker": ticker,
                 "drawdown_pct": round(drawdown_pct * 100, 1),
                 "tier": tier,
                 "expected_vol": round(expected_vol * 100, 1),
                 "severity": severity,
-            })
+            }
+
+            # CIO v3 F12: Recovery tracking
+            if previous_drawdowns and ticker in previous_drawdowns:
+                prev_dd = previous_drawdowns[ticker]
+                current_dd = alert["drawdown_pct"]
+                if prev_dd > 0 and current_dd < prev_dd:
+                    recovery_pct = round((prev_dd - current_dd) / prev_dd * 100, 1)
+                    alert["previous_drawdown_pct"] = prev_dd
+                    alert["recovery_pct"] = recovery_pct
+                    # Downgrade severity if recovered >20% of drawdown
+                    if recovery_pct >= 20:
+                        downgrade_map = {
+                            "CRITICAL": "WARNING",
+                            "WARNING": "WATCH",
+                        }
+                        new_severity = downgrade_map.get(severity)
+                        if new_severity:
+                            alert["severity"] = new_severity
+                            alert["recovery_note"] = (
+                                f"Downgraded from {severity}: "
+                                f"recovered {recovery_pct:.0f}% of drawdown"
+                            )
+
+            alerts.append(alert)
 
         # Sort by severity (CRITICAL first) then drawdown
         severity_order = {"CRITICAL": 0, "WARNING": 1, "WATCH": 2}
@@ -599,6 +640,8 @@ class PortfolioRiskAnalyzer:
             "var_99": None,
             "var_95_pct": None,
             "var_99_pct": None,
+            "cvar_95_pct": None,  # CIO v3 F7: Expected Shortfall
+            "cvar_99_pct": None,
             "portfolio_vol": None,
             "effective_positions": None,
             "var_alert": False,
@@ -621,15 +664,20 @@ class PortfolioRiskAnalyzer:
         if len(tickers) < 2:
             return result
 
-        # Get correlation matrix
-        corr_matrix = self.calculate_correlation_matrix(tickers, period=60)
+        # CIO Review v3 F6: Use 252-day window for correlation (captures full
+        # market cycles) but 60-day window for volatility (recent vol estimate).
+        # Previously both used 60-day, which understated tail risk.
+        corr_matrix = self.calculate_correlation_matrix(tickers, period=252)
+        if corr_matrix.empty:
+            # Fallback to shorter period if insufficient history
+            corr_matrix = self.calculate_correlation_matrix(tickers, period=60)
         if corr_matrix.empty:
             return result
 
-        # Calculate individual stock volatilities from returns
+        # Calculate individual stock volatilities from recent returns (60-day)
         returns_data: Dict[str, pd.Series] = {}
         for ticker in corr_matrix.columns:
-            prices = self._get_historical_prices(ticker, period_days=60)
+            prices = self._get_historical_prices(ticker, period_days=90)
             if prices is not None and len(prices) > 20:
                 returns = prices.pct_change().dropna()
                 if len(returns) > 10:
@@ -638,12 +686,14 @@ class PortfolioRiskAnalyzer:
         if len(returns_data) < 2:
             return result
 
-        # Align returns and calculate volatilities
+        # Align returns and calculate volatilities using recent 60 days
         returns_df = pd.DataFrame(returns_data).dropna()
         if len(returns_df) < 20:
             return result
 
-        volatilities = returns_df.std()
+        # Use last 60 days for volatility estimate (recent market conditions)
+        recent_returns = returns_df.tail(60) if len(returns_df) > 60 else returns_df
+        volatilities = recent_returns.std()
 
         # Determine weights (equal weights if position sizes not available)
         weights_dict = {}
@@ -720,6 +770,22 @@ class PortfolioRiskAnalyzer:
             var_99_pct = z_99 * portfolio_vol_horizon
             result["var_99_pct"] = round(var_99_pct * 100, 2)
             result["var_99"] = result["var_99_pct"]
+
+        # CIO Review v3 F7: Expected Shortfall (CVaR/ES)
+        # Average loss beyond VaR threshold — more informative than VaR alone
+        portfolio_returns = returns_df[tickers_aligned].dot(weights)
+        if len(portfolio_returns) >= 20:
+            if confidence_95:
+                var_threshold_95 = np.percentile(portfolio_returns, 5)
+                tail_95 = portfolio_returns[portfolio_returns <= var_threshold_95]
+                if len(tail_95) > 0:
+                    result["cvar_95_pct"] = round(abs(tail_95.mean()) * 100, 2)
+
+            if confidence_99:
+                var_threshold_99 = np.percentile(portfolio_returns, 1)
+                tail_99 = portfolio_returns[portfolio_returns <= var_threshold_99]
+                if len(tail_99) > 0:
+                    result["cvar_99_pct"] = round(abs(tail_99.mean()) * 100, 2)
 
         # Alert if VaR exceeds 12% threshold
         if result["var_95_pct"] and result["var_95_pct"] > 12.0:
@@ -908,6 +974,15 @@ class PortfolioRiskAnalyzer:
             if portfolio_vol:
                 var_line += f" (annual vol: {portfolio_vol*100:.1f}%)"
             lines.append(var_line)
+
+            # Expected Shortfall (CIO v3 F7)
+            cvar_95 = var_data.get("cvar_95_pct")
+            cvar_99 = var_data.get("cvar_99_pct")
+            if cvar_95 is not None:
+                cvar_line = f"Expected Shortfall: {cvar_95:.2f}% at 95%"
+                if cvar_99 is not None:
+                    cvar_line += f", {cvar_99:.2f}% at 99%"
+                lines.append(cvar_line)
 
             # Alert if VaR exceeds threshold
             if var_data.get("var_alert"):

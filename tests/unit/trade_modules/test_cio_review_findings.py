@@ -331,6 +331,102 @@ class TestSectorRotation:
             assert "summary" in result
 
 
+class TestPriceBasedRotation:
+    """CIO v3 F5: Tests for price-based sector rotation detection."""
+
+    def test_price_rotation_detected(self):
+        """Price momentum shift should detect rotation."""
+        from trade_modules.sector_rotation import detect_price_based_rotation
+
+        sector_returns = {
+            "Technology": {"current_return": 8.0, "prior_return": -2.0},  # +10pp
+            "Energy": {"current_return": -5.0, "prior_return": 3.0},     # -8pp
+        }
+        result = detect_price_based_rotation(sector_returns, threshold_pp=5.0)
+        assert result["rotation_detected"] is True
+        assert len(result["gaining_sectors"]) == 1
+        assert result["gaining_sectors"][0]["sector"] == "Technology"
+        assert len(result["losing_sectors"]) == 1
+        assert result["losing_sectors"][0]["sector"] == "Energy"
+        assert result["detection_method"] == "price_based"
+
+    def test_no_price_rotation(self):
+        """Stable momentum should not trigger rotation."""
+        from trade_modules.sector_rotation import detect_price_based_rotation
+
+        sector_returns = {
+            "Technology": {"current_return": 3.0, "prior_return": 2.5},  # +0.5pp
+            "Energy": {"current_return": 1.0, "prior_return": 0.5},     # +0.5pp
+        }
+        result = detect_price_based_rotation(sector_returns, threshold_pp=5.0)
+        assert result["rotation_detected"] is False
+
+    def test_combined_rotation_both_agree(self):
+        """CIO v3 F5: Combined detection with both methods agreeing = HIGH confidence."""
+        from trade_modules.sector_rotation import detect_combined_rotation
+
+        sector_returns = {
+            "Technology": {"current_return": 8.0, "prior_return": -2.0},
+            "Energy": {"current_return": -5.0, "prior_return": 3.0},
+        }
+
+        with patch("trade_modules.sector_rotation.detect_sector_rotation") as mock:
+            mock.return_value = {
+                "rotation_detected": True,
+                "rotations": ["Rotation: Energy -> Technology"],
+                "gaining_sectors": [{"sector": "Technology", "delta_pp": 20}],
+                "losing_sectors": [{"sector": "Energy", "delta_pp": -15}],
+                "current_rates": {},
+                "prior_rates": {},
+            }
+            result = detect_combined_rotation(
+                sector_returns=sector_returns
+            )
+            assert result["confidence"] == "HIGH"
+            assert "Technology" in result["confirmed_gaining"]
+            assert "Energy" in result["confirmed_losing"]
+
+    def test_combined_rotation_price_only_early_warning(self):
+        """CIO v3 F5: Price-only signal = MEDIUM confidence (early warning)."""
+        from trade_modules.sector_rotation import detect_combined_rotation
+
+        sector_returns = {
+            "Technology": {"current_return": 8.0, "prior_return": -2.0},
+        }
+
+        with patch("trade_modules.sector_rotation.detect_sector_rotation") as mock:
+            mock.return_value = {
+                "rotation_detected": False,
+                "rotations": [],
+                "gaining_sectors": [],
+                "losing_sectors": [],
+                "current_rates": {},
+                "prior_rates": {},
+            }
+            result = detect_combined_rotation(
+                sector_returns=sector_returns
+            )
+            assert result["confidence"] == "MEDIUM"
+            assert "Technology" in result["early_warning_gaining"]
+
+    def test_combined_rotation_no_price_data(self):
+        """Combined detection without price data falls back to signal-only."""
+        from trade_modules.sector_rotation import detect_combined_rotation
+
+        with patch("trade_modules.sector_rotation.detect_sector_rotation") as mock:
+            mock.return_value = {
+                "rotation_detected": False,
+                "rotations": [],
+                "gaining_sectors": [],
+                "losing_sectors": [],
+                "current_rates": {},
+                "prior_rates": {},
+            }
+            result = detect_combined_rotation()
+            assert result["confidence"] == "NONE"
+            assert result["rotation_detected"] is False
+
+
 # ===========================================================================
 # M4: Earnings Proximity Tests
 # ===========================================================================
@@ -361,15 +457,38 @@ class TestEarningsProximity:
             assert result["should_hold"] is False
 
     def test_post_earnings_boost(self):
-        """Stock 15 days after earnings gets conviction boost."""
+        """Stock 10 days after earnings gets conviction boost (CIO v3 F4: fresh window is 5-14 days)."""
         from trade_modules.earnings_proximity import check_earnings_proximity, invalidate_cache
         invalidate_cache()
 
-        past_date = datetime.now() - timedelta(days=15)
+        past_date = datetime.now() - timedelta(days=10)
         with patch("trade_modules.earnings_proximity._fetch_next_earnings", return_value=past_date):
             result = check_earnings_proximity("NVDA")
             assert result["status"] == "post_earnings_window"
             assert result["conviction_boost"] is True
+            assert result["conviction_adjustment"] == 5
+
+    def test_stale_estimates_penalty(self):
+        """Stock >45 days after earnings gets stale estimate penalty (CIO v3 F4)."""
+        from trade_modules.earnings_proximity import check_earnings_proximity, invalidate_cache
+        invalidate_cache()
+
+        past_date = datetime.now() - timedelta(days=60)
+        with patch("trade_modules.earnings_proximity._fetch_next_earnings", return_value=past_date):
+            result = check_earnings_proximity("NVDA")
+            assert result["status"] == "stale_estimates"
+            assert result["conviction_adjustment"] == -3
+
+    def test_normal_window_no_adjustment(self):
+        """Stock 20 days after earnings has normal accuracy — no adjustment (CIO v3 F4)."""
+        from trade_modules.earnings_proximity import check_earnings_proximity, invalidate_cache
+        invalidate_cache()
+
+        past_date = datetime.now() - timedelta(days=20)
+        with patch("trade_modules.earnings_proximity._fetch_next_earnings", return_value=past_date):
+            result = check_earnings_proximity("NVDA")
+            assert result["status"] == "normal_window"
+            assert result["conviction_adjustment"] == 0
 
     def test_earnings_unknown(self):
         """Stock with unknown earnings date doesn't block."""

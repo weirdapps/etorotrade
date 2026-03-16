@@ -124,10 +124,17 @@ analyze_census.py
 fundamental_analysis.py
 fundamental_analysis_committee.py
 macro_regime_analysis.py
+macro_regime_analyst.py
 opportunity_scanner.py
 opportunity_scanner_enhanced.py
+risk_analysis.py
+risk_analysis_comprehensive.py
+risk_analysis_v2.py
 risk_manager.py
+risk_manager_report.py
 technical_analysis.py
+technical_strategist.py
+report-*.png
 
 
 # Logs

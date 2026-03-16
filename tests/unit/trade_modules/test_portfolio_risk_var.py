@@ -204,6 +204,108 @@ class TestPortfolioVaR:
         assert result["portfolio_vol"] is not None
 
 
+class TestExpectedShortfall:
+    """Tests for Expected Shortfall / CVaR (CIO v3 F7)."""
+
+    @patch("trade_modules.portfolio_risk.PortfolioRiskAnalyzer._get_historical_prices")
+    @patch("trade_modules.portfolio_risk.PortfolioRiskAnalyzer.calculate_correlation_matrix")
+    def test_cvar_calculated_alongside_var(self, mock_corr, mock_prices):
+        """Test that CVaR is calculated when VaR is calculated."""
+        mock_corr.return_value = pd.DataFrame(
+            {"A": [1.0, 0.5], "B": [0.5, 1.0]},
+            index=["A", "B"],
+        )
+
+        np.random.seed(42)  # Reproducible results
+        dates = pd.date_range("2025-01-01", periods=90, freq="D")
+        prices_a = pd.Series([100 + i * 0.1 + np.random.normal(0, 1.5) for i in range(90)], index=dates)
+        prices_b = pd.Series([200 + i * 0.2 + np.random.normal(0, 1.5) for i in range(90)], index=dates)
+        mock_prices.side_effect = [prices_a, prices_b]
+
+        analyzer = PortfolioRiskAnalyzer()
+        portfolio_df = pd.DataFrame({"TKR": ["A", "B"]})
+
+        result = analyzer.calculate_portfolio_var(portfolio_df)
+
+        # CVaR should be calculated
+        assert result["cvar_95_pct"] is not None
+        assert result["cvar_99_pct"] is not None
+
+        # Both CVaR and VaR should be positive
+        assert result["cvar_95_pct"] > 0
+        assert result["cvar_99_pct"] > 0
+        assert result["var_95_pct"] > 0
+        assert result["var_99_pct"] > 0
+
+    def test_cvar_none_for_empty_portfolio(self):
+        """Test that CVaR is None for empty portfolio."""
+        analyzer = PortfolioRiskAnalyzer()
+        result = analyzer.calculate_portfolio_var(pd.DataFrame())
+
+        assert result["cvar_95_pct"] is None
+        assert result["cvar_99_pct"] is None
+
+    @patch("trade_modules.portfolio_risk.PortfolioRiskAnalyzer._get_historical_prices")
+    @patch("trade_modules.portfolio_risk.PortfolioRiskAnalyzer.calculate_correlation_matrix")
+    def test_cvar_positive_values(self, mock_corr, mock_prices):
+        """Test that CVaR values are positive percentages."""
+        mock_corr.return_value = pd.DataFrame(
+            {"X": [1.0, 0.7], "Y": [0.7, 1.0]},
+            index=["X", "Y"],
+        )
+
+        dates = pd.date_range("2025-01-01", periods=90, freq="D")
+        prices_x = pd.Series([100 + i * 0.05 + np.random.normal(0, 2.0) for i in range(90)], index=dates)
+        prices_y = pd.Series([150 + i * 0.08 + np.random.normal(0, 2.0) for i in range(90)], index=dates)
+        mock_prices.side_effect = [prices_x, prices_y]
+
+        analyzer = PortfolioRiskAnalyzer()
+        portfolio_df = pd.DataFrame({"TKR": ["X", "Y"]})
+
+        result = analyzer.calculate_portfolio_var(portfolio_df)
+
+        if result["cvar_95_pct"] is not None:
+            assert result["cvar_95_pct"] > 0
+        if result["cvar_99_pct"] is not None:
+            assert result["cvar_99_pct"] > 0
+
+
+class TestVaRCorrelationWindow:
+    """Tests for VaR correlation window (CIO v3 F6)."""
+
+    @patch("trade_modules.portfolio_risk.PortfolioRiskAnalyzer.calculate_effective_concentration")
+    @patch("trade_modules.portfolio_risk.PortfolioRiskAnalyzer._get_historical_prices")
+    @patch("trade_modules.portfolio_risk.PortfolioRiskAnalyzer.calculate_correlation_matrix")
+    def test_var_uses_252day_correlation_first(self, mock_corr, mock_prices, mock_eff_conc):
+        """Test that VaR tries 252-day correlation before falling back to 60."""
+        valid_corr = pd.DataFrame(
+            {"A": [1.0, 0.5], "B": [0.5, 1.0]},
+            index=["A", "B"],
+        )
+        # Return empty for 252, valid for 60 — verifies fallback
+        mock_corr.side_effect = [
+            pd.DataFrame(),  # 252-day returns empty
+            valid_corr,      # 60-day returns valid
+        ]
+        mock_eff_conc.return_value = {"effective_positions": 2}
+
+        dates = pd.date_range("2025-01-01", periods=60, freq="D")
+        prices_a = pd.Series([100 + i * 0.1 for i in range(60)], index=dates)
+        prices_b = pd.Series([200 + i * 0.2 for i in range(60)], index=dates)
+        mock_prices.side_effect = [prices_a, prices_b]
+
+        analyzer = PortfolioRiskAnalyzer()
+        portfolio_df = pd.DataFrame({"TKR": ["A", "B"]})
+
+        result = analyzer.calculate_portfolio_var(portfolio_df)
+
+        # Should have called correlation twice: 252 first, then 60 fallback
+        assert mock_corr.call_count == 2
+
+        # Should still produce VaR
+        assert result["var_95_pct"] is not None
+
+
 class TestDrawdownActions:
     """Tests for Drawdown Decision Framework (Task #3)."""
 
@@ -411,6 +513,32 @@ class TestFormatRiskReportExtended:
         assert "Portfolio VaR: 5.20%" in report_text
         assert "7.80% at 99%" in report_text
         assert "annual vol: 18.0%" in report_text
+
+    def test_format_cvar_in_report(self):
+        """Test CVaR formatting in risk report (CIO v3 F7)."""
+        analyzer = PortfolioRiskAnalyzer()
+        summary = {
+            "portfolio_beta": None,
+            "concentration_warnings": [],
+            "high_correlation_pairs": [],
+            "effective_concentration": None,
+            "correlation_clusters": [],
+            "drawdown_alerts": [],
+            "portfolio_var": {
+                "var_95_pct": 5.2,
+                "var_99_pct": 7.8,
+                "cvar_95_pct": 7.1,
+                "cvar_99_pct": 10.3,
+                "portfolio_vol": 0.18,
+                "var_alert": False,
+            },
+            "drawdown_actions": [],
+        }
+
+        report = analyzer.format_risk_report(summary)
+        report_text = "\n".join(report)
+
+        assert "CVaR" in report_text or "ES" in report_text or "7.1" in report_text
 
     def test_format_var_alert_in_report(self):
         """Test VaR alert formatting."""
