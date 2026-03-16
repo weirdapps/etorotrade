@@ -17,6 +17,7 @@ from trade_modules.conviction_sizer import (
     get_cluster_size_adjustment,
     get_conviction_multiplier,
     get_freshness_multiplier,
+    get_portfolio_var_scaling,
     get_regime_multiplier,
     get_sector_rotation_adjustment,
 )
@@ -360,3 +361,53 @@ class TestIntegratedSizing:
         assert result["position_size"] == pytest.approx(3529.5, abs=1)
         assert result["adjusted_conviction"] == 80
         assert result["is_blocked"] is False
+
+
+class TestPortfolioVarScaling:
+    """Tests for portfolio VaR-based position scaling (CIO v3 F10)."""
+
+    def test_var_within_budget_no_scaling(self):
+        """VaR within budget returns 1.0."""
+        assert get_portfolio_var_scaling(1.5) == 1.0
+        assert get_portfolio_var_scaling(2.5) == 1.0
+
+    def test_var_unknown_no_scaling(self):
+        """Unknown VaR returns 1.0."""
+        assert get_portfolio_var_scaling(None) == 1.0
+
+    def test_var_exceeds_trigger(self):
+        """VaR above trigger but below max scales linearly."""
+        # Midpoint between 2.5 and 5.0 should give 0.75
+        result = get_portfolio_var_scaling(3.75)
+        assert result == pytest.approx(0.75, abs=0.01)
+
+    def test_var_at_max(self):
+        """VaR at max threshold gives 0.5."""
+        assert get_portfolio_var_scaling(5.0) == 0.5
+
+    def test_var_emergency_blocks(self):
+        """VaR above 2× max blocks all new positions."""
+        assert get_portfolio_var_scaling(10.0) == 0.0
+        assert get_portfolio_var_scaling(15.0) == 0.0
+
+    def test_var_scaling_in_position_size(self):
+        """VaR scaling reduces position size correctly."""
+        # Without VaR scaling
+        result_normal = calculate_conviction_size(
+            base_position_size=2500,
+            tier_multiplier=5,
+            conviction_score=70,
+        )
+
+        # With VaR scaling at 0.8
+        result_scaled = calculate_conviction_size(
+            base_position_size=2500,
+            tier_multiplier=5,
+            conviction_score=70,
+            portfolio_var_scaling=0.8,
+        )
+
+        assert result_scaled["position_size"] == pytest.approx(
+            result_normal["position_size"] * 0.8, abs=1
+        )
+        assert result_scaled["portfolio_var_scaling"] == 0.8

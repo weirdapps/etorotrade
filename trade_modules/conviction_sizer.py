@@ -70,6 +70,49 @@ def get_regime_multiplier(regime: str = "normal") -> float:
     return REGIME_POSITION_MULTIPLIERS.get(regime.lower(), 1.0)
 
 
+def get_portfolio_var_scaling(
+    portfolio_var_95: Optional[float] = None,
+    var_trigger: float = 2.5,
+    var_max: float = 5.0,
+) -> float:
+    """
+    Calculate position scaling based on portfolio VaR budget (CIO v3 F10).
+
+    When portfolio VaR exceeds the trigger threshold, all NEW position sizes
+    are scaled down proportionally. This prevents the portfolio from
+    accumulating risk beyond acceptable limits.
+
+    Args:
+        portfolio_var_95: Current portfolio VaR at 95% (daily, as percentage).
+            None means VaR is unknown — return 1.0 (no scaling).
+        var_trigger: VaR level that triggers scaling (default 2.5%)
+        var_max: VaR level that triggers maximum scaling (default 5.0%)
+
+    Returns:
+        Scaling factor: 1.0 (within budget) to 0.5 (at var_max).
+        0.0 only if VaR exceeds 2× var_max (emergency).
+    """
+    if portfolio_var_95 is None:
+        return 1.0
+
+    if portfolio_var_95 <= var_trigger:
+        return 1.0
+
+    if portfolio_var_95 >= var_max * 2:
+        logger.warning(
+            f"Portfolio VaR {portfolio_var_95:.1f}% exceeds emergency threshold "
+            f"{var_max * 2:.1f}% — blocking new positions"
+        )
+        return 0.0
+
+    if portfolio_var_95 >= var_max:
+        return 0.5
+
+    # Linear scaling between trigger and max: 1.0 → 0.5
+    fraction = (portfolio_var_95 - var_trigger) / (var_max - var_trigger)
+    return round(1.0 - fraction * 0.5, 2)
+
+
 def get_cluster_size_adjustment(
     ticker: str,
     clusters: List[Dict[str, Any]],
@@ -263,6 +306,7 @@ def calculate_conviction_size(
     sector_rotation_blocked: bool = False,
     freshness_multiplier: float = 1.0,
     market_impact_blocked: bool = False,
+    portfolio_var_scaling: float = 1.0,
 ) -> Dict[str, Any]:
     """
     Calculate final position size with conviction and regime adjustments.
@@ -274,8 +318,9 @@ def calculate_conviction_size(
     4. Apply VIX regime multiplier (high vol = smaller positions)
     5. Apply correlation cluster adjustment (Task #6)
     6. Apply data freshness multiplier (Task #13)
-    7. Check cost-adjusted return and market impact (Task #2)
-    8. Apply max position constraints
+    7. Apply portfolio VaR scaling (CIO v3 F10)
+    8. Check cost-adjusted return and market impact (Task #2)
+    9. Apply max position constraints
 
     Args:
         base_position_size: Base position size from config (e.g., $2500)
@@ -292,6 +337,9 @@ def calculate_conviction_size(
         sector_rotation_blocked: Block flag from sector rotation (Task #1)
         freshness_multiplier: Multiplier from get_freshness_multiplier() (Task #13)
         market_impact_blocked: Block flag from calculate_market_impact() (Task #2)
+        portfolio_var_scaling: Scaling factor from portfolio VaR budget (CIO v3 F10).
+            1.0 = within budget, 0.8 = VaR exceeds trigger (scale down 20%),
+            calculated by get_portfolio_var_scaling().
 
     Returns:
         Dict with position_size, conviction_mult, regime_mult, adjustments, and blocking info
@@ -317,7 +365,10 @@ def calculate_conviction_size(
     # Step 6: Data freshness multiplier (Task #13)
     after_freshness = after_cluster * freshness_multiplier
 
-    # Step 7: Check blocking conditions
+    # Step 7: Portfolio VaR scaling (CIO v3 F10)
+    after_var = after_freshness * portfolio_var_scaling
+
+    # Step 8: Check blocking conditions
     skip_due_to_cost = False
     if cost_adjusted_return is not None and cost_adjusted_return < min_cost_adjusted_return:
         skip_due_to_cost = True
@@ -334,8 +385,8 @@ def calculate_conviction_size(
         or freshness_multiplier == 0.0  # Dead data
     )
 
-    # Step 8: Apply max constraints
-    final_size = 0.0 if is_blocked else after_freshness
+    # Step 9: Apply max constraints
+    final_size = 0.0 if is_blocked else after_var
     final_size = min(final_size, max_position_usd)
 
     if portfolio_value and portfolio_value > 0:
@@ -349,6 +400,7 @@ def calculate_conviction_size(
         "regime_multiplier": regime_mult,
         "cluster_adjustment": cluster_adjustment,
         "freshness_multiplier": freshness_multiplier,
+        "portfolio_var_scaling": portfolio_var_scaling,
         "original_conviction": conviction_score,
         "adjusted_conviction": adjusted_conviction,
         "sector_adjustment": sector_adjustment,
