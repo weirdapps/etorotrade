@@ -4,6 +4,12 @@ Committee Performance Scorecard
 CIO Review v3 Finding F13: Track committee recommendation performance
 to enable feedback loops and system calibration.
 
+CIO Review v4 Finding F5: Persistent opportunity tracking across
+committee runs to reward conviction consistency.
+
+CIO Review v4 Finding F10: Automated performance check of previous
+committee recommendations with current prices.
+
 Logs committee action items with timestamps, then evaluates hit rates
 at T+7, T+30 against actual price movements.
 """
@@ -21,6 +27,11 @@ logger = logging.getLogger(__name__)
 COMMITTEE_LOG_DIR = Path.home() / ".weirdapps-trading" / "committee"
 COMMITTEE_LOG_PATH = COMMITTEE_LOG_DIR / "action_log.jsonl"
 SCORECARD_OUTPUT_PATH = COMMITTEE_LOG_DIR / "committee_scorecard.json"
+OPPORTUNITY_HISTORY_PATH = COMMITTEE_LOG_DIR / "opportunity_history.json"
+
+# F5: Maximum conviction bonus from consecutive appearances
+MAX_CONSECUTIVE_BONUS = 9
+BONUS_PER_APPEARANCE = 3
 
 
 def log_committee_actions(
@@ -188,6 +199,333 @@ def generate_committee_scorecard(
     _save_scorecard(scorecard)
 
     return scorecard
+
+
+def track_opportunities(
+    opportunity_tickers: List[str],
+    committee_date: str,
+    history_path: Optional[Path] = None,
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Track opportunity persistence across consecutive committee runs.
+
+    CIO Review v4 Finding F5: Opportunities that appear in multiple
+    consecutive committee runs get a conviction bonus, rewarding
+    consistency and persistence of the signal.
+
+    Args:
+        opportunity_tickers: List of ticker symbols flagged as opportunities
+        committee_date: Committee date (YYYY-MM-DD)
+        history_path: Path to opportunity history JSON file
+
+    Returns:
+        Dict mapping ticker -> {
+            "consecutive_appearances": int,
+            "first_seen": str (YYYY-MM-DD),
+            "conviction_bonus": int (0 to MAX_CONSECUTIVE_BONUS)
+        }
+    """
+    path = history_path or OPPORTUNITY_HISTORY_PATH
+    history = _load_opportunity_history(path)
+
+    previous_date = history.get("last_committee_date")
+    previous_tickers = set(history.get("active_tickers", []))
+    ticker_records = history.get("ticker_records", {})
+
+    result: Dict[str, Dict[str, Any]] = {}
+
+    for ticker in opportunity_tickers:
+        record = ticker_records.get(ticker, {})
+
+        if ticker in previous_tickers and previous_date is not None:
+            # Ticker appeared in previous run -- increment streak
+            consecutive = record.get("consecutive_appearances", 1) + 1
+            first_seen = record.get("first_seen", committee_date)
+        else:
+            # New ticker or gap in appearances -- reset streak
+            consecutive = 1
+            first_seen = record.get("first_seen", committee_date)
+
+        bonus = min(
+            (consecutive - 1) * BONUS_PER_APPEARANCE,
+            MAX_CONSECUTIVE_BONUS,
+        )
+
+        result[ticker] = {
+            "consecutive_appearances": consecutive,
+            "first_seen": first_seen,
+            "conviction_bonus": bonus,
+        }
+
+        # Update the stored record
+        ticker_records[ticker] = {
+            "consecutive_appearances": consecutive,
+            "first_seen": first_seen,
+            "last_seen": committee_date,
+        }
+
+    # Update history state for next run
+    history["last_committee_date"] = committee_date
+    history["active_tickers"] = list(opportunity_tickers)
+    history["ticker_records"] = ticker_records
+
+    # Persist
+    save_opportunity_history(history, path)
+
+    logger.info(
+        f"Tracked {len(opportunity_tickers)} opportunities for {committee_date}: "
+        f"{sum(1 for v in result.values() if v['conviction_bonus'] > 0)} with bonus"
+    )
+
+    return result
+
+
+def save_opportunity_history(
+    history: Dict[str, Any],
+    history_path: Optional[Path] = None,
+) -> None:
+    """
+    Save opportunity history to disk.
+
+    Args:
+        history: The full history dict to persist
+        history_path: Path to opportunity history JSON file
+    """
+    path = history_path or OPPORTUNITY_HISTORY_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        with open(path, "w") as f:
+            json.dump(history, f, indent=2, default=str)
+        logger.debug(f"Opportunity history saved to {path}")
+    except OSError as e:
+        logger.error(f"Failed to save opportunity history: {e}")
+
+
+def _load_opportunity_history(path: Path) -> Dict[str, Any]:
+    """Load opportunity history from disk, returning empty structure on failure."""
+    if not path.exists():
+        return {
+            "last_committee_date": None,
+            "active_tickers": [],
+            "ticker_records": {},
+        }
+
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+        return data
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning(f"Failed to load opportunity history: {e}")
+        return {
+            "last_committee_date": None,
+            "active_tickers": [],
+            "ticker_records": {},
+        }
+
+
+def check_previous_recommendations(
+    log_path: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """
+    Check performance of most recent committee BUY/ADD recommendations.
+
+    CIO Review v4 Finding F10: Automated performance check that fetches
+    current prices for the most recent committee run's BUY/ADD actions
+    and computes returns since recommendation.
+
+    Args:
+        log_path: Path to action log JSONL file
+
+    Returns:
+        Dict with:
+            - total_recommendations: int
+            - active_buys: int (with valid price data)
+            - avg_return_to_date: float (percentage)
+            - best_performer: {"ticker": str, "return_pct": float}
+            - worst_performer: {"ticker": str, "return_pct": float}
+            - triggered_kill_theses: list (placeholder)
+            - recommendations: list of individual results
+    """
+    path = log_path or COMMITTEE_LOG_PATH
+    if not path.exists():
+        return _empty_performance_check()
+
+    # Load all actions and find the most recent committee date
+    all_actions = _load_all_actions(path)
+    if not all_actions:
+        return _empty_performance_check()
+
+    # Get the most recent committee date
+    dates = sorted(set(a.get("committee_date", "") for a in all_actions))
+    if not dates:
+        return _empty_performance_check()
+
+    latest_date = dates[-1]
+
+    # Filter to BUY/ADD from the most recent run
+    buy_actions = [
+        a for a in all_actions
+        if a.get("committee_date") == latest_date
+        and a.get("action", "").upper() in ("BUY", "ADD")
+    ]
+
+    if not buy_actions:
+        return _empty_performance_check()
+
+    # Fetch current prices
+    try:
+        import yfinance as yf
+    except ImportError:
+        logger.warning("yfinance not available for performance check")
+        return _empty_performance_check()
+
+    results = []
+    for action in buy_actions:
+        ticker = action.get("ticker")
+        entry_price = action.get("price_at_recommendation")
+
+        if not ticker or not entry_price:
+            continue
+
+        try:
+            entry_price = float(entry_price)
+        except (ValueError, TypeError):
+            continue
+
+        try:
+            stock = yf.Ticker(ticker)
+            info = stock.fast_info
+            current_price = float(info.get("lastPrice", 0) or info.get("last_price", 0))
+
+            if current_price <= 0:
+                # Fallback: try history
+                hist = stock.history(period="1d")
+                if not hist.empty:
+                    current_price = float(hist["Close"].iloc[-1])
+
+            if current_price <= 0:
+                continue
+
+            return_pct = round(
+                (current_price - entry_price) / entry_price * 100, 2
+            )
+
+            results.append({
+                "ticker": ticker,
+                "entry_price": entry_price,
+                "current_price": current_price,
+                "return_pct": return_pct,
+                "conviction": action.get("conviction"),
+                "committee_date": latest_date,
+            })
+
+        except Exception as e:
+            logger.debug(f"Failed to fetch price for {ticker}: {e}")
+            continue
+
+    if not results:
+        return _empty_performance_check()
+
+    returns = [r["return_pct"] for r in results]
+    best = max(results, key=lambda r: r["return_pct"])
+    worst = min(results, key=lambda r: r["return_pct"])
+
+    return {
+        "committee_date": latest_date,
+        "total_recommendations": len(buy_actions),
+        "active_buys": len(results),
+        "avg_return_to_date": round(float(np.mean(returns)), 2),
+        "best_performer": {
+            "ticker": best["ticker"],
+            "return_pct": best["return_pct"],
+        },
+        "worst_performer": {
+            "ticker": worst["ticker"],
+            "return_pct": worst["return_pct"],
+        },
+        "triggered_kill_theses": [],  # Placeholder for future implementation
+        "recommendations": results,
+    }
+
+
+def get_track_record_summary(
+    log_path: Optional[Path] = None,
+) -> str:
+    """
+    Return a one-line track record summary for display in committee reports.
+
+    CIO Review v4 Finding F10: Provides a concise summary string like:
+    "Track record: XX% BUY hit rate at T+30 (n=YY)"
+
+    Uses the committee scorecard if available, otherwise returns
+    a placeholder indicating insufficient data.
+
+    Args:
+        log_path: Path to committee scorecard JSON file
+
+    Returns:
+        One-line summary string
+    """
+    scorecard_path = SCORECARD_OUTPUT_PATH
+
+    if not scorecard_path.exists():
+        return "Track record: insufficient data (no scorecard generated yet)"
+
+    try:
+        with open(scorecard_path, "r") as f:
+            scorecard = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return "Track record: insufficient data (scorecard unreadable)"
+
+    buy_recs = scorecard.get("buy_recommendations", {})
+    total = buy_recs.get("total", 0)
+
+    if total == 0:
+        return "Track record: insufficient data (n=0)"
+
+    hit_rate = buy_recs.get("hit_rate_30d")
+    if hit_rate is not None:
+        return f"Track record: {hit_rate:.0f}% BUY hit rate at T+30 (n={total})"
+
+    hit_rate_7d = buy_recs.get("hit_rate_7d")
+    if hit_rate_7d is not None:
+        return f"Track record: {hit_rate_7d:.0f}% BUY hit rate at T+7 (n={total})"
+
+    return f"Track record: {total} BUY recommendations logged, awaiting T+30 data"
+
+
+def _load_all_actions(path: Path) -> List[Dict[str, Any]]:
+    """Load all committee actions from log without date filtering."""
+    if not path.exists():
+        return []
+
+    actions = []
+    with open(path, "r") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                actions.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+
+    return actions
+
+
+def _empty_performance_check() -> Dict[str, Any]:
+    """Return empty performance check structure."""
+    return {
+        "committee_date": None,
+        "total_recommendations": 0,
+        "active_buys": 0,
+        "avg_return_to_date": 0.0,
+        "best_performer": None,
+        "worst_performer": None,
+        "triggered_kill_theses": [],
+        "recommendations": [],
+    }
 
 
 def _summarize_buys(results: List[Dict]) -> Dict[str, Any]:

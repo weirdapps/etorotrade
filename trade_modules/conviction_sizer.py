@@ -9,6 +9,8 @@ Modulates position size based on:
 5. Sector rotation (adjust conviction for rotating sectors)
 6. Data freshness (reduce size for stale data)
 7. Market impact (skip if trading costs exceed alpha)
+8. Holding-period-adjusted costs (eToro overnight financing)
+9. Portfolio-level sector constraints (max sector exposure)
 
 CIO Review Findings:
 - E1: BUY conviction score should feed position sizing
@@ -18,6 +20,8 @@ CIO Review Findings:
 - Task #1: Sector rotation integration
 - Task #13: Data freshness integration
 - Task #2: Market impact modeling
+- F2 (v4): Holding-period-adjusted cost model
+- F8 (v4): Portfolio-level sizing constraint
 """
 
 import logging
@@ -291,6 +295,72 @@ def calculate_market_impact(
     }
 
 
+# Constants shared with liquidity_filter.py
+# eToro daily overnight fee rate (annualized ~6.4% for long positions)
+ETORO_OVERNIGHT_ANNUAL_RATE = 0.064
+
+# Estimated spread costs by tier (basis points) — round-trip (entry + exit)
+HOLDING_SPREAD_BPS: Dict[str, float] = {
+    "MEGA": 2.0,
+    "LARGE": 5.0,
+    "MID": 10.0,
+    "SMALL": 20.0,
+    "MICRO": 40.0,
+}
+
+
+def estimate_holding_cost_pct(
+    holding_period_days: int = 90,
+    tier: str = "MID",
+) -> Dict[str, float]:
+    """
+    Estimate total holding cost as a percentage of position value.
+
+    Combines:
+    - Round-trip spread cost (entry + exit), tier-dependent
+    - eToro overnight financing, prorated to holding period
+
+    Uses the same constants as liquidity_filter.py (ETORO_OVERNIGHT_ANNUAL_RATE
+    = 6.4% annualized, TIER_SPREAD_BPS for spread costs).
+
+    CIO Review v4 Finding F2: Holding-period-adjusted cost model.
+
+    Args:
+        holding_period_days: Expected holding period in calendar days (default 90).
+        tier: Market cap tier (MEGA, LARGE, MID, SMALL, MICRO).
+
+    Returns:
+        Dict with:
+            - spread_pct: Round-trip spread cost as percentage
+            - financing_pct: Prorated overnight financing as percentage
+            - total_pct: Total estimated cost as percentage
+            - holding_period_days: The holding period used
+    """
+    tier_upper = tier.upper() if tier else "MID"
+    spread_bps = HOLDING_SPREAD_BPS.get(tier_upper, HOLDING_SPREAD_BPS["MID"])
+
+    # Round-trip spread: entry + exit
+    spread_pct = (spread_bps / 10000) * 2 * 100  # Convert bps to percentage
+
+    # eToro overnight financing prorated to holding period
+    financing_pct = ETORO_OVERNIGHT_ANNUAL_RATE * (holding_period_days / 365) * 100
+
+    total_pct = spread_pct + financing_pct
+
+    logger.debug(
+        f"Holding cost estimate ({tier_upper}, {holding_period_days}d): "
+        f"spread={spread_pct:.2f}%, financing={financing_pct:.2f}%, "
+        f"total={total_pct:.2f}%"
+    )
+
+    return {
+        "spread_pct": round(spread_pct, 4),
+        "financing_pct": round(financing_pct, 4),
+        "total_pct": round(total_pct, 4),
+        "holding_period_days": holding_period_days,
+    }
+
+
 def calculate_conviction_size(
     base_position_size: float,
     tier_multiplier: float,
@@ -307,6 +377,8 @@ def calculate_conviction_size(
     freshness_multiplier: float = 1.0,
     market_impact_blocked: bool = False,
     portfolio_var_scaling: float = 1.0,
+    holding_period_days: int = 90,
+    tier: str = "MID",
 ) -> Dict[str, Any]:
     """
     Calculate final position size with conviction and regime adjustments.
@@ -340,9 +412,15 @@ def calculate_conviction_size(
         portfolio_var_scaling: Scaling factor from portfolio VaR budget (CIO v3 F10).
             1.0 = within budget, 0.8 = VaR exceeds trigger (scale down 20%),
             calculated by get_portfolio_var_scaling().
+        holding_period_days: Expected holding period in calendar days (default 90).
+            Used to calculate prorated eToro overnight financing costs.
+            CIO Review v4 Finding F2.
+        tier: Market cap tier for holding cost estimation (default "MID").
+            CIO Review v4 Finding F2.
 
     Returns:
-        Dict with position_size, conviction_mult, regime_mult, adjustments, and blocking info
+        Dict with position_size, conviction_mult, regime_mult, adjustments,
+        blocking info, and holding_cost (F2).
     """
     # Step 1: Base tier size
     tier_size = base_position_size * tier_multiplier
@@ -393,6 +471,9 @@ def calculate_conviction_size(
         max_from_pct = portfolio_value * (max_position_pct / 100)
         final_size = min(final_size, max_from_pct)
 
+    # Calculate holding cost estimate (CIO v4 F2)
+    holding_cost = estimate_holding_cost_pct(holding_period_days, tier)
+
     return {
         "position_size": round(final_size, 2),
         "base_tier_size": round(tier_size, 2),
@@ -410,6 +491,7 @@ def calculate_conviction_size(
         "sector_rotation_blocked": sector_rotation_blocked,
         "market_impact_blocked": market_impact_blocked,
         "is_blocked": is_blocked,
+        "holding_cost": holding_cost,
         "adjustments": _describe_adjustments(
             conviction_mult,
             regime_mult,
@@ -477,3 +559,121 @@ def _describe_adjustments(
         parts.append("BLOCKED: market impact >300bps")
 
     return "; ".join(parts) if parts else "no adjustments"
+
+
+def apply_portfolio_constraints(
+    new_positions: List[Dict[str, Any]],
+    current_sector_exposures: Dict[str, float],
+    max_sector_pct: float = 25.0,
+    portfolio_value: Optional[float] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Apply portfolio-level sector concentration constraints to proposed positions.
+
+    If adding the new positions would push any sector over the max_sector_pct
+    limit, all new positions in that sector are proportionally reduced so that
+    the total sector exposure equals exactly max_sector_pct.
+
+    CIO Review v4 Finding F8: Portfolio-level sizing constraint.
+
+    Args:
+        new_positions: List of proposed positions, each a dict with:
+            - ticker: str (stock ticker)
+            - sector: str (sector name)
+            - position_size: float (proposed size in USD)
+        current_sector_exposures: Dict mapping sector name to current
+            exposure as percentage of portfolio (e.g., {"Technology": 22.0}).
+        max_sector_pct: Maximum allowed sector exposure as percentage
+            of portfolio (default 25%).
+        portfolio_value: Total portfolio value in USD. Required if
+            position sizes are in USD (to convert to percentages).
+            If None, position_size values are treated as percentages directly.
+
+    Returns:
+        List of dicts, each with:
+            - ticker: str
+            - sector: str
+            - original_size: float (proposed size before constraints)
+            - constrained_size: float (size after sector constraint)
+            - was_constrained: bool (True if size was reduced)
+            - constraint_reason: str (description if constrained, empty otherwise)
+    """
+    if not new_positions:
+        return []
+
+    # Group new positions by sector
+    sector_new_totals: Dict[str, float] = {}
+    for pos in new_positions:
+        sector = pos.get("sector", "Unknown")
+        size = pos.get("position_size", 0.0)
+        sector_new_totals[sector] = sector_new_totals.get(sector, 0.0) + size
+
+    # Calculate scaling factor per sector
+    sector_scale: Dict[str, float] = {}
+    for sector, new_total in sector_new_totals.items():
+        current_pct = current_sector_exposures.get(sector, 0.0)
+
+        # Convert new_total to percentage if portfolio_value is provided
+        if portfolio_value and portfolio_value > 0:
+            new_pct = (new_total / portfolio_value) * 100
+        else:
+            new_pct = new_total
+
+        projected_pct = current_pct + new_pct
+
+        if projected_pct > max_sector_pct:
+            # How much room is left for new positions in this sector
+            available_pct = max(0.0, max_sector_pct - current_pct)
+
+            if new_pct > 0:
+                scale = available_pct / new_pct
+                scale = max(0.0, min(1.0, scale))  # Clamp to [0, 1]
+            else:
+                scale = 1.0
+
+            sector_scale[sector] = scale
+            logger.info(
+                f"Sector constraint: {sector} projected {projected_pct:.1f}% "
+                f"exceeds {max_sector_pct:.0f}% limit — scaling new positions "
+                f"by {scale:.2f} (current: {current_pct:.1f}%, "
+                f"new: {new_pct:.1f}%, available: {available_pct:.1f}%)"
+            )
+        else:
+            sector_scale[sector] = 1.0
+
+    # Apply scaling to each position
+    results: List[Dict[str, Any]] = []
+    for pos in new_positions:
+        ticker = pos.get("ticker", "")
+        sector = pos.get("sector", "Unknown")
+        original_size = pos.get("position_size", 0.0)
+        scale = sector_scale.get(sector, 1.0)
+        constrained_size = round(original_size * scale, 2)
+        was_constrained = scale < 1.0
+
+        constraint_reason = ""
+        if was_constrained:
+            current_pct = current_sector_exposures.get(sector, 0.0)
+            constraint_reason = (
+                f"{sector} at {current_pct:.1f}%, "
+                f"limit {max_sector_pct:.0f}% — "
+                f"scaled to {scale:.0%}"
+            )
+
+        results.append({
+            "ticker": ticker,
+            "sector": sector,
+            "original_size": original_size,
+            "constrained_size": constrained_size,
+            "was_constrained": was_constrained,
+            "constraint_reason": constraint_reason,
+        })
+
+    constrained_count = sum(1 for r in results if r["was_constrained"])
+    if constrained_count > 0:
+        logger.info(
+            f"Portfolio constraints: {constrained_count}/{len(results)} "
+            f"positions reduced due to sector limits"
+        )
+
+    return results

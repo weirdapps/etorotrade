@@ -834,3 +834,139 @@ def get_signal_change_summary(
         "opportunity_count": by_urgency.get("OPPORTUNITY", 0),
         "changes": changes,
     }
+
+
+# ============================================
+# SIGNAL VELOCITY TRACKING (CIO Review v4 F1)
+# ============================================
+
+
+def get_signal_velocity(
+    log_path: Optional[Path] = None,
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Compute signal velocity metrics for each ticker from the signal log.
+
+    Analyses the signal_log.jsonl to determine how long each ticker has held
+    its current signal and how frequently signals have changed recently.
+    This helps distinguish between freshly-generated signals that need
+    attention and stale ones that may be outdated.
+
+    Args:
+        log_path: Path to signal_log.jsonl. Defaults to DEFAULT_SIGNAL_LOG_PATH.
+
+    Returns:
+        Dict mapping ticker -> velocity info dict with keys:
+            - current_signal (str): The most recent signal (B/S/H/I)
+            - days_at_current_signal (int): Days the current signal has been active
+            - signal_changes_30d (int): Number of signal transitions in last 30 days
+            - velocity_classification (str): One of "fresh", "stable", "stale",
+              or "volatile"
+
+    Classification rules:
+        - "volatile": 3+ signal changes in 30 days (takes priority)
+        - "fresh": <7 days at current signal
+        - "stable": 7-60 days at current signal
+        - "stale": >60 days at current signal
+    """
+    resolved_path = log_path or DEFAULT_SIGNAL_LOG_PATH
+    now = datetime.now()
+    cutoff_30d = now - timedelta(days=30)
+
+    # ticker -> list of (timestamp, signal) sorted by time
+    ticker_signals: Dict[str, List[tuple]] = {}
+
+    try:
+        with open(resolved_path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+                ticker = data.get("ticker", "")
+                signal = data.get("signal", "")
+                timestamp_str = data.get("timestamp", "")
+
+                if not ticker or not signal or not timestamp_str:
+                    continue
+
+                # Skip test/invalid tickers
+                if _INVALID_TICKER_PATTERN.match(ticker):
+                    continue
+
+                # Accept B/S/H/I signals
+                if signal not in _VALID_SIGNALS:
+                    continue
+
+                try:
+                    ts = datetime.fromisoformat(timestamp_str)
+                except (ValueError, TypeError):
+                    continue
+
+                if ticker not in ticker_signals:
+                    ticker_signals[ticker] = []
+                ticker_signals[ticker].append((ts, signal))
+
+    except FileNotFoundError:
+        logger.debug("Signal log not found at %s", resolved_path)
+        return {}
+    except Exception as e:
+        logger.warning("Error reading signal log for velocity: %s", e)
+        return {}
+
+    result: Dict[str, Dict[str, Any]] = {}
+
+    for ticker, entries in ticker_signals.items():
+        # Sort chronologically
+        entries.sort(key=lambda x: x[0])
+
+        current_signal = entries[-1][1]
+
+        # Walk backwards to find when the current signal streak started
+        streak_start = entries[-1][0]
+        for i in range(len(entries) - 2, -1, -1):
+            if entries[i][1] == current_signal:
+                streak_start = entries[i][0]
+            else:
+                break
+
+        days_at_current = (now - streak_start).days
+
+        # Count signal changes in the last 30 days
+        recent = [(ts, sig) for ts, sig in entries if ts >= cutoff_30d]
+        changes_30d = 0
+        for i in range(1, len(recent)):
+            if recent[i][1] != recent[i - 1][1]:
+                changes_30d += 1
+
+        # Classify: volatile takes priority over duration-based classes
+        if changes_30d >= 3:
+            classification = "volatile"
+        elif days_at_current < 7:
+            classification = "fresh"
+        elif days_at_current <= 60:
+            classification = "stable"
+        else:
+            classification = "stale"
+
+        result[ticker] = {
+            "current_signal": current_signal,
+            "days_at_current_signal": days_at_current,
+            "signal_changes_30d": changes_30d,
+            "velocity_classification": classification,
+        }
+
+    logger.debug(
+        "Computed signal velocity for %d tickers (%d fresh, %d stable, %d stale, %d volatile)",
+        len(result),
+        sum(1 for v in result.values() if v["velocity_classification"] == "fresh"),
+        sum(1 for v in result.values() if v["velocity_classification"] == "stable"),
+        sum(1 for v in result.values() if v["velocity_classification"] == "stale"),
+        sum(1 for v in result.values() if v["velocity_classification"] == "volatile"),
+    )
+
+    return result
