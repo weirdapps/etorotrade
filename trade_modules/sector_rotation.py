@@ -226,6 +226,139 @@ def detect_sector_rotation(
     }
 
 
+def detect_price_based_rotation(
+    sector_returns: Dict[str, Dict[str, float]],
+    threshold_pp: float = 5.0,
+) -> Dict[str, Any]:
+    """
+    Detect sector rotation using price-based relative strength.
+
+    CIO v3 F5: Price-based rotation leads analyst consensus by 2-4 weeks.
+    Compares recent sector ETF/index returns against prior period to detect
+    money flows before they show up in analyst recommendation changes.
+
+    Args:
+        sector_returns: Dict mapping sector name to:
+            - 'current_return': return over recent period (e.g., last 21 trading days), as %
+            - 'prior_return': return over prior period (e.g., previous 21 trading days), as %
+            Example: {"Technology": {"current_return": 3.2, "prior_return": -1.5}}
+        threshold_pp: Minimum change in momentum to flag rotation (percentage points)
+
+    Returns:
+        Dict with rotation_detected, gaining_sectors, losing_sectors, rotations
+    """
+    gaining = []
+    losing = []
+    rotations = []
+
+    for sector, returns in sector_returns.items():
+        current = returns.get("current_return", 0.0)
+        prior = returns.get("prior_return", 0.0)
+        momentum_change = current - prior
+
+        if momentum_change >= threshold_pp:
+            gaining.append({
+                "sector": sector,
+                "current_return": round(current, 1),
+                "prior_return": round(prior, 1),
+                "momentum_change_pp": round(momentum_change, 1),
+            })
+        elif momentum_change <= -threshold_pp:
+            losing.append({
+                "sector": sector,
+                "current_return": round(current, 1),
+                "prior_return": round(prior, 1),
+                "momentum_change_pp": round(momentum_change, 1),
+            })
+
+    gaining.sort(key=lambda x: x["momentum_change_pp"], reverse=True)
+    losing.sort(key=lambda x: x["momentum_change_pp"])
+
+    for g in gaining:
+        for l in losing:
+            rotations.append(
+                f"Price rotation: {l['sector']} ({l['momentum_change_pp']:+.1f}pp) -> "
+                f"{g['sector']} ({g['momentum_change_pp']:+.1f}pp)"
+            )
+
+    rotation_detected = len(gaining) > 0 and len(losing) > 0
+
+    return {
+        "rotation_detected": rotation_detected,
+        "rotations": rotations,
+        "gaining_sectors": gaining,
+        "losing_sectors": losing,
+        "detection_method": "price_based",
+    }
+
+
+def detect_combined_rotation(
+    signal_log_path: Optional[Path] = None,
+    sector_returns: Optional[Dict[str, Dict[str, float]]] = None,
+    lookback_days: int = ROTATION_LOOKBACK_DAYS,
+) -> Dict[str, Any]:
+    """
+    Combine signal-based and price-based rotation detection.
+
+    CIO v3 F5: When both methods agree, conviction is highest.
+    Price-based leads by 2-4 weeks; signal-based confirms the rotation.
+
+    Args:
+        signal_log_path: Path to signal log
+        sector_returns: Sector ETF returns (for price-based detection)
+        lookback_days: Days for signal-based lookback
+
+    Returns:
+        Dict with combined rotation assessment and confidence level
+    """
+    signal_result = detect_sector_rotation(signal_log_path, lookback_days)
+
+    if sector_returns:
+        price_result = detect_price_based_rotation(sector_returns)
+    else:
+        price_result = {
+            "rotation_detected": False,
+            "gaining_sectors": [],
+            "losing_sectors": [],
+        }
+
+    # Determine sectors gaining/losing in each method
+    signal_gaining = {s["sector"] for s in signal_result.get("gaining_sectors", [])}
+    signal_losing = {s["sector"] for s in signal_result.get("losing_sectors", [])}
+    price_gaining = {s["sector"] for s in price_result.get("gaining_sectors", [])}
+    price_losing = {s["sector"] for s in price_result.get("losing_sectors", [])}
+
+    # Sectors confirmed by both methods get highest confidence
+    confirmed_gaining = signal_gaining & price_gaining
+    confirmed_losing = signal_losing & price_losing
+
+    # Price-only signals are early warnings
+    early_gaining = price_gaining - signal_gaining
+    early_losing = price_losing - signal_losing
+
+    has_price_signals = bool(price_gaining or price_losing)
+
+    if confirmed_gaining or confirmed_losing:
+        confidence = "HIGH"
+    elif has_price_signals:
+        confidence = "MEDIUM"
+    elif signal_result["rotation_detected"]:
+        confidence = "LOW"
+    else:
+        confidence = "NONE"
+
+    return {
+        "rotation_detected": signal_result["rotation_detected"] or price_result["rotation_detected"],
+        "confidence": confidence,
+        "confirmed_gaining": sorted(confirmed_gaining),
+        "confirmed_losing": sorted(confirmed_losing),
+        "early_warning_gaining": sorted(early_gaining),
+        "early_warning_losing": sorted(early_losing),
+        "signal_based": signal_result,
+        "price_based": price_result,
+    }
+
+
 def get_rotation_context() -> Dict[str, Any]:
     """
     Get sector rotation context for inclusion in committee reports and briefings.
