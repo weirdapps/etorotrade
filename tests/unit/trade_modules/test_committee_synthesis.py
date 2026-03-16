@@ -20,6 +20,7 @@ import pytest
 from trade_modules.committee_synthesis import (
     ACTION_ORDER,
     AGENT_FRESHNESS,
+    _fallback_technical,
     apply_conviction_floors,
     apply_opportunity_gate,
     build_concordance,
@@ -238,17 +239,38 @@ class TestDetermineBaseConviction:
         base_mid = determine_base_conviction(50, "B", 68, 5, 0.5)
         assert base_mid > base_low
 
-    def test_buy_excess_exret_bonus(self):
-        """BUY + excess_exret >= 12 → +5 bonus."""
-        base_no = determine_base_conviction(50, "B", 60, 5, 0.5)
-        base_ex = determine_base_conviction(50, "B", 60, 15, 0.5)
-        assert base_ex == base_no + 5
+    def test_buy_excess_exret_bonus_proportional(self):
+        """BUY + excess_exret scales proportionally (CIO v5.2)."""
+        base_5 = determine_base_conviction(50, "B", 60, 5, 0.5)
+        base_15 = determine_base_conviction(50, "B", 60, 15, 0.5)
+        base_25 = determine_base_conviction(50, "B", 60, 25, 0.5)
+        # Higher EXRET → higher base
+        assert base_15 > base_5
+        assert base_25 > base_15
+        # Max bonus is 5
+        base_40 = determine_base_conviction(50, "B", 60, 40, 0.5)
+        assert base_40 - base_5 <= 5
 
     def test_hold_quality_bonus_NOT_applied(self):
         """HOLD signals should NOT get BUY-side quality bonus."""
         base = determine_base_conviction(50, "H", 90, 30, 0.5)
         # Should be capped at 70 regardless of fund_score
         assert base <= 70
+
+    def test_continuous_base_breaks_clustering(self):
+        """CIO v5.2: Different bull_pct values produce different bases."""
+        base_52 = determine_base_conviction(52, "B", 60, 0, 0.48)
+        base_58 = determine_base_conviction(58, "B", 60, 0, 0.42)
+        base_64 = determine_base_conviction(64, "B", 60, 0, 0.36)
+        # Old system: all three would produce base=60 (same bucket)
+        # New system: should produce different values
+        assert base_52 != base_58 or base_58 != base_64
+
+    def test_continuous_monotonic(self):
+        """CIO v5.2: Higher bull_pct → higher or equal base."""
+        bases = [determine_base_conviction(pct, "H", 50, 0, 0.5) for pct in range(20, 80, 5)]
+        for i in range(len(bases) - 1):
+            assert bases[i] <= bases[i + 1]
 
 
 # ============================================================
@@ -399,6 +421,40 @@ class TestComputeAdjustments:
         kw["sector_rankings"] = {"XLK": {"rank": 10, "return_1m": -5.0}}
         _, penalties = compute_adjustments(**kw)
         assert penalties >= 5
+
+    def test_tech_disagreement_buy_avoid(self):
+        """CIO v5.2: BUY signal + tech AVOID → penalty."""
+        kw = self._default_kwargs()
+        kw["signal"] = "B"
+        kw["tech_signal"] = "AVOID"
+        _, penalties = compute_adjustments(**kw)
+        assert penalties >= 8
+
+    def test_tech_disagreement_buy_exit(self):
+        """CIO v5.2: BUY signal + tech EXIT_SOON → penalty."""
+        kw = self._default_kwargs()
+        kw["signal"] = "B"
+        kw["tech_signal"] = "EXIT_SOON"
+        _, penalties = compute_adjustments(**kw)
+        assert penalties >= 8
+
+    def test_tech_disagreement_buy_negative_momentum(self):
+        """CIO v5.2: BUY signal + tech_momentum < -30 → penalty."""
+        kw = self._default_kwargs()
+        kw["signal"] = "B"
+        kw["tech_momentum"] = -35
+        _, penalties = compute_adjustments(**kw)
+        assert penalties >= 5
+
+    def test_tech_disagreement_not_for_hold(self):
+        """Tech disagreement penalty only for BUY signals, not HOLD."""
+        kw = self._default_kwargs()
+        kw["signal"] = "H"
+        kw["tech_signal"] = "AVOID"
+        _, penalties_hold = compute_adjustments(**kw)
+        kw["signal"] = "B"
+        _, penalties_buy = compute_adjustments(**kw)
+        assert penalties_buy > penalties_hold
 
 
 # ============================================================
@@ -1304,6 +1360,84 @@ class TestBuildConcordanceWithOpportunities:
         result = build_concordance(**base_inputs)
         xom = next(r for r in result if r["ticker"] == "XOM")
         assert xom["conviction"] <= 75
+
+
+# ============================================================
+# Fallback Technical (CIO v5.2)
+# ============================================================
+
+
+class TestFallbackTechnical:
+    def test_strong_positive_pp(self):
+        """Strong price performance → positive momentum."""
+        result = _fallback_technical({"pp": 20, "52w": 90, "beta": 1.0})
+        assert result["momentum_score"] > 0
+        assert result["timing_signal"] in ("WAIT_FOR_PULLBACK", "HOLD")
+
+    def test_strong_negative_pp(self):
+        """Negative price performance → negative momentum."""
+        result = _fallback_technical({"pp": -20, "52w": 55, "beta": 1.5})
+        assert result["momentum_score"] < 0
+        assert result["timing_signal"] == "AVOID"
+
+    def test_near_52w_high(self):
+        """Near 52-week high → WAIT_FOR_PULLBACK."""
+        result = _fallback_technical({"pp": 5, "52w": 98, "beta": 1.0})
+        assert result["timing_signal"] == "WAIT_FOR_PULLBACK"
+        assert result["rsi"] > 60
+
+    def test_far_from_52w_high(self):
+        """Far from 52-week high → AVOID."""
+        result = _fallback_technical({"pp": -10, "52w": 45, "beta": 1.2})
+        assert result["timing_signal"] == "AVOID"
+        assert result["rsi"] < 40
+
+    def test_synthetic_flag(self):
+        """Fallback results should be marked as synthetic."""
+        result = _fallback_technical({"pp": 0, "52w": 80, "beta": 1.0})
+        assert result["synthetic"] is True
+
+    def test_defaults_when_data_missing(self):
+        """Should handle missing keys gracefully."""
+        result = _fallback_technical({})
+        assert "momentum_score" in result
+        assert "timing_signal" in result
+
+
+# ============================================================
+# Tiebreaking (CIO v5.2)
+# ============================================================
+
+
+class TestTiebreaking:
+    @pytest.fixture
+    def base_inputs(self):
+        return {
+            "portfolio_signals": {
+                "AAA": {"signal": "B", "exret": 20, "buy_pct": 80, "beta": 1.0, "pet": 25, "pef": 20, "pp": 5, "52w": 85},
+                "BBB": {"signal": "B", "exret": 10, "buy_pct": 70, "beta": 1.5, "pet": 20, "pef": 18, "pp": -5, "52w": 70},
+            },
+            "fund_report": {"stocks": {}},
+            "tech_report": {"stocks": {}},
+            "macro_report": {"portfolio_implications": {}, "sector_rankings": {}},
+            "census_report": {"divergences": {}},
+            "news_report": {"portfolio_news": {}},
+            "risk_report": {"consensus_warnings": [], "position_limits": {}},
+            "sector_map": {"AAA": "Technology", "BBB": "Technology"},
+        }
+
+    def test_tiebreak_field_exists(self, base_inputs):
+        """Every concordance entry should have a tiebreak field."""
+        result = build_concordance(**base_inputs)
+        for entry in result:
+            assert "tiebreak" in entry
+
+    def test_different_exret_breaks_tie(self, base_inputs):
+        """Stocks with same conviction but different EXRET should have different tiebreak."""
+        result = build_concordance(**base_inputs)
+        aaa = next(r for r in result if r["ticker"] == "AAA")
+        bbb = next(r for r in result if r["ticker"] == "BBB")
+        assert aaa["tiebreak"] != bbb["tiebreak"]
 
 
 # ============================================================
