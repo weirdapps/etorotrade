@@ -215,7 +215,7 @@ class TestGenerateReportHtml:
         synth = _minimal_synth()
         fund, tech, macro, census, news, opps, risk = _minimal_reports()
         html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
-        assert "v6.0" in html
+        assert "v8.0" in html
 
     def test_disclaimer_present(self):
         synth = _minimal_synth()

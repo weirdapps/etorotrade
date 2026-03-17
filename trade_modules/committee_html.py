@@ -239,7 +239,9 @@ def generate_report_html(
     var_95_raw = pr_synth.get("var_95", synth.get("var_95", 0))
     # If VaR magnitude > 10, it was likely multiplied by 100 incorrectly
     var_95 = var_95_raw if abs(var_95_raw) <= 10 else var_95_raw / 100
-    max_dd = pr_synth.get("max_drawdown", synth.get("max_drawdown", 0))
+    max_dd_raw = pr_synth.get("max_drawdown", synth.get("max_drawdown", 0))
+    # CIO v8.0 F4: Normalize max_drawdown like VaR — if decimal form, convert to %
+    max_dd = max_dd_raw * 100 if 0 < abs(max_dd_raw) < 1 else max_dd_raw
     p_beta = pr_synth.get("portfolio_beta", synth.get("portfolio_beta", 1.0))
     fg_top100 = synth.get("fg_top100", 50)
     fg_broad = synth.get("fg_broad", 50)
@@ -318,6 +320,7 @@ def generate_report_html(
     disagreements = []
     for entry in concordance:
         tkr = entry.get("ticker", "")
+        sig = entry.get("signal", "?")
         fv = entry.get("fund_view", "")
         ts = entry.get("tech_signal", "")
         mf = entry.get("macro_fit", "")
@@ -354,6 +357,18 @@ def generate_report_html(
                         f"Technical: RSI {rsi:.0f}, {ts}. "
                         f"Committee proceeded with {act} at reduced conviction ({conv}).")
             disagreements.append({"ticker": tkr, "headline": f"Signal BUY vs Macro UNFAVORABLE ({sec})", "fund_view": fv, "tech_signal": ts, "narrative": dis_narr, "resolution": act, "conviction": conv, "accent": "#d97706"})
+        # CIO v8.0 F5/F7: Type 4 — Signal override (committee overrides quant signal)
+        elif (sig == "H" and act in ("ADD", "BUY")) or (sig == "B" and act in ("HOLD", "TRIM")):
+            override_dir = "upgraded" if act in ("ADD", "BUY") else "downgraded"
+            dis_narr = (f"Signal system rates {tkr} as {'HOLD' if sig == 'H' else 'BUY'} "
+                        f"but committee {override_dir} to {act} (conviction {conv}). "
+                        f"Fund: {fv} ({fs:.0f}), Tech: {ts} (RSI {rsi:.0f}), "
+                        f"EXRET {ex:.1f}%, Macro: {mf}.")
+            if sig == "H" and act in ("ADD", "BUY"):
+                dis_narr += f" Committee sees sufficient quality (fund {fs:.0f}) and agent consensus to override HOLD signal."
+            elif sig == "B" and act in ("HOLD", "TRIM"):
+                dis_narr += f" Penalty stacking (regime, technicals, risk) reduced conviction despite passing quant BUY criteria."
+            disagreements.append({"ticker": tkr, "headline": f"Signal {'H' if sig == 'H' else 'B'} overridden to {act}", "fund_view": fv, "tech_signal": ts, "narrative": dis_narr, "resolution": act, "conviction": conv, "accent": "#2563eb"})
         if len(disagreements) >= 6:
             break
     # Fallback: split votes
@@ -549,7 +564,7 @@ def generate_report_html(
             bg = "#f8fafc" if i % 2 == 1 else "#fff"
             bar_w = min(pct, 100)
             h.append(f'<tr style="background:{bg};"><td style="padding:4px 8px;font-weight:600;font-size:11px;">{e(sec)}</td><td style="padding:4px 8px;text-align:right;font-weight:700;font-family:monospace;font-size:11px;">{cnt} ({pct:.0f}%)</td><td style="padding:4px 8px;width:60px;"><div style="height:4px;background:#e2e8f0;border-radius:2px;"><div style="height:100%;border-radius:2px;background:#6366f1;width:{bar_w}%;"></div></div></td></tr>')
-        h.append('</table>')
+        h.append('</table><div style="font-size:10px;color:#94a3b8;margin-top:4px;font-style:italic;">By stock count, not dollar-weighted.</div>')
     else:
         geo = concentration.get("geography",{}).get("concentration",{})
         h.append(f'<div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748b;margin-bottom:10px;">Concentration</div><table style="width:100%;border-collapse:collapse;font-size:12px;"><tr style="background:#f8fafc;"><td style="padding:8px 12px;font-weight:600;">Top Region</td><td style="padding:8px 12px;text-align:right;font-weight:700;">{e(geo.get("top_region","US"))} ({geo.get("top_region_pct",0):.0f}%)</td></tr><tr><td style="padding:8px 12px;font-weight:600;">Stocks Analyzed</td><td style="padding:8px 12px;text-align:right;font-weight:700;">{len(concordance)}</td></tr></table>')
@@ -711,7 +726,7 @@ def generate_report_html(
         h.append('</table></div>')
 
     # FOOTER
-    h.append(f'<div style="padding:24px 40px 28px 40px;background:#f8fafc;border-top:1px solid #e2e8f0;"><table style="width:100%;"><tr><td style="font-size:10px;color:#94a3b8;line-height:1.6;"><div style="font-weight:600;color:#64748b;margin-bottom:2px;">Investment Committee Report v6.0</div>Generated {today_long} &middot; 7 Specialist Agents (Claude Sonnet) + CIO Synthesis (Claude Opus)<br/>Data: etorotrade signals, eToro census (1,500 PIs), yfinance market data, web search</td><td style="text-align:right;font-size:10px;color:#cbd5e0;vertical-align:bottom;">For informational purposes only.<br/>Not financial advice.</td></tr></table></div>')
+    h.append(f'<div style="padding:24px 40px 28px 40px;background:#f8fafc;border-top:1px solid #e2e8f0;"><table style="width:100%;"><tr><td style="font-size:10px;color:#94a3b8;line-height:1.6;"><div style="font-weight:600;color:#64748b;margin-bottom:2px;">Investment Committee Report v8.0</div>Generated {today_long} &middot; 7 Specialist Agents (Claude Sonnet) + CIO Synthesis (Claude Opus)<br/>Data: etorotrade signals, eToro census (1,500 PIs), yfinance market data, web search</td><td style="text-align:right;font-size:10px;color:#cbd5e0;vertical-align:bottom;">For informational purposes only.<br/>Not financial advice.</td></tr></table></div>')
     h.append('</div></body></html>')
 
     return "\n".join(h)
