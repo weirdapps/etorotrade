@@ -233,11 +233,11 @@ class TestGenerateReportHtml:
         assert "EXR" in html  # v9.0: shortened column header
         assert "12%" in html  # v9.0: integer format
 
-    def test_size_in_grid(self):
+    def test_exr_column_in_grid(self):
         synth = _minimal_synth()
         fund, tech, macro, census, news, opps, risk = _minimal_reports()
         html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
-        assert "SIZE" in html  # v10.0: restored full column header
+        assert "EXR" in html  # v10.0: expected return column
 
     def test_sector_exposure_shown(self):
         synth = _minimal_synth()
@@ -289,6 +289,6 @@ class TestGenerateReportHtml:
         })
         fund, tech, macro, census, news, opps, risk = _minimal_reports()
         html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
-        # MSFT (HOLD) should appear in compact HOLD/MONITOR section
-        assert "HOLD / MONITOR" in html
+        # MSFT (HOLD) should appear in HOLD section
+        assert "HOLD (" in html
         assert "MSFT" in html

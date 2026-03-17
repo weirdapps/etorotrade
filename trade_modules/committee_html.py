@@ -305,6 +305,7 @@ def generate_report_html(
     opps: Dict[str, Any],
     risk: Dict[str, Any],
     date_str: Optional[str] = None,
+    name_map: Optional[Dict[str, str]] = None,
 ) -> str:
     """
     Generate the Investment Committee HTML report.
@@ -325,6 +326,13 @@ def generate_report_html(
         today_long = datetime.strptime(today, "%Y-%m-%d").strftime("%B %d, %Y")
     except ValueError:
         today_long = today
+
+    # --- Build name map from opps data if not provided ---
+    _names: Dict[str, str] = dict(name_map or {})
+    for opp in (opps or {}).get("top_opportunities", []):
+        t = opp.get("ticker", "")
+        if t and t not in _names and opp.get("name"):
+            _names[t] = opp["name"]
 
     # --- Extract data ---
     concordance = synth.get("concordance", [])
@@ -470,16 +478,21 @@ def generate_report_html(
                      f'<div style="{_LABEL}color:{lc};">{title}</div>'
                      f'<div style="font-size:18px;font-weight:800;color:{vc};margin-top:4px;">{imp}%</div></td>')
         h.append('</tr></table>')
-    # Priority actions
+    # Priority actions — pill format
     urgent = [en for en in concordance if en.get("action") in ("SELL", "TRIM")]
     top_buys = [en for en in concordance if en.get("action") in ("BUY", "ADD") and en.get("conviction", 0) >= 65][:5]
     if urgent or top_buys:
-        h.append(f'<div style="{_LABEL}margin-bottom:8px;">Priority Actions</div><div>')
+        h.append(f'<div style="{_LABEL}margin-bottom:8px;">Priority Actions</div>')
+        h.append('<div style="line-height:2.4;">')
         for en in urgent + top_buys:
-            act, tkr, conv = en.get("action", "HOLD"), en.get("ticker", ""), en.get("conviction", 0)
-            h.append(f'<span style="display:inline-block;padding:4px 10px;margin:2px 3px 2px 0;'
-                     f'border-radius:5px;font-size:11px;font-weight:700;color:#fff;'
-                     f'background:{action_color(act)};">{act} {e(tkr)} ({conv})</span>')
+            act = en.get("action", "HOLD")
+            tkr = en.get("ticker", "")
+            ac = action_color(act)
+            h.append(f'<span style="display:inline-block;padding:4px 12px;margin:2px 4px;border-radius:6px;'
+                     f'font-size:11px;font-weight:700;background:{action_bg(act)};'
+                     f'border:1px solid {action_border(act)};">'
+                     f'<span style="color:{ac};">{act}</span> '
+                     f'<span style="{_MONO}color:{_C["text_dark"]};">{e(tkr)}</span></span>')
         h.append('</div>')
     h.append(_section_close())
 
@@ -505,7 +518,10 @@ def generate_report_html(
         h.append(_table_row([
             (f'<span style="font-weight:600;color:{_C["text_mid"]};">{e(n)}</span>', "left", ""),
             (f'<span style="{_MONO}font-weight:700;">{e(v)}</span>', "center", ""),
-            (f'{dot(dc)} <span style="font-size:11px;color:{_C["text_muted"]};">{e(st)}</span>', "center", ""),
+            (f'<table style="margin:0 auto;border-collapse:collapse;"><tr>'
+             f'<td style="padding:0 6px 0 0;vertical-align:middle;">{dot(dc)}</td>'
+             f'<td style="padding:0;vertical-align:middle;font-size:11px;color:{_C["text_muted"]};'
+             f'text-align:left;white-space:nowrap;">{e(st)}</td></tr></table>', "center", ""),
         ], bg=bg))
     h.append('</table>')
 
@@ -539,9 +555,11 @@ def generate_report_html(
     h.append(_section_close())
 
     # ── S3: STOCK ANALYSIS GRID ──
-    # All stocks in one grid, grouped by action type
-    sell_trim_list = [en for en in concordance if en.get("action") in ("SELL", "TRIM")]
-    buy_add_list = [en for en in concordance if en.get("action") in ("BUY", "ADD")]
+    # All stocks in one grid, grouped by 5 action types
+    sell_list = [en for en in concordance if en.get("action") == "SELL"]
+    trim_list = [en for en in concordance if en.get("action") == "TRIM"]
+    buy_list = [en for en in concordance if en.get("action") == "BUY"]
+    add_list = [en for en in concordance if en.get("action") == "ADD"]
     hold_list = [en for en in concordance if en.get("action") == "HOLD"]
 
     h.append(_section_open("Stock Analysis Grid",
@@ -588,16 +606,24 @@ def generate_report_html(
                 f'<td {p}">{badge(act, action_color(act), "#fff")}</td>'
                 f'<td {p}">{conv_display(conv, delta)}</td></tr>')
 
-    if sell_trim_list:
-        h.append(_group_separator("SELL / TRIM", _C["bear_bg"], _C["bear_text"], _C["bear_border"]))
-        for en in sell_trim_list:
+    if sell_list:
+        h.append(_group_separator(f"SELL ({len(sell_list)})", _C["bear_bg"], _C["bear_text"], _C["bear_border"]))
+        for en in sell_list:
             h.append(_grid_row(en))
-    if buy_add_list:
-        h.append(_group_separator("BUY / ADD", _C["bull_bg"], _C["bull_text"], _C["bull_border"]))
-        for en in buy_add_list:
+    if trim_list:
+        h.append(_group_separator(f"TRIM ({len(trim_list)})", _C["warn_bg"], _C["warn_text"], _C["warn_border"]))
+        for en in trim_list:
+            h.append(_grid_row(en))
+    if buy_list:
+        h.append(_group_separator(f"BUY ({len(buy_list)})", _C["bull_bg"], _C["bull_text"], _C["bull_border"]))
+        for en in buy_list:
+            h.append(_grid_row(en))
+    if add_list:
+        h.append(_group_separator(f"ADD ({len(add_list)})", "#ecfdf5", "#0d9488", "#99f6e4"))
+        for en in add_list:
             h.append(_grid_row(en))
     if hold_list:
-        h.append(_group_separator("HOLD / MONITOR", _C["bg_alt"], "#475569", _C["border_heavy"]))
+        h.append(_group_separator(f"HOLD ({len(hold_list)})", _C["bg_alt"], "#475569", _C["border_heavy"]))
         for en in hold_list:
             h.append(_grid_row(en))
     h.append('</table></div>')
@@ -662,16 +688,38 @@ def generate_report_html(
     for item in news.get("breaking_news", [])[:5]:
         hl = item.get("headline", "")
         imp = item.get("impact", item.get("score", "NEUTRAL"))
+        affected_sectors = item.get("affected_sectors", [])
+        affected_tickers = item.get("affected_tickers", [])
+        source = item.get("source", "")
         if "NEGATIVE" in str(imp):
             nbg, nbrd, nlc = _C["bear_bg"], _C["bear"], _C["bear_text"]
+            imp_color = _C["bear"]
         elif "POSITIVE" in str(imp):
             nbg, nbrd, nlc = _C["bull_bg"], _C["bull"], _C["bull_text"]
+            imp_color = _C["bull"]
         else:
             nbg, nbrd, nlc = _C["bg_page"], _C["text_light"], _C["text_body"]
+            imp_color = _C["text_muted"]
+        # Build structured detail line
+        detail_cells = []
+        detail_cells.append(f'<span style="color:{imp_color};font-weight:600;">{e(imp)}</span>')
+        if affected_sectors:
+            detail_cells.append(e(", ".join(affected_sectors[:4])))
+        if affected_tickers:
+            tkr_pills = " ".join(
+                f'<span style="display:inline-block;padding:1px 5px;border-radius:3px;'
+                f'background:{_C["bg_alt"]};{_MONO}font-size:9px;font-weight:600;">{e(t)}</span>'
+                for t in affected_tickers[:5])
+            detail_cells.append(tkr_pills)
+        if source:
+            detail_cells.append(f'<span style="font-style:italic;">{e(source)}</span>')
+        detail_line = (f'<div style="font-size:10px;color:{_C["text_muted"]};margin-top:5px;'
+                       f'line-height:1.6;">'
+                       + " &middot; ".join(detail_cells) + '</div>')
         h.append(f'<div style="background:{nbg};border-left:3px solid {nbrd};border-radius:0 4px 4px 0;'
-                 f'padding:10px 14px;margin-bottom:8px;font-size:12px;font-weight:600;color:{nlc};">'
-                 f'{e(hl)} <span style="font-weight:400;color:{_C["text_muted"]};font-size:10px;">'
-                 f'({e(imp)})</span></div>')
+                 f'padding:10px 14px;margin-bottom:8px;">'
+                 f'<div style="font-size:12px;font-weight:600;color:{nlc};">'
+                 f'{e(hl)}</div>{detail_line}</div>')
     # Portfolio-specific news
     pn = news.get("portfolio_news", {})
     notable = [(t, items[0]) for t, items in pn.items()
@@ -731,12 +779,31 @@ def generate_report_html(
     # Correlation clusters
     if clusters:
         h.append(f'<div style="{_LABEL}color:{_C["bear"]};margin:16px 0 8px 0;">Correlation Clusters</div>')
-        for cl in clusters[:4]:
+        h.append(f'<table style="{_TABLE}">')
+        h.append(f'<tr style="border-bottom:2px solid {_C["border"]};">'
+                 f'<th style="padding:6px 10px;text-align:left;{_LABEL}">Cluster</th>'
+                 f'<th style="padding:6px 10px;text-align:center;{_LABEL}width:60px;">Corr</th>'
+                 f'<th style="padding:6px 10px;text-align:left;{_LABEL}">Risk Note</th></tr>')
+        for i, cl in enumerate(clusters[:5]):
             stks = cl.get("stocks", cl.get("tickers", []))
             ac = cl.get("avg_correlation", cl.get("average_correlation", 0))
-            inner = (f'<span style="font-weight:700;color:{_C["bear_text"]};">{", ".join(stks[:5])}</span>'
-                     f' <span style="color:{_C["text_muted"]};">(r={ac:.2f})</span>')
-            h.append(_card(inner, _C["bear"], _C["bear_bg"]))
+            rn = cl.get("risk", "Correlated positions")
+            bg = _C["bear_bg"] if i % 2 == 0 else _C["bg_white"]
+            bar_w = min(ac * 100, 100)
+            pills = " ".join(
+                f'<span style="display:inline-block;padding:2px 6px;border-radius:3px;'
+                f'{_MONO}font-size:10px;font-weight:700;background:{_C["bg_alt"]};">{e(s)}</span>'
+                for s in stks[:5])
+            h.append(f'<tr style="background:{bg};">'
+                     f'<td style="padding:6px 10px;">{pills}</td>'
+                     f'<td style="padding:6px 10px;text-align:center;">'
+                     f'<span style="{_MONO}font-weight:700;color:{_C["bear"]};">{ac:.2f}</span>'
+                     f'<div style="height:3px;background:{_C["border"]};border-radius:2px;margin-top:3px;">'
+                     f'<div style="height:100%;border-radius:2px;background:{_C["bear"]};'
+                     f'width:{bar_w:.0f}%;"></div></div></td>'
+                     f'<td style="padding:6px 10px;font-size:11px;color:{_C["text_muted"]};">'
+                     f'{e(rn[:60])}</td></tr>')
+        h.append('</table>')
     # Sector gaps
     if sector_gaps:
         h.append(f'<div style="{_LABEL}color:{_C["warn"]};margin:16px 0 8px 0;">Sector Gaps</div>')
@@ -749,9 +816,12 @@ def generate_report_html(
 
     # ── S8: ACTION ITEMS ──
     pos_limits = synth.get("position_limits", risk.get("position_limits", {}))
-    urgent_items = [en for en in concordance if en.get("action") in ("SELL", "TRIM")]
-    deploy_items = sorted([en for en in concordance if en.get("action") in ("BUY", "ADD")],
-                          key=lambda x: -x.get("conviction", 0))
+    sell_items = [en for en in concordance if en.get("action") == "SELL"]
+    trim_items = [en for en in concordance if en.get("action") == "TRIM"]
+    buy_items = sorted([en for en in concordance if en.get("action") == "BUY"],
+                       key=lambda x: -x.get("conviction", 0))
+    add_items = sorted([en for en in concordance if en.get("action") == "ADD"],
+                       key=lambda x: -x.get("conviction", 0))
     monitor_items = sorted([en for en in concordance if en.get("action") == "HOLD"],
                            key=lambda x: -x.get("conviction", 0))
 
@@ -759,108 +829,73 @@ def generate_report_html(
                            "Tiered by urgency. Kill thesis: what makes each trade fail.",
                            border="2px solid " + _C["text_dark"]))
 
-    # Urgent: SELL/TRIM — cards with kill thesis
-    if urgent_items:
+    # Helper for action item cards
+    def _action_card(en, label_color):
+        act = en.get("action", "HOLD")
+        tkr = en.get("ticker", "")
+        conv = en.get("conviction", 0)
+        ex = en.get("exret", 0)
+        rsi = en.get("rsi", 0)
+        sec = en.get("sector", "")
+        ts = en.get("tech_signal", "")
+        mf = en.get("macro_fit", "")
+        beta = en.get("beta", 1.0)
+        bp = en.get("buy_pct", 50)
+        fv = en.get("fund_view", "?")
+        mp = en.get("max_pct", pos_limits.get(tkr, {}).get("max_pct", 5.0))
+        kill = en.get("kill_thesis") or _stock_kill_thesis(act, tkr, sec, rsi, ex, beta, bp, mf, ts, fv)
+        inner = (f'<table style="width:100%;"><tr><td>'
+                 f'{badge(act, action_color(act), "#fff")} '
+                 f'<span style="{_MONO}font-weight:800;font-size:14px;margin-left:8px;">{e(tkr)}</span> '
+                 f'<span style="font-size:11px;color:{_C["text_muted"]};margin-left:8px;">'
+                 f'{sec} | RSI {rsi:.0f} | {abbr(ts)} | {abbr(mf)}'
+                 f'{" | Max " + str(int(mp)) + "%" if act in ("BUY","ADD") else ""}</span></td>'
+                 f'<td style="text-align:right;">{conv_display(conv)}</td></tr></table>'
+                 f'<div style="font-size:11px;color:{_C["text_muted"]};font-style:italic;'
+                 f'margin-top:8px;line-height:1.5;">{e(kill)}</div>')
+        h.append(_card(inner, action_color(act), action_bg(act)))
+
+    # SELL
+    if sell_items:
         h.append(f'<div style="{_LABEL}color:{_C["bear_text"]};margin-bottom:10px;">'
-                 f'Urgent: Exit / Reduce ({len(urgent_items)})</div>')
-        for en in urgent_items:
-            act = en.get("action", "HOLD")
-            tkr = en.get("ticker", "")
-            conv = en.get("conviction", 0)
-            ex = en.get("exret", 0)
-            rsi = en.get("rsi", 0)
-            sec = en.get("sector", "")
-            ts = en.get("tech_signal", "")
-            mf = en.get("macro_fit", "")
-            beta = en.get("beta", 1.0)
-            bp = en.get("buy_pct", 50)
-            fv = en.get("fund_view", "?")
-            kill = en.get("kill_thesis") or _stock_kill_thesis(act, tkr, sec, rsi, ex, beta, bp, mf, ts, fv)
-            cc = conv_color_action(conv, act)
-            inner = (f'<table style="width:100%;"><tr><td>'
-                     f'{badge(act, action_color(act), "#fff")} '
-                     f'<span style="{_MONO}font-weight:800;font-size:14px;margin-left:8px;">{e(tkr)}</span> '
-                     f'<span style="font-size:11px;color:{_C["text_muted"]};margin-left:8px;">'
-                     f'{sec} | RSI {rsi:.0f} | {abbr(ts)} | {abbr(mf)}</span></td>'
-                     f'<td style="text-align:right;">{conv_display(conv)}</td></tr></table>'
-                     f'<div style="font-size:11px;color:{_C["text_muted"]};font-style:italic;'
-                     f'margin-top:8px;line-height:1.5;">{e(kill)}</div>')
-            h.append(_card(inner, action_color(act), action_bg(act)))
+                 f'Sell ({len(sell_items)})</div>')
+        for en in sell_items:
+            _action_card(en, _C["bear_text"])
 
-    # Deploy: BUY/ADD — consistent table
-    if deploy_items:
+    # TRIM
+    if trim_items:
+        h.append(f'<div style="{_LABEL}color:{_C["warn_text"]};margin:20px 0 10px 0;">'
+                 f'Trim ({len(trim_items)})</div>')
+        for en in trim_items:
+            _action_card(en, _C["warn_text"])
+
+    # BUY
+    if buy_items:
         h.append(f'<div style="{_LABEL}color:{_C["bull_text"]};margin:20px 0 10px 0;">'
-                 f'Deploy: Buy / Add ({len(deploy_items)})</div>')
-        h.append(_table_open([("ACT", "center"), ("STOCK", "left"), ("SECTOR", "left"),
-                              ("EXRET", "center"), ("RSI", "center"), ("TECH", "center"),
-                              ("CONV", "center"), ("SIZE", "center")],
-                             {0: "width:50px;", 6: "width:40px;", 7: "width:45px;"}))
-        for en in deploy_items:
-            act = en.get("action", "BUY")
-            tkr = en.get("ticker", "")
-            conv = en.get("conviction", 0)
-            ex = en.get("exret", 0)
-            rsi = en.get("rsi", 0)
-            sec = en.get("sector", "")
-            ts = en.get("tech_signal", "")
-            pl = pos_limits.get(tkr, {})
-            mp = pl.get("max_pct", en.get("max_pct", 5.0))
-            h.append(_table_row([
-                (badge(act, action_color(act), "#fff"), "center", ""),
-                (f'<span style="{_MONO}font-weight:700;">{e(tkr)}</span>', "left", ""),
-                (f'<span style="font-size:11px;">{e(sec)}</span>', "left", ""),
-                (f'<span style="{_MONO}font-weight:700;color:{_C["bull"] if ex > 5 else _C["text_body"]};">'
-                 f'{ex:.0f}%</span>', "center", ""),
-                (f'<span style="{_MONO}">{rsi:.0f}</span>', "center", ""),
-                (f'<span style="color:{sentiment_color(ts)};font-weight:600;font-size:10px;">'
-                 f'{abbr(ts)}</span>', "center", ""),
-                (conv_display(conv), "center", ""),
-                (f'<span style="{_MONO}font-size:11px;color:{_C["text_muted"]};">{mp:.0f}%</span>', "center", ""),
-            ], bg=_C["bull_bg"], border_color=_C["bull_border"]))
-        h.append('</table>')
+                 f'Buy ({len(buy_items)})</div>')
+        for en in buy_items:
+            _action_card(en, _C["bull_text"])
 
-    # Monitor: HOLD — same table structure
+    # ADD
+    if add_items:
+        h.append(f'<div style="{_LABEL}color:#0d9488;margin:20px 0 10px 0;">'
+                 f'Add ({len(add_items)})</div>')
+        for en in add_items:
+            _action_card(en, "#0d9488")
+
+    # Monitor: HOLD — compact pill list
     if monitor_items:
         h.append(f'<div style="{_LABEL}margin:20px 0 10px 0;">Monitor ({len(monitor_items)})</div>')
-        h.append(_table_open([("STOCK", "left"), ("SIG", "center"), ("FUND", "center"),
-                              ("TECH", "center"), ("EXRET", "center"), ("CONV", "center"),
-                              ("WATCH FOR", "left")],
-                             {5: "width:40px;"}))
-        for i, en in enumerate(monitor_items):
+        h.append('<div style="line-height:2.2;">')
+        for en in monitor_items:
             tkr = en.get("ticker", "")
-            sig = en.get("signal", "?")
-            fv = en.get("fund_view", "?")
-            fs = en.get("fund_score", 0)
-            ts = en.get("tech_signal", "?")
-            rsi = en.get("rsi", 0)
             conv = en.get("conviction", 0)
-            ex = en.get("exret", 0)
-            mf = en.get("macro_fit", "?")
-            # Context-aware watch note
-            notes = []
-            if sig == "B" and conv < 55:
-                notes.append(f"BUY signal, low conviction")
-            if rsi > 65:
-                notes.append(f"RSI {rsi:.0f} nearing overbought")
-            elif rsi < 35:
-                notes.append(f"RSI {rsi:.0f} oversold")
-            if mf == "UNFAVORABLE":
-                notes.append("macro headwind")
-            if not notes:
-                notes.append(f"{abbr(mf)}")
-            bg = _C["bg_page"] if i % 2 == 1 else _C["bg_white"]
-            h.append(_table_row([
-                (f'<span style="{_MONO}font-weight:700;">{e(tkr)}</span>', "left", ""),
-                (signal_badge(sig), "center", ""),
-                (f'<span style="color:{sentiment_color(fv)};font-weight:600;font-size:10px;">'
-                 f'{abbr(fv)}({fs:.0f})</span>', "center", ""),
-                (f'<span style="color:{sentiment_color(ts)};font-weight:600;font-size:10px;">'
-                 f'{abbr(ts)}({rsi:.0f})</span>', "center", ""),
-                (f'<span style="{_MONO}font-weight:700;">{ex:.0f}%</span>', "center", ""),
-                (conv_display(conv, delta_map.get(tkr)), "center", ""),
-                (f'<span style="font-size:10px;color:{_C["text_muted"]};">{"; ".join(notes)}</span>', "left", ""),
-            ], bg=bg))
-        h.append('</table>')
+            cc = conv_color(conv)
+            h.append(f'<span style="display:inline-block;padding:3px 10px;margin:2px 3px;border-radius:4px;'
+                     f'{_MONO}font-size:11px;font-weight:700;background:{_C["bg_alt"]};'
+                     f'border:1px solid {_C["border"]};">{e(tkr)}'
+                     f'<span style="color:{cc};font-size:10px;margin-left:4px;">{conv}</span></span>')
+        h.append('</div>')
     h.append(_section_close())
 
     # ── EPILOGUE: CHANGES SINCE LAST COMMITTEE ──
@@ -1045,7 +1080,24 @@ def generate_report_from_files(
     opps = load_json(rd / "opportunities.json")
     risk = load_json(rd / "risk.json")
 
-    html_str = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+    # Build name map from portfolio + etoro CSVs
+    name_map: Dict[str, str] = {}
+    for csv_name in ("portfolio.csv", "etoro.csv"):
+        csv_path = Path.home() / "SourceCode" / "etorotrade" / "yahoofinance" / "output" / csv_name
+        if csv_path.exists():
+            try:
+                import csv as csv_mod
+                with open(csv_path) as cf:
+                    for row in csv_mod.DictReader(cf):
+                        t = row.get("TKR", "")
+                        n = row.get("NAME", "")
+                        if t and n and t not in name_map:
+                            name_map[t] = n
+            except Exception:
+                pass
+
+    html_str = generate_report_html(synth, fund, tech, macro, census, news, opps, risk,
+                                    name_map=name_map)
 
     today = datetime.now().strftime("%Y-%m-%d")
     output_path = od / f"{today}.html"
@@ -1053,7 +1105,61 @@ def generate_report_from_files(
     with open(output_path, "w") as f:
         f.write(html_str)
 
+    # Archive concordance for backtesting (dated copy)
+    _archive_concordance(synth, od, today)
+
     return str(output_path)
+
+
+def _archive_concordance(
+    synth: Dict[str, Any],
+    output_dir: Path,
+    date_str: str,
+) -> None:
+    """Save a dated concordance snapshot for backtesting history."""
+    concordance = synth.get("concordance", [])
+    if not concordance:
+        return
+    archive_dir = output_dir / "history"
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    archive_path = archive_dir / f"concordance-{date_str}.json"
+    archive_data = {
+        "date": date_str,
+        "version": "v10.0",
+        "regime": synth.get("regime", "UNKNOWN"),
+        "concordance": [
+            {
+                "ticker": en.get("ticker", ""),
+                "signal": en.get("signal", "?"),
+                "action": en.get("action", "HOLD"),
+                "conviction": en.get("conviction", 0),
+                "fund_score": en.get("fund_score", 0),
+                "fund_view": en.get("fund_view", "?"),
+                "tech_signal": en.get("tech_signal", "?"),
+                "rsi": en.get("rsi", 0),
+                "macro_fit": en.get("macro_fit", "?"),
+                "census": en.get("census", "?"),
+                "exret": en.get("exret", 0),
+                "excess_exret": en.get("excess_exret", 0),
+                "beta": en.get("beta", 1.0),
+                "sector": en.get("sector", ""),
+                "bull_pct": en.get("bull_pct", 50),
+                "bull_weight": en.get("bull_weight", 2.5),
+                "bear_weight": en.get("bear_weight", 2.5),
+                "bonuses": en.get("bonuses", 0),
+                "penalties": en.get("penalties", 0),
+                "fund_synthetic": en.get("fund_synthetic", False),
+                "tech_synthetic": en.get("tech_synthetic", False),
+                "is_opportunity": en.get("is_opportunity", False),
+            }
+            for en in concordance
+        ],
+    }
+    try:
+        with open(archive_path, "w") as f:
+            json.dump(archive_data, f, indent=2)
+    except OSError:
+        pass
 
 
 if __name__ == "__main__":
