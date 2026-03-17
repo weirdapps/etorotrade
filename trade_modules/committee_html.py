@@ -166,51 +166,57 @@ def normalize_action(act):
 def _stock_kill_thesis(act, tkr, sec, rsi, exret, beta, buy_pct, macro_fit, tech_sig, fund_view):
     """Generate a stock-specific kill thesis using actual data points."""
     if act == "SELL":
-        parts = [f"Wrong if {tkr} reverses"]
+        parts = []
         if rsi < 35:
-            parts[0] += f" -- deeply oversold at RSI {rsi:.0f}"
-        if exret > 20:
-            parts.append(f"Abandoning {exret:.0f}% EXRET with {buy_pct:.0f}% analyst BUY consensus")
+            parts.append(f"Selling at RSI {rsi:.0f} risks locking in worst-case exit")
+        elif exret > 20 and buy_pct > 70:
+            parts.append(f"Abandoning {exret:.0f}% EXRET with {buy_pct:.0f}% BUY consensus")
+        elif "Crypto" in sec or "Digital" in sec:
+            parts.append(f"Crypto sentiment can flip fast; {tkr} could rally 20%+ on any positive catalyst")
+        else:
+            parts.append(f"Thesis fails if {sec} sector reverses or {tkr} reports above expectations")
         if beta > 1.5:
-            parts.append(f"but beta {beta:.1f} amplifies any adverse move")
+            parts.append(f"Beta {beta:.1f} means sharp recovery if timing is wrong")
         return ". ".join(parts) + "."
     if act == "TRIM":
-        if rsi < 35:
-            return (f"Trimming {tkr} at RSI {rsi:.0f} (oversold) risks selling near the bottom. "
-                    f"EXRET {exret:.0f}%, {buy_pct:.0f}% BUY consensus.")
         parts = []
-        if "Crypto" in sec:
-            parts.append(f"Wrong if crypto rally resumes -- {tkr} has high beta to digital assets")
-        elif tech_sig == "EXIT_SOON" and rsi > 60:
-            parts.append(f"Wrong if RSI {rsi:.0f} consolidates rather than reverses")
+        if rsi < 35:
+            parts.append(f"Trimming at RSI {rsi:.0f} (oversold) risks selling near the bottom")
+            parts.append(f"EXRET {exret:.0f}% and {buy_pct:.0f}% BUY consensus suggest patience")
+        elif "Crypto" in sec or "Digital" in sec:
+            parts.append(f"{tkr} has high beta to digital assets; any crypto catalyst sparks outsized move")
+        elif tech_sig == "EXIT_SOON" and rsi > 70:
+            parts.append(f"RSI {rsi:.0f} overbought but strong trends can persist; premature exit loses momentum")
+        elif tech_sig == "EXIT_SOON":
+            parts.append(f"Tech says EXIT at RSI {rsi:.0f} but fund view {fund_view} ({exret:.0f}% EXRET) favors holding")
         elif macro_fit == "UNFAVORABLE":
-            parts.append(f"Wrong if {sec} macro headwinds ease -- {fund_view} view with {exret:.0f}% EXRET argues to hold")
+            parts.append(f"Macro headwinds for {sec} could ease; {fund_view} view with {exret:.0f}% EXRET argues patience")
         else:
-            parts.append(f"Wrong if {sec} rotation reverses or {buy_pct:.0f}% analyst consensus proves right")
+            parts.append(f"Trimming risks missing {exret:.0f}% EXRET if {buy_pct:.0f}% analyst consensus proves correct")
         if exret > 30:
-            parts.append(f"Exceptional EXRET {exret:.0f}% means large upside if trim is premature")
-        return ". ".join(parts) + "." if parts else f"Monitor {tkr} for reversal."
+            parts.append(f"Exceptional {exret:.0f}% upside means large opportunity cost if premature")
+        return ". ".join(parts) + "."
     if act == "BUY":
         parts = []
         if sec == "Materials" and exret == 0:
             parts.append(f"Fails if dollar strengthens or inflation expectations reverse")
         elif beta > 1.5:
-            parts.append(f"Fails if broad selloff deepens -- beta {beta:.1f} amplifies drawdown")
+            parts.append(f"Beta {beta:.1f} amplifies drawdowns; broad selloff could erase entry")
         elif macro_fit == "UNFAVORABLE":
-            parts.append(f"Buying into macro headwind for {sec}; fails if regime worsens")
+            parts.append(f"Buying into {sec} macro headwind; fails if regime worsens further")
         else:
-            parts.append(f"Fails if {exret:.0f}% EXRET proves stale -- watch for estimate cuts")
+            parts.append(f"Fails if {exret:.0f}% EXRET proves stale -- watch for estimate revisions")
         if rsi > 60:
             parts.append(f"RSI {rsi:.0f} not ideal entry; pullback to ~45 would improve risk/reward")
         return ". ".join(parts) + "."
     if act == "ADD":
         parts = []
         if rsi < 35:
-            parts.append(f"Adding at RSI {rsi:.0f} (oversold) but could go lower if selling accelerates")
+            parts.append(f"Adding at RSI {rsi:.0f} (oversold) but momentum could deteriorate further")
         elif tech_sig == "AVOID":
-            parts.append(f"Adding against technical AVOID signal -- fails if downtrend continues")
+            parts.append(f"Adding against technical AVOID signal -- fails if downtrend accelerates")
         else:
-            parts.append(f"Wrong if {exret:.0f}% EXRET target is cut or if earnings disappoint")
+            parts.append(f"Fails if {exret:.0f}% EXRET target is cut or earnings disappoint")
         if buy_pct > 90:
             parts.append(f"Consensus crowded at {buy_pct:.0f}% BUY -- any miss gets punished hard")
         return ". ".join(parts) + "."
