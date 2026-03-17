@@ -1,16 +1,17 @@
 """
 Committee Synthesis Engine
 
-CIO Review v5: Codifies the CIO synthesis logic that was previously
-implemented ad-hoc in /tmp scripts during committee runs. This module
-provides a deterministic, testable, versioned implementation of:
+CIO Review v5.3 (Legacy Review): Codifies the CIO synthesis logic that was
+previously implemented ad-hoc in /tmp scripts during committee runs. This
+module provides a deterministic, testable, versioned implementation of:
 
-1. Agent vote counting with freshness weights
-2. Signal-aware base conviction determination
+1. Agent vote counting with freshness weights and synthetic data discount
+2. Signal-aware base conviction with regime adjustment
 3. BUY-side quality bonuses and conviction floors
-4. Penalty/bonus adjustments with caps
+4. Penalty/bonus adjustments with caps and contradiction detection
 5. Action assignment with signal-aware thresholds
-6. Concordance matrix construction
+6. Concordance matrix construction with capital efficiency scoring
+7. Exposure-weighted sector gap detection
 
 Key design principles (from v3 live-run bug fixes):
 - Neutral agent views are TRUE NEUTRAL (split evenly, do not lean bullish)
@@ -18,9 +19,18 @@ Key design principles (from v3 live-run bug fixes):
 - BUY signal sets a conviction floor (the quant system verified criteria)
 - SELL conviction is reduced when tech/macro agents disagree
 - HOLD signal caps base to prevent easy escalation to ADD
+
+CIO Legacy Review additions (v5.3):
+- A1: Regime-adjusted conviction (RISK_OFF: -15%, CAUTIOUS: -8%)
+- A2: Synthetic data discount (0.5x weight for fallback agent data)
+- A3: Contradiction detection with penalty integration
+- B2: Extreme EXRET penalty (>40% triggers staleness penalty)
+- C1: Exposure-weighted sector gap detection
+- C2: Capital efficiency score for within-group ranking
 """
 
 import logging
+import math
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -94,6 +104,8 @@ def count_agent_votes(
     news_impact: str,
     risk_warning: bool,
     signal: str,
+    fund_synthetic: bool = False,
+    tech_synthetic: bool = False,
 ) -> Tuple[float, float]:
     """
     Count bull/bear weighted votes from agent views.
@@ -101,83 +113,129 @@ def count_agent_votes(
     CRITICAL: Neutral views split evenly between bull and bear.
     Only clear directional views count as bull or bear.
     This prevents inflation of bull_pct from neutral agents.
+
+    CIO Legacy A2: Synthetic (fallback-generated) agent data receives
+    a 0.5x discount because manufactured data from signal proxies is
+    categorically less informative than real computed analysis.
+
+    CIO Legacy A5: Tracks directional vs neutral weight internally.
+    The directional_confidence ratio is stored as a module-level variable
+    for the caller to access if needed.
     """
     bull = 0.0
     bear = 0.0
+    directional_weight = 0.0
+    neutral_weight = 0.0
 
-    # Fundamental (freshness 0.8x)
+    # CIO Legacy A2: Synthetic discount — fallback data gets half weight
+    fund_disc = 0.5 if fund_synthetic else 1.0
+    tech_disc = 0.5 if tech_synthetic else 1.0
+
+    # Fundamental (freshness 0.8x, synthetic discount)
+    fund_weight = 0.8 * fund_disc
     if fund_score >= 70:
-        bull += 0.8
+        bull += fund_weight
+        directional_weight += fund_weight
     elif fund_score < 45:
-        bear += 0.8
+        bear += fund_weight
+        directional_weight += fund_weight
     else:
-        bull += 0.4
-        bear += 0.4
+        bull += fund_weight / 2
+        bear += fund_weight / 2
+        neutral_weight += fund_weight
 
-    # Technical (freshness 1.0x)
+    # Technical (freshness 1.0x, synthetic discount)
+    tech_weight = 1.0 * tech_disc
     if tech_signal == "ENTER_NOW":
-        bull += 1.0
+        bull += tech_weight
+        directional_weight += tech_weight
     elif tech_signal in ("AVOID", "EXIT_SOON"):
-        bear += 1.0
+        bear += tech_weight
+        directional_weight += tech_weight
     elif tech_signal == "WAIT_FOR_PULLBACK":
-        bull += 0.6
-        bear += 0.4
+        bull += tech_weight * 0.6
+        bear += tech_weight * 0.4
+        directional_weight += tech_weight  # Leaning directional
     elif tech_momentum > 20:
-        bull += 0.7
-        bear += 0.3
+        bull += tech_weight * 0.7
+        bear += tech_weight * 0.3
+        directional_weight += tech_weight
     elif tech_momentum < -20:
-        bull += 0.3
-        bear += 0.7
+        bull += tech_weight * 0.3
+        bear += tech_weight * 0.7
+        directional_weight += tech_weight
     else:
-        bull += 0.5
-        bear += 0.5
+        bull += tech_weight / 2
+        bear += tech_weight / 2
+        neutral_weight += tech_weight
 
     # Macro (freshness 0.9x)
     if macro_fit == "FAVORABLE":
         bull += 0.9
+        directional_weight += 0.9
     elif macro_fit == "UNFAVORABLE":
         bear += 0.9
+        directional_weight += 0.9
     else:
         bull += 0.45
         bear += 0.45
+        neutral_weight += 0.9
 
     # Census (freshness 0.85x)
     if census_alignment == "ALIGNED":
         bull += 0.85
+        directional_weight += 0.85
     elif census_alignment == "DIVERGENT":
         bull += 0.35
         bear += 0.50
+        directional_weight += 0.85
     elif census_alignment == "CENSUS_DIV":
-        # PIs disagree with signal — they're bullish
         bull += 0.6
         bear += 0.25
+        directional_weight += 0.85
     else:
         bull += 0.425
         bear += 0.425
+        neutral_weight += 0.85
 
     # News (freshness 1.0x)
     if "HIGH_POSITIVE" in news_impact:
         bull += 1.0
+        directional_weight += 1.0
     elif "LOW_POSITIVE" in news_impact:
         bull += 0.7
         bear += 0.3
+        directional_weight += 1.0
     elif "HIGH_NEGATIVE" in news_impact:
         bear += 1.0
+        directional_weight += 1.0
     elif "LOW_NEGATIVE" in news_impact:
         bull += 0.3
         bear += 0.7
+        directional_weight += 1.0
     else:
         bull += 0.5
         bear += 0.5
+        neutral_weight += 1.0
 
-    # Risk Manager (1.5x for BUY assessment, 2.0x for SELL)
-    risk_mult = 2.0 if signal == "S" else 1.5
+    # Risk Manager (CIO Legacy B3: 1.2x for BUY assessment, 2.0x for SELL)
+    risk_mult = 2.0 if signal == "S" else 1.2
     if risk_warning:
         bear += risk_mult
+        directional_weight += risk_mult
     else:
-        # No warning is absence of bad news, NOT a bullish vote
         bull += 0.5
         bear += 0.5
+        neutral_weight += 1.0
+
+    # CIO Legacy A5: Store directional confidence for caller access.
+    # This is the ratio of directional (non-neutral) weight to total weight.
+    # When 4 of 7 agents are neutral, this will be low (~0.43), indicating
+    # the directional signal from the 3 non-neutral agents is diluted.
+    total_all = directional_weight + neutral_weight
+    count_agent_votes._last_directional_confidence = (
+        directional_weight / total_all if total_all > 0 else 0.5
+    )
 
     return bull, bear
 
@@ -188,6 +246,7 @@ def determine_base_conviction(
     fund_score: float,
     excess_exret: float,
     bear_ratio: float,
+    regime: str = "",
 ) -> int:
     """
     Determine base conviction from agent consensus, anchored by signal.
@@ -197,15 +256,36 @@ def determine_base_conviction(
     same base=60, losing differentiation. Now, 52% and 64% produce different
     bases (52 vs 62), which propagates through to final scores.
 
+    CIO Legacy A1: Applies regime discount to prevent overconfidence in
+    volatile markets. A conviction of 75 should not mean the same thing
+    when VIX is at 12 vs 35.
+
     Key principles:
     - BUY signal: agents can upgrade but floor is 55
     - SELL signal: conviction reduced when agents disagree
     - HOLD signal: base capped at 70 to prevent easy escalation
+    - RISK_OFF regime: 15% discount to agent base (before signal floors)
+    - CAUTIOUS regime: 8% discount
     """
-    # Continuous agent base: linear interpolation from 30 (at 0% bull) to 80 (at 100% bull)
-    # This replaces the 6-bucket system that caused 11 stocks at identical conviction
-    agent_base = int(30 + (bull_pct / 100) * 50)
+    # CIO Legacy B1: Sigmoid conviction mapping (replaces linear interpolation).
+    # The sigmoid creates steeper differentiation near the 50% threshold (where
+    # votes crossing majority carry the most information) and flattens at extremes
+    # (where additional consensus is less informative). This is grounded in
+    # information theory — near-50/50 votes are more surprising than 90/10 votes.
+    x = (bull_pct - 50) / 8.33  # Maps 0→-6, 50→0, 100→+6
+    sigmoid = 1 / (1 + math.exp(-x))
+    agent_base = int(30 + sigmoid * 50)
     agent_base = max(30, min(80, agent_base))
+
+    # CIO Legacy A1: Regime discount applied to agent_base BEFORE signal floors.
+    # In RISK_OFF markets, even strong consensus deserves less confidence because
+    # tail risks dominate and correlations spike. The discount is applied here
+    # (not to final conviction) so that signal floors can still rescue genuinely
+    # strong BUY-signal stocks.
+    if regime == "RISK_OFF":
+        agent_base = int(agent_base * 0.85)
+    elif regime == "CAUTIOUS":
+        agent_base = int(agent_base * 0.92)
 
     if signal == "B":
         base = max(agent_base, 55)
@@ -216,7 +296,13 @@ def determine_base_conviction(
             base = max(base + 5, 55)
         # Proportional excess EXRET bonus (CIO v5.2)
         # Instead of binary >=12 → +5, scale: 5→+1, 10→+3, 15→+4, 20+→+5
-        if excess_exret >= 5:
+        # CIO Legacy B2: Extreme EXRET (>40) triggers a staleness penalty.
+        # EXRET > 40% almost always indicates stale analyst targets (not updated
+        # after a large drop), distressed/turnaround binary outcomes, or data
+        # errors. E.g., MSTR at 171% EXRET is not a genuine expected return.
+        if excess_exret > 40:
+            base -= 3  # Staleness penalty for extreme EXRET
+        elif excess_exret >= 5:
             exret_bonus = min(5, int(excess_exret / 4))
             base += exret_bonus
     elif signal == "S":
@@ -235,6 +321,183 @@ def determine_base_conviction(
         base = min(agent_base, 70)
 
     return base
+
+
+def detect_contradictions(
+    macro_fit: str,
+    tech_signal: str,
+    fund_score: float,
+    risk_warning: bool,
+    census_alignment: str,
+    news_impact: str,
+) -> Tuple[int, List[str]]:
+    """
+    Detect logical contradictions between agent views (CIO Legacy A3).
+
+    Contradictory signals indicate unresolved uncertainty that should
+    reduce conviction. The system currently counts votes independently
+    but doesn't flag when agents disagree in ways that suggest the
+    situation is genuinely uncertain (not just a matter of weighting).
+
+    Returns (penalty_points, list_of_contradiction_descriptions).
+    """
+    contradictions: List[str] = []
+    penalty = 0
+
+    # Macro-Technical: regime says avoid but technicals say enter
+    if macro_fit == "UNFAVORABLE" and tech_signal == "ENTER_NOW":
+        contradictions.append("Macro UNFAVORABLE but Technical ENTER_NOW")
+        penalty += 5
+
+    # Fundamental-Risk: strong fundamentals but risk manager warns
+    if fund_score >= 80 and risk_warning:
+        contradictions.append(
+            f"Fundamental score {fund_score:.0f} but Risk Manager warns"
+        )
+        penalty += 3
+
+    # Census-News: popular investors distributing despite positive news
+    if census_alignment == "DIVERGENT" and "POSITIVE" in news_impact:
+        contradictions.append("PIs distributing despite positive news")
+        penalty += 3
+
+    # Macro-News: macro bearish but news bullish (or vice versa)
+    if macro_fit == "UNFAVORABLE" and "HIGH_POSITIVE" in news_impact:
+        contradictions.append("Macro UNFAVORABLE but news HIGH_POSITIVE")
+        penalty += 2
+
+    return penalty, contradictions
+
+
+def compute_signal_velocity(
+    current_signal: str,
+    previous_signal: Optional[str] = None,
+    days_since_change: Optional[int] = None,
+) -> Tuple[int, str]:
+    """
+    Compute signal velocity bonus/penalty based on signal direction change
+    (CIO Legacy B4).
+
+    Academic research (Womack 1996, Post-Earnings Announcement Drift) shows
+    that the direction and speed of signal changes carry predictive information
+    independent of the signal level. A recent upgrade from SELL to HOLD is
+    more informative than a stock that has been BUY for 6 months.
+
+    Args:
+        current_signal: Current signal character ("B", "H", "S", "I")
+        previous_signal: Previous signal character (None = no history)
+        days_since_change: Days since signal changed (None = unknown)
+
+    Returns:
+        (conviction_adjustment, velocity_label)
+    """
+    if previous_signal is None or days_since_change is None:
+        return (0, "NO_HISTORY")
+
+    upgrade_map = {"S": 0, "I": 1, "H": 2, "B": 3}
+    current_rank = upgrade_map.get(current_signal, 1)
+    previous_rank = upgrade_map.get(previous_signal, 1)
+    delta = current_rank - previous_rank
+
+    if delta > 0 and days_since_change <= 14:
+        return (+5, "ACCELERATING")
+    elif delta > 0 and days_since_change <= 30:
+        return (+3, "IMPROVING")
+    elif delta < 0 and days_since_change <= 14:
+        return (-5, "DETERIORATING")
+    elif delta < 0 and days_since_change <= 30:
+        return (-3, "WEAKENING")
+    elif delta == 0 and days_since_change > 90:
+        return (-2, "STALE")
+    return (0, "STABLE")
+
+
+def get_earnings_surprise_adjustment(
+    recent_surprise_pct: Optional[float] = None,
+    consecutive_beats: int = 0,
+) -> Tuple[int, str]:
+    """
+    Conviction adjustment based on earnings surprise history (CIO Legacy B5).
+
+    Post-Earnings Announcement Drift (PEAD) is one of the most robust
+    anomalies in finance — stocks that beat estimates tend to continue
+    outperforming for 60-90 days. Serial beaters (2+ consecutive) are
+    even more predictive.
+
+    Args:
+        recent_surprise_pct: Percentage beat/miss of most recent earnings.
+            Positive = beat, negative = miss. None = no data.
+        consecutive_beats: Number of consecutive earnings beats (0 if none).
+
+    Returns:
+        (conviction_adjustment, label)
+    """
+    if recent_surprise_pct is None:
+        return (0, "NO_DATA")
+
+    if recent_surprise_pct > 10 and consecutive_beats >= 2:
+        return (+5, "SERIAL_BEATER")
+    elif recent_surprise_pct > 5:
+        return (+3, "BEAT")
+    elif recent_surprise_pct < -10:
+        return (-5, "BIG_MISS")
+    elif recent_surprise_pct < -5:
+        return (-3, "MISS")
+    return (0, "IN_LINE")
+
+
+def compute_dynamic_freshness(
+    agent_timestamp: Optional[str] = None,
+    committee_timestamp: Optional[str] = None,
+) -> float:
+    """
+    Compute freshness multiplier based on actual data age (CIO Legacy A4).
+
+    Static freshness weights assume all agents run at the same time. In
+    practice, a committee run at market close has much fresher technical
+    data than one at 6am. This function replaces static weights when
+    timestamps are available.
+
+    Args:
+        agent_timestamp: ISO timestamp of when agent data was computed.
+        committee_timestamp: ISO timestamp of committee run. Defaults to now.
+
+    Returns:
+        Freshness multiplier between 0.6 and 1.0.
+    """
+    if not agent_timestamp:
+        return 1.0  # No timestamp → use static default
+
+    from datetime import datetime
+
+    try:
+        # Handle both ISO format and date-only
+        if "T" in agent_timestamp:
+            agent_dt = datetime.fromisoformat(agent_timestamp.replace("Z", "+00:00").replace("+00:00", ""))
+        else:
+            agent_dt = datetime.strptime(agent_timestamp, "%Y-%m-%d")
+
+        if committee_timestamp:
+            if "T" in committee_timestamp:
+                committee_dt = datetime.fromisoformat(committee_timestamp.replace("Z", "+00:00").replace("+00:00", ""))
+            else:
+                committee_dt = datetime.strptime(committee_timestamp, "%Y-%m-%d")
+        else:
+            committee_dt = datetime.now()
+
+        age_hours = (committee_dt - agent_dt).total_seconds() / 3600
+    except (ValueError, TypeError):
+        return 1.0  # Parse error → use static default
+
+    if age_hours <= 1:
+        return 1.0
+    elif age_hours <= 4:
+        return 0.95
+    elif age_hours <= 12:
+        return 0.85
+    elif age_hours <= 24:
+        return 0.75
+    return 0.6
 
 
 def compute_adjustments(
@@ -456,6 +719,11 @@ def synthesize_stock(
     sector_median_exret: float,
     sector_rankings: Dict[str, Any],
     position_limit: float,
+    regime: str = "",
+    previous_signal: Optional[str] = None,
+    days_since_signal_change: Optional[int] = None,
+    earnings_surprise_pct: Optional[float] = None,
+    consecutive_earnings_beats: int = 0,
 ) -> Dict[str, Any]:
     """
     Synthesize a single stock through the full conviction scoring pipeline.
@@ -492,10 +760,16 @@ def synthesize_stock(
     # Sector-relative EXRET
     excess_exret = exret - sector_median_exret
 
+    # CIO Legacy A2: Track synthetic agent data
+    fund_synthetic = fund_data.get("synthetic", False) or not fund_data.get("fundamental_score")
+    tech_synthetic = tech_data.get("synthetic", False)
+
     # Step 1: Count agent votes
     bull_weight, bear_weight = count_agent_votes(
         fund_score, tech_signal, tech_mom, macro_fit,
         census_alignment, news_impact, risk_warning, signal,
+        fund_synthetic=fund_synthetic,
+        tech_synthetic=tech_synthetic,
     )
 
     total_weight = bull_weight + bear_weight
@@ -505,6 +779,7 @@ def synthesize_stock(
     # Step 2: Determine base conviction
     base = determine_base_conviction(
         bull_pct, signal, fund_score, excess_exret, bear_ratio,
+        regime=regime,
     )
 
     # Step 3: Count directional agreement
@@ -524,6 +799,37 @@ def synthesize_stock(
         news_impact, risk_warning, buy_pct, excess_exret,
         beta, quality_trap, sector, sector_rankings, bull_count,
     )
+
+    # Step 4b: Contradiction penalty (CIO Legacy A3)
+    contradiction_penalty, contradictions = detect_contradictions(
+        macro_fit, tech_signal, fund_score, risk_warning,
+        census_alignment, news_impact,
+    )
+    penalties = min(penalties + contradiction_penalty, 25)
+
+    # Step 4c: Signal velocity (CIO Legacy B4)
+    velocity_adj, velocity_label = compute_signal_velocity(
+        signal, previous_signal, days_since_signal_change,
+    )
+    if velocity_adj > 0:
+        bonuses = min(bonuses + velocity_adj, 20)
+    elif velocity_adj < 0:
+        penalties = min(penalties + abs(velocity_adj), 25)
+
+    # Step 4d: Earnings surprise (CIO Legacy B5)
+    earnings_adj, earnings_label = get_earnings_surprise_adjustment(
+        earnings_surprise_pct, consecutive_earnings_beats,
+    )
+    if earnings_adj > 0:
+        bonuses = min(bonuses + earnings_adj, 20)
+    elif earnings_adj < 0:
+        penalties = min(penalties + abs(earnings_adj), 25)
+
+    # CIO Legacy A5: Directional confidence penalty
+    dir_confidence = getattr(count_agent_votes, '_last_directional_confidence', 0.5)
+    if dir_confidence < 0.4:
+        # More than 60% of weight came from neutral agents — low information
+        penalties = min(penalties + 3, 25)
 
     conviction = base + bonuses - penalties
 
@@ -595,6 +901,12 @@ def synthesize_stock(
         "action": action,
         "hold_tier": hold_tier,
         "max_pct": position_limit,
+        "fund_synthetic": fund_synthetic,
+        "tech_synthetic": tech_synthetic,
+        "contradictions": contradictions,
+        "signal_velocity": velocity_label,
+        "earnings_surprise": earnings_label,
+        "directional_confidence": round(dir_confidence, 2),
     }
 
 
@@ -654,10 +966,10 @@ def _resolve_macro_fit(
     mf = macro_impl.get(ticker, {})
     v = mf.get("macro_fit", "") if isinstance(mf, dict) else str(mf)
     v = v.lower()
-    if "positive" in v or "favorable" in v:
-        return "FAVORABLE"
-    if "negative" in v or "unfavorable" in v:
+    if "unfavorable" in v or "negative" in v:
         return "UNFAVORABLE"
+    if "favorable" in v or "positive" in v:
+        return "FAVORABLE"
     if v and v != "neutral":
         return "NEUTRAL"
 
@@ -816,6 +1128,7 @@ def _synthesize_with_lookups(
         sector_median_exret=sec_median,
         sector_rankings=lookups["sector_rankings"],
         position_limit=pos_limit,
+        regime=regime,
     )
 
 
@@ -894,11 +1207,26 @@ def apply_opportunity_gate(
 def detect_sector_gaps(
     portfolio_sectors: Dict[str, int],
     sector_rankings: Dict[str, Any],
+    portfolio_weights: Optional[Dict[str, float]] = None,
+    min_meaningful_exposure: float = 3.0,
 ) -> List[Dict[str, Any]]:
     """
-    Identify sectors missing from the portfolio that are leading in rotation.
+    Identify sectors underweight in the portfolio that are leading in rotation.
 
-    Returns list of {sector, portfolio_exposure, performance_1m, urgency}.
+    CIO Legacy C1: Uses exposure-weighted detection instead of binary
+    presence/absence. Having a single micro-cap in a leading sector
+    (e.g., 0.6% portfolio weight in Energy) is functionally the same
+    as having zero exposure.
+
+    Args:
+        portfolio_sectors: Dict of sector -> stock count
+        sector_rankings: Dict of ETF -> {rank, return_1m, ...}
+        portfolio_weights: Optional dict of sector -> % of portfolio.
+            When provided, uses min_meaningful_exposure threshold.
+            When None, falls back to count==0 detection.
+        min_meaningful_exposure: Minimum sector weight (%) to not be a gap.
+
+    Returns list of {sector, portfolio_exposure, performance_1m, rank, urgency}.
     """
     gaps = []
     for etf, data in sector_rankings.items():
@@ -915,11 +1243,19 @@ def detect_sector_gaps(
         ret_1m = data.get("return_1m", 0)
         rank = data.get("rank", 11)
 
-        if count == 0 and rank <= 5 and ret_1m > 0:
-            urgency = "HIGH" if rank <= 3 else "MEDIUM"
+        # CIO Legacy C1: Use exposure weight if available, else count
+        if portfolio_weights is not None:
+            exposure = portfolio_weights.get(sector, 0.0)
+            is_gap = exposure < min_meaningful_exposure
+        else:
+            exposure = 0.0 if count == 0 else float(count)
+            is_gap = count == 0
+
+        if is_gap and rank <= 5 and ret_1m > 0:
+            urgency = "HIGH" if rank <= 3 and (portfolio_weights is None or exposure < 1.0) else "MEDIUM"
             gaps.append({
                 "sector": sector,
-                "portfolio_exposure": 0,
+                "portfolio_exposure": round(exposure, 1),
                 "performance_1m": ret_1m,
                 "rank": rank,
                 "urgency": urgency,
@@ -1054,6 +1390,17 @@ def build_concordance(
         )
         entry["tiebreak"] = round(tiebreak, 2)
 
+        # CIO Legacy C2: Capital efficiency score for within-group ranking.
+        # Answers "if I have $10K to deploy, which stock in this action group
+        # should get the marginal dollar?" by combining expected risk-adjusted
+        # return with conviction confidence.
+        beta_val = max(entry.get("beta", 1.0), 0.3)
+        exret_val = entry.get("exret", 0)
+        conviction_val = entry.get("conviction", 50)
+        risk_adj_return = exret_val / beta_val
+        confidence = conviction_val / 100.0
+        entry["capital_efficiency"] = round(risk_adj_return * confidence, 2)
+
     # Sort by action priority, then conviction desc, then tiebreak desc
     concordance.sort(
         key=lambda x: (ACTION_ORDER.get(x["action"], 9), -x["conviction"], -x["tiebreak"])
@@ -1146,7 +1493,7 @@ def generate_synthesis_output(
     sentiment = census_report.get("sentiment", {})
 
     output = {
-        "version": "v5.2_continuous_scoring",
+        "version": "v5.4_legacy_complete",
         "concordance": concordance,
         "action_distribution": dict(action_dist),
         "changes": changes,
