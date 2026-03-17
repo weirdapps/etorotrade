@@ -21,8 +21,10 @@ from trade_modules.committee_synthesis import (
     ACTION_ORDER,
     AGENT_FRESHNESS,
     _fallback_technical,
+    _resolve_news_impact,
     apply_conviction_floors,
     apply_opportunity_gate,
+    build_agent_memory,
     build_concordance,
     classify_hold_tier,
     compute_adjustments,
@@ -56,7 +58,7 @@ class TestComputeSectorMedians:
         medians, universe = compute_sector_medians(signals, sectors)
         assert medians["Technology"] == 10
         assert medians["Energy"] == 20
-        assert universe in (10, 20)  # median of [10, 20]
+        assert universe == 15.0  # median of [10, 20] = average of two middle values
 
     def test_multiple_stocks_same_sector(self):
         signals = {
@@ -178,6 +180,108 @@ class TestCountAgentVotes:
         bull, bear = count_agent_votes(55, "HOLD", 0, "NEUTRAL", "CENSUS_DIV", "NEUTRAL", False, "H")
         bull2, bear2 = count_agent_votes(55, "HOLD", 0, "NEUTRAL", "NEUTRAL", "NEUTRAL", False, "H")
         assert bull > bull2  # Census DIV adds more bull weight
+
+    def test_risk_neutral_risk_on_leans_bull(self):
+        """CIO v6.0 F5: No risk warning in RISK_ON should lean mildly bullish."""
+        bull_on, bear_on = count_agent_votes(
+            55, "HOLD", 0, "NEUTRAL", "NEUTRAL", "NEUTRAL", False, "H",
+            regime="RISK_ON",
+        )
+        bull_def, bear_def = count_agent_votes(
+            55, "HOLD", 0, "NEUTRAL", "NEUTRAL", "NEUTRAL", False, "H",
+            regime="",
+        )
+        # RISK_ON: risk neutral → 0.6 bull / 0.4 bear (vs 0.5/0.5 default)
+        assert bull_on > bull_def
+
+    def test_risk_neutral_risk_off_leans_bear(self):
+        """CIO v6.0 F5: No risk warning in RISK_OFF should lean mildly bearish."""
+        bull_off, bear_off = count_agent_votes(
+            55, "HOLD", 0, "NEUTRAL", "NEUTRAL", "NEUTRAL", False, "H",
+            regime="RISK_OFF",
+        )
+        bull_def, bear_def = count_agent_votes(
+            55, "HOLD", 0, "NEUTRAL", "NEUTRAL", "NEUTRAL", False, "H",
+            regime="",
+        )
+        # RISK_OFF: risk neutral → 0.4 bull / 0.6 bear (vs 0.5/0.5 default)
+        assert bear_off > bear_def
+
+    def test_risk_neutral_regime_default_unchanged(self):
+        """CIO v6.0 F5: No regime = traditional 0.5/0.5 neutral split."""
+        bull, bear = count_agent_votes(
+            55, "HOLD", 0, "NEUTRAL", "NEUTRAL", "NEUTRAL", False, "H",
+            regime="",
+        )
+        bull2, bear2 = count_agent_votes(
+            55, "HOLD", 0, "NEUTRAL", "NEUTRAL", "NEUTRAL", False, "H",
+            regime="CAUTIOUS",
+        )
+        # Both default and CAUTIOUS use 0.5/0.5
+        assert bull == bull2
+        assert bear == bear2
+
+    def test_risk_warning_overrides_regime(self):
+        """When risk_warning=True, regime doesn't matter — always bearish."""
+        _, bear_on = count_agent_votes(
+            55, "HOLD", 0, "NEUTRAL", "NEUTRAL", "NEUTRAL", True, "B",
+            regime="RISK_ON",
+        )
+        _, bear_off = count_agent_votes(
+            55, "HOLD", 0, "NEUTRAL", "NEUTRAL", "NEUTRAL", True, "B",
+            regime="RISK_OFF",
+        )
+        # Both should have same bear weight — risk_warning bypasses regime
+        assert bear_on == bear_off
+
+
+# ============================================================
+# Schema Validation Logging (E3)
+# ============================================================
+
+
+class TestSchemaValidationLogging:
+    """CIO v6.0 E3: Distinguish missing stock vs malformed agent report."""
+
+    def test_fallback_logs_warning_for_malformed_report(self, caplog):
+        """Agent with report but no 'stocks' key triggers WARNING."""
+        import logging
+        with caplog.at_level(logging.WARNING):
+            from trade_modules.committee_synthesis import _synthesize_with_lookups
+            sig_data = {"signal": "H", "exret": 5, "buy_pct": 50, "beta": 1.0}
+            lookups = {
+                "macro_impl": {}, "div_map": {}, "port_news": {},
+                "risk_warns": set(), "risk_limits": {}, "sector_rankings": {},
+            }
+            # Fund report has data but missing 'stocks' key
+            fund_report = {"analyst": "fundamental", "timestamp": "2026-01-01"}
+            tech_report = {"analyst": "technical", "timestamp": "2026-01-01"}
+            _synthesize_with_lookups(
+                "AAPL", sig_data, lookups, fund_report, tech_report,
+                "Technology", 5.0, {},
+            )
+        warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert len(warnings) >= 1
+        assert "schema" in warnings[0].message.lower() or "stocks" in warnings[0].message.lower()
+
+    def test_no_warning_when_stocks_key_exists(self, caplog):
+        """Agent with 'stocks' key but missing ticker = DEBUG, not WARNING."""
+        import logging
+        with caplog.at_level(logging.DEBUG):
+            from trade_modules.committee_synthesis import _synthesize_with_lookups
+            sig_data = {"signal": "H", "exret": 5, "buy_pct": 50, "beta": 1.0}
+            lookups = {
+                "macro_impl": {}, "div_map": {}, "port_news": {},
+                "risk_warns": set(), "risk_limits": {}, "sector_rankings": {},
+            }
+            fund_report = {"stocks": {"MSFT": {"fundamental_score": 75}}}
+            tech_report = {"stocks": {"MSFT": {"signal": "ENTER_NOW"}}}
+            _synthesize_with_lookups(
+                "AAPL", sig_data, lookups, fund_report, tech_report,
+                "Technology", 5.0, {},
+            )
+        warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert len(warnings) == 0
 
 
 # ============================================================
@@ -2377,3 +2481,436 @@ class TestDynamicFreshness:
         """Invalid timestamp format should return 1.0."""
         mult = compute_dynamic_freshness("not-a-date", "also-not")
         assert mult == 1.0
+
+
+# =============================================================================
+# CIO v6.0 Tests — Successor Review Findings
+# =============================================================================
+
+class TestUniverseMedianEvenCount:
+    """CIO v6.0 F4: Universe median handles even-count arrays correctly."""
+
+    def test_even_count_universe_median(self):
+        """Even number of stocks should average two middle values."""
+        signals = {
+            "A": {"exret": 10}, "B": {"exret": 20},
+            "C": {"exret": 30}, "D": {"exret": 40},
+        }
+        sectors = {"A": "S1", "B": "S2", "C": "S3", "D": "S4"}
+        _, universe = compute_sector_medians(signals, sectors)
+        # Sorted: [10, 20, 30, 40] → median = (20+30)/2 = 25
+        assert universe == 25.0
+
+    def test_odd_count_universe_median(self):
+        """Odd number of stocks should pick the middle value."""
+        signals = {
+            "A": {"exret": 10}, "B": {"exret": 20}, "C": {"exret": 30},
+        }
+        sectors = {"A": "S1", "B": "S2", "C": "S3"}
+        _, universe = compute_sector_medians(signals, sectors)
+        assert universe == 20
+
+    def test_single_stock_universe_median(self):
+        """Single stock: median is that stock's EXRET."""
+        signals = {"A": {"exret": 15}}
+        sectors = {"A": "S1"}
+        _, universe = compute_sector_medians(signals, sectors)
+        assert universe == 15
+
+
+class TestNormalizedTiebreak:
+    """CIO v6.0 F1: Tiebreak components are normalized to 0-100 before weighting."""
+
+    def test_tiebreak_normalized_range(self):
+        """Tiebreak should produce values in a reasonable normalized range."""
+        result = build_concordance(
+            portfolio_signals={"AAPL": {
+                "signal": "B", "exret": 15, "buy_pct": 80,
+                "beta": 1.2, "pet": 30, "pef": 25,
+            }},
+            fund_report={"stocks": {"AAPL": {"fundamental_score": 75}}},
+            tech_report={"stocks": {"AAPL": {
+                "momentum_score": 30, "timing_signal": "ENTER_NOW",
+                "rsi": 55, "macd_signal": "BULLISH",
+            }}},
+            macro_report={"portfolio_implications": {}, "sector_rankings": {}},
+            census_report={"divergences": {}},
+            news_report={"portfolio_news": {}},
+            risk_report={"consensus_warnings": [], "position_limits": {}},
+            sector_map={"AAPL": "Technology"},
+        )
+        entry = concordance[0] if (concordance := result) else None
+        assert entry is not None
+        # Normalized tiebreak with all 0-100 components should be in a much
+        # more consistent range than the old unnormalized version
+        assert 0 <= entry["tiebreak"] <= 100
+
+    def test_tiebreak_beta_differentiation(self):
+        """Low beta should produce higher tiebreak than high beta, all else equal."""
+        base_sig = {"signal": "H", "exret": 10, "buy_pct": 60, "pet": 20, "pef": 18}
+        base_agent = {"stocks": {}}
+        base_reports = {
+            "fund_report": base_agent,
+            "tech_report": base_agent,
+            "macro_report": {"portfolio_implications": {}, "sector_rankings": {}},
+            "census_report": {"divergences": {}},
+            "news_report": {"portfolio_news": {}},
+            "risk_report": {"consensus_warnings": [], "position_limits": {}},
+        }
+
+        low_beta = build_concordance(
+            portfolio_signals={"A": {**base_sig, "beta": 0.5}},
+            sector_map={"A": "Other"},
+            **base_reports,
+        )
+        high_beta = build_concordance(
+            portfolio_signals={"A": {**base_sig, "beta": 2.5}},
+            sector_map={"A": "Other"},
+            **base_reports,
+        )
+        assert low_beta[0]["tiebreak"] > high_beta[0]["tiebreak"]
+
+
+class TestKillThesisIntegration:
+    """CIO v6.0 E1: Kill thesis triggered flag reduces conviction by 15."""
+
+    def _base_args(self):
+        return dict(
+            sig_data={"signal": "B", "exret": 15, "buy_pct": 75, "beta": 1.0,
+                       "pet": 25, "pef": 20},
+            fund_data={"fundamental_score": 70},
+            tech_data={"momentum_score": 20, "timing_signal": "HOLD",
+                       "rsi": 55, "macd_signal": "BULLISH"},
+            macro_fit="FAVORABLE",
+            census_alignment="ALIGNED",
+            div_score=0,
+            census_ts_trend="stable",
+            news_impact="NEUTRAL",
+            risk_warning=False,
+            sector="Technology",
+            sector_median_exret=10,
+            sector_rankings={},
+            position_limit=5.0,
+        )
+
+    def test_kill_thesis_reduces_conviction(self):
+        """Triggered kill thesis should reduce conviction by 15 points."""
+        args = self._base_args()
+        normal = synthesize_stock(ticker="TEST", **args, kill_thesis_triggered=False)
+        killed = synthesize_stock(ticker="TEST", **args, kill_thesis_triggered=True)
+        assert killed["conviction"] < normal["conviction"]
+        # The delta should be exactly 15 (before floors may intervene)
+        raw_delta = normal["conviction"] - killed["conviction"]
+        assert raw_delta == 15 or killed["conviction"] == 40  # floor may cap
+
+    def test_kill_thesis_bypasses_penalty_cap(self):
+        """Kill thesis penalty is applied AFTER normal penalty cap, bypassing it."""
+        args = self._base_args()
+        # Give a scenario with max penalties already (25 cap)
+        args["tech_data"] = {"momentum_score": -50, "timing_signal": "AVOID",
+                             "rsi": 85, "macd_signal": "BEARISH"}
+        args["macro_fit"] = "UNFAVORABLE"
+        args["risk_warning"] = True
+        args["news_impact"] = "HIGH_NEGATIVE"
+        args["census_alignment"] = "DIVERGENT"
+        args["census_ts_trend"] = "strong_distribution"
+
+        normal = synthesize_stock(ticker="TEST", **args, kill_thesis_triggered=False)
+        killed = synthesize_stock(ticker="TEST", **args, kill_thesis_triggered=True)
+        # Kill thesis should reduce even when penalties are already at cap
+        assert killed["conviction"] <= normal["conviction"]
+
+    def test_kill_thesis_in_build_concordance(self):
+        """build_concordance passes kill thesis data through to synthesis."""
+        base_report = {"stocks": {}}
+        concordance = build_concordance(
+            portfolio_signals={"AAPL": {
+                "signal": "B", "exret": 15, "buy_pct": 75, "beta": 1.0,
+                "pet": 25, "pef": 20,
+            }},
+            fund_report=base_report,
+            tech_report=base_report,
+            macro_report={"portfolio_implications": {}, "sector_rankings": {}},
+            census_report={"divergences": {}},
+            news_report={"portfolio_news": {}},
+            risk_report={"consensus_warnings": [], "position_limits": {}},
+            sector_map={"AAPL": "Technology"},
+            triggered_kill_theses={"AAPL": True},
+        )
+        entry = concordance[0]
+        assert entry["kill_thesis_triggered"] is True
+
+    def test_default_no_kill_thesis(self):
+        """Default behavior: no kill thesis triggered."""
+        args = self._base_args()
+        result = synthesize_stock(ticker="TEST", **args)
+        assert result["conviction"] > 0  # Normal flow
+
+
+class TestProportionalOpportunityCostSizing:
+    """CIO v6.0 F3: Proportional sizing instead of fixed ±10%."""
+
+    def test_proportional_reduction_scales_with_distance(self):
+        """Larger distance from mean should produce larger reduction."""
+        from trade_modules.conviction_sizer import adjust_sizes_for_opportunity_cost
+        positions = [
+            {"conviction": 20, "position_size": 100.0},   # far below avg (50)
+            {"conviction": 40, "position_size": 100.0},   # slightly below
+            {"conviction": 50, "position_size": 100.0},   # at average
+            {"conviction": 80, "position_size": 100.0},   # above average
+        ]
+        result = adjust_sizes_for_opportunity_cost(positions)
+        # conviction=20 is farther from avg=47.5 than conviction=40
+        assert result[0]["opp_cost_adj"] < result[1]["opp_cost_adj"]
+        # conviction=80 should get a positive adjustment
+        assert result[3]["opp_cost_adj"] > 0
+
+    def test_proportional_increase_capped(self):
+        """Increase should be capped at 15%."""
+        from trade_modules.conviction_sizer import adjust_sizes_for_opportunity_cost
+        positions = [
+            {"conviction": 10, "position_size": 100.0},
+            {"conviction": 100, "position_size": 100.0},
+        ]
+        result = adjust_sizes_for_opportunity_cost(positions)
+        assert result[1]["opp_cost_adj"] <= 0.15
+
+    def test_proportional_reduction_capped(self):
+        """Reduction should be capped at 20%."""
+        from trade_modules.conviction_sizer import adjust_sizes_for_opportunity_cost
+        positions = [
+            {"conviction": 0, "position_size": 100.0},
+            {"conviction": 100, "position_size": 100.0},
+        ]
+        result = adjust_sizes_for_opportunity_cost(positions)
+        assert abs(result[0]["opp_cost_adj"]) <= 0.20
+
+
+# ============================================================
+# CIO v6.0 H1: News Impact Bias Fix
+# ============================================================
+
+
+class TestNewsImpactResolution:
+    """CIO v6.0 H1: Conflicting high-impact news should resolve to MIXED."""
+
+    def test_conflicting_high_impact_returns_mixed(self):
+        """HIGH_POSITIVE + HIGH_NEGATIVE should return MIXED, not HIGH_POSITIVE."""
+        port_news = {
+            "AAPL": [
+                {"impact": "HIGH_POSITIVE"},
+                {"impact": "HIGH_NEGATIVE"},
+            ],
+        }
+        result = _resolve_news_impact(port_news, "AAPL")
+        assert result == "MIXED"
+
+    def test_single_high_positive_still_works(self):
+        """Uncontested HIGH_POSITIVE should still return HIGH_POSITIVE."""
+        port_news = {"AAPL": [{"impact": "HIGH_POSITIVE"}]}
+        result = _resolve_news_impact(port_news, "AAPL")
+        assert result == "HIGH_POSITIVE"
+
+    def test_single_high_negative_still_works(self):
+        """Uncontested HIGH_NEGATIVE should still return HIGH_NEGATIVE."""
+        port_news = {"AAPL": [{"impact": "HIGH_NEGATIVE"}]}
+        result = _resolve_news_impact(port_news, "AAPL")
+        assert result == "HIGH_NEGATIVE"
+
+    def test_negative_prioritized_over_positive(self):
+        """When no conflict, HIGH_NEGATIVE should be checked before HIGH_POSITIVE."""
+        port_news = {
+            "AAPL": [
+                {"impact": "LOW_POSITIVE"},
+                {"impact": "HIGH_NEGATIVE"},
+            ],
+        }
+        result = _resolve_news_impact(port_news, "AAPL")
+        assert result == "HIGH_NEGATIVE"
+
+    def test_empty_news_returns_neutral(self):
+        """No news for ticker should return NEUTRAL."""
+        result = _resolve_news_impact({}, "AAPL")
+        assert result == "NEUTRAL"
+
+    def test_mixed_treated_as_neutral_in_votes(self):
+        """MIXED news should fall through to neutral treatment in vote counting."""
+        bull, bear = count_agent_votes(
+            fund_score=50, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="MIXED", risk_warning=False, signal="H",
+        )
+        # MIXED falls to else branch: bull += 0.5, bear += 0.5
+        # Same as NEUTRAL — conflicting news doesn't inflate either side
+        bull2, bear2 = count_agent_votes(
+            fund_score=50, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="H",
+        )
+        assert bull == bull2
+        assert bear == bear2
+
+
+# ============================================================
+# CIO v6.0 H5: Penalty Cap Saturation Fix
+# ============================================================
+
+
+class TestPenaltyCapSaturation:
+    """CIO v6.0 H5: Signal quality penalties should not be absorbed by base cap."""
+
+    def _make_sig_data(self):
+        return {"signal": "H", "exret": 5, "buy_pct": 95, "beta": 2.5,
+                "pet": 20, "pef": 25, "pp": -10, "52w": 60}
+
+    def _make_fund_data(self):
+        return {"fundamental_score": 40, "quality_trap_warning": True}
+
+    def _make_tech_data(self):
+        return {"momentum_score": -30, "timing_signal": "AVOID", "rsi": 75,
+                "macd_signal": "BEARISH"}
+
+    def test_signal_quality_penalties_add_beyond_base_cap(self):
+        """With base penalties at 25, signal quality penalties should add more."""
+        # This stock triggers heavy base penalties + contradiction + earnings miss
+        result = synthesize_stock(
+            ticker="TEST", sig_data=self._make_sig_data(),
+            fund_data=self._make_fund_data(), tech_data=self._make_tech_data(),
+            macro_fit="UNFAVORABLE", census_alignment="NEUTRAL",
+            div_score=0, census_ts_trend="stable",
+            news_impact="NEUTRAL", risk_warning=True,
+            sector="Technology", sector_median_exret=5,
+            sector_rankings={}, position_limit=5.0,
+            earnings_surprise_pct=-15,  # BIG_MISS → -5 signal quality penalty
+        )
+        # With base penalties saturated AND earnings miss, penalties should exceed 25
+        assert result["penalties"] > 25
+
+    def test_signal_quality_cap_at_10(self):
+        """Signal quality penalties should be capped at 10 independently."""
+        # Trigger all signal quality penalties simultaneously
+        result = synthesize_stock(
+            ticker="TEST", sig_data=self._make_sig_data(),
+            fund_data={"fundamental_score": 85},  # High fund + risk_warning → contradiction
+            tech_data={"momentum_score": 0, "timing_signal": "ENTER_NOW",
+                       "rsi": 50, "macd_signal": "BULLISH"},
+            macro_fit="UNFAVORABLE",  # + ENTER_NOW → macro-tech contradiction
+            census_alignment="NEUTRAL", div_score=0, census_ts_trend="stable",
+            news_impact="NEUTRAL", risk_warning=True,  # + fund>=80 → fund-risk contradiction
+            sector="Technology", sector_median_exret=5,
+            sector_rankings={}, position_limit=5.0,
+            previous_signal="B", days_since_signal_change=10,  # H from B = DETERIORATING → -5
+            earnings_surprise_pct=-15,  # BIG_MISS → -5
+        )
+        # Signal quality: contradiction(5+3) + velocity(5) + earnings(5) = 18, capped at 10
+        # So total penalties = base_penalties + 10 (capped signal quality)
+        # Signal quality should not exceed 10
+        base_penalties_only = compute_adjustments(
+            "H", 85, "ENTER_NOW", 0, 50,
+            "UNFAVORABLE", "NEUTRAL", 0, "stable",
+            "NEUTRAL", True, 95, 0, 2.5, False,
+            "Technology", {}, 5,
+        )[1]
+        # Total should be at most base + 10
+        assert result["penalties"] <= base_penalties_only + 10
+
+
+# ============================================================
+# CIO v6.0 R1: Agent Memory (build_agent_memory)
+# ============================================================
+
+
+class TestBuildAgentMemory:
+    """CIO v6.0 R1: Per-agent feedback from previous concordance."""
+
+    def test_empty_concordance_returns_empty(self):
+        assert build_agent_memory([], {}) == {}
+
+    def test_fundamental_too_optimistic(self):
+        """High fund_score followed by price drop = TOO OPTIMISTIC."""
+        prev = [{"ticker": "NVDA", "fund_score": 85, "price": 100, "conviction": 70,
+                 "action": "ADD", "tech_signal": "", "macro_fit": "",
+                 "census_alignment": "", "news_impact": "", "risk_warning": False}]
+        current = {"NVDA": {"price": 88}}  # -12%
+        memory = build_agent_memory(prev, current)
+        assert "fundamental" in memory
+        assert "TOO OPTIMISTIC" in memory["fundamental"]
+
+    def test_fundamental_correct(self):
+        """High fund_score followed by price rise = CORRECT."""
+        prev = [{"ticker": "AAPL", "fund_score": 80, "price": 150, "conviction": 65,
+                 "action": "ADD", "tech_signal": "", "macro_fit": "",
+                 "census_alignment": "", "news_impact": "", "risk_warning": False}]
+        current = {"AAPL": {"price": 160}}  # +6.7%
+        memory = build_agent_memory(prev, current)
+        assert "CORRECT" in memory["fundamental"]
+
+    def test_technical_wrong_entry(self):
+        """ENTER_NOW followed by drop = WRONG."""
+        prev = [{"ticker": "TSLA", "fund_score": 0, "price": 200,
+                 "tech_signal": "ENTER_NOW", "macro_fit": "", "conviction": 60,
+                 "action": "BUY", "census_alignment": "", "news_impact": "",
+                 "risk_warning": False}]
+        current = {"TSLA": {"price": 180}}  # -10%
+        memory = build_agent_memory(prev, current)
+        assert "technical" in memory
+        assert "WRONG" in memory["technical"]
+
+    def test_risk_warning_validated(self):
+        """Risk warning + subsequent drop = VALIDATED."""
+        prev = [{"ticker": "META", "fund_score": 50, "price": 500,
+                 "tech_signal": "", "macro_fit": "", "conviction": 45,
+                 "action": "TRIM", "census_alignment": "", "news_impact": "",
+                 "risk_warning": True}]
+        current = {"META": {"price": 470}}  # -6%
+        memory = build_agent_memory(prev, current)
+        assert "risk" in memory
+        assert "VALIDATED" in memory["risk"]
+
+    def test_risk_warning_false_alarm(self):
+        """Risk warning + subsequent rise = FALSE ALARM."""
+        prev = [{"ticker": "GOOG", "fund_score": 50, "price": 170,
+                 "tech_signal": "", "macro_fit": "", "conviction": 55,
+                 "action": "HOLD", "census_alignment": "", "news_impact": "",
+                 "risk_warning": True}]
+        current = {"GOOG": {"price": 185}}  # +8.8%
+        memory = build_agent_memory(prev, current)
+        assert "FALSE ALARM" in memory["risk"]
+
+    def test_opportunity_good_pick(self):
+        """BUY NEW that goes up = GOOD PICK."""
+        prev = [{"ticker": "PLTR", "fund_score": 60, "price": 80,
+                 "tech_signal": "", "macro_fit": "", "conviction": 62,
+                 "action": "BUY NEW", "census_alignment": "", "news_impact": "",
+                 "risk_warning": False}]
+        current = {"PLTR": {"price": 90}}  # +12.5%
+        memory = build_agent_memory(prev, current)
+        assert "opportunity" in memory
+        assert "GOOD PICK" in memory["opportunity"]
+
+    def test_missing_prices_skipped(self):
+        """Entries without current price should be skipped."""
+        prev = [{"ticker": "XYZ", "fund_score": 70, "price": 50,
+                 "tech_signal": "ENTER_NOW", "macro_fit": "", "conviction": 60,
+                 "action": "BUY", "census_alignment": "", "news_impact": "",
+                 "risk_warning": False}]
+        current = {}  # No current data
+        memory = build_agent_memory(prev, current)
+        assert memory == {}
+
+    def test_priority_sorting_wrong_first(self):
+        """WRONG/TOO OPTIMISTIC entries should appear before CORRECT."""
+        prev = [
+            {"ticker": "A", "fund_score": 85, "price": 100, "tech_signal": "",
+             "macro_fit": "", "conviction": 70, "action": "ADD",
+             "census_alignment": "", "news_impact": "", "risk_warning": False},
+            {"ticker": "B", "fund_score": 80, "price": 50, "tech_signal": "",
+             "macro_fit": "", "conviction": 65, "action": "ADD",
+             "census_alignment": "", "news_impact": "", "risk_warning": False},
+        ]
+        current = {"A": {"price": 85}, "B": {"price": 55}}  # A dropped, B rose
+        memory = build_agent_memory(prev, current)
+        lines = memory["fundamental"].split("\n")
+        # TOO OPTIMISTIC (A) should come before CORRECT (B)
+        assert "TOO OPTIMISTIC" in lines[0]
+        assert "CORRECT" in lines[1]

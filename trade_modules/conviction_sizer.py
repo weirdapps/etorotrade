@@ -120,12 +120,17 @@ def get_portfolio_var_scaling(
 def get_cluster_size_adjustment(
     ticker: str,
     clusters: List[Dict[str, Any]],
+    conviction: float = 50,
 ) -> float:
     """
     Calculate position size adjustment for correlation clusters.
 
-    If a ticker is in a cluster of size N, reduce position by 1/sqrt(N)
-    to account for non-diversified risk.
+    CIO Legacy C4: Dampened adjustment that considers conviction and
+    correlation strength. The original 1/sqrt(N) is mathematically sound
+    for independent positions but too aggressive because:
+    1. Correlated stocks may have different factor exposures
+    2. Correlations change, especially in regime shifts
+    3. High-conviction stocks deserve a smaller penalty
 
     Task #6: Integrate correlation clusters into position sizing.
 
@@ -133,18 +138,24 @@ def get_cluster_size_adjustment(
         ticker: Stock ticker symbol
         clusters: List of cluster dicts from portfolio_risk.flag_correlation_clusters()
                  Each cluster has 'tickers' key with list of ticker symbols
+        conviction: Stock's conviction score (0-100), used to dampen the penalty
 
     Returns:
-        Adjustment multiplier (1.0 if not in cluster, 1/sqrt(N) if in cluster of size N)
+        Adjustment multiplier (1.0 if not in cluster, dampened 1/sqrt(N) otherwise)
     """
     for cluster in clusters:
         cluster_tickers = cluster.get("tickers", [])
         if ticker in cluster_tickers:
             cluster_size = len(cluster_tickers)
-            adjustment = 1.0 / math.sqrt(cluster_size)
+            # Base adjustment: 1/sqrt(N)
+            base_adj = 1.0 / math.sqrt(cluster_size)
+            # CIO Legacy C4: Dampen based on conviction — high-conviction
+            # stocks in correlated clusters get a smaller penalty
+            conviction_factor = min(conviction / 100.0, 0.8)
+            adjustment = base_adj + (1.0 - base_adj) * conviction_factor * 0.3
             logger.debug(
                 f"{ticker} in correlation cluster of {cluster_size} stocks, "
-                f"adjustment: {adjustment:.2f}"
+                f"conviction={conviction:.0f}, adjustment: {adjustment:.2f}"
             )
             return adjustment
 
@@ -677,3 +688,54 @@ def apply_portfolio_constraints(
         )
 
     return results
+
+
+def adjust_sizes_for_opportunity_cost(
+    positions: List[Dict[str, Any]],
+    conviction_key: str = "conviction",
+    size_key: str = "position_size",
+    max_pct: float = 5.0,
+) -> List[Dict[str, Any]]:
+    """
+    Redistribute position sizes from low-conviction to high-conviction stocks
+    (CIO Legacy C3).
+
+    Position sizing is a zero-sum game — sizing one position larger means
+    another must be smaller. This function applies a relative adjustment
+    that reduces below-average conviction positions by 10% and increases
+    above-average ones by 10% (capped at max_pct).
+
+    Args:
+        positions: List of position dicts, each with conviction and size fields.
+        conviction_key: Key for conviction score in each dict.
+        size_key: Key for position size in each dict.
+        max_pct: Maximum position size percentage (passed through for capping).
+
+    Returns:
+        The same list with adjusted position sizes and an 'opp_cost_adj' field.
+    """
+    if not positions or len(positions) < 2:
+        return positions
+
+    convictions = [p.get(conviction_key, 50) for p in positions]
+    avg_conviction = sum(convictions) / len(convictions)
+
+    for p in positions:
+        conv = p.get(conviction_key, 50)
+        original = p.get(size_key, 0)
+        distance = conv - avg_conviction
+        if distance < -10:
+            # CIO v6.0: Proportional reduction — scale by distance from mean.
+            # Distance -15 → 7.5% reduction, -30 → 15% reduction, capped at -20%.
+            reduction = min(0.20, abs(distance) / 200)
+            p[size_key] = round(original * (1 - reduction), 2)
+            p["opp_cost_adj"] = round(-reduction, 4)
+        elif distance > 10:
+            # Proportional increase — capped at +15% and max_pct.
+            increase = min(0.15, distance / 200)
+            p[size_key] = round(min(original * (1 + increase), max_pct), 2)
+            p["opp_cost_adj"] = round(increase, 4)
+        else:
+            p["opp_cost_adj"] = 0.0
+
+    return positions

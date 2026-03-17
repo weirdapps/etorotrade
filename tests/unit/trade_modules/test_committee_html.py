@@ -1,0 +1,193 @@
+"""
+Tests for Committee HTML Report Generator (CIO v6.0 R3).
+
+Validates that the HTML generator produces correct output from
+synthesis data without requiring real agent report files.
+"""
+
+import pytest
+
+from trade_modules.committee_html import (
+    action_color,
+    conv_color,
+    e,
+    generate_report_html,
+    sentiment_color,
+    sf,
+)
+
+
+def _minimal_synth():
+    """Minimal synthesis dict for testing."""
+    return {
+        "concordance": [
+            {
+                "ticker": "AAPL", "signal": "B", "action": "ADD",
+                "conviction": 72, "fund_score": 80, "fund_view": "BUY",
+                "tech_signal": "ENTER_NOW", "rsi": 55, "macro_fit": "FAVORABLE",
+                "census": "ALIGNED", "news_impact": "NEUTRAL",
+                "risk_warning": False, "exret": 12.5, "sector": "Technology",
+                "bull_pct": 75, "bull_weight": 4.2, "bear_weight": 1.8,
+                "beta": 1.1, "max_pct": 5.0, "tech_momentum": 25,
+                "is_opportunity": False, "fund_synthetic": False,
+            },
+            {
+                "ticker": "XOM", "signal": "S", "action": "SELL",
+                "conviction": 35, "fund_score": 30, "fund_view": "SELL",
+                "tech_signal": "AVOID", "rsi": 72, "macro_fit": "UNFAVORABLE",
+                "census": "NEUTRAL", "news_impact": "HIGH_NEGATIVE",
+                "risk_warning": True, "exret": -5.0, "sector": "Energy",
+                "bull_pct": 25, "bull_weight": 1.0, "bear_weight": 5.0,
+                "beta": 0.9, "max_pct": 3.0, "tech_momentum": -15,
+                "is_opportunity": False, "fund_synthetic": False,
+            },
+        ],
+        "regime": "CAUTIOUS",
+        "macro_score": 45,
+        "rotation_phase": "MID_CYCLE",
+        "risk_score": 55,
+        "var_95": 2.1,
+        "max_drawdown": -8.5,
+        "portfolio_beta": 1.05,
+        "fg_top100": 52,
+        "fg_broad": 48,
+        "changes": [],
+        "sector_gaps": [],
+        "top_opportunities": [],
+        "correlation_clusters": [],
+        "concentration": {},
+        "stress_scenarios": {},
+        "indicators": {"vix": 18.5, "yield_10y": 4.25, "yield_curve_spread": 50},
+        "sector_rankings": {"XLK": {"return_1m": 3.2}, "XLE": {"return_1m": -1.5}},
+    }
+
+
+def _minimal_reports():
+    """Minimal agent report dicts for testing."""
+    fund = {
+        "stocks": {
+            "AAPL": {"fundamental_score": 80, "pe_trajectory": "IMPROVING",
+                      "exret": 12.5, "insider_sentiment": "NET_BUYING", "notes": "Strong"},
+        },
+        "quality_traps": [],
+    }
+    tech = {
+        "stocks": {
+            "AAPL": {"rsi": 55, "macd_signal": "BULLISH", "bb_position": 0.6,
+                      "trend": "UPTREND", "momentum_score": 25, "timing_signal": "ENTER_NOW"},
+        },
+    }
+    macro = {}
+    census = {"sentiment": {"cash_top100": 10.5}}
+    news = {"breaking_news": [], "portfolio_news": {}}
+    opps = {"top_opportunities": []}
+    risk = {"portfolio_risk": {"sortino_ratio": 1.2}}
+    return fund, tech, macro, census, news, opps, risk
+
+
+class TestHelperFunctions:
+    def test_sf_parses_float(self):
+        assert sf("12.5%") == 12.5
+
+    def test_sf_default_on_bad_input(self):
+        assert sf("--", 0) == 0
+
+    def test_action_color_known(self):
+        assert action_color("SELL") == "#dc2626"
+        assert action_color("BUY") == "#059669"
+
+    def test_action_color_unknown(self):
+        assert action_color("UNKNOWN") == "#64748b"
+
+    def test_conv_color_thresholds(self):
+        assert conv_color(80) == "#059669"
+        assert conv_color(55) == "#d97706"
+        assert conv_color(30) == "#94a3b8"
+
+    def test_sentiment_color_bullish(self):
+        assert sentiment_color("ENTER_NOW") == "#059669"
+
+    def test_sentiment_color_bearish(self):
+        assert sentiment_color("AVOID") == "#dc2626"
+
+    def test_html_escape(self):
+        assert e("<script>") == "&lt;script&gt;"
+        assert e('a"b') == "a&quot;b"
+
+
+class TestGenerateReportHtml:
+    def test_returns_html_string(self):
+        synth = _minimal_synth()
+        fund, tech, macro, census, news, opps, risk = _minimal_reports()
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        assert isinstance(html, str)
+        assert html.startswith("<!DOCTYPE html>")
+        assert "</html>" in html
+
+    def test_contains_all_sections(self):
+        synth = _minimal_synth()
+        fund, tech, macro, census, news, opps, risk = _minimal_reports()
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        assert "Executive Summary" in html
+        assert "Macro Environment" in html
+        assert "Stock Analysis Grid" in html
+        assert "Where We Disagreed" in html
+        assert "Fundamental Deep Dive" in html
+        assert "Technical Analysis" in html
+        assert "Census" in html
+        assert "News" in html
+        assert "Risk Dashboard" in html
+        assert "New Opportunities" in html
+        assert "Action Items" in html
+
+    def test_tickers_appear_in_output(self):
+        synth = _minimal_synth()
+        fund, tech, macro, census, news, opps, risk = _minimal_reports()
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        assert "AAPL" in html
+        assert "XOM" in html
+
+    def test_regime_colors(self):
+        synth = _minimal_synth()
+        fund, tech, macro, census, news, opps, risk = _minimal_reports()
+        # CAUTIOUS regime
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        assert "CAUTIOUS" in html
+
+        # RISK_ON regime
+        synth["regime"] = "RISK_ON"
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        assert "RISK-ON" in html
+
+        # RISK_OFF regime
+        synth["regime"] = "RISK_OFF"
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        assert "DEFENSIVE" in html
+
+    def test_custom_date(self):
+        synth = _minimal_synth()
+        fund, tech, macro, census, news, opps, risk = _minimal_reports()
+        html = generate_report_html(
+            synth, fund, tech, macro, census, news, opps, risk,
+            date_str="2026-03-17",
+        )
+        assert "March 17, 2026" in html
+
+    def test_empty_concordance(self):
+        synth = _minimal_synth()
+        synth["concordance"] = []
+        fund, tech, macro, census, news, opps, risk = _minimal_reports()
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        assert "<!DOCTYPE html>" in html
+
+    def test_version_string(self):
+        synth = _minimal_synth()
+        fund, tech, macro, census, news, opps, risk = _minimal_reports()
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        assert "v6.0" in html
+
+    def test_disclaimer_present(self):
+        synth = _minimal_synth()
+        fund, tech, macro, census, news, opps, risk = _minimal_reports()
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        assert "Not financial advice" in html
