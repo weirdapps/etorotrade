@@ -1,5 +1,5 @@
 """
-Tests for Committee HTML Report Generator (CIO v6.0 R3).
+Tests for Committee HTML Report Generator (CIO v10.0).
 
 Validates that the HTML generator produces correct output from
 synthesis data without requiring real agent report files.
@@ -10,8 +10,8 @@ import pytest
 from trade_modules.committee_html import (
     abbr,
     action_color,
-    conv_bar,
     conv_color,
+    conv_display,
     e,
     generate_report_html,
     sentiment_color,
@@ -127,20 +127,20 @@ class TestHelperFunctions:
         assert abbr("SELL") == "SELL"
         assert abbr("AVOID") == "AVOID"
 
-    def test_conv_bar_with_positive_delta(self):
-        html = conv_bar(72, delta=5)
+    def test_conv_display_with_positive_delta(self):
+        html = conv_display(72, delta=5)
         assert "72" in html
         assert "&#9650;" in html
         assert "5" in html
 
-    def test_conv_bar_with_negative_delta(self):
-        html = conv_bar(45, delta=-8)
+    def test_conv_display_with_negative_delta(self):
+        html = conv_display(45, delta=-8)
         assert "45" in html
         assert "&#9660;" in html
         assert "8" in html
 
-    def test_conv_bar_no_delta(self):
-        html = conv_bar(60)
+    def test_conv_display_no_delta(self):
+        html = conv_display(60)
         assert "60" in html
         assert "&#9650;" not in html
         assert "&#9660;" not in html
@@ -212,7 +212,7 @@ class TestGenerateReportHtml:
         synth = _minimal_synth()
         fund, tech, macro, census, news, opps, risk = _minimal_reports()
         html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
-        assert "v9.0" in html
+        assert "v10.0" in html
 
     def test_disclaimer_present(self):
         synth = _minimal_synth()
@@ -237,7 +237,7 @@ class TestGenerateReportHtml:
         synth = _minimal_synth()
         fund, tech, macro, census, news, opps, risk = _minimal_reports()
         html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
-        assert "SZ" in html  # v9.0: shortened to SZ in action items
+        assert "SIZE" in html  # v10.0: restored full column header
 
     def test_sector_exposure_shown(self):
         synth = _minimal_synth()
