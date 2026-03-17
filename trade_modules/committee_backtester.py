@@ -73,9 +73,16 @@ class CommitteeBacktester:
         entries = []
 
         # Scan for concordance files (various naming patterns)
+        # Prioritize history/ subdirectory (dated archives from generate_report_from_files)
+        history_dir = directory / "history"
+        has_history = history_dir.is_dir() and any(history_dir.glob("concordance-*.json"))
         patterns = ["concordance*.json", "synthesis*.json", "*committee*.json"]
         for pattern in patterns:
             for fpath in directory.glob(f"**/{pattern}"):
+                # Skip undated concordance.json only if dated history exists
+                if (has_history and fpath.name == "concordance.json"
+                        and fpath.parent == directory):
+                    continue
                 try:
                     with open(fpath, "r", encoding="utf-8") as f:
                         data = json.load(f)
@@ -101,10 +108,12 @@ class CommitteeBacktester:
                 if not concordance:
                     # Try alternate key
                     concordance = data.get("stocks", {})
-                    if isinstance(concordance, dict):
-                        concordance = [
-                            dict(v, ticker=k) for k, v in concordance.items()
-                        ]
+                # Normalize dict format to list of dicts
+                if isinstance(concordance, dict):
+                    concordance = [
+                        dict(v, ticker=k) if isinstance(v, dict) else {"ticker": k}
+                        for k, v in concordance.items()
+                    ]
 
                 if concordance:
                     entries.append({
@@ -114,8 +123,13 @@ class CommitteeBacktester:
                         "version": data.get("version", "unknown"),
                     })
 
-        # Sort by date
-        entries.sort(key=lambda e: e["date"])
+        # Deduplicate by date (keep the entry with most concordance data)
+        by_date: Dict[str, Dict] = {}
+        for entry in entries:
+            d = entry["date"]
+            if d not in by_date or len(entry["concordance"]) > len(by_date[d]["concordance"]):
+                by_date[d] = entry
+        entries = sorted(by_date.values(), key=lambda e: e["date"])
         self.history = entries
 
         logger.info(
@@ -452,6 +466,155 @@ class CommitteeBacktester:
             "parameter_sweeps": sweeps,
             "recommendations": recommendations,
         }
+
+
+    def backfill_from_synthesis(
+        self,
+        synthesis_path: Optional[Path] = None,
+    ) -> int:
+        """
+        Backfill historical concordance from existing synthesis.json files.
+
+        Scans for synthesis.json (and synthesis_previous.json) and creates
+        dated concordance archives in history/ for backtesting.
+
+        Returns:
+            Number of entries backfilled.
+        """
+        directory = self.log_dir
+        history_dir = directory / "history"
+        history_dir.mkdir(parents=True, exist_ok=True)
+        count = 0
+
+        # Find all synthesis files
+        synth_files = list(directory.glob("**/synthesis*.json"))
+        for fpath in synth_files:
+            try:
+                with open(fpath, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            except (json.JSONDecodeError, OSError):
+                continue
+
+            concordance = data.get("concordance", [])
+            if not concordance:
+                continue
+
+            # Get date — from data, or from filename, or from mtime
+            date_str = None
+            if isinstance(concordance, list) and concordance:
+                # Check if synthesis has a date key
+                date_str = data.get("date")
+            if not date_str:
+                mtime = datetime.fromtimestamp(fpath.stat().st_mtime)
+                date_str = mtime.strftime("%Y-%m-%d")
+
+            archive_path = history_dir / f"concordance-{date_str}.json"
+            if archive_path.exists():
+                continue  # Don't overwrite existing archives
+
+            archive_data = {
+                "date": date_str,
+                "version": data.get("version", "backfilled"),
+                "regime": data.get("regime", "UNKNOWN"),
+                "concordance": concordance,
+            }
+            try:
+                with open(archive_path, "w") as f:
+                    json.dump(archive_data, f, indent=2)
+                count += 1
+                logger.info("Backfilled %s from %s", archive_path.name, fpath.name)
+            except OSError:
+                pass
+
+        # Also extract from concordance.json if it has a date
+        conc_path = directory / "concordance.json"
+        if conc_path.exists():
+            try:
+                with open(conc_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                date_str = data.get("date")
+                stocks = data.get("stocks", {})
+                if date_str and stocks:
+                    archive_path = history_dir / f"concordance-{date_str}.json"
+                    if not archive_path.exists():
+                        concordance = [
+                            {"ticker": k, **v} for k, v in stocks.items()
+                        ]
+                        archive_data = {
+                            "date": date_str,
+                            "version": "backfilled-concordance",
+                            "concordance": concordance,
+                        }
+                        with open(archive_path, "w") as f:
+                            json.dump(archive_data, f, indent=2)
+                        count += 1
+            except (json.JSONDecodeError, OSError):
+                pass
+
+        return count
+
+
+def run_backtest(
+    log_dir: Optional[Path] = None,
+    horizon: str = "T+30",
+    fetch_prices: bool = True,
+) -> Dict[str, Any]:
+    """
+    Convenience function to run a full backtest.
+
+    1. Backfills any un-archived synthesis data
+    2. Loads all historical concordance
+    3. Fetches forward returns via yfinance (if fetch_prices=True)
+    4. Evaluates performance and generates calibration report
+
+    Args:
+        log_dir: Committee output directory.
+        horizon: Forward return horizon (default "T+30").
+        fetch_prices: Whether to fetch prices from yfinance.
+
+    Returns:
+        Calibration report dict, or status dict if insufficient data.
+    """
+    bt = CommitteeBacktester(log_dir=log_dir)
+
+    # Step 1: Backfill
+    backfilled = bt.backfill_from_synthesis()
+    if backfilled:
+        logger.info("Backfilled %d concordance archives", backfilled)
+
+    # Step 2: Load history
+    loaded = bt.load_history()
+    if loaded < 2:
+        return {
+            "status": "insufficient_data",
+            "history_entries": loaded,
+            "message": (
+                f"Only {loaded} committee snapshot(s) found. Need at least 2 "
+                "for meaningful backtesting. Run more committee sessions to "
+                "accumulate history."
+            ),
+        }
+
+    # Step 3: Forward returns
+    if fetch_prices:
+        price_fn = yfinance_price_fetcher
+        bt.compute_forward_returns(price_fetcher=price_fn)
+
+    if not bt.forward_returns:
+        return {
+            "status": "no_returns",
+            "history_entries": loaded,
+            "message": (
+                f"Loaded {loaded} snapshots but could not compute forward "
+                "returns. Some recommendations may be too recent for "
+                f"{horizon} evaluation."
+            ),
+        }
+
+    # Step 4: Calibration report
+    report = bt.generate_calibration_report()
+    report["status"] = "complete"
+    return report
 
 
 def yfinance_price_fetcher(
