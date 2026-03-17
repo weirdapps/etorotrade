@@ -8,7 +8,9 @@ synthesis data without requiring real agent report files.
 import pytest
 
 from trade_modules.committee_html import (
+    abbr,
     action_color,
+    conv_bar,
     conv_color,
     e,
     generate_report_html,
@@ -114,6 +116,35 @@ class TestHelperFunctions:
         assert e("<script>") == "&lt;script&gt;"
         assert e('a"b') == "a&quot;b"
 
+    def test_abbr_known_terms(self):
+        assert abbr("ENTER_NOW") == "ENTER"
+        assert abbr("UNFAVORABLE") == "UNFAV"
+        assert abbr("ALIGNED") == "ALIGN"
+        assert abbr("HIGH_NEGATIVE") == "H.NEG"
+
+    def test_abbr_unknown_passthrough(self):
+        assert abbr("BUY") == "BUY"
+        assert abbr("SELL") == "SELL"
+        assert abbr("AVOID") == "AVOID"
+
+    def test_conv_bar_with_positive_delta(self):
+        html = conv_bar(72, delta=5)
+        assert "72" in html
+        assert "&#9650;" in html
+        assert "5" in html
+
+    def test_conv_bar_with_negative_delta(self):
+        html = conv_bar(45, delta=-8)
+        assert "45" in html
+        assert "&#9660;" in html
+        assert "8" in html
+
+    def test_conv_bar_no_delta(self):
+        html = conv_bar(60)
+        assert "60" in html
+        assert "&#9650;" not in html
+        assert "&#9660;" not in html
+
 
 class TestGenerateReportHtml:
     def test_returns_html_string(self):
@@ -191,3 +222,78 @@ class TestGenerateReportHtml:
         fund, tech, macro, census, news, opps, risk = _minimal_reports()
         html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
         assert "Not financial advice" in html
+
+    def test_action_items_split(self):
+        synth = _minimal_synth()
+        fund, tech, macro, census, news, opps, risk = _minimal_reports()
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        assert "Immediate Actions" in html
+
+    def test_exret_in_grid(self):
+        synth = _minimal_synth()
+        fund, tech, macro, census, news, opps, risk = _minimal_reports()
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        assert "EXRET" in html
+        assert "12.5%" in html
+
+    def test_size_in_grid(self):
+        synth = _minimal_synth()
+        fund, tech, macro, census, news, opps, risk = _minimal_reports()
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        assert "SIZE" in html
+
+    def test_sector_exposure_shown(self):
+        synth = _minimal_synth()
+        fund, tech, macro, census, news, opps, risk = _minimal_reports()
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        assert "Sector Exposure" in html
+        assert "Technology" in html
+
+    def test_designed_abbreviations_in_grid(self):
+        synth = _minimal_synth()
+        fund, tech, macro, census, news, opps, risk = _minimal_reports()
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        # ENTER_NOW should become ENTER, not ENTER_
+        assert "ENTER(55)" in html
+        # UNFAVORABLE should become UNFAV, not UNFAV
+        assert "UNFAV" in html
+
+    def test_dynamic_dates(self):
+        synth = _minimal_synth()
+        synth["signal_date"] = "2026-03-15"
+        synth["census_date"] = "2026-03-14"
+        fund, tech, macro, census, news, opps, risk = _minimal_reports()
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        assert "Signals: 2026-03-15" in html
+        assert "Census: 2026-03-14" in html
+
+    def test_conviction_delta_shown(self):
+        synth = _minimal_synth()
+        synth["changes"] = [
+            {"ticker": "AAPL", "delta": 5, "prev_action": "HOLD",
+             "curr_action": "ADD", "prev_conviction": 67, "curr_conviction": 72},
+        ]
+        fund, tech, macro, census, news, opps, risk = _minimal_reports()
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        assert "&#9650;" in html  # up arrow for AAPL
+
+    def test_fundamental_only_actionable(self):
+        """Fundamental deep dive should only show stocks with pending actions."""
+        synth = _minimal_synth()
+        # Add a HOLD stock with fund data — it should NOT appear in deep dive
+        synth["concordance"].append({
+            "ticker": "MSFT", "signal": "H", "action": "HOLD",
+            "conviction": 60, "fund_score": 90, "fund_view": "BUY",
+            "tech_signal": "HOLD", "rsi": 50, "macro_fit": "FAVORABLE",
+            "census": "ALIGNED", "news_impact": "NEUTRAL",
+            "risk_warning": False, "exret": 8.0, "sector": "Technology",
+            "bull_pct": 65, "bull_weight": 3.5, "bear_weight": 2.0,
+            "beta": 1.0, "max_pct": 5.0, "tech_momentum": 10,
+            "is_opportunity": False, "fund_synthetic": False,
+        })
+        fund, tech, macro, census, news, opps, risk = _minimal_reports()
+        fund["stocks"]["MSFT"] = {"fundamental_score": 90, "pe_trajectory": "IMPROVING",
+                                   "exret": 8.0, "insider_sentiment": "NEUTRAL", "notes": "Great"}
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        # AAPL (ADD) should be in deep dive, but not MSFT subtitle
+        assert "pending actions" in html
