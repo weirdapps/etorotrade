@@ -69,6 +69,151 @@ SECTOR_ETF_MAP = {
     "Utilities": "XLU",
 }
 
+# CIO v8.0 F1: Known ticker-to-GICS sector mapping.
+# Eliminates 38% "Other" sector assignments caused by incomplete agent coverage.
+# Agent reports often lack sector fields, leading to bad sector medians, broken
+# rotation signals, and meaningless concentration analysis.
+TICKER_GICS_MAP = {
+    # Technology
+    "AAPL": "Technology", "MSFT": "Technology", "NVDA": "Technology",
+    "AVGO": "Technology", "ADBE": "Technology", "CRM": "Technology",
+    "AMD": "Technology", "INTC": "Technology", "QCOM": "Technology",
+    "PANW": "Technology", "NOW": "Technology", "PLTR": "Technology",
+    "CRWD": "Technology", "SNPS": "Technology", "CDNS": "Technology",
+    "SAP.DE": "Technology", "MRVL": "Technology", "MU": "Technology",
+    "ANET": "Technology", "FTNT": "Technology",
+    # Financials
+    "JPM": "Financials", "BAC": "Financials", "GS": "Financials",
+    "MS": "Financials", "C": "Financials", "WFC": "Financials",
+    "SCHW": "Financials", "BLK": "Financials", "AXP": "Financials",
+    "V": "Financials", "MA": "Financials", "PYPL": "Financials",
+    # Healthcare
+    "UNH": "Healthcare", "JNJ": "Healthcare", "LLY": "Healthcare",
+    "PFE": "Healthcare", "ABBV": "Healthcare", "MRK": "Healthcare",
+    "TMO": "Healthcare", "ABT": "Healthcare", "AMGN": "Healthcare",
+    "ISRG": "Healthcare", "ELV": "Healthcare",
+    # Consumer Discretionary
+    "AMZN": "Consumer Discretionary", "TSLA": "Consumer Discretionary",
+    "HD": "Consumer Discretionary", "MCD": "Consumer Discretionary",
+    "NKE": "Consumer Discretionary", "BKNG": "Consumer Discretionary",
+    "SBUX": "Consumer Discretionary", "TJX": "Consumer Discretionary",
+    "CMG": "Consumer Discretionary", "ABNB": "Consumer Discretionary",
+    # Communication Services
+    "GOOGL": "Communication Services", "META": "Communication Services",
+    "GOOG": "Communication Services", "NFLX": "Communication Services",
+    "DIS": "Communication Services", "CMCSA": "Communication Services",
+    "T": "Communication Services", "VZ": "Communication Services",
+    "SNAP": "Communication Services", "PINS": "Communication Services",
+    # Consumer Staples
+    "PG": "Consumer Staples", "KO": "Consumer Staples",
+    "PEP": "Consumer Staples", "COST": "Consumer Staples",
+    "WMT": "Consumer Staples", "CL": "Consumer Staples",
+    "PM": "Consumer Staples",
+    # Industrials
+    "CAT": "Industrials", "DE": "Industrials", "UNP": "Industrials",
+    "HON": "Industrials", "RTX": "Industrials", "LMT": "Industrials",
+    "BA": "Industrials", "GE": "Industrials", "MMM": "Industrials",
+    "UPS": "Industrials",
+    # Energy
+    "XOM": "Energy", "CVX": "Energy", "COP": "Energy",
+    "SLB": "Energy", "EOG": "Energy", "MPC": "Energy",
+    "OXY": "Energy", "HAL": "Energy",
+    # Materials
+    "LIN": "Materials", "APD": "Materials", "ECL": "Materials",
+    "NEM": "Materials", "FCX": "Materials", "GLD": "Materials",
+    # Real Estate
+    "PLD": "Real Estate", "AMT": "Real Estate", "SPG": "Real Estate",
+    "EQIX": "Real Estate",
+    # Utilities
+    "NEE": "Utilities", "DUK": "Utilities", "SO": "Utilities",
+    "D": "Utilities",
+    # Crypto / Alt
+    "BTC-USD": "Crypto/Alt", "ETH-USD": "Crypto/Alt",
+    "MSTR": "Crypto/Alt", "COIN": "Crypto/Alt",
+    # Semiconductors → Technology
+    "TSM": "Technology", "ASML": "Technology",
+    # European stocks
+    "LYXGRE.DE": "Financials",  # Greek ETF proxy
+    "NOVO-B.CO": "Healthcare",
+    "SAP": "Technology",
+    "AZN": "Healthcare", "AZN.L": "Healthcare",
+    "SHEL": "Energy",
+    "TTE": "Energy",
+    "BABA": "Consumer Discretionary",
+    "RHM.DE": "Industrials",  # Rheinmetall — defense
+    "DTE.DE": "Communication Services",  # Deutsche Telekom
+    "EDV.L": "Materials",  # Endeavour Mining
+    "PRU.L": "Financials",  # Prudential plc
+    "AIR.PA": "Industrials",  # Airbus
+    "SU.PA": "Consumer Staples",  # Schneider / luxury (mapped broadly)
+    # Asia-Pacific
+    "6758.T": "Technology",  # Sony
+    "0700.HK": "Communication Services",  # Tencent
+    "0175.HK": "Consumer Discretionary",  # Geely
+    "0388.HK": "Financials",  # HKEX
+    "0027.HK": "Consumer Discretionary",  # Galaxy Entertainment
+    # Americas
+    "NU": "Financials",  # Nu Holdings
+    "UBER": "Industrials",  # Uber — transport/logistics
+    "SPGI": "Financials",  # S&P Global
+    "TMUS": "Communication Services",  # T-Mobile
+    "EMIRATESNBD.AE": "Financials",  # Emirates NBD
+    "EW": "Healthcare",  # Edwards Lifesciences
+    "APH": "Technology",  # Amphenol
+}
+
+# Sector normalization: merge agent-reported granular sectors into GICS standards.
+# Agents may report "Semiconductors", "Consumer Electronics", etc. — these need
+# to map to the 11 GICS sectors for consistent rotation analysis.
+_SECTOR_NORMALIZE = {
+    "Semiconductors": "Technology",
+    "Consumer Electronics": "Technology",
+    "Technology/Services": "Industrials",
+    "Software": "Technology",
+    "Semiconductor Equipment": "Technology",
+    "Financial Services": "Financials",
+    "Insurance": "Financials",
+    "Banking": "Financials",
+    "Capital Markets": "Financials",
+    "Basic Materials": "Materials",
+    "Metals & Mining": "Materials",
+    "Gold": "Materials",
+    "Casinos/Gaming": "Consumer Discretionary",
+    "Restaurants": "Consumer Discretionary",
+    "Retail": "Consumer Discretionary",
+    "Auto Manufacturers": "Consumer Discretionary",
+    "Aerospace & Defense": "Industrials",
+    "Defense": "Industrials",
+    "Transportation": "Industrials",
+    "Biotechnology": "Healthcare",
+    "Pharma": "Healthcare",
+    "Medical Devices": "Healthcare",
+    "Oil & Gas": "Energy",
+    "Telecom": "Communication Services",
+    "Media": "Communication Services",
+    "Interactive Media": "Communication Services",
+}
+
+
+def resolve_sector(ticker: str, sector_map: Dict[str, str]) -> str:
+    """Resolve sector for a ticker using caller map, then built-in GICS fallback.
+
+    CIO v8.0 F1: Eliminates 'Other' sector assignments by falling back
+    to TICKER_GICS_MAP when the caller-provided sector_map has no entry.
+    Also normalizes granular agent-reported sectors (e.g. 'Semiconductors')
+    to standard GICS sectors (e.g. 'Technology').
+    """
+    # First try TICKER_GICS_MAP (highest confidence)
+    gics = TICKER_GICS_MAP.get(ticker, "")
+    if gics:
+        return gics
+    # Then try caller-provided sector_map
+    sec = sector_map.get(ticker, "")
+    if sec and sec != "Other":
+        # Normalize agent-reported granular sectors to GICS standard
+        return _SECTOR_NORMALIZE.get(sec, sec)
+    return "Other"
+
 
 def compute_sector_medians(
     portfolio_signals: Dict[str, Dict],
@@ -78,7 +223,7 @@ def compute_sector_medians(
     sector_exrets: Dict[str, List[float]] = {}
     all_exrets = []
     for ticker, sig in portfolio_signals.items():
-        sector = sector_map.get(ticker, "Other")
+        sector = resolve_sector(ticker, sector_map)
         exret = sig.get("exret", 0)
         sector_exrets.setdefault(sector, []).append(exret)
         all_exrets.append(exret)
@@ -654,13 +799,17 @@ def apply_conviction_floors(
     if signal == "B":
         conviction = max(conviction, 40)
 
-    # Stronger floors for quality combinations
+    # CIO v8.0 F9: Stronger floors for quality BUY names.
+    # Penalty stacking (regime + consensus + macro + risk) can push MSFT,
+    # BAC, SCHW from base=65 to conviction=50, producing HOLD when the
+    # quant system verified all BUY criteria. Raise floors to 55 for
+    # quality combinations so they remain actionable.
     if signal == "B" and excess_exret > 20 and pef > 0 and pet > 0 and pef < pet:
-        conviction = max(conviction, 50)
+        conviction = max(conviction, 55)
     if signal == "B" and bull_count >= 4:
-        conviction = max(conviction, 50)
+        conviction = max(conviction, 55)
     if signal == "B" and fund_score >= 70 and buy_pct >= 70:
-        conviction = max(conviction, 50)
+        conviction = max(conviction, 55)
 
     return max(0, min(100, conviction))
 
@@ -920,6 +1069,15 @@ def synthesize_stock(
             tech_signal, macro_fit, risk_warning, beta, rsi,
             fund_score, census_alignment,
         )
+        # CIO v8.0 F3: Cap TRIM conviction for low-data stocks.
+        # When both fundamental and technical data are synthetic (estimated
+        # from signal proxies), the TRIM thesis is built on manufactured data
+        # — cap at 55 to prevent high-confidence trims without real analysis.
+        if fund_synthetic and tech_synthetic:
+            conviction = min(conviction, 55)
+        # INCONCLUSIVE signal = insufficient analyst coverage for any thesis
+        if signal == "I":
+            conviction = min(conviction, 50)
 
     # HOLD tiering
     hold_tier = ""
@@ -1234,6 +1392,7 @@ def apply_opportunity_gate(
     macro_fit: str,
     census_alignment: str,
     portfolio_sectors: Dict[str, int],
+    regime: str = "",
 ) -> Dict[str, Any]:
     """
     Apply CIO C2 validation gate to new opportunities.
@@ -1261,11 +1420,21 @@ def apply_opportunity_gate(
     if census_alignment == "ALIGNED":
         confirmations += 1
 
-    # Graduated discount
+    # CIO v8.0 F6: Regime-aware graduated discount.
+    # In RISK_OFF, regime adjustment already penalized conviction by 15%.
+    # Applying full opportunity discount double-counts the caution,
+    # making all opportunities unreachable.
+    if regime == "RISK_OFF":
+        discount_scale = 0.5  # Halve opportunity discount
+    elif regime == "CAUTIOUS":
+        discount_scale = 0.7
+    else:
+        discount_scale = 1.0
+
     if confirmations == 0:
-        entry["conviction"] -= 15
+        entry["conviction"] -= int(15 * discount_scale)
     elif confirmations == 1:
-        entry["conviction"] -= 10
+        entry["conviction"] -= int(10 * discount_scale)
     # 2+ confirmations: no discount
 
     # Sector gap bonus
@@ -1417,7 +1586,7 @@ def build_concordance(
     # Portfolio sector counts (for gap detection)
     portfolio_sectors: Dict[str, int] = {}
     for ticker in portfolio_signals:
-        sec = sector_map.get(ticker, "Other")
+        sec = resolve_sector(ticker, sector_map)
         portfolio_sectors[sec] = portfolio_sectors.get(sec, 0) + 1
 
     concordance = []
@@ -1446,7 +1615,7 @@ def build_concordance(
 
     # Process portfolio stocks
     for ticker, sig_data in portfolio_signals.items():
-        sector = sector_map.get(ticker, "Other")
+        sector = resolve_sector(ticker, sector_map)
         sec_median = sector_medians.get(sector, universe_median)
         entry = _synthesize_with_lookups(
             ticker, sig_data, lookups, fund_report, tech_report,
@@ -1459,10 +1628,15 @@ def build_concordance(
         concordance.append(entry)
 
     # Process new opportunities (CIO C2 gate)
+    # CIO v8.0 F8: Normalize signal format from opportunity scanner.
+    # Scanner uses full words ("BUY"/"HOLD") vs portfolio's single chars ("B"/"H").
+    _SIG_NORM = {"BUY": "B", "HOLD": "H", "SELL": "S", "INCONCLUSIVE": "I"}
     for ticker, sig_data in opportunity_signals.items():
         if ticker in portfolio_signals:
             continue  # Already in portfolio
-        sector = opportunity_sector_map.get(ticker, "Other")
+        raw_sig = sig_data.get("signal", "H")
+        sig_data["signal"] = _SIG_NORM.get(raw_sig, raw_sig)
+        sector = resolve_sector(ticker, opportunity_sector_map)
         sec_median = sector_medians.get(sector, universe_median)
 
         # CIO Review F1: Inject opportunity score for dual-synthetic stocks
@@ -1494,7 +1668,7 @@ def build_concordance(
         cen_align = lookups["div_map"].get(ticker, ("NEUTRAL", 0))[0]
         entry = apply_opportunity_gate(
             entry, fund_report, tech_report, macro_fit,
-            cen_align, portfolio_sectors,
+            cen_align, portfolio_sectors, regime=regime,
         )
         concordance.append(entry)
 
@@ -1515,8 +1689,21 @@ def build_concordance(
         count = sector_counts.get(sec, 1)
         if count > 2:
             penalty = (count - 2) * 2  # -2 per extra stock beyond 2
-            entry["conviction"] = max(30, entry["conviction"] - penalty)
+            # CIO v8.0 F2: Respect signal-aware conviction floors.
+            # BUY-signal stocks already passed quant criteria — sector
+            # concentration should nudge, not override. Floor at 45 for
+            # BUY signals (preserves actionability), 30 for HOLD.
+            floor = 45 if entry.get("signal") == "B" else 30
+            entry["conviction"] = max(floor, entry["conviction"] - penalty)
             entry["sector_concentration_penalty"] = penalty
+
+    # CIO v8.0: Re-evaluate opportunity actions after sector concentration penalty.
+    # The gate set BUY for conv >= 55, but concentration penalty may have dropped
+    # conviction below 55. Re-check and downgrade to HOLD if needed.
+    for entry in concordance:
+        if entry.get("is_opportunity") and entry["action"] == "BUY":
+            if entry["conviction"] < 55:
+                entry["action"] = "HOLD"
 
     # Break conviction ties with composite quality score (CIO v5.2, v6.0 normalized)
     # This prevents 11 stocks at identical conviction=65.
@@ -1719,6 +1906,9 @@ def compute_changes(
     - A dict of ticker -> data (from concordance.json 'stocks' key)
     """
     if isinstance(previous, dict):
+        # Handle concordance.json format: {"date": "...", "stocks": {ticker: data}}
+        if "stocks" in previous:
+            previous = previous["stocks"]
         prev_map = {k: dict(v, ticker=k) for k, v in previous.items()}
     else:
         prev_map = {c["ticker"]: c for c in previous}

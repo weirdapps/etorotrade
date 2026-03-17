@@ -1112,6 +1112,27 @@ class TestComputeChanges:
         changes = compute_changes(current, previous)
         assert len(changes) == 0
 
+    def test_dict_with_stocks_wrapper(self):
+        """Previous concordance.json has {date, stocks: {ticker: data}} format."""
+        current = [{"ticker": "AAPL", "action": "BUY", "conviction": 80}]
+        previous = {
+            "date": "2026-03-16",
+            "stocks": {
+                "AAPL": {"action": "HOLD", "conviction": 55},
+            },
+        }
+        changes = compute_changes(current, previous)
+        assert len(changes) == 1
+        assert changes[0]["type"] == "UPGRADE"
+
+    def test_dict_without_stocks_wrapper(self):
+        """Previous can also be a flat dict of ticker -> data."""
+        current = [{"ticker": "AAPL", "action": "BUY", "conviction": 80}]
+        previous = {"AAPL": {"action": "HOLD", "conviction": 55}}
+        changes = compute_changes(current, previous)
+        assert len(changes) == 1
+        assert changes[0]["type"] == "UPGRADE"
+
 
 # ============================================================
 # Regression tests for v3 live-run bugs
