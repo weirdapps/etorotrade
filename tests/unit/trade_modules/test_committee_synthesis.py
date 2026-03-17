@@ -621,25 +621,21 @@ class TestDetermineAction:
         assert determine_action(70, "S", "AVOID", True) == "SELL"
 
     def test_sell_low_conviction(self):
-        assert determine_action(50, "S", "AVOID", True) == "REDUCE"
+        assert determine_action(50, "S", "AVOID", True) == "TRIM"
 
     def test_sell_threshold_60(self):
         assert determine_action(60, "S", "AVOID", True) == "SELL"
-        assert determine_action(59, "S", "AVOID", True) == "REDUCE"
+        assert determine_action(59, "S", "AVOID", True) == "TRIM"
 
-    # BUY signal actions
+    # BUY signal actions (BUY is reserved for new opportunities only)
     def test_buy_high_conviction(self):
-        assert determine_action(80, "B", "ENTER_NOW", False) == "BUY"
+        assert determine_action(80, "B", "ENTER_NOW", False) == "ADD"
 
     def test_buy_moderate_conviction(self):
         assert determine_action(60, "B", "WAIT_FOR_PULLBACK", False) == "ADD"
 
     def test_buy_low_conviction(self):
         assert determine_action(45, "B", "HOLD", False) == "HOLD"
-
-    def test_buy_threshold_75(self):
-        assert determine_action(75, "B", "ENTER_NOW", False) == "BUY"
-        assert determine_action(74, "B", "ENTER_NOW", False) == "ADD"
 
     def test_buy_threshold_55(self):
         assert determine_action(55, "B", "WAIT_FOR_PULLBACK", False) == "ADD"
@@ -653,7 +649,7 @@ class TestDetermineAction:
         assert determine_action(55, "H", "HOLD", False) == "HOLD"
 
     def test_hold_low_conviction(self):
-        assert determine_action(40, "H", "HOLD", False) == "WEAK HOLD"
+        assert determine_action(40, "H", "HOLD", False) == "HOLD"
 
     def test_hold_very_low_conviction(self):
         assert determine_action(30, "H", "AVOID", True) == "TRIM"
@@ -662,8 +658,7 @@ class TestDetermineAction:
         assert determine_action(70, "H", "ENTER_NOW", False) == "ADD"
         assert determine_action(69, "H", "HOLD", False) == "HOLD"
         assert determine_action(50, "H", "HOLD", False) == "HOLD"
-        assert determine_action(49, "H", "HOLD", False) == "WEAK HOLD"
-        assert determine_action(35, "H", "HOLD", False) == "WEAK HOLD"
+        assert determine_action(35, "H", "HOLD", False) == "HOLD"
         assert determine_action(34, "H", "AVOID", True) == "TRIM"
 
 
@@ -792,11 +787,11 @@ class TestSynthesizeStock:
             sector_rankings={"XLK": {"rank": 1, "return_1m": 8}},
             position_limit=3.5,
         )
-        assert result["action"] == "BUY"
+        assert result["action"] == "ADD"
         assert result["conviction"] >= 70
 
     def test_clear_sell(self):
-        """Stock with SELL signal + bearish agents → SELL or REDUCE."""
+        """Stock with SELL signal + bearish agents → SELL or TRIM."""
         result = synthesize_stock(
             ticker="BAD",
             sig_data=self._make_sig_data("S", exret=-5, buy_pct=20, beta=2.0),
@@ -813,7 +808,7 @@ class TestSynthesizeStock:
             sector_rankings={},
             position_limit=2.0,
         )
-        assert result["action"] in ("SELL", "REDUCE")
+        assert result["action"] in ("SELL", "TRIM")
         assert result["conviction"] >= 50
 
     def test_hold_signal_capped(self):
@@ -835,7 +830,7 @@ class TestSynthesizeStock:
             position_limit=5.0,
         )
         # HOLD signal caps base at 70, with neutral agents should be HOLD
-        assert result["action"] in ("HOLD", "WEAK HOLD")
+        assert result["action"] == "HOLD"
 
     def test_buy_signal_floor(self):
         """BUY signal stock should never drop below conviction 40."""
@@ -875,7 +870,7 @@ class TestSynthesizeStock:
             sector_rankings={},
             position_limit=2.0,
         )
-        if result["action"] in ("TRIM", "WEAK HOLD"):
+        if result["action"] == "TRIM":
             # Trim conviction should be reasonable (not near 0)
             assert result["conviction"] >= 40
 
@@ -1149,7 +1144,7 @@ class TestV3RegressionBugs:
             position_limit=5.0,
         )
         # Should NOT be ADD or BUY with these mediocre fundamentals
-        assert result["action"] in ("HOLD", "WEAK HOLD"), (
+        assert result["action"] == "HOLD", (
             f"AAPL with HOLD signal + fund=52.5 should not get {result['action']} "
             f"(conv={result['conviction']})"
         )
@@ -1344,8 +1339,8 @@ class TestApplyOpportunityGate:
         assert result["conviction"] <= 75
         assert result["confirmations"] == 4
 
-    def test_action_set_to_buy_new(self):
-        """Opportunities with sufficient conviction get BUY NEW action."""
+    def test_action_set_to_buy(self):
+        """Opportunities with sufficient conviction get BUY action."""
         entry = self._make_entry(conviction=70)
         result = apply_opportunity_gate(
             entry,
@@ -1355,10 +1350,10 @@ class TestApplyOpportunityGate:
             census_alignment="NEUTRAL",
             portfolio_sectors={"Technology": 20},
         )
-        assert result["action"] == "BUY NEW"
+        assert result["action"] == "BUY"
 
-    def test_low_conviction_not_buy_new(self):
-        """Opportunities with low conviction should not be BUY NEW."""
+    def test_low_conviction_not_buy(self):
+        """Opportunities with low conviction should not be BUY."""
         entry = self._make_entry(conviction=40, signal="H")
         result = apply_opportunity_gate(
             entry,
@@ -1368,8 +1363,8 @@ class TestApplyOpportunityGate:
             census_alignment="NEUTRAL",
             portfolio_sectors={"Technology": 20, "Energy": 5},
         )
-        # 40 - 15 = 25 → should be WEAK HOLD or TRIM
-        assert result["action"] != "BUY NEW"
+        # 40 - 15 = 25 → should be HOLD
+        assert result["action"] != "BUY"
 
 
 # ============================================================
@@ -1569,16 +1564,15 @@ class TestConstants:
             assert 0 < weight <= 1, f"{agent} has invalid freshness {weight}"
 
     def test_action_order_complete(self):
-        """ACTION_ORDER should include all possible actions."""
-        expected = {"SELL", "REDUCE", "TRIM", "WEAK HOLD", "BUY NEW", "BUY", "ADD", "HOLD", "STRONG HOLD"}
+        """ACTION_ORDER should include all 5 canonical actions."""
+        expected = {"SELL", "TRIM", "BUY", "ADD", "HOLD"}
         assert expected == set(ACTION_ORDER.keys())
 
     def test_action_order_consistent(self):
         """SELL actions should sort before BUY actions."""
         assert ACTION_ORDER["SELL"] < ACTION_ORDER["BUY"]
-        assert ACTION_ORDER["REDUCE"] < ACTION_ORDER["ADD"]
-        assert ACTION_ORDER["TRIM"] < ACTION_ORDER["HOLD"]
-        assert ACTION_ORDER["BUY NEW"] < ACTION_ORDER["BUY"]
+        assert ACTION_ORDER["TRIM"] < ACTION_ORDER["ADD"]
+        assert ACTION_ORDER["SELL"] < ACTION_ORDER["HOLD"]
 
 
 # ============================================================
@@ -2878,10 +2872,10 @@ class TestBuildAgentMemory:
         assert "FALSE ALARM" in memory["risk"]
 
     def test_opportunity_good_pick(self):
-        """BUY NEW that goes up = GOOD PICK."""
+        """BUY that goes up = GOOD PICK."""
         prev = [{"ticker": "PLTR", "fund_score": 60, "price": 80,
                  "tech_signal": "", "macro_fit": "", "conviction": 62,
-                 "action": "BUY NEW", "census_alignment": "", "news_impact": "",
+                 "action": "BUY", "census_alignment": "", "news_impact": "",
                  "risk_warning": False}]
         current = {"PLTR": {"price": 90}}  # +12.5%
         memory = build_agent_memory(prev, current)
