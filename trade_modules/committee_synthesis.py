@@ -1688,11 +1688,17 @@ def build_concordance(
         sec = entry.get("sector", "Other")
         count = sector_counts.get(sec, 1)
         if count > 2:
-            penalty = (count - 2) * 2  # -2 per extra stock beyond 2
-            # CIO v8.0 F2: Respect signal-aware conviction floors.
-            # BUY-signal stocks already passed quant criteria — sector
-            # concentration should nudge, not override. Floor at 45 for
-            # BUY signals (preserves actionability), 30 for HOLD.
+            raw_penalty = (count - 2) * 2  # -2 per extra stock beyond 2
+            # CIO v8.0: Cap concentration penalty at 10 for existing holdings.
+            # Sector concentration is a portfolio-level risk that should inform
+            # sizing (handled by conviction_sizer), not obliterate stock-level
+            # conviction. An 18-point penalty on NVDA because you also own MSFT
+            # is nonsensical — both are independent strong positions.
+            # New opportunities get full penalty (they're entering a crowded sector).
+            if entry.get("is_opportunity"):
+                penalty = min(raw_penalty, 15)  # cap at 15 for new entries
+            else:
+                penalty = min(raw_penalty, 10)  # cap at 10 for existing holdings
             floor = 45 if entry.get("signal") == "B" else 30
             entry["conviction"] = max(floor, entry["conviction"] - penalty)
             entry["sector_concentration_penalty"] = penalty
