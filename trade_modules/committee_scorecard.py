@@ -576,6 +576,8 @@ def log_kill_theses(
             "committee_date": date,
             "status": thesis.get("status", "active"),
             "expiry_date": thesis.get("expiry_date"),
+            # CIO Legacy D2: Custom machine-checkable conditions
+            "conditions": thesis.get("conditions", []),
         }
 
         existing.append(entry)
@@ -693,6 +695,30 @@ def check_kill_theses(
             am = _safe_float(signal_data.get("AM"), default=0.0)
             if am < -5:
                 triggers.append("analyst_downgrade")
+
+            # CIO Legacy D2: Evaluate custom conditions
+            for cond in thesis.get("conditions", []):
+                metric = cond.get("metric", "")
+                operator = cond.get("operator", "")
+                threshold = cond.get("threshold")
+                if not metric or not operator or threshold is None:
+                    continue
+                actual = _safe_float(signal_data.get(metric), default=None)
+                if actual is None:
+                    continue
+                cond_met = False
+                if operator == "lt" and actual < threshold:
+                    cond_met = True
+                elif operator == "gt" and actual > threshold:
+                    cond_met = True
+                elif operator == "eq" and actual == threshold:
+                    cond_met = True
+                elif operator == "le" and actual <= threshold:
+                    cond_met = True
+                elif operator == "ge" and actual >= threshold:
+                    cond_met = True
+                if cond_met:
+                    triggers.append(f"custom:{metric} {operator} {threshold}")
 
         if triggers:
             thesis["status"] = "triggered"

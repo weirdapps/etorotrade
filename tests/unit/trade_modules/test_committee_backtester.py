@@ -1,0 +1,306 @@
+"""
+Tests for Committee Backtesting Framework — CIO Legacy Review D1.
+
+D1: Systematic backtesting of conviction parameters against historical
+committee data and forward returns.
+"""
+
+import json
+from pathlib import Path
+
+import pytest
+
+from trade_modules.committee_backtester import CommitteeBacktester
+
+
+# ============================================================
+# Load History
+# ============================================================
+
+
+class TestLoadHistory:
+    """Tests for loading historical concordance data."""
+
+    def test_empty_directory(self, tmp_path):
+        """Empty directory should return 0."""
+        bt = CommitteeBacktester(log_dir=tmp_path)
+        assert bt.load_history() == 0
+        assert bt.history == []
+
+    def test_nonexistent_directory(self, tmp_path):
+        """Non-existent directory should return 0."""
+        bt = CommitteeBacktester(log_dir=tmp_path / "nonexistent")
+        assert bt.load_history() == 0
+
+    def test_loads_concordance_json(self, tmp_path):
+        """Should load concordance.json files."""
+        data = {
+            "date": "2026-03-01",
+            "version": "v5.4",
+            "concordance": [
+                {"ticker": "AAPL", "action": "BUY", "conviction": 72},
+                {"ticker": "MSFT", "action": "HOLD", "conviction": 55},
+            ],
+        }
+        (tmp_path / "concordance-2026-03-01.json").write_text(
+            json.dumps(data)
+        )
+        bt = CommitteeBacktester(log_dir=tmp_path)
+        assert bt.load_history() == 1
+        assert len(bt.history[0]["concordance"]) == 2
+
+    def test_loads_synthesis_json(self, tmp_path):
+        """Should also load synthesis*.json files."""
+        data = {
+            "date": "2026-03-05",
+            "concordance": [
+                {"ticker": "GOOG", "action": "ADD", "conviction": 65},
+            ],
+        }
+        (tmp_path / "synthesis-2026-03-05.json").write_text(
+            json.dumps(data)
+        )
+        bt = CommitteeBacktester(log_dir=tmp_path)
+        assert bt.load_history() == 1
+
+    def test_loads_stocks_dict_format(self, tmp_path):
+        """Should handle alternate 'stocks' dict format."""
+        data = {
+            "date": "2026-03-10",
+            "stocks": {
+                "NVDA": {"action": "BUY", "conviction": 78},
+                "TSLA": {"action": "SELL", "conviction": 62},
+            },
+        }
+        (tmp_path / "committee-2026-03-10.json").write_text(
+            json.dumps(data)
+        )
+        bt = CommitteeBacktester(log_dir=tmp_path)
+        assert bt.load_history() == 1
+        tickers = [s["ticker"] for s in bt.history[0]["concordance"]]
+        assert "NVDA" in tickers
+        assert "TSLA" in tickers
+
+    def test_sorts_by_date(self, tmp_path):
+        """History should be sorted chronologically."""
+        for date in ["2026-03-10", "2026-03-01", "2026-03-05"]:
+            data = {
+                "date": date,
+                "concordance": [{"ticker": "AAPL", "conviction": 60}],
+            }
+            (tmp_path / f"concordance-{date}.json").write_text(
+                json.dumps(data)
+            )
+        bt = CommitteeBacktester(log_dir=tmp_path)
+        bt.load_history()
+        dates = [e["date"] for e in bt.history]
+        assert dates == sorted(dates)
+
+    def test_skips_invalid_json(self, tmp_path):
+        """Should skip malformed JSON files."""
+        (tmp_path / "concordance-bad.json").write_text("not valid json{{{")
+        data = {
+            "date": "2026-03-01",
+            "concordance": [{"ticker": "AAPL"}],
+        }
+        (tmp_path / "concordance-good.json").write_text(json.dumps(data))
+        bt = CommitteeBacktester(log_dir=tmp_path)
+        assert bt.load_history() == 1
+
+
+# ============================================================
+# Forward Returns
+# ============================================================
+
+
+class TestForwardReturns:
+    """Tests for forward return computation."""
+
+    def test_no_price_fetcher_returns_empty(self, tmp_path):
+        """Without a price_fetcher, should return empty dict."""
+        bt = CommitteeBacktester(log_dir=tmp_path)
+        result = bt.compute_forward_returns(price_fetcher=None)
+        assert result == {}
+
+    def test_computes_returns_with_fetcher(self, tmp_path):
+        """Should compute forward returns using price_fetcher."""
+        data = {
+            "date": "2026-01-01",
+            "concordance": [{"ticker": "AAPL"}],
+        }
+        (tmp_path / "concordance.json").write_text(json.dumps(data))
+        bt = CommitteeBacktester(log_dir=tmp_path)
+        bt.load_history()
+
+        # Simple price fetcher: base=100, T+7=105, T+30=110, T+90=120
+        def mock_fetcher(ticker, date_str):
+            if date_str == "2026-01-01":
+                return 100.0
+            elif date_str == "2026-01-08":
+                return 105.0
+            elif date_str == "2026-01-31":
+                return 110.0
+            elif date_str == "2026-04-01":
+                return 120.0
+            return None
+
+        result = bt.compute_forward_returns(price_fetcher=mock_fetcher)
+        assert "AAPL:2026-01-01" in result
+        assert result["AAPL:2026-01-01"]["T+7"] == 5.0
+        assert result["AAPL:2026-01-01"]["T+30"] == 10.0
+
+    def test_skips_zero_base_price(self, tmp_path):
+        """Should skip stocks with zero base price."""
+        data = {
+            "date": "2026-01-01",
+            "concordance": [{"ticker": "ZERO"}],
+        }
+        (tmp_path / "concordance.json").write_text(json.dumps(data))
+        bt = CommitteeBacktester(log_dir=tmp_path)
+        bt.load_history()
+
+        result = bt.compute_forward_returns(
+            price_fetcher=lambda t, d: 0.0
+        )
+        assert result == {}
+
+
+# ============================================================
+# Performance Evaluation
+# ============================================================
+
+
+class TestEvaluatePerformance:
+    """Tests for performance evaluation by action group."""
+
+    def _setup_bt(self, tmp_path):
+        """Create a backtester with pre-loaded data."""
+        bt = CommitteeBacktester(log_dir=tmp_path)
+        bt.history = [{
+            "date": "2026-01-01",
+            "concordance": [
+                {"ticker": "A", "action": "BUY", "conviction": 70},
+                {"ticker": "B", "action": "BUY", "conviction": 65},
+                {"ticker": "C", "action": "SELL", "conviction": 60},
+                {"ticker": "D", "action": "HOLD", "conviction": 55},
+            ],
+        }]
+        bt.forward_returns = {
+            "A:2026-01-01": {"T+30": 8.0},
+            "B:2026-01-01": {"T+30": -3.0},
+            "C:2026-01-01": {"T+30": -5.0},
+            "D:2026-01-01": {"T+30": 1.0},
+        }
+        return bt
+
+    def test_buy_hit_rate(self, tmp_path):
+        """BUY hit rate: 1/2 positive = 50%."""
+        bt = self._setup_bt(tmp_path)
+        result = bt.evaluate_performance("T+30")
+        assert result["actions"]["BUY"]["hit_rate"] == 50.0
+
+    def test_sell_hit_rate(self, tmp_path):
+        """SELL hit rate: 1/1 negative = 100%."""
+        bt = self._setup_bt(tmp_path)
+        result = bt.evaluate_performance("T+30")
+        assert result["actions"]["SELL"]["hit_rate"] == 100.0
+
+    def test_hold_stability(self, tmp_path):
+        """HOLD: +1% is stable (within ±5%)."""
+        bt = self._setup_bt(tmp_path)
+        result = bt.evaluate_performance("T+30")
+        assert result["actions"]["HOLD"]["hit_rate"] == 100.0
+
+    def test_total_recommendations(self, tmp_path):
+        """Total should count all recs with return data."""
+        bt = self._setup_bt(tmp_path)
+        result = bt.evaluate_performance("T+30")
+        assert result["total_recommendations"] == 4
+
+    def test_empty_forward_returns(self, tmp_path):
+        """No forward returns should produce empty performance."""
+        bt = CommitteeBacktester(log_dir=tmp_path)
+        bt.history = [{"date": "2026-01-01", "concordance": []}]
+        bt.forward_returns = {}
+        result = bt.evaluate_performance()
+        assert result["total_recommendations"] == 0
+
+
+# ============================================================
+# Parameter Sweep
+# ============================================================
+
+
+class TestParameterSweep:
+    """Tests for parameter sweep functionality."""
+
+    def test_no_data_returns_empty(self, tmp_path):
+        """Without data, sweep should return empty list."""
+        bt = CommitteeBacktester(log_dir=tmp_path)
+        assert bt.sweep_parameter("buy_floor", [50, 55, 60]) == []
+
+    def test_sweep_returns_one_result_per_value(self, tmp_path):
+        """Each tested value should produce one result entry."""
+        bt = CommitteeBacktester(log_dir=tmp_path)
+        bt.history = [{
+            "date": "2026-01-01",
+            "concordance": [
+                {"ticker": "A", "signal": "B", "conviction": 65,
+                 "bull_pct": 70, "fund_score": 70, "excess_exret": 5,
+                 "bear_weight": 2, "bull_weight": 5, "bonuses": 5,
+                 "penalties": 0},
+            ],
+        }]
+        bt.forward_returns = {"A:2026-01-01": {"T+30": 5.0}}
+        values = [45, 50, 55, 60]
+        result = bt.sweep_parameter("buy_floor", values)
+        assert len(result) == len(values)
+
+    def test_sweep_result_structure(self, tmp_path):
+        """Each sweep result should have expected keys."""
+        bt = CommitteeBacktester(log_dir=tmp_path)
+        bt.history = [{
+            "date": "2026-01-01",
+            "concordance": [
+                {"ticker": "A", "signal": "B", "conviction": 65,
+                 "bull_pct": 70, "fund_score": 70, "excess_exret": 5,
+                 "bear_weight": 2, "bull_weight": 5, "bonuses": 5,
+                 "penalties": 0},
+            ],
+        }]
+        bt.forward_returns = {"A:2026-01-01": {"T+30": 5.0}}
+        result = bt.sweep_parameter("buy_floor", [55])
+        assert "param" in result[0]
+        assert "value" in result[0]
+        assert "buy_count" in result[0]
+        assert "buy_hit_rate" in result[0]
+        assert "buy_avg_return" in result[0]
+
+
+# ============================================================
+# Calibration Report
+# ============================================================
+
+
+class TestCalibrationReport:
+    """Tests for generate_calibration_report."""
+
+    def test_report_structure(self, tmp_path):
+        """Report should have all expected sections."""
+        bt = CommitteeBacktester(log_dir=tmp_path)
+        bt.history = []
+        bt.forward_returns = {}
+        report = bt.generate_calibration_report()
+        assert "generated_at" in report
+        assert "performance_7d" in report
+        assert "performance_30d" in report
+        assert "parameter_sweeps" in report
+        assert "recommendations" in report
+
+    def test_recommendations_when_no_data(self, tmp_path):
+        """With no data, should still produce recommendations."""
+        bt = CommitteeBacktester(log_dir=tmp_path)
+        bt.history = []
+        bt.forward_returns = {}
+        report = bt.generate_calibration_report()
+        assert len(report["recommendations"]) >= 1

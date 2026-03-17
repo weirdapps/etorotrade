@@ -91,7 +91,12 @@ def compute_sector_medians(
 
     all_sorted = sorted(all_exrets)
     n = len(all_sorted)
-    universe_median = all_sorted[n // 2] if n else 0
+    if n == 0:
+        universe_median = 0
+    elif n % 2:
+        universe_median = all_sorted[n // 2]
+    else:
+        universe_median = (all_sorted[n // 2 - 1] + all_sorted[n // 2]) / 2
     return sector_medians, universe_median
 
 
@@ -106,6 +111,7 @@ def count_agent_votes(
     signal: str,
     fund_synthetic: bool = False,
     tech_synthetic: bool = False,
+    regime: str = "",
 ) -> Tuple[float, float]:
     """
     Count bull/bear weighted votes from agent views.
@@ -121,6 +127,10 @@ def count_agent_votes(
     CIO Legacy A5: Tracks directional vs neutral weight internally.
     The directional_confidence ratio is stored as a module-level variable
     for the caller to access if needed.
+
+    CIO v6.0 F5: When the Risk Manager finds no warning, its neutral vote
+    is regime-sensitive. "No danger found" is mildly bullish in RISK_ON
+    but merely non-negative in RISK_OFF.
     """
     bull = 0.0
     bear = 0.0
@@ -219,10 +229,21 @@ def count_agent_votes(
         neutral_weight += 1.0
 
     # Risk Manager (CIO Legacy B3: 1.2x for BUY assessment, 2.0x for SELL)
+    # CIO v6.0 F5: Regime-sensitive neutral vote when no warning found
     risk_mult = 2.0 if signal == "S" else 1.2
     if risk_warning:
         bear += risk_mult
         directional_weight += risk_mult
+    elif regime == "RISK_ON":
+        # Absence of risk in calm markets is mildly bullish
+        bull += 0.6
+        bear += 0.4
+        neutral_weight += 1.0
+    elif regime == "RISK_OFF":
+        # Absence of specific risk doesn't override systemic risk
+        bull += 0.4
+        bear += 0.6
+        neutral_weight += 1.0
     else:
         bull += 0.5
         bear += 0.5
@@ -724,6 +745,7 @@ def synthesize_stock(
     days_since_signal_change: Optional[int] = None,
     earnings_surprise_pct: Optional[float] = None,
     consecutive_earnings_beats: int = 0,
+    kill_thesis_triggered: bool = False,
 ) -> Dict[str, Any]:
     """
     Synthesize a single stock through the full conviction scoring pipeline.
@@ -770,6 +792,7 @@ def synthesize_stock(
         census_alignment, news_impact, risk_warning, signal,
         fund_synthetic=fund_synthetic,
         tech_synthetic=tech_synthetic,
+        regime=regime,
     )
 
     total_weight = bull_weight + bear_weight
@@ -800,12 +823,21 @@ def synthesize_stock(
         beta, quality_trap, sector, sector_rankings, bull_count,
     )
 
-    # Step 4b: Contradiction penalty (CIO Legacy A3)
+    # Step 4b: Signal quality penalties — separate cap from base penalties.
+    # CIO v6.0 H5: Base penalties (from compute_adjustments) are capped at 25.
+    # Signal quality indicators (contradiction, velocity, earnings, directional
+    # confidence) were previously absorbed into the same 25-point cap, meaning
+    # they had ZERO effect when base penalties were saturated. This hid
+    # meaningful risk information. Now, signal quality penalties get their own
+    # cap of 10, allowing a combined maximum of 35 (25 base + 10 quality).
+    signal_quality_penalty = 0
+
+    # Contradiction penalty (CIO Legacy A3)
     contradiction_penalty, contradictions = detect_contradictions(
         macro_fit, tech_signal, fund_score, risk_warning,
         census_alignment, news_impact,
     )
-    penalties = min(penalties + contradiction_penalty, 25)
+    signal_quality_penalty += contradiction_penalty
 
     # Step 4c: Signal velocity (CIO Legacy B4)
     velocity_adj, velocity_label = compute_signal_velocity(
@@ -814,7 +846,7 @@ def synthesize_stock(
     if velocity_adj > 0:
         bonuses = min(bonuses + velocity_adj, 20)
     elif velocity_adj < 0:
-        penalties = min(penalties + abs(velocity_adj), 25)
+        signal_quality_penalty += abs(velocity_adj)
 
     # Step 4d: Earnings surprise (CIO Legacy B5)
     earnings_adj, earnings_label = get_earnings_surprise_adjustment(
@@ -823,15 +855,26 @@ def synthesize_stock(
     if earnings_adj > 0:
         bonuses = min(bonuses + earnings_adj, 20)
     elif earnings_adj < 0:
-        penalties = min(penalties + abs(earnings_adj), 25)
+        signal_quality_penalty += abs(earnings_adj)
 
     # CIO Legacy A5: Directional confidence penalty
     dir_confidence = getattr(count_agent_votes, '_last_directional_confidence', 0.5)
     if dir_confidence < 0.4:
-        # More than 60% of weight came from neutral agents — low information
-        penalties = min(penalties + 3, 25)
+        signal_quality_penalty += 3
+
+    # Cap signal quality penalties separately from base penalties
+    signal_quality_penalty = min(signal_quality_penalty, 10)
+    penalties = penalties + signal_quality_penalty
 
     conviction = base + bonuses - penalties
+
+    # Step 4e: Kill thesis penalty (CIO v6.0 E1)
+    # When a previously logged kill thesis has triggered, apply -15 penalty
+    # that BYPASSES the normal penalty cap. A triggered kill thesis represents
+    # a specific, pre-identified failure mode — it is categorically different
+    # from generic agent disagreement and deserves uncapped treatment.
+    if kill_thesis_triggered:
+        conviction -= 15
 
     # Step 5: Apply floors
     conviction = apply_conviction_floors(
@@ -1003,12 +1046,28 @@ def _resolve_macro_fit(
 
 
 def _resolve_news_impact(port_news: Dict, ticker: str) -> str:
-    """Determine aggregate news impact for a ticker."""
+    """
+    Determine aggregate news impact for a ticker.
+
+    CIO v6.0 H1: When conflicting high-impact news exists (both HIGH_POSITIVE
+    and HIGH_NEGATIVE), resolve to MIXED rather than favoring positive.
+    The previous implementation's priority order created a bullish bias —
+    a stock with 1 HIGH_POSITIVE and 3 HIGH_NEGATIVE items would still
+    resolve to HIGH_POSITIVE.
+    """
     items = port_news.get(ticker, [])
     if not items:
         return "NEUTRAL"
     impacts = [i.get("impact", "NEUTRAL") for i in items]
-    for level in ("HIGH_POSITIVE", "HIGH_NEGATIVE", "LOW_POSITIVE", "LOW_NEGATIVE"):
+
+    has_high_pos = "HIGH_POSITIVE" in impacts
+    has_high_neg = "HIGH_NEGATIVE" in impacts
+
+    # Conflicting high-impact signals cancel out — conservative treatment
+    if has_high_pos and has_high_neg:
+        return "MIXED"
+
+    for level in ("HIGH_NEGATIVE", "HIGH_POSITIVE", "LOW_NEGATIVE", "LOW_POSITIVE"):
         if level in impacts:
             return level
     return "NEUTRAL"
@@ -1095,14 +1154,36 @@ def _synthesize_with_lookups(
     sec_median: float,
     census_ts_map: Dict[str, str],
     regime: str = "",
+    kill_thesis_triggered: bool = False,
 ) -> Dict[str, Any]:
     """Run synthesize_stock using pre-built agent lookups."""
-    fund_data = fund_report.get("stocks", {}).get(ticker, {})
+    # CIO v6.0 E3: Log warnings when agents have stocks section but ticker
+    # is missing vs when entire stocks section is absent, to distinguish
+    # "agent didn't cover this stock" from "agent produced malformed output."
+    fund_stocks = fund_report.get("stocks", {})
+    fund_data = fund_stocks.get(ticker, {})
     if not fund_data:
+        if fund_stocks:
+            # Agent has data for other stocks but not this one — expected gap
+            logger.debug("Fundamental agent did not cover %s (using fallback)", ticker)
+        elif fund_report:
+            # Agent produced a report but no 'stocks' key — likely malformed
+            logger.warning(
+                "Fundamental agent report missing 'stocks' key — "
+                "possible schema issue (using fallback for %s)", ticker,
+            )
         fund_data = _fallback_fundamental(sig_data)
 
-    tech_data = tech_report.get("stocks", {}).get(ticker, {})
+    tech_stocks = tech_report.get("stocks", {})
+    tech_data = tech_stocks.get(ticker, {})
     if not tech_data:
+        if tech_stocks:
+            logger.debug("Technical agent did not cover %s (using fallback)", ticker)
+        elif tech_report:
+            logger.warning(
+                "Technical agent report missing 'stocks' key — "
+                "possible schema issue (using fallback for %s)", ticker,
+            )
         tech_data = _fallback_technical(sig_data)
     macro_fit = _resolve_macro_fit(
         lookups["macro_impl"], ticker, sector=sector, regime=regime,
@@ -1129,6 +1210,7 @@ def _synthesize_with_lookups(
         sector_rankings=lookups["sector_rankings"],
         position_limit=pos_limit,
         regime=regime,
+        kill_thesis_triggered=kill_thesis_triggered,
     )
 
 
@@ -1277,6 +1359,7 @@ def build_concordance(
     census_ts_map: Optional[Dict[str, str]] = None,
     opportunity_signals: Optional[Dict[str, Dict]] = None,
     opportunity_sector_map: Optional[Dict[str, str]] = None,
+    triggered_kill_theses: Optional[Dict[str, bool]] = None,
 ) -> List[Dict[str, Any]]:
     """
     Build the full concordance matrix from all 7 agent reports.
@@ -1305,6 +1388,8 @@ def build_concordance(
         opportunity_signals = {}
     if opportunity_sector_map is None:
         opportunity_sector_map = {}
+    if triggered_kill_theses is None:
+        triggered_kill_theses = {}
 
     lookups = _build_agent_lookups(
         fund_report, tech_report, macro_report,
@@ -1337,8 +1422,10 @@ def build_concordance(
         entry = _synthesize_with_lookups(
             ticker, sig_data, lookups, fund_report, tech_report,
             sector, sec_median, census_ts_map, regime=regime,
+            kill_thesis_triggered=triggered_kill_theses.get(ticker, False),
         )
         entry["is_opportunity"] = False
+        entry["kill_thesis_triggered"] = triggered_kill_theses.get(ticker, False)
         concordance.append(entry)
 
     # Process new opportunities (CIO C2 gate)
@@ -1360,15 +1447,17 @@ def build_concordance(
             sector, sec_median, census_ts_map, regime=regime,
         )
 
-        # F1: Override base conviction for dual-synthetic stocks using opp_score
+        # F1: Boost conviction for dual-synthetic stocks using opp_score.
+        # CIO v6.0 fix: Apply as a conviction DELTA rather than a base override,
+        # because bonuses/penalties were already computed for the original base.
+        # Overriding the base while keeping original adjustments creates an
+        # inconsistency. Instead, compute the delta and add it to conviction.
         if not has_fund and not has_tech and opp_score > 0:
             opp_base = max(55, min(70, int(opp_score * 0.8)))
             if opp_base > entry["base"]:
+                delta = opp_base - entry["base"]
+                entry["conviction"] = min(100, entry["conviction"] + delta)
                 entry["base"] = opp_base
-                entry["conviction"] = max(
-                    entry["conviction"],
-                    opp_base + entry.get("bonuses", 0) - entry.get("penalties", 0),
-                )
                 entry["opp_score_injected"] = True
         # Apply C2 validation gate
         macro_fit = _resolve_macro_fit(lookups["macro_impl"], ticker)
@@ -1379,14 +1468,26 @@ def build_concordance(
         )
         concordance.append(entry)
 
-    # Break conviction ties with composite quality score (CIO v5.2)
-    # This prevents 11 stocks at identical conviction=65
+    # Break conviction ties with composite quality score (CIO v5.2, v6.0 normalized)
+    # This prevents 11 stocks at identical conviction=65.
+    # CIO v6.0: Normalize each component to 0-100 before weighting so that no
+    # single factor dominates due to scale differences.
     for entry in concordance:
+        # Excess EXRET: clip to [-30, 30], normalize to 0-100
+        raw_exret = max(-30, min(30, entry.get("excess_exret", 0)))
+        norm_exret = (raw_exret + 30) / 60 * 100
+        # Fund score: already 0-100
+        norm_fund = min(100, max(0, entry.get("fund_score", 50)))
+        # Beta risk: lower beta = better. Clip to [0.3, 3.0], invert and normalize
+        raw_beta = max(0.3, min(3.0, entry.get("beta", 1.0)))
+        norm_beta = (3.0 - raw_beta) / 2.7 * 100
+        # Bull pct: already 0-100
+        norm_bull = min(100, max(0, entry.get("bull_pct", 50)))
         tiebreak = (
-            entry.get("excess_exret", 0) * 0.4
-            + entry.get("fund_score", 50) * 0.3
-            + (100 - entry.get("beta", 1.0) * 20) * 0.1
-            + entry.get("bull_pct", 50) * 0.2
+            norm_exret * 0.4
+            + norm_fund * 0.3
+            + norm_beta * 0.1
+            + norm_bull * 0.2
         )
         entry["tiebreak"] = round(tiebreak, 2)
 
@@ -1407,6 +1508,153 @@ def build_concordance(
     )
 
     return concordance
+
+
+def build_agent_memory(
+    prev_concordance: List[Dict[str, Any]],
+    current_signals: Dict[str, Dict],
+) -> Dict[str, str]:
+    """
+    Build per-agent feedback strings from previous concordance + current prices.
+
+    CIO v6.0 R1: Each agent sees how its own previous assessments performed,
+    creating a per-agent, per-stock feedback loop for calibration over time.
+
+    Args:
+        prev_concordance: List of concordance entries from the last committee run.
+        current_signals: Dict of ticker -> signal data (must include 'price').
+
+    Returns:
+        Dict mapping agent name to a formatted feedback string.
+    """
+    if not prev_concordance:
+        return {}
+
+    # Track per-agent assessments vs outcomes
+    agent_records: Dict[str, List[str]] = {
+        "fundamental": [],
+        "technical": [],
+        "macro": [],
+        "census": [],
+        "news": [],
+        "opportunity": [],
+        "risk": [],
+    }
+
+    for entry in prev_concordance:
+        ticker = entry.get("ticker", "")
+        if not ticker:
+            continue
+
+        prev_conv = entry.get("conviction", 50)
+        prev_action = entry.get("action", "HOLD")
+        prev_price = entry.get("price", 0)
+        fund_score = entry.get("fund_score", 0)
+        tech_signal = entry.get("tech_signal", "")
+        macro_fit = entry.get("macro_fit", "")
+        census_align = entry.get("census_alignment", "")
+        news_impact = entry.get("news_impact", "")
+        risk_warning = entry.get("risk_warning", False)
+
+        # Get current price for return calculation
+        curr_data = current_signals.get(ticker, {})
+        curr_price = curr_data.get("price", 0)
+        if not prev_price or not curr_price or prev_price <= 0:
+            continue
+
+        ret_pct = round((curr_price - prev_price) / prev_price * 100, 1)
+        direction = "up" if ret_pct > 0 else "down" if ret_pct < 0 else "flat"
+
+        # Fundamental feedback
+        if fund_score:
+            accuracy = ""
+            if fund_score >= 70 and ret_pct < -5:
+                accuracy = "TOO OPTIMISTIC"
+            elif fund_score < 45 and ret_pct > 5:
+                accuracy = "TOO PESSIMISTIC"
+            elif (fund_score >= 70 and ret_pct > 0) or (fund_score < 45 and ret_pct < 0):
+                accuracy = "CORRECT"
+            else:
+                accuracy = "NEUTRAL"
+            agent_records["fundamental"].append(
+                f"- {ticker}: score={fund_score:.0f}. Since then: {direction} {abs(ret_pct):.1f}%. [{accuracy}]"
+            )
+
+        # Technical feedback
+        if tech_signal:
+            accuracy = ""
+            if tech_signal == "ENTER_NOW" and ret_pct < -5:
+                accuracy = "WRONG"
+            elif tech_signal in ("AVOID", "EXIT_SOON") and ret_pct > 5:
+                accuracy = "WRONG"
+            elif tech_signal == "ENTER_NOW" and ret_pct > 0:
+                accuracy = "CORRECT"
+            elif tech_signal in ("AVOID", "EXIT_SOON") and ret_pct < 0:
+                accuracy = "CORRECT"
+            else:
+                accuracy = "NEUTRAL"
+            agent_records["technical"].append(
+                f"- {ticker}: signal={tech_signal}. Since then: {direction} {abs(ret_pct):.1f}%. [{accuracy}]"
+            )
+
+        # Macro feedback
+        if macro_fit and macro_fit != "NEUTRAL":
+            accuracy = ""
+            if macro_fit == "FAVORABLE" and ret_pct < -5:
+                accuracy = "WRONG"
+            elif macro_fit == "UNFAVORABLE" and ret_pct > 5:
+                accuracy = "WRONG"
+            elif macro_fit == "FAVORABLE" and ret_pct > 0:
+                accuracy = "CORRECT"
+            elif macro_fit == "UNFAVORABLE" and ret_pct < 0:
+                accuracy = "CORRECT"
+            else:
+                accuracy = "NEUTRAL"
+            agent_records["macro"].append(
+                f"- {ticker}: macro_fit={macro_fit}. Since then: {direction} {abs(ret_pct):.1f}%. [{accuracy}]"
+            )
+
+        # Census feedback
+        if census_align and census_align != "NEUTRAL":
+            agent_records["census"].append(
+                f"- {ticker}: alignment={census_align}. Since then: {direction} {abs(ret_pct):.1f}%."
+            )
+
+        # News feedback
+        if news_impact and news_impact not in ("NEUTRAL", "MIXED"):
+            agent_records["news"].append(
+                f"- {ticker}: impact={news_impact}. Since then: {direction} {abs(ret_pct):.1f}%."
+            )
+
+        # Risk feedback
+        if risk_warning:
+            accuracy = "VALIDATED" if ret_pct < 0 else "FALSE ALARM"
+            agent_records["risk"].append(
+                f"- {ticker}: WARNING issued. Since then: {direction} {abs(ret_pct):.1f}%. [{accuracy}]"
+            )
+
+        # Opportunity feedback (for BUY NEW recommendations)
+        if prev_action == "BUY NEW":
+            accuracy = "GOOD PICK" if ret_pct > 0 else "POOR PICK"
+            agent_records["opportunity"].append(
+                f"- {ticker}: recommended BUY NEW (conv={prev_conv}). Since then: {direction} {abs(ret_pct):.1f}%. [{accuracy}]"
+            )
+
+    # Format output strings, limit to top 10 most informative entries per agent
+    result: Dict[str, str] = {}
+    for agent, records in agent_records.items():
+        if not records:
+            continue
+        # Sort by absolute accuracy signal — put WRONG/TOO OPTIMISTIC first
+        priority_order = {"WRONG": 0, "TOO OPTIMISTIC": 1, "TOO PESSIMISTIC": 2,
+                          "FALSE ALARM": 3, "POOR PICK": 4, "CORRECT": 5,
+                          "VALIDATED": 6, "GOOD PICK": 7, "NEUTRAL": 8}
+        records.sort(key=lambda r: priority_order.get(
+            r.split("[")[-1].rstrip("]") if "[" in r else "NEUTRAL", 8
+        ))
+        result[agent] = "\n".join(records[:10])
+
+    return result
 
 
 def compute_changes(

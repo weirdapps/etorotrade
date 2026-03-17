@@ -77,29 +77,44 @@ class TestClusterAdjustment:
         assert result == 1.0
 
     def test_in_cluster_of_three(self):
-        """Ticker in cluster of 3 should have 1/sqrt(3) adjustment."""
+        """Ticker in cluster of 3 should have dampened 1/sqrt(3) adjustment.
+
+        CIO Legacy C4: with default conviction=50, conviction_factor=0.5,
+        adjustment = base + (1-base)*0.5*0.3 = dampened value > raw 1/sqrt(N).
+        """
+        import math
         clusters = [
             {"tickers": ["AAPL", "MSFT", "GOOGL"]},
         ]
         result = get_cluster_size_adjustment("AAPL", clusters)
-        expected = 1.0 / (3 ** 0.5)
+        base = 1.0 / math.sqrt(3)
+        conv_factor = min(50 / 100.0, 0.8)
+        expected = base + (1.0 - base) * conv_factor * 0.3
         assert result == pytest.approx(expected, abs=0.001)
 
     def test_in_cluster_of_four(self):
-        """Ticker in cluster of 4 should have 0.5 adjustment."""
+        """Ticker in cluster of 4 should have dampened adjustment."""
+        import math
         clusters = [
             {"tickers": ["JPM", "BAC", "WFC", "C"]},
         ]
         result = get_cluster_size_adjustment("JPM", clusters)
-        assert result == pytest.approx(0.5, abs=0.001)
+        base = 1.0 / math.sqrt(4)
+        conv_factor = min(50 / 100.0, 0.8)
+        expected = base + (1.0 - base) * conv_factor * 0.3
+        assert result == pytest.approx(expected, abs=0.001)
 
     def test_in_cluster_of_nine(self):
-        """Ticker in cluster of 9 should have 1/3 adjustment."""
+        """Ticker in cluster of 9 should have dampened adjustment."""
+        import math
         clusters = [
             {"tickers": ["A", "B", "C", "D", "E", "F", "G", "H", "I"]},
         ]
         result = get_cluster_size_adjustment("E", clusters)
-        assert result == pytest.approx(1.0 / 3, abs=0.001)
+        base = 1.0 / math.sqrt(9)
+        conv_factor = min(50 / 100.0, 0.8)
+        expected = base + (1.0 - base) * conv_factor * 0.3
+        assert result == pytest.approx(expected, abs=0.001)
 
     def test_empty_clusters(self):
         """Empty clusters list should return 1.0."""

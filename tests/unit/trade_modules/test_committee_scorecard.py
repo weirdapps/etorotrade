@@ -633,3 +633,158 @@ class TestConstants:
     def test_max_bonus_is_multiple_of_per_appearance(self):
         """Max bonus should be a clean multiple of per-appearance bonus."""
         assert MAX_CONSECUTIVE_BONUS % BONUS_PER_APPEARANCE == 0
+
+
+# ============================================================
+# CIO Legacy Review: D2 — Custom Kill Theses
+# ============================================================
+
+
+class TestCustomKillTheses:
+    """Tests for CIO Legacy D2: machine-checkable kill thesis conditions."""
+
+    def test_log_kill_thesis_with_conditions(self, tmp_path):
+        """log_kill_theses should store conditions field."""
+        from trade_modules.committee_scorecard import log_kill_theses
+        log_file = tmp_path / "kill_theses.json"
+        theses = [{
+            "ticker": "AAPL",
+            "kill_thesis": "Revenue growth stalls",
+            "conditions": [
+                {"metric": "EG", "operator": "lt", "threshold": 5.0},
+                {"metric": "UP%", "operator": "lt", "threshold": 0},
+            ],
+        }]
+        log_kill_theses("2026-03-17", theses, log_path=log_file)
+
+        data = json.loads(log_file.read_text())
+        assert len(data) == 1
+        assert len(data[0]["conditions"]) == 2
+        assert data[0]["conditions"][0]["metric"] == "EG"
+
+    def test_check_custom_condition_lt_triggers(self, tmp_path):
+        """Custom condition with operator 'lt' should trigger."""
+        from trade_modules.committee_scorecard import (
+            check_kill_theses,
+            log_kill_theses,
+        )
+        # Setup: log a thesis with condition EG < 5
+        log_file = tmp_path / "kill_theses.json"
+        theses = [{
+            "ticker": "AAPL",
+            "kill_thesis": "Growth collapse",
+            "conditions": [
+                {"metric": "EG", "operator": "lt", "threshold": 5.0},
+            ],
+        }]
+        log_kill_theses("2026-03-01", theses, log_path=log_file)
+
+        # Create mock portfolio CSV with EG=3 (below threshold)
+        portfolio_csv = tmp_path / "portfolio.csv"
+        portfolio_csv.write_text(
+            "TKR,NAME,CAP,PRC,TGT,UP%,#T,%%B,#A,AM,A,EXR,B,52W,2H,PET,PEF,"
+            "P/S,PEG,DV,SI,EG,PP,ROE,DE,FCF,ERN,SZ,BS\n"
+            "AAPL,Apple,MEGA,150,180,20,15,60,20,2.0,A,12,1.1,75,50,25,22,"
+            "8,2.5,0.6,1.5,3.0,80,120,1.5,5.0,2026-04,3.0,B\n"
+        )
+
+        result = check_kill_theses(
+            portfolio_signals_path=portfolio_csv,
+            log_path=log_file,
+        )
+        assert len(result["triggered_theses"]) == 1
+        triggers = result["triggered_theses"][0]["triggers"]
+        assert any("custom:EG lt" in t for t in triggers)
+
+    def test_check_custom_condition_gt_triggers(self, tmp_path):
+        """Custom condition with operator 'gt' should trigger."""
+        from trade_modules.committee_scorecard import (
+            check_kill_theses,
+            log_kill_theses,
+        )
+        log_file = tmp_path / "kill_theses.json"
+        theses = [{
+            "ticker": "AAPL",
+            "kill_thesis": "Beta too high",
+            "conditions": [
+                {"metric": "SI", "operator": "gt", "threshold": 10.0},
+            ],
+        }]
+        log_kill_theses("2026-03-01", theses, log_path=log_file)
+
+        portfolio_csv = tmp_path / "portfolio.csv"
+        portfolio_csv.write_text(
+            "TKR,NAME,CAP,PRC,TGT,UP%,#T,%%B,#A,AM,A,EXR,B,52W,2H,PET,PEF,"
+            "P/S,PEG,DV,SI,EG,PP,ROE,DE,FCF,ERN,SZ,BS\n"
+            "AAPL,Apple,MEGA,150,180,20,15,60,20,2.0,A,12,1.1,75,50,25,22,"
+            "8,2.5,0.6,15.0,8.0,80,120,1.5,5.0,2026-04,3.0,B\n"
+        )
+
+        result = check_kill_theses(
+            portfolio_signals_path=portfolio_csv,
+            log_path=log_file,
+        )
+        assert len(result["triggered_theses"]) == 1
+        triggers = result["triggered_theses"][0]["triggers"]
+        assert any("custom:SI gt" in t for t in triggers)
+
+    def test_custom_condition_not_triggered(self, tmp_path):
+        """Custom condition should NOT trigger if metric is within threshold."""
+        from trade_modules.committee_scorecard import (
+            check_kill_theses,
+            log_kill_theses,
+        )
+        log_file = tmp_path / "kill_theses.json"
+        theses = [{
+            "ticker": "AAPL",
+            "kill_thesis": "Revenue collapse",
+            "conditions": [
+                {"metric": "EG", "operator": "lt", "threshold": 5.0},
+            ],
+        }]
+        log_kill_theses("2026-03-01", theses, log_path=log_file)
+
+        portfolio_csv = tmp_path / "portfolio.csv"
+        portfolio_csv.write_text(
+            "TKR,NAME,CAP,PRC,TGT,UP%,#T,%%B,#A,AM,A,EXR,B,52W,2H,PET,PEF,"
+            "P/S,PEG,DV,SI,EG,PP,ROE,DE,FCF,ERN,SZ,BS\n"
+            "AAPL,Apple,MEGA,150,180,20,15,60,20,2.0,A,12,1.1,75,50,25,22,"
+            "8,2.5,0.6,1.5,10.0,80,120,1.5,5.0,2026-04,3.0,B\n"
+        )
+
+        result = check_kill_theses(
+            portfolio_signals_path=portfolio_csv,
+            log_path=log_file,
+        )
+        # EG=10.0 >= 5.0, so custom condition should NOT trigger
+        assert len(result["triggered_theses"]) == 0
+        assert len(result["active_theses"]) == 1
+
+    def test_no_conditions_field_backwards_compatible(self, tmp_path):
+        """Thesis without conditions field should still work."""
+        from trade_modules.committee_scorecard import (
+            check_kill_theses,
+            log_kill_theses,
+        )
+        log_file = tmp_path / "kill_theses.json"
+        theses = [{
+            "ticker": "AAPL",
+            "kill_thesis": "Revenue collapse",
+            # No conditions field
+        }]
+        log_kill_theses("2026-03-01", theses, log_path=log_file)
+
+        portfolio_csv = tmp_path / "portfolio.csv"
+        portfolio_csv.write_text(
+            "TKR,NAME,CAP,PRC,TGT,UP%,#T,%%B,#A,AM,A,EXR,B,52W,2H,PET,PEF,"
+            "P/S,PEG,DV,SI,EG,PP,ROE,DE,FCF,ERN,SZ,BS\n"
+            "AAPL,Apple,MEGA,150,180,20,15,60,20,2.0,A,12,1.1,75,50,25,22,"
+            "8,2.5,0.6,1.5,10.0,80,120,1.5,5.0,2026-04,3.0,B\n"
+        )
+
+        result = check_kill_theses(
+            portfolio_signals_path=portfolio_csv,
+            log_path=log_file,
+        )
+        # No conditions = no custom triggers, no heuristic triggers either
+        assert len(result["active_theses"]) == 1
