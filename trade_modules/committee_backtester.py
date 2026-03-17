@@ -239,10 +239,10 @@ class CommitteeBacktester:
             if not returns:
                 continue
 
-            # Hit rate: BUY/ADD should be positive, SELL/REDUCE should be negative
-            if action in ("BUY", "ADD", "BUY NEW"):
+            # Hit rate: BUY/ADD should be positive, SELL/TRIM should be negative
+            if action in ("BUY", "ADD"):
                 hits = sum(1 for r in returns if r > 0)
-            elif action in ("SELL", "REDUCE", "TRIM"):
+            elif action in ("SELL", "TRIM"):
                 hits = sum(1 for r in returns if r < 0)
             else:
                 hits = sum(1 for r in returns if abs(r) < 5)  # HOLD: stable

@@ -35,15 +35,15 @@ def sf(v, default=0):
         return default
 
 def action_color(act):
-    m = {"SELL":"#dc2626","IMMEDIATE SELL":"#dc2626","REDUCE":"#dc2626","TRIM":"#d97706","WEAK HOLD":"#d97706","BUY":"#059669","ADD":"#059669","BUY NEW":"#0d9488","HOLD":"#6366f1","STRONG HOLD":"#6366f1","WATCH":"#2563eb"}
+    m = {"SELL":"#dc2626","TRIM":"#d97706","BUY":"#059669","ADD":"#059669","HOLD":"#6366f1"}
     return m.get(act, "#64748b")
 
 def action_bg(act):
-    m = {"SELL":"#fef2f2","IMMEDIATE SELL":"#fef2f2","REDUCE":"#fef2f2","TRIM":"#fffbeb","WEAK HOLD":"#fffbeb","BUY":"#ecfdf5","ADD":"#ecfdf5","BUY NEW":"#ecfdf5","HOLD":"#ffffff","STRONG HOLD":"#f0fdf4","WATCH":"#eff6ff"}
+    m = {"SELL":"#fef2f2","TRIM":"#fffbeb","BUY":"#ecfdf5","ADD":"#ecfdf5","HOLD":"#ffffff"}
     return m.get(act, "#ffffff")
 
 def action_border(act):
-    m = {"SELL":"#fecaca","IMMEDIATE SELL":"#fecaca","REDUCE":"#fecaca","TRIM":"#fde68a","WEAK HOLD":"#fde68a","BUY":"#a7f3d0","ADD":"#a7f3d0","BUY NEW":"#a7f3d0","HOLD":"#e2e8f0","STRONG HOLD":"#bbf7d0","WATCH":"#bfdbfe"}
+    m = {"SELL":"#fecaca","TRIM":"#fde68a","BUY":"#a7f3d0","ADD":"#a7f3d0","HOLD":"#e2e8f0"}
     return m.get(act, "#e2e8f0")
 
 def sentiment_color(val):
@@ -152,7 +152,7 @@ def generate_report_html(
 
     # Enhanced lookups
     delta_map = {c.get("ticker"): c.get("delta", 0) for c in changes}
-    _actionable = {"SELL", "IMMEDIATE SELL", "REDUCE", "TRIM", "BUY", "ADD", "BUY NEW"}
+    _actionable = {"SELL", "TRIM", "BUY", "ADD"}
     actionable_tickers = [entry.get("ticker") for entry in concordance
                           if entry.get("action") in _actionable]
     signal_date = synth.get("signal_date", today)
@@ -163,11 +163,11 @@ def generate_report_html(
         if sec:
             sector_counts[sec] = sector_counts.get(sec, 0) + 1
 
-    action_order = {"IMMEDIATE SELL":0,"SELL":1,"REDUCE":2,"TRIM":3,"BUY NEW":4,"BUY":5,"ADD":6,"STRONG HOLD":7,"HOLD":8,"WEAK HOLD":9,"WATCH":10}
-    concordance.sort(key=lambda x: (action_order.get(x.get("action","HOLD"),9), -x.get("conviction",0)))
+    action_order = {"SELL":0,"TRIM":1,"BUY":2,"ADD":3,"HOLD":4}
+    concordance.sort(key=lambda x: (action_order.get(x.get("action","HOLD"),4), -x.get("conviction",0)))
 
-    sells = sum(1 for c in concordance if c.get("action") in ("SELL","IMMEDIATE SELL","REDUCE"))
-    buys = sum(1 for c in concordance if c.get("action") in ("BUY","ADD","BUY NEW"))
+    sells = sum(1 for c in concordance if c.get("action") == "SELL")
+    buys = sum(1 for c in concordance if c.get("action") in ("BUY","ADD"))
     trims = sum(1 for c in concordance if c.get("action") == "TRIM")
 
     if regime == "RISK_ON":
@@ -179,9 +179,9 @@ def generate_report_html(
 
     risk_color = "#dc2626" if risk_score >= 70 else "#d97706" if risk_score >= 40 else "#059669"
 
-    sell_tickers = [c["ticker"] for c in concordance if c.get("action") in ("SELL","REDUCE","IMMEDIATE SELL")]
+    sell_tickers = [c["ticker"] for c in concordance if c.get("action") == "SELL"]
     buy_tickers = [c["ticker"] for c in concordance if c.get("action") in ("BUY","ADD") and c.get("conviction",0)>=70][:3]
-    new_tickers = [c["ticker"] for c in concordance if c.get("action")=="BUY NEW"]
+    new_tickers = [c["ticker"] for c in concordance if c.get("action") == "BUY"]
 
     narrative = f"Market regime is {regime} (score {macro_score}) in {rotation.replace('_',' ').lower()} phase. "
     narrative += f"VIX at {indicators.get('vix',0):.1f}, 10Y yield {indicators.get('yield_10y',0):.2f}%. "
@@ -260,12 +260,12 @@ def generate_report_html(
     cg = None
     for entry in concordance:
         act = entry.get("action","HOLD")
-        if act in ("SELL","IMMEDIATE SELL","REDUCE","TRIM") and cg!="SELL":
-            cg="SELL"; h.append('<tr><td colspan="12" style="padding:4px 8px;background:#fef2f2;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#991b1b;border:1px solid #fecaca;">SELL / REDUCE / TRIM</td></tr>')
-        elif act in ("BUY","ADD","BUY NEW") and cg!="BUY":
-            cg="BUY"; h.append('<tr><td colspan="12" style="padding:4px 8px;background:#ecfdf5;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#065f46;border:1px solid #a7f3d0;">BUY / ADD / NEW</td></tr>')
-        elif act in ("HOLD","STRONG HOLD","WEAK HOLD","WATCH") and cg!="HOLD":
-            cg="HOLD"; h.append('<tr><td colspan="12" style="padding:4px 8px;background:#f1f5f9;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#475569;border:1px solid #cbd5e1;">HOLD / MONITOR</td></tr>')
+        if act in ("SELL","TRIM") and cg!="SELL":
+            cg="SELL"; h.append('<tr><td colspan="12" style="padding:4px 8px;background:#fef2f2;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#991b1b;border:1px solid #fecaca;">SELL / TRIM</td></tr>')
+        elif act in ("BUY","ADD") and cg!="BUY":
+            cg="BUY"; h.append('<tr><td colspan="12" style="padding:4px 8px;background:#ecfdf5;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#065f46;border:1px solid #a7f3d0;">BUY / ADD</td></tr>')
+        elif act == "HOLD" and cg!="HOLD":
+            cg="HOLD"; h.append('<tr><td colspan="12" style="padding:4px 8px;background:#f1f5f9;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#475569;border:1px solid #cbd5e1;">HOLD</td></tr>')
         tkr=entry.get("ticker",""); sig=entry.get("signal","?"); fs=entry.get("fund_score",0); fv=entry.get("fund_view","?"); ts=entry.get("tech_signal","?"); rsi=entry.get("rsi",0); mf=entry.get("macro_fit","?"); ce=entry.get("census","?"); ni=entry.get("news_impact","?"); rw="WARN" if entry.get("risk_warning") else "OK"; conv=entry.get("conviction",0); sm="*" if entry.get("fund_synthetic") else ""; rb=action_bg(act)
         ex = entry.get("exret", 0); mp = entry.get("max_pct", 0)
         delta = delta_map.get(tkr)
@@ -422,7 +422,7 @@ def generate_report_html(
         h.append('<table style="width:100%;border-collapse:collapse;font-size:12px;"><tr style="border-bottom:2px solid #1e293b;"><th style="padding:10px 6px;text-align:center;background:#0f172a;color:#fff;font-size:10px;font-weight:700;width:25px;">#</th><th style="padding:10px 6px;text-align:center;background:#0f172a;color:#fff;font-size:10px;font-weight:700;width:70px;">ACTION</th><th style="padding:10px 6px;text-align:left;background:#0f172a;color:#fff;font-size:10px;font-weight:700;width:65px;">STOCK</th><th style="padding:10px 6px;text-align:left;background:#0f172a;color:#fff;font-size:10px;font-weight:700;">DETAIL</th><th style="padding:10px 6px;text-align:center;background:#0f172a;color:#fff;font-size:10px;font-weight:700;width:35px;">CONV</th><th style="padding:10px 6px;text-align:center;background:#0f172a;color:#fff;font-size:10px;font-weight:700;width:50px;">SIZE</th></tr>')
         for i,entry in enumerate(immediate):
             act=entry.get("action","HOLD"); tkr=entry.get("ticker",""); conv=entry.get("conviction",0); sig=entry.get("signal","?"); ex=entry.get("exret",0); sec=entry.get("sector",""); mp=entry.get("max_pct",5.0); rsi=entry.get("rsi",0)
-            if act in ("SELL","REDUCE","IMMEDIATE SELL"): sz="Exit"; dt=f"Sig:{sig} EXRET:{ex:.1f}% RSI:{rsi:.0f}"
+            if act == "SELL": sz="Exit"; dt=f"Sig:{sig} EXRET:{ex:.1f}% RSI:{rsi:.0f}"
             elif act=="TRIM": sz="Reduce"; dt=f"Sig:{sig} RSI:{rsi:.0f} {sec}"
             else: sz=f"Max {mp:.1f}%"; dt=f"Sig:{sig} EXRET:{ex:.1f}% {sec}"
             ac,ab,abrd = action_color(act),action_bg(act),action_border(act)

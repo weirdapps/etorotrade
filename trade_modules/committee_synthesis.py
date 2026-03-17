@@ -667,24 +667,27 @@ def determine_action(
     tech_signal: str,
     risk_warning: bool,
 ) -> str:
-    """Determine action from conviction and signal with signal-aware thresholds."""
+    """Determine action from conviction and signal with signal-aware thresholds.
+
+    Returns one of exactly 5 actions: BUY, ADD, HOLD, TRIM, SELL.
+    - BUY is only assigned later for new opportunities (not in portfolio).
+    - ADD = increase existing position (high-conviction BUY-signal stocks).
+    - SELL = close position (high-conviction SELL-signal stocks).
+    - TRIM = reduce position (lower-conviction SELL-signal or weak HOLD).
+    """
     if signal == "S":
         if conviction >= 60:
             return "SELL"
-        return "REDUCE"
+        return "TRIM"
     elif signal == "B":
-        if conviction >= 75:
-            return "BUY"
-        elif conviction >= 55:
+        if conviction >= 55:
             return "ADD"
         return "HOLD"
     else:  # HOLD signal
         if conviction >= 70:
             return "ADD"
-        elif conviction >= 50:
-            return "HOLD"
         elif conviction >= 35:
-            return "WEAK HOLD"
+            return "HOLD"
         return "TRIM"
 
 
@@ -885,15 +888,15 @@ def synthesize_stock(
     # Step 6: Determine action
     action = determine_action(conviction, signal, tech_signal, risk_warning)
 
-    # Risk manager override: downgrade to WEAK HOLD when tech is bearish + risk warns
+    # Risk manager override: downgrade to HOLD when tech is bearish + risk warns
     if signal == "H" and tech_signal in ("AVOID", "EXIT_SOON") and risk_warning:
-        if action not in ("SELL", "REDUCE", "TRIM"):
-            action = "WEAK HOLD"
+        if action not in ("SELL", "TRIM"):
+            action = "HOLD"
 
-    # Trim escalation: HOLD-signal stocks that are severely overbought or have
-    # bearish tech + risk warnings should be TRIM, not stuck at WEAK HOLD.
+    # Trim escalation: HOLD-signal stocks that are overbought or have
+    # bearish tech + risk warnings should be TRIM, not stuck at HOLD.
     # This ensures stocks like PANW (RSI=93) get proper trim treatment.
-    if action == "WEAK HOLD" and signal == "H":
+    if action == "HOLD" and signal == "H":
         if rsi > 80 and tech_signal in ("AVOID", "EXIT_SOON"):
             action = "TRIM"
         elif risk_warning and tech_signal == "AVOID":
@@ -953,10 +956,9 @@ def synthesize_stock(
     }
 
 
-# Action priority for sorting
+# Action priority for sorting (5 canonical actions only)
 ACTION_ORDER = {
-    "SELL": 0, "REDUCE": 1, "TRIM": 2, "WEAK HOLD": 3,
-    "BUY NEW": 4, "BUY": 5, "ADD": 6, "HOLD": 7, "STRONG HOLD": 8,
+    "SELL": 0, "TRIM": 1, "BUY": 2, "ADD": 3, "HOLD": 4,
 }
 
 
@@ -1267,15 +1269,15 @@ def apply_opportunity_gate(
     entry["conviction"] = max(entry["conviction"], 0)
 
     # Determine action for new opportunities using conviction threshold.
-    # Opportunities use conviction-based action mapping (per spec: conv > 55 = BUY NEW)
+    # Opportunities use conviction-based action mapping (per spec: conv > 55 = BUY)
     # instead of signal-dependent thresholds, because the signal character (B/H/S)
     # already influenced the base conviction. A HOLD-signal stock at conv=60 means
     # the committee found enough merit despite the signal system's caution.
     if entry["conviction"] >= 55:
-        entry["action"] = "BUY NEW"
+        entry["action"] = "BUY"
     else:
-        # Below BUY NEW threshold: HOLD (watch candidate).
-        # Opportunities never get SELL/REDUCE/TRIM — can't reduce
+        # Below BUY threshold: HOLD (watch candidate).
+        # Opportunities never get SELL/TRIM — can't reduce
         # a position you don't hold. Low conviction simply means
         # "not compelling enough to buy."
         entry["action"] = "HOLD"
@@ -1633,11 +1635,11 @@ def build_agent_memory(
                 f"- {ticker}: WARNING issued. Since then: {direction} {abs(ret_pct):.1f}%. [{accuracy}]"
             )
 
-        # Opportunity feedback (for BUY NEW recommendations)
-        if prev_action == "BUY NEW":
+        # Opportunity feedback (for BUY recommendations on new stocks)
+        if prev_action == "BUY":
             accuracy = "GOOD PICK" if ret_pct > 0 else "POOR PICK"
             agent_records["opportunity"].append(
-                f"- {ticker}: recommended BUY NEW (conv={prev_conv}). Since then: {direction} {abs(ret_pct):.1f}%. [{accuracy}]"
+                f"- {ticker}: recommended BUY (conv={prev_conv}). Since then: {direction} {abs(ret_pct):.1f}%. [{accuracy}]"
             )
 
     # Format output strings, limit to top 10 most informative entries per agent

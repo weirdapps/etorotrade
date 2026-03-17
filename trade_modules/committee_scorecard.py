@@ -69,7 +69,7 @@ def log_committee_actions(
             "committee_date": date,
             "timestamp": datetime.now().isoformat(),
             "ticker": action.get("ticker"),
-            "action": action.get("action"),  # BUY, SELL, HOLD, REDUCE, ADD
+            "action": action.get("action"),  # BUY, ADD, HOLD, TRIM, SELL
             "conviction": action.get("conviction"),
             "size": action.get("size"),
             "agents_agreeing": action.get("agents_agreeing"),
@@ -189,7 +189,7 @@ def generate_committee_scorecard(
 
             if action_type in ("BUY", "ADD"):
                 buy_results.append(result)
-            elif action_type in ("SELL", "REDUCE"):
+            elif action_type in ("SELL", "TRIM"):
                 sell_results.append(result)
 
         except Exception as e:
