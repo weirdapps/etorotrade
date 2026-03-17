@@ -160,15 +160,12 @@ class TestGenerateReportHtml:
         fund, tech, macro, census, news, opps, risk = _minimal_reports()
         html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
         assert "Executive Summary" in html
-        assert "Macro Environment" in html
+        assert "Macro" in html  # v9.0: "Macro & Market Context"
         assert "Stock Analysis Grid" in html
         assert "Where We Disagreed" in html
-        assert "Fundamental Deep Dive" in html
-        assert "Technical Analysis" in html
         assert "Census" in html
         assert "News" in html
         assert "Risk Dashboard" in html
-        assert "New Opportunities" in html
         assert "Action Items" in html
 
     def test_tickers_appear_in_output(self):
@@ -215,7 +212,7 @@ class TestGenerateReportHtml:
         synth = _minimal_synth()
         fund, tech, macro, census, news, opps, risk = _minimal_reports()
         html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
-        assert "v8.0" in html
+        assert "v9.0" in html
 
     def test_disclaimer_present(self):
         synth = _minimal_synth()
@@ -227,26 +224,26 @@ class TestGenerateReportHtml:
         synth = _minimal_synth()
         fund, tech, macro, census, news, opps, risk = _minimal_reports()
         html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
-        assert "Immediate Actions" in html
+        assert "Action Items" in html  # v9.0: tiered action format
 
     def test_exret_in_grid(self):
         synth = _minimal_synth()
         fund, tech, macro, census, news, opps, risk = _minimal_reports()
         html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
-        assert "EXRET" in html
-        assert "12.5%" in html
+        assert "EXR" in html  # v9.0: shortened column header
+        assert "12%" in html  # v9.0: integer format
 
     def test_size_in_grid(self):
         synth = _minimal_synth()
         fund, tech, macro, census, news, opps, risk = _minimal_reports()
         html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
-        assert "SIZE" in html
+        assert "SZ" in html  # v9.0: shortened to SZ in action items
 
     def test_sector_exposure_shown(self):
         synth = _minimal_synth()
         fund, tech, macro, census, news, opps, risk = _minimal_reports()
         html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
-        assert "Sector Exposure" in html
+        assert "Risk Dashboard" in html  # v9.0: sector exposure inside Risk Dashboard
         assert "Technology" in html
 
     def test_designed_abbreviations_in_grid(self):
@@ -277,10 +274,9 @@ class TestGenerateReportHtml:
         html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
         assert "&#9650;" in html  # up arrow for AAPL
 
-    def test_fundamental_only_actionable(self):
-        """Fundamental deep dive should only show stocks with pending actions."""
+    def test_hold_stocks_in_monitor_section(self):
+        """v9.0: HOLD stocks appear in compact grid, not in removed deep dive section."""
         synth = _minimal_synth()
-        # Add a HOLD stock with fund data — it should NOT appear in deep dive
         synth["concordance"].append({
             "ticker": "MSFT", "signal": "H", "action": "HOLD",
             "conviction": 60, "fund_score": 90, "fund_view": "BUY",
@@ -292,8 +288,7 @@ class TestGenerateReportHtml:
             "is_opportunity": False, "fund_synthetic": False,
         })
         fund, tech, macro, census, news, opps, risk = _minimal_reports()
-        fund["stocks"]["MSFT"] = {"fundamental_score": 90, "pe_trajectory": "IMPROVING",
-                                   "exret": 8.0, "insider_sentiment": "NEUTRAL", "notes": "Great"}
         html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
-        # AAPL (ADD) should be in deep dive, but not MSFT subtitle
-        assert "pending actions" in html
+        # MSFT (HOLD) should appear in compact HOLD/MONITOR section
+        assert "HOLD / MONITOR" in html
+        assert "MSFT" in html
