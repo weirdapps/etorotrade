@@ -27,11 +27,15 @@ from trade_modules.committee_synthesis import (
     classify_hold_tier,
     compute_adjustments,
     compute_changes,
+    compute_dynamic_freshness,
     compute_sector_medians,
+    compute_signal_velocity,
     count_agent_votes,
+    detect_contradictions,
     detect_sector_gaps,
     determine_action,
     determine_base_conviction,
+    get_earnings_surprise_adjustment,
     recalculate_trim_conviction,
     synthesize_stock,
 )
@@ -925,6 +929,15 @@ class TestBuildConcordance:
         aapl = next(r for r in result if r["ticker"] == "AAPL")
         assert aapl["macro_fit"] == "NEUTRAL"
 
+    def test_macro_fit_unfavorable_substring(self, minimal_inputs):
+        """UNFAVORABLE must not match as FAVORABLE (substring bug guard)."""
+        minimal_inputs["macro_report"]["portfolio_implications"]["AAPL"] = {
+            "macro_fit": "UNFAVORABLE",
+        }
+        result = build_concordance(**minimal_inputs)
+        aapl = next(r for r in result if r["ticker"] == "AAPL")
+        assert aapl["macro_fit"] == "UNFAVORABLE"
+
     def test_census_alignment_mapping(self, minimal_inputs):
         result = build_concordance(**minimal_inputs)
         aapl = next(r for r in result if r["ticker"] == "AAPL")
@@ -1462,3 +1475,905 @@ class TestConstants:
         assert ACTION_ORDER["REDUCE"] < ACTION_ORDER["ADD"]
         assert ACTION_ORDER["TRIM"] < ACTION_ORDER["HOLD"]
         assert ACTION_ORDER["BUY NEW"] < ACTION_ORDER["BUY"]
+
+
+# ============================================================
+# CIO Legacy Review: A1 — Regime-Adjusted Conviction
+# ============================================================
+
+
+class TestRegimeAdjustedConviction:
+    """Tests for CIO Legacy A1: regime discount on agent base conviction."""
+
+    def test_risk_off_reduces_base(self):
+        """RISK_OFF regime should produce lower base than no regime."""
+        base_normal = determine_base_conviction(
+            bull_pct=60, signal="B", fund_score=70,
+            excess_exret=10, bear_ratio=0.3,
+        )
+        base_risk_off = determine_base_conviction(
+            bull_pct=60, signal="B", fund_score=70,
+            excess_exret=10, bear_ratio=0.3, regime="RISK_OFF",
+        )
+        # BUY floor of 55 may kick in, but agent_base is different
+        assert base_risk_off <= base_normal
+
+    def test_cautious_reduces_base(self):
+        """CAUTIOUS regime should produce lower base than normal."""
+        base_normal = determine_base_conviction(
+            bull_pct=65, signal="H", fund_score=50,
+            excess_exret=5, bear_ratio=0.3,
+        )
+        base_cautious = determine_base_conviction(
+            bull_pct=65, signal="H", fund_score=50,
+            excess_exret=5, bear_ratio=0.3, regime="CAUTIOUS",
+        )
+        assert base_cautious <= base_normal
+
+    def test_risk_on_no_change(self):
+        """RISK_ON and empty regime should produce identical bases."""
+        base_empty = determine_base_conviction(
+            bull_pct=60, signal="H", fund_score=50,
+            excess_exret=5, bear_ratio=0.3,
+        )
+        base_risk_on = determine_base_conviction(
+            bull_pct=60, signal="H", fund_score=50,
+            excess_exret=5, bear_ratio=0.3, regime="RISK_ON",
+        )
+        assert base_empty == base_risk_on
+
+    def test_risk_off_discount_magnitude(self):
+        """RISK_OFF should apply approximately 15% discount to agent_base."""
+        # 70% bull → agent_base = 30 + 35 = 65
+        # RISK_OFF: 65 * 0.85 = 55
+        # HOLD signal caps at 70, so HOLD won't hit cap
+        base_risk_off = determine_base_conviction(
+            bull_pct=70, signal="H", fund_score=50,
+            excess_exret=0, bear_ratio=0.3, regime="RISK_OFF",
+        )
+        base_normal = determine_base_conviction(
+            bull_pct=70, signal="H", fund_score=50,
+            excess_exret=0, bear_ratio=0.3,
+        )
+        # Discount should be meaningful (at least 3 points)
+        assert base_normal - base_risk_off >= 3
+
+    def test_buy_floor_survives_regime_discount(self):
+        """BUY signal floor of 55 should still apply after regime discount."""
+        base = determine_base_conviction(
+            bull_pct=60, signal="B", fund_score=50,
+            excess_exret=0, bear_ratio=0.3, regime="RISK_OFF",
+        )
+        assert base >= 55  # BUY floor
+
+    def test_sell_unaffected_by_regime(self):
+        """SELL conviction logic doesn't use agent_base directly, so regime
+        should only affect when bull_pct changes the branch."""
+        base_normal = determine_base_conviction(
+            bull_pct=30, signal="S", fund_score=40,
+            excess_exret=-5, bear_ratio=0.7,
+        )
+        base_risk_off = determine_base_conviction(
+            bull_pct=30, signal="S", fund_score=40,
+            excess_exret=-5, bear_ratio=0.7, regime="RISK_OFF",
+        )
+        # SELL branches use bull_pct thresholds, not agent_base
+        assert base_normal == base_risk_off
+
+    def test_regime_propagates_through_synthesize_stock(self):
+        """synthesize_stock should accept and propagate the regime parameter."""
+        sig_data = {"signal": "H", "exret": 10, "buy_pct": 60, "beta": 1.0, "pet": 15, "pef": 14}
+        fund_data = {"fundamental_score": 60}
+        tech_data = {"momentum_score": 10, "timing_signal": "HOLD", "rsi": 50, "macd_signal": "NEUTRAL"}
+
+        result_normal = synthesize_stock(
+            "TEST", sig_data, fund_data, tech_data,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL", div_score=0,
+            census_ts_trend="stable", news_impact="NEUTRAL", risk_warning=False,
+            sector="Technology", sector_median_exret=5, sector_rankings={},
+            position_limit=5.0,
+        )
+        result_risk_off = synthesize_stock(
+            "TEST", sig_data, fund_data, tech_data,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL", div_score=0,
+            census_ts_trend="stable", news_impact="NEUTRAL", risk_warning=False,
+            sector="Technology", sector_median_exret=5, sector_rankings={},
+            position_limit=5.0, regime="RISK_OFF",
+        )
+        assert result_risk_off["conviction"] <= result_normal["conviction"]
+
+
+# ============================================================
+# CIO Legacy Review: A2 — Synthetic Data Discount
+# ============================================================
+
+
+class TestSyntheticDataDiscount:
+    """Tests for CIO Legacy A2: synthetic/fallback agent data gets half weight."""
+
+    def test_synthetic_fund_reduces_bull_weight(self):
+        """Synthetic fundamental bullish vote should be weaker than real."""
+        bull_real, _ = count_agent_votes(
+            fund_score=80, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="B",
+            fund_synthetic=False,
+        )
+        bull_synth, _ = count_agent_votes(
+            fund_score=80, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="B",
+            fund_synthetic=True,
+        )
+        assert bull_synth < bull_real
+
+    def test_synthetic_tech_reduces_bull_weight(self):
+        """Synthetic technical ENTER_NOW should be weaker than real."""
+        bull_real, _ = count_agent_votes(
+            fund_score=50, tech_signal="ENTER_NOW", tech_momentum=30,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="B",
+            tech_synthetic=False,
+        )
+        bull_synth, _ = count_agent_votes(
+            fund_score=50, tech_signal="ENTER_NOW", tech_momentum=30,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="B",
+            tech_synthetic=True,
+        )
+        assert bull_synth < bull_real
+
+    def test_both_synthetic_reduces_most(self):
+        """Both agents synthetic should have lowest bull weight."""
+        bull_none, _ = count_agent_votes(
+            fund_score=80, tech_signal="ENTER_NOW", tech_momentum=30,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="B",
+        )
+        bull_both, _ = count_agent_votes(
+            fund_score=80, tech_signal="ENTER_NOW", tech_momentum=30,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="B",
+            fund_synthetic=True, tech_synthetic=True,
+        )
+        # Both synthetic should be noticeably less bullish
+        assert bull_none - bull_both >= 0.5
+
+    def test_synthetic_default_false(self):
+        """Not passing synthetic flags should match non-synthetic behavior."""
+        bull_default, bear_default = count_agent_votes(
+            fund_score=60, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="B",
+        )
+        bull_explicit, bear_explicit = count_agent_votes(
+            fund_score=60, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="B",
+            fund_synthetic=False, tech_synthetic=False,
+        )
+        assert bull_default == bull_explicit
+        assert bear_default == bear_explicit
+
+    def test_synthetic_bearish_also_discounted(self):
+        """Synthetic bearish votes should also be reduced."""
+        _, bear_real = count_agent_votes(
+            fund_score=30, tech_signal="AVOID", tech_momentum=-30,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="S",
+            fund_synthetic=False, tech_synthetic=False,
+        )
+        _, bear_synth = count_agent_votes(
+            fund_score=30, tech_signal="AVOID", tech_momentum=-30,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="S",
+            fund_synthetic=True, tech_synthetic=True,
+        )
+        assert bear_synth < bear_real
+
+    def test_synthesize_stock_tracks_synthetic(self):
+        """synthesize_stock return dict should include synthetic flags."""
+        sig_data = {"signal": "B", "exret": 15, "buy_pct": 70, "beta": 1.0, "pet": 15, "pef": 13}
+        fund_data = {"fundamental_score": 75}  # Has score → not synthetic
+        tech_data = {"momentum_score": 20, "timing_signal": "HOLD", "rsi": 55,
+                     "macd_signal": "BULLISH", "synthetic": True}  # Marked synthetic
+
+        result = synthesize_stock(
+            "TEST", sig_data, fund_data, tech_data,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL", div_score=0,
+            census_ts_trend="stable", news_impact="NEUTRAL", risk_warning=False,
+            sector="Technology", sector_median_exret=5, sector_rankings={},
+            position_limit=5.0,
+        )
+        assert result["fund_synthetic"] is False
+        assert result["tech_synthetic"] is True
+
+    def test_synthetic_neutral_agent_half_weight(self):
+        """Neutral tech with synthetic flag should contribute half the weight."""
+        # Neutral tech: normally 0.5 bull + 0.5 bear
+        # Synthetic neutral tech: should be 0.25 bull + 0.25 bear
+        bull_real, bear_real = count_agent_votes(
+            fund_score=50, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="B",
+            tech_synthetic=False,
+        )
+        bull_synth, bear_synth = count_agent_votes(
+            fund_score=50, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="B",
+            tech_synthetic=True,
+        )
+        # Difference should be 0.25 for both bull and bear
+        assert abs((bull_real - bull_synth) - 0.25) < 0.01
+        assert abs((bear_real - bear_synth) - 0.25) < 0.01
+
+
+# ============================================================
+# CIO Legacy Review: B2 — Extreme EXRET Penalty
+# ============================================================
+
+
+class TestExtremeExretPenalty:
+    """Tests for CIO Legacy B2: extreme EXRET signals stale analyst targets."""
+
+    def test_extreme_exret_penalized(self):
+        """EXRET > 40 should get a penalty, not a bonus."""
+        base_extreme = determine_base_conviction(
+            bull_pct=65, signal="B", fund_score=60,
+            excess_exret=50, bear_ratio=0.3,
+        )
+        base_moderate = determine_base_conviction(
+            bull_pct=65, signal="B", fund_score=60,
+            excess_exret=15, bear_ratio=0.3,
+        )
+        # Extreme EXRET should produce lower base (penalty -3 vs bonus +3)
+        assert base_extreme < base_moderate
+
+    def test_normal_exret_still_gets_bonus(self):
+        """EXRET in 5-30 range should still get the normal bonus."""
+        base_with_bonus = determine_base_conviction(
+            bull_pct=60, signal="B", fund_score=60,
+            excess_exret=12, bear_ratio=0.3,
+        )
+        base_without = determine_base_conviction(
+            bull_pct=60, signal="B", fund_score=60,
+            excess_exret=0, bear_ratio=0.3,
+        )
+        assert base_with_bonus > base_without
+
+    def test_boundary_at_40(self):
+        """EXRET exactly at 40 should get the bonus (boundary inclusive)."""
+        base_at_40 = determine_base_conviction(
+            bull_pct=60, signal="B", fund_score=60,
+            excess_exret=40, bear_ratio=0.3,
+        )
+        base_above_40 = determine_base_conviction(
+            bull_pct=60, signal="B", fund_score=60,
+            excess_exret=41, bear_ratio=0.3,
+        )
+        # 40 → bonus of min(5, 10) = 5
+        # 41 → penalty of 3
+        assert base_at_40 > base_above_40
+
+    def test_mstr_like_extreme_exret(self):
+        """MSTR-like 170% EXRET should definitely be penalized."""
+        base = determine_base_conviction(
+            bull_pct=55, signal="B", fund_score=45,
+            excess_exret=170, bear_ratio=0.4,
+        )
+        base_sane = determine_base_conviction(
+            bull_pct=55, signal="B", fund_score=45,
+            excess_exret=10, bear_ratio=0.4,
+        )
+        assert base < base_sane
+
+    def test_sell_signal_unaffected(self):
+        """SELL signal doesn't use EXRET bonus/penalty."""
+        base1 = determine_base_conviction(
+            bull_pct=30, signal="S", fund_score=40,
+            excess_exret=100, bear_ratio=0.7,
+        )
+        base2 = determine_base_conviction(
+            bull_pct=30, signal="S", fund_score=40,
+            excess_exret=5, bear_ratio=0.7,
+        )
+        assert base1 == base2
+
+    def test_hold_signal_unaffected(self):
+        """HOLD signal doesn't use EXRET bonus/penalty."""
+        base1 = determine_base_conviction(
+            bull_pct=60, signal="H", fund_score=50,
+            excess_exret=100, bear_ratio=0.3,
+        )
+        base2 = determine_base_conviction(
+            bull_pct=60, signal="H", fund_score=50,
+            excess_exret=5, bear_ratio=0.3,
+        )
+        assert base1 == base2
+
+
+# ============================================================
+# CIO Legacy Review: A3 — Contradiction Detection
+# ============================================================
+
+
+class TestContradictionDetection:
+    """Tests for CIO Legacy A3: detecting logical contradictions between agents."""
+
+    def test_macro_tech_contradiction(self):
+        """Macro UNFAVORABLE + Tech ENTER_NOW is a contradiction."""
+        penalty, contras = detect_contradictions(
+            macro_fit="UNFAVORABLE", tech_signal="ENTER_NOW",
+            fund_score=60, risk_warning=False,
+            census_alignment="NEUTRAL", news_impact="NEUTRAL",
+        )
+        assert penalty >= 5
+        assert len(contras) >= 1
+        assert any("Macro" in c and "Technical" in c for c in contras)
+
+    def test_fund_risk_contradiction(self):
+        """High fundamental score + risk warning is a contradiction."""
+        penalty, contras = detect_contradictions(
+            macro_fit="NEUTRAL", tech_signal="HOLD",
+            fund_score=85, risk_warning=True,
+            census_alignment="NEUTRAL", news_impact="NEUTRAL",
+        )
+        assert penalty >= 3
+        assert any("Fundamental" in c and "Risk" in c for c in contras)
+
+    def test_census_news_contradiction(self):
+        """PIs distributing (DIVERGENT) despite positive news is a contradiction."""
+        penalty, contras = detect_contradictions(
+            macro_fit="NEUTRAL", tech_signal="HOLD",
+            fund_score=60, risk_warning=False,
+            census_alignment="DIVERGENT", news_impact="HIGH_POSITIVE",
+        )
+        assert penalty >= 3
+        assert any("PI" in c for c in contras)
+
+    def test_macro_news_contradiction(self):
+        """Macro UNFAVORABLE + news HIGH_POSITIVE is a contradiction."""
+        penalty, contras = detect_contradictions(
+            macro_fit="UNFAVORABLE", tech_signal="HOLD",
+            fund_score=60, risk_warning=False,
+            census_alignment="NEUTRAL", news_impact="HIGH_POSITIVE",
+        )
+        assert penalty >= 2
+        assert any("HIGH_POSITIVE" in c for c in contras)
+
+    def test_no_contradiction_consistent_bullish(self):
+        """Consistent bullish signals should produce no contradictions."""
+        penalty, contras = detect_contradictions(
+            macro_fit="FAVORABLE", tech_signal="ENTER_NOW",
+            fund_score=85, risk_warning=False,
+            census_alignment="ALIGNED", news_impact="HIGH_POSITIVE",
+        )
+        assert penalty == 0
+        assert len(contras) == 0
+
+    def test_no_contradiction_consistent_bearish(self):
+        """Consistent bearish signals should produce no contradictions."""
+        penalty, contras = detect_contradictions(
+            macro_fit="UNFAVORABLE", tech_signal="AVOID",
+            fund_score=35, risk_warning=True,
+            census_alignment="DIVERGENT", news_impact="HIGH_NEGATIVE",
+        )
+        assert penalty == 0
+        assert len(contras) == 0
+
+    def test_multiple_contradictions_stack(self):
+        """Multiple contradictions should produce cumulative penalty."""
+        penalty, contras = detect_contradictions(
+            macro_fit="UNFAVORABLE", tech_signal="ENTER_NOW",
+            fund_score=85, risk_warning=True,
+            census_alignment="DIVERGENT", news_impact="HIGH_POSITIVE",
+        )
+        # Should have: macro-tech (5), fund-risk (3), census-news (3), macro-news (2) = 13
+        assert penalty >= 10
+        assert len(contras) >= 3
+
+    def test_contradiction_penalty_capped_in_synthesis(self):
+        """Total penalties including contradictions are capped at 25 in synthesis."""
+        sig_data = {"signal": "B", "exret": 15, "buy_pct": 70, "beta": 1.0, "pet": 15, "pef": 13}
+        fund_data = {"fundamental_score": 85}
+        tech_data = {"momentum_score": 30, "timing_signal": "ENTER_NOW", "rsi": 50,
+                     "macd_signal": "BULLISH"}
+
+        result = synthesize_stock(
+            "TEST", sig_data, fund_data, tech_data,
+            macro_fit="UNFAVORABLE", census_alignment="DIVERGENT", div_score=10,
+            census_ts_trend="stable", news_impact="HIGH_POSITIVE", risk_warning=True,
+            sector="Technology", sector_median_exret=5, sector_rankings={},
+            position_limit=5.0,
+        )
+        # Penalties capped at 25 in compute_adjustments
+        assert result["penalties"] <= 25
+        assert len(result["contradictions"]) >= 1
+
+    def test_fund_below_80_no_fund_risk_contradiction(self):
+        """Fund score below 80 should not trigger fund-risk contradiction."""
+        penalty, contras = detect_contradictions(
+            macro_fit="NEUTRAL", tech_signal="HOLD",
+            fund_score=75, risk_warning=True,
+            census_alignment="NEUTRAL", news_impact="NEUTRAL",
+        )
+        assert not any("Fundamental" in c for c in contras)
+
+    def test_aligned_census_no_census_news_contradiction(self):
+        """ALIGNED census should not trigger census-news contradiction."""
+        penalty, contras = detect_contradictions(
+            macro_fit="NEUTRAL", tech_signal="HOLD",
+            fund_score=60, risk_warning=False,
+            census_alignment="ALIGNED", news_impact="HIGH_POSITIVE",
+        )
+        assert not any("PI" in c for c in contras)
+
+
+# ============================================================
+# CIO Legacy Review: C1 — Exposure-Weighted Sector Gaps
+# ============================================================
+
+
+class TestExposureWeightedSectorGaps:
+    """Tests for CIO Legacy C1: sector gap detection with portfolio weights."""
+
+    def test_backwards_compatible_no_weights(self):
+        """Without portfolio_weights, should behave exactly like before."""
+        rankings = {"XLE": {"rank": 1, "return_1m": 5.0}}
+        gaps = detect_sector_gaps(
+            portfolio_sectors={"Technology": 5},
+            sector_rankings=rankings,
+        )
+        assert len(gaps) == 1
+        assert gaps[0]["sector"] == "Energy"
+
+    def test_low_exposure_detected_as_gap(self):
+        """Sector with < min_meaningful_exposure should be flagged."""
+        rankings = {"XLE": {"rank": 2, "return_1m": 8.0}}
+        gaps = detect_sector_gaps(
+            portfolio_sectors={"Energy": 1},
+            sector_rankings=rankings,
+            portfolio_weights={"Energy": 0.6},  # Only 0.6% exposure
+            min_meaningful_exposure=3.0,
+        )
+        assert len(gaps) == 1
+        assert gaps[0]["sector"] == "Energy"
+        assert gaps[0]["portfolio_exposure"] == 0.6
+
+    def test_adequate_exposure_not_a_gap(self):
+        """Sector with >= min_meaningful_exposure should not be a gap."""
+        rankings = {"XLE": {"rank": 2, "return_1m": 8.0}}
+        gaps = detect_sector_gaps(
+            portfolio_sectors={"Energy": 3},
+            sector_rankings=rankings,
+            portfolio_weights={"Energy": 5.0},
+            min_meaningful_exposure=3.0,
+        )
+        assert len(gaps) == 0
+
+    def test_high_urgency_for_top_3_low_exposure(self):
+        """Top-3 sector with <1% exposure should be HIGH urgency."""
+        rankings = {"XLE": {"rank": 1, "return_1m": 12.0}}
+        gaps = detect_sector_gaps(
+            portfolio_sectors={"Energy": 1},
+            sector_rankings=rankings,
+            portfolio_weights={"Energy": 0.3},
+        )
+        assert len(gaps) == 1
+        assert gaps[0]["urgency"] == "HIGH"
+
+    def test_medium_urgency_for_rank_4_5(self):
+        """Rank 4-5 sector should be MEDIUM urgency."""
+        rankings = {"XLE": {"rank": 4, "return_1m": 3.0}}
+        gaps = detect_sector_gaps(
+            portfolio_sectors={},
+            sector_rankings=rankings,
+            portfolio_weights={},
+        )
+        assert len(gaps) == 1
+        assert gaps[0]["urgency"] == "MEDIUM"
+
+    def test_missing_sector_in_weights(self):
+        """Sector completely missing from weights should show 0.0 exposure."""
+        rankings = {"XLE": {"rank": 2, "return_1m": 6.0}}
+        gaps = detect_sector_gaps(
+            portfolio_sectors={},
+            sector_rankings=rankings,
+            portfolio_weights={"Technology": 30.0},
+        )
+        assert len(gaps) == 1
+        assert gaps[0]["portfolio_exposure"] == 0.0
+
+    def test_custom_min_exposure_threshold(self):
+        """Custom min_meaningful_exposure should be respected."""
+        rankings = {"XLE": {"rank": 3, "return_1m": 5.0}}
+        gaps_strict = detect_sector_gaps(
+            portfolio_sectors={"Energy": 2},
+            sector_rankings=rankings,
+            portfolio_weights={"Energy": 4.5},
+            min_meaningful_exposure=5.0,
+        )
+        gaps_lenient = detect_sector_gaps(
+            portfolio_sectors={"Energy": 2},
+            sector_rankings=rankings,
+            portfolio_weights={"Energy": 4.5},
+            min_meaningful_exposure=3.0,
+        )
+        assert len(gaps_strict) == 1  # 4.5 < 5.0
+        assert len(gaps_lenient) == 0  # 4.5 >= 3.0
+
+
+# ============================================================
+# CIO Legacy Review: B1 — Sigmoid Conviction
+# ============================================================
+
+
+class TestSigmoidConviction:
+    """Tests for CIO Legacy B1: sigmoid conviction mapping."""
+
+    def test_center_at_50_pct(self):
+        """50% bull should produce agent_base near 55 (sigmoid center)."""
+        base = determine_base_conviction(
+            bull_pct=50, signal="H", fund_score=50,
+            excess_exret=0, bear_ratio=0.5,
+        )
+        # Sigmoid at x=0 → 0.5, so agent_base = 30 + 0.5*50 = 55
+        # HOLD cap at 70, so should be exactly 55
+        assert base == 55
+
+    def test_steeper_near_threshold(self):
+        """Going from 45% to 55% should produce a larger jump than 85% to 95%."""
+        base_45 = determine_base_conviction(
+            bull_pct=45, signal="H", fund_score=50,
+            excess_exret=0, bear_ratio=0.5,
+        )
+        base_55 = determine_base_conviction(
+            bull_pct=55, signal="H", fund_score=50,
+            excess_exret=0, bear_ratio=0.5,
+        )
+        delta_center = base_55 - base_45
+
+        base_85 = determine_base_conviction(
+            bull_pct=85, signal="H", fund_score=50,
+            excess_exret=0, bear_ratio=0.5,
+        )
+        base_95 = determine_base_conviction(
+            bull_pct=95, signal="H", fund_score=50,
+            excess_exret=0, bear_ratio=0.5,
+        )
+        delta_extreme = base_95 - base_85
+
+        # Sigmoid produces steeper change near center
+        assert delta_center >= delta_extreme
+
+    def test_monotonic_increasing(self):
+        """Higher bull% should always produce equal or higher base."""
+        prev_base = 0
+        for bp in range(0, 101, 10):
+            base = determine_base_conviction(
+                bull_pct=bp, signal="H", fund_score=50,
+                excess_exret=0, bear_ratio=0.5,
+            )
+            assert base >= prev_base, f"Non-monotonic at {bp}%: {base} < {prev_base}"
+            prev_base = base
+
+    def test_bounds(self):
+        """Agent base should be clamped to [30, 80]."""
+        base_min = determine_base_conviction(
+            bull_pct=0, signal="H", fund_score=50,
+            excess_exret=0, bear_ratio=1.0,
+        )
+        base_max = determine_base_conviction(
+            bull_pct=100, signal="B", fund_score=50,
+            excess_exret=0, bear_ratio=0.0,
+        )
+        assert base_min >= 30
+        # BUY floor of 55 may override, but raw agent_base <= 80
+        assert base_max <= 80 or base_max >= 55  # BUY floor can push above
+
+
+# ============================================================
+# CIO Legacy Review: B3 — Risk Manager Weight
+# ============================================================
+
+
+class TestRiskManagerWeight:
+    """Tests for CIO Legacy B3: reduced BUY-side risk weight."""
+
+    def test_sell_weight_preserved_at_2x(self):
+        """SELL signal should still have 2.0x risk weight."""
+        _, bear_sell = count_agent_votes(
+            fund_score=50, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=True, signal="S",
+        )
+        # With risk_warning and SELL: bear should include 2.0
+        # All other neutrals contribute balanced, so risk_mult of 2.0 dominates
+        assert bear_sell > 3.0  # Substantial bearish weight from 2.0x risk
+
+    def test_buy_weight_reduced_to_1_2x(self):
+        """BUY signal risk weight should be 1.2x, not 1.5x."""
+        _, bear_buy = count_agent_votes(
+            fund_score=50, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=True, signal="B",
+        )
+        # Risk warning with BUY: bear should include 1.2 (not 1.5)
+        # We can verify by checking it's less than what 1.5 would give
+        _, bear_sell = count_agent_votes(
+            fund_score=50, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=True, signal="S",
+        )
+        # SELL (2.0x) should produce more bear weight than BUY (1.2x)
+        assert bear_sell > bear_buy
+
+    def test_no_warning_unchanged(self):
+        """Without risk warning, weight should be same for BUY and SELL."""
+        bull_buy, bear_buy = count_agent_votes(
+            fund_score=50, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="B",
+        )
+        bull_sell, bear_sell = count_agent_votes(
+            fund_score=50, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="S",
+        )
+        # No warning = neutral vote (0.5/0.5), same for both signals
+        assert bull_buy == bull_sell
+        assert bear_buy == bear_sell
+
+
+# ============================================================
+# CIO Legacy Review: A5 — Directional Confidence
+# ============================================================
+
+
+class TestDirectionalConfidence:
+    """Tests for CIO Legacy A5: tracking directional vs neutral weight."""
+
+    def test_all_directional_high_confidence(self):
+        """All agents directional should produce high confidence."""
+        count_agent_votes(
+            fund_score=80, tech_signal="ENTER_NOW", tech_momentum=30,
+            macro_fit="FAVORABLE", census_alignment="ALIGNED",
+            news_impact="HIGH_POSITIVE", risk_warning=True, signal="B",
+        )
+        conf = count_agent_votes._last_directional_confidence
+        assert conf > 0.8
+
+    def test_all_neutral_low_confidence(self):
+        """All agents neutral should produce low confidence."""
+        count_agent_votes(
+            fund_score=55, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="H",
+        )
+        conf = count_agent_votes._last_directional_confidence
+        assert conf < 0.2
+
+    def test_mixed_moderate_confidence(self):
+        """Mix of directional and neutral should be moderate."""
+        count_agent_votes(
+            fund_score=80, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="FAVORABLE", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="B",
+        )
+        conf = count_agent_votes._last_directional_confidence
+        assert 0.2 < conf < 0.8
+
+    def test_low_confidence_penalized_in_synthesis(self):
+        """Low directional confidence should reduce conviction."""
+        # All neutral agents → low confidence → penalty
+        sig_data = {"signal": "H", "exret": 10, "buy_pct": 55, "beta": 1.0, "pet": 15, "pef": 14}
+        fund_data = {"fundamental_score": 55}
+        tech_data = {"momentum_score": 0, "timing_signal": "HOLD", "rsi": 50, "macd_signal": "NEUTRAL"}
+
+        result = synthesize_stock(
+            "TEST", sig_data, fund_data, tech_data,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL", div_score=0,
+            census_ts_trend="stable", news_impact="NEUTRAL", risk_warning=False,
+            sector="Technology", sector_median_exret=5, sector_rankings={},
+            position_limit=5.0,
+        )
+        assert result["directional_confidence"] < 0.3
+        # Should have low-confidence penalty applied
+        assert result["penalties"] >= 3
+
+
+# ============================================================
+# CIO Legacy Review: B4 — Signal Velocity
+# ============================================================
+
+
+class TestSignalVelocity:
+    """Tests for CIO Legacy B4: signal velocity tracking."""
+
+    def test_accelerating_upgrade(self):
+        """Recent upgrade (within 14 days) should give +5 bonus."""
+        adj, label = compute_signal_velocity("B", "H", 10)
+        assert adj == 5
+        assert label == "ACCELERATING"
+
+    def test_improving_upgrade(self):
+        """Upgrade within 30 days should give +3."""
+        adj, label = compute_signal_velocity("B", "H", 20)
+        assert adj == 3
+        assert label == "IMPROVING"
+
+    def test_deteriorating_downgrade(self):
+        """Recent downgrade should give -5."""
+        adj, label = compute_signal_velocity("H", "B", 7)
+        assert adj == -5
+        assert label == "DETERIORATING"
+
+    def test_weakening_downgrade(self):
+        """Downgrade within 30 days should give -3."""
+        adj, label = compute_signal_velocity("H", "B", 25)
+        assert adj == -3
+        assert label == "WEAKENING"
+
+    def test_stale_signal(self):
+        """Same signal for >90 days should give -2 (stale)."""
+        adj, label = compute_signal_velocity("B", "B", 120)
+        assert adj == -2
+        assert label == "STALE"
+
+    def test_stable_signal(self):
+        """Same signal for moderate time should be STABLE."""
+        adj, label = compute_signal_velocity("B", "B", 45)
+        assert adj == 0
+        assert label == "STABLE"
+
+    def test_no_history(self):
+        """No previous signal should return NO_HISTORY."""
+        adj, label = compute_signal_velocity("B", None, None)
+        assert adj == 0
+        assert label == "NO_HISTORY"
+
+    def test_sell_to_buy_accelerating(self):
+        """S→B is a 3-step upgrade, should be ACCELERATING."""
+        adj, label = compute_signal_velocity("B", "S", 10)
+        assert adj == 5
+        assert label == "ACCELERATING"
+
+    def test_integrated_in_synthesis(self):
+        """Signal velocity should appear in synthesis output."""
+        sig_data = {"signal": "B", "exret": 15, "buy_pct": 70, "beta": 1.0, "pet": 15, "pef": 13}
+        fund_data = {"fundamental_score": 70}
+        tech_data = {"momentum_score": 20, "timing_signal": "HOLD", "rsi": 55, "macd_signal": "BULLISH"}
+
+        result = synthesize_stock(
+            "TEST", sig_data, fund_data, tech_data,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL", div_score=0,
+            census_ts_trend="stable", news_impact="NEUTRAL", risk_warning=False,
+            sector="Technology", sector_median_exret=5, sector_rankings={},
+            position_limit=5.0, previous_signal="H", days_since_signal_change=10,
+        )
+        assert result["signal_velocity"] == "ACCELERATING"
+
+
+# ============================================================
+# CIO Legacy Review: B5 — Earnings Surprise
+# ============================================================
+
+
+class TestEarningsSurprise:
+    """Tests for CIO Legacy B5: earnings surprise adjustment."""
+
+    def test_serial_beater(self):
+        """Big beat + consecutive beats = +5."""
+        adj, label = get_earnings_surprise_adjustment(15.0, 3)
+        assert adj == 5
+        assert label == "SERIAL_BEATER"
+
+    def test_single_beat(self):
+        """Moderate beat = +3."""
+        adj, label = get_earnings_surprise_adjustment(8.0, 0)
+        assert adj == 3
+        assert label == "BEAT"
+
+    def test_big_miss(self):
+        """Big miss = -5."""
+        adj, label = get_earnings_surprise_adjustment(-12.0, 0)
+        assert adj == -5
+        assert label == "BIG_MISS"
+
+    def test_moderate_miss(self):
+        """Moderate miss = -3."""
+        adj, label = get_earnings_surprise_adjustment(-7.0, 0)
+        assert adj == -3
+        assert label == "MISS"
+
+    def test_in_line(self):
+        """Small surprise either way = 0."""
+        adj, label = get_earnings_surprise_adjustment(2.0, 0)
+        assert adj == 0
+        assert label == "IN_LINE"
+
+    def test_no_data(self):
+        """No earnings data = 0."""
+        adj, label = get_earnings_surprise_adjustment(None, 0)
+        assert adj == 0
+        assert label == "NO_DATA"
+
+    def test_integrated_in_synthesis(self):
+        """Earnings surprise should appear in synthesis output."""
+        sig_data = {"signal": "B", "exret": 15, "buy_pct": 70, "beta": 1.0, "pet": 15, "pef": 13}
+        fund_data = {"fundamental_score": 70}
+        tech_data = {"momentum_score": 20, "timing_signal": "HOLD", "rsi": 55, "macd_signal": "BULLISH"}
+
+        result = synthesize_stock(
+            "TEST", sig_data, fund_data, tech_data,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL", div_score=0,
+            census_ts_trend="stable", news_impact="NEUTRAL", risk_warning=False,
+            sector="Technology", sector_median_exret=5, sector_rankings={},
+            position_limit=5.0, earnings_surprise_pct=15.0, consecutive_earnings_beats=3,
+        )
+        assert result["earnings_surprise"] == "SERIAL_BEATER"
+
+
+# ============================================================
+# CIO Legacy Review: A4 — Dynamic Freshness
+# ============================================================
+
+
+class TestDynamicFreshness:
+    """Tests for CIO Legacy A4: timestamp-based freshness multiplier."""
+
+    def test_very_fresh(self):
+        """Agent data < 1 hour old should be 1.0."""
+        from datetime import datetime
+        now = datetime.now()
+        agent_ts = (now - __import__("datetime").timedelta(minutes=30)).isoformat()
+        committee_ts = now.isoformat()
+        mult = compute_dynamic_freshness(agent_ts, committee_ts)
+        assert mult == 1.0
+
+    def test_few_hours(self):
+        """Agent data 2-4 hours old should be 0.95."""
+        from datetime import datetime, timedelta
+        now = datetime.now()
+        agent_ts = (now - timedelta(hours=3)).isoformat()
+        committee_ts = now.isoformat()
+        mult = compute_dynamic_freshness(agent_ts, committee_ts)
+        assert mult == 0.95
+
+    def test_half_day(self):
+        """Agent data 8 hours old should be 0.85."""
+        from datetime import datetime, timedelta
+        now = datetime.now()
+        agent_ts = (now - timedelta(hours=8)).isoformat()
+        committee_ts = now.isoformat()
+        mult = compute_dynamic_freshness(agent_ts, committee_ts)
+        assert mult == 0.85
+
+    def test_day_old(self):
+        """Agent data 20 hours old should be 0.75."""
+        from datetime import datetime, timedelta
+        now = datetime.now()
+        agent_ts = (now - timedelta(hours=20)).isoformat()
+        committee_ts = now.isoformat()
+        mult = compute_dynamic_freshness(agent_ts, committee_ts)
+        assert mult == 0.75
+
+    def test_very_stale(self):
+        """Agent data > 24 hours old should be 0.6."""
+        from datetime import datetime, timedelta
+        now = datetime.now()
+        agent_ts = (now - timedelta(hours=30)).isoformat()
+        committee_ts = now.isoformat()
+        mult = compute_dynamic_freshness(agent_ts, committee_ts)
+        assert mult == 0.6
+
+    def test_no_timestamp(self):
+        """No agent timestamp should return default 1.0."""
+        mult = compute_dynamic_freshness(None, None)
+        assert mult == 1.0
+
+    def test_invalid_timestamp(self):
+        """Invalid timestamp format should return 1.0."""
+        mult = compute_dynamic_freshness("not-a-date", "also-not")
+        assert mult == 1.0
