@@ -131,6 +131,12 @@ def count_agent_votes(
     CIO v6.0 F5: When the Risk Manager finds no warning, its neutral vote
     is regime-sensitive. "No danger found" is mildly bullish in RISK_ON
     but merely non-negative in RISK_OFF.
+
+    Returns:
+        Tuple of (bull_weight, bear_weight, directional_confidence).
+        CIO v7.0 P2: directional_confidence is now a proper return value
+        instead of a module-level function attribute, making the function
+        pure and thread-safe.
     """
     bull = 0.0
     bear = 0.0
@@ -249,16 +255,14 @@ def count_agent_votes(
         bear += 0.5
         neutral_weight += 1.0
 
-    # CIO Legacy A5: Store directional confidence for caller access.
-    # This is the ratio of directional (non-neutral) weight to total weight.
-    # When 4 of 7 agents are neutral, this will be low (~0.43), indicating
-    # the directional signal from the 3 non-neutral agents is diluted.
+    # CIO Legacy A5: Directional confidence — ratio of directional
+    # (non-neutral) weight to total weight. When 4 of 7 agents are neutral,
+    # this will be low (~0.43), indicating the signal is diluted.
+    # CIO v7.0 P2: Returned as third tuple element instead of function attribute.
     total_all = directional_weight + neutral_weight
-    count_agent_votes._last_directional_confidence = (
-        directional_weight / total_all if total_all > 0 else 0.5
-    )
+    dir_confidence = directional_weight / total_all if total_all > 0 else 0.5
 
-    return bull, bear
+    return bull, bear, dir_confidence
 
 
 def determine_base_conviction(
@@ -790,7 +794,7 @@ def synthesize_stock(
     tech_synthetic = tech_data.get("synthetic", False)
 
     # Step 1: Count agent votes
-    bull_weight, bear_weight = count_agent_votes(
+    bull_weight, bear_weight, dir_confidence = count_agent_votes(
         fund_score, tech_signal, tech_mom, macro_fit,
         census_alignment, news_impact, risk_warning, signal,
         fund_synthetic=fund_synthetic,
@@ -861,7 +865,7 @@ def synthesize_stock(
         signal_quality_penalty += abs(earnings_adj)
 
     # CIO Legacy A5: Directional confidence penalty
-    dir_confidence = getattr(count_agent_votes, '_last_directional_confidence', 0.5)
+    # CIO v7.0 P2: dir_confidence is now from the return value (see Step 1)
     if dir_confidence < 0.4:
         signal_quality_penalty += 3
 
@@ -896,7 +900,12 @@ def synthesize_stock(
     # Trim escalation: HOLD-signal stocks that are overbought or have
     # bearish tech + risk warnings should be TRIM, not stuck at HOLD.
     # This ensures stocks like PANW (RSI=93) get proper trim treatment.
-    if action == "HOLD" and signal == "H":
+    #
+    # CIO v7.0 P1: RSI floor guard — NEVER trim stocks with RSI < 30.
+    # At RSI < 30 the stock is deeply oversold; trimming crystallizes losses
+    # at the worst possible moment. E.g., SLB at RSI=16 should not be trimmed
+    # even when tech=AVOID + risk_warning — the damage is already done.
+    if action == "HOLD" and signal == "H" and rsi >= 30:
         if rsi > 80 and tech_signal in ("AVOID", "EXIT_SOON"):
             action = "TRIM"
         elif risk_warning and tech_signal == "AVOID":
@@ -1417,6 +1426,22 @@ def build_concordance(
         es = macro_report.get("executive_summary", {})
         regime = es.get("regime", "")
 
+    # CIO v7.0 P3: Risk warning dilution detection.
+    # When >40% of portfolio stocks trigger risk warnings, the warnings are
+    # systemic (macro-driven) rather than stock-specific. Track this so the
+    # report can surface it as a portfolio-level concern instead of per-stock noise.
+    risk_warns_set = lookups["risk_warns"]
+    warned_count = sum(1 for t in portfolio_signals if t in risk_warns_set)
+    total_count = len(portfolio_signals)
+    risk_diluted = total_count > 0 and (warned_count / total_count) > 0.40
+
+    if risk_diluted:
+        logger.info(
+            "Risk warning dilution detected: %d/%d (%.0f%%) stocks warned — "
+            "treat as systemic risk, not stock-specific",
+            warned_count, total_count, warned_count / total_count * 100,
+        )
+
     # Process portfolio stocks
     for ticker, sig_data in portfolio_signals.items():
         sector = sector_map.get(ticker, "Other")
@@ -1428,6 +1453,7 @@ def build_concordance(
         )
         entry["is_opportunity"] = False
         entry["kill_thesis_triggered"] = triggered_kill_theses.get(ticker, False)
+        entry["risk_diluted"] = risk_diluted
         concordance.append(entry)
 
     # Process new opportunities (CIO C2 gate)
@@ -1469,6 +1495,26 @@ def build_concordance(
             cen_align, portfolio_sectors,
         )
         concordance.append(entry)
+
+    # CIO v7.0 P4: Sector concentration penalty.
+    # When 3+ stocks share the same sector in the concordance, apply a small
+    # conviction penalty (-2 per stock beyond 2) to discourage over-concentration
+    # at the scoring level. Only penalise BUY/ADD actions — we don't want to
+    # artificially reduce conviction on HOLD/TRIM/SELL (those are risk decisions).
+    sector_counts: Dict[str, int] = {}
+    for entry in concordance:
+        sec = entry.get("sector", "Other")
+        sector_counts[sec] = sector_counts.get(sec, 0) + 1
+
+    for entry in concordance:
+        if entry.get("action") not in ("BUY", "ADD"):
+            continue
+        sec = entry.get("sector", "Other")
+        count = sector_counts.get(sec, 1)
+        if count > 2:
+            penalty = (count - 2) * 2  # -2 per extra stock beyond 2
+            entry["conviction"] = max(30, entry["conviction"] - penalty)
+            entry["sector_concentration_penalty"] = penalty
 
     # Break conviction ties with composite quality score (CIO v5.2, v6.0 normalized)
     # This prevents 11 stocks at identical conviction=65.
@@ -1743,7 +1789,7 @@ def generate_synthesis_output(
     sentiment = census_report.get("sentiment", {})
 
     output = {
-        "version": "v5.4_legacy_complete",
+        "version": "v7.0_legacy_review",
         "concordance": concordance,
         "action_distribution": dict(action_dist),
         "changes": changes,
@@ -1773,6 +1819,8 @@ def generate_synthesis_output(
         "earnings_calendar": news_report.get("earnings_calendar", {}),
         "economic_events": news_report.get("economic_events", []),
         # Risk
+        # CIO v7.0 P3: Risk warning dilution flag
+        "risk_diluted": any(e.get("risk_diluted", False) for e in concordance),
         "correlation_clusters": risk_report.get("correlation_clusters", []),
         "concentration": risk_report.get("concentration", {}),
         "stress_scenarios": risk_report.get("stress_scenarios", {}),
