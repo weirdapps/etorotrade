@@ -60,9 +60,18 @@ def conv_color(c):
     if c >= 50: return "#d97706"
     return "#94a3b8"
 
-def conv_bar(c):
+def conv_bar(c, delta=None):
     col = conv_color(c)
-    return f'<div style="font-weight:800;font-size:13px;color:#0f172a;">{c}</div><div style="height:3px;background:#e2e8f0;border-radius:2px;margin-top:3px;width:40px;display:inline-block;"><div style="height:100%;border-radius:2px;background:{col};width:{min(c,100)}%;"></div></div>'
+    da = ""
+    if delta is not None and delta != 0:
+        ar = "&#9650;" if delta > 0 else "&#9660;"
+        dc = "#059669" if delta > 0 else "#dc2626"
+        da = f' <span style="color:{dc};font-size:9px;">{ar}{abs(delta)}</span>'
+    return (f'<div style="font-weight:800;font-size:13px;color:#0f172a;">{c}{da}</div>'
+            f'<div style="height:5px;background:#e2e8f0;border-radius:3px;margin-top:3px;'
+            f'width:60px;display:inline-block;">'
+            f'<div style="height:100%;border-radius:3px;background:{col};'
+            f'width:{min(c,100)}%;"></div></div>')
 
 def signal_badge(sig):
     c = {"B":"#059669","H":"#d97706","S":"#dc2626","I":"#94a3b8"}
@@ -76,6 +85,17 @@ def agent_badge(name, view, cbg, ctxt, cbrd):
 
 def e(text):
     return str(text).replace("&","&amp;").replace("<","&lt;").replace(">","&gt;").replace('"',"&quot;")
+
+def abbr(text):
+    """Designed abbreviations for agent views — readable, not truncated."""
+    MAP = {
+        "ENTER_NOW": "ENTER", "EXIT_SOON": "EXIT", "WAIT_FOR_PULLBACK": "WAIT",
+        "FAVORABLE": "FAVOR", "UNFAVORABLE": "UNFAV",
+        "ALIGNED": "ALIGN", "DIVERGENT": "DIVERG", "MODERATE_DIVERGENT": "M.DIV",
+        "HIGH_NEGATIVE": "H.NEG", "HIGH_POSITIVE": "H.POS",
+        "NEUTRAL": "NEUT", "POSITIVE": "POS", "NEGATIVE": "NEG",
+    }
+    return MAP.get(str(text), str(text))
 
 def generate_report_html(
     synth: Dict[str, Any],
@@ -130,6 +150,19 @@ def generate_report_html(
     indicators = synth.get("indicators", {})
     sector_rankings = synth.get("sector_rankings", {})
 
+    # Enhanced lookups
+    delta_map = {c.get("ticker"): c.get("delta", 0) for c in changes}
+    _actionable = {"SELL", "IMMEDIATE SELL", "REDUCE", "TRIM", "BUY", "ADD", "BUY NEW"}
+    actionable_tickers = [entry.get("ticker") for entry in concordance
+                          if entry.get("action") in _actionable]
+    signal_date = synth.get("signal_date", today)
+    census_date = synth.get("census_date", today)
+    sector_counts = {}
+    for entry in concordance:
+        sec = entry.get("sector", "")
+        if sec:
+            sector_counts[sec] = sector_counts.get(sec, 0) + 1
+
     action_order = {"IMMEDIATE SELL":0,"SELL":1,"REDUCE":2,"TRIM":3,"BUY NEW":4,"BUY":5,"ADD":6,"STRONG HOLD":7,"HOLD":8,"WEAK HOLD":9,"WATCH":10}
     concordance.sort(key=lambda x: (action_order.get(x.get("action","HOLD"),9), -x.get("conviction",0)))
 
@@ -177,7 +210,7 @@ def generate_report_html(
     h.append('<div style="max-width:960px;margin:0 auto;background:#ffffff;box-shadow:0 1px 3px rgba(0,0,0,0.1);">')
 
     # HEADER
-    h.append(f'<div style="background-color:#0f172a;padding:36px 40px 32px 40px;"><table style="width:100%;"><tr><td style="vertical-align:middle;width:50px;"><div style="width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,0.15);text-align:center;line-height:36px;font-size:18px;color:#fff;font-weight:800;letter-spacing:-1px;">IC</div></td><td style="vertical-align:middle;"><h1 style="margin:0;font-size:26px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">Investment Committee</h1><p style="margin:2px 0 0 0;font-size:13px;color:#94a3b8;">{today_long} &middot; 7 Specialist Agents + CIO Synthesis v5.4</p></td></tr></table><div style="margin-top:16px;"><span style="display:inline-block;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;letter-spacing:0.3px;background:rgba(255,255,255,0.12);color:#94a3b8;">Signals: 2026-03-16</span> <span style="display:inline-block;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;letter-spacing:0.3px;background:rgba(255,255,255,0.12);color:#94a3b8;">Census: 2026-03-16</span> <span style="display:inline-block;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;letter-spacing:0.3px;background:rgba(255,255,255,0.12);color:#94a3b8;">Macro: {rotation.replace("_"," ")}</span></div></div>')
+    h.append(f'<div style="background-color:#0f172a;padding:36px 40px 32px 40px;"><table style="width:100%;"><tr><td style="vertical-align:middle;width:50px;"><div style="width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,0.15);text-align:center;line-height:36px;font-size:18px;color:#fff;font-weight:800;letter-spacing:-1px;">IC</div></td><td style="vertical-align:middle;"><h1 style="margin:0;font-size:26px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">Investment Committee</h1><p style="margin:2px 0 0 0;font-size:13px;color:#94a3b8;">{today_long} &middot; 7 Specialist Agents + CIO Synthesis v6.0</p></td></tr></table><div style="margin-top:16px;"><span style="display:inline-block;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;letter-spacing:0.3px;background:rgba(255,255,255,0.12);color:#94a3b8;">Signals: {e(signal_date)}</span> <span style="display:inline-block;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;letter-spacing:0.3px;background:rgba(255,255,255,0.12);color:#94a3b8;">Census: {e(census_date)}</span> <span style="display:inline-block;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;letter-spacing:0.3px;background:rgba(255,255,255,0.12);color:#94a3b8;">Macro: {rotation.replace("_"," ")}</span></div></div>')
 
     # S1: EXECUTIVE SUMMARY
     h.append(f'<div style="padding:32px 40px;border-bottom:2px solid #cbd5e1;"><h2 style="margin:0 0 20px 0;font-size:18px;font-weight:700;color:#0f172a;">Executive Summary</h2>')
@@ -187,13 +220,17 @@ def generate_report_html(
     h.append(f'<td style="width:33%;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:20px 24px;text-align:center;"><div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748b;margin-bottom:6px;">Portfolio Risk</div><div style="font-size:28px;font-weight:800;color:{risk_color};">{risk_score}/100</div><div style="font-size:11px;color:#64748b;margin-top:4px;">Beta {p_beta:.2f} &middot; VaR {var_95:.2f}%</div></td>')
     h.append('</tr></table>')
     h.append(f'<div style="background:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid {vacc};border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:20px;"><div style="font-size:13px;color:#334155;line-height:1.6;">{e(narrative)}</div></div>')
-    h.append('<div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748b;margin-bottom:10px;">Priority Actions</div><table style="width:100%;border-collapse:separate;border-spacing:0 4px;font-size:13px;">')
-    for entry in concordance[:8]:
-        act,tkr,conv = entry.get("action","HOLD"),entry.get("ticker",""),entry.get("conviction",0)
-        detail = f"Sig:{entry.get('signal','?')} EXRET:{entry.get('exret',0):.1f}% {entry.get('sector','')}"
-        ac,ab,abr = action_color(act),action_bg(act),action_border(act)
-        h.append(f'<tr><td style="padding:8px 12px;border:1px solid {abr};background:{ab};border-radius:6px 0 0 6px;width:80px;"><span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;color:#fff;background:{ac};">{act}</span></td><td style="padding:8px 12px;border:1px solid {abr};background:{ab};font-weight:700;font-family:monospace;width:80px;">{e(tkr)}</td><td style="padding:8px 12px;border:1px solid {abr};background:{ab};color:#334155;font-size:12px;">{e(detail)}</td><td style="padding:8px 12px;border:1px solid {abr};background:{ab};text-align:center;font-weight:700;border-radius:0 6px 6px 0;width:40px;color:{conv_color(conv)};">{conv}</td></tr>')
-    h.append('</table></div>')
+    actionable_entries = [entry for entry in concordance if entry.get("action") in _actionable]
+    if actionable_entries:
+        h.append('<div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748b;margin-bottom:8px;">Priority Actions</div><div>')
+        for entry in actionable_entries[:12]:
+            act = entry.get("action", "HOLD")
+            tkr = entry.get("ticker", "")
+            conv = entry.get("conviction", 0)
+            ac = action_color(act)
+            h.append(f'<span style="display:inline-block;padding:5px 12px;margin:3px 4px 3px 0;border-radius:6px;font-size:11px;font-weight:700;color:#fff;background:{ac};letter-spacing:0.2px;">{act} {e(tkr)} ({conv})</span>')
+        h.append('</div>')
+    h.append('</div>')
 
     # S2: MACRO ENVIRONMENT
     macro_ind = [("10Y Yield",f"{indicators.get('yield_10y',0):.2f}%",indicators.get('yield_curve_status','NORMAL')),("Yield Curve",f"{indicators.get('yield_curve_spread',0):.0f}bps","POSITIVE" if sf(indicators.get('yield_curve_spread',0))>0 else "INVERTED"),("VIX",f"{indicators.get('vix',0):.1f}","ELEVATED" if sf(indicators.get('vix',0))>20 else "NORMAL"),("Dollar (DXY)",f"{indicators.get('dxy',0):.1f}",indicators.get('dollar_trend','STABLE')),("Macro Score",f"{macro_score}",regime)]
@@ -213,20 +250,30 @@ def generate_report_html(
         h.append(f'<td style="padding:6px 4px;text-align:center;background:{sbg};border:1px solid {sbrd};border-radius:4px;"><div style="font-weight:700;color:#334155;font-size:10px;">{e(etf)}</div><div style="font-size:12px;font-weight:800;color:{stxt};">{ret:+.1f}%</div></td>')
     h.append('</tr></table></div>')
 
-    # S3: STOCK ANALYSIS GRID
-    h.append('<div style="padding:32px 40px;border-bottom:1px solid #e2e8f0;"><h2 style="margin:0 0 4px 0;font-size:18px;font-weight:700;color:#0f172a;">Stock Analysis Grid</h2><p style="color:#64748b;font-size:12px;margin:0 0 16px 0;">Concordance matrix: 7 specialist views per stock.</p><div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:11px;white-space:nowrap;"><tr><th style="padding:8px 6px;text-align:left;background:#0f172a;color:#fff;font-size:10px;font-weight:700;border:1px solid #1e293b;">STOCK</th><th style="padding:8px 6px;text-align:center;background:#0f172a;color:#fff;font-size:10px;font-weight:700;border:1px solid #1e293b;">SIG</th><th style="padding:8px 6px;text-align:center;background:#1e293b;color:#93c5fd;font-size:10px;font-weight:600;border:1px solid #334155;">FUND</th><th style="padding:8px 6px;text-align:center;background:#1e293b;color:#c4b5fd;font-size:10px;font-weight:600;border:1px solid #334155;">TECH</th><th style="padding:8px 6px;text-align:center;background:#1e293b;color:#fcd34d;font-size:10px;font-weight:600;border:1px solid #334155;">MACRO</th><th style="padding:8px 6px;text-align:center;background:#1e293b;color:#6ee7b7;font-size:10px;font-weight:600;border:1px solid #334155;">CENSUS</th><th style="padding:8px 6px;text-align:center;background:#1e293b;color:#fca5a5;font-size:10px;font-weight:600;border:1px solid #334155;">NEWS</th><th style="padding:8px 6px;text-align:center;background:#1e293b;color:#d6d3d1;font-size:10px;font-weight:600;border:1px solid #334155;">RISK</th><th style="padding:8px 6px;text-align:center;background:#0f172a;color:#fff;font-size:10px;font-weight:700;border:1px solid #1e293b;">VERDICT</th><th style="padding:8px 6px;text-align:center;background:#0f172a;color:#fff;font-size:10px;font-weight:700;border:1px solid #1e293b;">CONV</th></tr>')
+    # S3: STOCK ANALYSIS GRID — enhanced with EXRET, SIZE, abbreviations, conviction delta
+    hdr = lambda bg, col, txt: f'<th style="padding:8px 4px;text-align:center;background:{bg};color:{col};font-size:9px;font-weight:700;border:1px solid #1e293b;">{txt}</th>'
+    h.append('<div style="padding:32px 40px;border-bottom:1px solid #e2e8f0;"><h2 style="margin:0 0 4px 0;font-size:18px;font-weight:700;color:#0f172a;">Stock Analysis Grid</h2><p style="color:#64748b;font-size:12px;margin:0 0 16px 0;">Concordance matrix: 7 specialist views per stock.</p><div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:11px;white-space:nowrap;"><tr>')
+    h.append(hdr("#0f172a","#fff","STOCK") + hdr("#0f172a","#fff","SIG"))
+    h.append(hdr("#1e293b","#93c5fd","FUND") + hdr("#1e293b","#c4b5fd","TECH") + hdr("#1e293b","#fcd34d","MACRO") + hdr("#1e293b","#6ee7b7","CENS") + hdr("#1e293b","#fca5a5","NEWS") + hdr("#1e293b","#d6d3d1","RISK"))
+    h.append(hdr("#0f172a","#fbbf24","EXRET") + hdr("#0f172a","#fff","VERDICT") + hdr("#0f172a","#fff","CONV") + hdr("#0f172a","#fff","SIZE"))
+    h.append('</tr>')
     cg = None
     for entry in concordance:
         act = entry.get("action","HOLD")
         if act in ("SELL","IMMEDIATE SELL","REDUCE","TRIM") and cg!="SELL":
-            cg="SELL"; h.append('<tr><td colspan="10" style="padding:4px 8px;background:#fef2f2;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#991b1b;border:1px solid #fecaca;">SELL / REDUCE / TRIM</td></tr>')
+            cg="SELL"; h.append('<tr><td colspan="12" style="padding:4px 8px;background:#fef2f2;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#991b1b;border:1px solid #fecaca;">SELL / REDUCE / TRIM</td></tr>')
         elif act in ("BUY","ADD","BUY NEW") and cg!="BUY":
-            cg="BUY"; h.append('<tr><td colspan="10" style="padding:4px 8px;background:#ecfdf5;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#065f46;border:1px solid #a7f3d0;">BUY / ADD / NEW</td></tr>')
+            cg="BUY"; h.append('<tr><td colspan="12" style="padding:4px 8px;background:#ecfdf5;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#065f46;border:1px solid #a7f3d0;">BUY / ADD / NEW</td></tr>')
         elif act in ("HOLD","STRONG HOLD","WEAK HOLD","WATCH") and cg!="HOLD":
-            cg="HOLD"; h.append('<tr><td colspan="10" style="padding:4px 8px;background:#f1f5f9;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#475569;border:1px solid #cbd5e1;">HOLD / MONITOR</td></tr>')
+            cg="HOLD"; h.append('<tr><td colspan="12" style="padding:4px 8px;background:#f1f5f9;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#475569;border:1px solid #cbd5e1;">HOLD / MONITOR</td></tr>')
         tkr=entry.get("ticker",""); sig=entry.get("signal","?"); fs=entry.get("fund_score",0); fv=entry.get("fund_view","?"); ts=entry.get("tech_signal","?"); rsi=entry.get("rsi",0); mf=entry.get("macro_fit","?"); ce=entry.get("census","?"); ni=entry.get("news_impact","?"); rw="WARN" if entry.get("risk_warning") else "OK"; conv=entry.get("conviction",0); sm="*" if entry.get("fund_synthetic") else ""; rb=action_bg(act)
-        h.append(f'<tr style="background:{rb};"><td style="padding:7px 8px;border:1px solid #e2e8f0;font-family:monospace;font-weight:700;font-size:12px;color:#0f172a;">{e(tkr)}</td><td style="padding:7px 6px;text-align:center;border:1px solid #e2e8f0;">{signal_badge(sig)}</td><td style="padding:7px 6px;text-align:center;border:1px solid #e2e8f0;color:{sentiment_color(fv)};font-weight:600;font-size:10px;">{fv}({fs:.0f}){sm}</td><td style="padding:7px 6px;text-align:center;border:1px solid #e2e8f0;color:{sentiment_color(ts)};font-weight:600;font-size:10px;">{ts[:6]}({rsi:.0f})</td><td style="padding:7px 6px;text-align:center;border:1px solid #e2e8f0;color:{sentiment_color(mf)};font-weight:600;font-size:10px;">{mf[:5]}</td><td style="padding:7px 6px;text-align:center;border:1px solid #e2e8f0;color:{sentiment_color(ce)};font-weight:600;font-size:10px;">{ce[:5]}</td><td style="padding:7px 6px;text-align:center;border:1px solid #e2e8f0;color:{sentiment_color(ni)};font-weight:600;font-size:10px;">{ni[:5]}</td><td style="padding:7px 6px;text-align:center;border:1px solid #e2e8f0;color:{sentiment_color(rw)};font-weight:600;font-size:10px;">{rw}</td><td style="padding:7px 6px;text-align:center;border:1px solid #e2e8f0;"><span style="display:inline-block;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:700;color:#fff;background:{action_color(act)};">{act}</span></td><td style="padding:7px 6px;text-align:center;border:1px solid #e2e8f0;">{conv_bar(conv)}</td></tr>')
-    h.append('</table></div><div style="margin-top:12px;padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;font-size:10px;color:#64748b;">* = Synthetic fundamental score &middot; WAIT = Wait for pullback &middot; ENTER = Enter now &middot; AVOID = Avoid &middot; FAVOR = Macro favorable &middot; ALIGN = Census aligned</div></div>')
+        ex = entry.get("exret", 0); mp = entry.get("max_pct", 0)
+        delta = delta_map.get(tkr)
+        exc = "#059669" if ex > 5 else "#dc2626" if ex < 0 else "#334155"
+        sz_str = f"{mp:.0f}%" if mp else "-"
+        td = 'style="padding:6px 4px;text-align:center;border:1px solid #e2e8f0;'
+        h.append(f'<tr style="background:{rb};"><td {td}font-family:monospace;font-weight:700;font-size:11px;color:#0f172a;text-align:left;padding-left:8px;">{e(tkr)}</td><td {td}">{signal_badge(sig)}</td><td {td}color:{sentiment_color(fv)};font-weight:600;font-size:10px;">{abbr(fv)}({fs:.0f}){sm}</td><td {td}color:{sentiment_color(ts)};font-weight:600;font-size:10px;">{abbr(ts)}({rsi:.0f})</td><td {td}color:{sentiment_color(mf)};font-weight:600;font-size:10px;">{abbr(mf)}</td><td {td}color:{sentiment_color(ce)};font-weight:600;font-size:10px;">{abbr(ce)}</td><td {td}color:{sentiment_color(ni)};font-weight:600;font-size:10px;">{abbr(ni)}</td><td {td}color:{sentiment_color(rw)};font-weight:600;font-size:10px;">{rw}</td><td {td}font-family:monospace;font-weight:700;color:{exc};">{ex:.1f}%</td><td {td}"><span style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;color:#fff;background:{action_color(act)};">{act}</span></td><td {td}">{conv_bar(conv, delta)}</td><td {td}font-family:monospace;font-size:10px;font-weight:600;color:#64748b;">{sz_str}</td></tr>')
+    h.append('</table></div><div style="margin-top:12px;padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;font-size:10px;color:#64748b;">* = Synthetic score &middot; ENTER = Enter now &middot; EXIT = Exit soon &middot; WAIT = Wait for pullback &middot; FAVOR/UNFAV = Macro fit &middot; ALIGN = Census aligned &middot; &#9650;&#9660; = Conviction change</div></div>')
 
     # S4: DISAGREEMENTS
     h.append('<div style="padding:32px 40px;border-bottom:1px solid #e2e8f0;"><h2 style="margin:0 0 4px 0;font-size:18px;font-weight:700;color:#0f172a;">Where We Disagreed</h2><p style="color:#64748b;font-size:12px;margin:0 0 20px 0;">Structured disagreement is the committee\'s edge.</p>')
@@ -238,15 +285,20 @@ def generate_report_html(
         h.append('<div style="padding:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;color:#64748b;font-size:13px;">No significant disagreements. All agents broadly aligned.</div>')
     h.append('</div>')
 
-    # S5: FUNDAMENTAL DEEP DIVE
+    # S5: FUNDAMENTAL DEEP DIVE — actionable stocks only
     fund_stocks = fund.get("stocks",{})
-    sorted_fund = sorted(fund_stocks.items(), key=lambda x:x[1].get("fundamental_score",0), reverse=True)
-    h.append('<div style="padding:32px 40px;border-bottom:1px solid #e2e8f0;"><h2 style="margin:0 0 20px 0;font-size:18px;font-weight:700;color:#0f172a;">Fundamental Deep Dive</h2><table style="width:100%;border-collapse:collapse;font-size:12px;"><tr style="border-bottom:2px solid #e2e8f0;"><th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:#64748b;">Stock</th><th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;color:#64748b;">Score</th><th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;color:#64748b;">PE Traj</th><th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;color:#64748b;">EXRET</th><th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;color:#64748b;">Insider</th><th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:#64748b;">Notes</th></tr>')
-    for i,(tkr,data) in enumerate(sorted_fund[:12]):
-        bg="#f8fafc" if i%2==1 else "#fff"; sc=data.get("fundamental_score",0); pt=data.get("pe_trajectory","?")[:20]; ex=data.get("exret",0); ins=data.get("insider_sentiment","NEUTRAL"); notes=data.get("notes","")[:60]
-        ic = "#059669" if ins=="NET_BUYING" else "#dc2626" if ins=="NET_SELLING" else "#64748b"
-        h.append(f'<tr style="background:{bg};border-bottom:1px solid #f1f5f9;"><td style="padding:8px 10px;font-family:monospace;font-weight:700;">{e(tkr)}</td><td style="padding:8px 10px;text-align:center;font-weight:800;color:{conv_color(int(sc))};">{sc:.0f}</td><td style="padding:8px 10px;text-align:center;font-size:11px;">{e(pt)}</td><td style="padding:8px 10px;text-align:center;">{ex}%</td><td style="padding:8px 10px;text-align:center;color:{ic};font-weight:600;font-size:10px;">{e(ins)}</td><td style="padding:8px 10px;color:#334155;font-size:11px;">{e(notes)}</td></tr>')
-    h.append('</table>')
+    actionable_fund = [(tkr, fund_stocks[tkr]) for tkr in actionable_tickers if tkr in fund_stocks]
+    h.append('<div style="padding:32px 40px;border-bottom:1px solid #e2e8f0;"><h2 style="margin:0 0 4px 0;font-size:18px;font-weight:700;color:#0f172a;">Fundamental Deep Dive</h2>')
+    if actionable_fund:
+        h.append(f'<p style="color:#64748b;font-size:12px;margin:0 0 16px 0;">Detail for {len(actionable_fund)} positions with pending actions.</p>')
+        h.append('<table style="width:100%;border-collapse:collapse;font-size:12px;"><tr style="border-bottom:2px solid #e2e8f0;"><th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:#64748b;">Stock</th><th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;color:#64748b;">Score</th><th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;color:#64748b;">PE Traj</th><th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;color:#64748b;">EXRET</th><th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;color:#64748b;">Insider</th><th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:#64748b;">Notes</th></tr>')
+        for i,(tkr,data) in enumerate(actionable_fund):
+            bg="#f8fafc" if i%2==1 else "#fff"; sc=data.get("fundamental_score",0); pt=data.get("pe_trajectory","?")[:20]; ex=data.get("exret",0); ins=data.get("insider_sentiment","NEUTRAL"); notes=data.get("notes","")[:60]
+            ic = "#059669" if ins=="NET_BUYING" else "#dc2626" if ins=="NET_SELLING" else "#64748b"
+            h.append(f'<tr style="background:{bg};border-bottom:1px solid #f1f5f9;"><td style="padding:8px 10px;font-family:monospace;font-weight:700;">{e(tkr)}</td><td style="padding:8px 10px;text-align:center;font-weight:800;color:{conv_color(int(sc))};">{sc:.0f}</td><td style="padding:8px 10px;text-align:center;font-size:11px;">{e(pt)}</td><td style="padding:8px 10px;text-align:center;">{ex}%</td><td style="padding:8px 10px;text-align:center;color:{ic};font-weight:600;font-size:10px;">{e(ins)}</td><td style="padding:8px 10px;color:#334155;font-size:11px;">{e(notes)}</td></tr>')
+        h.append('</table>')
+    else:
+        h.append('<p style="color:#64748b;font-size:12px;margin:0 0 16px 0;">All positions on hold &mdash; no fundamental flags.</p>')
     qt = fund.get("quality_traps",[])
     if qt:
         h.append('<div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#dc2626;margin:16px 0 10px 0;">Quality Traps</div>')
@@ -260,15 +312,20 @@ def generate_report_html(
     total_tech = len(tech_stocks)
     avg_rsi = sum(d.get("rsi",50) for d in tech_stocks.values())/max(total_tech,1)
     below50 = sum(1 for d in tech_stocks.values() if not d.get("above_sma50",True))
-    h.append('<div style="padding:32px 40px;border-bottom:1px solid #e2e8f0;"><h2 style="margin:0 0 20px 0;font-size:18px;font-weight:700;color:#0f172a;">Technical Analysis</h2>')
+    h.append('<div style="padding:32px 40px;border-bottom:1px solid #e2e8f0;"><h2 style="margin:0 0 4px 0;font-size:18px;font-weight:700;color:#0f172a;">Technical Analysis</h2>')
     if bearish_macd > total_tech*0.5:
         h.append(f'<div style="background:#fffbeb;border:1px solid #fde68a;border-left:4px solid #d97706;border-radius:0 6px 6px 0;padding:14px 20px;margin-bottom:20px;"><div style="font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;color:#d97706;">MARKET-WIDE CONTEXT</div><div style="font-size:13px;color:#334155;margin-top:6px;">{bearish_macd}/{total_tech} stocks BEARISH MACD. {below50} below SMA50. Avg RSI: {avg_rsi:.0f}.</div></div>')
-    h.append('<table style="width:100%;border-collapse:collapse;font-size:11px;"><tr style="border-bottom:2px solid #e2e8f0;"><th style="padding:8px 6px;text-align:left;font-size:10px;font-weight:700;color:#64748b;">Stock</th><th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;color:#64748b;">RSI</th><th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;color:#64748b;">MACD</th><th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;color:#64748b;">BB%</th><th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;color:#64748b;">Trend</th><th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;color:#64748b;">Mom</th><th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;color:#64748b;">Signal</th></tr>')
-    for i,(tkr,d) in enumerate(sorted(tech_stocks.items(),key=lambda x:x[1].get("momentum_score",0),reverse=True)[:15]):
-        bg="#f8fafc" if i%2==1 else "#fff"; rsi=d.get("rsi",50); macd=d.get("macd_signal","?"); bb=d.get("bb_position",0.5); trend=d.get("trend","?"); mom=d.get("momentum_score",0); sig=d.get("timing_signal","?")
-        rc = "#dc2626" if rsi>70 else "#059669" if rsi<30 else "#334155"
-        h.append(f'<tr style="background:{bg};border-bottom:1px solid #f1f5f9;"><td style="padding:7px 8px;font-family:monospace;font-weight:700;">{e(tkr)}</td><td style="padding:7px 6px;text-align:center;font-weight:700;color:{rc};">{rsi:.0f}</td><td style="padding:7px 6px;text-align:center;color:{sentiment_color(macd)};font-weight:600;">{macd[:4]}</td><td style="padding:7px 6px;text-align:center;">{bb:.2f}</td><td style="padding:7px 6px;text-align:center;font-size:10px;">{e(trend[:12])}</td><td style="padding:7px 6px;text-align:center;font-weight:700;color:{"#059669" if mom>0 else "#dc2626" if mom<0 else "#64748b"};">{mom:+d}</td><td style="padding:7px 6px;text-align:center;"><span style="padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;color:#fff;background:{sentiment_color(sig)};">{e(sig[:8])}</span></td></tr>')
-    h.append('</table>')
+    actionable_tech = [(tkr, tech_stocks[tkr]) for tkr in actionable_tickers if tkr in tech_stocks]
+    if actionable_tech:
+        h.append(f'<p style="color:#64748b;font-size:12px;margin:0 0 16px 0;">Detail for {len(actionable_tech)} positions with pending actions.</p>')
+        h.append('<table style="width:100%;border-collapse:collapse;font-size:11px;"><tr style="border-bottom:2px solid #e2e8f0;"><th style="padding:8px 6px;text-align:left;font-size:10px;font-weight:700;color:#64748b;">Stock</th><th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;color:#64748b;">RSI</th><th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;color:#64748b;">MACD</th><th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;color:#64748b;">BB%</th><th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;color:#64748b;">Trend</th><th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;color:#64748b;">Mom</th><th style="padding:8px 6px;text-align:center;font-size:10px;font-weight:700;color:#64748b;">Signal</th></tr>')
+        for i,(tkr,d) in enumerate(actionable_tech):
+            bg="#f8fafc" if i%2==1 else "#fff"; rsi=d.get("rsi",50); macd=d.get("macd_signal","?"); bb=d.get("bb_position",0.5); trend=d.get("trend","?"); mom=d.get("momentum_score",0); sig=d.get("timing_signal","?")
+            rc = "#dc2626" if rsi>70 else "#059669" if rsi<30 else "#334155"
+            h.append(f'<tr style="background:{bg};border-bottom:1px solid #f1f5f9;"><td style="padding:7px 8px;font-family:monospace;font-weight:700;">{e(tkr)}</td><td style="padding:7px 6px;text-align:center;font-weight:700;color:{rc};">{rsi:.0f}</td><td style="padding:7px 6px;text-align:center;color:{sentiment_color(macd)};font-weight:600;">{macd[:4]}</td><td style="padding:7px 6px;text-align:center;">{bb:.2f}</td><td style="padding:7px 6px;text-align:center;font-size:10px;">{e(trend[:12])}</td><td style="padding:7px 6px;text-align:center;font-weight:700;color:{"#059669" if mom>0 else "#dc2626" if mom<0 else "#64748b"};">{mom:+d}</td><td style="padding:7px 6px;text-align:center;"><span style="padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;color:#fff;background:{sentiment_color(sig)};">{e(sig[:8])}</span></td></tr>')
+        h.append('</table>')
+    else:
+        h.append('<p style="color:#64748b;font-size:12px;margin:0;">All positions on hold &mdash; no technical flags.</p>')
     oversold = [t for t,d in tech_stocks.items() if d.get("rsi",50)<30]
     overbought = [t for t,d in tech_stocks.items() if d.get("rsi",50)>70]
     if oversold: h.append(f'<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:6px;padding:10px 14px;margin-top:12px;font-size:12px;"><span style="font-weight:700;color:#065f46;">Oversold (RSI&lt;30):</span> {", ".join(oversold)}</div>')
@@ -311,8 +368,27 @@ def generate_report_html(
     # S9: RISK DASHBOARD
     pr = risk.get("portfolio_risk",{})
     h.append(f'<div style="padding:32px 40px;border-bottom:1px solid #e2e8f0;"><h2 style="margin:0 0 20px 0;font-size:18px;font-weight:700;color:#0f172a;">Risk Dashboard</h2><table style="width:100%;border-collapse:separate;border-spacing:12px 0;margin-bottom:24px;"><tr><td style="width:50%;vertical-align:top;"><div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748b;margin-bottom:10px;">Portfolio Metrics</div><table style="width:100%;border-collapse:collapse;font-size:12px;"><tr style="background:#f8fafc;"><td style="padding:8px 12px;font-weight:600;">VaR (95%)</td><td style="padding:8px 12px;text-align:right;font-weight:700;font-family:monospace;">{var_95:.2f}%</td></tr><tr><td style="padding:8px 12px;font-weight:600;">Max Drawdown</td><td style="padding:8px 12px;text-align:right;font-weight:700;font-family:monospace;color:#dc2626;">{max_dd:.1f}%</td></tr><tr style="background:#f8fafc;"><td style="padding:8px 12px;font-weight:600;">Beta</td><td style="padding:8px 12px;text-align:right;font-weight:700;font-family:monospace;">{p_beta:.2f}</td></tr><tr><td style="padding:8px 12px;font-weight:600;">Sortino</td><td style="padding:8px 12px;text-align:right;font-weight:700;font-family:monospace;">{pr.get("sortino_ratio",0):.2f}</td></tr><tr style="background:#f8fafc;"><td style="padding:8px 12px;font-weight:600;">Risk Score</td><td style="padding:8px 12px;text-align:right;font-weight:700;font-family:monospace;color:{risk_color};">{risk_score}/100</td></tr></table></td>')
-    geo = concentration.get("geography",{}).get("concentration",{})
-    h.append(f'<td style="width:50%;vertical-align:top;"><div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748b;margin-bottom:10px;">Concentration</div><table style="width:100%;border-collapse:collapse;font-size:12px;"><tr style="background:#f8fafc;"><td style="padding:8px 12px;font-weight:600;">Top Region</td><td style="padding:8px 12px;text-align:right;font-weight:700;">{e(geo.get("top_region","US"))} ({geo.get("top_region_pct",0):.0f}%)</td></tr><tr><td style="padding:8px 12px;font-weight:600;">Stocks Analyzed</td><td style="padding:8px 12px;text-align:right;font-weight:700;">{len(concordance)}</td></tr></table></td></tr></table>')
+    total_stocks = len(concordance) or 1
+    h.append('<td style="width:50%;vertical-align:top;">')
+    if sector_counts:
+        h.append('<div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748b;margin-bottom:10px;">Sector Exposure</div><table style="width:100%;border-collapse:collapse;font-size:12px;">')
+        for i, (sec, cnt) in enumerate(sorted(sector_counts.items(), key=lambda x: -x[1])):
+            pct = cnt * 100 / total_stocks
+            bg = "#f8fafc" if i % 2 == 1 else "#fff"
+            bar_w = min(pct, 100)
+            h.append(f'<tr style="background:{bg};"><td style="padding:4px 8px;font-weight:600;font-size:11px;">{e(sec)}</td><td style="padding:4px 8px;text-align:right;font-weight:700;font-family:monospace;font-size:11px;">{cnt} ({pct:.0f}%)</td><td style="padding:4px 8px;width:60px;"><div style="height:4px;background:#e2e8f0;border-radius:2px;"><div style="height:100%;border-radius:2px;background:#6366f1;width:{bar_w}%;"></div></div></td></tr>')
+        h.append('</table>')
+    else:
+        geo = concentration.get("geography",{}).get("concentration",{})
+        h.append(f'<div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748b;margin-bottom:10px;">Concentration</div><table style="width:100%;border-collapse:collapse;font-size:12px;"><tr style="background:#f8fafc;"><td style="padding:8px 12px;font-weight:600;">Top Region</td><td style="padding:8px 12px;text-align:right;font-weight:700;">{e(geo.get("top_region","US"))} ({geo.get("top_region_pct",0):.0f}%)</td></tr><tr><td style="padding:8px 12px;font-weight:600;">Stocks Analyzed</td><td style="padding:8px 12px;text-align:right;font-weight:700;">{len(concordance)}</td></tr></table>')
+    h.append('</td></tr></table>')
+    # Sector gaps
+    if sector_gaps:
+        h.append('<div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#d97706;margin:4px 0 8px 0;">Sector Gaps</div>')
+        for gap in sector_gaps[:4]:
+            sec = gap.get("sector", gap.get("etf", "?"))
+            assessment = gap.get("gap", gap.get("assessment", gap.get("note", "")))
+            h.append(f'<div style="padding:6px 12px;margin-bottom:4px;background:#fffbeb;border:1px solid #fde68a;border-radius:4px;font-size:11px;"><span style="font-weight:700;">{e(str(sec))}</span>: {e(str(assessment)[:80])}</div>')
     # Clusters
     if clusters:
         h.append('<div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#dc2626;margin-bottom:10px;">Correlation Clusters</div>')
@@ -337,17 +413,29 @@ def generate_report_html(
         h.append(f'<tr style="background:{bg};border-bottom:1px solid #e2e8f0;"><td style="padding:8px;text-align:center;font-weight:700;color:#059669;">{i+1}</td><td style="padding:8px;font-family:monospace;font-weight:700;">{e(o.get("ticker",""))}</td><td style="padding:8px;">{e(o.get("sector",""))}</td><td style="padding:8px;text-align:center;font-weight:700;color:{conv_color(int(sf(sc)))};">{sf(sc):.0f}</td><td style="padding:8px;text-align:center;">{e(str(ex))}</td><td style="padding:8px;font-size:11px;color:#334155;">{e(str(o.get("why_compelling",o.get("thesis","")))[:80])}</td></tr>')
     h.append('</table></div>')
 
-    # S11: ACTION ITEMS
-    h.append('<div style="padding:32px 40px;border-bottom:2px solid #0f172a;"><h2 style="margin:0 0 4px 0;font-size:18px;font-weight:700;color:#0f172a;">Action Items</h2><p style="color:#64748b;font-size:12px;margin:0 0 16px 0;">Priority-ranked by committee consensus.</p><table style="width:100%;border-collapse:collapse;font-size:12px;"><tr style="border-bottom:2px solid #1e293b;"><th style="padding:10px 6px;text-align:center;background:#0f172a;color:#fff;font-size:10px;font-weight:700;width:25px;">#</th><th style="padding:10px 6px;text-align:center;background:#0f172a;color:#fff;font-size:10px;font-weight:700;width:70px;">ACTION</th><th style="padding:10px 6px;text-align:left;background:#0f172a;color:#fff;font-size:10px;font-weight:700;width:65px;">STOCK</th><th style="padding:10px 6px;text-align:left;background:#0f172a;color:#fff;font-size:10px;font-weight:700;">DETAIL</th><th style="padding:10px 6px;text-align:center;background:#0f172a;color:#fff;font-size:10px;font-weight:700;width:35px;">CONV</th><th style="padding:10px 6px;text-align:center;background:#0f172a;color:#fff;font-size:10px;font-weight:700;width:50px;">SIZE</th></tr>')
-    for i,entry in enumerate(concordance):
-        act=entry.get("action","HOLD"); tkr=entry.get("ticker",""); conv=entry.get("conviction",0); sig=entry.get("signal","?"); ex=entry.get("exret",0); sec=entry.get("sector",""); mp=entry.get("max_pct",5.0); rsi=entry.get("rsi",0)
-        if act in ("SELL","REDUCE","IMMEDIATE SELL"): sz="Exit"; dt=f"Sig:{sig} EXRET:{ex:.1f}% RSI:{rsi:.0f}"
-        elif act=="TRIM": sz="Reduce"; dt=f"Sig:{sig} RSI:{rsi:.0f} {sec}"
-        elif act in ("BUY","ADD","BUY NEW"): sz=f"Max {mp:.1f}%"; dt=f"Sig:{sig} EXRET:{ex:.1f}% {sec}"
-        else: sz="-"; dt=f"Sig:{sig} EXRET:{ex:.1f}%"
-        ac,ab,abr = action_color(act),action_bg(act),action_border(act)
-        h.append(f'<tr style="background:{ab};border-bottom:1px solid {abr};"><td style="padding:10px 8px;text-align:center;font-weight:800;">{i+1}</td><td style="padding:10px 8px;text-align:center;"><span style="display:inline-block;padding:3px 10px;border-radius:4px;font-size:10px;font-weight:700;color:#fff;background:{ac};">{act}</span></td><td style="padding:10px 8px;font-family:monospace;font-weight:700;font-size:13px;">{e(tkr)}</td><td style="padding:10px 8px;color:#334155;font-size:11px;">{e(dt)}</td><td style="padding:10px 8px;text-align:center;font-weight:800;font-size:14px;color:{conv_color(conv)};">{conv}</td><td style="padding:10px 8px;text-align:center;font-family:monospace;font-size:11px;font-weight:600;">{sz}</td></tr>')
-    h.append('</table></div>')
+    # S11: ACTION ITEMS — split into Immediate Actions + Monitoring
+    immediate = [entry for entry in concordance if entry.get("action") in _actionable]
+    monitoring = [entry for entry in concordance if entry.get("action") not in _actionable]
+    h.append('<div style="padding:32px 40px;border-bottom:2px solid #0f172a;"><h2 style="margin:0 0 4px 0;font-size:18px;font-weight:700;color:#0f172a;">Action Items</h2><p style="color:#64748b;font-size:12px;margin:0 0 16px 0;">Priority-ranked by committee consensus.</p>')
+    if immediate:
+        h.append('<div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#dc2626;margin-bottom:10px;">Immediate Actions</div>')
+        h.append('<table style="width:100%;border-collapse:collapse;font-size:12px;"><tr style="border-bottom:2px solid #1e293b;"><th style="padding:10px 6px;text-align:center;background:#0f172a;color:#fff;font-size:10px;font-weight:700;width:25px;">#</th><th style="padding:10px 6px;text-align:center;background:#0f172a;color:#fff;font-size:10px;font-weight:700;width:70px;">ACTION</th><th style="padding:10px 6px;text-align:left;background:#0f172a;color:#fff;font-size:10px;font-weight:700;width:65px;">STOCK</th><th style="padding:10px 6px;text-align:left;background:#0f172a;color:#fff;font-size:10px;font-weight:700;">DETAIL</th><th style="padding:10px 6px;text-align:center;background:#0f172a;color:#fff;font-size:10px;font-weight:700;width:35px;">CONV</th><th style="padding:10px 6px;text-align:center;background:#0f172a;color:#fff;font-size:10px;font-weight:700;width:50px;">SIZE</th></tr>')
+        for i,entry in enumerate(immediate):
+            act=entry.get("action","HOLD"); tkr=entry.get("ticker",""); conv=entry.get("conviction",0); sig=entry.get("signal","?"); ex=entry.get("exret",0); sec=entry.get("sector",""); mp=entry.get("max_pct",5.0); rsi=entry.get("rsi",0)
+            if act in ("SELL","REDUCE","IMMEDIATE SELL"): sz="Exit"; dt=f"Sig:{sig} EXRET:{ex:.1f}% RSI:{rsi:.0f}"
+            elif act=="TRIM": sz="Reduce"; dt=f"Sig:{sig} RSI:{rsi:.0f} {sec}"
+            else: sz=f"Max {mp:.1f}%"; dt=f"Sig:{sig} EXRET:{ex:.1f}% {sec}"
+            ac,ab,abrd = action_color(act),action_bg(act),action_border(act)
+            h.append(f'<tr style="background:{ab};border-bottom:1px solid {abrd};"><td style="padding:10px 8px;text-align:center;font-weight:800;">{i+1}</td><td style="padding:10px 8px;text-align:center;"><span style="display:inline-block;padding:3px 10px;border-radius:4px;font-size:10px;font-weight:700;color:#fff;background:{ac};">{act}</span></td><td style="padding:10px 8px;font-family:monospace;font-weight:700;font-size:13px;">{e(tkr)}</td><td style="padding:10px 8px;color:#334155;font-size:11px;">{e(dt)}</td><td style="padding:10px 8px;text-align:center;font-weight:800;font-size:14px;color:{conv_color(conv)};">{conv}</td><td style="padding:10px 8px;text-align:center;font-family:monospace;font-size:11px;font-weight:600;">{sz}</td></tr>')
+        h.append('</table>')
+    if monitoring:
+        h.append('<div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748b;margin:20px 0 8px 0;">Monitoring</div><div>')
+        for entry in monitoring:
+            tkr = entry.get("ticker",""); conv = entry.get("conviction",0)
+            cc = conv_color(conv)
+            h.append(f'<span style="display:inline-block;padding:4px 10px;margin:3px 4px 3px 0;border-radius:4px;font-size:11px;border:1px solid #e2e8f0;background:#fff;"><span style="font-family:monospace;font-weight:700;">{e(tkr)}</span> <span style="color:{cc};font-weight:700;font-size:10px;">{conv}</span></span>')
+        h.append('</div>')
+    h.append('</div>')
 
     # S12: CHANGES
     sig_changes = [c for c in changes if abs(c.get("delta",0))>5 or c.get("prev_action")!=c.get("curr_action")]
