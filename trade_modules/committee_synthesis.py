@@ -766,8 +766,10 @@ def synthesize_stock(
     pet = sig_data.get("pet", 0)
     pef = sig_data.get("pef", 0)
 
-    # Fund score with fallback
+    # Fund score with fallback (guard against explicit None values)
     fund_score = fund_data.get("fundamental_score", 50)
+    if fund_score is None:
+        fund_score = 50
     quality_trap = fund_data.get("quality_trap_warning", False)
     pe_traj = fund_data.get("pe_trajectory", "stable")
     if pe_traj == "stable" and pet > 0 and pef > 0:
