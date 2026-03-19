@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from trade_modules.committee_backtester import CommitteeBacktester
+from trade_modules.committee_backtester import CommitteeBacktester, evaluate_recent
 
 
 # ============================================================
@@ -304,3 +304,92 @@ class TestCalibrationReport:
         bt.forward_returns = {}
         report = bt.generate_calibration_report()
         assert len(report["recommendations"]) >= 1
+
+
+# ============================================================
+# CIO v12.0 P1: evaluate_recent
+# ============================================================
+
+
+class TestEvaluateRecent:
+    """CIO v12.0 P1: Evaluate most recent committee run against current prices."""
+
+    def test_no_history_returns_status(self, tmp_path):
+        """No concordance.json should return no_history status."""
+        result = evaluate_recent({"AAPL": 200}, log_dir=tmp_path)
+        assert result["status"] == "no_history"
+
+    def test_basic_return_computation(self, tmp_path):
+        """Should compute returns correctly from previous concordance."""
+        conc = [
+            {"ticker": "AAPL", "action": "ADD", "conviction": 70, "price": 100},
+            {"ticker": "MSFT", "action": "SELL", "conviction": 65, "price": 200},
+            {"ticker": "NVDA", "action": "HOLD", "conviction": 55, "price": 50},
+        ]
+        conc_path = tmp_path / "concordance.json"
+        with open(conc_path, "w") as f:
+            json.dump(conc, f)
+
+        result = evaluate_recent(
+            {"AAPL": 110, "MSFT": 180, "NVDA": 52},
+            log_dir=tmp_path,
+        )
+        assert result["status"] == "complete"
+        assert result["total_evaluated"] == 3
+        # AAPL: +10%, ADD = hit (positive return)
+        assert result["actions"]["ADD"]["hit_rate"] == 100.0
+        # MSFT: -10%, SELL = hit (negative return)
+        assert result["actions"]["SELL"]["hit_rate"] == 100.0
+
+    def test_dict_format_concordance(self, tmp_path):
+        """Should handle {date, stocks: {ticker: data}} format."""
+        conc = {
+            "date": "2026-03-15",
+            "stocks": {
+                "AAPL": {"action": "ADD", "conviction": 70, "price": 150},
+                "TSLA": {"action": "TRIM", "conviction": 60, "price": 200},
+            },
+        }
+        conc_path = tmp_path / "concordance.json"
+        with open(conc_path, "w") as f:
+            json.dump(conc, f)
+
+        result = evaluate_recent(
+            {"AAPL": 160, "TSLA": 190},
+            log_dir=tmp_path,
+        )
+        assert result["status"] == "complete"
+        assert result["prev_committee_date"] == "2026-03-15"
+        assert result["total_evaluated"] == 2
+
+    def test_missing_prices_excluded(self, tmp_path):
+        """Stocks without current prices should be excluded."""
+        conc = [
+            {"ticker": "AAPL", "action": "ADD", "conviction": 70, "price": 100},
+            {"ticker": "UNKNOWN", "action": "HOLD", "conviction": 50, "price": 10},
+        ]
+        conc_path = tmp_path / "concordance.json"
+        with open(conc_path, "w") as f:
+            json.dump(conc, f)
+
+        result = evaluate_recent(
+            {"AAPL": 110},  # UNKNOWN has no current price
+            log_dir=tmp_path,
+        )
+        assert result["total_evaluated"] == 1
+
+    def test_zero_prev_price_excluded(self, tmp_path):
+        """Stocks with zero previous price should be excluded."""
+        conc = [
+            {"ticker": "AAPL", "action": "ADD", "conviction": 70, "price": 0},
+        ]
+        conc_path = tmp_path / "concordance.json"
+        with open(conc_path, "w") as f:
+            json.dump(conc, f)
+
+        result = evaluate_recent(
+            {"AAPL": 110},
+            log_dir=tmp_path,
+        )
+        assert result["status"] == "complete"
+        assert result["total_evaluated"] == 0

@@ -632,7 +632,8 @@ def generate_report_html(
              f'border:1px solid {_C["border"]};border-radius:6px;font-size:9px;color:{_C["text_muted"]};">'
              f'* = Synthetic &middot; ENTER/EXIT/WAIT = Tech timing &middot; '
              f'FAVOR/UNFAV = Macro fit &middot; ALIGN/DIVERG = Census &middot; '
-             f'&#9650;&#9660; = Conviction change from prior committee</div>')
+             f'&#9650;&#9660; = Conviction change &middot; '
+             f'ACCEL/DETER = Signal velocity &middot; SERIA/BEAT/MISS = Earnings surprise</div>')
     h.append(_section_close())
 
     # ── S4: WHERE WE DISAGREED ──
@@ -818,10 +819,12 @@ def generate_report_html(
     pos_limits = synth.get("position_limits", risk.get("position_limits", {}))
     sell_items = [en for en in concordance if en.get("action") == "SELL"]
     trim_items = [en for en in concordance if en.get("action") == "TRIM"]
+    # CIO v12.0 P2: Sort BUY/ADD by conviction, then capital efficiency as
+    # tiebreaker. CE answers "which stock deserves the marginal dollar?"
     buy_items = sorted([en for en in concordance if en.get("action") == "BUY"],
-                       key=lambda x: -x.get("conviction", 0))
+                       key=lambda x: (-x.get("conviction", 0), -x.get("capital_efficiency", 0)))
     add_items = sorted([en for en in concordance if en.get("action") == "ADD"],
-                       key=lambda x: -x.get("conviction", 0))
+                       key=lambda x: (-x.get("conviction", 0), -x.get("capital_efficiency", 0)))
     monitor_items = sorted([en for en in concordance if en.get("action") == "HOLD"],
                            key=lambda x: -x.get("conviction", 0))
 
@@ -843,13 +846,26 @@ def generate_report_html(
         bp = en.get("buy_pct", 50)
         fv = en.get("fund_view", "?")
         mp = en.get("max_pct", pos_limits.get(tkr, {}).get("max_pct", 5.0))
+        ce = en.get("capital_efficiency", 0)
         kill = en.get("kill_thesis") or _stock_kill_thesis(act, tkr, sec, rsi, ex, beta, bp, mf, ts, fv)
+        # CIO v11.0: Surface velocity and earnings indicators when populated
+        vel = en.get("signal_velocity", "NO_HISTORY")
+        earn = en.get("earnings_surprise", "NO_DATA")
+        extra_tags = ""
+        if vel not in ("NO_HISTORY", "STABLE", ""):
+            vc = _C["bull"] if vel in ("ACCELERATING", "IMPROVING") else _C["bear"]
+            extra_tags += f' | <span style="color:{vc};">{vel[:5]}</span>'
+        if earn not in ("NO_DATA", "IN_LINE", ""):
+            ec = _C["bull"] if earn in ("SERIAL_BEATER", "BEAT") else _C["bear"]
+            extra_tags += f' | <span style="color:{ec};">{earn[:6]}</span>'
         inner = (f'<table style="width:100%;"><tr><td>'
                  f'{badge(act, action_color(act), "#fff")} '
                  f'<span style="{_MONO}font-weight:800;font-size:14px;margin-left:8px;">{e(tkr)}</span> '
                  f'<span style="font-size:11px;color:{_C["text_muted"]};margin-left:8px;">'
                  f'{sec} | RSI {rsi:.0f} | {abbr(ts)} | {abbr(mf)}'
-                 f'{" | Max " + str(int(mp)) + "%" if act in ("BUY","ADD") else ""}</span></td>'
+                 f'{" | Max " + str(int(mp)) + "%" if act in ("BUY","ADD") else ""}'
+                 f'{" | CE " + f"{ce:.1f}" if ce and act in ("BUY","ADD") else ""}'
+                 f'{extra_tags}</span></td>'
                  f'<td style="text-align:right;">{conv_display(conv)}</td></tr></table>'
                  f'<div style="font-size:11px;color:{_C["text_muted"]};font-style:italic;'
                  f'margin-top:8px;line-height:1.5;">{e(kill)}</div>')

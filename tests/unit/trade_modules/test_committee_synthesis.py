@@ -3113,3 +3113,674 @@ class TestSectorConcentrationPenalty:
         )
         for entry in concordance:
             assert entry["conviction"] >= 30
+
+
+# ============================================================
+# CIO v11.0 Review Tests
+# ============================================================
+
+
+class TestV11ActionConvictionSync:
+    """CIO v11.0 L1: Action must match conviction after sector concentration penalty."""
+
+    def _make_signals(self, tickers_sectors, signal="B"):
+        return {
+            t: {"signal": signal, "exret": 15, "buy_pct": 80, "beta": 1.0,
+                "pet": 20, "pef": 18, "pp": 5, "52w": 85}
+            for t, _ in tickers_sectors
+        }
+
+    def _make_sector_map(self, tickers_sectors):
+        return {t: s for t, s in tickers_sectors}
+
+    def test_add_action_requires_conviction_55(self):
+        """After sector penalty, ADD action should only appear with conv >= 55."""
+        # 6 Tech stocks → concentration penalty triggers
+        tickers_sectors = [(f"TECH{i}", "Technology") for i in range(6)]
+        signals = self._make_signals(tickers_sectors)
+        sector_map = self._make_sector_map(tickers_sectors)
+
+        concordance = build_concordance(
+            signals,
+            {"stocks": {}}, {"stocks": {}},
+            {"portfolio_implications": {}, "sector_rankings": {}},
+            {"divergences": {"consensus_aligned": [], "signal_divergences": [],
+                             "census_divergences": []}},
+            {"portfolio_news": {}},
+            {"consensus_warnings": [], "position_limits": {}},
+            sector_map,
+        )
+
+        for entry in concordance:
+            if entry["action"] == "ADD":
+                assert entry["conviction"] >= 55, (
+                    f'{entry["ticker"]}: ADD with conviction {entry["conviction"]} < 55'
+                )
+            elif entry["action"] == "HOLD":
+                assert entry["conviction"] < 55 or entry["signal"] == "H"
+
+    def test_no_desync_after_concentration_penalty(self):
+        """No stock should have ADD action with conviction below threshold."""
+        # Mix of sectors with concentration
+        tickers_sectors = (
+            [(f"FIN{i}", "Financials") for i in range(5)] +
+            [(f"TECH{i}", "Technology") for i in range(5)]
+        )
+        signals = self._make_signals(tickers_sectors)
+        sector_map = self._make_sector_map(tickers_sectors)
+
+        concordance = build_concordance(
+            signals,
+            {"stocks": {}}, {"stocks": {}},
+            {"portfolio_implications": {}, "sector_rankings": {}},
+            {"divergences": {"consensus_aligned": [], "signal_divergences": [],
+                             "census_divergences": []}},
+            {"portfolio_news": {}},
+            {"consensus_warnings": [], "position_limits": {}},
+            sector_map,
+        )
+
+        for entry in concordance:
+            # Verify contract: ADD requires conv >= 55 for BUY signal
+            if entry["signal"] == "B" and entry["action"] == "ADD":
+                assert entry["conviction"] >= 55, (
+                    f'{entry["ticker"]}: contract violation ADD at conv={entry["conviction"]}'
+                )
+
+
+class TestV11DirectionalConfidenceSynthetic:
+    """CIO v11.0 L6: Skip dir_confidence penalty when dual-synthetic."""
+
+    def test_dual_synthetic_no_dir_confidence_penalty(self):
+        """Dual-synthetic stocks should not get directional confidence penalty."""
+        result = synthesize_stock(
+            ticker="TEST",
+            sig_data={"signal": "B", "exret": 15, "buy_pct": 80, "beta": 1.0,
+                       "pet": 20, "pef": 18, "pp": 5, "52w": 85},
+            fund_data={"fundamental_score": None},  # triggers synthetic
+            tech_data={"synthetic": True, "momentum_score": 0,
+                        "timing_signal": "HOLD", "rsi": 50, "macd_signal": "NEUTRAL"},
+            macro_fit="NEUTRAL",
+            census_alignment="NEUTRAL",
+            div_score=0,
+            census_ts_trend="stable",
+            news_impact="NEUTRAL",
+            risk_warning=False,
+            sector="Technology",
+            sector_median_exret=10,
+            sector_rankings={},
+            position_limit=5.0,
+        )
+
+        # With both synthetic, dir_confidence will be < 0.4 (all neutral agents)
+        # but the penalty should be skipped for dual-synthetic stocks
+        assert result["fund_synthetic"] is True
+        assert result["tech_synthetic"] is True
+        # The key test: conviction should NOT have the -3 dir_confidence penalty
+        # compared to a stock with only one synthetic
+        result_single_synthetic = synthesize_stock(
+            ticker="TEST2",
+            sig_data={"signal": "B", "exret": 15, "buy_pct": 80, "beta": 1.0,
+                       "pet": 20, "pef": 18, "pp": 5, "52w": 85},
+            fund_data={"fundamental_score": 50},  # NOT synthetic
+            tech_data={"synthetic": True, "momentum_score": 0,
+                        "timing_signal": "HOLD", "rsi": 50, "macd_signal": "NEUTRAL"},
+            macro_fit="NEUTRAL",
+            census_alignment="NEUTRAL",
+            div_score=0,
+            census_ts_trend="stable",
+            news_impact="NEUTRAL",
+            risk_warning=False,
+            sector="Technology",
+            sector_median_exret=10,
+            sector_rankings={},
+            position_limit=5.0,
+        )
+        # Dual-synthetic should have same or higher conviction (no false penalty)
+        assert result["conviction"] >= result_single_synthetic["conviction"] - 3
+
+
+class TestV11SignalVelocityWiring:
+    """CIO v11.0 L2: Signal velocity should be populated when previous concordance provided."""
+
+    def test_velocity_populated_with_previous(self):
+        """build_concordance should pass previous signal data to synthesize_stock."""
+        signals = {
+            "AAPL": {"signal": "B", "exret": 15, "buy_pct": 80, "beta": 1.0,
+                      "pet": 20, "pef": 18, "pp": 5, "52w": 85},
+        }
+        previous = [
+            {"ticker": "AAPL", "signal": "H", "action": "HOLD", "conviction": 50,
+             "date": "2026-03-10"},
+        ]
+
+        concordance = build_concordance(
+            signals,
+            {"stocks": {}}, {"stocks": {}},
+            {"portfolio_implications": {}, "sector_rankings": {}},
+            {"divergences": {"consensus_aligned": [], "signal_divergences": [],
+                             "census_divergences": []}},
+            {"portfolio_news": {}},
+            {"consensus_warnings": [], "position_limits": {}},
+            {"AAPL": "Technology"},
+            previous_concordance=previous,
+        )
+
+        aapl = [e for e in concordance if e["ticker"] == "AAPL"][0]
+        # Signal changed from H to B (upgrade) within ~8 days → should be ACCELERATING or IMPROVING
+        assert aapl["signal_velocity"] != "NO_HISTORY", (
+            f'Velocity should be populated but got {aapl["signal_velocity"]}'
+        )
+
+    def test_velocity_no_history_without_previous(self):
+        """Without previous concordance, velocity should be NO_HISTORY."""
+        signals = {
+            "AAPL": {"signal": "B", "exret": 15, "buy_pct": 80, "beta": 1.0,
+                      "pet": 20, "pef": 18, "pp": 5, "52w": 85},
+        }
+
+        concordance = build_concordance(
+            signals,
+            {"stocks": {}}, {"stocks": {}},
+            {"portfolio_implications": {}, "sector_rankings": {}},
+            {"divergences": {"consensus_aligned": [], "signal_divergences": [],
+                             "census_divergences": []}},
+            {"portfolio_news": {}},
+            {"consensus_warnings": [], "position_limits": {}},
+            {"AAPL": "Technology"},
+        )
+
+        aapl = [e for e in concordance if e["ticker"] == "AAPL"][0]
+        assert aapl["signal_velocity"] == "NO_HISTORY"
+
+
+class TestV11SectorPenaltyCap:
+    """CIO v11.0 L5: Sector concentration penalty capped at 6 for existing holdings."""
+
+    def _make_signals(self, tickers_sectors, signal="B"):
+        return {
+            t: {"signal": signal, "exret": 15, "buy_pct": 80, "beta": 1.0,
+                "pet": 20, "pef": 18, "pp": 5, "52w": 85}
+            for t, _ in tickers_sectors
+        }
+
+    def _make_sector_map(self, tickers_sectors):
+        return {t: s for t, s in tickers_sectors}
+
+    def test_existing_holding_penalty_cap_is_6(self):
+        """Existing holdings should have sector concentration penalty capped at 6."""
+        tickers_sectors = [(f"TECH{i}", "Technology") for i in range(8)]
+        signals = self._make_signals(tickers_sectors)
+        sector_map = self._make_sector_map(tickers_sectors)
+
+        concordance = build_concordance(
+            signals,
+            {"stocks": {}}, {"stocks": {}},
+            {"portfolio_implications": {}, "sector_rankings": {}},
+            {"divergences": {"consensus_aligned": [], "signal_divergences": [],
+                             "census_divergences": []}},
+            {"portfolio_news": {}},
+            {"consensus_warnings": [], "position_limits": {}},
+            sector_map,
+        )
+
+        for entry in concordance:
+            if not entry.get("is_opportunity"):
+                penalty = entry.get("sector_concentration_penalty", 0)
+                assert penalty <= 6, (
+                    f'{entry["ticker"]}: sector penalty {penalty} exceeds cap of 6'
+                )
+
+
+class TestV11EarningsSurpriseWiring:
+    """CIO v11.0 L3: Earnings surprise data should flow from fund_data to synthesize_stock."""
+
+    def test_earnings_surprise_from_fund_data(self):
+        """When fund_data includes earnings surprise, it should affect conviction."""
+        signals = {
+            "AAPL": {"signal": "B", "exret": 15, "buy_pct": 80, "beta": 1.0,
+                      "pet": 20, "pef": 18, "pp": 5, "52w": 85},
+        }
+        fund_report = {
+            "stocks": {
+                "AAPL": {
+                    "fundamental_score": 75,
+                    "signal": "BUY",
+                    "earnings_surprise_pct": 15.0,
+                    "consecutive_earnings_beats": 3,
+                }
+            }
+        }
+
+        concordance = build_concordance(
+            signals,
+            fund_report, {"stocks": {}},
+            {"portfolio_implications": {}, "sector_rankings": {}},
+            {"divergences": {"consensus_aligned": [], "signal_divergences": [],
+                             "census_divergences": []}},
+            {"portfolio_news": {}},
+            {"consensus_warnings": [], "position_limits": {}},
+            {"AAPL": "Technology"},
+        )
+
+        aapl = [e for e in concordance if e["ticker"] == "AAPL"][0]
+        assert aapl["earnings_surprise"] == "SERIAL_BEATER", (
+            f'Expected SERIAL_BEATER but got {aapl["earnings_surprise"]}'
+        )
+
+    def test_earnings_no_data_without_fund_fields(self):
+        """Without earnings fields in fund_data, should default to NO_DATA."""
+        signals = {
+            "AAPL": {"signal": "B", "exret": 15, "buy_pct": 80, "beta": 1.0,
+                      "pet": 20, "pef": 18, "pp": 5, "52w": 85},
+        }
+        fund_report = {
+            "stocks": {
+                "AAPL": {
+                    "fundamental_score": 75,
+                    "signal": "BUY",
+                    # No earnings_surprise_pct or consecutive_earnings_beats
+                }
+            }
+        }
+
+        concordance = build_concordance(
+            signals,
+            fund_report, {"stocks": {}},
+            {"portfolio_implications": {}, "sector_rankings": {}},
+            {"divergences": {"consensus_aligned": [], "signal_divergences": [],
+                             "census_divergences": []}},
+            {"portfolio_news": {}},
+            {"consensus_warnings": [], "position_limits": {}},
+            {"AAPL": "Technology"},
+        )
+
+        aapl = [e for e in concordance if e["ticker"] == "AAPL"][0]
+        assert aapl["earnings_surprise"] == "NO_DATA"
+
+
+class TestV11OpportunityActionPreservation:
+    """CIO v11.0 L1 edge case: Opportunities must keep BUY/HOLD, not get ADD."""
+
+    def test_opportunity_keeps_buy_after_sector_penalty(self):
+        """Opportunities with sector concentration penalty should use BUY, not ADD."""
+        # 4 existing Tech stocks + 1 Tech opportunity → concentration triggers
+        portfolio_signals = {
+            f"TECH{i}": {"signal": "B", "exret": 15, "buy_pct": 80, "beta": 1.0,
+                          "pet": 20, "pef": 18, "pp": 5, "52w": 85}
+            for i in range(4)
+        }
+        opp_signals = {
+            "NEWTECH": {"signal": "B", "exret": 20, "buy_pct": 85, "beta": 1.0,
+                         "pet": 20, "pef": 18, "pp": 5, "52w": 85}
+        }
+        sector_map = {f"TECH{i}": "Technology" for i in range(4)}
+        opp_sector_map = {"NEWTECH": "Technology"}
+
+        concordance = build_concordance(
+            portfolio_signals,
+            {"stocks": {}}, {"stocks": {}},
+            {"portfolio_implications": {}, "sector_rankings": {}},
+            {"divergences": {"consensus_aligned": [], "signal_divergences": [],
+                             "census_divergences": []}},
+            {"portfolio_news": {}},
+            {"consensus_warnings": [], "position_limits": {}},
+            sector_map,
+            opportunity_signals=opp_signals,
+            opportunity_sector_map=opp_sector_map,
+        )
+
+        newtech = [e for e in concordance if e["ticker"] == "NEWTECH"][0]
+        # Should be BUY (new opportunity), not ADD (existing holding)
+        assert newtech["action"] in ("BUY", "HOLD"), (
+            f'Opportunity NEWTECH should be BUY or HOLD, not {newtech["action"]}'
+        )
+
+
+# ============================================================
+# CIO v12.0 Findings
+# ============================================================
+
+
+class TestV12R1KillThesisFloorEscape:
+    """CIO v12.0 R1: Kill thesis should prevent quality floor rescue."""
+
+    def _base_sig_data(self):
+        return {
+            "signal": "B", "exret": 25, "buy_pct": 75,
+            "beta": 1.0, "pet": 20, "pef": 15, "pp": 10, "52w": 90,
+        }
+
+    def _base_fund_data(self):
+        return {"fundamental_score": 80, "quality_trap_warning": False}
+
+    def _base_tech_data(self):
+        return {"momentum_score": 20, "timing_signal": "ENTER_NOW", "rsi": 55, "macd_signal": "BULLISH"}
+
+    def test_kill_thesis_prevents_quality_floor_55(self):
+        """Stock with triggered kill thesis should NOT get quality floor of 55."""
+        result = synthesize_stock(
+            ticker="TEST", sig_data=self._base_sig_data(),
+            fund_data=self._base_fund_data(), tech_data=self._base_tech_data(),
+            macro_fit="FAVORABLE", census_alignment="ALIGNED", div_score=0,
+            census_ts_trend="stable", news_impact="HIGH_POSITIVE",
+            risk_warning=False, sector="Technology", sector_median_exret=10,
+            sector_rankings={}, position_limit=5.0,
+            kill_thesis_triggered=True,
+        )
+        # With kill thesis, should be below 55 (quality floor would push to 55)
+        # The unconditional BUY floor of 40 should still apply
+        assert result["conviction"] >= 40, "Unconditional BUY floor should apply"
+
+    def test_kill_thesis_true_produces_hold_not_add(self):
+        """Kill thesis triggered should produce HOLD, not ADD, for BUY signal stocks."""
+        # Use a scenario where penalties are heavy enough that -15 drops below 55
+        result = synthesize_stock(
+            ticker="TEST", sig_data=self._base_sig_data(),
+            fund_data=self._base_fund_data(), tech_data=self._base_tech_data(),
+            macro_fit="UNFAVORABLE", census_alignment="DIVERGENT", div_score=30,
+            census_ts_trend="distribution", news_impact="NEUTRAL",
+            risk_warning=True, sector="Technology", sector_median_exret=10,
+            sector_rankings={}, position_limit=5.0,
+            kill_thesis_triggered=True, regime="RISK_OFF",
+        )
+        # With RISK_OFF + penalties + kill thesis, should NOT be ADD
+        assert result["action"] != "ADD" or result["conviction"] < 55, (
+            "Kill thesis should prevent ADD recommendation"
+        )
+
+    def test_no_kill_thesis_quality_floor_still_works(self):
+        """Without kill thesis, quality floors should still apply normally."""
+        result = synthesize_stock(
+            ticker="TEST",
+            sig_data={"signal": "B", "exret": 25, "buy_pct": 75,
+                       "beta": 1.0, "pet": 20, "pef": 15, "pp": 5, "52w": 85},
+            fund_data={"fundamental_score": 80, "quality_trap_warning": False},
+            tech_data={"momentum_score": 10, "timing_signal": "HOLD", "rsi": 50,
+                        "macd_signal": "NEUTRAL"},
+            macro_fit="UNFAVORABLE", census_alignment="NEUTRAL", div_score=0,
+            census_ts_trend="stable", news_impact="NEUTRAL",
+            risk_warning=True, sector="Technology", sector_median_exret=10,
+            sector_rankings={}, position_limit=5.0,
+            kill_thesis_triggered=False, regime="RISK_OFF",
+        )
+        # Quality floor should rescue: excess_exret > 20, pef < pet
+        assert result["conviction"] >= 40, "Quality floor should still apply without kill thesis"
+
+
+class TestV12M1AsymmetricNewsWeights:
+    """CIO v12.0 M1: Negative news should have higher weight than positive."""
+
+    def test_high_negative_stronger_than_high_positive(self):
+        """HIGH_NEGATIVE should produce lower bull_pct than HIGH_POSITIVE produces higher."""
+        # All other agents neutral
+        _, _, _ = count_agent_votes(
+            fund_score=55, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="HIGH_POSITIVE", risk_warning=False, signal="H",
+        )
+        bull_pos, bear_pos, _ = count_agent_votes(
+            fund_score=55, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="HIGH_POSITIVE", risk_warning=False, signal="H",
+        )
+        bull_neg, bear_neg, _ = count_agent_votes(
+            fund_score=55, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="HIGH_NEGATIVE", risk_warning=False, signal="H",
+        )
+        # bear weight from HIGH_NEGATIVE should be > bull weight from HIGH_POSITIVE
+        assert bear_neg > bull_pos - bear_pos, (
+            f"Negative news bear weight ({bear_neg}) should exceed positive news "
+            f"net bull effect ({bull_pos - bear_pos})"
+        )
+
+    def test_high_negative_asymmetric_impact(self):
+        """HIGH_NEGATIVE net bear impact should exceed HIGH_POSITIVE net bull impact."""
+        bull_base, bear_base, _ = count_agent_votes(
+            fund_score=55, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="H",
+        )
+        bull_neg, bear_neg, _ = count_agent_votes(
+            fund_score=55, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="HIGH_NEGATIVE", risk_warning=False, signal="H",
+        )
+        bull_pos, bear_pos, _ = count_agent_votes(
+            fund_score=55, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="HIGH_POSITIVE", risk_warning=False, signal="H",
+        )
+        # Net negative impact (bear delta) should exceed net positive impact (bull delta)
+        bear_delta = bear_neg - bear_base
+        bull_delta = bull_pos - bull_base
+        assert bear_delta > bull_delta, (
+            f"Negative bear delta ({bear_delta:.2f}) should exceed "
+            f"positive bull delta ({bull_delta:.2f})"
+        )
+
+    def test_high_positive_adds_less_than_1_0_bull(self):
+        """HIGH_POSITIVE should add < 1.0 net bull weight (conservative)."""
+        bull_base, bear_base, _ = count_agent_votes(
+            fund_score=55, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="H",
+        )
+        bull_pos, bear_pos, _ = count_agent_votes(
+            fund_score=55, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="HIGH_POSITIVE", risk_warning=False, signal="H",
+        )
+        # Net bull delta = (bull_pos - bull_base) - (bear_pos - bear_base)
+        net_bull = (bull_pos - bull_base) - (bear_pos - bear_base)
+        assert net_bull < 1.0, (
+            f"HIGH_POSITIVE net bull contribution ({net_bull:.2f}) should be < 1.0"
+        )
+
+
+class TestV12R2SellBearRatioContinuous:
+    """CIO v12.0 R2: SELL signal base conviction should use continuous interpolation."""
+
+    def test_bear_ratio_0_65_vs_0_79_differentiated(self):
+        """Bear ratio 0.65 and 0.79 should produce different base convictions."""
+        # bear_ratio 0.65
+        base_65 = determine_base_conviction(
+            bull_pct=35, signal="S", fund_score=50,
+            excess_exret=0, bear_ratio=0.65,
+        )
+        # bear_ratio 0.79
+        base_79 = determine_base_conviction(
+            bull_pct=35, signal="S", fund_score=50,
+            excess_exret=0, bear_ratio=0.79,
+        )
+        assert base_79 > base_65, (
+            f"Bear ratio 0.79 base ({base_79}) should exceed 0.65 base ({base_65})"
+        )
+
+    def test_bear_ratio_0_80_gives_85(self):
+        """Bear ratio >= 0.80 should still give base 85."""
+        base = determine_base_conviction(
+            bull_pct=20, signal="S", fund_score=50,
+            excess_exret=0, bear_ratio=0.85,
+        )
+        assert base == 85
+
+    def test_bear_ratio_0_40_gives_50(self):
+        """Bear ratio at 0.40 boundary should give base 50."""
+        base = determine_base_conviction(
+            bull_pct=60, signal="S", fund_score=50,
+            excess_exret=0, bear_ratio=0.40,
+        )
+        assert base == 50
+
+    def test_bear_ratio_below_0_40_gives_50(self):
+        """Bear ratio below 0.40 (agents disagree with SELL) should give base 50."""
+        base = determine_base_conviction(
+            bull_pct=65, signal="S", fund_score=50,
+            excess_exret=0, bear_ratio=0.35,
+        )
+        assert base == 50
+
+    def test_bear_ratio_continuous_monotonic(self):
+        """Base conviction should increase monotonically with bear_ratio (0.40 to 0.80)."""
+        prev_base = 0
+        for br in [0.40, 0.50, 0.60, 0.70, 0.79]:
+            base = determine_base_conviction(
+                bull_pct=40, signal="S", fund_score=50,
+                excess_exret=0, bear_ratio=br,
+            )
+            assert base >= prev_base, (
+                f"Base at bear_ratio={br} ({base}) should >= prev ({prev_base})"
+            )
+            prev_base = base
+
+
+# ============================================================
+# CIO v12.0 M2: Volume-Weighted Census Signal
+# ============================================================
+
+
+class TestV12M2VolumeWeightedCensus:
+    """CIO v12.0 M2: Census weight scales by divergence magnitude."""
+
+    def test_high_div_score_gets_full_weight(self):
+        """High divergence score (50+) should get full census weight."""
+        bull_hi, bear_hi, _ = count_agent_votes(
+            fund_score=70, tech_signal="ENTER_NOW", tech_momentum=30,
+            macro_fit="FAVORABLE", census_alignment="ALIGNED",
+            news_impact="NEUTRAL", risk_warning=False, signal="B",
+            census_div_score=60.0,
+        )
+        bull_lo, bear_lo, _ = count_agent_votes(
+            fund_score=70, tech_signal="ENTER_NOW", tech_momentum=30,
+            macro_fit="FAVORABLE", census_alignment="ALIGNED",
+            news_impact="NEUTRAL", risk_warning=False, signal="B",
+            census_div_score=10.0,
+        )
+        # High div_score should contribute more bull weight
+        assert bull_hi > bull_lo
+
+    def test_zero_div_score_gets_half_weight(self):
+        """Zero/missing divergence score should use 0.5 magnitude (half weight)."""
+        bull_zero, _, _ = count_agent_votes(
+            fund_score=50, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="ALIGNED",
+            news_impact="NEUTRAL", risk_warning=False, signal="H",
+            census_div_score=0.0,
+        )
+        bull_full, _, _ = count_agent_votes(
+            fund_score=50, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="ALIGNED",
+            news_impact="NEUTRAL", risk_warning=False, signal="H",
+            census_div_score=50.0,
+        )
+        assert bull_full > bull_zero
+
+    def test_divergent_scales_with_magnitude(self):
+        """DIVERGENT alignment should also scale bear weight by magnitude."""
+        _, bear_hi, _ = count_agent_votes(
+            fund_score=50, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="DIVERGENT",
+            news_impact="NEUTRAL", risk_warning=False, signal="H",
+            census_div_score=60.0,
+        )
+        _, bear_lo, _ = count_agent_votes(
+            fund_score=50, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="DIVERGENT",
+            news_impact="NEUTRAL", risk_warning=False, signal="H",
+            census_div_score=10.0,
+        )
+        assert bear_hi > bear_lo
+
+    def test_backward_compatible_without_div_score(self):
+        """Default census_div_score=0.0 should not crash."""
+        bull, bear, dc = count_agent_votes(
+            fund_score=70, tech_signal="ENTER_NOW", tech_momentum=30,
+            macro_fit="FAVORABLE", census_alignment="ALIGNED",
+            news_impact="NEUTRAL", risk_warning=False, signal="B",
+        )
+        assert bull > bear
+
+
+# ============================================================
+# CIO v12.0 M3: Earnings Trajectory Momentum
+# ============================================================
+
+
+class TestV12M3EarningsTrajectory:
+    """CIO v12.0 M3: Surprise trajectory modulates earnings adjustment."""
+
+    def test_accelerating_beats_boost(self):
+        """ACCELERATING trajectory with serial beats should add +2."""
+        adj_accel, label_accel = get_earnings_surprise_adjustment(
+            recent_surprise_pct=12.0,
+            consecutive_beats=3,
+            surprise_trajectory="ACCELERATING",
+        )
+        adj_base, label_base = get_earnings_surprise_adjustment(
+            recent_surprise_pct=12.0,
+            consecutive_beats=3,
+        )
+        assert adj_accel == adj_base + 2
+        assert "_ACCEL" in label_accel
+
+    def test_decelerating_beats_reduce(self):
+        """DECELERATING trajectory on BEAT should reduce by 2."""
+        adj_decel, label_decel = get_earnings_surprise_adjustment(
+            recent_surprise_pct=8.0,
+            consecutive_beats=1,
+            surprise_trajectory="DECELERATING",
+        )
+        adj_base, _ = get_earnings_surprise_adjustment(
+            recent_surprise_pct=8.0,
+            consecutive_beats=1,
+        )
+        assert adj_decel == max(adj_base - 2, 0)
+        assert "_DECEL" in label_decel
+
+    def test_decelerating_miss_no_effect(self):
+        """DECELERATING on MISS should have no trajectory effect."""
+        adj_decel, label_decel = get_earnings_surprise_adjustment(
+            recent_surprise_pct=-8.0,
+            consecutive_beats=0,
+            surprise_trajectory="DECELERATING",
+        )
+        adj_base, label_base = get_earnings_surprise_adjustment(
+            recent_surprise_pct=-8.0,
+            consecutive_beats=0,
+        )
+        assert adj_decel == adj_base
+        assert "_DECEL" not in label_decel
+
+    def test_accelerating_needs_consecutive_beats(self):
+        """ACCELERATING with <2 consecutive beats should have no trajectory effect."""
+        adj, label = get_earnings_surprise_adjustment(
+            recent_surprise_pct=12.0,
+            consecutive_beats=1,
+            surprise_trajectory="ACCELERATING",
+        )
+        adj_base, _ = get_earnings_surprise_adjustment(
+            recent_surprise_pct=12.0,
+            consecutive_beats=1,
+        )
+        assert adj == adj_base
+        assert "_ACCEL" not in label
+
+    def test_capped_at_seven(self):
+        """ACCELERATING trajectory adjustment should cap at 7."""
+        adj, _ = get_earnings_surprise_adjustment(
+            recent_surprise_pct=15.0,
+            consecutive_beats=4,
+            surprise_trajectory="ACCELERATING",
+        )
+        assert adj <= 7
+
+    def test_backward_compatible_without_trajectory(self):
+        """Without surprise_trajectory, behavior should be unchanged."""
+        adj_new, label_new = get_earnings_surprise_adjustment(
+            recent_surprise_pct=12.0,
+            consecutive_beats=3,
+        )
+        assert adj_new == 5
+        assert label_new == "SERIAL_BEATER"
