@@ -27,6 +27,20 @@ CIO Legacy Review additions (v5.3):
 - B2: Extreme EXRET penalty (>40% triggers staleness penalty)
 - C1: Exposure-weighted sector gap detection
 - C2: Capital efficiency score for within-group ranking
+
+CIO v11.0 (Final Legacy Review):
+- L1: Action/conviction desync fix — re-evaluate ALL actions after sector penalty
+- L2: Signal velocity wired to previous concordance data
+- L5: Sector concentration penalty cap reduced from 10 to 6 for existing holdings
+- L6: Directional confidence penalty skipped for dual-synthetic stocks
+- L7: Conviction floors reapplied after sector concentration penalty
+
+CIO v12.0 (Architecture Audit):
+- R1: Kill thesis floor escape fix — skip quality floors when kill thesis triggered
+- M1: Asymmetric news weights — negative news 1.3x, positive 0.85x (prospect theory)
+- R2: SELL bear ratio continuous interpolation (eliminates 0.65-0.79 dead zone)
+- M2: Volume-weighted census signal — scales census weight by divergence magnitude
+- M3: Earnings trajectory momentum — ACCELERATING/DECELERATING surprise modulation
 """
 
 import logging
@@ -257,6 +271,7 @@ def count_agent_votes(
     fund_synthetic: bool = False,
     tech_synthetic: bool = False,
     regime: str = "",
+    census_div_score: float = 0.0,
 ) -> Tuple[float, float]:
     """
     Count bull/bear weighted votes from agent views.
@@ -343,36 +358,51 @@ def count_agent_votes(
         neutral_weight += 0.9
 
     # Census (freshness 0.85x)
+    # CIO v12.0 M2: Magnitude-weighted census signal. A PI going from 0.5%
+    # to 0.6% allocation is noise; from 2% to 5% is a conviction trade.
+    # Scale the census weight by the absolute divergence score magnitude,
+    # normalizing to [0.5, 1.0] range so low-magnitude signals still count
+    # but high-magnitude signals get full weight.
+    div_magnitude = min(abs(census_div_score) / 50.0, 1.0) if census_div_score else 0.5
+    census_weight = 0.85 * (0.5 + 0.5 * div_magnitude)  # Range: 0.425 to 0.85
     if census_alignment == "ALIGNED":
-        bull += 0.85
-        directional_weight += 0.85
+        bull += census_weight
+        directional_weight += census_weight
     elif census_alignment == "DIVERGENT":
-        bull += 0.35
-        bear += 0.50
-        directional_weight += 0.85
+        # Split proportionally to census_weight
+        bull += census_weight * 0.41  # ~0.35 at full weight
+        bear += census_weight * 0.59  # ~0.50 at full weight
+        directional_weight += census_weight
     elif census_alignment == "CENSUS_DIV":
-        bull += 0.6
-        bear += 0.25
-        directional_weight += 0.85
+        bull += census_weight * 0.71  # ~0.60 at full weight
+        bear += census_weight * 0.29  # ~0.25 at full weight
+        directional_weight += census_weight
     else:
-        bull += 0.425
-        bear += 0.425
-        neutral_weight += 0.85
+        bull += census_weight / 2
+        bear += census_weight / 2
+        neutral_weight += census_weight
 
     # News (freshness 1.0x)
+    # CIO v12.0 M1: Asymmetric news weights. Behavioral finance research
+    # (Kahneman & Tversky, prospect theory) establishes that negative news
+    # has ~1.5x the market impact of positive news. Positive news tends to
+    # be already priced in (travels faster); negative news creates persistent
+    # underreaction. The asymmetry prevents conviction inflation from positive
+    # catalysts while properly weighting downside risk from negative ones.
     if "HIGH_POSITIVE" in news_impact:
-        bull += 1.0
+        bull += 0.85
+        bear += 0.15
         directional_weight += 1.0
     elif "LOW_POSITIVE" in news_impact:
-        bull += 0.7
-        bear += 0.3
+        bull += 0.65
+        bear += 0.35
         directional_weight += 1.0
     elif "HIGH_NEGATIVE" in news_impact:
-        bear += 1.0
-        directional_weight += 1.0
+        bear += 1.3
+        directional_weight += 1.3
     elif "LOW_NEGATIVE" in news_impact:
-        bull += 0.3
-        bear += 0.7
+        bull += 0.25
+        bear += 0.75
         directional_weight += 1.0
     else:
         bull += 0.5
@@ -476,16 +506,17 @@ def determine_base_conviction(
             exret_bonus = min(5, int(excess_exret / 4))
             base += exret_bonus
     elif signal == "S":
-        if bull_pct > 55:
-            base = 50  # Agents mostly disagree with SELL
-        elif bull_pct > 40:
-            base = 60
-        else:
-            base = 70
+        # CIO v12.0 R2: Continuous interpolation for SELL base conviction.
+        # The previous discrete buckets created a dead zone in the 0.65-0.79
+        # bear_ratio range where increasing consensus had zero effect on
+        # conviction. Continuous mapping preserves differentiation.
         if bear_ratio >= 0.80:
             base = 85
-        elif bear_ratio >= 0.65:
-            base = max(base, 70)
+        elif bear_ratio >= 0.40:
+            # Linear interpolation: 0.40→50, 0.80→85
+            base = int(50 + (bear_ratio - 0.40) * 87.5)
+        else:
+            base = 50
     else:
         # HOLD: agents determine, but capped at 70
         base = min(agent_base, 70)
@@ -585,6 +616,7 @@ def compute_signal_velocity(
 def get_earnings_surprise_adjustment(
     recent_surprise_pct: Optional[float] = None,
     consecutive_beats: int = 0,
+    surprise_trajectory: Optional[str] = None,
 ) -> Tuple[int, str]:
     """
     Conviction adjustment based on earnings surprise history (CIO Legacy B5).
@@ -594,10 +626,19 @@ def get_earnings_surprise_adjustment(
     outperforming for 60-90 days. Serial beaters (2+ consecutive) are
     even more predictive.
 
+    CIO v12.0 M3: Added surprise_trajectory to catch "peak earnings"
+    situations. A stock going from +2% to +8% to +15% beat (ACCELERATING)
+    is qualitatively different from +15% to +8% to +2% (DECELERATING).
+    Decelerating beats are a classic sell signal that the base logic misses.
+
     Args:
         recent_surprise_pct: Percentage beat/miss of most recent earnings.
             Positive = beat, negative = miss. None = no data.
         consecutive_beats: Number of consecutive earnings beats (0 if none).
+        surprise_trajectory: Optional trajectory of surprise magnitude:
+            "ACCELERATING" — beats are getting larger (bullish)
+            "DECELERATING" — beats are shrinking (peak earnings warning)
+            "STABLE" or None — no clear trend
 
     Returns:
         (conviction_adjustment, label)
@@ -606,14 +647,25 @@ def get_earnings_surprise_adjustment(
         return (0, "NO_DATA")
 
     if recent_surprise_pct > 10 and consecutive_beats >= 2:
-        return (+5, "SERIAL_BEATER")
+        adj, label = +5, "SERIAL_BEATER"
     elif recent_surprise_pct > 5:
-        return (+3, "BEAT")
+        adj, label = +3, "BEAT"
     elif recent_surprise_pct < -10:
-        return (-5, "BIG_MISS")
+        adj, label = -5, "BIG_MISS"
     elif recent_surprise_pct < -5:
-        return (-3, "MISS")
-    return (0, "IN_LINE")
+        adj, label = -3, "MISS"
+    else:
+        adj, label = 0, "IN_LINE"
+
+    # CIO v12.0 M3: Trajectory modulation
+    if surprise_trajectory == "ACCELERATING" and consecutive_beats >= 2:
+        adj = min(adj + 2, 7)
+        label = label + "_ACCEL"
+    elif surprise_trajectory == "DECELERATING" and label in ("SERIAL_BEATER", "BEAT"):
+        adj = max(adj - 2, 0)
+        label = label + "_DECEL"
+
+    return (adj, label)
 
 
 def compute_dynamic_freshness(
@@ -951,6 +1003,7 @@ def synthesize_stock(
         fund_synthetic=fund_synthetic,
         tech_synthetic=tech_synthetic,
         regime=regime,
+        census_div_score=float(div_score) if div_score else 0.0,
     )
 
     total_weight = bull_weight + bear_weight
@@ -1017,7 +1070,11 @@ def synthesize_stock(
 
     # CIO Legacy A5: Directional confidence penalty
     # CIO v7.0 P2: dir_confidence is now from the return value (see Step 1)
-    if dir_confidence < 0.4:
+    # CIO v11.0 L6: Skip when both agents are synthetic. Low directional
+    # confidence from lack of coverage is fundamentally different from low
+    # confidence from agent disagreement. Penalizing stocks that agents
+    # simply don't cover (HK, EU, ME tickers) adds noise, not signal.
+    if dir_confidence < 0.4 and not (fund_synthetic and tech_synthetic):
         signal_quality_penalty += 3
 
     # Cap signal quality penalties separately from base penalties
@@ -1035,10 +1092,21 @@ def synthesize_stock(
         conviction -= 15
 
     # Step 5: Apply floors
-    conviction = apply_conviction_floors(
-        conviction, signal, excess_exret, pef, pet,
-        bull_count, fund_score, buy_pct,
-    )
+    # CIO v12.0 R1: When kill thesis is triggered, only apply the unconditional
+    # BUY floor (40), NOT quality floors (55). Quality floors exist to prevent
+    # penalty stacking from suppressing quant-verified BUY stocks, but a
+    # triggered kill thesis represents a *specific, pre-identified failure mode*
+    # that should override quality metrics. Without this guard, a stock with
+    # triggered kill thesis gets quality-floored back to 55 and recommended as
+    # ADD — directly contradicting the purpose of kill thesis monitoring.
+    if kill_thesis_triggered and signal == "B":
+        conviction = max(conviction, 40)
+        conviction = min(conviction, 100)
+    else:
+        conviction = apply_conviction_floors(
+            conviction, signal, excess_exret, pef, pet,
+            bull_count, fund_score, buy_pct,
+        )
 
     # Step 6: Determine action
     action = determine_action(conviction, signal, tech_signal, risk_warning)
@@ -1122,6 +1190,8 @@ def synthesize_stock(
         "signal_velocity": velocity_label,
         "earnings_surprise": earnings_label,
         "directional_confidence": round(dir_confidence, 2),
+        "pef": pef,   # CIO v11.0: stored for post-penalty floor reapplication
+        "pet": pet,
     }
 
 
@@ -1326,6 +1396,8 @@ def _synthesize_with_lookups(
     census_ts_map: Dict[str, str],
     regime: str = "",
     kill_thesis_triggered: bool = False,
+    previous_signal: Optional[str] = None,
+    days_since_signal_change: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Run synthesize_stock using pre-built agent lookups."""
     # CIO v6.0 E3: Log warnings when agents have stocks section but ticker
@@ -1365,6 +1437,10 @@ def _synthesize_with_lookups(
     pos_limit = rl.get("max_pct", 5.0) if isinstance(rl, dict) else 5.0
     ts_trend = census_ts_map.get(ticker, "stable")
 
+    # CIO v11.0 L3: Extract earnings surprise from fundamental agent data
+    earnings_surprise = fund_data.get("earnings_surprise_pct")
+    consecutive_beats = fund_data.get("consecutive_earnings_beats", 0)
+
     return synthesize_stock(
         ticker=ticker,
         sig_data=sig_data,
@@ -1382,6 +1458,10 @@ def _synthesize_with_lookups(
         position_limit=pos_limit,
         regime=regime,
         kill_thesis_triggered=kill_thesis_triggered,
+        previous_signal=previous_signal,
+        days_since_signal_change=days_since_signal_change,
+        earnings_surprise_pct=earnings_surprise,
+        consecutive_earnings_beats=consecutive_beats,
     )
 
 
@@ -1542,6 +1622,7 @@ def build_concordance(
     opportunity_signals: Optional[Dict[str, Dict]] = None,
     opportunity_sector_map: Optional[Dict[str, str]] = None,
     triggered_kill_theses: Optional[Dict[str, bool]] = None,
+    previous_concordance: Optional[List[Dict[str, Any]]] = None,
 ) -> List[Dict[str, Any]]:
     """
     Build the full concordance matrix from all 7 agent reports.
@@ -1560,6 +1641,8 @@ def build_concordance(
         census_ts_map: Optional dict of ticker -> trend classification
         opportunity_signals: Optional dict of ticker -> signal data for new candidates
         opportunity_sector_map: Optional dict of ticker -> sector for opportunities
+        previous_concordance: Optional list/dict of previous concordance for
+            signal velocity computation (CIO v11.0 L2)
 
     Returns:
         Sorted list of concordance entries (dicts).
@@ -1572,6 +1655,33 @@ def build_concordance(
         opportunity_sector_map = {}
     if triggered_kill_theses is None:
         triggered_kill_theses = {}
+
+    # CIO v11.0 L2: Build previous signal map for signal velocity computation.
+    # Extracts previous signal and committee date from previous concordance so
+    # compute_signal_velocity() can detect upgrades/downgrades and their speed.
+    prev_signal_map: Dict[str, Tuple[str, Optional[int]]] = {}
+    if previous_concordance:
+        _prev_list = previous_concordance
+        _prev_date_str = None
+        if isinstance(previous_concordance, dict):
+            if "stocks" in previous_concordance:
+                _prev_list = [dict(v, ticker=k) for k, v in previous_concordance["stocks"].items()]
+            _prev_date_str = previous_concordance.get("date")
+        if isinstance(_prev_list, list):
+            for _pe in _prev_list:
+                _t = _pe.get("ticker", "")
+                _ps = _pe.get("signal", "")
+                if _t and _ps:
+                    # Compute days since previous committee
+                    _days = None
+                    _d = _prev_date_str or _pe.get("date")
+                    if _d:
+                        try:
+                            from datetime import datetime as _dt
+                            _days = (_dt.now() - _dt.strptime(str(_d)[:10], "%Y-%m-%d")).days
+                        except (ValueError, TypeError):
+                            pass
+                    prev_signal_map[_t] = (_ps, _days)
 
     lookups = _build_agent_lookups(
         fund_report, tech_report, macro_report,
@@ -1617,10 +1727,14 @@ def build_concordance(
     for ticker, sig_data in portfolio_signals.items():
         sector = resolve_sector(ticker, sector_map)
         sec_median = sector_medians.get(sector, universe_median)
+        # CIO v11.0 L2: Extract previous signal for velocity computation
+        _prev_sig, _prev_days = prev_signal_map.get(ticker, (None, None))
         entry = _synthesize_with_lookups(
             ticker, sig_data, lookups, fund_report, tech_report,
             sector, sec_median, census_ts_map, regime=regime,
             kill_thesis_triggered=triggered_kill_theses.get(ticker, False),
+            previous_signal=_prev_sig,
+            days_since_signal_change=_prev_days,
         )
         entry["is_opportunity"] = False
         entry["kill_thesis_triggered"] = triggered_kill_theses.get(ticker, False)
@@ -1672,11 +1786,19 @@ def build_concordance(
         )
         concordance.append(entry)
 
-    # CIO v7.0 P4: Sector concentration penalty.
+    # CIO v7.0 P4 + v11.0 L1/L5/L7: Sector concentration penalty.
     # When 3+ stocks share the same sector in the concordance, apply a small
     # conviction penalty (-2 per stock beyond 2) to discourage over-concentration
     # at the scoring level. Only penalise BUY/ADD actions — we don't want to
     # artificially reduce conviction on HOLD/TRIM/SELL (those are risk decisions).
+    #
+    # CIO v11.0 L5: Reduced cap from 10 to 6 for existing holdings. Concentration
+    # risk is a portfolio-level concern better handled by conviction_sizer (which
+    # has cluster sizing and sector constraints). A 10-point penalty was pushing
+    # 11 BUY-signal stocks to the 45-floor, destroying ranking signal.
+    #
+    # CIO v11.0 L7: Conviction floors are re-applied AFTER sector penalty to
+    # preserve the design principle that BUY-signal quality floors are inviolable.
     sector_counts: Dict[str, int] = {}
     for entry in concordance:
         sec = entry.get("sector", "Other")
@@ -1689,27 +1811,53 @@ def build_concordance(
         count = sector_counts.get(sec, 1)
         if count > 2:
             raw_penalty = (count - 2) * 2  # -2 per extra stock beyond 2
-            # CIO v8.0: Cap concentration penalty at 10 for existing holdings.
-            # Sector concentration is a portfolio-level risk that should inform
-            # sizing (handled by conviction_sizer), not obliterate stock-level
-            # conviction. An 18-point penalty on NVDA because you also own MSFT
-            # is nonsensical — both are independent strong positions.
-            # New opportunities get full penalty (they're entering a crowded sector).
             if entry.get("is_opportunity"):
                 penalty = min(raw_penalty, 15)  # cap at 15 for new entries
             else:
-                penalty = min(raw_penalty, 10)  # cap at 10 for existing holdings
+                penalty = min(raw_penalty, 6)  # v11.0 L5: cap at 6 for existing
             floor = 45 if entry.get("signal") == "B" else 30
             entry["conviction"] = max(floor, entry["conviction"] - penalty)
             entry["sector_concentration_penalty"] = penalty
 
-    # CIO v8.0: Re-evaluate opportunity actions after sector concentration penalty.
-    # The gate set BUY for conv >= 55, but concentration penalty may have dropped
-    # conviction below 55. Re-check and downgrade to HOLD if needed.
+    # CIO v11.0 L7: Re-apply conviction floors after sector concentration penalty.
+    # The quality BUY floor (55 for strong BUY combos) should be immune to sector
+    # penalty — the quant system verified BUY criteria regardless of concentration.
     for entry in concordance:
-        if entry.get("is_opportunity") and entry["action"] == "BUY":
-            if entry["conviction"] < 55:
-                entry["action"] = "HOLD"
+        if entry.get("sector_concentration_penalty", 0) > 0:
+            entry["conviction"] = apply_conviction_floors(
+                entry["conviction"],
+                entry.get("signal", "H"),
+                entry.get("excess_exret", 0),
+                entry.get("pef", 0) if "pef" in entry else 0,
+                entry.get("pet", 0) if "pet" in entry else 0,
+                # Recount bull agents — we don't store bull_count but can
+                # approximate from stored fields
+                sum(1 for x in [
+                    entry.get("fund_score", 0) >= 70,
+                    entry.get("tech_signal") in ("ENTER_NOW",) or entry.get("tech_momentum", 0) > 20,
+                    entry.get("macro_fit") == "FAVORABLE",
+                    entry.get("census") == "ALIGNED",
+                    "POSITIVE" in (entry.get("news_impact") or ""),
+                    not entry.get("risk_warning", False),
+                ] if x),
+                entry.get("fund_score", 50),
+                entry.get("buy_pct", 0),
+            )
+
+    # CIO v11.0 L1: Re-evaluate actions for ALL stocks after sector concentration
+    # penalty. Previously only opportunities were re-evaluated, leaving existing
+    # holdings with action=ADD but conviction < 55 (23% of portfolio affected).
+    for entry in concordance:
+        if entry.get("sector_concentration_penalty", 0) > 0:
+            if entry.get("is_opportunity"):
+                # Opportunities use BUY/HOLD (not ADD/TRIM) — re-apply gate logic
+                entry["action"] = "BUY" if entry["conviction"] >= 55 else "HOLD"
+            else:
+                entry["action"] = determine_action(
+                    entry["conviction"], entry.get("signal", "H"),
+                    entry.get("tech_signal", "HOLD"),
+                    entry.get("risk_warning", False),
+                )
 
     # Break conviction ties with composite quality score (CIO v5.2, v6.0 normalized)
     # This prevents 11 stocks at identical conviction=65.

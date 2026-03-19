@@ -292,3 +292,60 @@ class TestGenerateReportHtml:
         # MSFT (HOLD) should appear in HOLD section
         assert "HOLD (" in html
         assert "MSFT" in html
+
+
+class TestV12P2CapitalEfficiency:
+    """CIO v12.0 P2: Capital efficiency shown in BUY/ADD action cards."""
+
+    def test_ce_displayed_for_add_items(self):
+        """Capital efficiency should appear in ADD action cards."""
+        synth = _minimal_synth()
+        synth["concordance"][0]["capital_efficiency"] = 15.3
+        fund, tech, macro, census, news, opps, risk = _minimal_reports()
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        assert "CE 15.3" in html
+
+    def test_ce_not_displayed_for_sell(self):
+        """Capital efficiency should NOT appear in SELL action cards."""
+        synth = _minimal_synth()
+        synth["concordance"][1]["capital_efficiency"] = 5.0
+        fund, tech, macro, census, news, opps, risk = _minimal_reports()
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        # SELL card should not have CE
+        # XOM is SELL — CE should not appear next to it
+        assert "CE 5.0" not in html
+
+    def test_buy_add_sorted_by_ce_tiebreak(self):
+        """Among ADD items at same conviction, higher CE should come first."""
+        synth = _minimal_synth()
+        synth["concordance"] = [
+            {
+                "ticker": "LOW_CE", "signal": "B", "action": "ADD",
+                "conviction": 70, "fund_score": 70, "fund_view": "BUY",
+                "tech_signal": "HOLD", "rsi": 50, "macro_fit": "NEUTRAL",
+                "census": "NEUTRAL", "news_impact": "NEUTRAL",
+                "risk_warning": False, "exret": 5.0, "sector": "Tech",
+                "bull_pct": 60, "bull_weight": 3.0, "bear_weight": 2.0,
+                "beta": 1.0, "max_pct": 5.0, "tech_momentum": 0,
+                "is_opportunity": False, "fund_synthetic": False,
+                "capital_efficiency": 3.0,
+            },
+            {
+                "ticker": "HIGH_CE", "signal": "B", "action": "ADD",
+                "conviction": 70, "fund_score": 70, "fund_view": "BUY",
+                "tech_signal": "HOLD", "rsi": 50, "macro_fit": "NEUTRAL",
+                "census": "NEUTRAL", "news_impact": "NEUTRAL",
+                "risk_warning": False, "exret": 15.0, "sector": "Health",
+                "bull_pct": 60, "bull_weight": 3.0, "bear_weight": 2.0,
+                "beta": 1.0, "max_pct": 5.0, "tech_momentum": 0,
+                "is_opportunity": False, "fund_synthetic": False,
+                "capital_efficiency": 20.0,
+            },
+        ]
+        fund, tech, macro, census, news, opps, risk = _minimal_reports()
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        # In the Action Items section, HIGH_CE should appear before LOW_CE
+        action_section = html[html.index("Action Items"):]
+        pos_high = action_section.index("HIGH_CE")
+        pos_low = action_section.index("LOW_CE")
+        assert pos_high < pos_low

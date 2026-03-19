@@ -694,3 +694,112 @@ def yfinance_price_fetcher(
             continue
 
     return prices.get(best_date) if best_date else None
+
+
+def evaluate_recent(
+    current_prices: Dict[str, float],
+    log_dir: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """
+    Evaluate the most recent committee run against current market prices.
+
+    CIO v12.0 P1: Closes the feedback loop by computing realized returns
+    for the most recent concordance, suitable for inclusion in the next
+    committee report's context. Unlike run_backtest() which fetches prices
+    for all historical snapshots, this only needs current prices (which
+    the committee skill already has from portfolio.csv).
+
+    Args:
+        current_prices: Dict of ticker -> current price (from portfolio.csv PRC column).
+        log_dir: Committee output directory. Defaults to ~/.weirdapps-trading/committee.
+
+    Returns:
+        Dict with per-action hit rates, avg returns, and per-stock details.
+        Returns {"status": "no_history"} if no previous concordance exists.
+    """
+    directory = log_dir or DEFAULT_COMMITTEE_LOG_DIR
+
+    # Load most recent concordance
+    conc_path = directory / "concordance.json"
+    if not conc_path.exists():
+        return {"status": "no_history"}
+
+    try:
+        with open(conc_path, "r", encoding="utf-8") as f:
+            prev = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return {"status": "no_history"}
+
+    # Normalize format
+    if isinstance(prev, list):
+        entries = prev
+        date_str = "unknown"
+    elif isinstance(prev, dict) and "stocks" in prev:
+        date_str = prev.get("date", "unknown")
+        entries = [dict(v, ticker=k) for k, v in prev["stocks"].items()]
+    elif isinstance(prev, dict):
+        date_str = prev.get("date", "unknown")
+        entries = prev.get("concordance", [])
+    else:
+        return {"status": "no_history"}
+
+    if not entries:
+        return {"status": "no_history"}
+
+    # Compute returns
+    action_returns: Dict[str, List[Dict]] = {}
+    for entry in entries:
+        ticker = entry.get("ticker", "")
+        if not ticker:
+            continue
+        prev_price = entry.get("price", 0)
+        curr_price = current_prices.get(ticker, 0)
+        if not prev_price or prev_price <= 0 or not curr_price or curr_price <= 0:
+            continue
+
+        ret_pct = round((curr_price - prev_price) / prev_price * 100, 2)
+        action = entry.get("action", "HOLD")
+        conviction = entry.get("conviction", 50)
+
+        action_returns.setdefault(action, []).append({
+            "ticker": ticker,
+            "conviction": conviction,
+            "prev_price": prev_price,
+            "curr_price": curr_price,
+            "return_pct": ret_pct,
+        })
+
+    # Compute per-action stats
+    summary = {}
+    for action, details in action_returns.items():
+        returns = [d["return_pct"] for d in details]
+        if not returns:
+            continue
+
+        if action in ("BUY", "ADD"):
+            hits = sum(1 for r in returns if r > 0)
+        elif action in ("SELL", "TRIM"):
+            hits = sum(1 for r in returns if r < 0)
+        else:
+            hits = sum(1 for r in returns if abs(r) < 5)
+
+        hit_rate = hits / len(returns) * 100
+        avg_ret = sum(returns) / len(returns)
+
+        # Sort by absolute return for best/worst
+        details.sort(key=lambda d: d["return_pct"])
+
+        summary[action] = {
+            "count": len(returns),
+            "hit_rate": round(hit_rate, 1),
+            "avg_return": round(avg_ret, 2),
+            "best": details[-1] if details else None,
+            "worst": details[0] if details else None,
+        }
+
+    return {
+        "status": "complete",
+        "prev_committee_date": date_str,
+        "total_evaluated": sum(s["count"] for s in summary.values()),
+        "actions": summary,
+    }
