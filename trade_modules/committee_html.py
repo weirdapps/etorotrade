@@ -159,6 +159,8 @@ _ACTION_MIGRATION = {
 }
 
 def normalize_action(act):
+    if act is None:
+        return None
     return _ACTION_MIGRATION.get(act, act)
 
 # --- Kill thesis generation ---
@@ -473,10 +475,11 @@ def generate_report_html(
             key = next((k for k in keys if k in stress), keys[0])
             sd = stress.get(key, {})
             imp = sd.get("portfolio_impact_pct", sd.get("estimated_portfolio_impact_pct", "?"))
+            imp_str = f"{float(imp):.1f}" if isinstance(imp, (int, float)) else str(imp)
             h.append(f'<td style="width:33%;padding:10px;background:{bg};border:1px solid {brd};'
                      f'border-radius:6px;text-align:center;">'
                      f'<div style="{_LABEL}color:{lc};">{title}</div>'
-                     f'<div style="font-size:18px;font-weight:800;color:{vc};margin-top:4px;">{imp}%</div></td>')
+                     f'<div style="font-size:18px;font-weight:800;color:{vc};margin-top:4px;">{imp_str}%</div></td>')
         h.append('</tr></table>')
     # Priority actions — pill format
     urgent = [en for en in concordance if en.get("action") in ("SELL", "TRIM")]
@@ -665,7 +668,7 @@ def generate_report_html(
                           else "FEAR" if v >= 25 else "EXTREME FEAR")
     fg_color = lambda v: (_C["bear"] if v >= 75 else _C["warn"] if v >= 55 else _C["text_muted"] if v >= 45
                           else _C["info"] if v >= 25 else _C["hold"])
-    cash100 = census.get("sentiment", {}).get("cash_top100", 0)
+    cash100 = census.get("sentiment", {}).get("cash_top100") or 0
     cash_label = "Defensive" if cash100 > 15 else "Deploying" if cash100 < 8 else "Normal"
     h.append(_section_open("Sentiment &amp; Census"))
     h.append('<table style="width:100%;border-collapse:separate;border-spacing:10px 0;margin-bottom:16px;"><tr>')
@@ -957,9 +960,11 @@ def generate_report_html(
                 rbg, rbrd, ar, tc = _C["bg_white"], _C["border"], "&middot;", _C["text_muted"]
             d = c.get("delta", 0)
             pn = c.get("prev_norm", normalize_action(c.get("prev_action", "?")))
+            prev_conv = c.get("prev_conviction")
+            prev_label = f'{e(pn or "NEW")} ({prev_conv if prev_conv is not None else "—"})'
             h.append(_table_row([
                 (f'<span style="{_MONO}font-weight:700;">{e(c.get("ticker", ""))}</span>', "left", ""),
-                (f'{e(pn)} ({c.get("prev_conviction", 0)})', "center", "font-size:11px;"),
+                (prev_label, "center", "font-size:11px;"),
                 (f'{e(c.get("curr_action", "?"))} ({c.get("curr_conviction", 0)})', "center", "font-size:11px;"),
                 (f'<span style="font-weight:700;color:{tc};">{d:+d}</span>', "center", ""),
                 (f'{ar} <span style="color:{tc};font-weight:600;">{e(ct)}</span>', "left", ""),
@@ -971,7 +976,7 @@ def generate_report_html(
     h.append(f'<div style="padding:24px 40px;background:{_C["bg_page"]};border-top:1px solid {_C["border"]};">'
              f'<table style="width:100%;"><tr>'
              f'<td style="font-size:10px;color:{_C["text_light"]};line-height:1.5;">'
-             f'<b style="color:{_C["text_muted"]};">Investment Committee v10.0</b><br/>'
+             f'<b style="color:{_C["text_muted"]};">Investment Committee v14.0</b><br/>'
              f'{today_long} &middot; 7 Agents (Sonnet) + CIO (Opus)</td>'
              f'<td style="text-align:right;font-size:9px;color:{_C["text_light"]};">Not financial advice.</td>'
              f'</tr></table></div>')
