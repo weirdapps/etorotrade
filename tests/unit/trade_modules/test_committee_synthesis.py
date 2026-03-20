@@ -38,6 +38,7 @@ from trade_modules.committee_synthesis import (
     determine_action,
     determine_base_conviction,
     get_earnings_surprise_adjustment,
+    enrich_with_position_sizes,
     recalculate_trim_conviction,
     synthesize_stock,
 )
@@ -576,20 +577,30 @@ class TestApplyConvictionFloors:
         result = apply_conviction_floors(10, "B", 5, 20, 25, 2, 50, 50)
         assert result >= 40
 
-    def test_buy_quality_floor_50(self):
-        """BUY + excess_exret > 20 + improving PE → floor 50."""
+    def test_buy_graduated_floor_single_quality(self):
+        """CIO v13.0 F1: BUY + 1 quality hit → graduated floor 43."""
+        # exret>20 + improving PE = 1 quality hit → floor = 40 + 3 = 43
         result = apply_conviction_floors(30, "B", 25, 15, 20, 3, 60, 60)
-        assert result >= 50
+        assert result == 43
 
-    def test_buy_agent_agreement_floor(self):
-        """BUY + 4+ agents agree → floor 50."""
+    def test_buy_graduated_floor_agent_agreement(self):
+        """CIO v13.0 F1: BUY + 4 agents → 1 quality hit → floor 43."""
+        # bull_count=4 → 1 quality hit → floor = 40 + 3 = 43
         result = apply_conviction_floors(30, "B", 5, 20, 25, 4, 60, 60)
-        assert result >= 50
+        assert result == 43
 
-    def test_buy_fund_quality_floor(self):
-        """BUY + fund>=70 + buy_pct>=70 → floor 50."""
+    def test_buy_graduated_floor_fund_and_census(self):
+        """CIO v13.0 F1: BUY + fund>=70 + buy_pct>=80 → 2 hits → floor 46."""
+        # fund_score=75 >= 70 → +1, buy_pct=80 >= 80 → +1 = 2 hits → 40+6=46
         result = apply_conviction_floors(30, "B", 5, 20, 25, 2, 75, 80)
-        assert result >= 50
+        assert result == 46
+
+    def test_buy_graduated_floor_max_quality(self):
+        """CIO v13.0 F1: BUY + all quality criteria → floor 55 (max)."""
+        # exret>20+PE improving → +1, bull>=5 → +2, fund>=80 → +2, buy>=80 → +1 = 6 hits
+        # graduated_floor = min(55, 40 + 6*3) = min(55, 58) = 55
+        result = apply_conviction_floors(30, "B", 25, 15, 20, 5, 85, 85)
+        assert result == 55
 
     def test_sell_no_floor(self):
         """SELL signals should NOT have floors applied."""
@@ -674,37 +685,41 @@ class TestRecalculateTrimConviction:
         )
         assert conv == 50
 
-    def test_tech_exit_adds_15(self):
+    def test_tech_exit_adds_conviction(self):
+        """CIO v13.0 F4: Tech EXIT_SOON adds 12 (diminishing returns)."""
         conv = recalculate_trim_conviction(
             "EXIT_SOON", "NEUTRAL", False, 1.0, 50, 60, "NEUTRAL"
         )
-        assert conv == 65
+        assert conv == 62  # 50 + 12*1.0
 
-    def test_tech_avoid_adds_15(self):
+    def test_tech_avoid_adds_conviction(self):
+        """CIO v13.0 F4: Tech AVOID adds 12 (diminishing returns)."""
         conv = recalculate_trim_conviction(
             "AVOID", "NEUTRAL", False, 1.0, 50, 60, "NEUTRAL"
         )
-        assert conv == 65
+        assert conv == 62  # 50 + 12*1.0
 
-    def test_all_trim_factors(self):
-        """Maximum trim conviction with all factors."""
+    def test_all_trim_factors_diminishing(self):
+        """CIO v13.0 F4: All factors with diminishing returns."""
         conv = recalculate_trim_conviction(
-            "AVOID",           # +15
-            "UNFAVORABLE",     # +10
-            True,              # +10
-            2.0,               # +5
-            75,                # +5
+            "AVOID",           # 12
+            "UNFAVORABLE",     # 8
+            True,              # 7
+            2.0,               # 4
+            75,                # 4
             40,                # not >=80 so no -10
             "DIVERGENT",       # not ALIGNED so no -5
         )
-        assert conv == 85  # capped at 85
+        # Sorted: [12, 8, 7, 4, 4] with 0.7 decay
+        # 12*1.0=12, 8*0.7=5, 7*0.49=3, 4*0.343=1, 4*0.24=0 = 21
+        assert conv == 71  # 50 + 21
 
-    def test_cap_at_85(self):
-        """Even with all factors, should not exceed 85."""
+    def test_cap_at_80(self):
+        """CIO v13.0 F4: Cap reduced from 85 to 80."""
         conv = recalculate_trim_conviction(
             "AVOID", "UNFAVORABLE", True, 2.0, 80, 30, "DIVERGENT"
         )
-        assert conv <= 85
+        assert conv <= 80
 
     def test_strong_fundamentals_reduce(self):
         """High fund_score reduces trim conviction."""
@@ -3784,3 +3799,40 @@ class TestV12M3EarningsTrajectory:
         )
         assert adj_new == 5
         assert label_new == "SERIAL_BEATER"
+
+
+class TestEnrichWithPositionSizes:
+    """CIO v13.0 S2: Position sizing integration tests."""
+
+    def test_buy_gets_size(self):
+        """BUY actions should get suggested_size_usd."""
+        conc = [{"ticker": "AAPL", "action": "BUY", "conviction": 70}]
+        result = enrich_with_position_sizes(conc)
+        assert "suggested_size_usd" in result[0]
+        assert result[0]["suggested_size_usd"] > 0
+
+    def test_hold_no_size(self):
+        """HOLD actions should NOT get sizing."""
+        conc = [{"ticker": "MSFT", "action": "HOLD", "conviction": 55}]
+        result = enrich_with_position_sizes(conc)
+        assert "suggested_size_usd" not in result[0]
+
+    def test_higher_conviction_larger_size(self):
+        """Higher conviction should produce larger position sizes."""
+        conc = [
+            {"ticker": "A", "action": "ADD", "conviction": 75},
+            {"ticker": "B", "action": "ADD", "conviction": 50},
+        ]
+        result = enrich_with_position_sizes(conc)
+        assert result[0]["suggested_size_usd"] > result[1]["suggested_size_usd"]
+
+    def test_risk_off_reduces_size(self):
+        """RISK_OFF regime should reduce position sizes."""
+        conc = [{"ticker": "AAPL", "action": "BUY", "conviction": 70}]
+        normal = enrich_with_position_sizes(
+            [dict(conc[0])], regime="NEUTRAL"
+        )[0]["suggested_size_usd"]
+        risk_off = enrich_with_position_sizes(
+            [dict(conc[0])], regime="RISK_OFF"
+        )[0]["suggested_size_usd"]
+        assert risk_off < normal

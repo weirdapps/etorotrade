@@ -864,6 +864,7 @@ def generate_report_html(
                  f'<span style="font-size:11px;color:{_C["text_muted"]};margin-left:8px;">'
                  f'{sec} | RSI {rsi:.0f} | {abbr(ts)} | {abbr(mf)}'
                  f'{" | Max " + str(int(mp)) + "%" if act in ("BUY","ADD") else ""}'
+                 f'{" | $" + str(int(en.get("suggested_size_usd", 0))) if en.get("suggested_size_usd") and act in ("BUY","ADD") else ""}'
                  f'{" | CE " + f"{ce:.1f}" if ce and act in ("BUY","ADD") else ""}'
                  f'{extra_tags}</span></td>'
                  f'<td style="text-align:right;">{conv_display(conv)}</td></tr></table>'

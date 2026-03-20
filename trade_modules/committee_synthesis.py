@@ -206,6 +206,18 @@ _SECTOR_NORMALIZE = {
     "Telecom": "Communication Services",
     "Media": "Communication Services",
     "Interactive Media": "Communication Services",
+    # CIO v13.0 F5: Catch bare "Consumer" and other orphan sectors
+    "Consumer": "Consumer Discretionary",
+    "Consumer Goods": "Consumer Staples",
+    "Payments": "Financials",
+    "Crypto": "Crypto/Alt",
+    "Digital Assets": "Crypto/Alt",
+    "Logistics": "Industrials",
+    "Cloud": "Technology",
+    "AI": "Technology",
+    "Cybersecurity": "Technology",
+    "Networking": "Technology",
+    "Fintech": "Financials",
 }
 
 
@@ -489,6 +501,12 @@ def determine_base_conviction(
 
     if signal == "B":
         base = max(agent_base, 55)
+        # CIO v13.0 F4: BUY consensus premium — when the sigmoid agent_base
+        # exceeds 55 (strong bull consensus), let it contribute. Previously
+        # max(agent_base, 55) flattened everything to 55 for typical stocks.
+        # Now add half the excess for differentiation.
+        if agent_base > 55:
+            base = 55 + (agent_base - 55) // 2 + (agent_base - 55) % 2
         # BUY-side quality bonus (CIO C1) — ONLY for BUY signals
         if fund_score >= 80:
             base = max(base + 10, 60)
@@ -846,22 +864,41 @@ def apply_conviction_floors(
     fund_score: float,
     buy_pct: int,
 ) -> int:
-    """Apply conviction floors to prevent unreasonable suppression."""
+    """Apply conviction floors to prevent unreasonable suppression.
+
+    CIO v13.0 F1: Graduated floor system replaces the blunt 55 floor.
+    Previously, three overlapping conditions ALL mapped to floor=55, causing
+    42% of stocks to cluster at exactly 55. Now the floor scales from 43 to
+    55 based on how many quality criteria are met, preserving differentiation
+    within the floor-touched population while still protecting quality BUY stocks.
+    """
     # BUY signal unconditional floor
     if signal == "B":
         conviction = max(conviction, 40)
 
-    # CIO v8.0 F9: Stronger floors for quality BUY names.
-    # Penalty stacking (regime + consensus + macro + risk) can push MSFT,
-    # BAC, SCHW from base=65 to conviction=50, producing HOLD when the
-    # quant system verified all BUY criteria. Raise floors to 55 for
-    # quality combinations so they remain actionable.
-    if signal == "B" and excess_exret > 20 and pef > 0 and pet > 0 and pef < pet:
-        conviction = max(conviction, 55)
-    if signal == "B" and bull_count >= 4:
-        conviction = max(conviction, 55)
-    if signal == "B" and fund_score >= 70 and buy_pct >= 70:
-        conviction = max(conviction, 55)
+    # CIO v13.0 F1: Graduated quality floor for BUY signals.
+    # Count quality criteria met, scale floor from 43 (1 criterion) to 55 (5).
+    if signal == "B":
+        quality_hits = 0
+        if excess_exret > 20 and pef > 0 and pet > 0 and pef < pet:
+            quality_hits += 1
+        if bull_count >= 5:
+            quality_hits += 2  # Strong agreement is worth more
+        elif bull_count >= 4:
+            quality_hits += 1
+        if fund_score >= 80:
+            quality_hits += 2  # Strong fundamentals worth more
+        elif fund_score >= 70:
+            quality_hits += 1
+        if buy_pct >= 80:
+            quality_hits += 1
+        elif buy_pct >= 70:
+            quality_hits += 1
+
+        # Floor scales: 0 hits = 40 (base), 1 = 43, 2 = 46, 3 = 49, 4 = 52, 5+ = 55
+        if quality_hits > 0:
+            graduated_floor = min(55, 40 + quality_hits * 3)
+            conviction = max(conviction, graduated_floor)
 
     return max(0, min(100, conviction))
 
@@ -905,23 +942,41 @@ def recalculate_trim_conviction(
     fund_score: float,
     census_alignment: str,
 ) -> int:
-    """Recalculate conviction for TRIM actions to reflect trim confidence."""
+    """Recalculate conviction for TRIM actions to reflect trim confidence.
+
+    CIO v13.0 F4: Apply diminishing returns to trim factors so conviction
+    doesn't inflate unchecked. Each successive factor contributes less,
+    preventing TRIM conviction from systematically exceeding BUY conviction.
+    """
     trim_conv = 50
+
+    # Collect positive trim factors with diminishing contribution
+    trim_factors = []
     if tech_signal in ("EXIT_SOON", "AVOID"):
-        trim_conv += 15
+        trim_factors.append(12)  # Primary signal (reduced from 15)
     if macro_fit == "UNFAVORABLE":
-        trim_conv += 10
+        trim_factors.append(8)   # Reduced from 10
     if risk_warning:
-        trim_conv += 10
+        trim_factors.append(7)   # Reduced from 10
     if beta > 1.5:
-        trim_conv += 5
+        trim_factors.append(4)
     if rsi > 70:
-        trim_conv += 5
+        trim_factors.append(4)
+
+    # Diminishing returns: sort largest first, each successive factor at 70%
+    trim_factors.sort(reverse=True)
+    weight = 1.0
+    for factor in trim_factors:
+        trim_conv += int(factor * weight)
+        weight *= 0.7
+
+    # Mitigating factors (unchanged)
     if fund_score >= 80:
         trim_conv -= 10
     if census_alignment == "ALIGNED":
         trim_conv -= 5
-    return min(trim_conv, 85)
+
+    return min(trim_conv, 80)
 
 
 def classify_hold_tier(conviction: int) -> str:
@@ -1438,8 +1493,26 @@ def _synthesize_with_lookups(
     ts_trend = census_ts_map.get(ticker, "stable")
 
     # CIO v11.0 L3: Extract earnings surprise from fundamental agent data
+    # CIO v13.0 F3: Fallback estimation from signal CSV earnings growth (EG)
+    # when fundamental agent doesn't provide earnings surprise data.
+    # EG (earnings growth %) is a proxy: high growth often correlates with
+    # positive surprises, though this is noisier than actual surprise data.
     earnings_surprise = fund_data.get("earnings_surprise_pct")
     consecutive_beats = fund_data.get("consecutive_earnings_beats", 0)
+    if earnings_surprise is None:
+        eg = sig_data.get("eg") or sig_data.get("EG")
+        if eg is not None:
+            try:
+                eg_val = float(eg)
+                # Conservative mapping: only flag strong signals
+                if eg_val > 25:
+                    earnings_surprise = min(eg_val * 0.3, 15.0)  # Damped proxy
+                    consecutive_beats = 2  # Assume continuation
+                elif eg_val < -20:
+                    earnings_surprise = max(eg_val * 0.3, -15.0)
+                    consecutive_beats = -2
+            except (ValueError, TypeError):
+                pass
 
     return synthesize_stock(
         ticker=ticker,
@@ -1656,9 +1729,11 @@ def build_concordance(
     if triggered_kill_theses is None:
         triggered_kill_theses = {}
 
-    # CIO v11.0 L2: Build previous signal map for signal velocity computation.
-    # Extracts previous signal and committee date from previous concordance so
-    # compute_signal_velocity() can detect upgrades/downgrades and their speed.
+    # CIO v11.0 L2 + v13.0 F2: Build previous signal map for signal velocity.
+    # v13.0 F2: Fixed data flow — when previous concordance is a bare list
+    # (no date field), infer the date from the concordance file mtime or
+    # default to 7 days (typical committee cadence). Previously, the missing
+    # date caused ALL stocks to get NO_HISTORY, making velocity dead code.
     prev_signal_map: Dict[str, Tuple[str, Optional[int]]] = {}
     if previous_concordance:
         _prev_list = previous_concordance
@@ -1667,6 +1742,11 @@ def build_concordance(
             if "stocks" in previous_concordance:
                 _prev_list = [dict(v, ticker=k) for k, v in previous_concordance["stocks"].items()]
             _prev_date_str = previous_concordance.get("date")
+            if not _prev_date_str:
+                # Try concordance list entries for date
+                concordance_entries = previous_concordance.get("concordance", [])
+                if concordance_entries and isinstance(concordance_entries, list):
+                    _prev_list = concordance_entries
         if isinstance(_prev_list, list):
             for _pe in _prev_list:
                 _t = _pe.get("ticker", "")
@@ -1681,6 +1761,13 @@ def build_concordance(
                             _days = (_dt.now() - _dt.strptime(str(_d)[:10], "%Y-%m-%d")).days
                         except (ValueError, TypeError):
                             pass
+                    # CIO v13.0 F2: When no date is available at all, use
+                    # default of 7 days (typical weekly committee cadence).
+                    # This is better than NO_HISTORY because it still enables
+                    # upgrade/downgrade detection — only the recency bonus/
+                    # penalty may be slightly off.
+                    if _days is None:
+                        _days = 7
                     prev_signal_map[_t] = (_ps, _days)
 
     lookups = _build_agent_lookups(
@@ -2135,7 +2222,7 @@ def generate_synthesis_output(
     sentiment = census_report.get("sentiment", {})
 
     output = {
-        "version": "v7.0_legacy_review",
+        "version": "v13.0_legacy_review",
         "concordance": concordance,
         "action_distribution": dict(action_dist),
         "changes": changes,
@@ -2177,3 +2264,96 @@ def generate_synthesis_output(
     }
 
     return output
+
+
+def enrich_with_position_sizes(
+    concordance: List[Dict[str, Any]],
+    regime: str = "normal",
+    portfolio_value: float = 450000.0,
+    base_position_size: float = 2500.0,
+) -> List[Dict[str, Any]]:
+    """
+    CIO v13.0 S2: Enrich BUY/ADD concordance entries with suggested position sizes.
+
+    Uses the conviction_sizer module to compute dollar amounts based on
+    conviction scores and regime. This transforms the committee output from
+    "what to do" to "what to do and how much."
+
+    Only enriches BUY and ADD actions. HOLD/TRIM/SELL don't need new sizing.
+    """
+    try:
+        from trade_modules.conviction_sizer import calculate_conviction_size
+    except ImportError:
+        logger.warning("conviction_sizer not available — skipping position sizing")
+        return concordance
+
+    # Map regime names from committee format to sizer format
+    regime_map = {
+        "RISK_OFF": "high",
+        "CAUTIOUS": "elevated",
+        "NEUTRAL": "normal",
+        "RISK_ON": "low",
+        "": "normal",
+    }
+    sizer_regime = regime_map.get(regime, "normal")
+
+    # Tier multipliers (from config.yaml defaults)
+    tier_multipliers = {
+        "MEGA": 5.0, "LARGE": 4.0, "MID": 3.0, "SMALL": 2.0, "MICRO": 1.0,
+    }
+
+    for entry in concordance:
+        if entry.get("action") not in ("BUY", "ADD"):
+            continue
+
+        conviction = entry.get("conviction", 50)
+        # Infer tier from market cap if available, default MID
+        tier = "MID"
+        cap = entry.get("market_cap", "")
+        if isinstance(cap, str):
+            for t in tier_multipliers:
+                if t.lower() in cap.lower():
+                    tier = t
+                    break
+
+        tier_mult = tier_multipliers.get(tier, 3.0)
+
+        result = calculate_conviction_size(
+            base_position_size=base_position_size,
+            tier_multiplier=tier_mult,
+            conviction_score=conviction,
+            regime=sizer_regime,
+            portfolio_value=portfolio_value,
+            max_position_pct=5.0,
+            tier=tier,
+        )
+
+        entry["suggested_size_usd"] = round(result.get("position_size", 0), 0)
+        entry["size_pct"] = round(
+            result.get("position_size", 0) / portfolio_value * 100, 2
+        ) if portfolio_value > 0 else 0
+
+    return concordance
+
+
+def save_concordance(
+    concordance: List[Dict[str, Any]],
+    output_path: str,
+    date_str: Optional[str] = None,
+) -> None:
+    """
+    Save concordance with date wrapper for signal velocity support.
+
+    CIO v13.0 F2: Previously, concordance was saved as a bare list,
+    causing the velocity computation to never find a date and returning
+    NO_HISTORY for all stocks. Now saves as {"date": "...", "concordance": [...]}.
+    """
+    import json
+    from datetime import datetime
+
+    dated_concordance = {
+        "date": date_str or datetime.now().strftime("%Y-%m-%d"),
+        "concordance": concordance,
+    }
+    with open(output_path, "w") as f:
+        json.dump(dated_concordance, f, indent=2)
