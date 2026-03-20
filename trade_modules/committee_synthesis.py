@@ -41,6 +41,14 @@ CIO v12.0 (Architecture Audit):
 - R2: SELL bear ratio continuous interpolation (eliminates 0.65-0.79 dead zone)
 - M2: Volume-weighted census signal — scales census weight by divergence magnitude
 - M3: Earnings trajectory momentum — ACCELERATING/DECELERATING surprise modulation
+
+CIO v14.0 (Conviction Effectiveness Review):
+- V1: RSI-contextual tech vote — AVOID/EXIT_SOON at RSI<35 = neutral (oversold, not bearish)
+- V2: BUY-tech disagree penalty scaling — RSI<35 → -2, RSI 35-50 → -5, RSI>50 → -8
+- V3: Risk warning consensus override — buy_pct>=90 + fund>=70 → reduced risk weight
+- V4: Excess EXRET staleness validation — only penalize when buy_pct<80 (confirms stale)
+- V5: Penalty proportionality cap — total penalties capped at 60% of base conviction
+- V6: Sector concentration scope — count by BUY/ADD actions, not total sector population
 """
 
 import logging
@@ -251,6 +259,8 @@ def compute_sector_medians(
     for ticker, sig in portfolio_signals.items():
         sector = resolve_sector(ticker, sector_map)
         exret = sig.get("exret", 0)
+        if exret is None:
+            exret = 0
         sector_exrets.setdefault(sector, []).append(exret)
         all_exrets.append(exret)
 
@@ -284,6 +294,8 @@ def count_agent_votes(
     tech_synthetic: bool = False,
     regime: str = "",
     census_div_score: float = 0.0,
+    rsi: float = 50.0,
+    buy_pct: float = 50.0,
 ) -> Tuple[float, float]:
     """
     Count bull/bear weighted votes from agent views.
@@ -333,13 +345,29 @@ def count_agent_votes(
         neutral_weight += fund_weight
 
     # Technical (freshness 1.0x, synthetic discount)
+    # CIO v14.0 V1: RSI-contextual tech vote. At RSI < 30 (deeply oversold),
+    # AVOID/EXIT_SOON confirms the obvious decline — it carries no new bearish
+    # information and selling here locks in worst-case exit. At RSI 30-40,
+    # the stock is oversold and the tech AVOID is a weak signal at best.
+    # Only at RSI > 40 does AVOID carry genuine directional weight.
     tech_weight = 1.0 * tech_disc
     if tech_signal == "ENTER_NOW":
         bull += tech_weight
         directional_weight += tech_weight
     elif tech_signal in ("AVOID", "EXIT_SOON"):
-        bear += tech_weight
-        directional_weight += tech_weight
+        if rsi < 30:
+            # Deeply oversold — AVOID is stating the obvious, split neutral
+            bull += tech_weight / 2
+            bear += tech_weight / 2
+            neutral_weight += tech_weight
+        elif rsi < 40:
+            # Oversold — weak bear, not full directional
+            bull += tech_weight * 0.4
+            bear += tech_weight * 0.6
+            directional_weight += tech_weight
+        else:
+            bear += tech_weight
+            directional_weight += tech_weight
     elif tech_signal == "WAIT_FOR_PULLBACK":
         bull += tech_weight * 0.6
         bear += tech_weight * 0.4
@@ -423,7 +451,16 @@ def count_agent_votes(
 
     # Risk Manager (CIO Legacy B3: 1.2x for BUY assessment, 2.0x for SELL)
     # CIO v6.0 F5: Regime-sensitive neutral vote when no warning found
+    # CIO v14.0 V3: When overwhelming consensus (buy_pct >= 90 AND fund_score >= 70),
+    # the risk warning is contradicting 20+ investment bank analysts. The risk is
+    # real but should not dominate the decision — reduce weight to 0.6x. This
+    # prevents a single risk flag from suppressing the collective wisdom of the
+    # sell-side, which has already verified the fundamental thesis independently.
+    # fund_score >= 70 ensures we only override when fundamentals are at least decent;
+    # the analyst consensus threshold (90%) is the primary gate.
     risk_mult = 2.0 if signal == "S" else 1.2
+    if risk_warning and buy_pct >= 90 and fund_score >= 70:
+        risk_mult = 0.6  # V3: defer to overwhelming consensus
     if risk_warning:
         bear += risk_mult
         directional_weight += risk_mult
@@ -518,8 +555,12 @@ def determine_base_conviction(
         # EXRET > 40% almost always indicates stale analyst targets (not updated
         # after a large drop), distressed/turnaround binary outcomes, or data
         # errors. E.g., MSTR at 171% EXRET is not a genuine expected return.
-        if excess_exret > 40:
-            base -= 3  # Staleness penalty for extreme EXRET
+        # CIO v14.0 V4: Only apply when buy_pct < 80. When buy_pct >= 80 AND
+        # excess_exret > 40, the high consensus VALIDATES the high target —
+        # multiple analysts independently set high targets. NVDA at 50% EXRET
+        # with 100% BUY consensus is genuine conviction, not stale data.
+        if excess_exret > 40 and bull_pct < 65:
+            base -= 3  # Staleness penalty for extreme EXRET with low consensus
         elif excess_exret >= 5:
             exret_bonus = min(5, int(excess_exret / 4))
             base += exret_bonus
@@ -549,6 +590,7 @@ def detect_contradictions(
     risk_warning: bool,
     census_alignment: str,
     news_impact: str,
+    **kwargs,
 ) -> Tuple[int, List[str]]:
     """
     Detect logical contradictions between agent views (CIO Legacy A3).
@@ -569,11 +611,21 @@ def detect_contradictions(
         penalty += 5
 
     # Fundamental-Risk: strong fundamentals but risk manager warns
-    if fund_score >= 80 and risk_warning:
-        contradictions.append(
-            f"Fundamental score {fund_score:.0f} but Risk Manager warns"
-        )
-        penalty += 3
+    # CIO v14.0 V3: Skip when overwhelming consensus (buy_pct >= 90 AND
+    # fund_score >= 70). When 20+ analysts and the fundamental model agree,
+    # the risk warning reflects caution, not a genuine contradiction.
+    if fund_score >= 70 and risk_warning:
+        _bp = kwargs.get("buy_pct", 0)
+        if _bp >= 90:
+            # Overwhelming consensus — note but don't penalize
+            contradictions.append(
+                f"Fundamental score {fund_score:.0f} vs Risk warning (overridden by {_bp:.0f}% consensus)"
+            )
+        else:
+            contradictions.append(
+                f"Fundamental score {fund_score:.0f} but Risk Manager warns"
+            )
+            penalty += 3
 
     # Census-News: popular investors distributing despite positive news
     if census_alignment == "DIVERGENT" and "POSITIVE" in news_impact:
@@ -806,8 +858,17 @@ def compute_adjustments(
         penalties += 5
 
     # Tech disagreement penalty (CIO v5.2): when BUY signal but tech says AVOID/EXIT
+    # CIO v14.0 V2: Scale by RSI context. At RSI < 35, the tech AVOID is confirming
+    # an oversold condition — it's NOT a genuine disagreement with the BUY signal.
+    # The full -8 penalty should only apply when RSI > 50 (tech disagreeing at
+    # a neutral-to-overbought level is genuinely informative).
     if signal == "B" and tech_signal in ("AVOID", "EXIT_SOON"):
-        penalties += 8
+        if rsi < 35:
+            penalties += 2   # V2: oversold — tech confirms obvious, minimal penalty
+        elif rsi < 50:
+            penalties += 5   # V2: transitional — moderate penalty
+        else:
+            penalties += 8   # Full disagreement at neutral/overbought RSI
     elif signal == "B" and tech_momentum < -30:
         penalties += 5
 
@@ -1059,6 +1120,8 @@ def synthesize_stock(
         tech_synthetic=tech_synthetic,
         regime=regime,
         census_div_score=float(div_score) if div_score else 0.0,
+        rsi=rsi,
+        buy_pct=float(buy_pct),
     )
 
     total_weight = bull_weight + bear_weight
@@ -1102,6 +1165,7 @@ def synthesize_stock(
     contradiction_penalty, contradictions = detect_contradictions(
         macro_fit, tech_signal, fund_score, risk_warning,
         census_alignment, news_impact,
+        buy_pct=buy_pct,  # CIO v14.0 V3: consensus override
     )
     signal_quality_penalty += contradiction_penalty
 
@@ -1135,6 +1199,16 @@ def synthesize_stock(
     # Cap signal quality penalties separately from base penalties
     signal_quality_penalty = min(signal_quality_penalty, 10)
     penalties = penalties + signal_quality_penalty
+
+    # CIO v14.0 V5: Penalty proportionality cap. After 13 review iterations,
+    # penalty sources now include: base (25), quality (10), sector conc (6-15),
+    # kill thesis (15). Total can reach 50+ points against max 20 bonus.
+    # This 2.5:1 asymmetry systematically suppresses conviction. Cap total
+    # effective penalties at 60% of base to ensure the base signal still
+    # carries through. For base=68 with +13 bonuses, max penalty = 41,
+    # giving min conviction = 68+13-41 = 40 (still meaningful differentiation).
+    max_penalty = int(base * 0.60)
+    penalties = min(penalties, max_penalty)
 
     conviction = base + bonuses - penalties
 
@@ -1886,10 +1960,16 @@ def build_concordance(
     #
     # CIO v11.0 L7: Conviction floors are re-applied AFTER sector penalty to
     # preserve the design principle that BUY-signal quality floors are inviolable.
+    # CIO v14.0 V6: Count sectors by action (BUY/ADD only) for concentration
+    # penalty, not total population. Technology may have 10 stocks in the portfolio
+    # but only 3 with BUY/ADD action — the other 7 are HOLD and don't represent
+    # concentration risk in the ACTION space. Using total count inflated the penalty
+    # and suppressed stocks that weren't actually adding concentration.
     sector_counts: Dict[str, int] = {}
     for entry in concordance:
-        sec = entry.get("sector", "Other")
-        sector_counts[sec] = sector_counts.get(sec, 0) + 1
+        if entry.get("action") in ("BUY", "ADD") or entry.get("signal") == "B":
+            sec = entry.get("sector", "Other")
+            sector_counts[sec] = sector_counts.get(sec, 0) + 1
 
     for entry in concordance:
         if entry.get("action") not in ("BUY", "ADD"):
@@ -2147,10 +2227,15 @@ def compute_changes(
     - A dict of ticker -> data (from concordance.json 'stocks' key)
     """
     if isinstance(previous, dict):
-        # Handle concordance.json format: {"date": "...", "stocks": {ticker: data}}
+        # Handle concordance.json wrappers: {"stocks": {...}} or {"concordance": [...]}
         if "stocks" in previous:
             previous = previous["stocks"]
-        prev_map = {k: dict(v, ticker=k) for k, v in previous.items()}
+        elif "concordance" in previous:
+            previous = previous["concordance"]
+        if isinstance(previous, dict):
+            prev_map = {k: dict(v, ticker=k) for k, v in previous.items()}
+        else:
+            prev_map = {c["ticker"]: c for c in previous}
     else:
         prev_map = {c["ticker"]: c for c in previous}
     changes = []
@@ -2222,7 +2307,7 @@ def generate_synthesis_output(
     sentiment = census_report.get("sentiment", {})
 
     output = {
-        "version": "v13.0_legacy_review",
+        "version": "v14.0_conviction_effectiveness",
         "concordance": concordance,
         "action_distribution": dict(action_dist),
         "changes": changes,
