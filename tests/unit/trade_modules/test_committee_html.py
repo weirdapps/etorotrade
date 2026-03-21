@@ -388,6 +388,13 @@ class TestTrackRecordSection:
         html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
         assert "Track Record" not in html
 
+    def test_track_record_not_rendered_when_zero_evaluated(self):
+        synth = _minimal_synth()
+        synth["performance"] = {"status": "complete", "total_evaluated": 0, "actions": {}}
+        fund, tech, macro, census, news, opps, risk = _minimal_reports()
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        assert "Track Record" not in html
+
     def test_track_record_not_rendered_when_status_not_complete(self):
         synth = _minimal_synth()
         synth["performance"] = {"status": "no_history"}

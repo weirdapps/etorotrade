@@ -501,7 +501,7 @@ def generate_report_html(
 
     # ── TRACK RECORD (CIO v17.0: Performance feedback loop) ──
     perf = synth.get("performance", {})
-    if perf and perf.get("status") == "complete":
+    if perf and perf.get("status") == "complete" and perf.get("total_evaluated", 0) > 0:
         h.append(_section_open("Track Record",
                                f"Performance since {e(perf.get('prev_committee_date', '?'))}",
                                border="1px solid " + _C["border"]))
