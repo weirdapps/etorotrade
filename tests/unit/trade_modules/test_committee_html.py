@@ -212,7 +212,7 @@ class TestGenerateReportHtml:
         synth = _minimal_synth()
         fund, tech, macro, census, news, opps, risk = _minimal_reports()
         html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
-        assert "v14.0" in html
+        assert "v17.0" in html
 
     def test_disclaimer_present(self):
         synth = _minimal_synth()
@@ -349,3 +349,67 @@ class TestV12P2CapitalEfficiency:
         pos_high = action_section.index("HIGH_CE")
         pos_low = action_section.index("LOW_CE")
         assert pos_high < pos_low
+
+
+# ============================================================
+# CIO v17.0: Track Record section
+# ============================================================
+
+
+class TestTrackRecordSection:
+    """Tests for the performance feedback Track Record section."""
+
+    def test_track_record_rendered_when_performance_data_present(self):
+        synth = _minimal_synth()
+        synth["performance"] = {
+            "status": "complete",
+            "prev_committee_date": "2026-03-20",
+            "total_evaluated": 8,
+            "actions": {
+                "ADD": {
+                    "count": 5, "hit_rate": 60.0, "avg_return": 2.5,
+                    "best": {"ticker": "NVDA", "return_pct": 8.3, "conviction": 72, "action": "ADD"},
+                    "worst": {"ticker": "MSFT", "return_pct": -2.1, "conviction": 55, "action": "ADD"},
+                },
+                "HOLD": {"count": 3, "hit_rate": 66.7, "avg_return": 0.3},
+            },
+        }
+        fund, tech, macro, census, news, opps, risk = _minimal_reports()
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        assert "Track Record" in html
+        assert "60%" in html  # hit rate for ADD
+        assert "NVDA" in html  # best performer
+        assert "MSFT" in html  # worst performer
+
+    def test_track_record_not_rendered_when_no_performance_data(self):
+        synth = _minimal_synth()
+        # No performance key at all
+        fund, tech, macro, census, news, opps, risk = _minimal_reports()
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        assert "Track Record" not in html
+
+    def test_track_record_not_rendered_when_status_not_complete(self):
+        synth = _minimal_synth()
+        synth["performance"] = {"status": "no_history"}
+        fund, tech, macro, census, news, opps, risk = _minimal_reports()
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        assert "Track Record" not in html
+
+    def test_track_record_shows_multiple_action_types(self):
+        synth = _minimal_synth()
+        synth["performance"] = {
+            "status": "complete",
+            "prev_committee_date": "2026-03-19",
+            "total_evaluated": 12,
+            "actions": {
+                "ADD": {"count": 5, "hit_rate": 80.0, "avg_return": 3.1},
+                "HOLD": {"count": 4, "hit_rate": 50.0, "avg_return": 0.5},
+                "SELL": {"count": 2, "hit_rate": 100.0, "avg_return": -5.2},
+                "TRIM": {"count": 1, "hit_rate": 100.0, "avg_return": -3.0},
+            },
+        }
+        fund, tech, macro, census, news, opps, risk = _minimal_reports()
+        html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
+        assert "ADD (n=5)" in html
+        assert "SELL (n=2)" in html
+        assert "80%" in html

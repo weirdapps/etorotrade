@@ -499,6 +499,73 @@ def generate_report_html(
         h.append('</div>')
     h.append(_section_close())
 
+    # ── TRACK RECORD (CIO v17.0: Performance feedback loop) ──
+    perf = synth.get("performance", {})
+    if perf and perf.get("status") == "complete":
+        h.append(_section_open("Track Record",
+                               f"Performance since {e(perf.get('prev_committee_date', '?'))}",
+                               border="1px solid " + _C["border"]))
+        perf_actions = perf.get("actions", {})
+        # KPI row: hit rates by action type
+        perf_kpis = []
+        for act_name in ("ADD", "HOLD", "TRIM", "SELL"):
+            ad = perf_actions.get(act_name, {})
+            if not ad:
+                continue
+            hr = ad.get("hit_rate", 0)
+            cnt = ad.get("count", 0)
+            avg_r = ad.get("avg_return", 0)
+            if act_name in ("ADD", "BUY"):
+                hr_col = _C["bull"] if hr >= 50 else _C["bear"]
+            elif act_name in ("SELL", "TRIM"):
+                hr_col = _C["bull"] if hr >= 50 else _C["bear"]
+            else:
+                hr_col = _C["hold"]
+            perf_kpis.append((act_name, hr, cnt, avg_r, hr_col))
+
+        if perf_kpis:
+            h.append('<table style="width:100%;border-collapse:separate;border-spacing:8px 0;margin-bottom:16px;"><tr>')
+            for act_name, hr, cnt, avg_r, hr_col in perf_kpis:
+                ret_col = _C["bull"] if avg_r > 0 else _C["bear"] if avg_r < 0 else _C["text_muted"]
+                h.append(f'<td style="padding:10px;background:{_C["bg_page"]};border:1px solid {_C["border"]};'
+                         f'border-radius:6px;text-align:center;">'
+                         f'<div style="{_LABEL}">{act_name} (n={cnt})</div>'
+                         f'<div style="font-size:18px;font-weight:800;color:{hr_col};margin-top:4px;">{hr:.0f}%</div>'
+                         f'<div style="font-size:10px;color:{ret_col};margin-top:2px;">avg {avg_r:+.1f}%</div></td>')
+            h.append('</tr></table>')
+
+        # Per-stock detail table (top 5 best + worst)
+        all_details = []
+        for act_name, ad in perf_actions.items():
+            best = ad.get("best")
+            worst = ad.get("worst")
+            if best and isinstance(best, dict):
+                all_details.append(best)
+            if worst and isinstance(worst, dict) and worst != best:
+                all_details.append(worst)
+        if all_details:
+            all_details.sort(key=lambda d: d.get("return_pct", 0), reverse=True)
+            # Show top 3 winners and bottom 3 losers
+            winners = [d for d in all_details if d.get("return_pct", 0) > 0][:3]
+            losers = [d for d in all_details if d.get("return_pct", 0) < 0][-3:]
+            show = winners + losers
+            if show:
+                h.append(_table_open([("Stock", "left"), ("Action", "center"),
+                                      ("Conv", "center"), ("Return", "right")]))
+                for d in show:
+                    ret = d.get("return_pct", 0)
+                    rc = _C["bull"] if ret > 0 else _C["bear"]
+                    rbg = _C["bull_bg"] if ret > 2 else _C["bear_bg"] if ret < -2 else _C["bg_white"]
+                    h.append(_table_row([
+                        (f'<span style="{_MONO}font-weight:700;">{e(d.get("ticker", ""))}</span>', "left", ""),
+                        (e(str(d.get("action", "?"))), "center", ""),
+                        (str(d.get("conviction", "")), "center", _MONO),
+                        (f'<span style="font-weight:700;color:{rc};">{ret:+.1f}%</span>', "right", ""),
+                    ], bg=rbg))
+                h.append('</table>')
+
+        h.append(_section_close())
+
     # ── S2: MACRO & MARKET CONTEXT ──
     h.append(_section_open("Macro &amp; Market Context"))
     dxy_raw = sf(indicators.get('dxy', 0))
@@ -976,7 +1043,7 @@ def generate_report_html(
     h.append(f'<div style="padding:24px 40px;background:{_C["bg_page"]};border-top:1px solid {_C["border"]};">'
              f'<table style="width:100%;"><tr>'
              f'<td style="font-size:10px;color:{_C["text_light"]};line-height:1.5;">'
-             f'<b style="color:{_C["text_muted"]};">Investment Committee v14.0</b><br/>'
+             f'<b style="color:{_C["text_muted"]};">Investment Committee v17.0</b><br/>'
              f'{today_long} &middot; 7 Agents (Sonnet) + CIO (Opus)</td>'
              f'<td style="text-align:right;font-size:9px;color:{_C["text_light"]};">Not financial advice.</td>'
              f'</tr></table></div>')
@@ -1173,6 +1240,7 @@ def _archive_concordance(
                 "fund_synthetic": en.get("fund_synthetic", False),
                 "tech_synthetic": en.get("tech_synthetic", False),
                 "is_opportunity": en.get("is_opportunity", False),
+                "price": en.get("price", 0),
             }
             for en in concordance
         ],
