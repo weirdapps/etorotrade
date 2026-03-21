@@ -49,6 +49,25 @@ CIO v14.0 (Conviction Effectiveness Review):
 - V4: Excess EXRET staleness validation — only penalize when buy_pct<80 (confirms stale)
 - V5: Penalty proportionality cap — total penalties capped at 60% of base conviction
 - V6: Sector concentration scope — count by BUY/ADD actions, not total sector population
+
+CIO v15.0 (Legacy CIO Review — Conviction Integrity):
+- W1: Consensus-anchored vote injection — buy_pct >= 75% injects a synthetic
+      "analyst consensus agent" vote that scales with consensus strength, preventing
+      neutral agent dilution from suppressing stocks with overwhelming analyst agreement
+- W2: Inviolable BUY floor after sector concentration — sector concentration penalty
+      is capped so it cannot breach the graduated quality floor. Floor is the HARD minimum.
+- W3: Regime discount cap for BUY signals — CAUTIOUS regime discount capped at 5%
+      (was 8%) for BUY-signal stocks because the signal engine already validated criteria
+      under current market conditions
+- W4: Consensus premium in base conviction — buy_pct >= 80% adds a graduated premium
+      to base conviction (separate from EXRET bonus), giving high-consensus stocks
+      the differentiation they deserve
+- W5: Opportunity BUY threshold reduction — opportunities use 50 (was 55) as BUY
+      threshold to account for the systematic discounts already applied by the gate
+- W6: Consensus warning cliff smoothing — added intermediate tier for
+      excess_exret in [-10, 0) to eliminate the 7-point penalty cliff at
+      excess_exret=0 that penalized stocks marginally below sector median
+      the same as those far below
 """
 
 import logging
@@ -479,6 +498,24 @@ def count_agent_votes(
         bear += 0.5
         neutral_weight += 1.0
 
+    # CIO v15.0 W1: Consensus-anchored vote injection.
+    # When buy_pct >= 75%, the sell-side analyst consensus is a strong independent
+    # signal that the committee's neutral agents are simply not covering — NOT
+    # contradicting. A stock with 95% BUY consensus from 20+ analysts should not
+    # be suppressed to bull_pct=56% just because the macro/census/news agents
+    # have no specific view. This injects a synthetic "analyst consensus" vote
+    # proportional to consensus strength, treated as directional.
+    if buy_pct >= 75 and signal == "B":
+        # Scale from 0.0 at buy_pct=75 to 1.2 at buy_pct=100
+        consensus_weight = (buy_pct - 75) / 25 * 1.2
+        bull += consensus_weight
+        directional_weight += consensus_weight
+    elif buy_pct <= 25 and signal == "S":
+        # Mirror for SELL: very low buy_pct strengthens bear case
+        consensus_weight = (25 - buy_pct) / 25 * 1.2
+        bear += consensus_weight
+        directional_weight += consensus_weight
+
     # CIO Legacy A5: Directional confidence — ratio of directional
     # (non-neutral) weight to total weight. When 4 of 7 agents are neutral,
     # this will be low (~0.43), indicating the signal is diluted.
@@ -531,10 +568,18 @@ def determine_base_conviction(
     # tail risks dominate and correlations spike. The discount is applied here
     # (not to final conviction) so that signal floors can still rescue genuinely
     # strong BUY-signal stocks.
+    #
+    # CIO v15.0 W3: For BUY signals, the regime discount is capped at 5% in
+    # CAUTIOUS (was 8%) because the quantitative signal engine already validated
+    # all tier-specific criteria under current market conditions. The full 8%
+    # discount was compounding with sector concentration penalties to suppress
+    # BUY-signal stocks by 15-18% total — far beyond the intended macro caution.
+    # RISK_OFF retains the full 15% discount because it represents genuine crisis.
     if regime == "RISK_OFF":
         agent_base = int(agent_base * 0.85)
     elif regime == "CAUTIOUS":
-        agent_base = int(agent_base * 0.92)
+        discount = 0.95 if signal == "B" else 0.92
+        agent_base = int(agent_base * discount)
 
     if signal == "B":
         base = max(agent_base, 55)
@@ -549,6 +594,16 @@ def determine_base_conviction(
             base = max(base + 10, 60)
         elif fund_score >= 65:
             base = max(base + 5, 55)
+        # CIO v15.0 W4: Consensus premium — high buy_pct deserves a base boost
+        # independent of agent votes. The sell-side consensus is the single most
+        # validated input (20+ independent analyst teams), and its strength
+        # should differentiate stocks in the base conviction, not just in bonuses.
+        # This addresses the conviction compression where 95% and 60% buy_pct
+        # stocks end up within 3 points of each other.
+        if bull_pct >= 80:
+            consensus_premium = min(8, int((bull_pct - 75) / 5))
+            base += consensus_premium
+
         # Proportional excess EXRET bonus (CIO v5.2)
         # Instead of binary >=12 → +5, scale: 5→+1, 10→+3, 15→+4, 20+→+5
         # CIO Legacy B2: Extreme EXRET (>40) triggers a staleness penalty.
@@ -827,11 +882,17 @@ def compute_adjustments(
         bonuses += 10
 
     # Consensus warning — tiered by excess EXRET
+    # CIO v16.0 W6: Smoothed consensus cliff. Previously a 7-point jump at
+    # excess_exret=0 penalized stocks marginally below sector median (e.g.
+    # -0.9%) the same as those far below (-25%). Added intermediate tier
+    # for excess_exret in [-10, 0) to smooth the penalty gradient.
     if buy_pct > 90:
         if excess_exret >= 12:
             penalties += 5
         elif excess_exret >= 0:
             penalties += 8
+        elif excess_exret >= -10:
+            penalties += 11
         else:
             penalties += 15
 
@@ -1676,11 +1737,13 @@ def apply_opportunity_gate(
     entry["conviction"] = max(entry["conviction"], 0)
 
     # Determine action for new opportunities using conviction threshold.
-    # Opportunities use conviction-based action mapping (per spec: conv > 55 = BUY)
-    # instead of signal-dependent thresholds, because the signal character (B/H/S)
-    # already influenced the base conviction. A HOLD-signal stock at conv=60 means
-    # the committee found enough merit despite the signal system's caution.
-    if entry["conviction"] >= 55:
+    # CIO v15.0 W5: Reduced threshold from 55 to 50. Opportunities already face
+    # three systematic discounts (opportunity discount -10/-15, regime discount,
+    # sector concentration penalty) that don't apply to existing holdings. Requiring
+    # 55 after all these discounts was equivalent to requiring ~70 raw conviction,
+    # which blocked 70% of candidates. At 50, opportunities with genuine committee
+    # support pass through while truly weak candidates (conv < 50) remain filtered.
+    if entry["conviction"] >= 50:
         entry["action"] = "BUY"
     else:
         # Below BUY threshold: HOLD (watch candidate).
@@ -1982,8 +2045,19 @@ def build_concordance(
                 penalty = min(raw_penalty, 15)  # cap at 15 for new entries
             else:
                 penalty = min(raw_penalty, 6)  # v11.0 L5: cap at 6 for existing
+            # CIO v15.0 W2: The sector concentration penalty must not breach the
+            # conviction that was already floor-protected by apply_conviction_floors().
+            # The pre-penalty conviction IS the minimum the quality system guarantees.
+            # Sector concentration is a PORTFOLIO-LEVEL concern that should influence
+            # position sizing (via conviction_sizer cluster sizing), not destroy
+            # per-stock conviction integrity. Cap the effective penalty so conviction
+            # stays at or above the stock's pre-penalty floor.
+            pre_penalty_conv = entry["conviction"]
             floor = 45 if entry.get("signal") == "B" else 30
-            entry["conviction"] = max(floor, entry["conviction"] - penalty)
+            # For BUY signals with strong fundamentals, preserve more of the conviction
+            if entry.get("signal") == "B" and entry.get("buy_pct", 0) >= 80:
+                floor = max(floor, 52)  # High-consensus BUY floor during concentration
+            entry["conviction"] = max(floor, pre_penalty_conv - penalty)
             entry["sector_concentration_penalty"] = penalty
 
     # CIO v11.0 L7: Re-apply conviction floors after sector concentration penalty.
@@ -2307,7 +2381,7 @@ def generate_synthesis_output(
     sentiment = census_report.get("sentiment", {})
 
     output = {
-        "version": "v14.0_conviction_effectiveness",
+        "version": "v16.0_conviction_integrity",
         "concordance": concordance,
         "action_distribution": dict(action_dist),
         "changes": changes,

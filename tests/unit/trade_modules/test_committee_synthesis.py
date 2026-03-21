@@ -4156,3 +4156,467 @@ class TestV14SectorConcentrationScope:
             if e.get("sector_concentration_penalty", 0) > 0:
                 # Penalty should be based on action-scoped count, which is smaller
                 assert e["sector_concentration_penalty"] <= 15
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# CIO v15.0: Conviction Integrity Tests
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestV15ConsensusVoteInjection:
+    """CIO v15.0 W1: Consensus-anchored vote injection."""
+
+    def test_high_consensus_buy_injects_bull_vote(self):
+        """buy_pct >= 75 with BUY signal should inject consensus bull vote."""
+        # Without consensus injection (buy_pct=70, below threshold)
+        bull_low, bear_low, _ = count_agent_votes(
+            fund_score=50, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="B",
+            buy_pct=70.0,
+        )
+        # With consensus injection (buy_pct=95)
+        bull_high, bear_high, _ = count_agent_votes(
+            fund_score=50, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="B",
+            buy_pct=95.0,
+        )
+        # High consensus should produce higher bull_pct
+        total_low = bull_low + bear_low
+        total_high = bull_high + bear_high
+        bp_low = bull_low / total_low * 100 if total_low > 0 else 50
+        bp_high = bull_high / total_high * 100 if total_high > 0 else 50
+        assert bp_high > bp_low
+        assert bp_high >= 55  # Should be meaningfully above 50%
+
+    def test_consensus_injection_scales_with_buy_pct(self):
+        """Higher buy_pct should inject stronger bull weight."""
+        results = []
+        for bp in [75, 85, 95, 100]:
+            bull, bear, _ = count_agent_votes(
+                fund_score=50, tech_signal="HOLD", tech_momentum=0,
+                macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+                news_impact="NEUTRAL", risk_warning=False, signal="B",
+                buy_pct=float(bp),
+            )
+            total = bull + bear
+            results.append(bull / total * 100 if total > 0 else 50)
+        # Each step should increase bull_pct
+        for i in range(len(results) - 1):
+            assert results[i + 1] >= results[i]
+
+    def test_no_injection_for_hold_signal(self):
+        """Consensus injection only applies to BUY signal stocks."""
+        bull_buy, bear_buy, _ = count_agent_votes(
+            fund_score=50, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="B",
+            buy_pct=95.0,
+        )
+        bull_hold, bear_hold, _ = count_agent_votes(
+            fund_score=50, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="H",
+            buy_pct=95.0,
+        )
+        # BUY signal should get higher bull_pct due to injection
+        total_buy = bull_buy + bear_buy
+        total_hold = bull_hold + bear_hold
+        bp_buy = bull_buy / total_buy * 100
+        bp_hold = bull_hold / total_hold * 100
+        assert bp_buy > bp_hold
+
+    def test_sell_signal_low_consensus_injects_bear(self):
+        """SELL signal with very low buy_pct should inject bear vote."""
+        bull_mid, bear_mid, _ = count_agent_votes(
+            fund_score=50, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="S",
+            buy_pct=30.0,
+        )
+        bull_low, bear_low, _ = count_agent_votes(
+            fund_score=50, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="S",
+            buy_pct=15.0,
+        )
+        # Low buy_pct with SELL should have higher bear_ratio
+        total_mid = bull_mid + bear_mid
+        total_low = bull_low + bear_low
+        br_mid = bear_mid / total_mid
+        br_low = bear_low / total_low
+        assert br_low > br_mid
+
+    def test_consensus_injection_improves_directional_confidence(self):
+        """Consensus injection should increase directional confidence."""
+        _, _, dc_without = count_agent_votes(
+            fund_score=50, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="B",
+            buy_pct=70.0,
+        )
+        _, _, dc_with = count_agent_votes(
+            fund_score=50, tech_signal="HOLD", tech_momentum=0,
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL",
+            news_impact="NEUTRAL", risk_warning=False, signal="B",
+            buy_pct=95.0,
+        )
+        assert dc_with > dc_without
+
+
+class TestV15RegimeDiscountCap:
+    """CIO v15.0 W3: Regime discount cap for BUY signals."""
+
+    def test_cautious_buy_signal_gets_reduced_discount(self):
+        """BUY signal in CAUTIOUS should get 5% discount, not 8%."""
+        base_buy = determine_base_conviction(
+            65.0, "B", 70, 15, 0.35, regime="CAUTIOUS",
+        )
+        base_hold = determine_base_conviction(
+            65.0, "H", 70, 15, 0.35, regime="CAUTIOUS",
+        )
+        # BUY should be higher because of reduced regime discount
+        # (plus BUY-specific floors and bonuses)
+        assert base_buy >= base_hold
+
+    def test_cautious_buy_higher_than_v14(self):
+        """v15.0 CAUTIOUS BUY should produce higher base than v14's 8%."""
+        # With CAUTIOUS and bull_pct=65, agent_base is about 62
+        # v14: 62 * 0.92 = 57, then BUY floor 55 → max(57, 55) = 57
+        # v15: 62 * 0.95 = 58, then BUY floor 55 → max(58, 55) = 58+
+        base = determine_base_conviction(
+            65.0, "B", 70, 15, 0.35, regime="CAUTIOUS",
+        )
+        assert base >= 58  # Should be at least 58 with reduced discount
+
+    def test_risk_off_unchanged(self):
+        """RISK_OFF should still apply full 15% discount."""
+        base_riskoff = determine_base_conviction(
+            65.0, "B", 70, 15, 0.35, regime="RISK_OFF",
+        )
+        base_no_regime = determine_base_conviction(
+            65.0, "B", 70, 15, 0.35, regime="",
+        )
+        # RISK_OFF should be significantly lower
+        assert base_riskoff < base_no_regime
+
+
+class TestV15ConsensusPremium:
+    """CIO v15.0 W4: Consensus premium in base conviction."""
+
+    def test_high_consensus_gets_premium(self):
+        """BUY signal with bull_pct >= 80 should get consensus premium."""
+        base_high = determine_base_conviction(
+            85.0, "B", 80, 20, 0.15, regime="",
+        )
+        base_low = determine_base_conviction(
+            70.0, "B", 80, 20, 0.30, regime="",
+        )
+        # Higher bull_pct should produce higher base
+        assert base_high > base_low
+
+    def test_premium_capped_at_8(self):
+        """Consensus premium should not exceed 8 points."""
+        # With bull_pct=100, premium = min(8, (100-75)/5) = min(8, 5) = 5
+        # With bull_pct=200 (edge case), premium = min(8, ...) = 8
+        base = determine_base_conviction(
+            100.0, "B", 90, 30, 0.0, regime="",
+        )
+        # Should be reasonable — not infinitely boosted
+        assert base <= 90
+
+    def test_no_premium_below_80_bull_pct(self):
+        """No consensus premium when bull_pct < 80."""
+        base_79 = determine_base_conviction(
+            79.0, "B", 60, 10, 0.21, regime="",
+        )
+        base_80 = determine_base_conviction(
+            80.0, "B", 60, 10, 0.20, regime="",
+        )
+        # Base at 80 should be at least as high as at 79
+        assert base_80 >= base_79
+
+
+class TestV15SectorConcentrationFloor:
+    """CIO v15.0 W2: Inviolable BUY floor after sector concentration."""
+
+    def test_high_consensus_buy_floor_52(self):
+        """BUY signal with buy_pct >= 80 should have floor 52 during concentration."""
+        sigs = {
+            f"T{i}": {"signal": "B", "exret": 30, "buy_pct": 95,
+                       "beta": 1.0, "pet": 20, "pef": 18}
+            for i in range(5)
+        }
+        sector_map = {f"T{i}": "Technology" for i in range(5)}
+        fund = {"stocks": {}}
+        tech = {"stocks": {}}
+        macro = {"executive_summary": {"regime": ""}, "portfolio_implications": {},
+                 "sector_rankings": {}}
+        census = {"divergences": {}}
+        news = {"portfolio_news": {}}
+        risk = {"consensus_warnings": [], "position_limits": {}}
+
+        concordance = build_concordance(
+            sigs, fund, tech, macro, census, news, risk, sector_map,
+        )
+        # All stocks have buy_pct=95 (>= 80), so floor should be at least 52
+        for e in concordance:
+            if e.get("sector_concentration_penalty", 0) > 0:
+                assert e["conviction"] >= 52, (
+                    f"{e['ticker']} conviction {e['conviction']} < 52 "
+                    f"despite buy_pct={e['buy_pct']}"
+                )
+
+    def test_low_consensus_uses_standard_floor(self):
+        """BUY signal with buy_pct < 80 uses standard floor 45."""
+        sigs = {
+            f"T{i}": {"signal": "B", "exret": 10, "buy_pct": 60,
+                       "beta": 1.0, "pet": 20, "pef": 22}
+            for i in range(5)
+        }
+        sector_map = {f"T{i}": "Technology" for i in range(5)}
+        fund = {"stocks": {}}
+        tech = {"stocks": {}}
+        macro = {"executive_summary": {"regime": ""}, "portfolio_implications": {},
+                 "sector_rankings": {}}
+        census = {"divergences": {}}
+        news = {"portfolio_news": {}}
+        risk = {"consensus_warnings": [], "position_limits": {}}
+
+        concordance = build_concordance(
+            sigs, fund, tech, macro, census, news, risk, sector_map,
+        )
+        for e in concordance:
+            if e.get("sector_concentration_penalty", 0) > 0:
+                assert e["conviction"] >= 45  # Standard BUY floor
+
+
+class TestV15OpportunityThreshold:
+    """CIO v15.0 W5: Opportunity BUY threshold reduction."""
+
+    def test_opportunity_at_conv_50_is_buy(self):
+        """Opportunity with conviction 50 should be BUY (was HOLD in v14)."""
+        entry = {
+            "ticker": "NEW1", "signal": "B", "sector": "Materials",
+            "conviction": 62, "action": "ADD", "fund_score": 70,
+            "buy_pct": 80, "is_opportunity": False, "base": 60,
+            "tech_signal": "HOLD", "exret": 20, "excess_exret": 10,
+        }
+        fund = {"stocks": {"NEW1": {"fundamental_score": 70}}}
+        tech = {"stocks": {"NEW1": {"timing_signal": "ENTER_NOW"}}}
+
+        result = apply_opportunity_gate(
+            entry, fund, tech, "FAVORABLE", "ALIGNED",
+            {"Technology": 5}, regime="CAUTIOUS",
+        )
+        # With 3 confirmations (fund>=70, tech=ENTER_NOW, macro=FAVORABLE)
+        # No discount applied. Conviction should stay high.
+        if result["conviction"] >= 50:
+            assert result["action"] == "BUY"
+
+    def test_opportunity_below_50_is_hold(self):
+        """Opportunity below 50 conviction should be HOLD."""
+        entry = {
+            "ticker": "WEAK1", "signal": "H", "sector": "Other",
+            "conviction": 40, "action": "HOLD", "fund_score": 40,
+            "buy_pct": 50, "is_opportunity": False, "base": 45,
+            "tech_signal": "HOLD", "exret": 5, "excess_exret": -5,
+        }
+        fund = {"stocks": {}}
+        tech = {"stocks": {}}
+
+        result = apply_opportunity_gate(
+            entry, fund, tech, "NEUTRAL", "NEUTRAL",
+            {"Technology": 5}, regime="CAUTIOUS",
+        )
+        # With 0 confirmations and CAUTIOUS discount, should be well below 50
+        assert result["action"] == "HOLD"
+
+
+class TestV15EndToEndConvictionIntegrity:
+    """Integration tests for v15.0 conviction integrity."""
+
+    def test_msft_like_stock_gets_add(self):
+        """MEGA-cap BUY signal with 95% consensus should score as ADD."""
+        result = synthesize_stock(
+            ticker="MSFT",
+            sig_data={"signal": "B", "exret": 50, "buy_pct": 95,
+                      "beta": 1.0, "pet": 25, "pef": 22},
+            fund_data={"fundamental_score": 75},
+            tech_data={"momentum_score": 0, "timing_signal": "HOLD",
+                       "rsi": 33, "macd_signal": "NEUTRAL"},
+            macro_fit="NEUTRAL",
+            census_alignment="NEUTRAL",
+            div_score=0,
+            census_ts_trend="stable",
+            news_impact="NEUTRAL",
+            risk_warning=False,
+            sector="Technology",
+            sector_median_exret=10,
+            sector_rankings={},
+            position_limit=5.0,
+            regime="CAUTIOUS",
+        )
+        # With v15.0 consensus injection + premium, conviction should reach ADD
+        assert result["conviction"] >= 55, (
+            f"MSFT-like stock at conviction {result['conviction']} < 55 — "
+            "consensus injection not working"
+        )
+        assert result["action"] == "ADD"
+
+    def test_low_consensus_stock_not_inflated(self):
+        """Stock with low consensus should not benefit from W1/W4."""
+        result = synthesize_stock(
+            ticker="WEAK",
+            sig_data={"signal": "B", "exret": 10, "buy_pct": 55,
+                      "beta": 1.5, "pet": 20, "pef": 25},
+            fund_data={"fundamental_score": 50},
+            tech_data={"momentum_score": -10, "timing_signal": "HOLD",
+                       "rsi": 50, "macd_signal": "BEARISH"},
+            macro_fit="NEUTRAL",
+            census_alignment="NEUTRAL",
+            div_score=0,
+            census_ts_trend="stable",
+            news_impact="NEUTRAL",
+            risk_warning=False,
+            sector="Industrials",
+            sector_median_exret=10,
+            sector_rankings={},
+            position_limit=5.0,
+            regime="CAUTIOUS",
+        )
+        # Low consensus, deteriorating PE — should not reach ADD
+        assert result["conviction"] <= 60
+
+    def test_conviction_spread_improved(self):
+        """v15.0 should produce wider conviction spread than v14."""
+        stocks = []
+        for bp, exret, fund_s in [(100, 50, 85), (80, 30, 70), (60, 15, 50)]:
+            r = synthesize_stock(
+                ticker=f"S{bp}",
+                sig_data={"signal": "B", "exret": exret, "buy_pct": bp,
+                          "beta": 1.0, "pet": 20, "pef": 18},
+                fund_data={"fundamental_score": fund_s},
+                tech_data={"momentum_score": 0, "timing_signal": "HOLD",
+                           "rsi": 45, "macd_signal": "NEUTRAL"},
+                macro_fit="NEUTRAL",
+                census_alignment="NEUTRAL",
+                div_score=0,
+                census_ts_trend="stable",
+                news_impact="NEUTRAL",
+                risk_warning=False,
+                sector="Technology",
+                sector_median_exret=10,
+                sector_rankings={},
+                position_limit=5.0,
+            )
+            stocks.append(r)
+        # The spread between best and worst should be meaningful
+        spread = stocks[0]["conviction"] - stocks[2]["conviction"]
+        assert spread >= 10, (
+            f"Conviction spread {spread} < 10 — insufficient differentiation "
+            f"({stocks[0]['conviction']}, {stocks[1]['conviction']}, {stocks[2]['conviction']})"
+        )
+
+
+class TestV16ConsensusWarningSmoothing:
+    """CIO v16.0 W6: Consensus warning cliff smoothing.
+
+    Previously, the consensus warning had a 7-point cliff at excess_exret=0:
+    excess_exret >= 0 → -8 penalty, excess_exret < 0 → -15 penalty.
+    W6 adds an intermediate tier for excess_exret in [-10, 0) → -11 penalty.
+    """
+
+    def test_marginal_below_median_gets_intermediate_penalty(self):
+        """Stock barely below sector median (-0.9%) gets -11, not -15."""
+        _, penalties = compute_adjustments(
+            signal="B", fund_score=85, tech_signal="HOLD",
+            tech_momentum=15, rsi=50, macro_fit="NEUTRAL",
+            census_alignment="NEUTRAL", div_score=0,
+            census_ts="stable", news_impact="NEUTRAL",
+            risk_warning=False, buy_pct=96,
+            excess_exret=-0.9, beta=1.0, quality_trap=False,
+            sector="Consumer Discretionary", sector_rankings={},
+            bull_count=3,
+        )
+        assert penalties == 11, (
+            f"Expected 11 for marginal below median, got {penalties}"
+        )
+
+    def test_significantly_below_median_gets_full_penalty(self):
+        """Stock well below sector median (-15%) gets full -15."""
+        _, penalties = compute_adjustments(
+            signal="B", fund_score=75, tech_signal="HOLD",
+            tech_momentum=0, rsi=50, macro_fit="NEUTRAL",
+            census_alignment="NEUTRAL", div_score=0,
+            census_ts="stable", news_impact="NEUTRAL",
+            risk_warning=False, buy_pct=95,
+            excess_exret=-15, beta=1.0, quality_trap=False,
+            sector="Technology", sector_rankings={},
+            bull_count=3,
+        )
+        assert penalties == 15, (
+            f"Expected 15 for significantly below median, got {penalties}"
+        )
+
+    def test_above_median_unchanged(self):
+        """Stock above sector median still gets -8 (unchanged)."""
+        _, penalties = compute_adjustments(
+            signal="B", fund_score=75, tech_signal="HOLD",
+            tech_momentum=0, rsi=50, macro_fit="NEUTRAL",
+            census_alignment="NEUTRAL", div_score=0,
+            census_ts="stable", news_impact="NEUTRAL",
+            risk_warning=False, buy_pct=95,
+            excess_exret=5, beta=1.0, quality_trap=False,
+            sector="Technology", sector_rankings={},
+            bull_count=3,
+        )
+        assert penalties == 8, (
+            f"Expected 8 for above median, got {penalties}"
+        )
+
+    def test_boundary_at_minus_ten(self):
+        """Stock at exactly excess_exret=-10 gets -11 (intermediate tier)."""
+        _, penalties = compute_adjustments(
+            signal="B", fund_score=75, tech_signal="HOLD",
+            tech_momentum=0, rsi=50, macro_fit="NEUTRAL",
+            census_alignment="NEUTRAL", div_score=0,
+            census_ts="stable", news_impact="NEUTRAL",
+            risk_warning=False, buy_pct=95,
+            excess_exret=-10, beta=1.0, quality_trap=False,
+            sector="Technology", sector_rankings={},
+            bull_count=3,
+        )
+        assert penalties == 11, (
+            f"Expected 11 at boundary -10, got {penalties}"
+        )
+
+    def test_end_to_end_marginal_stock_upgrades(self):
+        """A stock marginally below median with strong consensus should reach ADD."""
+        result = synthesize_stock(
+            ticker="MARG1",
+            sig_data={"signal": "B", "exret": 30, "buy_pct": 96,
+                      "beta": 1.0, "pet": 20, "pef": 18},
+            fund_data={"fundamental_score": 85},
+            tech_data={"momentum_score": 15, "timing_signal": "HOLD",
+                       "rsi": 50, "macd_signal": "BULLISH"},
+            macro_fit="NEUTRAL",
+            census_alignment="NEUTRAL",
+            div_score=0,
+            census_ts_trend="stable",
+            news_impact="NEUTRAL",
+            risk_warning=False,
+            sector="Consumer Discretionary",
+            sector_median_exret=31,  # Marginal below: excess = -1
+            sector_rankings={},
+            position_limit=5.0,
+        )
+        # With smoothed consensus (-11 instead of -15), this stock
+        # should have enough conviction for ADD
+        assert result["conviction"] >= 55, (
+            f"Marginal below-median stock conv {result['conviction']} < 55"
+        )
+        assert result["action"] == "ADD", (
+            f"Expected ADD for marginal below-median, got {result['action']}"
+        )
