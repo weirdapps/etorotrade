@@ -1382,6 +1382,7 @@ def synthesize_stock(
         "directional_confidence": round(dir_confidence, 2),
         "pef": pef,   # CIO v11.0: stored for post-penalty floor reapplication
         "pet": pet,
+        "price": sig_data.get("price", 0),  # CIO v17.0: for evaluate_recent() returns
     }
 
 
@@ -2351,6 +2352,7 @@ def generate_synthesis_output(
     sector_gaps: List[Dict[str, Any]],
     census_ts_map: Optional[Dict[str, str]] = None,
     opportunity_report: Optional[Dict] = None,
+    performance_data: Optional[Dict] = None,
 ) -> Dict[str, Any]:
     """
     Generate complete synthesis JSON output from concordance and agent reports.
@@ -2381,7 +2383,7 @@ def generate_synthesis_output(
     sentiment = census_report.get("sentiment", {})
 
     output = {
-        "version": "v16.0_conviction_integrity",
+        "version": "v17.0_performance_feedback",
         "concordance": concordance,
         "action_distribution": dict(action_dist),
         "changes": changes,
@@ -2420,6 +2422,8 @@ def generate_synthesis_output(
         "hard_constraints": risk_report.get("hard_constraints", []),
         # Opportunities
         "top_opportunities": (opportunity_report or {}).get("top_opportunities", []),
+        # CIO v17.0: Performance feedback loop data
+        "performance": performance_data or {},
     }
 
     return output

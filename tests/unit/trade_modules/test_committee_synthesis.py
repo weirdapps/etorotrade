@@ -28,6 +28,7 @@ from trade_modules.committee_synthesis import (
     build_concordance,
     classify_hold_tier,
     compute_adjustments,
+    generate_synthesis_output,
     compute_changes,
     compute_dynamic_freshness,
     compute_sector_medians,
@@ -4620,3 +4621,96 @@ class TestV16ConsensusWarningSmoothing:
         assert result["action"] == "ADD", (
             f"Expected ADD for marginal below-median, got {result['action']}"
         )
+
+
+# ============================================================
+# CIO v17.0: Performance feedback loop
+# ============================================================
+
+
+class TestV17PerformanceFeedback:
+    """Tests for performance data integration in synthesis output."""
+
+    def _minimal_reports(self):
+        """Build minimal agent reports for generate_synthesis_output."""
+        macro = {"regime": "CAUTIOUS", "macro_score": 50,
+                 "rotation_phase": "LATE_CYCLE", "indicators": {},
+                 "sector_rankings": {}}
+        census = {"sentiment": {"fg_top100": 50, "fg_broad": 50}}
+        news = {}
+        risk = {"portfolio_risk": {"var_95": 2.0, "max_drawdown": 0.1,
+                                   "portfolio_beta": 1.0, "risk_score": 50}}
+        return macro, census, news, risk
+
+    def test_synthesis_output_includes_performance_data(self):
+        """Performance data should be included in synthesis output."""
+        macro, census, news, risk = self._minimal_reports()
+        perf = {
+            "status": "complete",
+            "prev_committee_date": "2026-03-20",
+            "total_evaluated": 10,
+            "actions": {
+                "ADD": {"count": 5, "hit_rate": 60.0, "avg_return": 2.5},
+                "HOLD": {"count": 3, "hit_rate": 66.7, "avg_return": 0.1},
+            },
+        }
+        output = generate_synthesis_output(
+            concordance=[], macro_report=macro, census_report=census,
+            news_report=news, risk_report=risk, changes=[], sector_gaps=[],
+            performance_data=perf,
+        )
+        assert output["performance"]["status"] == "complete"
+        assert output["performance"]["actions"]["ADD"]["hit_rate"] == 60.0
+
+    def test_synthesis_output_empty_performance_when_none(self):
+        """When no performance data, output should have empty dict."""
+        macro, census, news, risk = self._minimal_reports()
+        output = generate_synthesis_output(
+            concordance=[], macro_report=macro, census_report=census,
+            news_report=news, risk_report=risk, changes=[], sector_gaps=[],
+        )
+        assert output["performance"] == {}
+
+    def test_synthesize_stock_includes_price(self):
+        """synthesize_stock should include price from sig_data."""
+        result = synthesize_stock(
+            ticker="AAPL",
+            sig_data={"signal": "B", "exret": 15, "buy_pct": 80,
+                      "beta": 1.1, "pet": 25, "pef": 22, "price": 185.5},
+            fund_data={"fundamental_score": 75},
+            tech_data={"momentum_score": 30, "timing_signal": "ENTER_NOW",
+                       "rsi": 55, "macd_signal": "BULLISH"},
+            macro_fit="FAVORABLE",
+            census_alignment="ALIGNED",
+            div_score=0,
+            census_ts_trend="stable",
+            news_impact="NEUTRAL",
+            risk_warning=False,
+            sector="Technology",
+            sector_median_exret=10,
+            sector_rankings={},
+            position_limit=5.0,
+        )
+        assert result["price"] == 185.5
+
+    def test_synthesize_stock_price_defaults_to_zero(self):
+        """When sig_data has no price, should default to 0."""
+        result = synthesize_stock(
+            ticker="TEST",
+            sig_data={"signal": "H", "exret": 5, "buy_pct": 50,
+                      "beta": 1.0, "pet": 20, "pef": 20},
+            fund_data={"fundamental_score": 50},
+            tech_data={"momentum_score": 0, "timing_signal": "HOLD",
+                       "rsi": 50, "macd_signal": "NEUTRAL"},
+            macro_fit="NEUTRAL",
+            census_alignment="NEUTRAL",
+            div_score=0,
+            census_ts_trend="stable",
+            news_impact="NEUTRAL",
+            risk_warning=False,
+            sector="Other",
+            sector_median_exret=5,
+            sector_rankings={},
+            position_limit=5.0,
+        )
+        assert result["price"] == 0
