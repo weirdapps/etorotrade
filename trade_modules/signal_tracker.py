@@ -99,6 +99,9 @@ class SignalRecord:
         spy_price: Optional[float] = None,
         # Sell trigger details
         sell_triggers: Optional[List[str]] = None,
+        # Sentiment and regime (enrichment)
+        sentiment_score: Optional[float] = None,
+        regime: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ):
         self.ticker = ticker
@@ -125,6 +128,9 @@ class SignalRecord:
         # Benchmark
         self.spy_price = spy_price
         self.sell_triggers = sell_triggers or []
+        # Sentiment and regime
+        self.sentiment_score = sentiment_score
+        self.regime = regime
         self.metadata = metadata or {}
 
     def to_dict(self) -> Dict[str, Any]:
@@ -154,6 +160,9 @@ class SignalRecord:
             # Benchmark
             "spy_price": self.spy_price,
             "sell_triggers": self.sell_triggers,
+            # Sentiment and regime
+            "sentiment_score": self.sentiment_score,
+            "regime": self.regime,
             "metadata": self.metadata,
         }
 
@@ -185,6 +194,9 @@ class SignalRecord:
             # Benchmark
             spy_price=data.get("spy_price"),
             sell_triggers=data.get("sell_triggers", []),
+            # Sentiment and regime
+            sentiment_score=data.get("sentiment_score"),
+            regime=data.get("regime"),
             metadata=data.get("metadata", {}),
         )
 
@@ -466,6 +478,23 @@ def log_signal(
     except Exception:
         pass
 
+    # Get sentiment score (finBERT) — only for actionable signals (B/S)
+    sentiment_score = None
+    if signal in ('B', 'S'):
+        try:
+            from trade_modules.sentiment_analyzer import get_ticker_sentiment
+            sentiment_score = get_ticker_sentiment(ticker)
+        except (ImportError, Exception):
+            pass
+
+    # Get market regime (multi-factor) — cached, shared across all tickers
+    regime = None
+    try:
+        from trade_modules.regime_detector import get_current_regime
+        regime = get_current_regime()
+    except (ImportError, Exception):
+        pass
+
     record = SignalRecord(
         ticker=ticker,
         signal=signal,
@@ -490,6 +519,9 @@ def log_signal(
         # Benchmark
         spy_price=spy_price,
         sell_triggers=sell_triggers or [],
+        # Sentiment and regime
+        sentiment_score=sentiment_score,
+        regime=regime,
         metadata=kwargs,
     )
 
