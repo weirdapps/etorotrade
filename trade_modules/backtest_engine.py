@@ -556,9 +556,12 @@ class ThresholdAnalyzer:
         # 4c: Threshold recommendations
         suggestions = self.suggest_thresholds(merged)
 
-        # 4d: Output
-        self._print_report(correlations, trigger_stats, suggestions)
-        self._save_report(correlations, trigger_stats, suggestions)
+        # 4d: Regime-stratified analysis
+        regime_stats = self.analyze_by_regime(merged)
+
+        # 4e: Output
+        self._print_report(correlations, trigger_stats, suggestions, regime_stats)
+        self._save_report(correlations, trigger_stats, suggestions, regime_stats)
 
     def _load_signals_with_metrics(self) -> pd.DataFrame:
         """Load signals from JSONL including all metric columns."""
@@ -625,7 +628,7 @@ class ThresholdAnalyzer:
         """
         metrics = [
             'upside', 'buy_percentage', 'exret', 'roe', 'debt_equity',
-            'pct_52w_high', 'pe_forward', 'pe_trailing',
+            'pct_52w_high', 'pe_forward', 'pe_trailing', 'sentiment_score',
         ]
 
         correlations = []
@@ -922,11 +925,52 @@ class ThresholdAnalyzer:
             'sample_size': len(valid),
         }
 
+    def analyze_by_regime(
+        self, merged: pd.DataFrame
+    ) -> List[Dict[str, Any]]:
+        """
+        Analyze signal performance stratified by market regime.
+
+        Returns per-regime stats for BUY and SELL signals.
+        """
+        if 'regime' not in merged.columns:
+            return []
+
+        regime_stats = []
+        for regime_val in merged['regime'].dropna().unique():
+            regime_df = merged[merged['regime'] == regime_val]
+
+            for signal_type in ['B', 'S']:
+                sig_df = regime_df[regime_df['signal'] == signal_type]
+                returns = sig_df['stock_return'].dropna()
+                n = len(returns)
+                if n < 10:
+                    continue
+
+                if signal_type == 'B':
+                    hits = int((returns > 0).sum())
+                else:
+                    hits = int((returns < 0).sum())
+
+                alphas = sig_df['alpha'].dropna()
+
+                regime_stats.append({
+                    'regime': str(regime_val),
+                    'signal': signal_type,
+                    'count': n,
+                    'hit_rate': round(hits / n * 100, 1),
+                    'mean_return': round(float(returns.mean()), 2),
+                    'avg_alpha': round(float(alphas.mean()), 2) if len(alphas) > 0 else None,
+                })
+
+        return regime_stats
+
     def _print_report(
         self,
         correlations: List[Dict[str, Any]],
         trigger_stats: List[Dict[str, Any]],
         suggestions: List[Dict[str, Any]],
+        regime_stats: Optional[List[Dict[str, Any]]] = None,
     ) -> None:
         """Print threshold analysis report to console."""
         # Metric predictiveness
@@ -967,11 +1011,27 @@ class ThresholdAnalyzer:
         else:
             print("\nNo threshold suggestions (current thresholds are near-optimal or insufficient data).")
 
+        # Regime-stratified performance
+        if regime_stats:
+            print("\nPERFORMANCE BY MARKET REGIME:")
+            print('-' * 65)
+            signal_names = {'B': 'BUY', 'S': 'SELL'}
+            print(f"  {'Regime':<12} {'Signal':<6} {'Count':>7} {'Hit Rate':>10} {'Mean Ret':>10} {'Avg Alpha':>11}")
+            print('  ' + '-' * 58)
+            for rs in sorted(regime_stats, key=lambda x: (x['regime'], x['signal'])):
+                sig_name = signal_names.get(rs['signal'], rs['signal'])
+                aa = f"{rs['avg_alpha']:.2f}%" if rs.get('avg_alpha') is not None else 'N/A'
+                print(
+                    f"  {rs['regime']:<12} {sig_name:<6} {rs['count']:>7} "
+                    f"{rs['hit_rate']:>9.1f}% {rs['mean_return']:>9.2f}% {aa:>11}"
+                )
+
     def _save_report(
         self,
         correlations: List[Dict[str, Any]],
         trigger_stats: List[Dict[str, Any]],
         suggestions: List[Dict[str, Any]],
+        regime_stats: Optional[List[Dict[str, Any]]] = None,
     ) -> None:
         """Save threshold analysis report to CSV."""
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -1013,6 +1073,17 @@ class ThresholdAnalyzer:
                 ),
                 'coverage': None,
                 'sample_size': s['sample_size'],
+            })
+
+        # Regime stats section
+        for rs in (regime_stats or []):
+            rows.append({
+                'section': 'regime_performance',
+                'item': f"{rs['regime']}_{rs['signal']}",
+                'value': rs['hit_rate'],
+                'detail': f"mean_return={rs['mean_return']}%, alpha={rs.get('avg_alpha', 'N/A')}",
+                'coverage': None,
+                'sample_size': rs['count'],
             })
 
         if rows:
