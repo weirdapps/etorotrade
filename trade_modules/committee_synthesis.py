@@ -1138,11 +1138,11 @@ def synthesize_stock(
     This is the core function that replaces the ad-hoc /tmp scripts.
     """
     signal = sig_data["signal"]
-    exret = sig_data.get("exret", 0)
-    buy_pct = sig_data.get("buy_pct", 0)
-    beta = sig_data.get("beta", 0)
-    pet = sig_data.get("pet", 0)
-    pef = sig_data.get("pef", 0)
+    exret = sig_data.get("exret") or 0
+    buy_pct = sig_data.get("buy_pct") or 0
+    beta = sig_data.get("beta") or 0
+    pet = sig_data.get("pet") or 0
+    pef = sig_data.get("pef") or 0
 
     # Fund score with fallback (guard against explicit None values)
     fund_score = fund_data.get("fundamental_score", 50)
@@ -1557,10 +1557,10 @@ def _fallback_technical(sig_data: Dict) -> Dict:
 def _fallback_fundamental(sig_data: Dict) -> Dict:
     """Generate synthetic fundamental score from signal data."""
     fs = 50
-    exret = sig_data.get("exret", 0)
-    bp = sig_data.get("buy_pct", 0)
-    pet = sig_data.get("pet", 0)
-    pef = sig_data.get("pef", 0)
+    exret = sig_data.get("exret") or 0
+    bp = sig_data.get("buy_pct") or 0
+    pet = sig_data.get("pet") or 0
+    pef = sig_data.get("pef") or 0
     if exret > 25:
         fs += 15
     elif exret > 15:
