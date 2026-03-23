@@ -1076,7 +1076,7 @@ def _detect_disagreements(concordance: List[Dict]) -> List[Dict]:
 
         if (fv == "BUY" and ts in ("AVOID", "EXIT_SOON")) or (fv == "SELL" and ts == "ENTER_NOW"):
             narr = (f"Fundamental analyst sees {tkr} at {fs:.0f}/100, EXRET {ex:.1f}%, signal {fv}. "
-                    f"Technical strategist warns: RSI {rsi:.0f}, momentum {mom:+d}, timing signal {ts}.")
+                    f"Technical strategist warns: RSI {rsi:.0f}, momentum {mom:+.0f}, timing signal {ts}.")
             if mf == "UNFAVORABLE":
                 narr += f" Macro fit UNFAVORABLE for {sec}."
             disagreements.append({
