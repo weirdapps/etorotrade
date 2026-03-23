@@ -276,9 +276,9 @@ def _card(content, accent_color, bg=None):
             f'padding:16px 20px;margin-bottom:12px;">{content}</div>')
 
 
-def _group_separator(label, bg, text_color, border_color):
+def _group_separator(label, bg, text_color, border_color, colspan=11):
     """Consistent group separator row in tables."""
-    return (f'<tr><td colspan="9" style="padding:4px 10px;background:{bg};'
+    return (f'<tr><td colspan="{colspan}" style="padding:4px 10px;background:{bg};'
             f'font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;'
             f'color:{text_color};border:1px solid {border_color};">{label}</td></tr>')
 
@@ -643,6 +643,7 @@ def generate_report_html(
     h.append(grid_hdr(_C["text_dark"], "#fff", "STOCK") + grid_hdr(_C["text_dark"], "#fff", "SIG"))
     h.append(grid_hdr("#1e293b", "#93c5fd", "FUND") + grid_hdr("#1e293b", "#c4b5fd", "TECH"))
     h.append(grid_hdr("#1e293b", "#fcd34d", "MACRO") + grid_hdr("#1e293b", "#6ee7b7", "CENS"))
+    h.append(grid_hdr("#1e293b", "#fca5a5", "NEWS") + grid_hdr("#1e293b", "#d6d3d1", "RISK"))
     h.append(grid_hdr(_C["text_dark"], "#fbbf24", "EXR") + grid_hdr(_C["text_dark"], "#fff", "ACT"))
     h.append(grid_hdr(_C["text_dark"], "#fff", "CONV"))
     h.append('</tr>')
@@ -657,6 +658,8 @@ def generate_report_html(
         rsi = entry.get("rsi", 0)
         mf = entry.get("macro_fit", "?")
         ce = entry.get("census", "?")
+        ni = entry.get("news_impact", "NEUTRAL")
+        rw = entry.get("risk_warning", False)
         conv = entry.get("conviction", 0)
         sm = "*" if entry.get("fund_synthetic") else ""
         ex = entry.get("exret", 0)
@@ -665,6 +668,13 @@ def generate_report_html(
         rb = action_bg(act)
         p = f'style="padding:6px 4px;text-align:center;border:1px solid {_C["border"]};'
         sv = "font-weight:600;font-size:10px;"
+        # NEWS cell
+        ni_abbr = {"HIGH_POSITIVE": "H.POS", "HIGH_NEGATIVE": "H.NEG", "LOW_POSITIVE": "L.POS",
+                   "LOW_NEGATIVE": "L.NEG", "POSITIVE": "POS", "NEGATIVE": "NEG",
+                   "MIXED": "MIX", "NEUTRAL": "NEUT"}.get(ni, abbr(ni))
+        # RISK cell
+        risk_label = "WARN" if rw else "OK"
+        risk_col = _C["bear"] if rw else _C["bull"]
         return (f'<tr style="background:{rb};">'
                 f'<td {p}{_MONO}font-weight:700;font-size:11px;color:{_C["text_dark"]};text-align:left;padding-left:8px;">{e(tkr)}</td>'
                 f'<td {p}">{signal_badge(sig)}</td>'
@@ -672,6 +682,8 @@ def generate_report_html(
                 f'<td {p}color:{sentiment_color(ts)};{sv}">{abbr(ts)}({rsi:.0f})</td>'
                 f'<td {p}color:{sentiment_color(mf)};{sv}">{abbr(mf)}</td>'
                 f'<td {p}color:{sentiment_color(ce)};{sv}">{abbr(ce)}</td>'
+                f'<td {p}color:{sentiment_color(ni)};{sv}">{ni_abbr}</td>'
+                f'<td {p}color:{risk_col};{sv}">{risk_label}</td>'
                 f'<td {p}{_MONO}font-weight:700;color:{exc};">{ex:.0f}%</td>'
                 f'<td {p}">{badge(act, action_color(act), "#fff")}</td>'
                 f'<td {p}">{conv_display(conv, delta)}</td></tr>')
@@ -730,7 +742,109 @@ def generate_report_html(
                  f'border-radius:6px;color:{_C["text_muted"]};font-size:12px;">All agents broadly aligned.</div>')
     h.append(_section_close())
 
-    # ── S5: SENTIMENT & CENSUS ──
+    # ── S5: FUNDAMENTAL DEEP DIVE ──
+    fund_stocks = fund.get("stocks", {})
+    quality_traps = fund.get("quality_traps", [])
+    if fund_stocks:
+        h.append(_section_open("Fundamental Deep Dive",
+                               f"{len(fund_stocks)} stocks analyzed. Top scores and quality trap warnings."))
+        # Top fundamental scores table
+        h.append(f'<div style="{_LABEL}margin-bottom:8px;">Top Fundamental Scores</div>')
+        h.append(_table_open([("Stock", "left"), ("Score", "center"), ("Quality", "center"),
+                              ("PE T&#8594;F", "center"), ("EXRET", "center"),
+                              ("Insider", "center"), ("Key Insight", "left")]))
+        sorted_fund = sorted(fund_stocks.items(), key=lambda x: -x[1].get("fundamental_score", 0))
+        for i, (tkr, fd) in enumerate(sorted_fund[:12]):
+            fs = fd.get("fundamental_score", 0)
+            eq = fd.get("earnings_quality", "?")
+            pet = fd.get("pe_trailing", fd.get("pet", 0))
+            pef = fd.get("pe_forward", fd.get("pef", 0))
+            ex = fd.get("exret", fd.get("upside_pct", 0))
+            ins = fd.get("insider_sentiment", "N/A")
+            note = fd.get("notes", "")[:50]
+            fs_col = _C["bull"] if fs >= 80 else _C["warn"] if fs >= 60 else _C["text_muted"]
+            ins_col = _C["bull"] if "BUY" in str(ins) else _C["bear"] if "SELL" in str(ins) else _C["text_muted"]
+            bg = _C["bg_page"] if i % 2 == 1 else _C["bg_white"]
+            pe_str = f"{pet:.0f}&#8594;{pef:.0f}" if pet and pef else "N/A"
+            h.append(_table_row([
+                (f'<span style="{_MONO}font-weight:700;">{e(tkr)}</span>', "left", ""),
+                (f'<span style="font-weight:800;color:{fs_col};">{fs:.0f}</span>', "center", ""),
+                (f'<span style="font-size:10px;">{e(eq)}</span>', "center", ""),
+                (f'<span style="{_MONO}font-size:10px;">{pe_str}</span>', "center", ""),
+                (f'{ex:.0f}%', "center", f"{_MONO}font-weight:600;"),
+                (f'<span style="color:{ins_col};font-size:10px;">{e(str(ins)[:12])}</span>', "center", ""),
+                (f'<span style="font-size:10px;color:{_C["text_muted"]};">{e(note)}</span>', "left", ""),
+            ], bg=bg))
+        h.append('</table>')
+
+        # Quality traps
+        trap_stocks = [t for t, d in fund_stocks.items() if d.get("quality_trap_warning")]
+        if trap_stocks:
+            h.append(f'<div style="{_LABEL}color:{_C["bear"]};margin:16px 0 8px 0;">'
+                     f'Quality Traps ({len(trap_stocks)})</div>')
+            for tkr in trap_stocks[:5]:
+                fd = fund_stocks[tkr]
+                reasons = fd.get("quality_trap_reasons", [])
+                reason_text = "; ".join(reasons[:2]) if reasons else "Metrics diverge from fundamentals"
+                inner = (f'<span style="{_MONO}font-weight:700;color:{_C["bear_text"]};">{e(tkr)}</span>'
+                         f' <span style="font-size:11px;color:{_C["text_body"]};">{e(reason_text)}</span>')
+                h.append(_card(inner, _C["bear"], _C["bear_bg"]))
+        h.append(_section_close())
+
+    # ── S6: TECHNICAL ANALYSIS ──
+    if tech_stocks:
+        h.append(_section_open("Technical Analysis",
+                               f"{total_tech} stocks. Avg RSI: {avg_rsi:.0f}. "
+                               f"{bearish_macd}/{total_tech} bearish MACD."))
+        # Table of technical signals
+        h.append(_table_open([("Stock", "left"), ("RSI", "center"), ("MACD", "center"),
+                              ("BB%", "center"), ("Trend", "center"), ("Mom", "center"),
+                              ("Signal", "center")]))
+        sorted_tech = sorted(tech_stocks.items(),
+                             key=lambda x: x[1].get("momentum_score", 0))
+        for i, (tkr, td) in enumerate(sorted_tech[:20]):
+            rsi_v = td.get("rsi", 50)
+            macd = td.get("macd_signal", "?")
+            bb = td.get("bb_position", 0.5)
+            trend = td.get("trend", "?")
+            mom = td.get("momentum_score", 0)
+            sig = td.get("timing_signal", "?")
+            rsi_col = _C["bull"] if rsi_v < 30 else _C["bear"] if rsi_v > 70 else _C["text_body"]
+            macd_col = _C["bull"] if macd == "BULLISH" else _C["bear"]
+            mom_col = _C["bull"] if mom > 20 else _C["bear"] if mom < -20 else _C["text_muted"]
+            sig_col = sentiment_color(sig)
+            bg = _C["bg_page"] if i % 2 == 1 else _C["bg_white"]
+            trend_short = {"STRONG_DOWNTREND": "STR DN", "WEAK_DOWNTREND": "WK DN",
+                           "CONSOLIDATION": "CONSOL", "WEAK_UPTREND": "WK UP",
+                           "STRONG_UPTREND": "STR UP"}.get(trend, trend[:6])
+            h.append(_table_row([
+                (f'<span style="{_MONO}font-weight:700;">{e(tkr)}</span>', "left", ""),
+                (f'<span style="{_MONO}font-weight:700;color:{rsi_col};">{rsi_v:.0f}</span>', "center", ""),
+                (f'<span style="color:{macd_col};font-size:10px;font-weight:600;">{macd[:4]}</span>', "center", ""),
+                (f'<span style="{_MONO}font-size:10px;">{bb:.2f}</span>', "center", ""),
+                (f'<span style="font-size:10px;">{trend_short}</span>', "center", ""),
+                (f'<span style="{_MONO}font-weight:700;color:{mom_col};">{mom:+d}</span>', "center", ""),
+                (f'<span style="color:{sig_col};font-weight:600;font-size:10px;">{abbr(sig)}</span>', "center", ""),
+            ], bg=bg))
+        h.append('</table>')
+        # Oversold / Overbought callouts
+        oversold = [t for t, d in tech_stocks.items() if d.get("rsi", 50) < 30]
+        overbought = [t for t, d in tech_stocks.items() if d.get("rsi", 50) > 70]
+        if oversold:
+            pills = " ".join(f'<span style="display:inline-block;padding:2px 8px;margin:2px;border-radius:4px;'
+                             f'{_MONO}font-size:10px;font-weight:700;background:{_C["bull_bg"]};'
+                             f'color:{_C["bull_text"]};border:1px solid {_C["bull_border"]};">{e(t)}</span>'
+                             for t in oversold)
+            h.append(f'<div style="margin-top:12px;"><span style="{_LABEL}color:{_C["bull"]};">Oversold (RSI&lt;30): </span>{pills}</div>')
+        if overbought:
+            pills = " ".join(f'<span style="display:inline-block;padding:2px 8px;margin:2px;border-radius:4px;'
+                             f'{_MONO}font-size:10px;font-weight:700;background:{_C["bear_bg"]};'
+                             f'color:{_C["bear_text"]};border:1px solid {_C["bear_border"]};">{e(t)}</span>'
+                             for t in overbought)
+            h.append(f'<div style="margin-top:8px;"><span style="{_LABEL}color:{_C["bear"]};">Overbought (RSI&gt;70): </span>{pills}</div>')
+        h.append(_section_close())
+
+    # ── S7: SENTIMENT & CENSUS ──
     fg_label = lambda v: ("EXTREME GREED" if v >= 75 else "GREED" if v >= 55 else "NEUTRAL" if v >= 45
                           else "FEAR" if v >= 25 else "EXTREME FEAR")
     fg_color = lambda v: (_C["bear"] if v >= 75 else _C["warn"] if v >= 55 else _C["text_muted"] if v >= 45
@@ -808,9 +922,87 @@ def generate_report_html(
                 (e(item.get("headline", "")[:80]), "left", f"color:{_C['text_body']};"),
             ]))
         h.append('</table>')
+    # Earnings calendar
+    earnings_cal = synth.get("earnings_calendar", {})
+    earnings_items = earnings_cal.get("next_2_weeks", [])
+    if earnings_items:
+        h.append(f'<div style="{_LABEL}margin:16px 0 8px 0;">Upcoming Earnings</div>')
+        h.append(_table_open([("Stock", "left"), ("Date", "center"), ("Days", "center"), ("Risk", "center")]))
+        for i, ear in enumerate(sorted(earnings_items, key=lambda x: x.get("days_away", 999))):
+            days = ear.get("days_away", 0)
+            rl = ear.get("risk_level", "LOW")
+            rl_col = _C["bear"] if rl == "HIGH" else _C["warn"] if rl == "MEDIUM" else _C["text_muted"]
+            rbg = _C["bear_bg"] if days <= 7 else _C["warn_bg"] if days <= 14 else _C["bg_white"]
+            h.append(_table_row([
+                (f'<span style="{_MONO}font-weight:700;">{e(ear.get("ticker", ""))}</span>', "left", ""),
+                (e(ear.get("expected_date", "?")), "center", f"font-size:11px;{_MONO}"),
+                (f'<span style="font-weight:700;color:{rl_col};">{days}d</span>', "center", ""),
+                (badge(rl, rl_col, "#fff"), "center", ""),
+            ], bg=rbg))
+        h.append('</table>')
+    # Economic events
+    econ_events = synth.get("economic_events", [])
+    if econ_events:
+        h.append(f'<div style="{_LABEL}margin:16px 0 8px 0;">Economic Calendar</div>')
+        for ev in econ_events[:5]:
+            imp = ev.get("importance", "LOW")
+            if imp == "CRITICAL":
+                ebg, ebrd, elc = _C["bear_bg"], _C["bear"], _C["bear_text"]
+            elif imp == "HIGH":
+                ebg, ebrd, elc = _C["warn_bg"], _C["warn"], _C["warn_text"]
+            else:
+                ebg, ebrd, elc = _C["bg_page"], _C["text_light"], _C["text_body"]
+            h.append(f'<div style="background:{ebg};border-left:3px solid {ebrd};'
+                     f'border-radius:0 4px 4px 0;padding:8px 14px;margin-bottom:6px;">'
+                     f'<span style="{_MONO}font-size:10px;color:{_C["text_muted"]};">{e(ev.get("date", ""))}</span> '
+                     f'<span style="font-size:12px;font-weight:600;color:{elc};">{e(ev.get("event", "")[:80])}</span>'
+                     f'<div style="font-size:10px;color:{_C["text_muted"]};margin-top:2px;">'
+                     f'{e(ev.get("sector_impact", "")[:80])}</div></div>')
     h.append(_section_close())
 
-    # ── S7: RISK DASHBOARD ──
+    # ── S9: NEW OPPORTUNITIES ──
+    opp_list = opps.get("top_opportunities", [])
+    opp_stats = opps.get("screening_stats", {})
+    if opp_list:
+        h.append(_section_open("New Opportunities",
+                               f"Screened {opp_stats.get('universe_size', '?')} stocks. "
+                               f"{opp_stats.get('unique_candidates', '?')} passed filters."))
+        h.append(_table_open([("#", "center"), ("Stock", "left"), ("Sector", "left"),
+                              ("Score", "center"), ("EXRET", "center"), ("PE F", "center"),
+                              ("%BUY", "center"), ("Why Compelling", "left")]))
+        for i, opp in enumerate(opp_list[:10]):
+            score = opp.get("opportunity_score", 0)
+            sc_col = _C["bull"] if score >= 60 else _C["warn"] if score >= 40 else _C["text_muted"]
+            bg = _C["bull_bg"] if i < 3 else _C["bg_page"] if i % 2 == 1 else _C["bg_white"]
+            exr = str(opp.get("exret", "0")).replace("%", "")
+            pef = opp.get("pe_forward", 0)
+            bp = opp.get("buy_pct", 0)
+            why = opp.get("why_compelling", "")[:60]
+            h.append(_table_row([
+                (f'<span style="font-weight:700;color:{_C["bull"]};">{i + 1}</span>', "center", ""),
+                (f'<span style="{_MONO}font-weight:700;">{e(opp.get("ticker", ""))}</span>', "left", ""),
+                (f'<span style="font-size:10px;">{e(opp.get("sector", "")[:15])}</span>', "left", ""),
+                (f'<span style="{_MONO}font-weight:700;color:{sc_col};">{score:.0f}</span>', "center", ""),
+                (f'{exr}%', "center", f"{_MONO}font-weight:600;"),
+                (f'{pef:.1f}' if pef else "N/A", "center", _MONO),
+                (f'{bp:.0f}%', "center", ""),
+                (f'<span style="font-size:10px;color:{_C["text_muted"]};">{e(why)}</span>', "left", ""),
+            ], bg=bg))
+        h.append('</table>')
+
+        # Sector gaps from synthesis
+        if sector_gaps:
+            h.append(f'<div style="{_LABEL}color:{_C["warn"]};margin:16px 0 8px 0;">'
+                     f'Portfolio Sector Gaps</div>')
+            for gap in sector_gaps[:4]:
+                sec = gap.get("sector", gap.get("etf", "?"))
+                assessment = gap.get("gap", gap.get("assessment", gap.get("note", "")))
+                inner = f'<b>{e(str(sec))}</b>: {e(str(assessment)[:100])}'
+                h.append(_card(inner, _C["warn"], _C["warn_bg"]))
+
+        h.append(_section_close())
+
+    # ── S10: RISK DASHBOARD ──
     pr = risk.get("portfolio_risk", {})
     h.append(_section_open("Risk Dashboard"))
     h.append(f'<table style="width:100%;border-collapse:separate;border-spacing:16px 0;"><tr>'
@@ -847,15 +1039,67 @@ def generate_report_html(
                      f'width:{min(pct, 100):.0f}%;"></div></div></td></tr>')
         h.append('</table>')
     h.append('</td></tr></table>')
-    # Correlation clusters
-    if clusters:
+    # Correlation clusters — handle both grouped and pairwise formats
+    # Prefer risk agent's grouped clusters; fall back to synthesis pairwise data
+    risk_clusters = risk.get("correlation_clusters", [])
+    display_clusters = []
+    if risk_clusters and isinstance(risk_clusters, list) and risk_clusters[0].get("stocks"):
+        # Grouped format from risk agent: {stocks: [...], avg_correlation: X, risk: "..."}
+        display_clusters = risk_clusters
+    elif clusters:
+        # Pairwise format from synthesis: {stock1, stock2, correlation}
+        # Group pairwise into clusters by finding connected components
+        from collections import defaultdict
+        adj = defaultdict(list)
+        pair_corr = {}
+        for cl in clusters:
+            s1, s2 = cl.get("stock1", ""), cl.get("stock2", "")
+            corr = cl.get("correlation", cl.get("avg_correlation", 0))
+            if s1 and s2 and corr > 0.7:
+                adj[s1].append(s2)
+                adj[s2].append(s1)
+                pair_corr[(s1, s2)] = corr
+                pair_corr[(s2, s1)] = corr
+        visited = set()
+        for node in adj:
+            if node in visited:
+                continue
+            # BFS to find cluster
+            cluster_stocks = []
+            queue = [node]
+            while queue:
+                n = queue.pop(0)
+                if n in visited:
+                    continue
+                visited.add(n)
+                cluster_stocks.append(n)
+                for nb in adj[n]:
+                    if nb not in visited:
+                        queue.append(nb)
+            if len(cluster_stocks) >= 2:
+                # Compute average correlation
+                corrs = []
+                for i_c in range(len(cluster_stocks)):
+                    for j_c in range(i_c + 1, len(cluster_stocks)):
+                        key = (cluster_stocks[i_c], cluster_stocks[j_c])
+                        if key in pair_corr:
+                            corrs.append(pair_corr[key])
+                avg_c = sum(corrs) / len(corrs) if corrs else 0
+                display_clusters.append({
+                    "stocks": cluster_stocks[:5],
+                    "avg_correlation": avg_c,
+                    "risk": f"{len(cluster_stocks)} correlated positions — false diversification risk",
+                })
+        display_clusters.sort(key=lambda x: -x.get("avg_correlation", 0))
+
+    if display_clusters:
         h.append(f'<div style="{_LABEL}color:{_C["bear"]};margin:16px 0 8px 0;">Correlation Clusters</div>')
         h.append(f'<table style="{_TABLE}">')
         h.append(f'<tr style="border-bottom:2px solid {_C["border"]};">'
                  f'<th style="padding:6px 10px;text-align:left;{_LABEL}">Cluster</th>'
                  f'<th style="padding:6px 10px;text-align:center;{_LABEL}width:60px;">Corr</th>'
                  f'<th style="padding:6px 10px;text-align:left;{_LABEL}">Risk Note</th></tr>')
-        for i, cl in enumerate(clusters[:5]):
+        for i, cl in enumerate(display_clusters[:5]):
             stks = cl.get("stocks", cl.get("tickers", []))
             ac = cl.get("avg_correlation", cl.get("average_correlation", 0))
             rn = cl.get("risk", "Correlated positions")
@@ -873,7 +1117,7 @@ def generate_report_html(
                      f'<div style="height:100%;border-radius:2px;background:{_C["bear"]};'
                      f'width:{bar_w:.0f}%;"></div></div></td>'
                      f'<td style="padding:6px 10px;font-size:11px;color:{_C["text_muted"]};">'
-                     f'{e(rn[:60])}</td></tr>')
+                     f'{e(str(rn)[:80])}</td></tr>')
         h.append('</table>')
     # Sector gaps
     if sector_gaps:
