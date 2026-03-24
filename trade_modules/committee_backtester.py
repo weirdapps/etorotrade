@@ -532,6 +532,8 @@ class CommitteeBacktester:
             try:
                 with open(conc_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
+                if not isinstance(data, dict):
+                    return count  # Bare list format — no date metadata to backfill
                 date_str = data.get("date")
                 stocks = data.get("stocks", {})
                 if date_str and stocks:
