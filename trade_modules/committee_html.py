@@ -823,7 +823,7 @@ def generate_report_html(
                 (f'<span style="color:{macd_col};font-size:10px;font-weight:600;">{macd[:4]}</span>', "center", ""),
                 (f'<span style="{_MONO}font-size:10px;">{bb:.2f}</span>', "center", ""),
                 (f'<span style="font-size:10px;">{trend_short}</span>', "center", ""),
-                (f'<span style="{_MONO}font-weight:700;color:{mom_col};">{mom:+d}</span>', "center", ""),
+                (f'<span style="{_MONO}font-weight:700;color:{mom_col};">{int(mom):+d}</span>', "center", ""),
                 (f'<span style="color:{sig_col};font-weight:600;font-size:10px;">{abbr(sig)}</span>', "center", ""),
             ], bg=bg))
         h.append('</table>')
