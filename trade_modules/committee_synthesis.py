@@ -50,6 +50,19 @@ CIO v14.0 (Conviction Effectiveness Review):
 - V5: Penalty proportionality cap — total penalties capped at 60% of base conviction
 - V6: Sector concentration scope — count by BUY/ADD actions, not total sector population
 
+CIO v19.0 (Regime Momentum Overlay):
+- R1: compute_regime_momentum() — forward-looking regime assessment using RSI breadth,
+      insider sentiment, VIX trend, credit direction, and catalyst polarity. Classifies
+      regime as IMPROVING, STABLE, or DETERIORATING. Addresses the fundamental limitation
+      that 4 of 6 regime inputs are backward-looking (sector returns, yield curve, credit
+      spreads, inflation) — by the time they classify RISK_OFF, the selloff may be 70% done.
+- R2: Variable conviction cap in RISK_OFF — IMPROVING raises cap from 75 to 82,
+      DETERIORATING lowers it to 70. This lets the system add to oversold quality names
+      during late-stage RISK_OFF (when RSI breadth is capitulating and insiders are buying)
+      while staying defensive when conditions are actively worsening.
+- R3: Variable regime discount — IMPROVING softens the 15% RISK_OFF discount to 10%,
+      DETERIORATING hardens it to 20%. Applied in determine_base_conviction().
+
 CIO v15.0 (Legacy CIO Review — Conviction Integrity):
 - W1: Consensus-anchored vote injection — buy_pct >= 75% injects a synthetic
       "analyst consensus agent" vote that scales with consensus strength, preventing
@@ -246,6 +259,118 @@ _SECTOR_NORMALIZE = {
     "Networking": "Technology",
     "Fintech": "Financials",
 }
+
+
+def compute_regime_momentum(
+    macro_report: Dict[str, Any],
+    tech_report: Dict[str, Any],
+    fund_report: Dict[str, Any],
+    news_report: Dict[str, Any],
+) -> str:
+    """
+    CIO v19.0 R1: Assess whether the current regime is IMPROVING, STABLE,
+    or DETERIORATING by combining forward-looking signals that the regime
+    classifier misses.
+
+    The regime classifier (RISK_ON/CAUTIOUS/RISK_OFF) uses mostly backward-
+    looking inputs (sector ETF returns, yield curve, credit spreads, inflation).
+    By the time it declares RISK_OFF, the selloff may be 70% done. This function
+    looks at leading indicators to detect regime *transitions*.
+
+    Scoring: sum of 5 directional signals, each -2 to +2.
+      >= +4: IMPROVING (regime turning, add to oversold)
+      -3 to +3: STABLE (regime holding, maintain current posture)
+      <= -4: DETERIORATING (regime worsening, increase defensiveness)
+    """
+    score = 0
+
+    # Signal 1: RSI breadth — what fraction of stocks are deeply oversold?
+    # High oversold breadth = capitulation = regime likely IMPROVING
+    tech_stocks = tech_report.get("stocks", {})
+    if tech_stocks:
+        rsis = [d.get("rsi", 50) for d in tech_stocks.values()
+                if isinstance(d, dict) and d.get("rsi") is not None]
+        if rsis:
+            oversold_pct = sum(1 for r in rsis if r < 30) / len(rsis)
+            avg_rsi = sum(rsis) / len(rsis)
+            if oversold_pct >= 0.20 or avg_rsi < 35:
+                score += 2  # Extreme breadth = capitulation
+            elif oversold_pct >= 0.10 or avg_rsi < 40:
+                score += 1
+            # Overbought breadth = regime peaking
+            overbought_pct = sum(1 for r in rsis if r > 70) / len(rsis)
+            if overbought_pct >= 0.20:
+                score -= 1
+
+    # Signal 2: Insider sentiment — net buying = forward bullish
+    fund_stocks = fund_report.get("stocks", {})
+    if fund_stocks:
+        net_buying = sum(1 for d in fund_stocks.values()
+                        if isinstance(d, dict) and
+                        d.get("insider_sentiment") == "NET_BUYING")
+        net_selling = sum(1 for d in fund_stocks.values()
+                         if isinstance(d, dict) and
+                         d.get("insider_sentiment") == "NET_SELLING")
+        total = net_buying + net_selling
+        if total > 0:
+            buy_ratio = net_buying / total
+            if buy_ratio >= 0.80:
+                score += 2  # Overwhelming insider buying
+            elif buy_ratio >= 0.60:
+                score += 1
+            elif buy_ratio <= 0.30:
+                score -= 2  # Insiders fleeing
+            elif buy_ratio <= 0.40:
+                score -= 1
+
+    # Signal 3: VIX trend — declining from peak = improving
+    indicators = macro_report.get("indicators", {})
+    vix = indicators.get("vix")
+    vix_trend = str(indicators.get("vix_trend", "")).upper()
+    if vix is not None:
+        if "DECLINING" in vix_trend or "FALLING" in vix_trend:
+            score += 1
+        elif "RISING" in vix_trend or "SPIKING" in vix_trend:
+            score -= 1
+        # Extreme VIX levels
+        if isinstance(vix, (int, float)):
+            if vix > 35:
+                score -= 1  # Crisis level
+            elif vix < 18:
+                score += 1  # Calm
+
+    # Signal 4: News catalyst polarity — more positive catalysts = improving
+    breaking = news_report.get("breaking_news", [])
+    if breaking:
+        pos = sum(1 for n in breaking
+                  if n.get("impact", "").endswith("POSITIVE"))
+        neg = sum(1 for n in breaking
+                  if n.get("impact", "").endswith("NEGATIVE"))
+        if pos > neg + 1:
+            score += 1
+        elif neg > pos + 1:
+            score -= 1
+
+    # Signal 5: Credit direction — stable/improving vs deteriorating
+    credit = str(indicators.get("credit_status", "")).upper()
+    if "IMPROVING" in credit or "STABLE" in credit:
+        score += 1
+    elif "DETERIORATING" in credit or "WIDENING" in credit or "STRESS" in credit:
+        score -= 1
+
+    # Classify
+    if score >= 4:
+        momentum = "IMPROVING"
+    elif score <= -4:
+        momentum = "DETERIORATING"
+    else:
+        momentum = "STABLE"
+
+    logger.info(
+        "Regime momentum: score=%d → %s (rsi_breadth, insiders, vix, news, credit)",
+        score, momentum,
+    )
+    return momentum
 
 
 def resolve_sector(ticker: str, sector_map: Dict[str, str]) -> str:
@@ -551,6 +676,7 @@ def determine_base_conviction(
     excess_exret: float,
     bear_ratio: float,
     regime: str = "",
+    regime_momentum: str = "STABLE",
 ) -> int:
     """
     Determine base conviction from agent consensus, anchored by signal.
@@ -593,8 +719,18 @@ def determine_base_conviction(
     # discount was compounding with sector concentration penalties to suppress
     # BUY-signal stocks by 15-18% total — far beyond the intended macro caution.
     # RISK_OFF retains the full 15% discount because it represents genuine crisis.
+    #
+    # CIO v19.0 R3: Variable regime discount based on regime momentum.
+    # When RISK_OFF is IMPROVING (insiders buying, RSI capitulating, catalysts
+    # turning positive), soften discount to 10% — the worst is likely behind us.
+    # When DETERIORATING, harden to 20% — conditions actively worsening.
     if regime == "RISK_OFF":
-        agent_base = int(agent_base * 0.85)
+        if regime_momentum == "IMPROVING":
+            agent_base = int(agent_base * 0.90)  # Softened: 10% vs 15%
+        elif regime_momentum == "DETERIORATING":
+            agent_base = int(agent_base * 0.80)  # Hardened: 20% vs 15%
+        else:
+            agent_base = int(agent_base * 0.85)  # Default: 15%
     elif regime == "CAUTIOUS":
         discount = 0.95 if signal == "B" else 0.92
         agent_base = int(agent_base * discount)
@@ -1156,6 +1292,7 @@ def synthesize_stock(
     earnings_surprise_pct: Optional[float] = None,
     consecutive_earnings_beats: int = 0,
     kill_thesis_triggered: bool = False,
+    regime_momentum: str = "STABLE",
 ) -> Dict[str, Any]:
     """
     Synthesize a single stock through the full conviction scoring pipeline.
@@ -1218,6 +1355,7 @@ def synthesize_stock(
     base = determine_base_conviction(
         bull_pct, signal, fund_score, excess_exret, bear_ratio,
         regime=regime,
+        regime_momentum=regime_momentum,
     )
 
     # Step 3: Count directional agreement
@@ -1323,13 +1461,22 @@ def synthesize_stock(
             bull_count, fund_score, buy_pct,
         )
 
-    # Step 5b: RISK_OFF conviction cap (CIO v18.0 B3)
+    # Step 5b: RISK_OFF conviction cap (CIO v18.0 B3 + v19.0 R2)
     # Backtest evidence (Mar 16-25): conv 80-85 = -6.30% avg in RISK_OFF.
     # In bear markets, systemic risk makes all high-conviction calls unreliable.
-    # Cap at 75 to prevent overconfident positioning. This does NOT affect
-    # TRIM conviction (recalculated separately) or SELL conviction.
+    #
+    # CIO v19.0 R2: Variable cap based on regime momentum.
+    # IMPROVING (capitulation signals, insiders buying): cap at 82 — allow
+    #   adding to oversold quality names as the regime transitions.
+    # STABLE: cap at 75 — original backtest-calibrated cap.
+    # DETERIORATING: cap at 70 — conditions actively worsening, be more cautious.
     if regime == "RISK_OFF" and signal != "S":
-        conviction = min(conviction, 75)
+        if regime_momentum == "IMPROVING":
+            conviction = min(conviction, 82)
+        elif regime_momentum == "DETERIORATING":
+            conviction = min(conviction, 70)
+        else:
+            conviction = min(conviction, 75)
 
     # Step 6: Determine action
     action = determine_action(conviction, signal, tech_signal, risk_warning)
@@ -1622,6 +1769,7 @@ def _synthesize_with_lookups(
     kill_thesis_triggered: bool = False,
     previous_signal: Optional[str] = None,
     days_since_signal_change: Optional[int] = None,
+    regime_momentum: str = "STABLE",
 ) -> Dict[str, Any]:
     """Run synthesize_stock using pre-built agent lookups."""
     # CIO v6.0 E3: Log warnings when agents have stocks section but ticker
@@ -1704,6 +1852,7 @@ def _synthesize_with_lookups(
         days_since_signal_change=days_since_signal_change,
         earnings_surprise_pct=earnings_surprise,
         consecutive_earnings_beats=consecutive_beats,
+        regime_momentum=regime_momentum,
     )
 
 
@@ -1965,6 +2114,12 @@ def build_concordance(
         es = macro_report.get("executive_summary", {})
         regime = es.get("regime", "")
 
+    # CIO v19.0 R1: Compute forward-looking regime momentum overlay
+    regime_momentum = compute_regime_momentum(
+        macro_report, tech_report, fund_report, news_report,
+    )
+    logger.info("Regime momentum overlay: %s (regime=%s)", regime_momentum, regime)
+
     # CIO v7.0 P3: Risk warning dilution detection.
     # When >40% of portfolio stocks trigger risk warnings, the warnings are
     # systemic (macro-driven) rather than stock-specific. Track this so the
@@ -1993,6 +2148,7 @@ def build_concordance(
             kill_thesis_triggered=triggered_kill_theses.get(ticker, False),
             previous_signal=_prev_sig,
             days_since_signal_change=_prev_days,
+            regime_momentum=regime_momentum,
         )
         entry["is_opportunity"] = False
         entry["kill_thesis_triggered"] = triggered_kill_theses.get(ticker, False)
@@ -2021,6 +2177,7 @@ def build_concordance(
         entry = _synthesize_with_lookups(
             ticker, sig_data, lookups, fund_report, tech_report,
             sector, sec_median, census_ts_map, regime=regime,
+            regime_momentum=regime_momentum,
         )
 
         # F1: Boost conviction for dual-synthetic stocks using opp_score.
@@ -2386,6 +2543,8 @@ def generate_synthesis_output(
     census_ts_map: Optional[Dict[str, str]] = None,
     opportunity_report: Optional[Dict] = None,
     performance_data: Optional[Dict] = None,
+    tech_report: Optional[Dict] = None,
+    fund_report: Optional[Dict] = None,
 ) -> Dict[str, Any]:
     """
     Generate complete synthesis JSON output from concordance and agent reports.
@@ -2415,14 +2574,23 @@ def generate_synthesis_output(
     # Census
     sentiment = census_report.get("sentiment", {})
 
+    # CIO v19.0: Compute regime momentum for synthesis output
+    regime_momentum = compute_regime_momentum(
+        macro_report,
+        tech_report or {},
+        fund_report or {},
+        news_report,
+    )
+
     output = {
-        "version": "v17.0_performance_feedback",
+        "version": "v19.0_regime_momentum",
         "concordance": concordance,
         "action_distribution": dict(action_dist),
         "changes": changes,
         "sector_gaps": sector_gaps,
         # Flat keys for HTML generator compatibility
         "regime": regime,
+        "regime_momentum": regime_momentum,
         "macro_score": macro_score,
         "rotation_phase": rotation,
         "risk_score": risk_score,
