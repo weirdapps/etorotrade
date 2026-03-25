@@ -392,13 +392,31 @@ def count_agent_votes(
         bear += tech_weight * 0.4
         directional_weight += tech_weight  # Leaning directional
     elif tech_momentum > 20:
-        bull += tech_weight * 0.7
-        bear += tech_weight * 0.3
-        directional_weight += tech_weight
+        # CIO v18.0 B1: Regime-conditional MACD scoring. Backtest evidence
+        # (Mar 16-25, 82 stocks) shows BULLISH MACD in RISK_OFF = -0.24% avg
+        # (48% positive) while BEARISH MACD = +1.59% (63% positive). In bear
+        # markets, BULLISH MACD means "hasn't cracked yet" — about to join the
+        # selloff. Neutralize positive momentum signal in RISK_OFF.
+        if regime == "RISK_OFF":
+            bull += tech_weight / 2
+            bear += tech_weight / 2
+            neutral_weight += tech_weight
+        else:
+            bull += tech_weight * 0.7
+            bear += tech_weight * 0.3
+            directional_weight += tech_weight
     elif tech_momentum < -20:
-        bull += tech_weight * 0.3
-        bear += tech_weight * 0.7
-        directional_weight += tech_weight
+        # CIO v18.0 B1: In RISK_OFF, bearish MACD is a counter-indicator —
+        # stocks that already corrected tend to bounce. Neutralize rather than
+        # count as bearish.
+        if regime == "RISK_OFF":
+            bull += tech_weight / 2
+            bear += tech_weight / 2
+            neutral_weight += tech_weight
+        else:
+            bull += tech_weight * 0.3
+            bear += tech_weight * 0.7
+            directional_weight += tech_weight
     else:
         bull += tech_weight / 2
         bear += tech_weight / 2
@@ -914,9 +932,16 @@ def compute_adjustments(
     if "NEGATIVE" in news_impact:
         penalties += 5
 
-    # Technical overbought
-    if rsi > 70:
-        penalties += 5
+    # Technical overbought / oversold
+    # CIO v18.0 B2: RSI contrarian weighting from backtest evidence.
+    # RSI < 25 = +2.70% avg, 87% positive (strongest single predictor).
+    # RSI > 75 = -4.12%, 25% positive. Previously only penalized overbought
+    # with -5 and had no oversold bonus. Now: oversold bonus +10, overbought
+    # penalty increased to -8.
+    if rsi < 30:
+        bonuses += 10
+    elif rsi > 70:
+        penalties += 8
 
     # Tech disagreement penalty (CIO v5.2): when BUY signal but tech says AVOID/EXIT
     # CIO v14.0 V2: Scale by RSI context. At RSI < 35, the tech AVOID is confirming
@@ -1297,6 +1322,14 @@ def synthesize_stock(
             conviction, signal, excess_exret, pef, pet,
             bull_count, fund_score, buy_pct,
         )
+
+    # Step 5b: RISK_OFF conviction cap (CIO v18.0 B3)
+    # Backtest evidence (Mar 16-25): conv 80-85 = -6.30% avg in RISK_OFF.
+    # In bear markets, systemic risk makes all high-conviction calls unreliable.
+    # Cap at 75 to prevent overconfident positioning. This does NOT affect
+    # TRIM conviction (recalculated separately) or SELL conviction.
+    if regime == "RISK_OFF" and signal != "S":
+        conviction = min(conviction, 75)
 
     # Step 6: Determine action
     action = determine_action(conviction, signal, tech_signal, risk_warning)
