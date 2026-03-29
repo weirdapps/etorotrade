@@ -165,7 +165,7 @@ class TestGenerateReportHtml:
         assert "Where We Disagreed" in html
         assert "Census" in html
         assert "News" in html
-        assert "Risk Dashboard" in html
+        assert "Portfolio Risk" in html
         assert "Action Items" in html
 
     def test_tickers_appear_in_output(self):
@@ -212,7 +212,7 @@ class TestGenerateReportHtml:
         synth = _minimal_synth()
         fund, tech, macro, census, news, opps, risk = _minimal_reports()
         html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
-        assert "v17.0" in html
+        assert "v26.0" in html
 
     def test_disclaimer_present(self):
         synth = _minimal_synth()
@@ -243,7 +243,7 @@ class TestGenerateReportHtml:
         synth = _minimal_synth()
         fund, tech, macro, census, news, opps, risk = _minimal_reports()
         html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
-        assert "Risk Dashboard" in html  # v9.0: sector exposure inside Risk Dashboard
+        assert "Portfolio Risk" in html  # v9.0: sector exposure inside Risk Dashboard
         assert "Technology" in html
 
     def test_designed_abbreviations_in_grid(self):

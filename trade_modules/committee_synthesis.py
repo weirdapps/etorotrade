@@ -63,6 +63,42 @@ CIO v19.0 (Regime Momentum Overlay):
 - R3: Variable regime discount — IMPROVING softens the 15% RISK_OFF discount to 10%,
       DETERIORATING hardens it to 20%. Applied in determine_base_conviction().
 
+CIO v20.0 (Conviction Effectiveness Review):
+- D1: Conviction decay — signals lose conviction over time (0.98^weeks for BUY/HOLD held >14 days)
+- D2: Census contrarian indicator — F&G > 80 penalizes new BUYs, F&G < 20 bonuses them
+- D3: Earnings proximity guard — penalize BUYs within 7 days of earnings (-12 to -15)
+      Enhanced PEAD bonus for serial beaters (+8 from +5)
+- D4: Stale analyst target detection — Type A (>6mo) with no momentum change = -5
+- D5: Regional calibration — European stocks -5 (38.6% hit rate), HK stocks +3 (66.4%)
+- D6: Portfolio Sharpe consideration — penalize positions that create redundancy (-4 to -8)
+- D7: Macro regime threshold tightening — RISK_OFF new positions need EXRET > 20 or -10
+- D8: Position sizing output — Kelly-inspired sizing (1-5%) based on conviction/beta/correlation
+- D9: Entry timing signal — tech timing recommendation in entry note field
+
+CIO v23.0 (Quick-Win Conviction Modifiers):
+- S1: Short interest — SI > 10% + bullish tech = +3 squeeze, SI > 10% + weak fundamentals = -3
+- S2: Target price dispersion — wide (>30%) = -2 quality penalty, narrow (<10%) = +2 consensus boost
+- S3: Deterministic earnings date — yfinance calendar replaces news agent web search for D3
+
+CIO v23.1 (Currency Risk Codification — R6):
+- R6: Currency risk for EUR-based investor — penalizes when EUR strengthens vs stock's currency
+      EUR stocks = no penalty (home), USD stocks = -3/-5 on EUR strength,
+      GBP/HKD/JPY = -2/-4 on weakness vs EUR, crypto = exempt
+
+CIO v23.3 (Signal Quality & Timing):
+- T1: Multi-timeframe confluence — daily+weekly aligned = +5, conflicting = -3
+- T2: Volume confirmation — high relative volume + rising OBV + BUY = +3
+- T3: EPS revision tracking — REVISIONS_UP for BUY = +3, REVISIONS_DOWN = -3
+- T4: Staged watchlist — gated opportunities get re-entry triggers
+- T5: Regime transition model — 3-run vs 7-run conviction MA crossover detection
+
+CIO v21.0 (Codified Agent Rules — previously prompt-only in AGENT.md):
+- R1: Relative strength vs SPY confirmation — +3 outperforming, -5 underperforming BUYs
+- R2: Revenue growth trajectory — +5 accelerating, -5 declining BUYs
+- R3: Dividend cut risk — -5 yield trap (div_yield > 4% with FCF < 50% of div)
+- R4: ATR-based entry timing — ATR% > 5% forces WAIT_FOR_PULLBACK (late override)
+- R5: Liquidity-adjusted sizing — daily dollar volume < $5M reduces position 40%
+
 CIO v15.0 (Legacy CIO Review — Conviction Integrity):
 - W1: Consensus-anchored vote injection — buy_pct >= 75% injects a synthetic
       "analyst consensus agent" vote that scales with consensus strength, preventing
@@ -85,6 +121,7 @@ CIO v15.0 (Legacy CIO Review — Conviction Integrity):
 
 import logging
 import math
+import os
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -260,6 +297,30 @@ _SECTOR_NORMALIZE = {
     "Fintech": "Financials",
 }
 
+# CIO v25.2: Currency zone inference from ticker suffix.
+# Used as fallback when sig_data doesn't include currency_zone from data_loader.
+_EUR_SUFFIXES = ('.DE', '.PA', '.AS', '.MI', '.MC', '.BR', '.CO', '.ST', '.OL', '.HE')
+_CRYPTO_BASES = {'BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE'}
+
+
+def _infer_currency_zone(ticker: str) -> str:
+    """Infer currency denomination from ticker suffix."""
+    if any(ticker.endswith(s) for s in _EUR_SUFFIXES):
+        return 'EUR'
+    if ticker.endswith('.L'):
+        return 'GBP'
+    if ticker.endswith('.HK'):
+        return 'HKD'
+    if ticker.endswith('.T'):
+        return 'JPY'
+    if ticker.endswith('.SW'):
+        return 'CHF'
+    if '-USD' in ticker and ticker.split('-')[0] in _CRYPTO_BASES:
+        return 'CRYPTO'
+    if ticker.endswith('.AE'):
+        return 'AED'
+    return 'USD'
+
 
 def compute_regime_momentum(
     macro_report: Dict[str, Any],
@@ -324,7 +385,7 @@ def compute_regime_momentum(
                 score -= 1
 
     # Signal 3: VIX trend — declining from peak = improving
-    indicators = macro_report.get("indicators", {})
+    indicators = macro_report.get("indicators") or macro_report.get("macro_indicators", {})
     vix = indicators.get("vix")
     vix_trend = str(indicators.get("vix_trend", "")).upper()
     if vix is not None:
@@ -371,6 +432,81 @@ def compute_regime_momentum(
         score, momentum,
     )
     return momentum
+
+
+def compute_regime_transition(
+    history_dir: Optional[str] = None,
+    min_runs: int = 3,
+) -> Dict[str, Any]:
+    """
+    CIO v23.3: Detect regime transitions by comparing short-term (3-run)
+    vs long-term (7-run) moving averages of committee conviction scores.
+
+    Returns dict with transition direction, scores, and trend classification.
+    A rising short MA crossing above long MA = IMPROVING before the regime
+    classifier would catch it.
+    """
+    import glob
+    import json as _json
+    from pathlib import Path
+
+    hdir = Path(history_dir or os.path.expanduser("~/.weirdapps-trading/committee/history"))
+    files = sorted(glob.glob(str(hdir / "concordance-*.json")))
+
+    # Parse avg conviction from each run
+    run_scores = []
+    for fp in files:
+        try:
+            with open(fp) as f:
+                data = _json.load(f)
+            if isinstance(data, list):
+                concs = data
+            else:
+                concs = data.get("concordance", [])
+            if not concs:
+                continue
+            convictions = [c.get("conviction", 50) for c in concs if isinstance(c, dict)]
+            if convictions:
+                avg = sum(convictions) / len(convictions)
+                date = data.get("date", Path(fp).stem.replace("concordance-", "")) if isinstance(data, dict) else Path(fp).stem.replace("concordance-", "")
+                run_scores.append({"date": date, "avg_conviction": round(avg, 1)})
+        except Exception:
+            continue
+
+    if len(run_scores) < min_runs:
+        return {"transition": "INSUFFICIENT_DATA", "runs": len(run_scores)}
+
+    scores = [r["avg_conviction"] for r in run_scores]
+    short_window = min(3, len(scores))
+    long_window = min(7, len(scores))
+
+    short_ma = sum(scores[-short_window:]) / short_window
+    long_ma = sum(scores[-long_window:]) / long_window
+
+    # Direction: is short MA above or below long MA?
+    spread = short_ma - long_ma
+    if spread > 2.0:
+        transition = "IMPROVING"
+    elif spread < -2.0:
+        transition = "DETERIORATING"
+    else:
+        transition = "STABLE"
+
+    # Trend: is the short MA itself rising or falling?
+    if len(scores) >= 2:
+        recent_delta = scores[-1] - scores[-2]
+    else:
+        recent_delta = 0
+
+    return {
+        "transition": transition,
+        "short_ma": round(short_ma, 1),
+        "long_ma": round(long_ma, 1),
+        "spread": round(spread, 1),
+        "recent_delta": round(recent_delta, 1),
+        "runs_analyzed": len(run_scores),
+        "history": run_scores[-7:],
+    }
 
 
 def resolve_sector(ticker: str, sector_map: Dict[str, str]) -> str:
@@ -669,6 +805,72 @@ def count_agent_votes(
     return bull, bear, dir_confidence
 
 
+def compute_portfolio_sharpe_impact(
+    ticker: str,
+    portfolio_signals: Dict[str, Dict],
+    risk_report: Dict,
+) -> int:
+    """
+    CIO v20.0 D6: Estimate if adding/keeping this stock improves portfolio Sharpe.
+
+    Returns penalty (negative value) if the stock creates redundancy through
+    high correlation with existing holdings.
+    """
+    correlations = risk_report.get("correlation_clusters", [])
+    beta = portfolio_signals.get(ticker, {}).get("beta", 1.0)
+
+    # Count highly correlated positions (>0.7)
+    correlated_count = 0
+    for cluster in correlations:
+        if ticker in cluster.get("tickers", []):
+            correlated_count = len(cluster.get("tickers", [])) - 1
+            break
+
+    # Penalize if adding creates redundancy
+    if correlated_count >= 3:
+        return -8  # Highly redundant
+    elif correlated_count >= 2:
+        return -4
+    return 0
+
+
+def compute_position_size(
+    conviction: int,
+    beta: float,
+    correlated_positions: int,
+    buy_pct: float,
+) -> float:
+    """
+    CIO v20.0 D8: Kelly-inspired position sizing.
+
+    Returns recommended position size as percentage of portfolio (1.0-5.0).
+    """
+    base_size = 3.0  # Conservative base (was 5%)
+
+    # Scale by conviction
+    if conviction >= 80:
+        size = base_size * 1.5
+    elif conviction >= 65:
+        size = base_size * 1.2
+    elif conviction >= 50:
+        size = base_size
+    else:
+        size = base_size * 0.7
+
+    # Reduce for high beta
+    if beta > 1.5:
+        size *= 0.8
+
+    # Reduce for correlated positions
+    size -= correlated_positions * 0.5
+
+    # Reduce if consensus too high (contrarian)
+    if buy_pct > 90:
+        size *= 0.9
+
+    return round(max(1.0, min(5.0, size)), 1)
+
+
 def determine_base_conviction(
     bull_pct: float,
     signal: str,
@@ -925,8 +1127,9 @@ def get_earnings_surprise_adjustment(
     if recent_surprise_pct is None:
         return (0, "NO_DATA")
 
+    # CIO v20.0 D3: Enhanced PEAD bonus for serial beaters (+8 from +5)
     if recent_surprise_pct > 10 and consecutive_beats >= 2:
-        adj, label = +5, "SERIAL_BEATER"
+        adj, label = +8, "SERIAL_BEATER"
     elif recent_surprise_pct > 5:
         adj, label = +3, "BEAT"
     elif recent_surprise_pct < -10:
@@ -938,7 +1141,7 @@ def get_earnings_surprise_adjustment(
 
     # CIO v12.0 M3: Trajectory modulation
     if surprise_trajectory == "ACCELERATING" and consecutive_beats >= 2:
-        adj = min(adj + 2, 7)
+        adj = min(adj + 2, 10)  # Updated cap from 7 to 10
         label = label + "_ACCEL"
     elif surprise_trajectory == "DECELERATING" and label in ("SERIAL_BEATER", "BEAT"):
         adj = max(adj - 2, 0)
@@ -1020,20 +1223,24 @@ def compute_adjustments(
     sector: str,
     sector_rankings: Dict[str, Any],
     bull_count: int,
-) -> Tuple[int, int]:
+) -> Tuple[int, int, Dict[str, int]]:
     """
     Compute bonus and penalty adjustments.
 
-    Returns (bonuses, penalties) both capped per skill spec.
+    Returns (bonuses, penalties, waterfall) all capped per skill spec.
+    The waterfall dict tracks each modifier's contribution for attribution.
     """
     bonuses = 0
     penalties = 0
+    _w: Dict[str, int] = {}
 
     # Agent agreement bonus
     if bull_count >= 6:
         bonuses += 15
+        _w["agent_consensus"] = 15
     elif bull_count >= 5:
         bonuses += 10
+        _w["agent_consensus"] = 10
 
     # Consensus warning — tiered by excess EXRET
     # CIO v16.0 W6: Smoothed consensus cliff. Previously a 7-point jump at
@@ -1043,30 +1250,40 @@ def compute_adjustments(
     if buy_pct > 90:
         if excess_exret >= 12:
             penalties += 5
+            _w["consensus_crowded"] = -5
         elif excess_exret >= 0:
             penalties += 8
+            _w["consensus_crowded"] = -8
         elif excess_exret >= -10:
             penalties += 11
+            _w["consensus_crowded"] = -11
         else:
             penalties += 15
+            _w["consensus_crowded"] = -15
 
     # Census alignment
     if -20 <= div_score <= 20:
         bonuses += 5
+        _w["census_alignment"] = 5
     elif div_score < -20:
         bonuses += 8
+        _w["census_alignment"] = 8
 
     # Census time-series
     if census_ts == "strong_accumulation":
         bonuses += 3
+        _w["census_accumulation"] = 3
     elif census_ts in ("strong_distribution", "distribution"):
         penalties += 5
+        _w["census_distribution"] = -5
 
     # News catalyst
     if "HIGH_POSITIVE" in news_impact:
         bonuses += 5
+        _w["news_catalyst_pos"] = 5
     if "NEGATIVE" in news_impact:
         penalties += 5
+        _w["news_catalyst_neg"] = -5
 
     # Technical overbought / oversold
     # CIO v18.0 B2: RSI contrarian weighting from backtest evidence.
@@ -1076,8 +1293,10 @@ def compute_adjustments(
     # penalty increased to -8.
     if rsi < 30:
         bonuses += 10
+        _w["rsi_oversold"] = 10
     elif rsi > 70:
         penalties += 8
+        _w["rsi_overbought"] = -8
 
     # Tech disagreement penalty (CIO v5.2): when BUY signal but tech says AVOID/EXIT
     # CIO v14.0 V2: Scale by RSI context. At RSI < 35, the tech AVOID is confirming
@@ -1087,29 +1306,38 @@ def compute_adjustments(
     if signal == "B" and tech_signal in ("AVOID", "EXIT_SOON"):
         if rsi < 35:
             penalties += 2   # V2: oversold — tech confirms obvious, minimal penalty
+            _w["tech_disagree"] = -2
         elif rsi < 50:
             penalties += 5   # V2: transitional — moderate penalty
+            _w["tech_disagree"] = -5
         else:
             penalties += 8   # Full disagreement at neutral/overbought RSI
+            _w["tech_disagree"] = -8
     elif signal == "B" and tech_momentum < -30:
         penalties += 5
+        _w["tech_momentum_neg"] = -5
 
     # Macro sector-specific
     if macro_fit == "UNFAVORABLE":
         if sector in ("Financials", "Consumer Discretionary"):
             penalties += 10
+            _w["macro_sector"] = -10
         else:
             penalties += 5
+            _w["macro_sector"] = -5
     elif macro_fit == "FAVORABLE":
         bonuses += 5
+        _w["macro_sector"] = 5
 
     # High beta
     if beta > 2.0:
         penalties += 5
+        _w["high_beta"] = -5
 
     # Quality trap
     if quality_trap:
         penalties += 5
+        _w["quality_trap"] = -5
 
     # Sector rotation
     etf = SECTOR_ETF_MAP.get(sector, "")
@@ -1118,23 +1346,37 @@ def compute_adjustments(
         ret_1m = sector_rankings[etf].get("return_1m", 0)
         if rank <= 3 and ret_1m > 0:
             bonuses += 5
+            _w["sector_rotation"] = 5
         elif rank >= 9 and ret_1m < -3:
             penalties += 5
+            _w["sector_rotation"] = -5
 
     # SELL-specific: tech/macro disagreement reduces sell conviction
     if signal == "S":
         if tech_signal in ("ENTER_NOW", "WAIT_FOR_PULLBACK"):
             penalties += 5
+            _w["sell_tech_disagree"] = -5
         if macro_fit == "FAVORABLE":
             penalties += 3
+            _w["sell_macro_disagree"] = -3
         if census_alignment == "CENSUS_DIV" and div_score < -30:
             penalties += 5
+            _w["sell_census_disagree"] = -5
+
+    # CIO v20.0 D5: Regional calibration (apply before cap)
+    # Note: This is applied in synthesize_stock where ticker is available
 
     # Cap adjustments
+    _pre_cap_b = bonuses
+    _pre_cap_p = penalties
     bonuses = min(bonuses, 20)
     penalties = min(penalties, 25)
+    if _pre_cap_b > 20:
+        _w["base_bonus_cap"] = _pre_cap_b - 20  # Positive = bonuses absorbed by cap
+    if _pre_cap_p > 25:
+        _w["base_penalty_cap"] = _pre_cap_p - 25
 
-    return bonuses, penalties
+    return bonuses, penalties, _w
 
 
 def apply_conviction_floors(
@@ -1293,18 +1535,30 @@ def synthesize_stock(
     consecutive_earnings_beats: int = 0,
     kill_thesis_triggered: bool = False,
     regime_momentum: str = "STABLE",
+    fg_score: Optional[float] = None,
+    earnings_days_away: Optional[int] = None,
+    is_opportunity: bool = False,
+    fx_data: Optional[Dict] = None,
 ) -> Dict[str, Any]:
     """
     Synthesize a single stock through the full conviction scoring pipeline.
 
     This is the core function that replaces the ad-hoc /tmp scripts.
     """
+    def _num(v, default=0):
+        if v is None:
+            return default
+        try:
+            return float(str(v).replace('%', '').replace(',', ''))
+        except (ValueError, TypeError):
+            return default
+
     signal = sig_data["signal"]
-    exret = sig_data.get("exret") or 0
-    buy_pct = sig_data.get("buy_pct") or 0
-    beta = sig_data.get("beta") or 0
-    pet = sig_data.get("pet") or 0
-    pef = sig_data.get("pef") or 0
+    exret = _num(sig_data.get("exret"), 0)
+    buy_pct = _num(sig_data.get("buy_pct"), 0)
+    beta = _num(sig_data.get("beta"), 0)
+    pet = _num(sig_data.get("pet"), 0)
+    pef = _num(sig_data.get("pef"), 0)
 
     # Fund score with fallback (guard against explicit None values)
     fund_score = fund_data.get("fundamental_score", 50)
@@ -1327,6 +1581,15 @@ def synthesize_stock(
     tech_signal = tech_data.get("timing_signal", "HOLD")
     rsi = tech_data.get("rsi", 50)
     macd_sig = tech_data.get("macd_signal", "NEUTRAL")
+
+    # CIO v22.0 E1: Enhanced technical indicators from v3.0 analysis
+    adx = tech_data.get("adx")
+    divergence = tech_data.get("divergence")
+    stop_losses = tech_data.get("stop_losses")
+
+    # CIO v22.0 E2: Piotroski F-Score from enhanced fundamental analysis
+    piotroski = fund_data.get("piotroski")
+    piotroski_score = piotroski.get("f_score", 5) if isinstance(piotroski, dict) else None
 
     # Sector-relative EXRET
     excess_exret = exret - sector_median_exret
@@ -1369,12 +1632,20 @@ def synthesize_stock(
     ] if x)
 
     # Step 4: Compute adjustments
-    bonuses, penalties = compute_adjustments(
+    bonuses, penalties, _w_base = compute_adjustments(
         signal, fund_score, tech_signal, tech_mom, rsi,
         macro_fit, census_alignment, div_score, census_ts_trend,
         news_impact, risk_warning, buy_pct, excess_exret,
         beta, quality_trap, sector, sector_rankings, bull_count,
     )
+
+    # ── CIO v25.0: Conviction Attribution Waterfall ──────────────────────
+    # Track every modifier's contribution for transparent audit trail.
+    # Only non-zero deltas are recorded. Positive = bonus, negative = penalty.
+    # Merge base modifiers from compute_adjustments into the waterfall.
+    _w = dict(_w_base)
+    _adj_bonuses = bonuses   # Snapshot base adjustments before individual modifiers
+    _adj_penalties = penalties
 
     # Step 4b: Signal quality penalties — separate cap from base penalties.
     # CIO v6.0 H5: Base penalties (from compute_adjustments) are capped at 25.
@@ -1392,6 +1663,8 @@ def synthesize_stock(
         buy_pct=buy_pct,  # CIO v14.0 V3: consensus override
     )
     signal_quality_penalty += contradiction_penalty
+    if contradiction_penalty:
+        _w["contradiction"] = -contradiction_penalty
 
     # Step 4c: Signal velocity (CIO Legacy B4)
     velocity_adj, velocity_label = compute_signal_velocity(
@@ -1399,8 +1672,10 @@ def synthesize_stock(
     )
     if velocity_adj > 0:
         bonuses = min(bonuses + velocity_adj, 20)
+        _w["signal_velocity"] = velocity_adj
     elif velocity_adj < 0:
         signal_quality_penalty += abs(velocity_adj)
+        _w["signal_velocity"] = velocity_adj
 
     # Step 4d: Earnings surprise (CIO Legacy B5)
     earnings_adj, earnings_label = get_earnings_surprise_adjustment(
@@ -1408,8 +1683,307 @@ def synthesize_stock(
     )
     if earnings_adj > 0:
         bonuses = min(bonuses + earnings_adj, 20)
+        _w["earnings_surprise"] = earnings_adj
     elif earnings_adj < 0:
         signal_quality_penalty += abs(earnings_adj)
+        _w["earnings_surprise"] = earnings_adj
+
+    # CIO v20.0 D5: Regional calibration
+    # European stocks have 38.6% hit rate, HK has 66.4%
+    ticker_str = str(ticker)
+    is_european = any(ticker_str.endswith(s) for s in (
+        '.DE', '.L', '.PA', '.AS', '.MI', '.MC', '.BR', '.OL', '.ST', '.HE', '.CO'
+    ))
+    is_hk = ticker_str.endswith('.HK')
+    if is_european and signal == "B":
+        penalties += 5  # European BUY discount
+        _w["regional_EU"] = -5
+    elif is_hk and signal == "B":
+        bonuses = min(bonuses + 3, 20)  # HK premium
+        _w["regional_HK"] = 3
+
+    # CIO v20.0 D4: Stale analyst target detection
+    # Type A = general analyst consensus (>6 months old), no momentum change
+    am = sig_data.get("am", 0)  # analyst momentum from signal data
+    analyst_type = sig_data.get("analyst_type", "A")
+    if analyst_type == "A" and abs(am) < 1 and buy_pct > 70:
+        penalties += 5  # Stale targets
+        _w["stale_targets"] = -5
+
+    # CIO v20.0 D2: Census contrarian indicator
+    # When F&G > 80 (EXTREME_GREED), reduce all new BUY conviction
+    if fg_score is not None and signal == "B":
+        if fg_score > 80:
+            fg_penalty = int((fg_score - 80) * 0.75)  # -15 at F&G=100
+            penalties += fg_penalty
+            _w["census_fear_greed"] = -fg_penalty
+        elif fg_score < 20:
+            fg_bonus = int((20 - fg_score) * 0.75)  # +15 at F&G=0
+            bonuses = min(bonuses + fg_bonus, 20)
+            _w["census_fear_greed"] = fg_bonus
+
+    # CIO v20.0 D3: Earnings proximity guard
+    if earnings_days_away is not None and signal == "B":
+        if earnings_days_away <= 3:
+            penalties += 15  # Earnings imminent critical
+            _w["earnings_proximity"] = -15
+        elif earnings_days_away <= 7:
+            penalties += 12  # Near-binary event
+            _w["earnings_proximity"] = -12
+
+    # CIO v20.0 D7: Macro regime threshold tightening for new BUYs
+    if regime == "RISK_OFF" and signal == "B" and is_opportunity:
+        # In RISK_OFF, new positions need higher bar
+        if excess_exret < 20:  # Normally 6-15% depending on tier
+            penalties += 10
+            _w["macro_regime_risk_off"] = -10
+
+    # CIO v22.0 E3: ADX trend strength adjustment.
+    # ADX > 30 with matching entry signal = trend confirmed, boost confidence.
+    # ADX < 15 with extreme momentum = ranging market, signals unreliable.
+    if adx is not None:
+        if adx >= 30 and tech_signal in ("ENTER_NOW",):
+            bonuses = min(bonuses + 5, 20)  # Strong trend confirms entry
+            _w["adx_trend_confirm"] = 5
+        elif adx >= 30 and tech_signal in ("AVOID", "EXIT_SOON"):
+            penalties += 3  # Strong downtrend confirms exit
+            _w["adx_downtrend"] = -3
+        elif adx < 15 and abs(tech_mom) > 30:
+            # Ranging market — extreme momentum is unreliable
+            signal_quality_penalty += 3
+            _w["adx_ranging"] = -3
+
+    # CIO v22.0 E4: RSI divergence — highest-value reversal signal.
+    # Bullish divergence (price lower low, RSI higher low) in oversold
+    # territory is one of the strongest quantitative buy signals.
+    # Bearish divergence in overbought is a strong sell warning.
+    if divergence == "bullish" and rsi < 35:
+        bonuses = min(bonuses + 8, 20)  # Bullish reversal signal
+        _w["rsi_divergence_bullish"] = 8
+    elif divergence == "bearish" and rsi > 65:
+        penalties += 5  # Bearish reversal warning
+        _w["rsi_divergence_bearish"] = -5
+
+    # CIO v22.0 E5: Piotroski quality gate — independent 9-point quality metric.
+    # F >= 7 independently validates fundamental thesis.
+    # F <= 3 is a quality concern even if earnings quality score looks OK.
+    if piotroski_score is not None:
+        if piotroski_score >= 7 and signal == "B":
+            bonuses = min(bonuses + 3, 20)  # Independent quality confirmation
+            _w["piotroski_quality"] = 3
+        elif piotroski_score <= 3:
+            penalties += 3  # Weak quality fundamentals
+            _w["piotroski_weak"] = -3
+
+    # ── CIO v21.0 R1-R5: Codified conviction modifiers ────────────────────
+    # Previously these were prompt-only instructions in AGENT.md. Codifying
+    # them ensures deterministic, testable application every run.
+
+    # R1: Relative strength vs SPY confirmation.
+    # Stocks outperforming SPY over 3 months deserve a confidence boost;
+    # underperformers with BUY signals face headwind — trend is not their friend.
+    rs_vs_spy = tech_data.get("relative_strength_vs_spy")
+    if rs_vs_spy is not None and isinstance(rs_vs_spy, (int, float)):
+        if rs_vs_spy > 1.0 and signal == "B":
+            bonuses = min(bonuses + 3, 20)  # Outperforming SPY — momentum confirmation
+            _w["rel_strength_spy"] = 3
+        elif rs_vs_spy < 0.80 and signal == "B":
+            penalties += 8  # Severe underperformer — swimming against the tide
+            _w["rel_strength_spy"] = -8
+        elif rs_vs_spy < 0.95 and signal == "B":
+            penalties += 5  # Underperforming SPY — headwind for BUY thesis
+            _w["rel_strength_spy"] = -5
+
+    # R2: Revenue growth trajectory.
+    # Accelerating revenue growth is the single strongest fundamental signal
+    # for equity re-rating. Declining growth even with good earnings is a trap.
+    rev_growth = fund_data.get("revenue_growth", {})
+    rev_class = rev_growth.get("classification", "") if isinstance(rev_growth, dict) else ""
+    if rev_class and signal == "B":
+        if rev_class.upper() in ("ACCELERATING", "STRONG_GROWTH"):
+            bonuses = min(bonuses + 5, 20)
+            _w["revenue_growth"] = 5
+        elif rev_class.upper() in ("DECLINING", "DETERIORATING", "NEGATIVE"):
+            penalties += 5
+            _w["revenue_growth"] = -5
+
+    # R3: Dividend cut risk — yield trap detection.
+    # High dividend yield with deteriorating free cash flow is a classic trap.
+    # Only penalize when FCF does NOT support the dividend payout.
+    div_sustainability = fund_data.get("dividend_sustainability", {})
+    if isinstance(div_sustainability, dict):
+        div_y = div_sustainability.get("dividend_yield", 0) or 0
+        fcf_y = div_sustainability.get("fcf_yield", 0) or 0
+        if div_y > 4.0 and fcf_y < div_y * 0.5 and signal in ("B", "H"):
+            penalties += 5  # Yield trap — dividend exceeds FCF capacity
+            _w["dividend_yield_trap"] = -5
+
+    # R4: ATR-based entry timing — high volatility stocks need pullback entries.
+    # ATR% > 5% means daily swings are large enough that entering at market
+    # price risks immediate 5%+ drawdown. Wait for pullback to limit-order entry.
+    # NOTE: Applied after entry_timing initialization below (see "R4 late override").
+    atr_pct = tech_data.get("atr_pct")
+    _r4_override = (
+        atr_pct is not None
+        and isinstance(atr_pct, (int, float))
+        and atr_pct > 5.0
+        and signal == "B"
+        and tech_signal == "ENTER_NOW"
+    )
+
+    # R5: Liquidity-adjusted position sizing — applied after compute_position_size().
+    avg_volume = tech_data.get("volume", {})
+    vol_avg = avg_volume.get("avg_volume") if isinstance(avg_volume, dict) else None
+    current_price = sig_data.get("price", 0) or tech_data.get("price", 0)
+    _r5_illiquid = False
+    if vol_avg and current_price:
+        try:
+            daily_dollar_volume = float(vol_avg) * float(current_price)
+            _r5_illiquid = daily_dollar_volume < 5_000_000
+        except (ValueError, TypeError):
+            pass
+    # ── End CIO v21.0 R1-R5 ─────────────────────────────────────────────
+
+    # ── CIO v23.0 S1-S2: Quick-win conviction modifiers ────────────────
+
+    # S1: Short interest as conviction modifier.
+    # High SI + BUY + bullish tech = squeeze potential (+3).
+    # High SI + deteriorating fundamentals = confirms bear thesis (-3).
+    short_interest = _num(sig_data.get("short_interest"), 0)
+    if short_interest > 10:
+        if signal == "B" and tech_signal in ("ENTER_NOW", "WAIT_FOR_PULLBACK"):
+            bonuses = min(bonuses + 3, 20)  # Short squeeze potential
+            _w["short_squeeze"] = 3
+        elif fund_score < 50 or quality_trap:
+            penalties += 3  # SI confirms fundamental weakness
+            _w["short_interest_weakness"] = -3
+
+    # S2: Target price dispersion as signal quality indicator.
+    # Wide analyst disagreement = uncertain thesis. Narrow consensus = confidence.
+    # CSV has no high/low targets, so we derive implied CV from buy_pct and
+    # num_targets (same approach as opportunity_scanner.compute_target_dispersion).
+    num_targets = _num(sig_data.get("num_targets"), 0)
+    target_dispersion = None
+    if num_targets >= 3 and buy_pct > 0:
+        implied_cv = max(0.05, (100 - buy_pct) / 200)  # 0.05 to 0.50
+        target_dispersion = round(implied_cv * 100, 1)  # as percentage
+        if implied_cv > 0.30:
+            signal_quality_penalty += 2  # Analysts disagree widely
+            _w["target_dispersion_wide"] = -2
+        elif implied_cv < 0.10 and signal in ("B", "H"):
+            bonuses = min(bonuses + 2, 20)  # Strong analyst consensus
+            _w["target_consensus"] = 2
+
+    # ── End CIO v23.0 S1-S2 ────────────────────────────────────────────
+
+    # ── CIO v23.1 R6: Currency risk modifier ────────────────────────────
+    # Home currency EUR. Penalize when EUR strengthens against stock's currency
+    # (EUR-denominated positions lose value when converted back to EUR).
+    # Crypto is exempt — no traditional FX risk framework applies.
+    currency_zone = sig_data.get("currency_zone") or _infer_currency_zone(ticker)
+    fx_impact = "NEUTRAL"
+    fx_pairs = (fx_data or {}).get("pairs", {})
+
+    if currency_zone == "EUR":
+        fx_impact = "HOME"  # No FX risk for home currency
+    elif currency_zone == "CRYPTO":
+        fx_impact = "EXEMPT"  # Crypto exempt from traditional FX analysis
+    elif currency_zone == "USD":
+        eur_usd = fx_pairs.get("EUR/USD", {})
+        eur_chg = eur_usd.get("change_1m")
+        if eur_chg is not None:
+            if eur_chg > 5:
+                penalties += 5  # Strong EUR headwind for USD holdings
+                fx_impact = "STRONG_HEADWIND"
+                _w["currency_risk_USD"] = -5
+            elif eur_chg > 2:
+                penalties += 3  # Moderate EUR headwind
+                fx_impact = "HEADWIND"
+                _w["currency_risk_USD"] = -3
+            elif eur_chg < -3:
+                fx_impact = "TAILWIND"  # EUR weakening = USD holdings gain
+            elif eur_chg < -1:
+                fx_impact = "MILD_TAILWIND"
+    elif currency_zone in ("GBP", "HKD", "JPY", "CHF"):
+        pair_key = f"{currency_zone}/EUR"
+        pair_data = fx_pairs.get(pair_key, {})
+        pair_chg = pair_data.get("change_1m")
+        if pair_chg is not None:
+            if pair_chg < -3:
+                penalties += 4  # Foreign currency weakening vs EUR — double exposure
+                fx_impact = "HEADWIND"
+                _w[f"currency_risk_{currency_zone}"] = -4
+            elif pair_chg < -1:
+                penalties += 2
+                fx_impact = "MILD_HEADWIND"
+                _w[f"currency_risk_{currency_zone}"] = -2
+            elif pair_chg > 2:
+                fx_impact = "TAILWIND"
+
+    # ── End CIO v23.1 R6 ────────────────────────────────────────────────
+
+    # ── CIO v23.3: Multi-timeframe confluence ─────────────────────────
+    confluence_score = _num(tech_data.get("confluence_score"), 0)
+    if confluence_score >= 5 and signal == "B":
+        bonuses = min(bonuses + 5, 20)  # Strong alignment across timeframes
+        _w["confluence"] = 5
+    elif confluence_score <= -3:
+        signal_quality_penalty += 3  # Timeframes conflicting
+        _w["confluence_conflict"] = -3
+
+    # ── CIO v23.3: Volume confirmation ────────────────────────────────
+    obv_trend = tech_data.get("obv_trend")
+    rel_volume = _num(tech_data.get("relative_volume"), 0)
+    if rel_volume > 1.5 and obv_trend == "RISING" and signal == "B":
+        bonuses = min(bonuses + 3, 20)  # Volume confirming price
+        _w["volume_confirm"] = 3
+    elif rel_volume > 1.5 and obv_trend == "FALLING" and signal == "S":
+        bonuses = min(bonuses + 2, 20)  # Volume confirming sell
+        _w["volume_confirm_sell"] = 2
+
+    # ── CIO v23.3: EPS revision tracking ─────────────────────────────
+    eps_revisions = fund_data.get("eps_revisions") or {}
+    eps_class = eps_revisions.get("classification", "")
+    if eps_class == "REVISIONS_UP" and signal == "B":
+        bonuses = min(bonuses + 3, 20)
+        _w["eps_revisions_up"] = 3
+    elif eps_class == "REVISIONS_DOWN":
+        penalties += 3
+        _w["eps_revisions_down"] = -3
+
+    # ── CIO v25.0: IV rank × earnings interaction ───────────────────────
+    # Previously flat +3 penalty (v23.4). Now scales by IV rank magnitude:
+    # IV rank measures where current implied volatility sits relative to its
+    # 52-week range. At IV>80, options are pricing in extreme moves — entering
+    # within 7 days of earnings at these levels means buying peak uncertainty.
+    # The penalty scales: 3 at IV=80, 6 at IV=90, 9 at IV=100.
+    iv_rank = _num(tech_data.get("iv_rank"), None)
+    if iv_rank is not None:
+        if iv_rank > 80 and earnings_days_away is not None and earnings_days_away <= 7:
+            iv_earn_penalty = 3 + int((iv_rank - 80) * 0.3)  # 3-9 scaled
+            penalties += iv_earn_penalty
+            _w["iv_x_earnings"] = -iv_earn_penalty
+        elif iv_rank < 20 and signal == "B":
+            bonuses = min(bonuses + 2, 20)  # Low IV = cheap entry
+            _w["iv_low_entry"] = 2
+
+    # ── CIO v23.4: Volatility regime sizing — applied after compute_position_size().
+    vol_regime = tech_data.get("volatility_regime")
+
+    # ── CIO v23.4: FCF quality modifier ──────────────────────────────
+    fcf_quality = fund_data.get("fcf_quality") or {}
+    if fcf_quality.get("concern") == "EARNINGS_QUALITY_CONCERN" and signal == "B":
+        penalties += 3
+        _w["fcf_quality_concern"] = -3
+    elif fcf_quality.get("classification") == "STRONG" and signal == "B":
+        bonuses = min(bonuses + 2, 20)
+        _w["fcf_quality_strong"] = 2
+
+    # ── CIO v23.4: Debt quality modifier ─────────────────────────────
+    debt_quality = fund_data.get("debt_quality") or {}
+    if debt_quality.get("risk") == "HIGH_RISK" and signal == "B":
+        penalties += 4
+        _w["debt_high_risk"] = -4
 
     # CIO Legacy A5: Directional confidence penalty
     # CIO v7.0 P2: dir_confidence is now from the return value (see Step 1)
@@ -1419,10 +1993,16 @@ def synthesize_stock(
     # simply don't cover (HK, EU, ME tickers) adds noise, not signal.
     if dir_confidence < 0.4 and not (fund_synthetic and tech_synthetic):
         signal_quality_penalty += 3
+        _w["low_dir_confidence"] = -3
 
     # Cap signal quality penalties separately from base penalties
+    _pre_sq_cap = signal_quality_penalty
     signal_quality_penalty = min(signal_quality_penalty, 10)
     penalties = penalties + signal_quality_penalty
+
+    # CIO v25.0: Record signal quality cap effect in waterfall
+    if _pre_sq_cap > 10:
+        _w["signal_quality_cap"] = _pre_sq_cap - 10  # Positive = penalties absorbed by cap
 
     # CIO v14.0 V5: Penalty proportionality cap. After 13 review iterations,
     # penalty sources now include: base (25), quality (10), sector conc (6-15),
@@ -1431,8 +2011,11 @@ def synthesize_stock(
     # effective penalties at 60% of base to ensure the base signal still
     # carries through. For base=68 with +13 bonuses, max penalty = 41,
     # giving min conviction = 68+13-41 = 40 (still meaningful differentiation).
+    _pre_cap_penalties = penalties
     max_penalty = int(base * 0.60)
     penalties = min(penalties, max_penalty)
+    if _pre_cap_penalties > max_penalty:
+        _w["proportionality_cap"] = _pre_cap_penalties - max_penalty
 
     conviction = base + bonuses - penalties
 
@@ -1443,6 +2026,7 @@ def synthesize_stock(
     # from generic agent disagreement and deserves uncapped treatment.
     if kill_thesis_triggered:
         conviction -= 15
+        _w["kill_thesis"] = -15
 
     # Step 5: Apply floors
     # CIO v12.0 R1: When kill thesis is triggered, only apply the unconditional
@@ -1452,6 +2036,7 @@ def synthesize_stock(
     # that should override quality metrics. Without this guard, a stock with
     # triggered kill thesis gets quality-floored back to 55 and recommended as
     # ADD — directly contradicting the purpose of kill thesis monitoring.
+    _pre_floor = conviction
     if kill_thesis_triggered and signal == "B":
         conviction = max(conviction, 40)
         conviction = min(conviction, 100)
@@ -1460,6 +2045,8 @@ def synthesize_stock(
             conviction, signal, excess_exret, pef, pet,
             bull_count, fund_score, buy_pct,
         )
+    if conviction > _pre_floor:
+        _w["floor_applied"] = conviction - _pre_floor
 
     # Step 5b: RISK_OFF conviction cap (CIO v18.0 B3 + v19.0 R2)
     # Backtest evidence (Mar 16-25): conv 80-85 = -6.30% avg in RISK_OFF.
@@ -1471,12 +2058,15 @@ def synthesize_stock(
     # STABLE: cap at 75 — original backtest-calibrated cap.
     # DETERIORATING: cap at 70 — conditions actively worsening, be more cautious.
     if regime == "RISK_OFF" and signal != "S":
+        _pre_riskoff = conviction
         if regime_momentum == "IMPROVING":
             conviction = min(conviction, 82)
         elif regime_momentum == "DETERIORATING":
             conviction = min(conviction, 70)
         else:
             conviction = min(conviction, 75)
+        if conviction < _pre_riskoff:
+            _w["risk_off_cap"] = conviction - _pre_riskoff
 
     # Step 6: Determine action
     action = determine_action(conviction, signal, tech_signal, risk_warning)
@@ -1522,6 +2112,37 @@ def synthesize_stock(
     if action == "HOLD":
         hold_tier = classify_hold_tier(conviction)
 
+    # CIO v20.0 D9: Entry timing signal
+    entry_timing = tech_signal
+    entry_note = ""
+    if signal == "B" and tech_signal == "WAIT_FOR_PULLBACK":
+        entry_note = f"Signal confirmed but wait for RSI pullback from {rsi:.0f}"
+    elif signal == "B" and tech_signal == "ENTER_NOW":
+        entry_note = f"Strong entry point, RSI {rsi:.0f}"
+    elif signal == "B" and tech_signal in ("AVOID", "EXIT_SOON"):
+        entry_note = f"Caution: tech says {tech_signal} despite BUY signal"
+
+    # CIO v21.0 R4 late override: ATR% > 5% forces WAIT_FOR_PULLBACK
+    # Applied after D9 so it overrides the default entry_timing assignment.
+    if _r4_override:
+        entry_timing = "WAIT_FOR_PULLBACK"
+        entry_note = f"ATR% {atr_pct:.1f}% — use limit order, avoid chasing"
+
+    # CIO v20.0 D8: Position sizing recommendation
+    # Compute correlated count from beta (proxy until risk_report available)
+    correlated_count = 0  # Will be updated in build_concordance
+    position_size_pct = compute_position_size(conviction, beta, correlated_count, buy_pct)
+
+    # CIO v23.4: Volatility regime sizing (post-base)
+    if vol_regime == "LOW_VOL":
+        position_size_pct = round(min(position_size_pct * 1.20, 5.0), 2)
+    elif vol_regime in ("HIGH_VOL", "EXTREME"):
+        position_size_pct = round(position_size_pct * 0.80, 2)
+
+    # CIO v21.0 R5: Liquidity-adjusted sizing (post-base)
+    if _r5_illiquid:
+        position_size_pct = round(position_size_pct * 0.6, 1)
+
     return {
         "ticker": ticker,
         "signal": signal,
@@ -1563,6 +2184,31 @@ def synthesize_stock(
         "pef": pef,   # CIO v11.0: stored for post-penalty floor reapplication
         "pet": pet,
         "price": sig_data.get("price", 0),  # CIO v17.0: for evaluate_recent() returns
+        "entry_timing": entry_timing,  # CIO v20.0 D9
+        "entry_note": entry_note,  # CIO v20.0 D9
+        "position_size_pct": position_size_pct,  # CIO v20.0 D8
+        "days_held": 0,  # CIO v20.0 D1: will be updated in build_concordance
+        "adx": adx,  # CIO v22.0 E1
+        "adx_trend": tech_data.get("adx_trend"),  # CIO v22.0 E1
+        "divergence": divergence,  # CIO v22.0 E4
+        "piotroski_score": piotroski_score,  # CIO v22.0 E5
+        "stop_losses": stop_losses,  # CIO v22.0 E1
+        "rs_vs_spy": rs_vs_spy,  # CIO v21.0 R1
+        "revenue_growth_class": rev_class,  # CIO v21.0 R2
+        "atr_pct": atr_pct,  # CIO v21.0 R4
+        "short_interest_pct": short_interest if short_interest > 0 else None,  # CIO v23.0 S1
+        "target_dispersion": target_dispersion,  # CIO v23.0 S2
+        "currency_zone": currency_zone,  # CIO v23.1 R6
+        "fx_impact": fx_impact,  # CIO v23.1 R6
+        "confluence_score": confluence_score,  # CIO v23.3
+        "obv_trend": obv_trend,  # CIO v23.3
+        "relative_volume": rel_volume if rel_volume else None,  # CIO v23.3
+        "eps_revisions": eps_class if eps_class else None,  # CIO v23.3
+        "iv_rank": iv_rank,  # CIO v23.4
+        "volatility_regime": vol_regime,  # CIO v23.4
+        "fcf_classification": fcf_quality.get("classification") if fcf_quality else None,  # CIO v23.4
+        "debt_risk": debt_quality.get("risk") if debt_quality else None,  # CIO v23.4
+        "conviction_waterfall": _w,  # CIO v25.0: full modifier attribution
     }
 
 
@@ -1603,6 +2249,7 @@ def _build_agent_lookups(
         "risk_warns": risk_warns,
         "risk_limits": risk_limits,
         "sector_rankings": sector_rankings,
+        "fx_data": risk_report.get("fx_data", {}),  # CIO v23.1 R6
     }
 
 
@@ -1693,8 +2340,16 @@ def _fallback_technical(sig_data: Dict) -> Dict:
     52W (52-week high %), and beta to derive a directional view instead of
     defaulting everything to momentum=0, timing=HOLD.
     """
-    pp = sig_data.get("pp", 0)
-    w52 = sig_data.get("52w", 100)
+    def _num(v, default=0):
+        if v is None:
+            return default
+        try:
+            return float(str(v).replace('%', '').replace(',', ''))
+        except (ValueError, TypeError):
+            return default
+
+    pp = _num(sig_data.get("pp"), 0)
+    w52 = _num(sig_data.get("52w"), 100)
 
     # Derive momentum from price performance
     if pp > 15:
@@ -1736,11 +2391,19 @@ def _fallback_technical(sig_data: Dict) -> Dict:
 
 def _fallback_fundamental(sig_data: Dict) -> Dict:
     """Generate synthetic fundamental score from signal data."""
+    def _num(v, default=0):
+        if v is None:
+            return default
+        try:
+            return float(str(v).replace('%', '').replace(',', ''))
+        except (ValueError, TypeError):
+            return default
+
     fs = 50
-    exret = sig_data.get("exret") or 0
-    bp = sig_data.get("buy_pct") or 0
-    pet = sig_data.get("pet") or 0
-    pef = sig_data.get("pef") or 0
+    exret = _num(sig_data.get("exret"), 0)
+    bp = _num(sig_data.get("buy_pct"), 0)
+    pet = _num(sig_data.get("pet"), 0)
+    pef = _num(sig_data.get("pef"), 0)
     if exret > 25:
         fs += 15
     elif exret > 15:
@@ -1770,6 +2433,9 @@ def _synthesize_with_lookups(
     previous_signal: Optional[str] = None,
     days_since_signal_change: Optional[int] = None,
     regime_momentum: str = "STABLE",
+    fg_score: Optional[float] = None,
+    news_report: Optional[Dict] = None,
+    is_opportunity: bool = False,
 ) -> Dict[str, Any]:
     """Run synthesize_stock using pre-built agent lookups."""
     # CIO v6.0 E3: Log warnings when agents have stocks section but ticker
@@ -1831,6 +2497,26 @@ def _synthesize_with_lookups(
             except (ValueError, TypeError):
                 pass
 
+    # CIO v23.0: Deterministic earnings date from fundamental report (yfinance calendar).
+    # Falls back to news agent web search if fundamental report has no date.
+    earnings_days_away = None
+    if fund_data.get("next_earnings_date"):
+        try:
+            from datetime import datetime as _dt
+            ed = _dt.strptime(fund_data["next_earnings_date"], "%Y-%m-%d").date()
+            today = _dt.now().date()
+            delta = (ed - today).days
+            if 0 <= delta <= 30:
+                earnings_days_away = delta
+        except (ValueError, TypeError):
+            pass
+    # CIO v20.0 D3: Fallback — extract from news report if fundamental had no date
+    if earnings_days_away is None and news_report:
+        earnings_cal = news_report.get("earnings_calendar", {}).get("next_2_weeks", [])
+        ticker_earnings = [e for e in earnings_cal if e.get("ticker") == ticker]
+        if ticker_earnings:
+            earnings_days_away = ticker_earnings[0].get("days_away", 14)
+
     return synthesize_stock(
         ticker=ticker,
         sig_data=sig_data,
@@ -1853,6 +2539,10 @@ def _synthesize_with_lookups(
         earnings_surprise_pct=earnings_surprise,
         consecutive_earnings_beats=consecutive_beats,
         regime_momentum=regime_momentum,
+        fg_score=fg_score,
+        earnings_days_away=earnings_days_away,
+        is_opportunity=is_opportunity,
+        fx_data=lookups.get("fx_data"),  # CIO v23.1 R6
     )
 
 
@@ -1929,11 +2619,23 @@ def apply_opportunity_gate(
     if entry["conviction"] >= 50:
         entry["action"] = "BUY"
     else:
-        # Below BUY threshold: HOLD (watch candidate).
-        # Opportunities never get SELL/TRIM — can't reduce
-        # a position you don't hold. Low conviction simply means
-        # "not compelling enough to buy."
+        # Below BUY threshold: WATCH candidate.
+        # CIO v23.3: Generate re-entry trigger for watchlist
         entry["action"] = "HOLD"
+        triggers = []
+        rsi = tech_data.get("rsi")
+        if rsi and rsi > 40:
+            triggers.append(f"RSI drops below 35 (currently {rsi:.0f})")
+        fund_score = fund_data.get("fundamental_score", 0)
+        if fund_score < 70:
+            triggers.append("Fundamental score improves above 70")
+        if confirmations < 2:
+            triggers.append(f"Gains additional agent confirmation ({confirmations}/4 currently)")
+        if entry.get("conviction", 0) >= 40:
+            triggers.append("Conviction improves by 10+ pts (near threshold)")
+        if not triggers:
+            triggers.append("Overall conditions improve")
+        entry["watch_trigger"] = "; ".join(triggers[:3])
 
     entry["is_opportunity"] = True
     entry["confirmations"] = confirmations
@@ -2109,7 +2811,9 @@ def build_concordance(
     concordance = []
 
     # Extract regime for sector-regime macro fit derivation (CIO Review F2)
-    regime = macro_report.get("regime", "")
+    # Macro agent writes regime as a dict: {classification: "RISK_OFF", ...}
+    regime_data = macro_report.get("regime", "")
+    regime = regime_data.get("classification") if isinstance(regime_data, dict) else regime_data
     if not regime:
         es = macro_report.get("executive_summary", {})
         regime = es.get("regime", "")
@@ -2119,6 +2823,12 @@ def build_concordance(
         macro_report, tech_report, fund_report, news_report,
     )
     logger.info("Regime momentum overlay: %s (regime=%s)", regime_momentum, regime)
+
+    # CIO v23.3: Regime transition model from concordance history
+    regime_transition = compute_regime_transition()
+    logger.info("Regime transition: %s (spread=%.1f)",
+                regime_transition.get("transition", "N/A"),
+                regime_transition.get("spread", 0))
 
     # CIO v7.0 P3: Risk warning dilution detection.
     # When >40% of portfolio stocks trigger risk warnings, the warnings are
@@ -2136,6 +2846,14 @@ def build_concordance(
             warned_count, total_count, warned_count / total_count * 100,
         )
 
+    # CIO v20.0 D2: Extract Fear & Greed score for contrarian indicator
+    # Census agent writes fear_greed.current (not sentiment.fg_broad)
+    fg_score = (
+        census_report.get("fear_greed", {}).get("current")
+        or census_report.get("sentiment", {}).get("fg_broad")
+        or census_report.get("fg_broad")
+    )
+
     # Process portfolio stocks
     for ticker, sig_data in portfolio_signals.items():
         sector = resolve_sector(ticker, sector_map)
@@ -2149,10 +2867,18 @@ def build_concordance(
             previous_signal=_prev_sig,
             days_since_signal_change=_prev_days,
             regime_momentum=regime_momentum,
+            fg_score=fg_score,
+            news_report=news_report,
+            is_opportunity=False,
         )
         entry["is_opportunity"] = False
         entry["kill_thesis_triggered"] = triggered_kill_theses.get(ticker, False)
         entry["risk_diluted"] = risk_diluted
+
+        # CIO v20.0 D1: Track days_held for conviction decay
+        if _prev_sig == entry["signal"]:
+            entry["days_held"] = _prev_days if _prev_days else 0
+
         concordance.append(entry)
 
     # Process new opportunities (CIO C2 gate)
@@ -2178,6 +2904,9 @@ def build_concordance(
             ticker, sig_data, lookups, fund_report, tech_report,
             sector, sec_median, census_ts_map, regime=regime,
             regime_momentum=regime_momentum,
+            fg_score=fg_score,
+            news_report=news_report,
+            is_opportunity=True,
         )
 
         # F1: Boost conviction for dual-synthetic stocks using opp_score.
@@ -2200,6 +2929,54 @@ def build_concordance(
             cen_align, portfolio_sectors, regime=regime,
         )
         concordance.append(entry)
+
+    # CIO v20.0 D1: Conviction decay — signals lose conviction over time
+    # Apply time-weighted decay for stocks held in same signal state >14 days
+    for entry in concordance:
+        days_held = entry.get("days_held", 0)
+        signal = entry.get("signal", "H")
+        if days_held > 14 and signal in ("B", "H"):
+            decay_factor = max(0.85, 0.98 ** (days_held / 7))
+            old_conviction = entry["conviction"]
+            entry["conviction"] = int(entry["conviction"] * decay_factor)
+            entry["conviction_decay_days"] = days_held
+            entry["conviction_decay_factor"] = round(decay_factor, 3)
+            # CIO v25.0: Track decay in waterfall
+            wf = entry.get("conviction_waterfall", {})
+            wf["conviction_decay"] = entry["conviction"] - old_conviction
+            entry["conviction_waterfall"] = wf
+            logger.debug(
+                "%s: conviction decay applied (days=%d, factor=%.3f, %d→%d)",
+                entry["ticker"], days_held, decay_factor, old_conviction, entry["conviction"]
+            )
+
+    # CIO v20.0 D6: Portfolio Sharpe impact — penalize redundant positions
+    # Compute correlation penalties based on risk report clusters
+    for entry in concordance:
+        ticker = entry["ticker"]
+        sharpe_penalty = compute_portfolio_sharpe_impact(
+            ticker, portfolio_signals, risk_report
+        )
+        if sharpe_penalty < 0:
+            entry["conviction"] += sharpe_penalty  # sharpe_penalty is negative
+            entry["portfolio_redundancy_penalty"] = abs(sharpe_penalty)
+            # CIO v25.0: Track redundancy in waterfall
+            wf = entry.get("conviction_waterfall", {})
+            wf["portfolio_redundancy"] = sharpe_penalty
+            entry["conviction_waterfall"] = wf
+            # Update position_size_pct with actual correlated count
+            correlations = risk_report.get("correlation_clusters", [])
+            correlated_count = 0
+            for cluster in correlations:
+                if ticker in cluster.get("tickers", []):
+                    correlated_count = len(cluster.get("tickers", [])) - 1
+                    break
+            entry["position_size_pct"] = compute_position_size(
+                entry["conviction"],
+                entry.get("beta", 1.0),
+                correlated_count,
+                entry.get("buy_pct", 0),
+            )
 
     # CIO v7.0 P4 + v11.0 L1/L5/L7: Sector concentration penalty.
     # When 3+ stocks share the same sector in the concordance, apply a small
@@ -2250,6 +3027,12 @@ def build_concordance(
                 floor = max(floor, 52)  # High-consensus BUY floor during concentration
             entry["conviction"] = max(floor, pre_penalty_conv - penalty)
             entry["sector_concentration_penalty"] = penalty
+            # CIO v25.0: Track sector concentration in waterfall
+            wf = entry.get("conviction_waterfall", {})
+            actual_delta = entry["conviction"] - pre_penalty_conv
+            if actual_delta != 0:
+                wf["sector_concentration"] = actual_delta
+            entry["conviction_waterfall"] = wf
 
     # CIO v11.0 L7: Re-apply conviction floors after sector concentration penalty.
     # The quality BUY floor (55 for strong BUY combos) should be immune to sector
@@ -2324,6 +3107,31 @@ def build_concordance(
         risk_adj_return = exret_val / beta_val
         confidence = conviction_val / 100.0
         entry["capital_efficiency"] = round(risk_adj_return * confidence, 2)
+
+    # CIO v23.4: Tax-loss harvesting (Q4 only: Oct-Dec)
+    from datetime import datetime as _dt_cls
+    current_month = _dt_cls.now().month
+    if current_month >= 10:  # Q4
+        # Identify correlation clusters for substitute suggestions
+        corr_clusters = risk_report.get("correlation_clusters", [])
+        cluster_map: Dict[str, list] = {}
+        for cl in corr_clusters:
+            tickers = cl.get("tickers", cl.get("stocks", []))
+            for t in tickers:
+                cluster_map[t] = [x for x in tickers if x != t]
+
+        for entry in concordance:
+            if not entry.get("is_opportunity") and entry.get("action") in ("HOLD", "TRIM", "SELL"):
+                price = entry.get("price", 0)
+                exret = entry.get("exret", 0)
+                # Negative EXRET as proxy for unrealized loss
+                if exret < -10:
+                    entry["tax_harvest_candidate"] = True
+                    substitutes = cluster_map.get(entry["ticker"], [])
+                    if substitutes:
+                        entry["tax_substitute"] = substitutes[0]
+                    else:
+                        entry["tax_substitute"] = None
 
     # Sort by action priority, then conviction desc, then tiebreak desc
     concordance.sort(
@@ -2545,6 +3353,7 @@ def generate_synthesis_output(
     performance_data: Optional[Dict] = None,
     tech_report: Optional[Dict] = None,
     fund_report: Optional[Dict] = None,
+    regime_transition: Optional[Dict] = None,
 ) -> Dict[str, Any]:
     """
     Generate complete synthesis JSON output from concordance and agent reports.
@@ -2559,20 +3368,79 @@ def generate_synthesis_output(
 
     # Extract risk metrics — try multiple field name conventions
     pr = risk_report.get("portfolio_risk", {})
-    var_95 = pr.get("var_95_daily") or pr.get("var_95") or 0
+    var_95 = pr.get("var_95_annual") or pr.get("var_95_daily") or pr.get("var_95") or 0
     max_dd = pr.get("max_drawdown_1y") or pr.get("max_drawdown") or 0
-    port_beta = pr.get("portfolio_beta", 0)
-    risk_score = pr.get("risk_score") or 50
+    port_beta = pr.get("portfolio_beta_vs_spy") or pr.get("portfolio_beta") or 0
+    risk_score = pr.get("risk_score") or risk_report.get("executive_summary", {}).get("overall_risk_rating_score", 50) or 50
 
-    # Macro — try nested paths for agent report compatibility
-    indicators = macro_report.get("indicators") or macro_report.get("macro_indicators", {})
+    # Macro — try nested paths for agent report compatibility.
+    # Macro agent writes: macro_indicators.us_10y_yield, regime.classification
+    indicators = macro_report.get("macro_indicators") or macro_report.get("indicators", {})
     es = macro_report.get("executive_summary", {})
-    regime = macro_report.get("regime") or (es.get("regime") if isinstance(es, dict) else "") or "CAUTIOUS"
+    regime_data = macro_report.get("regime", {})
+    regime = (
+        (regime_data.get("classification") if isinstance(regime_data, dict) else regime_data)
+        or (es.get("regime") if isinstance(es, dict) else "")
+        or "CAUTIOUS"
+    )
     macro_score = macro_report.get("macro_score") or (es.get("macro_score") if isinstance(es, dict) else 0) or 0
-    rotation = macro_report.get("rotation_phase", "Unknown")
+    rotation = (
+        macro_report.get("sector_rotation_view", {}).get("rationale", "").split(".")[0]
+        if isinstance(macro_report.get("sector_rotation_view"), dict)
+        else macro_report.get("sector_rotation_phase")
+        or macro_report.get("rotation_phase")
+        or "Unknown"
+    )
 
-    # Census
-    sentiment = census_report.get("sentiment", {})
+    # Census — normalise agent output to flat keys for HTML generator.
+    # Census agent writes: fear_greed.current, cash_trends.mean_cash_pct
+    # Older formats may use: sentiment.top100.fear_greed_index, etc.
+    sentiment = {}
+    # Primary path: census agent top-level keys
+    fg_data = census_report.get("fear_greed", {})
+    cash_data = census_report.get("cash_trends", {})
+    fg_val = fg_data.get("current") or fg_data.get("value")
+    cash_val = cash_data.get("mean_cash_pct") or cash_data.get("avg_cash_pct")
+
+    # Fallback: nested sentiment structure (older report formats)
+    sentiment_raw = census_report.get("sentiment", {})
+    t100 = sentiment_raw.get("top100", {})
+    b1500 = sentiment_raw.get("broad_1500", sentiment_raw.get("broad", {}))
+
+    sentiment["fg_top100"] = (
+        fg_val
+        or t100.get("fear_greed_index")
+        or sentiment_raw.get("fg_top100")
+        or 0
+    )
+    sentiment["fg_broad"] = (
+        fg_val  # Census agent reports one F&G value, use for both
+        or b1500.get("fear_greed_index")
+        or sentiment_raw.get("fg_broad")
+        or 0
+    )
+    sentiment["cash_top100"] = (
+        cash_val
+        or t100.get("avg_cash_pct")
+        or sentiment_raw.get("cash_top100")
+        or 0
+    )
+    sentiment["cash_broad"] = (
+        cash_val
+        or b1500.get("avg_cash_pct")
+        or sentiment_raw.get("cash_broad")
+        or 0
+    )
+    sentiment["trend_summary"] = (
+        cash_data.get("assessment")
+        or fg_data.get("contrarian_signal")
+        or sentiment_raw.get("trend_summary")
+        or ""
+    )
+    # Preserve extra keys from any format
+    for k, v in sentiment_raw.items():
+        if k not in ("top100", "broad_1500", "broad") and k not in sentiment:
+            sentiment[k] = v
 
     # CIO v19.0: Compute regime momentum for synthesis output
     regime_momentum = compute_regime_momentum(
@@ -2582,8 +3450,17 @@ def generate_synthesis_output(
         news_report,
     )
 
+    # CIO v23.3: Build watchlist from gated opportunities
+    watchlist = [
+        {"ticker": e["ticker"], "conviction": e["conviction"],
+         "watch_trigger": e.get("watch_trigger", ""),
+         "sector": e.get("sector", "")}
+        for e in concordance
+        if e.get("is_opportunity") and e.get("action") == "HOLD" and e.get("watch_trigger")
+    ]
+
     output = {
-        "version": "v19.0_regime_momentum",
+        "version": "v26.0",
         "concordance": concordance,
         "action_distribution": dict(action_dist),
         "changes": changes,
@@ -2606,8 +3483,14 @@ def generate_synthesis_output(
         "fg_top100": sentiment.get("fg_top100", 0),
         "fg_broad": sentiment.get("fg_broad", 0),
         "census_sentiment": sentiment,
-        "top_holdings_top100": census_report.get("top_holdings_top100", []),
-        "missing_popular": census_report.get("portfolio_alignment", {}).get("missing_popular", []),
+        "top_holdings_top100": (
+            census_report.get("portfolio_pi_overlap", {}).get("most_popular_holdings")
+            or census_report.get("top_holdings_top100", [])
+        ),
+        "missing_popular": (
+            census_report.get("missing_popular", {}).get("stocks_not_in_portfolio_but_popular")
+            or census_report.get("portfolio_alignment", {}).get("missing_popular", [])
+        ),
         "census_time_series": census_ts_map or {},
         # News
         "breaking_news": news_report.get("breaking_news", []),
@@ -2625,6 +3508,9 @@ def generate_synthesis_output(
         "top_opportunities": (opportunity_report or {}).get("top_opportunities", []),
         # CIO v17.0: Performance feedback loop data
         "performance": performance_data or {},
+        # CIO v23.3: Signal quality & timing
+        "regime_transition": regime_transition or {},
+        "watchlist": watchlist,
     }
 
     return output
