@@ -76,6 +76,34 @@ def log_committee_actions(
             "dissenting_agents": action.get("dissenting_agents"),
             "signal": action.get("signal"),  # From signal engine
             "price_at_recommendation": action.get("price"),
+            # CIO v22.0: Log new indicators for future calibration
+            "adx": action.get("adx"),
+            "adx_trend": action.get("adx_trend"),
+            "divergence": action.get("divergence"),
+            "piotroski_score": action.get("piotroski_score"),
+            "entry_timing": action.get("entry_timing"),
+            # CIO v21.0 R1-R5: Codified conviction modifiers
+            "rs_vs_spy": action.get("rs_vs_spy"),
+            "revenue_growth_class": action.get("revenue_growth_class"),
+            "atr_pct": action.get("atr_pct"),
+            # CIO v23.0 S1-S2: Quick-win modifiers
+            "short_interest_pct": action.get("short_interest_pct"),
+            "target_dispersion": action.get("target_dispersion"),
+            # CIO v23.1 R6: Currency risk
+            "currency_zone": action.get("currency_zone"),
+            "fx_impact": action.get("fx_impact"),
+            # CIO v23.3: Signal quality modifiers
+            "confluence_score": action.get("confluence_score"),
+            "obv_trend": action.get("obv_trend"),
+            "relative_volume": action.get("relative_volume"),
+            "eps_revisions": action.get("eps_revisions"),
+            # CIO v23.4: Advanced fundamentals & timing
+            "iv_rank": action.get("iv_rank"),
+            "volatility_regime": action.get("volatility_regime"),
+            "fcf_classification": action.get("fcf_classification"),
+            "debt_risk": action.get("debt_risk"),
+            # CIO v25.0: Conviction waterfall for calibration
+            "conviction_waterfall": action.get("conviction_waterfall"),
         }
 
         with open(path, "a") as f:
@@ -203,6 +231,8 @@ def generate_committee_scorecard(
         "buy_recommendations": _summarize_buys(buy_results),
         "sell_recommendations": _summarize_sells(sell_results),
         "conviction_calibration": _calibrate_conviction(buy_results),
+        "benchmark_comparison": compute_benchmark_comparison(months_back, log_path),
+        "modifier_attribution": attribute_performance_to_modifiers(months_back, log_path),
         "details": {
             "buys": buy_results,
             "sells": sell_results,
@@ -632,6 +662,25 @@ def check_kill_theses(
     # Load portfolio signals
     signals = _load_portfolio_signals(signals_path)
 
+    # CIO v22.0: Load latest concordance for ADX/divergence/Piotroski triggers
+    concordance_map = {}
+    concordance_path = COMMITTEE_LOG_DIR / "concordance.json"
+    if concordance_path.exists():
+        try:
+            with open(concordance_path, "r") as f:
+                conc_data = json.load(f)
+            # Handle both list format and dict-with-stocks format
+            entries = conc_data if isinstance(conc_data, list) else conc_data.get("concordance", [])
+            if isinstance(entries, dict):
+                concordance_map = entries
+            else:
+                for entry in entries:
+                    tkr = entry.get("ticker", "")
+                    if tkr:
+                        concordance_map[tkr] = entry
+        except (json.JSONDecodeError, OSError):
+            pass
+
     now = datetime.now()
     cutoff = now - timedelta(days=KILL_THESIS_DEFAULT_EXPIRY_DAYS)
 
@@ -679,6 +728,7 @@ def check_kill_theses(
         # Check heuristic triggers against signal data
         ticker = thesis.get("ticker", "")
         signal_data = signals.get(ticker)
+        concordance_entry = concordance_map.get(ticker, {})
 
         triggers = []
         if signal_data:
@@ -719,6 +769,22 @@ def check_kill_theses(
                     cond_met = True
                 if cond_met:
                     triggers.append(f"custom:{metric} {operator} {threshold}")
+
+        # CIO v22.0: Check concordance-sourced indicators
+        if concordance_entry:
+            # Bearish RSI divergence on a BUY position = reversal warning
+            if concordance_entry.get("divergence") == "bearish":
+                triggers.append("bearish_divergence")
+
+            # Strong downtrend confirmed by ADX >= 30 with -DI dominant
+            adx = concordance_entry.get("adx")
+            if adx and adx >= 30 and concordance_entry.get("entry_timing") in ("AVOID", "EXIT_SOON"):
+                triggers.append("strong_downtrend_confirmed")
+
+            # Piotroski quality deterioration (score <= 2 = severe weakness)
+            pio = concordance_entry.get("piotroski_score", 0)
+            if pio and pio <= 2:
+                triggers.append("piotroski_quality_failure")
 
         if triggers:
             thesis["status"] = "triggered"
@@ -970,6 +1036,44 @@ def _calibrate_conviction(results: List[Dict]) -> Dict[str, Any]:
         calibration["conviction_predictive"] = high_avg > low_avg
         calibration["conviction_spread"] = round(high_avg - low_avg, 2)
 
+    # CIO v22.0 + v21.0: Indicator effectiveness tracking
+    indicator_groups = {
+        "strong_adx": [r for r in scored if r.get("adx") and r["adx"] >= 30],
+        "bullish_divergence": [r for r in scored if r.get("divergence") == "bullish"],
+        "high_piotroski": [r for r in scored if r.get("piotroski_score") and r["piotroski_score"] >= 7],
+        # CIO v21.0 R1-R5: Track effectiveness of codified modifiers
+        "rs_outperforming": [r for r in scored if r.get("rs_vs_spy") and r["rs_vs_spy"] > 1.0],
+        "rs_underperforming": [r for r in scored if r.get("rs_vs_spy") and r["rs_vs_spy"] < 0.95],
+        "rev_accelerating": [r for r in scored if r.get("revenue_growth_class", "").upper() in ("ACCELERATING", "STRONG_GROWTH")],
+        "high_atr_pct": [r for r in scored if r.get("atr_pct") and r["atr_pct"] > 5.0],
+        # CIO v23.0 S1-S2
+        "high_short_interest": [r for r in scored if r.get("short_interest_pct") and r["short_interest_pct"] > 10],
+        "high_dispersion": [r for r in scored if r.get("target_dispersion") and r["target_dispersion"] > 30],
+        "low_dispersion": [r for r in scored if r.get("target_dispersion") and r["target_dispersion"] < 10],
+        # CIO v23.1 R6
+        "usd_zone": [r for r in scored if r.get("currency_zone") == "USD"],
+        "eur_zone": [r for r in scored if r.get("currency_zone") == "EUR"],
+        "other_fx_zone": [r for r in scored if r.get("currency_zone") not in (None, "USD", "EUR", "CRYPTO")],
+        # CIO v23.3: Signal quality modifiers
+        "strong_confluence": [r for r in scored if r.get("confluence_score") and r["confluence_score"] >= 5],
+        "weak_confluence": [r for r in scored if r.get("confluence_score") and r["confluence_score"] <= -3],
+        "volume_confirmed": [r for r in scored if r.get("relative_volume") and r["relative_volume"] > 1.5 and r.get("obv_trend") == "RISING"],
+        "eps_revisions_up": [r for r in scored if r.get("eps_revisions") == "REVISIONS_UP"],
+        # CIO v23.4: Advanced fundamentals & timing
+        "low_iv_rank": [r for r in scored if r.get("iv_rank") is not None and r["iv_rank"] < 20],
+        "high_iv_rank": [r for r in scored if r.get("iv_rank") is not None and r["iv_rank"] > 80],
+        "strong_fcf": [r for r in scored if r.get("fcf_classification") == "STRONG"],
+        "weak_fcf": [r for r in scored if r.get("fcf_classification") == "WEAK"],
+        "high_debt_risk": [r for r in scored if r.get("debt_risk") == "HIGH_RISK"],
+    }
+    for label, group in indicator_groups.items():
+        if len(group) >= 3:
+            avg_ret = float(np.mean([r["return_30d"] for r in group]))
+            hit = sum(1 for r in group if r["return_30d"] > 0) / len(group) * 100
+            calibration[f"{label}_avg_return"] = round(avg_ret, 2)
+            calibration[f"{label}_hit_rate"] = round(hit, 1)
+            calibration[f"{label}_count"] = len(group)
+
     return calibration
 
 
@@ -990,4 +1094,273 @@ def _empty_scorecard(months_back: int) -> Dict[str, Any]:
         "sell_recommendations": {"total": 0},
         "conviction_calibration": {"sufficient_data": False},
         "details": {"buys": [], "sells": []},
+    }
+
+
+# =============================================================================
+# CIO v23.6: Self-Calibration Infrastructure
+# =============================================================================
+
+def calibrate_modifiers(
+    months_back: int = 3,
+    min_observations: int = 10,
+    log_path: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """
+    CIO v23.6: Auto-calibration from scorecard data.
+
+    For each modifier/indicator group, computes:
+    - Hit rate with vs without the modifier applied
+    - Average return delta
+    - Statistical significance (n >= min_observations)
+    - Recommendation: KEEP, ADJUST, or REMOVE
+
+    Returns calibration report with per-modifier analysis.
+    """
+    actions = load_committee_actions(months_back, log_path)
+    if not actions:
+        return {"sufficient_data": False, "total_actions": 0}
+
+    try:
+        import yfinance as yf
+    except ImportError:
+        return {"sufficient_data": False, "error": "yfinance not available"}
+
+    # Fetch current prices for return calculation
+    tickers = list(set(a["ticker"] for a in actions if a.get("ticker")))
+    if not tickers:
+        return {"sufficient_data": False, "total_actions": 0}
+
+    scored = []
+    try:
+        data = yf.download(tickers, period="3mo", progress=False, auto_adjust=True)
+        prices = {}
+        if not data.empty:
+            for t in tickers:
+                try:
+                    closes = data['Close'][t].dropna() if len(tickers) > 1 else data['Close'].dropna()
+                    if not closes.empty:
+                        prices[t] = float(closes.iloc[-1])
+                except (KeyError, IndexError):
+                    pass
+    except Exception:
+        prices = {}
+
+    for a in actions:
+        t = a.get("ticker")
+        rec_price = a.get("price_at_recommendation")
+        curr = prices.get(t)
+        if rec_price and curr and rec_price > 0:
+            ret = (curr - rec_price) / rec_price * 100
+            scored.append({**a, "return_pct": round(ret, 2)})
+
+    if len(scored) < min_observations:
+        return {"sufficient_data": False, "total_scored": len(scored),
+                "min_required": min_observations}
+
+    # Define modifier groups to calibrate
+    modifier_defs = {
+        "strong_adx": lambda r: r.get("adx") and r["adx"] >= 30,
+        "bullish_divergence": lambda r: r.get("divergence") == "bullish",
+        "high_piotroski": lambda r: r.get("piotroski_score") and r["piotroski_score"] >= 7,
+        "rs_outperforming": lambda r: r.get("rs_vs_spy") and r["rs_vs_spy"] > 1.0,
+        "high_short_interest": lambda r: r.get("short_interest_pct") and r["short_interest_pct"] > 10,
+        "strong_confluence": lambda r: r.get("confluence_score") and r["confluence_score"] >= 5,
+        "volume_confirmed": lambda r: r.get("relative_volume") and r["relative_volume"] > 1.5,
+        "eps_revisions_up": lambda r: r.get("eps_revisions") == "REVISIONS_UP",
+        "strong_fcf": lambda r: r.get("fcf_classification") == "STRONG",
+    }
+
+    calibration = {"sufficient_data": True, "total_scored": len(scored), "modifiers": {}}
+    buy_scored = [r for r in scored if r.get("action") == "BUY"]
+    baseline_avg = float(np.mean([r["return_pct"] for r in buy_scored])) if buy_scored else 0
+    baseline_hit = (sum(1 for r in buy_scored if r["return_pct"] > 0) / len(buy_scored) * 100) if buy_scored else 0
+
+    for mod_name, mod_fn in modifier_defs.items():
+        with_mod = [r for r in buy_scored if mod_fn(r)]
+        without_mod = [r for r in buy_scored if not mod_fn(r)]
+
+        if len(with_mod) >= 3 and len(without_mod) >= 3:
+            with_avg = float(np.mean([r["return_pct"] for r in with_mod]))
+            without_avg = float(np.mean([r["return_pct"] for r in without_mod]))
+            with_hit = sum(1 for r in with_mod if r["return_pct"] > 0) / len(with_mod) * 100
+            without_hit = sum(1 for r in without_mod if r["return_pct"] > 0) / len(without_mod) * 100
+
+            delta = with_avg - without_avg
+            if delta > 2 and with_hit > without_hit:
+                recommendation = "KEEP"
+            elif delta < -2 and with_hit < without_hit:
+                recommendation = "REMOVE"
+            else:
+                recommendation = "ADJUST"
+
+            calibration["modifiers"][mod_name] = {
+                "with_count": len(with_mod),
+                "without_count": len(without_mod),
+                "with_avg_return": round(with_avg, 2),
+                "without_avg_return": round(without_avg, 2),
+                "return_delta": round(delta, 2),
+                "with_hit_rate": round(with_hit, 1),
+                "without_hit_rate": round(without_hit, 1),
+                "recommendation": recommendation,
+            }
+
+    calibration["baseline"] = {
+        "avg_return": round(baseline_avg, 2),
+        "hit_rate": round(baseline_hit, 1),
+        "total_buys": len(buy_scored),
+    }
+
+    # CIO v25.0: Waterfall-based calibration — uses actual conviction deltas
+    # when available, providing richer attribution than binary presence/absence.
+    wf_stats: Dict[str, Dict[str, Any]] = {}
+    for r in scored:
+        wf = r.get("conviction_waterfall")
+        if not isinstance(wf, dict):
+            continue
+        for mod_key, delta in wf.items():
+            if mod_key.startswith("_"):
+                continue
+            if mod_key not in wf_stats:
+                wf_stats[mod_key] = {"deltas": [], "returns": []}
+            wf_stats[mod_key]["deltas"].append(delta)
+            wf_stats[mod_key]["returns"].append(r.get("return_pct", 0))
+
+    if wf_stats:
+        calibration["waterfall_calibration"] = {}
+        for mod_key, stats in wf_stats.items():
+            if len(stats["deltas"]) < 3:
+                continue
+            avg_delta = float(np.mean(stats["deltas"]))
+            avg_return = float(np.mean(stats["returns"]))
+            correlation = float(np.corrcoef(stats["deltas"], stats["returns"])[0, 1]) \
+                if len(stats["deltas"]) >= 5 else None
+            calibration["waterfall_calibration"][mod_key] = {
+                "count": len(stats["deltas"]),
+                "avg_delta": round(avg_delta, 2),
+                "avg_return": round(avg_return, 2),
+                "delta_return_corr": round(correlation, 3) if correlation is not None else None,
+            }
+
+    return calibration
+
+
+def attribute_performance_to_modifiers(
+    months_back: int = 3,
+    log_path: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """
+    CIO v23.6: Performance attribution per modifier.
+
+    For each modifier that fired, compute:
+    - "Stocks that got [modifier] bonus returned X% vs Y% without"
+    - Validates or invalidates each modifier individually.
+    """
+    cal = calibrate_modifiers(months_back, min_observations=5, log_path=log_path)
+    if not cal.get("sufficient_data"):
+        return {"sufficient_data": False}
+
+    attribution = {"sufficient_data": True, "modifiers": {}}
+    baseline = cal.get("baseline", {})
+
+    for mod_name, mod_data in cal.get("modifiers", {}).items():
+        delta = mod_data.get("return_delta", 0)
+        with_hit = mod_data.get("with_hit_rate", 0)
+        recommendation = mod_data.get("recommendation", "ADJUST")
+
+        verdict = "EFFECTIVE" if recommendation == "KEEP" else (
+            "INEFFECTIVE" if recommendation == "REMOVE" else "INCONCLUSIVE"
+        )
+
+        attribution["modifiers"][mod_name] = {
+            "verdict": verdict,
+            "return_delta": delta,
+            "with_avg": mod_data.get("with_avg_return", 0),
+            "without_avg": mod_data.get("without_avg_return", 0),
+            "with_hit_rate": with_hit,
+            "sample_size": mod_data.get("with_count", 0),
+            "narrative": (
+                f"Stocks with {mod_name} returned {mod_data.get('with_avg_return', 0):.1f}% "
+                f"vs {mod_data.get('without_avg_return', 0):.1f}% without "
+                f"({delta:+.1f}% delta, {with_hit:.0f}% hit rate)"
+            ),
+        }
+
+    return attribution
+
+
+def compute_benchmark_comparison(
+    months_back: int = 3,
+    log_path: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """
+    CIO v23.6: Committee BUY portfolio vs SPY buy-and-hold.
+
+    Computes information ratio, tracking error, and excess return.
+    """
+    actions = load_committee_actions(months_back, log_path)
+    buy_actions = [a for a in actions if a.get("action") == "BUY" and a.get("price_at_recommendation")]
+
+    if len(buy_actions) < 3:
+        return {"sufficient_data": False}
+
+    try:
+        import yfinance as yf
+    except ImportError:
+        return {"sufficient_data": False, "error": "yfinance not available"}
+
+    # Get SPY performance over the same period
+    try:
+        spy = yf.download("SPY", period=f"{months_back * 30}d", progress=False, auto_adjust=True)
+        if spy.empty:
+            return {"sufficient_data": False}
+        spy_start = float(spy['Close'].iloc[0])
+        spy_end = float(spy['Close'].iloc[-1])
+        spy_return = (spy_end - spy_start) / spy_start * 100
+    except Exception:
+        return {"sufficient_data": False, "error": "SPY data unavailable"}
+
+    # Get current prices for BUY portfolio
+    tickers = list(set(a["ticker"] for a in buy_actions))
+    try:
+        data = yf.download(tickers, period="3mo", progress=False, auto_adjust=True)
+    except Exception:
+        return {"sufficient_data": False}
+
+    returns = []
+    for a in buy_actions:
+        t = a.get("ticker")
+        rec_price = a.get("price_at_recommendation", 0)
+        if not rec_price:
+            continue
+        try:
+            closes = data['Close'][t].dropna() if len(tickers) > 1 else data['Close'].dropna()
+            curr = float(closes.iloc[-1])
+            ret = (curr - rec_price) / rec_price * 100
+            returns.append(ret)
+        except (KeyError, IndexError):
+            pass
+
+    if len(returns) < 3:
+        return {"sufficient_data": False}
+
+    portfolio_return = float(np.mean(returns))
+    excess_return = portfolio_return - spy_return
+
+    # Tracking error (std dev of return differences from SPY)
+    return_diffs = [r - spy_return for r in returns]
+    tracking_error = float(np.std(return_diffs)) if len(return_diffs) > 1 else 0
+
+    # Information ratio
+    info_ratio = excess_return / tracking_error if tracking_error > 0 else 0
+
+    return {
+        "sufficient_data": True,
+        "portfolio_return": round(portfolio_return, 2),
+        "spy_return": round(spy_return, 2),
+        "excess_return": round(excess_return, 2),
+        "tracking_error": round(tracking_error, 2),
+        "information_ratio": round(info_ratio, 2),
+        "total_buys_evaluated": len(returns),
+        "period_months": months_back,
     }

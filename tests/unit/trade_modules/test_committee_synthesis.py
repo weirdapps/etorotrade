@@ -402,13 +402,13 @@ class TestComputeAdjustments:
     def test_agent_agreement_bonus_5(self):
         kw = self._default_kwargs()
         kw["bull_count"] = 5
-        bonuses, _ = compute_adjustments(**kw)
+        bonuses, _, _ = compute_adjustments(**kw)
         assert bonuses >= 10
 
     def test_agent_agreement_bonus_6(self):
         kw = self._default_kwargs()
         kw["bull_count"] = 6
-        bonuses, _ = compute_adjustments(**kw)
+        bonuses, _, _ = compute_adjustments(**kw)
         assert bonuses >= 15
 
     def test_consensus_warning_tiered(self):
@@ -417,65 +417,65 @@ class TestComputeAdjustments:
         kw["buy_pct"] = 95
 
         kw["excess_exret"] = 20
-        _, p_high = compute_adjustments(**kw)
+        _, p_high, _ = compute_adjustments(**kw)
 
         kw["excess_exret"] = 5
-        _, p_mid = compute_adjustments(**kw)
+        _, p_mid, _ = compute_adjustments(**kw)
 
         kw["excess_exret"] = -5
-        _, p_low = compute_adjustments(**kw)
+        _, p_low, _ = compute_adjustments(**kw)
 
         assert p_low > p_mid > p_high
 
     def test_census_alignment_bonus(self):
         kw = self._default_kwargs()
         kw["div_score"] = 0
-        bonuses, _ = compute_adjustments(**kw)
+        bonuses, _, _ = compute_adjustments(**kw)
         # div_score in [-20, 20] → +5
         assert bonuses >= 5
 
     def test_census_strong_alignment(self):
         kw = self._default_kwargs()
         kw["div_score"] = -30
-        bonuses, _ = compute_adjustments(**kw)
+        bonuses, _, _ = compute_adjustments(**kw)
         assert bonuses >= 8
 
     def test_high_beta_penalty(self):
         kw = self._default_kwargs()
         kw["beta"] = 2.5
-        _, penalties = compute_adjustments(**kw)
+        _, penalties, _ = compute_adjustments(**kw)
         assert penalties >= 5
 
     def test_quality_trap_penalty(self):
         kw = self._default_kwargs()
         kw["quality_trap"] = True
-        _, penalties = compute_adjustments(**kw)
+        _, penalties, _ = compute_adjustments(**kw)
         assert penalties >= 5
 
     def test_rsi_overbought_penalty(self):
         kw = self._default_kwargs()
         kw["rsi"] = 75
-        _, penalties = compute_adjustments(**kw)
+        _, penalties, _ = compute_adjustments(**kw)
         assert penalties >= 5
 
     def test_macro_favorable_bonus(self):
         kw = self._default_kwargs()
         kw["macro_fit"] = "FAVORABLE"
-        bonuses, _ = compute_adjustments(**kw)
+        bonuses, _, _ = compute_adjustments(**kw)
         assert bonuses >= 5
 
     def test_macro_unfavorable_cyclical_penalty(self):
         kw = self._default_kwargs()
         kw["macro_fit"] = "UNFAVORABLE"
         kw["sector"] = "Financials"
-        _, penalties = compute_adjustments(**kw)
+        _, penalties, _ = compute_adjustments(**kw)
         assert penalties >= 10
 
     def test_macro_unfavorable_noncyclical_penalty(self):
         kw = self._default_kwargs()
         kw["macro_fit"] = "UNFAVORABLE"
         kw["sector"] = "Technology"
-        _, penalties = compute_adjustments(**kw)
+        _, penalties, _ = compute_adjustments(**kw)
         assert penalties >= 5
 
     def test_sell_tech_disagreement_penalty(self):
@@ -483,7 +483,7 @@ class TestComputeAdjustments:
         kw = self._default_kwargs()
         kw["signal"] = "S"
         kw["tech_signal"] = "ENTER_NOW"
-        _, penalties = compute_adjustments(**kw)
+        _, penalties, _ = compute_adjustments(**kw)
         assert penalties >= 5
 
     def test_bonus_cap_at_20(self):
@@ -492,7 +492,7 @@ class TestComputeAdjustments:
         kw["div_score"] = -30       # +8
         kw["news_impact"] = "HIGH_POSITIVE"  # +5
         kw["macro_fit"] = "FAVORABLE"  # +5
-        bonuses, _ = compute_adjustments(**kw)
+        bonuses, _, _ = compute_adjustments(**kw)
         assert bonuses <= 20
 
     def test_penalty_cap_at_25(self):
@@ -503,33 +503,33 @@ class TestComputeAdjustments:
         kw["beta"] = 2.5            # -5
         kw["quality_trap"] = True   # -5
         kw["macro_fit"] = "UNFAVORABLE"  # -10
-        _, penalties = compute_adjustments(**kw)
+        _, penalties, _ = compute_adjustments(**kw)
         assert penalties <= 25
 
     def test_census_distribution_penalty(self):
         kw = self._default_kwargs()
         kw["census_ts"] = "strong_distribution"
-        _, penalties = compute_adjustments(**kw)
+        _, penalties, _ = compute_adjustments(**kw)
         assert penalties >= 5
 
     def test_census_accumulation_bonus(self):
         kw = self._default_kwargs()
         kw["census_ts"] = "strong_accumulation"
-        bonuses, _ = compute_adjustments(**kw)
+        bonuses, _, _ = compute_adjustments(**kw)
         assert bonuses >= 3
 
     def test_sector_rotation_leading(self):
         kw = self._default_kwargs()
         kw["sector"] = "Technology"
         kw["sector_rankings"] = {"XLK": {"rank": 1, "return_1m": 8.5}}
-        bonuses, _ = compute_adjustments(**kw)
+        bonuses, _, _ = compute_adjustments(**kw)
         assert bonuses >= 5
 
     def test_sector_rotation_lagging(self):
         kw = self._default_kwargs()
         kw["sector"] = "Technology"
         kw["sector_rankings"] = {"XLK": {"rank": 10, "return_1m": -5.0}}
-        _, penalties = compute_adjustments(**kw)
+        _, penalties, _ = compute_adjustments(**kw)
         assert penalties >= 5
 
     def test_tech_disagreement_buy_avoid(self):
@@ -537,7 +537,7 @@ class TestComputeAdjustments:
         kw = self._default_kwargs()
         kw["signal"] = "B"
         kw["tech_signal"] = "AVOID"
-        _, penalties = compute_adjustments(**kw)
+        _, penalties, _ = compute_adjustments(**kw)
         assert penalties >= 8
 
     def test_tech_disagreement_buy_exit(self):
@@ -545,7 +545,7 @@ class TestComputeAdjustments:
         kw = self._default_kwargs()
         kw["signal"] = "B"
         kw["tech_signal"] = "EXIT_SOON"
-        _, penalties = compute_adjustments(**kw)
+        _, penalties, _ = compute_adjustments(**kw)
         assert penalties >= 8
 
     def test_tech_disagreement_buy_negative_momentum(self):
@@ -553,7 +553,7 @@ class TestComputeAdjustments:
         kw = self._default_kwargs()
         kw["signal"] = "B"
         kw["tech_momentum"] = -35
-        _, penalties = compute_adjustments(**kw)
+        _, penalties, _ = compute_adjustments(**kw)
         assert penalties >= 5
 
     def test_tech_disagreement_not_for_hold(self):
@@ -561,9 +561,9 @@ class TestComputeAdjustments:
         kw = self._default_kwargs()
         kw["signal"] = "H"
         kw["tech_signal"] = "AVOID"
-        _, penalties_hold = compute_adjustments(**kw)
+        _, penalties_hold, _ = compute_adjustments(**kw)
         kw["signal"] = "B"
-        _, penalties_buy = compute_adjustments(**kw)
+        _, penalties_buy, _ = compute_adjustments(**kw)
         assert penalties_buy > penalties_hold
 
 
@@ -2400,9 +2400,9 @@ class TestEarningsSurprise:
     """Tests for CIO Legacy B5: earnings surprise adjustment."""
 
     def test_serial_beater(self):
-        """Big beat + consecutive beats = +5."""
+        """Big beat + consecutive beats = +8 (CIO v20.0 D3 enhanced PEAD)."""
         adj, label = get_earnings_surprise_adjustment(15.0, 3)
-        assert adj == 5
+        assert adj == 8
         assert label == "SERIAL_BEATER"
 
     def test_single_beat(self):
@@ -2843,16 +2843,13 @@ class TestPenaltyCapSaturation:
             earnings_surprise_pct=-15,  # BIG_MISS → -5
         )
         # Signal quality: contradiction(5+3) + velocity(5) + earnings(5) = 18, capped at 10
-        # So total penalties = base_penalties + 10 (capped signal quality)
-        # Signal quality should not exceed 10
-        base_penalties_only = compute_adjustments(
-            "H", 85, "ENTER_NOW", 0, 50,
-            "UNFAVORABLE", "NEUTRAL", 0, "stable",
-            "NEUTRAL", True, 95, 0, 2.5, False,
-            "Technology", {}, 5,
-        )[1]
-        # Total should be at most base + 10
-        assert result["penalties"] <= base_penalties_only + 10
+        # The waterfall records intended values; signal_quality_cap records the absorbed excess
+        wf = result.get("conviction_waterfall", {})
+        sq_keys = {"contradiction", "signal_velocity", "earnings_surprise", "low_dir_confidence"}
+        sq_intended = sum(abs(wf.get(k, 0)) for k in sq_keys)
+        sq_absorbed = wf.get("signal_quality_cap", 0)
+        sq_effective = sq_intended - sq_absorbed
+        assert sq_effective <= 10, f"Effective signal quality {sq_effective} exceeds cap of 10"
 
 
 # ============================================================
@@ -3795,22 +3792,22 @@ class TestV12M3EarningsTrajectory:
         assert adj == adj_base
         assert "_ACCEL" not in label
 
-    def test_capped_at_seven(self):
-        """ACCELERATING trajectory adjustment should cap at 7."""
+    def test_capped_at_ten(self):
+        """ACCELERATING trajectory adjustment should cap at 10 (v25.0)."""
         adj, _ = get_earnings_surprise_adjustment(
             recent_surprise_pct=15.0,
             consecutive_beats=4,
             surprise_trajectory="ACCELERATING",
         )
-        assert adj <= 7
+        assert adj <= 10
 
     def test_backward_compatible_without_trajectory(self):
-        """Without surprise_trajectory, behavior should be unchanged."""
+        """Without surprise_trajectory, serial beater returns +8 (v20.0 D3)."""
         adj_new, label_new = get_earnings_surprise_adjustment(
             recent_surprise_pct=12.0,
             consecutive_beats=3,
         )
-        assert adj_new == 5
+        assert adj_new == 8
         assert label_new == "SERIAL_BEATER"
 
 
@@ -3934,7 +3931,7 @@ class TestV14BuyTechDisagreePenaltyScaling:
 
     def test_oversold_penalty_reduced(self):
         """At RSI < 35, BUY+AVOID penalty should be only -2."""
-        bonuses, penalties = compute_adjustments(
+        bonuses, penalties, _ = compute_adjustments(
             signal="B", fund_score=70, tech_signal="AVOID",
             tech_momentum=-10, rsi=30, macro_fit="NEUTRAL",
             census_alignment="NEUTRAL", div_score=0, census_ts="stable",
@@ -3948,7 +3945,7 @@ class TestV14BuyTechDisagreePenaltyScaling:
 
     def test_neutral_rsi_moderate_penalty(self):
         """At RSI 35-50, penalty should be -5."""
-        _, penalties_mod = compute_adjustments(
+        _, penalties_mod, _ = compute_adjustments(
             signal="B", fund_score=70, tech_signal="AVOID",
             tech_momentum=-10, rsi=45, macro_fit="NEUTRAL",
             census_alignment="NEUTRAL", div_score=0, census_ts="stable",
@@ -3956,7 +3953,7 @@ class TestV14BuyTechDisagreePenaltyScaling:
             excess_exret=10, beta=1.0, quality_trap=False,
             sector="Technology", sector_rankings={}, bull_count=4,
         )
-        _, penalties_os = compute_adjustments(
+        _, penalties_os, _ = compute_adjustments(
             signal="B", fund_score=70, tech_signal="AVOID",
             tech_momentum=-10, rsi=30, macro_fit="NEUTRAL",
             census_alignment="NEUTRAL", div_score=0, census_ts="stable",
@@ -4531,7 +4528,7 @@ class TestV16ConsensusWarningSmoothing:
 
     def test_marginal_below_median_gets_intermediate_penalty(self):
         """Stock barely below sector median (-0.9%) gets -11, not -15."""
-        _, penalties = compute_adjustments(
+        _, penalties, _ = compute_adjustments(
             signal="B", fund_score=85, tech_signal="HOLD",
             tech_momentum=15, rsi=50, macro_fit="NEUTRAL",
             census_alignment="NEUTRAL", div_score=0,
@@ -4547,7 +4544,7 @@ class TestV16ConsensusWarningSmoothing:
 
     def test_significantly_below_median_gets_full_penalty(self):
         """Stock well below sector median (-15%) gets full -15."""
-        _, penalties = compute_adjustments(
+        _, penalties, _ = compute_adjustments(
             signal="B", fund_score=75, tech_signal="HOLD",
             tech_momentum=0, rsi=50, macro_fit="NEUTRAL",
             census_alignment="NEUTRAL", div_score=0,
@@ -4563,7 +4560,7 @@ class TestV16ConsensusWarningSmoothing:
 
     def test_above_median_unchanged(self):
         """Stock above sector median still gets -8 (unchanged)."""
-        _, penalties = compute_adjustments(
+        _, penalties, _ = compute_adjustments(
             signal="B", fund_score=75, tech_signal="HOLD",
             tech_momentum=0, rsi=50, macro_fit="NEUTRAL",
             census_alignment="NEUTRAL", div_score=0,
@@ -4579,7 +4576,7 @@ class TestV16ConsensusWarningSmoothing:
 
     def test_boundary_at_minus_ten(self):
         """Stock at exactly excess_exret=-10 gets -11 (intermediate tier)."""
-        _, penalties = compute_adjustments(
+        _, penalties, _ = compute_adjustments(
             signal="B", fund_score=75, tech_signal="HOLD",
             tech_momentum=0, rsi=50, macro_fit="NEUTRAL",
             census_alignment="NEUTRAL", div_score=0,
