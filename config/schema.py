@@ -372,6 +372,46 @@ class SectorRotationConfig(BaseModel):
     min_sector_stocks: int = Field(default=3, ge=1)
 
 
+class RegionalAdjustmentConfig(BaseModel):
+    """Regional adjustment for a specific market"""
+    model_config = ConfigDict(frozen=True)
+
+    buy_exret_premium: Optional[float] = Field(
+        default=None,
+        description="Additional EXRET required for BUY (positive = stricter)"
+    )
+    buy_exret_discount: Optional[float] = Field(
+        default=None,
+        description="EXRET discount for BUY (negative = more lenient)"
+    )
+    buy_pct_discount: Optional[float] = Field(
+        default=None,
+        description="Buy percentage discount (negative = more lenient)"
+    )
+    dividend_bonus: Optional[bool] = Field(
+        default=None,
+        description="Count dividend yield as return supplement"
+    )
+    suffixes: Optional[List[str]] = Field(
+        default=None,
+        description="Ticker suffixes for this region"
+    )
+    adjustments: Optional[str] = Field(
+        default=None,
+        description="Special adjustment flag (e.g., 'none' for baseline)"
+    )
+
+
+class RegionalAdjustmentsConfig(BaseModel):
+    """Regional adjustments for different markets"""
+    model_config = ConfigDict(frozen=True)
+
+    europe: Optional[RegionalAdjustmentConfig] = None
+    hong_kong: Optional[RegionalAdjustmentConfig] = None
+    japan: Optional[RegionalAdjustmentConfig] = None
+    us: Optional[RegionalAdjustmentConfig] = None
+
+
 class TierThresholds(BaseModel):
     """Market cap thresholds for tier classification"""
     model_config = ConfigDict(frozen=True)
@@ -689,6 +729,12 @@ class TradingConfig(BaseModel):
     hk_mid: Optional[TierCriteria] = None
     hk_small: Optional[TierCriteria] = None
     hk_micro: Optional[TierCriteria] = None
+
+    # Regional adjustments
+    regional_adjustments: Optional[RegionalAdjustmentsConfig] = Field(
+        default=None,
+        description="Regional market adjustments for different exchanges"
+    )
 
     # Ticker mappings
     dual_listed_mappings: Optional[Dict[str, str]] = Field(
