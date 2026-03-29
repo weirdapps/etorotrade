@@ -714,6 +714,28 @@ hk_micro:
     max_pct_from_52w_high: 30
     max_analyst_momentum: -15
     max_pe_vs_sector: 1.6
+
+# CIO v20.0: Regional calibration based on backtest hit rates
+# US T+7: 53.9%, Europe T+7: 38.6%, HK T+7: 66.4%
+regional_adjustments:
+  europe:
+    # European markets have sparser analyst coverage and lower hit rates
+    buy_exret_premium: 5        # Require 5pp higher EXRET for European BUY
+    buy_pct_discount: -5        # Allow 5pp lower %B (sparser coverage)
+    dividend_bonus: true        # Count dividend yield as return supplement
+    suffixes: ['.DE', '.L', '.PA', '.AS', '.MI', '.MC', '.BR', '.OL', '.ST', '.HE', '.CO']
+  hong_kong:
+    # HK has highest hit rate - slightly more favorable
+    buy_exret_discount: -3      # Allow 3pp lower EXRET
+    suffixes: ['.HK']
+  japan:
+    # Japanese market specific
+    buy_pct_discount: -5        # Lower coverage threshold
+    suffixes: ['.T']
+  us:
+    # Baseline - no adjustment
+    adjustments: none
+
 position_sizing:
   base_position_size: 2500
   # Risk management limits
