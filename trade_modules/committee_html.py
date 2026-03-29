@@ -465,6 +465,36 @@ def generate_report_html(
     except ValueError:
         today_long = today
 
+    # CIO v26.1: Normalize agent report structures at boundary.
+    # Agents (LLMs) produce varying JSON schemas — lists vs dicts, flat vs nested.
+    if fund and isinstance(fund.get("stocks"), list):
+        fund["stocks"] = {
+            item.get("ticker", item.get("symbol", f"UNK_{i}")): item
+            for i, item in enumerate(fund["stocks"]) if isinstance(item, dict)
+        }
+    if news and isinstance(news.get("breaking_news"), dict):
+        _sev = {"CRITICAL": "HIGH_NEGATIVE", "HIGH": "LOW_NEGATIVE"}
+        _flat = []
+        for _items in news["breaking_news"].values():
+            if isinstance(_items, list):
+                for _it in _items:
+                    if isinstance(_it, dict):
+                        _it.setdefault("headline", _it.get("title", _it.get("event", "")))
+                        _it.setdefault("impact", _sev.get(str(_it.get("severity", "")).upper(), "NEUTRAL"))
+                        _it.setdefault("affected_tickers", _it.get("tickers", []))
+                        _flat.append(_it)
+        news["breaking_news"] = _flat
+    sr = synth.get("sector_rankings", {})
+    if isinstance(sr, list):
+        synth["sector_rankings"] = {
+            item.get("etf", item.get("sector", "")): {
+                "return_1m": item.get("1m_return", item.get("return_1m", 0)),
+                "return_3m": item.get("3m_return", item.get("return_3m", 0)),
+                "rank": item.get("rank", 6),
+            }
+            for item in sr if isinstance(item, dict)
+        }
+
     # --- Build name map from all available data sources ---
     _names: Dict[str, str] = dict(name_map or {})
     for opp in (opps or {}).get("top_opportunities", []):
@@ -2316,7 +2346,7 @@ def generate_report_html(
     h.append(f'<div style="background:{_C["bg_page"]};padding:20px 40px;border-top:2px solid {_C["border"]};">'
              f'<table style="width:100%;"><tr>'
              f'<td style="vertical-align:top;">'
-             f'<div style="font-size:12px;font-weight:700;color:{_C["text_dark"]};">Investment Committee v26.0</div>'
+             f'<div style="font-size:12px;font-weight:700;color:{_C["text_dark"]};">Investment Committee v26.1</div>'
              f'<div style="font-size:10px;color:{_C["text_muted"]};margin-top:2px;">'
              f'{today_long} &middot; 7 Agents (Sonnet) + CIO (Opus)</div>'
              f'<div style="font-size:10px;color:{_C["text_light"]};margin-top:2px;">'

@@ -21,7 +21,12 @@ from trade_modules.committee_synthesis import (
     ACTION_ORDER,
     AGENT_FRESHNESS,
     _fallback_technical,
+    _normalize_breaking_news,
+    _normalize_census_divergences,
+    _normalize_fund_stocks,
+    _normalize_sector_rankings,
     _resolve_news_impact,
+    normalize_agent_reports,
     apply_conviction_floors,
     apply_opportunity_gate,
     build_agent_memory,
@@ -4711,3 +4716,159 @@ class TestV17PerformanceFeedback:
             position_limit=5.0,
         )
         assert result["price"] == 0
+
+
+# ============================================================
+# CIO v26.1: Agent Report Normalizer Tests
+# ============================================================
+
+
+class TestNormalizeFundStocks:
+    """Fund report stocks can arrive as list or dict."""
+
+    def test_dict_passthrough(self):
+        report = {"stocks": {"AAPL": {"fundamental_score": 80}}}
+        _normalize_fund_stocks(report)
+        assert report["stocks"] == {"AAPL": {"fundamental_score": 80}}
+
+    def test_list_to_dict(self):
+        report = {"stocks": [
+            {"ticker": "AAPL", "fundamental_score": 80},
+            {"ticker": "MSFT", "fundamental_score": 75},
+        ]}
+        _normalize_fund_stocks(report)
+        assert isinstance(report["stocks"], dict)
+        assert "AAPL" in report["stocks"]
+        assert report["stocks"]["AAPL"]["fundamental_score"] == 80
+        assert "MSFT" in report["stocks"]
+
+    def test_list_with_symbol_key(self):
+        report = {"stocks": [{"symbol": "GOOG", "score": 70}]}
+        _normalize_fund_stocks(report)
+        assert "GOOG" in report["stocks"]
+
+    def test_empty_stocks(self):
+        report = {"stocks": {}}
+        _normalize_fund_stocks(report)
+        assert report["stocks"] == {}
+
+    def test_missing_stocks(self):
+        report = {}
+        _normalize_fund_stocks(report)
+        assert report.get("stocks", {}) == {}
+
+
+class TestNormalizeCensusDivergences:
+    """Census divergences can arrive as flat list or structured dict."""
+
+    def test_dict_passthrough(self):
+        div = {"signal_divergences": [{"ticker": "A"}], "census_divergences": [], "consensus_aligned": []}
+        report = {"divergences": div}
+        _normalize_census_divergences(report)
+        assert report["divergences"] == div
+
+    def test_flat_list_to_structured(self):
+        report = {"divergences": [
+            {"ticker": "AAPL", "type": "signal_divergence", "divergence_score": 25},
+            {"ticker": "MSFT", "type": "census_divergence", "divergence_score": 15},
+            {"ticker": "GOOG", "type": "consensus_aligned", "divergence_score": 5},
+        ]}
+        _normalize_census_divergences(report)
+        d = report["divergences"]
+        assert isinstance(d, dict)
+        assert len(d["signal_divergences"]) == 1
+        assert d["signal_divergences"][0]["ticker"] == "AAPL"
+        assert len(d["census_divergences"]) == 1
+        assert len(d["consensus_aligned"]) == 1
+
+    def test_ambiguous_items_classified_by_score(self):
+        report = {"divergences": [
+            {"ticker": "X", "divergence_score": 5},   # low score -> aligned
+            {"ticker": "Y", "divergence_score": 30},   # high score -> signal divergence
+        ]}
+        _normalize_census_divergences(report)
+        d = report["divergences"]
+        assert any(i["ticker"] == "X" for i in d["consensus_aligned"])
+        assert any(i["ticker"] == "Y" for i in d["signal_divergences"])
+
+
+class TestNormalizeBreakingNews:
+    """Breaking news can arrive as list or dict of categories."""
+
+    def test_list_passthrough(self):
+        report = {"breaking_news": [{"headline": "Test", "impact": "HIGH_NEGATIVE"}]}
+        _normalize_breaking_news(report)
+        assert len(report["breaking_news"]) == 1
+
+    def test_dict_to_list(self):
+        report = {"breaking_news": {
+            "tariffs": [
+                {"title": "New tariffs", "severity": "CRITICAL", "tickers": ["AAPL"]},
+                {"title": "Trade war", "severity": "HIGH"},
+            ],
+            "oil": [
+                {"event": "Oil spike", "severity": "MEDIUM"},
+            ],
+        }}
+        _normalize_breaking_news(report)
+        bn = report["breaking_news"]
+        assert isinstance(bn, list)
+        assert len(bn) == 3
+        # Check headline normalization
+        assert bn[0]["headline"] == "New tariffs"
+        assert bn[2]["headline"] == "Oil spike"
+        # Check impact mapping
+        assert bn[0]["impact"] == "HIGH_NEGATIVE"
+        assert bn[1]["impact"] == "LOW_NEGATIVE"
+        assert bn[2]["impact"] == "NEUTRAL"
+        # Check tickers carried through
+        assert bn[0]["affected_tickers"] == ["AAPL"]
+
+
+class TestNormalizeSectorRankings:
+    """Sector rankings can arrive as list or dict."""
+
+    def test_dict_passthrough(self):
+        report = {"sector_rankings": {"XLK": {"return_1m": 3.2}}}
+        _normalize_sector_rankings(report)
+        assert report["sector_rankings"]["XLK"]["return_1m"] == 3.2
+
+    def test_list_to_dict(self):
+        report = {"sector_rankings": [
+            {"etf": "XLK", "1m_return": 3.2, "status": "LEADING", "rank": 2},
+            {"sector": "Energy", "return_1m": -1.5, "rank": 8},
+        ]}
+        _normalize_sector_rankings(report)
+        sr = report["sector_rankings"]
+        assert isinstance(sr, dict)
+        assert sr["XLK"]["return_1m"] == 3.2
+        assert sr["XLK"]["relative_strength"] == "LEADING"
+        assert sr["Energy"]["return_1m"] == -1.5
+
+    def test_empty_list(self):
+        report = {"sector_rankings": []}
+        _normalize_sector_rankings(report)
+        assert report["sector_rankings"] == {}
+
+
+class TestNormalizeAgentReportsIntegration:
+    """End-to-end normalization of all reports at once."""
+
+    def test_all_normalizers_applied(self):
+        fund = {"stocks": [{"ticker": "AAPL", "score": 80}]}
+        census = {"divergences": [{"ticker": "X", "type": "signal_divergence", "divergence_score": 20}]}
+        news = {"breaking_news": {"cat": [{"title": "T", "severity": "CRITICAL"}]}}
+        macro = {"sector_rankings": [{"etf": "XLK", "1m_return": 2.0}]}
+        f, t, m, c, n, r = normalize_agent_reports(fund, {}, macro, census, news, {})
+        assert isinstance(f["stocks"], dict)
+        assert isinstance(c["divergences"], dict)
+        assert isinstance(n["breaking_news"], list)
+        assert isinstance(m["sector_rankings"], dict)
+
+    def test_idempotent(self):
+        """Running normalization twice produces same result."""
+        fund = {"stocks": [{"ticker": "AAPL", "score": 80}]}
+        _normalize_fund_stocks(fund)
+        snapshot = dict(fund["stocks"])
+        _normalize_fund_stocks(fund)
+        assert fund["stocks"] == snapshot
