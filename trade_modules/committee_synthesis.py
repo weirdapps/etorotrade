@@ -126,6 +126,148 @@ from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
+
+# ---------------------------------------------------------------------------
+# Agent report normalizers (CIO v26.1)
+#
+# LLM agents produce slightly different JSON structures across runs.
+# These functions normalize at the boundary so downstream code sees a
+# consistent schema regardless of agent output variation.
+# ---------------------------------------------------------------------------
+
+
+def _normalize_fund_stocks(fund_report: Dict) -> Dict:
+    """Ensure fund_report['stocks'] is dict of ticker -> data.
+
+    Agents sometimes return a list of dicts with 'ticker' keys instead
+    of a dict keyed by ticker.
+    """
+    stocks = fund_report.get("stocks", {})
+    if isinstance(stocks, list):
+        normalized = {}
+        for item in stocks:
+            if isinstance(item, dict):
+                tkr = item.get("ticker", item.get("symbol", ""))
+                if tkr:
+                    normalized[tkr] = item
+        fund_report["stocks"] = normalized
+        logger.info("Normalized fund_report['stocks'] from list (%d items) to dict", len(normalized))
+    return fund_report
+
+
+def _normalize_census_divergences(census_report: Dict) -> Dict:
+    """Ensure census_report['divergences'] is structured dict.
+
+    Expected: {signal_divergences: [...], census_divergences: [...], consensus_aligned: [...]}
+    Agents sometimes return a flat list with 'type' field on each item.
+    """
+    divs = census_report.get("divergences", {})
+    if isinstance(divs, list):
+        structured = {"signal_divergences": [], "census_divergences": [], "consensus_aligned": []}
+        for item in divs:
+            if not isinstance(item, dict):
+                continue
+            dtype = str(item.get("type", item.get("divergence_type", ""))).lower()
+            if "signal" in dtype:
+                structured["signal_divergences"].append(item)
+            elif "census" in dtype:
+                structured["census_divergences"].append(item)
+            elif "aligned" in dtype or "consensus" in dtype:
+                structured["consensus_aligned"].append(item)
+            else:
+                score = abs(item.get("divergence_score", 0))
+                if score <= 10:
+                    structured["consensus_aligned"].append(item)
+                else:
+                    structured["signal_divergences"].append(item)
+        census_report["divergences"] = structured
+        logger.info(
+            "Normalized census divergences from flat list: %d signal, %d census, %d aligned",
+            len(structured["signal_divergences"]),
+            len(structured["census_divergences"]),
+            len(structured["consensus_aligned"]),
+        )
+    return census_report
+
+
+def _normalize_breaking_news(news_report: Dict) -> Dict:
+    """Ensure news_report['breaking_news'] is a list of dicts.
+
+    Agents sometimes return a dict of category_name -> list_of_items
+    instead of a flat list.
+    """
+    bn = news_report.get("breaking_news", [])
+    if isinstance(bn, dict):
+        flat = []
+        severity_map = {"CRITICAL": "HIGH_NEGATIVE", "HIGH": "LOW_NEGATIVE", "MEDIUM": "NEUTRAL"}
+        for _category, items in bn.items():
+            if not isinstance(items, list):
+                continue
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                entry = dict(item)
+                if "headline" not in entry:
+                    entry["headline"] = entry.get("title", entry.get("event", _category))
+                if "impact" not in entry:
+                    sev = str(entry.get("severity", "NEUTRAL")).upper()
+                    entry["impact"] = severity_map.get(sev, "NEUTRAL")
+                if "affected_tickers" not in entry:
+                    entry["affected_tickers"] = entry.get("tickers", [])
+                if "affected_sectors" not in entry:
+                    entry["affected_sectors"] = entry.get("sectors", [])
+                flat.append(entry)
+        news_report["breaking_news"] = flat
+        logger.info("Normalized breaking_news from dict (%d categories) to list (%d items)",
+                     len(bn), len(flat))
+    return news_report
+
+
+def _normalize_sector_rankings(macro_report: Dict) -> Dict:
+    """Ensure macro_report['sector_rankings'] is dict of ETF/sector -> data.
+
+    Agents sometimes return a list of dicts with 'sector'/'etf' keys
+    instead of a dict keyed by ETF symbol.
+    """
+    sr = macro_report.get("sector_rankings", {})
+    if isinstance(sr, list):
+        sr_dict = {}
+        for item in sr:
+            if not isinstance(item, dict):
+                continue
+            key = item.get("etf", item.get("sector", item.get("name", "")))
+            if key:
+                sr_dict[key] = {
+                    "return_1m": item.get("1m_return", item.get("return_1m", 0)),
+                    "return_3m": item.get("3m_return", item.get("return_3m", 0)),
+                    "relative_strength": item.get("status", item.get("relative_strength", "NEUTRAL")),
+                    "rank": item.get("rank", 6),
+                }
+        macro_report["sector_rankings"] = sr_dict
+        logger.info("Normalized sector_rankings from list (%d items) to dict", len(sr_dict))
+    return macro_report
+
+
+def normalize_agent_reports(
+    fund_report: Dict,
+    tech_report: Dict,
+    macro_report: Dict,
+    census_report: Dict,
+    news_report: Dict,
+    risk_report: Dict,
+) -> Tuple[Dict, Dict, Dict, Dict, Dict, Dict]:
+    """Apply all normalizers to agent reports before synthesis.
+
+    Call this once at the start of build_concordance() to ensure all
+    downstream code sees a consistent schema.
+    """
+    fund_report = _normalize_fund_stocks(fund_report)
+    census_report = _normalize_census_divergences(census_report)
+    news_report = _normalize_breaking_news(news_report)
+    macro_report = _normalize_sector_rankings(macro_report)
+    return fund_report, tech_report, macro_report, census_report, news_report, risk_report
+
+
 # Freshness multipliers per agent (CIO v3 F2)
 AGENT_FRESHNESS = {
     "fundamental": 0.8,
@@ -2792,6 +2934,14 @@ def build_concordance(
                         _days = 7
                     prev_signal_map[_t] = (_ps, _days)
 
+    # CIO v26.1: Normalize agent report structures before processing.
+    fund_report, tech_report, macro_report, census_report, news_report, risk_report = (
+        normalize_agent_reports(
+            fund_report, tech_report, macro_report,
+            census_report, news_report, risk_report,
+        )
+    )
+
     lookups = _build_agent_lookups(
         fund_report, tech_report, macro_report,
         census_report, news_report, risk_report,
@@ -3364,6 +3514,13 @@ def generate_synthesis_output(
     """
     from collections import Counter
 
+    # CIO v26.1: Normalize report structures (idempotent, safe to re-apply)
+    _normalize_breaking_news(news_report)
+    _normalize_sector_rankings(macro_report)
+    _normalize_census_divergences(census_report)
+    if fund_report:
+        _normalize_fund_stocks(fund_report)
+
     action_dist = Counter(e["action"] for e in concordance)
 
     # Extract risk metrics — try multiple field name conventions
@@ -3460,7 +3617,7 @@ def generate_synthesis_output(
     ]
 
     output = {
-        "version": "v26.0",
+        "version": "v26.1",
         "concordance": concordance,
         "action_distribution": dict(action_dist),
         "changes": changes,
