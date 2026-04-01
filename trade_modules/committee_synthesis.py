@@ -248,6 +248,85 @@ def _normalize_sector_rankings(macro_report: Dict) -> Dict:
     return macro_report
 
 
+def _normalize_portfolio_news(news_report: Dict) -> Dict:
+    """Ensure news_report['portfolio_news'] is dict of ticker -> list of news items.
+
+    Agents sometimes return a list of dicts with 'ticker' keys instead
+    of a dict keyed by ticker.
+    """
+    pn = news_report.get("portfolio_news", {})
+    if isinstance(pn, list):
+        pn_dict: Dict[str, list] = {}
+        for item in pn:
+            if not isinstance(item, dict):
+                continue
+            tkr = item.get("ticker", item.get("symbol", ""))
+            if not tkr:
+                continue
+            news_items = item.get("news", [])
+            if isinstance(news_items, list):
+                pn_dict[tkr] = news_items
+            else:
+                pn_dict[tkr] = [{"headline": str(news_items), "impact": item.get("impact", "NEUTRAL")}]
+        news_report["portfolio_news"] = pn_dict
+        logger.info("Normalized portfolio_news from list (%d items) to dict (%d tickers)",
+                     len(pn), len(pn_dict))
+    return news_report
+
+
+def _normalize_census_sentiment(census_report: Dict) -> Dict:
+    """Ensure census sentiment values are plain numbers, not nested dicts.
+
+    Agents sometimes return {fg_top100: {value: 59, classification: "Greed"}}
+    instead of {fg_top100: 59}.
+    """
+    sentiment = census_report.get("sentiment", {})
+    if not isinstance(sentiment, dict):
+        return census_report
+    for key in ("fg_top100", "fg_broad", "cash_top100", "cash_broad"):
+        val = sentiment.get(key)
+        if isinstance(val, dict):
+            sentiment[key] = val.get("value", val.get("score", val.get("index", 0)))
+            logger.info("Normalized census sentiment['%s'] from dict to %s", key, sentiment[key])
+    census_report["sentiment"] = sentiment
+    return census_report
+
+
+def _normalize_economic_events(news_report: Dict) -> Dict:
+    """Ensure news_report['economic_events'] is a flat list.
+
+    Agents sometimes return {this_week: [...], key_context: "..."}
+    instead of a flat list.
+    """
+    ee = news_report.get("economic_events", [])
+    if isinstance(ee, dict):
+        flat = ee.get("this_week", ee.get("events", []))
+        if not isinstance(flat, list):
+            flat = []
+        news_report["economic_events"] = flat
+        logger.info("Normalized economic_events from dict to list (%d items)", len(flat))
+    return news_report
+
+
+def _normalize_tech_stocks(tech_report: Dict) -> Dict:
+    """Ensure tech_report['stocks'] is dict of ticker -> data.
+
+    Agents sometimes return a list of dicts with 'ticker' keys instead
+    of a dict keyed by ticker.
+    """
+    stocks = tech_report.get("stocks", {})
+    if isinstance(stocks, list):
+        normalized = {}
+        for item in stocks:
+            if isinstance(item, dict):
+                tkr = item.get("ticker", item.get("symbol", ""))
+                if tkr:
+                    normalized[tkr] = item
+        tech_report["stocks"] = normalized
+        logger.info("Normalized tech_report['stocks'] from list (%d items) to dict", len(normalized))
+    return tech_report
+
+
 def normalize_agent_reports(
     fund_report: Dict,
     tech_report: Dict,
@@ -262,8 +341,12 @@ def normalize_agent_reports(
     downstream code sees a consistent schema.
     """
     fund_report = _normalize_fund_stocks(fund_report)
+    tech_report = _normalize_tech_stocks(tech_report)
     census_report = _normalize_census_divergences(census_report)
+    census_report = _normalize_census_sentiment(census_report)
     news_report = _normalize_breaking_news(news_report)
+    news_report = _normalize_portfolio_news(news_report)
+    news_report = _normalize_economic_events(news_report)
     macro_report = _normalize_sector_rankings(macro_report)
     return fund_report, tech_report, macro_report, census_report, news_report, risk_report
 
@@ -3516,8 +3599,13 @@ def generate_synthesis_output(
 
     # CIO v26.1: Normalize report structures (idempotent, safe to re-apply)
     _normalize_breaking_news(news_report)
+    _normalize_portfolio_news(news_report)
+    _normalize_economic_events(news_report)
     _normalize_sector_rankings(macro_report)
     _normalize_census_divergences(census_report)
+    _normalize_census_sentiment(census_report)
+    if tech_report:
+        _normalize_tech_stocks(tech_report)
     if fund_report:
         _normalize_fund_stocks(fund_report)
 
