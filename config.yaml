@@ -82,7 +82,7 @@ us_large:
     min_analysts: 8  # Reduced from 10 - quality coverage exists with 8+ analysts
     min_analysts_earnings: 5  # Lowered from 6 - adds TMO ($204B, 100% buy, 22% upside)
     min_price_targets: 5  # Reduced from 6
-    min_roe: 8.0
+    min_roe: 14.0  # Raised from 8.0 — backtest shows +10.4% hit rate (n=103)
     max_debt_equity: 175.0  # Increased from 150 - large caps can carry moderate debt
     min_fcf_yield: -3.0  # Changed from 0.25 - growth companies may have negative FCF
     min_pct_from_52w_high: 60  # Increased from 50 - avoid deep drawdowns like INTU at 55%
@@ -96,14 +96,14 @@ us_large:
     # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
     fully_valued_upside_threshold: 3.0
     fully_valued_buy_pct_threshold: 80.0
-    max_upside: 5
+    max_upside: -3.5  # Tightened from 5 — backtest shows +26.2% hit rate (n=146)
     min_buy_percentage: 55
     min_beta: 3
     min_forward_pe: 75
     min_trailing_pe: 180
     min_peg: 5.5
     min_short_interest: 4.25
-    max_exret: 3
+    max_exret: -1.4  # Tightened from 3 — backtest shows +27.8% hit rate (n=146)
     max_earnings_growth: -42.5
     max_price_performance: -42.5
     min_roe: 5.0
@@ -330,7 +330,7 @@ eu_large:
     # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
     fully_valued_upside_threshold: 3.0
     fully_valued_buy_pct_threshold: 80.0
-    max_upside: 7.5
+    max_upside: -9.0  # Tightened from 7.5 — backtest shows +35.6% hit rate (n=124)
     min_buy_percentage: 55
     min_beta: 3
     min_forward_pe: 75
@@ -376,14 +376,14 @@ eu_mid:
     # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
     fully_valued_upside_threshold: 3.0
     fully_valued_buy_pct_threshold: 80.0
-    max_upside: 10
+    max_upside: -6.9  # Tightened from 10 — backtest shows +13.7% hit rate (n=256)
     min_buy_percentage: 60
     min_beta: 2.5
     min_forward_pe: 70
     min_trailing_pe: 170
     min_peg: 5.5
     min_short_interest: 4.5
-    max_exret: 6
+    max_exret: -2.0  # Tightened from 6 — backtest shows +10.5% hit rate (n=256)
     max_earnings_growth: -40
     max_price_performance: -40
     min_roe: 5.0
