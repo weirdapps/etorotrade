@@ -327,6 +327,16 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 "target_price_median": financial_data.get("targetMedianPrice", None),
                 "target_price_high": financial_data.get("targetHighPrice", None),
                 "target_price_low": financial_data.get("targetLowPrice", None),
+                "target_dispersion": (
+                    ((financial_data.get("targetHighPrice") - financial_data.get("targetLowPrice"))
+                     / financial_data.get("targetMedianPrice") * 100)
+                    if all(v is not None and v > 0 for v in [
+                        financial_data.get("targetHighPrice"),
+                        financial_data.get("targetLowPrice"),
+                        financial_data.get("targetMedianPrice"),
+                    ])
+                    else None
+                ),
                 "price_target_analyst_count": financial_data.get("numberOfAnalystOpinions", None),
                 "last_updated": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
             }
@@ -702,6 +712,16 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                     "target_price_median": ticker_financial.get("targetMedianPrice", None),
                     "target_price_high": ticker_financial.get("targetHighPrice", None),
                     "target_price_low": ticker_financial.get("targetLowPrice", None),
+                    "target_dispersion": (
+                        ((ticker_financial.get("targetHighPrice") - ticker_financial.get("targetLowPrice"))
+                         / ticker_financial.get("targetMedianPrice") * 100)
+                        if all(v is not None and v > 0 for v in [
+                            ticker_financial.get("targetHighPrice"),
+                            ticker_financial.get("targetLowPrice"),
+                            ticker_financial.get("targetMedianPrice"),
+                        ])
+                        else None
+                    ),
                     "price_target_analyst_count": ticker_financial.get("numberOfAnalystOpinions", None),
                     "market_cap": (
                         ticker_price.get("marketCap") or  # Regular stocks

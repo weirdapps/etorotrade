@@ -788,14 +788,17 @@ class TestConfigYaml:
         assert config["data_freshness"]["stale_days"] == 90
 
     def test_scoring_weights_updated(self):
-        """Verify scoring weights reflect CIO review rebalancing."""
+        """Verify scoring weights reflect academic-aligned rebalancing."""
         import yaml
         with open("config.yaml") as f:
             config = yaml.safe_load(f)
         sell = config["default_sell_scoring"]
-        assert sell["weight_analyst"] == 0.25  # Reduced from 0.35
-        assert sell["weight_fundamental"] == 0.25  # Increased from 0.20
+        assert sell["weight_analyst"] == 0.20  # Reduced — EXRET tautology
+        assert sell["weight_valuation"] == 0.20  # Increased — PET is strongest value signal
+        assert sell["weight_fundamental"] == 0.25
 
         buy = config["default_buy_scoring"]
-        assert buy["weight_fundamental"] == 0.17  # Increased from 0.10
-        assert buy["weight_upside"] == 0.22  # Reduced from 0.30
+        assert buy["weight_consensus"] == 0.13  # Reduced — buy% is contrarian indicator
+        assert buy["weight_valuation"] == 0.18  # Increased — PET is strongest value signal
+        assert buy["weight_fundamental"] == 0.17
+        assert buy["weight_upside"] == 0.22

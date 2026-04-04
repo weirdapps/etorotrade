@@ -119,11 +119,13 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         'above_200dma': '2H',
         'analyst_momentum': 'AM',
         'pe_vs_sector': 'P/S',
+        'target_dispersion': 'TD',
         # Identity mappings for new short display columns
         '52W': '52W',
         '2H': '2H',
         'AM': 'AM',
         'P/S': 'P/S',
+        'TD': 'TD',
         'TKR': 'TKR',
         'NAME': 'NAME',
         'PRC': 'PRC',
