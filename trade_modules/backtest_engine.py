@@ -322,7 +322,10 @@ class BacktestEngine:
             ticker = row['ticker']
             signal_price = row.get('price_at_signal')
 
-            if pd.isna(signal_price) or signal_price is None or signal_price <= 0:
+            # Guard against non-scalar values (e.g. dict from malformed log entries)
+            if not isinstance(signal_price, (int, float)):
+                continue
+            if pd.isna(signal_price) or signal_price <= 0:
                 continue
 
             if ticker not in price_data.columns:
