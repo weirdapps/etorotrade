@@ -24,20 +24,7 @@ from trade_modules.trade_config import TradeConfig
 # Get logger for this module
 logger = logging.getLogger(__name__)
 
-# --- Sell score normalization constants ---
-# Each component scores raw points from multiple sub-factors.
-# These constants represent the maximum achievable raw score per component,
-# derived by summing the highest possible points from each sub-factor.
-# They are used to normalize each component to a 0-100 scale before weighting.
-
-# Analyst: upside penalty (max 40) + buy% penalty (max 40) + EXRET penalty (max 20) = 100
-SELL_ANALYST_MAX_RAW = 100
-# Momentum: 52-week decline (max 50) + PEF/PET deterioration (max 35) = 85
-SELL_MOMENTUM_MAX_RAW = 85
-# Valuation: high PE penalty (max 40) + negative PE penalty (max 30) = 70
-SELL_VALUATION_MAX_RAW = 70
-# Fundamentals: low ROE penalty (max 40) + high D/E penalty (max 40) = 80
-SELL_FUNDAMENTAL_MAX_RAW = 80
+# Normalization constants eliminated — np.interp maps each component directly to 0-100
 
 
 # Module-level cache for IPO date lookups from yfinance
@@ -110,7 +97,6 @@ def is_recent_ipo(ticker: str, yaml_config, grace_period_months: int = 12) -> bo
 def calculate_sell_score(
     upside: float,
     buy_pct: float,
-    exret: float,
     pct_52w: float,
     pef: float,
     pet: float,
@@ -120,198 +106,101 @@ def calculate_sell_score(
     analyst_momentum: float = np.nan,
 ) -> Tuple[float, List[str]]:
     """
-    Calculate weighted SELL score (0-100) using multi-factor analysis.
+    Calculate weighted SELL score (0-100) using continuous multi-factor analysis.
 
-    The score is calculated from five components:
-    - Analyst sentiment (upside, buy%, EXRET) - 31.5% weight (default)
-    - Momentum (52W, PEF/PET deterioration) - 22.5% weight (default)
-    - Valuation (implicit in other factors) - 18% weight (default)
-    - Fundamentals (ROE, DE) - 18% weight (default)
+    Each component maps directly to 0-100 via np.interp (no normalization constants).
+    EXRET removed — it's upside × buy% / 100, triple-counted with no independent info.
+
+    Components:
+    - Analyst sentiment (upside, buy%) - 20% weight (default)
+    - Momentum (52W, PEF/PET deterioration) - 25% weight (default)
+    - Valuation (PET primary, PEF confirmatory) - 20% weight (default)
+    - Fundamentals (ROE, DE) - 25% weight (default)
     - Analyst momentum (3-month change in buy%) - 10% weight (default)
-
-    Args:
-        upside: Upside to price target (%)
-        buy_pct: Percentage of analysts with buy rating
-        exret: Expected return (upside * buy% / 100)
-        pct_52w: Percentage from 52-week high
-        pef: Forward P/E ratio
-        pet: Trailing P/E ratio
-        roe: Return on equity (%)
-        de: Debt to equity ratio (%)
-        sell_scoring_config: Configuration dict with weights and thresholds
-        analyst_momentum: 3-month change in buy% (e.g., -5 means buy% dropped 5pp)
 
     Returns:
         Tuple of (score 0-100, list of triggered factor descriptions)
     """
     factors: List[str] = []
 
-    # Get weights from config (defaults if not specified)
-    # CIO Review Finding S2: Reduced analyst weight (which includes EXRET, a tautology
-    # of upside × buy%). Increased fundamental and momentum weights as orthogonal factors.
-    # Original: analyst=0.315, momentum=0.225, valuation=0.18, fundamental=0.18, AM=0.10
-    # Revised:  analyst=0.25,  momentum=0.25,  valuation=0.15, fundamental=0.25, AM=0.10
-    w_analyst = sell_scoring_config.get('weight_analyst', 0.25)
+    w_analyst = sell_scoring_config.get('weight_analyst', 0.20)
     w_momentum = sell_scoring_config.get('weight_momentum', 0.25)
-    w_valuation = sell_scoring_config.get('weight_valuation', 0.15)
+    w_valuation = sell_scoring_config.get('weight_valuation', 0.20)
     w_fundamental = sell_scoring_config.get('weight_fundamental', 0.25)
     w_analyst_momentum = sell_scoring_config.get('weight_analyst_momentum', 0.10)
 
-    # === ANALYST SENTIMENT COMPONENT (0-100 raw score) ===
-    analyst_score = 0.0
+    # === ANALYST SENTIMENT (0-100) — continuous upside + buy% penalty ===
+    upside_penalty = float(np.interp(upside, [-10, -5, 0, 5, 10, 15], [100, 85, 65, 45, 20, 0]))
+    buypct_penalty = float(np.interp(buy_pct, [25, 35, 45, 55, 65, 75], [100, 80, 60, 40, 20, 0]))
+    analyst_score = (upside_penalty + buypct_penalty) / 2.0
 
-    # Upside penalty (0-40 points within analyst bucket)
-    if upside <= -10:
-        analyst_score += 40
+    if upside <= -5:
         factors.append(f"severe_negative_upside:{upside:.1f}%")
     elif upside <= 0:
-        analyst_score += 30
         factors.append(f"negative_upside:{upside:.1f}%")
-    elif upside < 5:
-        analyst_score += 20
-        factors.append(f"low_upside:{upside:.1f}%")
-    elif upside < 10:
-        analyst_score += 10
-
-    # Buy% penalty (0-40 points)
-    if buy_pct < 30:
-        analyst_score += 40
-        factors.append(f"very_low_buy_pct:{buy_pct:.1f}%")
-    elif buy_pct < 45:
-        analyst_score += 30
+    if buy_pct < 40:
         factors.append(f"low_buy_pct:{buy_pct:.1f}%")
-    elif buy_pct < 55:
-        analyst_score += 20
-    elif buy_pct < 65:
-        analyst_score += 10
 
-    # EXRET penalty (0-20 points)
-    if exret < 0:
-        analyst_score += 20
-        factors.append(f"negative_exret:{exret:.1f}")
-    elif exret < 3:
-        analyst_score += 15
-        factors.append(f"very_low_exret:{exret:.1f}")
-    elif exret < 5:
-        analyst_score += 8
-
-    # === MOMENTUM COMPONENT (0-100 raw score) ===
-    momentum_score = 0.0
-
-    # 52-week high penalty
+    # === MOMENTUM (0-100) — 52W decline (60%) + PEF/PET deterioration (40%) ===
     if not pd.isna(pct_52w):
-        if pct_52w < 35:
-            momentum_score += 50
-            factors.append(f"severe_52w_decline:{pct_52w:.1f}%")
-        elif pct_52w < 50:
-            momentum_score += 35
-            factors.append(f"significant_52w_decline:{pct_52w:.1f}%")
-        elif pct_52w < 60:
-            momentum_score += 20
-            factors.append(f"52w_decline:{pct_52w:.1f}%")
-        elif pct_52w < 70:
-            momentum_score += 10
+        pct52w_penalty = float(np.interp(pct_52w, [30, 40, 50, 60, 70, 80], [100, 80, 60, 35, 15, 0]))
+    else:
+        pct52w_penalty = 0.0
 
-    # PEF >> PET (deteriorating earnings outlook)
+    deterioration_penalty = 0.0
     if not pd.isna(pef) and not pd.isna(pet) and pet > 10 and pef > 10:
         pef_pet_ratio = pef / pet
-        if pef_pet_ratio > 1.4:
-            momentum_score += 35
-            factors.append(f"severe_earnings_deterioration:PEF/PET={pef_pet_ratio:.2f}")
-        elif pef_pet_ratio > 1.3:
-            momentum_score += 25
+        deterioration_penalty = float(np.interp(pef_pet_ratio, [1.0, 1.1, 1.2, 1.3, 1.4, 1.5], [0, 10, 30, 50, 70, 85]))
+        if pef_pet_ratio > 1.25:
             factors.append(f"earnings_deterioration:PEF/PET={pef_pet_ratio:.2f}")
-        elif pef_pet_ratio > 1.2:
-            momentum_score += 15
 
-    # === VALUATION COMPONENT (0-100 raw score) ===
-    # PET is primary (academically strongest value signal — trailing PE is unbiased)
-    # PEF is confirmatory (forward PE biased upward ~10%)
+    momentum_score = pct52w_penalty * 0.6 + deterioration_penalty * 0.4
+    if not pd.isna(pct_52w) and pct_52w < 50:
+        factors.append(f"52w_decline:{pct_52w:.1f}%")
+
+    # === VALUATION (0-100) — PET primary, negative PE discrete ===
     valuation_score = 0.0
-
-    # High PET penalty (primary — trailing PE is more reliable)
     if not pd.isna(pet):
-        if pet > 80:
-            valuation_score += 45
-            factors.append(f"extreme_trailing_pe:{pet:.1f}")
-        elif pet > 60:
-            valuation_score += 30
-            factors.append(f"high_trailing_pe:{pet:.1f}")
-        elif pet > 45:
-            valuation_score += 15
-
-    # High PEF confirmatory penalty (only adds if PET didn't already flag extreme)
-    if not pd.isna(pef) and valuation_score < 30:
-        if pef > 80:
-            valuation_score += 20
-        elif pef > 60:
-            valuation_score += 10
-
-    # Negative PE (losses)
-    if not pd.isna(pet) and pet < 0:
-        valuation_score += 30
-        factors.append("trailing_losses")
+        if pet < 0:
+            valuation_score = 85.0
+            factors.append("trailing_losses")
+        else:
+            valuation_score = float(np.interp(pet, [30, 45, 55, 65, 80, 100], [0, 15, 30, 50, 80, 100]))
+            if pet > 60:
+                factors.append(f"high_trailing_pe:{pet:.1f}")
     elif not pd.isna(pef) and pef < 0:
-        valuation_score += 25
+        valuation_score = 70.0
         factors.append("negative_forward_earnings")
 
-    # === FUNDAMENTAL COMPONENT (0-100 raw score) ===
-    fundamental_score = 0.0
-
-    # Low ROE penalty
+    # === FUNDAMENTAL (0-100) — ROE + D/E averaged ===
+    roe_penalty = 0.0
     if not pd.isna(roe):
-        if roe < 0:
-            fundamental_score += 40
-            factors.append(f"negative_roe:{roe:.1f}%")
-        elif roe < 5:
-            fundamental_score += 25
-            factors.append(f"very_low_roe:{roe:.1f}%")
-        elif roe < 8:
-            fundamental_score += 10
+        roe_penalty = float(np.interp(roe, [-5, 0, 5, 8, 12, 20], [100, 80, 50, 20, 5, 0]))
+        if roe < 5:
+            factors.append(f"low_roe:{roe:.1f}%")
 
-    # High D/E penalty
+    de_penalty = 0.0
     if not pd.isna(de):
-        if de > 300:
-            fundamental_score += 40
-            factors.append(f"extreme_leverage:{de:.1f}%")
-        elif de > 200:
-            fundamental_score += 25
+        de_penalty = float(np.interp(de, [100, 150, 200, 250, 300, 400], [0, 15, 35, 55, 75, 100]))
+        if de > 200:
             factors.append(f"high_leverage:{de:.1f}%")
-        elif de > 150:
-            fundamental_score += 15
 
-    # === ANALYST MOMENTUM COMPONENT (0-100 raw score) ===
-    # Declining AM increases sell score; rising AM reduces it
+    fundamental_score = (roe_penalty + de_penalty) / 2.0
+
+    # === ANALYST MOMENTUM (0-100) — continuous ===
     am_score = 0.0
     if not pd.isna(analyst_momentum):
-        if analyst_momentum <= -15:
-            am_score = 100
-            factors.append(f"severe_am_decline:{analyst_momentum:.1f}pp")
-        elif analyst_momentum <= -10:
-            am_score = 80
-            factors.append(f"strong_am_decline:{analyst_momentum:.1f}pp")
-        elif analyst_momentum <= -5:
-            am_score = 60
+        am_score = float(np.interp(analyst_momentum, [-15, -10, -5, -2, 0, 5, 10], [100, 80, 60, 40, 25, 5, 0]))
+        if analyst_momentum <= -5:
             factors.append(f"am_decline:{analyst_momentum:.1f}pp")
-        elif analyst_momentum < 0:
-            am_score = 30
-        elif analyst_momentum >= 5:
-            am_score = 0  # Rising AM counters sell pressure
 
-    # === CALCULATE WEIGHTED TOTAL ===
-    # Normalize each component to 0-100 scale using known max raw scores
-    analyst_normalized = min(analyst_score, SELL_ANALYST_MAX_RAW) / SELL_ANALYST_MAX_RAW * 100
-    momentum_normalized = min(momentum_score, SELL_MOMENTUM_MAX_RAW) / SELL_MOMENTUM_MAX_RAW * 100
-    valuation_normalized = min(valuation_score, SELL_VALUATION_MAX_RAW) / SELL_VALUATION_MAX_RAW * 100
-    fundamental_normalized = min(fundamental_score, SELL_FUNDAMENTAL_MAX_RAW) / SELL_FUNDAMENTAL_MAX_RAW * 100
-    am_normalized = min(am_score, 100)  # Already on 0-100 scale
-
+    # === WEIGHTED TOTAL (all components already 0-100) ===
     total_score = (
-        analyst_normalized * w_analyst +
-        momentum_normalized * w_momentum +
-        valuation_normalized * w_valuation +
-        fundamental_normalized * w_fundamental +
-        am_normalized * w_analyst_momentum
+        analyst_score * w_analyst +
+        momentum_score * w_momentum +
+        valuation_score * w_valuation +
+        fundamental_score * w_fundamental +
+        am_score * w_analyst_momentum
     )
 
     return total_score, factors
@@ -320,9 +209,8 @@ def calculate_sell_score(
 def calculate_buy_score(
     upside: float,
     buy_pct: float,
-    exret: float,
     pct_52w: float,
-    above_200dma: bool,
+    price_200dma_pct: float,
     pef: float,
     pet: float,
     roe: float,
@@ -332,24 +220,26 @@ def calculate_buy_score(
     analyst_momentum: float = np.nan,
 ) -> float:
     """
-    Calculate BUY conviction score (0-100) for ranking candidates.
+    Calculate BUY conviction score (0-100) using continuous multi-factor analysis.
 
-    Higher score = higher conviction in the BUY signal.
+    All components use np.interp for continuous scoring (no step-function cliffs).
+    EXRET removed — triple-counted derivative of upside × buy%.
+    Consensus flattened to constant 50 — buy% is contrarian above quality floor (r=-0.069).
+    200DMA now continuous via price/200dma ratio instead of binary boolean.
 
     Components:
-    - Upside (higher upside = higher score) - 27% weight (default)
-    - Consensus (higher buy% = higher score) - 22.5% weight (default)
-    - Momentum (near 52W high, above 200DMA) - 18% weight (default)
-    - Valuation (reasonable PE) - 13.5% weight (default)
-    - Fundamentals (strong ROE, low DE, positive FCF) - 9% weight (default)
-    - Analyst momentum (rising buy% trend) - 10% weight (default)
+    - Upside (higher = higher score) - 22% weight
+    - Consensus (flat 50 — contrarian above floor) - 13% weight
+    - Momentum (52W continuous + 200DMA continuous) - 20% weight
+    - Valuation (PET inverted-U + PEF/PET ratio) - 18% weight
+    - Fundamentals (ROE + D/E + FCF) - 17% weight
+    - Analyst momentum (rising buy% trend) - 10% weight
 
     Args:
         upside: Upside to price target (%)
         buy_pct: Percentage of analysts with buy rating
-        exret: Expected return
         pct_52w: Percentage from 52-week high
-        above_200dma: Whether price is above 200-day MA
+        price_200dma_pct: Price as % of 200DMA (e.g., 105 = 5% above)
         pef: Forward P/E ratio
         pet: Trailing P/E ratio
         roe: Return on equity (%)
@@ -361,182 +251,70 @@ def calculate_buy_score(
     Returns:
         Score 0-100 (higher = stronger BUY conviction)
     """
-    # Get weights from config
-    # CIO Review Finding S2: Reduced upside/consensus weight (analyst-derived, partially tautological
-    # via EXRET). Increased fundamental weight (FCF yield, ROE — genuinely orthogonal factors).
-    # Original: upside=0.27, consensus=0.225, momentum=0.18, valuation=0.135, fundamental=0.09, AM=0.10
-    # Revised:  upside=0.22, consensus=0.18,  momentum=0.20, valuation=0.13,  fundamental=0.17, AM=0.10
     w_upside = buy_scoring_config.get('weight_upside', 0.22)
-    w_consensus = buy_scoring_config.get('weight_consensus', 0.18)
+    w_consensus = buy_scoring_config.get('weight_consensus', 0.13)
     w_momentum = buy_scoring_config.get('weight_momentum', 0.20)
-    w_valuation = buy_scoring_config.get('weight_valuation', 0.13)
+    w_valuation = buy_scoring_config.get('weight_valuation', 0.18)
     w_fundamental = buy_scoring_config.get('weight_fundamental', 0.17)
     w_analyst_momentum = buy_scoring_config.get('weight_analyst_momentum', 0.10)
 
-    # === UPSIDE COMPONENT (0-100) ===
-    upside_score = 0.0
-    if upside >= 50:
-        upside_score = 100
-    elif upside >= 40:
-        upside_score = 90
-    elif upside >= 30:
-        upside_score = 80
-    elif upside >= 25:
-        upside_score = 70
-    elif upside >= 20:
-        upside_score = 60
-    elif upside >= 15:
-        upside_score = 50
-    elif upside >= 12:
-        upside_score = 40
-    elif upside >= 10:
-        upside_score = 30
-    elif upside >= 8:
-        upside_score = 20
-    elif upside > 0:
-        upside_score = 10
+    # === UPSIDE (0-100) — continuous ===
+    upside_score = float(np.interp(upside, [0, 8, 10, 12, 15, 20, 25, 30, 40, 50], [0, 15, 25, 35, 45, 55, 65, 75, 90, 100]))
 
-    # === CONSENSUS COMPONENT (0-100) ===
-    consensus_score = 0.0
-    if buy_pct >= 95:
-        consensus_score = 100
-    elif buy_pct >= 92:
-        consensus_score = 95
-    elif buy_pct >= 88:
-        consensus_score = 85
-    elif buy_pct >= 85:
-        consensus_score = 75
-    elif buy_pct >= 82:
-        consensus_score = 65
-    elif buy_pct >= 80:
-        consensus_score = 55
-    elif buy_pct >= 77:
-        consensus_score = 45
-    elif buy_pct >= 75:
-        consensus_score = 35
-    elif buy_pct >= 70:
-        consensus_score = 25
-    else:
-        consensus_score = 10
+    # === CONSENSUS (flat 50) — buy% is contrarian indicator above quality floor ===
+    consensus_score = 50.0
 
-    # === MOMENTUM COMPONENT (0-100) ===
-    momentum_score = 0.0
-
-    # 52-week position
+    # === MOMENTUM (0-100) — 52W continuous + 200DMA continuous ===
     if not pd.isna(pct_52w):
-        if pct_52w >= 95:
-            momentum_score += 50
-        elif pct_52w >= 90:
-            momentum_score += 45
-        elif pct_52w >= 85:
-            momentum_score += 40
-        elif pct_52w >= 80:
-            momentum_score += 35
-        elif pct_52w >= 75:
-            momentum_score += 30
-        elif pct_52w >= 70:
-            momentum_score += 25
-        elif pct_52w >= 65:
-            momentum_score += 15
-        else:
-            momentum_score += 5
-
-    # Above 200DMA bonus
-    if above_200dma is True:
-        momentum_score += 50
-    elif above_200dma is False:
-        momentum_score += 0  # Penalty already implied by not getting bonus
+        pct52w_score = float(np.interp(pct_52w, [40, 55, 65, 70, 75, 80, 85, 90, 95], [0, 5, 15, 22, 28, 34, 40, 46, 50]))
     else:
-        momentum_score += 20  # Unknown - give partial score
+        pct52w_score = 25.0  # Neutral if unknown
 
-    # === VALUATION COMPONENT (0-100) ===
-    # PET is primary (academically strongest — trailing PE is unbiased)
-    # PEF/PET ratio is confirmatory (improving earnings outlook)
-    valuation_score = 50  # Start neutral
+    if not pd.isna(price_200dma_pct):
+        dma200_score = float(np.interp(price_200dma_pct, [90, 95, 100, 105, 110, 120], [0, 10, 25, 40, 50, 50]))
+    else:
+        dma200_score = 20.0  # Partial score if unknown
 
-    # Reasonable PET levels (primary signal)
-    if not pd.isna(pet):
-        if 10 <= pet <= 25:
-            valuation_score = 75
-        elif 25 < pet <= 40:
-            valuation_score = 60
-        elif pet > 60:
-            valuation_score = 20  # Expensive
-        elif pet < 0:
-            valuation_score = 15  # Losses
+    momentum_score = pct52w_score + dma200_score  # Both contribute, max ~100
 
-    # PEF < PET is good (improving earnings — confirmatory)
+    # === VALUATION (0-100) — PET inverted-U (sweet spot 12-25) + PEF/PET ratio ===
+    if not pd.isna(pet) and pet > 0:
+        pet_valuation = float(np.interp(pet, [0, 5, 10, 15, 20, 25, 35, 45, 60, 80], [15, 35, 55, 75, 80, 75, 60, 45, 25, 10]))
+    elif not pd.isna(pet) and pet < 0:
+        pet_valuation = 10.0  # Losses
+    else:
+        pet_valuation = 40.0  # Neutral if unknown
+
+    pef_pet_adj = 0.0
     if not pd.isna(pef) and not pd.isna(pet) and pet > 10 and pef > 10:
         pef_pet_ratio = pef / pet
-        if pef_pet_ratio < 0.8:
-            valuation_score = min(valuation_score + 25, 100)  # Strong earnings improvement
-        elif pef_pet_ratio < 0.9:
-            valuation_score = min(valuation_score + 15, 100)
-        elif pef_pet_ratio < 1.0:
-            valuation_score = min(valuation_score + 5, 100)
-        elif pef_pet_ratio > 1.2:
-            valuation_score = max(valuation_score - 15, 0)  # Deteriorating
+        pef_pet_adj = float(np.interp(pef_pet_ratio, [0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3], [25, 20, 10, 0, -5, -10, -15]))
 
-    # === FUNDAMENTAL COMPONENT (0-100) ===
-    fundamental_score = 50  # Start neutral
+    valuation_score = float(np.clip(pet_valuation + pef_pet_adj, 0, 100))
 
-    # ROE bonus
+    # === FUNDAMENTAL (0-100) — ROE base + D/E adjustment + FCF adjustment ===
     if not pd.isna(roe):
-        if roe >= 25:
-            fundamental_score = 90
-        elif roe >= 20:
-            fundamental_score = 80
-        elif roe >= 15:
-            fundamental_score = 70
-        elif roe >= 12:
-            fundamental_score = 60
-        elif roe >= 10:
-            fundamental_score = 50
-        elif roe >= 8:
-            fundamental_score = 40
-        else:
-            fundamental_score = 20
+        roe_score = float(np.interp(roe, [0, 5, 8, 10, 12, 15, 20, 25, 30], [15, 25, 35, 45, 55, 65, 80, 90, 100]))
+    else:
+        roe_score = 40.0  # Neutral if unknown
 
-    # D/E penalty (lower is better)
+    de_adj = 0.0
     if not pd.isna(de):
-        if de < 30:
-            fundamental_score = min(fundamental_score + 20, 100)
-        elif de < 50:
-            fundamental_score = min(fundamental_score + 10, 100)
-        elif de > 150:
-            fundamental_score = max(fundamental_score - 20, 0)
-        elif de > 100:
-            fundamental_score = max(fundamental_score - 10, 0)
+        de_adj = float(np.interp(de, [0, 30, 50, 80, 100, 150, 200, 300], [20, 15, 10, 5, 0, -10, -20, -30]))
 
-    # FCF yield bonus
+    fcf_adj = 0.0
     if not pd.isna(fcf_yield):
-        if fcf_yield > 5:
-            fundamental_score = min(fundamental_score + 15, 100)
-        elif fcf_yield > 2:
-            fundamental_score = min(fundamental_score + 10, 100)
-        elif fcf_yield > 0:
-            fundamental_score = min(fundamental_score + 5, 100)
+        fcf_adj = float(np.interp(fcf_yield, [-5, 0, 1, 2, 3, 5, 8], [-5, 0, 3, 6, 8, 12, 18]))
 
-    # === ANALYST MOMENTUM COMPONENT (0-100) ===
-    # Rising AM increases buy conviction; declining AM reduces it
-    am_score = 50.0  # Neutral default
+    fundamental_score = float(np.clip(roe_score + de_adj + fcf_adj, 0, 100))
+
+    # === ANALYST MOMENTUM (0-100) — continuous ===
     if not pd.isna(analyst_momentum):
-        if analyst_momentum >= 15:
-            am_score = 100
-        elif analyst_momentum >= 10:
-            am_score = 85
-        elif analyst_momentum >= 5:
-            am_score = 70
-        elif analyst_momentum >= 0:
-            am_score = 50
-        elif analyst_momentum >= -5:
-            am_score = 30
-        elif analyst_momentum >= -10:
-            am_score = 15
-        else:
-            am_score = 0
+        am_score = float(np.interp(analyst_momentum, [-15, -10, -5, 0, 5, 10, 15], [0, 15, 30, 50, 70, 85, 100]))
+    else:
+        am_score = 50.0  # Neutral if unknown
 
-    # === CALCULATE WEIGHTED TOTAL ===
+    # === WEIGHTED TOTAL ===
     total_score = (
         upside_score * w_upside +
         consensus_score * w_consensus +
@@ -675,6 +453,14 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
     # Handle boolean-like values
     above_200dma = above_200dma_raw.map(lambda x: True if x in [True, "True", "true", 1, "1", "Y", "y"] else
                                         (False if x in [False, "False", "false", 0, "0", "N", "n"] else np.nan))
+
+    # Continuous 200DMA ratio: price as percentage of 200-day MA (e.g., 105 = 5% above)
+    # Used for continuous BUY scoring instead of binary above/below
+    price_raw_col = df.get("price", df.get("PRC", df.get("current_price", pd.Series([np.nan] * len(df), index=df.index))))
+    price_series = pd.to_numeric(price_raw_col, errors="coerce").fillna(np.nan)
+    dma200_raw = df.get("two_hundred_day_avg", df.get("200DMA", pd.Series([np.nan] * len(df), index=df.index)))
+    dma200 = pd.to_numeric(dma200_raw, errors="coerce").fillna(np.nan)
+    price_200dma_pct = (price_series / dma200) * 100  # e.g., 105 = 5% above 200DMA
 
     # Analyst Momentum: 3-month change in buy percentage
     # Fallback to "AM" (short display name from table_renderer)
@@ -975,6 +761,14 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
         except ImportError:
             pass  # VIX regime provider not available, use unadjusted criteria
 
+        # Signal hysteresis for portfolio positions: held positions need stronger
+        # reasons to flip — lower BUY bar (easier to keep), higher SELL bar (harder to sell)
+        if option == "portfolio":
+            if "min_upside" in buy_criteria:
+                buy_criteria["min_upside"] = buy_criteria["min_upside"] * 0.85
+            if "min_pct_from_52w_high" in buy_criteria:
+                buy_criteria["min_pct_from_52w_high"] = buy_criteria["min_pct_from_52w_high"] * 0.85
+
         # Check for IPO grace period - recent IPOs get relaxed momentum criteria
         ipo_config = yaml_config.load_config().get('ipo_grace_period', {})
         is_ipo_stock = is_recent_ipo(ticker, yaml_config, ipo_config.get('grace_period_months', 12))
@@ -1015,6 +809,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
         row_fcf_yield = fcf_yield.loc[idx]
         row_rev_growth = rev_growth.loc[idx]
         row_target_disp = target_disp.loc[idx]
+        row_price_200dma_pct = price_200dma_pct.loc[idx]
 
         # Initialize for signal tracking
         sell_conditions: List[str] = []
@@ -1124,6 +919,11 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
             # Get sell scoring config for this region-tier
             sell_scoring_config = yaml_config.get_sell_scoring_config(region, tier)
 
+            # Signal hysteresis for sell scoring: raise threshold for held positions
+            if option == "portfolio":
+                sell_scoring_config = sell_scoring_config.copy()
+                sell_scoring_config["score_threshold"] = sell_scoring_config.get("score_threshold", 65) * 1.10
+
             # === QUALITY OVERRIDE CHECK ===
             # Never SELL stocks with exceptionally strong fundamentals
             # CIO Review Finding M1: Added momentum gate — if analyst momentum
@@ -1131,7 +931,6 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
             # This prevents protecting stocks in slow deterioration.
             quality_override_buy_pct = sell_scoring_config.get('quality_override_buy_pct', 85)
             quality_override_upside = sell_scoring_config.get('quality_override_upside', 20)
-            quality_override_exret = sell_scoring_config.get('quality_override_exret', 15)
 
             # M1: Momentum gate for quality override
             # If analyst momentum is declining >= 5pp, override is disabled
@@ -1140,10 +939,10 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
             )
 
             # Quality Override with fundamental floors + momentum gate
+            # EXRET check removed — mathematically redundant (buy%≥85 AND upside≥20 → EXRET≥17 always)
             is_quality_stock = (
                 row_buy_pct >= quality_override_buy_pct and
                 row_upside >= quality_override_upside and
-                row_exret >= quality_override_exret and
                 (pd.isna(row_roe) or row_roe > 0) and      # Require profitability (or no data)
                 (pd.isna(row_de) or row_de < 200) and       # Limit leverage (or no data)
                 not am_blocks_override                       # M1: Momentum gate
@@ -1153,8 +952,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                 logger.info(
                     f"Ticker {ticker}: QUALITY OVERRIDE - strong fundamentals protect from SELL "
                     f"(buy%={row_buy_pct:.1f}% >= {quality_override_buy_pct}%, "
-                    f"upside={row_upside:.1f}% >= {quality_override_upside}%, "
-                    f"exret={row_exret:.1f}% >= {quality_override_exret}%)"
+                    f"upside={row_upside:.1f}% >= {quality_override_upside}%)"
                 )
                 # Skip SELL evaluation entirely for quality stocks
                 # They will be evaluated for BUY criteria below
@@ -1250,7 +1048,6 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                 sell_score, sell_factors = calculate_sell_score(
                     upside=row_upside,
                     buy_pct=row_buy_pct,
-                    exret=row_exret,
                     pct_52w=row_pct_52w,
                     pef=row_pef,
                     pet=row_pet,
@@ -1337,10 +1134,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                     sell_conditions.append("min_buy_percentage")
                     logger.info(f"Ticker {ticker}: SELL TRIGGER - buy% {row_buy_pct:.1f}% <= {sell_criteria['min_buy_percentage']:.1f}%")
 
-            if "max_exret" in sell_criteria:
-                if row_exret <= sell_criteria["max_exret"]:
-                    sell_conditions.append("max_exret")
-                    logger.info(f"Ticker {ticker}: SELL TRIGGER - exret {row_exret:.1f}% <= {sell_criteria['max_exret']:.1f}%")
+            # max_exret removed — EXRET is a derivative of upside × buy%, zero independent info
 
             # Optional criteria from YAML (only apply if defined in YAML)
             if "max_forward_pe" in sell_criteria and not pd.isna(row_pef):
@@ -1473,10 +1267,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                 is_buy_candidate = False
                 logger.debug(f"Ticker {ticker}: No buy - buy% {row_buy_pct:.1f}% < {buy_criteria['min_buy_percentage']:.1f}%")
 
-        if "min_exret" in buy_criteria:
-            if row_exret < buy_criteria["min_exret"]:
-                is_buy_candidate = False
-                logger.debug(f"Ticker {ticker}: No buy - exret {row_exret:.1f}% < {buy_criteria['min_exret']:.1f}%")
+        # min_exret gate removed — EXRET = upside × buy% / 100, zero independent information
 
         # Check analyst requirements with rating type differentiation
         # Type "E" = ratings since last earnings (more relevant, lower threshold)
@@ -1582,11 +1373,8 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                 is_buy_candidate = False
                 logger.debug(f"Ticker {ticker}: Failed PE/sector check - {row_pe_vs_sector:.2f}x > max:{buy_criteria['max_pe_vs_sector']:.2f}x")
 
-        # Sector-Relative Valuation: PE should not be too far below sector (value trap warning)
-        if "min_pe_vs_sector" in buy_criteria and not pd.isna(row_pe_vs_sector):
-            if row_pe_vs_sector < buy_criteria.get("min_pe_vs_sector"):
-                is_buy_candidate = False
-                logger.debug(f"Ticker {ticker}: Failed PE/sector check - {row_pe_vs_sector:.2f}x < min:{buy_criteria['min_pe_vs_sector']:.2f}x (value trap)")
+        # min_pe_vs_sector gate removed — value investing: cheap + profitable = alpha;
+        # quality metrics (ROE, FCF, D/E) already guard value traps
 
         # NEW: FCF Yield - academically proven alpha factor (Sloan 1996, Lakonishok 1994)
         # Positive FCF indicates business generates real cash, not just accounting profits
@@ -1617,9 +1405,8 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                     buy_conviction_score = calculate_buy_score(
                         upside=row_upside,
                         buy_pct=row_buy_pct,
-                        exret=row_exret,
                         pct_52w=row_pct_52w,
-                        above_200dma=row_above_200dma,
+                        price_200dma_pct=row_price_200dma_pct,
                         pef=row_pef,
                         pet=row_pet,
                         roe=row_roe,
@@ -1632,6 +1419,13 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                     if not pd.isna(row_target_disp) and row_target_disp > 80:
                         buy_conviction_score *= 0.85  # 15% discount for high dispersion
                         logger.debug(f"Ticker {ticker}: BUY score discounted 15% for high target dispersion ({row_target_disp:.1f}%)")
+
+                    # NaN data quality discount: penalize scores when critical metrics are missing
+                    nan_count = sum(1 for v in [row_roe, row_de, row_pet, row_pef, row_fcf_yield, row_pe_vs_sector] if pd.isna(v))
+                    if nan_count > 2:
+                        buy_conviction_score *= 0.80  # 20% discount for poor data coverage
+                        logger.debug(f"Ticker {ticker}: BUY score discounted 20% for {nan_count}/6 missing metrics")
+
                     buy_scores.loc[idx] = buy_conviction_score
                     logger.debug(f"Ticker {ticker}: BUY with conviction score {buy_conviction_score:.1f}")
 

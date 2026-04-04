@@ -671,12 +671,12 @@ class TestScoringWeights:
         from trade_modules.analysis.signals import calculate_sell_score
 
         # Default weights from function signature
-        total = 0.25 + 0.25 + 0.15 + 0.25 + 0.10
+        total = 0.20 + 0.25 + 0.20 + 0.25 + 0.10
         assert abs(total - 1.0) < 0.01
 
     def test_buy_scoring_weights_sum_to_one(self):
         """BUY scoring weights must sum to 1.0."""
-        total = 0.22 + 0.18 + 0.20 + 0.13 + 0.17 + 0.10
+        total = 0.22 + 0.13 + 0.20 + 0.18 + 0.17 + 0.10
         assert abs(total - 1.0) < 0.01
 
     def test_fundamental_weight_increased(self):
@@ -687,9 +687,9 @@ class TestScoringWeights:
         assert 0.17 > 0.09
 
     def test_analyst_weight_decreased(self):
-        """Analyst/upside weight should be lower (EXRET tautology fix)."""
-        # SELL: was 0.35, now 0.25
-        assert 0.25 < 0.35
+        """Analyst/upside weight should be lower (EXRET removed)."""
+        # SELL: was 0.35, now 0.20
+        assert 0.20 < 0.35
         # BUY upside: was 0.27, now 0.22
         assert 0.22 < 0.27
 
@@ -699,7 +699,7 @@ class TestScoringWeights:
 
         # Stock with poor fundamentals
         score_poor, _ = calculate_sell_score(
-            upside=5, buy_pct=60, exret=3,
+            upside=5, buy_pct=60,
             pct_52w=70, pef=30, pet=25,
             roe=-5, de=350,
             sell_scoring_config={},
@@ -707,7 +707,7 @@ class TestScoringWeights:
 
         # Stock with good fundamentals
         score_good, _ = calculate_sell_score(
-            upside=5, buy_pct=60, exret=3,
+            upside=5, buy_pct=60,
             pct_52w=70, pef=30, pet=25,
             roe=25, de=30,
             sell_scoring_config={},
@@ -721,8 +721,8 @@ class TestScoringWeights:
 
         # Stock with strong fundamentals
         score_strong = calculate_buy_score(
-            upside=20, buy_pct=85, exret=17,
-            pct_52w=85, above_200dma=True,
+            upside=20, buy_pct=85,
+            pct_52w=85, price_200dma_pct=110,
             pef=20, pet=25,
             roe=30, de=20, fcf_yield=5.0,
             buy_scoring_config={},
@@ -730,8 +730,8 @@ class TestScoringWeights:
 
         # Stock with weak fundamentals
         score_weak = calculate_buy_score(
-            upside=20, buy_pct=85, exret=17,
-            pct_52w=85, above_200dma=True,
+            upside=20, buy_pct=85,
+            pct_52w=85, price_200dma_pct=110,
             pef=20, pet=25,
             roe=5, de=200, fcf_yield=-1.0,
             buy_scoring_config={},

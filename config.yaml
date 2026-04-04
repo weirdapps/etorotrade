@@ -27,9 +27,6 @@ us_mega:
     max_trailing_pe: 90
     max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
     max_short_interest: 2
-    min_exret: 6
-    min_earnings_growth: -25
-    min_price_performance: -25
     min_analysts: 8  # Reduced from 12 - MEGA caps are well-covered even with fewer analysts
     min_analysts_earnings: 5  # Lower threshold for Type E ratings (post-earnings, more relevant)
     min_price_targets: 6  # Reduced from 8
@@ -39,12 +36,11 @@ us_mega:
     # min_revenue_growth removed — no predictive power for forward returns (R²=5%, academic evidence)
     min_pct_from_52w_high: 45  # Reduced from 65 - value opportunities often trade far from highs
     max_upside_buy: 100  # Filter unrealistic targets (>100% upside suggests stale/outlier estimates)
-    max_target_dispersion: 120  # Filter extreme analyst disagreement (>120% spread/median)
+    max_target_dispersion: 150  # Tier-scaled: mega cap (120→150)
     require_above_200dma: false  # Relaxed for MEGA caps - quality stocks may dip below temporarily
     min_analyst_momentum: -10  # Relaxed from -8 - allow more AM flexibility for MEGA caps
     quality_override: true  # Allow positive AM to lower analyst threshold by 1
     max_pe_vs_sector: 1.5
-    min_pe_vs_sector: 0.3
   sell:
     # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
     fully_valued_upside_threshold: 3.0
@@ -56,9 +52,6 @@ us_mega:
     min_trailing_pe: 170
     min_peg: 5.5
     min_short_interest: 4
-    max_exret: 2
-    max_earnings_growth: -45
-    max_price_performance: -45
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 50
@@ -77,9 +70,6 @@ us_large:
     max_trailing_pe: 85
     max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
     max_short_interest: 3.5  # Increased from 2.25 - research shows SI only predictive for distressed stocks
-    min_exret: 8
-    min_earnings_growth: -22.5
-    min_price_performance: -22.5
     min_analysts: 8  # Reduced from 10 - quality coverage exists with 8+ analysts
     min_analysts_earnings: 5  # Lowered from 6 - adds TMO ($204B, 100% buy, 22% upside)
     min_price_targets: 5  # Reduced from 6
@@ -88,12 +78,11 @@ us_large:
     min_fcf_yield: -3.0  # Changed from 0.25 - growth companies may have negative FCF
     min_pct_from_52w_high: 60  # Increased from 50 - avoid deep drawdowns like INTU at 55%
     max_upside_buy: 100  # Filter unrealistic targets (>100% upside suggests stale/outlier estimates)
-    max_target_dispersion: 120  # Filter extreme analyst disagreement
+    max_target_dispersion: 130  # Tier-scaled: large cap (120→130)
     require_above_200dma: false  # Relaxed for LARGE caps - quality stocks may dip below temporarily
     min_analyst_momentum: -10  # Relaxed from -8 - allow more AM flexibility for LARGE caps
     quality_override: true  # Allow positive AM to lower analyst threshold by 1
     max_pe_vs_sector: 1.5
-    min_pe_vs_sector: 0.3
   sell:
     # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
     fully_valued_upside_threshold: 3.0
@@ -105,9 +94,6 @@ us_large:
     min_trailing_pe: 180
     min_peg: 5.5
     min_short_interest: 4.25
-    max_exret: -1.4  # Tightened from 3 — backtest shows +27.8% hit rate (n=146)
-    max_earnings_growth: -42.5
-    max_price_performance: -42.5
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 50
@@ -126,9 +112,6 @@ us_mid:
     max_trailing_pe: 80
     max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
     max_short_interest: 2.5
-    min_exret: 12
-    min_earnings_growth: -20
-    min_price_performance: -20
     min_analysts: 8
     min_price_targets: 5
     min_roe: 10.0
@@ -140,7 +123,6 @@ us_mid:
     require_above_200dma: true
     min_analyst_momentum: -5
     max_pe_vs_sector: 1.4
-    min_pe_vs_sector: 0.3
   sell:
     # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
     fully_valued_upside_threshold: 3.0
@@ -152,9 +134,6 @@ us_mid:
     min_trailing_pe: 190
     min_peg: 5.5
     min_short_interest: 4.5
-    max_exret: 5
-    max_earnings_growth: -40
-    max_price_performance: -40
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 45
@@ -173,9 +152,6 @@ us_small:
     max_trailing_pe: 75
     max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
     max_short_interest: 2.75
-    min_exret: 22
-    min_earnings_growth: -17.5
-    min_price_performance: -17.5
     min_analysts: 6
     min_price_targets: 4
     min_roe: 10.0
@@ -183,11 +159,10 @@ us_small:
     min_fcf_yield: -1.0
     min_pct_from_52w_high: 75
     max_upside_buy: 100  # Filter unrealistic targets
-    max_target_dispersion: 120  # Filter extreme analyst disagreement
+    max_target_dispersion: 100  # Tier-scaled: small cap (120→100)
     require_above_200dma: true
     min_analyst_momentum: -5
     max_pe_vs_sector: 1.3
-    min_pe_vs_sector: 0.35
   sell:
     # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
     fully_valued_upside_threshold: 3.0
@@ -199,9 +174,6 @@ us_small:
     min_trailing_pe: 200
     min_peg: 5.5
     min_short_interest: 4.75
-    max_exret: 7
-    max_earnings_growth: -37.5
-    max_price_performance: -37.5
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 40
@@ -220,20 +192,16 @@ us_micro:
     max_trailing_pe: 70
     max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
     max_short_interest: 3
-    min_exret: 35
-    min_earnings_growth: -15
-    min_price_performance: -15
     min_analysts: 6
     min_price_targets: 4
     min_roe: 10.0
     max_debt_equity: 100.0
     min_pct_from_52w_high: 80
     max_upside_buy: 100  # Filter unrealistic targets
-    max_target_dispersion: 120  # Filter extreme analyst disagreement
+    max_target_dispersion: 80  # Tier-scaled: micro cap (120→80)
     require_above_200dma: true
     min_analyst_momentum: -3
     max_pe_vs_sector: 1.2
-    min_pe_vs_sector: 0.4
   sell:
     # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
     fully_valued_upside_threshold: 3.0
@@ -245,9 +213,6 @@ us_micro:
     min_trailing_pe: 210
     min_peg: 5.5
     min_short_interest: 5
-    max_exret: 9
-    max_earnings_growth: -35
-    max_price_performance: -35
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 35
@@ -266,9 +231,6 @@ eu_mega:
     max_trailing_pe: 90
     max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
     max_short_interest: 2
-    min_exret: 7
-    min_earnings_growth: -25
-    min_price_performance: -25
     min_analysts: 6  # Reduced from 10 - EU has fewer analysts but quality coverage
     min_analysts_earnings: 4  # Lower threshold for Type E ratings (post-earnings, more relevant)
     min_price_targets: 4  # Reduced from 6
@@ -277,12 +239,11 @@ eu_mega:
     min_fcf_yield: -5.0  # Standard threshold - sector adjustments handled in code
     min_pct_from_52w_high: 45  # Reduced from 65 - value opportunities often trade far from highs
     max_upside_buy: 100  # Filter unrealistic targets (>100% upside suggests stale/outlier estimates)
-    max_target_dispersion: 120  # Filter extreme analyst disagreement
+    max_target_dispersion: 150  # Tier-scaled: mega cap (120→150)
     require_above_200dma: false  # CHANGED from true - quality stocks may dip below temporarily
     min_analyst_momentum: -12  # Relaxed from -10 - allow more AM flexibility for EU MEGA caps
     quality_override: true  # Allow positive AM to lower analyst threshold by 1
     max_pe_vs_sector: 1.5
-    min_pe_vs_sector: 0.3
   sell:
     # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
     fully_valued_upside_threshold: 3.0
@@ -294,9 +255,6 @@ eu_mega:
     min_trailing_pe: 150
     min_peg: 5.5
     min_short_interest: 4
-    max_exret: 3
-    max_earnings_growth: -45
-    max_price_performance: -45
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 50
@@ -315,9 +273,6 @@ eu_large:
     max_trailing_pe: 85
     max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
     max_short_interest: 3.5  # Increased from 2.25 - research shows SI only predictive for distressed stocks
-    min_exret: 9
-    min_earnings_growth: -22.5
-    min_price_performance: -22.5
     min_analysts: 6  # Reduced from 8 - EU has fewer analysts but quality coverage
     min_analysts_earnings: 4  # Lower threshold for Type E ratings (post-earnings, more relevant)
     min_price_targets: 4  # Reduced from 5
@@ -326,12 +281,11 @@ eu_large:
     min_fcf_yield: -3.0  # Standard threshold - sector adjustments handled in code
     min_pct_from_52w_high: 50  # Reduced from 70 - value opportunities often trade far from highs
     max_upside_buy: 100  # Filter unrealistic targets (>100% upside suggests stale/outlier estimates)
-    max_target_dispersion: 120  # Filter extreme analyst disagreement
+    max_target_dispersion: 130  # Tier-scaled: large cap (120→130)
     require_above_200dma: false  # CHANGED from true - quality stocks may dip below temporarily
     min_analyst_momentum: -12  # Relaxed from -10 - allow more AM flexibility for EU LARGE caps
     quality_override: true  # Allow positive AM to lower analyst threshold by 1
     max_pe_vs_sector: 1.5
-    min_pe_vs_sector: 0.3
   sell:
     # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
     fully_valued_upside_threshold: 3.0
@@ -343,9 +297,6 @@ eu_large:
     min_trailing_pe: 160
     min_peg: 5.5
     min_short_interest: 4.25
-    max_exret: 5
-    max_earnings_growth: -42.5
-    max_price_performance: -42.5
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 50
@@ -364,9 +315,6 @@ eu_mid:
     max_trailing_pe: 80
     max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
     max_short_interest: 2.5
-    min_exret: 14
-    min_earnings_growth: -20
-    min_price_performance: -20
     min_analysts: 8
     min_price_targets: 5
     min_roe: 8.0
@@ -378,7 +326,6 @@ eu_mid:
     require_above_200dma: true
     min_analyst_momentum: -8
     max_pe_vs_sector: 1.4
-    min_pe_vs_sector: 0.3
   sell:
     # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
     fully_valued_upside_threshold: 3.0
@@ -390,9 +337,6 @@ eu_mid:
     min_trailing_pe: 170
     min_peg: 5.5
     min_short_interest: 4.5
-    max_exret: -2.0  # Tightened from 6 — backtest shows +10.5% hit rate (n=256)
-    max_earnings_growth: -40
-    max_price_performance: -40
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 45
@@ -412,9 +356,6 @@ eu_small:
     max_trailing_pe: 75
     max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
     max_short_interest: 2.75
-    min_exret: 24
-    min_earnings_growth: -17.5
-    min_price_performance: -17.5
     min_analysts: 6
     min_price_targets: 4
     min_roe: 8.0
@@ -422,11 +363,10 @@ eu_small:
     min_fcf_yield: -1.0
     min_pct_from_52w_high: 75
     max_upside_buy: 100  # Filter unrealistic targets
-    max_target_dispersion: 120  # Filter extreme analyst disagreement
+    max_target_dispersion: 100  # Tier-scaled: small cap (120→100)
     require_above_200dma: true
     min_analyst_momentum: -5
     max_pe_vs_sector: 1.3
-    min_pe_vs_sector: 0.35
   sell:
     # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
     fully_valued_upside_threshold: 3.0
@@ -438,9 +378,6 @@ eu_small:
     min_trailing_pe: 180
     min_peg: 5.5
     min_short_interest: 4.75
-    max_exret: 9
-    max_earnings_growth: -37.5
-    max_price_performance: -37.5
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 40
@@ -459,19 +396,15 @@ eu_micro:
     max_trailing_pe: 70
     max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
     max_short_interest: 3
-    min_exret: 35
-    min_earnings_growth: -15
-    min_price_performance: -15
     min_analysts: 6
     min_price_targets: 4
     min_roe: 10.0
     max_debt_equity: 120.0
     min_pct_from_52w_high: 80
-    max_target_dispersion: 120  # Filter extreme analyst disagreement (>120% spread/median)
+    max_target_dispersion: 80  # Tier-scaled: micro cap (120→80)
     require_above_200dma: true
     min_analyst_momentum: -3
     max_pe_vs_sector: 1.2
-    min_pe_vs_sector: 0.4
   sell:
     # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
     fully_valued_upside_threshold: 3.0
@@ -483,9 +416,6 @@ eu_micro:
     min_trailing_pe: 190
     min_peg: 5.5
     min_short_interest: 5
-    max_exret: 11
-    max_earnings_growth: -35
-    max_price_performance: -35
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 35
@@ -505,9 +435,6 @@ hk_mega:
     max_trailing_pe: 90
     max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
     max_short_interest: 2
-    min_exret: 12
-    min_earnings_growth: -25
-    min_price_performance: -25
     min_analysts: 15
     min_price_targets: 8
     min_roe: 10.0
@@ -515,11 +442,10 @@ hk_mega:
     min_fcf_yield: 0.75
     min_pct_from_52w_high: 70
     max_upside_buy: 100  # Filter unrealistic targets
-    max_target_dispersion: 120  # Filter extreme analyst disagreement
+    max_target_dispersion: 150  # Tier-scaled: mega cap (120→150)
     require_above_200dma: false  # Relaxed - HK market in prolonged downtrend, quality stocks below 200DMA
     min_analyst_momentum: -12  # Relaxed from -8 - allow more AM flexibility for HK MEGA caps
     max_pe_vs_sector: 1.5
-    min_pe_vs_sector: 0.3
   sell:
     # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
     fully_valued_upside_threshold: 3.0
@@ -531,9 +457,6 @@ hk_mega:
     min_trailing_pe: 140
     min_peg: 5.5
     min_short_interest: 4
-    max_exret: 5
-    max_earnings_growth: -45
-    max_price_performance: -45
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 45
@@ -553,9 +476,6 @@ hk_large:
     max_trailing_pe: 85
     max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
     max_short_interest: 2.25
-    min_exret: 15
-    min_earnings_growth: -22.5
-    min_price_performance: -22.5
     min_analysts: 12
     min_price_targets: 6
     min_roe: 10.0
@@ -563,11 +483,10 @@ hk_large:
     min_fcf_yield: 0.5
     min_pct_from_52w_high: 75
     max_upside_buy: 100  # Filter unrealistic targets
-    max_target_dispersion: 120  # Filter extreme analyst disagreement
+    max_target_dispersion: 130  # Tier-scaled: large cap (120→130)
     require_above_200dma: false  # Relaxed - HK market in prolonged downtrend, quality stocks below 200DMA
     min_analyst_momentum: -12  # Relaxed from -8 - allow more AM flexibility for HK LARGE caps
     max_pe_vs_sector: 1.5
-    min_pe_vs_sector: 0.3
   sell:
     # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
     fully_valued_upside_threshold: 3.0
@@ -579,9 +498,6 @@ hk_large:
     min_trailing_pe: 150
     min_peg: 5.5
     min_short_interest: 4.25
-    max_exret: 6
-    max_earnings_growth: -42.5
-    max_price_performance: -42.5
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 45
@@ -601,9 +517,6 @@ hk_mid:
     max_trailing_pe: 80
     max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
     max_short_interest: 2.5
-    min_exret: 18
-    min_earnings_growth: -20
-    min_price_performance: -20
     min_analysts: 10
     min_price_targets: 5
     min_roe: 10.0
@@ -615,7 +528,6 @@ hk_mid:
     require_above_200dma: true
     min_analyst_momentum: -5
     max_pe_vs_sector: 1.5
-    min_pe_vs_sector: 0.3
   sell:
     # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
     fully_valued_upside_threshold: 3.0
@@ -627,9 +539,6 @@ hk_mid:
     min_trailing_pe: 160
     min_peg: 5.5
     min_short_interest: 4.5
-    max_exret: 9
-    max_earnings_growth: -40
-    max_price_performance: -40
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 40
@@ -649,9 +558,6 @@ hk_small:
     max_trailing_pe: 75
     max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
     max_short_interest: 2.75
-    min_exret: 25
-    min_earnings_growth: -17.5
-    min_price_performance: -17.5
     min_analysts: 8
     min_price_targets: 4
     min_roe: 12.0
@@ -659,11 +565,10 @@ hk_small:
     min_fcf_yield: 0.0
     min_pct_from_52w_high: 80
     max_upside_buy: 100  # Filter unrealistic targets
-    max_target_dispersion: 120  # Filter extreme analyst disagreement
+    max_target_dispersion: 100  # Tier-scaled: small cap (120→100)
     require_above_200dma: true
     min_analyst_momentum: -5
     max_pe_vs_sector: 1.4
-    min_pe_vs_sector: 0.3
   sell:
     # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
     fully_valued_upside_threshold: 3.0
@@ -675,9 +580,6 @@ hk_small:
     min_trailing_pe: 170
     min_peg: 5.5
     min_short_interest: 4.75
-    max_exret: 11
-    max_earnings_growth: -37.5
-    max_price_performance: -37.5
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 35
@@ -696,19 +598,15 @@ hk_micro:
     max_trailing_pe: 70
     max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
     max_short_interest: 3
-    min_exret: 45
-    min_earnings_growth: -15
-    min_price_performance: -15
     min_analysts: 8
     min_price_targets: 4
     min_roe: 12.0
     max_debt_equity: 80.0
     min_pct_from_52w_high: 85
-    max_target_dispersion: 120  # Filter extreme analyst disagreement (>120% spread/median)
+    max_target_dispersion: 80  # Tier-scaled: micro cap (120→80)
     require_above_200dma: true
     min_analyst_momentum: -3
     max_pe_vs_sector: 1.3
-    min_pe_vs_sector: 0.35
   sell:
     # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
     fully_valued_upside_threshold: 3.0
@@ -720,9 +618,6 @@ hk_micro:
     min_trailing_pe: 180
     min_peg: 5.5
     min_short_interest: 5
-    max_exret: 14
-    max_earnings_growth: -35
-    max_price_performance: -35
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 30
@@ -843,7 +738,6 @@ default_sell_scoring:
   # Quality override (bypass SELL - protect strong stocks)
   quality_override_buy_pct: 85     # 85%+ analyst buy
   quality_override_upside: 20      # 20%+ upside
-  quality_override_exret: 15       # 15%+ expected return
   # CIO Review S2: Rebalanced weights - reduced analyst (EXRET tautology),
   # increased fundamentals and momentum (orthogonal factors)
   # Original: analyst=0.35, momentum=0.25, valuation=0.20, fundamental=0.20
@@ -928,7 +822,6 @@ us_mega_sell_scoring:
   hard_trigger_buy_pct: 35
   quality_override_buy_pct: 85
   quality_override_upside: 20
-  quality_override_exret: 15
 
 us_large_sell_scoring:
   score_threshold: 65
@@ -936,7 +829,6 @@ us_large_sell_scoring:
   hard_trigger_buy_pct: 38
   quality_override_buy_pct: 85
   quality_override_upside: 18
-  quality_override_exret: 14
 
 us_mid_sell_scoring:
   score_threshold: 60
@@ -944,7 +836,6 @@ us_mid_sell_scoring:
   hard_trigger_buy_pct: 40
   quality_override_buy_pct: 88
   quality_override_upside: 22
-  quality_override_exret: 16
 
 us_small_sell_scoring:
   score_threshold: 55
@@ -952,7 +843,6 @@ us_small_sell_scoring:
   hard_trigger_buy_pct: 45
   quality_override_buy_pct: 90
   quality_override_upside: 25
-  quality_override_exret: 20
 
 us_micro_sell_scoring:
   score_threshold: 50
@@ -960,7 +850,6 @@ us_micro_sell_scoring:
   hard_trigger_buy_pct: 50
   quality_override_buy_pct: 92
   quality_override_upside: 30
-  quality_override_exret: 25
 
 eu_mega_sell_scoring:
   score_threshold: 65
@@ -968,7 +857,6 @@ eu_mega_sell_scoring:
   hard_trigger_buy_pct: 35
   quality_override_buy_pct: 82
   quality_override_upside: 18
-  quality_override_exret: 13
 
 eu_large_sell_scoring:
   score_threshold: 62
@@ -976,7 +864,6 @@ eu_large_sell_scoring:
   hard_trigger_buy_pct: 38
   quality_override_buy_pct: 83
   quality_override_upside: 18
-  quality_override_exret: 14
 
 eu_mid_sell_scoring:
   score_threshold: 58
@@ -984,7 +871,6 @@ eu_mid_sell_scoring:
   hard_trigger_buy_pct: 42
   quality_override_buy_pct: 85
   quality_override_upside: 20
-  quality_override_exret: 15
 
 eu_small_sell_scoring:
   score_threshold: 55
@@ -992,7 +878,6 @@ eu_small_sell_scoring:
   hard_trigger_buy_pct: 45
   quality_override_buy_pct: 88
   quality_override_upside: 23
-  quality_override_exret: 18
 
 eu_micro_sell_scoring:
   score_threshold: 50
@@ -1000,7 +885,6 @@ eu_micro_sell_scoring:
   hard_trigger_buy_pct: 50
   quality_override_buy_pct: 90
   quality_override_upside: 28
-  quality_override_exret: 22
 
 hk_mega_sell_scoring:
   score_threshold: 68
@@ -1008,7 +892,6 @@ hk_mega_sell_scoring:
   hard_trigger_buy_pct: 38
   quality_override_buy_pct: 88
   quality_override_upside: 22
-  quality_override_exret: 18
 
 hk_large_sell_scoring:
   score_threshold: 65
@@ -1016,7 +899,6 @@ hk_large_sell_scoring:
   hard_trigger_buy_pct: 40
   quality_override_buy_pct: 88
   quality_override_upside: 23
-  quality_override_exret: 18
 
 hk_mid_sell_scoring:
   score_threshold: 62
@@ -1024,7 +906,6 @@ hk_mid_sell_scoring:
   hard_trigger_buy_pct: 42
   quality_override_buy_pct: 90
   quality_override_upside: 25
-  quality_override_exret: 20
 
 hk_small_sell_scoring:
   score_threshold: 58
@@ -1032,7 +913,6 @@ hk_small_sell_scoring:
   hard_trigger_buy_pct: 48
   quality_override_buy_pct: 92
   quality_override_upside: 28
-  quality_override_exret: 23
 
 hk_micro_sell_scoring:
   score_threshold: 55
@@ -1040,4 +920,3 @@ hk_micro_sell_scoring:
   hard_trigger_buy_pct: 52
   quality_override_buy_pct: 95
   quality_override_upside: 32
-  quality_override_exret: 28
