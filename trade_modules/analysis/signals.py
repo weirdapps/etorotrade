@@ -1328,13 +1328,9 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                     sell_conditions.append("max_trailing_pe")
                     logger.debug(f"Ticker {ticker}: SELL TRIGGER - trailing PE {row_pet:.1f} > {sell_criteria['max_trailing_pe']:.1f}")
 
-            # PEF > PET requirement for SELL: Forward PE significantly higher than Trailing PE (deteriorating earnings)
-            # Only apply this check when both values are meaningful (> 10)
-            if not pd.isna(row_pef) and not pd.isna(row_pet) and row_pet > 10 and row_pef > 10:
-                # PEF more than 20% higher than PET suggests deteriorating earnings outlook
-                if row_pef > row_pet * 1.2:
-                    sell_conditions.append("pef_greater_pet_deteriorating")
-                    logger.debug(f"Ticker {ticker}: SELL TRIGGER - PEF:{row_pef:.1f} > PET*1.2:{row_pet * 1.2:.1f} (deteriorating earnings)")
+            # PEF > PET deteriorating earnings check REMOVED — backtest showed 41.9% hit rate
+            # (worse than random, n=31). Stocks with rising forward PE are often re-rated
+            # growth names, not deteriorating. See backtest_threshold_report.csv 2026-04-04.
 
             if "max_peg" in sell_criteria and not pd.isna(row_peg):
                 if row_peg > sell_criteria.get("max_peg"):
