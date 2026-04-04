@@ -101,9 +101,6 @@ class TradeConfig:
                 "max_trailing_pe": 80.0,
                 "max_peg": 2.5,
                 "max_short_interest": 2.5,
-                "min_exret": 0.15,  # 15%
-                "min_earnings_growth": -10.0,
-                "min_price_performance": -15.0,
                 "min_roe": 8.0,  # Return on Equity minimum (%)
                 "max_debt_equity": 200.0,  # Debt-to-Equity maximum (%)
             },
@@ -113,9 +110,6 @@ class TradeConfig:
                 "max_forward_pe": 65.0,
                 "min_short_interest": 3.0,
                 "min_beta": 3.0,
-                "max_exret": 0.025,  # 2.5%
-                "max_earnings_growth": -15.0,
-                "max_price_performance": -35.0,
                 "min_roe": 5.0,  # SELL if ROE drops below 5%
                 "max_debt_equity": 250.0,  # SELL if DE exceeds 250%
             },
@@ -141,9 +135,6 @@ class TradeConfig:
                 "max_trailing_pe": 75.0,
                 "max_peg": 2.0,
                 "max_short_interest": 2.0,
-                "min_exret": 0.20,  # 20%
-                "min_earnings_growth": -15.0,
-                "min_price_performance": -10.0,
                 "min_roe": 8.0,  # Return on Equity minimum (%)
                 "max_debt_equity": 200.0,  # Debt-to-Equity maximum (%)
             },
@@ -153,9 +144,6 @@ class TradeConfig:
                 "max_forward_pe": 65.0,
                 "min_short_interest": 3.0,
                 "min_beta": 3.0,
-                "max_exret": 0.08,  # 8%
-                "max_earnings_growth": -15.0,
-                "max_price_performance": -35.0,
                 "min_roe": 5.0,  # SELL if ROE drops below 5%
                 "max_debt_equity": 250.0,  # SELL if DE exceeds 250%
             }
@@ -174,9 +162,6 @@ class TradeConfig:
                 "max_trailing_pe": 85.0,
                 "max_peg": 2.5,
                 "max_short_interest": 2.0,
-                "min_exret": 0.10,  # 10%
-                "min_earnings_growth": -5.0,
-                "min_price_performance": -20.0,
                 "min_roe": 8.0,  # Return on Equity minimum (%)
                 "max_debt_equity": 200.0,  # Debt-to-Equity maximum (%)
             },
@@ -186,9 +171,6 @@ class TradeConfig:
                 "max_forward_pe": 65.0,
                 "min_short_interest": 3.0,
                 "min_beta": 3.0,
-                "max_exret": 0.05,  # 5%
-                "max_earnings_growth": -15.0,
-                "max_price_performance": -35.0,
                 "min_roe": 5.0,  # SELL if ROE drops below 5%
                 "max_debt_equity": 250.0,  # SELL if DE exceeds 250%
             }
@@ -207,9 +189,6 @@ class TradeConfig:
                 "max_trailing_pe": 60.0,
                 "max_peg": 2.0,
                 "max_short_interest": 2.0,
-                "min_exret": 0.20,  # 20%
-                "min_earnings_growth": -15.0,
-                "min_price_performance": -10.0,
                 "min_roe": 8.0,  # Return on Equity minimum (%)
                 "max_debt_equity": 200.0,  # Debt-to-Equity maximum (%)
             },
@@ -219,9 +198,6 @@ class TradeConfig:
                 "max_forward_pe": 65.0,
                 "min_short_interest": 3.0,
                 "min_beta": 3.0,
-                "max_exret": 0.10,  # 10%
-                "max_earnings_growth": -15.0,
-                "max_price_performance": -35.0,
                 "min_roe": 5.0,  # SELL if ROE drops below 5%
                 "max_debt_equity": 250.0,  # SELL if DE exceeds 250%
             }
@@ -240,9 +216,6 @@ class TradeConfig:
                 "max_trailing_pe": 80.0,
                 "max_peg": 2.5,
                 "max_short_interest": 2.5,
-                "min_exret": 0.15,  # 15%
-                "min_earnings_growth": -10.0,
-                "min_price_performance": -15.0,
                 "min_roe": 8.0,  # Return on Equity minimum (%)
                 "max_debt_equity": 200.0,  # Debt-to-Equity maximum (%)
             },
@@ -252,9 +225,6 @@ class TradeConfig:
                 "max_forward_pe": 65.0,
                 "min_short_interest": 3.0,
                 "min_beta": 3.0,
-                "max_exret": 0.025,  # 2.5%
-                "max_earnings_growth": -15.0,
-                "max_price_performance": -35.0,
                 "min_roe": 5.0,  # SELL if ROE drops below 5%
                 "max_debt_equity": 250.0,  # SELL if DE exceeds 250%
             }
@@ -940,9 +910,6 @@ class TradeConfig:
                     "max_trailing_pe": 85.0,         # Higher trailing PE allowed for stability
                     "max_peg": 2.5,                  # PEG requirement
                     "max_short_interest": 2.0,       # Short interest tolerance
-                    "min_exret": 0.10,               # Expected return threshold (10%)
-                    "min_earnings_growth": -15.0,    # More tolerance for earnings variation
-                    "min_price_performance": -15.0,  # More tolerance for price performance
                 }
             elif new_tier == "mid":
                 return {
@@ -956,9 +923,6 @@ class TradeConfig:
                     "max_trailing_pe": 75.0,         # Standard trailing PE limit
                     "max_peg": 2.0,                  # Standard PEG requirement
                     "max_short_interest": 2.0,       # Standard short interest
-                    "min_exret": 0.15,               # Expected return threshold (15%)
-                    "min_earnings_growth": -10.0,    # Standard earnings tolerance
-                    "min_price_performance": -10.0,  # Standard price performance tolerance
                 }
             else:  # small
                 return {
@@ -972,9 +936,6 @@ class TradeConfig:
                     "max_trailing_pe": 60.0,         # Lower trailing PE limit
                     "max_peg": 1.5,                  # Stricter PEG for small caps
                     "max_short_interest": 1.5,       # Lower short interest tolerance
-                    "min_exret": 0.20,               # Higher expected return (20%)
-                    "min_earnings_growth": -5.0,     # Less tolerance for declining earnings
-                    "min_price_performance": -5.0,   # Less tolerance for poor performance
                 }
         elif action == "sell":
             if new_tier == "large":
@@ -984,9 +945,6 @@ class TradeConfig:
                     "max_forward_pe": 70.0,          # Higher PE tolerance for value
                     "min_short_interest": 3.5,       # Higher short interest tolerance
                     "min_beta": 3.5,                 # Higher beta for sell
-                    "max_exret": 0.06,               # Lower expected return (6%)
-                    "max_earnings_growth": -20.0,    # More tolerance for earnings decline
-                    "max_price_performance": -40.0,  # More tolerance for price decline
                 }
             elif new_tier == "mid":
                 return {
@@ -995,9 +953,6 @@ class TradeConfig:
                     "max_forward_pe": 65.0,          # Standard PE limit
                     "min_short_interest": 3.0,       # Standard short interest
                     "min_beta": 3.0,                 # Standard beta for sell
-                    "max_exret": 0.05,               # Lower expected return (5%)
-                    "max_earnings_growth": -15.0,    # Standard earnings tolerance
-                    "max_price_performance": -35.0,  # Standard price performance
                 }
             else:  # small
                 return {
@@ -1006,9 +961,6 @@ class TradeConfig:
                     "max_forward_pe": 50.0,          # Lower PE tolerance
                     "min_short_interest": 2.5,       # Lower short interest tolerance
                     "min_beta": 2.5,                 # Lower beta for sell
-                    "max_exret": 0.03,               # Very low expected return (3%)
-                    "max_earnings_growth": -10.0,    # Less tolerance for earnings decline
-                    "max_price_performance": -25.0,  # Less tolerance for price decline
                 }
         
         return {}

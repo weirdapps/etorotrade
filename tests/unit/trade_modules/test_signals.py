@@ -476,16 +476,16 @@ class TestBuySignalQualityValidation:
         assert result.loc['TEST', 'BS'] == 'I', \
             "Insufficient analyst coverage should be INCONCLUSIVE"
 
-    def test_buy_signal_requires_minimum_exret(self):
-        """BUY signals require minimum expected return (EXRET)."""
-        # Low EXRET should not trigger BUY
+    def test_buy_signal_requires_minimum_upside(self):
+        """BUY signals require minimum upside (EXRET gate removed — redundant derivative)."""
+        # Low upside should not trigger BUY (caught by min_upside gate)
         data = pd.DataFrame({
             'ticker': ['TEST'],
             'market_cap': [500e9],
             'region': ['US'],
-            'upside': [5.0],  # Low upside
+            'upside': [5.0],  # Low upside — fails min_upside=10 for us_mega
             'buy_percentage': [76.0],  # Moderate buy%
-            'EXRET': [3.8],  # Low EXRET (5 * 76 / 100)
+            'EXRET': [3.8],  # Display only — no longer a gate
             'analyst_count': [30],
             'total_ratings': [30],
             'pe_forward': [20.0],
@@ -493,9 +493,8 @@ class TestBuySignalQualityValidation:
         }).set_index('ticker')
 
         result = calculate_action(data)
-        # Must NOT be BUY with low EXRET
         assert result.loc['TEST', 'BS'] != 'B', \
-            "Low EXRET stock should not be BUY"
+            "Low upside stock should not be BUY"
 
 
 class TestSellSignalHardTriggers:
