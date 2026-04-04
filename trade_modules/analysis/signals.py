@@ -225,26 +225,35 @@ def calculate_sell_score(
             momentum_score += 15
 
     # === VALUATION COMPONENT (0-100 raw score) ===
-    # Valuation signals are partially captured through PE checks
+    # PET is primary (academically strongest value signal — trailing PE is unbiased)
+    # PEF is confirmatory (forward PE biased upward ~10%)
     valuation_score = 0.0
 
-    # High PE penalty
-    if not pd.isna(pef):
+    # High PET penalty (primary — trailing PE is more reliable)
+    if not pd.isna(pet):
+        if pet > 80:
+            valuation_score += 45
+            factors.append(f"extreme_trailing_pe:{pet:.1f}")
+        elif pet > 60:
+            valuation_score += 30
+            factors.append(f"high_trailing_pe:{pet:.1f}")
+        elif pet > 45:
+            valuation_score += 15
+
+    # High PEF confirmatory penalty (only adds if PET didn't already flag extreme)
+    if not pd.isna(pef) and valuation_score < 30:
         if pef > 80:
-            valuation_score += 40
-            factors.append(f"extreme_pe:{pef:.1f}")
+            valuation_score += 20
         elif pef > 60:
-            valuation_score += 25
-        elif pef > 45:
             valuation_score += 10
 
     # Negative PE (losses)
-    if not pd.isna(pef) and pef < 0:
+    if not pd.isna(pet) and pet < 0:
         valuation_score += 30
-        factors.append("negative_earnings")
-    elif not pd.isna(pet) and pet < 0:
-        valuation_score += 25
         factors.append("trailing_losses")
+    elif not pd.isna(pef) and pef < 0:
+        valuation_score += 25
+        factors.append("negative_forward_earnings")
 
     # === FUNDAMENTAL COMPONENT (0-100 raw score) ===
     fundamental_score = 0.0
@@ -441,28 +450,32 @@ def calculate_buy_score(
         momentum_score += 20  # Unknown - give partial score
 
     # === VALUATION COMPONENT (0-100) ===
+    # PET is primary (academically strongest — trailing PE is unbiased)
+    # PEF/PET ratio is confirmatory (improving earnings outlook)
     valuation_score = 50  # Start neutral
 
-    # PEF < PET is good (improving earnings)
+    # Reasonable PET levels (primary signal)
+    if not pd.isna(pet):
+        if 10 <= pet <= 25:
+            valuation_score = 75
+        elif 25 < pet <= 40:
+            valuation_score = 60
+        elif pet > 60:
+            valuation_score = 20  # Expensive
+        elif pet < 0:
+            valuation_score = 15  # Losses
+
+    # PEF < PET is good (improving earnings — confirmatory)
     if not pd.isna(pef) and not pd.isna(pet) and pet > 10 and pef > 10:
         pef_pet_ratio = pef / pet
         if pef_pet_ratio < 0.8:
-            valuation_score = 100  # Strong earnings improvement
+            valuation_score = min(valuation_score + 25, 100)  # Strong earnings improvement
         elif pef_pet_ratio < 0.9:
-            valuation_score = 85
+            valuation_score = min(valuation_score + 15, 100)
         elif pef_pet_ratio < 1.0:
-            valuation_score = 70
-        elif pef_pet_ratio < 1.1:
-            valuation_score = 55
-        else:
-            valuation_score = 30  # Deteriorating
-
-    # Reasonable PE levels
-    if not pd.isna(pef):
-        if 10 <= pef <= 25:
-            valuation_score = min(valuation_score + 20, 100)
-        elif 25 < pef <= 40:
-            valuation_score = min(valuation_score + 10, 100)
+            valuation_score = min(valuation_score + 5, 100)
+        elif pef_pet_ratio > 1.2:
+            valuation_score = max(valuation_score - 15, 0)  # Deteriorating
 
     # === FUNDAMENTAL COMPONENT (0-100) ===
     fundamental_score = 50  # Start neutral
@@ -677,9 +690,14 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
     fcf_yield_raw = df.get("fcf_yield", df.get("FCF", pd.Series([np.nan] * len(df), index=df.index)))
     fcf_yield = pd.to_numeric(fcf_yield_raw, errors="coerce").fillna(np.nan)
 
-    # NEW: Revenue Growth - harder to manipulate than EPS
+    # Revenue Growth - kept for display, no longer used as gate (R²=5%)
     rev_growth_raw = df.get("revenue_growth", df.get("RG", pd.Series([np.nan] * len(df), index=df.index)))
     rev_growth = pd.to_numeric(rev_growth_raw, errors="coerce").fillna(np.nan)
+
+    # Target Dispersion - analyst price target spread (high-low)/median %
+    # Low dispersion + high upside = strong signal; extreme dispersion = meaningless targets
+    target_disp_raw = df.get("target_dispersion", df.get("TD", pd.Series([np.nan] * len(df), index=df.index)))
+    target_disp = pd.to_numeric(target_disp_raw, errors="coerce").fillna(np.nan)
 
     # Initialize action series
     actions = pd.Series("H", index=df.index)  # Default to HOLD
@@ -996,6 +1014,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
         # NEW: FCF and Revenue Growth
         row_fcf_yield = fcf_yield.loc[idx]
         row_rev_growth = rev_growth.loc[idx]
+        row_target_disp = target_disp.loc[idx]
 
         # Initialize for signal tracking
         sell_conditions: List[str] = []
@@ -1240,6 +1259,12 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                     sell_scoring_config=sell_scoring_config,
                     analyst_momentum=row_amom,
                 )
+
+                # Dispersion discount: high analyst disagreement means more uncertainty
+                # — don't force sell on borderline cases when targets are unreliable
+                if not pd.isna(row_target_disp) and row_target_disp > 80:
+                    sell_score *= 0.90  # 10% discount for high dispersion
+                    logger.debug(f"Ticker {ticker}: SELL score discounted 10% for high target dispersion ({row_target_disp:.1f}%)")
 
                 score_threshold = sell_scoring_config.get('score_threshold', 65)
 
@@ -1574,12 +1599,13 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                 is_buy_candidate = False
                 logger.debug(f"Ticker {ticker}: Failed FCF yield check - {row_fcf_yield:.1f}% < min:{buy_criteria['min_fcf_yield']:.1f}%")
 
-        # NEW: Revenue Growth - harder to manipulate than EPS
-        # Avoid companies with collapsing top-line (can be signal of structural decline)
-        if "min_revenue_growth" in buy_criteria and not pd.isna(row_rev_growth):
-            if row_rev_growth < buy_criteria.get("min_revenue_growth"):
+        # Revenue growth gate removed — no predictive power for forward returns (R²=5%, academic evidence)
+
+        # Target Dispersion gate — extreme analyst disagreement makes price targets meaningless
+        if "max_target_dispersion" in buy_criteria and not pd.isna(row_target_disp):
+            if row_target_disp > buy_criteria.get("max_target_dispersion"):
                 is_buy_candidate = False
-                logger.debug(f"Ticker {ticker}: Failed revenue growth check - {row_rev_growth:.1f}% < min:{buy_criteria['min_revenue_growth']:.1f}%")
+                logger.debug(f"Ticker {ticker}: Failed target dispersion check - {row_target_disp:.1f}% > max:{buy_criteria['max_target_dispersion']}%")
 
         if is_buy_candidate:
             actions.loc[idx] = "B"
@@ -1602,6 +1628,10 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> 
                         buy_scoring_config=buy_scoring_config,
                         analyst_momentum=row_amom,
                     )
+                    # Dispersion discount: high analyst disagreement reduces conviction
+                    if not pd.isna(row_target_disp) and row_target_disp > 80:
+                        buy_conviction_score *= 0.85  # 15% discount for high dispersion
+                        logger.debug(f"Ticker {ticker}: BUY score discounted 15% for high target dispersion ({row_target_disp:.1f}%)")
                     buy_scores.loc[idx] = buy_conviction_score
                     logger.debug(f"Ticker {ticker}: BUY with conviction score {buy_conviction_score:.1f}")
 

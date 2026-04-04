@@ -18,8 +18,8 @@ us_mega:
   buy:
     # US MEGA: More lenient thresholds - large liquid names with strong coverage
     min_upside: 10
-    min_buy_percentage: 75
-    min_beta: 0.2
+    min_buy_percentage: 60  # Quality floor (was 75) — buy% is contrarian indicator above floor
+    min_beta: 0.2  # Data quality filter — beta≈0 means Yahoo couldn't calculate it
     max_beta: 3
     min_forward_pe: 0.5
     max_forward_pe: 60
@@ -36,9 +36,10 @@ us_mega:
     min_roe: 8.0
     max_debt_equity: 300.0  # Increased from 200 - payment networks (V, MA) operate with high leverage by design
     min_fcf_yield: -5.0  # Changed from 0.5 - growth companies may have negative FCF during expansion
-    min_revenue_growth: -5
+    # min_revenue_growth removed — no predictive power for forward returns (R²=5%, academic evidence)
     min_pct_from_52w_high: 45  # Reduced from 65 - value opportunities often trade far from highs
     max_upside_buy: 100  # Filter unrealistic targets (>100% upside suggests stale/outlier estimates)
+    max_target_dispersion: 120  # Filter extreme analyst disagreement (>120% spread/median)
     require_above_200dma: false  # Relaxed for MEGA caps - quality stocks may dip below temporarily
     min_analyst_momentum: -10  # Relaxed from -8 - allow more AM flexibility for MEGA caps
     quality_override: true  # Allow positive AM to lower analyst threshold by 1
@@ -67,8 +68,8 @@ us_large:
   buy:
     # US LARGE: More lenient thresholds - good coverage, liquid names
     min_upside: 12
-    min_buy_percentage: 77
-    min_beta: 0.2
+    min_buy_percentage: 63  # Quality floor (was 77) — buy% is contrarian indicator above floor
+    min_beta: 0.2  # Data quality filter
     max_beta: 2.5
     min_forward_pe: 0.5
     max_forward_pe: 55
@@ -87,6 +88,7 @@ us_large:
     min_fcf_yield: -3.0  # Changed from 0.25 - growth companies may have negative FCF
     min_pct_from_52w_high: 60  # Increased from 50 - avoid deep drawdowns like INTU at 55%
     max_upside_buy: 100  # Filter unrealistic targets (>100% upside suggests stale/outlier estimates)
+    max_target_dispersion: 120  # Filter extreme analyst disagreement
     require_above_200dma: false  # Relaxed for LARGE caps - quality stocks may dip below temporarily
     min_analyst_momentum: -10  # Relaxed from -8 - allow more AM flexibility for LARGE caps
     quality_override: true  # Allow positive AM to lower analyst threshold by 1
@@ -115,8 +117,8 @@ us_mid:
   buy:
     # US MID: Moderate thresholds - need stronger conviction for smaller caps
     min_upside: 15
-    min_buy_percentage: 80
-    min_beta: 0.2
+    min_buy_percentage: 65  # Quality floor (was 80) — buy% is contrarian indicator above floor
+    min_beta: 0.2  # Data quality filter
     max_beta: 2.5
     min_forward_pe: 0.5
     max_forward_pe: 50
@@ -134,6 +136,7 @@ us_mid:
     min_fcf_yield: 0.0
     min_pct_from_52w_high: 75
     max_upside_buy: 100  # Filter unrealistic targets
+    max_target_dispersion: 120  # Filter extreme analyst disagreement
     require_above_200dma: true
     min_analyst_momentum: -5
     max_pe_vs_sector: 1.4
@@ -160,10 +163,9 @@ us_mid:
 us_small:
   buy:
     # US SMALL: Stricter - higher risk requires higher conviction
-    # Reduced buy% from 88→85 to capture strong opportunities while staying selective
     min_upside: 25
-    min_buy_percentage: 85
-    min_beta: 0.2
+    min_buy_percentage: 68  # Quality floor (was 85) — buy% is contrarian indicator above floor
+    min_beta: 0.2  # Data quality filter
     max_beta: 2.5
     min_forward_pe: 0.5
     max_forward_pe: 45
@@ -181,6 +183,7 @@ us_small:
     min_fcf_yield: -1.0
     min_pct_from_52w_high: 75
     max_upside_buy: 100  # Filter unrealistic targets
+    max_target_dispersion: 120  # Filter extreme analyst disagreement
     require_above_200dma: true
     min_analyst_momentum: -5
     max_pe_vs_sector: 1.3
@@ -208,8 +211,8 @@ us_micro:
   buy:
     # US MICRO: Very strict - highest risk tier (mostly filtered by min_market_cap anyway)
     min_upside: 40
-    min_buy_percentage: 95
-    min_beta: 0.2
+    min_buy_percentage: 72  # Quality floor (was 95) — buy% is contrarian indicator above floor
+    min_beta: 0.2  # Data quality filter
     max_beta: 2.5
     min_forward_pe: 0.5
     max_forward_pe: 40
@@ -226,6 +229,7 @@ us_micro:
     max_debt_equity: 100.0
     min_pct_from_52w_high: 80
     max_upside_buy: 100  # Filter unrealistic targets
+    max_target_dispersion: 120  # Filter extreme analyst disagreement
     require_above_200dma: true
     min_analyst_momentum: -3
     max_pe_vs_sector: 1.2
@@ -253,8 +257,8 @@ eu_mega:
   buy:
     # EU MEGA: Slightly relaxed to capture more EU opportunities
     min_upside: 10
-    min_buy_percentage: 70
-    min_beta: 0.2
+    min_buy_percentage: 58  # Quality floor (was 70) — buy% is contrarian indicator above floor
+    min_beta: 0.2  # Data quality filter
     max_beta: 2.5
     min_forward_pe: 0.5
     max_forward_pe: 60
@@ -273,6 +277,7 @@ eu_mega:
     min_fcf_yield: -5.0  # Standard threshold - sector adjustments handled in code
     min_pct_from_52w_high: 45  # Reduced from 65 - value opportunities often trade far from highs
     max_upside_buy: 100  # Filter unrealistic targets (>100% upside suggests stale/outlier estimates)
+    max_target_dispersion: 120  # Filter extreme analyst disagreement
     require_above_200dma: false  # CHANGED from true - quality stocks may dip below temporarily
     min_analyst_momentum: -12  # Relaxed from -10 - allow more AM flexibility for EU MEGA caps
     quality_override: true  # Allow positive AM to lower analyst threshold by 1
@@ -301,8 +306,8 @@ eu_large:
   buy:
     # EU LARGE: Slightly relaxed to capture more EU opportunities
     min_upside: 12
-    min_buy_percentage: 75
-    min_beta: 0.2
+    min_buy_percentage: 60  # Quality floor (was 75) — buy% is contrarian indicator above floor
+    min_beta: 0.2  # Data quality filter
     max_beta: 2.5
     min_forward_pe: 0.5
     max_forward_pe: 55
@@ -321,6 +326,7 @@ eu_large:
     min_fcf_yield: -3.0  # Standard threshold - sector adjustments handled in code
     min_pct_from_52w_high: 50  # Reduced from 70 - value opportunities often trade far from highs
     max_upside_buy: 100  # Filter unrealistic targets (>100% upside suggests stale/outlier estimates)
+    max_target_dispersion: 120  # Filter extreme analyst disagreement
     require_above_200dma: false  # CHANGED from true - quality stocks may dip below temporarily
     min_analyst_momentum: -12  # Relaxed from -10 - allow more AM flexibility for EU LARGE caps
     quality_override: true  # Allow positive AM to lower analyst threshold by 1
@@ -349,8 +355,8 @@ eu_mid:
   buy:
     # EU MID: Slightly relaxed to capture more EU opportunities
     min_upside: 18
-    min_buy_percentage: 78
-    min_beta: 0.2
+    min_buy_percentage: 63  # Quality floor (was 78) — buy% is contrarian indicator above floor
+    min_beta: 0.2  # Data quality filter
     max_beta: 2
     min_forward_pe: 0.5
     max_forward_pe: 50
@@ -368,6 +374,7 @@ eu_mid:
     min_fcf_yield: 0.0
     min_pct_from_52w_high: 75
     max_upside_buy: 100  # Filter unrealistic targets
+    max_target_dispersion: 120  # Filter extreme analyst disagreement
     require_above_200dma: true
     min_analyst_momentum: -8
     max_pe_vs_sector: 1.4
@@ -396,8 +403,8 @@ eu_small:
     # EU SMALL: Moderately strict - balance EU capture with quality
     # Reduced buy% from 85→82 to capture strong opportunities while staying selective
     min_upside: 28
-    min_buy_percentage: 82
-    min_beta: 0.2
+    min_buy_percentage: 65  # Quality floor (was 82) — buy% is contrarian indicator above floor
+    min_beta: 0.2  # Data quality filter
     max_beta: 2
     min_forward_pe: 0.5
     max_forward_pe: 45
@@ -415,6 +422,7 @@ eu_small:
     min_fcf_yield: -1.0
     min_pct_from_52w_high: 75
     max_upside_buy: 100  # Filter unrealistic targets
+    max_target_dispersion: 120  # Filter extreme analyst disagreement
     require_above_200dma: true
     min_analyst_momentum: -5
     max_pe_vs_sector: 1.3
@@ -442,8 +450,8 @@ eu_micro:
   buy:
     # EU MICRO: Strict - mostly filtered by min_market_cap anyway
     min_upside: 38
-    min_buy_percentage: 92
-    min_beta: 0.2
+    min_buy_percentage: 68  # Quality floor (was 92) — buy% is contrarian indicator above floor
+    min_beta: 0.2  # Data quality filter
     max_beta: 2
     min_forward_pe: 0.5
     max_forward_pe: 40
@@ -459,6 +467,7 @@ eu_micro:
     min_roe: 10.0
     max_debt_equity: 120.0
     min_pct_from_52w_high: 80
+    max_target_dispersion: 120  # Filter extreme analyst disagreement (>120% spread/median)
     require_above_200dma: true
     min_analyst_momentum: -3
     max_pe_vs_sector: 1.2
@@ -487,8 +496,8 @@ hk_mega:
     # HK MEGA: Stricter than US/EU but achievable for quality stocks
     # Relaxed from 22/88/20 to 15/82/12 - still 50% stricter than US MEGA
     min_upside: 15
-    min_buy_percentage: 82
-    min_beta: 0.2
+    min_buy_percentage: 65  # Quality floor (was 82) — buy% is contrarian indicator above floor
+    min_beta: 0.2  # Data quality filter
     max_beta: 2.5
     min_forward_pe: 0.5
     max_forward_pe: 60
@@ -506,6 +515,7 @@ hk_mega:
     min_fcf_yield: 0.75
     min_pct_from_52w_high: 70
     max_upside_buy: 100  # Filter unrealistic targets
+    max_target_dispersion: 120  # Filter extreme analyst disagreement
     require_above_200dma: false  # Relaxed - HK market in prolonged downtrend, quality stocks below 200DMA
     min_analyst_momentum: -12  # Relaxed from -8 - allow more AM flexibility for HK MEGA caps
     max_pe_vs_sector: 1.5
@@ -534,8 +544,8 @@ hk_large:
     # HK LARGE: Stricter than US/EU but achievable for quality stocks
     # Relaxed from 28/90/25 to 18/85/15 - still 50% stricter than US LARGE
     min_upside: 18
-    min_buy_percentage: 85
-    min_beta: 0.2
+    min_buy_percentage: 68  # Quality floor (was 85) — buy% is contrarian indicator above floor
+    min_beta: 0.2  # Data quality filter
     max_beta: 2
     min_forward_pe: 0.5
     max_forward_pe: 55
@@ -553,6 +563,7 @@ hk_large:
     min_fcf_yield: 0.5
     min_pct_from_52w_high: 75
     max_upside_buy: 100  # Filter unrealistic targets
+    max_target_dispersion: 120  # Filter extreme analyst disagreement
     require_above_200dma: false  # Relaxed - HK market in prolonged downtrend, quality stocks below 200DMA
     min_analyst_momentum: -12  # Relaxed from -8 - allow more AM flexibility for HK LARGE caps
     max_pe_vs_sector: 1.5
@@ -581,8 +592,8 @@ hk_mid:
     # HK MID: Stricter than US/EU but achievable for quality stocks
     # Relaxed from 32/92/30 to 22/88/18 - still 50% stricter than US MID
     min_upside: 22
-    min_buy_percentage: 88
-    min_beta: 0.2
+    min_buy_percentage: 70  # Quality floor (was 88) — buy% is contrarian indicator above floor
+    min_beta: 0.2  # Data quality filter
     max_beta: 2
     min_forward_pe: 0.5
     max_forward_pe: 50
@@ -600,6 +611,7 @@ hk_mid:
     min_fcf_yield: 0.25
     min_pct_from_52w_high: 80
     max_upside_buy: 100  # Filter unrealistic targets
+    max_target_dispersion: 120  # Filter extreme analyst disagreement
     require_above_200dma: true
     min_analyst_momentum: -5
     max_pe_vs_sector: 1.5
@@ -628,8 +640,8 @@ hk_small:
     # HK SMALL: Very strict - higher risk, prefer US/EU
     # Relaxed from 40/95/38 to 30/90/25 - still stricter than US SMALL
     min_upside: 30
-    min_buy_percentage: 90
-    min_beta: 0.2
+    min_buy_percentage: 72  # Quality floor (was 90) — buy% is contrarian indicator above floor
+    min_beta: 0.2  # Data quality filter
     max_beta: 2
     min_forward_pe: 0.5
     max_forward_pe: 45
@@ -647,6 +659,7 @@ hk_small:
     min_fcf_yield: 0.0
     min_pct_from_52w_high: 80
     max_upside_buy: 100  # Filter unrealistic targets
+    max_target_dispersion: 120  # Filter extreme analyst disagreement
     require_above_200dma: true
     min_analyst_momentum: -5
     max_pe_vs_sector: 1.4
@@ -674,8 +687,8 @@ hk_micro:
   buy:
     # HK MICRO: Extremely strict - mostly filtered by min_market_cap anyway
     min_upside: 50
-    min_buy_percentage: 98
-    min_beta: 0.2
+    min_buy_percentage: 75  # Quality floor (was 98) — buy% is contrarian indicator above floor
+    min_beta: 0.2  # Data quality filter
     max_beta: 2
     min_forward_pe: 0.5
     max_forward_pe: 40
@@ -691,6 +704,7 @@ hk_micro:
     min_roe: 12.0
     max_debt_equity: 80.0
     min_pct_from_52w_high: 85
+    max_target_dispersion: 120  # Filter extreme analyst disagreement (>120% spread/median)
     require_above_200dma: true
     min_analyst_momentum: -3
     max_pe_vs_sector: 1.3
@@ -833,9 +847,9 @@ default_sell_scoring:
   # CIO Review S2: Rebalanced weights - reduced analyst (EXRET tautology),
   # increased fundamentals and momentum (orthogonal factors)
   # Original: analyst=0.35, momentum=0.25, valuation=0.20, fundamental=0.20
-  weight_analyst: 0.25
+  weight_analyst: 0.20   # Reduced from 0.25 — analyst sentiment includes EXRET tautology
   weight_momentum: 0.25
-  weight_valuation: 0.15
+  weight_valuation: 0.20  # Increased from 0.15 — PET is academically strongest value signal
   weight_fundamental: 0.25
   weight_analyst_momentum: 0.10
 
@@ -845,9 +859,9 @@ default_buy_scoring:
   # increased fundamental weight (FCF yield, ROE are genuinely orthogonal)
   # Original: upside=0.30, consensus=0.25, momentum=0.20, valuation=0.15, fundamental=0.10
   weight_upside: 0.22
-  weight_consensus: 0.18
+  weight_consensus: 0.13  # Reduced from 0.18 — buy% is contrarian indicator, floor role only
   weight_momentum: 0.20
-  weight_valuation: 0.13
+  weight_valuation: 0.18  # Increased from 0.13 — PET is academically strongest value signal
   weight_fundamental: 0.17
   weight_analyst_momentum: 0.10
 
