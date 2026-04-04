@@ -90,6 +90,10 @@ class CommitteeBacktester:
                     logger.debug("Skipping %s: %s", fpath.name, exc)
                     continue
 
+                # Skip bare list format (no metadata to extract)
+                if isinstance(data, list):
+                    data = {"concordance": data}
+
                 # Extract date from filename or data
                 date_str = data.get("date")
                 if not date_str:
