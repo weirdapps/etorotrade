@@ -84,22 +84,22 @@ def _make_standard_snapshots(
     """Create a set of 4 census files spanning ~12 days for reuse."""
     files = []
     files.append(_make_census_file(
-        directory, "2026-03-03", "02-30",
+        directory, "2026-03-23", "02-30",
         {"AAPL": 40, "GOOG": 35, "NVDA": 30, "TSLA": 25, "META": 20},
         fg_index=45,
     ))
     files.append(_make_census_file(
-        directory, "2026-03-07", "02-30",
+        directory, "2026-03-27", "02-30",
         {"AAPL": 42, "GOOG": 34, "NVDA": 33, "TSLA": 23, "META": 21},
         fg_index=50,
     ))
     files.append(_make_census_file(
-        directory, "2026-03-11", "02-30",
+        directory, "2026-03-31", "02-30",
         {"AAPL": 43, "GOOG": 33, "NVDA": 37, "TSLA": 20, "META": 22},
         fg_index=55,
     ))
     files.append(_make_census_file(
-        directory, "2026-03-15", "02-30",
+        directory, "2026-04-04", "02-30",
         {"AAPL": 44, "GOOG": 32, "NVDA": 42, "TSLA": 18, "META": 22},
         fg_index=60,
     ))
@@ -175,10 +175,10 @@ class TestLoadCensusSnapshots:
         """Only snapshots within days_back window are returned."""
         _make_standard_snapshots(tmp_path)
         snaps = load_census_snapshots(archive_dir=tmp_path, days_back=5)
-        # Only 2026-03-15 and maybe 2026-03-11 depending on current date
+        # Only 2026-04-04 and maybe 2026-03-31 depending on current date
         # All dates should be >= (now - 5 days)
         for snap in snaps:
-            assert snap["date"] >= "2026-03-11"
+            assert snap["date"] >= "2026-03-31"
 
     def test_missing_dir_returns_empty(self, tmp_path: Path) -> None:
         snaps = load_census_snapshots(
@@ -304,16 +304,16 @@ class TestComputeHolderTrends:
 
     def test_stable_classification(self, tmp_path: Path) -> None:
         """Small changes are classified as stable."""
-        _make_census_file(tmp_path, "2026-03-03", "02-30", {"AAPL": 40}, fg_index=50)
-        _make_census_file(tmp_path, "2026-03-15", "02-30", {"AAPL": 41}, fg_index=51)
+        _make_census_file(tmp_path, "2026-03-23", "02-30", {"AAPL": 40}, fg_index=50)
+        _make_census_file(tmp_path, "2026-04-04", "02-30", {"AAPL": 41}, fg_index=51)
 
         snaps = load_census_snapshots(archive_dir=tmp_path, days_back=30)
         trends = compute_holder_trends(snaps)
         assert trends["AAPL"]["classification"] == "stable"
 
     def test_holder_pct_computed(self, tmp_path: Path) -> None:
-        _make_census_file(tmp_path, "2026-03-03", "02-30", {"AAPL": 40})
-        _make_census_file(tmp_path, "2026-03-15", "02-30", {"AAPL": 50})
+        _make_census_file(tmp_path, "2026-03-23", "02-30", {"AAPL": 40})
+        _make_census_file(tmp_path, "2026-04-04", "02-30", {"AAPL": 50})
 
         snaps = load_census_snapshots(archive_dir=tmp_path, days_back=30)
         trends = compute_holder_trends(snaps)
@@ -324,8 +324,8 @@ class TestComputeHolderTrends:
         snaps = load_census_snapshots(archive_dir=tmp_path, days_back=30)
         trends = compute_holder_trends(snaps)
 
-        # 7d ago from 2026-03-15 => 2026-03-08 => closest is 2026-03-07
-        # NVDA was 33 on 03-07, now 42 => delta_7d = 9
+        # 7d ago from 2026-04-04 => 2026-03-28 => closest is 2026-03-27
+        # NVDA was 33 on 03-27, now 42 => delta_7d = 9
         assert trends["NVDA"]["delta_7d"] == 9
 
     def test_single_snapshot_returns_empty(self) -> None:
@@ -497,8 +497,8 @@ class TestGetCensusContext:
 
         assert ctx["data_available"] is True
         assert ctx["snapshots_loaded"] == 4
-        assert ctx["date_range"]["start"] == "2026-03-03"
-        assert ctx["date_range"]["end"] == "2026-03-15"
+        assert ctx["date_range"]["start"] == "2026-03-23"
+        assert ctx["date_range"]["end"] == "2026-04-04"
         assert ctx["fear_greed"]["current"] == 60
         assert len(ctx["top_accumulating"]) > 0
         assert len(ctx["top_distributing"]) > 0
