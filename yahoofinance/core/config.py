@@ -499,6 +499,7 @@ COLUMN_NAMES = {
     "PCT_FROM_52W_HIGH": "52W",  # Shortened from 52W%
     "ABOVE_200DMA": "2H",        # Shortened from >200D (2 Hundred day)
     "PE_VS_SECTOR": "P/S",       # Shortened from PE/S
+    "TARGET_DISPERSION": "TD",   # Analyst price target dispersion (high-low)/median %
 }
 
 # Compact display columns for console (fits ~160 chars width)
@@ -544,6 +545,7 @@ STANDARD_DISPLAY_COLUMNS = [
     "2H",        # Above 200-day MA
     "PET",       # PE trailing
     "PEF",       # PE forward
+    "TD",        # Target dispersion
     "P/S",       # PE vs sector
     "PEG",       # PEG ratio
     "DV",        # Dividend yield

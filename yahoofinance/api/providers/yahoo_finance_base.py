@@ -293,6 +293,16 @@ class YahooFinanceBaseProvider(ABC):
                 "target_price_median": safe_extract_value(info, "targetMedianPrice"),
                 "target_price_high": safe_extract_value(info, "targetHighPrice"),
                 "target_price_low": safe_extract_value(info, "targetLowPrice"),
+                "target_dispersion": (
+                    ((safe_extract_value(info, "targetHighPrice") - safe_extract_value(info, "targetLowPrice"))
+                     / safe_extract_value(info, "targetMedianPrice") * 100)
+                    if all(v is not None and v > 0 for v in [
+                        safe_extract_value(info, "targetHighPrice"),
+                        safe_extract_value(info, "targetLowPrice"),
+                        safe_extract_value(info, "targetMedianPrice"),
+                    ])
+                    else None
+                ),
                 "price_target_analyst_count": safe_extract_value(info, "numberOfAnalystOpinions"),
                 "beta": safe_extract_value(info, "beta"),
                 "eps": safe_extract_value(info, "trailingEps"),
