@@ -327,7 +327,7 @@ def calculate_buy_score(
     return total_score
 
 
-def calculate_action_vectorized(df: pd.DataFrame, option: str = "portfolio") -> pd.Series:
+def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.Series:
     """Vectorized calculation of trading actions for improved performance.
 
     Uses new 5-tier geographic system:
