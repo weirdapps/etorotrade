@@ -54,30 +54,23 @@ class TestBuyCriteria:
         criteria = BuyCriteria(
             min_upside=10.0,
             min_buy_percentage=70.0,
-            min_exret=5.0
         )
         assert criteria.min_upside == pytest.approx(10.0)
         assert criteria.min_buy_percentage == pytest.approx(70.0)
-        assert criteria.min_exret == pytest.approx(5.0)
 
     def test_buy_criteria_validation_upside_range(self):
         """BuyCriteria validates upside is between 0-100"""
         with pytest.raises(ValidationError):
-            BuyCriteria(min_upside=150.0, min_buy_percentage=70.0, min_exret=5.0)
+            BuyCriteria(min_upside=150.0, min_buy_percentage=70.0)
 
     def test_buy_criteria_validation_buy_percentage_range(self):
         """BuyCriteria validates buy_percentage is between 0-100"""
         with pytest.raises(ValidationError):
-            BuyCriteria(min_upside=10.0, min_buy_percentage=150.0, min_exret=5.0)
-
-    def test_buy_criteria_validation_exret_positive(self):
-        """BuyCriteria validates exret is non-negative"""
-        with pytest.raises(ValidationError):
-            BuyCriteria(min_upside=10.0, min_buy_percentage=70.0, min_exret=-5.0)
+            BuyCriteria(min_upside=10.0, min_buy_percentage=150.0)
 
     def test_buy_criteria_immutable(self):
         """BuyCriteria is immutable after creation"""
-        criteria = BuyCriteria(min_upside=10.0, min_buy_percentage=70.0, min_exret=5.0)
+        criteria = BuyCriteria(min_upside=10.0, min_buy_percentage=70.0)
         with pytest.raises(ValidationError):
             criteria.min_upside = 20.0
 
@@ -89,19 +82,17 @@ class TestSellCriteria:
         """SellCriteria can be created with valid data"""
         criteria = SellCriteria(
             max_upside=5.0,
-            max_exret=2.0
         )
         assert criteria.max_upside == pytest.approx(5.0)
-        assert criteria.max_exret == pytest.approx(2.0)
 
     def test_sell_criteria_validation_upside_range(self):
         """SellCriteria validates upside is between 0-100"""
         with pytest.raises(ValidationError):
-            SellCriteria(max_upside=150.0, max_exret=2.0)
+            SellCriteria(max_upside=150.0)
 
     def test_sell_criteria_immutable(self):
         """SellCriteria is immutable after creation"""
-        criteria = SellCriteria(max_upside=5.0, max_exret=2.0)
+        criteria = SellCriteria(max_upside=5.0)
         with pytest.raises(ValidationError):
             criteria.max_upside = 10.0
 
