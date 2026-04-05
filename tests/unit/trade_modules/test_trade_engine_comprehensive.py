@@ -921,12 +921,12 @@ class TestIntegrationScenarios:
             'sector': ['Technology', 'Consumer Cyclical', 'Technology', 'Technology', 'Technology'],
             'price': [800.0, 150.0, 180.0, 400.0, 2800.0],
             'target_price': [960.0, 180.0, 200.0, 480.0, 2400.0],
-            'upside': [20.0, 20.0, 11.1, 20.0, -8.0],  # NVDA/AMZN/MSFT BUY, GOOGL SELL trigger
-            'buy_percentage': [85.0, 85.0, 70.0, 85.0, 30.0],  # GOOGL low = SELL trigger
+            'upside': [20.0, 20.0, 5.0, 20.0, -8.0],  # NVDA/AMZN/MSFT BUY, AAPL HOLD (below min_upside=10), GOOGL SELL
+            'buy_percentage': [85.0, 85.0, 65.0, 85.0, 30.0],  # GOOGL low = SELL trigger
             'analyst_count': [30, 25, 35, 40, 20],
             'total_ratings': [30, 25, 35, 40, 20],
             'market_cap': [2.5e12, 2.0e12, 3.0e12, 2.8e12, 1.8e12],  # All MEGA tier
-            'EXRET': [17.0, 17.0, 7.8, 17.0, -2.4],  # upside * buy% / 100
+            'EXRET': [17.0, 17.0, 3.25, 17.0, -2.4],  # upside * buy% / 100
             'BS': ['B', 'B', 'H', 'B', 'S']
         }).set_index('symbol')
         
