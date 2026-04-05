@@ -7,18 +7,18 @@ from trade_modules.analysis.signals import calculate_buy_score
 
 
 DEFAULT_CONFIG = {
-    'weight_upside': 0.27,
-    'weight_consensus': 0.225,
-    'weight_momentum': 0.18,
-    'weight_valuation': 0.135,
-    'weight_fundamental': 0.09,
+    'weight_upside': 0.22,
+    'weight_consensus': 0.13,
+    'weight_momentum': 0.20,
+    'weight_valuation': 0.18,
+    'weight_fundamental': 0.17,
     'weight_analyst_momentum': 0.10,
 }
 
 # Common baseline inputs for isolation tests
 BASELINE = dict(
-    upside=20, buy_pct=80, exret=15,
-    pct_52w=85, above_200dma=True,
+    upside=20, buy_pct=80,
+    pct_52w=85, price_200dma_pct=110,
     pef=18, pet=20, roe=20, de=40,
     fcf_yield=5, buy_scoring_config=DEFAULT_CONFIG,
 )
@@ -75,8 +75,8 @@ class TestBuyScoreAMComponent:
     def test_strong_am_improves_marginal_buy(self):
         # A stock with modest fundamentals but strong rising AM
         modest = dict(
-            upside=10, buy_pct=70, exret=7,
-            pct_52w=75, above_200dma=True,
+            upside=10, buy_pct=70,
+            pct_52w=75, price_200dma_pct=105,
             pef=25, pet=22, roe=12, de=80,
             fcf_yield=2, buy_scoring_config=DEFAULT_CONFIG,
         )
