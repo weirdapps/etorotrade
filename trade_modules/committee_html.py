@@ -488,8 +488,8 @@ def generate_report_html(
     if isinstance(sr, list):
         synth["sector_rankings"] = {
             item.get("etf", item.get("sector", "")): {
-                "return_1m": item.get("1m_return", item.get("return_1m", 0)),
-                "return_3m": item.get("3m_return", item.get("return_3m", 0)),
+                "return_1m": item.get("1m_return", item.get("return_1m", item.get("change_1m", 0))),
+                "return_3m": item.get("3m_return", item.get("return_3m", item.get("change_3m", 0))),
                 "rank": item.get("rank", 6),
             }
             for item in sr if isinstance(item, dict)
@@ -1199,15 +1199,25 @@ def generate_report_html(
         # TIMING cell
         timing = entry.get("entry_timing", "")
         timing_col = {"ENTER_NOW": _C["bull"], "WAIT_FOR_PULLBACK": _C["warn"],
-                      "AVOID": _C["bear"], "EXIT_SOON": _C["bear"]}.get(timing, _C["text_muted"])
+                      "AVOID": _C["bear"], "EXIT_SOON": _C["bear"],
+                      "buy": _C["bull"], "accumulate": _C["bull"],
+                      "hold": _C["text_muted"], "HOLD": _C["text_muted"],
+                      "reduce": _C["warn"], "sell": _C["bear"],
+                      "strong_sell": _C["bear"]}.get(timing, _C["text_muted"])
         timing_abbr = {"ENTER_NOW": "ENTER", "WAIT_FOR_PULLBACK": "WAIT",
-                       "AVOID": "AVOID", "EXIT_SOON": "EXIT"}.get(timing, timing[:5] if timing else "—")
+                       "AVOID": "AVOID", "EXIT_SOON": "EXIT",
+                       "buy": "BUY", "accumulate": "ACCUM",
+                       "hold": "HOLD", "HOLD": "HOLD",
+                       "reduce": "REDUC", "sell": "SELL",
+                       "strong_sell": "STR.SL"}.get(timing, timing[:6] if timing else "—")
         # Regional indicator
         region_suffix = ""
-        if tkr.endswith((".DE", ".L", ".PA", ".BR", ".OL")):
-            region_suffix = f'<span style="font-size:9px;color:{_C["text_light"]};margin-left:2px;">(EU)</span>'
-        elif tkr.endswith(".HK"):
-            region_suffix = f'<span style="font-size:9px;color:{_C["text_light"]};margin-left:2px;">(HK)</span>'
+        _region_map = {".DE": "EU", ".PA": "EU", ".BR": "EU", ".L": "GB",
+                       ".OL": "NO", ".CO": "DK", ".HK": "HK", ".AE": "AE", ".T": "JP"}
+        for _sfx, _lbl in _region_map.items():
+            if tkr.endswith(_sfx):
+                region_suffix = f'<span style="font-size:9px;color:{_C["text_light"]};margin-left:2px;">({_lbl})</span>'
+                break
         # Conviction decay
         decay_days = entry.get("conviction_decay_days", 0)
         decay_factor = entry.get("conviction_decay_factor", 1.0)
@@ -1469,7 +1479,7 @@ def generate_report_html(
                  f'Value (<15): {fexp.get("value", {}).get("value_stocks", 0)}, '
                  f'Growth (>30): {fexp.get("value", {}).get("growth_stocks", 0)}'),
                 ("Momentum (RS)", fexp.get("momentum", {}).get("avg_rs"),
-                 f'Outperforming SPY: {fexp.get("momentum", {}).get("outperforming_spy_pct", 0):.0f}%'),
+                 f'Outperforming SPY: {fexp.get("momentum", {}).get("outperforming_spy_pct") or 0:.0f}%'),
                 ("Quality (ROE)", fexp.get("quality", {}).get("avg_roe"),
                  None),
             ]
@@ -1941,7 +1951,17 @@ def generate_report_html(
                  f'<div style="font-size:12px;font-weight:600;color:{nlc};">'
                  f'{e(hl)}</div>{detail_line}</div>')
     # Portfolio-specific news
-    pn = news.get("portfolio_news", {}) if not _skip_news else {}
+    pn_raw = news.get("portfolio_news", {}) if not _skip_news else {}
+    # Normalize: accept both dict {ticker: [items]} and list [{ticker, news_items}]
+    if isinstance(pn_raw, list):
+        pn = {}
+        for entry in pn_raw:
+            tkr = entry.get("ticker", "")
+            items = entry.get("news_items", [entry] if "headline" in entry else [])
+            if tkr and items:
+                pn[tkr] = items
+    else:
+        pn = pn_raw
     notable = [(t, items[0]) for t, items in pn.items()
                if items and any(x in str(items[0].get("impact", items[0].get("score", "")))
                                 for x in ("POSITIVE", "NEGATIVE"))]
