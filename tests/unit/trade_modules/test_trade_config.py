@@ -107,7 +107,6 @@ class TestThresholdRetrieval:
 
         assert "min_upside" in thresholds
         assert "min_buy_percentage" in thresholds
-        assert "min_exret" in thresholds
         assert isinstance(thresholds["min_upside"], (int, float))
 
     def test_get_tier_thresholds_mega_us_sell(self, config):

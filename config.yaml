@@ -629,13 +629,11 @@ hk_micro:
 regional_adjustments:
   europe:
     # European markets have sparser analyst coverage and lower hit rates
-    buy_exret_premium: 5        # Require 5pp higher EXRET for European BUY
     buy_pct_discount: -5        # Allow 5pp lower %B (sparser coverage)
     dividend_bonus: true        # Count dividend yield as return supplement
     suffixes: ['.DE', '.L', '.PA', '.AS', '.MI', '.MC', '.BR', '.OL', '.ST', '.HE', '.CO']
   hong_kong:
     # HK has highest hit rate - slightly more favorable
-    buy_exret_discount: -3      # Allow 3pp lower EXRET
     suffixes: ['.HK']
   japan:
     # Japanese market specific

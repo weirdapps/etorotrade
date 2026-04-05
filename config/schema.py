@@ -33,7 +33,6 @@ class BuyCriteria(BaseModel):
 
     min_upside: float = Field(ge=0, le=100, description="Minimum upside %")
     min_buy_percentage: float = Field(ge=0, le=100, description="Minimum buy %")
-    min_exret: float = Field(ge=0, description="Minimum EXRET")
 
     # Beta constraints
     min_beta: Optional[float] = Field(ge=0, default=None, description="Minimum beta")
@@ -48,8 +47,6 @@ class BuyCriteria(BaseModel):
     # Other constraints
     max_peg: Optional[float] = Field(ge=0, default=None, description="Maximum PEG ratio")
     max_short_interest: Optional[float] = Field(ge=0, default=None, description="Maximum short interest %")
-    min_earnings_growth: Optional[float] = Field(default=None, description="Minimum earnings growth %")
-    min_price_performance: Optional[float] = Field(default=None, description="Minimum price performance %")
 
     # Analyst requirements
     min_analysts: Optional[int] = Field(ge=1, default=None, description="Minimum analyst count")
@@ -64,9 +61,8 @@ class SellCriteria(BaseModel):
     """Sell signal criteria"""
     model_config = ConfigDict(frozen=True)  # Immutable after creation
 
-    max_upside: float = Field(ge=0, le=100, description="Maximum upside %")
+    max_upside: float = Field(le=100, description="Maximum upside % (can be negative)")
     min_buy_percentage: Optional[float] = Field(ge=0, le=100, default=None, description="Minimum buy % for sell")
-    max_exret: float = Field(ge=0, description="Maximum EXRET")
 
     # Beta constraints
     min_beta: Optional[float] = Field(ge=0, default=None, description="Minimum beta for sell")
@@ -78,8 +74,6 @@ class SellCriteria(BaseModel):
     # Other constraints
     min_peg: Optional[float] = Field(ge=0, default=None, description="Minimum PEG ratio for sell")
     min_short_interest: Optional[float] = Field(ge=0, default=None, description="Minimum short interest % for sell")
-    max_earnings_growth: Optional[float] = Field(default=None, description="Maximum earnings growth % for sell")
-    max_price_performance: Optional[float] = Field(default=None, description="Maximum price performance % for sell")
 
     # Financial health
     min_roe: Optional[float] = Field(default=None, description="Minimum ROE % for sell")
@@ -129,14 +123,10 @@ class SellScoringConfig(BaseModel):
         default=20.0,
         description="Quality override: upside above this protects from SELL"
     )
-    quality_override_exret: float = Field(
-        default=15.0,
-        description="Quality override: EXRET above this protects from SELL"
-    )
 
     # Component weights (must sum to 1.0)
     weight_analyst: float = Field(
-        default=0.35,
+        default=0.20,
         ge=0,
         le=1,
         description="Weight for analyst sentiment component"
@@ -154,10 +144,16 @@ class SellScoringConfig(BaseModel):
         description="Weight for valuation component"
     )
     weight_fundamental: float = Field(
-        default=0.20,
+        default=0.25,
         ge=0,
         le=1,
         description="Weight for fundamental component"
+    )
+    weight_analyst_momentum: float = Field(
+        default=0.10,
+        ge=0,
+        le=1,
+        description="Weight for analyst momentum component"
     )
 
 
@@ -172,13 +168,13 @@ class BuyScoringConfig(BaseModel):
 
     # Component weights (must sum to 1.0)
     weight_upside: float = Field(
-        default=0.30,
+        default=0.22,
         ge=0,
         le=1,
         description="Weight for upside component"
     )
     weight_consensus: float = Field(
-        default=0.25,
+        default=0.13,
         ge=0,
         le=1,
         description="Weight for analyst consensus component"
@@ -190,16 +186,22 @@ class BuyScoringConfig(BaseModel):
         description="Weight for momentum component"
     )
     weight_valuation: float = Field(
-        default=0.15,
+        default=0.18,
         ge=0,
         le=1,
         description="Weight for valuation component"
     )
     weight_fundamental: float = Field(
-        default=0.10,
+        default=0.17,
         ge=0,
         le=1,
         description="Weight for fundamental component"
+    )
+    weight_analyst_momentum: float = Field(
+        default=0.10,
+        ge=0,
+        le=1,
+        description="Weight for analyst momentum component"
     )
 
 
@@ -376,14 +378,6 @@ class RegionalAdjustmentConfig(BaseModel):
     """Regional adjustment for a specific market"""
     model_config = ConfigDict(frozen=True)
 
-    buy_exret_premium: Optional[float] = Field(
-        default=None,
-        description="Additional EXRET required for BUY (positive = stricter)"
-    )
-    buy_exret_discount: Optional[float] = Field(
-        default=None,
-        description="EXRET discount for BUY (negative = more lenient)"
-    )
     buy_pct_discount: Optional[float] = Field(
         default=None,
         description="Buy percentage discount (negative = more lenient)"

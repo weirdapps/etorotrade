@@ -140,11 +140,11 @@ class YamlConfigLoader:
             'hard_trigger_buy_pct': 35,
             'quality_override_buy_pct': 85,
             'quality_override_upside': 20,
-            'quality_override_exret': 15,
-            'weight_analyst': 0.35,
+            'weight_analyst': 0.20,
             'weight_momentum': 0.25,
             'weight_valuation': 0.20,
-            'weight_fundamental': 0.20,
+            'weight_fundamental': 0.25,
+            'weight_analyst_momentum': 0.10,
         })
 
         # Merge tier-specific with defaults (tier overrides defaults)
