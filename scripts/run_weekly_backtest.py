@@ -13,7 +13,7 @@ Produces a consolidated backtest_report.json for downstream consumption
 Usage:
     python scripts/run_weekly_backtest.py [--ci]
 
-    --ci: Skip committee scorecard (requires local action_log.jsonl)
+    --ci: CI mode (action_log.jsonl is now in-repo, scorecard runs in CI)
 """
 
 import json
@@ -91,10 +91,6 @@ def run_committee_backtest():
 
 def run_scorecard(ci_mode=False):
     """Run committee scorecard and modifier calibration."""
-    if ci_mode:
-        print("\n  PHASE 3: Skipped (--ci mode, no local action_log)")
-        return {}, {}
-
     print("\n" + "=" * 60)
     print("  PHASE 3: Committee Scorecard + Calibration")
     print("=" * 60)
@@ -102,20 +98,40 @@ def run_scorecard(ci_mode=False):
     from trade_modules.committee_scorecard import (
         generate_committee_scorecard,
         calibrate_modifiers,
+        COMMITTEE_LOG_PATH,
     )
+
+    if not COMMITTEE_LOG_PATH.exists():
+        print(f"\n  Action log not found at {COMMITTEE_LOG_PATH}")
+        print("  No committee actions logged yet. Run /committee first.")
+        return {}, {}
 
     scorecard = generate_committee_scorecard(months_back=3)
     buy_recs = scorecard.get("buy_recommendations", {})
-    print(f"\nScorecard: {buy_recs.get('total', 0)} BUY recommendations tracked")
+    sell_recs = scorecard.get("sell_recommendations", {})
+    hold_recs = scorecard.get("hold_recommendations", {})
+    print(f"\nScorecard: {buy_recs.get('total', 0)} BUY, "
+          f"{sell_recs.get('total', 0)} SELL, "
+          f"{hold_recs.get('total', 0)} HOLD tracked")
     if buy_recs.get("hit_rate_30d") is not None:
         print(f"  BUY hit rate (T+30): {buy_recs['hit_rate_30d']:.1f}%")
+    if sell_recs.get("validated_30d") is not None:
+        print(f"  SELL validated (T+30): {sell_recs['validated_30d']:.1f}%")
 
     calibration = calibrate_modifiers(months_back=3)
     if calibration.get("sufficient_data"):
         mods = calibration.get("modifiers", {})
         effective = sum(1 for m in mods.values() if m.get("recommendation") == "KEEP")
         ineffective = sum(1 for m in mods.values() if m.get("recommendation") == "REMOVE")
-        print(f"\nCalibration: {effective} effective, {ineffective} ineffective modifiers")
+        adjust = sum(1 for m in mods.values() if m.get("recommendation") == "ADJUST")
+        print(f"\nCalibration: {effective} effective, {adjust} adjust, {ineffective} ineffective")
+
+        # Save calibration report for committee HTML to consume
+        cal_path = Path.home() / ".weirdapps-trading" / "committee" / "calibration_report.json"
+        cal_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(cal_path, "w") as f:
+            json.dump(calibration, f, indent=2, default=str)
+        print(f"  Calibration report saved to {cal_path}")
 
     return scorecard, calibration
 

@@ -55,6 +55,7 @@ jobs:
           git add yahoofinance/output/backtest_summary.csv || true
           git add yahoofinance/output/backtest_threshold_report.csv || true
           git add yahoofinance/output/backtest_report.json || true
+          git add data/committee/action_log.jsonl || true
 
           if git diff --staged --quiet; then
             echo "No changes to commit"

@@ -578,9 +578,10 @@ def generate_report_html(
 
     # CIO narrative
     sell_tickers = [c["ticker"] for c in concordance if c.get("action") == "SELL"]
-    vix_val = indicators.get('vix', 0)
-    leading = [etf for etf, d in sector_rankings.items() if d.get("return_1m", 0) > 2]
-    lagging = [etf for etf, d in sector_rankings.items() if d.get("return_1m", 0) < -2]
+    _vix_raw = indicators.get('vix', 0)
+    vix_val = _vix_raw.get("current", 0) if isinstance(_vix_raw, dict) else (_vix_raw if isinstance(_vix_raw, (int, float)) else 0)
+    leading = [etf for etf, d in sector_rankings.items() if isinstance(d, dict) and d.get("return_1m", 0) > 2]
+    lagging = [etf for etf, d in sector_rankings.items() if isinstance(d, dict) and d.get("return_1m", 0) < -2]
     parts = []
     if regime == "RISK_OFF":
         rot_label = rotation.replace('_', ' ').lower()
@@ -1102,7 +1103,9 @@ def generate_report_html(
     if sector_rankings:
         h.append(f'<div style="{_LABEL}margin:16px 0 8px 0;">Sector Rotation (1M)</div>')
         h.append('<table style="width:100%;border-collapse:separate;border-spacing:4px 0;font-size:10px;"><tr>')
-        for etf, data in sorted(sector_rankings.items(), key=lambda x: x[1].get("return_1m", 0), reverse=True):
+        for etf, data in sorted(sector_rankings.items(), key=lambda x: (x[1].get("return_1m", 0) if isinstance(x[1], dict) else -x[1]), reverse=True):
+            if not isinstance(data, dict):
+                continue  # skip int-only rankings from macro agent
             ret = data.get("return_1m", 0)
             sbg = _C["bull_bg"] if ret > 2 else _C["bear_bg"] if ret < -2 else _C["bg_page"]
             stxt = _C["bull"] if ret > 2 else _C["bear"] if ret < -2 else _C["text_body"]
@@ -2228,31 +2231,36 @@ def generate_report_html(
         h.append(_section_close())
 
     # ── S17: SIGNAL REPORT CARD ──
-    perf_data = synth.get("performance_data", {})
-    if perf_data and perf_data.get("actions") and not daily:
+    perf_data = synth.get("performance_data", synth.get("report_card", {})) or {}
+    _scorecard_data = synth.get("scorecard", {}) or synth.get("performance", {}).get("scorecard", {})
+    _calibration_data = synth.get("calibration_report", {}) or synth.get("performance", {}).get("calibration", {})
+    _has_s17_content = (perf_data.get("actions") or _scorecard_data.get("buy_recommendations", {}).get("total", 0) > 0
+                        or any(e.get("conviction_waterfall") for e in concordance))
+    if _has_s17_content and not daily:
         h.append(_section_open("Signal Report Card", "Performance feedback on previous committee actions"))
-        h.append(_table_open([("Action Type", "left"), ("Count", "center"), ("Avg Conviction", "center"),
-                              ("Avg Return", "center"), ("Hit Rate", "center")]))
-        for act_type in ("BUY", "ADD", "HOLD", "TRIM", "SELL"):
-            ad = perf_data.get("actions", {}).get(act_type, {})
-            if not ad:
-                continue
-            cnt = ad.get("count", 0)
-            if cnt == 0:
-                continue
-            avg_conv = ad.get("avg_conviction", 0)
-            avg_ret = ad.get("avg_return", 0)
-            hit_rate = ad.get("hit_rate", 0)
-            hr_col = _C["bull"] if hit_rate >= 60 else _C["warn"] if hit_rate >= 40 else _C["bear"]
-            ret_col = _C["bull"] if avg_ret > 0 else _C["bear"] if avg_ret < 0 else _C["text_muted"]
-            h.append(_table_row([
-                (f'<span style="font-weight:700;">{act_type}</span>', "left", ""),
-                (str(cnt), "center", f"{_MONO}font-weight:600;"),
-                (f'{avg_conv:.0f}', "center", f"{_MONO}font-weight:600;"),
-                (f'<span style="color:{ret_col};font-weight:700;">{avg_ret:+.1f}%</span>', "center", ""),
-                (f'<span style="color:{hr_col};font-weight:700;">{hit_rate:.0f}%</span>', "center", ""),
-            ]))
-        h.append('</table>')
+        if perf_data.get("actions"):
+            h.append(_table_open([("Action Type", "left"), ("Count", "center"), ("Avg Conviction", "center"),
+                                  ("Avg Return", "center"), ("Hit Rate", "center")]))
+            for act_type in ("BUY", "ADD", "HOLD", "TRIM", "SELL"):
+                ad = perf_data.get("actions", {}).get(act_type, {})
+                if not ad:
+                    continue
+                cnt = ad.get("count", 0)
+                if cnt == 0:
+                    continue
+                avg_conv = ad.get("avg_conviction", 0)
+                avg_ret = ad.get("avg_return", 0)
+                hit_rate = ad.get("hit_rate", 0)
+                hr_col = _C["bull"] if hit_rate >= 60 else _C["warn"] if hit_rate >= 40 else _C["bear"]
+                ret_col = _C["bull"] if avg_ret > 0 else _C["bear"] if avg_ret < 0 else _C["text_muted"]
+                h.append(_table_row([
+                    (f'<span style="font-weight:700;">{act_type}</span>', "left", ""),
+                    (str(cnt), "center", f"{_MONO}font-weight:600;"),
+                    (f'{avg_conv:.0f}', "center", f"{_MONO}font-weight:600;"),
+                    (f'<span style="color:{ret_col};font-weight:700;">{avg_ret:+.1f}%</span>', "center", ""),
+                    (f'<span style="color:{hr_col};font-weight:700;">{hit_rate:.0f}%</span>', "center", ""),
+                ]))
+            h.append('</table>')
 
         # CIO v23.6: Benchmark comparison
         benchmark = synth.get("benchmark_comparison") or perf_data.get("benchmark_comparison", {})
@@ -2270,6 +2278,87 @@ def generate_report_html(
                      f'Excess: <span style="color:{bc};font-weight:700;">{excess:+.1f}%</span> | '
                      f'IR: {info_r:.2f} | '
                      f'TE: {benchmark.get("tracking_error", 0):.1f}%</div>')
+
+        # ── Scorecard: Historical T+7/T+30 Hit Rates ──
+        scorecard = _scorecard_data
+        if scorecard and scorecard.get("buy_recommendations", {}).get("total", 0) > 0:
+            buy_sc = scorecard.get("buy_recommendations", {})
+            sell_sc = scorecard.get("sell_recommendations", {})
+            hold_sc = scorecard.get("hold_recommendations", {})
+            h.append(f'<div style="margin-top:16px;"><b style="font-size:12px;">Historical Performance</b>'
+                     f'<span style="font-size:10px;color:{_C["text_muted"]};margin-left:8px;">'
+                     f'T+7 and T+30 hit rates ({scorecard.get("period_months", 3)}M window)</span></div>')
+            h.append(_table_open([("Type", "left"), ("Count", "center"),
+                                  ("Hit T+7", "center"), ("Hit T+30", "center"),
+                                  ("Avg T+30", "right")]))
+            for label, sc_data in [("BUY/ADD", buy_sc), ("SELL/TRIM", sell_sc), ("HOLD", hold_sc)]:
+                total = sc_data.get("total", 0)
+                if total == 0:
+                    continue
+                hr7 = sc_data.get("hit_rate_7d", sc_data.get("avg_return_7d"))
+                hr30 = sc_data.get("hit_rate_30d", sc_data.get("validated_30d"))
+                avg30 = sc_data.get("avg_return_30d", sc_data.get("avg_avoided_loss", 0))
+                hr7_s = f'{hr7:.0f}%' if hr7 is not None else "—"
+                hr30_s = f'{hr30:.0f}%' if hr30 is not None else "—"
+                avg30_s = f'{avg30:+.1f}%' if avg30 is not None else "—"
+                hr30_col = _C["bull"] if (hr30 or 0) >= 50 else _C["bear"] if hr30 is not None else _C["text_muted"]
+                avg_col = _C["bull"] if (avg30 or 0) > 0 else _C["bear"] if (avg30 or 0) < 0 else _C["text_muted"]
+                h.append(_table_row([
+                    (f'<span style="font-weight:700;">{label}</span>', "left", ""),
+                    (str(total), "center", f"{_MONO}font-weight:600;"),
+                    (hr7_s, "center", _MONO),
+                    (f'<span style="color:{hr30_col};font-weight:700;">{hr30_s}</span>', "center", ""),
+                    (f'<span style="color:{avg_col};font-weight:700;">{avg30_s}</span>', "right", ""),
+                ]))
+            h.append('</table>')
+
+            # Conviction calibration insight
+            conv_cal = scorecard.get("conviction_calibration", {})
+            if conv_cal.get("sufficient_data"):
+                predictive = conv_cal.get("conviction_predictive", False)
+                spread = conv_cal.get("conviction_spread", 0)
+                icon = "&#10004;" if predictive else "&#10008;"
+                cal_col = _C["bull"] if predictive else _C["warn"]
+                h.append(f'<div style="font-size:11px;color:{_C["text_muted"]};margin:8px 0 0 0;">'
+                         f'<span style="color:{cal_col};">{icon}</span> '
+                         f'Conviction calibration: high-conviction stocks '
+                         f'{"outperform" if predictive else "underperform"} low-conviction '
+                         f'by {spread:+.1f}pp at T+30</div>')
+
+        # Calibration report (advisory, from weekly backtest)
+        calibration = _calibration_data
+        if calibration and calibration.get("sufficient_data") and calibration.get("modifiers"):
+            mods = calibration["modifiers"]
+            keep = [(k, v) for k, v in mods.items() if v.get("recommendation") == "KEEP"]
+            remove = [(k, v) for k, v in mods.items() if v.get("recommendation") == "REMOVE"]
+            adjust = [(k, v) for k, v in mods.items() if v.get("recommendation") == "ADJUST"]
+
+            h.append(f'<div style="margin-top:16px;"><b style="font-size:12px;">Parameter Health Check</b>'
+                     f'<span style="font-size:10px;color:{_C["text_muted"]};margin-left:8px;">'
+                     f'Modifier effectiveness from calibration</span></div>')
+
+            if remove:
+                h.append(f'<div style="background:{_C["bear_bg"]};border:1px solid {_C["bear_border"]};'
+                         f'border-radius:6px;padding:8px 12px;margin:8px 0;font-size:11px;">'
+                         f'<b style="color:{_C["bear"]};">Remove ({len(remove)})</b>: ')
+                h.append(', '.join(f'{k.replace("_"," ")} ({v.get("return_delta",0):+.1f}pp)'
+                                  for k, v in remove))
+                h.append('</div>')
+
+            if adjust:
+                h.append(f'<div style="background:{_C["info_bg"]};border:1px solid {_C["info_border"]};'
+                         f'border-radius:6px;padding:8px 12px;margin:8px 0;font-size:11px;">'
+                         f'<b>Adjust ({len(adjust)})</b>: ')
+                h.append(', '.join(f'{k.replace("_"," ")}' for k, v in adjust))
+                h.append('</div>')
+
+            if keep:
+                h.append(f'<div style="background:{_C["bull_bg"]};border:1px solid {_C["bull_border"]};'
+                         f'border-radius:6px;padding:8px 12px;margin:8px 0;font-size:11px;">'
+                         f'<b style="color:{_C["bull"]};">Keep ({len(keep)})</b>: ')
+                h.append(', '.join(f'{k.replace("_"," ")} ({v.get("return_delta",0):+.1f}pp)'
+                                  for k, v in keep))
+                h.append('</div>')
 
         # CIO v25.0: Waterfall aggregation — which modifiers fire most across portfolio
         wf_agg = {}

@@ -28,11 +28,16 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-COMMITTEE_LOG_DIR = Path.home() / ".weirdapps-trading" / "committee"
+# Primary: repo-local path (works in CI and local dev)
+_REPO_ROOT = Path(__file__).parent.parent
+COMMITTEE_LOG_DIR = _REPO_ROOT / "data" / "committee"
 COMMITTEE_LOG_PATH = COMMITTEE_LOG_DIR / "action_log.jsonl"
-SCORECARD_OUTPUT_PATH = COMMITTEE_LOG_DIR / "committee_scorecard.json"
-OPPORTUNITY_HISTORY_PATH = COMMITTEE_LOG_DIR / "opportunity_history.json"
-KILL_THESIS_LOG_PATH = COMMITTEE_LOG_DIR / "kill_thesis_log.json"
+
+# Derived outputs stay in ~/.weirdapps-trading (not committed)
+_USER_COMMITTEE_DIR = Path.home() / ".weirdapps-trading" / "committee"
+SCORECARD_OUTPUT_PATH = _USER_COMMITTEE_DIR / "committee_scorecard.json"
+OPPORTUNITY_HISTORY_PATH = _USER_COMMITTEE_DIR / "opportunity_history.json"
+KILL_THESIS_LOG_PATH = _USER_COMMITTEE_DIR / "kill_thesis_log.json"
 
 # F5: Maximum conviction bonus from consecutive appearances
 MAX_CONSECUTIVE_BONUS = 9
@@ -52,6 +57,7 @@ def log_committee_actions(
     date: str,
     actions: List[Dict[str, Any]],
     log_path: Optional[Path] = None,
+    portfolio_signals: Optional[Dict[str, Any]] = None,
 ) -> None:
     """
     Log committee action items for future performance tracking.
@@ -60,11 +66,30 @@ def log_committee_actions(
         date: Committee date (YYYY-MM-DD)
         actions: List of action dicts with ticker, action, conviction, etc.
         log_path: Path to action log file
+        portfolio_signals: Dict of ticker -> signal data for price fallback
     """
     path = log_path or COMMITTEE_LOG_PATH
     path.parent.mkdir(parents=True, exist_ok=True)
 
     for action in actions:
+        # Price with fallback chain: action price → portfolio signals → warning
+        price = action.get("price")
+        if price is None or (isinstance(price, (int, float)) and price <= 0):
+            ticker = action.get("ticker", "")
+            if portfolio_signals and ticker in portfolio_signals:
+                sig = portfolio_signals[ticker]
+                price = sig.get("price") or sig.get("PRC")
+                if price is not None:
+                    try:
+                        price = float(str(price).replace(",", ""))
+                    except (ValueError, TypeError):
+                        price = None
+            if price is None or (isinstance(price, (int, float)) and price <= 0):
+                logger.warning(
+                    f"No price available for {action.get('ticker')} on {date} — "
+                    f"scorecard will skip this entry until backfilled"
+                )
+
         entry = {
             "committee_date": date,
             "timestamp": datetime.now().isoformat(),
@@ -75,7 +100,7 @@ def log_committee_actions(
             "agents_agreeing": action.get("agents_agreeing"),
             "dissenting_agents": action.get("dissenting_agents"),
             "signal": action.get("signal"),  # From signal engine
-            "price_at_recommendation": action.get("price"),
+            "price_at_recommendation": price,
             # CIO v22.0: Log new indicators for future calibration
             "adx": action.get("adx"),
             "adx_trend": action.get("adx_trend"),
@@ -170,6 +195,7 @@ def generate_committee_scorecard(
 
     buy_results = []
     sell_results = []
+    hold_results = []
 
     for action in actions:
         ticker = action.get("ticker")
@@ -177,11 +203,13 @@ def generate_committee_scorecard(
         entry_price = action.get("price_at_recommendation")
         committee_date = action.get("committee_date")
 
-        if not ticker or not entry_price or not committee_date:
+        if not ticker or entry_price is None or not committee_date:
             continue
 
         try:
             entry_price = float(entry_price)
+            if entry_price <= 0:
+                continue
         except (ValueError, TypeError):
             continue
 
@@ -219,6 +247,8 @@ def generate_committee_scorecard(
                 buy_results.append(result)
             elif action_type in ("SELL", "TRIM"):
                 sell_results.append(result)
+            elif action_type == "HOLD":
+                hold_results.append(result)
 
         except Exception as e:
             logger.debug(f"Failed to fetch data for {ticker}: {e}")
@@ -230,12 +260,16 @@ def generate_committee_scorecard(
         "period_months": months_back,
         "buy_recommendations": _summarize_buys(buy_results),
         "sell_recommendations": _summarize_sells(sell_results),
-        "conviction_calibration": _calibrate_conviction(buy_results),
+        "hold_recommendations": _summarize_holds(hold_results),
+        "conviction_calibration": _calibrate_conviction(
+            buy_results + hold_results
+        ),
         "benchmark_comparison": compute_benchmark_comparison(months_back, log_path),
         "modifier_attribution": attribute_performance_to_modifiers(months_back, log_path),
         "details": {
             "buys": buy_results,
             "sells": sell_results,
+            "holds": hold_results,
         },
     }
 
@@ -429,11 +463,13 @@ def check_previous_recommendations(
         ticker = action.get("ticker")
         entry_price = action.get("price_at_recommendation")
 
-        if not ticker or not entry_price:
+        if not ticker or entry_price is None:
             continue
 
         try:
             entry_price = float(entry_price)
+            if entry_price <= 0:
+                continue
         except (ValueError, TypeError):
             continue
 
@@ -664,7 +700,7 @@ def check_kill_theses(
 
     # CIO v22.0: Load latest concordance for ADX/divergence/Piotroski triggers
     concordance_map = {}
-    concordance_path = COMMITTEE_LOG_DIR / "concordance.json"
+    concordance_path = _USER_COMMITTEE_DIR / "concordance.json"
     if concordance_path.exists():
         try:
             with open(concordance_path, "r") as f:
@@ -994,6 +1030,33 @@ def _summarize_sells(results: List[Dict]) -> Dict[str, Any]:
     return summary
 
 
+def _summarize_holds(results: List[Dict]) -> Dict[str, Any]:
+    """Summarize HOLD recommendation performance.
+
+    A HOLD is validated if the stock didn't drop significantly (>-5%).
+    A HOLD that drops >10% is a clear miss.
+    """
+    if not results:
+        return {"total": 0}
+
+    returns_30d = [r["return_30d"] for r in results if "return_30d" in r]
+
+    summary: Dict[str, Any] = {"total": len(results)}
+
+    if returns_30d:
+        summary["validated_30d"] = round(
+            sum(1 for r in returns_30d if r > -5) / len(returns_30d) * 100, 1
+        )
+        summary["avg_return_30d"] = round(float(np.mean(returns_30d)), 2)
+        summary["missed_30d"] = sum(1 for r in returns_30d if r < -10)
+
+    returns_7d = [r["return_7d"] for r in results if "return_7d" in r]
+    if returns_7d:
+        summary["avg_return_7d"] = round(float(np.mean(returns_7d)), 2)
+
+    return summary
+
+
 def _calibrate_conviction(results: List[Dict]) -> Dict[str, Any]:
     """
     Check if conviction scores predict return magnitude.
@@ -1079,7 +1142,7 @@ def _calibrate_conviction(results: List[Dict]) -> Dict[str, Any]:
 
 def _save_scorecard(scorecard: Dict[str, Any]) -> None:
     """Save scorecard to JSON file."""
-    COMMITTEE_LOG_DIR.mkdir(parents=True, exist_ok=True)
+    _USER_COMMITTEE_DIR.mkdir(parents=True, exist_ok=True)
     with open(SCORECARD_OUTPUT_PATH, "w") as f:
         json.dump(scorecard, f, indent=2, default=str)
     logger.info(f"Committee scorecard saved to {SCORECARD_OUTPUT_PATH}")
@@ -1092,8 +1155,9 @@ def _empty_scorecard(months_back: int) -> Dict[str, Any]:
         "period_months": months_back,
         "buy_recommendations": {"total": 0},
         "sell_recommendations": {"total": 0},
+        "hold_recommendations": {"total": 0},
         "conviction_calibration": {"sufficient_data": False},
-        "details": {"buys": [], "sells": []},
+        "details": {"buys": [], "sells": [], "holds": []},
     }
 
 
@@ -1150,7 +1214,7 @@ def calibrate_modifiers(
         t = a.get("ticker")
         rec_price = a.get("price_at_recommendation")
         curr = prices.get(t)
-        if rec_price and curr and rec_price > 0:
+        if rec_price is not None and curr and float(rec_price) > 0:
             ret = (curr - rec_price) / rec_price * 100
             scored.append({**a, "return_pct": round(ret, 2)})
 
@@ -1330,8 +1394,14 @@ def compute_benchmark_comparison(
     returns = []
     for a in buy_actions:
         t = a.get("ticker")
-        rec_price = a.get("price_at_recommendation", 0)
-        if not rec_price:
+        rec_price = a.get("price_at_recommendation")
+        if rec_price is None:
+            continue
+        try:
+            rec_price = float(rec_price)
+            if rec_price <= 0:
+                continue
+        except (ValueError, TypeError):
             continue
         try:
             closes = data['Close'][t].dropna() if len(tickers) > 1 else data['Close'].dropna()
