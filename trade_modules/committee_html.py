@@ -2289,24 +2289,29 @@ def generate_report_html(
                      f'<span style="font-size:10px;color:{_C["text_muted"]};margin-left:8px;">'
                      f'T+7 and T+30 hit rates ({scorecard.get("period_months", 3)}M window)</span></div>')
             h.append(_table_open([("Type", "left"), ("Count", "center"),
-                                  ("Hit T+7", "center"), ("Hit T+30", "center"),
-                                  ("Avg T+30", "right")]))
+                                  ("Hit T+7", "center"), ("Avg T+7", "center"),
+                                  ("Hit T+30", "center"), ("Avg T+30", "right")]))
             for label, sc_data in [("BUY/ADD", buy_sc), ("SELL/TRIM", sell_sc), ("HOLD", hold_sc)]:
                 total = sc_data.get("total", 0)
                 if total == 0:
                     continue
-                hr7 = sc_data.get("hit_rate_7d", sc_data.get("avg_return_7d"))
+                hr7 = sc_data.get("hit_rate_7d")
+                avg7 = sc_data.get("avg_return_7d")
                 hr30 = sc_data.get("hit_rate_30d", sc_data.get("validated_30d"))
                 avg30 = sc_data.get("avg_return_30d", sc_data.get("avg_avoided_loss", 0))
                 hr7_s = f'{hr7:.0f}%' if hr7 is not None else "—"
+                avg7_s = f'{avg7:+.1f}%' if avg7 is not None else "—"
                 hr30_s = f'{hr30:.0f}%' if hr30 is not None else "—"
                 avg30_s = f'{avg30:+.1f}%' if avg30 is not None else "—"
+                hr7_col = _C["bull"] if (hr7 or 0) >= 50 else _C["bear"] if hr7 is not None else _C["text_muted"]
+                avg7_col = _C["bull"] if (avg7 or 0) > 0 else _C["bear"] if (avg7 or 0) < 0 else _C["text_muted"]
                 hr30_col = _C["bull"] if (hr30 or 0) >= 50 else _C["bear"] if hr30 is not None else _C["text_muted"]
                 avg_col = _C["bull"] if (avg30 or 0) > 0 else _C["bear"] if (avg30 or 0) < 0 else _C["text_muted"]
                 h.append(_table_row([
                     (f'<span style="font-weight:700;">{label}</span>', "left", ""),
                     (str(total), "center", f"{_MONO}font-weight:600;"),
-                    (hr7_s, "center", _MONO),
+                    (f'<span style="color:{hr7_col};font-weight:700;">{hr7_s}</span>', "center", ""),
+                    (f'<span style="color:{avg7_col};font-weight:700;">{avg7_s}</span>', "center", ""),
                     (f'<span style="color:{hr30_col};font-weight:700;">{hr30_s}</span>', "center", ""),
                     (f'<span style="color:{avg_col};font-weight:700;">{avg30_s}</span>', "right", ""),
                 ]))
