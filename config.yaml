@@ -1,3 +1,12 @@
+_calibration:
+  last_reviewed: "2026-04-05"
+  review_cycle: "quarterly"
+  next_review: "2026-07-05"
+  notes: >
+    Parameters calibrated via committee scorecard (T+7/T+30 hit rates)
+    and modifier calibration pipeline (calibrate_modifiers in committee_scorecard.py).
+    Scorecard runs after every committee; calibration runs weekly via backtest pipeline.
+    Results are advisory — human reviews before updating parameters.
 data:
   portfolio_csv: yahoofinance/input/portfolio.csv
   cache_enabled: true

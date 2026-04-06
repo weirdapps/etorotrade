@@ -3753,6 +3753,9 @@ def generate_synthesis_output(
         "top_opportunities": (opportunity_report or {}).get("top_opportunities", []),
         # CIO v17.0: Performance feedback loop data
         "performance": performance_data or {},
+        # Flat keys for HTML generator compatibility
+        "scorecard": (performance_data or {}).get("scorecard", {}),
+        "calibration_report": (performance_data or {}).get("calibration", {}),
         # CIO v23.3: Signal quality & timing
         "regime_transition": regime_transition or {},
         "watchlist": watchlist,
