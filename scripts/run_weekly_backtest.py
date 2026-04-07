@@ -60,7 +60,9 @@ def run_signal_backtest():
                         summary[key] = {
                             "count": int(row["count"]),
                             "hit_rate": float(row["hit_rate"]),
+                            "alpha_hit_rate": float(row["alpha_hit_rate"]) if pd.notna(row.get("alpha_hit_rate")) else None,
                             "mean_return": float(row["mean_return"]) if pd.notna(row.get("mean_return")) else None,
+                            "avg_alpha": float(row["avg_alpha"]) if pd.notna(row.get("avg_alpha")) else None,
                         }
 
     return summary
@@ -114,9 +116,9 @@ def run_scorecard(ci_mode=False):
           f"{sell_recs.get('total', 0)} SELL, "
           f"{hold_recs.get('total', 0)} HOLD tracked")
     if buy_recs.get("hit_rate_30d") is not None:
-        print(f"  BUY hit rate (T+30): {buy_recs['hit_rate_30d']:.1f}%")
+        print(f"  BUY alpha hit rate (T+30): {buy_recs['hit_rate_30d']:.1f}% (vs SPY)")
     if sell_recs.get("validated_30d") is not None:
-        print(f"  SELL validated (T+30): {sell_recs['validated_30d']:.1f}%")
+        print(f"  SELL validated (T+30): {sell_recs['validated_30d']:.1f}% (vs SPY)")
 
     calibration = calibrate_modifiers(months_back=3)
     if calibration.get("sufficient_data"):
@@ -151,8 +153,10 @@ def build_report(signal_summary, committee_result, scorecard, calibration):
         },
         "scorecard": {
             "buy_total": scorecard.get("buy_recommendations", {}).get("total", 0),
-            "buy_hit_rate_7d": scorecard.get("buy_recommendations", {}).get("hit_rate_7d"),
-            "buy_hit_rate_30d": scorecard.get("buy_recommendations", {}).get("hit_rate_30d"),
+            "buy_alpha_hit_rate_7d": scorecard.get("buy_recommendations", {}).get("hit_rate_7d"),
+            "buy_alpha_hit_rate_30d": scorecard.get("buy_recommendations", {}).get("hit_rate_30d"),
+            "buy_avg_alpha_7d": scorecard.get("buy_recommendations", {}).get("avg_alpha_7d"),
+            "buy_avg_alpha_30d": scorecard.get("buy_recommendations", {}).get("avg_alpha_30d"),
             "conviction_predictive": scorecard.get("conviction_calibration", {}).get("conviction_predictive"),
         },
         "calibration": {
@@ -169,10 +173,18 @@ def build_report(signal_summary, committee_result, scorecard, calibration):
 
     report["headline"] = {
         "buy_hit_rate_t7": buy_t7.get("hit_rate"),
+        "buy_alpha_hit_rate_t7": buy_t7.get("alpha_hit_rate"),
         "buy_hit_rate_t30": buy_t30.get("hit_rate"),
+        "buy_alpha_hit_rate_t30": buy_t30.get("alpha_hit_rate"),
+        "buy_avg_alpha_t7": buy_t7.get("avg_alpha"),
+        "buy_avg_alpha_t30": buy_t30.get("avg_alpha"),
         "buy_count_t7": buy_t7.get("count"),
         "sell_hit_rate_t7": sell_t7.get("hit_rate"),
+        "sell_alpha_hit_rate_t7": sell_t7.get("alpha_hit_rate"),
         "sell_hit_rate_t30": sell_t30.get("hit_rate"),
+        "sell_alpha_hit_rate_t30": sell_t30.get("alpha_hit_rate"),
+        "sell_avg_alpha_t7": sell_t7.get("avg_alpha"),
+        "sell_avg_alpha_t30": sell_t30.get("avg_alpha"),
         "sell_count_t7": sell_t7.get("count"),
     }
 

@@ -197,6 +197,16 @@ def generate_committee_scorecard(
     sell_results = []
     hold_results = []
 
+    # Fetch SPY benchmark once for alpha computation
+    spy_close = None
+    try:
+        spy = yf.Ticker("SPY")
+        spy_hist = spy.history(period="6mo")
+        if not spy_hist.empty:
+            spy_close = spy_hist["Close"]
+    except Exception as e:
+        logger.debug(f"Failed to fetch SPY benchmark: {e}")
+
     for action in actions:
         ticker = action.get("ticker")
         action_type = action.get("action", "").upper()
@@ -231,17 +241,36 @@ def generate_committee_scorecard(
                 "entry_price": entry_price,
             }
 
+            # Get SPY returns for the same horizons
+            spy_return_7d = None
+            spy_return_30d = None
+            if spy_close is not None:
+                spy_from_date = spy_close[spy_close.index >= committee_date]
+                if len(spy_from_date) >= 1:
+                    spy_base = float(spy_from_date.iloc[0])
+                    if spy_base > 0:
+                        if len(spy_from_date) >= 5:
+                            spy_t7 = float(spy_from_date.iloc[min(5, len(spy_from_date) - 1)])
+                            spy_return_7d = (spy_t7 - spy_base) / spy_base * 100
+                        if len(spy_from_date) >= 21:
+                            spy_t30 = float(spy_from_date.iloc[min(21, len(spy_from_date) - 1)])
+                            spy_return_30d = (spy_t30 - spy_base) / spy_base * 100
+
             if len(close) >= 5:
                 t7_price = float(close.iloc[min(5, len(close) - 1)])
                 result["return_7d"] = round(
                     (t7_price - entry_price) / entry_price * 100, 2
                 )
+                if spy_return_7d is not None:
+                    result["alpha_7d"] = round(result["return_7d"] - spy_return_7d, 2)
 
             if len(close) >= 21:
                 t30_price = float(close.iloc[min(21, len(close) - 1)])
                 result["return_30d"] = round(
                     (t30_price - entry_price) / entry_price * 100, 2
                 )
+                if spy_return_30d is not None:
+                    result["alpha_30d"] = round(result["return_30d"] - spy_return_30d, 2)
 
             if action_type in ("BUY", "ADD"):
                 buy_results.append(result)
@@ -566,11 +595,11 @@ def get_track_record_summary(
 
     hit_rate = buy_recs.get("hit_rate_30d")
     if hit_rate is not None:
-        return f"Track record: {hit_rate:.0f}% BUY hit rate at T+30 (n={total})"
+        return f"Track record: {hit_rate:.0f}% BUY alpha hit rate at T+30 (n={total}, vs SPY)"
 
     hit_rate_7d = buy_recs.get("hit_rate_7d")
     if hit_rate_7d is not None:
-        return f"Track record: {hit_rate_7d:.0f}% BUY hit rate at T+7 (n={total})"
+        return f"Track record: {hit_rate_7d:.0f}% BUY alpha hit rate at T+7 (n={total}, vs SPY)"
 
     return f"Track record: {total} BUY recommendations logged, awaiting T+30 data"
 
@@ -981,51 +1010,62 @@ def _empty_performance_check() -> Dict[str, Any]:
 
 
 def _summarize_buys(results: List[Dict]) -> Dict[str, Any]:
-    """Summarize BUY recommendation performance."""
+    """Summarize BUY recommendation performance using alpha (vs SPY)."""
     if not results:
         return {"total": 0}
 
+    alphas_7d = [r["alpha_7d"] for r in results if "alpha_7d" in r]
+    alphas_30d = [r["alpha_30d"] for r in results if "alpha_30d" in r]
     returns_7d = [r["return_7d"] for r in results if "return_7d" in r]
     returns_30d = [r["return_30d"] for r in results if "return_30d" in r]
 
     summary: Dict[str, Any] = {"total": len(results)}
 
-    if returns_7d:
+    if alphas_7d:
         summary["hit_rate_7d"] = round(
-            sum(1 for r in returns_7d if r > 0) / len(returns_7d) * 100, 1
+            sum(1 for a in alphas_7d if a > 0) / len(alphas_7d) * 100, 1
         )
+        summary["avg_alpha_7d"] = round(np.mean(alphas_7d), 2)
+    if returns_7d:
         summary["avg_return_7d"] = round(np.mean(returns_7d), 2)
 
-    if returns_30d:
+    if alphas_30d:
         summary["hit_rate_30d"] = round(
-            sum(1 for r in returns_30d if r > 0) / len(returns_30d) * 100, 1
+            sum(1 for a in alphas_30d if a > 0) / len(alphas_30d) * 100, 1
         )
+        summary["avg_alpha_30d"] = round(np.mean(alphas_30d), 2)
+    if returns_30d:
         summary["avg_return_30d"] = round(np.mean(returns_30d), 2)
 
-        # Best and worst
-        best = max(results, key=lambda r: r.get("return_30d", -999))
-        worst = min(results, key=lambda r: r.get("return_30d", 999))
-        summary["best_30d"] = f"{best['ticker']} {best.get('return_30d', 0):+.1f}%"
-        summary["worst_30d"] = f"{worst['ticker']} {worst.get('return_30d', 0):+.1f}%"
+        # Best and worst by alpha
+        with_alpha = [r for r in results if "alpha_30d" in r]
+        if with_alpha:
+            best = max(with_alpha, key=lambda r: r["alpha_30d"])
+            worst = min(with_alpha, key=lambda r: r["alpha_30d"])
+            summary["best_30d"] = f"{best['ticker']} α={best['alpha_30d']:+.1f}%"
+            summary["worst_30d"] = f"{worst['ticker']} α={worst['alpha_30d']:+.1f}%"
 
     return summary
 
 
 def _summarize_sells(results: List[Dict]) -> Dict[str, Any]:
-    """Summarize SELL recommendation performance (validated if price fell)."""
+    """Summarize SELL recommendation performance (validated if underperformed SPY)."""
     if not results:
         return {"total": 0}
 
+    alphas_30d = [r["alpha_30d"] for r in results if "alpha_30d" in r]
     returns_30d = [r["return_30d"] for r in results if "return_30d" in r]
 
     summary: Dict[str, Any] = {"total": len(results)}
 
-    if returns_30d:
-        # For SELLs, a validated recommendation means the stock went down
+    if alphas_30d:
+        # For SELLs, validated = stock underperformed SPY (negative alpha)
         summary["validated_30d"] = round(
-            sum(1 for r in returns_30d if r < 0) / len(returns_30d) * 100, 1
+            sum(1 for a in alphas_30d if a < 0) / len(alphas_30d) * 100, 1
         )
-        summary["avg_avoided_loss"] = round(np.mean(returns_30d), 2)
+        summary["avg_alpha_30d"] = round(np.mean(alphas_30d), 2)
+    if returns_30d:
+        summary["avg_return_30d"] = round(np.mean(returns_30d), 2)
 
     return summary
 
@@ -1033,42 +1073,45 @@ def _summarize_sells(results: List[Dict]) -> Dict[str, Any]:
 def _summarize_holds(results: List[Dict]) -> Dict[str, Any]:
     """Summarize HOLD recommendation performance.
 
-    A HOLD is validated if the stock didn't drop significantly (>-5%).
-    A HOLD that drops >10% is a clear miss.
+    A HOLD is validated if it tracked the market (alpha within ±3%).
+    A HOLD with alpha < -8% is a clear miss (should have been SELL).
     """
     if not results:
         return {"total": 0}
 
+    alphas_30d = [r["alpha_30d"] for r in results if "alpha_30d" in r]
     returns_30d = [r["return_30d"] for r in results if "return_30d" in r]
 
     summary: Dict[str, Any] = {"total": len(results)}
 
-    if returns_30d:
+    if alphas_30d:
         summary["validated_30d"] = round(
-            sum(1 for r in returns_30d if r > -5) / len(returns_30d) * 100, 1
+            sum(1 for a in alphas_30d if a > -3) / len(alphas_30d) * 100, 1
         )
+        summary["avg_alpha_30d"] = round(float(np.mean(alphas_30d)), 2)
+        summary["missed_30d"] = sum(1 for a in alphas_30d if a < -8)
+    if returns_30d:
         summary["avg_return_30d"] = round(float(np.mean(returns_30d)), 2)
-        summary["missed_30d"] = sum(1 for r in returns_30d if r < -10)
 
-    returns_7d = [r["return_7d"] for r in results if "return_7d" in r]
-    if returns_7d:
-        summary["avg_return_7d"] = round(float(np.mean(returns_7d)), 2)
+    alphas_7d = [r["alpha_7d"] for r in results if "alpha_7d" in r]
+    if alphas_7d:
+        summary["avg_alpha_7d"] = round(float(np.mean(alphas_7d)), 2)
 
     return summary
 
 
 def _calibrate_conviction(results: List[Dict]) -> Dict[str, Any]:
     """
-    Check if conviction scores predict return magnitude.
+    Check if conviction scores predict alpha (outperformance vs SPY).
 
-    High conviction should correlate with higher returns.
+    High conviction should correlate with higher alpha.
     """
     if not results or len(results) < 5:
         return {"sufficient_data": False}
 
     scored = [
         r for r in results
-        if r.get("conviction") is not None and "return_30d" in r
+        if r.get("conviction") is not None and "alpha_30d" in r
     ]
 
     if len(scored) < 5:
@@ -1081,48 +1124,43 @@ def _calibrate_conviction(results: List[Dict]) -> Dict[str, Any]:
     calibration: Dict[str, Any] = {"sufficient_data": True}
 
     if high_conv:
-        calibration["high_conviction_avg_return"] = round(
-            np.mean([r["return_30d"] for r in high_conv]), 2
+        calibration["high_conviction_avg_alpha"] = round(
+            np.mean([r["alpha_30d"] for r in high_conv]), 2
         )
         calibration["high_conviction_count"] = len(high_conv)
 
     if low_conv:
-        calibration["low_conviction_avg_return"] = round(
-            np.mean([r["return_30d"] for r in low_conv]), 2
+        calibration["low_conviction_avg_alpha"] = round(
+            np.mean([r["alpha_30d"] for r in low_conv]), 2
         )
         calibration["low_conviction_count"] = len(low_conv)
 
-    # Check if high conviction outperforms low conviction
+    # Check if high conviction generates more alpha than low conviction
     if high_conv and low_conv:
-        high_avg = np.mean([r["return_30d"] for r in high_conv])
-        low_avg = np.mean([r["return_30d"] for r in low_conv])
+        high_avg = np.mean([r["alpha_30d"] for r in high_conv])
+        low_avg = np.mean([r["alpha_30d"] for r in low_conv])
         calibration["conviction_predictive"] = high_avg > low_avg
         calibration["conviction_spread"] = round(high_avg - low_avg, 2)
 
-    # CIO v22.0 + v21.0: Indicator effectiveness tracking
+    # CIO v22.0 + v21.0: Indicator effectiveness tracking (alpha-based)
     indicator_groups = {
         "strong_adx": [r for r in scored if r.get("adx") and r["adx"] >= 30],
         "bullish_divergence": [r for r in scored if r.get("divergence") == "bullish"],
         "high_piotroski": [r for r in scored if r.get("piotroski_score") and r["piotroski_score"] >= 7],
-        # CIO v21.0 R1-R5: Track effectiveness of codified modifiers
         "rs_outperforming": [r for r in scored if r.get("rs_vs_spy") and r["rs_vs_spy"] > 1.0],
         "rs_underperforming": [r for r in scored if r.get("rs_vs_spy") and r["rs_vs_spy"] < 0.95],
         "rev_accelerating": [r for r in scored if r.get("revenue_growth_class", "").upper() in ("ACCELERATING", "STRONG_GROWTH")],
         "high_atr_pct": [r for r in scored if r.get("atr_pct") and r["atr_pct"] > 5.0],
-        # CIO v23.0 S1-S2
         "high_short_interest": [r for r in scored if r.get("short_interest_pct") and r["short_interest_pct"] > 10],
         "high_dispersion": [r for r in scored if r.get("target_dispersion") and r["target_dispersion"] > 30],
         "low_dispersion": [r for r in scored if r.get("target_dispersion") and r["target_dispersion"] < 10],
-        # CIO v23.1 R6
         "usd_zone": [r for r in scored if r.get("currency_zone") == "USD"],
         "eur_zone": [r for r in scored if r.get("currency_zone") == "EUR"],
         "other_fx_zone": [r for r in scored if r.get("currency_zone") not in (None, "USD", "EUR", "CRYPTO")],
-        # CIO v23.3: Signal quality modifiers
         "strong_confluence": [r for r in scored if r.get("confluence_score") and r["confluence_score"] >= 5],
         "weak_confluence": [r for r in scored if r.get("confluence_score") and r["confluence_score"] <= -3],
         "volume_confirmed": [r for r in scored if r.get("relative_volume") and r["relative_volume"] > 1.5 and r.get("obv_trend") == "RISING"],
         "eps_revisions_up": [r for r in scored if r.get("eps_revisions") == "REVISIONS_UP"],
-        # CIO v23.4: Advanced fundamentals & timing
         "low_iv_rank": [r for r in scored if r.get("iv_rank") is not None and r["iv_rank"] < 20],
         "high_iv_rank": [r for r in scored if r.get("iv_rank") is not None and r["iv_rank"] > 80],
         "strong_fcf": [r for r in scored if r.get("fcf_classification") == "STRONG"],
@@ -1131,10 +1169,10 @@ def _calibrate_conviction(results: List[Dict]) -> Dict[str, Any]:
     }
     for label, group in indicator_groups.items():
         if len(group) >= 3:
-            avg_ret = float(np.mean([r["return_30d"] for r in group]))
-            hit = sum(1 for r in group if r["return_30d"] > 0) / len(group) * 100
-            calibration[f"{label}_avg_return"] = round(avg_ret, 2)
-            calibration[f"{label}_hit_rate"] = round(hit, 1)
+            avg_alpha = float(np.mean([r["alpha_30d"] for r in group]))
+            alpha_hit = sum(1 for r in group if r["alpha_30d"] > 0) / len(group) * 100
+            calibration[f"{label}_avg_alpha"] = round(avg_alpha, 2)
+            calibration[f"{label}_alpha_hit_rate"] = round(alpha_hit, 1)
             calibration[f"{label}_count"] = len(group)
 
     return calibration
@@ -1190,33 +1228,55 @@ def calibrate_modifiers(
     except ImportError:
         return {"sufficient_data": False, "error": "yfinance not available"}
 
-    # Fetch current prices for return calculation
+    # Fetch current prices + SPY benchmark for alpha calculation
     tickers = list(set(a["ticker"] for a in actions if a.get("ticker")))
     if not tickers:
         return {"sufficient_data": False, "total_actions": 0}
 
+    # Ensure SPY is fetched alongside stock prices
+    fetch_tickers = list(set(tickers + ["SPY"]))
+
     scored = []
     try:
-        data = yf.download(tickers, period="3mo", progress=False, auto_adjust=True)
+        data = yf.download(fetch_tickers, period="3mo", progress=False, auto_adjust=True)
         prices = {}
         if not data.empty:
-            for t in tickers:
+            for t in fetch_tickers:
                 try:
-                    closes = data['Close'][t].dropna() if len(tickers) > 1 else data['Close'].dropna()
+                    closes = data['Close'][t].dropna() if len(fetch_tickers) > 1 else data['Close'].dropna()
                     if not closes.empty:
-                        prices[t] = float(closes.iloc[-1])
+                        prices[t] = closes  # Keep full series for date-matched alpha
                 except (KeyError, IndexError):
                     pass
     except Exception:
         prices = {}
 
+    spy_series = prices.get("SPY")
+
     for a in actions:
         t = a.get("ticker")
         rec_price = a.get("price_at_recommendation")
-        curr = prices.get(t)
-        if rec_price is not None and curr and float(rec_price) > 0:
-            ret = (curr - rec_price) / rec_price * 100
-            scored.append({**a, "return_pct": round(ret, 2)})
+        committee_date = a.get("committee_date")
+        t_series = prices.get(t)
+        if rec_price is None or t_series is None or float(rec_price) <= 0:
+            continue
+
+        rec_price = float(rec_price)
+        curr = float(t_series.iloc[-1])
+        ret = (curr - rec_price) / rec_price * 100
+
+        # Compute alpha: stock return minus SPY return over same period
+        alpha = ret  # Fallback to absolute return if SPY unavailable
+        if spy_series is not None and committee_date:
+            spy_from_date = spy_series[spy_series.index >= committee_date]
+            if len(spy_from_date) >= 2:
+                spy_base = float(spy_from_date.iloc[0])
+                spy_curr = float(spy_series.iloc[-1])
+                if spy_base > 0:
+                    spy_ret = (spy_curr - spy_base) / spy_base * 100
+                    alpha = ret - spy_ret
+
+        scored.append({**a, "return_pct": round(ret, 2), "alpha_pct": round(alpha, 2)})
 
     if len(scored) < min_observations:
         return {"sufficient_data": False, "total_scored": len(scored),
@@ -1237,18 +1297,18 @@ def calibrate_modifiers(
 
     calibration = {"sufficient_data": True, "total_scored": len(scored), "modifiers": {}}
     buy_scored = [r for r in scored if r.get("action") == "BUY"]
-    baseline_avg = float(np.mean([r["return_pct"] for r in buy_scored])) if buy_scored else 0
-    baseline_hit = (sum(1 for r in buy_scored if r["return_pct"] > 0) / len(buy_scored) * 100) if buy_scored else 0
+    baseline_avg = float(np.mean([r["alpha_pct"] for r in buy_scored])) if buy_scored else 0
+    baseline_hit = (sum(1 for r in buy_scored if r["alpha_pct"] > 0) / len(buy_scored) * 100) if buy_scored else 0
 
     for mod_name, mod_fn in modifier_defs.items():
         with_mod = [r for r in buy_scored if mod_fn(r)]
         without_mod = [r for r in buy_scored if not mod_fn(r)]
 
         if len(with_mod) >= 3 and len(without_mod) >= 3:
-            with_avg = float(np.mean([r["return_pct"] for r in with_mod]))
-            without_avg = float(np.mean([r["return_pct"] for r in without_mod]))
-            with_hit = sum(1 for r in with_mod if r["return_pct"] > 0) / len(with_mod) * 100
-            without_hit = sum(1 for r in without_mod if r["return_pct"] > 0) / len(without_mod) * 100
+            with_avg = float(np.mean([r["alpha_pct"] for r in with_mod]))
+            without_avg = float(np.mean([r["alpha_pct"] for r in without_mod]))
+            with_hit = sum(1 for r in with_mod if r["alpha_pct"] > 0) / len(with_mod) * 100
+            without_hit = sum(1 for r in without_mod if r["alpha_pct"] > 0) / len(without_mod) * 100
 
             delta = with_avg - without_avg
             if delta > 2 and with_hit > without_hit:
@@ -1261,22 +1321,22 @@ def calibrate_modifiers(
             calibration["modifiers"][mod_name] = {
                 "with_count": len(with_mod),
                 "without_count": len(without_mod),
-                "with_avg_return": round(with_avg, 2),
-                "without_avg_return": round(without_avg, 2),
-                "return_delta": round(delta, 2),
-                "with_hit_rate": round(with_hit, 1),
-                "without_hit_rate": round(without_hit, 1),
+                "with_avg_alpha": round(with_avg, 2),
+                "without_avg_alpha": round(without_avg, 2),
+                "alpha_delta": round(delta, 2),
+                "with_alpha_hit_rate": round(with_hit, 1),
+                "without_alpha_hit_rate": round(without_hit, 1),
                 "recommendation": recommendation,
             }
 
     calibration["baseline"] = {
-        "avg_return": round(baseline_avg, 2),
-        "hit_rate": round(baseline_hit, 1),
+        "avg_alpha": round(baseline_avg, 2),
+        "alpha_hit_rate": round(baseline_hit, 1),
         "total_buys": len(buy_scored),
     }
 
     # CIO v25.0: Waterfall-based calibration — uses actual conviction deltas
-    # when available, providing richer attribution than binary presence/absence.
+    # correlated with alpha (regime-neutral) rather than absolute returns.
     wf_stats: Dict[str, Dict[str, Any]] = {}
     for r in scored:
         wf = r.get("conviction_waterfall")
@@ -1286,9 +1346,9 @@ def calibrate_modifiers(
             if mod_key.startswith("_"):
                 continue
             if mod_key not in wf_stats:
-                wf_stats[mod_key] = {"deltas": [], "returns": []}
+                wf_stats[mod_key] = {"deltas": [], "alphas": []}
             wf_stats[mod_key]["deltas"].append(delta)
-            wf_stats[mod_key]["returns"].append(r.get("return_pct", 0))
+            wf_stats[mod_key]["alphas"].append(r.get("alpha_pct", 0))
 
     if wf_stats:
         calibration["waterfall_calibration"] = {}
@@ -1296,14 +1356,14 @@ def calibrate_modifiers(
             if len(stats["deltas"]) < 3:
                 continue
             avg_delta = float(np.mean(stats["deltas"]))
-            avg_return = float(np.mean(stats["returns"]))
-            correlation = float(np.corrcoef(stats["deltas"], stats["returns"])[0, 1]) \
+            avg_alpha = float(np.mean(stats["alphas"]))
+            correlation = float(np.corrcoef(stats["deltas"], stats["alphas"])[0, 1]) \
                 if len(stats["deltas"]) >= 5 else None
             calibration["waterfall_calibration"][mod_key] = {
                 "count": len(stats["deltas"]),
                 "avg_delta": round(avg_delta, 2),
-                "avg_return": round(avg_return, 2),
-                "delta_return_corr": round(correlation, 3) if correlation is not None else None,
+                "avg_alpha": round(avg_alpha, 2),
+                "delta_alpha_corr": round(correlation, 3) if correlation is not None else None,
             }
 
     return calibration
@@ -1328,8 +1388,8 @@ def attribute_performance_to_modifiers(
     baseline = cal.get("baseline", {})
 
     for mod_name, mod_data in cal.get("modifiers", {}).items():
-        delta = mod_data.get("return_delta", 0)
-        with_hit = mod_data.get("with_hit_rate", 0)
+        delta = mod_data.get("alpha_delta", 0)
+        with_hit = mod_data.get("with_alpha_hit_rate", 0)
         recommendation = mod_data.get("recommendation", "ADJUST")
 
         verdict = "EFFECTIVE" if recommendation == "KEEP" else (
@@ -1338,15 +1398,15 @@ def attribute_performance_to_modifiers(
 
         attribution["modifiers"][mod_name] = {
             "verdict": verdict,
-            "return_delta": delta,
-            "with_avg": mod_data.get("with_avg_return", 0),
-            "without_avg": mod_data.get("without_avg_return", 0),
-            "with_hit_rate": with_hit,
+            "alpha_delta": delta,
+            "with_avg_alpha": mod_data.get("with_avg_alpha", 0),
+            "without_avg_alpha": mod_data.get("without_avg_alpha", 0),
+            "with_alpha_hit_rate": with_hit,
             "sample_size": mod_data.get("with_count", 0),
             "narrative": (
-                f"Stocks with {mod_name} returned {mod_data.get('with_avg_return', 0):.1f}% "
-                f"vs {mod_data.get('without_avg_return', 0):.1f}% without "
-                f"({delta:+.1f}% delta, {with_hit:.0f}% hit rate)"
+                f"Stocks with {mod_name}: α={mod_data.get('with_avg_alpha', 0):+.1f}% "
+                f"vs α={mod_data.get('without_avg_alpha', 0):+.1f}% without "
+                f"({delta:+.1f}% alpha delta, {with_hit:.0f}% beat SPY)"
             ),
         }
 
