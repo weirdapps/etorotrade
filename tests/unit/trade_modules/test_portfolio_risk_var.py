@@ -325,7 +325,7 @@ class TestDrawdownActions:
         assert len(actions) == 1
         assert actions[0]["ticker"] == "SNAP"
         assert actions[0]["action"] == "FORCE_SELL_REVIEW"
-        assert actions[0]["threshold_adjustment"] == 0.8
+        assert actions[0]["threshold_adjustment"] == pytest.approx(0.8)
         assert "Immediate review" in actions[0]["recommendation"]
         assert "2x expected volatility" in actions[0]["recommendation"]
 
@@ -452,7 +452,7 @@ class TestRiskSummaryIntegration:
         summary = analyzer.get_risk_summary(portfolio_df)
 
         assert "portfolio_var" in summary
-        assert summary["portfolio_var"]["var_95_pct"] == 5.2
+        assert summary["portfolio_var"]["var_95_pct"] == pytest.approx(5.2)
 
     @patch("trade_modules.portfolio_risk.PortfolioRiskAnalyzer.calculate_portfolio_var")
     @patch("trade_modules.portfolio_risk.PortfolioRiskAnalyzer.check_drawdowns")

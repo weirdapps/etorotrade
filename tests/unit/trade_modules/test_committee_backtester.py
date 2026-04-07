@@ -146,8 +146,8 @@ class TestForwardReturns:
 
         result = bt.compute_forward_returns(price_fetcher=mock_fetcher)
         assert "AAPL:2026-01-01" in result
-        assert result["AAPL:2026-01-01"]["T+7"] == 5.0
-        assert result["AAPL:2026-01-01"]["T+30"] == 10.0
+        assert result["AAPL:2026-01-01"]["T+7"] == pytest.approx(5.0)
+        assert result["AAPL:2026-01-01"]["T+30"] == pytest.approx(10.0)
 
     def test_skips_zero_base_price(self, tmp_path):
         """Should skip stocks with zero base price."""
@@ -197,19 +197,19 @@ class TestEvaluatePerformance:
         """BUY hit rate: 1/2 positive = 50%."""
         bt = self._setup_bt(tmp_path)
         result = bt.evaluate_performance("T+30")
-        assert result["actions"]["BUY"]["hit_rate"] == 50.0
+        assert result["actions"]["BUY"]["hit_rate"] == pytest.approx(50.0)
 
     def test_sell_hit_rate(self, tmp_path):
         """SELL hit rate: 1/1 negative = 100%."""
         bt = self._setup_bt(tmp_path)
         result = bt.evaluate_performance("T+30")
-        assert result["actions"]["SELL"]["hit_rate"] == 100.0
+        assert result["actions"]["SELL"]["hit_rate"] == pytest.approx(100.0)
 
     def test_hold_stability(self, tmp_path):
         """HOLD: +1% is stable (within ±5%)."""
         bt = self._setup_bt(tmp_path)
         result = bt.evaluate_performance("T+30")
-        assert result["actions"]["HOLD"]["hit_rate"] == 100.0
+        assert result["actions"]["HOLD"]["hit_rate"] == pytest.approx(100.0)
 
     def test_total_recommendations(self, tmp_path):
         """Total should count all recs with return data."""
@@ -337,9 +337,9 @@ class TestEvaluateRecent:
         assert result["status"] == "complete"
         assert result["total_evaluated"] == 3
         # AAPL: +10%, ADD = hit (positive return)
-        assert result["actions"]["ADD"]["hit_rate"] == 100.0
+        assert result["actions"]["ADD"]["hit_rate"] == pytest.approx(100.0)
         # MSFT: -10%, SELL = hit (negative return)
-        assert result["actions"]["SELL"]["hit_rate"] == 100.0
+        assert result["actions"]["SELL"]["hit_rate"] == pytest.approx(100.0)
 
     def test_dict_format_concordance(self, tmp_path):
         """Should handle {date, stocks: {ticker: data}} format."""

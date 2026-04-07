@@ -378,8 +378,8 @@ class TestEffectiveConcentration:
         result = analyzer.calculate_effective_concentration(["A", "B", "C", "D"])
 
         # With zero off-diagonal correlations, effective = n^2/n = n
-        assert result["effective_positions"] == 4.0
-        assert result["diversification_ratio"] == 1.0
+        assert result["effective_positions"] == pytest.approx(4.0)
+        assert result["diversification_ratio"] == pytest.approx(1.0)
 
     @patch("trade_modules.portfolio_risk.PortfolioRiskAnalyzer.calculate_correlation_matrix")
     def test_effective_concentration_perfectly_correlated(self, mock_corr):
@@ -394,7 +394,7 @@ class TestEffectiveConcentration:
         result = analyzer.calculate_effective_concentration(["A", "B", "C"])
 
         # n^2 / (n*n) = 1.0 effective position
-        assert result["effective_positions"] == 1.0
+        assert result["effective_positions"] == pytest.approx(1.0)
         assert result["diversification_ratio"] == round(1.0 / 3, 2)
 
     def test_effective_concentration_single_stock(self):
@@ -403,7 +403,7 @@ class TestEffectiveConcentration:
         result = analyzer.calculate_effective_concentration(["AAPL"])
 
         assert result["effective_positions"] == 1
-        assert result["diversification_ratio"] == 1.0
+        assert result["diversification_ratio"] == pytest.approx(1.0)
 
     def test_effective_concentration_empty(self):
         """Test with empty list."""
@@ -411,7 +411,7 @@ class TestEffectiveConcentration:
         result = analyzer.calculate_effective_concentration([])
 
         assert result["effective_positions"] == 0
-        assert result["diversification_ratio"] == 1.0
+        assert result["diversification_ratio"] == pytest.approx(1.0)
 
     @patch("trade_modules.portfolio_risk.PortfolioRiskAnalyzer.calculate_correlation_matrix")
     def test_effective_concentration_no_data(self, mock_corr):
@@ -422,7 +422,7 @@ class TestEffectiveConcentration:
 
         # Falls back to n positions
         assert result["effective_positions"] == 2
-        assert result["diversification_ratio"] == 1.0
+        assert result["diversification_ratio"] == pytest.approx(1.0)
 
 
 class TestCorrelationClusters:
@@ -556,7 +556,7 @@ class TestDrawdownAlerts:
         assert len(alerts) == 1
         assert alerts[0]["severity"] == "CRITICAL"
         assert alerts[0]["ticker"] == "AAPL"
-        assert alerts[0]["drawdown_pct"] == 60.0
+        assert alerts[0]["drawdown_pct"] == pytest.approx(60.0)
 
     def test_check_drawdowns_warning(self):
         """Test WARNING drawdown detection."""
@@ -666,7 +666,7 @@ class TestDrawdownAlerts:
         alerts = analyzer.check_drawdowns(df, previous_drawdowns=previous)
         assert len(alerts) == 1
         assert alerts[0]["severity"] == "WARNING"  # Downgraded from CRITICAL
-        assert alerts[0]["recovery_pct"] == 25.0
+        assert alerts[0]["recovery_pct"] == pytest.approx(25.0)
         assert "recovery_note" in alerts[0]
         assert "Downgraded from CRITICAL" in alerts[0]["recovery_note"]
 

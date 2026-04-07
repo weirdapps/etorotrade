@@ -65,7 +65,7 @@ class TestComputeSectorMedians:
         medians, universe = compute_sector_medians(signals, sectors)
         assert medians["Technology"] == 10
         assert medians["Energy"] == 20
-        assert universe == 15.0  # median of [10, 20] = average of two middle values
+        assert universe == pytest.approx(15.0)  # median of [10, 20] = average of two middle values
 
     def test_multiple_stocks_same_sector(self):
         signals = {
@@ -934,7 +934,7 @@ class TestSynthesizeStock:
             sector_rankings={},
             position_limit=5.0,
         )
-        assert result["excess_exret"] == 20.0
+        assert result["excess_exret"] == pytest.approx(20.0)
 
     def test_output_keys(self):
         """Verify all required output keys are present."""
@@ -1075,7 +1075,7 @@ class TestBuildConcordance:
     def test_position_limits(self, minimal_inputs):
         result = build_concordance(**minimal_inputs)
         aapl = next(r for r in result if r["ticker"] == "AAPL")
-        assert aapl["max_pct"] == 4.0
+        assert aapl["max_pct"] == pytest.approx(4.0)
 
     def test_census_ts_map(self, minimal_inputs):
         minimal_inputs["census_ts_map"] = {"AAPL": "strong_accumulation"}
@@ -2083,7 +2083,7 @@ class TestExposureWeightedSectorGaps:
         )
         assert len(gaps) == 1
         assert gaps[0]["sector"] == "Energy"
-        assert gaps[0]["portfolio_exposure"] == 0.6
+        assert gaps[0]["portfolio_exposure"] == pytest.approx(0.6)
 
     def test_adequate_exposure_not_a_gap(self):
         """Sector with >= min_meaningful_exposure should not be a gap."""
@@ -2127,7 +2127,7 @@ class TestExposureWeightedSectorGaps:
             portfolio_weights={"Technology": 30.0},
         )
         assert len(gaps) == 1
-        assert gaps[0]["portfolio_exposure"] == 0.0
+        assert gaps[0]["portfolio_exposure"] == pytest.approx(0.0)
 
     def test_custom_min_exposure_threshold(self):
         """Custom min_meaningful_exposure should be respected."""
@@ -2471,7 +2471,7 @@ class TestDynamicFreshness:
         agent_ts = (now - __import__("datetime").timedelta(minutes=30)).isoformat()
         committee_ts = now.isoformat()
         mult = compute_dynamic_freshness(agent_ts, committee_ts)
-        assert mult == 1.0
+        assert mult == pytest.approx(1.0)
 
     def test_few_hours(self):
         """Agent data 2-4 hours old should be 0.95."""
@@ -2480,7 +2480,7 @@ class TestDynamicFreshness:
         agent_ts = (now - timedelta(hours=3)).isoformat()
         committee_ts = now.isoformat()
         mult = compute_dynamic_freshness(agent_ts, committee_ts)
-        assert mult == 0.95
+        assert mult == pytest.approx(0.95)
 
     def test_half_day(self):
         """Agent data 8 hours old should be 0.85."""
@@ -2489,7 +2489,7 @@ class TestDynamicFreshness:
         agent_ts = (now - timedelta(hours=8)).isoformat()
         committee_ts = now.isoformat()
         mult = compute_dynamic_freshness(agent_ts, committee_ts)
-        assert mult == 0.85
+        assert mult == pytest.approx(0.85)
 
     def test_day_old(self):
         """Agent data 20 hours old should be 0.75."""
@@ -2498,7 +2498,7 @@ class TestDynamicFreshness:
         agent_ts = (now - timedelta(hours=20)).isoformat()
         committee_ts = now.isoformat()
         mult = compute_dynamic_freshness(agent_ts, committee_ts)
-        assert mult == 0.75
+        assert mult == pytest.approx(0.75)
 
     def test_very_stale(self):
         """Agent data > 24 hours old should be 0.6."""
@@ -2507,17 +2507,17 @@ class TestDynamicFreshness:
         agent_ts = (now - timedelta(hours=30)).isoformat()
         committee_ts = now.isoformat()
         mult = compute_dynamic_freshness(agent_ts, committee_ts)
-        assert mult == 0.6
+        assert mult == pytest.approx(0.6)
 
     def test_no_timestamp(self):
         """No agent timestamp should return default 1.0."""
         mult = compute_dynamic_freshness(None, None)
-        assert mult == 1.0
+        assert mult == pytest.approx(1.0)
 
     def test_invalid_timestamp(self):
         """Invalid timestamp format should return 1.0."""
         mult = compute_dynamic_freshness("not-a-date", "also-not")
-        assert mult == 1.0
+        assert mult == pytest.approx(1.0)
 
 
 # =============================================================================
@@ -2536,7 +2536,7 @@ class TestUniverseMedianEvenCount:
         sectors = {"A": "S1", "B": "S2", "C": "S3", "D": "S4"}
         _, universe = compute_sector_medians(signals, sectors)
         # Sorted: [10, 20, 30, 40] → median = (20+30)/2 = 25
-        assert universe == 25.0
+        assert universe == pytest.approx(25.0)
 
     def test_odd_count_universe_median(self):
         """Odd number of stocks should pick the middle value."""
@@ -4662,7 +4662,7 @@ class TestV17PerformanceFeedback:
             performance_data=perf,
         )
         assert output["performance"]["status"] == "complete"
-        assert output["performance"]["actions"]["ADD"]["hit_rate"] == 60.0
+        assert output["performance"]["actions"]["ADD"]["hit_rate"] == pytest.approx(60.0)
 
     def test_synthesis_output_empty_performance_when_none(self):
         """When no performance data, output should have empty dict."""
@@ -4693,7 +4693,7 @@ class TestV17PerformanceFeedback:
             sector_rankings={},
             position_limit=5.0,
         )
-        assert result["price"] == 185.5
+        assert result["price"] == pytest.approx(185.5)
 
     def test_synthesize_stock_price_defaults_to_zero(self):
         """When sig_data has no price, should default to 0."""
@@ -4831,7 +4831,7 @@ class TestNormalizeSectorRankings:
     def test_dict_passthrough(self):
         report = {"sector_rankings": {"XLK": {"return_1m": 3.2}}}
         _normalize_sector_rankings(report)
-        assert report["sector_rankings"]["XLK"]["return_1m"] == 3.2
+        assert report["sector_rankings"]["XLK"]["return_1m"] == pytest.approx(3.2)
 
     def test_list_to_dict(self):
         report = {"sector_rankings": [
@@ -4841,7 +4841,7 @@ class TestNormalizeSectorRankings:
         _normalize_sector_rankings(report)
         sr = report["sector_rankings"]
         assert isinstance(sr, dict)
-        assert sr["XLK"]["return_1m"] == 3.2
+        assert sr["XLK"]["return_1m"] == pytest.approx(3.2)
         assert sr["XLK"]["relative_strength"] == "LEADING"
         assert sr["Energy"]["return_1m"] == -1.5
 

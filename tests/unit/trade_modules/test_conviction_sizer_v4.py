@@ -51,7 +51,7 @@ class TestEstimateHoldingCostPct:
     def test_zero_holding_period(self):
         """Zero-day hold should have only spread costs, no financing."""
         result = estimate_holding_cost_pct(holding_period_days=0, tier="LARGE")
-        assert result["financing_pct"] == 0.0
+        assert result["financing_pct"] == pytest.approx(0.0)
         # LARGE spread: 5bps * 2 = 0.10%
         assert result["spread_pct"] == pytest.approx(0.10, abs=0.001)
         assert result["total_pct"] == result["spread_pct"]
@@ -262,7 +262,7 @@ class TestApplyPortfolioConstraints:
             max_sector_pct=25.0,
             portfolio_value=100_000,
         )
-        assert result[0]["constrained_size"] == 0.0
+        assert result[0]["constrained_size"] == pytest.approx(0.0)
         assert result[0]["was_constrained"] is True
 
     def test_sector_over_limit(self):
@@ -277,7 +277,7 @@ class TestApplyPortfolioConstraints:
             max_sector_pct=25.0,
             portfolio_value=100_000,
         )
-        assert result[0]["constrained_size"] == 0.0
+        assert result[0]["constrained_size"] == pytest.approx(0.0)
         assert result[0]["was_constrained"] is True
 
     def test_empty_positions(self):
@@ -471,7 +471,7 @@ class TestApplyPortfolioConstraints:
             portfolio_value=100_000,
         )
         assert result[0]["was_constrained"] is False
-        assert result[0]["constrained_size"] == 0.0
+        assert result[0]["constrained_size"] == pytest.approx(0.0)
 
 
 # ============================================================
@@ -486,7 +486,7 @@ class TestDampenedClusterSizing:
         """Ticker not in any cluster should get 1.0 (no adjustment)."""
         from trade_modules.conviction_sizer import get_cluster_size_adjustment
         clusters = [{"tickers": ["MSFT", "GOOG"]}]
-        assert get_cluster_size_adjustment("AAPL", clusters) == 1.0
+        assert get_cluster_size_adjustment("AAPL", clusters) == pytest.approx(1.0)
 
     def test_in_cluster_of_2(self):
         """Cluster of 2: base = 1/sqrt(2) ≈ 0.707, dampened higher."""
@@ -519,7 +519,7 @@ class TestDampenedClusterSizing:
     def test_empty_clusters(self):
         """Empty clusters list should return 1.0."""
         from trade_modules.conviction_sizer import get_cluster_size_adjustment
-        assert get_cluster_size_adjustment("AAPL", []) == 1.0
+        assert get_cluster_size_adjustment("AAPL", []) == pytest.approx(1.0)
 
     def test_conviction_capped_at_80_pct(self):
         """Conviction factor should cap at 0.8 (80%)."""
@@ -550,7 +550,7 @@ class TestOpportunityCostSizing:
         # avg = 60, so conviction=40 is 20 below → reduce
         result = adjust_sizes_for_opportunity_cost(positions)
         assert result[0]["position_size"] == pytest.approx(2.7, abs=0.01)
-        assert result[0]["opp_cost_adj"] == -0.10
+        assert result[0]["opp_cost_adj"] == pytest.approx(-0.10)
 
     def test_above_avg_increased(self):
         """Positions with conviction > 10 above average should be increased 10%."""
@@ -563,7 +563,7 @@ class TestOpportunityCostSizing:
         # avg = 60, conviction=80 is 20 above → increase
         result = adjust_sizes_for_opportunity_cost(positions)
         assert result[2]["position_size"] == pytest.approx(3.3, abs=0.01)
-        assert result[2]["opp_cost_adj"] == 0.10
+        assert result[2]["opp_cost_adj"] == pytest.approx(0.10)
 
     def test_near_avg_unchanged(self):
         """Positions near average should not be adjusted."""
@@ -576,8 +576,8 @@ class TestOpportunityCostSizing:
         # avg = 60, all within ±10 → no adjustment
         result = adjust_sizes_for_opportunity_cost(positions)
         for p in result:
-            assert p["opp_cost_adj"] == 0.0
-            assert p["position_size"] == 3.0
+            assert p["opp_cost_adj"] == pytest.approx(0.0)
+            assert p["position_size"] == pytest.approx(3.0)
 
     def test_max_cap_enforced(self):
         """Position size should not exceed max_pct."""
@@ -595,7 +595,7 @@ class TestOpportunityCostSizing:
         from trade_modules.conviction_sizer import adjust_sizes_for_opportunity_cost
         positions = [{"conviction": 80, "position_size": 3.0}]
         result = adjust_sizes_for_opportunity_cost(positions)
-        assert result[0]["position_size"] == 3.0
+        assert result[0]["position_size"] == pytest.approx(3.0)
 
     def test_empty_list(self):
         """Empty list should return empty list."""

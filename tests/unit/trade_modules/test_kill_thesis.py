@@ -95,38 +95,38 @@ class TestSafeFloat:
     """Tests for the _safe_float helper."""
 
     def test_normal_float(self):
-        assert _safe_float("42.5") == 42.5
+        assert _safe_float("42.5") == pytest.approx(42.5)
 
     def test_integer_string(self):
-        assert _safe_float("10") == 10.0
+        assert _safe_float("10") == pytest.approx(10.0)
 
     def test_percentage_strip(self):
-        assert _safe_float("88%") == 88.0
+        assert _safe_float("88%") == pytest.approx(88.0)
 
     def test_none_returns_default(self):
-        assert _safe_float(None) == 0.0
-        assert _safe_float(None, default=99.0) == 99.0
+        assert _safe_float(None) == pytest.approx(0.0)
+        assert _safe_float(None, default=99.0) == pytest.approx(99.0)
 
     def test_dash_returns_default(self):
-        assert _safe_float("--") == 0.0
+        assert _safe_float("--") == pytest.approx(0.0)
 
     def test_na_returns_default(self):
-        assert _safe_float("N/A") == 0.0
+        assert _safe_float("N/A") == pytest.approx(0.0)
 
     def test_empty_string_returns_default(self):
-        assert _safe_float("") == 0.0
+        assert _safe_float("") == pytest.approx(0.0)
 
     def test_nan_string_returns_default(self):
-        assert _safe_float("nan") == 0.0
+        assert _safe_float("nan") == pytest.approx(0.0)
 
     def test_invalid_string_returns_default(self):
-        assert _safe_float("abc", default=-1.0) == -1.0
+        assert _safe_float("abc", default=-1.0) == pytest.approx(-1.0)
 
     def test_negative_float(self):
-        assert _safe_float("-3.5") == -3.5
+        assert _safe_float("-3.5") == pytest.approx(-3.5)
 
     def test_actual_float_value(self):
-        assert _safe_float(3.14) == 3.14
+        assert _safe_float(3.14) == pytest.approx(3.14)
 
 
 # ============================================================

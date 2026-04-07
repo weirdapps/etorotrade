@@ -89,7 +89,7 @@ def _minimal_reports():
 
 class TestHelperFunctions:
     def test_sf_parses_float(self):
-        assert sf("12.5%") == 12.5
+        assert sf("12.5%") == pytest.approx(12.5)
 
     def test_sf_default_on_bad_input(self):
         assert sf("--", 0) == 0

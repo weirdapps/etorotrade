@@ -11,6 +11,8 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import pytest
+
 from trade_modules.census_time_series import (
     CENSUS_ARCHIVE_DIR,
     _classify_trend,
@@ -303,7 +305,7 @@ class TestComputeHolderTrends:
         # NVDA went 30 -> 42 = +40% — strong accumulation
         assert trends["NVDA"]["current_holders"] == 42
         assert trends["NVDA"]["delta_30d"] == 12
-        assert trends["NVDA"]["pct_change_30d"] == 40.0
+        assert trends["NVDA"]["pct_change_30d"] == pytest.approx(40.0)
         assert trends["NVDA"]["classification"] == "strong_accumulation"
 
         # TSLA went 25 -> 18 = -28% — strong distribution
@@ -326,7 +328,7 @@ class TestComputeHolderTrends:
 
         snaps = load_census_snapshots(archive_dir=tmp_path, days_back=30)
         trends = compute_holder_trends(snaps)
-        assert trends["AAPL"]["holder_pct"] == 50.0  # 50/100 * 100
+        assert trends["AAPL"]["holder_pct"] == pytest.approx(50.0)  # 50/100 * 100
 
     def test_7d_delta(self, tmp_path: Path) -> None:
         _make_standard_snapshots(tmp_path)

@@ -29,7 +29,7 @@ class TestContinuousConviction:
     def test_conviction_at_zero(self):
         """Conviction score of 0 should give 0.35 multiplier."""
         result = get_conviction_multiplier(0)
-        assert result == 0.35
+        assert result == pytest.approx(0.35)
 
     def test_conviction_at_fifty(self):
         """Conviction score of 50 should give 0.675 multiplier."""
@@ -51,17 +51,17 @@ class TestContinuousConviction:
     def test_conviction_at_hundred(self):
         """Conviction score of 100 should give 1.0 multiplier."""
         result = get_conviction_multiplier(100)
-        assert result == 1.0
+        assert result == pytest.approx(1.0)
 
     def test_conviction_clamping_above(self):
         """Conviction score above 100 should clamp to 1.0."""
         result = get_conviction_multiplier(150)
-        assert result == 1.0
+        assert result == pytest.approx(1.0)
 
     def test_conviction_clamping_below(self):
         """Conviction score below 0 should clamp to 0.35."""
         result = get_conviction_multiplier(-10)
-        assert result == 0.35
+        assert result == pytest.approx(0.35)
 
 
 class TestClusterAdjustment:
@@ -74,7 +74,7 @@ class TestClusterAdjustment:
             {"tickers": ["JPM", "BAC", "WFC"]},
         ]
         result = get_cluster_size_adjustment("NVDA", clusters)
-        assert result == 1.0
+        assert result == pytest.approx(1.0)
 
     def test_in_cluster_of_three(self):
         """Ticker in cluster of 3 should have dampened 1/sqrt(3) adjustment.
@@ -119,7 +119,7 @@ class TestClusterAdjustment:
     def test_empty_clusters(self):
         """Empty clusters list should return 1.0."""
         result = get_cluster_size_adjustment("AAPL", [])
-        assert result == 1.0
+        assert result == pytest.approx(1.0)
 
 
 class TestSectorRotation:
@@ -188,27 +188,27 @@ class TestFreshnessMultiplier:
     def test_fresh_data(self):
         """Fresh data should have 1.0 multiplier."""
         result = get_freshness_multiplier("fresh")
-        assert result == 1.0
+        assert result == pytest.approx(1.0)
 
     def test_aging_data(self):
         """Aging data should have 0.75 multiplier."""
         result = get_freshness_multiplier("aging")
-        assert result == 0.75
+        assert result == pytest.approx(0.75)
 
     def test_stale_data(self):
         """Stale data should have 0.50 multiplier."""
         result = get_freshness_multiplier("stale")
-        assert result == 0.50
+        assert result == pytest.approx(0.50)
 
     def test_dead_data(self):
         """Dead data should have 0.0 multiplier (INCONCLUSIVE)."""
         result = get_freshness_multiplier("dead")
-        assert result == 0.0
+        assert result == pytest.approx(0.0)
 
     def test_unknown_staleness(self):
         """Unknown staleness should default to 1.0."""
         result = get_freshness_multiplier("unknown")
-        assert result == 1.0
+        assert result == pytest.approx(1.0)
 
 
 class TestMarketImpact:
@@ -295,7 +295,7 @@ class TestIntegratedSizing:
         # Without cluster: 2500 * 4 * 0.87 = 8700
         # With cluster: 8700 * 0.5 = 4350
         assert result["position_size"] < 5000
-        assert result["cluster_adjustment"] == 0.5
+        assert result["cluster_adjustment"] == pytest.approx(0.5)
 
     def test_sector_rotation_adjusts_conviction(self):
         """Sector rotation should adjust conviction score."""
@@ -318,7 +318,7 @@ class TestIntegratedSizing:
             conviction_score=80,
             sector_rotation_blocked=True,
         )
-        assert result["position_size"] == 0.0
+        assert result["position_size"] == pytest.approx(0.0)
         assert result["is_blocked"] is True
         assert result["sector_rotation_blocked"] is True
 
@@ -331,7 +331,7 @@ class TestIntegratedSizing:
             freshness_multiplier=0.5,  # Stale
         )
         # Should be reduced by 50%
-        assert result["freshness_multiplier"] == 0.5
+        assert result["freshness_multiplier"] == pytest.approx(0.5)
         assert result["position_size"] < 6000
 
     def test_dead_data_blocks(self):
@@ -342,7 +342,7 @@ class TestIntegratedSizing:
             conviction_score=80,
             freshness_multiplier=0.0,  # Dead
         )
-        assert result["position_size"] == 0.0
+        assert result["position_size"] == pytest.approx(0.0)
         assert result["is_blocked"] is True
 
     def test_market_impact_blocks(self):
@@ -353,7 +353,7 @@ class TestIntegratedSizing:
             conviction_score=80,
             market_impact_blocked=True,
         )
-        assert result["position_size"] == 0.0
+        assert result["position_size"] == pytest.approx(0.0)
         assert result["is_blocked"] is True
         assert result["market_impact_blocked"] is True
 
@@ -383,12 +383,12 @@ class TestPortfolioVarScaling:
 
     def test_var_within_budget_no_scaling(self):
         """VaR within budget returns 1.0."""
-        assert get_portfolio_var_scaling(1.5) == 1.0
-        assert get_portfolio_var_scaling(2.5) == 1.0
+        assert get_portfolio_var_scaling(1.5) == pytest.approx(1.0)
+        assert get_portfolio_var_scaling(2.5) == pytest.approx(1.0)
 
     def test_var_unknown_no_scaling(self):
         """Unknown VaR returns 1.0."""
-        assert get_portfolio_var_scaling(None) == 1.0
+        assert get_portfolio_var_scaling(None) == pytest.approx(1.0)
 
     def test_var_exceeds_trigger(self):
         """VaR above trigger but below max scales linearly."""
@@ -398,12 +398,12 @@ class TestPortfolioVarScaling:
 
     def test_var_at_max(self):
         """VaR at max threshold gives 0.5."""
-        assert get_portfolio_var_scaling(5.0) == 0.5
+        assert get_portfolio_var_scaling(5.0) == pytest.approx(0.5)
 
     def test_var_emergency_blocks(self):
         """VaR above 2× max blocks all new positions."""
-        assert get_portfolio_var_scaling(10.0) == 0.0
-        assert get_portfolio_var_scaling(15.0) == 0.0
+        assert get_portfolio_var_scaling(10.0) == pytest.approx(0.0)
+        assert get_portfolio_var_scaling(15.0) == pytest.approx(0.0)
 
     def test_var_scaling_in_position_size(self):
         """VaR scaling reduces position size correctly."""
@@ -425,4 +425,4 @@ class TestPortfolioVarScaling:
         assert result_scaled["position_size"] == pytest.approx(
             result_normal["position_size"] * 0.8, abs=1
         )
-        assert result_scaled["portfolio_var_scaling"] == 0.8
+        assert result_scaled["portfolio_var_scaling"] == pytest.approx(0.8)

@@ -39,7 +39,7 @@ class TestLiquidityFilter:
             result = check_liquidity("AAPL", "MEGA")
             assert result["passes"] is True
             assert result["adv"] == 100_000_000
-            assert result["spread_cost_bps"] == 2.0
+            assert result["spread_cost_bps"] == pytest.approx(2.0)
 
     def test_check_liquidity_insufficient(self):
         """Stock with insufficient ADV fails filter."""
@@ -110,7 +110,7 @@ class TestConvictionSizer:
         from trade_modules.conviction_sizer import get_conviction_multiplier
 
         # Continuous function: 0.35 + (score/100) * 0.65
-        assert get_conviction_multiplier(100) == 1.0
+        assert get_conviction_multiplier(100) == pytest.approx(1.0)
         assert get_conviction_multiplier(95) == pytest.approx(0.9675, abs=0.001)
         assert get_conviction_multiplier(90) == pytest.approx(0.935, abs=0.001)
 
@@ -125,7 +125,7 @@ class TestConvictionSizer:
         """Score 0 gets minimal position size (continuous function)."""
         from trade_modules.conviction_sizer import get_conviction_multiplier
 
-        assert get_conviction_multiplier(0) == 0.35
+        assert get_conviction_multiplier(0) == pytest.approx(0.35)
         # 30 → 0.35 + 0.30*0.65 = 0.545
         assert get_conviction_multiplier(30) == pytest.approx(0.545, abs=0.001)
 
@@ -133,20 +133,20 @@ class TestConvictionSizer:
         """Normal VIX regime gets 1.0x sizing."""
         from trade_modules.conviction_sizer import get_regime_multiplier
 
-        assert get_regime_multiplier("normal") == 1.0
-        assert get_regime_multiplier("low") == 1.0
+        assert get_regime_multiplier("normal") == pytest.approx(1.0)
+        assert get_regime_multiplier("low") == pytest.approx(1.0)
 
     def test_regime_multiplier_elevated(self):
         """Elevated VIX regime reduces sizing 25%."""
         from trade_modules.conviction_sizer import get_regime_multiplier
 
-        assert get_regime_multiplier("elevated") == 0.75
+        assert get_regime_multiplier("elevated") == pytest.approx(0.75)
 
     def test_regime_multiplier_high(self):
         """High VIX regime reduces sizing 50%."""
         from trade_modules.conviction_sizer import get_regime_multiplier
 
-        assert get_regime_multiplier("high") == 0.50
+        assert get_regime_multiplier("high") == pytest.approx(0.50)
 
     def test_calculate_conviction_size_full(self):
         """Full conviction + normal regime = tier size (continuous function)."""
@@ -158,9 +158,9 @@ class TestConvictionSizer:
             conviction_score=100,  # Changed from 95 to 100 for 1.0 multiplier
             regime="normal",
         )
-        assert result["position_size"] == 12500.0  # 2500 * 5 * 1.0 * 1.0
-        assert result["conviction_multiplier"] == 1.0
-        assert result["regime_multiplier"] == 1.0
+        assert result["position_size"] == pytest.approx(12500.0)  # 2500 * 5 * 1.0 * 1.0
+        assert result["conviction_multiplier"] == pytest.approx(1.0)
+        assert result["regime_multiplier"] == pytest.approx(1.0)
 
     def test_calculate_conviction_size_reduced(self):
         """Moderate conviction + elevated regime = significantly reduced (continuous function)."""
@@ -177,7 +177,7 @@ class TestConvictionSizer:
         expected_size = 2500 * 5 * 0.7725 * 0.75
         assert result["position_size"] == pytest.approx(expected_size, abs=1)
         assert result["conviction_multiplier"] == pytest.approx(0.7725, abs=0.001)
-        assert result["regime_multiplier"] == 0.75
+        assert result["regime_multiplier"] == pytest.approx(0.75)
 
     def test_cost_blocks_position(self):
         """Position blocked when costs exceed expected return."""
@@ -191,7 +191,7 @@ class TestConvictionSizer:
             cost_adjusted_return=0.5,  # Below minimum
             min_cost_adjusted_return=1.0,
         )
-        assert result["position_size"] == 0.0
+        assert result["position_size"] == pytest.approx(0.0)
         assert result["skip_due_to_cost"] is True
 
     def test_max_position_constraint(self):
@@ -205,7 +205,7 @@ class TestConvictionSizer:
             regime="normal",
             max_position_usd=22500,
         )
-        assert result["position_size"] == 22500.0  # Capped
+        assert result["position_size"] == pytest.approx(22500.0)  # Capped
 
 
 # ===========================================================================
@@ -591,22 +591,22 @@ class TestStalenessPenalties:
     def test_fresh_no_penalty(self):
         """Data < 30 days old has no penalty."""
         from trade_modules.data_freshness import PENALTIES
-        assert PENALTIES['fresh'] == 0.0
+        assert PENALTIES['fresh'] == pytest.approx(0.0)
 
     def test_aging_moderate_penalty(self):
         """Data 30-60 days old has 25% penalty."""
         from trade_modules.data_freshness import PENALTIES
-        assert PENALTIES['aging'] == 0.25
+        assert PENALTIES['aging'] == pytest.approx(0.25)
 
     def test_stale_heavy_penalty(self):
         """Data 60-90 days old has 50% penalty."""
         from trade_modules.data_freshness import PENALTIES
-        assert PENALTIES['stale'] == 0.50
+        assert PENALTIES['stale'] == pytest.approx(0.50)
 
     def test_dead_full_penalty(self):
         """Data 90+ days old has 100% penalty (INCONCLUSIVE)."""
         from trade_modules.data_freshness import PENALTIES
-        assert PENALTIES['dead'] == 1.0
+        assert PENALTIES['dead'] == pytest.approx(1.0)
 
     def test_thresholds_correct(self):
         """Verify threshold values match CIO review specification."""
@@ -635,20 +635,20 @@ class TestVixPositionSizing:
         """Normal VIX regime = full position size."""
         from trade_modules.vix_regime_provider import REGIME_POSITION_MULTIPLIERS, VixRegime
 
-        assert REGIME_POSITION_MULTIPLIERS[VixRegime.NORMAL] == 1.0
-        assert REGIME_POSITION_MULTIPLIERS[VixRegime.LOW] == 1.0
+        assert REGIME_POSITION_MULTIPLIERS[VixRegime.NORMAL] == pytest.approx(1.0)
+        assert REGIME_POSITION_MULTIPLIERS[VixRegime.LOW] == pytest.approx(1.0)
 
     def test_elevated_regime_reduced(self):
         """Elevated VIX regime = 75% position size."""
         from trade_modules.vix_regime_provider import REGIME_POSITION_MULTIPLIERS, VixRegime
 
-        assert REGIME_POSITION_MULTIPLIERS[VixRegime.ELEVATED] == 0.75
+        assert REGIME_POSITION_MULTIPLIERS[VixRegime.ELEVATED] == pytest.approx(0.75)
 
     def test_high_regime_halved(self):
         """High VIX regime = 50% position size."""
         from trade_modules.vix_regime_provider import REGIME_POSITION_MULTIPLIERS, VixRegime
 
-        assert REGIME_POSITION_MULTIPLIERS[VixRegime.HIGH] == 0.50
+        assert REGIME_POSITION_MULTIPLIERS[VixRegime.HIGH] == pytest.approx(0.50)
 
     def test_get_position_size_multiplier(self):
         """get_position_size_multiplier returns correct value."""
@@ -657,7 +657,7 @@ class TestVixPositionSizing:
         with patch("trade_modules.vix_regime_provider.get_vix_regime") as mock:
             from trade_modules.vix_regime_provider import VixRegime
             mock.return_value = VixRegime.ELEVATED
-            assert get_position_size_multiplier() == 0.75
+            assert get_position_size_multiplier() == pytest.approx(0.75)
 
 
 # ===========================================================================
@@ -793,12 +793,12 @@ class TestConfigYaml:
         with open("config.yaml") as f:
             config = yaml.safe_load(f)
         sell = config["default_sell_scoring"]
-        assert sell["weight_analyst"] == 0.20  # Reduced — EXRET tautology
-        assert sell["weight_valuation"] == 0.20  # Increased — PET is strongest value signal
-        assert sell["weight_fundamental"] == 0.25
+        assert sell["weight_analyst"] == pytest.approx(0.20)  # Reduced — EXRET tautology
+        assert sell["weight_valuation"] == pytest.approx(0.20)  # Increased — PET is strongest value signal
+        assert sell["weight_fundamental"] == pytest.approx(0.25)
 
         buy = config["default_buy_scoring"]
-        assert buy["weight_consensus"] == 0.13  # Reduced — buy% is contrarian indicator
-        assert buy["weight_valuation"] == 0.18  # Increased — PET is strongest value signal
-        assert buy["weight_fundamental"] == 0.17
-        assert buy["weight_upside"] == 0.22
+        assert buy["weight_consensus"] == pytest.approx(0.13)  # Reduced — buy% is contrarian indicator
+        assert buy["weight_valuation"] == pytest.approx(0.18)  # Increased — PET is strongest value signal
+        assert buy["weight_fundamental"] == pytest.approx(0.17)
+        assert buy["weight_upside"] == pytest.approx(0.22)

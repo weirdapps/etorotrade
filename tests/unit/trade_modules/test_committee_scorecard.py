@@ -328,12 +328,12 @@ class TestCheckPreviousRecommendations:
         # AAPL: (165-150)/150*100 = +10.0%
         # MSFT: (380-400)/400*100 = -5.0%
         assert result["best_performer"]["ticker"] == "AAPL"
-        assert result["best_performer"]["return_pct"] == 10.0
+        assert result["best_performer"]["return_pct"] == pytest.approx(10.0)
         assert result["worst_performer"]["ticker"] == "MSFT"
-        assert result["worst_performer"]["return_pct"] == -5.0
+        assert result["worst_performer"]["return_pct"] == pytest.approx(-5.0)
 
         # Average: (10.0 + -5.0) / 2 = 2.5
-        assert result["avg_return_to_date"] == 2.5
+        assert result["avg_return_to_date"] == pytest.approx(2.5)
 
         # Placeholder
         assert result["triggered_kill_theses"] == []
@@ -427,7 +427,7 @@ class TestCheckPreviousRecommendations:
             result = check_previous_recommendations(log_path=action_log_path)
 
         assert result["active_buys"] == 1
-        assert result["recommendations"][0]["return_pct"] == 10.0
+        assert result["recommendations"][0]["return_pct"] == pytest.approx(10.0)
 
     def test_all_prices_fail_returns_empty(self, action_log_path):
         """Returns empty when all price fetches fail."""
@@ -607,7 +607,7 @@ class TestEmptyPerformanceCheck:
         assert result["committee_date"] is None
         assert result["total_recommendations"] == 0
         assert result["active_buys"] == 0
-        assert result["avg_return_to_date"] == 0.0
+        assert result["avg_return_to_date"] == pytest.approx(0.0)
         assert result["best_performer"] is None
         assert result["worst_performer"] is None
         assert result["triggered_kill_theses"] == []

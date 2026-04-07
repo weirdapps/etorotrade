@@ -367,30 +367,30 @@ class TestSignalScorecard:
         returns = pd.Series([5.0, -2.0, 3.0, -1.0, 8.0])
 
         # BUY: % > 0
-        assert SignalScorecard._hit_rate(returns, 'B') == 60.0
+        assert SignalScorecard._hit_rate(returns, 'B') == pytest.approx(60.0)
 
         # SELL: % < 0
-        assert SignalScorecard._hit_rate(returns, 'S') == 40.0
+        assert SignalScorecard._hit_rate(returns, 'S') == pytest.approx(40.0)
 
         # HOLD: % within +-5
         hold_returns = pd.Series([1.0, -2.0, 3.0, -4.0, 10.0])
-        assert SignalScorecard._hit_rate(hold_returns, 'H') == 80.0
+        assert SignalScorecard._hit_rate(hold_returns, 'H') == pytest.approx(80.0)
 
         # Empty
-        assert SignalScorecard._hit_rate(pd.Series(dtype=float), 'B') == 0.0
+        assert SignalScorecard._hit_rate(pd.Series(dtype=float), 'B') == pytest.approx(0.0)
 
     def test_false_positive_rate_static_method(self):
         """Test _false_positive_rate for each signal type."""
         returns = pd.Series([5.0, -2.0, 3.0, -1.0, 8.0])
 
         # BUY false positive: % that lost money
-        assert SignalScorecard._false_positive_rate(returns, 'B') == 40.0
+        assert SignalScorecard._false_positive_rate(returns, 'B') == pytest.approx(40.0)
 
         # SELL false positive: % that went up
-        assert SignalScorecard._false_positive_rate(returns, 'S') == 60.0
+        assert SignalScorecard._false_positive_rate(returns, 'S') == pytest.approx(60.0)
 
         # HOLD: 0
-        assert SignalScorecard._false_positive_rate(returns, 'H') == 0.0
+        assert SignalScorecard._false_positive_rate(returns, 'H') == pytest.approx(0.0)
 
 
 # ============================================================
@@ -478,7 +478,7 @@ class TestConsensusCalibration:
 
         cal = result.get('consensus_calibration', {})
         for bucket_label, stats in cal.items():
-            assert stats['hit_rate'] == 100.0, (
+            assert stats['hit_rate'] == pytest.approx(100.0), (
                 f"Expected 100% hit rate for {bucket_label} with rising prices"
             )
             assert stats['avg_return'] > 0
@@ -516,7 +516,7 @@ class TestConsensusCalibration:
 
         cal = result.get('consensus_calibration', {})
         for bucket_label, stats in cal.items():
-            assert stats['hit_rate'] == 0.0, (
+            assert stats['hit_rate'] == pytest.approx(0.0), (
                 f"Expected 0% hit rate for {bucket_label} with falling prices"
             )
             assert stats['avg_return'] < 0
@@ -670,7 +670,7 @@ class TestConsensusCalibration:
         cal = result.get('consensus_calibration', {})
         if '70-80%' in cal:
             # With stocks growing faster than SPY, outperformance should be 100%
-            assert cal['70-80%']['outperformance_rate'] == 100.0
+            assert cal['70-80%']['outperformance_rate'] == pytest.approx(100.0)
 
     def test_consensus_calibration_included_in_full_scorecard(self, signal_log, tmp_dir):
         """consensus_calibration appears in full scorecard output."""

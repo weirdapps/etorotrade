@@ -471,7 +471,7 @@ def calculate_conviction_size(
         skip_due_to_cost
         or sector_rotation_blocked
         or market_impact_blocked
-        or freshness_multiplier == 0.0  # Dead data
+        or math.isclose(freshness_multiplier, 0.0, abs_tol=1e-9)  # Dead data
     )
 
     # Step 9: Apply max constraints
@@ -538,7 +538,7 @@ def _describe_adjustments(
     if conviction_mult < 1.0:
         pct = (1 - conviction_mult) * 100
         parts.append(f"conviction -{pct:.0f}%")
-    elif conviction_mult == 1.0:
+    elif math.isclose(conviction_mult, 1.0):
         parts.append("full conviction")
 
     # VIX regime
@@ -554,7 +554,7 @@ def _describe_adjustments(
     # Data freshness
     if freshness_multiplier < 1.0:
         pct = (1 - freshness_multiplier) * 100
-        if freshness_multiplier == 0.0:
+        if math.isclose(freshness_multiplier, 0.0, abs_tol=1e-9):
             parts.append("BLOCKED: dead data (90+ days)")
         else:
             parts.append(f"stale data -{pct:.0f}%")

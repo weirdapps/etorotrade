@@ -15,8 +15,8 @@ import os
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
+import aiohttp
 import pandas as pd
-import requests
 
 from ...core.errors import APIError, RateLimitError, YFinanceError
 from ...core.logging import get_logger
@@ -131,17 +131,14 @@ class AlphaVantageProvider(AsyncFinanceDataProvider):
         params["apikey"] = self.api_key
 
         try:
-            loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(
-                None,
-                lambda: requests.get(
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
                     self.base_url,
                     params=params,
-                    timeout=self.REQUEST_TIMEOUT
-                )
-            )
-            response.raise_for_status()
-            data = response.json()
+                    timeout=aiohttp.ClientTimeout(total=self.REQUEST_TIMEOUT),
+                ) as response:
+                    response.raise_for_status()
+                    data = await response.json()
 
             # Check for API error messages
             if "Error Message" in data:
@@ -151,7 +148,7 @@ class AlphaVantageProvider(AsyncFinanceDataProvider):
                 raise RateLimitError(f"Alpha Vantage rate limit: {data['Note']}")
 
             return data
-        except requests.RequestException as e:
+        except aiohttp.ClientError as e:
             logger.error(f"Alpha Vantage request failed: {e}")
             raise APIError(f"Alpha Vantage request failed: {e}")
 
