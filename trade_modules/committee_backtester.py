@@ -148,21 +148,23 @@ class CommitteeBacktester:
         self,
         price_fetcher=None,
         horizons: Tuple[int, ...] = (7, 30, 90),
+        benchmark: str = "SPY",
     ) -> Dict[str, Dict[str, Optional[float]]]:
         """
-        Compute forward returns for historical recommendations.
+        Compute forward returns and alpha for historical recommendations.
 
         For each (ticker, date) recommendation, fetches the price at
-        T+0 and T+horizon to compute realized returns.
+        T+0 and T+horizon to compute realized returns and alpha vs benchmark.
 
         Args:
             price_fetcher: Callable(ticker, date_str) -> Optional[float].
                 If None, uses a dummy that returns None (requires external
                 integration with yfinance or cached price data).
             horizons: Tuple of forward-looking days (default: 7, 30, 90).
+            benchmark: Benchmark ticker for alpha computation (default "SPY").
 
         Returns:
-            Dict of "ticker:date" -> {"T+7": float, "T+30": float, ...}
+            Dict of "ticker:date" -> {"T+7": float, "T+7_alpha": float, ...}
         """
         if price_fetcher is None:
             logger.info(
@@ -173,12 +175,21 @@ class CommitteeBacktester:
 
         results: Dict[str, Dict[str, Optional[float]]] = {}
 
+        # Cache benchmark prices per (date, horizon) to avoid redundant fetches
+        benchmark_cache: Dict[str, Optional[float]] = {}
+
         for entry in self.history:
             date_str = entry["date"]
             try:
                 base_date = datetime.strptime(date_str, "%Y-%m-%d")
             except (ValueError, TypeError):
                 continue
+
+            # Fetch benchmark base price once per date
+            bm_base_key = f"{benchmark}:{date_str}"
+            if bm_base_key not in benchmark_cache:
+                benchmark_cache[bm_base_key] = price_fetcher(benchmark, date_str)
+            bm_base_price = benchmark_cache[bm_base_key]
 
             for stock in entry["concordance"]:
                 ticker = stock.get("ticker", "")
@@ -199,10 +210,25 @@ class CommitteeBacktester:
                     if target_price is not None and target_price > 0:
                         ret = (target_price - base_price) / base_price * 100
                         returns[f"T+{h}"] = round(ret, 2)
+
+                        # Compute alpha vs benchmark
+                        bm_target_key = f"{benchmark}:{target_date}"
+                        if bm_target_key not in benchmark_cache:
+                            benchmark_cache[bm_target_key] = price_fetcher(
+                                benchmark, target_date
+                            )
+                        bm_target_price = benchmark_cache[bm_target_key]
+                        if (bm_base_price and bm_base_price > 0
+                                and bm_target_price and bm_target_price > 0):
+                            bm_ret = (bm_target_price - bm_base_price) / bm_base_price * 100
+                            returns[f"T+{h}_alpha"] = round(ret - bm_ret, 2)
+                        else:
+                            returns[f"T+{h}_alpha"] = None
                     else:
                         returns[f"T+{h}"] = None
+                        returns[f"T+{h}_alpha"] = None
 
-                if any(v is not None for v in returns.values()):
+                if any(v is not None for k, v in returns.items() if not k.endswith('_alpha')):
                     results[key] = returns
 
         self.forward_returns = results
@@ -218,8 +244,9 @@ class CommitteeBacktester:
 
         For each action (BUY, ADD, HOLD, TRIM, SELL), computes:
         - Count of recommendations
-        - Hit rate (% that moved in the right direction)
-        - Average return at the specified horizon
+        - Hit rate (% that moved in the right direction, absolute)
+        - Alpha hit rate (% that beat/trailed benchmark, regime-neutral)
+        - Average return and alpha at the specified horizon
         - Best and worst outcomes
 
         Args:
@@ -229,7 +256,10 @@ class CommitteeBacktester:
             Performance summary dict.
         """
         action_returns: Dict[str, List[float]] = {}
+        action_alphas: Dict[str, List[float]] = {}
         action_details: Dict[str, List[Dict]] = {}
+
+        alpha_key = f"{horizon}_alpha"
 
         for entry in self.history:
             date_str = entry["date"]
@@ -244,12 +274,17 @@ class CommitteeBacktester:
                 if ret is None:
                     continue
 
+                alpha = ret_data.get(alpha_key)
+
                 action_returns.setdefault(action, []).append(ret)
+                if alpha is not None:
+                    action_alphas.setdefault(action, []).append(alpha)
                 action_details.setdefault(action, []).append({
                     "ticker": ticker,
                     "date": date_str,
                     "conviction": conviction,
                     "return": ret,
+                    "alpha": alpha,
                 })
 
         summary: Dict[str, Any] = {}
@@ -257,7 +292,7 @@ class CommitteeBacktester:
             if not returns:
                 continue
 
-            # Hit rate: BUY/ADD should be positive, SELL/TRIM should be negative
+            # Absolute hit rate: BUY/ADD positive, SELL/TRIM negative
             if action in ("BUY", "ADD"):
                 hits = sum(1 for r in returns if r > 0)
             elif action in ("SELL", "TRIM"):
@@ -267,13 +302,30 @@ class CommitteeBacktester:
 
             hit_rate = hits / len(returns) * 100
 
+            # Alpha hit rate: regime-neutral (did it beat the benchmark?)
+            alphas = action_alphas.get(action, [])
+            if alphas:
+                if action in ("BUY", "ADD"):
+                    alpha_hits = sum(1 for a in alphas if a > 0)
+                elif action in ("SELL", "TRIM"):
+                    alpha_hits = sum(1 for a in alphas if a < 0)
+                else:
+                    alpha_hits = sum(1 for a in alphas if abs(a) < 2)
+                alpha_hit_rate = round(alpha_hits / len(alphas) * 100, 1)
+                avg_alpha = round(sum(alphas) / len(alphas), 2)
+            else:
+                alpha_hit_rate = None
+                avg_alpha = None
+
             avg_return = sum(returns) / len(returns)
             sorted_returns = sorted(returns)
 
             summary[action] = {
                 "count": len(returns),
                 "hit_rate": round(hit_rate, 1),
+                "alpha_hit_rate": alpha_hit_rate,
                 "avg_return": round(avg_return, 2),
+                "avg_alpha": avg_alpha,
                 "median_return": round(sorted_returns[len(sorted_returns) // 2], 2),
                 "best": round(sorted_returns[-1], 2),
                 "worst": round(sorted_returns[0], 2),

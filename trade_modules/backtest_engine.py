@@ -429,9 +429,24 @@ class BacktestEngine:
         else:  # H
             hits = (returns.abs() < 5).sum()
 
+        # Alpha-based hit rate: regime-neutral metric
+        # BUY beat the market, SELL underperformed the market, HOLD tracked it
+        n_alpha = len(alphas)
+        if n_alpha > 0:
+            if signal_type == 'B':
+                alpha_hits = (alphas > 0).sum()
+            elif signal_type == 'S':
+                alpha_hits = (alphas < 0).sum()
+            else:  # H
+                alpha_hits = (alphas.abs() < 2).sum()
+            alpha_hit_rate = round(alpha_hits / n_alpha * 100, 1)
+        else:
+            alpha_hit_rate = None
+
         return {
             'count': n,
             'hit_rate': round(hits / n * 100, 1) if n > 0 else 0,
+            'alpha_hit_rate': alpha_hit_rate,
             'mean_return': round(returns.mean(), 2) if len(returns) > 0 else None,
             'median_return': round(returns.median(), 2) if len(returns) > 0 else None,
             'avg_alpha': round(alphas.mean(), 2) if len(alphas) > 0 else None,
@@ -449,8 +464,8 @@ class BacktestEngine:
             print("=" * 60)
 
             # By signal type
-            print(f"\n{'Signal':<8} {'Count':>7} {'Hit Rate':>10} {'Mean Ret':>10} {'Med Ret':>10} {'Avg Alpha':>11}")
-            print('-' * 58)
+            print(f"\n{'Signal':<8} {'Count':>7} {'Hit Rate':>10} {'α Hit Rate':>11} {'Mean Ret':>10} {'Med Ret':>10} {'Avg Alpha':>11}")
+            print('-' * 70)
             for sig in ['B', 'S', 'H']:
                 s = h_stats['by_signal'].get(sig, {})
                 if not s:
@@ -460,12 +475,13 @@ class BacktestEngine:
                 mr = f"{s['mean_return']:.2f}%" if s.get('mean_return') is not None else 'N/A'
                 mdr = f"{s['median_return']:.2f}%" if s.get('median_return') is not None else 'N/A'
                 aa = f"{s['avg_alpha']:.2f}%" if s.get('avg_alpha') is not None else 'N/A'
-                print(f"{name:<8} {s['count']:>7} {s['hit_rate']:>9.1f}% {mr:>10} {mdr:>10} {aa:>11} {flag}")
+                ahr = f"{s['alpha_hit_rate']:.1f}%" if s.get('alpha_hit_rate') is not None else 'N/A'
+                print(f"{name:<8} {s['count']:>7} {s['hit_rate']:>9.1f}% {ahr:>10} {mr:>10} {mdr:>10} {aa:>11} {flag}")
 
             # By tier
             if h_stats.get('by_tier'):
-                print(f"\n{'Tier':<8} {'Count':>7} {'Hit Rate':>10} {'Mean Ret':>10} {'Avg Alpha':>11}")
-                print('-' * 48)
+                print(f"\n{'Tier':<8} {'Count':>7} {'Hit Rate':>10} {'α Hit Rate':>11} {'Mean Ret':>10} {'Avg Alpha':>11}")
+                print('-' * 60)
                 for tier in ['mega', 'large', 'mid', 'small', 'micro']:
                     s = h_stats['by_tier'].get(tier, {})
                     if not s:
@@ -473,7 +489,8 @@ class BacktestEngine:
                     flag = '*' if s.get('low_sample') else ''
                     mr = f"{s['mean_return']:.2f}%" if s.get('mean_return') is not None else 'N/A'
                     aa = f"{s['avg_alpha']:.2f}%" if s.get('avg_alpha') is not None else 'N/A'
-                    print(f"{tier:<8} {s['count']:>7} {s['hit_rate']:>9.1f}% {mr:>10} {aa:>11} {flag}")
+                    ahr = f"{s['alpha_hit_rate']:.1f}%" if s.get('alpha_hit_rate') is not None else 'N/A'
+                    print(f"{tier:<8} {s['count']:>7} {s['hit_rate']:>9.1f}% {ahr:>10} {mr:>10} {aa:>11} {flag}")
 
             print("\n  * = low sample size (n < 30)")
 
@@ -624,10 +641,10 @@ class ThresholdAnalyzer:
         self, merged: pd.DataFrame
     ) -> List[Dict[str, Any]]:
         """
-        Calculate correlation of each metric with T+30 return.
+        Calculate correlation of each metric with T+30 alpha (vs SPY).
 
         For BUY signals, a positive correlation means the metric
-        correctly predicts higher returns.
+        correctly predicts outperformance vs the benchmark.
         """
         metrics = [
             'upside', 'buy_percentage', 'exret', 'roe', 'debt_equity',
@@ -642,10 +659,10 @@ class ThresholdAnalyzer:
                 continue
 
             series = buy_df[metric].astype(float, errors='ignore')
-            returns = buy_df['stock_return']
+            alphas = buy_df['alpha']
 
             # Drop NaN pairs
-            valid = series.notna() & returns.notna()
+            valid = series.notna() & alphas.notna()
             n = valid.sum()
 
             if n < 30:
@@ -660,23 +677,23 @@ class ThresholdAnalyzer:
                 continue
 
             try:
-                corr = float(series[valid].corr(returns[valid]))
+                corr = float(series[valid].corr(alphas[valid]))
             except (ValueError, TypeError):
                 corr = None
 
-            # Quintile analysis
+            # Quintile analysis — using alpha
             quintile_stats = []
             if corr is not None and n >= 50:
                 try:
                     quantiles = pd.qcut(series[valid], 5, labels=False, duplicates='drop')
                     for q in sorted(quantiles.unique()):
                         q_mask = quantiles == q
-                        q_returns = returns[valid][q_mask]
+                        q_alphas = alphas[valid][q_mask]
                         quintile_stats.append({
                             'quintile': int(q),
                             'count': int(q_mask.sum()),
-                            'mean_return': round(float(q_returns.mean()), 2),
-                            'hit_rate': round(float((q_returns > 0).mean() * 100), 1),
+                            'mean_alpha': round(float(q_alphas.mean()), 2),
+                            'alpha_hit_rate': round(float((q_alphas > 0).mean() * 100), 1),
                         })
                 except (ValueError, TypeError):
                     pass
@@ -707,7 +724,7 @@ class ThresholdAnalyzer:
         """
         Evaluate effectiveness of each sell trigger type.
 
-        Hit = stock actually declined at T+30 after SELL signal.
+        Hit = stock underperformed SPY at T+30 (negative alpha).
         """
         sell_df = merged[merged['signal'] == 'S'].copy()
         if sell_df.empty:
@@ -722,8 +739,8 @@ class ThresholdAnalyzer:
             triggers = row.get('sell_triggers', [])
             if not isinstance(triggers, list):
                 continue
-            stock_return = row.get('stock_return')
-            if pd.isna(stock_return):
+            alpha = row.get('alpha')
+            if pd.isna(alpha):
                 continue
 
             for trigger in triggers:
@@ -733,12 +750,12 @@ class ThresholdAnalyzer:
                     continue
 
                 if trigger not in trigger_stats:
-                    trigger_stats[trigger] = {'fires': 0, 'hits': 0, 'returns': []}
+                    trigger_stats[trigger] = {'fires': 0, 'hits': 0, 'alphas': []}
 
                 trigger_stats[trigger]['fires'] += 1
-                if stock_return < 0:
+                if alpha < 0:
                     trigger_stats[trigger]['hits'] += 1
-                trigger_stats[trigger]['returns'].append(stock_return)
+                trigger_stats[trigger]['alphas'].append(alpha)
 
         results = []
         for trigger, data in trigger_stats.items():
@@ -746,12 +763,12 @@ class ThresholdAnalyzer:
             if n < 10:
                 continue
             hit_rate = data['hits'] / n * 100
-            avg_return = np.mean(data['returns'])
+            avg_alpha = np.mean(data['alphas'])
             results.append({
                 'trigger': trigger,
                 'fires': n,
                 'hit_rate': round(hit_rate, 1),
-                'avg_return': round(avg_return, 2),
+                'avg_alpha': round(avg_alpha, 2),
                 'effectiveness': round(hit_rate * n / 1000, 1),  # hit_rate * frequency
             })
 
@@ -856,10 +873,10 @@ class ThresholdAnalyzer:
         signal: str,
     ) -> Optional[Dict[str, Any]]:
         """
-        Find the threshold value that maximizes hit rate.
+        Find the threshold value that maximizes alpha hit rate (vs SPY).
 
         Args:
-            data: DataFrame with metric and stock_return columns
+            data: DataFrame with metric and alpha columns
             metric_col: Name of metric column
             current_val: Current config threshold value
             direction: 'min' for >= threshold, 'max' for <= threshold
@@ -868,12 +885,15 @@ class ThresholdAnalyzer:
         Returns:
             Suggestion dict or None if no meaningful improvement found
         """
-        valid = data[[metric_col, 'stock_return']].dropna()
+        required_cols = [metric_col, 'alpha']
+        if not all(c in data.columns for c in required_cols):
+            return None
+        valid = data[required_cols].dropna()
         if len(valid) < 50:
             return None
 
         metric_vals = valid[metric_col].astype(float)
-        returns = valid['stock_return']
+        alphas = valid['alpha']
 
         # Test range of thresholds
         percentiles = np.percentile(metric_vals, [10, 20, 30, 40, 50, 60, 70, 80, 90])
@@ -886,14 +906,14 @@ class ThresholdAnalyzer:
             else:
                 mask = metric_vals <= test_val
 
-            group_returns = returns[mask]
-            if len(group_returns) < 30:
+            group_alphas = alphas[mask]
+            if len(group_alphas) < 30:
                 continue
 
             if signal == 'B':
-                hr = float((group_returns > 0).mean() * 100)
+                hr = float((group_alphas > 0).mean() * 100)
             else:
-                hr = float((group_returns < 0).mean() * 100)
+                hr = float((group_alphas < 0).mean() * 100)
 
             if hr > best_hr:
                 best_hr = hr
@@ -905,13 +925,13 @@ class ThresholdAnalyzer:
         else:
             current_mask = metric_vals <= current_val
 
-        current_returns = returns[current_mask]
-        if len(current_returns) < 10:
+        current_alphas = alphas[current_mask]
+        if len(current_alphas) < 10:
             current_hr = 0.0
         elif signal == 'B':
-            current_hr = float((current_returns > 0).mean() * 100)
+            current_hr = float((current_alphas > 0).mean() * 100)
         else:
-            current_hr = float((current_returns < 0).mean() * 100)
+            current_hr = float((current_alphas < 0).mean() * 100)
 
         improvement = best_hr - current_hr
 
@@ -956,12 +976,22 @@ class ThresholdAnalyzer:
                     hits = int((returns < 0).sum())
 
                 alphas = sig_df['alpha'].dropna()
+                n_alpha = len(alphas)
+                if n_alpha > 0:
+                    if signal_type == 'B':
+                        alpha_hits = int((alphas > 0).sum())
+                    else:
+                        alpha_hits = int((alphas < 0).sum())
+                    alpha_hit_rate = round(alpha_hits / n_alpha * 100, 1)
+                else:
+                    alpha_hit_rate = None
 
                 regime_stats.append({
                     'regime': str(regime_val),
                     'signal': signal_type,
                     'count': n,
                     'hit_rate': round(hits / n * 100, 1),
+                    'alpha_hit_rate': alpha_hit_rate,
                     'mean_return': round(float(returns.mean()), 2),
                     'avg_alpha': round(float(alphas.mean()), 2) if len(alphas) > 0 else None,
                 })
@@ -977,7 +1007,7 @@ class ThresholdAnalyzer:
     ) -> None:
         """Print threshold analysis report to console."""
         # Metric predictiveness
-        print("\nMETRIC PREDICTIVENESS (correlation with T+30 return, BUY signals):")
+        print("\nMETRIC PREDICTIVENESS (correlation with T+30 alpha vs SPY, BUY signals):")
         print('-' * 65)
         for c in correlations:
             corr_str = f"r={c['correlation']:.3f}" if c['correlation'] is not None else "N/A"
@@ -987,17 +1017,17 @@ class ThresholdAnalyzer:
 
         # Sell trigger effectiveness
         if trigger_stats:
-            print("\nSELL TRIGGER EFFECTIVENESS:")
+            print("\nSELL TRIGGER EFFECTIVENESS (vs SPY):")
             print('-' * 65)
-            print(f"  {'Trigger':<30} {'Fires':>7} {'Hit Rate':>10} {'Avg Ret':>10}")
-            print('  ' + '-' * 59)
+            print(f"  {'Trigger':<30} {'Fires':>7} {'α Hit Rate':>11} {'Avg Alpha':>10}")
+            print('  ' + '-' * 60)
             for t in trigger_stats[:15]:  # Top 15
                 label = 'EFFECTIVE' if t['hit_rate'] >= 65 else (
                     'MODERATE' if t['hit_rate'] >= 55 else 'WEAK'
                 )
                 print(
                     f"  {t['trigger']:<30} {t['fires']:>7} "
-                    f"{t['hit_rate']:>8.1f}%  {t['avg_return']:>8.2f}%  {label}"
+                    f"{t['hit_rate']:>9.1f}%  {t['avg_alpha']:>8.2f}%  {label}"
                 )
 
         # Threshold suggestions
@@ -1017,16 +1047,17 @@ class ThresholdAnalyzer:
         # Regime-stratified performance
         if regime_stats:
             print("\nPERFORMANCE BY MARKET REGIME:")
-            print('-' * 65)
+            print('-' * 78)
             signal_names = {'B': 'BUY', 'S': 'SELL'}
-            print(f"  {'Regime':<12} {'Signal':<6} {'Count':>7} {'Hit Rate':>10} {'Mean Ret':>10} {'Avg Alpha':>11}")
-            print('  ' + '-' * 58)
+            print(f"  {'Regime':<12} {'Signal':<6} {'Count':>7} {'Hit Rate':>10} {'α Hit Rate':>11} {'Mean Ret':>10} {'Avg Alpha':>11}")
+            print('  ' + '-' * 69)
             for rs in sorted(regime_stats, key=lambda x: (x['regime'], x['signal'])):
                 sig_name = signal_names.get(rs['signal'], rs['signal'])
                 aa = f"{rs['avg_alpha']:.2f}%" if rs.get('avg_alpha') is not None else 'N/A'
+                ahr = f"{rs['alpha_hit_rate']:.1f}%" if rs.get('alpha_hit_rate') is not None else 'N/A'
                 print(
                     f"  {rs['regime']:<12} {sig_name:<6} {rs['count']:>7} "
-                    f"{rs['hit_rate']:>9.1f}% {rs['mean_return']:>9.2f}% {aa:>11}"
+                    f"{rs['hit_rate']:>9.1f}% {ahr:>10} {rs['mean_return']:>9.2f}% {aa:>11}"
                 )
 
     def _save_report(
@@ -1059,7 +1090,7 @@ class ThresholdAnalyzer:
                 'section': 'sell_trigger_effectiveness',
                 'item': t['trigger'],
                 'value': t['hit_rate'],
-                'detail': f"fires={t['fires']}, avg_return={t['avg_return']}%",
+                'detail': f"fires={t['fires']}, avg_alpha={t['avg_alpha']}%",
                 'coverage': None,
                 'sample_size': t['fires'],
             })
@@ -1080,11 +1111,16 @@ class ThresholdAnalyzer:
 
         # Regime stats section
         for rs in (regime_stats or []):
+            ahr = rs.get('alpha_hit_rate', 'N/A')
             rows.append({
                 'section': 'regime_performance',
                 'item': f"{rs['regime']}_{rs['signal']}",
                 'value': rs['hit_rate'],
-                'detail': f"mean_return={rs['mean_return']}%, alpha={rs.get('avg_alpha', 'N/A')}",
+                'detail': (
+                    f"mean_return={rs['mean_return']}%, "
+                    f"alpha={rs.get('avg_alpha', 'N/A')}, "
+                    f"alpha_hit_rate={ahr}"
+                ),
                 'coverage': None,
                 'sample_size': rs['count'],
             })
