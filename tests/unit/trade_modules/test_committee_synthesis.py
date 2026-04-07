@@ -3822,15 +3822,15 @@ class TestEnrichWithPositionSizes:
     def test_buy_gets_size(self):
         """BUY actions should get suggested_size_usd."""
         conc = [{"ticker": "AAPL", "action": "BUY", "conviction": 70}]
-        result = enrich_with_position_sizes(conc)
-        assert "suggested_size_usd" in result[0]
-        assert result[0]["suggested_size_usd"] > 0
+        enrich_with_position_sizes(conc)
+        assert "suggested_size_usd" in conc[0]
+        assert conc[0]["suggested_size_usd"] > 0
 
     def test_hold_no_size(self):
         """HOLD actions should NOT get sizing."""
         conc = [{"ticker": "MSFT", "action": "HOLD", "conviction": 55}]
-        result = enrich_with_position_sizes(conc)
-        assert "suggested_size_usd" not in result[0]
+        enrich_with_position_sizes(conc)
+        assert "suggested_size_usd" not in conc[0]
 
     def test_higher_conviction_larger_size(self):
         """Higher conviction should produce larger position sizes."""
@@ -3838,19 +3838,16 @@ class TestEnrichWithPositionSizes:
             {"ticker": "A", "action": "ADD", "conviction": 75},
             {"ticker": "B", "action": "ADD", "conviction": 50},
         ]
-        result = enrich_with_position_sizes(conc)
-        assert result[0]["suggested_size_usd"] > result[1]["suggested_size_usd"]
+        enrich_with_position_sizes(conc)
+        assert conc[0]["suggested_size_usd"] > conc[1]["suggested_size_usd"]
 
     def test_risk_off_reduces_size(self):
         """RISK_OFF regime should reduce position sizes."""
-        conc = [{"ticker": "AAPL", "action": "BUY", "conviction": 70}]
-        normal = enrich_with_position_sizes(
-            [dict(conc[0])], regime="NEUTRAL"
-        )[0]["suggested_size_usd"]
-        risk_off = enrich_with_position_sizes(
-            [dict(conc[0])], regime="RISK_OFF"
-        )[0]["suggested_size_usd"]
-        assert risk_off < normal
+        normal_conc = [{"ticker": "AAPL", "action": "BUY", "conviction": 70}]
+        enrich_with_position_sizes(normal_conc, regime="NEUTRAL")
+        risk_off_conc = [{"ticker": "AAPL", "action": "BUY", "conviction": 70}]
+        enrich_with_position_sizes(risk_off_conc, regime="RISK_OFF")
+        assert risk_off_conc[0]["suggested_size_usd"] < normal_conc[0]["suggested_size_usd"]
 
 
 # ============================================================
