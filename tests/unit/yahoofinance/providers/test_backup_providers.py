@@ -124,7 +124,7 @@ class TestAlphaVantageProvider:
         """Test _parse_number handles various formats."""
         provider = AlphaVantageProvider()
 
-        assert provider._parse_number("123.45") == 123.45
+        assert provider._parse_number("123.45") == pytest.approx(123.45)
         assert provider._parse_number("None") is None
         assert provider._parse_number(None) is None
         assert provider._parse_number("") is None

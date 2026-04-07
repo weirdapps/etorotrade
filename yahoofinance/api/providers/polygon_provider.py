@@ -15,8 +15,8 @@ import os
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
+import aiohttp
 import pandas as pd
-import requests
 
 from ...core.errors import APIError, RateLimitError, YFinanceError
 from ...core.logging import get_logger
@@ -118,13 +118,14 @@ class PolygonProvider(AsyncFinanceDataProvider):
         params["apiKey"] = self.api_key
 
         try:
-            loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(
-                None,
-                lambda: requests.get(url, params=params, timeout=self.REQUEST_TIMEOUT)
-            )
-            response.raise_for_status()
-            data = response.json()
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    url,
+                    params=params,
+                    timeout=aiohttp.ClientTimeout(total=self.REQUEST_TIMEOUT),
+                ) as response:
+                    response.raise_for_status()
+                    data = await response.json()
 
             # Check for API errors
             if data.get("status") == "ERROR":
@@ -132,7 +133,7 @@ class PolygonProvider(AsyncFinanceDataProvider):
                 raise APIError(f"Polygon.io API error: {error_msg}")
 
             return data
-        except requests.RequestException as e:
+        except aiohttp.ClientError as e:
             logger.error(f"Polygon.io request failed: {e}")
             raise APIError(f"Polygon.io request failed: {e}")
 

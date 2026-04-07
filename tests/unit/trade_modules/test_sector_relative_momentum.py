@@ -31,7 +31,7 @@ class TestSectorRelativeMomentum:
 
             result = calculate_relative_momentum("NVDA", "Technology")
 
-            assert result == 30.0
+            assert result == pytest.approx(30.0)
             assert mock_fetch.call_count == 2
 
     def test_calculate_relative_momentum_underperforming(self):
@@ -42,7 +42,7 @@ class TestSectorRelativeMomentum:
 
             result = calculate_relative_momentum("INTC", "Technology")
 
-            assert result == -20.0
+            assert result == pytest.approx(-20.0)
 
     def test_calculate_relative_momentum_no_sector(self):
         """Test returns None for missing sector."""
@@ -82,11 +82,11 @@ class TestSectorRelativeMomentum:
             assert len(results) == 2
 
             # NVDA outperforming
-            assert results["NVDA"]["relative_momentum"] == 30.0
+            assert results["NVDA"]["relative_momentum"] == pytest.approx(30.0)
             assert results["NVDA"]["underperforming"] is False
 
             # INTC underperforming by >15%
-            assert results["INTC"]["relative_momentum"] == -20.0
+            assert results["INTC"]["relative_momentum"] == pytest.approx(-20.0)
             assert results["INTC"]["underperforming"] is True
 
     def test_get_relative_momentum_flags_uses_cache(self):
@@ -98,12 +98,12 @@ class TestSectorRelativeMomentum:
 
             # First call - should fetch
             results1 = get_relative_momentum_flags(tickers)
-            assert results1["NVDA"]["relative_momentum"] == 30.0
+            assert results1["NVDA"]["relative_momentum"] == pytest.approx(30.0)
             assert mock_fetch.call_count == 2
 
             # Second call - should use cache
             results2 = get_relative_momentum_flags(tickers)
-            assert results2["NVDA"]["relative_momentum"] == 30.0
+            assert results2["NVDA"]["relative_momentum"] == pytest.approx(30.0)
             assert mock_fetch.call_count == 2  # No additional calls
 
     def test_is_underperforming_sector_true(self):
@@ -152,7 +152,7 @@ class TestSectorRelativeMomentum:
             result = _fetch_return("AAPL", period_days=252)
 
             # (150 - 100) / 100 * 100 = 50%
-            assert result == 50.0
+            assert result == pytest.approx(50.0)
 
     def test_fetch_return_empty_history(self):
         """Test _fetch_return handles empty history."""
@@ -180,7 +180,7 @@ class TestSectorRelativeMomentum:
 
     def test_underperformance_threshold_constant(self):
         """Test the underperformance threshold constant is reasonable."""
-        assert UNDERPERFORMANCE_THRESHOLD == 15.0
+        assert UNDERPERFORMANCE_THRESHOLD == pytest.approx(15.0)
 
     def test_cache_invalidation(self):
         """Test cache invalidation works."""
@@ -192,14 +192,14 @@ class TestSectorRelativeMomentum:
             # First call - populate cache
             tickers = [("NVDA", "Technology")]
             results1 = get_relative_momentum_flags(tickers)
-            assert results1["NVDA"]["relative_momentum"] == 30.0
+            assert results1["NVDA"]["relative_momentum"] == pytest.approx(30.0)
 
             # Invalidate cache
             invalidate_cache()
 
             # Second call - should re-fetch
             results2 = get_relative_momentum_flags(tickers)
-            assert results2["NVDA"]["relative_momentum"] == 40.0  # New value
+            assert results2["NVDA"]["relative_momentum"] == pytest.approx(40.0)  # New value
             assert mock_fetch.call_count == 4  # 2 calls each time
 
     def test_different_period_days(self):
@@ -209,7 +209,7 @@ class TestSectorRelativeMomentum:
 
             result = calculate_relative_momentum("AAPL", "Technology", period_days=126)
 
-            assert result == 15.0
+            assert result == pytest.approx(15.0)
             # Verify period_days was passed correctly
             assert mock_fetch.call_args_list[0][0][1] == 126
             assert mock_fetch.call_args_list[1][0][1] == 126

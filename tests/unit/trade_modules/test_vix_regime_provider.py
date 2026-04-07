@@ -41,32 +41,32 @@ class TestRegimeAdjustments:
     def test_normal_regime_is_neutral(self):
         """Normal regime should not change anything."""
         adj = REGIME_ADJUSTMENTS[VixRegime.NORMAL]
-        assert adj["min_upside_multiplier"] == 1.0
-        assert adj["min_buy_pct_multiplier"] == 1.0
-        assert adj["min_exret_multiplier"] == 1.0
+        assert adj["min_upside_multiplier"] == pytest.approx(1.0)
+        assert adj["min_buy_pct_multiplier"] == pytest.approx(1.0)
+        assert adj["min_exret_multiplier"] == pytest.approx(1.0)
         assert adj["min_analysts_offset"] == 0
-        assert adj["max_upside_sell_offset"] == 0.0
-        assert adj["max_pct_52w_buy_multiplier"] == 1.0
-        assert adj["max_pe_multiplier"] == 1.0
+        assert adj["max_upside_sell_offset"] == pytest.approx(0.0)
+        assert adj["max_pct_52w_buy_multiplier"] == pytest.approx(1.0)
+        assert adj["max_pe_multiplier"] == pytest.approx(1.0)
 
     def test_all_regimes_are_neutral(self):
         """CIO v2: All regimes should be neutral (no threshold adjustments)."""
         for regime in VixRegime:
             adj = REGIME_ADJUSTMENTS[regime]
-            assert adj["min_upside_multiplier"] == 1.0, f"{regime.value} upside not neutral"
-            assert adj["min_buy_pct_multiplier"] == 1.0, f"{regime.value} buy_pct not neutral"
-            assert adj["min_exret_multiplier"] == 1.0, f"{regime.value} exret not neutral"
+            assert adj["min_upside_multiplier"] == pytest.approx(1.0), f"{regime.value} upside not neutral"
+            assert adj["min_buy_pct_multiplier"] == pytest.approx(1.0), f"{regime.value} buy_pct not neutral"
+            assert adj["min_exret_multiplier"] == pytest.approx(1.0), f"{regime.value} exret not neutral"
             assert adj["min_analysts_offset"] == 0, f"{regime.value} analysts not neutral"
-            assert adj["max_upside_sell_offset"] == 0.0, f"{regime.value} sell offset not neutral"
-            assert adj["max_pct_52w_buy_multiplier"] == 1.0, f"{regime.value} 52w not neutral"
-            assert adj["max_pe_multiplier"] == 1.0, f"{regime.value} PE not neutral"
+            assert adj["max_upside_sell_offset"] == pytest.approx(0.0), f"{regime.value} sell offset not neutral"
+            assert adj["max_pct_52w_buy_multiplier"] == pytest.approx(1.0), f"{regime.value} 52w not neutral"
+            assert adj["max_pe_multiplier"] == pytest.approx(1.0), f"{regime.value} PE not neutral"
 
     def test_position_sizing_still_varies_by_regime(self):
         """CIO v2: Position sizing multipliers should still vary by regime."""
-        assert REGIME_POSITION_MULTIPLIERS[VixRegime.LOW] == 1.00
-        assert REGIME_POSITION_MULTIPLIERS[VixRegime.NORMAL] == 1.00
-        assert REGIME_POSITION_MULTIPLIERS[VixRegime.ELEVATED] == 0.75
-        assert REGIME_POSITION_MULTIPLIERS[VixRegime.HIGH] == 0.50
+        assert REGIME_POSITION_MULTIPLIERS[VixRegime.LOW] == pytest.approx(1.00)
+        assert REGIME_POSITION_MULTIPLIERS[VixRegime.NORMAL] == pytest.approx(1.00)
+        assert REGIME_POSITION_MULTIPLIERS[VixRegime.ELEVATED] == pytest.approx(0.75)
+        assert REGIME_POSITION_MULTIPLIERS[VixRegime.HIGH] == pytest.approx(0.50)
 
 
 class TestAdjustBuyCriteria:
@@ -163,7 +163,7 @@ class TestGetRegimeContext:
 
         ctx = get_regime_context()
         assert ctx["regime"] == "normal"
-        assert ctx["vix"] == 18.5
+        assert ctx["vix"] == pytest.approx(18.5)
         assert ctx["description"] == "Normal volatility"
         assert "adjustments" in ctx
         assert "implications" in ctx
