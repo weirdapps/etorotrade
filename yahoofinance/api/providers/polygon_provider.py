@@ -37,7 +37,7 @@ class PolygonProvider(AsyncFinanceDataProvider):
 
     Attributes:
         api_key: Polygon.io API key from environment
-        base_url: Polygon.io API base URL
+        api_base_url: Polygon.io API base URL
         rate_limiter: Simple rate limiter (5 requests/minute for free tier)
         last_request_time: Timestamp of last request for rate limiting
     """
@@ -54,7 +54,7 @@ class PolygonProvider(AsyncFinanceDataProvider):
         If not set, all methods return None gracefully.
         """
         self.api_key = os.getenv("POLYGON_API_KEY")
-        self.base_url = self.BASE_URL
+        self.api_base_url = self.BASE_URL
 
         # Rate limiting
         self.last_request_time = 0.0
@@ -113,7 +113,7 @@ class PolygonProvider(AsyncFinanceDataProvider):
 
         await self._rate_limit()
 
-        url = f"{self.base_url}{endpoint}"
+        url = f"{self.api_base_url}{endpoint}"
         params = params or {}
         params["apiKey"] = self.api_key
 

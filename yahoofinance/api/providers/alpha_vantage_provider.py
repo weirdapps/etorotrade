@@ -37,7 +37,7 @@ class AlphaVantageProvider(AsyncFinanceDataProvider):
 
     Attributes:
         api_key: Alpha Vantage API key from environment
-        base_url: Alpha Vantage API base URL
+        api_base_url: Alpha Vantage API base URL
         rate_limiter: Simple rate limiter (5 requests/minute for free tier)
         daily_request_count: Counter for daily request limit
         last_request_time: Timestamp of last request for rate limiting
@@ -56,7 +56,7 @@ class AlphaVantageProvider(AsyncFinanceDataProvider):
         If not set, all methods return None gracefully.
         """
         self.api_key = os.getenv("ALPHA_VANTAGE_API_KEY")
-        self.base_url = self.BASE_URL
+        self.api_base_url = self.BASE_URL
 
         # Rate limiting
         self.last_request_time = 0.0
@@ -133,7 +133,7 @@ class AlphaVantageProvider(AsyncFinanceDataProvider):
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    self.base_url,
+                    self.api_base_url,
                     params=params,
                     timeout=aiohttp.ClientTimeout(total=self.REQUEST_TIMEOUT),
                 ) as response:

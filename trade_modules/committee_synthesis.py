@@ -3769,7 +3769,7 @@ def enrich_with_position_sizes(
     regime: str = "normal",
     portfolio_value: float = 450000.0,
     base_position_size: float = 2500.0,
-) -> List[Dict[str, Any]]:
+) -> None:
     """
     CIO v13.0 S2: Enrich BUY/ADD concordance entries with suggested position sizes.
 
@@ -3778,12 +3778,13 @@ def enrich_with_position_sizes(
     "what to do" to "what to do and how much."
 
     Only enriches BUY and ADD actions. HOLD/TRIM/SELL don't need new sizing.
+    Mutates concordance in-place.
     """
     try:
         from trade_modules.conviction_sizer import calculate_conviction_size
     except ImportError:
         logger.warning("conviction_sizer not available — skipping position sizing")
-        return concordance
+        return
 
     # Map regime names from committee format to sizer format
     regime_map = {
@@ -3830,8 +3831,6 @@ def enrich_with_position_sizes(
         entry["size_pct"] = round(
             result.get("position_size", 0) / portfolio_value * 100, 2
         ) if portfolio_value > 0 else 0
-
-    return concordance
 
 
 def save_concordance(
