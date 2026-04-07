@@ -811,6 +811,9 @@ class TradingConfig(BaseModel):
         with open(yaml_path) as f:
             data = yaml.safe_load(f)
 
+        # Strip underscore-prefixed keys (metadata like _calibration)
+        data = {k: v for k, v in data.items() if not k.startswith('_')}
+
         return cls(**data)
 
     def to_yaml(self, yaml_path: Union[str, Path]) -> None:
