@@ -522,12 +522,13 @@ class TestMetricCorrelation:
                 assert -1.0 <= c['correlation'] <= 1.0
 
     def test_known_correlation(self, analyzer):
-        """Test with data where upside perfectly predicts return."""
+        """Test with data where upside perfectly predicts alpha."""
         n = 100
         df = pd.DataFrame({
             'ticker': [f'T{i}' for i in range(n)],
             'signal': ['B'] * n,
             'stock_return': np.arange(n, dtype=float),
+            'alpha': np.arange(n, dtype=float),  # Perfect correlation with alpha
             'upside': np.arange(n, dtype=float),  # Perfect correlation
             'buy_percentage': np.random.uniform(70, 90, n),
         })
@@ -542,6 +543,7 @@ class TestMetricCorrelation:
             'ticker': [f'T{i}' for i in range(10)],
             'signal': ['B'] * 10,
             'stock_return': np.random.normal(0, 5, 10),
+            'alpha': np.random.normal(0, 5, 10),
             'upside': np.random.normal(15, 5, 10),
         })
         correlations = analyzer.analyze_metric_predictiveness(small_df)
@@ -566,6 +568,7 @@ class TestSellTriggerHitRate:
             'ticker': ['A'] * 20,
             'signal': ['S'] * 20,
             'stock_return': np.random.normal(-2, 5, 20),
+            'alpha': np.random.normal(-1, 5, 20),
             'sell_triggers': [['True', 'max_exret']] * 20,
         })
         results = analyzer.analyze_sell_triggers(df)
