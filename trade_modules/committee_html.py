@@ -542,6 +542,18 @@ def generate_report_html(
     clusters = synth.get("correlation_clusters", [])
     stress = synth.get("stress_scenarios", {})
     indicators = synth.get("indicators", {})
+    # Flatten nested macro indicators into the flat keys the renderer expects.
+    # Macro agents may write nested (yield_curve.10y) or flat (us_10y_yield) formats.
+    _yc = indicators.get("yield_curve", {})
+    if isinstance(_yc, dict) and _yc:
+        indicators.setdefault("us_10y_yield", _yc.get("10y", 0))
+        indicators.setdefault("yield_curve_10y_2y", _yc.get("spread_2_10", 0))
+    _cur = indicators.get("currency", {})
+    if isinstance(_cur, dict) and _cur:
+        indicators.setdefault("dxy", _cur.get("dxy", 0))
+        indicators.setdefault("eur_usd", _cur.get("eur_usd", 0))
+    if indicators.get("oil_brent") and not indicators.get("brent_crude"):
+        indicators["brent_crude"] = indicators["oil_brent"]
     sector_rankings = synth.get("sector_rankings", {})
     signal_date = synth.get("signal_date", today)
     census_date = synth.get("census_date", today)
