@@ -4869,3 +4869,63 @@ class TestNormalizeAgentReportsIntegration:
         snapshot = dict(fund["stocks"])
         _normalize_fund_stocks(fund)
         assert fund["stocks"] == snapshot
+
+
+class TestDebateConvictionModifiers:
+    """CIO v27.0: Adversarial debate conviction adjustments."""
+
+    def _base_kwargs(self):
+        """Minimal kwargs for synthesize_stock() — only required positional args."""
+        return dict(
+            sig_data={"signal": "B", "exret": 25, "buy_pct": 80, "beta": 1.2,
+                      "pet": 20, "pef": 18, "pp": 5, "52w": 85, "price": 100},
+            fund_data={"outlook": "BULLISH", "score": 75, "revenue_growth": {}},
+            tech_data={"tech_signal": "ENTER_NOW", "rsi": 55, "momentum": 2},
+            macro_fit="FAVORABLE",
+            census_alignment="ALIGNED",
+            div_score=3,
+            census_ts_trend="stable",
+            news_impact="NEUTRAL",
+            risk_warning=False,
+            sector="Technology",
+            sector_median_exret=15,
+            sector_rankings={},
+            position_limit=5.0,
+            regime="",
+        )
+
+    def test_strengthen_bull_adds_conviction(self):
+        from trade_modules.committee_synthesis import synthesize_stock
+        kw = self._base_kwargs()
+        r1 = synthesize_stock("TEST", **kw)
+        r2 = synthesize_stock("TEST", **kw, debate_conviction_signal="STRENGTHEN_BULL")
+        assert r2["conviction"] > r1["conviction"]
+        assert r2["conviction_waterfall"].get("debate_strengthen_bull") == 5
+
+    def test_weaken_bull_reduces_conviction(self):
+        from trade_modules.committee_synthesis import synthesize_stock
+        kw = self._base_kwargs()
+        r1 = synthesize_stock("TEST", **kw)
+        r2 = synthesize_stock("TEST", **kw, debate_conviction_signal="WEAKEN_BULL")
+        assert r2["conviction"] < r1["conviction"]
+        assert r2["conviction_waterfall"].get("debate_weaken_bull") == -5
+
+    def test_deadlock_no_change(self):
+        from trade_modules.committee_synthesis import synthesize_stock
+        kw = self._base_kwargs()
+        r1 = synthesize_stock("TEST", **kw)
+        r2 = synthesize_stock("TEST", **kw, debate_conviction_signal="DEADLOCK")
+        assert r2["conviction"] == r1["conviction"]
+
+    def test_debate_data_stored_on_entry(self):
+        from trade_modules.committee_synthesis import synthesize_stock
+        kw = self._base_kwargs()
+        debate_data = {
+            "bull_thesis": "Strong growth ahead",
+            "bear_thesis": "Overvalued",
+            "kill_theses_from_debate": ["[Debate] Valuation risk"],
+        }
+        r = synthesize_stock("TEST", **kw, debate_conviction_signal="WEAKEN_BULL", debate_data=debate_data)
+        assert r["debate_signal"] == "WEAKEN_BULL"
+        assert r["debate_bull_thesis"] == "Strong growth ahead"
+        assert r["debate_bear_thesis"] == "Overvalued"

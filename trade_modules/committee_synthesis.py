@@ -1764,6 +1764,8 @@ def synthesize_stock(
     earnings_days_away: Optional[int] = None,
     is_opportunity: bool = False,
     fx_data: Optional[Dict] = None,
+    debate_conviction_signal: Optional[str] = None,
+    debate_data: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Synthesize a single stock through the full conviction scoring pipeline.
@@ -2253,6 +2255,25 @@ def synthesize_stock(
         conviction -= 15
         _w["kill_thesis"] = -15
 
+    # Step 4f: Adversarial debate adjustment (CIO v27.0)
+    # The debate round stress-tests the bull/bear case for contentious stocks.
+    # conviction_signal reflects whether the debate strengthened or weakened
+    # the prevailing view. Applied AFTER kill thesis (like kill thesis, this
+    # is a meta-signal about signal quality, not a data-driven modifier).
+    if debate_conviction_signal and debate_conviction_signal != "DEADLOCK":
+        if debate_conviction_signal == "STRENGTHEN_BULL" and signal == "B":
+            conviction += 5
+            _w["debate_strengthen_bull"] = 5
+        elif debate_conviction_signal == "WEAKEN_BULL":
+            conviction -= 5
+            _w["debate_weaken_bull"] = -5
+        elif debate_conviction_signal == "STRENGTHEN_BEAR":
+            conviction -= 5
+            _w["debate_strengthen_bear"] = -5
+        elif debate_conviction_signal == "WEAKEN_BEAR":
+            conviction += 3
+            _w["debate_weaken_bear"] = 3
+
     # Step 5: Apply floors
     # CIO v12.0 R1: When kill thesis is triggered, only apply the unconditional
     # BUY floor (40), NOT quality floors (55). Quality floors exist to prevent
@@ -2434,6 +2455,14 @@ def synthesize_stock(
         "fcf_classification": fcf_quality.get("classification") if fcf_quality else None,  # CIO v23.4
         "debt_risk": debt_quality.get("risk") if debt_quality else None,  # CIO v23.4
         "conviction_waterfall": _w,  # CIO v25.0: full modifier attribution
+        # CIO v27.0: Adversarial debate
+        "debate_signal": debate_conviction_signal,
+        "debate_bull_thesis": (debate_data or {}).get("bull_thesis", ""),
+        "debate_bear_thesis": (debate_data or {}).get("bear_thesis", ""),
+        "debate_bull_strongest": (debate_data or {}).get("bull_strongest", ""),
+        "debate_bear_strongest": (debate_data or {}).get("bear_strongest", ""),
+        "debate_conceded": (debate_data or {}).get("all_conceded_points", []),
+        "debate_kill_theses": (debate_data or {}).get("kill_theses_from_debate", []),
     }
 
 
@@ -2661,6 +2690,8 @@ def _synthesize_with_lookups(
     fg_score: Optional[float] = None,
     news_report: Optional[Dict] = None,
     is_opportunity: bool = False,
+    debate_conviction_signal: Optional[str] = None,
+    debate_data: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Run synthesize_stock using pre-built agent lookups."""
     # CIO v6.0 E3: Log warnings when agents have stocks section but ticker
@@ -2768,6 +2799,8 @@ def _synthesize_with_lookups(
         earnings_days_away=earnings_days_away,
         is_opportunity=is_opportunity,
         fx_data=lookups.get("fx_data"),  # CIO v23.1 R6
+        debate_conviction_signal=debate_conviction_signal,
+        debate_data=debate_data,
     )
 
 
@@ -2943,6 +2976,7 @@ def build_concordance(
     opportunity_sector_map: Optional[Dict[str, str]] = None,
     triggered_kill_theses: Optional[Dict[str, bool]] = None,
     previous_concordance: Optional[List[Dict[str, Any]]] = None,
+    debate_results: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> List[Dict[str, Any]]:
     """
     Build the full concordance matrix from all 7 agent reports.
@@ -2975,6 +3009,8 @@ def build_concordance(
         opportunity_sector_map = {}
     if triggered_kill_theses is None:
         triggered_kill_theses = {}
+    if debate_results is None:
+        debate_results = {}
 
     # CIO v11.0 L2 + v13.0 F2: Build previous signal map for signal velocity.
     # v13.0 F2: Fixed data flow — when previous concordance is a bare list
@@ -3093,6 +3129,9 @@ def build_concordance(
         sec_median = sector_medians.get(sector, universe_median)
         # CIO v11.0 L2: Extract previous signal for velocity computation
         _prev_sig, _prev_days = prev_signal_map.get(ticker, (None, None))
+        # CIO v27.0: Adversarial debate data for this stock
+        _debate = debate_results.get(ticker, {})
+        _debate_signal = _debate.get("conviction_signal") if _debate else None
         entry = _synthesize_with_lookups(
             ticker, sig_data, lookups, fund_report, tech_report,
             sector, sec_median, census_ts_map, regime=regime,
@@ -3103,6 +3142,8 @@ def build_concordance(
             fg_score=fg_score,
             news_report=news_report,
             is_opportunity=False,
+            debate_conviction_signal=_debate_signal,
+            debate_data=_debate,
         )
         entry["is_opportunity"] = False
         entry["kill_thesis_triggered"] = triggered_kill_theses.get(ticker, False)
