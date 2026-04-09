@@ -3662,6 +3662,17 @@ def generate_synthesis_output(
     # Macro — try nested paths for agent report compatibility.
     # Macro agent writes: macro_indicators.us_10y_yield, regime.classification
     indicators = macro_report.get("macro_indicators") or macro_report.get("indicators", {})
+    # Flatten nested indicator structures (yield_curve.10y → us_10y_yield, etc.)
+    _yc = indicators.get("yield_curve", {})
+    if isinstance(_yc, dict) and _yc:
+        indicators.setdefault("us_10y_yield", _yc.get("10y", 0))
+        indicators.setdefault("yield_curve_10y_2y", _yc.get("spread_2_10", 0))
+    _cur = indicators.get("currency", {})
+    if isinstance(_cur, dict) and _cur:
+        indicators.setdefault("dxy", _cur.get("dxy", 0))
+        indicators.setdefault("eur_usd", _cur.get("eur_usd", 0))
+    if indicators.get("oil_brent") and not indicators.get("brent_crude"):
+        indicators["brent_crude"] = indicators["oil_brent"]
     es = macro_report.get("executive_summary", {})
     regime_data = macro_report.get("regime", {})
     regime = (
