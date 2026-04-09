@@ -57,7 +57,7 @@ def validate_pre_html(
     if not regime:
         gap(WARNING, "Executive Summary", "regime", "No regime classification")
     p_beta = synthesis.get("portfolio_beta", 0)
-    if not p_beta or p_beta == 1.0:
+    if not p_beta or abs(p_beta - 1.0) < 1e-9:
         gap(WARNING, "Executive Summary", "portfolio_beta",
             f"Portfolio beta is {p_beta} — may be default, not computed")
 
