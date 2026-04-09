@@ -5,9 +5,10 @@ Validates synthesis + agent report data before HTML generation.
 Returns a list of gaps/warnings that the CIO can attempt to fix
 or flag in the report header.
 
-Two-pass design:
-  Pass 1 (pre-HTML): Validate synthesis dict + agent reports for completeness
-  Pass 2 (post-HTML): Scan generated HTML for rendering gaps (N/A, dashes, empty)
+Three-stage design:
+  Stage 0 (normalize): Fix known agent output format mismatches in-place
+  Stage 1 (pre-HTML):  Validate synthesis dict + agent reports for completeness
+  Stage 2 (post-HTML): Scan generated HTML for rendering gaps (N/A, dashes, empty)
 """
 
 import json
@@ -25,6 +26,116 @@ logger = logging.getLogger(__name__)
 CRITICAL = "CRITICAL"  # Data completely missing, section broken
 WARNING = "WARNING"    # Data partially missing, degrades quality
 INFO = "INFO"          # Minor gap, cosmetic
+
+
+def normalize_agent_reports(
+    macro: Dict[str, Any],
+    census: Dict[str, Any],
+    news: Dict[str, Any],
+    risk: Dict[str, Any],
+    opps: Dict[str, Any],
+) -> List[str]:
+    """
+    Stage 0: Fix known agent output format mismatches in-place.
+
+    LLM agents write varying key names and structures. This normalizes
+    them to what committee_synthesis.py expects. Mutates dicts in-place.
+    Returns list of fixes applied (for logging).
+    """
+    fixes = []
+
+    # ── Macro: portfolio_implications ──
+    # Synthesis reads: macro["portfolio_implications"][ticker].get("fit")
+    # Agents may write: macro["stock_macro_fit"][ticker] = "NEUTRAL" (string)
+    if "portfolio_implications" not in macro and "stock_macro_fit" in macro:
+        smf = macro["stock_macro_fit"]
+        if isinstance(smf, dict):
+            pi = {}
+            for tkr, val in smf.items():
+                if isinstance(val, str):
+                    pi[tkr] = {"fit": val, "rationale": ""}
+                elif isinstance(val, dict):
+                    pi[tkr] = val
+            macro["portfolio_implications"] = pi
+            fixes.append("macro: stock_macro_fit → portfolio_implications")
+
+    # ── Macro: indicators nested → flat ──
+    # Synthesis now handles this (v28.0), but defensive fallback here too.
+    indicators = macro.get("macro_indicators") or macro.get("indicators", {})
+    _yc = indicators.get("yield_curve", {})
+    if isinstance(_yc, dict) and _yc:
+        indicators.setdefault("us_10y_yield", _yc.get("10y", 0))
+        indicators.setdefault("yield_curve_10y_2y", _yc.get("spread_2_10", 0))
+        fixes.append("macro: flattened yield_curve nested keys")
+    _cur = indicators.get("currency", {})
+    if isinstance(_cur, dict) and _cur:
+        indicators.setdefault("dxy", _cur.get("dxy", 0))
+        indicators.setdefault("eur_usd", _cur.get("eur_usd", 0))
+        fixes.append("macro: flattened currency nested keys")
+    if indicators.get("oil_brent") and not indicators.get("brent_crude"):
+        indicators["brent_crude"] = indicators["oil_brent"]
+        fixes.append("macro: oil_brent → brent_crude alias")
+    # Write back under both keys so synthesis finds it
+    if indicators:
+        macro["indicators"] = indicators
+        macro["macro_indicators"] = indicators
+
+    # ── Macro: regime as string vs dict ──
+    regime = macro.get("regime")
+    if isinstance(regime, str) and regime:
+        macro["regime"] = {"classification": regime}
+        fixes.append(f"macro: regime string '{regime}' → dict")
+
+    # ── Census: missing_popular as list vs dict ──
+    # Synthesis reads: census["missing_popular"].get("stocks_not_in_portfolio_but_popular")
+    mp = census.get("missing_popular")
+    if isinstance(mp, list):
+        census["missing_popular"] = {"stocks_not_in_portfolio_but_popular": mp}
+        fixes.append("census: missing_popular list → dict")
+
+    # ── Census: per_stock / stocks key ──
+    # Synthesis reads census["stocks"] or census["per_stock"]
+    if not census.get("stocks") and census.get("per_stock"):
+        census["stocks"] = census["per_stock"]
+        fixes.append("census: per_stock → stocks alias")
+    elif not census.get("per_stock") and census.get("stocks"):
+        census["per_stock"] = census["stocks"]
+
+    # ── News: breaking_news may be top-level or nested ──
+    if not news.get("breaking_news") and news.get("market_news"):
+        news["breaking_news"] = news["market_news"]
+        fixes.append("news: market_news → breaking_news alias")
+
+    # ── News: portfolio_news as list vs dict ──
+    pn = news.get("portfolio_news")
+    if isinstance(pn, list):
+        by_ticker = {}
+        for item in pn:
+            tkr = item.get("ticker", "")
+            if tkr:
+                by_ticker[tkr] = item
+        news["portfolio_news"] = by_ticker
+        fixes.append("news: portfolio_news list → dict by ticker")
+
+    # ── Risk: consensus_warnings may be a dict instead of list ──
+    cw = risk.get("consensus_warnings")
+    if isinstance(cw, dict):
+        risk["consensus_warnings"] = [{"ticker": k, **v} if isinstance(v, dict) else {"ticker": k, "warning": v}
+                                       for k, v in cw.items()]
+        fixes.append("risk: consensus_warnings dict → list")
+
+    # ── Opportunities: top_opportunities key variants ──
+    if not opps.get("top_opportunities"):
+        for alt in ("opportunities", "screened_stocks", "results"):
+            if opps.get(alt):
+                opps["top_opportunities"] = opps[alt]
+                fixes.append(f"opps: {alt} → top_opportunities alias")
+                break
+
+    if fixes:
+        logger.info("Normalized %d agent report format issues: %s", len(fixes), "; ".join(fixes))
+
+    return fixes
 
 
 def validate_pre_html(
@@ -218,14 +329,30 @@ def run_qa(
     opps: Dict[str, Any],
     risk: Dict[str, Any],
     html: str = "",
+    normalize: bool = True,
 ) -> Tuple[bool, List[Dict[str, str]]]:
     """
     Full QA pass. Returns (passed, gaps).
 
+    If normalize=True (default), runs Stage 0 normalization on agent
+    reports in-place BEFORE validation. This auto-fixes known format
+    mismatches so they don't show up as gaps.
+
     passed = True if no CRITICAL gaps found.
-    gaps = combined list from both passes.
+    gaps = combined list from all stages.
     """
-    gaps = validate_pre_html(synthesis, fund, tech, macro, census, news, opps, risk)
+    gaps = []
+
+    # Stage 0: Normalize agent reports (mutates in-place)
+    if normalize:
+        fixes = normalize_agent_reports(macro, census, news, risk, opps)
+        for fix_msg in fixes:
+            gaps.append({"severity": INFO, "section": "Normalize", "field": "auto-fix", "message": fix_msg})
+
+    # Stage 1: Pre-HTML validation
+    gaps.extend(validate_pre_html(synthesis, fund, tech, macro, census, news, opps, risk))
+
+    # Stage 2: Post-HTML validation
     if html:
         gaps.extend(validate_post_html(html))
 
@@ -233,8 +360,8 @@ def run_qa(
     warnings = [g for g in gaps if g["severity"] == WARNING]
     infos = [g for g in gaps if g["severity"] == INFO]
 
-    logger.info("QA result: %d critical, %d warning, %d info",
-                len(criticals), len(warnings), len(infos))
+    logger.info("QA result: %d critical, %d warning, %d info (%d auto-fixed)",
+                len(criticals), len(warnings), len(infos), len(fixes) if normalize else 0)
 
     passed = len(criticals) == 0
     return passed, gaps
@@ -247,9 +374,14 @@ def format_qa_report(gaps: List[Dict[str, str]]) -> str:
 
     criticals = [g for g in gaps if g["severity"] == CRITICAL]
     warnings = [g for g in gaps if g["severity"] == WARNING]
-    infos = [g for g in gaps if g["severity"] == INFO]
+    auto_fixes = [g for g in gaps if g["section"] == "Normalize"]
+    infos = [g for g in gaps if g["severity"] == INFO and g["section"] != "Normalize"]
 
     lines = []
+    if auto_fixes:
+        lines.append(f"AUTO-FIXED ({len(auto_fixes)}):")
+        for g in auto_fixes:
+            lines.append(f"  {g['message']}")
     if criticals:
         lines.append(f"CRITICAL ({len(criticals)}):")
         for g in criticals:
@@ -263,6 +395,6 @@ def format_qa_report(gaps: List[Dict[str, str]]) -> str:
         for g in infos:
             lines.append(f"  [{g['section']}] {g['field']}: {g['message']}")
 
-    status = "FAILED" if criticals else "PASSED with warnings"
-    lines.insert(0, f"QA {status}: {len(criticals)} critical, {len(warnings)} warnings, {len(infos)} info")
+    status = "FAILED" if criticals else "PASSED with warnings" if warnings else "PASSED"
+    lines.insert(0, f"QA {status}: {len(auto_fixes)} auto-fixed, {len(criticals)} critical, {len(warnings)} warnings, {len(infos)} info")
     return "\n".join(lines)
