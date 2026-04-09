@@ -1293,6 +1293,9 @@ def calibrate_modifiers(
         "volume_confirmed": lambda r: r.get("relative_volume") and r["relative_volume"] > 1.5,
         "eps_revisions_up": lambda r: r.get("eps_revisions") == "REVISIONS_UP",
         "strong_fcf": lambda r: r.get("fcf_classification") == "STRONG",
+        # CIO v27.0: Adversarial debate signal calibration
+        "debate_bearish": lambda r: r.get("debate_signal") in ("WEAKEN_BULL", "STRENGTHEN_BEAR"),
+        "debate_bullish": lambda r: r.get("debate_signal") in ("STRENGTHEN_BULL", "WEAKEN_BEAR"),
     }
 
     calibration = {"sufficient_data": True, "total_scored": len(scored), "modifiers": {}}
