@@ -7,12 +7,37 @@ Target: Test calculate_action_vectorized() for LARGE tier across all regions
 import pytest
 import pandas as pd
 import numpy as np
+from unittest.mock import patch
 
 from trade_modules.analysis_engine import (
     calculate_action_vectorized,
     calculate_exret,
     calculate_action,
 )
+
+# Mock earnings proximity and IPO checks for all tests in this module.
+# These tests validate signal threshold logic, not earnings calendar or IPO detection.
+_CLEAR_EARNINGS = {
+    "should_hold": False, "status": "clear", "days_until": 60,
+    "earnings_date": None, "conviction_boost": False,
+}
+
+pytestmark = [
+    pytest.mark.usefixtures("_mock_earnings_and_ipo"),
+]
+
+
+@pytest.fixture(autouse=True)
+def _mock_earnings_and_ipo():
+    """Patch earnings proximity and IPO checks so tests are deterministic."""
+    with patch(
+        "trade_modules.earnings_proximity.check_earnings_proximity",
+        return_value=_CLEAR_EARNINGS,
+    ), patch(
+        "trade_modules.analysis.signals.is_recent_ipo",
+        return_value=False,
+    ):
+        yield
 
 
 class TestLargeUSTierSignals:
