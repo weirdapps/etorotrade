@@ -1334,6 +1334,85 @@ def generate_report_html(
                  f'border-radius:6px;color:{_C["text_muted"]};font-size:12px;">All agents broadly aligned.</div>')
     h.append(_section_close())
 
+    # ── S6b: ADVERSARIAL DEBATE (CIO v27.0) ──
+    debated = [de for de in concordance if de.get("debate_signal")]
+    if debated:
+        h.append(_section_open("Adversarial Debate",
+                               "Contentious stocks were stress-tested by Bull and Bear advocates "
+                               "through two rounds of structured debate. Conceded points become "
+                               "kill theses for ongoing monitoring."))
+        for de in debated[:10]:
+            tkr = de["ticker"]
+            d_name = _clean_name(_names.get(tkr, ""))
+            d_name_html = (f' <span style="font-size:11px;color:{_C["text_muted"]};">'
+                           f'{e(d_name)}</span>') if d_name else ""
+            sig = de.get("debate_signal", "DEADLOCK")
+
+            # Signal badge color
+            sig_colors = {
+                "STRENGTHEN_BULL": (_C["bull_bg"], _C["bull"]),
+                "WEAKEN_BULL": (_C["warn_bg"], _C["warn_text"]),
+                "STRENGTHEN_BEAR": (_C["bear_bg"], _C["bear"]),
+                "WEAKEN_BEAR": (_C["bull_bg"], _C["bull"]),
+                "DEADLOCK": (_C["bg_alt"], _C["text_muted"]),
+            }
+            sbg, stxt = sig_colors.get(sig, (_C["bg_alt"], _C["text_muted"]))
+            sig_badge = (f'<span style="display:inline-block;padding:2px 8px;border-radius:4px;'
+                         f'font-size:10px;font-weight:700;background:{sbg};color:{stxt};">'
+                         f'{sig.replace("_", " ")}</span>')
+
+            # Build card content
+            bull_thesis = e(de.get("debate_bull_thesis", ""))
+            bear_thesis = e(de.get("debate_bear_thesis", ""))
+            bull_best = e(de.get("debate_bull_strongest", ""))
+            bear_best = e(de.get("debate_bear_strongest", ""))
+            conceded = de.get("debate_conceded", [])
+
+            inner = (
+                f'<div style="margin-bottom:8px;">'
+                f'<span style="{_MONO}font-weight:800;font-size:14px;color:{_C["text_dark"]};">'
+                f'{e(tkr)}</span>{d_name_html} {sig_badge}</div>'
+                # Two-column layout: bull left, bear right
+                f'<div style="display:flex;gap:12px;margin-bottom:12px;">'
+                # Bull column
+                f'<div style="flex:1;background:{_C["bull_bg"]};border:1px solid {_C["border"]};'
+                f'border-radius:6px;padding:12px;">'
+                f'<div style="{_LABEL}color:{_C["bull"]};margin-bottom:6px;">BULL CASE</div>'
+                f'<div style="font-size:12px;color:{_C["text_body"]};margin-bottom:8px;">{bull_thesis}</div>'
+                f'<div style="{_LABEL}margin-bottom:4px;">STRONGEST ARGUMENT</div>'
+                f'<div style="font-size:11px;color:{_C["text_body"]};">{bull_best}</div>'
+                f'</div>'
+                # Bear column
+                f'<div style="flex:1;background:{_C["bear_bg"]};border:1px solid {_C["border"]};'
+                f'border-radius:6px;padding:12px;">'
+                f'<div style="{_LABEL}color:{_C["bear"]};margin-bottom:6px;">BEAR CASE</div>'
+                f'<div style="font-size:12px;color:{_C["text_body"]};margin-bottom:8px;">{bear_thesis}</div>'
+                f'<div style="{_LABEL}margin-bottom:4px;">STRONGEST ARGUMENT</div>'
+                f'<div style="font-size:11px;color:{_C["text_body"]};">{bear_best}</div>'
+                f'</div>'
+                f'</div>'
+            )
+
+            # Conceded points (become kill theses)
+            if conceded:
+                pills = "".join(
+                    f'<span style="display:inline-block;padding:2px 8px;border-radius:4px;'
+                    f'font-size:10px;background:{_C["warn_bg"]};color:{_C["warn_text"]};'
+                    f'margin:2px 4px 2px 0;">{e(c)}</span>' for c in conceded if c
+                )
+                inner += (
+                    f'<div style="margin-top:4px;">'
+                    f'<span style="{_LABEL}">CONCEDED POINTS (KILL THESES):</span> {pills}'
+                    f'</div>'
+                )
+
+            accent = (_C["bull"] if sig in ("STRENGTHEN_BULL", "WEAKEN_BEAR") else
+                      _C["bear"] if sig in ("STRENGTHEN_BEAR", "WEAKEN_BULL") else
+                      _C["info"])
+            h.append(_card(inner, accent))
+
+        h.append(_section_close())
+
     # ── S7: PORTFOLIO RISK ──
     if daily:
         # Daily: condensed Risk Alerts
