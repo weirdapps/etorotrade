@@ -398,15 +398,29 @@ async def generate_trade_opportunities_from_etoro(
             signal_name = "BUY"
 
         elif trade_choice == "S":
-            # SELL: Filter for S signals, only include portfolio holdings
+            # SELL: Portfolio holdings with S signal (from etoro.csv or portfolio.csv)
             filtered_df = etoro_df[etoro_df[bs_col] == 'S'].copy()
-            print(f"  [trade-filter] Stocks with S signal: {len(filtered_df)}")
+            print(f"  [trade-filter] Stocks with S signal in etoro: {len(filtered_df)}")
             if portfolio_tickers:
-                # Show which S-signal tickers match portfolio before filtering
                 s_tickers = set(filtered_df[ticker_col].str.upper())
                 matching = s_tickers & portfolio_tickers
                 print(f"  [trade-filter] S-signal tickers matching portfolio: {sorted(matching)}")
                 filtered_df = filtered_df[filtered_df[ticker_col].str.upper().isin(portfolio_tickers)]
+
+                # Also include portfolio stocks with S signal not in etoro.csv
+                # (e.g., crypto like BTC-USD, ETH-USD)
+                if os.path.exists(portfolio_file):
+                    port_df = pd.read_csv(portfolio_file)
+                    port_bs_col = bs_col if bs_col in port_df.columns else None
+                    port_tkr_col = ticker_col if ticker_col in port_df.columns else None
+                    if port_bs_col and port_tkr_col:
+                        port_sells = port_df[port_df[port_bs_col] == 'S'].copy()
+                        # Only add those not already captured from etoro.csv
+                        existing = set(filtered_df[ticker_col].str.upper()) if not filtered_df.empty else set()
+                        port_sells = port_sells[~port_sells[port_tkr_col].str.upper().isin(existing)]
+                        if not port_sells.empty:
+                            print(f"  [trade-filter] Adding {len(port_sells)} SELL signals from portfolio.csv: {list(port_sells[port_tkr_col])}")
+                            filtered_df = pd.concat([filtered_df, port_sells], ignore_index=True)
             output_file = os.path.join(output_dir, "sell.csv")
             signal_name = "SELL"
 
