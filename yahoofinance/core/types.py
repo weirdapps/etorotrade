@@ -4,9 +4,8 @@ Core data types for Yahoo Finance data.
 This module defines the core data structures used throughout the package.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, Optional
-
 
 @dataclass
 class StockData:

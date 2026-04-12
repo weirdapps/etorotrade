@@ -6,11 +6,10 @@ and priority-based quota management for asynchronous API calls.
 """
 
 import asyncio
-import logging
 import secrets
 import time
 from functools import wraps
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 
 from yahoofinance.core.errors import YFinanceError
 from yahoofinance.core.config import RATE_LIMIT
@@ -24,7 +23,6 @@ logger = get_logger(__name__)
 # Constants for rate limit error detection
 RATE_LIMIT_ERROR_MESSAGE = "rate limit"
 TOO_MANY_REQUESTS_ERROR_MESSAGE = "too many requests"
-
 
 class AsyncRateLimiter:
     """
@@ -417,7 +415,6 @@ class AsyncRateLimiter:
                     f"Decreasing delay from {old_delay:.2f}s to {self.current_delay:.2f}s"
                 )
 
-
 class PriorityAsyncRateLimiter(AsyncRateLimiter):
     """
     Enhanced AsyncRateLimiter with support for advanced priority tiers and token bucket algorithm.
@@ -696,11 +693,9 @@ class PriorityAsyncRateLimiter(AsyncRateLimiter):
         metrics["priority"] = priority_stats
         return metrics
 
-
 # Create global async rate limiter instances
 global_async_rate_limiter = AsyncRateLimiter()
 global_priority_rate_limiter = PriorityAsyncRateLimiter()
-
 
 def async_rate_limited(rate_limiter: Optional[AsyncRateLimiter] = None):
     """
@@ -756,7 +751,6 @@ def async_rate_limited(rate_limiter: Optional[AsyncRateLimiter] = None):
         return wrapper
 
     return decorator
-
 
 def enhanced_async_rate_limited(
     circuit_name: Optional[str] = None,

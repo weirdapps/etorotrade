@@ -8,24 +8,20 @@ of TradingEngine to catch any regressions during refactoring.
 import pytest
 import pandas as pd
 import numpy as np
-import os
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 from trade_modules.trade_engine import TradingEngine
-
 
 @pytest.fixture
 def project_root():
     """Get the project root directory."""
     return Path(__file__).parent.parent.parent.parent
 
-
 @pytest.fixture
 def input_data_path(project_root):
     """Get the input data directory path."""
     return project_root / "yahoofinance" / "input"
-
 
 @pytest.fixture
 def market_csv_data(input_data_path):
@@ -41,7 +37,6 @@ def market_csv_data(input_data_path):
             'sector': ['Technology', 'Technology', 'Technology']
         }).set_index('symbol')
 
-
 @pytest.fixture
 def portfolio_csv_data(input_data_path):
     """Load actual portfolio.csv data."""
@@ -56,7 +51,6 @@ def portfolio_csv_data(input_data_path):
             'totalInvestmentPct': [5.0, 4.0]
         })
 
-
 @pytest.fixture
 def notrade_csv_data(input_data_path):
     """Load actual notrade.csv data."""
@@ -68,7 +62,6 @@ def notrade_csv_data(input_data_path):
         return pd.DataFrame({
             'symbol': ['BANNED1', 'BANNED2']
         })
-
 
 @pytest.fixture
 def enhanced_market_data(market_csv_data):
@@ -109,7 +102,6 @@ def enhanced_market_data(market_csv_data):
     enhanced['EXRET'] = enhanced['expected_return'] + rng.normal(0, 2, n_stocks)
     
     return enhanced
-
 
 class TestBehavioralValidation:
     """Validate exact current behavior of TradingEngine."""
@@ -403,7 +395,6 @@ class TestBehavioralValidation:
                 # Exception is expected here
                 pass
 
-
 class TestBehavioralRegression:
     """Regression tests to catch specific behavioral changes."""
     
@@ -510,7 +501,6 @@ class TestBehavioralRegression:
         assert str(buy_count) in summary_msg
         assert str(sell_count) in summary_msg
         assert str(hold_count) in summary_msg
-
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v', '--tb=short'])

@@ -8,10 +8,7 @@ Tests cover:
 - Integration with get_sector_adjusted_thresholds()
 """
 
-import pytest
-
 from trade_modules.trade_config import TradeConfig
-
 
 class TestYfinanceSectorMap:
     """Tests for YFINANCE_SECTOR_MAP constant."""
@@ -33,7 +30,6 @@ class TestYfinanceSectorMap:
     def test_sector_map_utilities(self):
         """Test Utilities mapping."""
         assert TradeConfig.YFINANCE_SECTOR_MAP.get("Utilities") == "UTILITY"
-
 
 class TestYfinanceIndustryMap:
     """Tests for YFINANCE_INDUSTRY_MAP constant."""
@@ -92,7 +88,6 @@ class TestYfinanceIndustryMap:
         """Test MLP industry mappings."""
         assert TradeConfig.YFINANCE_INDUSTRY_MAP.get("Oil & Gas Midstream") == "MLP"
         assert TradeConfig.YFINANCE_INDUSTRY_MAP.get("Oil & Gas Pipelines") == "MLP"
-
 
 class TestGetSectorFromTickerDynamic:
     """Tests for get_sector_from_ticker_dynamic() method."""
@@ -159,7 +154,6 @@ class TestGetSectorFromTickerDynamic:
         # Should still detect via industry
         assert result == "FINANCIAL"
 
-
 class TestDynamicSectorIntegration:
     """Integration tests for dynamic sector with threshold adjustment."""
 
@@ -204,7 +198,6 @@ class TestDynamicSectorIntegration:
         )
         assert sector == "UTILITY"
 
-
 class TestGetAllSectorCategories:
     """Tests for get_all_sector_categories() method."""
 
@@ -234,7 +227,6 @@ class TestGetAllSectorCategories:
         ]
         for cat in expected:
             assert cat in categories, f"Missing category: {cat}"
-
 
 class TestRealWorldScenarios:
     """Real-world scenario tests for dynamic sector detection."""
@@ -277,7 +269,6 @@ class TestRealWorldScenarios:
         # Should return None because Technology sector and Software industry
         # are not mapped to any special category
         assert sector is None
-
 
 class TestEdgeCases:
     """Edge case tests."""

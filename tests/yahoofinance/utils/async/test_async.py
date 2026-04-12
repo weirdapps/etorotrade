@@ -8,18 +8,15 @@ This test file verifies:
 - Bulk processing of data with safety controls
 """
 
-import asyncio
 import logging
 import unittest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 # Import test fixtures to reduce duplication
 from tests.fixtures.async_fixtures import (
     create_async_processor_mock,
-    create_bulk_fetch_mocks,
     create_flaky_function,
 )
-from yahoofinance.core.errors import APIError, RateLimitError, YFinanceError
 from yahoofinance.core.logging import get_logger
 from yahoofinance.utils.async_utils.enhanced import (
     AsyncRateLimiter,
@@ -28,13 +25,11 @@ from yahoofinance.utils.async_utils.enhanced import (
 )
 from yahoofinance.utils.async_utils.helpers import async_retry, gather_with_concurrency
 
-
 # Set up logging for tests
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = get_logger(__name__)
-
 
 class TestAsyncHelpers(unittest.IsolatedAsyncioTestCase):
     """Test async helper functions."""
@@ -130,7 +125,6 @@ class TestAsyncHelpers(unittest.IsolatedAsyncioTestCase):
 
         # Check results
         self.assertEqual(result, "success")
-
 
 if __name__ == "__main__":
     unittest.main()

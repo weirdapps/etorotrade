@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 from tabulate import tabulate
 
-from yahoofinance.core.config import COLUMN_NAMES, COMPACT_DISPLAY_COLUMNS, DISPLAY, STANDARD_DISPLAY_COLUMNS
+from yahoofinance.core.config import COLUMN_NAMES, COMPACT_DISPLAY_COLUMNS, DISPLAY
 from yahoofinance.core.logging import get_logger
 from yahoofinance.utils.data.asset_type_utils import universal_sort_dataframe
 from yahoofinance.utils.data.format_utils import (
@@ -23,9 +23,7 @@ from yahoofinance.utils.data.ticker_utils import (
     process_ticker_input,
 )
 
-
 logger = get_logger(__name__)
-
 
 def sort_market_data(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -42,7 +40,6 @@ def sort_market_data(df: pd.DataFrame) -> pd.DataFrame:
 
     # Apply universal sorting (asset type priority, then market cap descending)
     return universal_sort_dataframe(df)
-
 
 def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -440,7 +437,6 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     existing_cols = [col for col in drop_cols if col in df.columns]
     return df.drop(columns=existing_cols)
 
-
 def calculate_actions(df: pd.DataFrame) -> pd.Series:
     """Calculate trading actions for each row in the DataFrame.
 
@@ -466,7 +462,6 @@ def calculate_actions(df: pd.DataFrame) -> pd.Series:
             except (ImportError, KeyError, ValueError, TypeError, AttributeError):
                 actions.append("H")
         return pd.Series(actions, index=df.index)
-
 
 def display_stock_table(stock_data: List[Dict[str, Any]], title: str = "Stock Analysis") -> None:
     """
@@ -584,7 +579,6 @@ def display_stock_table(stock_data: List[Dict[str, Any]], title: str = "Stock An
     from yahoofinance.utils.async_utils.enhanced import display_processing_stats
     display_processing_stats()
 
-
 def display_empty_table(columns: List[str], title: str = "Stock Analysis") -> None:
     """Display a table with only headers (no data rows)."""
     bs_col = COLUMN_NAMES['ACTION']
@@ -596,7 +590,6 @@ def display_empty_table(columns: List[str], title: str = "Stock Analysis") -> No
     print("=" * len(title))
     table = tabulate([], headers=display_cols, tablefmt="simple_grid")
     print(table)
-
 
 def add_position_size_column(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -726,7 +719,6 @@ def add_position_size_column(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-
 def parse_market_cap_value(market_cap_str: str) -> Optional[float]:
     """
     Parse market cap string to numeric value.
@@ -762,7 +754,6 @@ def parse_market_cap_value(market_cap_str: str) -> Optional[float]:
             return float(market_cap_str)
     except (ValueError, TypeError):
         return None
-
 
 def parse_percentage_value(percentage_str) -> Optional[float]:
     """

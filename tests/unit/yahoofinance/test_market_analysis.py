@@ -6,8 +6,6 @@ This module tests market analysis functions.
 
 import pytest
 import pandas as pd
-import numpy as np
-from unittest.mock import patch, MagicMock
 
 from yahoofinance.analysis.market import (
     MarketMetrics,
@@ -15,7 +13,6 @@ from yahoofinance.analysis.market import (
     filter_sell_candidates,
     filter_hold_candidates,
 )
-
 
 class TestMarketMetrics:
     """Tests for MarketMetrics dataclass."""
@@ -62,7 +59,6 @@ class TestMarketMetrics:
         assert metrics.sector_counts["Technology"] == 30
         assert len(metrics.sector_counts) == 3
 
-
 class TestFilterBuyOpportunities:
     """Tests for filter_buy_opportunities function."""
 
@@ -103,7 +99,6 @@ class TestFilterBuyOpportunities:
         # Should be filtered out due to inconclusive signal
         assert len(result) == 0 or result.iloc[0]["BS"] != "B"
 
-
 class TestFilterSellCandidates:
     """Tests for filter_sell_candidates function."""
 
@@ -132,7 +127,6 @@ class TestFilterSellCandidates:
         if len(result) > 0:
             assert "WEAK1" in result["ticker"].values or "WEAK2" in result["ticker"].values
 
-
 class TestFilterHoldCandidates:
     """Tests for filter_hold_candidates function."""
 
@@ -158,7 +152,6 @@ class TestFilterHoldCandidates:
         # Should return hold candidates
         if len(result) > 0:
             assert all(result["BS"] == "H")
-
 
 class TestFilterIntegration:
     """Integration tests for filter functions."""
@@ -201,7 +194,6 @@ class TestFilterIntegration:
         result = filter_buy_opportunities(df)
         if len(result) > 0:
             assert "custom_col" in result.columns
-
 
 class TestMarketMetricsCalculation:
     """Tests for calculating market metrics."""

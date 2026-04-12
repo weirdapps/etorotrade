@@ -9,12 +9,11 @@ import os
 import shutil
 import time
 import uuid
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List
 
 import aiofiles  # type: ignore[import-untyped]
 import aiohttp
 import pandas as pd
-import requests
 from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.common.exceptions import (
@@ -28,18 +27,12 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from ..utils.error_handling import (
-    enrich_error_context,
-    safe_operation,
-    translate_error,
-    with_retry,
-)
-from ..utils.data.ticker_utils import normalize_ticker, process_ticker_input
+from yahoofinance.core.errors import DataError, YFinanceError
+from ..utils.error_handling import with_retry
+from ..utils.data.ticker_utils import normalize_ticker
 
 from ..core.config import FILE_PATHS, PATHS
 from ..core.logging import get_logger
-
 
 logger = get_logger(__name__)
 
@@ -63,7 +56,6 @@ def safe_click(driver, element, description="element"):
         logger.error(f"WebDriver error clicking {description}: {str(e)}")
         raise e
 
-
 def setup_driver():
     """Setup Chrome WebDriver with secure options"""
     options = webdriver.ChromeOptions()
@@ -85,7 +77,6 @@ def setup_driver():
     options.add_argument(f"--user-data-dir={user_data_dir}")
     return webdriver.Chrome(options=options)
 
-
 def wait_and_find_element(driver, by, value, timeout=10, check_visibility=True):
     """Helper function to wait for and find an element"""
     try:
@@ -101,7 +92,6 @@ def wait_and_find_element(driver, by, value, timeout=10, check_visibility=True):
     except (YFinanceError, TimeoutException, NoSuchElementException) as e:
         logger.error(f"Error finding element {value}: {str(e)}")
         return None
-
 
 def find_sign_in_button(driver):
     """Helper function to find and click the sign-in button"""
@@ -120,7 +110,6 @@ def find_sign_in_button(driver):
         logger.error(f"WebDriver error finding sign-in button: {str(e)}")
         raise e
 
-
 def handle_email_sign_in(driver):
     """Handle the email sign-in process"""
     logger.info("Looking for email sign-in button...")
@@ -131,7 +120,6 @@ def handle_email_sign_in(driver):
         raise NoSuchElementException("Email sign-in button not found")
     safe_click(driver, email_sign_in, "email sign-in button")
     time.sleep(5)
-
 
 def handle_email_input(driver, email):
     """Handle the email input and next button process"""
@@ -162,7 +150,6 @@ def handle_email_input(driver, email):
 
     time.sleep(5)  # Wait longer for password field
 
-
 def find_password_input(driver, timeout=5):
     """Try different selectors to find password input"""
     for selector in [
@@ -179,7 +166,6 @@ def find_password_input(driver, timeout=5):
         except (NoSuchElementException, TimeoutException):
             continue
     return None
-
 
 def handle_password_submit(driver, password_input, password):
     """Handle password submission and final sign in"""
@@ -273,7 +259,6 @@ def handle_password_submit(driver, password_input, password):
     logger.info("Waiting for login to complete...")
     time.sleep(15)  # Wait longer for login to complete
 
-
 def handle_password_input(driver, password, max_attempts=3):
     """Handle the password input and final sign in process"""
     logger.info("Looking for password input...")
@@ -302,7 +287,6 @@ def handle_password_input(driver, password, max_attempts=3):
         f"Password input not found after {max_attempts} attempts: {str(last_error)}"
     )
 
-
 def login(driver, email, password):
     """Handle the login process with better error handling and reduced complexity"""
     logger.info("Attempting to log in...")
@@ -323,7 +307,6 @@ def login(driver, email, password):
 
     # Password input and submit
     handle_password_input(driver, password)
-
 
 def process_portfolio():
     """Process downloaded portfolio file"""
@@ -377,7 +360,6 @@ def process_portfolio():
     os.remove(latest_file)
     return True
 
-
 def handle_cookie_consent(driver):
     """Handle cookie consent if present"""
     try:
@@ -390,7 +372,6 @@ def handle_cookie_consent(driver):
             time.sleep(2)
     except (NoSuchElementException, TimeoutException):
         logger.info("No cookie consent needed or already accepted")
-
 
 def handle_portfolio_buttons(driver):
     """Handle clicking portfolio-related buttons"""
@@ -417,7 +398,6 @@ def handle_portfolio_buttons(driver):
         raise NoSuchElementException("Could not find 'Export Portfolio' link")
     safe_click(driver, export_link, "'Export Portfolio' link")
 
-
 async def download_portfolio(provider=None):
     """
     Download portfolio data using eToro API.
@@ -438,7 +418,6 @@ async def download_portfolio(provider=None):
     
     # Call the modern eToro API implementation
     return await download_etoro_portfolio(provider)
-
 
 @with_retry
 def download_market_data(
@@ -550,7 +529,6 @@ def download_market_data(
     except (RuntimeError, asyncio.CancelledError) as e:
         logger.error(f"Async runtime error in download_market_data: {str(e)}")
         raise APIError(f"Async runtime error in download_market_data: {str(e)}")
-
 
 async def fallback_portfolio_download():
     """
@@ -678,11 +656,9 @@ async def fallback_portfolio_download():
         logger.error(f"[{fallback_id}] Traceback: {trace}")
         return False
 
-
 # Performance optimization: Process in larger batches
 BATCH_SIZE = 10  # Increased from default
 MAX_WORKERS = 5  # For concurrent processing
-
 
 async def download_etoro_portfolio(provider=None):
     """
@@ -700,11 +676,6 @@ async def download_etoro_portfolio(provider=None):
     Returns:
         bool: True if successful, False otherwise
     """
-    import csv
-    import json
-    import requests
-    import uuid
-    from collections import defaultdict
     
     # Create a unique run ID for this download attempt
     run_id = f"etoro_download_{int(time.time())}"
@@ -770,7 +741,6 @@ async def download_etoro_portfolio(provider=None):
         print(error_msg)
         return False
 
-
 async def _fetch_etoro_portfolio(username: str, api_key: str, user_key: str, run_id: str):
     """Fetch portfolio data from eToro API."""
     import asyncio
@@ -811,7 +781,6 @@ async def _fetch_etoro_portfolio(username: str, api_key: str, user_key: str, run
             await asyncio.sleep(1)
     
     return None
-
 
 async def _fetch_etoro_instrument_metadata(instrument_ids: list, api_key: str, user_key: str, run_id: str):
     """Fetch instrument metadata from eToro API."""
@@ -867,8 +836,6 @@ async def _fetch_etoro_instrument_metadata(instrument_ids: list, api_key: str, u
             await asyncio.sleep(1)
     
     return {}
-
-
 
 def _process_etoro_portfolio_data(portfolio: dict, metadata: dict, run_id: str):
     """Process eToro portfolio data into the format expected by the application."""
@@ -956,7 +923,6 @@ def _process_etoro_portfolio_data(portfolio: dict, metadata: dict, run_id: str):
     logger.info(f"[{run_id}] Processed {len(processed_data)} unique symbols")
     return processed_data
 
-
 def _save_etoro_portfolio_csv(data: list, output_path: str, run_id: str):
     """Save eToro portfolio data to CSV in the expected format."""
     import csv
@@ -1000,7 +966,6 @@ def _save_etoro_portfolio_csv(data: list, output_path: str, run_id: str):
     total_investment = sum(row['totalInvestmentPct'] for row in data)
     total_profit = sum(row['totalNetProfit'] for row in data)
     print(f"\n✅ Portfolio saved: {len(data)} symbols | Investment: {total_investment:.1f}% | Net P&L: ${total_profit:,.0f}")
-
 
 # Test function
 if __name__ == "__main__":

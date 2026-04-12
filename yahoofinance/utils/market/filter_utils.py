@@ -5,10 +5,9 @@ This module provides functions for filtering market data based on
 various criteria such as market cap, sector, and performance.
 """
 
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 
 from ..trade_criteria import evaluate_trade_criteria
-
 
 def filter_by_market_cap(
     stocks: List[Dict[str, Any]], min_cap: Optional[float] = None, max_cap: Optional[float] = None
@@ -47,7 +46,6 @@ def filter_by_market_cap(
         filtered.append(stock)
 
     return filtered
-
 
 def filter_by_sector(
     stocks: List[Dict[str, Any]],
@@ -98,7 +96,6 @@ def filter_by_sector(
         filtered.append(stock)
 
     return filtered
-
 
 def filter_by_performance(
     stocks: List[Dict[str, Any]],
@@ -153,7 +150,6 @@ def filter_by_performance(
         filtered.append(stock)
 
     return filtered
-
 
 def filter_tickers_by_criteria(
     tickers_data: List[Dict[str, Any]],

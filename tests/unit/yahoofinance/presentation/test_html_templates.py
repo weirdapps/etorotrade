@@ -4,13 +4,11 @@ ITERATION 18: HTML Templates Tests
 Target: Test HTML template generation functions
 """
 
-import pytest
 from yahoofinance.presentation.html_templates import (
     get_template,
     Templates,
     TemplateEngine,
 )
-
 
 class TestGetTemplate:
     """Test template retrieval."""
@@ -25,7 +23,6 @@ class TestGetTemplate:
         result = get_template("nonexistent", default="default_value")
         assert isinstance(result, str)
 
-
 class TestTemplatesClass:
     """Test Templates class."""
 
@@ -37,7 +34,6 @@ class TestTemplatesClass:
         """Templates class has expected attributes."""
         # May have class attributes for template storage
         assert hasattr(Templates, '__dict__')
-
 
 class TestTemplateEngine:
     """Test TemplateEngine class."""

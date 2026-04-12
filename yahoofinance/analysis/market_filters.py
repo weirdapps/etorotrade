@@ -6,19 +6,16 @@ using the centralized TradeConfig configuration.
 """
 
 import pandas as pd
-from typing import Optional, List, Dict, Any
+from typing import Dict
 
-from trade_modules.trade_config import TradeConfig
 from trade_modules.analysis_engine import calculate_action_vectorized
 from yahoofinance.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-
 def normalize_row_for_criteria(row_dict):
     """Simple row normalization for backward compatibility."""
     return row_dict  # For now, just return the row as-is
-
 
 def filter_buy_opportunities_v2(market_df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -56,7 +53,6 @@ def filter_buy_opportunities_v2(market_df: pd.DataFrame) -> pd.DataFrame:
     # Return filtered dataframe
     return market_df[buy_mask].copy()
 
-
 def filter_sell_candidates_v2(portfolio_df: pd.DataFrame) -> pd.DataFrame:
     """
     Filter sell candidates using centralized trading criteria.
@@ -82,7 +78,6 @@ def filter_sell_candidates_v2(portfolio_df: pd.DataFrame) -> pd.DataFrame:
     # Return filtered dataframe
     return portfolio_df[sell_mask].copy()
 
-
 def add_action_column(df: pd.DataFrame) -> pd.DataFrame:
     """
     Add ACT column to dataframe using centralized trading criteria.
@@ -107,7 +102,6 @@ def add_action_column(df: pd.DataFrame) -> pd.DataFrame:
     result_df["ACT"] = actions
 
     return result_df
-
 
 def filter_hold_candidates_v2(market_df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -138,7 +132,6 @@ def filter_hold_candidates_v2(market_df: pd.DataFrame) -> pd.DataFrame:
 
     # Return filtered dataframe
     return market_df[hold_mask].copy()
-
 
 def get_action_stats(df: pd.DataFrame) -> Dict[str, int]:
     """

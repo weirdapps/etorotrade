@@ -1,7 +1,6 @@
 """Tests for the Improvement Analyzer module."""
 
 import pytest
-from datetime import datetime
 from pathlib import Path
 import tempfile
 import pandas as pd
@@ -12,9 +11,7 @@ from trade_modules.improvement_analyzer import (
     DataQualityReport,
     ImprovementSuggestion,
     SuggestionsDocument,
-    run_analysis,
 )
-
 
 class TestImprovementAnalyzer:
     """Tests for ImprovementAnalyzer class."""
@@ -136,7 +133,6 @@ class TestImprovementAnalyzer:
         finally:
             output_path.unlink()
 
-
 class TestMetricEffectiveness:
     """Tests for MetricEffectiveness dataclass."""
 
@@ -156,7 +152,6 @@ class TestMetricEffectiveness:
         assert abs(metric.ratio - 3.0) < 0.01
         assert metric.is_effective is True
 
-
 class TestDataQualityReport:
     """Tests for DataQualityReport dataclass."""
 
@@ -174,7 +169,6 @@ class TestDataQualityReport:
 
         assert report.total_stocks == 5000
         assert abs(report.inconclusive_rate - 50.0) < 0.01
-
 
 class TestImprovementSuggestion:
     """Tests for ImprovementSuggestion dataclass."""

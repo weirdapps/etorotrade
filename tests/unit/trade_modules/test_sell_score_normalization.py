@@ -5,10 +5,8 @@ scores are monotonic, and np.interp produces no cliff artifacts.
 """
 
 import numpy as np
-import pytest
 
 from trade_modules.analysis.signals import calculate_sell_score
-
 
 DEFAULT_CONFIG = {
     'weight_analyst': 0.20,
@@ -17,7 +15,6 @@ DEFAULT_CONFIG = {
     'weight_fundamental': 0.25,
     'weight_analyst_momentum': 0.10,
 }
-
 
 class TestSellScoreComponentBounds:
     """Verify each component normalizes to 0-100 range."""
@@ -66,7 +63,6 @@ class TestSellScoreComponentBounds:
         )
         assert 0 <= score <= 100
 
-
 class TestContinuousScoring:
     """Verify np.interp produces continuous, monotonic scores with no cliffs."""
 
@@ -111,7 +107,6 @@ class TestContinuousScoring:
             roe=25, de=30, sell_scoring_config=DEFAULT_CONFIG,
         )
         assert score_bad > score_good
-
 
 class TestSellScoreAMComponent:
     """Test analyst momentum scoring in sell score."""

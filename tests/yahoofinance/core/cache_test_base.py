@@ -5,17 +5,12 @@ This module provides a common base test class for all cache-related test files
 to reduce duplication and ensure consistent test setups.
 """
 
-import json
 import os
 import shutil
 import time
 import unittest
-from datetime import datetime, timedelta
-
-import pytest
 
 from yahoofinance.data.cache import CacheManager
-
 
 class BaseCacheTest(unittest.TestCase):
     """

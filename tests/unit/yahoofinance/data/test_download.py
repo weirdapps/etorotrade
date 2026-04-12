@@ -7,11 +7,7 @@ File: yahoofinance/data/download.py (526 statements, 9% coverage)
 
 import pytest
 import os
-import tempfile
-import shutil
-from unittest.mock import Mock, patch, AsyncMock
 import pandas as pd
-
 
 class TestProcessEToroPortfolioData:
     """Test eToro portfolio data processing."""
@@ -98,7 +94,6 @@ class TestProcessEToroPortfolioData:
         assert result[0]["totalInvestmentPct"] == pytest.approx(15.0)
         assert result[0]["totalNetProfit"] == pytest.approx(150.0)
 
-
 class TestSaveEToroPortfolioCsv:
     """Test CSV saving functionality."""
 
@@ -174,7 +169,6 @@ class TestSaveEToroPortfolioCsv:
 
         assert os.path.exists(output_file)
 
-
 class TestDownloadMarketData:
     """Test market data download function."""
 
@@ -195,7 +189,6 @@ class TestDownloadMarketData:
         result = download_market_data([])
         assert isinstance(result, dict)
 
-
 class TestBatchConstants:
     """Test batch processing constants."""
 
@@ -210,7 +203,6 @@ class TestBatchConstants:
         from yahoofinance.data.download import MAX_WORKERS
 
         assert MAX_WORKERS == 5
-
 
 class TestHelperFunctions:
     """Test helper functions."""
@@ -233,7 +225,6 @@ class TestHelperFunctions:
 
         assert callable(wait_and_find_element)
 
-
 class TestProcessPortfolio:
     """Test process_portfolio function."""
 
@@ -242,7 +233,6 @@ class TestProcessPortfolio:
         from yahoofinance.data.download import process_portfolio
 
         assert callable(process_portfolio)
-
 
 class TestEToroDataProcessing:
     """Test eToro data processing edge cases."""
@@ -341,7 +331,6 @@ class TestEToroDataProcessing:
         assert result[0]["symbol"] == "MSFT"
         assert result[1]["symbol"] == "AAPL"
 
-
 class TestAsyncDownloadFunctions:
     """Test async download functions."""
 
@@ -365,7 +354,6 @@ class TestAsyncDownloadFunctions:
         from yahoofinance.data.download import download_portfolio
 
         assert callable(download_portfolio)
-
 
 class TestCsvSaveEdgeCases:
     """Test CSV saving edge cases."""
@@ -399,5 +387,4 @@ class TestCsvSaveEdgeCases:
         # Should handle unicode
         df = pd.read_csv(output_file)
         assert "™" in df.iloc[0]["instrumentDisplayName"]
-
 

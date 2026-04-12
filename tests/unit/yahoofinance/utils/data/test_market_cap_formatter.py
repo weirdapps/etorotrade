@@ -5,9 +5,6 @@ Target: Test advanced market cap formatting utilities
 File: yahoofinance/utils/data/market_cap_formatter.py (56 statements, 18% coverage)
 """
 
-import pytest
-
-
 class TestFormatMarketCapAdvanced:
     """Test advanced market cap formatting."""
 
@@ -127,7 +124,6 @@ class TestFormatMarketCapAdvanced:
         # Should still format (absolute value logic not in formatter)
         assert result is not None
 
-
 class TestGetScaleInfo:
     """Test scale info determination."""
 
@@ -201,7 +197,6 @@ class TestGetScaleInfo:
         assert scale_info["suffix"] == "Tn"
         assert scale_info["precision"] == 3
 
-
 class TestFormatWithScale:
     """Test formatting with scale info."""
 
@@ -265,7 +260,6 @@ class TestFormatWithScale:
 
         assert result == "5.123B"
 
-
 class TestEdgeCases:
     """Test edge cases."""
 
@@ -318,5 +312,4 @@ class TestEdgeCases:
         result = format_market_cap_advanced(5.5e9)
 
         assert "5.50B" in result
-
 

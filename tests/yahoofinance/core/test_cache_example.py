@@ -5,17 +5,13 @@ This is an example of a well-organized test file in the new structure.
 """
 
 import os
-import time
 import unittest
 from datetime import datetime
 from unittest.mock import MagicMock
 
 import pytest
 
-from yahoofinance.core.errors import DataError, YFinanceError
-
 from .cache_test_base import BaseCacheTest
-
 
 @pytest.mark.unit
 class TestCache(BaseCacheTest):
@@ -110,7 +106,6 @@ class TestCache(BaseCacheTest):
         result2 = get_cached_data("AAPL")
         self.assertEqual(result2, {"price": 150.0})
         self.assertEqual(mock_client.get_ticker_info.call_count, 1, "Should not call API twice")
-
 
 if __name__ == "__main__":
     unittest.main()

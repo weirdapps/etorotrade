@@ -7,26 +7,16 @@ including buys, sells, and net activity.
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 
-import pandas as pd
-
-from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from ..utils.error_handling import (
-    enrich_error_context,
-    safe_operation,
-    translate_error,
-    with_retry,
-)
+from yahoofinance.core.errors import YFinanceError
 
 from ..api import AsyncFinanceDataProvider, FinanceDataProvider, get_provider
-from ..core.errors import ValidationError, YFinanceError
+from ..core.errors import YFinanceError
 from ..core.logging import get_logger
 from ..utils.market import is_us_ticker
 
-
 logger = get_logger(__name__)
-
 
 @dataclass
 class InsiderTransaction:
@@ -50,7 +40,6 @@ class InsiderTransaction:
     shares: Optional[int] = None
     value: Optional[float] = None
     share_price: Optional[float] = None
-
 
 @dataclass
 class InsiderSummary:
@@ -82,7 +71,6 @@ class InsiderSummary:
     def __post_init__(self):
         if self.transactions is None:
             self.transactions = []
-
 
 class InsiderAnalyzer:
     """

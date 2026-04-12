@@ -10,17 +10,11 @@ When run directly, this module performs market analysis on a default set of tick
 import logging
 import sys
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 
-from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from ..utils.error_handling import (
-    enrich_error_context,
-    safe_operation,
-    translate_error,
-    with_retry,
-)
+from yahoofinance.core.errors import YFinanceError
 
 from ..api import AsyncFinanceDataProvider, FinanceDataProvider, get_provider
 # Trading criteria moved to centralized trade configuration
@@ -33,14 +27,11 @@ from .market_filters import (
     filter_hold_candidates_v2
 )
 
-
 # Define constants for repeated strings
 BUY_PERCENTAGE_DISPLAY = "% BUY"
 from ..core.errors import YFinanceError
 
-
 logger = get_logger(__name__)
-
 
 @dataclass
 class MarketMetrics:
@@ -100,7 +91,6 @@ class MarketMetrics:
     sector_counts: Dict[str, int] = field(default_factory=dict)
     sector_breadth: Dict[str, Dict[str, float]] = field(default_factory=dict)
 
-
 @dataclass
 class SectorAnalysis:
     """
@@ -135,7 +125,6 @@ class SectorAnalysis:
     avg_buy_rating: Optional[float] = None
     avg_pe_ratio: Optional[float] = None
     avg_peg_ratio: Optional[float] = None
-
 
 def get_confidence_condition(df: pd.DataFrame) -> pd.Series:
     """
@@ -181,7 +170,6 @@ def get_confidence_condition(df: pd.DataFrame) -> pd.Series:
         & (total_ratings >= TradeConfig().UNIVERSAL_THRESHOLDS.get("min_analyst_count", 5))
     )
 
-
 def process_ticker_batch_result(
     tickers: List[str], ticker_info_batch: Dict[str, Dict]
 ) -> List[Dict]:
@@ -220,7 +208,6 @@ def process_ticker_batch_result(
                 }
             )
     return market_data
-
 
 def get_short_interest_condition(
     df: pd.DataFrame, short_interest_threshold: float, is_maximum: bool = True
@@ -276,7 +263,6 @@ def get_short_interest_condition(
         logger.debug("No short interest column found in dataset")
         return pd.Series(True if is_maximum else False, index=df.index)
 
-
 def calculate_sector_metrics(
     sector_stocks: pd.DataFrame,
 ) -> Tuple[int, int, int, Dict[str, Optional[float]]]:
@@ -320,7 +306,6 @@ def calculate_sector_metrics(
             metrics[f"avg_{col}"] = valid_values.mean() if len(valid_values) > 0 else None
 
     return buy_count, sell_count, stock_count, metrics
-
 
 class MarketAnalyzer:
     """
@@ -564,7 +549,6 @@ class MarketAnalyzer:
 
         return sector_analysis
 
-
 def filter_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame:
     """
     Filter out buy opportunities from market data based on trading criteria.
@@ -580,7 +564,6 @@ def filter_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame:
     """
     return filter_buy_opportunities_v2(market_df)
 
-
 def filter_sell_candidates(portfolio_df: pd.DataFrame) -> pd.DataFrame:
     """
     Filter out sell candidates from portfolio data based on trading criteria.
@@ -595,7 +578,6 @@ def filter_sell_candidates(portfolio_df: pd.DataFrame) -> pd.DataFrame:
         DataFrame with sell candidates
     """
     return filter_sell_candidates_v2(portfolio_df)
-
 
 def filter_hold_candidates(market_df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -616,7 +598,6 @@ def filter_hold_candidates(market_df: pd.DataFrame) -> pd.DataFrame:
         DataFrame with hold candidates
     """
     return filter_hold_candidates_v2(market_df)
-
 
 def filter_risk_first_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -655,7 +636,6 @@ def filter_risk_first_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame
             logger.info("DEBUG: AUSS.OL did NOT pass filter_buy_opportunities")
     
     return result
-
 
 def classify_stocks(market_df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -716,7 +696,6 @@ def classify_stocks(market_df: pd.DataFrame) -> pd.DataFrame:
 
     return result_df
 
-
 def calculate_market_metrics(market_df: pd.DataFrame) -> Dict[str, Any]:
     """
     Calculate overall market metrics from market data.
@@ -762,7 +741,6 @@ def calculate_market_metrics(market_df: pd.DataFrame) -> Dict[str, Any]:
     }
 
     return metrics_dict
-
 
 if __name__ == "__main__":
     """
@@ -821,7 +799,6 @@ if __name__ == "__main__":
     except YFinanceError as e:
         print(f"Error analyzing market data: {str(e)}")
         sys.exit(1)
-
 
 # Backward compatibility function
 def get_market_data(tickers: List[str] = None, provider=None) -> pd.DataFrame:

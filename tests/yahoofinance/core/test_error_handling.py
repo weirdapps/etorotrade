@@ -3,11 +3,7 @@
 Test script to verify the improved error handling capabilities.
 """
 
-import logging
 import unittest
-from unittest.mock import MagicMock, patch
-
-import requests
 
 from yahoofinance.core.errors import (
     APIError,
@@ -24,10 +20,8 @@ from yahoofinance.utils.error_handling import (
     enrich_error_context,
     safe_operation,
     translate_error,
-    with_error_context,
     with_retry,
 )
-
 
 # Set up logging
 logger = get_logger("test_error_handling")
@@ -160,7 +154,6 @@ class TestErrorHandling(unittest.TestCase):
         # Should reraise the error
         with self.assertRaises(YFinanceError):
             will_reraise(should_fail=True)
-
 
 if __name__ == "__main__":
     logger.info("Running error handling tests...")

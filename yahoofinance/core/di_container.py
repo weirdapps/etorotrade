@@ -7,12 +7,11 @@ entry point for the dependency injection system.
 """
 
 import logging
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any
 
-from ..utils.dependency_injection import inject, lazy_import, provides, registry
-from .errors import ValidationError, YFinanceError
+from ..utils.dependency_injection import inject, registry
+from .errors import ValidationError
 from .logging import get_logger
-
 
 # Set up logging
 logger = get_logger(__name__)
@@ -20,13 +19,10 @@ logger = get_logger(__name__)
 from ..analysis.analyzer_factory import (
     create_portfolio_analyzer,
     create_stock_analyzer,
-    with_analyzer,
-    with_portfolio_analyzer,
 )
 
 # Import necessary factories and providers
 from ..api.provider_registry import get_all_providers, get_default_provider, get_provider
-
 
 # Define a function to register all application components
 def setup_application():
@@ -143,7 +139,6 @@ def setup_application():
 
     logger.info("Dependency injection container setup complete")
 
-
 # Factory for creating display instances
 @registry.register("create_display")
 def create_display(output_format: str = "console", **kwargs) -> Any:
@@ -181,7 +176,6 @@ def create_display(output_format: str = "console", **kwargs) -> Any:
         logger.error(f"Failed to create display: {str(e)}")
         raise ValidationError(f"Failed to create display: {str(e)}") from e
 
-
 # Initialize the dependency injection container
 @inject("app_logger")
 def initialize(app_logger=None):
@@ -211,7 +205,6 @@ def initialize(app_logger=None):
             logger.error(f"Failed to initialize dependency injection container: {str(e)}")
 
         return False
-
 
 # Auto-initialize when the module is imported
 initialized = initialize()

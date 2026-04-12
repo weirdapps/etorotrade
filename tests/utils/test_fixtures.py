@@ -7,15 +7,12 @@ This module helps reduce code duplication across test files by providing:
 - Helper functions for setting up test cases
 """
 
-import asyncio
 from typing import Any, Callable, Dict, List, Optional, Tuple
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
-from yahoofinance.core.errors import APIError, RateLimitError, YFinanceError
-
+from yahoofinance.core.errors import RateLimitError, YFinanceError
 
 # Pagination Test Fixtures
-
 
 def create_paginated_data(num_pages: int = 3, items_per_page: int = 3) -> List[Dict[str, Any]]:
     """
@@ -41,7 +38,6 @@ def create_paginated_data(num_pages: int = 3, items_per_page: int = 3) -> List[D
         pages.append({"items": page_items, "next_page_token": next_token})
 
     return pages
-
 
 def create_mock_fetcher(pages: List[Dict[str, Any]]) -> Callable[[Optional[str]], Dict[str, Any]]:
     """
@@ -70,7 +66,6 @@ def create_mock_fetcher(pages: List[Dict[str, Any]]) -> Callable[[Optional[str]]
 
     return mock_fetcher
 
-
 def create_bulk_fetch_mocks() -> (
     Tuple[List[int], Callable[[Any], Dict[str, Any]], Callable[[Dict[str, Any]], int]]
 ):
@@ -95,9 +90,7 @@ def create_bulk_fetch_mocks() -> (
 
     return items, mock_fetcher, mock_extractor
 
-
 # Async Test Fixtures
-
 
 async def create_flaky_function(fail_count: int = 2) -> Callable[[], AsyncMock]:
     """
@@ -121,7 +114,6 @@ async def create_flaky_function(fail_count: int = 2) -> Callable[[], AsyncMock]:
         return "success"
 
     return flaky_function
-
 
 def create_async_processor_mock(error_item: int = 3) -> AsyncMock:
     """

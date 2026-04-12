@@ -5,13 +5,11 @@ This module tests the boundary interfaces for module decoupling.
 """
 
 import pytest
-from unittest.mock import patch, MagicMock
 
 from trade_modules.boundaries.config_boundary import ConfigBoundary, IConfigBoundary
 from trade_modules.boundaries.data_boundary import DataBoundary, IDataBoundary
 from trade_modules.boundaries.trade_modules_boundary import TradeModulesBoundary, ITradeModulesBoundary
 from trade_modules.boundaries.yahoo_finance_boundary import YahooFinanceBoundary, IYahooFinanceBoundary
-
 
 class TestConfigBoundary:
     """Tests for the ConfigBoundary class."""
@@ -107,7 +105,6 @@ class TestConfigBoundary:
         assert 'timeout' in defaults
         assert 'max_retries' in defaults
 
-
 class TestDataBoundary:
     """Tests for the DataBoundary class."""
 
@@ -119,7 +116,6 @@ class TestDataBoundary:
     def test_implements_interface(self, data_boundary):
         """Test that DataBoundary implements IDataBoundary."""
         assert isinstance(data_boundary, IDataBoundary)
-
 
 class TestTradeModulesBoundary:
     """Tests for the TradeModulesBoundary class."""
@@ -133,7 +129,6 @@ class TestTradeModulesBoundary:
         """Test that TradeModulesBoundary implements ITradeModulesBoundary."""
         assert isinstance(trade_boundary, ITradeModulesBoundary)
 
-
 class TestYahooFinanceBoundary:
     """Tests for the YahooFinanceBoundary class."""
 
@@ -146,7 +141,6 @@ class TestYahooFinanceBoundary:
         """Test that YahooFinanceBoundary implements IYahooFinanceBoundary."""
         assert isinstance(yahoo_boundary, IYahooFinanceBoundary)
 
-
 class TestDefaultBoundaryInstances:
     """Test that default boundary instances are available."""
 
@@ -155,7 +149,6 @@ class TestDefaultBoundaryInstances:
         from trade_modules.boundaries.config_boundary import default_config_boundary
         assert default_config_boundary is not None
         assert isinstance(default_config_boundary, ConfigBoundary)
-
 
 class TestBoundaryValidation:
     """Test boundary validation functionality."""

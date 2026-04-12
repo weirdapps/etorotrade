@@ -7,8 +7,6 @@ Basic coverage tests for the signal performance tracking functionality.
 import pytest
 from pathlib import Path
 import tempfile
-import os
-
 
 class TestSignalPerformanceImports:
     """Test that the module can be imported correctly."""
@@ -39,7 +37,6 @@ class TestSignalPerformanceImports:
         from trade_modules.signal_performance import DEFAULT_SIGNAL_LOG, DEFAULT_PERFORMANCE_LOG
         assert DEFAULT_SIGNAL_LOG is not None
         assert DEFAULT_PERFORMANCE_LOG is not None
-
 
 class TestSignalPerformanceFunctions:
     """Test signal performance functions."""
@@ -114,7 +111,6 @@ class TestSignalPerformanceFunctions:
         # Just test that function exists and is callable
         assert callable(get_current_price)
 
-
 class TestAssetTypeUtils:
     """Test bitcoin proxy and IPO grace period utilities."""
 
@@ -155,7 +151,6 @@ class TestAssetTypeUtils:
 
         assert classify_asset_type("SPY") == "etf"
         assert classify_asset_type("QQQ") == "etf"
-
 
 class TestIPOGracePeriod:
     """Test IPO grace period functionality."""

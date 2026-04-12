@@ -6,9 +6,7 @@ Tests the priority-based rate limiting functionality.
 """
 
 import asyncio
-import itertools
 import time
-
 
 # Import the rate limiter from the async utils
 try:
@@ -41,9 +39,7 @@ except ImportError:
         def get_stats(self):
             return self.stats
 
-
 import pytest
-
 
 @pytest.mark.asyncio
 async def test_priority_order():
@@ -95,7 +91,6 @@ async def test_priority_order():
     else:
         print("✅ PASSED: Test completed without errors")
 
-
 @pytest.mark.asyncio
 async def test_rate_limiting_enforcement():
     """Test that rate limiting is enforced across all priorities"""
@@ -133,7 +128,6 @@ async def test_rate_limiting_enforcement():
     else:
         print(f"⚠️  WARNING: Rate limiting may not be enforced (took {elapsed:.2f}s)")
 
-
 @pytest.mark.asyncio
 async def test_adaptive_behavior():
     """Test adaptive rate limiting behavior"""
@@ -154,7 +148,6 @@ async def test_adaptive_behavior():
     print(f"  - Current delay: {stats.get('current_delay', 0):.3f}s")
 
     print("✅ PASSED: Adaptive behavior test completed")
-
 
 @pytest.mark.asyncio
 async def test_concurrent_access():
@@ -191,7 +184,6 @@ async def test_concurrent_access():
         for worker_id, error in errors[:5]:  # Show first 5 errors
             print(f"  Worker {worker_id}: {error}")
 
-
 async def main():
     """Run all priority limiter tests"""
     print("=" * 80)
@@ -216,7 +208,6 @@ async def main():
         return 1
 
     return 0
-
 
 if __name__ == "__main__":
     exit_code = asyncio.run(main())

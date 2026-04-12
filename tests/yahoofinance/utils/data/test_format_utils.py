@@ -1,10 +1,7 @@
-import json
-import math
 import unittest
 from unittest.mock import MagicMock, patch
 
 import numpy as np
-import pandas as pd
 import pytest
 
 # Import FormatUtils from presentation.html for backward compatibility tests
@@ -20,8 +17,6 @@ from yahoofinance.utils.data.format_utils import (
     format_number,
     format_position_size,
 )
-from yahoofinance.utils.error_handling import safe_operation, with_retry
-
 
 class TestFormatUtilsFunctions(unittest.TestCase):
     """Test formatting utility functions for market data."""
@@ -181,7 +176,6 @@ class TestFormatUtilsFunctions(unittest.TestCase):
         self.assertEqual(format_position_size(None), "--")
 
         # Test NaN value (using math.isnan instead of direct equality)
-        import math
 
         nan_result = format_position_size(float("nan"))
         self.assertEqual(nan_result, "--")
@@ -310,7 +304,6 @@ class TestFormatUtilsFunctions(unittest.TestCase):
         # Test with empty data
         empty_csv = format_for_csv([])
         self.assertEqual(empty_csv, [])
-
 
 class TestFormatUtilsBackwardCompatibility(unittest.TestCase):
     """Test backward compatibility with the FormatUtils class."""

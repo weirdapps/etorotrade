@@ -6,17 +6,13 @@ fetch_price_history to avoid network requests.
 """
 
 import json
-import tempfile
 from datetime import datetime, timedelta
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-import numpy as np
 import pandas as pd
 import pytest
 
-from trade_modules.signal_scorecard import SignalScorecard, HORIZON_DAYS, run_scorecard
-
+from trade_modules.signal_scorecard import SignalScorecard
 
 # ============================================================
 # Fixtures
@@ -28,7 +24,6 @@ def tmp_dir(tmp_path):
     output_dir = tmp_path / "output"
     output_dir.mkdir()
     return tmp_path
-
 
 @pytest.fixture
 def signal_log(tmp_dir):
@@ -85,7 +80,6 @@ def signal_log(tmp_dir):
 
     return log_path
 
-
 def _make_price_data(tickers, base_date, num_days=150, gain=True):
     """Create synthetic price data DataFrame."""
     dates = pd.bdate_range(start=base_date - timedelta(days=5), periods=num_days)
@@ -106,7 +100,6 @@ def _make_price_data(tickers, base_date, num_days=150, gain=True):
         name='SPY',
     )
     return df, spy
-
 
 # ============================================================
 # Tests
@@ -391,7 +384,6 @@ class TestSignalScorecard:
 
         # HOLD: 0
         assert SignalScorecard._false_positive_rate(returns, 'H') == pytest.approx(0.0)
-
 
 # ============================================================
 # Consensus Calibration Tests

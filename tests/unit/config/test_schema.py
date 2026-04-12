@@ -15,18 +15,13 @@ from config.schema import (
     AssetTier,
     BuyCriteria,
     SellCriteria,
-    TierCriteria,
     TierThresholds,
-    UniversalThresholds,
-    DataConfig,
     PositionSizingConfig,
     PerformanceConfig,
     LoggingConfig,
-    OutputConfig,
     get_config,
     reload_config,
 )
-
 
 class TestEnums:
     """Test enumeration types"""
@@ -44,7 +39,6 @@ class TestEnums:
         assert AssetTier.MID.value == "MID"
         assert AssetTier.SMALL.value == "SMALL"
         assert AssetTier.MICRO.value == "MICRO"
-
 
 class TestBuyCriteria:
     """Test BuyCriteria validation"""
@@ -74,7 +68,6 @@ class TestBuyCriteria:
         with pytest.raises(ValidationError):
             criteria.min_upside = 20.0
 
-
 class TestSellCriteria:
     """Test SellCriteria validation"""
 
@@ -96,7 +89,6 @@ class TestSellCriteria:
         with pytest.raises(ValidationError):
             criteria.max_upside = 10.0
 
-
 class TestTierThresholds:
     """Test TierThresholds validation"""
 
@@ -113,7 +105,6 @@ class TestTierThresholds:
         thresholds = TierThresholds()
         with pytest.raises(ValidationError):
             thresholds.mega_tier_min = 600_000_000_000
-
 
 class TestPositionSizingConfig:
     """Test PositionSizingConfig validation"""
@@ -138,7 +129,6 @@ class TestPositionSizingConfig:
                 tier_multipliers={"mega": 5, "large": 4}  # Missing mid, small, micro
             )
 
-
 class TestPerformanceConfig:
     """Test PerformanceConfig validation"""
 
@@ -160,7 +150,6 @@ class TestPerformanceConfig:
         with pytest.raises(ValidationError):
             PerformanceConfig(request_timeout_seconds=500)
 
-
 class TestLoggingConfig:
     """Test LoggingConfig validation"""
 
@@ -179,7 +168,6 @@ class TestLoggingConfig:
         """LoggingConfig normalizes log level to uppercase"""
         config = LoggingConfig(level="debug")
         assert config.level == "DEBUG"
-
 
 class TestTradingConfigLoading:
     """Test TradingConfig loading from YAML"""
@@ -225,7 +213,6 @@ class TestTradingConfigLoading:
         finally:
             Path(temp_path).unlink()
 
-
 class TestTierCriteriaAccess:
     """Test accessing tier-specific criteria"""
 
@@ -255,7 +242,6 @@ class TestTierCriteriaAccess:
         with pytest.raises(ValueError):
             config.get_tier_criteria("INVALID", "MEGA")
 
-
 class TestConfigValidation:
     """Test config validation warnings"""
 
@@ -283,7 +269,6 @@ class TestConfigValidation:
         issues = config.validate_complete()
         assert any("analyst" in issue.lower() for issue in issues)
 
-
 class TestGlobalConfig:
     """Test global config singleton"""
 
@@ -303,7 +288,6 @@ class TestGlobalConfig:
         # Note: This might be the same due to caching, but at least should not error
         assert config2 is not None
         assert isinstance(config2, TradingConfig)
-
 
 class TestInvalidConfig:
     """Test handling of invalid configurations"""

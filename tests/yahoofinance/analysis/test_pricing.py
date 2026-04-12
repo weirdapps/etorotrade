@@ -1,24 +1,19 @@
 import asyncio
-from datetime import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
-import pandas as pd
 import pytest
 
 from yahoofinance.analysis.metrics import PriceData, PriceTarget, PricingAnalyzer
-from yahoofinance.core.errors import ValidationError, YFinanceError
-
+from yahoofinance.core.errors import YFinanceError
 
 @pytest.fixture
 def mock_provider():
     provider = Mock()
     return provider
 
-
 @pytest.fixture
 def analyzer(mock_provider):
     return PricingAnalyzer(provider=mock_provider)
-
 
 @pytest.fixture
 def sample_ticker_info():
@@ -42,12 +37,10 @@ def sample_ticker_info():
         "from_low": 25.0,
     }
 
-
 def test_init(mock_provider):
     """Test that the analyzer initializes correctly."""
     analyzer = PricingAnalyzer(provider=mock_provider)
     assert analyzer.provider == mock_provider
-
 
 def test_get_price_data(analyzer, mock_provider, sample_ticker_info):
     """Test getting price data."""
@@ -72,7 +65,6 @@ def test_get_price_data(analyzer, mock_provider, sample_ticker_info):
     # Verify provider was called correctly
     mock_provider.get_ticker_info.assert_called_once_with("AAPL")
 
-
 def test_get_price_data_error(analyzer, mock_provider):
     """Test handling errors when getting price data."""
     # Set mock provider to raise a YFinanceError
@@ -88,7 +80,6 @@ def test_get_price_data_error(analyzer, mock_provider):
 
     # Verify provider was called correctly
     mock_provider.get_ticker_info.assert_called_once_with("AAPL")
-
 
 @pytest.mark.asyncio
 async def test_get_price_data_async(analyzer, mock_provider, sample_ticker_info):
@@ -112,7 +103,6 @@ async def test_get_price_data_async(analyzer, mock_provider, sample_ticker_info)
     # Verify provider was called correctly
     mock_provider.get_ticker_info.assert_called_once_with("AAPL")
 
-
 def test_get_price_target(analyzer, mock_provider, sample_ticker_info):
     """Test getting price target data."""
     # Set mock provider to return sample data
@@ -132,7 +122,6 @@ def test_get_price_target(analyzer, mock_provider, sample_ticker_info):
     # Verify provider was called correctly
     mock_provider.get_ticker_info.assert_called_once_with("AAPL")
 
-
 def test_get_price_target_missing_data(analyzer, mock_provider):
     """Test getting price target with missing data."""
     # Set mock provider to return data with missing values
@@ -150,7 +139,6 @@ def test_get_price_target_missing_data(analyzer, mock_provider):
     assert price_target.upside is None
     assert price_target.analyst_count == 0
 
-
 def test_get_price_target_error(analyzer, mock_provider):
     """Test handling errors when getting price target."""
     # Set mock provider to raise a YFinanceError
@@ -163,7 +151,6 @@ def test_get_price_target_error(analyzer, mock_provider):
     assert isinstance(price_target, PriceTarget)
     assert price_target.average is None
     assert price_target.median is None
-
 
 @pytest.mark.asyncio
 async def test_get_price_target_async(analyzer, mock_provider, sample_ticker_info):
@@ -187,7 +174,6 @@ async def test_get_price_target_async(analyzer, mock_provider, sample_ticker_inf
     # Verify provider was called correctly
     mock_provider.get_ticker_info.assert_called_once_with("AAPL")
 
-
 def test_get_all_metrics(analyzer, mock_provider, sample_ticker_info):
     """Test getting all metrics."""
     # Set mock provider to return sample data
@@ -205,7 +191,6 @@ def test_get_all_metrics(analyzer, mock_provider, sample_ticker_info):
     # Verify provider was called correctly
     mock_provider.get_ticker_info.assert_called_once_with("AAPL")
 
-
 def test_get_all_metrics_error(analyzer, mock_provider):
     """Test handling errors when getting all metrics."""
     # Set mock provider to raise a YFinanceError
@@ -220,7 +205,6 @@ def test_get_all_metrics_error(analyzer, mock_provider):
 
     # Verify provider was called correctly
     mock_provider.get_ticker_info.assert_called_once_with("AAPL")
-
 
 @pytest.mark.asyncio
 async def test_get_all_metrics_async(analyzer, mock_provider, sample_ticker_info):
@@ -242,7 +226,6 @@ async def test_get_all_metrics_async(analyzer, mock_provider, sample_ticker_info
 
     # Verify provider was called correctly
     mock_provider.get_ticker_info.assert_called_once_with("AAPL")
-
 
 def test_price_data_namedtuple():
     """Test that PriceData class works correctly."""
@@ -268,7 +251,6 @@ def test_price_data_namedtuple():
     assert data.low_52week == pytest.approx(80.0, abs=1e-9)
     assert data.from_high == pytest.approx(-33.3, abs=1e-9)
     assert data.from_low == pytest.approx(25.0, abs=1e-9)
-
 
 def test_price_target_namedtuple():
     """Test that PriceTarget class works correctly."""

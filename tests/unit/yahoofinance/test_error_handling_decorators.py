@@ -5,8 +5,6 @@ This module tests error handling utilities.
 """
 
 import pytest
-from unittest.mock import MagicMock, patch
-import time
 
 from yahoofinance.utils.error_handling import (
     enrich_error_context,
@@ -22,7 +20,6 @@ from yahoofinance.core.errors import (
     ConnectionError as YFConnectionError,
     TimeoutError as YFTimeoutError,
 )
-
 
 class TestEnrichErrorContext:
     """Tests for enrich_error_context function."""
@@ -46,7 +43,6 @@ class TestEnrichErrorContext:
         enriched = enrich_error_context(original, {"ticker": "MSFT", "new_key": "value"})
         assert enriched.details["ticker"] == "AAPL"  # Not overwritten
         assert enriched.details["new_key"] == "value"  # Added
-
 
 class TestTranslateError:
     """Tests for translate_error function."""
@@ -81,7 +77,6 @@ class TestTranslateError:
         original = RuntimeError("Unknown")
         translated = translate_error(original)
         assert isinstance(translated, YFinanceError)
-
 
 class TestSafeOperation:
     """Tests for safe_operation decorator."""
@@ -140,7 +135,6 @@ class TestSafeOperation:
         # ValueError is not caught by safe_operation
         with pytest.raises(ValueError):
             failing_func()
-
 
 class TestWithRetry:
     """Tests for with_retry decorator."""
@@ -221,7 +215,6 @@ class TestWithRetry:
         # Should only be called once - ValueError is not retryable
         assert call_count == 1
 
-
 class TestErrorHandlingIntegration:
     """Integration tests for error handling."""
 
@@ -243,7 +236,6 @@ class TestErrorHandlingIntegration:
 
         result = might_fail()
         assert result is None
-
 
 class TestUserFriendlyErrors:
     """Tests for user-friendly error functions."""
@@ -319,7 +311,6 @@ class TestUserFriendlyErrors:
         assert "Unexpected error" in result
         assert "Unknown error type" in result
 
-
 class TestWithRetryDecorator:
     """Additional tests for with_retry decorator."""
 
@@ -351,7 +342,6 @@ class TestWithRetryDecorator:
             fails_with_yfinance_error()
         # Should only be called once - generic YFinanceError is not retryable
         assert call_count == 1
-
 
 class TestTranslateErrorAdditional:
     """Additional tests for translate_error edge cases."""

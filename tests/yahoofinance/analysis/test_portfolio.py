@@ -10,8 +10,6 @@ import pandas as pd
 import pytest
 
 from yahoofinance import get_provider
-from yahoofinance.utils.async_utils.enhanced import process_batch_async
-
 
 def _load_and_validate_tickers(portfolio_file):
     """Loads and validates tickers from the portfolio file."""
@@ -45,7 +43,6 @@ def _load_and_validate_tickers(portfolio_file):
         print(f"Error reading portfolio file: {str(e)}")
         return None
 
-
 def _get_provider_with_fallback():
     """Gets the async provider with fallback to direct initialization."""
     try:
@@ -66,7 +63,6 @@ def _get_provider_with_fallback():
             print(f"Error initializing fallback provider: {str(e2)}")
             # This will cause the test to fail correctly
             raise
-
 
 def _summarize_batch_results(batch_results, sample_tickers):
     """Summarizes batch processing results."""
@@ -93,7 +89,6 @@ def _summarize_batch_results(batch_results, sample_tickers):
                 f"Sample error for {first_error}: {batch_results[first_error].get('error', 'Unknown error')}"
             )
 
-
 async def _cleanup_provider(provider):
     """Cleans up the provider instance."""
     if hasattr(provider, "close") and callable(provider.close):
@@ -105,7 +100,6 @@ async def _cleanup_provider(provider):
         except Exception as e:
             print(f"Error during provider cleanup: {str(e)}")
             # Don't raise here to allow test to complete
-
 
 @pytest.mark.asyncio
 async def test_portfolio():
@@ -124,7 +118,6 @@ async def test_portfolio():
         return result
     else:
         return False
-
 
 @pytest.mark.asyncio  # Mark this as an asyncio test
 async def test_batch_processing(tickers=None):
@@ -170,7 +163,6 @@ async def test_batch_processing(tickers=None):
     finally:
         # Clean up
         await _cleanup_provider(provider)
-
 
 # Run the test
 if __name__ == "__main__":

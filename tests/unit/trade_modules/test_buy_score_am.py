@@ -1,10 +1,8 @@
 """Tests for analyst momentum (AM) integration in BUY conviction scoring."""
 
 import numpy as np
-import pytest
 
 from trade_modules.analysis.signals import calculate_buy_score
-
 
 DEFAULT_CONFIG = {
     'weight_upside': 0.22,
@@ -22,7 +20,6 @@ BASELINE = dict(
     pef=18, pet=20, roe=20, de=40,
     fcf_yield=5, buy_scoring_config=DEFAULT_CONFIG,
 )
-
 
 class TestBuyScoreAMComponent:
     """Test analyst momentum scoring in buy conviction score."""

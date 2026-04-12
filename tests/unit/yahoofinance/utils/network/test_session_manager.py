@@ -5,9 +5,7 @@ Target: Increase coverage for yahoofinance/utils/network/session_manager.py
 """
 
 import pytest
-import asyncio
-from unittest.mock import patch, MagicMock, AsyncMock
-
+from unittest.mock import MagicMock
 
 class TestSharedSessionManager:
     """Test SharedSessionManager class."""
@@ -97,7 +95,6 @@ class TestSharedSessionManager:
 
         manager._session = original
 
-
 class TestGetSessionManager:
     """Test get_session_manager function."""
 
@@ -120,7 +117,6 @@ class TestGetSessionManager:
 
         assert manager1 is manager2
 
-
 class TestGetConnectionPoolStats:
     """Test get_connection_pool_stats function."""
 
@@ -131,7 +127,6 @@ class TestGetConnectionPoolStats:
         stats = get_connection_pool_stats()
 
         assert isinstance(stats, dict)
-
 
 class TestAsyncOperations:
     """Test async operations."""
@@ -176,7 +171,8 @@ class TestAsyncOperations:
     async def test_close_shared_session(self):
         """Close shared session works without error."""
         from yahoofinance.utils.network.session_manager import (
-            get_shared_session, close_shared_session, _session_manager
+            get_shared_session,
+            close_shared_session,
         )
 
         # Ensure session exists
@@ -197,7 +193,6 @@ class TestAsyncOperations:
 
         # Close should not raise
         await manager.close()
-
 
 class TestNeedsNewSession:
     """Test _needs_new_session method."""
@@ -231,7 +226,6 @@ class TestNeedsNewSession:
         manager._session = mock_session
 
         assert manager._needs_new_session() is True
-
 
 class TestModuleStructure:
     """Test module structure."""

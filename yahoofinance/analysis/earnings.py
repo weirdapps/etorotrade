@@ -11,26 +11,17 @@ across both APIs through private helper methods like _calculate_trend_metrics.
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from ..utils.error_handling import (
-    enrich_error_context,
-    safe_operation,
-    translate_error,
-    with_retry,
-)
+from yahoofinance.core.errors import YFinanceError
 
-from ..api import AsyncFinanceDataProvider, FinanceDataProvider, get_provider
-from ..core.errors import ValidationError, YFinanceError
+from ..core.errors import YFinanceError
 from ..core.logging import get_logger
 from .base_analysis import BaseAnalysisService
 
-
 logger = get_logger(__name__)
-
 
 # The EarningsCalendar class below provides backward compatibility with the v1 API
 class EarningsCalendar:
@@ -300,7 +291,6 @@ class EarningsCalendar:
             logger.error(f"Error fetching earnings calendar: {str(e)}")
             return None
 
-
 def format_earnings_table(df: pd.DataFrame, start_date: str, end_date: str) -> None:
     """
     Format and print earnings calendar table.
@@ -342,7 +332,6 @@ def format_earnings_table(df: pd.DataFrame, start_date: str, end_date: str) -> N
         print("=" * 60)
         print(f"Total: {len(df)} companies reporting earnings")
 
-
 @dataclass
 class EarningsData:
     """
@@ -373,7 +362,6 @@ class EarningsData:
     def __post_init__(self):
         if self.earnings_history is None:
             self.earnings_history = []
-
 
 class EarningsAnalyzer(BaseAnalysisService):
     """

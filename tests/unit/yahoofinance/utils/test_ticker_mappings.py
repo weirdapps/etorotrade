@@ -4,9 +4,7 @@ ITERATION 11: Ticker Mappings Tests
 Target: Test ticker mapping compatibility functions
 """
 
-import pytest
 from yahoofinance.utils import ticker_mappings
-
 
 class TestTickerMappingsConstants:
     """Test that mapping constants are accessible."""
@@ -31,7 +29,6 @@ class TestTickerMappingsConstants:
         assert hasattr(ticker_mappings, 'TICKER_GEOGRAPHY')
         assert isinstance(ticker_mappings.TICKER_GEOGRAPHY, dict)
 
-
 class TestGetNormalizedTicker:
     """Test get_normalized_ticker function."""
 
@@ -43,7 +40,6 @@ class TestGetNormalizedTicker:
         """get_normalized_ticker returns a string."""
         result = ticker_mappings.get_normalized_ticker("AAPL")
         assert isinstance(result, str)
-
 
 class TestGetUsTicker:
     """Test get_us_ticker function."""
@@ -57,7 +53,6 @@ class TestGetUsTicker:
         result = ticker_mappings.get_us_ticker("AAPL")
         assert isinstance(result, str)
 
-
 class TestIsDualListed:
     """Test is_dual_listed function."""
 
@@ -69,7 +64,6 @@ class TestIsDualListed:
         """is_dual_listed returns a boolean."""
         result = ticker_mappings.is_dual_listed("AAPL")
         assert isinstance(result, bool)
-
 
 class TestGetDisplayTicker:
     """Test get_display_ticker function."""
@@ -83,7 +77,6 @@ class TestGetDisplayTicker:
         result = ticker_mappings.get_display_ticker("AAPL")
         assert isinstance(result, str)
 
-
 class TestGetDataFetchTicker:
     """Test get_data_fetch_ticker function."""
 
@@ -96,7 +89,6 @@ class TestGetDataFetchTicker:
         result = ticker_mappings.get_data_fetch_ticker("AAPL")
         assert isinstance(result, str)
 
-
 class TestGetTickerGeography:
     """Test get_ticker_geography function."""
 
@@ -108,7 +100,6 @@ class TestGetTickerGeography:
         """get_ticker_geography returns a string."""
         result = ticker_mappings.get_ticker_geography("AAPL")
         assert isinstance(result, str)
-
 
 class TestAreEquivalentTickers:
     """Test are_equivalent_tickers function."""
@@ -126,7 +117,6 @@ class TestAreEquivalentTickers:
         """Same ticker is equivalent to itself."""
         result = ticker_mappings.are_equivalent_tickers("AAPL", "AAPL")
         assert result is True
-
 
 class TestGetAllEquivalentTickers:
     """Test get_all_equivalent_tickers function."""

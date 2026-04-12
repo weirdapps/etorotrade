@@ -4,7 +4,6 @@ ITERATION 16: Asset Type Utils Tests
 Target: Test asset type classification and universal sorting utilities
 """
 
-import pytest
 import pandas as pd
 from yahoofinance.utils.data.asset_type_utils import (
     classify_asset_type,
@@ -19,7 +18,6 @@ from yahoofinance.utils.data.asset_type_utils import (
     ASSET_TYPE_PRIORITY,
 )
 
-
 class TestAssetTypePriorityConstants:
     """Test asset type priority constants."""
 
@@ -32,7 +30,6 @@ class TestAssetTypePriorityConstants:
         """Asset types have correct priority order."""
         assert ASSET_TYPE_PRIORITY["stock"] < ASSET_TYPE_PRIORITY["etf"]
         assert ASSET_TYPE_PRIORITY["etf"] < ASSET_TYPE_PRIORITY["crypto"]
-
 
 class TestIsCryptoAsset:
     """Test cryptocurrency detection."""
@@ -55,7 +52,6 @@ class TestIsCryptoAsset:
         assert _is_crypto_asset("MSFT") is False
         assert _is_crypto_asset("SPY") is False
 
-
 class TestIsETFAsset:
     """Test ETF detection."""
 
@@ -75,7 +71,6 @@ class TestIsETFAsset:
         assert _is_etf_asset("AAPL") is False
         assert _is_etf_asset("AAPL", "Apple Inc.") is False
 
-
 class TestIsCommodityAsset:
     """Test commodity detection."""
 
@@ -93,7 +88,6 @@ class TestIsCommodityAsset:
     def test_is_commodity_asset_not_commodity(self):
         """Non-commodity tickers return False."""
         assert _is_commodity_asset("AAPL") is False
-
 
 class TestClassifyAssetType:
     """Test asset type classification."""
@@ -135,7 +129,6 @@ class TestClassifyAssetType:
         result = classify_asset_type(None)
         assert result == "other"
 
-
 class TestAddAssetTypeClassification:
     """Test adding asset type to dataframe."""
 
@@ -157,7 +150,6 @@ class TestAddAssetTypeClassification:
 
         assert isinstance(result, pd.DataFrame)
 
-
 class TestGetMarketCapUSD:
     """Test market cap retrieval from row."""
 
@@ -175,7 +167,6 @@ class TestGetMarketCapUSD:
 
         # Should return default value or handle gracefully
         assert isinstance(result, (int, float)) or result is None
-
 
 class TestUniversalSortDataframe:
     """Test universal dataframe sorting."""
@@ -214,7 +205,6 @@ class TestUniversalSortDataframe:
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 2
 
-
 class TestGetAssetTypeSummary:
     """Test asset type summary generation."""
 
@@ -250,7 +240,6 @@ class TestGetAssetTypeSummary:
         # Should handle gracefully
         assert isinstance(summary, dict)
 
-
 class TestFormatAssetTypeSummary:
     """Test asset type summary formatting."""
 
@@ -281,7 +270,6 @@ class TestFormatAssetTypeSummary:
 
         assert isinstance(result, str)
         assert "10" in result
-
 
 class TestAssetTypeEdgeCases:
     """Test edge cases in asset type classification."""
@@ -327,7 +315,6 @@ class TestAssetTypeEdgeCases:
         assert _is_crypto_asset("LINK") is True  # Chainlink crypto
         assert _is_crypto_asset("LINK", "LINK REIT LIMITED") is False  # REIT company
 
-
 class TestSortingPriority:
     """Test sorting priority logic."""
 
@@ -344,7 +331,6 @@ class TestSortingPriority:
         # Verify sorting occurred without errors
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 2
-
 
 class TestAssetTypeIntegration:
     """Test integrated asset type workflows."""

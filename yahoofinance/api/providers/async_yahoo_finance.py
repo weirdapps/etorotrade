@@ -6,40 +6,24 @@ using true async I/O, circuit breaking, and enhanced resilience patterns.
 It provides improved performance and reliability with advanced async features.
 """
 
-import asyncio
-import secrets
 import time
-from functools import wraps
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple, TypeVar, Union, cast
+from typing import Any, Dict, List, Optional, TypeVar
 
 import aiohttp
 import pandas as pd
 
-from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from ...utils.error_handling import (
-    enrich_error_context,
-    safe_operation,
-    translate_error,
-    with_retry,
-)
+from yahoofinance.core.errors import APIError, ValidationError, YFinanceError
+from ...utils.error_handling import with_retry
 
 from ...core.logging import get_logger
-
 
 # Define constants for repeated strings
 DEFAULT_ERROR_MESSAGE = "An error occurred"
 EARNINGS_DATE_COL = 'Earnings Date'
-import datetime  # Added for date checks
 
 # Use relative imports
-from ...core.config import CACHE_CONFIG, CIRCUIT_BREAKER, COLUMN_NAMES, RATE_LIMIT
 from ...core.errors import APIError, NetworkError, RateLimitError, ValidationError, YFinanceError
-from ...utils.async_utils.enhanced import (
-    AsyncRateLimiter,
-    enhanced_async_rate_limited,
-    gather_with_concurrency,
-    process_batch_async,
-)
+from ...utils.async_utils.enhanced import AsyncRateLimiter, enhanced_async_rate_limited
 from ...utils.market.ticker_utils import validate_ticker, is_stock_ticker  # Keep this import
 from ...utils.network.circuit_breaker import CircuitOpenError
 from .base_provider import AsyncFinanceDataProvider
@@ -61,11 +45,9 @@ from .async_modules import (
     POSITIVE_GRADES,
 )
 
-
 logger = get_logger(__name__)
 
 T = TypeVar("T")  # Return type for async functions
-
 
 class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
     """
@@ -743,7 +725,6 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             "fifty_day_avg": info.get("fifty_day_avg"),
             "two_hundred_day_avg": info.get("two_hundred_day_avg"),
         }
-
 
     async def batch_get_ticker_info(
         self, tickers: List[str], skip_insider_metrics: bool = False

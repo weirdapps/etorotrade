@@ -11,9 +11,6 @@ This module tests utility functions including:
 import pytest
 import pandas as pd
 import numpy as np
-import os
-from pathlib import Path
-from unittest.mock import patch, MagicMock
 
 from trade_modules.utils import (
     get_file_paths,
@@ -30,7 +27,6 @@ from trade_modules.utils import (
     get_display_columns,
 )
 
-
 @pytest.fixture
 def sample_dataframe():
     """Create a sample DataFrame for testing."""
@@ -43,12 +39,10 @@ def sample_dataframe():
         'Market_Cap': ['2.5T', '2.1T', '1.8T'],
     })
 
-
 @pytest.fixture
 def temp_directory(tmp_path):
     """Create a temporary directory for testing."""
     return tmp_path
-
 
 class TestGetFilePaths:
     """Test cases for get_file_paths function."""
@@ -78,7 +72,6 @@ class TestGetFilePaths:
         for path in [output_dir, input_dir, market_path, portfolio_path, notrade_path]:
             assert isinstance(path, str)
             assert len(path) > 0
-
 
 class TestEnsureOutputDirectory:
     """Test cases for ensure_output_directory function."""
@@ -121,7 +114,6 @@ class TestEnsureOutputDirectory:
             # Expected for invalid paths
             assert True
 
-
 class TestCheckRequiredFiles:
     """Test cases for check_required_files function."""
     
@@ -158,7 +150,6 @@ class TestCheckRequiredFiles:
         result = check_required_files(str(market_file), str(portfolio_file))
         
         assert result is False
-
 
 class TestFindTickerColumn:
     """Test cases for find_ticker_column function."""
@@ -206,7 +197,6 @@ class TestFindTickerColumn:
         
         assert ticker_col is None
 
-
 class TestCreateEmptyTickerDataFrame:
     """Test cases for create_empty_ticker_dataframe function."""
     
@@ -231,7 +221,6 @@ class TestCreateEmptyTickerDataFrame:
         # Should be empty but with proper structure for adding data
         assert len(empty_df) == 0
         assert isinstance(empty_df, pd.DataFrame)
-
 
 class TestFormatMarketCapValue:
     """Test cases for format_market_cap_value function."""
@@ -293,7 +282,6 @@ class TestFormatMarketCapValue:
             # Should handle invalid input gracefully
             assert isinstance(result, str)
 
-
 class TestGetColumnMapping:
     """Test cases for get_column_mapping function."""
     
@@ -322,7 +310,6 @@ class TestGetColumnMapping:
         for key, value in mapping.items():
             assert isinstance(key, str)
             assert isinstance(value, str)
-
 
 class TestSafeFloatConversion:
     """Test cases for safe_float_conversion function."""
@@ -372,7 +359,6 @@ class TestSafeFloatConversion:
             result = safe_float_conversion(input_val.replace('%', ''))
             assert abs(result - expected) < 0.001
 
-
 class TestSafePercentageFormat:
     """Test cases for safe_percentage_format function."""
     
@@ -407,7 +393,6 @@ class TestSafePercentageFormat:
             result = safe_percentage_format(input_val)
             assert isinstance(result, str)
             assert '%' in result
-
 
 class TestValidateDataFrame:
     """Test cases for validate_dataframe function."""
@@ -460,7 +445,6 @@ class TestValidateDataFrame:
             except (TypeError, AttributeError):
                 # Function may check for DataFrame attributes
                 assert True
-
 
 class TestCleanTickerSymbol:
     """Test cases for clean_ticker_symbol function."""
@@ -540,7 +524,6 @@ class TestCleanTickerSymbol:
                 # Or raise appropriate error
                 assert True
 
-
 class TestGetDisplayColumns:
     """Test cases for get_display_columns function."""
     
@@ -570,7 +553,6 @@ class TestGetDisplayColumns:
         for col in columns:
             assert isinstance(col, str)
             assert len(col) > 0
-
 
 class TestUtilsIntegration:
     """Integration tests for utility functions."""
@@ -641,7 +623,6 @@ class TestUtilsIntegration:
         clean_ticker = clean_ticker_symbol(' aapl ')
         assert clean_ticker == 'AAPL'
 
-
 class TestErrorHandling:
     """Test error handling scenarios."""
     
@@ -683,7 +664,6 @@ class TestErrorHandling:
             except (TypeError, ValueError, AttributeError):
                 assert True
 
-
 class TestPerformance:
     """Test performance of utility functions."""
     
@@ -723,7 +703,6 @@ class TestPerformance:
         assert end_time - start_time < 0.1  # Less than 100ms
         assert len(cleaned_tickers) == 1000
         assert all(isinstance(ticker, str) for ticker in cleaned_tickers)
-
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

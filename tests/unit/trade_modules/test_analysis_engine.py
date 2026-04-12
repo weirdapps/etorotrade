@@ -12,7 +12,7 @@ import os
 import pytest
 import pandas as pd
 import numpy as np
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from trade_modules.analysis_engine import (
     calculate_exret,
@@ -22,7 +22,6 @@ from trade_modules.analysis_engine import (
     filter_sell_candidates_wrapper,
     filter_hold_candidates_wrapper,
 )
-
 
 @pytest.fixture
 def sample_dataframe():
@@ -42,7 +41,6 @@ def sample_dataframe():
         'market_cap': [3e12, 3e12, 2e12, 1e12, 2e12],  # Added market cap for tier determination
     })
 
-
 @pytest.fixture
 def edge_case_dataframe():
     """Create DataFrame with edge cases for testing."""
@@ -58,7 +56,6 @@ def edge_case_dataframe():
         'short_percent': [np.nan, 0.0, 5.0, 25.0],
         'beta': [np.nan, 0.0, -1.0, 10.0],
     })
-
 
 class TestCalculateExret:
     """Test cases for calculate_exret function."""
@@ -118,7 +115,6 @@ class TestCalculateExret:
         assert end_time - start_time < 2.0
         assert len(result) == 10000
         assert 'EXRET' in result.columns
-
 
 class TestCalculateActionVectorized:
     """Test cases for the vectorized action calculation."""
@@ -204,7 +200,6 @@ class TestCalculateActionVectorized:
         assert len(result) == 10000
         assert result.isin(['B', 'S', 'H', 'I']).all()
 
-
 class TestCalculateAction:
     """Test cases for the main calculate_action function."""
     
@@ -241,7 +236,6 @@ class TestCalculateAction:
         # Verify vectorized function was called
         mock_vectorized.assert_called_once()
         assert 'BS' in result.columns
-
 
 class TestFilterFunctions:
     """Test cases for filter wrapper functions."""
@@ -280,7 +274,6 @@ class TestFilterFunctions:
             result = filter_hold_candidates_wrapper(df)
             
             mock_filter.assert_called_once_with(df)
-
 
 class TestPerformanceComparison:
     """Test performance comparison between old and new implementations."""
@@ -328,7 +321,6 @@ class TestPerformanceComparison:
         assert vectorized_time < 6.0  # Allow for slower CI environments with VIX overhead
         assert len(vectorized_result) == 1000
         assert vectorized_result.isin(['B', 'S', 'H', 'I']).all()
-
 
 class TestEdgeCases:
     """Test edge cases and error conditions."""
@@ -392,7 +384,6 @@ class TestEdgeCases:
         assert len(exret_result) == 3
         assert len(action_result) == 3
         assert action_result['BS'].isin(['B', 'S', 'H', 'I']).all()
-
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

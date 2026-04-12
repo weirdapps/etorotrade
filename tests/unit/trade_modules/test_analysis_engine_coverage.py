@@ -7,7 +7,7 @@ Focuses on improving coverage from 9% to target 90%+
 import unittest
 import pandas as pd
 import numpy as np
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import tempfile
 import os
 
@@ -16,8 +16,7 @@ from trade_modules.analysis_engine import (
     process_buy_opportunities,
     _filter_notrade_tickers
 )
-from tests.fixtures.mock_api_responses import MockYahooFinanceResponses, patch_yahoo_finance_api
-
+from tests.fixtures.mock_api_responses import MockYahooFinanceResponses
 
 class TestAnalysisEngineComprehensive(unittest.TestCase):
     """Comprehensive test coverage for analysis engine functions."""
@@ -218,7 +217,6 @@ class TestAnalysisEngineComprehensive(unittest.TestCase):
         # (depending on thresholds, may or may not pass all criteria)
         # This is not a failure if it's H or S, just verify no error
         self.assertIn(actions['POS_UPSIDE'], ['B', 'S', 'H', 'I'])
-
 
 if __name__ == '__main__':
     unittest.main()

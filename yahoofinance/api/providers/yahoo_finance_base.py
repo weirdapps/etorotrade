@@ -7,35 +7,26 @@ This module provides a base implementation for Yahoo Finance providers,
 with common functionality shared by different provider types.
 """
 
-
-import logging
-import re
-import time
 from abc import ABC, abstractmethod
-from datetime import date, datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from datetime import date, datetime
+from typing import Any, Dict, Optional
 
-import numpy as np
 import pandas as pd
 import yfinance as yf
 
 from ...core.errors import (
     APIError,
-    DataError,
     NetworkError,
-    ResourceNotFoundError,
     ValidationError,
     YFinanceError,
 )
 from ...core.logging import get_logger
-from ...data.cache import cached, default_cache_manager
-from ...utils.error_handling import translate_error, with_retry
+from ...data.cache import default_cache_manager
+from ...utils.error_handling import with_retry
 from ...utils.market.ticker_utils import is_us_ticker, validate_ticker
-
 
 # Set up logging
 logger = get_logger(__name__)
-
 
 def safe_extract_value(data: Any, key: str, default: Any = None) -> Any:
     """
@@ -55,7 +46,6 @@ def safe_extract_value(data: Any, key: str, default: Any = None) -> Any:
     except (TypeError, AttributeError, KeyError) as e:
         logger.debug(f"Error extracting {key}: {str(e)}")
     return default
-
 
 class YahooFinanceBaseProvider(ABC):
     """

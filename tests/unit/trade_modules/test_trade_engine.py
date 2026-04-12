@@ -11,7 +11,7 @@ This module tests the trading engine functionality including:
 import pytest
 import pandas as pd
 import numpy as np
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import AsyncMock
 from decimal import Decimal
 
 from trade_modules.trade_engine import (
@@ -22,7 +22,6 @@ from trade_modules.trade_engine import (
     create_position_sizer,
 )
 from yahoofinance.core.errors import YFinanceError
-
 
 @pytest.fixture
 def sample_market_data():
@@ -39,7 +38,6 @@ def sample_market_data():
         'beta': [1.1, 0.9, 1.3, 2.1, 1.4],
     })
 
-
 @pytest.fixture
 def sample_portfolio_data():
     """Create sample portfolio data for testing."""
@@ -52,19 +50,16 @@ def sample_portfolio_data():
         'unrealized_pnl': [525.00, 525.00, 1250.00],
     })
 
-
 @pytest.fixture
 def trading_engine():
     """Create a TradingEngine instance for testing."""
     mock_provider = AsyncMock()
     return TradingEngine(provider=mock_provider)
 
-
 @pytest.fixture
 def position_sizer():
     """Create a PositionSizer instance for testing."""
     return PositionSizer(max_position_size=0.05, min_position_size=0.01)
-
 
 class TestTradingEngine:
     """Test cases for TradingEngine class."""
@@ -198,7 +193,6 @@ class TestTradingEngine:
                 except (ValueError, KeyError, TradingEngineError):
                     # Expected errors for invalid data
                     assert True
-
 
 class TestPositionSizer:
     """Test cases for PositionSizer class."""
@@ -343,7 +337,6 @@ class TestPositionSizer:
             
             assert isinstance(is_diversified, bool)
 
-
 class TestTradingEngineError:
     """Test cases for TradingEngineError exception."""
     
@@ -363,7 +356,6 @@ class TestTradingEngineError:
         """Test raising TradingEngineError."""
         with pytest.raises(TradingEngineError):
             raise TradingEngineError("Test error")
-
 
 class TestFactoryFunctions:
     """Test cases for factory functions."""
@@ -413,7 +405,6 @@ class TestFactoryFunctions:
         # The factory function uses max_position parameter but class uses max_position_size
         assert hasattr(sizer, 'max_position_size')
         assert hasattr(sizer, 'min_position_size')
-
 
 class TestIntegration:
     """Integration tests for trading engine components."""
@@ -490,7 +481,6 @@ class TestIntegration:
         # Should complete in reasonable time
         assert end_time - start_time < 5.0  # Less than 5 seconds
 
-
 class TestErrorHandling:
     """Test error handling scenarios."""
     
@@ -551,7 +541,6 @@ class TestErrorHandling:
             with pytest.raises(Exception):
                 import asyncio
                 asyncio.run(engine.fetch_market_data(['AAPL']))
-
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

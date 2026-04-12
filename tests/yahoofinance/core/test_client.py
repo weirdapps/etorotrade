@@ -1,10 +1,8 @@
 import unittest
-from unittest.mock import Mock, patch
 
 from yahoofinance.core.client import YFinanceClient
 from yahoofinance.core.config import RATE_LIMIT
 from yahoofinance.core.errors import ValidationError
-
 
 class TestYFinanceClient(unittest.TestCase):
     def setUp(self):

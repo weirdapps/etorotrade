@@ -18,10 +18,8 @@ from trade_modules.conviction_sizer import (
     get_conviction_multiplier,
     get_freshness_multiplier,
     get_portfolio_var_scaling,
-    get_regime_multiplier,
     get_sector_rotation_adjustment,
 )
-
 
 class TestContinuousConviction:
     """Test Task #4: Continuous conviction function."""
@@ -62,7 +60,6 @@ class TestContinuousConviction:
         """Conviction score below 0 should clamp to 0.35."""
         result = get_conviction_multiplier(-10)
         assert result == pytest.approx(0.35)
-
 
 class TestClusterAdjustment:
     """Test Task #6: Correlation cluster sizing."""
@@ -120,7 +117,6 @@ class TestClusterAdjustment:
         """Empty clusters list should return 1.0."""
         result = get_cluster_size_adjustment("AAPL", [])
         assert result == pytest.approx(1.0)
-
 
 class TestSectorRotation:
     """Test Task #1: Sector rotation integration."""
@@ -181,7 +177,6 @@ class TestSectorRotation:
         assert result["adjustment_points"] == 0
         assert result["sector_rotation_blocked"] is False
 
-
 class TestFreshnessMultiplier:
     """Test Task #13: Data freshness integration."""
 
@@ -209,7 +204,6 @@ class TestFreshnessMultiplier:
         """Unknown staleness should default to 1.0."""
         result = get_freshness_multiplier("unknown")
         assert result == pytest.approx(1.0)
-
 
 class TestMarketImpact:
     """Test Task #2: Market impact modeling."""
@@ -266,7 +260,6 @@ class TestMarketImpact:
                 tier=tier,
             )
             assert result["spread_bps"] == expected_spread
-
 
 class TestIntegratedSizing:
     """Test integrated calculate_conviction_size with all new features."""
@@ -376,7 +369,6 @@ class TestIntegratedSizing:
         assert result["position_size"] == pytest.approx(3529.5, abs=1)
         assert result["adjusted_conviction"] == 80
         assert result["is_blocked"] is False
-
 
 class TestPortfolioVarScaling:
     """Tests for portfolio VaR-based position scaling (CIO v3 F10)."""

@@ -6,28 +6,18 @@ and improved cache implementation without hitting rate limits.
 """
 
 import logging
-import os
 import time
 
-from yahoofinance.core.config import CACHE_CONFIG, POSITIVE_GRADES, RATE_LIMIT, RISK_METRICS
-from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from yahoofinance.core.logging import get_logger
-from yahoofinance.data.cache import CacheManager, default_cache_manager
-from yahoofinance.utils.error_handling import (
-    enrich_error_context,
-    safe_operation,
-    translate_error,
-    with_retry,
-)
+from yahoofinance.core.config import CACHE_CONFIG, POSITIVE_GRADES, RATE_LIMIT
+from yahoofinance.core.errors import YFinanceError
+from yahoofinance.data.cache import CacheManager
 from yahoofinance.utils.market.ticker_utils import is_us_ticker, normalize_hk_ticker
-
 
 # Set up logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("test_improvements")
-
 
 def test_market_utils():
     """Test the centralized market utilities."""
@@ -45,7 +35,6 @@ def test_market_utils():
     assert normalize_hk_ticker("AAPL") == "AAPL"  # Non-HK, no change
 
     logger.info("✅ Market utilities test passed")
-
 
 def test_config_values():
     """Test config values are properly loaded."""
@@ -66,7 +55,6 @@ def test_config_values():
     assert "Strong Buy" in POSITIVE_GRADES
 
     logger.info("✅ Config values test passed")
-
 
 def test_cache_implementation():
     """Test the improved cache implementation."""
@@ -130,7 +118,6 @@ def test_cache_implementation():
 
     logger.info("✅ Cache implementation test passed")
 
-
 def main():
     """Run all tests."""
     try:
@@ -142,7 +129,6 @@ def main():
         logger.error(f"❌ Test failed: {str(e)}")
     except YFinanceError as e:
         logger.error(f"❌ Unexpected error: {str(e)}")
-
 
 if __name__ == "__main__":
     # Run from the project root directory

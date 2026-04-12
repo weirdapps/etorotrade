@@ -10,9 +10,7 @@ from trade_modules.signal_validator import (
     SignalValidator,
     ValidationResult,
     ValidationSummary,
-    run_validation,
 )
-
 
 class TestSignalValidator:
     """Tests for SignalValidator class."""
@@ -197,7 +195,6 @@ class TestSignalValidator:
         signals = validator.load_signals()
         assert signals == []
 
-
 class TestValidationResult:
     """Tests for ValidationResult dataclass."""
 
@@ -221,7 +218,6 @@ class TestValidationResult:
         assert result.ticker == "AAPL"
         assert result.signal == "B"
         assert result.hit_target is False
-
 
 class TestValidationSummary:
     """Tests for ValidationSummary dataclass."""

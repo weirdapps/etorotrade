@@ -10,11 +10,9 @@ import pandas as pd
 import numpy as np
 import tempfile
 import os
-from pathlib import Path
 from unittest.mock import patch, AsyncMock
 
-from trade_modules.trade_engine import TradingEngine, create_trading_engine
-
+from trade_modules.trade_engine import TradingEngine
 
 @pytest.fixture
 def real_market_csv_data():
@@ -57,7 +55,6 @@ def real_market_csv_data():
         ]
     }).set_index('symbol')
 
-
 @pytest.fixture 
 def real_portfolio_csv_data():
     """Create portfolio data matching actual portfolio.csv structure."""
@@ -80,7 +77,6 @@ def real_portfolio_csv_data():
         'exchangeId': [4, 4, 5, 4, 4, 4, 4, 21, 6, 4],
         'exchangeName': ['NASDAQ', 'NASDAQ', 'NASDAQ', 'NASDAQ', 'NASDAQ', 'NASDAQ', 'NASDAQ', 'HKEX', 'Xetra', 'NASDAQ']
     })
-
 
 @pytest.fixture
 def real_notrade_csv_data():
@@ -105,7 +101,6 @@ def real_notrade_csv_data():
         'dividend_yield': [8.28, 1.69, 0.55, 2.67, 5.12],
         'exchange': ['HK', 'L', 'DE', 'DE', 'DE']
     })
-
 
 @pytest.fixture
 def market_data_with_prices():
@@ -134,7 +129,6 @@ def market_data_with_prices():
         'expected_return': [16.5, 17.0, 5.6, 17.0, -3.0, 8.9, 16.0]
     }).set_index('symbol')
 
-
 @pytest.fixture
 def temp_csv_files(real_market_csv_data, real_portfolio_csv_data, real_notrade_csv_data):
     """Create temporary CSV files with real data structures."""
@@ -162,7 +156,6 @@ def temp_csv_files(real_market_csv_data, real_portfolio_csv_data, real_notrade_c
     # Cleanup
     import shutil
     shutil.rmtree(temp_dir)
-
 
 class TestRealDataIntegration:
     """Integration tests using real CSV data structures."""
@@ -415,7 +408,6 @@ class TestRealDataIntegration:
         # NESN.SW has 'B' signal and not in portfolio, should be in buy
         assert 'NESN.SW' in buy_ops.index
 
-
 class TestDataValidationIntegration:
     """Test data validation with real-world data scenarios."""
     
@@ -493,7 +485,6 @@ class TestDataValidationIntegration:
         
         # AAPL with 'S' signal should be in sell opportunities (last occurrence)
         assert 'AAPL' in sell_ops.index or 'AAPL' not in buy_ops.index
-
 
 class TestPerformanceIntegration:
     """Test performance characteristics with realistic data sizes."""
@@ -575,7 +566,6 @@ class TestPerformanceIntegration:
         
         # Should return results for all tickers
         assert len(result) == len(tickers)
-
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v', '--tb=short'])

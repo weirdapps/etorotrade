@@ -5,7 +5,7 @@ This module tests the Protocol definitions for trade modules.
 """
 
 import pytest
-from typing import Any, Dict, List
+from typing import Any, Dict
 import pandas as pd
 import logging
 
@@ -19,7 +19,6 @@ from trade_modules.protocols import (
     PortfolioServiceProtocol,
     DataProcessingServiceProtocol,
 )
-
 
 class TestLoggerProtocol:
     """Tests for LoggerProtocol."""
@@ -53,7 +52,6 @@ class TestLoggerProtocol:
         assert hasattr(logger, "error")
         assert callable(logger.error)
 
-
 class TestConfigProtocol:
     """Tests for ConfigProtocol."""
 
@@ -70,7 +68,6 @@ class TestConfigProtocol:
 
         config = CustomConfig()
         assert isinstance(config, ConfigProtocol)
-
 
 class TestFinanceDataProviderProtocol:
     """Tests for FinanceDataProviderProtocol."""
@@ -101,7 +98,6 @@ class TestFinanceDataProviderProtocol:
         # Should not match because it lacks all required methods
         assert not isinstance(obj, FinanceDataProviderProtocol)
 
-
 class TestTradingCriteriaProtocol:
     """Tests for TradingCriteriaProtocol."""
 
@@ -116,7 +112,6 @@ class TestTradingCriteriaProtocol:
 
         obj = NotCriteria()
         assert not isinstance(obj, TradingCriteriaProtocol)
-
 
 class TestAnalysisServiceProtocol:
     """Tests for AnalysisServiceProtocol."""
@@ -136,7 +131,6 @@ class TestAnalysisServiceProtocol:
 
         service = MockAnalysisService()
         assert isinstance(service, AnalysisServiceProtocol)
-
 
 class TestFilterServiceProtocol:
     """Tests for FilterServiceProtocol."""
@@ -163,7 +157,6 @@ class TestFilterServiceProtocol:
         service = MockFilterService()
         assert isinstance(service, FilterServiceProtocol)
 
-
 class TestPortfolioServiceProtocol:
     """Tests for PortfolioServiceProtocol."""
 
@@ -187,14 +180,12 @@ class TestPortfolioServiceProtocol:
         service = MockPortfolioService()
         assert isinstance(service, PortfolioServiceProtocol)
 
-
 class TestDataProcessingServiceProtocol:
     """Tests for DataProcessingServiceProtocol."""
 
     def test_protocol_is_runtime_checkable(self):
         """Test that protocol is runtime checkable."""
         assert getattr(DataProcessingServiceProtocol, "_is_runtime_protocol", False)
-
 
 class TestProtocolIntegration:
     """Integration tests for protocols."""

@@ -8,7 +8,6 @@ and provides a summary of what behaviors are being validated.
 Run with: python test_runner.py
 """
 
-import os
 import sys
 import subprocess
 from pathlib import Path
@@ -124,7 +123,6 @@ def run_tests():
         print("❌ Fix failing tests first to establish baseline behavior")
         return False
 
-
 def validate_test_coverage():
     """Validate that tests cover all critical TradingEngine methods."""
     
@@ -170,7 +168,6 @@ def validate_test_coverage():
     else:
         print("✅ All critical methods have test coverage")
         return True
-
 
 if __name__ == "__main__":
     print("Starting TradingEngine comprehensive test validation...")

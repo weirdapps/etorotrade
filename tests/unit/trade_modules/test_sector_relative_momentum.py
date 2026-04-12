@@ -5,7 +5,6 @@ Tests for Sector-Relative Momentum Provider
 import pytest
 from unittest.mock import patch, MagicMock
 import pandas as pd
-from datetime import datetime, timedelta
 
 from trade_modules.sector_relative_momentum import (
     calculate_relative_momentum,
@@ -14,7 +13,6 @@ from trade_modules.sector_relative_momentum import (
     invalidate_cache,
     UNDERPERFORMANCE_THRESHOLD,
 )
-
 
 class TestSectorRelativeMomentum:
     """Tests for sector-relative momentum calculations."""
@@ -184,7 +182,6 @@ class TestSectorRelativeMomentum:
 
     def test_cache_invalidation(self):
         """Test cache invalidation works."""
-        from trade_modules.sector_relative_momentum import _momentum_cache, _cache_timestamp
 
         with patch('trade_modules.sector_relative_momentum._fetch_return') as mock_fetch:
             mock_fetch.side_effect = [50.0, 20.0, 60.0, 20.0]

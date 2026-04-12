@@ -6,7 +6,6 @@ with concurrency control, progress reporting, and performance metrics.
 """
 
 import asyncio
-import logging
 import time
 from typing import Any, Callable, Coroutine, Dict, List, Optional, TypeVar
 
@@ -22,7 +21,6 @@ logger = get_logger(__name__)
 
 # Global variable to store processing statistics for display after table
 _last_processing_stats = None
-
 
 async def gather_with_concurrency(coros: List[Coroutine[Any, Any, T]], limit: int = 5) -> List[T]:
     """
@@ -61,7 +59,6 @@ async def gather_with_concurrency(coros: List[Coroutine[Any, Any, T]], limit: in
         results[index] = result  # Place result at correct position
 
     return results  # type: ignore[return-value]
-
 
 async def process_batch_async(
     items: List[T],
@@ -258,7 +255,6 @@ async def process_batch_async(
 
     return results
 
-
 def display_processing_stats():
     """Display the stored processing statistics after table output."""
     global _last_processing_stats
@@ -271,7 +267,6 @@ def display_processing_stats():
             if stats['cache_hits'] > 0:
                 print(f"   Cache hits: {stats['cache_hits']} ({stats['cache_hits']*100//total}% from cache)")
         _last_processing_stats = None  # Clear after displaying
-
 
 def get_processing_stats():
     """Get the stored processing statistics without clearing them."""

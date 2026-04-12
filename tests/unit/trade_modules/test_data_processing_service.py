@@ -7,17 +7,14 @@ This module tests the DataProcessingService class for batch ticker processing.
 import pytest
 import pandas as pd
 import logging
-import asyncio
 from unittest.mock import MagicMock, AsyncMock, patch
 
 from trade_modules.data_processing_service import DataProcessingService
-
 
 @pytest.fixture
 def logger():
     """Create a mock logger."""
     return MagicMock(spec=logging.Logger)
-
 
 @pytest.fixture
 def mock_provider():
@@ -26,12 +23,10 @@ def mock_provider():
     provider.get_ticker_info = AsyncMock()
     return provider
 
-
 @pytest.fixture
 def data_service(mock_provider, logger):
     """Create a DataProcessingService instance."""
     return DataProcessingService(mock_provider, logger)
-
 
 class TestDataProcessingServiceInit:
     """Tests for DataProcessingService initialization."""
@@ -41,7 +36,6 @@ class TestDataProcessingServiceInit:
         service = DataProcessingService(mock_provider, logger)
         assert service.provider is mock_provider
         assert service.logger is logger
-
 
 class TestProcessSingleTicker:
     """Tests for _process_single_ticker method."""
@@ -168,7 +162,6 @@ class TestProcessSingleTicker:
         assert result is not None
         assert result["price"] == pytest.approx(175.0)
 
-
 class TestProcessTickerBatch:
     """Tests for process_ticker_batch method."""
 
@@ -249,7 +242,6 @@ class TestProcessTickerBatch:
 
             assert captured_kwargs["batch_size"] == 10
 
-
 class TestBackwardCompatibility:
     """Tests for backward compatibility method."""
 
@@ -275,7 +267,6 @@ class TestBackwardCompatibility:
             )
 
             mock_method.assert_called_once()
-
 
 class TestDataProcessingServiceIntegration:
     """Integration tests for DataProcessingService."""

@@ -6,8 +6,7 @@ File: yahoofinance/api/providers/async_yahoo_finance.py (742 statements, 46% cov
 """
 
 import pytest
-import asyncio
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch, MagicMock
 from yahoofinance.api.providers.async_yahoo_finance import AsyncYahooFinanceProvider
 from yahoofinance.core.errors import (
     APIError,
@@ -16,7 +15,6 @@ from yahoofinance.core.errors import (
     ValidationError,
     YFinanceError,
 )
-
 
 class TestAsyncYahooFinanceProvider:
     """Test AsyncYahooFinanceProvider initialization and basic methods."""
@@ -73,7 +71,6 @@ class TestAsyncYahooFinanceProvider:
             assert session is not None
             mock_session.assert_called_once()
 
-
 class TestFetchJSON:
     """Test _fetch_json method."""
 
@@ -117,7 +114,6 @@ class TestFetchJSON:
         # Verify network error handling exists
         assert NetworkError is not None
 
-
 class TestCacheOperations:
     """Test cache-related operations."""
 
@@ -154,7 +150,6 @@ class TestCacheOperations:
         provider._stock_cache["GOOGL"] = {"info": {}}
         assert "GOOGL" in provider._stock_cache
 
-
 class TestRateLimiter:
     """Test rate limiter integration."""
 
@@ -171,7 +166,6 @@ class TestRateLimiter:
         """Rate limiter has correct type."""
         from yahoofinance.utils.async_utils.enhanced import AsyncRateLimiter
         assert isinstance(provider._rate_limiter, AsyncRateLimiter)
-
 
 class TestCircuitBreakerConfig:
     """Test circuit breaker configuration."""
@@ -191,7 +185,6 @@ class TestCircuitBreakerConfig:
         provider1 = AsyncYahooFinanceProvider()
         provider2 = AsyncYahooFinanceProvider()
         assert provider1._circuit_name == provider2._circuit_name
-
 
 class TestProviderConfiguration:
     """Test various provider configurations."""
@@ -216,7 +209,6 @@ class TestProviderConfiguration:
         # Should not raise
         provider = AsyncYahooFinanceProvider(extra_param="test")
         assert provider is not None
-
 
 class TestPositiveGrades:
     """Test positive grade classification."""
@@ -246,7 +238,6 @@ class TestPositiveGrades:
         """Positive grades list is not empty."""
         assert len(provider.POSITIVE_GRADES) > 0
 
-
 class TestErrorHandling:
     """Test error handling patterns."""
 
@@ -269,5 +260,4 @@ class TestErrorHandling:
     def test_validation_error_imported(self):
         """ValidationError is available."""
         assert ValidationError is not None
-
 

@@ -13,10 +13,8 @@ import pytest
 from trade_modules.data_freshness import (
     DataFreshnessTracker,
     FRESH_THRESHOLD,
-    AGING_THRESHOLD,
     PENALTIES,
 )
-
 
 # ============================================================
 # Fixtures
@@ -26,14 +24,12 @@ from trade_modules.data_freshness import (
 def tmp_dir(tmp_path):
     return tmp_path
 
-
 def _write_signal_log(path: Path, records: list) -> Path:
     """Write records to a JSONL file."""
     with open(path, 'w') as f:
         for rec in records:
             f.write(json.dumps(rec) + "\n")
     return path
-
 
 def _make_records(
     ticker: str,
@@ -66,7 +62,6 @@ def _make_records(
             "region": region,
         })
     return records
-
 
 # ============================================================
 # Tests

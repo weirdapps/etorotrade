@@ -6,15 +6,14 @@ including rate limiting, gathering, batch processing, and retry mechanisms.
 """
 
 import asyncio
-import time
 from asyncio import new_event_loop, set_event_loop
-from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 # These constants are not defined in enhanced.py
 # from yahoofinance.utils.async_utils.enhanced import RATE_LIMIT_ERROR_MESSAGE, TOO_MANY_REQUESTS_ERROR_MESSAGE
-from yahoofinance.core.errors import APIError, RateLimitError, ValidationError, YFinanceError
+from yahoofinance.core.errors import RateLimitError, ValidationError
 from yahoofinance.utils.async_utils import (
     AsyncRateLimiter,
     async_rate_limited,
@@ -27,30 +26,20 @@ from yahoofinance.utils.async_utils import (
     process_batch_async,
     retry_async,
 )
-from yahoofinance.utils.error_handling import (
-    enrich_error_context,
-    safe_operation,
-    translate_error,
-    with_retry,
-)
-
 
 # Helper functions for testing
 async def async_identity(x):
     """Simple async function that returns its input."""
     return x
 
-
 async def async_sleep_and_return(x, delay=0.1):
     """Async function that sleeps and returns its input."""
     await asyncio.sleep(delay)
     return x
 
-
 async def async_error(error_type=Exception):
     """Async function that raises an error."""
     raise error_type("Test error")
-
 
 # Fixtures
 @pytest.fixture
@@ -61,7 +50,6 @@ def async_limiter():
     return AsyncRateLimiter(
         window_size=5, max_calls=20, base_delay=0.01, min_delay=0.005, max_delay=0.1
     )
-
 
 # Tests for AsyncRateLimiter
 class TestAsyncRateLimiter:
@@ -106,7 +94,6 @@ class TestAsyncRateLimiter:
 
             # Should have called sleep at least once
             assert mock_sleep.called, "Sleep should have been called for rate limiting"
-
 
 # Tests for async_rate_limited decorator
 class TestAsyncRateLimitedDecorator:
@@ -194,7 +181,6 @@ class TestAsyncRateLimitedDecorator:
             mock_failure.assert_called_once()
             mock_failure.assert_called_once_with(is_rate_limit=True, ticker=None)
 
-
 # Tests for gather_with_concurrency (formerly gather_with_rate_limit)
 class TestGatherWithConcurrency:
     """Tests for the gather_with_concurrency function (imported as gather_with_rate_limit)."""
@@ -262,7 +248,6 @@ class TestGatherWithConcurrency:
                 assert results[2] == 3
         except Exception:
             pytest.fail("Should not have raised with return_exceptions=True")
-
 
 # Tests for process_batch_async
 class TestProcessBatchAsync:
@@ -333,7 +318,6 @@ class TestProcessBatchAsync:
             # So we don't expect any sleep calls for batch delays
             # The test verifies that processing works correctly without delays
 
-
 # Tests for retry_async
 class TestRetryAsync:
     """Tests for the retry_async function."""
@@ -386,12 +370,10 @@ class TestRetryAsync:
         # Should be called 3 times total (initial + 2 retries)
         assert func_mock.call_count == 3
 
-
 # Test global instance
 def test_global_async_limiter():
     """Test the global async rate limiter instance."""
     assert isinstance(global_async_limiter, AsyncRateLimiter)
-
 
 # Test import compatibility
 def test_import_compatibility():

@@ -5,9 +5,7 @@ Uses synthetic data only - no API calls.
 """
 
 import json
-import tempfile
 from datetime import datetime, timedelta
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -19,7 +17,6 @@ from trade_modules.backtest_engine import (
     TEST_TICKER_RE,
 )
 
-
 # ============================================================
 # Fixtures
 # ============================================================
@@ -30,7 +27,6 @@ def tmp_dir(tmp_path):
     output_dir = tmp_path / "output"
     output_dir.mkdir()
     return tmp_path
-
 
 @pytest.fixture
 def signal_log(tmp_dir):
@@ -148,7 +144,6 @@ def signal_log(tmp_dir):
 
     return log_path
 
-
 @pytest.fixture
 def price_data():
     """Create synthetic price data DataFrame."""
@@ -184,12 +179,10 @@ def price_data():
 
     return pd.DataFrame(data, index=dates)
 
-
 @pytest.fixture
 def spy_data(price_data):
     """Extract SPY series from price data."""
     return price_data["SPY"]
-
 
 @pytest.fixture
 def engine(signal_log, tmp_dir):
@@ -200,7 +193,6 @@ def engine(signal_log, tmp_dir):
         cache_path=tmp_dir / "output" / ".cache.parquet",
         horizons=[7, 30],
     )
-
 
 # ============================================================
 # BacktestEngine Tests
@@ -241,7 +233,6 @@ class TestLoadSignals:
         df = eng.load_signals()
         assert df.empty
 
-
 class TestTestTickerRegex:
     @pytest.mark.parametrize("ticker", [
         "STOCK0001", "STOCK9999", "BUY1", "BUY123", "SELL1",
@@ -256,7 +247,6 @@ class TestTestTickerRegex:
     ])
     def test_keeps_real_tickers(self, ticker):
         assert TEST_TICKER_RE.match(ticker) is None
-
 
 class TestBackfillPrices:
     def test_fills_null_prices(self, engine, price_data):
@@ -289,7 +279,6 @@ class TestBackfillPrices:
         result = engine.backfill_signal_prices(signals_df, pd.DataFrame())
         # Should return unchanged
         assert len(result) == len(signals_df)
-
 
 class TestCalculateReturns:
     def test_buy_signal_returns(self, engine, price_data, spy_data):
@@ -330,7 +319,6 @@ class TestCalculateReturns:
         sell_results = results[results['signal'] == 'S']
         # Sell stocks have downward drift, so most returns should be negative
         assert len(sell_results) > 0
-
 
 class TestCalculateStatistics:
     def test_statistics_groupby_signal(self, engine, price_data, spy_data):
@@ -403,7 +391,6 @@ class TestCalculateStatistics:
         stats = BacktestEngine._compute_group_stats(df, 'S')
         assert stats['hit_rate'] == pytest.approx(66.7, abs=0.1)
 
-
 class TestSaveResults:
     def test_saves_csv_files(self, engine, price_data, spy_data):
         signals_df = engine.load_signals()
@@ -425,7 +412,6 @@ class TestSaveResults:
         summary = pd.read_csv(engine.output_dir / "backtest_summary.csv")
         assert 'group_type' in summary.columns
         assert 'hit_rate' in summary.columns
-
 
 # ============================================================
 # ThresholdAnalyzer Tests
@@ -471,7 +457,6 @@ def analyzer(signal_log, tmp_dir):
         output_dir=tmp_dir / "output",
     )
 
-
 @pytest.fixture
 def merged_data():
     """Create synthetic merged signals+returns for threshold analysis."""
@@ -509,7 +494,6 @@ def merged_data():
     }
 
     return pd.DataFrame(data)
-
 
 class TestMetricCorrelation:
     def test_correlation_calculation(self, analyzer, merged_data):
@@ -550,7 +534,6 @@ class TestMetricCorrelation:
         upside_corr = next(c for c in correlations if c['metric'] == 'upside')
         assert upside_corr.get('note') == 'insufficient data' or upside_corr['correlation'] is None
 
-
 class TestSellTriggerHitRate:
     def test_trigger_hit_rates(self, analyzer, merged_data):
         # Make sell data with known triggers and returns
@@ -574,7 +557,6 @@ class TestSellTriggerHitRate:
         results = analyzer.analyze_sell_triggers(df)
         trigger_names = [r['trigger'] for r in results]
         assert 'True' not in trigger_names
-
 
 class TestThresholdSuggestions:
     def test_no_suggestions_with_small_sample(self, analyzer):
@@ -605,7 +587,6 @@ class TestThresholdSuggestions:
             assert s['improvement'] > 5.0
             assert s['sample_size'] >= 50
 
-
 class TestThresholdReport:
     def test_report_saves_csv(self, analyzer, merged_data):
         correlations = analyzer.analyze_metric_predictiveness(merged_data)
@@ -622,7 +603,6 @@ class TestThresholdReport:
         assert 'item' in report.columns
         # Should have at least the correlation entries
         assert len(report[report['section'] == 'metric_predictiveness']) > 0
-
 
 # Import yaml for config fixture
 import yaml

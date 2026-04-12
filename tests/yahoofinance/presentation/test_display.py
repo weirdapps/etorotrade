@@ -1,19 +1,14 @@
-from datetime import datetime
 from unittest.mock import Mock, patch
 
-import pandas as pd
 import pytest
 
-from yahoofinance.core.errors import YFinanceError
 from yahoofinance.presentation.console import MarketDisplay
 from yahoofinance.presentation.formatter import DisplayConfig, DisplayFormatter
-
 
 @pytest.fixture
 def mock_provider():
     provider = Mock()
     return provider
-
 
 @pytest.fixture
 def display(mock_provider):
@@ -21,13 +16,11 @@ def display(mock_provider):
         display = MarketDisplay(provider=mock_provider)
         return display
 
-
 def test_init_default():
     # Test with default parameters
     display = MarketDisplay()
     assert display.provider is None
     assert display.formatter is not None
-
 
 def test_init_custom():
     config = DisplayConfig()

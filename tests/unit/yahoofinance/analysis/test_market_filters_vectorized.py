@@ -9,7 +9,7 @@ significant performance improvements (target: 5x speedup).
 import pytest
 import pandas as pd
 import numpy as np
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from yahoofinance.analysis.market_filters import (
     filter_buy_opportunities_v2,
@@ -18,7 +18,6 @@ from yahoofinance.analysis.market_filters import (
     filter_hold_candidates_v2,
     get_action_stats,
 )
-
 
 @pytest.fixture
 def sample_market_data():
@@ -33,14 +32,12 @@ def sample_market_data():
         "market_cap": [2.5e12, 2.0e12, 1.0e12, 1.5e12, 800e9],
     })
 
-
 @pytest.fixture
 def sample_actions():
     """Mock actions for testing (returns tuple like calculate_action_vectorized)."""
     actions = pd.Series(["B", "H", "B", "S", "H"], index=[0, 1, 2, 3, 4])
     buy_scores = pd.Series([np.nan, np.nan, np.nan, np.nan, np.nan], index=[0, 1, 2, 3, 4])
     return (actions, buy_scores)
-
 
 class TestFilterBuyOpportunities:
     """Test buy opportunity filtering with vectorization."""
@@ -94,7 +91,6 @@ class TestFilterBuyOpportunities:
 
         assert result.empty
 
-
 class TestFilterSellCandidates:
     """Test sell candidate filtering with vectorization."""
 
@@ -123,7 +119,6 @@ class TestFilterSellCandidates:
 
         # Should be called exactly once
         mock_calculate.assert_called_once()
-
 
 class TestAddActionColumn:
     """Test action column addition with vectorization."""
@@ -165,7 +160,6 @@ class TestAddActionColumn:
         assert "ACT" not in sample_market_data.columns
         assert set(sample_market_data.columns) == original_cols
 
-
 class TestFilterHoldCandidates:
     """Test hold candidate filtering with vectorization."""
 
@@ -194,7 +188,6 @@ class TestFilterHoldCandidates:
 
         # Should be called exactly once
         mock_calculate.assert_called_once()
-
 
 class TestGetActionStats:
     """Test action statistics calculation."""
@@ -234,7 +227,6 @@ class TestGetActionStats:
         result = get_action_stats(df)
 
         assert result == {"B": 2, "S": 0, "H": 0, "I": 0}
-
 
 class TestVectorizationPerformance:
     """Test that vectorization provides performance improvement."""

@@ -8,13 +8,12 @@ File: yahoofinance/presentation/console.py (707 statements, 8% coverage)
 import pytest
 import pandas as pd
 import time
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock, AsyncMock
 from yahoofinance.presentation.console import (
     RateLimitTracker,
     MarketDisplay,
 )
 from yahoofinance.presentation.formatter import DisplayFormatter, DisplayConfig
-
 
 class TestRateLimitTracker:
     """Test RateLimitTracker rate limiting logic."""
@@ -130,7 +129,6 @@ class TestRateLimitTracker:
         # Verify old calls removed
         assert all(t >= time.time() - tracker.window_size for t in tracker.calls)
 
-
 class TestMarketDisplay:
     """Test MarketDisplay console utilities."""
 
@@ -241,7 +239,6 @@ class TestMarketDisplay:
         result = display._format_dataframe(df)
         assert len(result.index) == len(df.index)
 
-
 class TestRateLimitEdgeCases:
     """Test edge cases in rate limiting."""
 
@@ -284,7 +281,6 @@ class TestRateLimitEdgeCases:
         # Batch delay should have increased
         assert tracker.batch_delay >= initial_batch_delay
 
-
 class TestMarketDisplayFormatting:
     """Test MarketDisplay formatting utilities."""
 
@@ -313,5 +309,4 @@ class TestMarketDisplayFormatting:
         # Should handle gracefully
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 2
-
 

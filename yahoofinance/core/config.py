@@ -6,18 +6,10 @@ ConfigManager. It redirects all configuration access to the new system.
 """
 
 import os
-from typing import Any, Dict, List, Set
+from typing import Any, Dict
 
 # Import from new unified config
-from trade_modules.config_manager import (
-    get_config as _get_config,
-    reload_config,
-    get_max_concurrent_requests,
-    get_request_timeout,
-    get_portfolio_value,
-    get_input_dir,
-    get_output_dir,
-)
+from trade_modules.config_manager import get_config as _get_config
 
 # Get config instance for module-level constants
 _cfg = _get_config()
@@ -560,7 +552,6 @@ STANDARD_DISPLAY_COLUMNS = [
     "BS",        # Buy/Sell signal
 ]
 
-
 # Load environment variables if needed
 def load_env_config() -> Dict[str, Any]:
     """
@@ -591,10 +582,8 @@ def load_env_config() -> Dict[str, Any]:
 
     return config
 
-
 # Apply environment variable configuration
 ENV_CONFIG = load_env_config()
-
 
 # Update configuration with environment variables
 def apply_env_config(env_config: Dict[str, Any]) -> None:
@@ -610,7 +599,6 @@ def apply_env_config(env_config: Dict[str, Any]) -> None:
             module_name, setting_name = parts
             if module_name in globals() and setting_name in globals()[module_name]:
                 globals()[module_name][setting_name] = value
-
 
 # Apply environment configuration
 apply_env_config(ENV_CONFIG)
@@ -653,7 +641,6 @@ PERFORMANCE_CONFIG = {
     },
 }
 
-
 def get_display_config() -> Dict[str, Any]:
     """Get display configuration.
 
@@ -673,7 +660,6 @@ def get_display_config() -> Dict[str, Any]:
         'default_columns': DISPLAY.get('DEFAULT_COLUMNS', []),
         'formatters': DISPLAY.get('FORMATTERS', {}),
     }
-
 
 def get_file_paths_config() -> Dict[str, Any]:
     """Get file paths configuration.
