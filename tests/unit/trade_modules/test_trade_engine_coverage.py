@@ -6,15 +6,13 @@ Focuses on improving coverage from 0% to target 90%+
 
 import unittest
 import pandas as pd
-import numpy as np
-from unittest.mock import Mock, patch, MagicMock, mock_open
+from unittest.mock import patch
 import tempfile
 import os
 import pytest
 
 from trade_modules.trade_engine import TradingEngine
 from tests.fixtures.mock_api_responses import MockYahooFinanceResponses, MockProviders
-
 
 class TestTradingEngineComprehensive(unittest.TestCase):
     """Comprehensive test coverage for TradingEngine class."""
@@ -267,7 +265,6 @@ class TestTradingEngineComprehensive(unittest.TestCase):
             except Exception as e:
                 self.fail(f"TradingEngine failed with ticker list {ticker_list}: {e}")
 
-
 class TestTradingEngineIntegration(unittest.TestCase):
     """Integration tests for TradingEngine with realistic scenarios."""
     
@@ -298,7 +295,6 @@ class TestTradingEngineIntegration(unittest.TestCase):
             # This would test the full workflow if external dependencies were mocked
             self.assertIsNotNone(engine)
             self.assertEqual(engine.config['output_dir'], temp_dir)
-
 
 if __name__ == '__main__':
     unittest.main()

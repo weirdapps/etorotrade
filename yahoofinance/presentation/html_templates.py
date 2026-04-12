@@ -6,13 +6,9 @@ from financial data. Templates are organized by category (market, portfolio, etc
 and can be customized with parameters.
 """
 
-from typing import Any, Dict
-
 from yahoofinance.core.logging import get_logger
 
-
 logger = get_logger(__name__)
-
 
 def get_template(template_key: str, default: str = "") -> str:
     """
@@ -29,7 +25,6 @@ def get_template(template_key: str, default: str = "") -> str:
         return getattr(Templates, template_key)
     else:
         return default
-
 
 class Templates:
     """Container for HTML templates"""
@@ -287,7 +282,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });"""
-
 
 class TemplateEngine:
     """Engine for rendering templates with context data"""

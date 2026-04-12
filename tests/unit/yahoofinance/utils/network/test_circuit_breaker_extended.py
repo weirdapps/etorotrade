@@ -4,13 +4,10 @@ Tests for circuit breaker pattern implementation.
 Target: Increase coverage for yahoofinance/utils/network/circuit_breaker.py
 """
 
-import asyncio
 import os
 import tempfile
 import time
 import pytest
-from unittest.mock import patch, MagicMock
-
 
 class TestCircuitState:
     """Test CircuitState enum."""
@@ -22,7 +19,6 @@ class TestCircuitState:
         assert CircuitState.CLOSED.value == "CLOSED"
         assert CircuitState.OPEN.value == "OPEN"
         assert CircuitState.HALF_OPEN.value == "HALF_OPEN"
-
 
 class TestCircuitBreaker:
     """Test CircuitBreaker class."""
@@ -131,7 +127,7 @@ class TestCircuitBreaker:
 
     def test_circuit_allows_when_disabled(self):
         """Circuit allows all requests when disabled."""
-        from yahoofinance.utils.network.circuit_breaker import CircuitBreaker, CircuitState
+        from yahoofinance.utils.network.circuit_breaker import CircuitBreaker
 
         cb = CircuitBreaker(
             name="test_disabled",
@@ -303,7 +299,6 @@ class TestCircuitBreaker:
         assert cb.failure_count == 0
         assert len(cb.failure_timestamps) == 0
 
-
 class TestCircuitBreakerErrors:
     """Test circuit breaker error classes."""
 
@@ -336,7 +331,6 @@ class TestCircuitBreakerErrors:
         assert error.circuit_name == "test"
         assert error.circuit_state == "OPEN"
         assert error.retry_after == 60
-
 
 class TestAsyncCircuitBreaker:
     """Test AsyncCircuitBreaker class."""
@@ -389,9 +383,7 @@ class TestAsyncCircuitBreaker:
     @pytest.mark.asyncio
     async def test_execute_async_rejects_when_open(self):
         """Execute async rejects when circuit is open."""
-        from yahoofinance.utils.network.circuit_breaker import (
-            AsyncCircuitBreaker, CircuitState, CircuitOpenError
-        )
+        from yahoofinance.utils.network.circuit_breaker import AsyncCircuitBreaker, CircuitOpenError
         import uuid
 
         cb = AsyncCircuitBreaker(
@@ -410,7 +402,6 @@ class TestAsyncCircuitBreaker:
 
         with pytest.raises(CircuitOpenError):
             await cb.execute_async(dummy_func)
-
 
 class TestCircuitBreakerRegistry:
     """Test CircuitBreakerRegistry class."""
@@ -482,7 +473,6 @@ class TestCircuitBreakerRegistry:
 
         assert len(registry._circuit_breakers) == 0
 
-
 class TestGlobalFunctions:
     """Test global helper functions."""
 
@@ -522,7 +512,6 @@ class TestGlobalFunctions:
 
         assert isinstance(circuits, dict)
 
-
 class TestCircuitProtectedDecorator:
     """Test circuit_protected decorator."""
 
@@ -553,7 +542,6 @@ class TestCircuitProtectedDecorator:
 
         cb = get_circuit_breaker("decorator_fail_test")
         assert cb.total_failures >= 1
-
 
 class TestAsyncCircuitProtectedDecorator:
     """Test async_circuit_protected decorator."""
@@ -592,7 +580,6 @@ class TestAsyncCircuitProtectedDecorator:
 
         cb = get_async_circuit_breaker("async_decorator_fail_test")
         assert cb.total_failures >= 1
-
 
 class TestCircuitBreakerStatePersistence:
     """Test circuit breaker state persistence."""
@@ -679,7 +666,6 @@ class TestCircuitBreakerStatePersistence:
             )
 
             assert cb.state == CircuitState.CLOSED
-
 
 class TestCircuitBreakerEdgeCases:
     """Test edge cases and boundary conditions."""

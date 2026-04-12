@@ -6,14 +6,12 @@ File: trade_modules/trade_cli.py (507 statements, 27% coverage)
 """
 
 import pytest
-from unittest.mock import Mock, patch
-import sys
+from unittest.mock import patch
 from trade_modules.trade_cli import (
     parse_arguments,
     ConfigurationValidator,
     INPUT_DIR,
 )
-
 
 class TestParseArguments:
     """Test command line argument parsing."""
@@ -101,7 +99,6 @@ class TestParseArguments:
             args = parse_arguments()
             assert len(args.legacy_args) == 3
 
-
 class TestConfigurationValidator:
     """Test ConfigurationValidator class."""
 
@@ -122,7 +119,6 @@ class TestConfigurationValidator:
         assert hasattr(validator, 'validate_environment_variables')
         assert callable(validator.validate_environment_variables)
 
-
 class TestInputDir:
     """Test INPUT_DIR constant."""
 
@@ -133,7 +129,6 @@ class TestInputDir:
     def test_input_dir_is_string(self):
         """INPUT_DIR is a string."""
         assert isinstance(INPUT_DIR, str)
-
 
 class TestArgumentParsingEdgeCases:
     """Test edge cases in argument parsing."""
@@ -155,7 +150,6 @@ class TestArgumentParsingEdgeCases:
         with patch('sys.argv', ['trade.py', '--help']):
             with pytest.raises(SystemExit):
                 parse_arguments()
-
 
 class TestOperationModes:
     """Test all operation mode variants."""
@@ -204,5 +198,4 @@ class TestOperationModes:
             args2 = parse_arguments()
         assert args1.operation == 'e'
         assert args2.operation == 'etoro'
-
 

@@ -5,25 +5,20 @@ Simplified market display tests for the current implementation.
 
 from unittest.mock import Mock, patch
 
-import pandas as pd
 import pytest
 
 from yahoofinance.presentation.console import MarketDisplay
-from yahoofinance.presentation.formatter import DisplayConfig
-
 
 @pytest.fixture
 def mock_provider():
     provider = Mock()
     return provider
 
-
 @pytest.fixture
 def display(mock_provider):
     with patch("yahoofinance.api.get_provider", return_value=mock_provider):
         display = MarketDisplay(provider=mock_provider)
         return display
-
 
 @pytest.mark.parametrize(
     "batch_size,expected_batches",

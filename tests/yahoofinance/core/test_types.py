@@ -3,15 +3,8 @@ from unittest.mock import Mock
 
 import yfinance as yf
 
-from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
+from yahoofinance.core.errors import APIError, ValidationError, YFinanceError
 from yahoofinance.core.types import StockData
-from yahoofinance.utils.error_handling import (
-    enrich_error_context,
-    safe_operation,
-    translate_error,
-    with_retry,
-)
-
 
 class TestExceptions(unittest.TestCase):
     """Test suite for custom exceptions"""
@@ -43,7 +36,6 @@ class TestExceptions(unittest.TestCase):
                 raise APIError("Chained error") from e
         except APIError as e:
             self.assertIs(e.__cause__, original_error)
-
 
 class TestStockData(unittest.TestCase):
     """Test suite for StockData class"""
@@ -234,7 +226,6 @@ class TestStockData(unittest.TestCase):
         self.assertIsNone(stock.market_cap)
         self.assertIsNone(stock.current_price)
         self.assertIsNone(stock.target_price)
-
 
 if __name__ == "__main__":
     unittest.main()

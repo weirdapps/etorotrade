@@ -6,24 +6,17 @@ with asyncio for concurrent processing, enabling efficient asynchronous data fet
 """
 
 import asyncio
-import time
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
-from yahooquery import Ticker
 
-from ...core.config import CACHE_CONFIG, COLUMN_NAMES, POSITIVE_GRADES
-from ...core.errors import APIError, RateLimitError, ValidationError, YFinanceError
 from ...core.logging import get_logger
 from ...utils.async_utils.enhanced import async_rate_limited
-from ...utils.market.ticker_utils import is_us_ticker
 from .base_provider import AsyncFinanceDataProvider
 from .yahoo_finance_base import YahooFinanceBaseProvider
 from .yahooquery_provider import YahooQueryProvider
 
-
 logger = get_logger(__name__)
-
 
 class AsyncYahooQueryProvider(YahooFinanceBaseProvider, AsyncFinanceDataProvider):
     """

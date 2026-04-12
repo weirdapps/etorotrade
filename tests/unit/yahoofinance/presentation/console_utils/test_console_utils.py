@@ -4,13 +4,11 @@ Tests for yahoofinance/presentation/console_utils/
 This module tests the console utility classes for colors, formatters, and tables.
 """
 
-import pytest
 import pandas as pd
 
 from yahoofinance.presentation.console_utils.colors import ConsoleColors
 from yahoofinance.presentation.console_utils.formatters import ConsoleFormatter
 from yahoofinance.presentation.console_utils.tables import TableRenderer
-
 
 class TestConsoleColors:
     """Tests for ConsoleColors class."""
@@ -52,7 +50,6 @@ class TestConsoleColors:
         """Test colorize with small negative value."""
         result = ConsoleColors.colorize("price", -0.001)
         assert ConsoleColors.RED in result
-
 
 class TestConsoleFormatter:
     """Tests for ConsoleFormatter class."""
@@ -128,7 +125,6 @@ class TestConsoleFormatter:
         result = ConsoleFormatter.format_percentage("not_a_number")
         assert result == "--"
 
-
 class TestTableRenderer:
     """Tests for TableRenderer class."""
 
@@ -190,7 +186,6 @@ class TestTableRenderer:
         assert "1.5" in result
         assert "2.5" in result
         assert "3.5" in result
-
 
 class TestConsoleUtilsIntegration:
     """Integration tests for console utilities."""

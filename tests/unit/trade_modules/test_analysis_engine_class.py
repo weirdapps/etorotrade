@@ -7,7 +7,6 @@ This module tests the main AnalysisEngine class functionality.
 import pytest
 import pandas as pd
 import numpy as np
-from unittest.mock import patch, MagicMock
 
 from trade_modules.analysis_engine import (
     AnalysisEngine,
@@ -18,7 +17,6 @@ from trade_modules.analysis_engine import (
     _determine_market_cap_tier,
     calculate_action_vectorized,
 )
-
 
 class TestAnalysisEngineInitialization:
     """Tests for AnalysisEngine initialization."""
@@ -34,7 +32,6 @@ class TestAnalysisEngineInitialization:
         custom_criteria = {"min_upside": 15.0, "min_buy_percentage": 70.0}
         engine = AnalysisEngine(trading_criteria=custom_criteria)
         assert engine.trading_criteria == custom_criteria
-
 
 class TestAnalysisEnginePortfolioAnalysis:
     """Tests for AnalysisEngine portfolio analysis."""
@@ -83,7 +80,6 @@ class TestAnalysisEnginePortfolioAnalysis:
         result = engine.analyze_market(df)
         assert isinstance(result, dict)
 
-
 class TestAnalysisEngineSummary:
     """Tests for AnalysisEngine summary methods."""
 
@@ -103,7 +99,6 @@ class TestAnalysisEngineSummary:
         df = pd.DataFrame()
         result = engine.generate_market_summary(df)
         assert isinstance(result, dict)
-
 
 class TestCalculateExret:
     """Tests for the calculate_exret function."""
@@ -145,7 +140,6 @@ class TestCalculateExret:
         result = calculate_exret(df)
         assert "EXRET" in result.columns
 
-
 class TestSafeCalcExret:
     """Tests for the _safe_calc_exret function."""
 
@@ -166,7 +160,6 @@ class TestSafeCalcExret:
         row = pd.Series({"other": 123})
         result = _safe_calc_exret(row)
         assert result == pytest.approx(0.0)
-
 
 class TestParsePercentage:
     """Tests for the _parse_percentage function."""
@@ -193,7 +186,6 @@ class TestParsePercentage:
     def test_parse_percentage_nan(self):
         """Test parsing NaN values."""
         assert _parse_percentage(np.nan) == pytest.approx(0.0)
-
 
 class TestParseMarketCap:
     """Tests for the _parse_market_cap function."""
@@ -223,7 +215,6 @@ class TestParseMarketCap:
         assert _parse_market_cap("--") == pytest.approx(0.0)
         assert _parse_market_cap(None) == pytest.approx(0.0)
 
-
 class TestDetermineMarketCapTier:
     """Tests for the _determine_market_cap_tier function."""
 
@@ -245,7 +236,6 @@ class TestDetermineMarketCapTier:
     def test_tier_nan(self):
         """Test tier with NaN value."""
         assert _determine_market_cap_tier(np.nan) == "B"
-
 
 class TestCalculateActionVectorized:
     """Tests for the calculate_action_vectorized function."""
@@ -273,7 +263,6 @@ class TestCalculateActionVectorized:
         # Should handle empty gracefully - returns empty Series
         assert isinstance(result, pd.Series)
         assert len(result) == 0
-
 
 class TestBackwardCompatibilityImports:
     """Test that backward compatibility imports work."""

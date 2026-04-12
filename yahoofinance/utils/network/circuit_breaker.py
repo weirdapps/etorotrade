@@ -10,18 +10,15 @@ requests through during recovery.
 
 import json
 import os
-import secrets
 import threading
 import time
-from datetime import datetime, timedelta
 from enum import Enum
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar, cast
+from typing import Any, Dict, List, Optional, TypeVar
 
 from ...core.config import CIRCUIT_BREAKER
-from ...core.errors import APIError, DataError, ValidationError, YFinanceError
+from ...core.errors import YFinanceError
 from ...core.logging import get_logger
-
 
 # Type variables for generic function signatures
 T = TypeVar("T")
@@ -30,14 +27,12 @@ R = TypeVar("R")
 # Set up logging
 logger = get_logger(__name__)
 
-
 class CircuitState(Enum):
     """Circuit breaker states"""
 
     CLOSED = "CLOSED"  # Normal operation, requests flow through
     OPEN = "OPEN"  # Circuit is open, requests are blocked
     HALF_OPEN = "HALF_OPEN"  # Testing if service has recovered
-
 
 class CircuitBreaker:
     """
@@ -438,7 +433,6 @@ class CircuitBreaker:
             self.record_failure()
             raise e
 
-
 class CircuitBreakerError(Exception):
     """Exception raised when a circuit breaker operation fails"""
 
@@ -454,7 +448,6 @@ class CircuitBreakerError(Exception):
         self.circuit_name = circuit_name
         self.details = details or {}
         super().__init__(message)
-
 
 class CircuitOpenError(Exception):
     """Exception raised when a circuit is open and rejects a request"""
@@ -476,7 +469,6 @@ class CircuitOpenError(Exception):
         self.metrics = metrics
         self.retry_after = metrics.get("time_until_reset", 300)  # Default 5 minutes
         super().__init__(message)
-
 
 class AsyncCircuitBreaker(CircuitBreaker):
     """Asynchronous version of the circuit breaker"""
@@ -520,7 +512,6 @@ class AsyncCircuitBreaker(CircuitBreaker):
         except YFinanceError as e:
             self.record_failure()
             raise e
-
 
 # Circuit breaker registry for dependency injection
 class CircuitBreakerRegistry:
@@ -628,14 +619,12 @@ class CircuitBreakerRegistry:
             self._circuit_breakers.clear()
             logger.debug("Cleared all circuit breaker instances")
 
-
 # Create a default circuit breaker registry
 _default_circuit_breaker_registry = CircuitBreakerRegistry()
 
 # Global registry of circuit breakers (for backward compatibility)
 _circuit_breakers: Dict[str, CircuitBreaker] = {}
 _circuit_breakers_lock = threading.RLock()
-
 
 def get_circuit_breaker(name: str) -> CircuitBreaker:
     """
@@ -650,7 +639,6 @@ def get_circuit_breaker(name: str) -> CircuitBreaker:
         Circuit breaker instance
     """
     return _default_circuit_breaker_registry.get_circuit_breaker(name)
-
 
 def get_async_circuit_breaker(name: str) -> AsyncCircuitBreaker:
     """
@@ -704,7 +692,6 @@ def get_async_circuit_breaker(name: str) -> AsyncCircuitBreaker:
 
         return _circuit_breakers[name]  # type: ignore
 
-
 def reset_all_circuits() -> None:
     """Reset all circuit breakers to closed state"""
     with _circuit_breakers_lock:
@@ -725,7 +712,6 @@ def reset_all_circuits() -> None:
         except YFinanceError as e:
             logger.warning(f"Failed to clear circuit breaker state file: {str(e)}")
 
-
 def get_all_circuits() -> Dict[str, Dict[str, Any]]:
     """
     Get metrics for all circuit breakers.
@@ -735,7 +721,6 @@ def get_all_circuits() -> Dict[str, Dict[str, Any]]:
     """
     with _circuit_breakers_lock:
         return {name: circuit.get_metrics() for name, circuit in _circuit_breakers.items()}
-
 
 def circuit_protected(circuit_name: str):
     """
@@ -757,7 +742,6 @@ def circuit_protected(circuit_name: str):
         return wrapper
 
     return decorator
-
 
 def async_circuit_protected(circuit_name: str):
     """

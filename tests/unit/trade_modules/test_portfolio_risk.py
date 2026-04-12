@@ -13,15 +13,13 @@ Tests cover:
 import numpy as np
 import pandas as pd
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from trade_modules.portfolio_risk import (
     PortfolioRiskAnalyzer,
     analyze_portfolio_risk,
     get_concentration_warnings,
-    get_high_correlation_stocks,
 )
-
 
 class TestPortfolioRiskAnalyzer:
     """Tests for PortfolioRiskAnalyzer class."""
@@ -43,7 +41,6 @@ class TestPortfolioRiskAnalyzer:
         assert analyzer.max_sector_concentration == pytest.approx(0.30)
         assert analyzer.correlation_threshold == pytest.approx(0.80)
         assert analyzer.lookback_days == 180
-
 
 class TestSectorConcentration:
     """Tests for sector concentration functionality."""
@@ -118,7 +115,6 @@ class TestSectorConcentration:
         assert "Technology" in concentration
         assert "Financial Services" in concentration
 
-
 class TestConcentrationRiskWarnings:
     """Tests for concentration risk warning functionality."""
 
@@ -149,7 +145,6 @@ class TestConcentrationRiskWarnings:
 
         warnings = analyzer.flag_concentration_risks(df)
         assert len(warnings) == 0
-
 
 class TestPortfolioBeta:
     """Tests for portfolio beta calculation."""
@@ -206,7 +201,6 @@ class TestPortfolioBeta:
         beta = analyzer.calculate_portfolio_beta(df)
         assert beta is None  # All values filtered out
 
-
 class TestCorrelationPairs:
     """Tests for correlation pair identification."""
 
@@ -248,7 +242,6 @@ class TestCorrelationPairs:
         # Should be sorted: (A, C, 0.80) first, then (A, B, 0.70), then (B, C, 0.65)
         assert pairs[0][2] == pytest.approx(0.80)
 
-
 class TestRiskSummary:
     """Tests for comprehensive risk summary."""
 
@@ -275,7 +268,6 @@ class TestRiskSummary:
         assert summary["portfolio_beta"] is None
         assert summary["sector_concentration"] == {}
 
-
 class TestFormatRiskReport:
     """Tests for risk report formatting."""
 
@@ -296,7 +288,6 @@ class TestFormatRiskReport:
         assert "MODERATE" in report_text
         assert "Technology" in report_text
         assert "AAPL" in report_text
-
 
 class TestConvenienceFunctions:
     """Tests for module-level convenience functions."""
@@ -325,7 +316,6 @@ class TestConvenienceFunctions:
 
         warnings = get_concentration_warnings(df, max_concentration=0.25)
         assert len(warnings) == 1
-
 
 # Integration test with mock yfinance
 class TestCorrelationMatrixIntegration:
@@ -360,7 +350,6 @@ class TestCorrelationMatrixIntegration:
         analyzer = PortfolioRiskAnalyzer()
         corr_matrix = analyzer.calculate_correlation_matrix([])
         assert corr_matrix.empty
-
 
 class TestEffectiveConcentration:
     """Tests for effective concentration calculation."""
@@ -423,7 +412,6 @@ class TestEffectiveConcentration:
         # Falls back to n positions
         assert result["effective_positions"] == 2
         assert result["diversification_ratio"] == pytest.approx(1.0)
-
 
 class TestCorrelationClusters:
     """Tests for correlation cluster detection."""
@@ -538,7 +526,6 @@ class TestCorrelationClusters:
             corr_matrix, min_cluster_size=3, threshold=0.75
         )
         assert len(clusters) == 0
-
 
 class TestDrawdownAlerts:
     """Tests for drawdown alert functionality."""
@@ -715,7 +702,6 @@ class TestDrawdownAlerts:
         assert len(alerts) == 1
         assert alerts[0]["severity"] == "CRITICAL"
         assert "recovery_pct" not in alerts[0]
-
 
 class TestFormatRiskReportExtended:
     """Tests for extended risk report formatting."""

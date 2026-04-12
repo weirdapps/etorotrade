@@ -10,14 +10,12 @@ from typing import Any, Callable, Optional
 
 from trade_modules.cache_service import get_cache as get_unified_cache
 
-
 # Compatibility classes that redirect to unified cache
 class CacheManager:
     """Compatibility wrapper for old CacheManager."""
     
     def __init__(self, *args, **kwargs):
         """Initialize with unified cache."""
-        import os
         from pathlib import Path
         
         self.cache = get_unified_cache()
@@ -94,7 +92,6 @@ class CacheManager:
         # Now we just ignore it for backward compatibility
         pass
 
-
 class LRUCache:
     """Simple in-memory LRU cache with dict-like interface."""
 
@@ -126,7 +123,6 @@ class LRUCache:
     def __len__(self) -> int:
         return len(self._data)
 
-
 class DiskCache:
     """Compatibility wrapper for old DiskCache."""
     
@@ -145,7 +141,6 @@ class DiskCache:
     def clear(self) -> None:
         """Clear cache."""
         self.cache.clear()
-
 
 class CacheKeyGenerator:
     """Compatibility wrapper for cache key generation."""
@@ -168,10 +163,8 @@ class CacheKeyGenerator:
         
         return ":".join(parts)
 
-
 # Global instance for compatibility
 default_cache_manager = CacheManager()
-
 
 def cached(ttl: Optional[int] = None):
     """
@@ -204,32 +197,26 @@ def cached(ttl: Optional[int] = None):
         return wrapper
     return decorator
 
-
 def get_cache() -> CacheManager:
     """Get cache manager (compatibility)."""
     return default_cache_manager
-
 
 def clear_cache() -> None:
     """Clear all cache (compatibility)."""
     default_cache_manager.clear()
 
-
 def get_cache_manager() -> CacheManager:
     """Get cache manager (compatibility)."""
     return default_cache_manager
-
 
 # Additional compatibility functions
 def configure_caching(*args, **kwargs):
     """Configure caching (no-op for compatibility)."""
     pass
 
-
 def create_cache_aware_wrapper(provider):
     """Create cache-aware wrapper (returns provider as-is for compatibility)."""
     return provider
-
 
 def wrap_provider_with_cache(provider, *args, **kwargs):
     """Wrap provider with cache (returns provider as-is for compatibility)."""

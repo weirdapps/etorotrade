@@ -11,7 +11,7 @@ This module tests the display and formatting functionality including:
 import pytest
 import pandas as pd
 import numpy as np
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from io import StringIO
 import sys
 
@@ -21,7 +21,6 @@ from trade_modules.trade_display import (
     create_display_formatter,
     create_market_display,
 )
-
 
 @pytest.fixture
 def sample_dataframe():
@@ -36,24 +35,20 @@ def sample_dataframe():
         'ACT': ['B', 'B', 'H', 'S'],
     })
 
-
 @pytest.fixture
 def display_formatter():
     """Create a DisplayFormatter instance."""
     return DisplayFormatter()
-
 
 @pytest.fixture
 def display_formatter_no_colors():
     """Create a DisplayFormatter instance without colors."""
     return DisplayFormatter(use_colors=False)
 
-
 @pytest.fixture
 def market_display():
     """Create a MarketDataDisplay instance."""
     return MarketDataDisplay()
-
 
 class TestDisplayFormatter:
     """Test cases for DisplayFormatter class."""
@@ -149,7 +144,6 @@ class TestDisplayFormatter:
                 result = display_formatter.format_percentage(pct)
                 assert isinstance(result, str)
                 assert '%' in result or 'percent' in result.lower()
-
 
 class TestMarketDataDisplay:
     """Test cases for MarketDataDisplay class."""
@@ -260,7 +254,6 @@ class TestMarketDataDisplay:
                     # Method exists but may require specific parameters
                     assert True
 
-
 class TestFactoryFunctions:
     """Test cases for factory functions."""
     
@@ -293,7 +286,6 @@ class TestFactoryFunctions:
         assert isinstance(display, MarketDataDisplay)
         assert hasattr(display, 'formatter')
         assert display.formatter.use_colors is False
-
 
 class TestDisplayIntegration:
     """Integration tests for display components."""
@@ -366,7 +358,6 @@ class TestDisplayIntegration:
         # Should complete in reasonable time
         assert end_time - start_time < 2.0  # Less than 2 seconds
 
-
 class TestErrorHandling:
     """Test error handling scenarios."""
     
@@ -419,7 +410,6 @@ class TestErrorHandling:
                 # Expected if specific columns are required
                 assert True
 
-
 class TestColorFormatting:
     """Test color formatting functionality."""
     
@@ -452,7 +442,6 @@ class TestColorFormatting:
                 result = method(test_text)
                 # With colors disabled, result should be the same as input
                 assert test_text in result
-
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

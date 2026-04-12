@@ -8,11 +8,10 @@ with appropriate error handling and configuration.
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional
 
 from .config import RATE_LIMIT
-from .errors import ValidationError, YFinanceError
-
+from .errors import ValidationError
 
 @dataclass
 class StockData:
@@ -46,10 +45,8 @@ class StockData:
     sector: Optional[str] = None
     recommendation: Optional[str] = None
 
-
 # Set up logging
 logger = logging.getLogger(__name__)
-
 
 class YFinanceClient:
     """

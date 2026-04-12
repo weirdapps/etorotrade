@@ -9,11 +9,8 @@ This module tests the CLI interface including:
 """
 
 import pytest
-import os
-import asyncio
 import pandas as pd
 from unittest.mock import patch, MagicMock, AsyncMock
-from pathlib import Path
 
 from trade_modules.trade_cli import (
     ConfigurationValidator,
@@ -25,18 +22,15 @@ from trade_modules.trade_cli import (
     setup_secure_file_copy,
 )
 
-
 @pytest.fixture
 def config_validator():
     """Create a ConfigurationValidator instance."""
     return ConfigurationValidator()
 
-
 @pytest.fixture
 def error_collector():
     """Create an ErrorSummaryCollector instance."""
     return ErrorSummaryCollector()
-
 
 class TestConfigurationValidator:
     """Test cases for ConfigurationValidator class."""
@@ -105,7 +99,6 @@ class TestConfigurationValidator:
         config_validator.warnings.append("Test warning")
         assert len(config_validator.warnings) == 1
 
-
 class TestErrorSummaryCollector:
     """Test cases for ErrorSummaryCollector class."""
     
@@ -138,7 +131,6 @@ class TestErrorSummaryCollector:
         assert "Error Summary" in summary
         assert "Test error" in summary
         assert "test context" in summary
-
 
 class TestAsyncHandlers:
     """Test cases for async handler functions."""
@@ -216,7 +208,6 @@ class TestAsyncHandlers:
             result = await handle_portfolio_download(mock_provider, mock_logger)
             assert result is False
 
-
 class TestMainAsync:
     """Test cases for main_async function."""
     
@@ -267,7 +258,6 @@ class TestMainAsync:
             
             await main_async()
 
-
 class TestMainFunction:
     """Test cases for main function."""
     
@@ -313,7 +303,6 @@ class TestMainFunction:
             # Function may exit or have dependencies
             assert True
 
-
 class TestSetupSecureFileCopy:
     """Test cases for setup_secure_file_copy function."""
     
@@ -337,7 +326,6 @@ class TestSetupSecureFileCopy:
             setup_secure_file_copy()
             
             # Function should handle file system operations
-
 
 class TestIntegration:
     """Integration tests for trade_cli module."""
@@ -381,7 +369,6 @@ class TestIntegration:
         assert main is not None
         assert main_async is not None
 
-
 class TestErrorHandling:
     """Test error handling scenarios."""
     
@@ -410,7 +397,6 @@ class TestErrorHandling:
         assert len(collector.errors) == 1
         assert collector.errors[0]["error"] == "Critical error"
         assert collector.errors[0]["context"] == "test context"
-
 
 class TestDualListedPortfolioExclusion:
     """Test that dual-listed stocks are properly excluded from buy opportunities."""
@@ -494,7 +480,6 @@ class TestDualListedPortfolioExclusion:
         assert 'SONY' in sell_tickers, "SONY should be included (6758.T in portfolio)"
         assert 'AAPL' in sell_tickers, "AAPL should be included (AAPL in portfolio)"
         assert 'NVO' in sell_tickers, "NVO should be included (NOVO-B.CO in portfolio)"
-
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

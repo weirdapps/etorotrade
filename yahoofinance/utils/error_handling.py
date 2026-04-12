@@ -6,13 +6,10 @@ error translation, and recovery strategies throughout the application.
 """
 
 import functools
-import logging
 import time
-from typing import Any, Callable, Dict, List, Optional, Set, Type, TypeVar, Union, cast, overload
+from typing import Any, Callable, Dict, Optional, Set, Type, TypeVar, Union, overload
 
 from ..core.errors import (
-    APIError,
-    CacheError,
     ConnectionError,
     DataError,
     RateLimitError,
@@ -23,14 +20,12 @@ from ..core.errors import (
 )
 from ..core.logging import get_logger
 
-
 # Create a logger for this module
 logger = get_logger(__name__)
 
 # Define generic type variables for the return types
 T = TypeVar("T")
 R = TypeVar("R")
-
 
 def enrich_error_context(error: YFinanceError, context: Dict[str, Any]) -> YFinanceError:
     """
@@ -72,7 +67,6 @@ def enrich_error_context(error: YFinanceError, context: Dict[str, Any]) -> YFina
             error.details[key] = value
 
     return error
-
 
 def translate_error(
     error: Exception,
@@ -132,7 +126,6 @@ def translate_error(
     # For unknown errors, use the base YFinanceError
     return YFinanceError(f"Unexpected error: {error_message}", context)
 
-
 def with_error_context(
     context_provider: Callable[..., Dict[str, Any]],
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
@@ -190,12 +183,10 @@ def with_error_context(
 
     return decorator
 
-
 @overload
 def with_retry(
     max_retries: Callable[..., T],
 ) -> Callable[..., T]: ...
-
 
 @overload
 def with_retry(
@@ -204,7 +195,6 @@ def with_retry(
     backoff_factor: float = ...,
     retryable_errors: Optional[Set[Type[Exception]]] = ...,
 ) -> Callable[[Callable[..., T]], Callable[..., T]]: ...
-
 
 def with_retry(
     max_retries: Union[int, Callable[..., T]] = 3,
@@ -288,7 +278,6 @@ def with_retry(
 
     return decorator
 
-
 def safe_operation(
     default_value: Optional[R] = None,
     log_errors: bool = True,
@@ -333,7 +322,6 @@ def safe_operation(
 
     return decorator
 
-
 # User-friendly error handling functions
 def handle_file_not_found(file_path: str) -> str:
     """Generate user-friendly message for file not found errors."""
@@ -347,7 +335,6 @@ def handle_file_not_found(file_path: str) -> str:
         )
     return f"❌ File not found: {file_path}\n\n💡 Check the file path and permissions"
 
-
 def handle_csv_error(file_path: str, error_msg: str) -> str:
     """Generate user-friendly message for CSV parsing errors."""
     return (
@@ -359,7 +346,6 @@ def handle_csv_error(file_path: str, error_msg: str) -> str:
         "• Re-export from eToro if corrupted"
     )
 
-
 def handle_api_error(api_name: str, error_msg: str) -> str:
     """Generate user-friendly message for API errors."""
     return (
@@ -370,7 +356,6 @@ def handle_api_error(api_name: str, error_msg: str) -> str:
         "• Try again in a few minutes\n"
         "• Reduce number of tickers if analyzing large portfolio"
     )
-
 
 def format_user_error(error: Exception) -> str:
     """Format any error as a user-friendly message."""

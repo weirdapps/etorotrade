@@ -15,20 +15,17 @@ Key features tested:
 
 import threading
 import time
-from collections import deque
-from concurrent.futures import ThreadPoolExecutor
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from yahoofinance.core.config import RATE_LIMIT
-from yahoofinance.core.errors import APIError, RateLimitError
+from yahoofinance.core.errors import RateLimitError
 from yahoofinance.presentation.console import RateLimitTracker
 from yahoofinance.utils.error_handling import with_retry
 
 # Import rate limiter components from their actual locations
-from yahoofinance.utils.network.rate_limiter import RateLimiter, global_rate_limiter, rate_limited
-
+from yahoofinance.utils.network.rate_limiter import RateLimiter, rate_limited
 
 #
 # Base RateLimiter tests
@@ -152,7 +149,6 @@ class TestRateLimiter:
             # Different implementations may treat ticker-specific delays differently
             # Skip more detailed assertions
 
-
 #
 # Thread safety tests
 #
@@ -210,7 +206,6 @@ class TestRateLimiterThreadSafety:
 
         # Restore original lock
         limiter.lock = original_lock
-
 
 #
 # Decorator tests
@@ -287,7 +282,6 @@ class TestRateLimitedDecorator:
         # Error should be recorded - failure streak should be incremented
         assert test_limiter.failure_streak > 0
 
-
 #
 # Legacy RateLimitTracker tests (for compatibility)
 #
@@ -321,7 +315,6 @@ class TestRateLimitTracker:
         # Delay should be higher with more calls
         high_load_delay = limiter.get_delay()
         assert high_load_delay > delay
-
 
 # Global rate limiter tests
 def test_global_rate_limiter():
@@ -362,7 +355,6 @@ def test_global_rate_limiter():
         # Verify success streak changes with thread safety
         with test_limiter.lock:
             assert test_limiter.success_streak == success_streak_before + 1
-
 
 # Import compatibility tests
 def test_import_compatibility():

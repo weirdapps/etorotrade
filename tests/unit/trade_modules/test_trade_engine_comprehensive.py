@@ -21,12 +21,9 @@ Tests cover:
 import pytest
 import pandas as pd
 import numpy as np
-import asyncio
 import tempfile
 import os
-from pathlib import Path
-from unittest.mock import patch, MagicMock, AsyncMock, Mock
-from decimal import Decimal
+from unittest.mock import patch, AsyncMock
 
 from trade_modules.trade_engine import (
     TradingEngine,
@@ -35,8 +32,6 @@ from trade_modules.trade_engine import (
     create_trading_engine,
     create_position_sizer,
 )
-from yahoofinance.core.errors import YFinanceError, ValidationError
-
 
 @pytest.fixture
 def mock_provider():
@@ -45,12 +40,10 @@ def mock_provider():
     provider.get_ticker_info = AsyncMock()
     return provider
 
-
 @pytest.fixture
 def trading_engine(mock_provider):
     """Create a TradingEngine instance for testing."""
     return TradingEngine(provider=mock_provider)
-
 
 @pytest.fixture
 def sample_market_data_with_bs():
@@ -79,7 +72,6 @@ def sample_market_data_with_bs():
         'expected_return': [17.0, 4.5, -2.4, 16.4, 6.4]
     }).set_index('symbol')
 
-
 @pytest.fixture
 def sample_market_data_with_act():
     """Create market data with ACT column instead of BS.
@@ -102,7 +94,6 @@ def sample_market_data_with_act():
         'expected_return': [17.0, 4.5, -2.4, 16.4, 6.4]
     }).set_index('symbol')
 
-
 @pytest.fixture
 def sample_market_data_no_signals():
     """Create market data without BS or ACT columns - needs signal calculation."""
@@ -121,7 +112,6 @@ def sample_market_data_no_signals():
         'expected_return': [12.5, 3.2, -8.1, 15.3, 2.8]
     }).set_index('symbol')
 
-
 @pytest.fixture
 def sample_portfolio_data():
     """Create portfolio data with various ticker column formats."""
@@ -134,7 +124,6 @@ def sample_portfolio_data():
         'unrealized_pnl': [525.00, 525.00, 1250.00]
     })
 
-
 @pytest.fixture
 def sample_portfolio_with_bs():
     """Create portfolio data with BS column for testing portfolio classifications."""
@@ -146,7 +135,6 @@ def sample_portfolio_with_bs():
         'market_value': [15025.00, 14025.00, 21250.00, 25000.00]
     })
 
-
 @pytest.fixture
 def notrade_csv_content():
     """Content for notrade.csv file."""
@@ -155,7 +143,6 @@ AMZN
 TSLA
 BANNED_STOCK
 """
-
 
 @pytest.fixture
 def temp_notrade_file(notrade_csv_content):
@@ -168,7 +155,6 @@ def temp_notrade_file(notrade_csv_content):
     
     # Cleanup
     os.unlink(temp_path)
-
 
 class TestAnalyzeMarketOpportunities:
     """Test the core analyze_market_opportunities method with various scenarios."""
@@ -297,7 +283,6 @@ class TestAnalyzeMarketOpportunities:
         assert '1 sell' in call_args
         assert '2 hold' in call_args
 
-
 class TestFilteringMethods:
     """Test individual filtering methods with edge cases."""
     
@@ -361,7 +346,6 @@ class TestFilteringMethods:
         assert all(result['BS'] == 'H')
         assert 'MSFT' in result.index
         assert 'AMZN' in result.index
-
 
 class TestPortfolioFiltering:
     """Test portfolio filtering logic with various edge cases."""
@@ -455,7 +439,6 @@ class TestPortfolioFiltering:
         assert len(result['buy_opportunities']) == len(opportunities['buy_opportunities'])
         assert len(result['sell_opportunities']) == len(opportunities['sell_opportunities'])
         assert len(result['hold_opportunities']) == len(opportunities['hold_opportunities'])
-
 
 class TestConfidenceScoreCalculation:
     """Test confidence score calculation with various input combinations."""
@@ -556,7 +539,6 @@ class TestConfidenceScoreCalculation:
         # Should be clipped to 1.0
         assert scores.iloc[0] == pytest.approx(1.0, 0.01)
 
-
 class TestNotradeFiltering:
     """Test notrade filtering logic with ticker equivalence."""
     
@@ -615,7 +597,6 @@ class TestNotradeFiltering:
         finally:
             os.unlink(temp_path)
 
-
 class TestTradingSignalCalculation:
     """Test trading signal calculation when BS/ACT columns don't exist."""
     
@@ -661,7 +642,6 @@ class TestTradingSignalCalculation:
         with patch('trade_modules.analysis_service.calculate_expected_return', side_effect=Exception('Test error')):
             with pytest.raises(Exception):
                 trading_engine.analysis_service.calculate_trading_signals(df)
-
 
 class TestAsyncBatchProcessing:
     """Test async batch processing methods."""
@@ -783,7 +763,6 @@ class TestAsyncBatchProcessing:
         # Should return None
         assert result is None
 
-
 class TestPositionSizer:
     """Test PositionSizer functionality."""
     
@@ -872,7 +851,6 @@ class TestPositionSizer:
         expected_size = portfolio_value * 0.034
         assert position_size == pytest.approx(expected_size, 0.01)
 
-
 class TestFactoryFunctions:
     """Test factory functions."""
     
@@ -905,7 +883,6 @@ class TestFactoryFunctions:
         
         assert sizer.max_position_size == pytest.approx(0.08, 0.001)
         assert sizer.min_position_size == pytest.approx(0.015, 0.001)
-
 
 class TestIntegrationScenarios:
     """Integration tests using real CSV data patterns."""
@@ -993,7 +970,6 @@ class TestIntegrationScenarios:
         # META has 'B' signal and not in portfolio, should be included
         assert 'META' in buy_ops.index
 
-
 class TestErrorHandlingAndEdgeCases:
     """Test error handling and edge cases."""
     
@@ -1047,7 +1023,6 @@ class TestErrorHandlingAndEdgeCases:
         # Should return empty DataFrame
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 0
-
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v', '--tb=short'])

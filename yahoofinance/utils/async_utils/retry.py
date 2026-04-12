@@ -6,7 +6,6 @@ integration, and configurable exception handling for async operations.
 """
 
 import asyncio
-import logging
 import secrets
 from typing import Any, Callable, Coroutine, Optional, Tuple, TypeVar
 
@@ -22,7 +21,6 @@ T = TypeVar("T")
 
 # Set up logging
 logger = get_logger(__name__)
-
 
 async def retry_async_with_backoff(
     func: Callable[..., Coroutine[Any, Any, T]],

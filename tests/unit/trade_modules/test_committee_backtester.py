@@ -6,17 +6,14 @@ committee data and forward returns.
 """
 
 import json
-from pathlib import Path
 
 import pytest
 
 from trade_modules.committee_backtester import CommitteeBacktester, evaluate_recent
 
-
 # ============================================================
 # Load History
 # ============================================================
-
 
 class TestLoadHistory:
     """Tests for loading historical concordance data."""
@@ -107,11 +104,9 @@ class TestLoadHistory:
         bt = CommitteeBacktester(log_dir=tmp_path)
         assert bt.load_history() == 1
 
-
 # ============================================================
 # Forward Returns
 # ============================================================
-
 
 class TestForwardReturns:
     """Tests for forward return computation."""
@@ -164,11 +159,9 @@ class TestForwardReturns:
         )
         assert result == {}
 
-
 # ============================================================
 # Performance Evaluation
 # ============================================================
-
 
 class TestEvaluatePerformance:
     """Tests for performance evaluation by action group."""
@@ -225,11 +218,9 @@ class TestEvaluatePerformance:
         result = bt.evaluate_performance()
         assert result["total_recommendations"] == 0
 
-
 # ============================================================
 # Parameter Sweep
 # ============================================================
-
 
 class TestParameterSweep:
     """Tests for parameter sweep functionality."""
@@ -276,11 +267,9 @@ class TestParameterSweep:
         assert "buy_hit_rate" in result[0]
         assert "buy_avg_return" in result[0]
 
-
 # ============================================================
 # Calibration Report
 # ============================================================
-
 
 class TestCalibrationReport:
     """Tests for generate_calibration_report."""
@@ -305,11 +294,9 @@ class TestCalibrationReport:
         report = bt.generate_calibration_report()
         assert len(report["recommendations"]) >= 1
 
-
 # ============================================================
 # CIO v12.0 P1: evaluate_recent
 # ============================================================
-
 
 class TestEvaluateRecent:
     """CIO v12.0 P1: Evaluate most recent committee run against current prices."""

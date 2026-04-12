@@ -8,14 +8,8 @@ All floating-point comparisons use pytest.approx() for reliable testing.
 
 import pytest
 import pandas as pd
-import numpy as np
 
-from trade_modules.analysis_engine import (
-    calculate_action_vectorized,
-    calculate_exret,
-    calculate_action,
-)
-
+from trade_modules.analysis_engine import calculate_exret, calculate_action
 
 class TestMegaUSTierSignals:
     """Test signal generation for MEGA-US tier ($500B+ market cap)."""
@@ -212,7 +206,6 @@ class TestMegaUSTierSignals:
         # Assert - SELL wins (hard trigger: negative upside + weak sentiment)
         assert result.loc['AAPL', 'BS'] == 'S', "Multi-factor SELL should override when hard trigger is met"
 
-
 class TestExretCalculation:
     """Test EXRET (Expected Return) calculation."""
 
@@ -264,7 +257,6 @@ class TestExretCalculation:
         assert df.loc[1, 'EXRET'] == pytest.approx(12.0)
         assert df.loc[2, 'EXRET'] == pytest.approx(-3.0)
         assert df.loc[3, 'EXRET'] == pytest.approx(0.0)
-
 
 class TestEdgeCases:
     """Test edge cases and data validation."""

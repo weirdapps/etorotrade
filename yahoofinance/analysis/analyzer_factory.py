@@ -5,20 +5,18 @@ This module provides factory functions for creating StockAnalyzer instances
 with appropriate dependencies injected.
 """
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 from ..api.providers.base_provider import AsyncFinanceDataProvider, FinanceDataProvider
 from ..core.errors import ValidationError
 from ..core.logging import get_logger
 from ..utils.dependency_injection import inject, registry
 
-
 # Set up logging
 logger = get_logger(__name__)
 
 # Import the analyzer class
 from .stock import StockAnalyzer
-
 
 # Register factory for creating StockAnalyzer instances
 @registry.register("stock_analyzer")  # type: ignore[arg-type]
@@ -58,7 +56,6 @@ def create_stock_analyzer(
     # Create the analyzer with the provider
     return StockAnalyzer(provider=provider, **kwargs)
 
-
 # Decorator for injecting a StockAnalyzer
 def with_analyzer(**kwargs):
     """
@@ -81,7 +78,6 @@ def with_analyzer(**kwargs):
         ```
     """
     return inject("stock_analyzer", **kwargs)
-
 
 # Register factory for creating PortfolioAnalyzer instances
 @registry.register("portfolio_analyzer")
@@ -130,7 +126,6 @@ def create_portfolio_analyzer(
     # Create the portfolio analyzer
     return PortfolioAnalyzer(provider=provider, stock_analyzer=stock_analyzer)
 
-
 # Decorator for injecting a PortfolioAnalyzer
 def with_portfolio_analyzer(**kwargs):
     """
@@ -154,7 +149,6 @@ def with_portfolio_analyzer(**kwargs):
         ```
     """
     return inject("portfolio_analyzer", **kwargs)
-
 
 # Initialize registry
 registry.register("get_analyzer", create_stock_analyzer)

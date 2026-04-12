@@ -17,15 +17,13 @@ from functools import wraps
 from typing import Any, Callable, Dict, Optional, TypeVar, cast
 
 from ...core.config import RATE_LIMIT
-from ...core.errors import APIError, RateLimitError, ValidationError, YFinanceError
+from ...core.errors import RateLimitError, YFinanceError
 from ...core.logging import get_logger
-
 
 logger = get_logger(__name__)
 
 # Define a generic type variable for the return type
 T = TypeVar("T")
-
 
 class RateLimiter:
     """
@@ -891,7 +889,6 @@ class RateLimiter:
                 "is_market_hours": self.is_market_hours,
             }
 
-
 # Rate limiter factory for dependency injection
 class RateLimiterFactory:
     """Factory for creating rate limiter instances with dependency injection support."""
@@ -978,13 +975,11 @@ class RateLimiterFactory:
             self._instances.clear()
             logger.debug("Cleared all rate limiter instances")
 
-
 # Create a default rate limiter factory
 _default_rate_limiter_factory = RateLimiterFactory()
 
 # Create a global rate limiter instance for backward compatibility
 global_rate_limiter = _default_rate_limiter_factory.get_rate_limiter("global")
-
 
 def rate_limited(
     func: Optional[Callable[..., T]] = None,

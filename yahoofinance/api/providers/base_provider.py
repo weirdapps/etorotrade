@@ -6,16 +6,13 @@ ensuring a consistent interface regardless of the underlying data source.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from ...core.errors import YFinanceError
 from ...core.logging import get_logger
 
-
 logger = get_logger(__name__)
-
 
 class FinanceDataProvider(ABC):
     """
@@ -179,7 +176,6 @@ class FinanceDataProvider(ABC):
             Dict containing cache information
         """
         return {}
-
 
 class AsyncFinanceDataProvider(ABC):
     """

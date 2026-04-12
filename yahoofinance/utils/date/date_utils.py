@@ -10,13 +10,10 @@ from typing import List, Optional, Tuple, Union
 
 import pandas as pd
 
-from ...core.errors import APIError, DataError, ValidationError, YFinanceError
 from ...core.logging import get_logger
-from ..error_handling import enrich_error_context, safe_operation, translate_error, with_retry
-
+from ..error_handling import with_retry
 
 logger = get_logger(__name__)
-
 
 def validate_date_format(date_str: str, fmt: str = "%Y-%m-%d") -> bool:
     """
@@ -34,7 +31,6 @@ def validate_date_format(date_str: str, fmt: str = "%Y-%m-%d") -> bool:
         return True
     except ValueError:
         return False
-
 
 def get_date_range(
     start_date: Optional[Union[str, datetime.date, pd.Timestamp]] = None,
@@ -90,7 +86,6 @@ def get_date_range(
 
     return start_date, end_date  # type: ignore[return-value]
 
-
 @with_retry
 def format_date_for_api(date_obj: Union[datetime.date, pd.Timestamp]) -> str:
     """
@@ -105,7 +100,6 @@ def format_date_for_api(date_obj: Union[datetime.date, pd.Timestamp]) -> str:
     if isinstance(date_obj, pd.Timestamp):
         date_obj = date_obj.date()
     return date_obj.strftime("%Y-%m-%d")
-
 
 def format_date_for_display(
     date_obj: Union[datetime.date, pd.Timestamp, str], fmt: str = "%Y-%m-%d"
@@ -131,7 +125,6 @@ def format_date_for_display(
         date_obj = date_obj.date()
 
     return date_obj.strftime(fmt)
-
 
 def get_trading_days(
     start_date: Union[datetime.date, pd.Timestamp, str],

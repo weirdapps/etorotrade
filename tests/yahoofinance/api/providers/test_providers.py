@@ -6,12 +6,7 @@ This module tests the provider factory function and async provider interfaces.
 
 from unittest.mock import Mock, patch
 
-import pytest
-
 from yahoofinance.api import get_provider
-from yahoofinance.api.providers.base_provider import FinanceDataProvider
-from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-
 
 class TestFinanceProviders:
     """Tests for the provider base classes and factory function."""

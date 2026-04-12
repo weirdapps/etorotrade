@@ -6,20 +6,17 @@ allowing for cleaner, more testable code by decoupling component creation from u
 """
 
 import importlib
-import inspect
 from functools import wraps
-from typing import Any, Callable, Dict, Generic, List, Optional, Type, TypeVar, Union, cast
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 
-from ..core.errors import ValidationError, YFinanceError
+from ..core.errors import ValidationError
 from ..core.logging import get_logger
-
 
 # Set up logging
 logger = get_logger(__name__)
 
 # Type variables for generic types
 T = TypeVar("T")  # Component type
-
 
 class Registry:
     """
@@ -267,10 +264,8 @@ class Registry:
         """
         return key in self._registry or key in self._instances
 
-
 # Create a global registry instance
 registry = Registry()
-
 
 def inject(component_key: str, **resolve_kwargs):
     """
@@ -337,7 +332,6 @@ def inject(component_key: str, **resolve_kwargs):
 
     return decorator
 
-
 def provides(component_key: str):
     """
     Decorator to register a function's return value as a component.
@@ -374,7 +368,6 @@ def provides(component_key: str):
         return wrapper
 
     return decorator
-
 
 def lazy_import(module_path: str, class_name: Optional[str] = None) -> Any:
     """

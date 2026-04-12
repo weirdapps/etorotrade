@@ -8,18 +8,15 @@ provide correct results and improved performance.
 import pytest
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 from yahoofinance.analysis.analyst import CompatAnalystData
-from yahoofinance.core.config import POSITIVE_GRADES
-
 
 @pytest.fixture
 def mock_client():
     """Create mock client for testing."""
     return MagicMock()
-
 
 @pytest.fixture
 def sample_ratings_df():
@@ -37,7 +34,6 @@ def sample_ratings_df():
         "ToGrade": ["Buy", "Strong Buy", "Hold", "Buy", "Outperform"],
         "Action": ["upgrade", "upgrade", "upgrade", "upgrade", "maintain"]
     })
-
 
 class TestGetRatingsSummary:
     """Test vectorized rating summary calculations."""
@@ -113,7 +109,6 @@ class TestGetRatingsSummary:
         # Should complete quickly even with 10k rows (< 50ms)
         assert elapsed < 0.05, f"Vectorized operation took {elapsed*1000:.2f}ms (expected <50ms)"
         assert result["total_ratings"] == n_rows
-
 
 class TestGetRecentChanges:
     """Test vectorized recent changes retrieval."""
@@ -204,7 +199,6 @@ class TestGetRecentChanges:
         # Should complete quickly (< 300ms for 5000 rows, relaxed for CI environments)
         assert elapsed < 0.3, f"Vectorized operation took {elapsed*1000:.2f}ms (expected <300ms)"
         assert len(result) > 0
-
 
 class TestVectorizationCorrectness:
     """Verify vectorized operations produce correct results."""

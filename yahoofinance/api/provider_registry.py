@@ -5,8 +5,7 @@ This module provides a registry for all available finance data providers,
 ensuring consistent access and configuration across the application.
 """
 
-import asyncio
-from typing import Any, Dict, List, Optional, Set, Type, Union, cast
+from typing import Dict, Union
 
 from ..core.errors import ValidationError
 from ..core.logging import get_logger
@@ -14,7 +13,6 @@ from ..utils.dependency_injection import registry
 
 # Import provider interfaces
 from .providers.base_provider import AsyncFinanceDataProvider, FinanceDataProvider
-
 
 # Import all provider implementations (but not directly dependent on them)
 # Use lazy imports to avoid circular dependencies if needed
@@ -39,7 +37,6 @@ PROVIDER_TYPES = {
 DEFAULT_PROVIDER_TYPE = "hybrid"
 DEFAULT_ASYNC_MODE = True
 DEFAULT_ENHANCED = False
-
 
 # Initialize the registry with provider factories
 def initialize_registry():
@@ -86,11 +83,9 @@ def initialize_registry():
             # Log the registration
             logger.debug(f"Registered provider factory for {provider_type}.{mode}: {provider_path}")
 
-
 # Create a cache for provider instances to prevent repeated creation
 # This helps reduce memory leaks from creating/destroying providers
 _provider_cache: dict[str, Union[FinanceDataProvider, AsyncFinanceDataProvider]] = {}
-
 
 # Register factory for the get_provider function
 @registry.register("get_provider")  # type: ignore[arg-type]
@@ -184,7 +179,6 @@ def get_provider(
         logger.error(f"Failed to create provider {provider_key}: {str(e)}")
         raise ValidationError(f"Failed to create provider {provider_key}") from e
 
-
 # Register factory for getting all provider types
 @registry.register("get_all_providers")  # type: ignore[arg-type]
 def get_all_providers(
@@ -216,7 +210,6 @@ def get_all_providers(
 
     return providers
 
-
 # Register factory for the default provider
 @registry.register("default_provider")  # type: ignore[arg-type]
 def get_default_provider(**kwargs) -> Union[FinanceDataProvider, AsyncFinanceDataProvider]:
@@ -232,7 +225,6 @@ def get_default_provider(**kwargs) -> Union[FinanceDataProvider, AsyncFinanceDat
         Default provider instance
     """
     return get_provider(DEFAULT_PROVIDER_TYPE, **kwargs)
-
 
 # Function to clear the provider cache
 def clear_provider_cache():
@@ -294,7 +286,6 @@ def clear_provider_cache():
         gc.collect()
 
     logger.info("Provider cache cleared and memory cleaned")
-
 
 # Initialize the registry
 initialize_registry()

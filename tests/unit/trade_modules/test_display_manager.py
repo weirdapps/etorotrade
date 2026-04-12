@@ -5,12 +5,8 @@ Target: Test unified display formatting for console, CSV, and HTML
 File: trade_modules/display_manager.py (197 statements, 0% coverage)
 """
 
-import pytest
 import pandas as pd
 import os
-import tempfile
-from unittest.mock import Mock, patch
-
 
 class TestDisplayManagerInit:
     """Test DisplayManager initialization."""
@@ -33,7 +29,6 @@ class TestDisplayManagerInit:
         manager = DisplayManager(config=custom_config)
 
         assert manager.config is custom_config
-
 
 class TestPrepareDataFrame:
     """Test DataFrame preparation."""
@@ -62,7 +57,6 @@ class TestPrepareDataFrame:
 
         # Should only include available columns
         assert not result.empty
-
 
 class TestFormatMethods:
     """Test format convenience methods."""
@@ -100,7 +94,6 @@ class TestFormatMethods:
 
         assert isinstance(result, pd.DataFrame)
 
-
 class TestValueFormatting:
     """Test value formatting."""
 
@@ -134,7 +127,6 @@ class TestValueFormatting:
         result = manager._format_value("AAPL", {"type": "text"}, "console")
 
         assert result == "AAPL"
-
 
 class TestCurrencyFormatting:
     """Test currency formatting."""
@@ -189,7 +181,6 @@ class TestCurrencyFormatting:
         result = manager._format_currency("invalid", format_rule, "console")
 
         assert result == "invalid"
-
 
 class TestPercentageFormatting:
     """Test percentage formatting."""
@@ -258,7 +249,6 @@ class TestPercentageFormatting:
         assert result == "10.5%"
         assert "\033[" not in result  # No color codes
 
-
 class TestMarketCapFormatting:
     """Test market cap formatting."""
 
@@ -306,7 +296,6 @@ class TestMarketCapFormatting:
 
         assert result == "500,000"
 
-
 class TestDecimalFormatting:
     """Test decimal formatting."""
 
@@ -331,7 +320,6 @@ class TestDecimalFormatting:
         result = manager._format_decimal(2.718281828, format_rule, "console")
 
         assert result == "2.7183"
-
 
 class TestActionFormatting:
     """Test action formatting."""
@@ -398,7 +386,6 @@ class TestActionFormatting:
 
         assert result == "UNKNOWN"
 
-
 class TestSaveCSV:
     """Test CSV saving."""
 
@@ -439,7 +426,6 @@ class TestSaveCSV:
         # Read back and verify
         saved_df = pd.read_csv(output_file)
         assert len(saved_df) == 2
-
 
 class TestSaveHTML:
     """Test HTML saving."""
@@ -483,7 +469,6 @@ class TestSaveHTML:
 
         assert os.path.exists(output_file)
 
-
 class TestGenerateHTMLTable:
     """Test HTML table generation."""
 
@@ -514,7 +499,6 @@ class TestGenerateHTMLTable:
         assert "<style>" in html
         assert "action-buy" in html
         assert "action-sell" in html
-
 
 class TestGetHTMLCSSClass:
     """Test HTML CSS class determination."""
@@ -571,7 +555,6 @@ class TestGetHTMLCSSClass:
 
         assert css_class == "negative"
 
-
 class TestGetOptionTitle:
     """Test option title generation."""
 
@@ -624,5 +607,4 @@ class TestGetOptionTitle:
         title = manager.get_option_title("x")
 
         assert "Analysis" in title
-
 

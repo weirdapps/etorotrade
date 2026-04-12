@@ -7,22 +7,19 @@ These tests verify the proper integration between different utility modules.
 
 import logging
 import unittest
-from unittest.mock import patch
 
 import pytest
 
 # Import test fixtures
 from tests.fixtures import create_flaky_function
-from yahoofinance.core.errors import RateLimitError, YFinanceError
+from yahoofinance.core.errors import RateLimitError
 from yahoofinance.utils.async_utils.helpers import async_retry
-
 
 # Set up logging for tests
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("test_advanced_utils")
-
 
 @pytest.mark.integration
 @pytest.mark.asyncio
@@ -56,7 +53,6 @@ class TestRateLimiterErrorRecovery(unittest.IsolatedAsyncioTestCase):
                 backoff_factor=2.0,
                 jitter=False,
             )
-
 
 if __name__ == "__main__":
     logger.info("Running advanced utility integration tests...")

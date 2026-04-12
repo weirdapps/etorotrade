@@ -12,7 +12,6 @@ This module tests the filtering functionality including:
 import pytest
 import pandas as pd
 import numpy as np
-from unittest.mock import patch, MagicMock
 
 from trade_modules.trade_filters import (
     TradingCriteriaFilter,
@@ -26,7 +25,6 @@ from trade_modules.trade_filters import (
     create_custom_filter,
 )
 from yahoofinance.core.errors import YFinanceError
-
 
 @pytest.fixture
 def sample_market_data():
@@ -47,7 +45,6 @@ def sample_market_data():
         'sector': ['Technology', 'Technology', 'Technology', 'Consumer', 'Consumer', 'Technology', 'Technology'],
     })
 
-
 @pytest.fixture
 def sample_portfolio_data():
     """Create sample portfolio data for testing."""
@@ -59,7 +56,6 @@ def sample_portfolio_data():
         'market_value': [15025.00, 14025.00, 11257.50, 6615.00],
         'sector': ['Technology', 'Technology', 'Technology', 'Technology'],
     })
-
 
 @pytest.fixture
 def trading_criteria_config():
@@ -74,7 +70,6 @@ def trading_criteria_config():
         'max_short_percent': 5.0,
         'min_market_cap': 1e9,  # 1B minimum
     }
-
 
 class TestTradingCriteriaFilter:
     """Test cases for TradingCriteriaFilter class."""
@@ -188,7 +183,6 @@ class TestTradingCriteriaFilter:
             assert filter_instance.criteria['min_upside'] == pytest.approx(15.0)
             assert filter_instance.criteria['max_pe_forward'] == pytest.approx(25.0)
 
-
 class TestPortfolioFilter:
     """Test cases for PortfolioFilter class."""
     
@@ -280,7 +274,6 @@ class TestPortfolioFilter:
             assert isinstance(filter_instance.portfolio, pd.DataFrame)
             assert len(filter_instance.portfolio) == len(sample_portfolio_data)
 
-
 class TestDataQualityFilter:
     """Test cases for DataQualityFilter class."""
     
@@ -369,7 +362,6 @@ class TestDataQualityFilter:
             assert len(cleaned_data) <= len(sample_market_data)
             # Cleaned data should have better quality
 
-
 class TestCustomFilter:
     """Test cases for CustomFilter class."""
     
@@ -447,7 +439,6 @@ class TestCustomFilter:
                 assert 'rule1' in rules_list
                 assert 'rule2' in rules_list
 
-
 class TestTradingFilterError:
     """Test cases for TradingFilterError exception."""
     
@@ -467,7 +458,6 @@ class TestTradingFilterError:
         """Test raising TradingFilterError."""
         with pytest.raises(TradingFilterError):
             raise TradingFilterError("Test error")
-
 
 class TestFactoryFunctions:
     """Test cases for factory functions."""
@@ -517,7 +507,6 @@ class TestFactoryFunctions:
         filter_instance = create_custom_filter()
         
         assert isinstance(filter_instance, CustomFilter)
-
 
 class TestFilterChaining:
     """Test chaining multiple filters together."""
@@ -571,7 +560,6 @@ class TestFilterChaining:
         
         assert isinstance(data, pd.DataFrame)
         assert len(data) <= len(sample_market_data)
-
 
 class TestPerformance:
     """Test filter performance with large datasets."""
@@ -633,7 +621,6 @@ class TestPerformance:
         # Should complete in reasonable time
         assert end_time - start_time < 1.0  # Less than 1 second
 
-
 class TestErrorHandling:
     """Test error handling scenarios."""
     
@@ -680,7 +667,6 @@ class TestErrorHandling:
                 result = quality_filter.check_data_completeness(None)
             except (TypeError, ValueError, TradingFilterError):
                 assert True
-
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

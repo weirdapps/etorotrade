@@ -1,5 +1,4 @@
 """Test trade engine functionality"""
-import pytest
 import sys
 sys.path.insert(0, '/Users/plessas/SourceCode/etorotrade')
 

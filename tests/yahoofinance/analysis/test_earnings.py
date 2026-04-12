@@ -1,11 +1,9 @@
 import unittest
-from datetime import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pandas as pd
 
 from yahoofinance.analysis.earnings import EarningsCalendar, format_earnings_table
-
 
 class TestEarningsCalendar(unittest.TestCase):
     def setUp(self):
@@ -130,7 +128,6 @@ class TestEarningsCalendar(unittest.TestCase):
             self.assertTrue(ticker.isupper())
             self.assertTrue(ticker.isalnum())
 
-
 class TestEarningsTableFormatting(unittest.TestCase):
     def test_format_earnings_table(self):
         """Test earnings table formatting."""
@@ -152,7 +149,6 @@ class TestEarningsTableFormatting(unittest.TestCase):
         with patch("builtins.print") as mock_print:
             format_earnings_table(pd.DataFrame(), "2024-01-01", "2024-01-07")
             self.assertFalse(mock_print.called)
-
 
 if __name__ == "__main__":
     unittest.main()

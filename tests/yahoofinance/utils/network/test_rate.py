@@ -12,22 +12,17 @@ import logging
 import threading
 import time
 import unittest
-from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock, patch
 
 # Create a reusable test fixture module
-from tests.fixtures.async_fixtures import create_bulk_fetch_mocks
-from yahoofinance.core.errors import APIError, RateLimitError
 from yahoofinance.core.logging import get_logger
 from yahoofinance.utils.network.rate_limiter import RateLimiter, global_rate_limiter, rate_limited
-
 
 # Set up logging for tests
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = get_logger(__name__)
-
 
 class TestRateLimiterConfiguration(unittest.TestCase):
     """Test the configuration options for rate limiter."""
@@ -67,7 +62,6 @@ class TestRateLimiterConfiguration(unittest.TestCase):
         from yahoofinance.utils.network.rate_limiter import global_rate_limiter as gr2
 
         self.assertIs(global_rate_limiter, gr2)
-
 
 class TestRateLimiterCore(unittest.TestCase):
     """Test the core functionality of the adaptive rate limiter."""
@@ -182,7 +176,6 @@ class TestRateLimiterCore(unittest.TestCase):
             ticker_delay = self.rate_limiter.get_delay_for_ticker("AAPL")
             self.assertGreaterEqual(ticker_delay, 0)
 
-
 class TestRateLimiterDecorators(unittest.TestCase):
     """Test rate limiting decorators and utilities."""
 
@@ -276,7 +269,6 @@ class TestThreadSafety(unittest.TestCase):
         self.assertEqual(call_count, 20)
         self.assertEqual(len(limiter.call_timestamps), 20)
 
-
 class TestErrorRecovery(unittest.TestCase):
     """Test error recovery and backoff strategies."""
 
@@ -342,7 +334,6 @@ class TestErrorRecovery(unittest.TestCase):
 
         # Now AAPL should be in slow_tickers
         self.assertIn("AAPL", limiter.slow_tickers)
-
 
 if __name__ == "__main__":
     unittest.main()

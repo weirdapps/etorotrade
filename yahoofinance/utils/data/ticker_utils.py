@@ -5,12 +5,8 @@ This module provides utility functions for working with ticker symbols,
 especially for handling dual-listed stocks that trade on multiple exchanges.
 """
 
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set
 from ..ticker_mappings import (
-    DUAL_LISTED_MAPPINGS,
-    REVERSE_MAPPINGS,
-    DUAL_LISTED_TICKERS,
-    TICKER_GEOGRAPHY,
     get_normalized_ticker,
     get_us_ticker,
     is_dual_listed,
@@ -18,7 +14,7 @@ from ..ticker_mappings import (
     get_data_fetch_ticker,
     get_ticker_geography,
     are_equivalent_tickers,
-    get_all_equivalent_tickers
+    get_all_equivalent_tickers,
 )
 
 def normalize_ticker(ticker: str) -> str:

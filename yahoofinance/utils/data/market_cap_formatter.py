@@ -9,11 +9,9 @@ the magnitude of the value.
 from typing import Any, Dict, Optional, Union
 
 from ...core.logging import get_logger
-from ..error_handling import enrich_error_context, safe_operation, translate_error, with_retry
-
+from ..error_handling import with_retry
 
 logger = get_logger(__name__)
-
 
 @with_retry
 def _get_scale_info(value: float, config: Dict[str, Any]) -> Dict[str, Any]:
@@ -71,7 +69,6 @@ def _get_scale_info(value: float, config: Dict[str, Any]) -> Dict[str, Any]:
 
     return {"scale": scale, "divisor": divisor, "suffix": suffix, "precision": precision}
 
-
 @with_retry
 def _format_with_scale(value: float, scale_info: Dict[str, Any]) -> str:
     """
@@ -93,7 +90,6 @@ def _format_with_scale(value: float, scale_info: Dict[str, Any]) -> str:
         return f"{value:,.{precision}f}"
     else:
         return f"{value / divisor:.{precision}f}{suffix}"
-
 
 @with_retry
 def format_market_cap_advanced(

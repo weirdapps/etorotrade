@@ -7,23 +7,19 @@ This module tests the FilterService class for filtering trading opportunities.
 import pytest
 import pandas as pd
 import logging
-from unittest.mock import MagicMock, patch
-from io import StringIO
+from unittest.mock import MagicMock
 
 from trade_modules.filter_service import FilterService
-
 
 @pytest.fixture
 def logger():
     """Create a mock logger."""
     return MagicMock(spec=logging.Logger)
 
-
 @pytest.fixture
 def filter_service(logger):
     """Create a FilterService instance."""
     return FilterService(logger)
-
 
 @pytest.fixture
 def sample_market_df():
@@ -38,7 +34,6 @@ def sample_market_df():
     df = df.set_index("ticker")
     return df
 
-
 class TestFilterServiceInit:
     """Tests for FilterService initialization."""
 
@@ -46,7 +41,6 @@ class TestFilterServiceInit:
         """Test FilterService initializes with logger."""
         service = FilterService(logger)
         assert service.logger is logger
-
 
 class TestFilterBuyOpportunities:
     """Tests for filter_buy_opportunities method."""
@@ -85,7 +79,6 @@ class TestFilterBuyOpportunities:
 
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 0
-
 
 class TestFilterSellOpportunities:
     """Tests for filter_sell_opportunities method."""
@@ -139,7 +132,6 @@ class TestFilterSellOpportunities:
         assert len(result) == 2
         assert "TSLA" not in result.index
 
-
 class TestFilterHoldOpportunities:
     """Tests for filter_hold_opportunities method."""
 
@@ -176,7 +168,6 @@ class TestFilterHoldOpportunities:
 
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 0
-
 
 class TestFilterNotradeTickers:
     """Tests for filter_notrade_tickers method."""
@@ -239,7 +230,6 @@ class TestFilterNotradeTickers:
         assert "AAPL" not in result.index
         assert "MSFT" not in result.index
 
-
 class TestFilterServiceEdgeCases:
     """Edge case tests for FilterService."""
 
@@ -290,7 +280,6 @@ class TestFilterServiceEdgeCases:
         assert len(buy_result) == 0
         assert len(sell_result) == 0
         assert len(hold_result) == 0
-
 
 class TestFilterServiceIntegration:
     """Integration tests for FilterService."""

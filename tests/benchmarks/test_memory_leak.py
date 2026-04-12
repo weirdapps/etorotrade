@@ -11,11 +11,9 @@ This module tests for memory leaks in critical components like:
 import gc
 import tracemalloc
 import unittest
-from typing import List
 
 # Start memory tracking
 tracemalloc.start()
-
 
 class TestMemoryLeaks(unittest.TestCase):
     """Test suite for detecting memory leaks in the application."""
@@ -130,7 +128,6 @@ class TestMemoryLeaks(unittest.TestCase):
         # Memory should be reclaimed
         self.assertTrue(True)
 
-
 def run_memory_profile():
     """Run a simple memory profile of the application."""
     print("Running memory leak detection tests...")
@@ -150,7 +147,6 @@ def run_memory_profile():
     tracemalloc.stop()
     
     return result.wasSuccessful()
-
 
 if __name__ == "__main__":
     success = run_memory_profile()

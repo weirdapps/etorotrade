@@ -8,16 +8,11 @@ to opportunity filtering. Uses mocked providers to ensure reliable testing.
 
 import pytest
 import pandas as pd
-import numpy as np
 from unittest.mock import AsyncMock, MagicMock, patch
-from typing import Dict, Any, List
-
-from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-
+from typing import Dict
 
 # Mark all tests as integration tests
 pytestmark = [pytest.mark.integration]
-
 
 class TestTradingEngineIntegration:
     """Integration tests for TradingEngine end-to-end flow."""
@@ -135,7 +130,6 @@ class TestTradingEngineIntegration:
             )
             # At least some stocks should be categorized
             assert total_categorized >= 0
-
 
 class TestSignalGenerationIntegration:
     """Integration tests for the signal generation pipeline."""
@@ -258,7 +252,6 @@ class TestSignalGenerationIntegration:
 
         assert result.loc['TEST', 'BS'] == 'S'
 
-
 class TestFilterServiceIntegration:
     """Integration tests for filter service operations."""
 
@@ -306,13 +299,12 @@ class TestFilterServiceIntegration:
         assert all(result['BS'] == 'H')
         assert len(result) == 2  # MSFT and TSLA
 
-
 class TestContainerIntegration:
     """Integration tests for the dependency injection container."""
 
     def test_container_creates_services(self):
         """Test that container can create all services."""
-        from trade_modules.container import get_container, reset_container
+        from trade_modules.container import reset_container
 
         # Reset to get fresh container
         container = reset_container({})
@@ -328,7 +320,7 @@ class TestContainerIntegration:
 
     def test_container_caches_instances(self):
         """Test that container caches service instances."""
-        from trade_modules.container import get_container, reset_container
+        from trade_modules.container import reset_container
 
         container = reset_container({})
 
@@ -341,7 +333,7 @@ class TestContainerIntegration:
 
     def test_container_clear_resets_instances(self):
         """Test that clearing container resets instances."""
-        from trade_modules.container import get_container, reset_container
+        from trade_modules.container import reset_container
 
         container = reset_container({})
 
@@ -355,14 +347,12 @@ class TestContainerIntegration:
         # Should be different instances
         assert service1 is not service2
 
-
 class TestProtocolCompliance:
     """Integration tests for protocol compliance."""
 
     def test_analysis_service_protocol_compliance(self):
         """Test that AnalysisService complies with protocol."""
         from trade_modules.analysis_service import AnalysisService
-        from trade_modules.protocols import AnalysisServiceProtocol
 
         service = AnalysisService({}, MagicMock())
 
@@ -375,7 +365,6 @@ class TestProtocolCompliance:
     def test_filter_service_protocol_compliance(self):
         """Test that FilterService complies with protocol."""
         from trade_modules.filter_service import FilterService
-        from trade_modules.protocols import FilterServiceProtocol
 
         service = FilterService(MagicMock())
 
@@ -388,7 +377,6 @@ class TestProtocolCompliance:
     def test_portfolio_service_protocol_compliance(self):
         """Test that PortfolioService complies with protocol."""
         from trade_modules.portfolio_service import PortfolioService
-        from trade_modules.protocols import PortfolioServiceProtocol
 
         service = PortfolioService(MagicMock())
 

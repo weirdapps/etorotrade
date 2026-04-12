@@ -12,16 +12,20 @@ from typing import Any, Callable, Dict, List, Optional
 import pandas as pd
 
 from yahoofinance.api.providers.base_provider import AsyncFinanceDataProvider, FinanceDataProvider
-from yahoofinance.core.config import COLUMN_NAMES, FILE_PATHS, MESSAGES, PATHS, RATE_LIMIT, get_max_concurrent_requests
+from yahoofinance.core.config import (
+    FILE_PATHS,
+    MESSAGES,
+    PATHS,
+    RATE_LIMIT,
+    get_max_concurrent_requests,
+)
 from yahoofinance.core.errors import YFinanceError
 from yahoofinance.core.logging import get_logger
 from yahoofinance.presentation.html import HTMLGenerator
 from yahoofinance.utils.data.ticker_utils import normalize_ticker
 from yahoofinance.utils.error_handling import with_retry
 
-
 logger = get_logger(__name__)
-
 
 # Known duplicate securities (same company, different tickers)
 # Format: {ticker_to_remove: primary_ticker_to_keep}
@@ -45,7 +49,6 @@ DUPLICATE_TICKERS = {
     'RIO': 'RIO.L',       # Rio Tinto ADR → London
     'BHP': 'BHP.AX',      # BHP ADR → Australia
 }
-
 
 def deduplicate_securities(df: pd.DataFrame, ticker_col: Optional[str] = None) -> pd.DataFrame:
     """
@@ -93,7 +96,6 @@ def deduplicate_securities(df: pd.DataFrame, ticker_col: Optional[str] = None) -
             logger.info(f"Deduplicated {removed_count} duplicate securities: {tickers_to_remove}")
 
     return df
-
 
 def load_tickers(source_type: str) -> List[str]:
     """
@@ -163,7 +165,6 @@ def load_tickers(source_type: str) -> List[str]:
             return ["AAPL", "MSFT"]  # Default tickers for error cases
     else:
         raise ValueError(f"Unknown source type: {source_type}")
-
 
 def _load_tickers_from_file(file_path: str, ticker_column: List[str]) -> List[str]:
     """
@@ -262,7 +263,6 @@ def _load_tickers_from_file(file_path: str, ticker_column: List[str]) -> List[st
         pass  # Silent error handling
         return []
 
-
 @with_retry
 def _get_manual_tickers() -> List[str]:
     """
@@ -282,7 +282,6 @@ def _get_manual_tickers() -> List[str]:
     # Split by comma and clean up
     tickers = [normalize_ticker(t.strip()) for t in ticker_input.split(",") if t.strip()]
     return tickers
-
 
 def filter_by_trade_action(results: List[Dict], trade_filter: str) -> List[Dict]:
     """
@@ -363,7 +362,6 @@ def filter_by_trade_action(results: List[Dict], trade_filter: str) -> List[Dict]
                     filtered_results.append(ticker_data)
 
     return filtered_results
-
 
 def save_to_csv(
     data: List[Dict[str, Any]],
@@ -473,7 +471,6 @@ def save_to_csv(
         logger.error(f"Error saving to CSV: {str(e)}")
         raise e
 
-
 def display_report(
     tickers: List[str],
     report_type: Optional[str],
@@ -506,7 +503,6 @@ def display_report(
     else:
         # Handle sync provider
         _sync_display_report(tickers, report_type, provider, display_table_fn, process_tickers_fn)  # type: ignore[arg-type]
-
 
 def _sync_display_report(
     tickers: List[str],
@@ -568,7 +564,6 @@ def _sync_display_report(
             )
     else:
         pass
-
 
 async def _async_display_report(
     tickers: List[str],

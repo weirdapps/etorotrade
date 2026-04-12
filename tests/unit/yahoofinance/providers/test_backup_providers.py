@@ -8,7 +8,6 @@ Tests verify that providers:
 - Handle errors appropriately
 """
 
-import asyncio
 import os
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -17,13 +16,8 @@ import pytest
 
 from yahoofinance.api.providers.alpha_vantage_provider import AlphaVantageProvider
 from yahoofinance.api.providers.polygon_provider import PolygonProvider
-from yahoofinance.api.providers.provider_registry import (
-    ProviderRegistry,
-    get_provider_registry,
-    get_stock_data,
-)
-from yahoofinance.core.errors import APIError, RateLimitError
-
+from yahoofinance.api.providers.provider_registry import ProviderRegistry, get_stock_data
+from yahoofinance.core.errors import RateLimitError
 
 class TestAlphaVantageProvider:
     """Tests for Alpha Vantage provider."""
@@ -144,7 +138,6 @@ class TestAlphaVantageProvider:
         result = await provider.get_earnings_dates("AAPL")
         assert result == (None, None)
 
-
 class TestPolygonProvider:
     """Tests for Polygon.io provider."""
 
@@ -232,7 +225,6 @@ class TestPolygonProvider:
         provider = PolygonProvider()
         result = await provider.get_earnings_dates("AAPL")
         assert result == (None, None)
-
 
 class TestProviderRegistry:
     """Tests for provider registry."""
@@ -407,7 +399,6 @@ class TestProviderRegistry:
 
             assert result["symbol"] == "AAPL"
             mock_registry.get_stock_data.assert_called_once_with("AAPL", False)
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

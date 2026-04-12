@@ -8,20 +8,16 @@ Tests the full API stack including:
 
 import pytest
 import asyncio
-from unittest.mock import patch
 
 from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
 
-
 # Mark all tests in this module as integration tests
 pytestmark = pytest.mark.integration
-
 
 @pytest.fixture
 def hybrid_provider():
     """Create AsyncHybridProvider instance."""
     return AsyncHybridProvider()
-
 
 class TestAsyncHybridProviderIntegration:
     """Integration tests for AsyncHybridProvider with real API calls."""
@@ -88,5 +84,4 @@ class TestAsyncHybridProviderIntegration:
         # All should succeed or fail gracefully
         for result in results:
             assert not isinstance(result, Exception) or "rate limit" in str(result).lower()
-
 

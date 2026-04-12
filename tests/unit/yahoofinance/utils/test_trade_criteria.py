@@ -7,8 +7,7 @@ File: yahoofinance/utils/trade_criteria.py (75 statements, 53% coverage)
 
 import pytest
 import pandas as pd
-from unittest.mock import Mock, patch
-
+from unittest.mock import patch
 
 class TestConstants:
     """Test module constants."""
@@ -35,7 +34,6 @@ class TestConstants:
         assert BUY_PERCENTAGE_COL == "buy_percentage"
         assert PE_FORWARD == "pe_forward"
         assert PE_TRAILING == "pe_trailing"
-
 
 class TestCheckConfidenceCriteria:
     """Test check_confidence_criteria function."""
@@ -118,7 +116,6 @@ class TestCheckConfidenceCriteria:
 
         assert result is True
 
-
 class TestNormalizeRowForCriteria:
     """Test normalize_row_for_criteria function."""
 
@@ -197,7 +194,6 @@ class TestNormalizeRowForCriteria:
         assert result["analyst_count"] == 10
         assert result["total_ratings"] == 10
 
-
 class TestNormalizeRowColumns:
     """Test normalize_row_columns function."""
 
@@ -234,7 +230,6 @@ class TestNormalizeRowColumns:
 
         assert result["upside"] == pytest.approx(15.0)
 
-
 class TestCalculateAction:
     """Test calculate_action function."""
 
@@ -251,7 +246,6 @@ class TestCalculateAction:
         assert result == "B"
         mock_calc.assert_called_once()
 
-
 class TestEvaluateTradeCriteria:
     """Test evaluate_trade_criteria function."""
 
@@ -267,7 +261,6 @@ class TestEvaluateTradeCriteria:
 
         assert result == "S"
         mock_calc.assert_called_once_with(ticker_data)
-
 
 class TestFormatNumericValues:
     """Test format_numeric_values function."""
@@ -355,7 +348,6 @@ class TestFormatNumericValues:
         assert result["value"].iloc[0] == pytest.approx(10.0)
         assert result["value"].iloc[1] == pytest.approx(20.0)
 
-
 class TestCalculateActionForRow:
     """Test calculate_action_for_row function."""
 
@@ -388,7 +380,6 @@ class TestCalculateActionForRow:
             action, reason = calculate_action_for_row(row, {})
 
             assert action == "S"
-
 
 class TestModuleStructure:
     """Test module structure."""

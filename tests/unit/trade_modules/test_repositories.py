@@ -11,7 +11,6 @@ import pandas as pd
 import tempfile
 import shutil
 from pathlib import Path
-from unittest.mock import Mock, patch
 
 from trade_modules.repositories import (
     CsvRepository,
@@ -24,8 +23,6 @@ from trade_modules.repositories.interfaces import (
     IPortfolioRepository,
     IMarketDataRepository
 )
-from trade_modules.errors import DataProcessingError
-
 
 class TestCsvRepository:
     """Test CSV repository implementation."""
@@ -144,7 +141,6 @@ class TestCsvRepository:
         assert result_df.index.tolist() == ['AAPL', 'MSFT']
         assert 'price' in result_df.columns
         assert 'volume' in result_df.columns
-
 
 class TestPortfolioRepository:
     """Test portfolio repository implementation."""
@@ -273,7 +269,6 @@ class TestPortfolioRepository:
         # Verify backup exists
         backups = portfolio_repo.csv_repo.list_files('*backup*.csv')
         assert len(backups) >= 1
-
 
 class TestMarketDataRepository:
     """Test market data repository implementation."""
@@ -406,7 +401,6 @@ class TestMarketDataRepository:
         assert isinstance(result_df, pd.DataFrame)
         assert result_df.empty
 
-
 class TestRepositoryIntegration:
     """Test integration between repository components."""
     
@@ -483,7 +477,6 @@ class TestRepositoryIntegration:
         
         pd.testing.assert_frame_equal(portfolio_result, portfolio_data)
         pd.testing.assert_frame_equal(market_result, market_data)
-
 
 if __name__ == "__main__":
     pytest.main([__file__])

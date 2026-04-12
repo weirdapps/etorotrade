@@ -9,7 +9,7 @@ New code should import from yahoofinance.presentation.console_modules directly.
 """
 
 import asyncio
-from typing import Any, Dict, List, Optional, Union
+from typing import Optional, Union
 
 from yahoofinance.api.providers.base_provider import AsyncFinanceDataProvider, FinanceDataProvider
 from yahoofinance.core.logging import get_logger
@@ -19,8 +19,6 @@ from yahoofinance.presentation.formatter import DisplayConfig, DisplayFormatter
 from .console_modules import (
     ConsoleDisplay,
     RateLimitTracker,
-    display_console_error_summary,
-    display_report,
     display_stock_table,
     filter_by_trade_action,
     format_dataframe,
@@ -30,9 +28,7 @@ from .console_modules import (
     sort_market_data,
 )
 
-
 logger = get_logger(__name__)
-
 
 class MarketDisplay:
     """Console display for market data with rate limiting - Backward Compatibility Wrapper"""
@@ -143,7 +139,6 @@ class MarketDisplay:
             self.display_stock_table,  # Use instance method instead of module function
             trade_filter,
         )
-
 
 # Re-export all for backward compatibility
 __all__ = [

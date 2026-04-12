@@ -7,8 +7,6 @@ File: yahoofinance/utils/async_utils/helpers.py (105 statements, 35% coverage)
 
 import pytest
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch
-
 
 class TestGatherWithSemaphore:
     """Test gather_with_semaphore function."""
@@ -56,7 +54,6 @@ class TestGatherWithSemaphore:
         assert results[0] == "success"
         assert isinstance(results[1], ValueError)
 
-
 class TestTypeVars:
     """Test type variable definitions."""
 
@@ -71,7 +68,6 @@ class TestTypeVars:
         from yahoofinance.utils.async_utils.helpers import R
 
         assert R is not None
-
 
 class TestEnhancedImports:
     """Test re-exported enhanced implementations."""
@@ -112,7 +108,6 @@ class TestEnhancedImports:
 
         assert global_priority_rate_limiter is not None
 
-
 class TestAsyncErrorHandling:
     """Test async error handling utilities."""
 
@@ -124,7 +119,6 @@ class TestAsyncErrorHandling:
         assert hasattr(helpers, 'translate_error')
         assert hasattr(helpers, 'enrich_error_context')
         assert hasattr(helpers, 'with_retry')
-
 
 class TestModuleStructure:
     """Test module structure and backward compatibility."""
@@ -143,7 +137,6 @@ class TestModuleStructure:
         assert helpers.__doc__ is not None
         assert "Asynchronous helpers" in helpers.__doc__
 
-
 class TestBackwardCompatibility:
     """Test backward compatibility exports."""
 
@@ -158,7 +151,6 @@ class TestBackwardCompatibility:
         from yahoofinance.utils.async_utils.helpers import enhanced_async_rate_limited
 
         assert callable(enhanced_async_rate_limited)
-
 
 class TestAsyncSemaphoreEdgeCases:
     """Test edge cases for async semaphore operations."""
@@ -210,7 +202,6 @@ class TestAsyncSemaphoreEdgeCases:
         # Should never exceed semaphore limit
         assert max_concurrent <= 2
         assert len(results) == 5
-
 
 class TestAsyncBulkFetch:
     """Test async_bulk_fetch function."""
@@ -280,7 +271,6 @@ class TestAsyncBulkFetch:
         )
 
         assert len(results) == 3
-
 
 class TestAsyncRetry:
     """Test async_retry function."""
@@ -375,7 +365,6 @@ class TestAsyncRetry:
 
         assert result == "success"
 
-
 class TestPrioritizedBatchProcess:
     """Test prioritized_batch_process function."""
 
@@ -445,7 +434,6 @@ class TestPrioritizedBatchProcess:
 
         # Order should be high, medium, low
         assert order == ["high", "medium", "low"]
-
 
 class TestAdaptiveFetch:
     """Test adaptive_fetch function."""
@@ -519,5 +507,4 @@ class TestAdaptiveFetch:
         )
 
         assert len(results) == 25
-
 

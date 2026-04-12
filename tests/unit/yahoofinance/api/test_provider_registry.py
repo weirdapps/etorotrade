@@ -5,8 +5,6 @@ Target: Increase coverage for yahoofinance/api/provider_registry.py
 """
 
 import pytest
-from unittest.mock import patch, MagicMock
-
 
 class TestProviderTypes:
     """Test PROVIDER_TYPES configuration."""
@@ -31,7 +29,6 @@ class TestProviderTypes:
 
         assert "hybrid" in PROVIDER_TYPES
         assert "async" in PROVIDER_TYPES["hybrid"]
-
 
 class TestGetProvider:
     """Test get_provider function."""
@@ -97,7 +94,6 @@ class TestGetProvider:
         # Different instances when not caching
         assert provider1 is not provider2
 
-
 class TestGetAllProviders:
     """Test get_all_providers function."""
 
@@ -110,7 +106,6 @@ class TestGetAllProviders:
         assert isinstance(providers, dict)
         assert len(providers) > 0
 
-
 class TestGetDefaultProvider:
     """Test get_default_provider function."""
 
@@ -121,7 +116,6 @@ class TestGetDefaultProvider:
         provider = get_default_provider()
 
         assert provider is not None
-
 
 class TestClearProviderCache:
     """Test clear_provider_cache function."""
@@ -149,7 +143,6 @@ class TestClearProviderCache:
         # Should not raise
         clear_provider_cache()
 
-
 class TestInitializeRegistry:
     """Test initialize_registry function."""
 
@@ -159,7 +152,6 @@ class TestInitializeRegistry:
 
         # Should not raise
         initialize_registry()
-
 
 class TestConstants:
     """Test module constants."""
@@ -182,7 +174,6 @@ class TestConstants:
 
         assert DEFAULT_ENHANCED is False
 
-
 class TestModuleStructure:
     """Test module structure."""
 
@@ -199,7 +190,6 @@ class TestModuleStructure:
 
         assert hasattr(provider_registry, '_provider_cache')
         assert isinstance(provider_registry._provider_cache, dict)
-
 
 class TestEdgeCases:
     """Test edge cases."""

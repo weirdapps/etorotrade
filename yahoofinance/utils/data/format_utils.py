@@ -6,17 +6,14 @@ tables, HTML, CSV, and other formats.
 """
 
 import math
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 from ...core.logging import get_logger
-from ..error_handling import enrich_error_context, safe_operation, translate_error, with_retry
-from .price_target_utils import get_preferred_price_target, validate_price_target_data
+from .price_target_utils import get_preferred_price_target
 from .ticker_utils import normalize_ticker, get_ticker_for_display, get_geographic_region
-
 
 # Set up logging
 logger = get_logger(__name__)
-
 
 def calculate_upside(price: Any, target_price: Any) -> Optional[float]:
     """
@@ -46,7 +43,6 @@ def calculate_upside(price: Any, target_price: Any) -> Optional[float]:
         
     except (ValueError, TypeError, ZeroDivisionError):
         return None
-
 
 def calculate_validated_upside(ticker_data: Dict[str, Any]) -> Tuple[Optional[float], str]:
     """
@@ -80,7 +76,6 @@ def calculate_validated_upside(ticker_data: Dict[str, Any]) -> Tuple[Optional[fl
     except (KeyError, ValueError, TypeError, ZeroDivisionError) as e:
         logger.warning(f"Error calculating validated upside: {e}")
         return None, "error_occurred"
-
 
 def format_number(
     value: Any,
@@ -133,7 +128,6 @@ def format_number(
 
     return formatted
 
-
 def _abbreviate_number(value: float, precision: int = 2) -> str:
     """
     Abbreviate a large number with K, M, B, T suffix.
@@ -158,7 +152,6 @@ def _abbreviate_number(value: float, precision: int = 2) -> str:
         return f"{value / 1e3:.{precision}f}K"
     else:
         return f"{value:.{precision}f}"
-
 
 def format_market_cap(value: Optional[float]) -> Optional[str]:
     """
@@ -197,7 +190,6 @@ def format_market_cap(value: Optional[float]) -> Optional[str]:
             return f"{value / 1e6:.2f}M"
     else:
         return f"{int(value):,}"
-
 
 def calculate_position_size(
     market_cap: Optional[float], exret: Optional[float] = None, ticker: Optional[str] = None,
@@ -414,7 +406,6 @@ def calculate_position_size(
 
     return result
 
-
 def format_position_size(value: Optional[float]) -> str:
     """
     Format position size value with 'k' suffix for thousands.
@@ -448,7 +439,6 @@ def format_position_size(value: Optional[float]) -> str:
             return f"{divided:.1f}k"
     except (ValueError, TypeError):
         return "--"
-
 
 def format_market_metrics(
     metrics: Dict[str, Any], include_pct_signs: bool = True
@@ -498,9 +488,6 @@ def format_market_metrics(
 
     return formatted
 
-
-
-
 def _apply_formatter(value: Any, formatter: Optional[Dict[str, Any]] = None) -> str:
     """
     Apply formatter rules to a value.
@@ -534,7 +521,6 @@ def _apply_formatter(value: Any, formatter: Optional[Dict[str, Any]] = None) -> 
     # Note: value is guaranteed to be not None at this point due to early return above
     return str(value)
 
-
 def normalize_ticker_data(data: List[Dict[str, Any]], ticker_column: str = 'ticker') -> List[Dict[str, Any]]:
     """
     Normalize ticker symbols in a list of data dictionaries.
@@ -564,7 +550,6 @@ def normalize_ticker_data(data: List[Dict[str, Any]], ticker_column: str = 'tick
     
     return normalized_data
 
-
 def format_ticker_for_display(ticker: str) -> str:
     """
     Format a ticker symbol for display purposes.
@@ -582,7 +567,6 @@ def format_ticker_for_display(ticker: str) -> str:
         return ticker
     
     return get_ticker_for_display(ticker)
-
 
 def process_tabular_data(
     data: List[Dict[str, Any]],
@@ -625,7 +609,6 @@ def process_tabular_data(
 
     return columns, rows
 
-
 def format_table(
     data: List[Dict[str, Any]],
     columns: List[str],
@@ -650,7 +633,6 @@ def format_table(
 
     # Add header row
     return [cols] + rows
-
 
 def generate_market_html(
     data: List[Dict[str, Any]],
@@ -695,7 +677,6 @@ def generate_market_html(
 
     html += "</table>\n"
     return html
-
 
 def format_for_csv(data: List[Dict[str, Any]], columns: List[str] = None) -> List[List[str]]:
     """

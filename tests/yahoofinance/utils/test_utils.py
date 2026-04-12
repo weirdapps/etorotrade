@@ -11,21 +11,19 @@ This test file verifies the functionality of utility modules including:
 import logging
 import time
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-from yahoofinance.core.config import CACHE_CONFIG, POSITIVE_GRADES, RATE_LIMIT, RISK_METRICS
+from yahoofinance.core.config import CACHE_CONFIG, POSITIVE_GRADES, RATE_LIMIT
 from yahoofinance.core.logging import get_logger
 from yahoofinance.data.cache import CacheManager
 from yahoofinance.presentation.html import FormatUtils
 from yahoofinance.utils.market.ticker_utils import is_us_ticker, normalize_hk_ticker
-
 
 # Set up logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = get_logger(__name__)
-
 
 class TestMarketUtils(unittest.TestCase):
     """Test market utilities for ticker validation and normalization."""
@@ -54,7 +52,6 @@ class TestMarketUtils(unittest.TestCase):
         # Non-HK ticker (should remain unchanged)
         self.assertEqual(normalize_hk_ticker("AAPL"), "AAPL")
         self.assertEqual(normalize_hk_ticker("MSFT.US"), "MSFT.US")
-
 
 class TestFormatUtils(unittest.TestCase):
     """Test formatting utilities for output formatting."""
@@ -129,7 +126,6 @@ class TestFormatUtils(unittest.TestCase):
             self.assertIn("5.3%", html)
             self.assertIn("positive", html)
 
-
 class TestConfigAndCache(unittest.TestCase):
     """Test configuration values and cache improvements."""
 
@@ -199,7 +195,6 @@ class TestConfigAndCache(unittest.TestCase):
 
         # Verify cache was cleared
         self.assertIsNone(market_cache.get(test_key))
-
 
 if __name__ == "__main__":
     unittest.main()

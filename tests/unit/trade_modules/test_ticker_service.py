@@ -6,7 +6,7 @@ This module tests the unified ticker service.
 
 import pytest
 import pandas as pd
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from trade_modules.services.ticker_service import (
     TickerService,
@@ -17,12 +17,10 @@ from trade_modules.services.ticker_service import (
 )
 from trade_modules.errors import DataProcessingError
 
-
 @pytest.fixture
 def ticker_service():
     """Create a TickerService instance."""
     return TickerService()
-
 
 class TestTickerServiceInit:
     """Tests for TickerService initialization."""
@@ -35,7 +33,6 @@ class TestTickerServiceInit:
         """Test that default_ticker_service is created."""
         assert default_ticker_service is not None
         assert isinstance(default_ticker_service, TickerService)
-
 
 class TestNormalize:
     """Tests for normalize method."""
@@ -68,7 +65,6 @@ class TestNormalize:
         with pytest.raises(DataProcessingError):
             ticker_service.normalize("AAPL")
 
-
 class TestProcessInput:
     """Tests for process_input method."""
 
@@ -85,7 +81,6 @@ class TestProcessInput:
         with pytest.raises(DataProcessingError):
             ticker_service.process_input("AAPL")
 
-
 class TestGetDisplayFormat:
     """Tests for get_display_format method."""
 
@@ -101,7 +96,6 @@ class TestGetDisplayFormat:
 
         with pytest.raises(DataProcessingError):
             ticker_service.get_display_format("AAPL")
-
 
 class TestValidateFormat:
     """Tests for validate_format method."""
@@ -123,7 +117,6 @@ class TestValidateFormat:
 
         result = ticker_service.validate_format("AAPL")
         assert result is False
-
 
 class TestNormalizeList:
     """Tests for normalize_list method."""
@@ -153,7 +146,6 @@ class TestNormalizeList:
         result = ticker_service.normalize_list(["AAPL", "MSFT"])
         # Result should be a list with 0, 1, or 2 valid tickers
         assert isinstance(result, list) and len(result) <= 2
-
 
 class TestNormalizeDataframeColumn:
     """Tests for normalize_dataframe_column method."""
@@ -190,7 +182,6 @@ class TestNormalizeDataframeColumn:
         result = ticker_service.normalize_dataframe_column(df, "ticker")
         assert result is not None
 
-
 class TestGetEquivalents:
     """Tests for get_equivalents method."""
 
@@ -207,7 +198,6 @@ class TestGetEquivalents:
 
         with pytest.raises(DataProcessingError):
             ticker_service.get_equivalents("AAPL")
-
 
 class TestAreEquivalent:
     """Tests for are_equivalent method."""
@@ -235,7 +225,6 @@ class TestAreEquivalent:
         result = ticker_service.are_equivalent("AAPL", "GOOG")
         assert result is False
 
-
 class TestGetInfoSummary:
     """Tests for get_info_summary method."""
 
@@ -253,7 +242,6 @@ class TestGetInfoSummary:
         with pytest.raises(DataProcessingError):
             ticker_service.get_info_summary("AAPL")
 
-
 class TestGetGeographicRegion:
     """Tests for get_geographic_region method."""
 
@@ -270,7 +258,6 @@ class TestGetGeographicRegion:
         with pytest.raises(DataProcessingError):
             ticker_service.get_geographic_region("AAPL")
 
-
 class TestIsDualListed:
     """Tests for is_dual_listed method."""
 
@@ -286,7 +273,6 @@ class TestIsDualListed:
 
         result = ticker_service.is_dual_listed("AAPL")
         assert result is False
-
 
 class TestConvenienceFunctions:
     """Tests for module-level convenience functions."""

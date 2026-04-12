@@ -8,18 +8,9 @@ percentage formatting, and coloring of financial metrics.
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Union
-
-from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from ..utils.error_handling import (
-    enrich_error_context,
-    safe_operation,
-    translate_error,
-    with_retry,
-)
+from typing import Any, Dict, List, Optional, Union
 
 from ..utils.data.format_utils import format_market_cap as utils_format_market_cap
-
 
 class Color(Enum):
     """Color constants for terminal output."""
@@ -34,7 +25,6 @@ class Color(Enum):
     RESET = "\033[0m"  # Reset color
     BOLD = "\033[1m"  # Bold text
     UNDERLINE = "\033[4m"  # Underlined text
-
 
 @dataclass
 class DisplayConfig:
@@ -56,7 +46,6 @@ class DisplayConfig:
         from ..core.config import STANDARD_DISPLAY_COLUMNS
 
         self.reorder_columns = STANDARD_DISPLAY_COLUMNS
-
 
 class DisplayFormatter:
     """
@@ -569,7 +558,6 @@ class DisplayFormatter:
         """
         # Use the shared signal calculation method
         return self._calculate_signal(ticker_data)
-
 
 def create_formatter(
     output_format: str = "console", compact_mode: bool = False, show_colors: bool = True, **kwargs

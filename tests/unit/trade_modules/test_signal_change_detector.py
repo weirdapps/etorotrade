@@ -8,7 +8,6 @@ Tests cover:
 - Convenience functions
 """
 
-import json
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -20,10 +19,7 @@ from trade_modules.signal_tracker import (
     SignalRecord,
     SignalTracker,
     format_signal_changes,
-    get_signal_change_summary,
-    get_signal_changes,
 )
-
 
 class TestSignalChangeDetector:
     """Tests for SignalChangeDetector class."""
@@ -263,7 +259,6 @@ class TestSignalChangeDetector:
         for opp in opportunities:
             assert opp["urgency"] == "OPPORTUNITY"
 
-
 class TestConvenienceFunctions:
     """Tests for module-level convenience functions."""
 
@@ -307,7 +302,6 @@ class TestConvenienceFunctions:
         formatted = format_signal_changes(changes)
         assert len(formatted) == 1
         assert "AAPL" in formatted[0]
-
 
 class TestSignalChangeEdgeCases:
     """Tests for edge cases in signal change detection."""
@@ -415,7 +409,6 @@ class TestSignalChangeEdgeCases:
         assert len(changes) == 1
         # Price went from 100 to 90 = -10%
         assert changes[0]["price_change_pct"] == pytest.approx(-10.0, rel=0.01)
-
 
 class TestInconclusiveSignals:
     """Tests for handling INCONCLUSIVE signals."""

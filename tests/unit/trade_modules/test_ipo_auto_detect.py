@@ -1,14 +1,11 @@
 """Tests for IPO auto-detection using yfinance fallback."""
 
-import numpy as np
 import pandas as pd
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from datetime import datetime, timedelta
 
 from trade_modules.analysis import signals
 from trade_modules.analysis.signals import is_recent_ipo
-
 
 class FakeYamlConfig:
     """Minimal yaml_config mock for testing."""
@@ -19,13 +16,11 @@ class FakeYamlConfig:
     def load_config(self):
         return self._config
 
-
 def make_config(known_ipos=None, enabled=True, auto_detect=True):
     cfg = {'ipo_grace_period': {'enabled': enabled, 'auto_detect': auto_detect}}
     if known_ipos:
         cfg['ipo_grace_period']['known_ipos'] = known_ipos
     return cfg
-
 
 class TestIPOConfigOverride:
     """Config-based known_ipos should always take priority."""
@@ -47,7 +42,6 @@ class TestIPOConfigOverride:
     def test_disabled_returns_false(self):
         config = make_config(enabled=False)
         assert is_recent_ipo('AAPL', FakeYamlConfig(config)) is False
-
 
 class TestIPOAutoDetect:
     """yfinance fallback for tickers not in known_ipos."""

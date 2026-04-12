@@ -6,7 +6,6 @@ This module tests the DisplayFormatter class for formatting trading data.
 
 import pytest
 import pandas as pd
-from unittest.mock import MagicMock, patch
 
 from trade_modules.trade_display import (
     DisplayFormatter,
@@ -15,21 +14,17 @@ from trade_modules.trade_display import (
     COLOR_YELLOW,
     COLOR_CYAN,
     COLOR_RESET,
-    COLOR_BOLD,
 )
-
 
 @pytest.fixture
 def formatter():
     """Create a DisplayFormatter instance with colors enabled."""
     return DisplayFormatter(use_colors=True)
 
-
 @pytest.fixture
 def formatter_no_colors():
     """Create a DisplayFormatter instance without colors."""
     return DisplayFormatter(use_colors=False)
-
 
 @pytest.fixture
 def sample_opportunities():
@@ -72,7 +67,6 @@ def sample_opportunities():
         "hold_opportunities": hold_df,
     }
 
-
 class TestDisplayFormatterInit:
     """Tests for DisplayFormatter initialization."""
 
@@ -90,7 +84,6 @@ class TestDisplayFormatterInit:
         """Test default color setting."""
         formatter = DisplayFormatter()
         assert formatter.use_colors is True
-
 
 class TestFormatSectionTitle:
     """Tests for _format_section_title method."""
@@ -126,7 +119,6 @@ class TestFormatSectionTitle:
         assert COLOR_GREEN not in title
         assert "=== Buy Opportunities ===" == title
 
-
 class TestGetDisplayColumns:
     """Tests for _get_display_columns method."""
 
@@ -157,7 +149,6 @@ class TestGetDisplayColumns:
         columns = formatter._get_display_columns("unknown_type")
         assert "ticker" in columns
         assert "price" in columns
-
 
 class TestFormatDisplayColumns:
     """Tests for _format_display_columns method."""
@@ -229,7 +220,6 @@ class TestFormatDisplayColumns:
         assert result.iloc[0]["DE"] == "1.5"
         assert result.iloc[2]["DE"] == "N/A"
 
-
 class TestApplyColorCoding:
     """Tests for _apply_color_coding method."""
 
@@ -248,7 +238,6 @@ class TestApplyColorCoding:
         df = pd.DataFrame()
         result = formatter._apply_color_coding(df, "buy_opportunities")
         assert result.empty
-
 
 class TestPrepareDisplayDataframe:
     """Tests for _prepare_display_dataframe method."""
@@ -270,7 +259,6 @@ class TestPrepareDisplayDataframe:
         result = formatter._prepare_display_dataframe(df, "buy_opportunities")
         # Extra column should be filtered out
         assert "extra_column" not in result.columns
-
 
 class TestFormatTradingOpportunities:
     """Tests for format_trading_opportunities method."""
@@ -305,7 +293,6 @@ class TestFormatTradingOpportunities:
         invalid_opportunities = {"buy_opportunities": "not_a_dataframe"}
         result = formatter.format_trading_opportunities(invalid_opportunities, "table")
         assert "Error" in result
-
 
 class TestDisplayFormatterIntegration:
     """Integration tests for DisplayFormatter."""

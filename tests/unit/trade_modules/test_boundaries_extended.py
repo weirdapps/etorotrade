@@ -7,7 +7,6 @@ from yahoofinance while maintaining functionality.
 
 import pytest
 import pandas as pd
-from unittest.mock import Mock, patch
 
 from trade_modules.boundaries import (
     YahooFinanceBoundary,
@@ -19,7 +18,6 @@ from trade_modules.boundaries.yahoo_finance_boundary import IYahooFinanceBoundar
 from trade_modules.boundaries.trade_modules_boundary import ITradeModulesBoundary
 from trade_modules.boundaries.config_boundary import IConfigBoundary
 from trade_modules.boundaries.data_boundary import IDataBoundary
-
 
 class TestYahooFinanceBoundary:
     """Test Yahoo Finance boundary implementation."""
@@ -112,7 +110,6 @@ class TestYahooFinanceBoundary:
         assert normalize('aapl') == 'AAPL'
         assert normalize(' msft ') == 'MSFT'
 
-
 class TestTradeModulesBoundary:
     """Test Trade Modules boundary implementation."""
     
@@ -175,7 +172,6 @@ class TestTradeModulesBoundary:
         for error_name in expected_errors:
             if error_name in errors:  # May not be available in test environment
                 assert issubclass(errors[error_name], Exception)
-
 
 class TestConfigBoundary:
     """Test Config boundary implementation."""
@@ -279,7 +275,6 @@ class TestConfigBoundary:
         for section in expected_sections:
             if section in validation_results:
                 assert isinstance(validation_results[section], bool)
-
 
 class TestDataBoundary:
     """Test Data boundary implementation."""
@@ -399,7 +394,6 @@ class TestDataBoundary:
         assert results['  '] == False
         assert results['TOOLONGTICKERHERE'] == False
 
-
 class TestBoundaryIntegration:
     """Test integration between boundary components."""
     
@@ -459,7 +453,6 @@ class TestBoundaryIntegration:
         # Should handle multiple async operations
         df = await data_boundary.fetch_multiple_tickers(['AAPL', 'MSFT'])
         assert isinstance(df, pd.DataFrame)
-
 
 if __name__ == "__main__":
     pytest.main([__file__])

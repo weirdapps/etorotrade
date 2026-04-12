@@ -13,12 +13,10 @@ from typing import Any, Dict, Optional
 import aiohttp
 
 from ...core.config import RATE_LIMIT
-from ...core.errors import NetworkError, YFinanceError
+from ...core.errors import NetworkError
 from ...core.logging import get_logger
 
-
 logger = get_logger(__name__)
-
 
 class SharedSessionManager:
     """
@@ -225,10 +223,8 @@ class SharedSessionManager:
         }
         logger.debug("Reset connection pool statistics")
 
-
 # Singleton instance for global access
 _session_manager: Optional[SharedSessionManager] = None
-
 
 def get_session_manager() -> SharedSessionManager:
     """
@@ -242,7 +238,6 @@ def get_session_manager() -> SharedSessionManager:
         _session_manager = SharedSessionManager()
     return _session_manager
 
-
 async def get_shared_session() -> aiohttp.ClientSession:
     """
     Get the shared HTTP session with connection pooling.
@@ -253,14 +248,12 @@ async def get_shared_session() -> aiohttp.ClientSession:
     manager = get_session_manager()
     return await manager.get_session()
 
-
 async def close_shared_session() -> None:
     """Close the shared session and cleanup resources."""
     global _session_manager
     if _session_manager:
         await _session_manager.close()
         _session_manager = None
-
 
 def get_connection_pool_stats() -> Dict[str, Any]:
     """

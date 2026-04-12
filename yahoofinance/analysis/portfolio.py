@@ -6,28 +6,22 @@ performance tracking, allocation analysis, and risk assessment.
 """
 
 import csv
-import datetime
 import os
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 
 from ..api import AsyncFinanceDataProvider, FinanceDataProvider, get_provider
-from ..core.errors import APIError, DataError, ValidationError, YFinanceError
+from ..core.errors import ValidationError, YFinanceError
 from ..core.logging import get_logger
-from ..utils.dependency_injection import registry
-from ..utils.error_handling import enrich_error_context, safe_operation, translate_error, with_retry
 from ..utils.data.ticker_utils import normalize_ticker
-from .analyzer_factory import with_analyzer
 from .stock import AnalysisResults, StockAnalyzer
-
 
 # Constants
 GAIN_LOSS_PCT = "Gain/Loss %"
 
 logger = get_logger(__name__)
-
 
 @dataclass
 class PortfolioHolding:
@@ -65,7 +59,6 @@ class PortfolioHolding:
                 (self.current_price / self.cost_basis - 1) * 100 if self.cost_basis > 0 else 0
             )
 
-
 @dataclass
 class PortfolioSummary:
     """
@@ -102,7 +95,6 @@ class PortfolioSummary:
     worst_performers: List[Tuple[str, float]] = field(default_factory=list)
     buy_candidates: List[str] = field(default_factory=list)
     sell_candidates: List[str] = field(default_factory=list)
-
 
 class PortfolioAnalyzer:
     """

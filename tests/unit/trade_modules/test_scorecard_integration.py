@@ -2,9 +2,7 @@
 Tests for Signal Scorecard Integration
 """
 
-import pytest
 import json
-from pathlib import Path
 from datetime import datetime, timedelta
 from unittest.mock import patch, mock_open
 
@@ -14,7 +12,6 @@ from trade_modules.scorecard_integration import (
     get_scorecard_summary,
     SCORECARD_MAX_AGE_DAYS,
 )
-
 
 class TestScorecardIntegration:
     """Tests for scorecard integration."""

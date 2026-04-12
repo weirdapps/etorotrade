@@ -8,7 +8,7 @@ import pytest
 import logging
 import tempfile
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from yahoofinance.core.logging import (
     YFinanceErrorFilter,
@@ -21,7 +21,6 @@ from yahoofinance.core.logging import (
     CONSOLE_FORMAT,
 )
 
-
 @pytest.fixture(autouse=True)
 def cleanup_handlers():
     """Clean up logging handlers after each test."""
@@ -31,7 +30,6 @@ def cleanup_handlers():
     for handler in root.handlers[:]:
         root.removeHandler(handler)
         handler.close()
-
 
 class TestYFinanceErrorFilter:
     """Tests for YFinanceErrorFilter class."""
@@ -138,7 +136,6 @@ class TestYFinanceErrorFilter:
         result = filter_obj.filter(record)
         assert result is True
 
-
 class TestSuppressYfinanceNoise:
     """Tests for suppress_yfinance_noise function."""
 
@@ -176,7 +173,6 @@ class TestSuppressYfinanceNoise:
 
         # Should only have one filter (might be 1 or same as initial if already applied)
         assert final_count <= initial_count + 1
-
 
 class TestSetupLogging:
     """Tests for setup_logging function."""
@@ -221,7 +217,6 @@ class TestSetupLogging:
         setup_logging(log_format=custom_format)
         # Should not raise
 
-
 class TestConfigureLogging:
     """Tests for configure_logging function."""
 
@@ -234,7 +229,6 @@ class TestConfigureLogging:
         """Test configure with separate console level."""
         configure_logging(level=logging.DEBUG, console_level=logging.INFO)
         # Should not raise
-
 
 class TestGetLogger:
     """Tests for get_logger function."""
@@ -255,7 +249,6 @@ class TestGetLogger:
         logger2 = get_logger("same.name")
         assert logger1 is logger2
 
-
 class TestLoggingConstants:
     """Tests for logging constants."""
 
@@ -275,7 +268,6 @@ class TestLoggingConstants:
         assert "%(message)s" in CONSOLE_FORMAT
         # Should not have timestamp for brevity
         assert "asctime" not in CONSOLE_FORMAT
-
 
 class TestLoggingIntegration:
     """Integration tests for logging."""

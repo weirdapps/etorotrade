@@ -5,7 +5,6 @@ Target: Test data formatting utilities for financial metrics
 """
 
 import pytest
-import pandas as pd
 from yahoofinance.utils.data.format_utils import (
     format_market_cap,
     format_position_size,
@@ -15,7 +14,6 @@ from yahoofinance.utils.data.format_utils import (
     format_ticker_for_display,
     calculate_position_size,
 )
-
 
 class TestFormatMarketCap:
     """Test market cap formatting."""
@@ -48,7 +46,6 @@ class TestFormatMarketCap:
         result = format_market_cap(0)
         assert result is None or result == "--" or result == "0"
 
-
 class TestCalculateUpside:
     """Test upside calculation."""
 
@@ -72,7 +69,6 @@ class TestCalculateUpside:
         result = calculate_upside(100, None)
         assert result is None
 
-
 class TestCalculateValidatedUpside:
     """Test validated upside calculation."""
 
@@ -94,7 +90,6 @@ class TestCalculateValidatedUpside:
 
         assert isinstance(reason, str)
 
-
 class TestFormatNumber:
     """Test number formatting."""
 
@@ -107,7 +102,6 @@ class TestFormatNumber:
         """Format float."""
         result = format_number(1234.56)
         assert isinstance(result, str)
-
 
 class TestFormatPositionSize:
     """Test position size formatting."""
@@ -128,7 +122,6 @@ class TestFormatPositionSize:
         result = format_position_size(0)
         assert result == "--" or "0" in result
 
-
 class TestFormatTickerForDisplay:
     """Test ticker formatting for display."""
 
@@ -142,14 +135,12 @@ class TestFormatTickerForDisplay:
         result = format_ticker_for_display("BTC-USD")
         assert isinstance(result, str)
 
-
 class TestCalculatePositionSize:
     """Test position size calculation."""
 
     def test_calculate_position_size_callable(self):
         """Verify calculate_position_size is callable."""
         assert callable(calculate_position_size)
-
 
 class TestFormattingEdgeCases:
     """Test edge cases in formatting."""
@@ -170,7 +161,6 @@ class TestFormattingEdgeCases:
         result_cap = format_market_cap(-100000000)
         assert result_cap is None or isinstance(result_cap, str)
 
-
 class TestFormattingConsistency:
     """Test consistency across formatting functions."""
 
@@ -182,5 +172,4 @@ class TestFormattingConsistency:
         # All should return consistent null representation
         assert cap_result is None
         assert size_result in (None, "--")
-
 

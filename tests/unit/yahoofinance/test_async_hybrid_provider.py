@@ -11,13 +11,9 @@ Tests cover:
 """
 
 import pytest
-import pandas as pd
-import numpy as np
 from unittest.mock import AsyncMock, MagicMock, patch
-from typing import Dict, Any
 
 from yahoofinance.core.errors import APIError, NetworkError, ValidationError, YFinanceError
-
 
 class TestAsyncHybridProviderBasic:
     """Basic tests for AsyncHybridProvider initialization and configuration."""
@@ -83,7 +79,6 @@ class TestAsyncHybridProviderBasic:
             provider = AsyncHybridProvider()
 
             assert provider.enable_yahooquery is True
-
 
 class TestAsyncHybridProviderTickerInfo:
     """Tests for get_ticker_info method."""
@@ -246,7 +241,6 @@ class TestAsyncHybridProviderTickerInfo:
             assert result["ticker"] == "AAPL"
             assert result["data_source"] == "none"
 
-
 class TestAsyncHybridProviderBatchProcessing:
     """Tests for batch_get_ticker_info method."""
 
@@ -332,7 +326,6 @@ class TestAsyncHybridProviderBatchProcessing:
 
             assert result == {}
 
-
 class TestAsyncHybridProviderTickerMapping:
     """Tests for ticker mapping functionality."""
 
@@ -373,7 +366,6 @@ class TestAsyncHybridProviderTickerMapping:
             assert provider._ticker_mappings.get("GOLD") == "GC=F"
             assert provider._ticker_mappings.get("OIL") == "CL=F"
             assert provider._ticker_mappings.get("SILVER") == "SI=F"
-
 
 class TestAsyncHybridProviderErrorHandling:
     """Tests for error handling in various scenarios."""
@@ -456,7 +448,6 @@ class TestAsyncHybridProviderErrorHandling:
             # Should not raise - should handle gracefully
             result = await provider.get_ticker_info("INVALID$")
             assert result is not None
-
 
 class TestAsyncHybridProviderDataQuality:
     """Tests for data quality and integrity."""

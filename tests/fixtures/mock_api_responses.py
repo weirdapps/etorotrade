@@ -5,9 +5,8 @@ Provides realistic mock data for Yahoo Finance API responses.
 """
 
 import pandas as pd
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from unittest.mock import Mock, patch
-
 
 class MockYahooFinanceResponses:
     """Mock Yahoo Finance API responses for testing."""
@@ -126,7 +125,6 @@ class MockYahooFinanceResponses:
         
         return pd.DataFrame(data)
 
-
 class MockProviders:
     """Mock provider classes for testing."""
     
@@ -148,7 +146,6 @@ class MockProviders:
         mock_provider.is_available.return_value = True
         return mock_provider
 
-
 class MockFileSystem:
     """Mock file system operations for testing."""
     
@@ -169,7 +166,6 @@ AAPL,100,140.0,15000.0
 MSFT,50,280.0,15000.0
 GOOGL,75,115.0,9000.0"""
 
-
 # Test utility functions
 def patch_yahoo_finance_api():
     """Decorator to patch Yahoo Finance API calls."""
@@ -180,7 +176,6 @@ def patch_yahoo_finance_api():
                 return func(*args, **kwargs)
         return wrapper
     return decorator
-
 
 def patch_file_operations():
     """Decorator to patch file operations."""

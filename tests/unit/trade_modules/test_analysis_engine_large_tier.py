@@ -6,14 +6,9 @@ Target: Test calculate_action_vectorized() for LARGE tier across all regions
 
 import pytest
 import pandas as pd
-import numpy as np
 from unittest.mock import patch
 
-from trade_modules.analysis_engine import (
-    calculate_action_vectorized,
-    calculate_exret,
-    calculate_action,
-)
+from trade_modules.analysis_engine import calculate_action
 
 # Mock earnings proximity and IPO checks for all tests in this module.
 # These tests validate signal threshold logic, not earnings calendar or IPO detection.
@@ -26,7 +21,6 @@ pytestmark = [
     pytest.mark.usefixtures("_mock_earnings_and_ipo"),
 ]
 
-
 @pytest.fixture(autouse=True)
 def _mock_earnings_and_ipo():
     """Patch earnings proximity and IPO checks so tests are deterministic."""
@@ -38,7 +32,6 @@ def _mock_earnings_and_ipo():
         return_value=False,
     ):
         yield
-
 
 class TestLargeUSTierSignals:
     """Test signal generation for LARGE-US tier ($100B-$500B market cap)."""
@@ -119,7 +112,6 @@ class TestLargeUSTierSignals:
 
         assert result.loc['NFLX', 'BS'] == 'H', "Should HOLD when between thresholds"
 
-
 class TestLargeEUTierSignals:
     """Test signal generation for LARGE-EU tier."""
 
@@ -180,7 +172,6 @@ class TestLargeEUTierSignals:
         result = calculate_action(df)
 
         assert result.loc['SAP.DE', 'BS'] == 'H', "Should HOLD for LARGE-EU between thresholds"
-
 
 class TestLargeHKTierSignals:
     """Test signal generation for LARGE-HK tier."""
@@ -243,7 +234,6 @@ class TestLargeHKTierSignals:
 
         assert result.loc['BABA.HK', 'BS'] == 'H', "Should HOLD for LARGE-HK between thresholds"
 
-
 class TestRegionDetection:
     """Test region detection from ticker suffixes."""
 
@@ -294,7 +284,6 @@ class TestRegionDetection:
         result = calculate_action(df)
         # Should use HK thresholds
         assert 'BS' in result.columns
-
 
 class TestTierClassification:
     """Test market cap tier classification."""

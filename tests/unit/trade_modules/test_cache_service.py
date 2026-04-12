@@ -6,13 +6,9 @@ This module tests the unified cache service functionality.
 
 import pytest
 import time
-import tempfile
-import os
 from unittest.mock import patch, MagicMock
-from pathlib import Path
 
 from trade_modules.cache_service import CacheService
-
 
 @pytest.fixture
 def cache_service():
@@ -23,7 +19,6 @@ def cache_service():
     # Reset the instance after test
     yield service
     CacheService._instance = None
-
 
 @pytest.fixture
 def cache_with_disk(tmp_path):
@@ -44,7 +39,6 @@ def cache_with_disk(tmp_path):
         service = CacheService()
         yield service
         CacheService._instance = None
-
 
 class TestCacheServiceBasics:
     """Basic cache service tests."""
@@ -111,7 +105,6 @@ class TestCacheServiceBasics:
         assert cache_service.get("key2") is None
         assert cache_service.get("key3") is None
 
-
 class TestCacheServiceDataTypes:
     """Test caching different data types."""
 
@@ -156,7 +149,6 @@ class TestCacheServiceDataTypes:
         assert cache_service.get("true_key") == True
         assert cache_service.get("false_key") == False
 
-
 class TestCacheServiceTTL:
     """Test TTL (time-to-live) functionality."""
 
@@ -180,7 +172,6 @@ class TestCacheServiceTTL:
         # Note: behavior depends on implementation
         result = cache_service.get("zero_ttl_key")
         # Either None or the value depending on how the cache handles 0 TTL
-
 
 class TestCacheServiceStats:
     """Test cache statistics functionality."""
@@ -214,7 +205,6 @@ class TestCacheServiceStats:
         # Hit ratio should be around 0.5
         assert isinstance(stats, dict)
 
-
 class TestCacheServiceContains:
     """Test contains/has functionality."""
 
@@ -233,7 +223,6 @@ class TestCacheServiceContains:
         elif hasattr(cache_service, 'has'):
             assert cache_service.has("missing") == False
 
-
 class TestCacheServiceKeyGeneration:
     """Test cache key generation utilities."""
 
@@ -250,7 +239,6 @@ class TestCacheServiceKeyGeneration:
             key = cache_service.generate_key("prefix", "suffix")
             assert isinstance(key, str)
             assert len(key) > 0
-
 
 class TestCacheServiceMemoryManagement:
     """Test memory management and eviction."""
@@ -269,7 +257,6 @@ class TestCacheServiceMemoryManagement:
             # (implementation may vary - some might evict, some might not)
         finally:
             cache_service.max_memory_items = original_max
-
 
 class TestCacheServiceDecorator:
     """Test cache decorator functionality if available."""
@@ -293,7 +280,6 @@ class TestCacheServiceDecorator:
             # Should only be called once due to caching
             # Note: This depends on implementation
 
-
 class TestCacheServiceSize:
     """Test cache size operations."""
 
@@ -309,7 +295,6 @@ class TestCacheServiceSize:
             assert cache_service.size() >= 3
         elif hasattr(cache_service, '__len__'):
             assert len(cache_service) >= 3
-
 
 class TestCacheServiceConcurrency:
     """Test thread safety."""
@@ -346,7 +331,6 @@ class TestCacheServiceConcurrency:
 
         assert len(errors) == 0, f"Concurrent access errors: {errors}"
 
-
 class TestCacheServiceGetOrSet:
     """Test get_or_set functionality."""
 
@@ -366,7 +350,6 @@ class TestCacheServiceGetOrSet:
             # Verify it was cached
             assert cache_service.get("new_key") == "computed_value"
 
-
 class TestCacheServiceKeys:
     """Test key listing functionality."""
 
@@ -381,7 +364,6 @@ class TestCacheServiceKeys:
             keys = cache_service.keys()
             assert "key1" in keys
             assert "key2" in keys
-
 
 class TestCacheServiceResetInstance:
     """Test singleton reset for testing."""

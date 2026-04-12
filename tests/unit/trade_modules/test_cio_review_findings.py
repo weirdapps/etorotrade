@@ -17,12 +17,10 @@ import os
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import numpy as np
 import pandas as pd
 import pytest
-
 
 # ===========================================================================
 # S5: Liquidity Filter Tests
@@ -97,7 +95,6 @@ class TestLiquidityFilter:
         assert TIER_MIN_ADV["MID"] == 10_000_000
         assert TIER_MIN_ADV["SMALL"] == 5_000_000
         assert TIER_MIN_ADV["MICRO"] == 2_000_000
-
 
 # ===========================================================================
 # E1 + M2: Conviction-Based Position Sizing Tests
@@ -206,7 +203,6 @@ class TestConvictionSizer:
             max_position_usd=22500,
         )
         assert result["position_size"] == pytest.approx(22500.0)  # Capped
-
 
 # ===========================================================================
 # M6: Sector Rotation Tests
@@ -330,7 +326,6 @@ class TestSectorRotation:
             assert "rotation_detected" in result
             assert "summary" in result
 
-
 class TestPriceBasedRotation:
     """CIO v3 F5: Tests for price-based sector rotation detection."""
 
@@ -426,7 +421,6 @@ class TestPriceBasedRotation:
             assert result["confidence"] == "NONE"
             assert result["rotation_detected"] is False
 
-
 # ===========================================================================
 # M4: Earnings Proximity Tests
 # ===========================================================================
@@ -516,7 +510,6 @@ class TestEarningsProximity:
             assert len(result) == 1
             assert result[0]["ticker"] == "AAPL"
 
-
 # ===========================================================================
 # M1: Quality Override Momentum Gate Tests
 # ===========================================================================
@@ -581,7 +574,6 @@ class TestQualityOverrideMomentumGate:
         # (This tests the gate mechanism, not the final signal)
         assert True  # Gate mechanism verified by code inspection + integration
 
-
 # ===========================================================================
 # M5: Staleness Penalty Tests
 # ===========================================================================
@@ -614,7 +606,6 @@ class TestStalenessPenalties:
         assert FRESH_THRESHOLD == 30
         assert AGING_THRESHOLD == 60
         assert STALE_THRESHOLD == 90
-
 
 # ===========================================================================
 # M2: VIX Regime Position Sizing Tests
@@ -659,7 +650,6 @@ class TestVixPositionSizing:
             mock.return_value = VixRegime.ELEVATED
             assert get_position_size_multiplier() == pytest.approx(0.75)
 
-
 # ===========================================================================
 # S2: Scoring Weight Tests
 # ===========================================================================
@@ -668,7 +658,6 @@ class TestScoringWeights:
 
     def test_sell_scoring_weights_sum_to_one(self):
         """SELL scoring weights must sum to 1.0."""
-        from trade_modules.analysis.signals import calculate_sell_score
 
         # Default weights from function signature
         total = 0.20 + 0.25 + 0.20 + 0.25 + 0.10
@@ -738,7 +727,6 @@ class TestScoringWeights:
         )
 
         assert score_strong > score_weak
-
 
 # ===========================================================================
 # Integration: Config YAML Tests

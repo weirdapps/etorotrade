@@ -5,14 +5,12 @@ This module tests the PriceData, PriceTarget dataclasses and PricingAnalyzer cla
 """
 
 import pytest
-from unittest.mock import MagicMock
 
 from yahoofinance.analysis.metrics import (
     PriceData,
     PriceTarget,
     PricingAnalyzer,
 )
-
 
 class TestPriceData:
     """Tests for PriceData dataclass."""
@@ -65,7 +63,6 @@ class TestPriceData:
         assert data.volume == 50000000
         assert data.change is None
 
-
 class TestPriceTarget:
     """Tests for PriceTarget dataclass."""
 
@@ -105,7 +102,6 @@ class TestPriceTarget:
         assert target.upside == pytest.approx(14.0)
         assert target.median is None
 
-
 class MockSyncProvider:
     """Mock synchronous provider."""
 
@@ -126,7 +122,6 @@ class MockSyncProvider:
             "upside": 14.0,
             "analyst_count": 25,
         }
-
 
 class MockAsyncProvider:
     """Mock asynchronous provider that satisfies __await__ check."""
@@ -149,7 +144,6 @@ class MockAsyncProvider:
     def __init__(self):
         """Initialize with awaitable method."""
         self.get_ticker_info = self.AwaitableMethod()
-
 
 class TestPricingAnalyzerInit:
     """Tests for PricingAnalyzer initialization."""
@@ -176,7 +170,6 @@ class TestPricingAnalyzerInit:
 
         assert analyzer.provider is not None
 
-
 class TestPricingAnalyzerGetPriceData:
     """Tests for PricingAnalyzer.get_price_data method."""
 
@@ -189,7 +182,6 @@ class TestPricingAnalyzerGetPriceData:
 
         assert isinstance(result, PriceData)
         assert result.price == pytest.approx(175.0)
-
 
 class TestDataclassEquality:
     """Tests for dataclass equality."""

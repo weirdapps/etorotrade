@@ -6,13 +6,11 @@ identifying stocks with unreliable analyst coverage, including earnings-aware fi
 """
 
 from typing import Any, Dict, List, Optional, Tuple
-import math
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from ...core.logging import get_logger
 
 logger = get_logger(__name__)
-
 
 def calculate_price_target_robustness(
     mean: Optional[float],
@@ -161,7 +159,6 @@ def calculate_price_target_robustness(
 
     return result
 
-
 def validate_price_target_data(ticker_data: Dict[str, Any]) -> Tuple[bool, Dict[str, Any]]:
     """
     Validate price target data quality for a ticker.
@@ -234,7 +231,6 @@ def validate_price_target_data(ticker_data: Dict[str, Any]) -> Tuple[bool, Dict[
 
     return is_valid, validation_info
 
-
 def get_preferred_price_target(ticker_data: Dict[str, Any]) -> Tuple[Optional[float], str]:
     """
     Get the preferred price target based on data quality.
@@ -261,7 +257,6 @@ def get_preferred_price_target(ticker_data: Dict[str, Any]) -> Tuple[Optional[fl
         return mean, f"mean_fallback_{validation_info['confidence_level']}_confidence"
     else:
         return None, "no_valid_price_targets"
-
 
 def validate_price_target_data_with_earnings(
     ticker_data: Dict[str, Any], 

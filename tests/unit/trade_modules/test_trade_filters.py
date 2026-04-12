@@ -9,8 +9,6 @@ import pandas as pd
 import numpy as np
 
 from trade_modules.trade_filters import TradingCriteriaFilter, PortfolioFilter
-from trade_modules.errors import TradingFilterError
-
 
 class TestTradingCriteriaFilterInit:
     """Tests for TradingCriteriaFilter initialization."""
@@ -43,7 +41,6 @@ class TestTradingCriteriaFilterInit:
         assert defaults["max_beta"] == pytest.approx(2.0)
         assert defaults["min_price"] == pytest.approx(5.0)
         assert defaults["max_price"] == pytest.approx(1000.0)
-
 
 class TestTradingCriteriaFilterMarketCap:
     """Tests for market cap filtering."""
@@ -87,7 +84,6 @@ class TestTradingCriteriaFilterMarketCap:
         result = filter_obj._filter_by_market_cap(df)
         assert len(result) == 2
 
-
 class TestTradingCriteriaFilterPERatio:
     """Tests for P/E ratio filtering."""
 
@@ -115,7 +111,6 @@ class TestTradingCriteriaFilterPERatio:
         result = filter_obj._filter_by_pe_ratio(df)
         assert len(result) == 2
 
-
 class TestTradingCriteriaFilterVolume:
     """Tests for volume filtering."""
 
@@ -142,7 +137,6 @@ class TestTradingCriteriaFilterVolume:
         result = filter_obj._filter_by_volume(df)
         assert len(result) == 2
 
-
 class TestTradingCriteriaFilterBeta:
     """Tests for beta filtering."""
 
@@ -159,7 +153,6 @@ class TestTradingCriteriaFilterBeta:
         })
         result = filter_obj._filter_by_beta(df)
         assert len(result) == 2
-
 
 class TestTradingCriteriaFilterPriceRange:
     """Tests for price range filtering."""
@@ -190,7 +183,6 @@ class TestTradingCriteriaFilterPriceRange:
         result = filter_obj._filter_by_price_range(df)
         assert len(result) == 2
 
-
 class TestTradingCriteriaFilterExpectedReturn:
     """Tests for expected return filtering."""
 
@@ -208,7 +200,6 @@ class TestTradingCriteriaFilterExpectedReturn:
         result = filter_obj._filter_by_expected_return(df)
         assert len(result) == 2
 
-
 class TestTradingCriteriaFilterConfidence:
     """Tests for confidence score filtering."""
 
@@ -225,7 +216,6 @@ class TestTradingCriteriaFilterConfidence:
         })
         result = filter_obj._filter_by_confidence(df)
         assert len(result) == 2
-
 
 class TestTradingCriteriaFilterSectors:
     """Tests for sector filtering."""
@@ -247,7 +237,6 @@ class TestTradingCriteriaFilterSectors:
         assert len(result) == 2
         assert "XOM" not in result["ticker"].values
 
-
 class TestTradingCriteriaFilterRegions:
     """Tests for region filtering."""
 
@@ -267,7 +256,6 @@ class TestTradingCriteriaFilterRegions:
         result = filter_obj._filter_by_regions(df)
         assert len(result) == 2
         assert "TSMC.TW" not in result["ticker"].values
-
 
 class TestTradingCriteriaFilterApplyAll:
     """Tests for applying all criteria."""
@@ -297,7 +285,6 @@ class TestTradingCriteriaFilterApplyAll:
         assert len(result) == 1
         assert result.iloc[0]["ticker"] == "AAPL"
 
-
 class TestPortfolioFilterInit:
     """Tests for PortfolioFilter initialization."""
 
@@ -314,7 +301,6 @@ class TestPortfolioFilterInit:
         })
         filter_obj = PortfolioFilter(portfolio_df=portfolio)
         assert filter_obj is not None
-
 
 class TestPortfolioFilterMethods:
     """Tests for PortfolioFilter methods."""
@@ -351,7 +337,6 @@ class TestPortfolioFilterMethods:
             # Filter should keep only portfolio stocks
             result = portfolio_filter.filter_by_portfolio(market_df)
             assert len(result) <= 4
-
 
 class TestFilterIntegration:
     """Integration tests for filters."""

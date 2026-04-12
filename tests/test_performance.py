@@ -1,8 +1,6 @@
 """Test performance after refactoring"""
-import pytest
 import subprocess
 import sys
-import os
 from pathlib import Path
 
 # Get the project root directory (parent of tests directory)

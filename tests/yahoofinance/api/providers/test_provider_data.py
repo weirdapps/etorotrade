@@ -5,17 +5,13 @@ Test script to check the raw data from providers.
 
 import asyncio
 import logging
-import sys
-from pprint import pprint
 
 # Import core provider components
 from yahoofinance import get_provider
 from yahoofinance.core.logging import setup_logging
 
-
 # Configure logging
 setup_logging(log_level=logging.INFO)
-
 
 async def main():
     """Get and display raw data from provider."""
@@ -49,7 +45,6 @@ async def main():
         print(
             f"- Short percent correctly formatted: {isinstance(info.get('short_percent'), (int, float))}"
         )
-
 
 if __name__ == "__main__":
     asyncio.run(main())

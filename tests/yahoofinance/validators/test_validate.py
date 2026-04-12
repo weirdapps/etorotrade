@@ -3,13 +3,10 @@
 Test suite for the validate module.
 """
 
-import concurrent.futures
 import unittest
-from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
-import yfinance as yf
 
 from yahoofinance.validators.validate import (
     is_valid_ticker,
@@ -17,7 +14,6 @@ from yahoofinance.validators.validate import (
     save_valid_tickers,
     validate_tickers_batch,
 )
-
 
 class TestValidate(unittest.TestCase):
     """Test cases for the validate module."""
@@ -196,7 +192,6 @@ class TestValidate(unittest.TestCase):
         # Test
         # Should not raise an exception
         save_valid_tickers(["AAPL", "MSFT"])
-
 
 if __name__ == "__main__":
     unittest.main()

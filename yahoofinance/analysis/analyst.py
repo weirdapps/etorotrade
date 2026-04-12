@@ -7,30 +7,21 @@ recommendations, and price targets for stocks.
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
-from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from ..utils.error_handling import (
-    enrich_error_context,
-    safe_operation,
-    translate_error,
-    with_retry,
-)
+from yahoofinance.core.errors import YFinanceError
 
-from ..api import AsyncFinanceDataProvider, FinanceDataProvider, get_provider
 from ..core.config import POSITIVE_GRADES
-from ..core.errors import ValidationError, YFinanceError
+from ..core.errors import YFinanceError
 from ..core.logging import get_logger
 from ..utils.market import is_us_ticker
-
 
 logger = get_logger(__name__)
 
 # Constants
 DEFAULT_ERROR_MESSAGE = "Error fetching analyst data"
-
 
 # The AnalystData class below is used for modern API
 # The legacy CompatAnalystData class is provided for backward compatibility
@@ -246,7 +237,6 @@ class CompatAnalystData:
             logger.error(f"Error getting recent changes for {ticker}: {str(e)}")
             return []
 
-
 @dataclass
 class AnalystData:
     """
@@ -282,9 +272,7 @@ class AnalystData:
     lowest_price_target: Optional[float] = None
     analyst_count: Optional[int] = None
 
-
 from .base_analysis import BaseAnalysisService
-
 
 class AnalystRatingsService(BaseAnalysisService):
     """
@@ -578,7 +566,6 @@ class AnalystRatingsService(BaseAnalysisService):
 
         return processed_changes
 
-
 def main():
     """
     Main entry point for running analyst module functionality.
@@ -630,7 +617,6 @@ def main():
     except (KeyError, ValueError, TypeError, AttributeError, RuntimeError, OSError, IOError) as e:
         print(f"Error: {str(e)}")
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()

@@ -1,14 +1,9 @@
 import datetime
 import unittest
-from io import StringIO
 from unittest.mock import patch
 
-import pandas as pd
-
-from yahoofinance import utils
 from yahoofinance.utils.data import format_utils as FormatUtils
 from yahoofinance.utils.date import date_utils as DateUtils
-
 
 class TestCompatibilityLayer(unittest.TestCase):
     """Test the compatibility layer that maintains backward compatibility."""

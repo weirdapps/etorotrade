@@ -18,13 +18,11 @@ from typing import Any, Dict, List, Optional, Tuple
 import aiohttp
 import pandas as pd
 
-from ...core.errors import APIError, RateLimitError, YFinanceError
+from ...core.errors import APIError, RateLimitError
 from ...core.logging import get_logger
 from .base_provider import AsyncFinanceDataProvider
 
-
 logger = get_logger(__name__)
-
 
 class AlphaVantageProvider(AsyncFinanceDataProvider):
     """

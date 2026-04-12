@@ -4,22 +4,18 @@ ITERATION 14: Output Manager Tests
 Target: Test output management, file exports, and display formatting
 """
 
-import pytest
 import pandas as pd
 import tempfile
 import os
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
 from trade_modules.output_manager import (
     ensure_output_directory,
     _setup_output_files,
-    _prepare_csv_dataframe,
     _clean_si_value,
     _add_ranking_column,
     get_column_alignments,
     _get_color_by_title,
-    _apply_color_to_dataframe,
     create_empty_results_file,
-    _sort_display_dataframe,
     format_display_dataframe,
     _format_price_value,
     _format_percentage_value,
@@ -42,7 +38,6 @@ from trade_modules.output_manager import (
     COLOR_RESET,
 )
 
-
 class TestEnsureOutputDirectory:
     """Test output directory creation."""
 
@@ -62,7 +57,6 @@ class TestEnsureOutputDirectory:
             # Directory already exists
             ensure_output_directory(tmpdir)
             assert os.path.exists(tmpdir)
-
 
 class TestSetupOutputFiles:
     """Test output file path setup."""
@@ -90,7 +84,6 @@ class TestSetupOutputFiles:
         assert isinstance(buy_file, str)
         assert isinstance(sell_file, str)
         assert isinstance(hold_file, str)
-
 
 class TestCleanSIValue:
     """Test short interest value cleaning."""
@@ -125,7 +118,6 @@ class TestCleanSIValue:
         result = _clean_si_value("invalid")
         assert result == "--"
 
-
 class TestAddRankingColumn:
     """Test ranking column addition."""
 
@@ -137,7 +129,6 @@ class TestAddRankingColumn:
         assert "#" in result.columns
         assert list(result["#"]) == [1, 2, 3]
         assert result.columns[0] == "#"
-
 
 class TestGetColumnAlignments:
     """Test column alignment logic."""
@@ -163,7 +154,6 @@ class TestGetColumnAlignments:
 
         assert alignments == ["center", "center"]
 
-
 class TestGetColorByTitle:
     """Test color code selection by title."""
 
@@ -183,7 +173,6 @@ class TestGetColorByTitle:
     def test_get_color_by_title_neutral(self):
         """Neutral title returns reset."""
         assert _get_color_by_title("Market Analysis") == COLOR_RESET
-
 
 class TestFormatPriceValue:
     """Test price value formatting."""
@@ -213,7 +202,6 @@ class TestFormatPriceValue:
         result = _format_price_value(0)
         assert result == "--"
 
-
 class TestFormatPercentageValue:
     """Test percentage value formatting."""
 
@@ -237,7 +225,6 @@ class TestFormatPercentageValue:
         result = _format_percentage_value(None)
         assert result == "--"
 
-
 class TestFormatNumericValue:
     """Test numeric value formatting."""
 
@@ -250,7 +237,6 @@ class TestFormatNumericValue:
         """Handle None value."""
         result = _format_numeric_value(None)
         assert result == "--"
-
 
 class TestFormatDateValue:
     """Test date value formatting."""
@@ -270,7 +256,6 @@ class TestFormatDateValue:
         result = _format_date_value(None)
         assert result == "--"
 
-
 class TestFormatSizeValue:
     """Test position size value formatting."""
 
@@ -285,7 +270,6 @@ class TestFormatSizeValue:
         """Handle None value."""
         result = _format_size_value(None)
         assert result == "--"
-
 
 class TestFormatBetaValue:
     """Test beta value formatting."""
@@ -306,7 +290,6 @@ class TestFormatBetaValue:
         result = _format_beta_value(-12.5)
         assert result == "L"
 
-
 class TestFormatPEValue:
     """Test P/E ratio value formatting."""
 
@@ -320,7 +303,6 @@ class TestFormatPEValue:
         result = _format_pe_value(150.0)
         assert result == "H"
 
-
 class TestFormatPEGValue:
     """Test PEG ratio value formatting."""
 
@@ -333,7 +315,6 @@ class TestFormatPEGValue:
         """Format high PEG (>9) as H."""
         result = _format_peg_value(12.0)
         assert result == "H"
-
 
 class TestFormatEGPPValue:
     """Test EG/PP value formatting."""
@@ -353,7 +334,6 @@ class TestFormatEGPPValue:
         result = _format_eg_pp_value(-150.0)
         assert result == "L"
 
-
 class TestFormatBasicPercentageValue:
     """Test basic percentage value formatting."""
 
@@ -367,7 +347,6 @@ class TestFormatBasicPercentageValue:
         result = _format_basic_percentage_value(0)
         assert result == "--"
 
-
 class TestFormatBuyPercentageValue:
     """Test buy percentage value formatting."""
 
@@ -380,7 +359,6 @@ class TestFormatBuyPercentageValue:
         """Handle None value."""
         result = _format_buy_percentage_value(None)
         assert result == "--"
-
 
 class TestFormatDisplayDataframe:
     """Test comprehensive dataframe formatting."""
@@ -409,7 +387,6 @@ class TestFormatDisplayDataframe:
         assert result["UPSIDE"].iloc[1] == "H"  # >99
         assert result["UPSIDE"].iloc[2] == "L"  # <-99
 
-
 class TestPrepareDisplayDataframe:
     """Test display dataframe preparation."""
 
@@ -435,7 +412,6 @@ class TestPrepareDisplayDataframe:
         # Price should be formatted
         assert "$" in str(result["PRICE"].iloc[0])
 
-
 class TestCreateEmptyResultsFile:
     """Test empty results file creation."""
 
@@ -452,7 +428,6 @@ class TestCreateEmptyResultsFile:
 
             # Should have called HTML generator
             mock_html_gen.return_value.generate_stock_table.assert_called_once()
-
 
 class TestDisplayAndSaveResults:
     """Test display and save results functionality."""
@@ -490,7 +465,6 @@ class TestDisplayAndSaveResults:
             # Should create empty file
             assert os.path.exists(output_file)
 
-
 class TestExportResultsToFiles:
     """Test results export to files."""
 
@@ -512,7 +486,6 @@ class TestExportResultsToFiles:
         assert "buy" in output_files
         assert "sell" in output_files
         assert "hold" in output_files
-
 
 class TestOutputManager:
     """Test OutputManager class."""

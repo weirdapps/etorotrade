@@ -9,10 +9,9 @@ Tests cover:
 import numpy as np
 import pandas as pd
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from trade_modules.portfolio_risk import PortfolioRiskAnalyzer
-
 
 class TestPortfolioVaR:
     """Tests for Portfolio VaR calculation (Task #12)."""
@@ -203,7 +202,6 @@ class TestPortfolioVaR:
         assert result["var_95_pct"] is not None
         assert result["portfolio_vol"] is not None
 
-
 class TestExpectedShortfall:
     """Tests for Expected Shortfall / CVaR (CIO v3 F7)."""
 
@@ -269,7 +267,6 @@ class TestExpectedShortfall:
         if result["cvar_99_pct"] is not None:
             assert result["cvar_99_pct"] > 0
 
-
 class TestVaRCorrelationWindow:
     """Tests for VaR correlation window (CIO v3 F6)."""
 
@@ -304,7 +301,6 @@ class TestVaRCorrelationWindow:
 
         # Should still produce VaR
         assert result["var_95_pct"] is not None
-
 
 class TestDrawdownActions:
     """Tests for Drawdown Decision Framework (Task #3)."""
@@ -427,7 +423,6 @@ class TestDrawdownActions:
         assert actions[0]["action"] == "UNKNOWN"
         assert actions[0]["recommendation"] == "Review manually."
 
-
 class TestRiskSummaryIntegration:
     """Integration tests for VaR and drawdown actions in risk summary."""
 
@@ -483,7 +478,6 @@ class TestRiskSummaryIntegration:
         assert "drawdown_actions" in summary
         assert len(summary["drawdown_actions"]) == 1
         assert summary["drawdown_actions"][0]["action"] == "FORCE_SELL_REVIEW"
-
 
 class TestFormatRiskReportExtended:
     """Tests for risk report formatting with VaR and actions."""
