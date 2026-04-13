@@ -14,11 +14,25 @@ import time
 from typing import Any, Callable, Coroutine, Dict, List, Optional, TypeVar
 
 from yahoofinance.core.errors import YFinanceError
-from ...utils.error_handling import with_retry
+from ...utils.error_handling import (
+    enrich_error_context,
+    safe_operation,
+    translate_error,
+    with_retry,
+)
 
 from ...core.config import RATE_LIMIT
 from ...core.logging import get_logger
-from .enhanced import gather_with_concurrency, process_batch_async as enhanced_process_batch_async
+from .enhanced import (
+    AsyncRateLimiter,
+    PriorityAsyncRateLimiter,
+    async_rate_limited,
+    enhanced_async_rate_limited,
+    gather_with_concurrency,
+    global_async_rate_limiter,
+    global_priority_rate_limiter,
+    process_batch_async as enhanced_process_batch_async,
+)
 
 logger = get_logger(__name__)
 
