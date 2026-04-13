@@ -18,7 +18,7 @@ from ...utils.error_handling import with_retry
 
 from ...core.config import RATE_LIMIT
 from ...core.logging import get_logger
-from .enhanced import process_batch_async as enhanced_process_batch_async
+from .enhanced import gather_with_concurrency, process_batch_async as enhanced_process_batch_async
 
 logger = get_logger(__name__)
 
