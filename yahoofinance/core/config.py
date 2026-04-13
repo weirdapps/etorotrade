@@ -9,7 +9,10 @@ import os
 from typing import Any, Dict
 
 # Import from new unified config
-from trade_modules.config_manager import get_config as _get_config
+from trade_modules.config_manager import (
+    get_config as _get_config,
+    get_max_concurrent_requests,
+)
 
 # Get config instance for module-level constants
 _cfg = _get_config()
