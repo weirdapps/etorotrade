@@ -32,9 +32,15 @@ from trade_modules.census_time_series import (
 # Dynamic date generation to prevent test drift outside 30-day window
 TODAY = date.today()
 DATE_TODAY = TODAY.strftime("%Y-%m-%d")
+DATE_2D_AGO = (TODAY - timedelta(days=2)).strftime("%Y-%m-%d")
 DATE_4D_AGO = (TODAY - timedelta(days=4)).strftime("%Y-%m-%d")
+DATE_6D_AGO = (TODAY - timedelta(days=6)).strftime("%Y-%m-%d")
 DATE_8D_AGO = (TODAY - timedelta(days=8)).strftime("%Y-%m-%d")
+DATE_10D_AGO = (TODAY - timedelta(days=10)).strftime("%Y-%m-%d")
 DATE_12D_AGO = (TODAY - timedelta(days=12)).strftime("%Y-%m-%d")
+DATE_14D_AGO = (TODAY - timedelta(days=14)).strftime("%Y-%m-%d")
+DATE_16D_AGO = (TODAY - timedelta(days=16)).strftime("%Y-%m-%d")
+DATE_20D_AGO = (TODAY - timedelta(days=20)).strftime("%Y-%m-%d")
 
 
 def _make_census_file(
@@ -123,13 +129,13 @@ def _make_standard_snapshots(
 
 class TestParseFilename:
     def test_valid_filename(self) -> None:
-        result = _parse_filename("etoro-data-2026-03-15-02-30.json")
-        assert result == ("2026-03-15", "02-30")
+        result = _parse_filename(f"etoro-data-{DATE_10D_AGO}-02-30.json")
+        assert result == (DATE_10D_AGO, "02-30")
 
     def test_invalid_filename_returns_none(self) -> None:
         assert _parse_filename("not-a-census-file.json") is None
         assert _parse_filename("etoro-data-bad.json") is None
-        assert _parse_filename("etoro-data-2026-03-15.csv") is None
+        assert _parse_filename(f"etoro-data-{DATE_10D_AGO}.csv") is None
 
 
 # ============================================================
@@ -140,25 +146,25 @@ class TestParseFilename:
 class TestSelectLatestPerDay:
     def test_dedup_keeps_latest(self, tmp_path: Path) -> None:
         """When two files exist for the same day, keep the later one."""
-        f1 = _make_census_file(tmp_path, "2026-03-14", "00-07", {"AAPL": 10}, fg_index=40)
-        f2 = _make_census_file(tmp_path, "2026-03-14", "02-31", {"AAPL": 12}, fg_index=42)
+        f1 = _make_census_file(tmp_path, DATE_12D_AGO, "00-07", {"AAPL": 10}, fg_index=40)
+        f2 = _make_census_file(tmp_path, DATE_12D_AGO, "02-31", {"AAPL": 12}, fg_index=42)
 
         result = _select_latest_per_day([f1, f2])
         assert len(result) == 1
-        assert result[0][0] == "2026-03-14"
+        assert result[0][0] == DATE_12D_AGO
         assert result[0][1] == f2  # later time wins
 
     def test_multiple_days_sorted(self, tmp_path: Path) -> None:
-        f1 = _make_census_file(tmp_path, "2026-03-10", "02-30", {"AAPL": 10})
-        f2 = _make_census_file(tmp_path, "2026-03-12", "02-30", {"AAPL": 11})
-        f3 = _make_census_file(tmp_path, "2026-03-08", "02-30", {"AAPL": 9})
+        f1 = _make_census_file(tmp_path, DATE_16D_AGO, "02-30", {"AAPL": 10})
+        f2 = _make_census_file(tmp_path, DATE_14D_AGO, "02-30", {"AAPL": 11})
+        f3 = _make_census_file(tmp_path, DATE_20D_AGO, "02-30", {"AAPL": 9})
 
         result = _select_latest_per_day([f1, f2, f3])
         dates = [r[0] for r in result]
-        assert dates == ["2026-03-08", "2026-03-10", "2026-03-12"]
+        assert dates == [DATE_20D_AGO, DATE_16D_AGO, DATE_14D_AGO]
 
     def test_non_matching_files_skipped(self, tmp_path: Path) -> None:
-        _make_census_file(tmp_path, "2026-03-10", "02-30", {"AAPL": 10})
+        _make_census_file(tmp_path, DATE_16D_AGO, "02-30", {"AAPL": 10})
         junk = tmp_path / "random.json"
         junk.write_text("{}", encoding="utf-8")
 
@@ -204,25 +210,25 @@ class TestLoadCensusSnapshots:
     def test_corrupt_file_skipped(self, tmp_path: Path) -> None:
         """Corrupt JSON files are skipped, valid ones still load."""
         _make_census_file(
-            tmp_path, "2026-03-10", "02-30",
+            tmp_path, DATE_16D_AGO, "02-30",
             {"AAPL": 40}, fg_index=50,
         )
-        corrupt = tmp_path / "etoro-data-2026-03-12-02-30.json"
+        corrupt = tmp_path / f"etoro-data-{DATE_14D_AGO}-02-30.json"
         corrupt.write_text("{bad json!!", encoding="utf-8")
         _make_census_file(
-            tmp_path, "2026-03-14", "02-30",
+            tmp_path, DATE_12D_AGO, "02-30",
             {"AAPL": 42}, fg_index=52,
         )
 
         snaps = load_census_snapshots(archive_dir=tmp_path, days_back=30)
         assert len(snaps) == 2
-        assert snaps[0]["date"] == "2026-03-10"
-        assert snaps[1]["date"] == "2026-03-14"
+        assert snaps[0]["date"] == DATE_16D_AGO
+        assert snaps[1]["date"] == DATE_12D_AGO
 
     def test_dedup_in_loading(self, tmp_path: Path) -> None:
         """Two files for the same day: only latest one is used."""
-        _make_census_file(tmp_path, "2026-03-14", "00-07", {"AAPL": 10}, fg_index=40)
-        _make_census_file(tmp_path, "2026-03-14", "02-31", {"AAPL": 12}, fg_index=42)
+        _make_census_file(tmp_path, DATE_12D_AGO, "00-07", {"AAPL": 10}, fg_index=40)
+        _make_census_file(tmp_path, DATE_12D_AGO, "02-31", {"AAPL": 12}, fg_index=42)
 
         snaps = load_census_snapshots(archive_dir=tmp_path, days_back=30)
         assert len(snaps) == 1
@@ -248,7 +254,7 @@ class TestLoadCensusSnapshots:
                 },
             ],
         }
-        fpath = tmp_path / "etoro-data-2026-03-15-02-30.json"
+        fpath = tmp_path / f"etoro-data-{DATE_10D_AGO}-02-30.json"
         fpath.write_text(json.dumps(data), encoding="utf-8")
 
         snaps_100 = load_census_snapshots(archive_dir=tmp_path, days_back=30, investor_tier=100)
@@ -260,7 +266,7 @@ class TestLoadCensusSnapshots:
     def test_missing_tier_skips_file(self, tmp_path: Path) -> None:
         """If the requested tier is missing in a file, that file is skipped."""
         _make_census_file(
-            tmp_path, "2026-03-15", "02-30",
+            tmp_path, DATE_10D_AGO, "02-30",
             {"AAPL": 40}, fg_index=50, investor_count=100,
         )
         snaps = load_census_snapshots(
@@ -284,7 +290,7 @@ class TestLoadCensusSnapshots:
                 },
             ],
         }
-        fpath = tmp_path / "etoro-data-2026-03-15-02-30.json"
+        fpath = tmp_path / f"etoro-data-{DATE_10D_AGO}-02-30.json"
         fpath.write_text(json.dumps(data), encoding="utf-8")
 
         snaps = load_census_snapshots(archive_dir=tmp_path, days_back=30)
@@ -340,7 +346,7 @@ class TestComputeHolderTrends:
         assert trends["NVDA"]["delta_7d"] == 9
 
     def test_single_snapshot_returns_empty(self) -> None:
-        snaps = [{"date": "2026-03-15", "holdings": {"AAPL": 40},
+        snaps = [{"date": DATE_10D_AGO, "holdings": {"AAPL": 40},
                   "fear_greed": 50, "investor_count": 100}]
         trends = compute_holder_trends(snaps)
         assert trends == {}
@@ -351,9 +357,9 @@ class TestComputeHolderTrends:
     def test_ticker_only_in_earliest_excluded(self) -> None:
         """A ticker present in earliest but not latest is excluded."""
         snaps = [
-            {"date": "2026-03-03", "holdings": {"AAPL": 40, "DOGE": 5},
+            {"date": DATE_20D_AGO, "holdings": {"AAPL": 40, "DOGE": 5},
              "fear_greed": 50, "investor_count": 100},
-            {"date": "2026-03-15", "holdings": {"AAPL": 42},
+            {"date": DATE_10D_AGO, "holdings": {"AAPL": 42},
              "fear_greed": 55, "investor_count": 100},
         ]
         trends = compute_holder_trends(snaps)
@@ -363,9 +369,9 @@ class TestComputeHolderTrends:
     def test_ticker_appearing_only_once_excluded(self) -> None:
         """Ticker in only 1 snapshot is excluded from trends."""
         snaps = [
-            {"date": "2026-03-03", "holdings": {"AAPL": 40},
+            {"date": DATE_20D_AGO, "holdings": {"AAPL": 40},
              "fear_greed": 50, "investor_count": 100},
-            {"date": "2026-03-15", "holdings": {"AAPL": 42, "NEW": 5},
+            {"date": DATE_10D_AGO, "holdings": {"AAPL": 42, "NEW": 5},
              "fear_greed": 55, "investor_count": 100},
         ]
         trends = compute_holder_trends(snaps)
@@ -430,9 +436,9 @@ class TestClassifyTrend:
 class TestComputeFearGreedTrend:
     def test_rising_trend(self) -> None:
         snaps = [
-            {"date": "2026-03-03", "holdings": {}, "fear_greed": 45, "investor_count": 100},
-            {"date": "2026-03-07", "holdings": {}, "fear_greed": 50, "investor_count": 100},
-            {"date": "2026-03-15", "holdings": {}, "fear_greed": 60, "investor_count": 100},
+            {"date": DATE_20D_AGO, "holdings": {}, "fear_greed": 45, "investor_count": 100},
+            {"date": DATE_10D_AGO, "holdings": {}, "fear_greed": 50, "investor_count": 100},
+            {"date": DATE_2D_AGO, "holdings": {}, "fear_greed": 60, "investor_count": 100},
         ]
         result = compute_fear_greed_trend(snaps)
         assert result["current"] == 60
@@ -442,9 +448,9 @@ class TestComputeFearGreedTrend:
 
     def test_falling_trend(self) -> None:
         snaps = [
-            {"date": "2026-03-03", "holdings": {}, "fear_greed": 70, "investor_count": 100},
-            {"date": "2026-03-07", "holdings": {}, "fear_greed": 65, "investor_count": 100},
-            {"date": "2026-03-15", "holdings": {}, "fear_greed": 55, "investor_count": 100},
+            {"date": DATE_20D_AGO, "holdings": {}, "fear_greed": 70, "investor_count": 100},
+            {"date": DATE_10D_AGO, "holdings": {}, "fear_greed": 65, "investor_count": 100},
+            {"date": DATE_2D_AGO, "holdings": {}, "fear_greed": 55, "investor_count": 100},
         ]
         result = compute_fear_greed_trend(snaps)
         assert result["current"] == 55
@@ -453,8 +459,8 @@ class TestComputeFearGreedTrend:
 
     def test_flat_trend(self) -> None:
         snaps = [
-            {"date": "2026-03-07", "holdings": {}, "fear_greed": 50, "investor_count": 100},
-            {"date": "2026-03-15", "holdings": {}, "fear_greed": 51, "investor_count": 100},
+            {"date": DATE_10D_AGO, "holdings": {}, "fear_greed": 50, "investor_count": 100},
+            {"date": DATE_2D_AGO, "holdings": {}, "fear_greed": 51, "investor_count": 100},
         ]
         result = compute_fear_greed_trend(snaps)
         assert result["trend"] == "flat"
@@ -467,7 +473,7 @@ class TestComputeFearGreedTrend:
 
     def test_single_snapshot(self) -> None:
         snaps = [
-            {"date": "2026-03-15", "holdings": {}, "fear_greed": 60, "investor_count": 100},
+            {"date": DATE_10D_AGO, "holdings": {}, "fear_greed": 60, "investor_count": 100},
         ]
         result = compute_fear_greed_trend(snaps)
         assert result["current"] == 60
@@ -477,8 +483,8 @@ class TestComputeFearGreedTrend:
     def test_30d_delta(self) -> None:
         snaps = [
             {"date": "2026-02-10", "holdings": {}, "fear_greed": 30, "investor_count": 100},
-            {"date": "2026-03-07", "holdings": {}, "fear_greed": 50, "investor_count": 100},
-            {"date": "2026-03-15", "holdings": {}, "fear_greed": 60, "investor_count": 100},
+            {"date": DATE_16D_AGO, "holdings": {}, "fear_greed": 50, "investor_count": 100},
+            {"date": DATE_10D_AGO, "holdings": {}, "fear_greed": 60, "investor_count": 100},
         ]
         result = compute_fear_greed_trend(snaps)
         assert result["30d_ago"] == 30
@@ -487,9 +493,9 @@ class TestComputeFearGreedTrend:
     def test_none_fear_greed_values(self) -> None:
         """Snapshots with None fear_greed are skipped for history."""
         snaps = [
-            {"date": "2026-03-03", "holdings": {}, "fear_greed": 40, "investor_count": 100},
-            {"date": "2026-03-07", "holdings": {}, "fear_greed": None, "investor_count": 100},
-            {"date": "2026-03-15", "holdings": {}, "fear_greed": 60, "investor_count": 100},
+            {"date": DATE_20D_AGO, "holdings": {}, "fear_greed": 40, "investor_count": 100},
+            {"date": DATE_16D_AGO, "holdings": {}, "fear_greed": None, "investor_count": 100},
+            {"date": DATE_10D_AGO, "holdings": {}, "fear_greed": 60, "investor_count": 100},
         ]
         result = compute_fear_greed_trend(snaps)
         assert result["current"] == 60
@@ -548,7 +554,7 @@ class TestGetCensusContext:
     def test_context_with_single_snapshot(self, tmp_path: Path) -> None:
         """Single snapshot loads but trends are empty."""
         _make_census_file(
-            tmp_path, "2026-03-15", "02-30",
+            tmp_path, DATE_10D_AGO, "02-30",
             {"AAPL": 40}, fg_index=55,
         )
         ctx = get_census_context(archive_dir=tmp_path, days_back=30)
