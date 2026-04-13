@@ -59,6 +59,12 @@ def normalize_agent_reports(
             macro["portfolio_implications"] = pi
             fixes.append("macro: stock_macro_fit → portfolio_implications")
 
+    # ── Macro: indicators key aliases ──
+    # Agents may write "key_indicators" instead of "indicators".
+    if "key_indicators" in macro and "indicators" not in macro:
+        macro["indicators"] = macro.pop("key_indicators")
+        fixes.append("macro: key_indicators → indicators")
+
     # ── Macro: indicators nested → flat ──
     # Synthesis now handles this (v28.0), but defensive fallback here too.
     indicators = macro.get("macro_indicators") or macro.get("indicators", {})
