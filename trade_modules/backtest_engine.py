@@ -417,40 +417,62 @@ class BacktestEngine:
 
     @staticmethod
     def _compute_group_stats(gdf: pd.DataFrame, signal_type: str) -> Dict[str, Any]:
-        """Compute hit rate, mean/median return, avg alpha for a group."""
+        """Compute hit rate, mean/median return, avg alpha, CIs for a group."""
+        from trade_modules.backtest_stats import hit_rate_ci, bootstrap_ci
+
         n = len(gdf)
         returns = gdf['stock_return'].dropna()
         alphas = gdf['alpha'].dropna()
 
         if signal_type == 'B':
-            hits = (returns > 0).sum()
+            hits_arr = (returns > 0).astype(int).values
         elif signal_type == 'S':
-            hits = (returns < 0).sum()
+            hits_arr = (returns < 0).astype(int).values
         else:  # H
-            hits = (returns.abs() < 5).sum()
+            hits_arr = (returns.abs() < 5).astype(int).values
 
-        # Alpha-based hit rate: regime-neutral metric
-        # BUY beat the market, SELL underperformed the market, HOLD tracked it
+        hit_rate_val, ci_lo, ci_hi = hit_rate_ci(hits_arr)
+
+        # Alpha-based hit rate
         n_alpha = len(alphas)
         if n_alpha > 0:
             if signal_type == 'B':
-                alpha_hits = (alphas > 0).sum()
+                alpha_hits_arr = (alphas > 0).astype(int).values
             elif signal_type == 'S':
-                alpha_hits = (alphas < 0).sum()
-            else:  # H
-                alpha_hits = (alphas.abs() < 2).sum()
-            alpha_hit_rate = round(alpha_hits / n_alpha * 100, 1)
+                alpha_hits_arr = (alphas < 0).astype(int).values
+            else:
+                alpha_hits_arr = (alphas.abs() < 2).astype(int).values
+            alpha_hr, alpha_ci_lo, alpha_ci_hi = hit_rate_ci(alpha_hits_arr)
         else:
-            alpha_hit_rate = None
+            alpha_hr = None
+            alpha_ci_lo = None
+            alpha_ci_hi = None
+
+        # Return CI
+        ret_ci_lo, ret_ci_hi = bootstrap_ci(
+            returns.values, stat_fn=np.mean
+        ) if len(returns) > 0 else (np.nan, np.nan)
+
+        # Proven signal: CI doesn't span 50%
+        proven = True
+        if not np.isnan(ci_lo) and not np.isnan(ci_hi):
+            proven = not (ci_lo < 50 < ci_hi)
 
         return {
             'count': n,
-            'hit_rate': round(hits / n * 100, 1) if n > 0 else 0,
-            'alpha_hit_rate': alpha_hit_rate,
+            'hit_rate': round(hit_rate_val, 1) if not np.isnan(hit_rate_val) else 0,
+            'hit_rate_ci_lo': round(ci_lo, 1) if not np.isnan(ci_lo) else None,
+            'hit_rate_ci_hi': round(ci_hi, 1) if not np.isnan(ci_hi) else None,
+            'alpha_hit_rate': round(alpha_hr, 1) if alpha_hr is not None and not np.isnan(alpha_hr) else None,
+            'alpha_hit_rate_ci_lo': round(alpha_ci_lo, 1) if alpha_ci_lo is not None and not np.isnan(alpha_ci_lo) else None,
+            'alpha_hit_rate_ci_hi': round(alpha_ci_hi, 1) if alpha_ci_hi is not None and not np.isnan(alpha_ci_hi) else None,
             'mean_return': round(returns.mean(), 2) if len(returns) > 0 else None,
+            'mean_return_ci_lo': round(ret_ci_lo, 2) if not np.isnan(ret_ci_lo) else None,
+            'mean_return_ci_hi': round(ret_ci_hi, 2) if not np.isnan(ret_ci_hi) else None,
             'median_return': round(returns.median(), 2) if len(returns) > 0 else None,
             'avg_alpha': round(alphas.mean(), 2) if len(alphas) > 0 else None,
             'low_sample': n < 30,
+            'proven_signal': proven,
         }
 
     def print_summary(self, stats: Dict[str, Any]) -> None:

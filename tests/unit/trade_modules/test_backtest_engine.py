@@ -606,3 +606,41 @@ class TestThresholdReport:
 
 # Import yaml for config fixture
 import yaml
+
+
+class TestConfidenceIntervals:
+    def test_stats_include_ci(self):
+        """Statistics should include hit_rate_ci_lo and hit_rate_ci_hi."""
+        df = pd.DataFrame({
+            'ticker': [f'T{i}' for i in range(50)],
+            'signal': ['B'] * 50,
+            'stock_return': np.random.normal(2, 5, 50),
+            'alpha': np.random.normal(1, 3, 50),
+            'tier': ['mega'] * 50,
+            'region': ['us'] * 50,
+            'horizon': [7] * 50,
+        })
+        stats = BacktestEngine._compute_group_stats(df, 'B')
+        assert 'hit_rate_ci_lo' in stats
+        assert 'hit_rate_ci_hi' in stats
+        assert stats['hit_rate_ci_lo'] <= stats['hit_rate']
+        assert stats['hit_rate_ci_hi'] >= stats['hit_rate']
+
+    def test_ci_flags_unproven_signal(self):
+        """CI spanning 50% should set proven_signal=False."""
+        # Near 50% hit rate with small sample
+        np.random.seed(42)
+        returns = np.random.normal(0, 5, 15)  # Mean ~0, so ~50% positive
+        df = pd.DataFrame({
+            'ticker': [f'T{i}' for i in range(15)],
+            'signal': ['B'] * 15,
+            'stock_return': returns,
+            'alpha': returns,
+            'tier': ['mega'] * 15,
+            'region': ['us'] * 15,
+            'horizon': [7] * 15,
+        })
+        stats = BacktestEngine._compute_group_stats(df, 'B')
+        # With small sample near 50%, CI should span 50
+        if stats['hit_rate_ci_lo'] < 50 < stats['hit_rate_ci_hi']:
+            assert stats.get('proven_signal') is False
