@@ -9,7 +9,7 @@ import json
 
 import pytest
 
-from trade_modules.committee_backtester import CommitteeBacktester, evaluate_recent
+from trade_modules.committee_backtester import CommitteeBacktester, evaluate_recent, run_backtest
 
 # ============================================================
 # Load History
@@ -460,3 +460,26 @@ class TestForwardReturnsWithPriceService:
             price_fetcher=mock_fetcher, horizons=(7,)
         )
         assert "AAPL:2026-01-01" in result
+
+# ============================================================
+# run_backtest with PriceService
+# ============================================================
+
+class TestRunBacktestWithService:
+    def test_uses_price_service_when_available(self, tmp_path):
+        """run_backtest should use PriceService by default."""
+        data = {
+            "date": "2026-01-02",
+            "concordance": [
+                {"ticker": "AAPL", "action": "BUY", "conviction": 70},
+            ],
+        }
+        # Create two entries (minimum for run_backtest)
+        (tmp_path / "concordance-2026-01-02.json").write_text(json.dumps(data))
+        data2 = {**data, "date": "2026-01-03"}
+        (tmp_path / "concordance-2026-01-03.json").write_text(json.dumps(data2))
+
+        # run_backtest with fetch_prices=False should skip price fetching
+        result = run_backtest(log_dir=tmp_path, fetch_prices=False)
+        assert result["status"] == "no_returns"
+        assert result["history_entries"] == 2

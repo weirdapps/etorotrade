@@ -750,22 +750,17 @@ def run_backtest(
     log_dir: Optional[Path] = None,
     horizon: str = "T+30",
     fetch_prices: bool = True,
+    use_price_service: bool = True,
 ) -> Dict[str, Any]:
     """
     Convenience function to run a full backtest.
 
-    1. Backfills any un-archived synthesis data
-    2. Loads all historical concordance
-    3. Fetches forward returns via yfinance (if fetch_prices=True)
-    4. Evaluates performance and generates calibration report
-
     Args:
         log_dir: Committee output directory.
         horizon: Forward return horizon (default "T+30").
-        fetch_prices: Whether to fetch prices from yfinance.
-
-    Returns:
-        Calibration report dict, or status dict if insufficient data.
+        fetch_prices: Whether to fetch prices at all.
+        use_price_service: If True, uses PriceService (trading-day offsets).
+            If False, falls back to legacy yfinance_price_fetcher (calendar days).
     """
     bt = CommitteeBacktester(log_dir=log_dir)
 
@@ -782,15 +777,18 @@ def run_backtest(
             "history_entries": loaded,
             "message": (
                 f"Only {loaded} committee snapshot(s) found. Need at least 2 "
-                "for meaningful backtesting. Run more committee sessions to "
-                "accumulate history."
+                "for meaningful backtesting."
             ),
         }
 
     # Step 3: Forward returns
     if fetch_prices:
-        price_fn = yfinance_price_fetcher
-        bt.compute_forward_returns(price_fetcher=price_fn)
+        if use_price_service:
+            from trade_modules.price_service import PriceService
+            svc = PriceService()
+            bt.compute_forward_returns(price_service=svc)
+        else:
+            bt.compute_forward_returns(price_fetcher=yfinance_price_fetcher)
 
     if not bt.forward_returns:
         return {
