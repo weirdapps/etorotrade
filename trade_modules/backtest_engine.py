@@ -168,12 +168,43 @@ class BacktestEngine:
         batch_size: int = 500,
     ) -> Tuple[pd.DataFrame, pd.Series]:
         """
-        Bulk-fetch historical closing prices via yfinance.
+        Fetch historical closing prices.
 
-        Returns:
-            Tuple of (price_data DataFrame indexed by date with ticker columns,
-                      spy_data Series indexed by date)
+        Delegates to PriceService if available, falls back to direct yfinance.
         """
+        try:
+            from trade_modules.price_service import PriceService
+            svc = PriceService(
+                cache_dir=self.cache_path.parent if self.cache_path else None
+            )
+            price_data = svc.get_prices(
+                tickers,
+                str(start_date),
+                str(end_date),
+                include_benchmark=True,
+            )
+            spy_data = (
+                price_data["SPY"].dropna()
+                if "SPY" in price_data.columns
+                else pd.Series(dtype=float)
+            )
+            return price_data, spy_data
+        except Exception as e:
+            logger.info(
+                "PriceService unavailable (%s), using direct yfinance", e
+            )
+            return self._fetch_price_history_legacy(
+                tickers, start_date, end_date, batch_size
+            )
+
+    def _fetch_price_history_legacy(
+        self,
+        tickers: List[str],
+        start_date,
+        end_date,
+        batch_size: int = 500,
+    ) -> Tuple[pd.DataFrame, pd.Series]:
+        """Legacy price fetching via direct yfinance calls."""
         import yfinance as yf
 
         # Load cache if available
