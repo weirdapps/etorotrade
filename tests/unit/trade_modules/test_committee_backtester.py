@@ -483,3 +483,35 @@ class TestRunBacktestWithService:
         result = run_backtest(log_dir=tmp_path, fetch_prices=False)
         assert result["status"] == "no_returns"
         assert result["history_entries"] == 2
+
+# ============================================================
+# Walk-Forward Calibration
+# ============================================================
+
+class TestWalkForwardCalibration:
+    def test_report_includes_walk_forward(self, tmp_path):
+        """Calibration report should include walk-forward validation."""
+        bt = CommitteeBacktester(log_dir=tmp_path)
+        # Create 6 dated history entries
+        bt.history = []
+        for i in range(6):
+            bt.history.append({
+                "date": f"2026-01-{10+i:02d}",
+                "concordance": [
+                    {"ticker": "AAPL", "signal": "B", "action": "BUY",
+                     "conviction": 65 + i, "bull_pct": 70, "fund_score": 70,
+                     "excess_exret": 5, "bear_weight": 2, "bull_weight": 5,
+                     "bonuses": 5, "penalties": 0},
+                ],
+            })
+        # Populate returns for all entries
+        bt.forward_returns = {
+            f"AAPL:2026-01-{10+i:02d}": {"T+7": 3.0 + i, "T+30": 5.0 + i}
+            for i in range(6)
+        }
+        report = bt.generate_calibration_report()
+        assert "walk_forward" in report
+        wf = report["walk_forward"]
+        assert "train_entries" in wf
+        assert "test_entries" in wf
+        assert wf["train_entries"] + wf["test_entries"] == 6

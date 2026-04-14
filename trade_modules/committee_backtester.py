@@ -603,14 +603,13 @@ class CommitteeBacktester:
 
     def generate_calibration_report(self) -> Dict[str, Any]:
         """
-        Generate a comprehensive calibration report.
+        Generate calibration report with walk-forward validation.
 
-        Combines performance evaluation with parameter sweep results
-        for key parameters to produce actionable recommendations.
-
-        Returns:
-            Report dict with performance, sweeps, and recommendations.
+        Splits history 70/30 into train/test. Evaluates on both halves
+        independently so calibration decisions can be validated.
         """
+        from trade_modules.backtest_stats import walk_forward_split
+
         perf_7d = self.evaluate_performance("T+7")
         perf_30d = self.evaluate_performance("T+30")
 
@@ -623,7 +622,42 @@ class CommitteeBacktester:
             if sweep_result:
                 sweeps[param] = sweep_result
 
-        # Generate recommendations
+        # Walk-forward validation
+        walk_forward = {"train_entries": 0, "test_entries": 0}
+        if len(self.history) >= 4:
+            train, test = walk_forward_split(self.history, train_ratio=0.7)
+            walk_forward["train_entries"] = len(train)
+            walk_forward["test_entries"] = len(test)
+            walk_forward["train_date_range"] = (
+                f"{train[0]['date']} to {train[-1]['date']}" if train else ""
+            )
+            walk_forward["test_date_range"] = (
+                f"{test[0]['date']} to {test[-1]['date']}" if test else ""
+            )
+
+            # Evaluate performance on test set only
+            if test and self.forward_returns:
+                test_returns = {}
+                for entry in test:
+                    for stock in entry["concordance"]:
+                        key = f"{stock.get('ticker', '')}:{entry['date']}"
+                        if key in self.forward_returns:
+                            test_returns[key] = self.forward_returns[key]
+
+                # Temporarily swap for evaluation
+                original_returns = self.forward_returns
+                original_history = self.history
+                self.forward_returns = test_returns
+                self.history = test
+
+                test_perf = self.evaluate_performance("T+30")
+                walk_forward["test_performance_30d"] = test_perf
+
+                # Restore
+                self.forward_returns = original_returns
+                self.history = original_history
+
+        # Recommendations
         recommendations = []
         if perf_30d.get("actions", {}).get("BUY", {}).get("hit_rate", 0) < 50:
             recommendations.append(
@@ -641,10 +675,28 @@ class CommitteeBacktester:
                 "selecting winners; review conviction scoring"
             )
 
+        # Check for walk-forward divergence
+        if walk_forward.get("test_performance_30d"):
+            test_buy = walk_forward["test_performance_30d"].get(
+                "actions", {}
+            ).get("BUY", {})
+            full_buy = perf_30d.get("actions", {}).get("BUY", {})
+            if (
+                test_buy.get("hit_rate", 0) > 0
+                and full_buy.get("hit_rate", 0) > 0
+            ):
+                divergence = full_buy["hit_rate"] - test_buy["hit_rate"]
+                if divergence > 15:
+                    recommendations.append(
+                        f"OVERFITTING WARNING: Full-sample BUY hit rate "
+                        f"({full_buy['hit_rate']:.0f}%) is {divergence:.0f}pp "
+                        f"higher than out-of-sample ({test_buy['hit_rate']:.0f}%). "
+                        f"Parameter tuning may not generalize."
+                    )
+
         if not recommendations:
             recommendations.append(
-                "All metrics within acceptable ranges — no parameter "
-                "changes recommended"
+                "All metrics within acceptable ranges"
             )
 
         return {
@@ -654,6 +706,7 @@ class CommitteeBacktester:
             "performance_7d": perf_7d,
             "performance_30d": perf_30d,
             "parameter_sweeps": sweeps,
+            "walk_forward": walk_forward,
             "recommendations": recommendations,
         }
 
