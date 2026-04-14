@@ -44,6 +44,30 @@ jobs:
           python scripts/run_weekly_backtest.py --ci
           echo "Backtest pipeline complete"
 
+      - name: Validate backtest output
+        run: |
+          REPORT="yahoofinance/output/backtest_report.json"
+          if [ ! -f "$REPORT" ]; then
+            echo "ERROR: backtest_report.json not generated"
+            exit 1
+          fi
+          SIZE=$(wc -c < "$REPORT")
+          if [ "$SIZE" -lt 500 ]; then
+            echo "ERROR: backtest_report.json is only $SIZE bytes (expected >500)"
+            cat "$REPORT"
+            exit 1
+          fi
+          echo "Backtest report validated: $SIZE bytes"
+          python3 -c "
+          import json
+          with open('$REPORT') as f:
+              r = json.load(f)
+          h = r.get('headline', {})
+          assert h.get('buy_count_t7') is not None, 'Missing buy_count_t7'
+          print(f'BUY T+7: {h.get(\"buy_hit_rate_t7\")}% (n={h.get(\"buy_count_t7\")})')
+          print(f'SELL T+7: {h.get(\"sell_hit_rate_t7\")}% (n={h.get(\"sell_count_t7\")})')
+          "
+
       - name: Configure Git
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"

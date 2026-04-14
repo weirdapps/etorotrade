@@ -150,6 +150,7 @@ def build_report(signal_summary, committee_result, scorecard, calibration):
         "committee_backtest": {
             "status": committee_result.get("status", "unknown"),
             "history_entries": committee_result.get("history_entries", 0),
+            "performance_30d": committee_result.get("performance_30d", {}),
         },
         "scorecard": {
             "buy_total": scorecard.get("buy_recommendations", {}).get("total", 0),
@@ -186,6 +187,8 @@ def build_report(signal_summary, committee_result, scorecard, calibration):
         "sell_avg_alpha_t7": sell_t7.get("avg_alpha"),
         "sell_avg_alpha_t30": sell_t30.get("avg_alpha"),
         "sell_count_t7": sell_t7.get("count"),
+        "buy_hit_rate_ci_t7": [buy_t7.get("hit_rate_ci_lo"), buy_t7.get("hit_rate_ci_hi")],
+        "buy_proven_signal_t7": buy_t7.get("proven_signal"),
     }
 
     return report
@@ -238,6 +241,23 @@ def main():
         if val is not None:
             print(f"  {key}: {val}")
     print()
+
+    # Validate output
+    report_size = REPORT_PATH.stat().st_size
+    if report_size < 500:
+        print(f"\nWARNING: Report file is suspiciously small ({report_size} bytes)")
+        print("This likely indicates a pipeline failure. Check logs above.")
+        sys.exit(1)
+
+    # Validate key fields are populated
+    missing_fields = []
+    headline = report.get("headline", {})
+    for key in ["buy_hit_rate_t7", "buy_count_t7", "sell_hit_rate_t7"]:
+        if headline.get(key) is None:
+            missing_fields.append(key)
+
+    if missing_fields:
+        print(f"\nWARNING: Missing headline fields: {missing_fields}")
 
 
 if __name__ == "__main__":
