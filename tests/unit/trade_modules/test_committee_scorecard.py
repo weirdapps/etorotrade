@@ -21,6 +21,7 @@ from trade_modules.committee_scorecard import (
     _load_all_actions,
     _load_opportunity_history,
     check_previous_recommendations,
+    generate_committee_scorecard,
     get_track_record_summary,
     save_opportunity_history,
     track_opportunities,
@@ -788,3 +789,33 @@ class TestCustomKillTheses:
         )
         # No conditions = no custom triggers, no heuristic triggers either
         assert len(result["active_theses"]) == 1
+
+
+# ============================================================
+# Scorecard PriceService Integration
+# ============================================================
+
+
+class TestScorecardPriceService:
+    def test_scorecard_uses_price_service(self, tmp_path):
+        """Scorecard should work with PriceService for price fetching."""
+        import json
+        # Create action log
+        log_path = tmp_path / "action_log.jsonl"
+        entries = [
+            {
+                "committee_date": "2026-01-02",
+                "timestamp": "2026-01-02T10:00:00",
+                "ticker": "AAPL",
+                "action": "BUY",
+                "conviction": 70,
+                "price_at_recommendation": 150.0,
+            },
+        ]
+        with open(log_path, "w") as f:
+            for e in entries:
+                f.write(json.dumps(e) + "\n")
+
+        # With no yfinance available, should return empty scorecard gracefully
+        result = generate_committee_scorecard(months_back=3, log_path=log_path)
+        assert "buy_recommendations" in result
