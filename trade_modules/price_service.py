@@ -11,6 +11,7 @@ modules. Features:
 """
 
 import logging
+import time
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -210,36 +211,50 @@ class PriceService:
         start_date: str,
         end_date: str,
         batch_size: int = 500,
+        max_retries: int = 3,
     ) -> pd.DataFrame:
-        """Batch-download close prices via yfinance."""
+        """Batch-download close prices via yfinance with retry/backoff."""
         import yfinance as yf
 
         frames = []
         for i in range(0, len(tickers), batch_size):
             batch = tickers[i : i + batch_size]
-            try:
-                data = yf.download(
-                    batch,
-                    start=start_date,
-                    end=end_date,
-                    group_by="ticker",
-                    threads=True,
-                    progress=False,
-                    auto_adjust=True,
-                )
-                if data.empty:
-                    continue
+            for attempt in range(max_retries):
+                try:
+                    data = yf.download(
+                        batch,
+                        start=start_date,
+                        end=end_date,
+                        group_by="ticker",
+                        threads=True,
+                        progress=False,
+                        auto_adjust=True,
+                    )
+                    if data.empty:
+                        break
 
-                if len(batch) == 1:
-                    close = data[["Close"]].rename(columns={"Close": batch[0]})
-                else:
-                    if isinstance(data.columns, pd.MultiIndex):
-                        close = data.xs("Close", axis=1, level=1)
+                    if len(batch) == 1:
+                        close = data[["Close"]].rename(columns={"Close": batch[0]})
                     else:
-                        close = data[["Close"]]
-                frames.append(close)
-            except Exception as e:
-                logger.warning("Failed to fetch batch %d-%d: %s", i, i + len(batch), e)
+                        if isinstance(data.columns, pd.MultiIndex):
+                            close = data.xs("Close", axis=1, level=1)
+                        else:
+                            close = data[["Close"]]
+                    frames.append(close)
+                    break  # success
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        wait = 2 ** (attempt + 1)
+                        logger.info(
+                            "Batch %d-%d attempt %d failed, retrying in %ds: %s",
+                            i, i + len(batch), attempt + 1, wait, e,
+                        )
+                        time.sleep(wait)
+                    else:
+                        logger.warning(
+                            "Failed to fetch batch %d-%d after %d attempts: %s",
+                            i, i + len(batch), max_retries, e,
+                        )
 
         if not frames:
             return pd.DataFrame()

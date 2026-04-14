@@ -174,9 +174,7 @@ class BacktestEngine:
         """
         try:
             from trade_modules.price_service import PriceService
-            svc = PriceService(
-                cache_dir=self.cache_path.parent if self.cache_path else None
-            )
+            svc = PriceService()
             price_data = svc.get_prices(
                 tickers,
                 str(start_date),

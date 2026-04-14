@@ -60,9 +60,12 @@ def run_signal_backtest():
                         summary[key] = {
                             "count": int(row["count"]),
                             "hit_rate": float(row["hit_rate"]),
+                            "hit_rate_ci_lo": float(row["hit_rate_ci_lo"]) if pd.notna(row.get("hit_rate_ci_lo")) else None,
+                            "hit_rate_ci_hi": float(row["hit_rate_ci_hi"]) if pd.notna(row.get("hit_rate_ci_hi")) else None,
                             "alpha_hit_rate": float(row["alpha_hit_rate"]) if pd.notna(row.get("alpha_hit_rate")) else None,
                             "mean_return": float(row["mean_return"]) if pd.notna(row.get("mean_return")) else None,
                             "avg_alpha": float(row["avg_alpha"]) if pd.notna(row.get("avg_alpha")) else None,
+                            "proven_signal": bool(row["proven_signal"]) if pd.notna(row.get("proven_signal")) else None,
                         }
 
     return summary
@@ -81,12 +84,15 @@ def run_committee_backtest():
     print(f"\nCommittee backtest status: {status}")
 
     if status == "complete":
-        perf = result.get("performance_30d", {})
-        actions = perf.get("actions", {})
-        for action, data in actions.items():
-            print(f"  {action}: {data.get('count', 0)} recs, "
-                  f"{data.get('hit_rate', 0):.1f}% hit rate, "
-                  f"{data.get('avg_return', 0):.2f}% avg return")
+        for label, key in [("T+7", "performance_7d"), ("T+30", "performance_30d")]:
+            perf = result.get(key, {})
+            actions = perf.get("actions", {})
+            if actions:
+                print(f"\n  {label} Performance:")
+                for action, data in actions.items():
+                    print(f"    {action}: {data.get('count', 0)} recs, "
+                          f"{data.get('hit_rate', 0):.1f}% hit rate, "
+                          f"{data.get('avg_return', 0):.2f}% avg return")
 
     return result
 
@@ -150,6 +156,7 @@ def build_report(signal_summary, committee_result, scorecard, calibration):
         "committee_backtest": {
             "status": committee_result.get("status", "unknown"),
             "history_entries": committee_result.get("history_entries", 0),
+            "performance_7d": committee_result.get("performance_7d", {}),
             "performance_30d": committee_result.get("performance_30d", {}),
         },
         "scorecard": {

@@ -239,9 +239,9 @@ class CommitteeBacktester:
         # Batch download all prices in one call
         try:
             prices = price_service.get_prices(
-                tickers=sorted(all_tickers),
-                start=start_str,
-                end=end_str,
+                sorted(all_tickers),
+                start_str,
+                end_str,
             )
         except Exception as exc:
             logger.error("PriceService.get_prices() failed: %s", exc)
@@ -399,7 +399,7 @@ class CommitteeBacktester:
             date_str = entry["date"]
             for stock in entry["concordance"]:
                 ticker = stock.get("ticker", "")
-                action = stock.get("action", "HOLD")
+                action = stock.get("verdict", stock.get("action", "HOLD"))
                 conviction = stock.get("conviction", 50)
                 key = f"{ticker}:{date_str}"
 
