@@ -147,32 +147,166 @@ class CommitteeBacktester:
     def compute_forward_returns(
         self,
         price_fetcher=None,
+        price_service=None,
         horizons: Tuple[int, ...] = (7, 30, 90),
         benchmark: str = "SPY",
     ) -> Dict[str, Dict[str, Optional[float]]]:
         """
         Compute forward returns and alpha for historical recommendations.
 
-        For each (ticker, date) recommendation, fetches the price at
-        T+0 and T+horizon to compute realized returns and alpha vs benchmark.
+        For each (ticker, date) recommendation, computes realized returns
+        and alpha vs benchmark at the given horizons.
+
+        Supports two backends:
+        - price_service (preferred): Uses trading-day offsets via PriceService.
+          Batch-downloads prices once and computes T+N in trading days.
+        - price_fetcher (legacy): Uses calendar-day offsets via timedelta.
+          Kept for backward compatibility.
 
         Args:
-            price_fetcher: Callable(ticker, date_str) -> Optional[float].
-                If None, uses a dummy that returns None (requires external
-                integration with yfinance or cached price data).
+            price_fetcher: (Legacy) Callable(ticker, date_str) -> Optional[float].
+                Uses calendar-day offsets. Deprecated in favor of price_service.
+            price_service: PriceService instance with get_prices(),
+                trading_day_return(), and trading_day_alpha() methods.
+                Uses trading-day offsets (correct behavior).
             horizons: Tuple of forward-looking days (default: 7, 30, 90).
             benchmark: Benchmark ticker for alpha computation (default "SPY").
 
         Returns:
             Dict of "ticker:date" -> {"T+7": float, "T+7_alpha": float, ...}
         """
-        if price_fetcher is None:
-            logger.info(
-                "No price_fetcher provided — forward returns will be None. "
-                "Integrate with yfinance or cached price data for real backtesting."
+        if price_service is not None:
+            return self._compute_returns_with_service(
+                price_service, horizons, benchmark
             )
+        if price_fetcher is not None:
+            return self._compute_returns_with_fetcher(
+                price_fetcher, horizons, benchmark
+            )
+
+        logger.info(
+            "No price_service or price_fetcher provided — forward returns "
+            "will be empty. Pass a PriceService for trading-day accuracy."
+        )
+        return {}
+
+    def _compute_returns_with_service(
+        self,
+        price_service,
+        horizons: Tuple[int, ...],
+        benchmark: str,
+    ) -> Dict[str, Dict[str, Optional[float]]]:
+        """
+        Compute forward returns using PriceService (trading-day offsets).
+
+        Batch-downloads all required price data in a single call, then
+        computes T+N returns where N is measured in trading days.
+        """
+        if not self.history:
             return {}
 
+        # Collect all unique tickers and determine date range
+        all_tickers = set()
+        all_dates = []
+        for entry in self.history:
+            date_str = entry["date"]
+            try:
+                dt = datetime.strptime(date_str, "%Y-%m-%d")
+                all_dates.append(dt)
+            except (ValueError, TypeError):
+                continue
+            for stock in entry["concordance"]:
+                ticker = stock.get("ticker", "")
+                if ticker:
+                    all_tickers.add(ticker)
+
+        if not all_tickers or not all_dates:
+            return {}
+
+        # Add benchmark to the ticker set
+        all_tickers.add(benchmark)
+
+        # Calculate date range: earliest date to latest + buffer for max horizon
+        start_date = min(all_dates)
+        max_horizon = max(horizons)
+        # Buffer: trading days * 1.5 + 10 calendar days for weekends/holidays
+        buffer_days = int(max_horizon * 1.5 + 10)
+        end_date = max(all_dates) + timedelta(days=buffer_days)
+
+        start_str = start_date.strftime("%Y-%m-%d")
+        end_str = end_date.strftime("%Y-%m-%d")
+
+        # Batch download all prices in one call
+        try:
+            prices = price_service.get_prices(
+                tickers=sorted(all_tickers),
+                start=start_str,
+                end=end_str,
+            )
+        except Exception as exc:
+            logger.error("PriceService.get_prices() failed: %s", exc)
+            return {}
+
+        # Compute returns for each (ticker, date) pair
+        results: Dict[str, Dict[str, Optional[float]]] = {}
+
+        for entry in self.history:
+            date_str = entry["date"]
+            try:
+                dt = datetime.strptime(date_str, "%Y-%m-%d")
+            except (ValueError, TypeError):
+                continue
+
+            for stock in entry["concordance"]:
+                ticker = stock.get("ticker", "")
+                if not ticker:
+                    continue
+
+                region = stock.get("region")
+                key = f"{ticker}:{date_str}"
+                returns = {}
+
+                for h in horizons:
+                    ret = price_service.trading_day_return(prices, ticker, dt, h)
+                    if ret is not None:
+                        returns[f"T+{h}"] = round(ret, 2)
+                        alpha = price_service.trading_day_alpha(
+                            prices, ticker, dt, h, region=region
+                        )
+                        returns[f"T+{h}_alpha"] = (
+                            round(alpha, 2) if alpha is not None else None
+                        )
+                    else:
+                        returns[f"T+{h}"] = None
+                        returns[f"T+{h}_alpha"] = None
+
+                if any(
+                    v is not None
+                    for k, v in returns.items()
+                    if not k.endswith("_alpha")
+                ):
+                    results[key] = returns
+
+        self.forward_returns = results
+        logger.info(
+            "Computed forward returns (PriceService) for %d recommendations",
+            len(results),
+        )
+        return results
+
+    def _compute_returns_with_fetcher(
+        self,
+        price_fetcher,
+        horizons: Tuple[int, ...],
+        benchmark: str,
+    ) -> Dict[str, Dict[str, Optional[float]]]:
+        """
+        Compute forward returns using legacy price_fetcher (calendar-day offsets).
+
+        This is the original implementation kept for backward compatibility.
+        Note: uses timedelta(days=h) which counts calendar days, not trading days.
+        Prefer _compute_returns_with_service() for accurate results.
+        """
         results: Dict[str, Dict[str, Optional[float]]] = {}
 
         # Cache benchmark prices per (date, horizon) to avoid redundant fetches
