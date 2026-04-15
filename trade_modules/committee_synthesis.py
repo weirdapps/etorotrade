@@ -126,6 +126,46 @@ from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
+__version__ = "v33.0"
+
+
+# ---------------------------------------------------------------------------
+# Canonical impact values (CIO v33.0)
+#
+# Agents write many sentiment variants; synthesis needs exactly 4 canonical
+# values + NEUTRAL + MIXED.  This dict + fallback function canonicalize at
+# the boundary so _resolve_news_impact sees a consistent vocabulary.
+# ---------------------------------------------------------------------------
+
+_IMPACT_CANONICAL = {
+    "VERY_POSITIVE": "HIGH_POSITIVE",
+    "STRONG_POSITIVE": "HIGH_POSITIVE",
+    "POSITIVE": "LOW_POSITIVE",
+    "SLIGHTLY_POSITIVE": "LOW_POSITIVE",
+    "MODERATE_POSITIVE": "LOW_POSITIVE",
+    "BULLISH": "LOW_POSITIVE",
+    "VERY_NEGATIVE": "HIGH_NEGATIVE",
+    "STRONG_NEGATIVE": "HIGH_NEGATIVE",
+    "NEGATIVE": "LOW_NEGATIVE",
+    "SLIGHTLY_NEGATIVE": "LOW_NEGATIVE",
+    "MODERATE_NEGATIVE": "LOW_NEGATIVE",
+    "BEARISH": "LOW_NEGATIVE",
+}
+
+
+def canonicalize_impact(raw: str) -> str:
+    """Map agent impact variants to canonical 4-value system."""
+    upper = str(raw).strip().upper()
+    mapped = _IMPACT_CANONICAL.get(upper)
+    if mapped:
+        return mapped
+    # Substring fallback for unknown variants
+    if "POSITIVE" in upper or "BULLISH" in upper:
+        return "HIGH_POSITIVE" if any(w in upper for w in ("HIGH", "VERY", "STRONG")) else "LOW_POSITIVE"
+    if "NEGATIVE" in upper or "BEARISH" in upper:
+        return "HIGH_NEGATIVE" if any(w in upper for w in ("HIGH", "VERY", "STRONG")) else "LOW_NEGATIVE"
+    return upper  # Pass through NEUTRAL, MIXED, etc.
+
 
 # ---------------------------------------------------------------------------
 # Agent report normalizers (CIO v26.1)
@@ -313,6 +353,7 @@ def _normalize_tech_stocks(tech_report: Dict) -> Dict:
 
     Agents sometimes return a list of dicts with 'ticker' keys instead
     of a dict keyed by ticker.
+    Also normalises per-stock field names: technical_signal/entry_timing → timing_signal.
     """
     stocks = tech_report.get("stocks", {})
     if isinstance(stocks, list):
@@ -324,7 +365,121 @@ def _normalize_tech_stocks(tech_report: Dict) -> Dict:
                     normalized[tkr] = item
         tech_report["stocks"] = normalized
         logger.info("Normalized tech_report['stocks'] from list (%d items) to dict", len(normalized))
+        stocks = normalized
+
+    # Fix 4: Agents write 'technical_signal'/'entry_timing', synthesis reads 'timing_signal'
+    for tkr, data in stocks.items():
+        if isinstance(data, dict) and "timing_signal" not in data:
+            data["timing_signal"] = data.get("technical_signal",
+                                             data.get("entry_timing", "HOLD"))
     return tech_report
+
+
+def _normalize_macro_portfolio_implications(macro_report: Dict) -> Dict:
+    """Ensure macro_report['portfolio_implications'] exists as {ticker: {fit, rationale}}.
+
+    Agents write per-stock macro fit in macro.stocks[tkr].macro_fit.
+    Synthesis reads portfolio_implications[tkr].get('fit').
+    """
+    if "portfolio_implications" not in macro_report:
+        stocks = macro_report.get("stocks", {})
+        if isinstance(stocks, dict) and stocks:
+            pi = {}
+            for tkr, data in stocks.items():
+                if isinstance(data, dict):
+                    pi[tkr] = {
+                        "fit": data.get("macro_fit", "NEUTRAL"),
+                        "rationale": data.get("notes", ""),
+                    }
+            if pi:
+                macro_report["portfolio_implications"] = pi
+                logger.info("Built portfolio_implications from macro.stocks (%d tickers)", len(pi))
+    return macro_report
+
+
+def _normalize_macro_indicators(macro_report: Dict) -> Dict:
+    """Ensure macro_report['indicators'] contains indicator data.
+
+    Agents write 'key_indicators', synthesis reads 'macro_indicators' or 'indicators'.
+    Also normalises 'eurusd' → 'eur_usd'.
+    """
+    if not macro_report.get("indicators") and not macro_report.get("macro_indicators"):
+        ki = macro_report.get("key_indicators", {})
+        if ki:
+            macro_report["indicators"] = ki
+            macro_report["macro_indicators"] = ki
+            logger.info("Mapped key_indicators → indicators (%d keys)", len(ki))
+    # Normalise eurusd → eur_usd (agent writes without underscore)
+    for key in ("indicators", "macro_indicators", "key_indicators"):
+        ind = macro_report.get(key, {})
+        if isinstance(ind, dict) and "eurusd" in ind and "eur_usd" not in ind:
+            ind["eur_usd"] = ind["eurusd"]
+    return macro_report
+
+
+def _normalize_risk_warnings(risk_report: Dict) -> Dict:
+    """Ensure risk_report['consensus_warnings'] exists.
+
+    Agents write 'top_warnings' and per-stock risk_warning in stocks[tkr].
+    Synthesis reads 'consensus_warnings'.
+    """
+    if not risk_report.get("consensus_warnings"):
+        warnings = risk_report.get("top_warnings", [])
+        if warnings:
+            risk_report["consensus_warnings"] = warnings
+            logger.info("Mapped top_warnings → consensus_warnings (%d items)", len(warnings))
+    # Also build from per-stock risk_warning flags
+    for tkr, data in risk_report.get("stocks", {}).items():
+        if isinstance(data, dict) and data.get("risk_warning"):
+            existing = risk_report.get("consensus_warnings", [])
+            if not any(w.get("ticker") == tkr for w in existing if isinstance(w, dict)):
+                existing.append({"ticker": tkr, "severity": data.get("risk_score", "MODERATE"),
+                                 "reason": "; ".join(data.get("risk_factors", []))[:200]})
+                risk_report["consensus_warnings"] = existing
+    return risk_report
+
+
+def _normalize_news_breaking(news_report: Dict) -> Dict:
+    """Synthesise breaking_news from key_themes/sector_news when empty.
+
+    Agents sometimes put news in 'key_themes' and 'sector_news' instead
+    of 'breaking_news'.
+    """
+    if news_report.get("breaking_news"):
+        return news_report
+    items = []
+    for theme in news_report.get("key_themes", []):
+        if isinstance(theme, str) and theme.strip():
+            items.append({
+                "headline": theme.strip(),
+                "impact": "NEUTRAL",
+                "affected_tickers": [],
+                "affected_sectors": [],
+            })
+        elif isinstance(theme, dict):
+            headline = theme.get("theme", theme.get("title", theme.get("headline", "")))
+            if headline:
+                items.append({
+                    "headline": headline,
+                    "impact": theme.get("sentiment", theme.get("impact", "NEUTRAL")),
+                    "affected_tickers": theme.get("affected_tickers",
+                                                  theme.get("tickers", [])),
+                    "affected_sectors": theme.get("affected_sectors", []),
+                })
+    for sn in news_report.get("sector_news", []):
+        if isinstance(sn, dict):
+            headline = sn.get("headline", sn.get("summary", ""))
+            if headline and len(items) < 8:
+                items.append({
+                    "headline": headline,
+                    "impact": sn.get("impact", sn.get("sentiment", "NEUTRAL")),
+                    "affected_tickers": sn.get("affected_tickers", []),
+                    "affected_sectors": [sn.get("sector", "")],
+                })
+    if items:
+        news_report["breaking_news"] = items
+        logger.info("Synthesised breaking_news from key_themes/sector_news (%d items)", len(items))
+    return news_report
 
 
 def normalize_agent_reports(
@@ -347,7 +502,11 @@ def normalize_agent_reports(
     news_report = _normalize_breaking_news(news_report)
     news_report = _normalize_portfolio_news(news_report)
     news_report = _normalize_economic_events(news_report)
+    news_report = _normalize_news_breaking(news_report)
     macro_report = _normalize_sector_rankings(macro_report)
+    macro_report = _normalize_macro_indicators(macro_report)
+    macro_report = _normalize_macro_portfolio_implications(macro_report)
+    risk_report = _normalize_risk_warnings(risk_report)
     return fund_report, tech_report, macro_report, census_report, news_report, risk_report
 
 
@@ -1560,9 +1719,19 @@ def compute_adjustments(
         _w["high_beta"] = -5
 
     # Quality trap
+    # CIO v32.0 T3: Quality growth exception — waive quality_trap penalty when
+    # fund_score >= 70 (strong fundamentals) AND buy_pct >= 70 (analyst consensus
+    # confirms growth thesis) AND signal is not SELL. Backtest showed ANET, AMD,
+    # NVDA were systematically suppressed by quality_trap despite outperforming.
     if quality_trap:
-        penalties += 5
-        _w["quality_trap"] = -5
+        is_quality_growth = (
+            fund_score >= 70
+            and buy_pct >= 70
+            and signal in ("B", "H")
+        )
+        if not is_quality_growth:
+            penalties += 5
+            _w["quality_trap"] = -5
 
     # Sector rotation
     etf = SECTOR_ETF_MAP.get(sector, "")
@@ -1681,6 +1850,52 @@ def determine_action(
         elif conviction >= 35:
             return "HOLD"
         return "TRIM"
+
+
+def apply_action_hysteresis(
+    current_action: str,
+    conviction: int,
+    signal: str,
+    prev_action: Optional[str],
+    prev_conviction: Optional[int],
+    delta_threshold: int = 5,
+) -> str:
+    """Apply hysteresis to prevent HOLD/ADD whipsaw.
+
+    CIO v32.0 T2: Backtest showed 14.5% of action sequences have A→B→A
+    reversal patterns. When a stock flips between HOLD and ADD, require
+    a minimum conviction delta from the action boundary before allowing
+    the change. This prevents oscillation from small signal noise.
+
+    Only applies to HOLD↔ADD transitions. SELL/TRIM are risk decisions
+    that should not be dampened.
+    """
+    if prev_action is None:
+        return current_action
+
+    # Only apply hysteresis to HOLD↔ADD transitions
+    if not ({current_action, prev_action} == {"HOLD", "ADD"}):
+        return current_action
+
+    # Determine the action boundary for this signal type
+    if signal == "B":
+        boundary = 55  # BUY signal: ADD threshold
+    elif signal == "H":
+        boundary = 70  # HOLD signal: ADD threshold
+    else:
+        return current_action  # SELL signal — no hysteresis
+
+    # If crossing from HOLD→ADD, conviction must be >= boundary + delta
+    if prev_action == "HOLD" and current_action == "ADD":
+        if conviction < boundary + delta_threshold:
+            return "HOLD"  # Not enough conviction above boundary
+
+    # If crossing from ADD→HOLD, conviction must be <= boundary - delta
+    if prev_action == "ADD" and current_action == "HOLD":
+        if conviction > boundary - delta_threshold:
+            return "ADD"  # Not enough conviction below boundary
+
+    return current_action
 
 
 def recalculate_trim_conviction(
@@ -1931,23 +2146,17 @@ def synthesize_stock(
 
     # CIO v20.0 D4: Stale analyst target detection
     # Type A = general analyst consensus (>6 months old), no momentum change
-    am = sig_data.get("am", 0)  # analyst momentum from signal data
+    try:
+        am = float(sig_data.get("am", 0))
+    except (ValueError, TypeError):
+        am = 0.0
     analyst_type = sig_data.get("analyst_type", "A")
     if analyst_type == "A" and abs(am) < 1 and buy_pct > 70:
         penalties += 5  # Stale targets
         _w["stale_targets"] = -5
 
-    # CIO v20.0 D2: Census contrarian indicator
-    # When F&G > 80 (EXTREME_GREED), reduce all new BUY conviction
-    if fg_score is not None and signal == "B":
-        if fg_score > 80:
-            fg_penalty = int((fg_score - 80) * 0.75)  # -15 at F&G=100
-            penalties += fg_penalty
-            _w["census_fear_greed"] = -fg_penalty
-        elif fg_score < 20:
-            fg_bonus = int((20 - fg_score) * 0.75)  # +15 at F&G=0
-            bonuses = min(bonuses + fg_bonus, 20)
-            _w["census_fear_greed"] = fg_bonus
+    # CIO v29.0: D2 census F&G contrarian indicator DISABLED
+    # F&G data found unreliable — removed from scoring entirely
 
     # CIO v20.0 D3: Earnings proximity guard
     if earnings_days_away is not None and signal == "B":
@@ -2330,8 +2539,13 @@ def synthesize_stock(
     # At RSI < 30 the stock is deeply oversold; trimming crystallizes losses
     # at the worst possible moment. E.g., SLB at RSI=16 should not be trimmed
     # even when tech=AVOID + risk_warning — the damage is already done.
-    if action == "HOLD" and signal == "H" and rsi >= 30:
-        if rsi > 80 and tech_signal in ("AVOID", "EXIT_SOON"):
+    #
+    # CIO v32.0 T1: Hardened trim escalation — backtest showed TRIM stocks
+    # went UP 61% of the time. Root cause: escalation fired on tech+risk alone
+    # without checking fundamentals. Now requires: (a) fund_score < 70 AND
+    # (b) for RSI>80 path, also requires risk_warning (not just overbought tech).
+    if action == "HOLD" and signal == "H" and rsi >= 30 and fund_score < 70:
+        if rsi > 80 and tech_signal in ("AVOID", "EXIT_SOON") and risk_warning:
             action = "TRIM"
         elif risk_warning and tech_signal == "AVOID":
             action = "TRIM"
@@ -2484,7 +2698,17 @@ def _build_agent_lookups(
     macro_impl = macro_report.get("portfolio_implications", {})
     census_divs = census_report.get("divergences", {})
     port_news = news_report.get("portfolio_news", {})
-    risk_warns = {w["ticker"] for w in risk_report.get("consensus_warnings", [])}
+    # Build risk_warns from consensus_warnings/top_warnings + per-stock flags
+    risk_warns = set()
+    for w in risk_report.get("consensus_warnings", risk_report.get("top_warnings", [])):
+        if isinstance(w, dict) and w.get("ticker"):
+            risk_warns.add(w["ticker"])
+    for tkr, data in risk_report.get("stocks", {}).items():
+        if isinstance(data, dict) and data.get("risk_warning"):
+            risk_warns.add(tkr)
+    # v33.0: Also read risk_warnings_by_stock (agent variant of per-stock risk flags)
+    for tkr in risk_report.get("risk_warnings_by_stock", {}):
+        risk_warns.add(tkr)
     risk_limits = risk_report.get("position_limits", {})
     sector_rankings = macro_report.get("sector_rankings", {})
 
@@ -2495,6 +2719,42 @@ def _build_agent_lookups(
         div_map[item["ticker"]] = ("DIVERGENT", item.get("divergence_score", 0))
     for item in census_divs.get("census_divergences", []):
         div_map[item["ticker"]] = ("CENSUS_DIV", item.get("divergence_score", 0))
+
+    # v33.0: Derive alignment from census per-stock data for tickers not in divergences.
+    # Census agent provides stocks[ticker].sentiment/alignment that the sparse
+    # divergences lists don't cover for most portfolio stocks.
+    census_stocks = census_report.get("stocks", census_report.get("per_stock", {}))
+    for tkr, data in census_stocks.items():
+        if tkr in div_map:
+            continue  # Divergences data takes precedence
+        if not isinstance(data, dict):
+            continue
+        alignment = (data.get("alignment") or data.get("sentiment")
+                     or data.get("signal") or data.get("census_signal")
+                     or data.get("signal_divergence") or "")
+        if isinstance(alignment, dict):
+            alignment = alignment.get("direction", alignment.get("signal", ""))
+        alignment = str(alignment).upper()
+
+        # Skip genuinely neutral/empty values
+        if alignment in ("", "NONE", "NEUTRAL", "N/A", "UNKNOWN"):
+            continue
+
+        div_score_val = data.get("divergence_score", data.get("div_score", 0))
+        try:
+            div_score_val = int(div_score_val)
+        except (ValueError, TypeError):
+            div_score_val = 0
+
+        if "ALIGN" in alignment or "CONSENSUS" in alignment:
+            div_map[tkr] = ("ALIGNED", div_score_val)
+        elif "DIVERG" in alignment or "CONTRA" in alignment or "CROWDED" in alignment:
+            div_map[tkr] = ("DIVERGENT", div_score_val or -10)
+        elif "BULL" in alignment or "POS" in alignment or "ACCUMUL" in alignment:
+            div_map[tkr] = ("ALIGNED", div_score_val or 5)
+        elif "BEAR" in alignment or "NEG" in alignment or "DISTRIBUT" in alignment:
+            div_map[tkr] = ("DIVERGENT", div_score_val or -15)
+        # else: leave as NEUTRAL default — no data is better than wrong data
 
     return {
         "macro_impl": macro_impl,
@@ -2520,7 +2780,7 @@ def _resolve_macro_fit(
     from sector + regime mapping instead of defaulting to NEUTRAL.
     """
     mf = macro_impl.get(ticker, {})
-    v = mf.get("macro_fit", "") if isinstance(mf, dict) else str(mf)
+    v = (mf.get("fit", "") or mf.get("macro_fit", "")) if isinstance(mf, dict) else str(mf)
     v = v.lower()
     if "unfavorable" in v or "negative" in v:
         return "UNFAVORABLE"
@@ -2571,7 +2831,13 @@ def _resolve_news_impact(port_news: Dict, ticker: str) -> str:
     items = port_news.get(ticker, [])
     if not items:
         return "NEUTRAL"
-    impacts = [i.get("impact", "NEUTRAL") for i in items]
+    # v33.0: Handle single-dict news items (agent sometimes writes dict instead of list)
+    if isinstance(items, dict):
+        items = [items]
+    # v33.0: Canonicalize agent impact variants before matching
+    impacts = [canonicalize_impact(i.get("impact", "NEUTRAL")) for i in items if isinstance(i, dict)]
+    if not impacts:
+        return "NEUTRAL"
 
     has_high_pos = "HIGH_POSITIVE" in impacts
     has_high_neg = "HIGH_NEGATIVE" in impacts
@@ -2768,7 +3034,8 @@ def _synthesize_with_lookups(
             pass
     # CIO v20.0 D3: Fallback — extract from news report if fundamental had no date
     if earnings_days_away is None and news_report:
-        earnings_cal = news_report.get("earnings_calendar", {}).get("next_2_weeks", [])
+        ec_raw = news_report.get("earnings_calendar", {})
+        earnings_cal = ec_raw if isinstance(ec_raw, list) else ec_raw.get("next_2_weeks", [])
         ticker_earnings = [e for e in earnings_cal if e.get("ticker") == ticker]
         if ticker_earnings:
             earnings_days_away = ticker_earnings[0].get("days_away", 14)
@@ -3115,13 +3382,8 @@ def build_concordance(
             warned_count, total_count, warned_count / total_count * 100,
         )
 
-    # CIO v20.0 D2: Extract Fear & Greed score for contrarian indicator
-    # Census agent writes fear_greed.current (not sentiment.fg_broad)
-    fg_score = (
-        census_report.get("fear_greed", {}).get("current")
-        or census_report.get("sentiment", {}).get("fg_broad")
-        or census_report.get("fg_broad")
-    )
+    # CIO v29.0: F&G data disabled — unreliable
+    fg_score = None
 
     # Process portfolio stocks
     for ticker, sig_data in portfolio_signals.items():
@@ -3347,6 +3609,45 @@ def build_concordance(
                     entry.get("tech_signal", "HOLD"),
                     entry.get("risk_warning", False),
                 )
+
+    # CIO v32.0 T2: Action hysteresis — prevent HOLD/ADD whipsaw.
+    # Applied after ALL conviction modifiers so it doesn't contaminate scoring.
+    if previous_concordance:
+        _prev_action_map: Dict[str, Tuple[str, int]] = {}
+        _prev_list_hyst = previous_concordance
+        if isinstance(previous_concordance, dict):
+            if "stocks" in previous_concordance:
+                _prev_list_hyst = [
+                    dict(v, ticker=k)
+                    for k, v in previous_concordance["stocks"].items()
+                ]
+            elif "concordance" in previous_concordance:
+                _prev_list_hyst = previous_concordance["concordance"]
+        if isinstance(_prev_list_hyst, list):
+            for _pe in _prev_list_hyst:
+                if isinstance(_pe, dict):
+                    _t = _pe.get("ticker", "")
+                    if _t:
+                        _prev_action_map[_t] = (
+                            _pe.get("action") or _pe.get("verdict", "HOLD"),
+                            _pe.get("conviction", 50),
+                        )
+
+        for entry in concordance:
+            ticker = entry.get("ticker", "")
+            prev_data = _prev_action_map.get(ticker)
+            if prev_data:
+                prev_act, prev_conv = prev_data
+                new_action = apply_action_hysteresis(
+                    entry["action"], entry["conviction"],
+                    entry.get("signal", "H"),
+                    prev_act, prev_conv,
+                )
+                if new_action != entry["action"]:
+                    wf = entry.get("conviction_waterfall", {})
+                    wf["hysteresis"] = f"{entry['action']}->{new_action}"
+                    entry["conviction_waterfall"] = wf
+                    entry["action"] = new_action
 
     # Break conviction ties with composite quality score (CIO v5.2, v6.0 normalized)
     # This prevents 11 stocks at identical conviction=65.
@@ -3654,14 +3955,26 @@ def generate_synthesis_output(
 
     # Extract risk metrics — try multiple field name conventions
     pr = risk_report.get("portfolio_risk", {})
+    # Risk agent sometimes puts metrics at top level, not in portfolio_risk sub-dict
+    if not pr:
+        pr = {}
+    risk_score = (pr.get("risk_score")
+                  or risk_report.get("portfolio_risk_score")
+                  or risk_report.get("executive_summary", {}).get("overall_risk_rating_score", 50)
+                  or 50)
     var_95 = pr.get("var_95_annual") or pr.get("var_95_daily") or pr.get("var_95") or 0
     max_dd = pr.get("max_drawdown_1y") or pr.get("max_drawdown") or 0
     port_beta = pr.get("portfolio_beta_vs_spy") or pr.get("portfolio_beta") or 0
-    risk_score = pr.get("risk_score") or risk_report.get("executive_summary", {}).get("overall_risk_rating_score", 50) or 50
+    if not port_beta and concordance:
+        betas = [e.get("beta", 1.0) for e in concordance if not e.get("is_opportunity")]
+        if betas:
+            port_beta = sum(betas) / len(betas)
 
     # Macro — try nested paths for agent report compatibility.
-    # Macro agent writes: macro_indicators.us_10y_yield, regime.classification
-    indicators = macro_report.get("macro_indicators") or macro_report.get("indicators", {})
+    # Macro agent writes: key_indicators.us_10y_yield, regime.classification
+    indicators = (macro_report.get("macro_indicators")
+                  or macro_report.get("indicators")
+                  or macro_report.get("key_indicators", {}))
     # Flatten nested indicator structures (yield_curve.10y → us_10y_yield, etc.)
     _yc = indicators.get("yield_curve", {})
     if isinstance(_yc, dict) and _yc:
@@ -3673,6 +3986,23 @@ def generate_synthesis_output(
         indicators.setdefault("eur_usd", _cur.get("eur_usd", 0))
     if indicators.get("oil_brent") and not indicators.get("brent_crude"):
         indicators["brent_crude"] = indicators["oil_brent"]
+    # Normalise eurusd → eur_usd (agent writes without underscore)
+    if indicators.get("eurusd") and not indicators.get("eur_usd"):
+        indicators["eur_usd"] = indicators["eurusd"]
+    # v33.0: VIX often at top-level of macro report, not inside indicators
+    if not indicators.get("vix"):
+        vix_data = macro_report.get("vix", {})
+        if isinstance(vix_data, dict) and vix_data.get("current"):
+            indicators["vix"] = vix_data["current"]
+        elif isinstance(vix_data, (int, float)) and vix_data:
+            indicators["vix"] = vix_data
+    # Currency: also check top-level currency dict
+    if not indicators.get("eur_usd"):
+        cur_data = macro_report.get("currency", {})
+        if isinstance(cur_data, dict):
+            usd_eur = cur_data.get("usd_eur", {})
+            if isinstance(usd_eur, dict) and usd_eur.get("rate"):
+                indicators["eur_usd"] = usd_eur["rate"]
     es = macro_report.get("executive_summary", {})
     regime_data = macro_report.get("regime", {})
     regime = (
@@ -3680,7 +4010,10 @@ def generate_synthesis_output(
         or (es.get("regime") if isinstance(es, dict) else "")
         or "CAUTIOUS"
     )
-    macro_score = macro_report.get("macro_score") or (es.get("macro_score") if isinstance(es, dict) else 0) or 0
+    macro_score = (macro_report.get("macro_score")
+                   or (es.get("macro_score") if isinstance(es, dict) else 0)
+                   or macro_report.get("regime_confidence")
+                   or 0)
     rotation = (
         macro_report.get("sector_rotation_view", {}).get("rationale", "").split(".")[0]
         if isinstance(macro_report.get("sector_rotation_view"), dict)
@@ -3697,7 +4030,9 @@ def generate_synthesis_output(
     fg_data = census_report.get("fear_greed", {})
     cash_data = census_report.get("cash_trends", {})
     fg_val = fg_data.get("current") or fg_data.get("value")
-    cash_val = cash_data.get("mean_cash_pct") or cash_data.get("avg_cash_pct")
+    cash_val = (cash_data.get("mean_cash_pct")
+                or cash_data.get("avg_cash_pct")
+                or fg_data.get("cash_pct"))
 
     # Fallback: nested sentiment structure (older report formats)
     sentiment_raw = census_report.get("sentiment", {})
@@ -3757,7 +4092,7 @@ def generate_synthesis_output(
     ]
 
     output = {
-        "version": "v26.1",
+        "version": __version__,
         "concordance": concordance,
         "action_distribution": dict(action_dist),
         "changes": changes,
@@ -3768,8 +4103,8 @@ def generate_synthesis_output(
         "macro_score": macro_score,
         "rotation_phase": rotation,
         "risk_score": risk_score,
-        "var_95": round(var_95 * 100, 2) if abs(var_95) < 1 else round(var_95, 2),
-        "max_drawdown": round(max_dd * 100, 1) if abs(max_dd) < 1 else round(max_dd, 1),
+        "var_95": round(var_95, 2),
+        "max_drawdown": round(max_dd * 100, 1) if 0 < abs(max_dd) < 1 else round(max_dd, 1),
         "portfolio_beta": round(port_beta, 2),
         "portfolio_risk": pr,
         # Macro
@@ -3777,8 +4112,8 @@ def generate_synthesis_output(
         "sector_rankings": macro_report.get("sector_rankings", {}),
         "macro_risks": macro_report.get("key_risks", []),
         # Census
-        "fg_top100": sentiment.get("fg_top100", 0),
-        "fg_broad": sentiment.get("fg_broad", 0),
+        "fg_top100": 0,  # CIO v29.0: F&G disabled — unreliable data
+        "fg_broad": 0,
         "census_sentiment": sentiment,
         "top_holdings_top100": (
             census_report.get("portfolio_pi_overlap", {}).get("most_popular_holdings")
@@ -3814,6 +4149,127 @@ def generate_synthesis_output(
     }
 
     return output
+
+
+def repair_synthesis(
+    synthesis: Dict[str, Any],
+    macro_report: Dict,
+    census_report: Dict,
+    news_report: Dict,
+    risk_report: Dict,
+) -> List[str]:
+    """
+    Attempt to repair missing/zero fields in the synthesis output by
+    re-extracting from raw agent reports.
+
+    This runs AFTER generate_synthesis_output() when QA detects CRITICAL
+    gaps. It's a second-chance extraction that tries harder to find data.
+
+    Mutates synthesis in-place. Returns list of repairs applied.
+    """
+    repairs = []
+
+    # ── Regime ──
+    if not synthesis.get("regime"):
+        regime_data = macro_report.get("regime", {})
+        regime = (
+            (regime_data.get("classification") if isinstance(regime_data, dict) else regime_data)
+            or macro_report.get("executive_summary", {}).get("regime")
+            or "CAUTIOUS"
+        )
+        if regime:
+            synthesis["regime"] = regime
+            repairs.append(f"regime repaired → {regime}")
+
+    # ── Risk score ──
+    if not synthesis.get("risk_score") or synthesis.get("risk_score") == 50:
+        rs = (risk_report.get("portfolio_risk_score")
+              or risk_report.get("portfolio_risk", {}).get("risk_score")
+              or risk_report.get("executive_summary", {}).get("overall_risk_rating_score"))
+        if rs and rs != 50:
+            synthesis["risk_score"] = rs
+            repairs.append(f"risk_score repaired → {rs}")
+
+    # ── Indicators ──
+    indicators = synthesis.get("indicators", {})
+    if not indicators or not indicators.get("vix"):
+        # Try all known agent key paths
+        for src_key in ("macro_indicators", "indicators", "key_indicators"):
+            src = macro_report.get(src_key, {})
+            if isinstance(src, dict) and src.get("vix"):
+                # Merge missing keys
+                for k, v in src.items():
+                    if v and not indicators.get(k):
+                        indicators[k] = v
+                synthesis["indicators"] = indicators
+                repairs.append(f"indicators repaired from macro.{src_key}")
+                break
+        # Normalise eurusd → eur_usd
+        if indicators.get("eurusd") and not indicators.get("eur_usd"):
+            indicators["eur_usd"] = indicators["eurusd"]
+            repairs.append("eur_usd repaired from eurusd")
+
+    # ── Portfolio beta ──
+    if not synthesis.get("portfolio_beta"):
+        concordance = synthesis.get("concordance", [])
+        betas = [e.get("beta", 1.0) for e in concordance
+                 if not e.get("is_opportunity") and e.get("beta")]
+        if betas:
+            synthesis["portfolio_beta"] = round(sum(betas) / len(betas), 2)
+            repairs.append(f"portfolio_beta repaired → {synthesis['portfolio_beta']}")
+
+    # ── Breaking news ──
+    if not synthesis.get("breaking_news"):
+        items = []
+        for theme in news_report.get("key_themes", []):
+            if isinstance(theme, str) and theme.strip():
+                items.append({"headline": theme.strip(), "impact": "NEUTRAL",
+                              "affected_tickers": []})
+            elif isinstance(theme, dict):
+                hl = theme.get("theme", theme.get("title", theme.get("headline", "")))
+                if hl:
+                    items.append({"headline": hl,
+                                  "impact": theme.get("sentiment", "NEUTRAL"),
+                                  "affected_tickers": theme.get("affected_tickers", [])})
+        for sn in news_report.get("sector_news", []):
+            if isinstance(sn, dict):
+                hl = sn.get("headline", sn.get("summary", ""))
+                if hl and len(items) < 8:
+                    items.append({"headline": hl,
+                                  "impact": sn.get("impact", "NEUTRAL"),
+                                  "affected_tickers": sn.get("affected_tickers", [])})
+        if items:
+            synthesis["breaking_news"] = items
+            repairs.append(f"breaking_news repaired ({len(items)} items)")
+
+    # ── Sector rankings ──
+    if not synthesis.get("sector_rankings"):
+        sr = macro_report.get("sector_rankings", {})
+        if sr:
+            synthesis["sector_rankings"] = sr
+            repairs.append(f"sector_rankings repaired ({len(sr)} sectors)")
+
+    # ── Stress scenarios ──
+    if not synthesis.get("stress_scenarios"):
+        ss = risk_report.get("stress_scenarios", [])
+        if ss:
+            synthesis["stress_scenarios"] = ss
+            repairs.append(f"stress_scenarios repaired ({len(ss)} scenarios)")
+
+    # ── Macro score ──
+    if not synthesis.get("macro_score"):
+        ms = (macro_report.get("macro_score")
+              or macro_report.get("regime_confidence")
+              or macro_report.get("executive_summary", {}).get("macro_score"))
+        if ms:
+            synthesis["macro_score"] = ms
+            repairs.append(f"macro_score repaired → {ms}")
+
+    if repairs:
+        logger.info("Synthesis repair applied %d fixes: %s",
+                     len(repairs), "; ".join(repairs))
+
+    return repairs
 
 
 def enrich_with_position_sizes(
