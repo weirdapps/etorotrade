@@ -1460,44 +1460,48 @@ def generate_report_html(
         # Full: Portfolio Risk section (metrics, VaR, stress)
         h.append(_section_open("Portfolio Risk",
                                "How much could you lose? Risk metrics, stress tests, and worst-case scenarios."))
-        # Risk metrics table
+        # Risk metrics table — only show rows where data exists
         risk_metrics = [
-            ("Sharpe (1Y)", f"{sharpe:.2f}", _C["bull"] if sharpe > 0.5 else _C["warn"] if sharpe > 0 else _C["bear"]),
-            ("Sortino Ratio", f"{pr.get('sortino_ratio', 0):.2f}", _C["text_body"]),
-            ("Max Drawdown", f"{max_dd:.1f}%", _C["bear"]),
-            ("Current DD", f"{curr_dd:.1f}%", _C["bear"] if curr_dd < -5 else _C["bull"] if curr_dd == 0 else _C["warn"]),
-            ("Calmar Ratio", f"{calmar:.2f}", _C["bull"] if calmar > 1 else _C["warn"] if calmar > 0.5 else _C["bear"]),
-            ("Portfolio Beta", f"{p_beta:.2f}", _C["text_body"]),
+            ("Portfolio Beta", f"{p_beta:.2f}", _C["text_body"], p_beta and p_beta != 1.0),
+            ("Sharpe (1Y)", f"{sharpe:.2f}", _C["bull"] if sharpe > 0.5 else _C["warn"] if sharpe > 0 else _C["bear"], sharpe != 0),
+            ("Sortino Ratio", f"{pr.get('sortino_ratio', 0):.2f}", _C["text_body"], pr.get('sortino_ratio', 0) != 0),
+            ("Max Drawdown", f"{max_dd:.1f}%", _C["bear"], max_dd != 0),
+            ("Current DD", f"{curr_dd:.1f}%", _C["bear"] if curr_dd < -5 else _C["bull"] if curr_dd == 0 else _C["warn"], curr_dd != 0),
+            ("Calmar Ratio", f"{calmar:.2f}", _C["bull"] if calmar > 1 else _C["warn"] if calmar > 0.5 else _C["bear"], calmar != 0),
         ]
-        h.append(f'<table style="{_TABLE}">')
-        for i, (label, val, vc) in enumerate(risk_metrics):
-            bg = _C["bg_page"] if i % 2 == 0 else _C["bg_white"]
-            h.append(f'<tr style="background:{bg};"><td style="padding:8px 10px;font-weight:600;">{label}</td>'
-                     f'<td style="padding:8px 10px;text-align:right;{_MONO}font-weight:700;color:{vc};">{val}</td></tr>')
-        h.append('</table>')
+        visible_metrics = [(l, v, c) for l, v, c, show in risk_metrics if show]
+        if visible_metrics:
+            h.append(f'<table style="{_TABLE}">')
+            for i, (label, val, vc) in enumerate(visible_metrics):
+                bg = _C["bg_page"] if i % 2 == 0 else _C["bg_white"]
+                h.append(f'<tr style="background:{bg};"><td style="padding:8px 10px;font-weight:600;">{label}</td>'
+                         f'<td style="padding:8px 10px;text-align:right;{_MONO}font-weight:700;color:{vc};">{val}</td></tr>')
+            h.append('</table>')
 
-        # Portfolio VaR section
+        # Portfolio VaR section — only show rows with actual data
         var_metrics = [
-            ("VaR (95%)", f"{var_95:.1f}%", _C["text_body"]),
-            ("CVaR (95%)", f"{cvar*100:.1f}%" if abs(cvar) < 1 else f"{cvar:.1f}%", _C["bear"]),
-            ("MC VaR (21d)", f"{mc_var:.1f}%", _C["bear"] if mc_var < -5 else _C["text_body"]),
-            ("MC CVaR (21d)", f"{mc_cvar:.1f}%", _C["bear"]),
+            ("VaR (95%)", f"{var_95:.1f}%", _C["text_body"], var_95 != 0),
+            ("CVaR (95%)", f"{cvar*100:.1f}%" if abs(cvar) < 1 else f"{cvar:.1f}%", _C["bear"], cvar != 0),
+            ("MC VaR (21d)", f"{mc_var:.1f}%", _C["bear"] if mc_var < -5 else _C["text_body"], mc_var != 0),
+            ("MC CVaR (21d)", f"{mc_cvar:.1f}%", _C["bear"], mc_cvar != 0),
         ]
         if pvar_val is not None:
             var_metrics.append(("Port. VaR (21d)", f"{pvar_val:.1f}%",
-                                _C["bear"] if pvar_val < -8 else _C["warn"] if pvar_val < -5 else _C["text_body"]))
+                                _C["bear"] if pvar_val < -8 else _C["warn"] if pvar_val < -5 else _C["text_body"], True))
         if pcvar_val is not None:
-            var_metrics.append(("Port. CVaR (21d)", f"{pcvar_val:.1f}%", _C["bear"]))
+            var_metrics.append(("Port. CVaR (21d)", f"{pcvar_val:.1f}%", _C["bear"], True))
         if div_benefit is not None:
             var_metrics.append(("Diversification", f"{div_benefit:.0f}%",
-                                _C["bull"] if div_benefit > 20 else _C["warn"] if div_benefit > 10 else _C["bear"]))
-        h.append(f'<div style="{_LABEL}margin:16px 0 8px 0;">Portfolio VaR</div>')
-        h.append(f'<table style="{_TABLE}">')
-        for i, (label, val, vc) in enumerate(var_metrics):
-            bg = _C["bg_page"] if i % 2 == 0 else _C["bg_white"]
-            h.append(f'<tr style="background:{bg};"><td style="padding:8px 10px;font-weight:600;">{label}</td>'
-                     f'<td style="padding:8px 10px;text-align:right;{_MONO}font-weight:700;color:{vc};">{val}</td></tr>')
-        h.append('</table>')
+                                _C["bull"] if div_benefit > 20 else _C["warn"] if div_benefit > 10 else _C["bear"], True))
+        visible_var = [(l, v, c) for l, v, c, show in var_metrics if show]
+        if visible_var:
+            h.append(f'<div style="{_LABEL}margin:16px 0 8px 0;">Portfolio VaR</div>')
+            h.append(f'<table style="{_TABLE}">')
+            for i, (label, val, vc) in enumerate(visible_var):
+                bg = _C["bg_page"] if i % 2 == 0 else _C["bg_white"]
+                h.append(f'<tr style="background:{bg};"><td style="padding:8px 10px;font-weight:600;">{label}</td>'
+                         f'<td style="padding:8px 10px;text-align:right;{_MONO}font-weight:700;color:{vc};">{val}</td></tr>')
+            h.append('</table>')
 
         # Stress scenarios compact row — render whatever scenarios exist (up to 3)
         if stress:
@@ -2003,9 +2007,10 @@ def generate_report_html(
         h.append(_section_open("Sentiment &amp; Census",
                                "What other investors are doing. PI cash levels and accumulation/distribution "
                                "patterns reveal crowd positioning."))
-        h.append('<table style="width:100%;border-collapse:separate;border-spacing:10px 0;margin-bottom:16px;"><tr>')
-        h.append(_kpi_card("Cash Top 100", f"{cash100:.1f}%", cash_label))
-        h.append('</tr></table>')
+        if cash100 > 0:
+            h.append('<table style="width:100%;border-collapse:separate;border-spacing:10px 0;margin-bottom:16px;"><tr>')
+            h.append(_kpi_card("Cash Top 100", f"{cash100:.1f}%", cash_label))
+            h.append('</tr></table>')
         missing = synth.get("missing_popular", [])
         if missing:
             h.append(f'<div style="{_LABEL}color:{_C["warn"]};margin-bottom:8px;">Popular NOT in Portfolio</div><div>')
