@@ -1874,7 +1874,9 @@ def apply_action_hysteresis(
         return current_action
 
     # Only apply hysteresis to HOLD↔ADD transitions
-    if not ({current_action, prev_action} == {"HOLD", "ADD"}):
+    is_hold_add = (current_action == "HOLD" and prev_action == "ADD") or \
+                  (current_action == "ADD" and prev_action == "HOLD")
+    if not is_hold_add:
         return current_action
 
     # Determine the action boundary for this signal type

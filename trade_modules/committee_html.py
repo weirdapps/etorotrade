@@ -1462,7 +1462,7 @@ def generate_report_html(
                                "How much could you lose? Risk metrics, stress tests, and worst-case scenarios."))
         # Risk metrics table — only show rows where data exists
         risk_metrics = [
-            ("Portfolio Beta", f"{p_beta:.2f}", _C["text_body"], p_beta and p_beta != 1.0),
+            ("Portfolio Beta", f"{p_beta:.2f}", _C["text_body"], p_beta and abs(p_beta - 1.0) > 1e-9),
             ("Sharpe (1Y)", f"{sharpe:.2f}", _C["bull"] if sharpe > 0.5 else _C["warn"] if sharpe > 0 else _C["bear"], sharpe != 0),
             ("Sortino Ratio", f"{pr.get('sortino_ratio', 0):.2f}", _C["text_body"], pr.get('sortino_ratio', 0) != 0),
             ("Max Drawdown", f"{max_dd:.1f}%", _C["bear"], max_dd != 0),
