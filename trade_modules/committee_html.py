@@ -1026,18 +1026,22 @@ def generate_report_html(
     yc_bps = yc_spread * 100 if abs(yc_spread) < 5 else yc_spread  # 0.53 -> 53bps
     vix_ind = sf(indicators.get('vix') or 0)
     dxy_raw = sf(indicators.get('dxy') or indicators.get('dollar_index') or 0)
-    dxy_str = f"{dxy_raw:.1f}" if 80 <= dxy_raw <= 120 else "N/A"
+    # BUG 3 fix: Show em-dash instead of N/A for missing DXY/yields
+    dxy_str = f"{dxy_raw:.1f}" if 80 <= dxy_raw <= 120 else "—"
+    t10y_str = f"{t10y:.2f}%" if t10y > 0 else "—"
+    yc_str = f"{yc_bps:.0f}bps" if abs(yc_bps) > 0 else "—"
+    vix_str = f"{vix_ind:.1f}" if vix_ind > 0 else "—"
     eur_usd = sf(indicators.get('eur_usd') or 0)
     brent = sf(indicators.get('brent_crude') or indicators.get('brent') or 0)
     macro_ind = [
-        ("10Y Yield", f"{t10y:.2f}%",
-         "NORMAL" if t10y < 4.5 else "ELEVATED" if t10y < 5.0 else "HIGH"),
-        ("Yield Curve", f"{yc_bps:.0f}bps",
-         "POSITIVE" if yc_bps > 0 else "INVERTED"),
-        ("VIX", f"{vix_ind:.1f}",
-         "ELEVATED" if vix_ind > 20 else "NORMAL"),
+        ("10Y Yield", t10y_str,
+         "NORMAL" if t10y > 0 and t10y < 4.5 else "ELEVATED" if t10y >= 4.5 and t10y < 5.0 else "HIGH" if t10y >= 5.0 else "—"),
+        ("Yield Curve", yc_str,
+         "POSITIVE" if yc_bps > 0 else "INVERTED" if yc_bps < 0 else "—"),
+        ("VIX", vix_str,
+         "ELEVATED" if vix_ind > 20 else "NORMAL" if vix_ind > 0 else "—"),
         ("Dollar (DXY)", dxy_str,
-         "STRONG" if dxy_raw > 105 else "STABLE" if dxy_raw >= 95 else "WEAK" if dxy_str != "N/A" else "N/A"),
+         "STRONG" if dxy_raw > 105 else "STABLE" if dxy_raw >= 95 else "WEAK" if dxy_str != "—" else "—"),
     ]
     if eur_usd > 0:
         macro_ind.append(("EUR/USD", f"{eur_usd:.4f}",
@@ -1738,6 +1742,8 @@ def generate_report_html(
                               ("PE T&#8594;F", "center"), ("EXRET", "center"),
                               ("Insider", "center"), ("Key Insight", "left")]))
         sorted_fund = sorted(fund_stocks.items(), key=lambda x: -x[1].get("fundamental_score", 0))
+        # Build concordance lookup for PE fallback (BUG 1 fix)
+        conc_by_tkr = {e["ticker"]: e for e in concordance}
         for i, (tkr, fd) in enumerate(sorted_fund[:12]):
             fs = fd.get("fundamental_score", 0)
             eq_raw = fd.get("earnings_quality", "?")
@@ -1752,6 +1758,10 @@ def generate_report_html(
                 eq = f'<span style="color:{traj_color};">{traj_icon} {eq_traj[:3]}</span>' if eq_traj else "?"
                 pet = fd.get("pe_trailing", fd.get("pet", 0)) or eq_raw.get("pet", 0)
                 pef = fd.get("pe_forward", fd.get("pef", 0)) or eq_raw.get("pef", 0)
+                # BUG 1 fix: Fallback to concordance when fundamental agent doesn't provide PE
+                conc_entry = conc_by_tkr.get(tkr, {})
+                pet = pet or conc_entry.get("pet", 0)
+                pef = pef or conc_entry.get("pef", 0)
                 ex = fd.get("exret", fd.get("upside_pct", 0)) or eq_raw.get("upside_pct", 0)
                 note = eq_raw.get("notes", fd.get("notes", ""))[:120]
             else:
@@ -1767,6 +1777,10 @@ def generate_report_html(
                     eq = str(eq_raw)
                 pet = fd.get("pe_trailing", fd.get("pet", 0))
                 pef = fd.get("pe_forward", fd.get("pef", 0))
+                # BUG 1 fix: Fallback to concordance when fundamental agent doesn't provide PE
+                conc_entry = conc_by_tkr.get(tkr, {})
+                pet = pet or conc_entry.get("pet", 0)
+                pef = pef or conc_entry.get("pef", 0)
                 ex = fd.get("exret", fd.get("upside_pct", 0))
                 note = fd.get("notes", "")[:120]
             ins = fd.get("insider_sentiment", "N/A")
@@ -2552,7 +2566,7 @@ def generate_report_html(
     h.append(f'<div style="background:{_C["bg_page"]};padding:20px 40px;border-top:2px solid {_C["border"]};">'
              f'<table style="width:100%;"><tr>'
              f'<td style="vertical-align:top;">'
-             f'<div style="font-size:12px;font-weight:700;color:{_C["text_dark"]};">Investment Committee v32.0</div>'
+             f'<div style="font-size:12px;font-weight:700;color:{_C["text_dark"]};">Investment Committee {synth.get("version", "v33.0")}</div>'
              f'<div style="font-size:10px;color:{_C["text_muted"]};margin-top:2px;">'
              f'{today_long} &middot; 7 Agents (Sonnet) + CIO (Opus)</div>'
              f'<div style="font-size:10px;color:{_C["text_light"]};margin-top:2px;">'

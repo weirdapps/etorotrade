@@ -2782,10 +2782,13 @@ def _resolve_macro_fit(
     mf = macro_impl.get(ticker, {})
     v = (mf.get("fit", "") or mf.get("macro_fit", "")) if isinstance(mf, dict) else str(mf)
     v = v.lower()
-    if "unfavorable" in v or "negative" in v:
+    # v33.0: Agents write STRONG/MODERATE/WEAK in addition to FAVORABLE/UNFAVORABLE
+    if "unfavorable" in v or "negative" in v or "weak" in v:
         return "UNFAVORABLE"
-    if "favorable" in v or "positive" in v:
+    if "favorable" in v or "positive" in v or "strong" in v:
         return "FAVORABLE"
+    if "moderate" in v:
+        return "NEUTRAL"  # Moderate = neither favorable nor unfavorable
     if v and v != "neutral":
         return "NEUTRAL"
 
@@ -3960,11 +3963,18 @@ def generate_synthesis_output(
         pr = {}
     risk_score = (pr.get("risk_score")
                   or risk_report.get("portfolio_risk_score")
+                  or risk_report.get("risk_score")  # BUG 5 fix: also check top-level
                   or risk_report.get("executive_summary", {}).get("overall_risk_rating_score", 50)
                   or 50)
-    var_95 = pr.get("var_95_annual") or pr.get("var_95_daily") or pr.get("var_95") or 0
-    max_dd = pr.get("max_drawdown_1y") or pr.get("max_drawdown") or 0
-    port_beta = pr.get("portfolio_beta_vs_spy") or pr.get("portfolio_beta") or 0
+    # BUG 4 fix: var_95 may be a dict with daily/weekly/monthly keys
+    var_raw = pr.get("var_95_annual") or pr.get("var_95_daily") or pr.get("var_95") or risk_report.get("var_95") or 0
+    if isinstance(var_raw, dict):
+        # Extract monthly VaR (most relevant for portfolio view)
+        var_95 = var_raw.get("monthly", var_raw.get("weekly", var_raw.get("daily", 0)))
+    else:
+        var_95 = var_raw
+    max_dd = pr.get("max_drawdown_1y") or pr.get("max_drawdown") or risk_report.get("max_drawdown") or 0
+    port_beta = pr.get("portfolio_beta_vs_spy") or pr.get("portfolio_beta") or risk_report.get("portfolio_beta") or 0
     if not port_beta and concordance:
         betas = [e.get("beta", 1.0) for e in concordance if not e.get("is_opportunity")]
         if betas:

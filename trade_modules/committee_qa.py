@@ -47,6 +47,7 @@ def normalize_agent_reports(
     # ── Macro: portfolio_implications ──
     # Synthesis reads: macro["portfolio_implications"][ticker].get("fit")
     # Agents may write: macro["stock_macro_fit"][ticker] = "NEUTRAL" (string)
+    # or macro["stocks"][ticker].macro_fit (BUG 2 fix)
     if "portfolio_implications" not in macro and "stock_macro_fit" in macro:
         smf = macro["stock_macro_fit"]
         if isinstance(smf, dict):
@@ -58,6 +59,27 @@ def normalize_agent_reports(
                     pi[tkr] = val
             macro["portfolio_implications"] = pi
             fixes.append("macro: stock_macro_fit → portfolio_implications")
+
+    # BUG 2 fix: Agent writes per-stock macro_fit in macro["stocks"][ticker]
+    # but not in portfolio_implications. Extract macro_fit from stocks.
+    if "stocks" in macro:
+        pi = macro.setdefault("portfolio_implications", {})
+        stocks = macro["stocks"]
+        if isinstance(stocks, dict):
+            added_count = 0
+            for tkr, data in stocks.items():
+                if tkr in pi:
+                    continue  # portfolio_implications takes precedence
+                if isinstance(data, dict):
+                    fit = data.get("macro_fit") or data.get("fit")
+                    if fit:
+                        pi[tkr] = {
+                            "fit": fit,
+                            "rationale": data.get("notes", data.get("rationale", "")),
+                        }
+                        added_count += 1
+            if added_count > 0:
+                fixes.append(f"macro: extracted macro_fit from stocks for {added_count} tickers")
 
     # ── Macro: indicators key aliases ──
     # Agents may write "key_indicators" instead of "indicators".
