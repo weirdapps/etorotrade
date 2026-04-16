@@ -31,6 +31,7 @@ dependencies = [
     "yahooquery>=2.3.7",
     "requests>=2.25.0,<3.0.0",
     "scipy>=1.10.0",
+    "pyarrow>=14.0.0",
     "tabulate>=0.8.9",
     "tqdm>=4.60.0",
     "colorama>=0.4.4",

@@ -147,32 +147,166 @@ class CommitteeBacktester:
     def compute_forward_returns(
         self,
         price_fetcher=None,
+        price_service=None,
         horizons: Tuple[int, ...] = (7, 30, 90),
         benchmark: str = "SPY",
     ) -> Dict[str, Dict[str, Optional[float]]]:
         """
         Compute forward returns and alpha for historical recommendations.
 
-        For each (ticker, date) recommendation, fetches the price at
-        T+0 and T+horizon to compute realized returns and alpha vs benchmark.
+        For each (ticker, date) recommendation, computes realized returns
+        and alpha vs benchmark at the given horizons.
+
+        Supports two backends:
+        - price_service (preferred): Uses trading-day offsets via PriceService.
+          Batch-downloads prices once and computes T+N in trading days.
+        - price_fetcher (legacy): Uses calendar-day offsets via timedelta.
+          Kept for backward compatibility.
 
         Args:
-            price_fetcher: Callable(ticker, date_str) -> Optional[float].
-                If None, uses a dummy that returns None (requires external
-                integration with yfinance or cached price data).
+            price_fetcher: (Legacy) Callable(ticker, date_str) -> Optional[float].
+                Uses calendar-day offsets. Deprecated in favor of price_service.
+            price_service: PriceService instance with get_prices(),
+                trading_day_return(), and trading_day_alpha() methods.
+                Uses trading-day offsets (correct behavior).
             horizons: Tuple of forward-looking days (default: 7, 30, 90).
             benchmark: Benchmark ticker for alpha computation (default "SPY").
 
         Returns:
             Dict of "ticker:date" -> {"T+7": float, "T+7_alpha": float, ...}
         """
-        if price_fetcher is None:
-            logger.info(
-                "No price_fetcher provided — forward returns will be None. "
-                "Integrate with yfinance or cached price data for real backtesting."
+        if price_service is not None:
+            return self._compute_returns_with_service(
+                price_service, horizons, benchmark
             )
+        if price_fetcher is not None:
+            return self._compute_returns_with_fetcher(
+                price_fetcher, horizons, benchmark
+            )
+
+        logger.info(
+            "No price_service or price_fetcher provided — forward returns "
+            "will be empty. Pass a PriceService for trading-day accuracy."
+        )
+        return {}
+
+    def _compute_returns_with_service(
+        self,
+        price_service,
+        horizons: Tuple[int, ...],
+        benchmark: str,
+    ) -> Dict[str, Dict[str, Optional[float]]]:
+        """
+        Compute forward returns using PriceService (trading-day offsets).
+
+        Batch-downloads all required price data in a single call, then
+        computes T+N returns where N is measured in trading days.
+        """
+        if not self.history:
             return {}
 
+        # Collect all unique tickers and determine date range
+        all_tickers = set()
+        all_dates = []
+        for entry in self.history:
+            date_str = entry["date"]
+            try:
+                dt = datetime.strptime(date_str, "%Y-%m-%d")
+                all_dates.append(dt)
+            except (ValueError, TypeError):
+                continue
+            for stock in entry["concordance"]:
+                ticker = stock.get("ticker", "")
+                if ticker:
+                    all_tickers.add(ticker)
+
+        if not all_tickers or not all_dates:
+            return {}
+
+        # Add benchmark to the ticker set
+        all_tickers.add(benchmark)
+
+        # Calculate date range: earliest date to latest + buffer for max horizon
+        start_date = min(all_dates)
+        max_horizon = max(horizons)
+        # Buffer: trading days * 1.5 + 10 calendar days for weekends/holidays
+        buffer_days = int(max_horizon * 1.5 + 10)
+        end_date = max(all_dates) + timedelta(days=buffer_days)
+
+        start_str = start_date.strftime("%Y-%m-%d")
+        end_str = end_date.strftime("%Y-%m-%d")
+
+        # Batch download all prices in one call
+        try:
+            prices = price_service.get_prices(
+                sorted(all_tickers),
+                start_str,
+                end_str,
+            )
+        except Exception as exc:
+            logger.error("PriceService.get_prices() failed: %s", exc)
+            return {}
+
+        # Compute returns for each (ticker, date) pair
+        results: Dict[str, Dict[str, Optional[float]]] = {}
+
+        for entry in self.history:
+            date_str = entry["date"]
+            try:
+                dt = datetime.strptime(date_str, "%Y-%m-%d")
+            except (ValueError, TypeError):
+                continue
+
+            for stock in entry["concordance"]:
+                ticker = stock.get("ticker", "")
+                if not ticker:
+                    continue
+
+                region = stock.get("region")
+                key = f"{ticker}:{date_str}"
+                returns = {}
+
+                for h in horizons:
+                    ret = price_service.trading_day_return(prices, ticker, dt, h)
+                    if ret is not None:
+                        returns[f"T+{h}"] = round(ret, 2)
+                        alpha = price_service.trading_day_alpha(
+                            prices, ticker, dt, h, region=region
+                        )
+                        returns[f"T+{h}_alpha"] = (
+                            round(alpha, 2) if alpha is not None else None
+                        )
+                    else:
+                        returns[f"T+{h}"] = None
+                        returns[f"T+{h}_alpha"] = None
+
+                if any(
+                    v is not None
+                    for k, v in returns.items()
+                    if not k.endswith("_alpha")
+                ):
+                    results[key] = returns
+
+        self.forward_returns = results
+        logger.info(
+            "Computed forward returns (PriceService) for %d recommendations",
+            len(results),
+        )
+        return results
+
+    def _compute_returns_with_fetcher(
+        self,
+        price_fetcher,
+        horizons: Tuple[int, ...],
+        benchmark: str,
+    ) -> Dict[str, Dict[str, Optional[float]]]:
+        """
+        Compute forward returns using legacy price_fetcher (calendar-day offsets).
+
+        This is the original implementation kept for backward compatibility.
+        Note: uses timedelta(days=h) which counts calendar days, not trading days.
+        Prefer _compute_returns_with_service() for accurate results.
+        """
         results: Dict[str, Dict[str, Optional[float]]] = {}
 
         # Cache benchmark prices per (date, horizon) to avoid redundant fetches
@@ -265,7 +399,7 @@ class CommitteeBacktester:
             date_str = entry["date"]
             for stock in entry["concordance"]:
                 ticker = stock.get("ticker", "")
-                action = stock.get("action", "HOLD")
+                action = stock.get("verdict", stock.get("action", "HOLD"))
                 conviction = stock.get("conviction", 50)
                 key = f"{ticker}:{date_str}"
 
@@ -469,14 +603,13 @@ class CommitteeBacktester:
 
     def generate_calibration_report(self) -> Dict[str, Any]:
         """
-        Generate a comprehensive calibration report.
+        Generate calibration report with walk-forward validation.
 
-        Combines performance evaluation with parameter sweep results
-        for key parameters to produce actionable recommendations.
-
-        Returns:
-            Report dict with performance, sweeps, and recommendations.
+        Splits history 70/30 into train/test. Evaluates on both halves
+        independently so calibration decisions can be validated.
         """
+        from trade_modules.backtest_stats import walk_forward_split
+
         perf_7d = self.evaluate_performance("T+7")
         perf_30d = self.evaluate_performance("T+30")
 
@@ -489,7 +622,42 @@ class CommitteeBacktester:
             if sweep_result:
                 sweeps[param] = sweep_result
 
-        # Generate recommendations
+        # Walk-forward validation
+        walk_forward = {"train_entries": 0, "test_entries": 0}
+        if len(self.history) >= 4:
+            train, test = walk_forward_split(self.history, train_ratio=0.7)
+            walk_forward["train_entries"] = len(train)
+            walk_forward["test_entries"] = len(test)
+            walk_forward["train_date_range"] = (
+                f"{train[0]['date']} to {train[-1]['date']}" if train else ""
+            )
+            walk_forward["test_date_range"] = (
+                f"{test[0]['date']} to {test[-1]['date']}" if test else ""
+            )
+
+            # Evaluate performance on test set only
+            if test and self.forward_returns:
+                test_returns = {}
+                for entry in test:
+                    for stock in entry["concordance"]:
+                        key = f"{stock.get('ticker', '')}:{entry['date']}"
+                        if key in self.forward_returns:
+                            test_returns[key] = self.forward_returns[key]
+
+                # Temporarily swap for evaluation
+                original_returns = self.forward_returns
+                original_history = self.history
+                self.forward_returns = test_returns
+                self.history = test
+
+                test_perf = self.evaluate_performance("T+30")
+                walk_forward["test_performance_30d"] = test_perf
+
+                # Restore
+                self.forward_returns = original_returns
+                self.history = original_history
+
+        # Recommendations
         recommendations = []
         if perf_30d.get("actions", {}).get("BUY", {}).get("hit_rate", 0) < 50:
             recommendations.append(
@@ -507,10 +675,28 @@ class CommitteeBacktester:
                 "selecting winners; review conviction scoring"
             )
 
+        # Check for walk-forward divergence
+        if walk_forward.get("test_performance_30d"):
+            test_buy = walk_forward["test_performance_30d"].get(
+                "actions", {}
+            ).get("BUY", {})
+            full_buy = perf_30d.get("actions", {}).get("BUY", {})
+            if (
+                test_buy.get("hit_rate", 0) > 0
+                and full_buy.get("hit_rate", 0) > 0
+            ):
+                divergence = full_buy["hit_rate"] - test_buy["hit_rate"]
+                if divergence > 15:
+                    recommendations.append(
+                        f"OVERFITTING WARNING: Full-sample BUY hit rate "
+                        f"({full_buy['hit_rate']:.0f}%) is {divergence:.0f}pp "
+                        f"higher than out-of-sample ({test_buy['hit_rate']:.0f}%). "
+                        f"Parameter tuning may not generalize."
+                    )
+
         if not recommendations:
             recommendations.append(
-                "All metrics within acceptable ranges — no parameter "
-                "changes recommended"
+                "All metrics within acceptable ranges"
             )
 
         return {
@@ -520,6 +706,7 @@ class CommitteeBacktester:
             "performance_7d": perf_7d,
             "performance_30d": perf_30d,
             "parameter_sweeps": sweeps,
+            "walk_forward": walk_forward,
             "recommendations": recommendations,
         }
 
@@ -616,22 +803,17 @@ def run_backtest(
     log_dir: Optional[Path] = None,
     horizon: str = "T+30",
     fetch_prices: bool = True,
+    use_price_service: bool = True,
 ) -> Dict[str, Any]:
     """
     Convenience function to run a full backtest.
 
-    1. Backfills any un-archived synthesis data
-    2. Loads all historical concordance
-    3. Fetches forward returns via yfinance (if fetch_prices=True)
-    4. Evaluates performance and generates calibration report
-
     Args:
         log_dir: Committee output directory.
         horizon: Forward return horizon (default "T+30").
-        fetch_prices: Whether to fetch prices from yfinance.
-
-    Returns:
-        Calibration report dict, or status dict if insufficient data.
+        fetch_prices: Whether to fetch prices at all.
+        use_price_service: If True, uses PriceService (trading-day offsets).
+            If False, falls back to legacy yfinance_price_fetcher (calendar days).
     """
     bt = CommitteeBacktester(log_dir=log_dir)
 
@@ -648,15 +830,18 @@ def run_backtest(
             "history_entries": loaded,
             "message": (
                 f"Only {loaded} committee snapshot(s) found. Need at least 2 "
-                "for meaningful backtesting. Run more committee sessions to "
-                "accumulate history."
+                "for meaningful backtesting."
             ),
         }
 
     # Step 3: Forward returns
     if fetch_prices:
-        price_fn = yfinance_price_fetcher
-        bt.compute_forward_returns(price_fetcher=price_fn)
+        if use_price_service:
+            from trade_modules.price_service import PriceService
+            svc = PriceService()
+            bt.compute_forward_returns(price_service=svc)
+        else:
+            bt.compute_forward_returns(price_fetcher=yfinance_price_fetcher)
 
     if not bt.forward_returns:
         return {

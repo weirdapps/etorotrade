@@ -95,22 +95,22 @@ class TestHelperFunctions:
         assert sf("--", 0) == 0
 
     def test_action_color_known(self):
-        assert action_color("SELL") == "#dc2626"
-        assert action_color("BUY") == "#059669"
+        assert action_color("SELL") == "#c0392b"
+        assert action_color("BUY") == "#2d6a4f"
 
     def test_action_color_unknown(self):
-        assert action_color("UNKNOWN") == "#64748b"
+        assert action_color("UNKNOWN") == "#888888"
 
     def test_conv_color_thresholds(self):
-        assert conv_color(80) == "#059669"
-        assert conv_color(55) == "#d97706"
-        assert conv_color(30) == "#94a3b8"
+        assert conv_color(80) == "#2d6a4f"
+        assert conv_color(55) == "#b7791f"
+        assert conv_color(30) == "#999999"
 
     def test_sentiment_color_bullish(self):
-        assert sentiment_color("ENTER_NOW") == "#059669"
+        assert sentiment_color("ENTER_NOW") == "#2d6a4f"
 
     def test_sentiment_color_bearish(self):
-        assert sentiment_color("AVOID") == "#dc2626"
+        assert sentiment_color("AVOID") == "#c0392b"
 
     def test_html_escape(self):
         assert e("<script>") == "&lt;script&gt;"
@@ -212,7 +212,7 @@ class TestGenerateReportHtml:
         synth = _minimal_synth()
         fund, tech, macro, census, news, opps, risk = _minimal_reports()
         html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
-        assert "v26.1" in html
+        assert "v33.0" in html
 
     def test_disclaimer_present(self):
         synth = _minimal_synth()

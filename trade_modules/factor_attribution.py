@@ -24,6 +24,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+import pandas as pd
+
 logger = logging.getLogger(__name__)
 
 HORIZONS = [7, 14, 21, 28, 90, 120, 180, 365]
@@ -229,6 +231,37 @@ def _nearest_price(
     return None
 
 
+def _fetch_prices_as_df(
+    tickers: List[str],
+    start_date: str,
+    end_date: str,
+) -> Tuple[pd.DataFrame, Dict[str, Dict[str, float]]]:
+    """
+    Fetch prices using PriceService, returning both DataFrame and dict form.
+
+    Returns:
+        (prices_df, prices_dict) where prices_dict is {ticker: {date: price}}
+        for backward compatibility with _nearest_price.
+    """
+    try:
+        from trade_modules.price_service import PriceService
+        svc = PriceService()
+        df = svc.get_prices(tickers, start_date, end_date)
+        # Convert to dict form for _nearest_price compatibility
+        prices_dict = {}
+        for col in df.columns:
+            prices_dict[col] = {
+                d.strftime("%Y-%m-%d"): float(v)
+                for d, v in df[col].dropna().items()
+            }
+        return df, prices_dict
+    except Exception as exc:
+        logger.error("PriceService fetch failed, falling back: %s", exc)
+        # Fallback to legacy _fetch_prices
+        prices_dict = _fetch_prices(tickers, start_date, end_date)
+        return pd.DataFrame(), prices_dict
+
+
 def compute_factor_attribution(
     action_log_path: Optional[Path] = None,
     horizons: Optional[List[int]] = None,
@@ -292,7 +325,7 @@ def compute_factor_attribution(
 
     # Also fetch SPY for alpha computation
     all_tickers = tickers + ["SPY"]
-    prices = _fetch_prices(all_tickers, earliest, end_date)
+    prices_df, prices = _fetch_prices_as_df(all_tickers, earliest, end_date)
     spy_prices = prices.get("SPY", {})
 
     if not spy_prices:
@@ -314,23 +347,47 @@ def compute_factor_attribution(
 
         horizon_returns = {}
         for h in horizons:
-            target = (datetime.strptime(rec_date, "%Y-%m-%d") + timedelta(days=h)).strftime("%Y-%m-%d")
-
-            # Don't evaluate future dates
-            if target > today.strftime("%Y-%m-%d"):
-                continue
-
-            future_price = _nearest_price(tkr_prices, target)
-            spy_rec = _nearest_price(spy_prices, rec_date) if spy_prices else None
-            spy_future = _nearest_price(spy_prices, target) if spy_prices else None
-
-            if future_price is None:
-                continue
-
-            stock_return = (future_price - rec_price) / rec_price * 100
+            stock_return = None
             spy_return = 0.0
-            if spy_rec and spy_future and spy_rec > 0:
-                spy_return = (spy_future - spy_rec) / spy_rec * 100
+
+            if not prices_df.empty and tkr in prices_df.columns:
+                # Trading-day offset via DataFrame index
+                tkr_series = prices_df[tkr].dropna()
+                sig_ts = pd.Timestamp(rec_date)
+                future_dates = tkr_series.index[tkr_series.index >= sig_ts]
+                if len(future_dates) <= h:
+                    continue
+                base_price_td = float(tkr_series.loc[future_dates[0]])
+                future_price = float(tkr_series.loc[future_dates[h]])
+                if base_price_td <= 0:
+                    continue
+                stock_return = (future_price - base_price_td) / base_price_td * 100
+
+                # SPY benchmark with same trading-day offset
+                if "SPY" in prices_df.columns:
+                    spy_series = prices_df["SPY"].dropna()
+                    spy_future = spy_series.index[spy_series.index >= sig_ts]
+                    if len(spy_future) > h:
+                        spy_base = float(spy_series.loc[spy_future[0]])
+                        spy_fwd = float(spy_series.loc[spy_future[h]])
+                        if spy_base > 0:
+                            spy_return = (spy_fwd - spy_base) / spy_base * 100
+            else:
+                # Fallback: calendar-day offset with dict lookup
+                target = (datetime.strptime(rec_date, "%Y-%m-%d") + timedelta(days=h)).strftime("%Y-%m-%d")
+                if target > today.strftime("%Y-%m-%d"):
+                    continue
+                future_price = _nearest_price(tkr_prices, target)
+                spy_rec_p = _nearest_price(spy_prices, rec_date) if spy_prices else None
+                spy_future_p = _nearest_price(spy_prices, target) if spy_prices else None
+                if future_price is None:
+                    continue
+                stock_return = (future_price - rec_price) / rec_price * 100
+                if spy_rec_p and spy_future_p and spy_rec_p > 0:
+                    spy_return = (spy_future_p - spy_rec_p) / spy_rec_p * 100
+
+            if stock_return is None:
+                continue
 
             alpha = stock_return - spy_return
             hit = _is_hit(action, stock_return, spy_return)

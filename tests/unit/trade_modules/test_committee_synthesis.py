@@ -26,7 +26,10 @@ from trade_modules.committee_synthesis import (
     _normalize_fund_stocks,
     _normalize_sector_rankings,
     _resolve_news_impact,
+    canonicalize_impact,
+    _build_agent_lookups,
     normalize_agent_reports,
+    apply_action_hysteresis,
     apply_conviction_floors,
     apply_opportunity_gate,
     build_agent_memory,
@@ -2988,6 +2991,98 @@ class TestRSIFloorForTrimEscalation:
         action = determine_action(50, "H", "EXIT_SOON", False)
         assert action == "HOLD"
 
+    def test_strong_fundamentals_block_trim_escalation(self):
+        """v32.0: fund_score >= 70 should block HOLD→TRIM escalation."""
+        entry = synthesize_stock(
+            ticker="TEST",
+            sig_data={"signal": "H", "exret": 10, "buy_pct": 50,
+                      "beta": 1.0, "pet": 15, "pef": 14},
+            fund_data={"fundamental_score": 75, "quality_trap_warning": False},
+            tech_data={"timing_signal": "AVOID", "momentum_score": -10, "rsi": 55},
+            macro_fit="NEUTRAL",
+            census_alignment="NEUTRAL",
+            div_score=0,
+            census_ts_trend="stable",
+            news_impact="NEUTRAL",
+            risk_warning=True,
+            sector="Technology",
+            sector_median_exret=8.0,
+            sector_rankings={},
+            position_limit=5.0,
+        )
+        assert entry["action"] == "HOLD", (
+            f"Strong fundamentals (75) should block trim escalation, got {entry['action']}"
+        )
+
+    def test_weak_fundamentals_allow_trim_escalation(self):
+        """v32.0: fund_score < 70 with tech=AVOID + risk_warning should still TRIM."""
+        entry = synthesize_stock(
+            ticker="TEST",
+            sig_data={"signal": "H", "exret": 10, "buy_pct": 50,
+                      "beta": 1.0, "pet": 15, "pef": 14},
+            fund_data={"fundamental_score": 55, "quality_trap_warning": False},
+            tech_data={"timing_signal": "AVOID", "momentum_score": -10, "rsi": 55},
+            macro_fit="NEUTRAL",
+            census_alignment="NEUTRAL",
+            div_score=0,
+            census_ts_trend="stable",
+            news_impact="NEUTRAL",
+            risk_warning=True,
+            sector="Technology",
+            sector_median_exret=8.0,
+            sector_rankings={},
+            position_limit=5.0,
+        )
+        assert entry["action"] == "TRIM", (
+            f"Weak fundamentals (55) with tech=AVOID + risk should TRIM, got {entry['action']}"
+        )
+
+    def test_overbought_rsi80_needs_risk_warning_too(self):
+        """v32.0: RSI > 80 + bearish tech alone no longer triggers TRIM without risk_warning."""
+        entry = synthesize_stock(
+            ticker="TEST",
+            sig_data={"signal": "H", "exret": 10, "buy_pct": 50,
+                      "beta": 1.0, "pet": 15, "pef": 14},
+            fund_data={"fundamental_score": 60, "quality_trap_warning": False},
+            tech_data={"timing_signal": "AVOID", "momentum_score": -10, "rsi": 85},
+            macro_fit="NEUTRAL",
+            census_alignment="NEUTRAL",
+            div_score=0,
+            census_ts_trend="stable",
+            news_impact="NEUTRAL",
+            risk_warning=False,
+            sector="Technology",
+            sector_median_exret=8.0,
+            sector_rankings={},
+            position_limit=5.0,
+        )
+        assert entry["action"] == "HOLD", (
+            f"RSI>80 without risk_warning should not TRIM, got {entry['action']}"
+        )
+
+    def test_overbought_rsi80_with_risk_and_weak_fund_trims(self):
+        """v32.0: RSI > 80 + bearish tech + risk_warning + weak fund should TRIM."""
+        entry = synthesize_stock(
+            ticker="TEST",
+            sig_data={"signal": "H", "exret": 10, "buy_pct": 50,
+                      "beta": 1.0, "pet": 15, "pef": 14},
+            fund_data={"fundamental_score": 45, "quality_trap_warning": False},
+            tech_data={"timing_signal": "AVOID", "momentum_score": -10, "rsi": 85},
+            macro_fit="NEUTRAL",
+            census_alignment="NEUTRAL",
+            div_score=0,
+            census_ts_trend="stable",
+            news_impact="NEUTRAL",
+            risk_warning=True,
+            sector="Technology",
+            sector_median_exret=8.0,
+            sector_rankings={},
+            position_limit=5.0,
+        )
+        assert entry["action"] == "TRIM", (
+            f"RSI>80 + risk + weak fund (45) should TRIM, got {entry['action']}"
+        )
+
 
 class TestRiskWarningDilution:
     """CIO v7.0 P3: Detect when risk warnings become systemic."""
@@ -4929,3 +5024,331 @@ class TestDebateConvictionModifiers:
         assert r["debate_signal"] == "WEAKEN_BULL"
         assert r["debate_bull_thesis"] == "Strong growth ahead"
         assert r["debate_bear_thesis"] == "Overvalued"
+
+
+class TestActionHysteresis:
+    """CIO v32.0 T2: Hysteresis prevents HOLD/ADD whipsaw."""
+
+    def test_hold_to_add_requires_delta(self):
+        """Stock at conviction 56 (BUY signal) was HOLD last time — stays HOLD."""
+        action = apply_action_hysteresis(
+            current_action="ADD", conviction=56, signal="B",
+            prev_action="HOLD", prev_conviction=53,
+        )
+        assert action == "HOLD"
+
+    def test_hold_to_add_large_delta_upgrades(self):
+        """Stock at conviction 62 (BUY signal) was HOLD last time — upgrades to ADD."""
+        action = apply_action_hysteresis(
+            current_action="ADD", conviction=62, signal="B",
+            prev_action="HOLD", prev_conviction=53,
+        )
+        assert action == "ADD"
+
+    def test_add_to_hold_requires_delta(self):
+        """Stock at conviction 53 (BUY signal) was ADD last time — stays ADD."""
+        action = apply_action_hysteresis(
+            current_action="HOLD", conviction=53, signal="B",
+            prev_action="ADD", prev_conviction=56,
+        )
+        assert action == "ADD"
+
+    def test_add_to_hold_large_drop_downgrades(self):
+        """Stock at conviction 48 (BUY signal) was ADD last time — downgrades to HOLD."""
+        action = apply_action_hysteresis(
+            current_action="HOLD", conviction=48, signal="B",
+            prev_action="ADD", prev_conviction=56,
+        )
+        assert action == "HOLD"
+
+    def test_hold_signal_add_to_hold_hysteresis(self):
+        """HOLD-signal stock at conviction 68 was ADD (prev=72) — stays ADD."""
+        action = apply_action_hysteresis(
+            current_action="HOLD", conviction=68, signal="H",
+            prev_action="ADD", prev_conviction=72,
+        )
+        assert action == "ADD"
+
+    def test_hold_signal_hold_to_add_hysteresis(self):
+        """HOLD-signal stock at conviction 71 was HOLD (prev=68) — stays HOLD."""
+        action = apply_action_hysteresis(
+            current_action="ADD", conviction=71, signal="H",
+            prev_action="HOLD", prev_conviction=68,
+        )
+        assert action == "HOLD"
+
+    def test_no_prev_action_no_hysteresis(self):
+        """First time stock appears — no hysteresis applied."""
+        action = apply_action_hysteresis(
+            current_action="ADD", conviction=56, signal="B",
+            prev_action=None, prev_conviction=None,
+        )
+        assert action == "ADD"
+
+    def test_sell_trim_not_affected(self):
+        """Hysteresis only applies to HOLD/ADD boundary, not SELL/TRIM."""
+        action = apply_action_hysteresis(
+            current_action="TRIM", conviction=45, signal="S",
+            prev_action="HOLD", prev_conviction=55,
+        )
+        assert action == "TRIM"
+
+    def test_same_action_no_change(self):
+        """If current == previous, no hysteresis needed."""
+        action = apply_action_hysteresis(
+            current_action="ADD", conviction=60, signal="B",
+            prev_action="ADD", prev_conviction=58,
+        )
+        assert action == "ADD"
+
+
+class TestQualityGrowthException:
+    """CIO v32.0 T3: Quality growth stocks exempt from quality_trap penalty."""
+
+    def test_quality_trap_waived_for_strong_fund_high_consensus(self):
+        """fund_score >= 70 + buy_pct >= 70 + quality_trap should NOT penalize."""
+        b, p, w = compute_adjustments(
+            signal="B", fund_score=80, tech_signal="ENTER_NOW",
+            tech_momentum=15, rsi=55, macro_fit="FAVORABLE",
+            census_alignment="NEUTRAL", div_score=0,
+            census_ts="stable", news_impact="NEUTRAL",
+            risk_warning=False, buy_pct=75, excess_exret=15,
+            beta=1.2, quality_trap=True, sector="Technology",
+            sector_rankings={}, bull_count=5,
+        )
+        assert "quality_trap" not in w, (
+            f"Quality growth exception should waive quality_trap, got waterfall={w}"
+        )
+
+    def test_quality_trap_applied_for_weak_fund(self):
+        """fund_score < 70 + quality_trap should still penalize."""
+        b, p, w = compute_adjustments(
+            signal="B", fund_score=55, tech_signal="ENTER_NOW",
+            tech_momentum=15, rsi=55, macro_fit="FAVORABLE",
+            census_alignment="NEUTRAL", div_score=0,
+            census_ts="stable", news_impact="NEUTRAL",
+            risk_warning=False, buy_pct=75, excess_exret=15,
+            beta=1.2, quality_trap=True, sector="Technology",
+            sector_rankings={}, bull_count=5,
+        )
+        assert w.get("quality_trap") == -5
+
+    def test_quality_trap_applied_for_low_consensus(self):
+        """fund_score >= 70 but buy_pct < 70 — quality_trap should still apply."""
+        b, p, w = compute_adjustments(
+            signal="B", fund_score=75, tech_signal="ENTER_NOW",
+            tech_momentum=15, rsi=55, macro_fit="FAVORABLE",
+            census_alignment="NEUTRAL", div_score=0,
+            census_ts="stable", news_impact="NEUTRAL",
+            risk_warning=False, buy_pct=50, excess_exret=15,
+            beta=1.2, quality_trap=True, sector="Technology",
+            sector_rankings={}, bull_count=5,
+        )
+        assert w.get("quality_trap") == -5
+
+    def test_quality_trap_applied_for_sell_signal(self):
+        """Even with high fund+consensus, SELL signal should still apply quality_trap."""
+        b, p, w = compute_adjustments(
+            signal="S", fund_score=75, tech_signal="AVOID",
+            tech_momentum=-15, rsi=72, macro_fit="UNFAVORABLE",
+            census_alignment="NEUTRAL", div_score=0,
+            census_ts="stable", news_impact="NEUTRAL",
+            risk_warning=True, buy_pct=75, excess_exret=15,
+            beta=1.2, quality_trap=True, sector="Technology",
+            sector_rankings={}, bull_count=2,
+        )
+        assert w.get("quality_trap") == -5
+
+
+# ---------------------------------------------------------------------------
+# v33.0: News impact canonicalization
+# ---------------------------------------------------------------------------
+
+class TestCanonicalizeImpact:
+    """v33.0: Agent impact variants mapped to canonical values."""
+
+    def test_positive_maps_to_low_positive(self):
+        assert canonicalize_impact("POSITIVE") == "LOW_POSITIVE"
+
+    def test_negative_maps_to_low_negative(self):
+        assert canonicalize_impact("NEGATIVE") == "LOW_NEGATIVE"
+
+    def test_very_positive_maps_to_high_positive(self):
+        assert canonicalize_impact("VERY_POSITIVE") == "HIGH_POSITIVE"
+
+    def test_very_negative_maps_to_high_negative(self):
+        assert canonicalize_impact("VERY_NEGATIVE") == "HIGH_NEGATIVE"
+
+    def test_strong_positive_maps_to_high_positive(self):
+        assert canonicalize_impact("STRONG_POSITIVE") == "HIGH_POSITIVE"
+
+    def test_bullish_maps_to_low_positive(self):
+        assert canonicalize_impact("BULLISH") == "LOW_POSITIVE"
+
+    def test_bearish_maps_to_low_negative(self):
+        assert canonicalize_impact("BEARISH") == "LOW_NEGATIVE"
+
+    def test_neutral_passes_through(self):
+        assert canonicalize_impact("NEUTRAL") == "NEUTRAL"
+
+    def test_mixed_passes_through(self):
+        assert canonicalize_impact("MIXED") == "MIXED"
+
+    def test_canonical_values_unchanged(self):
+        for val in ("HIGH_POSITIVE", "HIGH_NEGATIVE", "LOW_POSITIVE", "LOW_NEGATIVE"):
+            assert canonicalize_impact(val) == val
+
+    def test_case_insensitive(self):
+        assert canonicalize_impact("positive") == "LOW_POSITIVE"
+        assert canonicalize_impact("Negative") == "LOW_NEGATIVE"
+
+
+class TestResolveNewsImpact:
+    """v33.0: News impact resolution handles agent variants."""
+
+    def test_agent_positive_resolves(self):
+        news = {"NVDA": [{"impact": "POSITIVE", "headline": "Beat"}]}
+        assert _resolve_news_impact(news, "NVDA") == "LOW_POSITIVE"
+
+    def test_agent_negative_resolves(self):
+        news = {"NVDA": [{"impact": "NEGATIVE", "headline": "Miss"}]}
+        assert _resolve_news_impact(news, "NVDA") == "LOW_NEGATIVE"
+
+    def test_agent_very_positive_resolves(self):
+        news = {"NVDA": [{"impact": "VERY_POSITIVE", "headline": "Blowout"}]}
+        assert _resolve_news_impact(news, "NVDA") == "HIGH_POSITIVE"
+
+    def test_mixed_high_impacts_resolve_to_mixed(self):
+        """MIXED only fires when both HIGH_POSITIVE and HIGH_NEGATIVE present."""
+        news = {"NVDA": [
+            {"impact": "VERY_POSITIVE", "headline": "Good"},
+            {"impact": "VERY_NEGATIVE", "headline": "Bad"},
+        ]}
+        assert _resolve_news_impact(news, "NVDA") == "MIXED"
+
+    def test_low_positive_plus_high_negative_resolves_to_high_negative(self):
+        """LOW_POSITIVE + HIGH_NEGATIVE: high negative wins by priority."""
+        news = {"NVDA": [
+            {"impact": "POSITIVE", "headline": "Good"},
+            {"impact": "VERY_NEGATIVE", "headline": "Bad"},
+        ]}
+        assert _resolve_news_impact(news, "NVDA") == "HIGH_NEGATIVE"
+
+    def test_missing_ticker_neutral(self):
+        assert _resolve_news_impact({}, "NVDA") == "NEUTRAL"
+
+    def test_empty_items_neutral(self):
+        assert _resolve_news_impact({"NVDA": []}, "NVDA") == "NEUTRAL"
+
+    def test_single_dict_item_handled(self):
+        """Agent writes single dict per ticker instead of list of dicts."""
+        news = {"NVDA": {"impact": "POSITIVE", "headline": "Beat"}}
+        assert _resolve_news_impact(news, "NVDA") == "LOW_POSITIVE"
+
+    def test_string_item_in_list_skipped(self):
+        """Non-dict items in the list are skipped."""
+        news = {"NVDA": ["some string", {"impact": "NEGATIVE", "headline": "Miss"}]}
+        assert _resolve_news_impact(news, "NVDA") == "LOW_NEGATIVE"
+
+
+# ---------------------------------------------------------------------------
+# v33.0: Risk warning extraction from risk_warnings_by_stock
+# ---------------------------------------------------------------------------
+
+class TestRiskWarningExtraction:
+    """v33.0: Risk warnings from risk_warnings_by_stock."""
+
+    def test_risk_warnings_by_stock_populates_risk_warns(self):
+        risk = {"risk_warnings_by_stock": {"NVDA": {"severity": "HIGH", "warning": "Concentration"}}}
+        lookups = _build_agent_lookups({}, {}, {}, {}, {}, risk)
+        assert "NVDA" in lookups["risk_warns"]
+
+    def test_consensus_warnings_still_work(self):
+        risk = {"consensus_warnings": [{"ticker": "AAPL", "severity": "HIGH"}]}
+        lookups = _build_agent_lookups({}, {}, {}, {}, {}, risk)
+        assert "AAPL" in lookups["risk_warns"]
+
+    def test_both_sources_merged(self):
+        risk = {
+            "consensus_warnings": [{"ticker": "AAPL", "severity": "HIGH"}],
+            "risk_warnings_by_stock": {"NVDA": {"severity": "HIGH"}},
+        }
+        lookups = _build_agent_lookups({}, {}, {}, {}, {}, risk)
+        assert "AAPL" in lookups["risk_warns"]
+        assert "NVDA" in lookups["risk_warns"]
+
+    def test_stocks_key_still_works(self):
+        risk = {"stocks": {"TSLA": {"risk_warning": True}}}
+        lookups = _build_agent_lookups({}, {}, {}, {}, {}, risk)
+        assert "TSLA" in lookups["risk_warns"]
+
+    def test_empty_risk_report(self):
+        lookups = _build_agent_lookups({}, {}, {}, {}, {}, {})
+        assert lookups["risk_warns"] == set()
+
+
+# ---------------------------------------------------------------------------
+# v33.0: Census alignment from per-stock data
+# ---------------------------------------------------------------------------
+
+class TestCensusSignalExtraction:
+    """v33.0: Census alignment from per-stock data."""
+
+    def test_per_stock_sentiment_fills_div_map(self):
+        census = {"stocks": {"MSFT": {"sentiment": "ALIGNED", "divergence_score": 10}}}
+        lookups = _build_agent_lookups({}, {}, {}, census, {}, {})
+        assert lookups["div_map"]["MSFT"] == ("ALIGNED", 10)
+
+    def test_per_stock_alignment_key(self):
+        census = {"stocks": {"MSFT": {"alignment": "DIVERGENT", "div_score": -20}}}
+        lookups = _build_agent_lookups({}, {}, {}, census, {}, {})
+        assert lookups["div_map"]["MSFT"] == ("DIVERGENT", -20)
+
+    def test_divergences_take_precedence(self):
+        census = {
+            "divergences": {"signal_divergences": [{"ticker": "BTC", "divergence_score": -30}]},
+            "stocks": {"BTC": {"sentiment": "ALIGNED", "divergence_score": 10}},
+        }
+        lookups = _build_agent_lookups({}, {}, {}, census, {}, {})
+        assert lookups["div_map"]["BTC"] == ("DIVERGENT", -30)
+
+    def test_accumulating_maps_to_aligned(self):
+        census = {"stocks": {"NVDA": {"sentiment": "ACCUMULATING"}}}
+        lookups = _build_agent_lookups({}, {}, {}, census, {}, {})
+        assert lookups["div_map"]["NVDA"][0] == "ALIGNED"
+
+    def test_distributing_maps_to_divergent(self):
+        census = {"stocks": {"TSLA": {"sentiment": "DISTRIBUTING"}}}
+        lookups = _build_agent_lookups({}, {}, {}, census, {}, {})
+        assert lookups["div_map"]["TSLA"][0] == "DIVERGENT"
+
+    def test_bullish_maps_to_aligned(self):
+        census = {"stocks": {"AAPL": {"sentiment": "BULLISH"}}}
+        lookups = _build_agent_lookups({}, {}, {}, census, {}, {})
+        assert lookups["div_map"]["AAPL"][0] == "ALIGNED"
+
+    def test_per_stock_alias(self):
+        census = {"per_stock": {"GOOG": {"alignment": "CONSENSUS_ALIGNED"}}}
+        lookups = _build_agent_lookups({}, {}, {}, census, {}, {})
+        assert lookups["div_map"]["GOOG"][0] == "ALIGNED"
+
+    def test_unknown_sentiment_skipped(self):
+        census = {"stocks": {"AAPL": {"sentiment": "UNKNOWN"}}}
+        lookups = _build_agent_lookups({}, {}, {}, census, {}, {})
+        assert "AAPL" not in lookups["div_map"]
+
+    def test_none_signal_divergence_skipped(self):
+        """signal_divergence='none' is genuinely neutral — don't map."""
+        census = {"stocks": {"NVDA": {"signal_divergence": "none", "trend": "stable"}}}
+        lookups = _build_agent_lookups({}, {}, {}, census, {}, {})
+        assert "NVDA" not in lookups["div_map"]
+
+    def test_crowded_long_maps_to_divergent(self):
+        """signal_divergence='crowded_long' maps to DIVERGENT."""
+        census = {"stocks": {"PLTR": {"signal_divergence": "crowded_long"}}}
+        lookups = _build_agent_lookups({}, {}, {}, census, {}, {})
+        assert lookups["div_map"]["PLTR"][0] == "DIVERGENT"
+
+    def test_no_census_data_empty_div_map(self):
+        lookups = _build_agent_lookups({}, {}, {}, {}, {}, {})
+        assert lookups["div_map"] == {}

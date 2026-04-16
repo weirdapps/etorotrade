@@ -187,101 +187,175 @@ def generate_committee_scorecard(
         return _empty_scorecard(months_back)
 
     # Fetch current prices for performance calculation
-    try:
-        import yfinance as yf
-    except ImportError:
-        logger.warning("yfinance not available for committee scorecard")
-        return _empty_scorecard(months_back)
-
     buy_results = []
     sell_results = []
     hold_results = []
 
-    # Fetch SPY benchmark once for alpha computation
-    spy_close = None
     try:
-        spy = yf.Ticker("SPY")
-        spy_hist = spy.history(period="6mo")
-        if not spy_hist.empty:
-            spy_close = spy_hist["Close"]
-    except Exception as e:
-        logger.debug(f"Failed to fetch SPY benchmark: {e}")
+        from trade_modules.price_service import PriceService
+        svc = PriceService()
 
-    for action in actions:
-        ticker = action.get("ticker")
-        action_type = action.get("action", "").upper()
-        entry_price = action.get("price_at_recommendation")
-        committee_date = action.get("committee_date")
+        tickers = list(set(
+            a["ticker"] for a in actions
+            if a.get("ticker") and a.get("price_at_recommendation")
+        ))
 
-        if not ticker or entry_price is None or not committee_date:
-            continue
+        if tickers:
+            # Date range: earliest action to today + buffer
+            dates = sorted(
+                a["committee_date"] for a in actions if a.get("committee_date")
+            )
+            start = dates[0] if dates else "2026-01-01"
+            from datetime import date as dt_date
+            end = (dt_date.today() + timedelta(days=5)).strftime("%Y-%m-%d")
 
-        try:
-            entry_price = float(entry_price)
-            if entry_price <= 0:
-                continue
-        except (ValueError, TypeError):
-            continue
+            prices = svc.get_prices(tickers, start, end)
 
-        # Fetch price history since recommendation
-        try:
-            stock = yf.Ticker(ticker)
-            hist = stock.history(start=committee_date, period="3mo")
-            if hist.empty:
-                continue
+            for action in actions:
+                ticker = action.get("ticker")
+                action_type = action.get("action", "").upper()
+                entry_price = action.get("price_at_recommendation")
+                committee_date = action.get("committee_date")
 
-            close = hist["Close"]
+                if not ticker or entry_price is None or not committee_date:
+                    continue
+                try:
+                    entry_price = float(entry_price)
+                    if entry_price <= 0:
+                        continue
+                except (ValueError, TypeError):
+                    continue
 
-            # Calculate returns at T+7 and T+30
-            result = {
-                "ticker": ticker,
-                "action": action_type,
-                "conviction": action.get("conviction"),
-                "committee_date": committee_date,
-                "entry_price": entry_price,
-            }
+                result = {
+                    "ticker": ticker,
+                    "action": action_type,
+                    "conviction": action.get("conviction"),
+                    "committee_date": committee_date,
+                    "entry_price": entry_price,
+                }
 
-            # Get SPY returns for the same horizons
-            spy_return_7d = None
-            spy_return_30d = None
-            if spy_close is not None:
-                spy_from_date = spy_close[spy_close.index >= committee_date]
-                if len(spy_from_date) >= 1:
-                    spy_base = float(spy_from_date.iloc[0])
-                    if spy_base > 0:
-                        if len(spy_from_date) >= 5:
-                            spy_t7 = float(spy_from_date.iloc[min(5, len(spy_from_date) - 1)])
-                            spy_return_7d = (spy_t7 - spy_base) / spy_base * 100
-                        if len(spy_from_date) >= 21:
-                            spy_t30 = float(spy_from_date.iloc[min(21, len(spy_from_date) - 1)])
-                            spy_return_30d = (spy_t30 - spy_base) / spy_base * 100
-
-            if len(close) >= 5:
-                t7_price = float(close.iloc[min(5, len(close) - 1)])
-                result["return_7d"] = round(
-                    (t7_price - entry_price) / entry_price * 100, 2
+                # T+7 (5 trading days)
+                ret_7d = svc.trading_day_return(
+                    prices, ticker, committee_date, 5
                 )
-                if spy_return_7d is not None:
-                    result["alpha_7d"] = round(result["return_7d"] - spy_return_7d, 2)
-
-            if len(close) >= 21:
-                t30_price = float(close.iloc[min(21, len(close) - 1)])
-                result["return_30d"] = round(
-                    (t30_price - entry_price) / entry_price * 100, 2
+                alpha_7d = svc.trading_day_alpha(
+                    prices, ticker, committee_date, 5
                 )
-                if spy_return_30d is not None:
-                    result["alpha_30d"] = round(result["return_30d"] - spy_return_30d, 2)
+                if ret_7d is not None:
+                    result["return_7d"] = round(ret_7d, 2)
+                if alpha_7d is not None:
+                    result["alpha_7d"] = round(alpha_7d, 2)
 
-            if action_type in ("BUY", "ADD"):
-                buy_results.append(result)
-            elif action_type in ("SELL", "TRIM"):
-                sell_results.append(result)
-            elif action_type == "HOLD":
-                hold_results.append(result)
+                # T+30 (21 trading days)
+                ret_30d = svc.trading_day_return(
+                    prices, ticker, committee_date, 21
+                )
+                alpha_30d = svc.trading_day_alpha(
+                    prices, ticker, committee_date, 21
+                )
+                if ret_30d is not None:
+                    result["return_30d"] = round(ret_30d, 2)
+                if alpha_30d is not None:
+                    result["alpha_30d"] = round(alpha_30d, 2)
 
+                if action_type in ("BUY", "ADD"):
+                    buy_results.append(result)
+                elif action_type in ("SELL", "TRIM"):
+                    sell_results.append(result)
+                elif action_type == "HOLD":
+                    hold_results.append(result)
+
+    except Exception as exc:
+        logger.warning(
+            "PriceService not available (%s), falling back to per-ticker yfinance",
+            exc,
+        )
+        # Fall back to original per-ticker yfinance approach
+        try:
+            import yfinance as yf
+        except ImportError:
+            logger.warning("yfinance not available for committee scorecard")
+            return _empty_scorecard(months_back)
+
+        # SPY benchmark
+        spy_close = None
+        try:
+            spy = yf.Ticker("SPY")
+            spy_hist = spy.history(period="6mo")
+            if not spy_hist.empty:
+                spy_close = spy_hist["Close"]
         except Exception as e:
-            logger.debug(f"Failed to fetch data for {ticker}: {e}")
-            continue
+            logger.debug(f"Failed to fetch SPY benchmark: {e}")
+
+        for action in actions:
+            ticker = action.get("ticker")
+            action_type = action.get("action", "").upper()
+            entry_price = action.get("price_at_recommendation")
+            committee_date = action.get("committee_date")
+
+            if not ticker or entry_price is None or not committee_date:
+                continue
+            try:
+                entry_price = float(entry_price)
+                if entry_price <= 0:
+                    continue
+            except (ValueError, TypeError):
+                continue
+
+            try:
+                stock = yf.Ticker(ticker)
+                hist = stock.history(start=committee_date, period="3mo")
+                if hist.empty:
+                    continue
+                close = hist["Close"]
+
+                result = {
+                    "ticker": ticker,
+                    "action": action_type,
+                    "conviction": action.get("conviction"),
+                    "committee_date": committee_date,
+                    "entry_price": entry_price,
+                }
+
+                spy_return_7d = None
+                spy_return_30d = None
+                if spy_close is not None:
+                    spy_from_date = spy_close[spy_close.index >= committee_date]
+                    if len(spy_from_date) >= 1:
+                        spy_base = float(spy_from_date.iloc[0])
+                        if spy_base > 0:
+                            if len(spy_from_date) >= 5:
+                                spy_t7 = float(spy_from_date.iloc[min(5, len(spy_from_date) - 1)])
+                                spy_return_7d = (spy_t7 - spy_base) / spy_base * 100
+                            if len(spy_from_date) >= 21:
+                                spy_t30 = float(spy_from_date.iloc[min(21, len(spy_from_date) - 1)])
+                                spy_return_30d = (spy_t30 - spy_base) / spy_base * 100
+
+                if len(close) >= 5:
+                    t7_price = float(close.iloc[min(5, len(close) - 1)])
+                    result["return_7d"] = round(
+                        (t7_price - entry_price) / entry_price * 100, 2
+                    )
+                    if spy_return_7d is not None:
+                        result["alpha_7d"] = round(result["return_7d"] - spy_return_7d, 2)
+
+                if len(close) >= 21:
+                    t30_price = float(close.iloc[min(21, len(close) - 1)])
+                    result["return_30d"] = round(
+                        (t30_price - entry_price) / entry_price * 100, 2
+                    )
+                    if spy_return_30d is not None:
+                        result["alpha_30d"] = round(result["return_30d"] - spy_return_30d, 2)
+
+                if action_type in ("BUY", "ADD"):
+                    buy_results.append(result)
+                elif action_type in ("SELL", "TRIM"):
+                    sell_results.append(result)
+                elif action_type == "HOLD":
+                    hold_results.append(result)
+            except Exception as e:
+                logger.debug(f"Failed to fetch data for {ticker}: {e}")
+                continue
 
     # Calculate aggregate statistics
     scorecard = {
