@@ -67,6 +67,7 @@ def _base_synthesis():
              "signal": "B", "pet": 37.5, "pef": 16.5},
         ],
         "regime": "CAUTIOUS",
+        "risk_score": 55,
         "macro_score": 65,
         "rotation": "Late cycle positioning",
         "portfolio_beta": 1.05,
@@ -216,6 +217,33 @@ class TestNormalize:
     def test_no_fixes_returns_empty(self):
         fixes = normalize_agent_reports({}, {}, {}, {}, {})
         assert fixes == []
+
+    def test_risk_warnings_by_stock_normalized(self):
+        """v33.0: risk_warnings_by_stock ingested into consensus_warnings."""
+        risk = {"risk_warnings_by_stock": {"NVDA": {"severity": "HIGH", "warning": "Concentration"}}}
+        fixes = normalize_agent_reports({}, {}, {}, risk, {})
+        assert any("risk_warnings_by_stock" in f for f in fixes)
+        assert any(w.get("ticker") == "NVDA" for w in risk.get("consensus_warnings", [])
+                   if isinstance(w, dict))
+
+    def test_risk_warnings_by_stock_string_values(self):
+        """v33.0: String value in risk_warnings_by_stock."""
+        risk = {"risk_warnings_by_stock": {"AAPL": "high beta exposure"}}
+        normalize_agent_reports({}, {}, {}, risk, {})
+        cw = risk.get("consensus_warnings", [])
+        assert any(w.get("ticker") == "AAPL" and "high beta" in w.get("reason", "")
+                   for w in cw if isinstance(w, dict))
+
+    def test_risk_warnings_by_stock_no_duplicates(self):
+        """v33.0: Ticker already in consensus_warnings is not doubled."""
+        risk = {
+            "consensus_warnings": [{"ticker": "NVDA", "severity": "HIGH"}],
+            "risk_warnings_by_stock": {"NVDA": {"severity": "MODERATE"}},
+        }
+        normalize_agent_reports({}, {}, {}, risk, {})
+        nvda_count = sum(1 for w in risk["consensus_warnings"]
+                         if isinstance(w, dict) and w.get("ticker") == "NVDA")
+        assert nvda_count == 1
 
 # ---------------------------------------------------------------------------
 # Stage 1: Pre-HTML Validate
@@ -431,3 +459,72 @@ class TestRunQA:
                  "message": "VIX is zero"}]
         report = format_qa_report(gaps)
         assert "PASSED with warnings" in report
+
+
+# ---------------------------------------------------------------------------
+# v33.0: Signal channel uniformity checks
+# ---------------------------------------------------------------------------
+
+class TestSignalChannelQA:
+    """v33.0: QA catches broken signal channels."""
+
+    def test_all_neutral_news_impact_is_critical(self):
+        synth = _base_synthesis()
+        synth["concordance"] = [
+            {"ticker": f"T{i}", "action": "HOLD", "conviction": 60,
+             "signal": "H", "news_impact": "NEUTRAL"}
+            for i in range(15)
+        ]
+        from trade_modules.committee_qa import validate_synthesis_completeness
+        gaps = validate_synthesis_completeness(synth)
+        crit = [g for g in gaps if g["severity"] == CRITICAL and "news_impact" in g["field"]]
+        assert len(crit) >= 1
+
+    def test_mixed_news_impact_passes(self):
+        synth = _base_synthesis()
+        synth["concordance"] = [
+            {"ticker": "NVDA", "action": "HOLD", "conviction": 60,
+             "signal": "H", "news_impact": "LOW_POSITIVE"},
+            {"ticker": "AAPL", "action": "ADD", "conviction": 70,
+             "signal": "B", "news_impact": "NEUTRAL"},
+        ]
+        from trade_modules.committee_qa import validate_synthesis_completeness
+        gaps = validate_synthesis_completeness(synth)
+        news_crit = [g for g in gaps if "news_impact" in g.get("field", "")]
+        assert len(news_crit) == 0
+
+    def test_all_neutral_census_is_critical(self):
+        synth = _base_synthesis()
+        synth["concordance"] = [
+            {"ticker": f"T{i}", "action": "HOLD", "conviction": 60,
+             "signal": "H", "census": "NEUTRAL"}
+            for i in range(15)
+        ]
+        from trade_modules.committee_qa import validate_synthesis_completeness
+        gaps = validate_synthesis_completeness(synth)
+        crit = [g for g in gaps if g["severity"] == CRITICAL and "census" in g["field"]]
+        assert len(crit) >= 1
+
+    def test_all_false_risk_warning_is_warning(self):
+        synth = _base_synthesis()
+        synth["concordance"] = [
+            {"ticker": f"T{i}", "action": "HOLD", "conviction": 60,
+             "signal": "H", "risk_warning": False}
+            for i in range(20)
+        ]
+        from trade_modules.committee_qa import validate_synthesis_completeness
+        gaps = validate_synthesis_completeness(synth)
+        warns = [g for g in gaps if g["severity"] == WARNING and "risk_warning" in g["field"]]
+        assert len(warns) >= 1
+
+    def test_some_risk_warnings_no_alert(self):
+        synth = _base_synthesis()
+        synth["concordance"] = [
+            {"ticker": f"T{i}", "action": "HOLD", "conviction": 60,
+             "signal": "H", "risk_warning": i < 3}
+            for i in range(20)
+        ]
+        from trade_modules.committee_qa import validate_synthesis_completeness
+        gaps = validate_synthesis_completeness(synth)
+        rw = [g for g in gaps if "risk_warning" in g.get("field", "")]
+        assert len(rw) == 0

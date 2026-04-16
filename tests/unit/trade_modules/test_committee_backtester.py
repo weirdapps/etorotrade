@@ -9,7 +9,7 @@ import json
 
 import pytest
 
-from trade_modules.committee_backtester import CommitteeBacktester, evaluate_recent
+from trade_modules.committee_backtester import CommitteeBacktester, evaluate_recent, run_backtest
 
 # ============================================================
 # Load History
@@ -380,3 +380,138 @@ class TestEvaluateRecent:
         )
         assert result["status"] == "complete"
         assert result["total_evaluated"] == 0
+
+# ============================================================
+# PriceService-based Forward Returns
+# ============================================================
+
+import pandas as pd
+import numpy as np
+from unittest.mock import MagicMock
+
+
+class TestForwardReturnsWithPriceService:
+    """Tests for PriceService-based forward return computation."""
+
+    def test_uses_trading_day_offset(self, tmp_path):
+        """T+7 should mean 7 trading days, not 7 calendar days."""
+        data = {
+            "date": "2026-01-02",
+            "concordance": [
+                {"ticker": "AAPL", "action": "BUY", "conviction": 70},
+            ],
+        }
+        (tmp_path / "concordance.json").write_text(json.dumps(data))
+        bt = CommitteeBacktester(log_dir=tmp_path)
+        bt.load_history()
+
+        # Create mock PriceService with known prices
+        dates = pd.date_range("2026-01-02", periods=20, freq="B")
+        mock_prices = pd.DataFrame(
+            {
+                "AAPL": np.linspace(100, 110, 20),
+                "SPY": np.linspace(500, 505, 20),
+            },
+            index=dates,
+        )
+
+        mock_svc = MagicMock()
+        mock_svc.get_prices.return_value = mock_prices
+        mock_svc.trading_day_return.side_effect = lambda prices, tkr, dt, horizon: (
+            (float(prices[tkr].iloc[horizon]) - float(prices[tkr].iloc[0]))
+            / float(prices[tkr].iloc[0])
+            * 100
+            if tkr in prices.columns and len(prices[tkr].dropna()) > horizon
+            else None
+        )
+        mock_svc.trading_day_alpha.side_effect = lambda prices, tkr, dt, horizon, region=None: (
+            mock_svc.trading_day_return(prices, tkr, dt, horizon)
+            - mock_svc.trading_day_return(prices, "SPY", dt, horizon)
+            if mock_svc.trading_day_return(prices, tkr, dt, horizon) is not None
+            and mock_svc.trading_day_return(prices, "SPY", dt, horizon) is not None
+            else None
+        )
+
+        result = bt.compute_forward_returns(
+            price_service=mock_svc, horizons=(7,)
+        )
+        assert "AAPL:2026-01-02" in result
+        assert result["AAPL:2026-01-02"]["T+7"] is not None
+        assert result["AAPL:2026-01-02"]["T+7_alpha"] is not None
+
+    def test_backward_compat_price_fetcher(self, tmp_path):
+        """Passing price_fetcher= still works (deprecated path)."""
+        data = {
+            "date": "2026-01-01",
+            "concordance": [{"ticker": "AAPL"}],
+        }
+        (tmp_path / "concordance.json").write_text(json.dumps(data))
+        bt = CommitteeBacktester(log_dir=tmp_path)
+        bt.load_history()
+
+        def mock_fetcher(ticker, date_str):
+            prices = {
+                "AAPL": {"2026-01-01": 100.0, "2026-01-08": 105.0},
+                "SPY": {"2026-01-01": 500.0, "2026-01-08": 502.0},
+            }
+            return prices.get(ticker, {}).get(date_str)
+
+        result = bt.compute_forward_returns(
+            price_fetcher=mock_fetcher, horizons=(7,)
+        )
+        assert "AAPL:2026-01-01" in result
+
+# ============================================================
+# run_backtest with PriceService
+# ============================================================
+
+class TestRunBacktestWithService:
+    def test_uses_price_service_when_available(self, tmp_path):
+        """run_backtest should use PriceService by default."""
+        data = {
+            "date": "2026-01-02",
+            "concordance": [
+                {"ticker": "AAPL", "action": "BUY", "conviction": 70},
+            ],
+        }
+        # Create two entries (minimum for run_backtest)
+        (tmp_path / "concordance-2026-01-02.json").write_text(json.dumps(data))
+        data2 = {**data, "date": "2026-01-03"}
+        (tmp_path / "concordance-2026-01-03.json").write_text(json.dumps(data2))
+
+        # run_backtest with fetch_prices=False should skip price fetching
+        result = run_backtest(log_dir=tmp_path, fetch_prices=False)
+        assert result["status"] == "no_returns"
+        assert result["history_entries"] == 2
+
+# ============================================================
+# Walk-Forward Calibration
+# ============================================================
+
+class TestWalkForwardCalibration:
+    def test_report_includes_walk_forward(self, tmp_path):
+        """Calibration report should include walk-forward validation."""
+        bt = CommitteeBacktester(log_dir=tmp_path)
+        # Create 6 dated history entries
+        bt.history = []
+        for i in range(6):
+            bt.history.append({
+                "date": f"2026-01-{10+i:02d}",
+                "concordance": [
+                    {"ticker": "AAPL", "signal": "B", "action": "BUY",
+                     "conviction": 65 + i, "bull_pct": 70, "fund_score": 70,
+                     "excess_exret": 5, "bear_weight": 2, "bull_weight": 5,
+                     "bonuses": 5, "penalties": 0},
+                ],
+            })
+        # Populate returns for all entries
+        bt.forward_returns = {
+            f"AAPL:2026-01-{10+i:02d}": {"T+7": 3.0 + i, "T+30": 5.0 + i}
+            for i in range(6)
+        }
+        report = bt.generate_calibration_report()
+        assert "walk_forward" in report
+        wf = report["walk_forward"]
+        assert "train_entries" in wf
+        assert "test_entries" in wf
+        assert wf["train_entries"] + wf["test_entries"] == 6

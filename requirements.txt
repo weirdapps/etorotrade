@@ -7,6 +7,7 @@ yfinance>=0.2.12,<2.0.0
 yahooquery>=2.3.7
 requests>=2.25.0,<3.0.0
 scipy>=1.10.0
+pyarrow>=14.0.0
 
 # Output formatting
 tabulate>=0.8.9
