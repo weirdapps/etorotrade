@@ -529,7 +529,7 @@ def generate_report_html(
     concordance = synth.get("concordance", [])
     regime = synth.get("regime", "CAUTIOUS")
     macro_score = synth.get("macro_score", 0)
-    rotation = synth.get("rotation_phase", "UNKNOWN")
+    rotation = synth.get("rotation_phase") or synth.get("macro_label") or "Neutral"
     risk_score = synth.get("risk_score", 50)
     pr_synth = synth.get("portfolio_risk", {})
     # VaR: prefer flat synth key (already normalized to %) over raw portfolio_risk dict
@@ -1133,7 +1133,11 @@ def generate_report_html(
                 rank = data.get("rank", "?")
                 outlook = data.get("relative_strength", data.get("outlook", "NEUTRAL"))
                 oc = _outlook_colors.get(outlook.upper() if isinstance(outlook, str) else "", _C["text_muted"])
-                bg = _C["bg_page"] if int(str(rank)) % 2 == 0 else _C["bg_white"]
+                try:
+                    rank_int = int(str(rank))
+                except (ValueError, TypeError):
+                    rank_int = 99
+                bg = _C["bg_page"] if rank_int % 2 == 0 else _C["bg_white"]
                 h.append(f'<tr style="background:{bg};">'
                          f'<td style="padding:4px 8px;{_MONO}font-weight:700;font-size:11px;">{rank}</td>'
                          f'<td style="padding:4px 8px;font-weight:600;font-size:11px;">{e(etf)}</td>'

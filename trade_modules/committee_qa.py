@@ -244,23 +244,25 @@ def normalize_agent_reports(
         macro["indicators"] = ind
         macro["macro_indicators"] = ind
 
-    # ── Macro/Risk: derive stress_scenarios from tail_risks (v34.0) ──
-    if not macro.get("stress_scenarios") and not macro.get("tail_risks"):
+    # ── Risk: derive stress_scenarios from tail_risks (v34.0) ──
+    if not risk.get("stress_scenarios"):
         tail = risk.get("tail_risks", [])
         if isinstance(tail, list) and tail:
+            impact_map = {"CATASTROPHIC": -25, "HIGH": -15, "MEDIUM": -10, "LOW": -5}
             scenarios = []
             for tr in tail[:3]:
                 if isinstance(tr, dict):
+                    imp = str(tr.get("impact", "MEDIUM")).upper()
                     scenarios.append({
                         "name": tr.get("risk", tr.get("name", "Unknown")),
-                        "portfolio_impact_pct": -15 if tr.get("impact", "").upper() == "HIGH" else -8,
+                        "portfolio_impact_pct": impact_map.get(imp, -10),
                         "probability": tr.get("probability", "MEDIUM"),
                     })
                 elif isinstance(tr, str):
                     scenarios.append({"name": tr, "portfolio_impact_pct": -10, "probability": "MEDIUM"})
             if scenarios:
-                macro["stress_scenarios"] = scenarios
-                fixes.append(f"macro: derived stress_scenarios from risk tail_risks ({len(scenarios)} scenarios)")
+                risk["stress_scenarios"] = scenarios
+                fixes.append(f"risk: derived stress_scenarios from tail_risks ({len(scenarios)} scenarios)")
 
     # ── Macro: derive portfolio_implications from sector_rankings (v34.0) ──
     # When agent provides sector_rankings with outlook but no portfolio_implications,
@@ -279,6 +281,16 @@ def normalize_agent_reports(
                     outlook = data.get("recommendation", data.get("outlook", "NEUTRAL"))
                     fit = outlook_to_fit.get(str(outlook).upper(), "NEUTRAL")
                     data["fit"] = fit
+            rank_order = {"OVERWEIGHT": 0, "FAVORABLE": 0,
+                          "EQUAL": 1, "NEUTRAL": 1,
+                          "UNDERWEIGHT": 2, "UNFAVORABLE": 2}
+            sorted_sectors = sorted(sr.items(),
+                key=lambda x: rank_order.get(
+                    str(x[1].get("recommendation", x[1].get("outlook", "NEUTRAL"))).upper(), 1)
+                if isinstance(x[1], dict) else 1)
+            for i, (sname, sdata) in enumerate(sorted_sectors, 1):
+                if isinstance(sdata, dict) and "rank" not in sdata:
+                    sdata["rank"] = i
             fixes.append("macro: enriched sector_rankings with fit from outlook")
 
     # ── Census: derive alignment from trend/interest_level (v34.0) ──
