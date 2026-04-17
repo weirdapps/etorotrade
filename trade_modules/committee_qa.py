@@ -453,6 +453,24 @@ def validate_pre_html(
         if no_trend:
             gap(INFO, "Technical", "trend",
                 f"{len(no_trend)} stocks missing trend data")
+        # v35.0: Verify normalizer produced timing_signal and momentum_score
+        no_timing = [t for t, d in tech_stocks.items()
+                     if isinstance(d, dict) and not d.get("timing_signal")]
+        if no_timing and len(no_timing) == len(tech_stocks):
+            gap(CRITICAL, "Technical", "timing_signal",
+                "No stocks have timing_signal — normalizer did not run or "
+                "agent used an unrecognized field name (check for timing/technical_signal/entry_timing)")
+        no_mom = [t for t, d in tech_stocks.items()
+                  if isinstance(d, dict) and not d.get("momentum_score")]
+        if no_mom and len(no_mom) == len(tech_stocks):
+            gap(CRITICAL, "Technical", "momentum_score",
+                "No stocks have momentum_score — normalizer did not run or "
+                "agent used an unrecognized field name (check for momentum/momentum_pct)")
+        no_macd = [t for t, d in tech_stocks.items()
+                   if isinstance(d, dict) and not d.get("macd_signal")]
+        if no_macd and len(no_macd) == len(tech_stocks):
+            gap(WARNING, "Technical", "macd_signal",
+                "No stocks have macd_signal — check for macd field name variant")
 
     # ── News ──
     breaking = synthesis.get("breaking_news", [])
@@ -489,6 +507,9 @@ def validate_pre_html(
         gap(WARNING, "Risk", "portfolio_risk", "No portfolio risk data")
     if not risk.get("correlation_clusters") and not risk.get("crisis_correlation_clusters"):
         gap(INFO, "Risk", "correlation_clusters", "No correlation cluster data")
+    if not risk.get("stress_scenarios") and not risk.get("tail_risks"):
+        gap(WARNING, "Risk", "stress_scenarios",
+            "No stress scenarios or tail risks — stress test section will be empty")
 
     # ── Concordance quality ──
     no_waterfall = [e["ticker"] for e in concordance if not e.get("conviction_waterfall")]
@@ -548,6 +569,8 @@ _SYNTH_IMPORTANT = [
     ("breaking_news",           "Breaking news items"),
     ("stress_scenarios",        "Stress scenarios"),
     ("macro_score",             "Macro score"),
+    ("var_95",                  "Value at Risk (95%)"),
+    ("macro_label",             "Macro regime label"),
 ]
 
 
@@ -641,6 +664,20 @@ def validate_synthesis_completeness(
             gap(CRITICAL, "Synthesis", "census_uniform",
                 f"All {len(concordance)} stocks have census=NEUTRAL/MISSING "
                 f"— census alignment data not flowing to concordance")
+
+        # v35.0: Check entry_timing uniformity (TIMING column in grid)
+        entry_timings = {e.get("entry_timing") for e in concordance}
+        if entry_timings <= {"HOLD", None, ""} and len(concordance) >= 10:
+            gap(CRITICAL, "Synthesis", "entry_timing_uniform",
+                f"All {len(concordance)} stocks have entry_timing=HOLD "
+                f"— tech timing→timing_signal normalizer likely failed")
+
+        # v35.0: Check tech_momentum all zero (momentum column)
+        momentums = [e.get("tech_momentum", 0) for e in concordance]
+        if all(m == 0 for m in momentums) and len(concordance) >= 10:
+            gap(CRITICAL, "Synthesis", "tech_momentum_zero",
+                f"All {len(concordance)} stocks have tech_momentum=0 "
+                f"— momentum→momentum_score normalizer likely failed")
 
     return gaps
 
