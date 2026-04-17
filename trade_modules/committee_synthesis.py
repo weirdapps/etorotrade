@@ -2819,6 +2819,16 @@ def _resolve_macro_fit(
                 "utilit", "staple",
             ]):
                 return "NEUTRAL"
+        elif regime == "CAUTIOUS":
+            if any(kw in sector_lower for kw in [
+                "health", "pharma", "medical", "utilit", "staple",
+                "defense", "commodit", "gold",
+            ]):
+                return "FAVORABLE"
+            if any(kw in sector_lower for kw in [
+                "crypto",
+            ]):
+                return "UNFAVORABLE"
 
     return "NEUTRAL"
 
