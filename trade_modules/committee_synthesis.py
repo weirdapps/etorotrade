@@ -367,11 +367,23 @@ def _normalize_tech_stocks(tech_report: Dict) -> Dict:
         logger.info("Normalized tech_report['stocks'] from list (%d items) to dict", len(normalized))
         stocks = normalized
 
-    # Fix 4: Agents write 'technical_signal'/'entry_timing', synthesis reads 'timing_signal'
+    # Fix 4: Agents write 'technical_signal'/'entry_timing'/'timing', synthesis reads 'timing_signal'
+    # Fix 5: Agents write 'momentum', synthesis reads 'momentum_score'
+    # Fix 6: Agents write 'macd', HTML reads 'macd_signal'
     for tkr, data in stocks.items():
-        if isinstance(data, dict) and "timing_signal" not in data:
-            data["timing_signal"] = data.get("technical_signal",
-                                             data.get("entry_timing", "HOLD"))
+        if isinstance(data, dict):
+            if "timing_signal" not in data:
+                data["timing_signal"] = data.get("technical_signal",
+                                                 data.get("entry_timing",
+                                                 data.get("timing", "HOLD")))
+            if "momentum_score" not in data:
+                mom = data.get("momentum", data.get("momentum_pct", 0))
+                try:
+                    data["momentum_score"] = int(float(str(mom)))
+                except (ValueError, TypeError):
+                    data["momentum_score"] = 0
+            if "macd_signal" not in data and "macd" in data:
+                data["macd_signal"] = data["macd"]
     return tech_report
 
 
@@ -4007,13 +4019,35 @@ def generate_synthesis_output(
                   or risk_report.get("executive_summary", {}).get("overall_risk_rating_score", 50)
                   or 50)
     # BUG 4 fix: var_95 may be a dict with daily/weekly/monthly keys
-    var_raw = pr.get("var_95_annual") or pr.get("var_95_daily") or pr.get("var_95") or risk_report.get("var_95") or 0
+    var_raw = (pr.get("var_95_annual") or pr.get("var_95_daily") or pr.get("var_95")
+               or risk_report.get("var_95") or 0)
+    # v35.0: Also check portfolio_metrics.value_at_risk_95pct (agent variant)
+    _var_is_estimate = False
+    if not var_raw:
+        pm = risk_report.get("portfolio_metrics", {})
+        var_raw = pm.get("value_at_risk_95pct") or pm.get("var_95") or pm.get("monthly_var") or 0
+        _var_is_estimate = True
     if isinstance(var_raw, dict):
-        # Extract monthly VaR (most relevant for portfolio view)
         var_95 = var_raw.get("monthly", var_raw.get("weekly", var_raw.get("daily", 0)))
+    elif isinstance(var_raw, str):
+        import re as _re_var
+        m = _re_var.search(r'(\d+\.?\d*)', str(var_raw))
+        var_95 = float(m.group(1)) if m else 0
     else:
         var_95 = var_raw
+    # Agent high-level estimates (e.g. "18-22%") are annual, not daily.
+    # Convert to daily so _compute_multi_tf_var scales correctly.
+    if _var_is_estimate and var_95 > 5:
+        var_95 = var_95 / math.sqrt(252)
     max_dd = pr.get("max_drawdown_1y") or pr.get("max_drawdown") or risk_report.get("max_drawdown") or 0
+    if not max_dd:
+        pm = risk_report.get("portfolio_metrics", {})
+        max_dd_raw = pm.get("max_drawdown_scenario") or pm.get("max_drawdown") or 0
+        if isinstance(max_dd_raw, str):
+            m = _re_var.search(r'(\d+\.?\d*)', str(max_dd_raw))
+            max_dd = float(m.group(1)) if m else 0
+        elif isinstance(max_dd_raw, (int, float)):
+            max_dd = max_dd_raw
     port_beta_agent = pr.get("portfolio_beta_vs_spy") or pr.get("portfolio_beta") or risk_report.get("portfolio_beta") or 0
     # Compute weighted-average beta from individual stock betas (more reliable than
     # correlation-based portfolio beta which understates for non-US heavy portfolios)
@@ -4070,13 +4104,29 @@ def generate_synthesis_output(
                    or (es.get("macro_score") if isinstance(es, dict) else 0)
                    or macro_report.get("regime_confidence")
                    or 0)
+    try:
+        macro_score = int(float(str(macro_score)))
+    except (ValueError, TypeError):
+        macro_score = 0
+    _ms_labels = {
+        range(0, 3): "Very Bearish", range(3, 5): "Bearish",
+        range(5, 6): "Neutral", range(6, 8): "Bullish",
+        range(8, 11): "Very Bullish",
+    }
+    macro_label = "Neutral"
+    for rng, lbl in _ms_labels.items():
+        if macro_score in rng:
+            macro_label = lbl
+            break
     rotation = (
         macro_report.get("sector_rotation_view", {}).get("rationale", "").split(".")[0]
         if isinstance(macro_report.get("sector_rotation_view"), dict)
         else macro_report.get("sector_rotation_phase")
         or macro_report.get("rotation_phase")
-        or "Unknown"
+        or ""
     )
+    if not rotation or rotation == "Unknown":
+        rotation = macro_label
 
     # Census — normalise agent output to flat keys for HTML generator.
     # Census agent writes: fear_greed.current, cash_trends.mean_cash_pct
@@ -4157,6 +4207,7 @@ def generate_synthesis_output(
         "regime": regime,
         "regime_momentum": regime_momentum,
         "macro_score": macro_score,
+        "macro_label": macro_label,
         "rotation_phase": rotation,
         "risk_score": risk_score,
         "var_95": round(var_95 * 100, 1) if 0 < abs(var_95) < 1 else round(var_95, 1),
