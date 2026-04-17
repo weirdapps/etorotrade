@@ -141,8 +141,13 @@ def abbr(text):
         "ALIGNED": "ALIGN", "DIVERGENT": "DIVERG", "MODERATE_DIVERGENT": "M.DIV",
         "HIGH_NEGATIVE": "H.NEG", "HIGH_POSITIVE": "H.POS",
         "NEUTRAL": "NEUT", "POSITIVE": "POS", "NEGATIVE": "NEG",
+        # Lowercase tech signal variants
+        "buy": "BUY", "sell": "SELL", "hold": "HOLD",
+        "accumulate": "ACCUM", "reduce": "REDUC", "strong_sell": "STR.SL",
+        "hold_overbought": "H.OB", "hold_oversold": "H.OS",
+        "strong_buy": "STR.BY", "avoid": "AVOID",
     }
-    return MAP.get(str(text), str(text))
+    return MAP.get(str(text), str(text).upper()[:6])
 
 def _clean_name(raw):
     """Clean up verbose yfinance names: strip suffixes like 'Inc.', 'Corp.', 'PLC ORD 5P'."""
@@ -529,6 +534,7 @@ def generate_report_html(
     pr_synth = synth.get("portfolio_risk", {})
     # VaR: prefer flat synth key (already normalized to %) over raw portfolio_risk dict
     var_95 = synth.get("var_95") or pr_synth.get("var_95_annual") or pr_synth.get("var_95") or 0
+    var_multi = synth.get("var_95_multi", {})
     max_dd_raw = synth.get("max_drawdown") or pr_synth.get("max_drawdown") or 0
     max_dd = max_dd_raw * 100 if 0 < abs(max_dd_raw) < 1 else max_dd_raw
     p_beta = synth.get("portfolio_beta") or pr_synth.get("portfolio_beta_vs_spy") or pr_synth.get("portfolio_beta") or 1.0
@@ -698,7 +704,8 @@ def generate_report_html(
     h.append(f'<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid {_C["border"]};margin-bottom:20px;"><tr>')
     h.append(_kpi_card("Verdict", verdict, f"{sells} Sell &middot; {trims} Trim &middot; {buys} Buy/Add &middot; {holds} Hold", vval))
     h.append(_kpi_card("Macro Regime", regime, f"Score {macro_score} &middot; {rotation.replace('_', ' ')}", vval))
-    h.append(_kpi_card("Portfolio Risk", f"{risk_score}/100", f"Beta {p_beta:.2f} &middot; VaR {var_95:.1f}%", risk_color))
+    _monthly_var = var_multi.get("monthly", {}).get("var", var_95) if var_multi else var_95
+    h.append(_kpi_card("Portfolio Risk", f"{risk_score}/100", f"Beta {p_beta:.2f} &middot; Monthly VaR {_monthly_var:.1f}%", risk_color))
     h.append('</tr></table>')
     # Narrative
     h.append(f'<div style="border-left:4px solid {_C["border_heavy"]};'
@@ -715,11 +722,21 @@ def generate_report_html(
     if stress:
         # Build scenario display list from whatever data exists
         _colors = [_C["bear"], _C["warn"], _C["bear"]]
-        _stress_items = list(stress.values())[:3]
+        _stress_items = list(stress.items())[:3]
         if _stress_items:
             h.append(f'<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid {_C["border"]};margin-bottom:16px;"><tr>')
-        for i, sd in enumerate(_stress_items):
-            title = sd.get("name", f"Scenario {i+1}").upper()
+        _scenario_labels = {
+            "market_crash_10pct": "MARKET -10%",
+            "rate_shock_100bps": "RATE SHOCK +100bp",
+            "vix_spike_to_40": "VIX SPIKE TO 40",
+            "sector_rotation": "SECTOR ROTATION",
+            "recession": "RECESSION",
+            "inflation_spike": "INFLATION SPIKE",
+            "tariff_escalation": "TARIFF WAR",
+            "usd_rally": "USD RALLY",
+        }
+        for i, (sk, sd) in enumerate(_stress_items):
+            title = sd.get("name", _scenario_labels.get(sk, sk.replace("_", " ").upper()))
             if len(title) > 20:
                 title = title[:20]
             vc = _colors[i % len(_colors)]
@@ -732,10 +749,13 @@ def generate_report_html(
                    or "?")
             imp_str = f"{float(imp):.1f}" if isinstance(imp, (int, float)) else str(imp)
             brd = f'border-right:1px solid {_C["border"]};' if i < len(_stress_items) - 1 else ''
+            mech = sd.get("mechanism", "")
+            mech_html = f'<div style="font-size:9px;color:{_C["text_muted"]};margin-top:2px;">{e(mech[:40])}</div>' if mech else ''
             h.append(f'<td style="width:33%;padding:8px 12px;text-align:center;{brd}">'
                      f'<div style="font-size:9px;font-weight:600;letter-spacing:1.5px;'
                      f'text-transform:uppercase;color:{_C["text_muted"]};">{title}</div>'
-                     f'<div style="font-size:16px;font-weight:600;color:{vc};margin-top:2px;">{imp_str}%</div></td>')
+                     f'<div style="font-size:16px;font-weight:600;color:{vc};margin-top:2px;">{imp_str}%</div>'
+                     f'{mech_html}</td>')
         if _stress_items:
             h.append('</tr></table>')
     # Priority actions — pill format
@@ -1478,29 +1498,34 @@ def generate_report_html(
                          f'<td style="padding:8px 10px;text-align:right;{_MONO}font-weight:700;color:{vc};">{val}</td></tr>')
             h.append('</table>')
 
-        # Portfolio VaR section — only show rows with actual data
-        var_metrics = [
-            ("VaR (95%)", f"{var_95:.1f}%", _C["text_body"], var_95 != 0),
-            ("CVaR (95%)", f"{cvar*100:.1f}%" if abs(cvar) < 1 else f"{cvar:.1f}%", _C["bear"], cvar != 0),
-            ("MC VaR (21d)", f"{mc_var:.1f}%", _C["bear"] if mc_var < -5 else _C["text_body"], mc_var != 0),
-            ("MC CVaR (21d)", f"{mc_cvar:.1f}%", _C["bear"], mc_cvar != 0),
-        ]
-        if pvar_val is not None:
-            var_metrics.append(("Port. VaR (21d)", f"{pvar_val:.1f}%",
-                                _C["bear"] if pvar_val < -8 else _C["warn"] if pvar_val < -5 else _C["text_body"], True))
-        if pcvar_val is not None:
-            var_metrics.append(("Port. CVaR (21d)", f"{pcvar_val:.1f}%", _C["bear"], True))
-        if div_benefit is not None:
-            var_metrics.append(("Diversification", f"{div_benefit:.0f}%",
-                                _C["bull"] if div_benefit > 20 else _C["warn"] if div_benefit > 10 else _C["bear"], True))
-        visible_var = [(l, v, c) for l, v, c, show in var_metrics if show]
-        if visible_var:
+        # Portfolio VaR/CVaR — multi-timeframe table
+        if var_multi:
+            h.append(f'<div style="{_LABEL}margin:16px 0 8px 0;">Value at Risk &amp; CVaR (95% confidence)</div>')
+            h.append(f'<table style="{_TABLE}">')
+            h.append(f'<tr><th style="{_TH}">Timeframe</th>'
+                     f'<th style="{_TH}text-align:right;">VaR (95%)</th>'
+                     f'<th style="{_TH}text-align:right;">CVaR (ES)</th></tr>')
+            _tf_labels = [("daily", "1 Day"), ("weekly", "1 Week"), ("monthly", "1 Month"), ("annual", "1 Year")]
+            for i, (tf_key, tf_label) in enumerate(_tf_labels):
+                tf = var_multi.get(tf_key, {})
+                v = tf.get("var", 0)
+                cv = tf.get("cvar", 0)
+                bg = _C["bg_page"] if i % 2 == 0 else _C["bg_white"]
+                v_col = _C["bear"] if v < -5 else _C["warn"] if v < -2 else _C["text_body"]
+                h.append(f'<tr style="background:{bg};">'
+                         f'<td style="padding:8px 10px;font-weight:600;">{tf_label}</td>'
+                         f'<td style="padding:8px 10px;text-align:right;{_MONO}font-weight:700;color:{v_col};">{v:.1f}%</td>'
+                         f'<td style="padding:8px 10px;text-align:right;{_MONO}font-weight:700;color:{_C["bear"]};">{cv:.1f}%</td></tr>')
+            h.append('</table>')
+            h.append(f'<div style="font-size:10px;color:{_C["text_muted"]};margin-top:4px;">'
+                     f'VaR = max expected loss at 95% confidence. CVaR (Expected Shortfall) = average loss in the worst 5% of scenarios. '
+                     f'Scaled from daily via &radic;t rule.</div>')
+        elif var_95 != 0:
+            # Fallback: single-row VaR display
             h.append(f'<div style="{_LABEL}margin:16px 0 8px 0;">Portfolio VaR</div>')
             h.append(f'<table style="{_TABLE}">')
-            for i, (label, val, vc) in enumerate(visible_var):
-                bg = _C["bg_page"] if i % 2 == 0 else _C["bg_white"]
-                h.append(f'<tr style="background:{bg};"><td style="padding:8px 10px;font-weight:600;">{label}</td>'
-                         f'<td style="padding:8px 10px;text-align:right;{_MONO}font-weight:700;color:{vc};">{val}</td></tr>')
+            h.append(f'<tr><td style="padding:8px 10px;font-weight:600;">VaR (95% daily)</td>'
+                     f'<td style="padding:8px 10px;text-align:right;{_MONO}font-weight:700;color:{_C["text_body"]};">{var_95:.1f}%</td></tr>')
             h.append('</table>')
 
         # Stress scenarios compact row — render whatever scenarios exist (up to 3)
@@ -1515,7 +1540,7 @@ def generate_report_html(
             h.append('<div style="display:flex;gap:8px;margin-bottom:12px;">')
             for idx, (sk, sd) in enumerate(list(stress.items())[:3]):
                 bg, brd, lc, vc = _sc_colors[idx % len(_sc_colors)]
-                title = sd.get("name", sk.replace("_", " ").upper())[:20]
+                title = sd.get("name", _scenario_labels.get(sk, sk.replace("_", " ").upper()))[:20]
                 ei = sd.get("estimated_impact", {})
                 imp = (sd.get("portfolio_impact_pct")
                        or sd.get("portfolio_expected_loss_pct")
@@ -1811,10 +1836,17 @@ def generate_report_html(
             pio_str = f"{pio_score}/9" if pio_score else "-"
             rev_g = fd.get("revenue_growth", {})
             rev_cls = rev_g.get("classification", "") if isinstance(rev_g, dict) else ""
-            rev_short = {"ACCELERATING": "ACC", "STRONG_GROWTH": "STRG", "STABLE": "STBL",
-                         "DECLINING": "DEC", "DETERIORATING": "DET", "NEGATIVE": "NEG",
-                         "POSITIVE": "POS", "N/A": "-"}.get(rev_cls.upper(), rev_cls[:4] if rev_cls else "-")
+            # Show latest QoQ revenue growth percentage
+            rev_qoq = rev_g.get("quarterly_revenue_growth", []) if isinstance(rev_g, dict) else []
+            rev_latest = rev_qoq[-1] if rev_qoq else None
             rev_col = _C["bull"] if rev_cls.upper() in ("ACCELERATING", "STRONG_GROWTH") else _C["bear"] if rev_cls.upper() in ("DECLINING", "DETERIORATING", "NEGATIVE") else _C["text_muted"]
+            if rev_latest is not None:
+                rev_arrow = "&#9650;" if len(rev_qoq) >= 2 and rev_qoq[-1] > rev_qoq[-2] else "&#9660;" if len(rev_qoq) >= 2 and rev_qoq[-1] < rev_qoq[-2] else ""
+                rev_short = f"{rev_latest:+.0f}%{rev_arrow}"
+            else:
+                rev_short = {"ACCELERATING": "ACC", "STRONG_GROWTH": "STRG", "STABLE": "STBL",
+                             "DECLINING": "DEC", "DETERIORATING": "DET", "NEGATIVE": "NEG",
+                             "POSITIVE": "POS", "N/A": "-"}.get(rev_cls.upper(), rev_cls[:4] if rev_cls else "-")
             h.append(_table_row([
                 (_tn_cell(tkr, _names), "left", ""),
                 (f'<span style="font-weight:800;color:{fs_col};">{fs:.0f}</span>', "center", ""),

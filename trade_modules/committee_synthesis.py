@@ -3920,6 +3920,34 @@ def compute_changes(
     return changes
 
 
+def _compute_multi_tf_var(var_daily_raw: float, portfolio_risk: dict) -> dict:
+    """Compute VaR and CVaR at multiple timeframes from daily VaR.
+
+    VaR scales with sqrt(t): VaR_t = VaR_daily * sqrt(t).
+    CVaR (ES) ≈ VaR * 1.25 for normal distribution at 95% confidence.
+    """
+    import math
+    # Normalize to percentage
+    var_d = var_daily_raw * 100 if 0 < abs(var_daily_raw) < 1 else var_daily_raw
+    if var_d == 0:
+        # Try annual volatility → derive daily VaR
+        ann_vol = portfolio_risk.get("annual_volatility", 0)
+        if ann_vol and 0 < abs(ann_vol) < 1:
+            ann_vol *= 100
+        if ann_vol:
+            var_d = -ann_vol / math.sqrt(252) * 1.645  # 95% z-score
+    if var_d == 0:
+        return {}
+    # CVaR/VaR ratio: for normal dist at 95%, E[X | X < VaR] / VaR ≈ 1.25
+    cvar_ratio = 1.25
+    return {
+        "daily":   {"var": round(var_d, 2),        "cvar": round(var_d * cvar_ratio, 2)},
+        "weekly":  {"var": round(var_d * math.sqrt(5), 2),  "cvar": round(var_d * math.sqrt(5) * cvar_ratio, 2)},
+        "monthly": {"var": round(var_d * math.sqrt(21), 2), "cvar": round(var_d * math.sqrt(21) * cvar_ratio, 2)},
+        "annual":  {"var": round(var_d * math.sqrt(252), 2),"cvar": round(var_d * math.sqrt(252) * cvar_ratio, 2)},
+    }
+
+
 def generate_synthesis_output(
     concordance: List[Dict[str, Any]],
     macro_report: Dict,
@@ -3976,11 +4004,17 @@ def generate_synthesis_output(
     else:
         var_95 = var_raw
     max_dd = pr.get("max_drawdown_1y") or pr.get("max_drawdown") or risk_report.get("max_drawdown") or 0
-    port_beta = pr.get("portfolio_beta_vs_spy") or pr.get("portfolio_beta") or risk_report.get("portfolio_beta") or 0
-    if not port_beta and concordance:
-        betas = [e.get("beta", 1.0) for e in concordance if not e.get("is_opportunity")]
+    port_beta_agent = pr.get("portfolio_beta_vs_spy") or pr.get("portfolio_beta") or risk_report.get("portfolio_beta") or 0
+    # Compute weighted-average beta from individual stock betas (more reliable than
+    # correlation-based portfolio beta which understates for non-US heavy portfolios)
+    port_beta_csv = 0
+    if concordance:
+        betas = [e.get("beta", 0) for e in concordance if not e.get("is_opportunity") and e.get("beta", 0) > 0]
         if betas:
-            port_beta = sum(betas) / len(betas)
+            port_beta_csv = sum(betas) / len(betas)
+    # Prefer CSV-derived beta (individual stock betas averaged) over agent's
+    # correlation-based estimate which can be misleadingly low for non-US portfolios
+    port_beta = port_beta_csv if port_beta_csv > 0 else port_beta_agent
 
     # Macro — try nested paths for agent report compatibility.
     # Macro agent writes: key_indicators.us_10y_yield, regime.classification
@@ -4115,7 +4149,8 @@ def generate_synthesis_output(
         "macro_score": macro_score,
         "rotation_phase": rotation,
         "risk_score": risk_score,
-        "var_95": round(var_95, 2),
+        "var_95": round(var_95 * 100, 1) if 0 < abs(var_95) < 1 else round(var_95, 1),
+        "var_95_multi": _compute_multi_tf_var(var_95, pr),
         "max_drawdown": round(max_dd * 100, 1) if 0 < abs(max_dd) < 1 else round(max_dd, 1),
         "portfolio_beta": round(port_beta, 2),
         "portfolio_risk": pr,
