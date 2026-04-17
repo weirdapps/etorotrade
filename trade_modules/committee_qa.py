@@ -201,6 +201,161 @@ def normalize_agent_reports(
             news["breaking_news"] = items
             fixes.append(f"news: synthesised breaking_news from key_themes ({len(items)} items)")
 
+    # ── Macro: risk_indicators → indicators (v34.0) ──
+    # Agents may write VIX/credit_spreads under "risk_indicators" instead of "indicators".
+    if "risk_indicators" in macro and not macro.get("indicators"):
+        ri = macro["risk_indicators"]
+        if isinstance(ri, dict):
+            macro["indicators"] = ri
+            macro["macro_indicators"] = ri
+            fixes.append("macro: risk_indicators → indicators alias")
+    elif "risk_indicators" in macro and macro.get("indicators"):
+        ri = macro["risk_indicators"]
+        ind = macro["indicators"]
+        if isinstance(ri, dict) and isinstance(ind, dict):
+            merged = 0
+            for k, v in ri.items():
+                if k not in ind:
+                    ind[k] = v
+                    merged += 1
+            if merged:
+                fixes.append(f"macro: merged {merged} fields from risk_indicators into indicators")
+
+    # ── Macro: extract numeric indicators from narrative context (v34.0) ──
+    # Agents often embed EUR/USD, 10Y yield as context strings, not numeric fields.
+    ind = macro.get("indicators", macro.get("macro_indicators", {}))
+    if isinstance(ind, dict):
+        ri = macro.get("risk_indicators", {})
+        if not ind.get("eur_usd"):
+            fx = macro.get("fx_impact", {})
+            for src_text in [str(fx), str(ri.get("usd_context", ""))]:
+                m = re.search(r'EUR/USD\s*(?:at\s+)?(\d+\.\d+)', src_text)
+                if m:
+                    ind["eur_usd"] = float(m.group(1))
+                    fixes.append(f"macro: extracted eur_usd={ind['eur_usd']} from context")
+                    break
+        if not ind.get("us_10y_yield"):
+            for src_text in [str(ri.get("yield_curve_context", "")), str(ri)]:
+                m = re.search(r'10[- ]?year\s+(?:Treasury\s+)?(?:near|at|~)?\s*(\d+\.?\d*)\s*%', src_text, re.IGNORECASE)
+                if m:
+                    ind["us_10y_yield"] = float(m.group(1))
+                    fixes.append(f"macro: extracted us_10y_yield={ind['us_10y_yield']} from context")
+                    break
+        macro["indicators"] = ind
+        macro["macro_indicators"] = ind
+
+    # ── Macro/Risk: derive stress_scenarios from tail_risks (v34.0) ──
+    if not macro.get("stress_scenarios") and not macro.get("tail_risks"):
+        tail = risk.get("tail_risks", [])
+        if isinstance(tail, list) and tail:
+            scenarios = []
+            for tr in tail[:3]:
+                if isinstance(tr, dict):
+                    scenarios.append({
+                        "name": tr.get("risk", tr.get("name", "Unknown")),
+                        "portfolio_impact_pct": -15 if tr.get("impact", "").upper() == "HIGH" else -8,
+                        "probability": tr.get("probability", "MEDIUM"),
+                    })
+                elif isinstance(tr, str):
+                    scenarios.append({"name": tr, "portfolio_impact_pct": -10, "probability": "MEDIUM"})
+            if scenarios:
+                macro["stress_scenarios"] = scenarios
+                fixes.append(f"macro: derived stress_scenarios from risk tail_risks ({len(scenarios)} scenarios)")
+
+    # ── Macro: derive portfolio_implications from sector_rankings (v34.0) ──
+    # When agent provides sector_rankings with outlook but no portfolio_implications,
+    # build per-sector fit so _resolve_macro_fit can find data.
+    if not macro.get("portfolio_implications") and macro.get("sector_rankings"):
+        sr = macro["sector_rankings"]
+        if isinstance(sr, dict):
+            pi: Dict[str, Any] = {}
+            outlook_to_fit = {
+                "OVERWEIGHT": "FAVORABLE", "FAVORABLE": "FAVORABLE",
+                "UNDERWEIGHT": "UNFAVORABLE", "UNFAVORABLE": "UNFAVORABLE",
+                "EQUAL": "NEUTRAL", "NEUTRAL": "NEUTRAL",
+            }
+            for sector_name, data in sr.items():
+                if isinstance(data, dict):
+                    outlook = data.get("recommendation", data.get("outlook", "NEUTRAL"))
+                    fit = outlook_to_fit.get(str(outlook).upper(), "NEUTRAL")
+                    data["fit"] = fit
+            fixes.append("macro: enriched sector_rankings with fit from outlook")
+
+    # ── Census: derive alignment from trend/interest_level (v34.0) ──
+    # Agents write trend=ACCUMULATING/DISTRIBUTING/STABLE and interest_level=HIGH/MODERATE/LOW/MINIMAL
+    # but synthesis reads alignment/sentiment/signal. Map trend→alignment.
+    census_stocks = census.get("stocks", census.get("per_stock", {}))
+    if isinstance(census_stocks, dict):
+        mapped = 0
+        for tkr, data in census_stocks.items():
+            if not isinstance(data, dict):
+                continue
+            if data.get("alignment") or data.get("sentiment") or data.get("signal"):
+                continue
+            trend = str(data.get("trend", "")).upper()
+            interest = str(data.get("interest_level", "")).upper()
+            if trend in ("ACCUMULATING", "STRONG_ACCUMULATION", "ACCUMULATION"):
+                data["alignment"] = "ACCUMULATING"
+                mapped += 1
+            elif trend in ("DISTRIBUTING", "STRONG_DISTRIBUTION", "DISTRIBUTION"):
+                data["alignment"] = "DISTRIBUTING"
+                mapped += 1
+            elif interest in ("HIGH", "MODERATE") and trend == "STABLE":
+                data["alignment"] = "CONSENSUS_ALIGNED"
+                mapped += 1
+        if mapped:
+            fixes.append(f"census: derived alignment from trend for {mapped} stocks")
+
+    # ── News: stock_news → portfolio_news with impact derivation (v34.0) ──
+    # Agents write stock_news[ticker].news_sentiment/impact_magnitude,
+    # but synthesis reads portfolio_news[ticker].impact.
+    if not news.get("portfolio_news") and news.get("stock_news"):
+        sn = news["stock_news"]
+        if isinstance(sn, dict):
+            pn: Dict[str, Any] = {}
+            for tkr, data in sn.items():
+                if not isinstance(data, dict):
+                    continue
+                sentiment = str(data.get("news_sentiment", "NEUTRAL")).upper()
+                magnitude = str(data.get("impact_magnitude", "LOW")).upper()
+                if sentiment in ("POSITIVE", "VERY_POSITIVE"):
+                    impact = "HIGH_POSITIVE" if magnitude == "HIGH" else "LOW_POSITIVE"
+                elif sentiment in ("NEGATIVE", "VERY_NEGATIVE"):
+                    impact = "HIGH_NEGATIVE" if magnitude == "HIGH" else "LOW_NEGATIVE"
+                elif sentiment == "MIXED":
+                    impact = "LOW_POSITIVE" if magnitude == "HIGH" else "NEUTRAL"
+                else:
+                    impact = "NEUTRAL"
+                pn[tkr] = [{
+                    "impact": impact,
+                    "headline": "; ".join(data.get("recent_headlines", [])[:2])[:200],
+                    "catalyst": data.get("catalyst_type", ""),
+                }]
+            news["portfolio_news"] = pn
+            fixes.append(f"news: derived portfolio_news from stock_news ({len(pn)} tickers)")
+
+    # ── Risk: derive risk_warning from risk_level (v34.0) ──
+    # Agents write risk_level=HIGH/EXTREME but not risk_warning boolean.
+    risk_stocks = risk.get("stocks", {})
+    if isinstance(risk_stocks, dict):
+        warned = 0
+        for tkr, data in risk_stocks.items():
+            if not isinstance(data, dict):
+                continue
+            if "risk_warning" not in data:
+                level = str(data.get("risk_level", "")).upper()
+                data["risk_warning"] = level in ("HIGH", "EXTREME")
+                if data["risk_warning"]:
+                    warned += 1
+        if warned:
+            fixes.append(f"risk: derived risk_warning from risk_level for {warned} stocks")
+
+    # ── Risk: string consensus_warnings/risk_warnings_by_stock → empty list (v34.0) ──
+    for key in ("consensus_warnings", "risk_warnings_by_stock"):
+        if isinstance(risk.get(key), str):
+            risk[key] = []
+            fixes.append(f"risk: {key} was string, reset to empty list")
+
     # ── Opportunities: top_opportunities key variants ──
     if not opps.get("top_opportunities"):
         for alt in ("opportunities", "screened_stocks", "results"):
