@@ -57,7 +57,10 @@ def _base_fund():
 
 def _base_tech():
     return {"stocks": {"NVDA": {"rsi": 62.5, "trend": "BULLISH",
-                                "adx_trend": "STRONG_UP"}}}
+                                "adx_trend": "STRONG_UP",
+                                "timing_signal": "ENTER_NOW",
+                                "momentum_score": 65,
+                                "macd_signal": "BULLISH"}}}
 
 def _base_synthesis():
     return {
