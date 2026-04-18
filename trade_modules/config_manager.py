@@ -179,6 +179,18 @@ class ConfigManager:
     
     def _init_ticker_mappings(self):
         """Initialize ticker mapping data for dual-listed stocks."""
+        # Held-ticker → yfinance-friendly substitute, for same-security listings
+        # where one exchange is not indexed by Yahoo Finance. Not the same as
+        # dual_listed_mappings (which is US ADR ↔ home-exchange). These are
+        # cross-exchange listings of the SAME UCITS / depositary instrument.
+        # Held-side ticker stays in portfolio output for display; data fetches
+        # are silently routed through the substitute. Verified live before
+        # adding (don't add a substitute without confirming it returns prices
+        # via `yf.Ticker(sub).fast_info.last_price`).
+        self.data_fetch_substitutions = {
+            "LYXGRE.DE": "GRE.PA",  # Amundi MSCI Greece UCITS ETF — Xetra fails on yfinance, Paris listing works
+        }
+
         # US Ticker -> Original Exchange Ticker mappings
         self.dual_listed_mappings = {
             # European stocks with US ADRs/cross-listings
@@ -356,28 +368,33 @@ class ConfigManager:
     def get_data_fetch_ticker(self, ticker: str) -> str:
         """
         Get the best ticker for data fetching (may use US ticker for better data availability).
-        
+
         Args:
             ticker: Input ticker symbol
-            
+
         Returns:
             Best ticker for data fetching
         """
         # Handle VIX pattern replacement: VIX, VIX.??? -> ^VIX for data retrieval
         if ticker and ticker.upper().startswith('VIX') and (ticker.upper() == 'VIX' or ticker.upper().startswith('VIX.')):
             return '^VIX'  # Yahoo Finance uses ^VIX for the VIX index
-        
+
         # Special case: .NV (Euronext Amsterdam) tickers should fetch as .AS
         # Yahoo Finance doesn't recognize .NV but does recognize .AS
         if ticker and ticker.upper().endswith('.NV'):
             # Replace .NV with .AS for data fetching
             base_ticker = ticker.upper()[:-3]  # Remove .NV
             return base_ticker + '.AS'
-        
+
+        # Same-security cross-exchange substitution (e.g. LYXGRE.DE → GRE.PA)
+        # for tickers Yahoo doesn't index. See data_fetch_substitutions docstring.
+        if ticker and ticker.upper() in self.data_fetch_substitutions:
+            return self.data_fetch_substitutions[ticker.upper()]
+
         # For data fetching, we might want to use US tickers when available
         # as they often have better data coverage, but we'll normalize the results
         normalized = self.get_normalized_ticker(ticker)
-        
+
         # For now, prefer the normalized ticker, but this can be customized
         # based on data quality preferences per ticker
         return normalized

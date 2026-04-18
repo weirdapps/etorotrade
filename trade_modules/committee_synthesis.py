@@ -383,6 +383,30 @@ _TECH_SIGNAL_ALIASES = {
 }
 
 
+def _coerce_fund_score(value, default: int = 50) -> int:
+    """Coerce a fundamental_score field to a numeric value.
+
+    Phase A 2026-04-18: agents sometimes emit non-numeric placeholders like
+    "synthetic", "n/a", or None for crypto/ETF tickers where fundamental
+    analysis doesn't apply. Downstream comparisons (fund_score >= 70) crash
+    on string types. This helper normalizes everything to an int in [0, 100],
+    defaulting to the neutral midpoint when conversion fails. Never raises.
+    """
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return default
+    if isinstance(value, (int, float)):
+        try:
+            return max(0, min(100, int(value)))
+        except (ValueError, OverflowError):
+            return default
+    try:
+        return max(0, min(100, int(float(str(value).strip()))))
+    except (ValueError, TypeError):
+        return default
+
+
 def _canonicalize_tech_signal(value) -> str:
     """Normalize a technical timing signal to the canonical vocabulary.
 
@@ -2142,10 +2166,14 @@ def synthesize_stock(
     else:
         stock_tier = "MID"  # default when unknown
 
-    # Fund score with fallback (guard against explicit None values)
-    fund_score = fund_data.get("fundamental_score", 50)
-    if fund_score is None:
-        fund_score = 50
+    # Fund score with fallback. Phase A 2026-04-18: also guard against non-numeric
+    # strings (e.g. "synthetic", "n/a") that some agents emit for crypto/ETF; coercing
+    # to a numeric default prevents downstream "<= str and int" TypeError crashes
+    # in the synthesis comparisons.
+    fund_score = _coerce_fund_score(fund_data.get("fundamental_score"))
+    if not isinstance(fund_data.get("fundamental_score"), (int, float)) and fund_data.get("fundamental_score") is not None:
+        # Mark as synthetic so downstream weighting applies the fallback discount.
+        fund_data.setdefault("synthetic", True)
     quality_trap = fund_data.get("quality_trap_warning", False)
     pe_traj = fund_data.get("pe_trajectory", "stable")
     if pe_traj == "stable" and pet > 0 and pef > 0:
@@ -3255,7 +3283,7 @@ def apply_opportunity_gate(
     # Count non-scanner confirmations
     confirmations = 0
     fund_data = fund_report.get("stocks", {}).get(ticker, {})
-    if fund_data.get("fundamental_score", 0) >= 70:
+    if _coerce_fund_score(fund_data.get("fundamental_score"), default=0) >= 70:
         confirmations += 1
     tech_data = tech_report.get("stocks", {}).get(ticker, {})
     if tech_data.get("timing_signal") == "ENTER_NOW":
