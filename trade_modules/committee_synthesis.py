@@ -348,12 +348,71 @@ def _normalize_economic_events(news_report: Dict) -> Dict:
     return news_report
 
 
+# Canonical technical timing-signal vocabulary expected by count_weighted_votes.
+# Two upstream code paths historically wrote different vocabularies to the same
+# field — Phase A calibration (2026-04-18) found mixed casing including "buy",
+# "sell", "reduce", "accumulate" alongside the canonical UPPERCASE forms. Lower-
+# case variants silently fell through to the neutral branch in the vote counter.
+# This map normalizes everything to the canonical set.
+_TECH_SIGNAL_CANONICAL = {
+    "ENTER_NOW", "AVOID", "EXIT_SOON",
+    "WAIT_FOR_PULLBACK", "WAIT_FOR_CONFIRMATION", "HOLD",
+}
+_TECH_SIGNAL_ALIASES = {
+    "buy": "ENTER_NOW",
+    "strong_buy": "ENTER_NOW",
+    "enter": "ENTER_NOW",
+    "long": "ENTER_NOW",
+    "sell": "EXIT_SOON",
+    "strong_sell": "EXIT_SOON",
+    "exit": "EXIT_SOON",
+    "reduce": "EXIT_SOON",
+    "short": "EXIT_SOON",
+    "hold": "HOLD",
+    "neutral": "HOLD",
+    # Mean-reversion variants from the technical agent (display map at
+    # committee_html.py:147 confirms these are intentional outputs):
+    # hold_overbought = HOLD signal but RSI overbought → mean-reversion risk to downside
+    # hold_oversold = HOLD signal but RSI oversold → mean-reversion bias to upside
+    "hold_overbought": "AVOID",
+    "hold_oversold": "WAIT_FOR_PULLBACK",
+    "wait": "WAIT_FOR_PULLBACK",
+    "pullback": "WAIT_FOR_PULLBACK",
+    "accumulate": "HOLD",  # Empirically neutral-to-weak in Phase A; default safe
+    "avoid": "AVOID",
+}
+
+
+def _canonicalize_tech_signal(value) -> str:
+    """Normalize a technical timing signal to the canonical vocabulary.
+
+    Defaults unknown values to HOLD (neutral) and logs a warning so the upstream
+    agent producing the variant can be investigated. Never raises.
+    """
+    if not isinstance(value, str):
+        return "HOLD"
+    raw = value.strip()
+    if raw in _TECH_SIGNAL_CANONICAL:
+        return raw
+    upper = raw.upper()
+    if upper in _TECH_SIGNAL_CANONICAL:
+        return upper
+    mapped = _TECH_SIGNAL_ALIASES.get(raw.lower())
+    if mapped:
+        return mapped
+    logger.warning("Unknown tech timing_signal %r — defaulting to HOLD", value)
+    return "HOLD"
+
+
 def _normalize_tech_stocks(tech_report: Dict) -> Dict:
     """Ensure tech_report['stocks'] is dict of ticker -> data.
 
     Agents sometimes return a list of dicts with 'ticker' keys instead
     of a dict keyed by ticker.
     Also normalises per-stock field names: technical_signal/entry_timing → timing_signal.
+    Also normalises timing_signal VALUES to a canonical vocabulary (case-insensitive,
+    aliases mapped) so downstream vote counting doesn't silently treat lowercase
+    variants as neutral.
     """
     stocks = tech_report.get("stocks", {})
     if isinstance(stocks, list):
@@ -376,6 +435,8 @@ def _normalize_tech_stocks(tech_report: Dict) -> Dict:
                 data["timing_signal"] = data.get("technical_signal",
                                                  data.get("entry_timing",
                                                  data.get("timing", "HOLD")))
+            # Phase A 2026-04-18: canonicalize the value to prevent silent neutral fallthroughs
+            data["timing_signal"] = _canonicalize_tech_signal(data["timing_signal"])
             if "momentum_score" not in data:
                 mom = data.get("momentum", data.get("momentum_pct", 0))
                 try:
@@ -522,15 +583,23 @@ def normalize_agent_reports(
     return fund_report, tech_report, macro_report, census_report, news_report, risk_report
 
 
-# Freshness multipliers per agent (CIO v3 F2)
+# Per-agent vote weights (originally "freshness multipliers" — CIO v3 F2)
+# Re-tuned 2026-04-18 from Phase A calibration on 21 historical concordances
+# (615 stock-day observations, T+7 alpha): Fundamental and Census views were
+# monotonic predictors of forward alpha, so their voice gets amplified.
+# Technical view had data-quality noise and Macro was inverted (FAVORABLE
+# underperformed UNFAVORABLE) so both were down-weighted pending root-cause.
+# News and Risk are kept at parity. Opportunity has no vote in
+# count_weighted_votes today (only contributes as a base-conviction boost
+# for dual-synthetic stocks at line ~3530), so its weight here is advisory.
 AGENT_FRESHNESS = {
-    "fundamental": 0.8,
-    "technical": 1.0,
-    "macro": 0.9,
-    "census": 0.85,
-    "news": 1.0,
-    "opportunity": 0.8,
-    "risk": 1.0,
+    "fundamental": 1.25,
+    "technical": 0.75,
+    "macro": 0.75,
+    "census": 1.25,
+    "news": 1.00,
+    "opportunity": 0.75,
+    "risk": 1.00,
 }
 
 # Conviction score classification
@@ -1007,8 +1076,8 @@ def count_agent_votes(
     fund_disc = 0.5 if fund_synthetic else 1.0
     tech_disc = 0.5 if tech_synthetic else 1.0
 
-    # Fundamental (freshness 0.8x, synthetic discount)
-    fund_weight = 0.8 * fund_disc
+    # Fundamental (vote weight from AGENT_FRESHNESS, synthetic discount)
+    fund_weight = AGENT_FRESHNESS["fundamental"] * fund_disc
     if fund_score >= 70:
         bull += fund_weight
         directional_weight += fund_weight
@@ -1020,13 +1089,13 @@ def count_agent_votes(
         bear += fund_weight / 2
         neutral_weight += fund_weight
 
-    # Technical (freshness 1.0x, synthetic discount)
+    # Technical (vote weight from AGENT_FRESHNESS, synthetic discount)
     # CIO v14.0 V1: RSI-contextual tech vote. At RSI < 30 (deeply oversold),
     # AVOID/EXIT_SOON confirms the obvious decline — it carries no new bearish
     # information and selling here locks in worst-case exit. At RSI 30-40,
     # the stock is oversold and the tech AVOID is a weak signal at best.
     # Only at RSI > 40 does AVOID carry genuine directional weight.
-    tech_weight = 1.0 * tech_disc
+    tech_weight = AGENT_FRESHNESS["technical"] * tech_disc
     if tech_signal == "ENTER_NOW":
         bull += tech_weight
         directional_weight += tech_weight
@@ -1079,17 +1148,18 @@ def count_agent_votes(
         bear += tech_weight / 2
         neutral_weight += tech_weight
 
-    # Macro (freshness 0.9x)
+    # Macro (vote weight from AGENT_FRESHNESS)
+    macro_weight = AGENT_FRESHNESS["macro"]
     if macro_fit == "FAVORABLE":
-        bull += 0.9
-        directional_weight += 0.9
+        bull += macro_weight
+        directional_weight += macro_weight
     elif macro_fit == "UNFAVORABLE":
-        bear += 0.9
-        directional_weight += 0.9
+        bear += macro_weight
+        directional_weight += macro_weight
     else:
-        bull += 0.45
-        bear += 0.45
-        neutral_weight += 0.9
+        bull += macro_weight / 2
+        bear += macro_weight / 2
+        neutral_weight += macro_weight
 
     # Census (freshness 0.85x)
     # CIO v12.0 M2: Magnitude-weighted census signal. A PI going from 0.5%
@@ -1098,7 +1168,16 @@ def count_agent_votes(
     # normalizing to [0.5, 1.0] range so low-magnitude signals still count
     # but high-magnitude signals get full weight.
     div_magnitude = min(abs(census_div_score) / 50.0, 1.0) if census_div_score else 0.5
-    census_weight = 0.85 * (0.5 + 0.5 * div_magnitude)  # Range: 0.425 to 0.85
+    # Census base weight from AGENT_FRESHNESS, scaled by divergence magnitude.
+    # At base=1.25 the range becomes [0.625, 1.25] (was [0.425, 0.85] at base=0.85).
+    census_weight = AGENT_FRESHNESS["census"] * (0.5 + 0.5 * div_magnitude)
+    # Phase A 2026-04-18: amplifying Census's directional voice (ALIGNED/DIVERGENT/
+    # CENSUS_DIV) is informative — Phase A calibration showed all three predict
+    # alpha. But amplifying the NEUTRAL branch dilutes directional_confidence
+    # because 66% of stocks have census=NEUTRAL. So clamp the NEUTRAL branch
+    # at the legacy 0.85 baseline to preserve "loud when informative, quiet
+    # when not" semantics.
+    _CENSUS_NEUTRAL_BASELINE = 0.85
     if census_alignment == "ALIGNED":
         bull += census_weight
         directional_weight += census_weight
@@ -1112,9 +1191,12 @@ def count_agent_votes(
         bear += census_weight * 0.29  # ~0.25 at full weight
         directional_weight += census_weight
     else:
-        bull += census_weight / 2
-        bear += census_weight / 2
-        neutral_weight += census_weight
+        # NEUTRAL view: don't let an uninformative agent dilute others. Use the
+        # baseline weight regardless of AGENT_FRESHNESS["census"].
+        neutral_w = _CENSUS_NEUTRAL_BASELINE * (0.5 + 0.5 * div_magnitude)
+        bull += neutral_w / 2
+        bear += neutral_w / 2
+        neutral_weight += neutral_w
 
     # News (freshness 1.0x)
     # CIO v12.0 M1: Asymmetric news weights. Behavioral finance research

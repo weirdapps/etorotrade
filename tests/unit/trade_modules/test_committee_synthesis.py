@@ -1604,9 +1604,15 @@ class TestTiebreaking:
 
 class TestConstants:
     def test_freshness_weights_valid(self):
-        """All freshness weights should be between 0 and 1."""
+        """All agent vote weights should be positive and within sane bounds.
+
+        Phase A calibration (2026-04-18) re-tuned weights based on empirical
+        per-agent alpha attribution; some weights now exceed 1.0 (Fundamental,
+        Census were monotonic predictors and got amplified). Cap at 2.0 to
+        catch typos / runaway values.
+        """
         for agent, weight in AGENT_FRESHNESS.items():
-            assert 0 < weight <= 1, f"{agent} has invalid freshness {weight}"
+            assert 0 < weight <= 2.0, f"{agent} has invalid weight {weight}"
 
     def test_action_order_complete(self):
         """ACTION_ORDER should include all 5 canonical actions."""
@@ -1832,9 +1838,13 @@ class TestSyntheticDataDiscount:
         assert result["tech_synthetic"] is True
 
     def test_synthetic_neutral_agent_half_weight(self):
-        """Neutral tech with synthetic flag should contribute half the weight."""
-        # Neutral tech: normally 0.5 bull + 0.5 bear
-        # Synthetic neutral tech: should be 0.25 bull + 0.25 bear
+        """Neutral tech with synthetic flag should contribute half the weight.
+
+        At a neutral tech signal, the agent contributes tech_weight/2 to each of
+        bull and bear. The synthetic discount cuts the underlying tech_weight in
+        half, so each side drops by tech_weight/4. Using AGENT_FRESHNESS rather
+        than a literal so the test tracks vote-weight retunes (Phase A 2026-04-18).
+        """
         bull_real, bear_real, _ = count_agent_votes(
             fund_score=50, tech_signal="HOLD", tech_momentum=0,
             macro_fit="NEUTRAL", census_alignment="NEUTRAL",
@@ -1847,9 +1857,9 @@ class TestSyntheticDataDiscount:
             news_impact="NEUTRAL", risk_warning=False, signal="B",
             tech_synthetic=True,
         )
-        # Difference should be 0.25 for both bull and bear
-        assert abs((bull_real - bull_synth) - 0.25) < 0.01
-        assert abs((bear_real - bear_synth) - 0.25) < 0.01
+        expected_drop = AGENT_FRESHNESS["technical"] / 4
+        assert abs((bull_real - bull_synth) - expected_drop) < 0.01
+        assert abs((bear_real - bear_synth) - expected_drop) < 0.01
 
 
 # ============================================================
@@ -3200,10 +3210,21 @@ class TestSectorConcentrationPenalty:
             assert entry.get("sector_concentration_penalty") == 4
 
     def test_penalty_only_on_buy_add_actions(self):
-        """HOLD/TRIM/SELL stocks should NOT get sector penalty."""
+        """HOLD/TRIM/SELL stocks should NOT get sector penalty.
+
+        Phase A 2026-04-18: weight retune (Fundamental 0.8→1.25, Census 0.85→
+        1.25) made the synthesis more eager to escalate H-signal stocks with
+        positive analyst data to ADD. The sector penalty correctly fires when
+        pre-penalty action is BUY/ADD even if the post-penalty action drops
+        back to HOLD. To preserve the original invariant under test (HOLD-
+        signal stocks that genuinely stay HOLD never get penalty), this
+        scenario uses neutral buy_pct=50 so escalation never occurs.
+        """
         tickers_sectors = [("T1", "Tech"), ("T2", "Tech"),
                            ("T3", "Tech"), ("T4", "Tech")]
-        signals = self._make_signals(tickers_sectors, signal="H")
+        # Use neutral buy_pct so H signal genuinely stays HOLD
+        signals = {t: {"signal": "H", "exret": 5, "buy_pct": 50,
+                       "beta": 1.0, "pet": 15, "pef": 14} for t, _ in tickers_sectors}
         sector_map = self._make_sector_map(tickers_sectors)
 
         concordance = build_concordance(
@@ -3216,8 +3237,10 @@ class TestSectorConcentrationPenalty:
             {"consensus_warnings": [], "position_limits": {}},
             sector_map,
         )
-        # HOLD-signal stocks should NOT have sector penalty
+        # HOLD-signal stocks that stay HOLD should NOT have sector penalty
         for entry in concordance:
+            assert entry["action"] == "HOLD", \
+                f"Test pre-condition broke: {entry['ticker']} ended up {entry['action']}"
             assert entry.get("sector_concentration_penalty") is None
 
     def test_penalty_does_not_breach_floor(self):
