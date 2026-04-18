@@ -35,6 +35,36 @@ from typing import Any, Dict, List, Optional
 REPORTS_DIR = Path(os.path.expanduser("~/.weirdapps-trading/committee/reports"))
 OUTPUT_DIR = Path(os.path.expanduser("~/.weirdapps-trading/committee"))
 
+# Held-ticker → display-name fallbacks for tickers whose data fetch is routed
+# to a substitute. The substitute (e.g. GRE.PA for LYXGRE.DE) returns its own
+# yfinance shortName, which would replace our held ticker's name in the report
+# unless we override here. See config_manager.data_fetch_substitutions for the
+# substitution map itself.
+SUBSTITUTED_TICKER_DISPLAY_NAMES = {
+    "LYXGRE.DE": "Amundi MSCI Greece UCITS ETF",  # Held on Xetra; data fetched via GRE.PA (Paris)
+}
+
+
+def _safe_fund_score(value, default: int = 0) -> int:
+    """Coerce a fundamental_score field to a numeric value for sorting/display.
+
+    Mirrors trade_modules.committee_synthesis._coerce_fund_score; duplicated here
+    to avoid a cross-module import in the HTML rendering hot path. Agents
+    sometimes emit non-numeric placeholders ("synthetic", "n/a", None) for
+    crypto/ETF tickers; sorted() on a mixed-type key crashes without coercion.
+    """
+    if value is None or isinstance(value, bool):
+        return default
+    if isinstance(value, (int, float)):
+        try:
+            return int(value)
+        except (ValueError, OverflowError):
+            return default
+    try:
+        return int(float(str(value).strip()))
+    except (ValueError, TypeError):
+        return default
+
 # ═══════════════════════════════════════════════════════════════════════
 # DESIGN SYSTEM — shared primitives used by every section
 # ═══════════════════════════════════════════════════════════════════════
@@ -1935,11 +1965,11 @@ def generate_report_html(
                               ("Rev Growth", "center"), ("Quality", "center"),
                               ("PE T&#8594;F", "center"), ("EXRET", "center"),
                               ("Insider", "center"), ("Key Insight", "left")]))
-        sorted_fund = sorted(fund_stocks.items(), key=lambda x: -x[1].get("fundamental_score", 0))
+        sorted_fund = sorted(fund_stocks.items(), key=lambda x: -_safe_fund_score(x[1].get("fundamental_score")))
         # Build concordance lookup for PE fallback (BUG 1 fix)
         conc_by_tkr = {e["ticker"]: e for e in concordance}
         for i, (tkr, fd) in enumerate(sorted_fund[:12]):
-            fs = fd.get("fundamental_score", 0)
+            fs = _safe_fund_score(fd.get("fundamental_score"))
             eq_raw = fd.get("earnings_quality", "?")
             # earnings_quality may be a dict with {score, pe_trajectory, upside_pct, ...}
             # or a flat string like "STRONG", "WEAK" — agents vary
@@ -2049,7 +2079,7 @@ def generate_report_html(
                 reasons = fd.get("quality_trap_reasons", [])
                 if not reasons:
                     eq = fd.get("earnings_quality", {})
-                    fs = fd.get("fundamental_score", 0)
+                    fs = _safe_fund_score(fd.get("fundamental_score"))
                     sig = fd.get("signal", "")
                     trap_parts = []
                     if isinstance(eq, dict):
@@ -2959,6 +2989,12 @@ def generate_report_from_files(
                             name_map[t] = n
             except Exception:
                 pass
+    # 1b. Seed display names for tickers whose data is fetched via a substitute.
+    # CSV NAME is empty for these tickers because the signal pipeline also
+    # routes to the substitute and the held-side name isn't populated there.
+    for tkr, display_name in SUBSTITUTED_TICKER_DISPLAY_NAMES.items():
+        if not name_map.get(tkr):
+            name_map[tkr] = display_name
     # 2. Collect ALL tickers that will appear in the report
     all_tickers = set()
     for en in synth.get("concordance", []):
@@ -2975,6 +3011,10 @@ def generate_report_from_files(
     tickers_needing_names = [
         t for t in all_tickers
         if t and (t not in name_map or len(name_map.get(t, "")) <= 10)
+        # Skip held tickers whose data is fetched via substitute — using the
+        # substitute's name would mislead the reader (e.g. "GRE.PA" on a row
+        # showing the user's actual LYXGRE.DE position).
+        and t not in SUBSTITUTED_TICKER_DISPLAY_NAMES
     ]
     if tickers_needing_names:
         try:
