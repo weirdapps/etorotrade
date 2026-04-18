@@ -4639,15 +4639,16 @@ class TestV15EndToEndConvictionIntegrity:
 
 
 class TestV16ConsensusWarningSmoothing:
-    """CIO v16.0 W6: Consensus warning cliff smoothing.
+    """CIO v37: Tier-scaled consensus warning (was W6 cliff smoothing).
 
-    Previously, the consensus warning had a 7-point cliff at excess_exret=0:
-    excess_exret >= 0 → -8 penalty, excess_exret < 0 → -15 penalty.
-    W6 adds an intermediate tier for excess_exret in [-10, 0) → -11 penalty.
+    Backtest by tier showed the original 5/8/11/15 gradient was BACKWARDS for
+    MEGA-caps. Penalty is now tier-scaled: MEGA=0, LARGE=3, MID=5, SMALL=8,
+    MICRO=10 — multiplied by excess_exret factor (0.8/1.0/1.4/1.9).
+    Default tier=MID for these tests (base=5).
     """
 
     def test_marginal_below_median_gets_intermediate_penalty(self):
-        """Stock barely below sector median (-0.9%) gets -11, not -15."""
+        """MID-tier, excess_exret -0.9 (in [-10, 0)) → 5 * 1.4 = 7."""
         _, penalties, _ = compute_adjustments(
             signal="B", fund_score=85, tech_signal="HOLD",
             tech_momentum=15, rsi=50, macro_fit="NEUTRAL",
@@ -4656,14 +4657,14 @@ class TestV16ConsensusWarningSmoothing:
             risk_warning=False, buy_pct=96,
             excess_exret=-0.9, beta=1.0, quality_trap=False,
             sector="Consumer Discretionary", sector_rankings={},
-            bull_count=3,
+            bull_count=3, stock_tier="MID",
         )
-        assert penalties == 11, (
-            f"Expected 11 for marginal below median, got {penalties}"
+        assert penalties == 7, (
+            f"MID tier marginal below: expected 7 (5*1.4), got {penalties}"
         )
 
     def test_significantly_below_median_gets_full_penalty(self):
-        """Stock well below sector median (-15%) gets full -15."""
+        """MID-tier, excess_exret -15 (< -10) → 5 * 1.9 = 9.5 → round to 10."""
         _, penalties, _ = compute_adjustments(
             signal="B", fund_score=75, tech_signal="HOLD",
             tech_momentum=0, rsi=50, macro_fit="NEUTRAL",
@@ -4672,14 +4673,14 @@ class TestV16ConsensusWarningSmoothing:
             risk_warning=False, buy_pct=95,
             excess_exret=-15, beta=1.0, quality_trap=False,
             sector="Technology", sector_rankings={},
-            bull_count=3,
+            bull_count=3, stock_tier="MID",
         )
-        assert penalties == 15, (
-            f"Expected 15 for significantly below median, got {penalties}"
+        assert penalties == 10, (
+            f"MID tier severely below: expected 10 (5*1.9 rounded), got {penalties}"
         )
 
     def test_above_median_unchanged(self):
-        """Stock above sector median still gets -8 (unchanged)."""
+        """MID-tier, excess_exret +5 (in [0, 12)) → 5 * 1.0 = 5."""
         _, penalties, _ = compute_adjustments(
             signal="B", fund_score=75, tech_signal="HOLD",
             tech_momentum=0, rsi=50, macro_fit="NEUTRAL",
@@ -4688,14 +4689,14 @@ class TestV16ConsensusWarningSmoothing:
             risk_warning=False, buy_pct=95,
             excess_exret=5, beta=1.0, quality_trap=False,
             sector="Technology", sector_rankings={},
-            bull_count=3,
+            bull_count=3, stock_tier="MID",
         )
-        assert penalties == 8, (
-            f"Expected 8 for above median, got {penalties}"
+        assert penalties == 5, (
+            f"MID tier above median: expected 5 (base*1.0), got {penalties}"
         )
 
     def test_boundary_at_minus_ten(self):
-        """Stock at exactly excess_exret=-10 gets -11 (intermediate tier)."""
+        """MID-tier, excess_exret -10 (boundary, in [-10, 0)) → 5 * 1.4 = 7."""
         _, penalties, _ = compute_adjustments(
             signal="B", fund_score=75, tech_signal="HOLD",
             tech_momentum=0, rsi=50, macro_fit="NEUTRAL",
@@ -4704,10 +4705,42 @@ class TestV16ConsensusWarningSmoothing:
             risk_warning=False, buy_pct=95,
             excess_exret=-10, beta=1.0, quality_trap=False,
             sector="Technology", sector_rankings={},
-            bull_count=3,
+            bull_count=3, stock_tier="MID",
         )
-        assert penalties == 11, (
-            f"Expected 11 at boundary -10, got {penalties}"
+        assert penalties == 7, (
+            f"MID tier boundary -10: expected 7 (5*1.4), got {penalties}"
+        )
+
+    def test_mega_tier_no_penalty(self):
+        """MEGA-tier never gets consensus penalty (backtest showed it was backwards)."""
+        _, penalties, _ = compute_adjustments(
+            signal="B", fund_score=75, tech_signal="HOLD",
+            tech_momentum=0, rsi=50, macro_fit="NEUTRAL",
+            census_alignment="NEUTRAL", div_score=0,
+            census_ts="stable", news_impact="NEUTRAL",
+            risk_warning=False, buy_pct=98,
+            excess_exret=-15, beta=1.0, quality_trap=False,
+            sector="Technology", sector_rankings={},
+            bull_count=3, stock_tier="MEGA",
+        )
+        assert penalties == 0, (
+            f"MEGA tier: expected 0 penalty (backtest +5.45% alpha), got {penalties}"
+        )
+
+    def test_micro_tier_strongest_penalty(self):
+        """MICRO-tier base=10, with excess_exret <-10 → 10 * 1.9 = 19."""
+        _, penalties, _ = compute_adjustments(
+            signal="B", fund_score=75, tech_signal="HOLD",
+            tech_momentum=0, rsi=50, macro_fit="NEUTRAL",
+            census_alignment="NEUTRAL", div_score=0,
+            census_ts="stable", news_impact="NEUTRAL",
+            risk_warning=False, buy_pct=95,
+            excess_exret=-15, beta=1.0, quality_trap=False,
+            sector="Technology", sector_rankings={},
+            bull_count=3, stock_tier="MICRO",
+        )
+        assert penalties == 19, (
+            f"MICRO tier severely below: expected 19 (10*1.9), got {penalties}"
         )
 
     def test_end_to_end_marginal_stock_upgrades(self):

@@ -1701,6 +1701,7 @@ def compute_adjustments(
     sector: str,
     sector_rankings: Dict[str, Any],
     bull_count: int,
+    stock_tier: str = "MID",
 ) -> Tuple[int, int, Dict[str, int]]:
     """
     Compute bonus and penalty adjustments.
@@ -1720,24 +1721,36 @@ def compute_adjustments(
         bonuses += 10
         _w["agent_consensus"] = 10
 
-    # Consensus warning — tiered by excess EXRET
-    # CIO v16.0 W6: Smoothed consensus cliff. Previously a 7-point jump at
-    # excess_exret=0 penalized stocks marginally below sector median (e.g.
-    # -0.9%) the same as those far below (-25%). Added intermediate tier
-    # for excess_exret in [-10, 0) to smooth the penalty gradient.
+    # Consensus warning — tier-scaled (CIO v37, data-driven from n=98 backtest)
+    # Backtest by tier (mean alpha for ≥90% BUY vs <90% BUY):
+    #   MEGA  +5.45% vs -1.29%  (+6.74pp) → penalty BACKWARDS, set to 0
+    #   LARGE -0.14% vs +0.61%  (-0.76pp) → mild penalty (-3 base)
+    #   MID   -3.14% vs +5.11%  (-8.25pp) → moderate penalty (-5 base)
+    #   SMALL +0.95% vs +4.04%  (-3.09pp) → strong penalty (-8 base)
+    #   MICRO insufficient data → strongest penalty (-10 base) per literature
+    # The base penalty is then scaled by excess_exret bands (smaller penalty
+    # when EXRET stands out vs sector, larger when consensus is crowded AND
+    # EXRET is below sector median — i.e. crowded into below-average upside).
     if buy_pct > 90:
-        if excess_exret >= 12:
-            penalties += 5
-            _w["consensus_crowded"] = -5
-        elif excess_exret >= 0:
-            penalties += 8
-            _w["consensus_crowded"] = -8
-        elif excess_exret >= -10:
-            penalties += 11
-            _w["consensus_crowded"] = -11
+        tier_base = {"MEGA": 0, "LARGE": 3, "MID": 5, "SMALL": 8, "MICRO": 10}
+        base_pen = tier_base.get(stock_tier, 5)
+        if base_pen == 0:
+            # MEGA — no penalty, but still record neutrality so the waterfall
+            # shows the rule fired and was zeroed out (transparent attribution).
+            _w["consensus_crowded_tier_waived"] = 0
         else:
-            penalties += 15
-            _w["consensus_crowded"] = -15
+            # Excess-EXRET multiplier preserves the original gradient logic:
+            #   +12pp above sector → 0.8x (less penalty when standout upside)
+            #   0 to +12pp        → 1.0x (baseline)
+            #   -10 to 0          → 1.4x (consensus into average upside)
+            #   < -10pp           → 1.9x (worst: crowded into below-average upside)
+            if excess_exret >= 12: mult = 0.8
+            elif excess_exret >= 0: mult = 1.0
+            elif excess_exret >= -10: mult = 1.4
+            else: mult = 1.9
+            pen = round(base_pen * mult)
+            penalties += pen
+            _w["consensus_crowded"] = -pen
 
     # Census alignment
     if -20 <= div_score <= 20:
@@ -2098,6 +2111,37 @@ def synthesize_stock(
     pet = _num(sig_data.get("pet"), 0)
     pef = _num(sig_data.get("pef"), 0)
 
+    # CIO v37: Tier inference for tier-aware penalties (notably consensus_crowded).
+    # Backtest (n=98, 6w) showed consensus_crowded penalty was BACKWARDS for MEGA-caps:
+    # MEGA + ≥90% BUY → +5.45% alpha vs -1.29% for <90%; MID stocks showed the
+    # expected -8.25pp penalty. Tier-scale the penalty accordingly.
+    cap_str = str(sig_data.get("market_cap_str", "") or fund_data.get("market_cap", ""))
+    cap_tier_hint = str(fund_data.get("cap_tier", "")).upper()
+    def _cap_to_b(s):
+        s = (s or "").strip()
+        if not s: return 0.0
+        try:
+            if s.endswith("T"): return float(s[:-1]) * 1000
+            if s.endswith("B"): return float(s[:-1])
+            if s.endswith("M"): return float(s[:-1]) / 1000
+            return float(s)
+        except (ValueError, TypeError): return 0.0
+    # Prefer cap_str (real number) over cap_tier_hint, since the upstream
+    # fundamental script uses a 4-tier taxonomy (mega = ≥$200B) that conflicts
+    # with the 5-tier system in CLAUDE.md (mega = ≥$500B). When cap_str gives
+    # a usable number, use it; otherwise fall back to the hint.
+    cb = _cap_to_b(cap_str)
+    if cb > 0:
+        if cb >= 500: stock_tier = "MEGA"
+        elif cb >= 100: stock_tier = "LARGE"
+        elif cb >= 10: stock_tier = "MID"
+        elif cb >= 2: stock_tier = "SMALL"
+        else: stock_tier = "MICRO"
+    elif cap_tier_hint in ("MEGA", "LARGE", "MID", "SMALL", "MICRO"):
+        stock_tier = cap_tier_hint
+    else:
+        stock_tier = "MID"  # default when unknown
+
     # Fund score with fallback (guard against explicit None values)
     fund_score = fund_data.get("fundamental_score", 50)
     if fund_score is None:
@@ -2128,6 +2172,11 @@ def synthesize_stock(
     # CIO v22.0 E2: Piotroski F-Score from enhanced fundamental analysis
     piotroski = fund_data.get("piotroski")
     piotroski_score = piotroski.get("f_score", 5) if isinstance(piotroski, dict) else None
+    # CIO v36: Also accept flat piotroski_score field (from /tmp/enrich_data.py)
+    if piotroski_score is None:
+        ps = fund_data.get("piotroski_score")
+        if isinstance(ps, (int, float)):
+            piotroski_score = int(ps)
 
     # Sector-relative EXRET
     excess_exret = exret - sector_median_exret
@@ -2175,6 +2224,7 @@ def synthesize_stock(
         macro_fit, census_alignment, div_score, census_ts_trend,
         news_impact, risk_warning, buy_pct, excess_exret,
         beta, quality_trap, sector, sector_rankings, bull_count,
+        stock_tier=stock_tier,
     )
 
     # ── CIO v25.0: Conviction Attribution Waterfall ──────────────────────
@@ -4066,6 +4116,11 @@ def generate_synthesis_output(
     tech_report: Optional[Dict] = None,
     fund_report: Optional[Dict] = None,
     regime_transition: Optional[Dict] = None,
+    current_positions: Optional[Dict[str, float]] = None,
+    current_sector_exposures: Optional[Dict[str, float]] = None,
+    sector_map: Optional[Dict[str, str]] = None,
+    max_sector_pct: float = 40.0,
+    max_single_stock_pct: float = 10.0,
 ) -> Dict[str, Any]:
     """
     Generate complete synthesis JSON output from concordance and agent reports.
@@ -4337,6 +4392,73 @@ def generate_synthesis_output(
         "regime_transition": regime_transition or {},
         "watchlist": watchlist,
     }
+
+    # CIO v36: Apply portfolio constraints (40% sector / 10% single-stock)
+    # Mutates concordance entries with constrained_pct and constraint_reason
+    # so the HTML and emailed action items reflect what's actually safe to add.
+    if current_positions or current_sector_exposures:
+        from trade_modules.conviction_sizer import apply_portfolio_constraints
+        cur_pos = current_positions or {}
+        cur_sec = current_sector_exposures or {}
+        smap = sector_map or {}
+
+        new_positions_payload = []
+        for entry in concordance:
+            if entry.get("action") not in ("BUY", "ADD"):
+                continue
+            tkr = entry.get("ticker", "")
+            requested_pct = entry.get("max_pct", 0)
+            try:
+                requested_pct = float(requested_pct)
+            except (TypeError, ValueError):
+                requested_pct = 0.0
+            if requested_pct <= 0:
+                continue
+            sector = smap.get(tkr) or entry.get("sector") or "Other"
+            new_positions_payload.append({
+                "ticker": tkr,
+                "sector": sector,
+                "position_size": requested_pct,
+                "_entry_ref": entry,
+            })
+
+        if new_positions_payload:
+            constrained = apply_portfolio_constraints(
+                new_positions=[{k: v for k, v in p.items() if k != "_entry_ref"}
+                               for p in new_positions_payload],
+                current_sector_exposures=cur_sec,
+                max_sector_pct=max_sector_pct,
+                max_single_stock_pct=max_single_stock_pct,
+                current_stock_exposures=cur_pos,
+            )
+            for src, result in zip(new_positions_payload, constrained):
+                entry = src["_entry_ref"]
+                entry["requested_pct"] = result["original_size"]
+                entry["constrained_pct"] = result["constrained_size"]
+                entry["was_constrained"] = result["was_constrained"]
+                entry["constraint_reason"] = result["constraint_reason"]
+                if result["was_constrained"] and result["constrained_size"] <= 0:
+                    # Sector / single-stock cap fully blocks this ADD
+                    entry["action"] = "HOLD"
+                    entry["hold_tier"] = "CAPPED"
+                    entry["constraint_block"] = True
+
+        output["portfolio_constraints"] = {
+            "max_sector_pct": max_sector_pct,
+            "max_single_stock_pct": max_single_stock_pct,
+            "current_sector_exposures": cur_sec,
+            "current_stock_exposures": cur_pos,
+            "constrained_actions": [
+                {"ticker": e["ticker"], "requested_pct": e.get("requested_pct"),
+                 "constrained_pct": e.get("constrained_pct"),
+                 "reason": e.get("constraint_reason", "")}
+                for e in concordance
+                if e.get("was_constrained")
+            ],
+        }
+        # Recompute action_distribution (some BUY/ADD may have flipped to HOLD)
+        from collections import Counter as _C
+        output["action_distribution"] = dict(_C(e["action"] for e in concordance))
 
     return output
 

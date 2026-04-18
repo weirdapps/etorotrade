@@ -575,44 +575,71 @@ def _describe_adjustments(
 def apply_portfolio_constraints(
     new_positions: List[Dict[str, Any]],
     current_sector_exposures: Dict[str, float],
-    max_sector_pct: float = 25.0,
+    max_sector_pct: float = 40.0,
+    max_single_stock_pct: float = 10.0,
+    current_stock_exposures: Optional[Dict[str, float]] = None,
     portfolio_value: Optional[float] = None,
 ) -> List[Dict[str, Any]]:
     """
-    Apply portfolio-level sector concentration constraints to proposed positions.
+    Apply portfolio-level sector and single-stock concentration constraints.
 
-    If adding the new positions would push any sector over the max_sector_pct
-    limit, all new positions in that sector are proportionally reduced so that
-    the total sector exposure equals exactly max_sector_pct.
+    Two layers of constraint, applied in order:
+    1. Single-stock cap: per-position size + current exposure ≤ max_single_stock_pct
+    2. Sector cap: sector new total + current exposure ≤ max_sector_pct
+       If projected sector exposure exceeds the cap, all new positions in
+       that sector are proportionally reduced.
 
-    CIO Review v4 Finding F8: Portfolio-level sizing constraint.
+    CIO Review v4 Finding F8 (sector) + user-requested single-stock cap.
 
     Args:
         new_positions: List of proposed positions, each a dict with:
             - ticker: str (stock ticker)
             - sector: str (sector name)
-            - position_size: float (proposed size in USD)
-        current_sector_exposures: Dict mapping sector name to current
-            exposure as percentage of portfolio (e.g., {"Technology": 22.0}).
-        max_sector_pct: Maximum allowed sector exposure as percentage
-            of portfolio (default 25%).
-        portfolio_value: Total portfolio value in USD. Required if
-            position sizes are in USD (to convert to percentages).
-            If None, position_size values are treated as percentages directly.
+            - position_size: float (proposed size — % if portfolio_value None, USD if provided)
+        current_sector_exposures: {"Technology": 35.0, ...} — current % weights.
+        max_sector_pct: Maximum sector exposure (default 40%).
+        max_single_stock_pct: Maximum per-stock exposure (default 10%).
+        current_stock_exposures: Optional {"MSFT": 10.84, ...} — current % weights.
+            When provided, the single-stock cap is enforced against
+            (current + new). When omitted, only the new size is checked.
+        portfolio_value: Total portfolio value. If None, position_size is %.
 
     Returns:
-        List of dicts, each with:
-            - ticker: str
-            - sector: str
-            - original_size: float (proposed size before constraints)
-            - constrained_size: float (size after sector constraint)
-            - was_constrained: bool (True if size was reduced)
-            - constraint_reason: str (description if constrained, empty otherwise)
+        List of dicts: ticker, sector, original_size, constrained_size,
+        was_constrained, constraint_reason.
     """
     if not new_positions:
         return []
 
-    # Group new positions by sector
+    current_stock_exposures = current_stock_exposures or {}
+
+    # Snapshot original requested sizes before any clipping
+    _orig_inputs = [pos.get("position_size", 0.0) for pos in new_positions]
+
+    # Layer 1: Single-stock cap. Cap each position so current + new ≤ max_single_stock_pct.
+    # Track per-stock pre-clip and post-clip sizes for clear reasoning later.
+    stock_clip_reasons: Dict[str, str] = {}
+    for pos in new_positions:
+        tkr = pos.get("ticker", "")
+        size = pos.get("position_size", 0.0)
+        if portfolio_value and portfolio_value > 0:
+            new_pct = (size / portfolio_value) * 100
+        else:
+            new_pct = size
+        current_pct = current_stock_exposures.get(tkr, 0.0)
+        projected_pct = current_pct + new_pct
+        if projected_pct > max_single_stock_pct and new_pct > 0:
+            available_pct = max(0.0, max_single_stock_pct - current_pct)
+            scale_stock = available_pct / new_pct
+            scale_stock = max(0.0, min(1.0, scale_stock))
+            pos["position_size"] = round(size * scale_stock, 4)
+            stock_clip_reasons[tkr] = (
+                f"{tkr} at {current_pct:.1f}%, "
+                f"single-stock limit {max_single_stock_pct:.0f}% — "
+                f"clipped to {scale_stock:.0%}"
+            )
+
+    # Layer 2: Group (already-clipped) positions by sector
     sector_new_totals: Dict[str, float] = {}
     for pos in new_positions:
         sector = pos.get("sector", "Unknown")
@@ -652,29 +679,37 @@ def apply_portfolio_constraints(
         else:
             sector_scale[sector] = 1.0
 
-    # Apply scaling to each position
+    # Apply sector scaling on top of stock-clip already done above.
+    # NOTE: original_size here reflects the post-stock-clip size, not the
+    # pre-clip request. We track the true pre-clip size separately so the
+    # caller can show "X requested, Y after stock cap, Z after sector cap".
     results: List[Dict[str, Any]] = []
-    for pos in new_positions:
+    for pos, original_input_size in zip(new_positions, _orig_inputs):
         ticker = pos.get("ticker", "")
         sector = pos.get("sector", "Unknown")
-        original_size = pos.get("position_size", 0.0)
+        post_stock_clip_size = pos.get("position_size", 0.0)
         scale = sector_scale.get(sector, 1.0)
-        constrained_size = round(original_size * scale, 2)
-        was_constrained = scale < 1.0
+        constrained_size = round(post_stock_clip_size * scale, 4)
+        sector_constrained = scale < 1.0
+        stock_constrained = ticker in stock_clip_reasons
+        was_constrained = sector_constrained or stock_constrained
 
-        constraint_reason = ""
-        if was_constrained:
+        reasons = []
+        if stock_constrained:
+            reasons.append(stock_clip_reasons[ticker])
+        if sector_constrained:
             current_pct = current_sector_exposures.get(sector, 0.0)
-            constraint_reason = (
+            reasons.append(
                 f"{sector} at {current_pct:.1f}%, "
-                f"limit {max_sector_pct:.0f}% — "
+                f"sector limit {max_sector_pct:.0f}% — "
                 f"scaled to {scale:.0%}"
             )
+        constraint_reason = "; ".join(reasons)
 
         results.append({
             "ticker": ticker,
             "sector": sector,
-            "original_size": original_size,
+            "original_size": original_input_size,
             "constrained_size": constrained_size,
             "was_constrained": was_constrained,
             "constraint_reason": constraint_reason,

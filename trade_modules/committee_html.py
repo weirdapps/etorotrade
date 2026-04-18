@@ -535,7 +535,13 @@ def generate_report_html(
     # VaR: prefer flat synth key (already normalized to %) over raw portfolio_risk dict
     var_95 = synth.get("var_95") or pr_synth.get("var_95_annual") or pr_synth.get("var_95") or 0
     var_multi = synth.get("var_95_multi", {})
-    max_dd_raw = synth.get("max_drawdown") or pr_synth.get("max_drawdown") or 0
+    # Prefer historical drawdown_analysis.max_drawdown_pct (real historical) over
+    # max_drawdown_1y which is a stress/Monte-Carlo scenario, not realized history.
+    _dda = pr_synth.get("drawdown_analysis", {}) or {}
+    max_dd_raw = (_dda.get("max_drawdown_pct")
+                  or synth.get("max_drawdown")
+                  or pr_synth.get("max_drawdown")
+                  or 0)
     max_dd = max_dd_raw * 100 if 0 < abs(max_dd_raw) < 1 else max_dd_raw
     p_beta = synth.get("portfolio_beta") or pr_synth.get("portfolio_beta_vs_spy") or pr_synth.get("portfolio_beta") or 1.0
     changes = synth.get("changes", [])
@@ -805,6 +811,143 @@ def generate_report_html(
                            "Kill thesis = what would make this trade wrong.",
                            border="2px solid " + _C["text_dark"]))
 
+    # CIO v36: Per-action sizing + bull/bear narrative helpers
+    _cur_pos_map = (synth.get("portfolio_constraints", {}) or {}).get("current_stock_exposures", {}) or {}
+
+    def _suggested_size(en):
+        """Return concrete size string per action type."""
+        act = en.get("action", "HOLD")
+        tkr = en.get("ticker", "")
+        cur = _cur_pos_map.get(tkr, 0.0)
+        if act == "ADD":
+            target = en.get("constrained_pct")
+            if target is None:
+                target = en.get("max_pct", 0)
+            try:
+                target = float(target)
+            except (TypeError, ValueError):
+                target = 0.0
+            new_total = cur + target
+            if target <= 0:
+                return f"<b>No room to add</b> (current {cur:.2f}%, capped)"
+            return (f"<b>Add ~{target:.2f}%</b> (current {cur:.2f}% &rarr; new {new_total:.2f}%)")
+        if act == "BUY":
+            target = en.get("constrained_pct")
+            if target is None:
+                target = en.get("max_pct", 0)
+            try: target = float(target)
+            except: target = 0.0
+            return f"<b>Open new position ~{target:.2f}%</b>" if target > 0 else "<b>Cannot enter — sector capped</b>"
+        if act == "TRIM":
+            # Conviction-scaled trim: 25% (low conv 50-65), 33% (66-75), 50% (>75)
+            conv = en.get("conviction", 50)
+            trim_pct = 0.25 if conv < 66 else (0.33 if conv < 76 else 0.50)
+            new_pos = cur * (1 - trim_pct)
+            if cur > 0:
+                return f"<b>Trim {int(trim_pct*100)}%</b> of position ({cur:.2f}% &rarr; {new_pos:.2f}%)"
+            return f"<b>Trim {int(trim_pct*100)}% of position</b>"
+        if act == "SELL":
+            return f"<b>Exit fully</b> (current {cur:.2f}%)" if cur > 0 else "<b>Exit position</b>"
+        if act == "HOLD":
+            tier = en.get("hold_tier", "")
+            return f"<b>Maintain</b> {cur:.2f}% &middot; {tier}" if tier else f"<b>Maintain</b> {cur:.2f}%"
+        return ""
+
+    def _bull_case(en):
+        """Build bull-case narrative from concordance fields."""
+        parts = []
+        fv = en.get("fund_view", "")
+        is_synth = en.get("fund_synthetic", False)
+        # Only cite fundamentals when score is real (not synthetic placeholder 0)
+        if fv == "BUY" and not is_synth:
+            fs = en.get("fund_score", 0)
+            parts.append(f"Fundamentals BUY (score {fs})")
+        pet, pef = en.get("pet", 0), en.get("pef", 0)
+        if pet and pef and pef < pet:
+            parts.append(f"PE compressing {pet:.0f}x → {pef:.0f}x forward")
+        ex = en.get("exret", 0)
+        ee = en.get("excess_exret", 0)
+        if ex >= 20:
+            parts.append(f"EXRET {ex:.1f}% (excess vs sector +{ee:.1f}pp)" if ee > 0 else f"EXRET {ex:.1f}%")
+        bp = en.get("buy_pct", 0)
+        if bp >= 80:
+            parts.append(f"{int(bp)}% analyst BUY consensus")
+        ts = en.get("tech_signal", "")
+        if ts == "ENTER_NOW":
+            parts.append(f"Technical entry signal (RSI {en.get('rsi',0):.0f})")
+        elif ts == "WAIT_FOR_PULLBACK":
+            parts.append("Technical: wait for pullback")
+        macd = en.get("macd", "")
+        if macd == "BULLISH":
+            parts.append("MACD bullish")
+        mf = en.get("macro_fit", "")
+        if mf == "FAVORABLE":
+            parts.append(f"Macro favors {en.get('sector','')}")
+        cts = en.get("census_ts", "")
+        if cts in ("accumulation", "strong_accumulation"):
+            parts.append(f"PIs {cts.replace('_',' ')}")
+        ni = en.get("news_impact", "")
+        if ni in ("HIGH_POSITIVE", "POSITIVE"):
+            parts.append("Positive news catalyst")
+        vel = en.get("signal_velocity", "")
+        if vel in ("ACCELERATING", "IMPROVING"):
+            parts.append(f"Signal {vel.lower()}")
+        if not parts:
+            return "No strong bull factors identified."
+        return "; ".join(parts) + "."
+
+    def _bear_case(en):
+        """Build bear-case narrative from concordance fields."""
+        parts = []
+        fv = en.get("fund_view", "")
+        is_synth = en.get("fund_synthetic", False)
+        fs = en.get("fund_score", 0)
+        # Skip synthetic fund views — they're placeholders, not real signals
+        if fv == "SELL" and not is_synth and fs > 0:
+            parts.append(f"Fundamentals SELL (score {fs})")
+        elif fv == "HOLD" and not is_synth and 0 < fs < 60:
+            parts.append(f"Weak fundamentals (score {fs})")
+        if en.get("quality_trap"):
+            parts.append("Flagged as quality trap")
+        ts = en.get("tech_signal", "")
+        if ts == "AVOID":
+            parts.append(f"Technical AVOID (RSI {en.get('rsi',0):.0f})")
+        elif ts == "EXIT_SOON":
+            parts.append(f"Technical EXIT_SOON")
+        rsi = en.get("rsi", 0)
+        if rsi > 75:
+            parts.append(f"Overbought RSI {rsi:.0f}")
+        mf = en.get("macro_fit", "")
+        if mf == "UNFAVORABLE":
+            parts.append(f"Macro headwind for {en.get('sector','')}")
+        cts = en.get("census_ts", "")
+        if cts in ("distribution", "strong_distribution"):
+            parts.append(f"PIs {cts.replace('_',' ')} (smart money exiting)")
+        ni = en.get("news_impact", "")
+        if ni in ("HIGH_NEGATIVE", "NEGATIVE"):
+            parts.append("Negative news exposure")
+        beta = en.get("beta", 1.0)
+        if beta > 2.0:
+            parts.append(f"High beta {beta:.1f}")
+        bp = en.get("buy_pct", 0)
+        if bp >= 95:
+            parts.append(f"Crowded trade ({int(bp)}% BUY consensus)")
+        rw = en.get("risk_warning", "")
+        # Skip booleans, default OK values — only show real warning strings
+        if isinstance(rw, str) and rw and rw.upper() not in ("OK", "", "NONE", "TRUE", "FALSE"):
+            parts.append(f"Risk flag: {rw}")
+        if en.get("kill_thesis_triggered"):
+            parts.append("Kill thesis already triggered")
+        vel = en.get("signal_velocity", "")
+        if vel in ("DETERIORATING", "WEAKENING"):
+            parts.append(f"Signal {vel.lower()}")
+        fx = en.get("fx_impact", "")
+        if fx == "HEADWIND":
+            parts.append(f"FX headwind ({en.get('currency_zone','')})")
+        if not parts:
+            return "No specific bear factors identified."
+        return "; ".join(parts) + "."
+
     # Helper for action item cards
     def _action_card(en, label_color):
         act = en.get("action", "HOLD")
@@ -832,11 +975,7 @@ def generate_report_html(
         if earn not in ("NO_DATA", "IN_LINE", ""):
             ec = _C["bull"] if earn in ("SERIAL_BEATER", "BEAT") else _C["bear"]
             extra_tags += f' | <span style="color:{ec};">{earn[:6]}</span>'
-        # Position size with color coding
-        if pos_size_pct and act in ("BUY", "ADD"):
-            psc = _C["bull"] if pos_size_pct >= 4.0 else _C["text_muted"] if pos_size_pct < 2.0 else _C["text_body"]
-            ps_weight = "font-weight:700;" if pos_size_pct >= 4.0 else ""
-            extra_tags += f' | <span style="color:{psc};{ps_weight}">Size {pos_size_pct:.1f}%</span>'
+        # Position size already shown in the dedicated "Trade:" line below — skip duplication
         # Stop-loss levels (CIO v22.0)
         sl = en.get("stop_losses", {})
         sl_html = ""
@@ -858,17 +997,18 @@ def generate_report_html(
         wf = en.get("conviction_waterfall", {})
         wf_html = ""
         if wf and act in ("BUY", "ADD", "SELL", "TRIM"):
+            # Show top 4 modifiers only — full attribution is in the Modifier Attribution section
             wf_parts = []
-            for k, v in sorted(wf.items(), key=lambda x: abs(x[1]), reverse=True):
-                if k.startswith("_"):
-                    continue
+            sorted_wf = [kv for kv in sorted(wf.items(), key=lambda x: abs(x[1]), reverse=True)
+                         if not kv[0].startswith("_")][:4]
+            for k, v in sorted_wf:
                 color = _C["bull"] if v > 0 else _C["bear"]
                 sign = "+" if v > 0 else ""
                 label = k.replace("_", " ")
                 wf_parts.append(f'<span style="color:{color};">{label} {sign}{v}</span>')
             if wf_parts:
                 wf_html = (f'<div style="font-size:10px;color:{_C["text_muted"]};margin-top:4px;'
-                           f'{_MONO}">Factors: {" &middot; ".join(wf_parts)}</div>')
+                           f'{_MONO}">Top factors: {" &middot; ".join(wf_parts)}</div>')
         # Entry timing-based left border color
         timing = en.get("entry_timing", "")
         timing_border_colors = {
@@ -881,20 +1021,35 @@ def generate_report_html(
         name_label = _clean_name(_names.get(tkr, ""))
         name_html = (f'<span style="font-size:12px;color:{_C["text_body"]};margin-left:8px;">'
                      f'{e(name_label)}</span> ' if name_label else "")
+        # CIO v36: Suggested size + bull/bear narrative blocks
+        size_str = _suggested_size(en)
+        bull_str = _bull_case(en)
+        bear_str = _bear_case(en)
+
         inner = (f'<table style="width:100%;"><tr><td>'
                  f'{badge(act, action_color(act), "#fff")} '
                  f'<span style="{_MONO}font-weight:800;font-size:14px;margin-left:8px;">{e(tkr)}</span> '
                  f'{name_html}'
                  f'<span style="font-size:11px;color:{_C["text_muted"]};margin-left:8px;">'
                  f'{sec} | RSI {rsi:.0f} | {abbr(ts)} | {abbr(mf)}'
-                 f'{" | Max " + str(int(mp)) + "%" if act in ("BUY","ADD") else ""}'
-                 f'{" | $" + str(int(en.get("suggested_size_usd", 0))) if en.get("suggested_size_usd") and act in ("BUY","ADD") else ""}'
                  f'{" | CE " + f"{ce:.1f}" if ce and act in ("BUY","ADD") else ""}'
                  f'{extra_tags}</span></td>'
                  f'<td style="text-align:right;">{conv_display(conv)}</td></tr></table>'
+                 # Suggested trade size (always shown)
+                 f'<div style="font-size:12px;color:{_C["text_dark"]};margin-top:8px;'
+                 f'padding:6px 10px;background:{_C["bg_alt"]};border-left:3px solid {action_color(act)};">'
+                 f'&#9654; Trade: {size_str}</div>'
                  f'{sl_html}'
+                 # Bull case
+                 f'<div style="font-size:11px;color:{_C["text_body"]};margin-top:8px;line-height:1.5;">'
+                 f'<span style="color:{_C["bull"]};font-weight:700;">Bull case:</span> {e(bull_str)}</div>'
+                 # Bear case
+                 f'<div style="font-size:11px;color:{_C["text_body"]};margin-top:4px;line-height:1.5;">'
+                 f'<span style="color:{_C["bear"]};font-weight:700;">Bear case:</span> {e(bear_str)}</div>'
+                 # Kill thesis (existing)
                  f'<div style="font-size:11px;color:{_C["text_muted"]};font-style:italic;'
-                 f'margin-top:8px;line-height:1.5;">{e(kill)}</div>'
+                 f'margin-top:6px;line-height:1.5;">'
+                 f'<span style="color:{_C["warn"]};font-weight:700;font-style:normal;">Kill thesis:</span> {e(kill)}</div>'
                  f'{wf_html}')
         h.append(_card(inner, card_border, action_bg(act)))
 
@@ -1541,8 +1696,14 @@ def generate_report_html(
                 (_C["warn_bg"], _C["warn_border"], _C["warn_text"], _C["warn"]),
                 (_C["bear_bg"], _C["bear_border"], _C["bear_text"], _C["bear"]),
             ]
-            h.append('<div style="display:flex;gap:8px;margin-bottom:12px;">')
-            for idx, (sk, sd) in enumerate(list(stress.items())[:3]):
+            # Use table for consistent equal-width columns (33%/33%/33%) — flex
+            # produces uneven widths in many email clients.
+            stress_items = list(stress.items())[:3]
+            n_cols = len(stress_items) or 1
+            col_w = 100 // n_cols
+            h.append('<table style="width:100%;border-collapse:separate;border-spacing:8px 0;'
+                     'margin-bottom:12px;table-layout:fixed;" cellpadding="0" cellspacing="0"><tr>')
+            for idx, (sk, sd) in enumerate(stress_items):
                 bg, brd, lc, vc = _sc_colors[idx % len(_sc_colors)]
                 title = sd.get("name", _scenario_labels.get(sk, sk.replace("_", " ").upper()))[:20]
                 ei = sd.get("estimated_impact", {})
@@ -1553,12 +1714,12 @@ def generate_report_html(
                        or (ei.get("portfolio_drop_pct") if isinstance(ei, dict) else None)
                        or "?")
                 imp_str = f"{float(imp):.1f}" if isinstance(imp, (int, float)) else str(imp)
-                h.append(f'<div style="flex:1;padding:8px 12px;background:{bg};border:1px solid {brd};'
-                         f'text-align:center;">'
+                h.append(f'<td style="width:{col_w}%;padding:12px;background:{bg};border:1px solid {brd};'
+                         f'text-align:center;vertical-align:middle;">'
                          f'<div style="font-size:9px;font-weight:700;letter-spacing:0.5px;'
                          f'text-transform:uppercase;color:{lc};">{e(title)}</div>'
-                         f'<div style="font-size:16px;font-weight:800;color:{vc};margin-top:2px;">{imp_str}%</div></div>')
-            h.append('</div>')
+                         f'<div style="font-size:18px;font-weight:800;color:{vc};margin-top:4px;">{imp_str}%</div></td>')
+            h.append('</tr></table>')
         h.append(_section_close())
 
         # ── S8: PORTFOLIO CONSTRUCTION ──
@@ -1836,10 +1997,24 @@ def generate_report_html(
             pe_str = f"{pet:.0f}&#8594;{pef:.0f}" if pet and pef else "N/A"
             pio = fd.get("piotroski", {})
             pio_score = pio.get("f_score", 0) if isinstance(pio, dict) else 0
+            # CIO v36: Also accept flat piotroski_score field (from enrich script)
+            if not pio_score:
+                pio_flat = fd.get("piotroski_score")
+                if isinstance(pio_flat, (int, float)):
+                    pio_score = int(pio_flat)
             pio_col = _C["bull"] if pio_score >= 7 else _C["bear"] if pio_score <= 3 else _C["text_muted"]
             pio_str = f"{pio_score}/9" if pio_score else "-"
             rev_g = fd.get("revenue_growth", {})
             rev_cls = rev_g.get("classification", "") if isinstance(rev_g, dict) else ""
+            # CIO v36: Fallback to flat revenue_growth_yoy (from enrich script)
+            if not rev_cls:
+                rg_yoy = fd.get("revenue_growth_yoy")
+                if isinstance(rg_yoy, (int, float)):
+                    if rg_yoy > 25: rev_cls = "ACCELERATING"
+                    elif rg_yoy > 10: rev_cls = "STRONG_GROWTH"
+                    elif rg_yoy > 0: rev_cls = "MODERATE_GROWTH"
+                    elif rg_yoy > -5: rev_cls = "FLAT"
+                    else: rev_cls = "DECLINING"
             # Show latest QoQ revenue growth percentage
             rev_qoq = rev_g.get("quarterly_revenue_growth", []) if isinstance(rev_g, dict) else []
             rev_latest = rev_qoq[-1] if rev_qoq else None
@@ -2128,21 +2303,38 @@ def generate_report_html(
                 (e(item.get("headline", "")[:80]), "left", f"color:{_C['text_body']};"),
             ]))
         h.append('</table>')
-    # Earnings calendar
+    # Earnings calendar — filter to portfolio holdings AND high-impact only.
+    # High-impact = position weight ≥ 4% OR within 7 days OR a known market-mover.
     earnings_cal = synth.get("earnings_calendar", {}) if not _skip_news else {}
-    earnings_items = earnings_cal if isinstance(earnings_cal, list) else earnings_cal.get("next_2_weeks", [])
+    earnings_items_raw = earnings_cal if isinstance(earnings_cal, list) else earnings_cal.get("next_2_weeks", [])
+    cur_pos_for_earn = (synth.get("portfolio_constraints", {}) or {}).get("current_stock_exposures", {}) or {}
+    portfolio_tkrs = {en.get("ticker") for en in concordance if not en.get("is_opportunity")}
+    MARKET_MOVERS = {"AAPL","MSFT","NVDA","GOOG","AMZN","META","TSM","JPM"}
+    earnings_items = []
+    for ear in earnings_items_raw:
+        tkr = ear.get("ticker", "")
+        if tkr not in portfolio_tkrs:
+            continue  # Drop non-portfolio earnings
+        days = ear.get("days_away", 999)
+        weight = cur_pos_for_earn.get(tkr, 0.0)
+        is_high_impact = weight >= 4.0 or days <= 7 or tkr in MARKET_MOVERS
+        if is_high_impact:
+            earnings_items.append({**ear, "_weight": weight})
     if earnings_items:
-        h.append(f'<div style="{_LABEL}margin:16px 0 8px 0;">Upcoming Earnings</div>')
-        h.append(_table_open([("Stock", "left"), ("Date", "center"), ("Days", "center"), ("Risk", "center")]))
+        h.append(f'<div style="{_LABEL}margin:16px 0 8px 0;">High-Impact Earnings (portfolio)</div>')
+        h.append(_table_open([("Stock", "left"), ("Date", "center"), ("Days", "center"),
+                              ("Weight", "center"), ("Risk", "center")]))
         for i, ear in enumerate(sorted(earnings_items, key=lambda x: x.get("days_away", 999))):
             days = ear.get("days_away", 0)
             rl = ear.get("risk_level", "LOW")
             rl_col = _C["bear"] if rl == "HIGH" else _C["warn"] if rl == "MEDIUM" else _C["text_muted"]
             rbg = _C["bear_bg"] if days <= 7 else _C["warn_bg"] if days <= 14 else _C["bg_white"]
+            wt = ear.get("_weight", 0.0)
             h.append(_table_row([
                 (_tn_cell(ear.get("ticker", ""), _names), "left", ""),
                 (e(ear.get("expected_date", "?")), "center", f"font-size:11px;{_MONO}"),
                 (f'<span style="font-weight:700;color:{rl_col};">{days}d</span>', "center", ""),
+                (f'<span style="{_MONO}font-size:11px;">{wt:.1f}%</span>' if wt else "-", "center", ""),
                 (badge(rl, rl_col, "#fff"), "center", ""),
             ], bg=rbg))
         h.append('</table>')
@@ -2284,12 +2476,17 @@ def generate_report_html(
     if sig_changes:
         display_limit = 5 if daily else 15
         h.append(_section_open("Changes Since Last Committee",
-                               f"{len(sig_changes)} significant changes.",
+                               f"{len(sig_changes)} significant changes. "
+                               f"Conv = the committee's conviction score (0-100), not the underlying signal. "
+                               f"&#9650;/&#9660; = conviction rose/fell since the last run.",
                                border="1px solid " + _C["border_heavy"]))
         h.append(_table_open([("Stock", "left"), ("Previous", "center"),
-                              ("Current", "center"), ("&#9651;", "center"), ("Type", "left")]))
+                              ("Current", "center"), ("&#9651; Conv", "center"), ("Change", "left")]))
         for c in sig_changes[:display_limit]:
             ct = c.get("type", "")
+            # Relabel for clarity: it's CONVICTION change, not a signal upgrade/downgrade.
+            ct_label = {"UPGRADE": "CONV \u25B2", "DOWNGRADE": "CONV \u25BC",
+                        "NEW": "NEW ENTRY", "STABLE": "STABLE"}.get(ct, ct)
             if ct == "DOWNGRADE":
                 rbg, rbrd, ar, tc = _C["bear_bg"], _C["bear_border"], "&#9660;", _C["bear_text"]
             elif ct == "UPGRADE":
@@ -2307,7 +2504,7 @@ def generate_report_html(
                 (prev_label, "center", "font-size:11px;"),
                 (f'{e(c.get("curr_action", "?"))} ({c.get("curr_conviction", 0)})', "center", "font-size:11px;"),
                 (f'<span style="font-weight:700;color:{tc};">{d:+d}</span>', "center", ""),
-                (f'{ar} <span style="color:{tc};font-weight:600;">{e(ct)}</span>', "left", ""),
+                (f'{ar} <span style="color:{tc};font-weight:600;">{e(ct_label)}</span>', "left", ""),
             ], bg=rbg, border_color=rbrd))
         h.append('</table>')
         h.append(_section_close())
@@ -2527,6 +2724,14 @@ def generate_report_html(
             h.append(f'<div style="margin-top:16px;"><b style="font-size:12px;">Modifier Attribution</b>'
                      f'<span style="font-size:10px;color:{_C["text_muted"]};margin-left:8px;">'
                      f'Net impact across {len(concordance)} stocks</span></div>')
+            # Reading guide
+            h.append(f'<div style="font-size:11px;color:{_C["text_body"]};margin:6px 0 10px 0;'
+                     f'padding:8px 12px;background:{_C["bg_alt"]};border-left:3px solid {_C["info"]};">'
+                     f'How to read: each row is one conviction adjustment the committee applied. '
+                     f'<b>Fires</b> = number of stocks where this factor changed conviction. '
+                     f'<b>Avg</b> = average conviction points per fire (positive = bullish boost, negative = penalty). '
+                     f'<b>Net</b> = total points across the portfolio. '
+                     f'Sorted by absolute Net impact — the factors at top are doing the most heavy lifting.</div>')
             h.append(_table_open([("Modifier", "left"), ("Fires", "center"),
                                   ("Avg", "center"), ("Net", "center")]))
             for k, net in sorted(wf_agg.items(), key=lambda x: abs(x[1]), reverse=True)[:15]:
