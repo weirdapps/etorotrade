@@ -6,6 +6,8 @@ Consolidates all backtesting operations into a single entry point:
 2. Committee conviction backtest (CommitteeBacktester)
 3. Committee scorecard (performance tracking + modifier attribution)
 4. Modifier self-calibration
+5. CIO v17 H4.b — refresh rolling-percentile action thresholds for next /committee
+6. CIO v17 H1  — refresh agent-sign calibrator in shadow mode
 
 Produces a consolidated backtest_report.json for downstream consumption
 (morning briefing, /backtest command).
@@ -144,6 +146,106 @@ def run_scorecard(ci_mode=False):
     return scorecard, calibration
 
 
+def refresh_rolling_thresholds():
+    """
+    CIO v17 H4.b: Compute and persist rolling-percentile action thresholds.
+
+    The next /committee run will pick these up via load_thresholds() and
+    use them in determine_action(). On insufficient evidence (<20 stocks
+    per signal class), legacy fixed cuts remain in effect — see
+    conviction_thresholds.LEGACY_THRESHOLDS.
+    """
+    print("\n" + "=" * 60)
+    print("  PHASE 4: Rolling-Percentile Action Thresholds (CIO v17 H4.b)")
+    print("=" * 60)
+
+    from trade_modules.committee_backtester import CommitteeBacktester
+    from trade_modules.conviction_thresholds import (
+        compute_rolling_thresholds,
+        persist_thresholds,
+    )
+
+    bt = CommitteeBacktester()
+    bt.load_history()
+    if not bt.history:
+        print("  No history — skipping threshold refresh.")
+        return {}
+
+    thresholds = compute_rolling_thresholds(
+        bt.history, lookback_snapshots=8, min_per_signal=20,
+    )
+    persist_thresholds(thresholds)
+
+    for sig in ("B", "H", "S", "I"):
+        block = thresholds.get(sig, {})
+        source = block.get("source", "n/a")
+        if source == "rolling":
+            print(f"  Signal {sig}: source=rolling n={block.get('n')} "
+                  f"add_pct={block.get('add_pct')} trim_pct={block.get('trim_pct')} "
+                  f"sell_pct={block.get('sell_pct')}")
+        else:
+            print(f"  Signal {sig}: source=legacy n={block.get('n', 0)} "
+                  "(insufficient evidence — keeping fixed cuts)")
+    return thresholds
+
+
+def refresh_agent_sign_calibrator(shadow_mode: bool = True):
+    """
+    CIO v17 H1: Refresh per-agent sign-flip calibration.
+
+    Default is **shadow mode** for the first 8 weeks: compute, log, and
+    persist proposed flips with `applied=false`. Promote to AUTO only after
+    we've seen consistent INVERTED verdicts across the lookback window.
+    """
+    print("\n" + "=" * 60)
+    print("  PHASE 5: Agent Sign Calibrator (CIO v17 H1, "
+          + ("SHADOW" if shadow_mode else "AUTO") + ")")
+    print("=" * 60)
+
+    from trade_modules.agent_sign_calibrator import (
+        calibrate_agent_signs,
+        persist_calibration,
+    )
+    from trade_modules.committee_backtester import CommitteeBacktester
+    try:
+        from trade_modules.price_service import PriceService
+        svc = PriceService()
+    except Exception:
+        svc = None
+
+    bt = CommitteeBacktester()
+    bt.load_history()
+    if not bt.history:
+        print("  No history — skipping sign-calibrator refresh.")
+        return {}
+
+    # Need forward returns for the calibrator to evaluate P(α30>0|view).
+    if svc is not None:
+        bt.compute_forward_returns(price_service=svc, horizons=(7, 14, 30))
+    else:
+        from trade_modules.committee_backtester import yfinance_price_fetcher
+        bt.compute_forward_returns(price_fetcher=yfinance_price_fetcher,
+                                   horizons=(7, 14, 30))
+
+    calibration = calibrate_agent_signs(
+        forward_returns=bt.forward_returns,
+        horizon="T+30",
+        lookback_days=60,
+    )
+    persist_calibration(calibration, enabled=not shadow_mode)
+
+    if calibration.get("status") == "ok":
+        for agent, data in (calibration.get("agents") or {}).items():
+            verdict = data.get("verdict", "?")
+            consec = data.get("consecutive_inverted", 0)
+            applied = data.get("applied", False)
+            n = data.get("evidence_total", 0)
+            tag = "APPLIED -1" if applied else "shadow"
+            print(f"  {agent:<12s} n={n:<4d} consecutive_inverted={consec} "
+                  f"verdict={verdict:<18s} ({tag})")
+    return calibration
+
+
 def build_report(signal_summary, committee_result, scorecard, calibration):
     """Build consolidated backtest report JSON."""
     report = {
@@ -230,8 +332,37 @@ def main():
     except Exception as e:
         print(f"\n  Phase 3 FAILED: {e}")
 
+    # Phase 4: Rolling-percentile thresholds (CIO v17 H4.b)
+    rolling_thresholds = {}
+    try:
+        rolling_thresholds = refresh_rolling_thresholds()
+    except Exception as e:
+        print(f"\n  Phase 4 FAILED: {e}")
+
+    # Phase 5: Agent sign calibrator (CIO v17 H1, shadow by default)
+    sign_cal = {}
+    try:
+        sign_cal = refresh_agent_sign_calibrator(shadow_mode=True)
+    except Exception as e:
+        print(f"\n  Phase 5 FAILED: {e}")
+
     # Build consolidated report
     report = build_report(signal_summary, committee_result, scorecard, calibration)
+    # CIO v17 wiring: also surface H1 + H4.b state in the consolidated report
+    report["rolling_thresholds"] = rolling_thresholds
+    report["agent_sign_calibration"] = {
+        "status": sign_cal.get("status", "no_data") if sign_cal else "no_data",
+        "horizon": sign_cal.get("horizon") if sign_cal else None,
+        "agents": {
+            a: {
+                "verdict": d.get("verdict"),
+                "consecutive_inverted": d.get("consecutive_inverted"),
+                "applied": d.get("applied", False),
+                "evidence_total": d.get("evidence_total"),
+            }
+            for a, d in (sign_cal.get("agents") or {}).items()
+        } if sign_cal else {},
+    }
 
     # Save report
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
