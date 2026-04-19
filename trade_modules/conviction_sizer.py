@@ -61,6 +61,171 @@ def get_conviction_multiplier(conviction_score: float) -> float:
     return 0.35 + (score / 100) * 0.65
 
 
+def kelly_fraction(
+    expected_return_pct: float,
+    realized_vol_pct: float,
+    risk_free_pct: float = 0.0,
+) -> float:
+    """
+    CIO v17 R3: Classical Kelly fraction for a single risky asset vs cash.
+
+        f* = (μ - r_f) / σ²
+
+    All inputs are returns expressed as decimals (e.g. 0.05 = 5%).
+    Returns 0 when vol is zero or μ ≤ r_f (no positive expectancy).
+    """
+    if realized_vol_pct <= 0:
+        return 0.0
+    mu = expected_return_pct / 100.0
+    rf = risk_free_pct / 100.0
+    sigma = realized_vol_pct / 100.0
+    if sigma <= 0:
+        return 0.0
+    edge = mu - rf
+    if edge <= 0:
+        return 0.0
+    return edge / (sigma * sigma)
+
+
+def quarter_kelly_size_pct(
+    conviction: float,
+    atr_pct_daily: float,
+    *,
+    expected_return_table: Optional[Dict[int, float]] = None,
+    horizon_days: int = 30,
+    risk_free_apr: float = 0.04,
+    fraction: float = 0.25,
+    cap_pct: float = 5.0,
+    floor_pct: float = 0.0,
+) -> Dict[str, float]:
+    """
+    CIO v17 R3: Convert (conviction, daily ATR%) into a Kelly-sized %.
+
+    Practitioners (Carver "Systematic Trading", Thorp "A Man for All Markets")
+    converge on quarter-Kelly because raw Kelly is dominated by σ estimation
+    error and produces drawdowns retail accounts can't survive.
+
+    Pipeline:
+      μ_30  = expected_return_table[conviction_bucket]   (table-driven)
+      σ_30  = atr_pct_daily * sqrt(horizon_days)         (vol scaling)
+      f*    = (μ - r_f_30) / σ²
+      size  = clamp(fraction * f* * 100, floor, cap)
+
+    The expected_return_table is a conviction-bucket → expected α(T+30) map.
+    Defaults are calibrated from the v17 backtest (n=219 T+30):
+      ≥70 → 4.74%, 60-69 → 2.14%, 55-59 → 1.51%, 45-54 → 0.04%, <45 → 0.0
+    These come straight from the BUY/ADD T+30 alpha table in the v17 review.
+
+    Returns dict with `size_pct`, `kelly_f_full`, `expected_alpha`,
+    `realized_vol_horizon`, `cap_active` so the caller can audit the sizing.
+    """
+    table = expected_return_table or {
+        70: 4.74,   # ≥70 conviction
+        60: 2.14,   # 60-69
+        55: 1.51,   # 55-59
+        45: 0.04,   # 45-54
+        0: 0.0,     # <45
+    }
+
+    # Look up expected α from the table (largest threshold ≤ conviction).
+    keys_desc = sorted(table.keys(), reverse=True)
+    mu = 0.0
+    for k in keys_desc:
+        if conviction >= k:
+            mu = table[k]
+            break
+
+    sigma = max(0.01, atr_pct_daily * math.sqrt(horizon_days))
+    rf_horizon = risk_free_apr * 100 * (horizon_days / 365)
+
+    f_full = kelly_fraction(mu, sigma, rf_horizon)
+    size_pct = max(floor_pct, min(cap_pct, fraction * f_full * 100))
+    cap_active = (fraction * f_full * 100) > cap_pct
+
+    return {
+        "size_pct": round(size_pct, 3),
+        "kelly_f_full": round(f_full, 4),
+        "kelly_fraction": fraction,
+        "expected_alpha_horizon": round(mu, 2),
+        "realized_vol_horizon": round(sigma, 2),
+        "horizon_days": horizon_days,
+        "cap_active": cap_active,
+    }
+
+
+# CIO v17 N1: Portfolio-size-aware micro/small-cap allocation cap.
+# For a €25K-€250K book, illiquidity is irrelevant and we can run up to 25%
+# in small/micro. As the book scales, the same allocation in micro-caps
+# becomes a market-impact and exit-liquidity problem. Tiers below mirror
+# the institutional rule of thumb that a position should not exceed
+# ~10× average daily $-volume for orderly exit.
+SMALL_CAP_ALLOCATION_TIERS = (
+    # (max_portfolio_value_eur, max_small_micro_pct)
+    (100_000, 25.0),
+    (500_000, 15.0),
+    (float("inf"), 8.0),
+)
+
+
+def get_small_cap_cap(portfolio_value_eur: Optional[float]) -> float:
+    """
+    CIO v17 N1: Portfolio-size-aware cap on combined SMALL+MICRO allocation.
+
+    Returns the maximum % of the portfolio that may sit in SMALL or MICRO
+    cap tickers, given the portfolio value in EUR. None or 0 → 25% (assume
+    new/small book).
+    """
+    if not portfolio_value_eur or portfolio_value_eur <= 0:
+        return SMALL_CAP_ALLOCATION_TIERS[0][1]
+    for ceiling, cap in SMALL_CAP_ALLOCATION_TIERS:
+        if portfolio_value_eur < ceiling:
+            return cap
+    return SMALL_CAP_ALLOCATION_TIERS[-1][1]
+
+
+def apply_small_cap_cap(
+    new_positions: List[Dict[str, Any]],
+    current_small_cap_pct: float,
+    portfolio_value_eur: Optional[float],
+) -> List[Dict[str, Any]]:
+    """
+    CIO v17 N1: Constrain new positions in SMALL/MICRO tiers to the
+    portfolio-size-aware cap.
+
+    Each position dict needs `cap_tier` ("MEGA"/"LARGE"/"MID"/"SMALL"/"MICRO")
+    and `position_size` (treated as %). Positions in MEGA/LARGE/MID pass
+    through unchanged. SMALL/MICRO positions are scaled down so that
+    `current_small_cap_pct + Σ(new SMALL+MICRO)` ≤ cap. Returns the same
+    list with possibly-scaled `position_size` and a `small_cap_cap_applied`
+    boolean flag per position.
+    """
+    cap_pct = get_small_cap_cap(portfolio_value_eur)
+    pending = [
+        p for p in new_positions
+        if str(p.get("cap_tier", "")).upper() in ("SMALL", "MICRO")
+    ]
+    pending_total = sum(p.get("position_size", 0.0) for p in pending)
+    if pending_total <= 0:
+        return new_positions
+
+    available = max(0.0, cap_pct - max(0.0, current_small_cap_pct))
+    if pending_total <= available:
+        # Within the cap — flag but don't scale.
+        for p in pending:
+            p["small_cap_cap_applied"] = False
+            p["small_cap_cap_pct"] = cap_pct
+        return new_positions
+
+    scale = available / pending_total if pending_total else 0.0
+    for p in pending:
+        original = p.get("position_size", 0.0)
+        p["position_size"] = round(original * scale, 4)
+        p["small_cap_cap_applied"] = True
+        p["small_cap_cap_pct"] = cap_pct
+        p["small_cap_cap_scale"] = round(scale, 3)
+    return new_positions
+
+
 def get_regime_multiplier(regime: str = "normal") -> float:
     """
     Get position size multiplier based on VIX regime.

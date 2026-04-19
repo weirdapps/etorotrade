@@ -58,20 +58,66 @@ def log_committee_actions(
     actions: List[Dict[str, Any]],
     log_path: Optional[Path] = None,
     portfolio_signals: Optional[Dict[str, Any]] = None,
+    concordance: Optional[List[Dict[str, Any]]] = None,
+    require_waterfall: bool = False,
+    waterfall_threshold: float = 0.10,
 ) -> None:
     """
     Log committee action items for future performance tracking.
+
+    CIO v17 H2: Optional `concordance` argument lets the caller hand the
+    full per-ticker matrix; we then enrich each action with the matching
+    `conviction_waterfall` (and any other fields present on the concordance
+    row but missing on the action row). Without this, downstream
+    factor-attribution silently degrades — the bug Finding L4 in CIO v11
+    "fixed" but did not fully wire.
 
     Args:
         date: Committee date (YYYY-MM-DD)
         actions: List of action dicts with ticker, action, conviction, etc.
         log_path: Path to action log file
         portfolio_signals: Dict of ticker -> signal data for price fallback
+        concordance: Optional full concordance list to enrich actions from
+        require_waterfall: If True, raise AssertionError when more than
+            `waterfall_threshold` of entries lack a conviction_waterfall.
+            Off by default for backward compatibility; turned on by the
+            committee skill in production runs.
+        waterfall_threshold: Tolerance fraction (default 10%) before raise.
     """
     path = log_path or COMMITTEE_LOG_PATH
     path.parent.mkdir(parents=True, exist_ok=True)
 
+    # CIO v17 H2: Build a ticker→concordance index so each action row gets
+    # enriched with its waterfall (and other rich fields) without forcing
+    # callers to manually merge upstream.
+    conc_by_ticker: Dict[str, Dict[str, Any]] = {}
+    if concordance:
+        for c in concordance:
+            t = c.get("ticker") if isinstance(c, dict) else None
+            if t:
+                conc_by_ticker[t] = c
+
+    missing_waterfall = 0
+    rich_action_keys = (
+        "conviction_waterfall", "adx", "adx_trend", "divergence",
+        "piotroski_score", "entry_timing", "rs_vs_spy", "revenue_growth_class",
+        "atr_pct", "short_interest_pct", "target_dispersion", "currency_zone",
+        "fx_impact", "confluence_score", "obv_trend", "relative_volume",
+        "eps_revisions", "iv_rank", "volatility_regime", "fcf_classification",
+        "debt_risk", "debate_signal",
+    )
+
     for action in actions:
+        # CIO v17 H2: enrich action with concordance fields when missing.
+        ticker = action.get("ticker")
+        conc_row = conc_by_ticker.get(ticker, {}) if ticker else {}
+        if conc_row:
+            for k in rich_action_keys:
+                if action.get(k) in (None, {}, []) and conc_row.get(k) is not None:
+                    action[k] = conc_row[k]
+
+        if not action.get("conviction_waterfall"):
+            missing_waterfall += 1
         # Price with fallback chain: action price → portfolio signals → warning
         price = action.get("price")
         if price is None or (isinstance(price, (int, float)) and price <= 0):
@@ -134,7 +180,160 @@ def log_committee_actions(
         with open(path, "a") as f:
             f.write(json.dumps(entry) + "\n")
 
-    logger.info(f"Logged {len(actions)} committee actions for {date}")
+    # CIO v17 H2: Surface waterfall-completeness so the calibration loop
+    # can be trusted. Optionally hard-fail in production runs.
+    if actions:
+        miss_pct = missing_waterfall / len(actions)
+        if missing_waterfall:
+            logger.warning(
+                "Logged %d committee actions for %s (%d missing waterfall, %.1f%%)",
+                len(actions), date, missing_waterfall, miss_pct * 100,
+            )
+        else:
+            logger.info("Logged %d committee actions for %s", len(actions), date)
+        if require_waterfall and miss_pct > waterfall_threshold:
+            raise AssertionError(
+                f"action_log waterfall completeness {(1 - miss_pct) * 100:.1f}% "
+                f"below required {(1 - waterfall_threshold) * 100:.0f}%. "
+                f"Pass concordance= to log_committee_actions or upstream-fix "
+                f"the action item builder so each row carries conviction_waterfall."
+            )
+    else:
+        logger.info("Logged 0 committee actions for %s", date)
+
+
+def backfill_action_log_from_concordance(
+    history_dir: Optional[Path] = None,
+    log_path: Optional[Path] = None,
+    overwrite: bool = False,
+) -> int:
+    """
+    CIO v17 H2: Reconstruct action_log.jsonl from history/concordance-*.json.
+
+    Walks every dated concordance archive and rebuilds the corresponding
+    action-log entries with full conviction_waterfall and per-modifier
+    fields. Use after fixing the upstream wiring to repair the historical
+    log so factor_attribution can run on the full sample.
+
+    Args:
+        history_dir: directory containing concordance-YYYY-MM-DD.json files.
+            Defaults to ~/.weirdapps-trading/committee/history.
+        log_path: path to (re)write action_log.jsonl. Defaults to
+            ~/.weirdapps-trading/committee/action_log.jsonl.
+        overwrite: if True, truncate the log first; otherwise append, dedup
+            on (committee_date, ticker).
+
+    Returns:
+        Number of entries written.
+    """
+    hist_dir = history_dir or (
+        Path.home() / ".weirdapps-trading" / "committee" / "history"
+    )
+    out_path = log_path or COMMITTEE_LOG_PATH
+    if not hist_dir.is_dir():
+        logger.warning("No history directory at %s", hist_dir)
+        return 0
+
+    # Build dedup set of existing (date, ticker) pairs to avoid duplicate writes.
+    existing: set = set()
+    if out_path.exists() and not overwrite:
+        with open(out_path) as f:
+            for line in f:
+                try:
+                    e = json.loads(line)
+                    existing.add((e.get("committee_date"), e.get("ticker")))
+                except json.JSONDecodeError:
+                    continue
+
+    written = 0
+    rows: List[Dict[str, Any]] = []
+    import re
+    _date_re = re.compile(r"(\d{4}-\d{2}-\d{2})")
+    for fpath in sorted(hist_dir.glob("concordance-*.json")):
+        try:
+            data = json.load(open(fpath))
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("Skipping %s: %s", fpath.name, exc)
+            continue
+
+        # Extract date via regex — handles both
+        # "concordance-YYYY-MM-DD.json" and "concordance-YYYY-MM-DD-suffix.json".
+        m = _date_re.search(fpath.stem)
+        date_str = m.group(1) if m else None
+        if not date_str and isinstance(data, dict):
+            date_str = data.get("date")
+        if not date_str:
+            continue
+
+        # Concordance list normalisation.
+        if isinstance(data, list):
+            items = data
+        elif isinstance(data, dict):
+            items = data.get("concordance", [])
+        else:
+            continue
+
+        for stock in items:
+            if not isinstance(stock, dict):
+                continue
+            ticker = stock.get("ticker")
+            if not ticker:
+                continue
+            if not overwrite and (date_str, ticker) in existing:
+                continue
+
+            entry = {
+                "committee_date": date_str,
+                "timestamp": datetime.now().isoformat(),
+                "ticker": ticker,
+                "action": stock.get("action"),
+                "conviction": stock.get("conviction"),
+                "size": stock.get("size"),
+                "agents_agreeing": stock.get("agents_agreeing"),
+                "dissenting_agents": stock.get("dissenting_agents"),
+                "signal": stock.get("signal"),
+                "price_at_recommendation": stock.get("price"),
+                "adx": stock.get("adx"),
+                "adx_trend": stock.get("adx_trend"),
+                "divergence": stock.get("divergence"),
+                "piotroski_score": stock.get("piotroski_score"),
+                "entry_timing": stock.get("entry_timing"),
+                "rs_vs_spy": stock.get("rs_vs_spy"),
+                "revenue_growth_class": stock.get("revenue_growth_class"),
+                "atr_pct": stock.get("atr_pct"),
+                "short_interest_pct": stock.get("short_interest_pct"),
+                "target_dispersion": stock.get("target_dispersion"),
+                "currency_zone": stock.get("currency_zone"),
+                "fx_impact": stock.get("fx_impact"),
+                "confluence_score": stock.get("confluence_score"),
+                "obv_trend": stock.get("obv_trend"),
+                "relative_volume": stock.get("relative_volume"),
+                "eps_revisions": stock.get("eps_revisions"),
+                "iv_rank": stock.get("iv_rank"),
+                "volatility_regime": stock.get("volatility_regime"),
+                "fcf_classification": stock.get("fcf_classification"),
+                "debt_risk": stock.get("debt_risk"),
+                "conviction_waterfall": stock.get("conviction_waterfall"),
+            }
+            rows.append(entry)
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    if overwrite:
+        with open(out_path, "w") as f:
+            for entry in rows:
+                f.write(json.dumps(entry) + "\n")
+        written = len(rows)
+    else:
+        with open(out_path, "a") as f:
+            for entry in rows:
+                f.write(json.dumps(entry) + "\n")
+        written = len(rows)
+
+    logger.info(
+        "backfill_action_log_from_concordance: %d entries (overwrite=%s) → %s",
+        written, overwrite, out_path,
+    )
+    return written
 
 
 def load_committee_actions(

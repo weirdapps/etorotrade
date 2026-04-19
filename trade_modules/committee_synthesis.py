@@ -1777,9 +1777,18 @@ def compute_adjustments(
             _w["consensus_crowded"] = -pen
 
     # Census alignment
-    if -20 <= div_score <= 20:
+    # CIO v17 R4: Tightened bands. Old [-20,+20]→+5 fired on ~90% of stocks
+    # (per April 2026 attribution sample), draining differentiating power.
+    # New scheme: tight band [-10,+10] gets the full +5; loose band
+    # ([-20,-10) ∪ (10,20]) gets +2; strong contrarian (<-20) keeps +8.
+    # Same total contribution shape, but the bonus actually distinguishes
+    # genuine alignment from "not divergent enough to flag".
+    if -10 <= div_score <= 10:
         bonuses += 5
         _w["census_alignment"] = 5
+    elif -20 <= div_score < -10 or 10 < div_score <= 20:
+        bonuses += 2
+        _w["census_alignment"] = 2
     elif div_score < -20:
         bonuses += 8
         _w["census_alignment"] = 8
@@ -1958,6 +1967,7 @@ def determine_action(
     signal: str,
     tech_signal: str,
     risk_warning: bool,
+    thresholds: Optional[Dict[str, Dict[str, float]]] = None,
 ) -> str:
     """Determine action from conviction and signal with signal-aware thresholds.
 
@@ -1966,21 +1976,96 @@ def determine_action(
     - ADD = increase existing position (high-conviction BUY-signal stocks).
     - SELL = close position (high-conviction SELL-signal stocks).
     - TRIM = reduce position (lower-conviction SELL-signal or weak HOLD).
+
+    CIO v17 H4.b: Optional `thresholds` dict (from
+    conviction_thresholds.load_thresholds) provides rolling-percentile
+    cuts. When omitted or lacking data for a signal, falls back to
+    legacy fixed thresholds (BUY ≥55, HOLD ≥70/<35, SELL ≥60).
     """
+    # Resolve signal-specific thresholds (rolling if available, legacy otherwise).
+    try:
+        from trade_modules.conviction_thresholds import get_action_thresholds
+        thr = get_action_thresholds(signal, rolling=thresholds)
+    except Exception:
+        thr = {}
+
     if signal == "S":
-        if conviction >= 60:
+        cut_sell = thr.get("sell_pct", 60)
+        if conviction >= cut_sell:
             return "SELL"
         return "TRIM"
     elif signal == "B":
-        if conviction >= 55:
+        cut_add = thr.get("add_pct", 55)
+        if conviction >= cut_add:
             return "ADD"
         return "HOLD"
-    else:  # HOLD signal
-        if conviction >= 70:
+    else:  # HOLD signal (or INCONCLUSIVE)
+        cut_add = thr.get("add_pct", 70)
+        cut_trim = thr.get("trim_pct", 35)
+        if conviction >= cut_add:
             return "ADD"
-        elif conviction >= 35:
+        elif conviction >= cut_trim:
             return "HOLD"
         return "TRIM"
+
+
+def apply_trim_regime_gate(
+    action: str,
+    *,
+    regime: str = "",
+    regime_momentum: str = "STABLE",
+    tech_signal: str = "",
+    rsi: float = 50.0,
+    position_pct: float = 0.0,
+    kill_thesis_triggered: bool = False,
+    risk_warning: bool = False,
+    risk_recommends_trim: bool = False,
+) -> Tuple[str, Optional[str]]:
+    """
+    CIO v17 M2: Suppress whipsaw TRIMs in trending markets.
+
+    Empirical T+30 backtest (n=28, 22-snapshot history): TRIMmed positions
+    posted hit_rate 25% and avg α(T+30) +2.75% — i.e. 75% of TRIMs went the
+    wrong way and they outperformed the market by 2.75pp. The literature is
+    unambiguous on static stops in trends (Greyserman & Kaminski 2014;
+    Lo & Remorov 2017): they whipsaw out before resumption.
+
+    Gate logic — demote a candidate TRIM to HOLD when ALL hold:
+      * regime == RISK_ON
+      * regime_momentum == "IMPROVING"
+      * tech_signal NOT in {EXIT_SOON, AVOID}
+      * NOT kill_thesis_triggered
+      * RSI < 80 (not extreme overbought)
+      * position_pct < 6.0 (not an oversized position)
+      * NOT risk_recommends_trim AND NOT risk_warning
+    Risk-driven TRIMs are always passed through.
+
+    Returns:
+        (new_action, override_label) where override_label is the human-
+        readable reason if the gate fired, else None.
+    """
+    if action != "TRIM":
+        return action, None
+
+    # Risk-driven TRIMs are always honoured.
+    if (
+        kill_thesis_triggered
+        or risk_warning
+        or risk_recommends_trim
+        or rsi >= 80
+        or position_pct >= 6.0
+    ):
+        return action, None
+
+    # Tech actively saying "exit/avoid" is also not whipsaw — pass through.
+    if tech_signal in ("EXIT_SOON", "AVOID"):
+        return action, None
+
+    # In RISK_ON improving regime, demote to HOLD.
+    if regime == "RISK_ON" and regime_momentum in ("IMPROVING", "STRONG_IMPROVING"):
+        return "HOLD", "trim_regime_gate"
+
+    return action, None
 
 
 def apply_action_hysteresis(
@@ -2114,6 +2199,7 @@ def synthesize_stock(
     fx_data: Optional[Dict] = None,
     debate_conviction_signal: Optional[str] = None,
     debate_data: Optional[Dict[str, Any]] = None,
+    rolling_thresholds: Optional[Dict[str, Dict[str, float]]] = None,
 ) -> Dict[str, Any]:
     """
     Synthesize a single stock through the full conviction scoring pipeline.
@@ -2374,13 +2460,24 @@ def synthesize_stock(
         penalties += 5  # Bearish reversal warning
         _w["rsi_divergence_bearish"] = -5
 
+    # CIO v17 R2: Fundamental composite bonus — replaces stacking of 4 correlated
+    # fundamental positive signals (piotroski_quality, revenue_growth,
+    # eps_revisions_up, fcf_quality_strong). Without this cap the four can
+    # contribute +13 of the +20 bonus budget; the underlying signals span each
+    # other (Bryzgalova et al. 2024 factor spanning tests; Asness/Frazzini/
+    # Pedersen 2014 QMJ ≈ FF5 RMW). Penalties remain individual (they measure
+    # genuinely different risks: weak P, declining revenue, downward revisions,
+    # FCF concern).
+    fund_composite_keys: List[str] = []  # Track which sub-signals fired
+    fund_composite_pending: List[Tuple[str, int]] = []
+
     # CIO v22.0 E5: Piotroski quality gate — independent 9-point quality metric.
     # F >= 7 independently validates fundamental thesis.
     # F <= 3 is a quality concern even if earnings quality score looks OK.
     if piotroski_score is not None:
         if piotroski_score >= 7 and signal == "B":
-            bonuses = min(bonuses + 3, 20)  # Independent quality confirmation
-            _w["piotroski_quality"] = 3
+            fund_composite_pending.append(("piotroski_quality", 3))
+            fund_composite_keys.append("piotroski_quality")
         elif piotroski_score <= 3:
             penalties += 3  # Weak quality fundamentals
             _w["piotroski_weak"] = -3
@@ -2411,8 +2508,8 @@ def synthesize_stock(
     rev_class = rev_growth.get("classification", "") if isinstance(rev_growth, dict) else ""
     if rev_class and signal == "B":
         if rev_class.upper() in ("ACCELERATING", "STRONG_GROWTH"):
-            bonuses = min(bonuses + 5, 20)
-            _w["revenue_growth"] = 5
+            fund_composite_pending.append(("revenue_growth", 5))
+            fund_composite_keys.append("revenue_growth")
         elif rev_class.upper() in ("DECLINING", "DETERIORATING", "NEGATIVE"):
             penalties += 5
             _w["revenue_growth"] = -5
@@ -2555,8 +2652,8 @@ def synthesize_stock(
     eps_revisions = fund_data.get("eps_revisions") or {}
     eps_class = eps_revisions.get("classification", "")
     if eps_class == "REVISIONS_UP" and signal == "B":
-        bonuses = min(bonuses + 3, 20)
-        _w["eps_revisions_up"] = 3
+        fund_composite_pending.append(("eps_revisions_up", 3))
+        fund_composite_keys.append("eps_revisions_up")
     elif eps_class == "REVISIONS_DOWN":
         penalties += 3
         _w["eps_revisions_down"] = -3
@@ -2586,8 +2683,25 @@ def synthesize_stock(
         penalties += 3
         _w["fcf_quality_concern"] = -3
     elif fcf_quality.get("classification") == "STRONG" and signal == "B":
-        bonuses = min(bonuses + 2, 20)
-        _w["fcf_quality_strong"] = 2
+        fund_composite_pending.append(("fcf_quality_strong", 2))
+        fund_composite_keys.append("fcf_quality_strong")
+
+    # CIO v17 R2: Now apply the fundamental composite bonus, capped at +8.
+    # Sum the pending sub-bonuses (max 3+5+3+2 = 13), clamp to 8, prorate
+    # the per-key contribution so the waterfall keys still attribute. The
+    # `fund_composite_cap` waterfall entry tracks how much the cap absorbed.
+    if fund_composite_pending:
+        raw_sum = sum(v for _, v in fund_composite_pending)
+        capped = min(raw_sum, 8)
+        # Prorate so each contributing sub-key reflects its share of the cap.
+        if raw_sum > 0:
+            scale = capped / raw_sum
+            for key, raw in fund_composite_pending:
+                emitted = max(1, round(raw * scale)) if raw > 0 else raw
+                _w[key] = emitted
+        bonuses = min(bonuses + capped, 20)
+        if raw_sum > capped:
+            _w["fund_composite_cap"] = raw_sum - capped  # positive = absorbed
 
     # ── CIO v23.4: Debt quality modifier ─────────────────────────────
     debt_quality = fund_data.get("debt_quality") or {}
@@ -2698,7 +2812,32 @@ def synthesize_stock(
             _w["risk_off_cap"] = conviction - _pre_riskoff
 
     # Step 6: Determine action
-    action = determine_action(conviction, signal, tech_signal, risk_warning)
+    # CIO v17 H4.b: Pass rolling-percentile thresholds when supplied;
+    # determine_action falls back to legacy fixed cuts otherwise.
+    action = determine_action(
+        conviction, signal, tech_signal, risk_warning,
+        thresholds=rolling_thresholds,
+    )
+
+    # CIO v17 M2: Suppress whipsaw TRIMs in trending markets.
+    # Empirical T+30: TRIM hit rate 25%, avg α +2.75% — TRIMs went the wrong
+    # way in a trend. Risk-driven TRIMs (kill thesis, RSI≥80, large position,
+    # risk_warning, tech EXIT/AVOID) still pass through. Position-percent
+    # proxy uses position_limit (Risk Manager's per-stock cap) since the live
+    # held % is not always available at synthesis time.
+    gated_action, regime_gate_label = apply_trim_regime_gate(
+        action,
+        regime=regime,
+        regime_momentum=regime_momentum,
+        tech_signal=tech_signal,
+        rsi=rsi,
+        position_pct=float(position_limit or 0.0),
+        kill_thesis_triggered=kill_thesis_triggered,
+        risk_warning=risk_warning,
+    )
+    if regime_gate_label:
+        _w[regime_gate_label] = 0  # 0-delta marker; visible in waterfall
+    action = gated_action
 
     # Risk manager override: downgrade to HOLD when tech is bearish + risk warns
     if signal == "H" and tech_signal in ("AVOID", "EXIT_SOON") and risk_warning:
@@ -3255,6 +3394,7 @@ def _synthesize_with_lookups(
         fx_data=lookups.get("fx_data"),  # CIO v23.1 R6
         debate_conviction_signal=debate_conviction_signal,
         debate_data=debate_data,
+        rolling_thresholds=lookups.get("rolling_thresholds"),
     )
 
 
@@ -3466,6 +3606,14 @@ def build_concordance(
     if debate_results is None:
         debate_results = {}
 
+    # CIO v17 H4.b: Load rolling-percentile thresholds (if recent state exists).
+    # When None or stale, determine_action falls back to legacy fixed thresholds.
+    try:
+        from trade_modules.conviction_thresholds import load_thresholds
+        rolling_thresholds = load_thresholds()
+    except Exception:
+        rolling_thresholds = None
+
     # CIO v11.0 L2 + v13.0 F2: Build previous signal map for signal velocity.
     # v13.0 F2: Fixed data flow — when previous concordance is a bare list
     # (no date field), infer the date from the concordance file mtime or
@@ -3519,6 +3667,9 @@ def build_concordance(
         fund_report, tech_report, macro_report,
         census_report, news_report, risk_report,
     )
+    # CIO v17 H4.b: Make rolling-percentile thresholds available to
+    # downstream synthesize_stock calls without changing every signature.
+    lookups["rolling_thresholds"] = rolling_thresholds
 
     # Compute sector medians from portfolio
     sector_medians, universe_median = compute_sector_medians(
@@ -3795,6 +3946,7 @@ def build_concordance(
                     entry["conviction"], entry.get("signal", "H"),
                     entry.get("tech_signal", "HOLD"),
                     entry.get("risk_warning", False),
+                    thresholds=rolling_thresholds,
                 )
 
     # CIO v32.0 T2: Action hysteresis — prevent HOLD/ADD whipsaw.

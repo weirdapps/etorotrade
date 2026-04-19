@@ -809,6 +809,57 @@ def generate_report_html(
                      f'<span style="color:{ac};">{act}</span> '
                      f'<span style="color:{_C["text_dark"]};">{e(_tn(tkr, _names))}</span></span>')
         h.append('</div>')
+
+    # CIO v17 H3: Honest BUY-signal pass-through calibration line.
+    # When the calibration_report is present, surface the recent BUY α and
+    # Spearman ρ(conv,α) at the target horizon T+30. This is the cheapest
+    # possible mechanism for telling the user "your conviction labels are
+    # uncalibrated this regime" — without changing any scoring logic.
+    calib_block = synth.get("calibration_report") or {}
+    perf30 = calib_block.get("performance_30d") or {}
+    by_signal = perf30.get("by_signal") or {}
+    actions30 = perf30.get("actions") or {}
+    buy_block = by_signal.get("B") or {}
+    add_block = actions30.get("ADD") or {}
+    if buy_block or add_block:
+        n = buy_block.get("count") or add_block.get("count") or 0
+        avg_alpha = buy_block.get("avg_alpha")
+        if avg_alpha is None:
+            avg_alpha = add_block.get("avg_alpha")
+        avg_alpha_net = add_block.get("avg_alpha_net")
+        ir = add_block.get("information_ratio")
+        ir_net = add_block.get("information_ratio_net")
+        spearman = buy_block.get("spearman_conv_alpha")
+        if spearman is None:
+            spearman = add_block.get("spearman_conv_alpha")
+
+        bits = [f"<b>n={n}</b>"]
+        if avg_alpha is not None:
+            color = _C["bull"] if avg_alpha > 0 else _C["bear"]
+            bits.append(f'avg α(T+30) <span style="color:{color};font-weight:700;">'
+                        f'{avg_alpha:+.2f}%</span>')
+        if avg_alpha_net is not None:
+            color = _C["bull"] if avg_alpha_net > 0 else _C["bear"]
+            bits.append(f'net <span style="color:{color};font-weight:700;">'
+                        f'{avg_alpha_net:+.2f}%</span>')
+        if ir is not None:
+            bits.append(f"IR {ir:+.2f}")
+        if ir_net is not None:
+            bits.append(f"IR<sub>net</sub> {ir_net:+.2f}")
+        if spearman is not None:
+            sp_color = _C["bull"] if spearman > 0.15 else (
+                _C["warn"] if abs(spearman) < 0.15 else _C["bear"])
+            bits.append(f'ρ(conv,α) <span style="color:{sp_color};font-weight:700;">'
+                        f'{spearman:+.3f}</span>')
+        h.append(f'<div style="margin-top:14px;padding:10px 14px;'
+                 f'background:{_C["bg_alt"]};border-left:4px solid {_C["border_heavy"]};'
+                 f'font-size:11px;color:{_C["text_body"]};line-height:1.5;">'
+                 f'<b>BUY/ADD calibration (last 60d, T+30)</b> &middot; '
+                 + " &middot; ".join(bits)
+                 + ' &nbsp; <span style="color:#666;">'
+                 + 'ρ&nbsp;&lt;0.15 means conviction has weak ranking power '
+                 + '— act on the action label, not the conviction number.'
+                 + '</span></div>')
     h.append(_section_close())
 
     # ── READING GUIDE (compact, educational) ──
@@ -1024,10 +1075,35 @@ def generate_report_html(
                 sl_html = (f'<div style="font-size:10px;color:{_C["bear"]};margin-top:4px;'
                            f'{_MONO}">&#9660; Stops: {" | ".join(sl_parts)}</div>')
         # CIO v25.0: Conviction waterfall — compact modifier attribution
+        # CIO v17 L1: Hierarchical 6-category aggregate above the top-4 detail.
         wf = en.get("conviction_waterfall", {})
         wf_html = ""
         if wf and act in ("BUY", "ADD", "SELL", "TRIM"):
-            # Show top 4 modifiers only — full attribution is in the Modifier Attribution section
+            # Category aggregate (Quality/Momentum/Consensus/Macro/Risk/Regime).
+            try:
+                from trade_modules.waterfall_categories import categorize_waterfall
+                cats = categorize_waterfall(wf)
+            except Exception:
+                cats = {}
+            cat_parts = []
+            for cat_name, bucket in cats.items():
+                total = bucket.get("total", 0)
+                if total == 0:
+                    continue
+                color = _C["bull"] if total > 0 else _C["bear"]
+                sign = "+" if total > 0 else ""
+                cat_parts.append(
+                    f'<span style="color:{color};font-weight:600;">'
+                    f'{cat_name} {sign}{total}</span>'
+                )
+            cat_html = ""
+            if cat_parts:
+                cat_html = (
+                    f'<div style="font-size:10px;color:{_C["text_muted"]};margin-top:4px;'
+                    f'{_MONO}">Categories: {" &middot; ".join(cat_parts)}</div>'
+                )
+
+            # Top-4 individual modifier detail (existing behaviour, retained).
             wf_parts = []
             sorted_wf = [kv for kv in sorted(wf.items(), key=lambda x: abs(x[1]), reverse=True)
                          if not kv[0].startswith("_")][:4]
@@ -1036,9 +1112,11 @@ def generate_report_html(
                 sign = "+" if v > 0 else ""
                 label = k.replace("_", " ")
                 wf_parts.append(f'<span style="color:{color};">{label} {sign}{v}</span>')
+            top_html = ""
             if wf_parts:
-                wf_html = (f'<div style="font-size:10px;color:{_C["text_muted"]};margin-top:4px;'
-                           f'{_MONO}">Top factors: {" &middot; ".join(wf_parts)}</div>')
+                top_html = (f'<div style="font-size:10px;color:{_C["text_muted"]};margin-top:4px;'
+                            f'{_MONO}">Top factors: {" &middot; ".join(wf_parts)}</div>')
+            wf_html = cat_html + top_html
         # Entry timing-based left border color
         timing = en.get("entry_timing", "")
         timing_border_colors = {

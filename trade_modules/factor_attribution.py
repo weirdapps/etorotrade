@@ -28,7 +28,13 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-HORIZONS = [7, 14, 21, 28, 90, 120, 180, 365]
+# CIO v17 H7: T+30 is the system's target horizon, so it must be present.
+# Older runs only had 7/14/21/28 — meaning attribution at the actual
+# target horizon was never computed. T+30 added explicitly. T+7 retained
+# for early-warning/leading-indicator analysis. T+90 for trend follow-up.
+HORIZONS = [7, 14, 30, 60, 90]
+# CIO v17 H7: Primary attribution horizon used in HTML reports + decisions.
+PRIMARY_HORIZON_DAYS = 30
 
 # Output path
 ATTRIBUTION_OUTPUT_PATH = (
@@ -541,24 +547,40 @@ def _attribute_factor(
 def generate_attribution_summary(
     attribution: Dict[str, Any],
     top_n: int = 15,
+    primary_horizon_days: int = PRIMARY_HORIZON_DAYS,
 ) -> List[Dict[str, Any]]:
     """
     Generate a ranked summary of factors for the HTML report.
 
-    Returns a list of factor summaries sorted by predictive power,
-    with the most actionable factors first.
+    CIO v17 H7: When data exists at the system's target horizon (default
+    T+30), prefer it for the headline hit-rate / signal classification.
+    Fall back to the next-best evaluated horizon only if T+30 has fewer
+    than 3 evaluations.
+
+    Returns a list of factor summaries sorted by predictive power, with
+    the most actionable factors first. Each summary now also reports the
+    *primary-horizon* hit rate and avg α explicitly so the HTML can
+    surface the headline metric without extra logic.
     """
     factors = attribution.get("factors", {})
     if not factors:
         return []
 
+    primary_key = f"T+{primary_horizon_days}"
+
     summaries = []
     for name, data in factors.items():
         fires = data.get("fires_total", 0)
-        if fires < 3:  # Need minimum sample size
+        if fires < 3:
             continue
 
-        # Find best available horizon data across all action types
+        # Per-horizon aggregates summed across actions for the primary horizon.
+        primary_evaluated = 0
+        primary_hits = 0
+        primary_alpha_sum = 0.0
+        primary_returns_sum = 0.0
+
+        # Best (most-extreme) hit rate across all horizons (legacy fallback).
         best_hit_rate = None
         best_horizon = None
         best_action = None
@@ -570,6 +592,17 @@ def generate_attribution_summary(
                     continue
                 evaluated = h_data.get("evaluated", 0)
                 total_evaluated += evaluated
+                if evaluated < 1:
+                    continue
+
+                # Track primary horizon (T+30 by default) aggregate.
+                if h_key == primary_key:
+                    primary_evaluated += evaluated
+                    primary_hits += h_data.get("hits", 0)
+                    primary_alpha_sum += (h_data.get("avg_alpha") or 0) * evaluated
+                    primary_returns_sum += (h_data.get("avg_return") or 0) * evaluated
+
+                # Best horizon — distance from 50%.
                 if evaluated < 3:
                     continue
                 hr = h_data.get("hit_rate", 0)
@@ -581,8 +614,27 @@ def generate_attribution_summary(
         if best_hit_rate is None or total_evaluated < 3:
             continue
 
-        # Determine signal: is this factor predictive or anti-predictive?
-        signal = "PREDICTIVE" if best_hit_rate >= 60 else "WEAK" if best_hit_rate >= 45 else "CONTRARIAN"
+        # Promote primary horizon if it has enough samples.
+        primary_hit_rate = None
+        primary_avg_alpha = None
+        primary_avg_return = None
+        primary_signal = None
+        if primary_evaluated >= 3:
+            primary_hit_rate = round(primary_hits / primary_evaluated * 100, 1)
+            primary_avg_alpha = round(primary_alpha_sum / primary_evaluated, 2)
+            primary_avg_return = round(primary_returns_sum / primary_evaluated, 2)
+            if primary_hit_rate >= 60:
+                primary_signal = "PREDICTIVE"
+            elif primary_hit_rate >= 45:
+                primary_signal = "WEAK"
+            else:
+                primary_signal = "CONTRARIAN"
+
+        # Headline signal uses the primary horizon when available.
+        signal = primary_signal or (
+            "PREDICTIVE" if best_hit_rate >= 60 else
+            "WEAK" if best_hit_rate >= 45 else "CONTRARIAN"
+        )
 
         summaries.append({
             "name": name,
@@ -593,13 +645,23 @@ def generate_attribution_summary(
             "best_hit_rate": best_hit_rate,
             "best_horizon": best_horizon,
             "best_action": best_action,
+            "primary_horizon": primary_key if primary_hit_rate is not None else None,
+            "primary_evaluated": primary_evaluated,
+            "primary_hit_rate": primary_hit_rate,
+            "primary_avg_alpha": primary_avg_alpha,
+            "primary_avg_return": primary_avg_return,
+            "primary_signal": primary_signal,
             "total_evaluated": total_evaluated,
             "signal": signal,
             "by_action": data.get("by_action", {}),
         })
 
-    # Sort: most predictive (furthest from 50%) first
-    summaries.sort(key=lambda s: abs(s["best_hit_rate"] - 50), reverse=True)
+    # Sort by primary horizon hit-rate when available; otherwise legacy best.
+    def _sort_key(s):
+        hr = s["primary_hit_rate"] if s["primary_hit_rate"] is not None else s["best_hit_rate"]
+        return abs(hr - 50)
+
+    summaries.sort(key=_sort_key, reverse=True)
     return summaries[:top_n]
 
 
