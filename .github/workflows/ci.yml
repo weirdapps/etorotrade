@@ -151,10 +151,12 @@ jobs:
         pip install -r requirements.txt
         pip install pytest pytest-rerunfailures
 
+    # Override pytest.ini's addopts (--cov=yahoofinance) since pytest-cov
+    # isn't installed in this minimal job and the smoke test doesn't need coverage.
     - name: Run yfinance API surface smoke test
       run: |
         pytest tests/integration/test_yfinance_compat.py \
-          -v --no-header --no-cov \
+          -v --no-header -o addopts= \
           --reruns 2 --reruns-delay 30
 
   quality-gates:
