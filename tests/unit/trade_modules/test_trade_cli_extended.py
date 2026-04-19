@@ -10,7 +10,7 @@ This module tests the CLI interface including:
 
 import pytest
 import pandas as pd
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, MagicMock
 
 from trade_modules.trade_cli import (
     ConfigurationValidator,
@@ -138,7 +138,9 @@ class TestAsyncHandlers:
     @pytest.mark.asyncio
     async def test_handle_trade_analysis_success(self):
         """Test successful trade analysis handling."""
-        mock_provider = AsyncMock()
+        # MagicMock (not AsyncMock): handlers call get_provider() as a factory.
+        # AsyncMock would return unawaited coroutines that leak across tests.
+        mock_provider = MagicMock()
         mock_logger = MagicMock()
         
         # Mock the import and the function that would be imported
@@ -164,7 +166,9 @@ class TestAsyncHandlers:
     @pytest.mark.asyncio
     async def test_handle_trade_analysis_error(self):
         """Test trade analysis handling with errors."""
-        mock_provider = AsyncMock()
+        # MagicMock (not AsyncMock): handlers call get_provider() as a factory.
+        # AsyncMock would return unawaited coroutines that leak across tests.
+        mock_provider = MagicMock()
         mock_logger = MagicMock()
         
         # Mock to raise an error during execution
@@ -181,7 +185,9 @@ class TestAsyncHandlers:
     @pytest.mark.asyncio
     async def test_handle_portfolio_download_success(self):
         """Test successful portfolio download handling."""
-        mock_provider = AsyncMock()
+        # MagicMock (not AsyncMock): handlers call get_provider() as a factory.
+        # AsyncMock would return unawaited coroutines that leak across tests.
+        mock_provider = MagicMock()
         mock_logger = MagicMock()
         
         with patch('yahoofinance.data.download.download_portfolio') as mock_handle:
@@ -198,7 +204,9 @@ class TestAsyncHandlers:
     @pytest.mark.asyncio
     async def test_handle_portfolio_download_error(self):
         """Test portfolio download handling with errors."""
-        mock_provider = AsyncMock()
+        # MagicMock (not AsyncMock): handlers call get_provider() as a factory.
+        # AsyncMock would return unawaited coroutines that leak across tests.
+        mock_provider = MagicMock()
         mock_logger = MagicMock()
         
         with patch('yahoofinance.data.download.download_portfolio') as mock_handle:
@@ -230,7 +238,10 @@ class TestMainAsync:
     @pytest.mark.asyncio
     async def test_main_async_with_provider(self):
         """Test main_async with custom provider."""
-        mock_provider = AsyncMock()
+        # MagicMock (not AsyncMock): main_async calls get_provider(...) as a
+        # factory at line 870. AsyncMock would return an unawaited coroutine
+        # that leaks across tests and corrupts importlib state on long suites.
+        mock_provider = MagicMock()
         mock_logger = MagicMock()
         
         with patch('trade_modules.trade_cli.MarketDisplay') as mock_display, \
