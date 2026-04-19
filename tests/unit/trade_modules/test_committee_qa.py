@@ -1,4 +1,6 @@
 """Tests for committee_qa.py — Stage 0/1/2 QA validation."""
+import pytest
+
 from trade_modules.committee_qa import (
     normalize_agent_reports,
     validate_pre_html,
@@ -91,14 +93,14 @@ class TestNormalize:
         macro = {"key_indicators": {"vix": 19.2}}
         fixes = normalize_agent_reports(macro, {}, {}, {}, {})
         assert "indicators" in macro
-        assert macro["indicators"]["vix"] == 19.2
+        assert macro["indicators"]["vix"] == pytest.approx(19.2)
         assert any("key_indicators" in f for f in fixes)
 
     def test_key_indicators_not_overwritten(self):
         """If indicators already exists, key_indicators should not overwrite it."""
         macro = {"key_indicators": {"vix": 10}, "indicators": {"vix": 19.2}}
         normalize_agent_reports(macro, {}, {}, {}, {})
-        assert macro["indicators"]["vix"] == 19.2
+        assert macro["indicators"]["vix"] == pytest.approx(19.2)
 
     def test_stock_macro_fit_string_to_portfolio_implications(self):
         macro = {"stock_macro_fit": {"NVDA": "FAVORABLE", "TSLA": "UNFAVORABLE"}}
@@ -126,28 +128,28 @@ class TestNormalize:
         macro = {"indicators": {"yield_curve": {"10y": 4.31, "spread_2_10": 0.25}}}
         fixes = normalize_agent_reports(macro, {}, {}, {}, {})
         ind = macro["indicators"]
-        assert ind["us_10y_yield"] == 4.31
-        assert ind["yield_curve_10y_2y"] == 0.25
+        assert ind["us_10y_yield"] == pytest.approx(4.31)
+        assert ind["yield_curve_10y_2y"] == pytest.approx(0.25)
         assert any("yield_curve" in f for f in fixes)
 
     def test_flatten_currency(self):
         macro = {"indicators": {"currency": {"dxy": 98.7, "eur_usd": 1.08}}}
         fixes = normalize_agent_reports(macro, {}, {}, {}, {})
         ind = macro["indicators"]
-        assert ind["dxy"] == 98.7
-        assert ind["eur_usd"] == 1.08
+        assert ind["dxy"] == pytest.approx(98.7)
+        assert ind["eur_usd"] == pytest.approx(1.08)
         assert any("currency" in f for f in fixes)
 
     def test_oil_brent_alias(self):
         macro = {"indicators": {"oil_brent": 96.4}}
         fixes = normalize_agent_reports(macro, {}, {}, {}, {})
-        assert macro["indicators"]["brent_crude"] == 96.4
+        assert macro["indicators"]["brent_crude"] == pytest.approx(96.4)
         assert any("oil_brent" in f for f in fixes)
 
     def test_brent_crude_not_overwritten(self):
         macro = {"indicators": {"oil_brent": 96.4, "brent_crude": 100.0}}
         normalize_agent_reports(macro, {}, {}, {}, {})
-        assert macro["indicators"]["brent_crude"] == 100.0
+        assert macro["indicators"]["brent_crude"] == pytest.approx(100.0)
 
     def test_indicators_written_to_both_keys(self):
         macro = {"indicators": {"vix": 19.2}}
