@@ -628,3 +628,170 @@ class TestFactorAttributionT30:
         # No T+30 → primary fields stay None, signal still derived from best.
         assert summary[0]["primary_horizon"] is None
         assert summary[0]["best_hit_rate"] == 80.0
+
+
+# ── Sprint S1.3 — Weekly backtest helpers (refresh_*) ───────────────────
+
+
+class TestWeeklyBacktestHelpers:
+    def test_refresh_rolling_thresholds_runs(self, tmp_path, monkeypatch):
+        # Simulate a tiny history dir.
+        hist = tmp_path / "history"
+        hist.mkdir()
+        (hist / "concordance-2026-04-15.json").write_text(json.dumps({
+            "concordance": [
+                {"signal": "B", "conviction": 50 + i, "ticker": f"T{i}"}
+                for i in range(25)
+            ],
+        }))
+        # Patch the default threshold path so the test doesn't pollute the
+        # user's real cache.
+        from trade_modules import conviction_thresholds as ct
+        monkeypatch.setattr(ct, "DEFAULT_THRESHOLDS_PATH",
+                            tmp_path / "thresholds.json")
+        # Patch CommitteeBacktester to use our tmp dir.
+        from trade_modules.committee_backtester import CommitteeBacktester
+        monkeypatch.setattr(
+            CommitteeBacktester, "__init__",
+            lambda self, log_dir=None: setattr(self, "log_dir", tmp_path)
+            or setattr(self, "history", []) or setattr(self, "forward_returns", {})
+            or None,
+        )
+
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
+        from run_weekly_backtest import refresh_rolling_thresholds  # type: ignore
+        thresholds = refresh_rolling_thresholds()
+        # Either rolling (sufficient evidence) or empty (no history) — both legal.
+        assert isinstance(thresholds, dict)
+
+    def test_refresh_agent_sign_calibrator_shadow(self, tmp_path, monkeypatch):
+        from trade_modules import agent_sign_calibrator as asc
+        monkeypatch.setattr(asc, "DEFAULT_CALIBRATOR_PATH",
+                            tmp_path / "calibration.json")
+        from trade_modules.committee_backtester import CommitteeBacktester
+        monkeypatch.setattr(
+            CommitteeBacktester, "__init__",
+            lambda self, log_dir=None: setattr(self, "log_dir", tmp_path)
+            or setattr(self, "history", []) or setattr(self, "forward_returns", {})
+            or None,
+        )
+
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
+        from run_weekly_backtest import refresh_agent_sign_calibrator  # type: ignore
+        cal = refresh_agent_sign_calibrator(shadow_mode=True)
+        # No history → returns {} per docstring.
+        assert cal == {}
+
+
+# ── Sprint S2.1 — HTML panel for sign-calibrator (smoke render) ─────────
+
+
+class TestSignCalibratorHTMLPanel:
+    def test_panel_renders_when_evidence_present(self):
+        from trade_modules.committee_html import generate_report_html
+
+        sign_cal_block = {
+            "mode": "SHADOW",
+            "horizon": "T+30",
+            "agents": {
+                "macro": {"verdict": "INVERTED", "evidence_total": 50,
+                          "consecutive_inverted": 2, "applied": False},
+                "fundamental": {"verdict": "OK", "evidence_total": 50,
+                                "consecutive_inverted": 0, "applied": False},
+            },
+        }
+        synth = {
+            "version": "v17", "regime": "RISK_ON",
+            "macro_score": 25, "rotation_phase": "EARLY_CYCLE",
+            "verdict": "OK", "narrative": "Test",
+            "concordance": [],
+            "agent_sign_calibration": sign_cal_block,
+        }
+        html = generate_report_html(
+            synth=synth, fund={}, tech={}, macro={}, census={}, news={},
+            opps={}, risk={}, date_str="2026-04-20", mode="full",
+        )
+        assert "Agent Sign Calibrator" in html
+        assert "INVERTED" in html
+        assert "macro" in html.lower()
+
+    def test_panel_hidden_when_no_evidence(self):
+        from trade_modules.committee_html import generate_report_html
+        synth = {
+            "version": "v17", "regime": "RISK_ON",
+            "macro_score": 25, "rotation_phase": "EARLY_CYCLE",
+            "verdict": "OK", "narrative": "Test",
+            "concordance": [],
+            "agent_sign_calibration": {
+                "mode": "SHADOW",
+                "agents": {
+                    "macro": {"verdict": "INSUFFICIENT_DATA",
+                              "evidence_total": 0,
+                              "consecutive_inverted": 0, "applied": False},
+                },
+            },
+        }
+        html = generate_report_html(
+            synth=synth, fund={}, tech={}, macro={}, census={}, news={},
+            opps={}, risk={}, date_str="2026-04-20", mode="full",
+        )
+        # Panel should NOT render when nothing has any evidence.
+        assert "Agent Sign Calibrator" not in html
+
+    def test_panel_hidden_in_daily_mode(self):
+        from trade_modules.committee_html import generate_report_html
+        synth = {
+            "version": "v17", "regime": "RISK_ON",
+            "macro_score": 25, "rotation_phase": "EARLY_CYCLE",
+            "verdict": "OK", "narrative": "Test",
+            "concordance": [],
+            "agent_sign_calibration": {
+                "mode": "SHADOW",
+                "agents": {
+                    "macro": {"verdict": "INVERTED", "evidence_total": 50,
+                              "consecutive_inverted": 2, "applied": False},
+                },
+            },
+        }
+        html = generate_report_html(
+            synth=synth, fund={}, tech={}, macro={}, census={}, news={},
+            opps={}, risk={}, date_str="2026-04-20", mode="daily",
+        )
+        # Daily/digest mode skips the panel to keep email lightweight.
+        assert "Agent Sign Calibrator" not in html
+
+
+# ── Sprint S1.3 — agent_sign_calibrator legacy-format normalization ─────
+
+
+class TestSignCalibratorLegacyNormalization:
+    def test_handles_legacy_stocks_dict_format(self, tmp_path):
+        # Some old archives store concordance as {"stocks": {ticker: row}}.
+        # The calibrator must normalize to a list of dicts before iterating;
+        # otherwise it crashes with "str has no attribute 'get'".
+        from datetime import datetime, timedelta
+        d = (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d")
+        (tmp_path / f"concordance-{d}.json").write_text(json.dumps({
+            "date": d,
+            "stocks": {
+                "AAA": {"macro_fit": "FAVORABLE", "tech_signal": "ENTER_NOW",
+                        "fund_view": "BUY", "census": "ALIGNED",
+                        "news_impact": "POSITIVE"},
+                "BBB": {"macro_fit": "UNFAVORABLE", "tech_signal": "AVOID",
+                        "fund_view": "SELL", "census": "DIVERGENT",
+                        "news_impact": "NEGATIVE"},
+            },
+        }))
+        forward = {
+            f"AAA:{d}": {"T+30_alpha": +1.5},
+            f"BBB:{d}": {"T+30_alpha": -2.0},
+        }
+        out = calibrate_agent_signs(
+            forward_returns=forward, history_dir=tmp_path,
+            horizon="T+30", lookback_days=60,
+        )
+        # Critical: must NOT raise. Status should be 'ok' (history loaded).
+        assert out["status"] == "ok"
+        assert "agents" in out

@@ -2857,6 +2857,62 @@ def generate_report_html(
 
         h.append(_section_close())
 
+    # ── S17b: AGENT SIGN CALIBRATOR (CIO v17 H1, shadow mode) ──
+    # Surfaces the per-agent inversion verdict + consecutive_inverted counter
+    # so the user can sanity-check proposed flips. SHADOW mode means nothing
+    # is applied yet; AUTO mode means the synthesis vote-weight has been
+    # multiplied by −1 for that agent. The panel renders only when at least
+    # one agent has any evidence; otherwise it stays hidden.
+    sign_cal = synth.get("agent_sign_calibration") or {}
+    sign_agents = sign_cal.get("agents") or {}
+    if sign_agents and not daily:
+        # Hide block entirely when nothing has any evidence yet (early days).
+        any_evidence = any((d.get("evidence_total") or 0) > 0 for d in sign_agents.values())
+        if any_evidence:
+            mode = sign_cal.get("mode", "SHADOW")
+            mode_color = _C["bull"] if mode == "AUTO" else _C["text_muted"]
+            h.append(_section_open(
+                "Agent Sign Calibrator",
+                "Each agent's view is correlated with realised T+30 alpha over "
+                "the rolling 60-day window. Agents whose views consistently "
+                "predict the wrong sign are flagged INVERTED. SHADOW mode logs "
+                "the proposal but does not change vote weights; AUTO mode "
+                "applies a sign flip after two consecutive INVERTED verdicts."))
+            h.append(f'<div style="margin-bottom:8px;font-size:11px;">'
+                     f'<b>Mode:</b> <span style="color:{mode_color};font-weight:700;">{mode}</span> '
+                     f'&middot; <b>Horizon:</b> {sign_cal.get("horizon", "T+30")}</div>')
+            h.append(_table_open([
+                ("Agent", "left"), ("Evidence n", "center"),
+                ("Verdict", "center"), ("Consec Inverted", "center"),
+                ("Sign Applied", "center"),
+            ]))
+            for agent, data in sorted(sign_agents.items()):
+                verdict = data.get("verdict", "?")
+                consec = data.get("consecutive_inverted", 0) or 0
+                applied = data.get("applied", False)
+                evidence = data.get("evidence_total", 0) or 0
+                if verdict == "INVERTED":
+                    v_color = _C["bear"]
+                elif verdict == "OK":
+                    v_color = _C["bull"]
+                else:
+                    v_color = _C["text_muted"]
+                applied_label = "−1 (FLIPPED)" if applied else "+1 (default)"
+                applied_color = _C["bear"] if applied else _C["text_muted"]
+                consec_color = _C["warn"] if consec >= 2 else _C["text_muted"]
+                h.append(_table_row([
+                    (f'<span style="font-weight:700;">{e(agent)}</span>', "left", ""),
+                    (str(evidence), "center", f"{_MONO}font-weight:600;"),
+                    (f'<span style="color:{v_color};font-weight:700;">{verdict}</span>',
+                     "center", ""),
+                    (f'<span style="color:{consec_color};font-weight:700;">{consec}</span>',
+                     "center", ""),
+                    (f'<span style="color:{applied_color};font-weight:700;">{applied_label}</span>',
+                     "center", ""),
+                ]))
+            h.append('</table>')
+            h.append(_section_close())
+
     # ── S18: REGIME TRANSITION (CIO v23.3) ──
     regime_trans = synth.get("regime_transition", {})
     if regime_trans.get("transition") and regime_trans["transition"] != "INSUFFICIENT_DATA" and not daily:

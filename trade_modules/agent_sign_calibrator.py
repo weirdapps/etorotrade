@@ -73,9 +73,18 @@ def _load_concordance_history(
         if isinstance(data, list):
             items = data
         elif isinstance(data, dict):
-            items = data.get("concordance", [])
+            items = data.get("concordance", data.get("stocks", []))
         else:
             continue
+        # Normalise legacy {ticker: row} dict format to list-of-rows.
+        if isinstance(items, dict):
+            items = [
+                dict(v, ticker=k) if isinstance(v, dict) else None
+                for k, v in items.items()
+            ]
+            items = [r for r in items if r is not None]
+        # Filter out non-dict entries (defensive).
+        items = [r for r in items if isinstance(r, dict)]
         if items:
             out.append((date_str, items))
     return out
