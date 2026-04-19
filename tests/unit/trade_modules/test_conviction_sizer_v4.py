@@ -293,10 +293,13 @@ class TestApplyPortfolioConstraints:
         new_positions = [
             {"ticker": "AAPL", "sector": "Technology", "position_size": 20000},
         ]
+        # max_single_stock_pct=100 isolates this test to sector-cap behavior;
+        # the layered single-stock + sector interaction is covered separately below.
         result = apply_portfolio_constraints(
             new_positions,
             {},
             max_sector_pct=25.0,
+            max_single_stock_pct=100.0,
             portfolio_value=100_000,
         )
         # 20% < 25% limit, should pass
@@ -312,6 +315,7 @@ class TestApplyPortfolioConstraints:
             new_positions,
             {},
             max_sector_pct=25.0,
+            max_single_stock_pct=100.0,
             portfolio_value=100_000,
         )
         # 30% > 25% limit, should be constrained
@@ -319,6 +323,52 @@ class TestApplyPortfolioConstraints:
         assert result[0]["was_constrained"] is True
         expected_size = 30000 * (25.0 / 30.0)
         assert result[0]["constrained_size"] == pytest.approx(expected_size, abs=1)
+
+    def test_single_stock_cap_fires_before_sector(self):
+        """Single-stock cap is applied first; sector cap then sees the clipped size.
+
+        A 20% AAPL request with default 10% single-stock cap clips to 10%.
+        The sector cap (15%) then sees 10% and approves — only single-stock
+        constraint is recorded, not sector.
+        """
+        new_positions = [
+            {"ticker": "AAPL", "sector": "Technology", "position_size": 20000},
+        ]
+        result = apply_portfolio_constraints(
+            new_positions,
+            {},
+            max_sector_pct=15.0,
+            max_single_stock_pct=10.0,
+            portfolio_value=100_000,
+        )
+        assert result[0]["was_constrained"] is True
+        assert result[0]["constrained_size"] == 10000  # 10% cap
+        # Reason should mention single-stock, NOT sector (sector saw clipped 10%)
+        assert "single-stock" in result[0]["constraint_reason"]
+        assert "sector limit" not in result[0]["constraint_reason"]
+
+    def test_both_caps_combine(self):
+        """Both caps can clip the same position in sequence.
+
+        30% AAPL request → single-stock cap (10%) clips to 10% → sector cap
+        (25%, with 20% already used) leaves 5% room → final size = 5%.
+        Both reasons should appear in constraint_reason.
+        """
+        new_positions = [
+            {"ticker": "AAPL", "sector": "Technology", "position_size": 30000},
+        ]
+        result = apply_portfolio_constraints(
+            new_positions,
+            current_sector_exposures={"Technology": 20.0},
+            max_sector_pct=25.0,
+            max_single_stock_pct=10.0,
+            portfolio_value=100_000,
+        )
+        assert result[0]["was_constrained"] is True
+        # Single-stock clips 30% → 10% (size 10000), sector then scales by 5/10 = 0.5
+        assert result[0]["constrained_size"] == pytest.approx(5000, abs=1)
+        assert "single-stock" in result[0]["constraint_reason"]
+        assert "sector limit" in result[0]["constraint_reason"]
 
     def test_multiple_sectors_constrained(self):
         """Multiple sectors can be independently constrained."""
