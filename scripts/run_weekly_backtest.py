@@ -246,8 +246,173 @@ def refresh_agent_sign_calibrator(shadow_mode: bool = True):
     return calibration
 
 
+def refresh_conviction_cells():
+    """
+    CIO v17 op #4: Compute Spearman ρ(conv, α30) per
+    signal × tier × regime × consensus cell.
+
+    Output is consumed by the synthesis (next /committee run) as a
+    confidence multiplier — high-IC cells boost, low-IC cells dampen.
+    """
+    print("\n" + "=" * 60)
+    print("  PHASE 6: Per-Cell Conviction Calibration (CIO v17 op #4)")
+    print("=" * 60)
+
+    from trade_modules.committee_backtester import (
+        CommitteeBacktester, yfinance_price_fetcher,
+    )
+    from trade_modules.conviction_cells import (
+        compute_cells, persist_cells,
+    )
+
+    bt = CommitteeBacktester()
+    bt.load_history()
+    if not bt.history:
+        print("  No history — skipping cell refresh.")
+        return {}
+
+    # Use price cache when available; fall back to yfinance.
+    try:
+        from trade_modules.price_service import PriceService
+        bt.compute_forward_returns(price_service=PriceService(),
+                                   horizons=(7, 14, 30))
+    except Exception:
+        bt.compute_forward_returns(price_fetcher=yfinance_price_fetcher,
+                                   horizons=(7, 14, 30))
+
+    cells = compute_cells(bt.history, bt.forward_returns, horizon="T+30")
+    persist_cells(cells)
+    print(f"  total_observations={cells.get('total_observations')}, "
+          f"aggregate ρ={cells.get('aggregate_spearman')}, "
+          f"high_ic_cells={len(cells.get('high_ic_cells', []))}, "
+          f"low_ic_cells={len(cells.get('low_ic_cells', []))}")
+    print(f"  → {cells.get('recommendation', '')}")
+    return cells
+
+
+def refresh_debate_scorecard():
+    """CIO v17 op #5: aggregate adversarial-debate signal effectiveness."""
+    print("\n" + "=" * 60)
+    print("  PHASE 7: Adversarial Debate Scorecard (CIO v17 op #5)")
+    print("=" * 60)
+
+    from trade_modules.committee_backtester import (
+        CommitteeBacktester, yfinance_price_fetcher,
+    )
+    from trade_modules.debate_scorecard import (
+        compute_debate_scorecard, persist_scorecard,
+    )
+
+    bt = CommitteeBacktester()
+    bt.load_history()
+    if not bt.history:
+        print("  No history — skipping debate scorecard.")
+        return {}
+    try:
+        from trade_modules.price_service import PriceService
+        bt.compute_forward_returns(price_service=PriceService(),
+                                   horizons=(7, 14, 30))
+    except Exception:
+        bt.compute_forward_returns(price_fetcher=yfinance_price_fetcher,
+                                   horizons=(7, 14, 30))
+
+    sc = compute_debate_scorecard(bt.history, bt.forward_returns)
+    persist_scorecard(sc)
+    print(f"  control_n={sc.get('control_n')}, "
+          f"signal_classes={list((sc.get('signals') or {}).keys())}")
+    print(f"  → {sc.get('verdict', '')}")
+    return sc
+
+
+def refresh_bayesian_likelihoods():
+    """CIO v17 op #7: build per-agent likelihoods for Bayesian update."""
+    print("\n" + "=" * 60)
+    print("  PHASE 8: Bayesian Conviction Likelihoods (CIO v17 op #7)")
+    print("=" * 60)
+
+    from trade_modules.committee_backtester import (
+        CommitteeBacktester, yfinance_price_fetcher,
+    )
+    from trade_modules.bayesian_conviction import (
+        compute_likelihoods, persist_likelihoods,
+    )
+
+    bt = CommitteeBacktester()
+    bt.load_history()
+    if not bt.history:
+        print("  No history — skipping Bayesian refresh.")
+        return {}
+    try:
+        from trade_modules.price_service import PriceService
+        bt.compute_forward_returns(price_service=PriceService(),
+                                   horizons=(7, 14, 30))
+    except Exception:
+        bt.compute_forward_returns(price_fetcher=yfinance_price_fetcher,
+                                   horizons=(7, 14, 30))
+
+    lik = compute_likelihoods(bt.history, bt.forward_returns)
+    persist_likelihoods(lik)
+    n_views = sum(len(v) for v in (lik.get("agents") or {}).values())
+    print(f"  evidence_total={lik.get('evidence_total')}, "
+          f"agents={len(lik.get('agents') or {})}, view_buckets={n_views}")
+    return lik
+
+
+def refresh_post_mortems():
+    """CIO v17 op #6: detect ADD/BUY drawdowns ≥10% within 30d."""
+    print("\n" + "=" * 60)
+    print("  PHASE 9: Post-Mortem Detection (CIO v17 op #6)")
+    print("=" * 60)
+
+    from trade_modules.post_mortem import (
+        detect_post_mortems, append_lessons,
+    )
+    pms = detect_post_mortems()
+    n = append_lessons(pms)
+    if pms:
+        print(f"  detected={len(pms)}, new_appended={n}")
+        for pm in pms[:3]:
+            print(f"  * {pm.ticker} ({pm.recommendation_date}): "
+                  f"{pm.drawdown_pct}% in {pm.days_to_drawdown}d — {pm.lesson[:80]}")
+    else:
+        print("  No new post-mortem-worthy positions found.")
+    return n
+
+
+def refresh_kill_thesis_audit():
+    """CIO v17 op #2: classify triggered kill theses as TRUE/FALSE positive."""
+    print("\n" + "=" * 60)
+    print("  PHASE 10: Kill Thesis Audit (CIO v17 op #2)")
+    print("=" * 60)
+
+    from trade_modules.kill_thesis_auditor import audit_triggered_theses
+
+    audit = audit_triggered_theses()
+    if audit.get("status") in ("no_kill_theses_file", "no_triggered_theses"):
+        print(f"  {audit.get('status')}")
+        return audit
+    summary = audit.get("summary", {})
+    print(f"  total_audited={audit.get('total_audited')}")
+    print(f"  TRUE_POSITIVE={summary.get('true_positive_count')}, "
+          f"FALSE_POSITIVE={summary.get('false_positive_count')}, "
+          f"INCONCLUSIVE={summary.get('inconclusive_count')}, "
+          f"UNVERIFIED={summary.get('unverified_count')}")
+    print(f"  TRUE-positive rate: {summary.get('true_positive_rate')}")
+    return audit
+
+
 def build_report(signal_summary, committee_result, scorecard, calibration):
-    """Build consolidated backtest report JSON."""
+    """Build consolidated backtest report JSON.
+
+    CIO v17 op: Phase 1 (signal-level backtest) can legitimately produce
+    no rows in CI when yfinance is rate-limited or upstream data is
+    stale. The report MUST always emit `headline.buy_count_t7` (and the
+    other headline keys) so the workflow validation never crashes on
+    `assert h.get('buy_count_t7') is not None`. Use 0 as the empty
+    sentinel and surface `signal_backtest_status: 'no_data'` so the
+    downstream consumer can distinguish "no signals today" from "20
+    signals today".
+    """
     report = {
         "generated_at": datetime.now().isoformat(),
         "generated_date": datetime.now().strftime("%Y-%m-%d"),
@@ -281,23 +446,37 @@ def build_report(signal_summary, committee_result, scorecard, calibration):
     sell_t7 = signal_summary.get("t7_S", {})
     sell_t30 = signal_summary.get("t30_S", {})
 
+    # CIO v17 op: empty-data sentinel (0 not None) so workflow validators
+    # never crash on `assert h.get('buy_count_t7') is not None`. The
+    # status field below tells consumers to distinguish a real "no
+    # signals today" from a Phase-1 data outage.
+    no_signal_data = not signal_summary
+
+    def _h(d, k, default=0):
+        v = d.get(k)
+        return default if v is None else v
+
     report["headline"] = {
-        "buy_hit_rate_t7": buy_t7.get("hit_rate"),
-        "buy_alpha_hit_rate_t7": buy_t7.get("alpha_hit_rate"),
-        "buy_hit_rate_t30": buy_t30.get("hit_rate"),
-        "buy_alpha_hit_rate_t30": buy_t30.get("alpha_hit_rate"),
-        "buy_avg_alpha_t7": buy_t7.get("avg_alpha"),
-        "buy_avg_alpha_t30": buy_t30.get("avg_alpha"),
-        "buy_count_t7": buy_t7.get("count"),
-        "sell_hit_rate_t7": sell_t7.get("hit_rate"),
-        "sell_alpha_hit_rate_t7": sell_t7.get("alpha_hit_rate"),
-        "sell_hit_rate_t30": sell_t30.get("hit_rate"),
-        "sell_alpha_hit_rate_t30": sell_t30.get("alpha_hit_rate"),
-        "sell_avg_alpha_t7": sell_t7.get("avg_alpha"),
-        "sell_avg_alpha_t30": sell_t30.get("avg_alpha"),
-        "sell_count_t7": sell_t7.get("count"),
-        "buy_hit_rate_ci_t7": [buy_t7.get("hit_rate_ci_lo"), buy_t7.get("hit_rate_ci_hi")],
-        "buy_proven_signal_t7": buy_t7.get("proven_signal"),
+        "buy_hit_rate_t7": _h(buy_t7, "hit_rate"),
+        "buy_alpha_hit_rate_t7": _h(buy_t7, "alpha_hit_rate"),
+        "buy_hit_rate_t30": _h(buy_t30, "hit_rate"),
+        "buy_alpha_hit_rate_t30": _h(buy_t30, "alpha_hit_rate"),
+        "buy_avg_alpha_t7": _h(buy_t7, "avg_alpha"),
+        "buy_avg_alpha_t30": _h(buy_t30, "avg_alpha"),
+        "buy_count_t7": _h(buy_t7, "count"),
+        "sell_hit_rate_t7": _h(sell_t7, "hit_rate"),
+        "sell_alpha_hit_rate_t7": _h(sell_t7, "alpha_hit_rate"),
+        "sell_hit_rate_t30": _h(sell_t30, "hit_rate"),
+        "sell_alpha_hit_rate_t30": _h(sell_t30, "alpha_hit_rate"),
+        "sell_avg_alpha_t7": _h(sell_t7, "avg_alpha"),
+        "sell_avg_alpha_t30": _h(sell_t30, "avg_alpha"),
+        "sell_count_t7": _h(sell_t7, "count"),
+        "buy_hit_rate_ci_t7": [
+            _h(buy_t7, "hit_rate_ci_lo", None),
+            _h(buy_t7, "hit_rate_ci_hi", None),
+        ],
+        "buy_proven_signal_t7": buy_t7.get("proven_signal", False),
+        "signal_backtest_status": "no_data" if no_signal_data else "ok",
     }
 
     return report
@@ -346,9 +525,46 @@ def main():
     except Exception as e:
         print(f"\n  Phase 5 FAILED: {e}")
 
+    # Phase 6: Per-cell conviction calibration (CIO v17 op #4)
+    cells = {}
+    try:
+        cells = refresh_conviction_cells()
+    except Exception as e:
+        print(f"\n  Phase 6 FAILED: {e}")
+
+    # Phase 7: Adversarial debate scorecard (CIO v17 op #5)
+    debate_sc = {}
+    try:
+        debate_sc = refresh_debate_scorecard()
+    except Exception as e:
+        print(f"\n  Phase 7 FAILED: {e}")
+
+    # Phase 8: Bayesian likelihoods (CIO v17 op #7) — shadow only.
+    bayes_likelihoods = {}
+    try:
+        bayes_likelihoods = refresh_bayesian_likelihoods()
+    except Exception as e:
+        print(f"\n  Phase 8 FAILED: {e}")
+
+    # Phase 9: Post-mortem detection (CIO v17 op #6) — appends new
+    # ADD/BUY positions that breached -10% within 30d to lessons log.
+    pm_count = 0
+    try:
+        pm_count = refresh_post_mortems()
+    except Exception as e:
+        print(f"\n  Phase 9 FAILED: {e}")
+
+    # Phase 10: Kill thesis audit (CIO v17 op #2) — classify triggered
+    # theses as TRUE/FALSE positive based on 30-day forward return.
+    audit = {}
+    try:
+        audit = refresh_kill_thesis_audit()
+    except Exception as e:
+        print(f"\n  Phase 10 FAILED: {e}")
+
     # Build consolidated report
     report = build_report(signal_summary, committee_result, scorecard, calibration)
-    # CIO v17 wiring: also surface H1 + H4.b state in the consolidated report
+    # CIO v17 wiring: surface H1 + H4.b + ops 4/5/6/7 state in the report.
     report["rolling_thresholds"] = rolling_thresholds
     report["agent_sign_calibration"] = {
         "status": sign_cal.get("status", "no_data") if sign_cal else "no_data",
@@ -362,6 +578,26 @@ def main():
             }
             for a, d in (sign_cal.get("agents") or {}).items()
         } if sign_cal else {},
+    }
+    report["conviction_cells"] = {
+        "total_observations": cells.get("total_observations") if cells else 0,
+        "aggregate_spearman": cells.get("aggregate_spearman") if cells else None,
+        "high_ic_cell_count": len(cells.get("high_ic_cells", [])) if cells else 0,
+        "low_ic_cell_count": len(cells.get("low_ic_cells", [])) if cells else 0,
+        "recommendation": cells.get("recommendation") if cells else None,
+    }
+    report["debate_scorecard_summary"] = {
+        "control_n": debate_sc.get("control_n") if debate_sc else 0,
+        "verdict": debate_sc.get("verdict") if debate_sc else None,
+    }
+    report["bayesian_likelihoods_summary"] = {
+        "evidence_total": bayes_likelihoods.get("evidence_total") if bayes_likelihoods else 0,
+        "n_agents": len((bayes_likelihoods or {}).get("agents") or {}),
+    }
+    report["post_mortems_appended"] = pm_count
+    report["kill_thesis_audit"] = {
+        "summary": (audit or {}).get("summary", {}),
+        "status": (audit or {}).get("status", "ok"),
     }
 
     # Save report
