@@ -21,7 +21,7 @@ from the GitHub Actions cron at 02:00 UTC after the signal pipeline.
 
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
 

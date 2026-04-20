@@ -20,7 +20,6 @@ Usage:
 
 import json
 import sys
-import os
 from datetime import datetime
 from pathlib import Path
 
