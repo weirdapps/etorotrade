@@ -17,7 +17,27 @@ etorotrade/
 │   ├── signal_tracker.py        # Signal logging to JSONL
 │   ├── signal_validator.py      # Signal validation logic
 │   ├── signal_performance.py    # Performance measurement
-│   └── boundaries/              # Clean architecture interfaces
+│   ├── boundaries/              # Clean architecture interfaces
+│   │
+│   ├── # Investment Committee mechanism (CIO v1-v17)
+│   ├── committee_synthesis.py   # Codified conviction scoring (4,700 lines)
+│   ├── committee_backtester.py  # T+7/T+30 forward returns + IR + Spearman ρ
+│   ├── committee_scorecard.py   # Action log + kill-thesis log + scorecard
+│   ├── committee_html.py        # Multi-section HTML report generator
+│   ├── committee_qa.py          # Pre/post-HTML validation pass
+│   ├── conviction_sizer.py      # Position sizing (Kelly + tier + cluster + cap)
+│   ├── factor_attribution.py    # Per-factor hit-rate / α attribution (T+30)
+│   ├── waterfall_categories.py  # 6-category modifier display (CIO v17 L1)
+│   │
+│   ├── # CIO v17 self-improvement modules (Apr 2026)
+│   ├── conviction_thresholds.py    # Rolling-percentile action cuts (H4.b)
+│   ├── agent_sign_calibrator.py    # Detect inverted agents — SHADOW (H1)
+│   ├── conviction_cells.py         # Per-cell ρ(conv,α) + multiplier (op #4)
+│   ├── debate_scorecard.py         # Adversarial-debate effectiveness (op #5)
+│   ├── post_mortem.py              # Auto -10%/30d post-mortems (op #6)
+│   ├── bayesian_conviction.py      # Bayesian shadow scoring (op #7)
+│   ├── kill_thesis_auditor.py      # TRUE/FALSE positive classifier (op #2)
+│   └── price_cache.py              # Parquet 1y cache (op #8)
 │
 ├── yahoofinance/               # Data & Analysis Layer
 │   ├── api/providers/          # Data provider implementations
@@ -31,10 +51,17 @@ etorotrade/
 │
 ├── scripts/                    # Analysis Tools
 │   ├── analyze_geography.py    # Geographic exposure (ETF-aware)
-│   └── analyze_industry.py     # Sector analysis (ETF-aware)
+│   ├── analyze_industry.py     # Sector analysis (ETF-aware)
+│   ├── run_weekly_backtest.py  # 10-phase weekly self-improvement loop
+│   ├── refresh_price_cache.py  # Daily parquet cache refresh (op #8)
+│   └── backfill_action_prices.py
 │
 └── config.yaml                 # Trading thresholds configuration
 ```
+
+> See [`docs/CIO_V17_OPS.md`](./CIO_V17_OPS.md) for the v17 ops modules
+> reference: each module's public API, the 10-phase weekly backtest,
+> and the dependency graph.
 
 ### Data Flow Diagram
 
