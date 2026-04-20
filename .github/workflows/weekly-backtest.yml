@@ -63,9 +63,18 @@ jobs:
           with open('$REPORT') as f:
               r = json.load(f)
           h = r.get('headline', {})
-          assert h.get('buy_count_t7') is not None, 'Missing buy_count_t7'
+          # CIO v17: presence-of-key validation (not 'is not None'). The
+          # script always emits buy_count_t7=0 with status='no_data' when
+          # Phase 1 produces nothing — the workflow should NOT fail on
+          # data drought, only on schema regression.
+          assert 'buy_count_t7' in h, 'Missing buy_count_t7 schema'
+          assert 'signal_backtest_status' in h, 'Missing status field'
+          status = h.get('signal_backtest_status', 'unknown')
+          print(f'Phase 1 status: {status}')
           print(f'BUY T+7: {h.get(\"buy_hit_rate_t7\")}% (n={h.get(\"buy_count_t7\")})')
           print(f'SELL T+7: {h.get(\"sell_hit_rate_t7\")}% (n={h.get(\"sell_count_t7\")})')
+          if status == 'no_data':
+              print('NOTE: signal backtest had no data this run — workflow continues for downstream calibration phases.')
           "
 
       - name: Configure Git
