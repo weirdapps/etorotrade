@@ -125,10 +125,11 @@ def categorize_waterfall(
         cat = MODIFIER_CATEGORY.get(key, "Other")
         bucket = out.setdefault(cat, {"total": 0, "modifiers": {}})
         try:
-            bucket["total"] += int(val)
+            v_int = int(val)
         except (TypeError, ValueError):
             continue
-        bucket["modifiers"][key] = val
+        bucket["total"] += v_int
+        bucket["modifiers"][key] = v_int
     # Re-emit in the canonical order.
     ordered: Dict[str, Dict[str, int]] = {}
     for cat in CATEGORY_ORDER:

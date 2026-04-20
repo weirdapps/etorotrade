@@ -438,6 +438,24 @@ class TestWaterfallCategories:
         cats = categorize_waterfall(wf)
         assert sum(b["total"] for b in cats.values()) == 3
 
+    def test_string_values_are_coerced(self):
+        # Regression: values can arrive as strings after JSON round-trip
+        # via concordance.json. Must not crash; must coerce or skip.
+        wf = {"piotroski_quality": "3", "rsi_overbought": "-8",
+              "garbage": "not_a_number"}
+        cats = categorize_waterfall(wf)
+        assert cats["Quality"]["total"] == 3
+        assert cats["Momentum"]["total"] == -8
+        # "garbage" key should be silently skipped, not crash.
+        assert "garbage" not in (cats.get("Other", {}).get("modifiers") or {})
+
+    def test_render_handles_string_values(self):
+        wf = {"piotroski_quality": "3", "kill_thesis": "-15"}
+        # Should not raise even though values are strings.
+        s = render_category_summary(wf, text_only=True)
+        assert "Quality +3" in s
+        assert "Risk -15" in s
+
 
 # ── H1 — Agent sign calibrator (shadow mode) ────────────────────────────
 
@@ -761,6 +779,38 @@ class TestSignCalibratorHTMLPanel:
         )
         # Daily/digest mode skips the panel to keep email lightweight.
         assert "Agent Sign Calibrator" not in html
+
+    def test_render_survives_string_waterfall_values(self):
+        # Regression: when concordance comes back from JSON round-trip,
+        # waterfall values can be strings. The renderer must not crash on
+        # `abs(str)` or `int + str`.
+        from trade_modules.committee_html import generate_report_html
+        synth = {
+            "version": "v17", "regime": "RISK_ON",
+            "macro_score": 25, "rotation_phase": "EARLY_CYCLE",
+            "verdict": "OK", "narrative": "Test",
+            "concordance": [
+                {
+                    "ticker": "TEST", "action": "ADD", "conviction": 60,
+                    "signal": "B", "fund_view": "BUY", "tech_signal": "ENTER_NOW",
+                    "macro_fit": "FAVORABLE", "census": "ALIGNED",
+                    "news_impact": "NEUTRAL", "rsi": 55, "sector": "Technology",
+                    "exret": 20.0, "buy_pct": 80, "beta": 1.0,
+                    "conviction_waterfall": {
+                        "piotroski_quality": "3",   # string!
+                        "rsi_overbought": "-8",      # string!
+                        "kill_thesis": "-15",        # string!
+                        "garbage_modifier": "n/a",   # non-numeric
+                    },
+                },
+            ],
+        }
+        # Must not raise.
+        html = generate_report_html(
+            synth=synth, fund={}, tech={}, macro={}, census={}, news={},
+            opps={}, risk={}, date_str="2026-04-20", mode="full",
+        )
+        assert "TEST" in html
 
 
 # ── Sprint S1.3 — agent_sign_calibrator legacy-format normalization ─────
