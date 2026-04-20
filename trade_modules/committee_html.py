@@ -1104,9 +1104,16 @@ def generate_report_html(
                 )
 
             # Top-4 individual modifier detail (existing behaviour, retained).
+            # CIO v17 robustness: coerce values to int — when concordance is
+            # round-tripped through JSON some agents emit strings.
+            def _wf_int(v, default=0):
+                try:
+                    return int(v)
+                except (TypeError, ValueError):
+                    return default
+            wf_clean = [(k, _wf_int(v)) for k, v in wf.items() if not k.startswith("_")]
             wf_parts = []
-            sorted_wf = [kv for kv in sorted(wf.items(), key=lambda x: abs(x[1]), reverse=True)
-                         if not kv[0].startswith("_")][:4]
+            sorted_wf = sorted(wf_clean, key=lambda x: abs(x[1]), reverse=True)[:4]
             for k, v in sorted_wf:
                 color = _C["bull"] if v > 0 else _C["bear"]
                 sign = "+" if v > 0 else ""
@@ -2826,7 +2833,13 @@ def generate_report_html(
             for k, v in wf.items():
                 if k.startswith("_"):
                     continue
-                wf_agg[k] = wf_agg.get(k, 0) + v
+                # CIO v17: coerce to int — round-tripped JSON sometimes
+                # turns numeric values into strings.
+                try:
+                    v_int = int(v)
+                except (TypeError, ValueError):
+                    continue
+                wf_agg[k] = wf_agg.get(k, 0) + v_int
                 wf_counts[k] = wf_counts.get(k, 0) + 1
         if wf_agg:
             h.append(f'<div style="margin-top:16px;"><b style="font-size:12px;">Modifier Attribution</b>'
