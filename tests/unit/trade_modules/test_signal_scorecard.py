@@ -14,6 +14,14 @@ import pytest
 
 from trade_modules.signal_scorecard import SignalScorecard
 
+# Anchor synthetic signal/price data to "now" so the fixture stays inside
+# the scorecard's months_back=3 (~90 day) window as time passes. Previously
+# hard-coded to 2026-01-20, which silently expired on 2026-04-22.
+BASE_DATE = (datetime.now() - timedelta(days=30)).replace(
+    hour=0, minute=0, second=0, microsecond=0
+)
+BASE_DATE_LATE = BASE_DATE + timedelta(days=12)
+
 # ============================================================
 # Fixtures
 # ============================================================
@@ -29,7 +37,7 @@ def tmp_dir(tmp_path):
 def signal_log(tmp_dir):
     """Create a synthetic signal log JSONL file."""
     log_path = tmp_dir / "signal_log.jsonl"
-    base_date = datetime(2026, 1, 20, 10, 0, 0)
+    base_date = BASE_DATE
 
     records = []
     # BUY signals - mega cap US
@@ -132,7 +140,7 @@ class TestSignalScorecard:
         hold_tickers = ["SAP", "ASML"]
         all_tickers = buy_tickers + sell_tickers + hold_tickers
 
-        price_data, spy_data = _make_price_data(all_tickers, datetime(2026, 1, 20))
+        price_data, spy_data = _make_price_data(all_tickers, BASE_DATE)
 
         sc = SignalScorecard(
             signal_log_path=signal_log,
@@ -152,7 +160,7 @@ class TestSignalScorecard:
     def test_buy_hit_rates(self, signal_log, tmp_dir):
         """BUY signals with rising prices should have high hit rates."""
         all_tickers = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "BADCO", "FAILCO", "SAP", "ASML"]
-        price_data, spy_data = _make_price_data(all_tickers, datetime(2026, 1, 20), gain=True)
+        price_data, spy_data = _make_price_data(all_tickers, BASE_DATE, gain=True)
 
         sc = SignalScorecard(
             signal_log_path=signal_log,
@@ -173,7 +181,7 @@ class TestSignalScorecard:
         """SELL signals with declining prices should have high hit rates."""
         # Create a dedicated signal log with SELL signals at known prices
         log_path = tmp_dir / "sell_log.jsonl"
-        base_date = datetime(2026, 2, 1, 10, 0, 0)
+        base_date = BASE_DATE_LATE
         records = []
         for i, ticker in enumerate(["DROPX", "DROPY", "DROPZ"]):
             records.append({
@@ -212,7 +220,7 @@ class TestSignalScorecard:
     def test_by_tier_breakdown(self, signal_log, tmp_dir):
         """Tier breakdown should contain expected tiers."""
         all_tickers = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "BADCO", "FAILCO", "SAP", "ASML"]
-        price_data, spy_data = _make_price_data(all_tickers, datetime(2026, 1, 20))
+        price_data, spy_data = _make_price_data(all_tickers, BASE_DATE)
 
         sc = SignalScorecard(
             signal_log_path=signal_log,
@@ -229,7 +237,7 @@ class TestSignalScorecard:
     def test_by_region_breakdown(self, signal_log, tmp_dir):
         """Region breakdown should contain expected regions."""
         all_tickers = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "BADCO", "FAILCO", "SAP", "ASML"]
-        price_data, spy_data = _make_price_data(all_tickers, datetime(2026, 1, 20))
+        price_data, spy_data = _make_price_data(all_tickers, BASE_DATE)
 
         sc = SignalScorecard(
             signal_log_path=signal_log,
@@ -245,7 +253,7 @@ class TestSignalScorecard:
     def test_false_positive_rate(self, signal_log, tmp_dir):
         """False positive rate for BUY signals with declining prices should be high."""
         all_tickers = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "BADCO", "FAILCO", "SAP", "ASML"]
-        price_data, spy_data = _make_price_data(all_tickers, datetime(2026, 1, 20), gain=False)
+        price_data, spy_data = _make_price_data(all_tickers, BASE_DATE, gain=False)
 
         sc = SignalScorecard(
             signal_log_path=signal_log,
@@ -265,7 +273,7 @@ class TestSignalScorecard:
     def test_scorecard_saved_to_json(self, signal_log, tmp_dir):
         """Scorecard should be saved as JSON file."""
         all_tickers = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "BADCO", "FAILCO", "SAP", "ASML"]
-        price_data, spy_data = _make_price_data(all_tickers, datetime(2026, 1, 20))
+        price_data, spy_data = _make_price_data(all_tickers, BASE_DATE)
 
         output_dir = tmp_dir / "output"
         sc = SignalScorecard(
@@ -287,7 +295,7 @@ class TestSignalScorecard:
     def test_print_scorecard(self, signal_log, tmp_dir, capsys):
         """print_scorecard should output without errors."""
         all_tickers = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "BADCO", "FAILCO", "SAP", "ASML"]
-        price_data, spy_data = _make_price_data(all_tickers, datetime(2026, 1, 20))
+        price_data, spy_data = _make_price_data(all_tickers, BASE_DATE)
 
         sc = SignalScorecard(
             signal_log_path=signal_log,
@@ -304,7 +312,7 @@ class TestSignalScorecard:
     def test_calibration_alerts_low_hit_rate(self, tmp_dir):
         """Should generate alert when BUY hit rate < 50%."""
         log_path = tmp_dir / "signal_log.jsonl"
-        base_date = datetime(2026, 2, 1, 10, 0, 0)
+        base_date = BASE_DATE_LATE
 
         # Create many BUY signals for one tier/region (use tickers that won't
         # be filtered by TEST_TICKER_RE)
@@ -395,7 +403,7 @@ class TestConsensusCalibration:
     def _make_buy_signal_log(self, tmp_dir, tickers, buy_percentages, base_date=None):
         """Helper: create signal log with BUY signals at specified buy_percentage values."""
         if base_date is None:
-            base_date = datetime(2026, 1, 20, 10, 0, 0)
+            base_date = BASE_DATE
 
         log_path = tmp_dir / "signal_log.jsonl"
         records = []
@@ -424,7 +432,7 @@ class TestConsensusCalibration:
         buy_pcts = [55.0] * 5 + [85.0] * 5
 
         log_path = self._make_buy_signal_log(tmp_dir, tickers, buy_pcts)
-        base_date = datetime(2026, 1, 20)
+        base_date = BASE_DATE
 
         # Prices go up for all stocks
         price_data, spy_data = _make_price_data(tickers, base_date, gain=True)
@@ -456,7 +464,7 @@ class TestConsensusCalibration:
         buy_pcts = [55.0, 65.0, 75.0, 85.0, 92.0, 95.0]
 
         log_path = self._make_buy_signal_log(tmp_dir, tickers, buy_pcts)
-        base_date = datetime(2026, 1, 20)
+        base_date = BASE_DATE
 
         price_data, spy_data = _make_price_data(tickers, base_date, gain=True)
 
@@ -479,7 +487,7 @@ class TestConsensusCalibration:
         """With falling prices, BUY hit rates should be 0%."""
         tickers = [f"DN{i:02d}" for i in range(4)]
         buy_pcts = [55.0, 65.0, 75.0, 85.0]
-        base_date = datetime(2026, 1, 20)
+        base_date = BASE_DATE
 
         log_path = self._make_buy_signal_log(tmp_dir, tickers, buy_pcts, base_date)
 
@@ -516,7 +524,7 @@ class TestConsensusCalibration:
     def test_consensus_calibration_empty_when_no_buy_percentage(self, tmp_dir):
         """Calibration returns empty dict when buy_percentage is missing."""
         log_path = tmp_dir / "signal_log.jsonl"
-        base_date = datetime(2026, 1, 20, 10, 0, 0)
+        base_date = BASE_DATE
 
         # Signal log WITHOUT buy_percentage field
         records = []
@@ -553,7 +561,7 @@ class TestConsensusCalibration:
     def test_consensus_calibration_skips_sell_signals(self, tmp_dir):
         """Calibration only considers BUY signals, not SELL."""
         log_path = tmp_dir / "signal_log.jsonl"
-        base_date = datetime(2026, 1, 20, 10, 0, 0)
+        base_date = BASE_DATE
 
         records = []
         # Only SELL signals with buy_percentage
@@ -595,7 +603,7 @@ class TestConsensusCalibration:
         buy_pcts = [30.0, 45.0]
 
         log_path = self._make_buy_signal_log(tmp_dir, tickers, buy_pcts)
-        base_date = datetime(2026, 1, 20)
+        base_date = BASE_DATE
 
         price_data, spy_data = _make_price_data(tickers, base_date, gain=True)
 
@@ -616,7 +624,7 @@ class TestConsensusCalibration:
         buy_pcts = [90.0, 95.0, 100.0]
 
         log_path = self._make_buy_signal_log(tmp_dir, tickers, buy_pcts)
-        base_date = datetime(2026, 1, 20)
+        base_date = BASE_DATE
 
         price_data, spy_data = _make_price_data(tickers, base_date, gain=True)
 
@@ -645,7 +653,7 @@ class TestConsensusCalibration:
         buy_pcts = [75.0, 76.0, 77.0, 78.0]
 
         log_path = self._make_buy_signal_log(tmp_dir, tickers, buy_pcts)
-        base_date = datetime(2026, 1, 20)
+        base_date = BASE_DATE
 
         # Stocks go up at 0.1% per day, SPY goes up at 0.05% per day
         # All stocks outperform SPY
@@ -667,7 +675,7 @@ class TestConsensusCalibration:
     def test_consensus_calibration_included_in_full_scorecard(self, signal_log, tmp_dir):
         """consensus_calibration appears in full scorecard output."""
         all_tickers = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "BADCO", "FAILCO", "SAP", "ASML"]
-        price_data, spy_data = _make_price_data(all_tickers, datetime(2026, 1, 20))
+        price_data, spy_data = _make_price_data(all_tickers, BASE_DATE)
 
         sc = SignalScorecard(
             signal_log_path=signal_log,
@@ -693,7 +701,7 @@ class TestConsensusCalibration:
         buy_pcts = [65.0, 66.0, 67.0]
 
         log_path = self._make_buy_signal_log(tmp_dir, tickers, buy_pcts)
-        base_date = datetime(2026, 1, 20)
+        base_date = BASE_DATE
 
         price_data, spy_data = _make_price_data(tickers, base_date, gain=True)
 
