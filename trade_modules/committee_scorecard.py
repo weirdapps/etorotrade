@@ -1507,18 +1507,23 @@ def calibrate_modifiers(
         return {"sufficient_data": False, "total_actions": 0}
 
     # Ensure SPY is fetched alongside stock prices
-    fetch_tickers = list(set(tickers + ["SPY"]))
+    held_tickers = list(set(tickers + ["SPY"]))
+    # Translate held-side tickers (e.g. LYXGRE.DE → GRE.PA) before download,
+    # then key the prices dict by the held-side symbol so action lookups match.
+    from trade_modules.price_service import _apply_data_fetch_substitutions
+    fetch_tickers, reverse_map = _apply_data_fetch_substitutions(held_tickers)
 
     scored = []
     try:
         data = yf.download(fetch_tickers, period="3mo", progress=False, auto_adjust=True)
         prices = {}
         if not data.empty:
-            for t in fetch_tickers:
+            for fetch_t in fetch_tickers:
                 try:
-                    closes = data['Close'][t].dropna() if len(fetch_tickers) > 1 else data['Close'].dropna()
+                    closes = data['Close'][fetch_t].dropna() if len(fetch_tickers) > 1 else data['Close'].dropna()
                     if not closes.empty:
-                        prices[t] = closes  # Keep full series for date-matched alpha
+                        held_t = reverse_map.get(fetch_t, fetch_t)
+                        prices[held_t] = closes  # Keep full series for date-matched alpha
                 except (KeyError, IndexError):
                     pass
     except Exception:
@@ -1722,8 +1727,13 @@ def compute_benchmark_comparison(
 
     # Get current prices for BUY portfolio
     tickers = list(set(a["ticker"] for a in buy_actions))
+    # Translate held-side tickers to yfinance-friendly substitutes (e.g.
+    # LYXGRE.DE → GRE.PA) before fetching, then route results back via the
+    # original ticker so downstream lookups still match action_log entries.
+    from trade_modules.price_service import _apply_data_fetch_substitutions
+    fetch_tickers, reverse_map = _apply_data_fetch_substitutions(tickers)
     try:
-        data = yf.download(tickers, period="3mo", progress=False, auto_adjust=True)
+        data = yf.download(fetch_tickers, period="3mo", progress=False, auto_adjust=True)
     except Exception:
         return {"sufficient_data": False}
 
@@ -1739,8 +1749,11 @@ def compute_benchmark_comparison(
                 continue
         except (ValueError, TypeError):
             continue
+        # Look up by the fetch-side symbol when the held-side ticker was
+        # substituted (e.g. data['Close']['GRE.PA'] for an LYXGRE.DE action).
+        fetch_t = next((k for k, v in reverse_map.items() if v == t), t)
         try:
-            closes = data['Close'][t].dropna() if len(tickers) > 1 else data['Close'].dropna()
+            closes = data['Close'][fetch_t].dropna() if len(fetch_tickers) > 1 else data['Close'].dropna()
             curr = float(closes.iloc[-1])
             ret = (curr - rec_price) / rec_price * 100
             returns.append(ret)

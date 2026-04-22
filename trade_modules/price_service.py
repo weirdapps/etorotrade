@@ -33,6 +33,40 @@ REGION_BENCHMARKS: Dict[str, str] = {
 DEFAULT_CACHE_DIR = Path.home() / ".weirdapps-trading" / "price_cache"
 
 
+def _apply_data_fetch_substitutions(
+    tickers: List[str],
+) -> Tuple[List[str], Dict[str, str]]:
+    """Translate held-side tickers to yfinance-friendly substitutes.
+
+    Some portfolio holdings (e.g. LYXGRE.DE on Xetra) are not indexed by
+    Yahoo Finance, but the same security trades on another exchange under
+    a different symbol (LYXGRE.DE → GRE.PA on Paris). The canonical map
+    lives on ConfigManager.data_fetch_substitutions; this helper applies it
+    transparently around batch fetches and returns a reverse map so callers
+    can rename result columns back to the held-side symbol.
+
+    Returns:
+        (fetch_tickers, reverse_map) where reverse_map[fetch] = original.
+    """
+    try:
+        from trade_modules.config_manager import get_config
+        subs = get_config().data_fetch_substitutions
+    except Exception:
+        return list(tickers), {}
+    if not subs:
+        return list(tickers), {}
+    fetch_tickers: List[str] = []
+    reverse: Dict[str, str] = {}
+    for t in tickers:
+        sub = subs.get(t.upper()) if t else None
+        if sub:
+            fetch_tickers.append(sub)
+            reverse[sub] = t
+        else:
+            fetch_tickers.append(t)
+    return fetch_tickers, reverse
+
+
 class PriceService:
     """
     Centralized price fetcher with caching and trading-day indexing.
@@ -216,9 +250,11 @@ class PriceService:
         """Batch-download close prices via yfinance with retry/backoff."""
         import yfinance as yf
 
+        fetch_tickers, reverse_map = _apply_data_fetch_substitutions(tickers)
+
         frames = []
-        for i in range(0, len(tickers), batch_size):
-            batch = tickers[i : i + batch_size]
+        for i in range(0, len(fetch_tickers), batch_size):
+            batch = fetch_tickers[i : i + batch_size]
             for attempt in range(max_retries):
                 try:
                     data = yf.download(
@@ -261,6 +297,10 @@ class PriceService:
 
         result = pd.concat(frames, axis=1)
         result = result.loc[:, ~result.columns.duplicated()]
+        # Rename substituted columns back to the held-side symbol so callers
+        # see the ticker they asked for (e.g. LYXGRE.DE, not GRE.PA).
+        if reverse_map:
+            result = result.rename(columns=reverse_map)
         return result
 
     def _load_cache(self) -> Optional[pd.DataFrame]:
