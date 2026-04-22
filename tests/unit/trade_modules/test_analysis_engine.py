@@ -23,6 +23,23 @@ from trade_modules.analysis_engine import (
     filter_hold_candidates_wrapper,
 )
 
+# signals.py performs a live yfinance lookup for each ticker's next earnings
+# date and forces HOLD when within 7 calendar days. With real tickers
+# (AAPL/MSFT/GOOGL/AMZN), tests that assert BUY/SELL turn into time-bombs
+# that fail every earnings season. Mock to a deterministic "clear" response.
+_CLEAR_EARNINGS = {
+    "earnings_date": None, "days_until": None, "status": "clear",
+    "should_hold": False, "conviction_boost": False, "conviction_adjustment": 0,
+}
+
+@pytest.fixture(autouse=True)
+def _mock_earnings_proximity():
+    with patch(
+        "trade_modules.earnings_proximity.check_earnings_proximity",
+        return_value=_CLEAR_EARNINGS,
+    ):
+        yield
+
 @pytest.fixture
 def sample_dataframe():
     """Create a sample DataFrame for testing."""
@@ -118,26 +135,6 @@ class TestCalculateExret:
 
 class TestCalculateActionVectorized:
     """Test cases for the vectorized action calculation."""
-
-    @pytest.fixture(autouse=True)
-    def _mock_earnings_proximity(self, monkeypatch):
-        # signals.py performs a live yfinance lookup for each ticker's next
-        # earnings date and forces HOLD when within 7 calendar days. With real
-        # tickers (AAPL/MSFT/GOOGL/AMZN) the test becomes time-dependent and
-        # fails every earnings season. Force "clear" to keep tests deterministic.
-        from trade_modules import earnings_proximity
-
-        def _clear(_ticker):
-            return {
-                "earnings_date": None,
-                "days_until": None,
-                "status": "clear",
-                "should_hold": False,
-                "conviction_boost": False,
-                "conviction_adjustment": 0,
-            }
-
-        monkeypatch.setattr(earnings_proximity, "check_earnings_proximity", _clear)
 
     def test_vectorized_action_buy_conditions(self, sample_dataframe):
         """Test vectorized BUY action detection."""

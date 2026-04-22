@@ -8,30 +8,29 @@ All floating-point comparisons use pytest.approx() for reliable testing.
 
 import pytest
 import pandas as pd
+from unittest.mock import patch
 
 from trade_modules.analysis_engine import calculate_exret, calculate_action
 
+# signals.py performs a live yfinance lookup for each ticker's next earnings
+# date and forces HOLD when within 7 calendar days. Tests using real tickers
+# (AAPL etc.) become time-bombs that fail every earnings season. Mock to a
+# deterministic "clear" response.
+_CLEAR_EARNINGS = {
+    "earnings_date": None, "days_until": None, "status": "clear",
+    "should_hold": False, "conviction_boost": False, "conviction_adjustment": 0,
+}
+
+@pytest.fixture(autouse=True)
+def _mock_earnings_proximity():
+    with patch(
+        "trade_modules.earnings_proximity.check_earnings_proximity",
+        return_value=_CLEAR_EARNINGS,
+    ):
+        yield
+
 class TestMegaUSTierSignals:
     """Test signal generation for MEGA-US tier ($500B+ market cap)."""
-
-    @pytest.fixture(autouse=True)
-    def _mock_earnings_proximity(self, monkeypatch):
-        # signals.py performs a live yfinance lookup for AAPL's next earnings
-        # date and forces HOLD when within 7 calendar days, making this class
-        # fail every earnings season. Force "clear" to keep tests deterministic.
-        from trade_modules import earnings_proximity
-
-        def _clear(_ticker):
-            return {
-                "earnings_date": None,
-                "days_until": None,
-                "status": "clear",
-                "should_hold": False,
-                "conviction_boost": False,
-                "conviction_adjustment": 0,
-            }
-
-        monkeypatch.setattr(earnings_proximity, "check_earnings_proximity", _clear)
 
     @pytest.fixture
     def mega_us_base_data(self):

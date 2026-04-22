@@ -7,6 +7,7 @@ This module tests the main AnalysisEngine class functionality.
 import pytest
 import pandas as pd
 import numpy as np
+from unittest.mock import patch
 
 from trade_modules.analysis_engine import (
     AnalysisEngine,
@@ -17,6 +18,23 @@ from trade_modules.analysis_engine import (
     _determine_market_cap_tier,
     calculate_action_vectorized,
 )
+
+# signals.py performs a live yfinance lookup for each ticker's next earnings
+# date and forces HOLD when within 7 calendar days. Tests using real tickers
+# become time-bombs that fail every earnings season. Mock to a deterministic
+# "clear" response.
+_CLEAR_EARNINGS = {
+    "earnings_date": None, "days_until": None, "status": "clear",
+    "should_hold": False, "conviction_boost": False, "conviction_adjustment": 0,
+}
+
+@pytest.fixture(autouse=True)
+def _mock_earnings_proximity():
+    with patch(
+        "trade_modules.earnings_proximity.check_earnings_proximity",
+        return_value=_CLEAR_EARNINGS,
+    ):
+        yield
 
 class TestAnalysisEngineInitialization:
     """Tests for AnalysisEngine initialization."""
