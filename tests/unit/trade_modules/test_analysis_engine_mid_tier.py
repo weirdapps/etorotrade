@@ -6,8 +6,26 @@ Target: Test calculate_action_vectorized() for MID tier ($10B-$100B) across all 
 
 import pytest
 import pandas as pd
+from unittest.mock import patch
 
 from trade_modules.analysis_engine import calculate_action
+
+# signals.py performs a live yfinance lookup for each ticker's next earnings
+# date and forces HOLD when within 7 calendar days. Tests using real tickers
+# (ROKU etc.) become time-bombs that fail every earnings season. Mock to a
+# deterministic "clear" response.
+_CLEAR_EARNINGS = {
+    "earnings_date": None, "days_until": None, "status": "clear",
+    "should_hold": False, "conviction_boost": False, "conviction_adjustment": 0,
+}
+
+@pytest.fixture(autouse=True)
+def _mock_earnings_proximity():
+    with patch(
+        "trade_modules.earnings_proximity.check_earnings_proximity",
+        return_value=_CLEAR_EARNINGS,
+    ):
+        yield
 
 
 class TestMidUSTierSignals:
