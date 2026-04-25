@@ -44,12 +44,12 @@ cover/
 
 # Virtual Environments
 myenv/
-venv/
+venv
 env/
 ENV/
 testenv/
 .env/
-.venv/
+.venv
 env.bak/
 venv.bak/
 
