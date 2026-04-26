@@ -36,6 +36,7 @@ from trade_modules.committee_synthesis import (
     build_concordance,
     classify_hold_tier,
     compute_adjustments,
+    generate_kill_thesis,
     generate_synthesis_output,
     compute_changes,
     compute_dynamic_freshness,
@@ -419,21 +420,30 @@ class TestComputeAdjustments:
         bonuses, _, _ = compute_adjustments(**kw)
         assert bonuses >= 15
 
-    def test_consensus_warning_tiered(self):
-        """Consensus penalty varies by excess EXRET."""
+    def test_consensus_crowded_penalty_removed(self):
+        """CIO v40 (post-backtest 2026-04-26): consensus_crowded penalty removed.
+
+        T+7 attribution showed the penalty was systematically subtracting
+        conviction from rallying names (+8.51% alpha on ADD when penalty fired).
+        Now no penalty fires regardless of buy_pct or excess_exret — verified
+        by checking that penalty values are identical across excess_exret bands.
+        """
         kw = self._default_kwargs()
-        kw["buy_pct"] = 95
+        kw["buy_pct"] = 95  # Would have triggered the old >90 penalty
 
         kw["excess_exret"] = 20
         _, p_high, _ = compute_adjustments(**kw)
-
         kw["excess_exret"] = 5
         _, p_mid, _ = compute_adjustments(**kw)
-
         kw["excess_exret"] = -5
         _, p_low, _ = compute_adjustments(**kw)
 
-        assert p_low > p_mid > p_high
+        # All three should produce IDENTICAL penalty totals — the consensus
+        # gradient no longer contributes anything.
+        assert p_low == p_mid == p_high, (
+            f"consensus_crowded should not fire at any excess_exret band. "
+            f"Got p_low={p_low}, p_mid={p_mid}, p_high={p_high}"
+        )
 
     def test_census_alignment_bonus(self):
         kw = self._default_kwargs()
@@ -4638,113 +4648,58 @@ class TestV15EndToEndConvictionIntegrity:
         )
 
 
-class TestV16ConsensusWarningSmoothing:
-    """CIO v37: Tier-scaled consensus warning (was W6 cliff smoothing).
+class TestV40ConsensusCrowdedPenaltyRemoved:
+    """CIO v40 (post-backtest 2026-04-26): consensus_crowded penalty removed.
 
-    Backtest by tier showed the original 5/8/11/15 gradient was BACKWARDS for
-    MEGA-caps. Penalty is now tier-scaled: MEGA=0, LARGE=3, MID=5, SMALL=8,
-    MICRO=10 — multiplied by excess_exret factor (0.8/1.0/1.4/1.9).
-    Default tier=MID for these tests (base=5).
+    Was tier-scaled in v37 (MEGA=0, LARGE=3, MID=5, SMALL=8, MICRO=10 with
+    excess_exret multiplier). T+7 attribution on n=442 evaluations showed the
+    rule was contrarian even after tier-scaling: ADD actions where
+    wf_consensus_crowded fired returned +8.51% alpha (5/7 hits). The penalty
+    was suppressing conviction on names that subsequently rallied.
+
+    All previous tier/excess_exret cases must now produce 0 consensus_crowded
+    contribution. Stocks marginally below sector median should still earn ADD
+    purely from positive factors (no longer get pulled down by consensus).
     """
 
-    def test_marginal_below_median_gets_intermediate_penalty(self):
-        """MID-tier, excess_exret -0.9 (in [-10, 0)) → 5 * 1.4 = 7."""
-        _, penalties, _ = compute_adjustments(
-            signal="B", fund_score=85, tech_signal="HOLD",
-            tech_momentum=15, rsi=50, macro_fit="NEUTRAL",
+    def _kwargs_with_high_consensus(self, **overrides):
+        base = dict(
+            signal="B", fund_score=75, tech_signal="HOLD",
+            tech_momentum=0, rsi=50, macro_fit="NEUTRAL",
             census_alignment="NEUTRAL", div_score=0,
             census_ts="stable", news_impact="NEUTRAL",
             risk_warning=False, buy_pct=96,
-            excess_exret=-0.9, beta=1.0, quality_trap=False,
-            sector="Consumer Discretionary", sector_rankings={},
-            bull_count=3, stock_tier="MID",
-        )
-        assert penalties == 7, (
-            f"MID tier marginal below: expected 7 (5*1.4), got {penalties}"
-        )
-
-    def test_significantly_below_median_gets_full_penalty(self):
-        """MID-tier, excess_exret -15 (< -10) → 5 * 1.9 = 9.5 → round to 10."""
-        _, penalties, _ = compute_adjustments(
-            signal="B", fund_score=75, tech_signal="HOLD",
-            tech_momentum=0, rsi=50, macro_fit="NEUTRAL",
-            census_alignment="NEUTRAL", div_score=0,
-            census_ts="stable", news_impact="NEUTRAL",
-            risk_warning=False, buy_pct=95,
-            excess_exret=-15, beta=1.0, quality_trap=False,
+            excess_exret=0, beta=1.0, quality_trap=False,
             sector="Technology", sector_rankings={},
             bull_count=3, stock_tier="MID",
         )
-        assert penalties == 10, (
-            f"MID tier severely below: expected 10 (5*1.9 rounded), got {penalties}"
-        )
+        base.update(overrides)
+        return base
 
-    def test_above_median_unchanged(self):
-        """MID-tier, excess_exret +5 (in [0, 12)) → 5 * 1.0 = 5."""
-        _, penalties, _ = compute_adjustments(
-            signal="B", fund_score=75, tech_signal="HOLD",
-            tech_momentum=0, rsi=50, macro_fit="NEUTRAL",
-            census_alignment="NEUTRAL", div_score=0,
-            census_ts="stable", news_impact="NEUTRAL",
-            risk_warning=False, buy_pct=95,
-            excess_exret=5, beta=1.0, quality_trap=False,
-            sector="Technology", sector_rankings={},
-            bull_count=3, stock_tier="MID",
-        )
-        assert penalties == 5, (
-            f"MID tier above median: expected 5 (base*1.0), got {penalties}"
-        )
+    def test_no_penalty_at_any_tier(self):
+        """consensus_crowded must produce 0 penalty for every tier × excess_exret."""
+        baselines = {}
+        for tier in ("MEGA", "LARGE", "MID", "SMALL", "MICRO"):
+            kw = self._kwargs_with_high_consensus(stock_tier=tier, excess_exret=0)
+            _, baseline, _ = compute_adjustments(**kw)
+            baselines[tier] = baseline
+            for excess in (-15, -10, -5, 5, 12, 20):
+                kw = self._kwargs_with_high_consensus(stock_tier=tier, excess_exret=excess)
+                _, p, _ = compute_adjustments(**kw)
+                # Penalty totals must be IDENTICAL across excess_exret bands
+                # (other factors don't depend on excess_exret in this kwargs set).
+                assert p == baseline, (
+                    f"Tier {tier}, excess_exret {excess}: expected {baseline}, "
+                    f"got {p} — consensus_crowded should not fire"
+                )
 
-    def test_boundary_at_minus_ten(self):
-        """MID-tier, excess_exret -10 (boundary, in [-10, 0)) → 5 * 1.4 = 7."""
-        _, penalties, _ = compute_adjustments(
-            signal="B", fund_score=75, tech_signal="HOLD",
-            tech_momentum=0, rsi=50, macro_fit="NEUTRAL",
-            census_alignment="NEUTRAL", div_score=0,
-            census_ts="stable", news_impact="NEUTRAL",
-            risk_warning=False, buy_pct=95,
-            excess_exret=-10, beta=1.0, quality_trap=False,
-            sector="Technology", sector_rankings={},
-            bull_count=3, stock_tier="MID",
-        )
-        assert penalties == 7, (
-            f"MID tier boundary -10: expected 7 (5*1.4), got {penalties}"
-        )
+    def test_marginal_below_median_no_longer_dragged_down(self):
+        """A stock marginally below median + strong consensus should reach ADD.
 
-    def test_mega_tier_no_penalty(self):
-        """MEGA-tier never gets consensus penalty (backtest showed it was backwards)."""
-        _, penalties, _ = compute_adjustments(
-            signal="B", fund_score=75, tech_signal="HOLD",
-            tech_momentum=0, rsi=50, macro_fit="NEUTRAL",
-            census_alignment="NEUTRAL", div_score=0,
-            census_ts="stable", news_impact="NEUTRAL",
-            risk_warning=False, buy_pct=98,
-            excess_exret=-15, beta=1.0, quality_trap=False,
-            sector="Technology", sector_rankings={},
-            bull_count=3, stock_tier="MEGA",
-        )
-        assert penalties == 0, (
-            f"MEGA tier: expected 0 penalty (backtest +5.45% alpha), got {penalties}"
-        )
-
-    def test_micro_tier_strongest_penalty(self):
-        """MICRO-tier base=10, with excess_exret <-10 → 10 * 1.9 = 19."""
-        _, penalties, _ = compute_adjustments(
-            signal="B", fund_score=75, tech_signal="HOLD",
-            tech_momentum=0, rsi=50, macro_fit="NEUTRAL",
-            census_alignment="NEUTRAL", div_score=0,
-            census_ts="stable", news_impact="NEUTRAL",
-            risk_warning=False, buy_pct=95,
-            excess_exret=-15, beta=1.0, quality_trap=False,
-            sector="Technology", sector_rankings={},
-            bull_count=3, stock_tier="MICRO",
-        )
-        assert penalties == 19, (
-            f"MICRO tier severely below: expected 19 (10*1.9), got {penalties}"
-        )
-
-    def test_end_to_end_marginal_stock_upgrades(self):
-        """A stock marginally below median with strong consensus should reach ADD."""
+        Previously needed the v16 smoothing to avoid a -15 cliff penalty.
+        Now the penalty is gone entirely, so the stock should trivially clear
+        the ADD threshold from positive factors alone.
+        """
         result = synthesize_stock(
             ticker="MARG1",
             sig_data={"signal": "B", "exret": 30, "buy_pct": 96,
@@ -4759,12 +4714,10 @@ class TestV16ConsensusWarningSmoothing:
             news_impact="NEUTRAL",
             risk_warning=False,
             sector="Consumer Discretionary",
-            sector_median_exret=31,  # Marginal below: excess = -1
+            sector_median_exret=31,  # excess_exret = -1 (marginal below)
             sector_rankings={},
             position_limit=5.0,
         )
-        # With smoothed consensus (-11 instead of -15), this stock
-        # should have enough conviction for ADD
         assert result["conviction"] >= 55, (
             f"Marginal below-median stock conv {result['conviction']} < 55"
         )
@@ -5408,3 +5361,196 @@ class TestCensusSignalExtraction:
     def test_no_census_data_empty_div_map(self):
         lookups = _build_agent_lookups({}, {}, {}, {}, {}, {})
         assert lookups["div_map"] == {}
+
+
+# ============================================================
+# CIO v40 (post-backtest 2026-04-26) — new behaviours
+# ============================================================
+
+
+class TestV40EpsRevisionsPriceGuard:
+    """EPS revisions UP bonus (now +7) suppressed when stock has already
+    moved >20% over the period — guards against PEAD-fade entries."""
+
+    def _kw(self, pp_value, eps_class="REVISIONS_UP"):
+        return dict(
+            ticker="TEST",
+            sig_data={"signal": "B", "exret": 25, "buy_pct": 80,
+                      "beta": 1.0, "pet": 20, "pef": 18, "pp": pp_value},
+            fund_data={"fundamental_score": 75,
+                       "eps_revisions": {"classification": eps_class}},
+            tech_data={"momentum_score": 10, "timing_signal": "HOLD",
+                       "rsi": 55, "macd_signal": "BULLISH"},
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL", div_score=0,
+            census_ts_trend="stable", news_impact="NEUTRAL",
+            risk_warning=False, sector="Technology", sector_median_exret=15,
+            sector_rankings={}, position_limit=5.0,
+        )
+
+    def test_bonus_applies_when_pp_within_threshold(self):
+        """pp = 10% (< 20%): EPS revisions up bonus contributes."""
+        result = synthesize_stock(**self._kw(pp_value=10))
+        wf = result.get("conviction_waterfall", {})
+        assert wf.get("eps_revisions_up", 0) > 0, (
+            f"Expected eps_revisions_up bonus to fire (pp=10), got waterfall: {wf}"
+        )
+
+    def test_bonus_suppressed_when_pp_exceeds_threshold(self):
+        """pp = 30% (> 20%): EPS revisions up bonus suppressed (gated)."""
+        result = synthesize_stock(**self._kw(pp_value=30))
+        wf = result.get("conviction_waterfall", {})
+        assert wf.get("eps_revisions_up", 0) == 0, (
+            f"Expected eps_revisions_up bonus to NOT fire (pp=30), got: {wf}"
+        )
+
+    def test_downside_revisions_unaffected_by_pp_guard(self):
+        """REVISIONS_DOWN penalty fires regardless of pp."""
+        result = synthesize_stock(**self._kw(pp_value=30, eps_class="REVISIONS_DOWN"))
+        wf = result.get("conviction_waterfall", {})
+        # REVISIONS_DOWN fires for any signal — check the penalty is recorded
+        assert wf.get("eps_revisions_down", 0) < 0
+
+
+class TestV40RevenueGrowthPriceGuard:
+    """Revenue growth ACCELERATING bonus (now +8) suppressed when pp > 20."""
+
+    def _kw(self, pp_value, growth_class="ACCELERATING"):
+        return dict(
+            ticker="TEST",
+            sig_data={"signal": "B", "exret": 25, "buy_pct": 80,
+                      "beta": 1.0, "pet": 20, "pef": 18, "pp": pp_value},
+            fund_data={"fundamental_score": 75,
+                       "revenue_growth": {"classification": growth_class}},
+            tech_data={"momentum_score": 10, "timing_signal": "HOLD",
+                       "rsi": 55, "macd_signal": "BULLISH"},
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL", div_score=0,
+            census_ts_trend="stable", news_impact="NEUTRAL",
+            risk_warning=False, sector="Technology", sector_median_exret=15,
+            sector_rankings={}, position_limit=5.0,
+        )
+
+    def test_bonus_applies_when_pp_within_threshold(self):
+        result = synthesize_stock(**self._kw(pp_value=10))
+        wf = result.get("conviction_waterfall", {})
+        assert wf.get("revenue_growth", 0) > 0
+
+    def test_bonus_suppressed_when_pp_exceeds_threshold(self):
+        result = synthesize_stock(**self._kw(pp_value=30))
+        wf = result.get("conviction_waterfall", {})
+        assert wf.get("revenue_growth", 0) == 0
+
+
+class TestV40TrimQualityProtection:
+    """fund_score >= 75 + no kill thesis blocks HOLD→TRIM escalation.
+
+    Backtest showed 89% of TRIMs went up at T+30 with avg +18% return.
+    Worst calls were quality stocks (UNH +32%, MSTR +29%, TSM +23%).
+    Quality threshold raised from <70 to <75 with kill-thesis override.
+    """
+
+    def _kw(self, fund_score, kill_thesis_triggered=False):
+        return dict(
+            ticker="TEST",
+            sig_data={"signal": "H", "exret": 10, "buy_pct": 50,
+                      "beta": 1.0, "pet": 15, "pef": 14},
+            fund_data={"fundamental_score": fund_score, "quality_trap_warning": False},
+            tech_data={"timing_signal": "AVOID", "momentum_score": -10, "rsi": 55},
+            macro_fit="NEUTRAL", census_alignment="NEUTRAL", div_score=0,
+            census_ts_trend="stable", news_impact="NEUTRAL",
+            risk_warning=True, sector="Technology", sector_median_exret=8,
+            sector_rankings={}, position_limit=5.0,
+            kill_thesis_triggered=kill_thesis_triggered,
+        )
+
+    def test_quality_75_blocks_trim(self):
+        """fund_score=75 + no kill thesis → HOLD (not TRIM)."""
+        result = synthesize_stock(**self._kw(fund_score=75))
+        assert result["action"] == "HOLD", (
+            f"Expected HOLD for quality stock (fund=75), got {result['action']}"
+        )
+
+    def test_quality_80_blocks_trim(self):
+        result = synthesize_stock(**self._kw(fund_score=80))
+        assert result["action"] == "HOLD"
+
+    def test_below_quality_threshold_allows_trim(self):
+        """fund_score=70 (below new threshold 75) + tech AVOID + risk → TRIM."""
+        result = synthesize_stock(**self._kw(fund_score=70))
+        assert result["action"] == "TRIM", (
+            f"Expected TRIM for fund=70 (below 75) with bear signals, got {result['action']}"
+        )
+
+    def test_kill_thesis_overrides_quality_protection(self):
+        """fund_score=80 + triggered kill thesis → TRIM allowed (override)."""
+        result = synthesize_stock(**self._kw(fund_score=80, kill_thesis_triggered=True))
+        # Kill thesis triggered means an explicit, pre-identified failure mode
+        # has happened — quality should not block exit.
+        assert result["action"] == "TRIM", (
+            f"Expected TRIM despite quality (kill thesis triggered), got {result['action']}"
+        )
+
+
+class TestV40KillThesisGenerator:
+    """Stock-specific kill theses with numeric, actionable triggers."""
+
+    def test_add_thesis_includes_price_stop(self):
+        thesis = generate_kill_thesis(
+            ticker="AAPL", action="ADD",
+            sig_data={"price": 271.06, "pp": 10},
+            fund_data={"fundamental_score": 78,
+                       "eps_revisions": {"classification": "REVISIONS_UP"}},
+            tech_data={"rsi": 60, "support": 250, "resistance": 285},
+            macro_data={"regime": "CAUTIOUS"},
+        )
+        # Concrete price (10% below current 271 ≈ 244)
+        assert "$243.95" in thesis or "$244" in thesis
+        assert "10% stop" in thesis or "-10% stop" in thesis
+        # Re-evaluation horizon present
+        assert "Re-evaluate" in thesis
+
+    def test_trim_thesis_includes_resistance(self):
+        thesis = generate_kill_thesis(
+            ticker="UNH", action="TRIM",
+            sig_data={"price": 354.92, "pp": -5},
+            fund_data={"fundamental_score": 80,
+                       "eps_revisions": {"classification": "REVISIONS_UP"}},
+            tech_data={"rsi": 65, "support": 340, "resistance": 380},
+            macro_data={"regime": "CAUTIOUS"},
+        )
+        assert "Wrong to trim" in thesis
+        # Resistance break trigger
+        assert "$380" in thesis
+        # Quality stock-specific trigger
+        assert "fundamental_score" in thesis
+
+    def test_sell_thesis_includes_upside_break(self):
+        thesis = generate_kill_thesis(
+            ticker="ETH-USD", action="SELL",
+            sig_data={"price": 2308.16, "pp": 29},
+            fund_data={"fundamental_score": 30},
+            tech_data={"rsi": 47, "support": 2100, "resistance": 2500},
+            macro_data={"regime": "CAUTIOUS"},
+        )
+        assert "Wrong to sell" in thesis
+        # +8% above 2308 ≈ 2492.81
+        assert "$2492" in thesis or "+8%" in thesis
+
+    def test_earnings_event_included_when_close(self):
+        thesis = generate_kill_thesis(
+            ticker="MSFT", action="ADD",
+            sig_data={"price": 424, "pp": 5},
+            fund_data={"fundamental_score": 80},
+            tech_data={"rsi": 60, "support": 400, "resistance": 450},
+            earnings_days_away=3,
+        )
+        assert "earnings" in thesis.lower()
+        assert "3d" in thesis or "T-3d" in thesis
+
+    def test_minimal_inputs_still_produce_thesis(self):
+        """No tech/fund/macro data — should still build a sensible default."""
+        thesis = generate_kill_thesis(
+            ticker="UNK", action="HOLD",
+            sig_data={"price": 100},
+        )
+        assert "Wrong if" in thesis
+        assert "Re-evaluate" in thesis
