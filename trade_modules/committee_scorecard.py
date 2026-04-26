@@ -1626,6 +1626,11 @@ def calibrate_modifiers(
         for mod_key, delta in wf.items():
             if mod_key.startswith("_"):
                 continue
+            # Some waterfall keys carry annotation strings rather than numeric
+            # deltas (e.g. `hysteresis` stores "HOLD->ADD"). They're useful for
+            # display but cannot enter np.mean / np.corrcoef. Skip silently.
+            if not isinstance(delta, (int, float)):
+                continue
             if mod_key not in wf_stats:
                 wf_stats[mod_key] = {"deltas": [], "alphas": []}
             wf_stats[mod_key]["deltas"].append(delta)

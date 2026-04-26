@@ -1755,26 +1755,15 @@ def compute_adjustments(
     # The base penalty is then scaled by excess_exret bands (smaller penalty
     # when EXRET stands out vs sector, larger when consensus is crowded AND
     # EXRET is below sector median — i.e. crowded into below-average upside).
-    if buy_pct > 90:
-        tier_base = {"MEGA": 0, "LARGE": 3, "MID": 5, "SMALL": 8, "MICRO": 10}
-        base_pen = tier_base.get(stock_tier, 5)
-        if base_pen == 0:
-            # MEGA — no penalty, but still record neutrality so the waterfall
-            # shows the rule fired and was zeroed out (transparent attribution).
-            _w["consensus_crowded_tier_waived"] = 0
-        else:
-            # Excess-EXRET multiplier preserves the original gradient logic:
-            #   +12pp above sector → 0.8x (less penalty when standout upside)
-            #   0 to +12pp        → 1.0x (baseline)
-            #   -10 to 0          → 1.4x (consensus into average upside)
-            #   < -10pp           → 1.9x (worst: crowded into below-average upside)
-            if excess_exret >= 12: mult = 0.8
-            elif excess_exret >= 0: mult = 1.0
-            elif excess_exret >= -10: mult = 1.4
-            else: mult = 1.9
-            pen = round(base_pen * mult)
-            penalties += pen
-            _w["consensus_crowded"] = -pen
+    # CIO v40 (post-backtest 2026-04-26): consensus_crowded penalty REMOVED.
+    # T+7 factor attribution showed wf_consensus_crowded fires on 28% of stocks.
+    # When applied to ADD actions, those stocks gained +8.51% alpha at T+7 — the
+    # penalty was systematically subtracting conviction from rallying names.
+    # The "extreme analyst consensus precedes pullback" intuition does not hold
+    # at this horizon for the universe we trade.
+    # Waterfall keys (consensus_crowded, consensus_crowded_tier_waived) are
+    # preserved in waterfall_categories.py for backward compatibility with
+    # historical attribution rendering, but no longer fire.
 
     # Census alignment
     # CIO v17 R4: Tightened bands. Old [-20,+20]→+5 fired on ~90% of stocks
@@ -2171,6 +2160,159 @@ def classify_hold_tier(conviction: int) -> str:
     return "WEAK"
 
 
+def generate_kill_thesis(
+    ticker: str,
+    action: str,
+    sig_data: Dict[str, Any],
+    fund_data: Optional[Dict[str, Any]] = None,
+    tech_data: Optional[Dict[str, Any]] = None,
+    macro_data: Optional[Dict[str, Any]] = None,
+    earnings_days_away: Optional[int] = None,
+) -> str:
+    """Generate a stock-specific kill thesis with numeric, actionable triggers.
+
+    The kill thesis answers "what would invalidate this trade?" in concrete,
+    machine-readable form — not generic templates. Each trigger includes:
+      - a numeric threshold (price level, RSI value, % change)
+      - a duration where applicable (3 sessions, 14 days)
+      - a re-evaluation horizon
+
+    Why this design: the kill_thesis_audit on the prior 61 logged theses found
+    ZERO true positives — generic "VIX>40" / "macro deterioration" patterns
+    fired on stocks that subsequently rose. Stock-specific numeric triggers
+    are checkable and falsifiable; generic prose is not.
+
+    Args:
+        ticker: Stock ticker for context
+        action: One of BUY, ADD, BUY NEW, HOLD, TRIM, SELL, WATCH
+        sig_data: Signal CSV row data (price, exret, buy_pct, beta, pp, 52w)
+        fund_data: Fundamental agent output (fundamental_score, eps_revisions, etc.)
+        tech_data: Technical agent output (rsi, support, resistance, momentum)
+        macro_data: Macro agent output (regime, sector_rankings)
+        earnings_days_away: Days until next earnings (None if unknown)
+
+    Returns:
+        A human-readable kill thesis with explicit numeric triggers, e.g.
+        "Wrong if AAPL closes below $244 (-10% stop) for 3 sessions, OR RSI
+         > 92 sustained 5 days, OR Q1 revenue misses by >5%. Re-evaluate
+         post-earnings 2026-04-30."
+    """
+    fund_data = fund_data or {}
+    tech_data = tech_data or {}
+    macro_data = macro_data or {}
+
+    def _num(v, d=0.0):
+        if v is None: return d
+        try: return float(str(v).replace("%", "").replace(",", ""))
+        except (ValueError, TypeError): return d
+
+    price = _num(sig_data.get("price") or sig_data.get("PRC") or sig_data.get("p0"), 0)
+    rsi = _num(tech_data.get("rsi"), 50)
+    support = _num(tech_data.get("support"), 0)
+    resistance = _num(tech_data.get("resistance"), 0)
+    fund_score = fund_data.get("fundamental_score") or 50
+    eps_class = (fund_data.get("eps_revisions") or {}).get("classification", "")
+    regime = (macro_data.get("executive_summary") or {}).get("regime") or macro_data.get("regime", "")
+
+    # Build action-specific trigger lists
+    triggers: List[str] = []
+
+    # Compute concrete price levels
+    def _stop_below(pct: float) -> str:
+        if price <= 0: return f"price drops {pct:.0f}% from entry"
+        return f"price closes below ${price * (1 - pct/100):.2f} ({-pct:.0f}% stop)"
+
+    def _stop_above(pct: float) -> str:
+        if price <= 0: return f"price rises {pct:.0f}% from entry"
+        return f"price closes above ${price * (1 + pct/100):.2f} (+{pct:.0f}%)"
+
+    if action in ("BUY", "BUY NEW", "ADD"):
+        # Price stop
+        triggers.append(f"{_stop_below(10)} for 3 sessions")
+        # Support break (if technical agent provides it)
+        if support > 0 and price > 0 and support < price:
+            sup_dist_pct = (price - support) / price * 100
+            if sup_dist_pct < 12:  # only flag if support is realistically near
+                triggers.append(f"breaks 20-day support at ${support:.2f} (-{sup_dist_pct:.1f}%)")
+        # RSI extreme overbought (suggests we missed the entry)
+        if rsi < 80:
+            triggers.append("RSI exceeds 90 sustained 5 sessions (entry missed)")
+        # EPS revisions reversal
+        if eps_class in ("REVISIONS_UP", "STRONG_REVISIONS_UP"):
+            triggers.append("EPS revisions flip to REVISIONS_DOWN within 14 days")
+        else:
+            triggers.append("forward EPS revisions turn down >5%")
+        # Earnings event
+        if earnings_days_away is not None and earnings_days_away <= 14:
+            triggers.append(f"Q-earnings miss revenue or EPS by >5% (event in {earnings_days_away}d)")
+        # Macro regime flip
+        if regime != "RISK_OFF":
+            triggers.append("macro regime degrades to RISK_OFF (VIX > 30 sustained 5 days)")
+
+    elif action == "TRIM":
+        # TRIM kill thesis = "wrong to trim if these conditions emerge"
+        # Price ceiling break (we trimmed, then it ripped — confirm thesis was wrong)
+        if resistance > 0 and price > 0 and resistance > price:
+            res_pct = (resistance - price) / price * 100
+            triggers.append(f"price closes above resistance ${resistance:.2f} (+{res_pct:.1f}%) for 3 sessions")
+        else:
+            triggers.append(f"{_stop_above(10)} within 14 days")
+        # RSI mean-reverts with volume confirmation
+        if rsi > 70:
+            triggers.append("RSI mean-reverts below 60 with rising volume (overbought resolved cleanly)")
+        # Fundamental reversal
+        triggers.append("EPS revisions flip to REVISIONS_UP within 14 days")
+        # Macro improvement
+        if regime in ("CAUTIOUS", "RISK_OFF"):
+            triggers.append("macro regime improves to RISK_ON")
+        # Quality stock specific
+        if fund_score >= 70:
+            triggers.append(f"fundamental_score holds ≥{fund_score:.0f} with positive analyst momentum")
+
+    elif action == "SELL":
+        # SELL kill thesis = "wrong to sell if it bounces"
+        triggers.append(f"{_stop_above(8)} for 3 sessions (oversold bounce confirmed)")
+        triggers.append("analyst upgrade wave: 2+ banks raise target within 5 days")
+        if earnings_days_away is not None and earnings_days_away <= 30:
+            triggers.append(f"earnings beat by >5% with raised guidance (event in {earnings_days_away}d)")
+        else:
+            triggers.append("next earnings beat by >5% with raised guidance")
+        triggers.append("RSI crosses above 50 with rising volume")
+
+    elif action in ("HOLD", "WATCH"):
+        # HOLD kill thesis = "what would change my mind"
+        triggers.append(f"{_stop_below(10)} OR {_stop_above(15).replace('above ', 'above ')} (forces action either way)")
+        triggers.append("RSI > 90 OR < 30 sustained 3 sessions")
+        triggers.append("EPS revisions direction changes")
+        if earnings_days_away is not None and earnings_days_away <= 14:
+            triggers.append(f"earnings miss/beat by >5% (event in {earnings_days_away}d)")
+
+    if not triggers:
+        triggers.append("price moves >15% in either direction within 30 days")
+
+    # Re-eval horizon
+    if earnings_days_away is not None and earnings_days_away <= 30:
+        horizon = f"Re-evaluate post-earnings (T-{earnings_days_away}d)."
+    elif action in ("BUY", "BUY NEW", "ADD"):
+        horizon = "Re-evaluate at next committee or on any trigger above."
+    elif action == "TRIM":
+        horizon = "Re-evaluate weekly while position open; close if 2+ triggers fire."
+    elif action == "SELL":
+        horizon = "Re-evaluate if any trigger fires within 30 days; otherwise final."
+    else:
+        horizon = "Re-evaluate at next committee."
+
+    # Compose final string. Use letter-prefixed list for readability.
+    if len(triggers) == 1:
+        body = triggers[0]
+    else:
+        labelled = [f"({chr(97 + i)}) {t}" for i, t in enumerate(triggers)]
+        body = ", ".join(labelled[:-1]) + f", OR {labelled[-1]}"
+
+    verb = "Wrong to trim if" if action == "TRIM" else ("Wrong to sell if" if action == "SELL" else "Wrong if")
+    return f"{verb} {body}. {horizon}"
+
+
 def synthesize_stock(
     ticker: str,
     sig_data: Dict[str, Any],
@@ -2294,6 +2436,12 @@ def synthesize_stock(
 
     # Sector-relative EXRET
     excess_exret = exret - sector_median_exret
+
+    # CIO v40: Period price performance % (PP column from etoro.csv).
+    # Used by EPS-revision and revenue-growth bonuses as a "PEAD fade" guard:
+    # if a stock has already moved >20% over the period, the catalyst is in
+    # the price and the bonus is suppressed.
+    pp_pct = _num(sig_data.get("pp"), 0)
 
     # CIO Legacy A2: Track synthetic agent data
     fund_synthetic = fund_data.get("synthetic", False) or not fund_data.get("fundamental_score")
@@ -2504,12 +2652,20 @@ def synthesize_stock(
     # R2: Revenue growth trajectory.
     # Accelerating revenue growth is the single strongest fundamental signal
     # for equity re-rating. Declining growth even with good earnings is a trap.
+    # CIO v40 (post-backtest 2026-04-26): bumped accelerating bonus 5→8 —
+    # validated by T+7 factor attribution (5/7 hits, +8.51% alpha on ADD).
+    # Added PP guard: skip the bonus when price has already moved >20% in
+    # the period — buying after the move is already done is the classic
+    # momentum-chasing trap that this signal is designed to avoid.
     rev_growth = fund_data.get("revenue_growth", {})
     rev_class = rev_growth.get("classification", "") if isinstance(rev_growth, dict) else ""
     if rev_class and signal == "B":
         if rev_class.upper() in ("ACCELERATING", "STRONG_GROWTH"):
-            fund_composite_pending.append(("revenue_growth", 5))
-            fund_composite_keys.append("revenue_growth")
+            if pp_pct <= 20:
+                fund_composite_pending.append(("revenue_growth", 8))
+                fund_composite_keys.append("revenue_growth")
+            else:
+                _w["revenue_growth_pp_gated"] = 0
         elif rev_class.upper() in ("DECLINING", "DETERIORATING", "NEGATIVE"):
             penalties += 5
             _w["revenue_growth"] = -5
@@ -2649,11 +2805,22 @@ def synthesize_stock(
         _w["volume_confirm_sell"] = 2
 
     # ── CIO v23.3: EPS revision tracking ─────────────────────────────
+    # CIO v40 (post-backtest 2026-04-26): bumped REVISIONS_UP bonus 3→7 — was
+    # the strongest factor in the T+7 attribution sample (n=6/6 hits, +10.35%
+    # alpha when paired with ADD action). Added PP guard: skip the bonus if
+    # the price has already moved >20% over the period (PP column from etoro.csv
+    # is the realized period return). The EPS-revision signal mean-reverts when
+    # the move is already in the price (PEAD fade), so we only reward names
+    # where the catalyst is fresh.
     eps_revisions = fund_data.get("eps_revisions") or {}
     eps_class = eps_revisions.get("classification", "")
     if eps_class == "REVISIONS_UP" and signal == "B":
-        fund_composite_pending.append(("eps_revisions_up", 3))
-        fund_composite_keys.append("eps_revisions_up")
+        if pp_pct <= 20:
+            fund_composite_pending.append(("eps_revisions_up", 7))
+            fund_composite_keys.append("eps_revisions_up")
+        else:
+            # Catalyst already in the price — record as zero for transparency
+            _w["eps_revisions_up_pp_gated"] = 0
     elif eps_class == "REVISIONS_DOWN":
         penalties += 3
         _w["eps_revisions_down"] = -3
@@ -2854,10 +3021,16 @@ def synthesize_stock(
     # even when tech=AVOID + risk_warning — the damage is already done.
     #
     # CIO v32.0 T1: Hardened trim escalation — backtest showed TRIM stocks
-    # went UP 61% of the time. Root cause: escalation fired on tech+risk alone
-    # without checking fundamentals. Now requires: (a) fund_score < 70 AND
-    # (b) for RSI>80 path, also requires risk_warning (not just overbought tech).
-    if action == "HOLD" and signal == "H" and rsi >= 30 and fund_score < 70:
+    # went UP 61% of the time. Required fund_score < 70 + risk_warning.
+    #
+    # CIO v40 (post-backtest 2026-04-26): Tightened further. T+30 backtest
+    # (n=9 TRIMs) showed 89% went UP, averaging +18.32% return / +7.09% alpha.
+    # Worst calls: UNH +32%, MSTR +32%/+29%, TSM +23%, PRU.L +11% — all quality
+    # names trimmed into rallies. Raise quality threshold from <70 to <75 AND
+    # require no triggered kill thesis. Quality stocks (fund_score >= 75) only
+    # get TRIM-escalated when a specific kill thesis has fired against them.
+    quality_blocks_trim = (fund_score >= 75 and not kill_thesis_triggered)
+    if action == "HOLD" and signal == "H" and rsi >= 30 and not quality_blocks_trim:
         if rsi > 80 and tech_signal in ("AVOID", "EXIT_SOON") and risk_warning:
             action = "TRIM"
         elif risk_warning and tech_signal == "AVOID":
