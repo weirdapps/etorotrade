@@ -17,9 +17,17 @@ from trade_modules.signal_scorecard import SignalScorecard
 # Anchor synthetic signal/price data to "now" so the fixture stays inside
 # the scorecard's months_back=3 (~90 day) window as time passes. Previously
 # hard-coded to 2026-01-20, which silently expired on 2026-04-22.
-BASE_DATE = (datetime.now() - timedelta(days=30)).replace(
+# Snap to previous Friday if the anchor lands on a weekend, since fixtures
+# build business-day ranges and tests look BASE_DATE up inside them.
+_anchor = (datetime.now() - timedelta(days=30)).replace(
     hour=0, minute=0, second=0, microsecond=0
 )
+if _anchor.weekday() == 5:  # Saturday
+    BASE_DATE = _anchor - timedelta(days=1)
+elif _anchor.weekday() == 6:  # Sunday
+    BASE_DATE = _anchor - timedelta(days=2)
+else:
+    BASE_DATE = _anchor
 BASE_DATE_LATE = BASE_DATE + timedelta(days=12)
 
 # ============================================================
