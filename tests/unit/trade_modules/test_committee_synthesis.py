@@ -4892,6 +4892,26 @@ class TestNormalizeCensusDivergences:
         assert any(i["ticker"] == "X" for i in d["consensus_aligned"])
         assert any(i["ticker"] == "Y" for i in d["signal_divergences"])
 
+    def test_string_items_in_structured_lists_become_dicts(self):
+        # Reproduces 2026-04-27 prod crash: census agent emitted bare ticker
+        # strings in consensus_aligned (and may do so in any of the three lists).
+        # Downstream synthesis indexes item["ticker"] / item.get(...), so unwrapped
+        # strings raise AttributeError. Normalization must rescue both shapes.
+        report = {"divergences": {
+            "consensus_aligned": ["MSTR", {"ticker": "MSFT", "divergence_score": 2}],
+            "signal_divergences": ["NVDA"],
+            "census_divergences": ["VXX"],
+        }}
+        _normalize_census_divergences(report)
+        d = report["divergences"]
+
+        aligned = {i["ticker"]: i for i in d["consensus_aligned"]}
+        assert aligned["MSTR"] == {"ticker": "MSTR", "divergence_score": 0}
+        assert aligned["MSFT"]["divergence_score"] == 2  # dict items untouched
+
+        assert d["signal_divergences"][0] == {"ticker": "NVDA", "divergence_score": 0}
+        assert d["census_divergences"][0] == {"ticker": "VXX", "divergence_score": 0}
+
 
 class TestNormalizeBreakingNews:
     """Breaking news can arrive as list or dict of categories."""

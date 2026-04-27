@@ -196,10 +196,12 @@ def _normalize_fund_stocks(fund_report: Dict) -> Dict:
 
 
 def _normalize_census_divergences(census_report: Dict) -> Dict:
-    """Ensure census_report['divergences'] is structured dict.
+    """Ensure census_report['divergences'] is structured dict of lists of dicts.
 
     Expected: {signal_divergences: [...], census_divergences: [...], consensus_aligned: [...]}
-    Agents sometimes return a flat list with 'type' field on each item.
+    Agents sometimes return a flat list with 'type' field on each item, or emit
+    bare ticker strings inside the structured lists. Both shapes are normalized
+    here so downstream consumers can rely on dict items with at least a 'ticker' key.
     """
     divs = census_report.get("divergences", {})
     if isinstance(divs, list):
@@ -227,6 +229,25 @@ def _normalize_census_divergences(census_report: Dict) -> Dict:
             len(structured["census_divergences"]),
             len(structured["consensus_aligned"]),
         )
+
+    divs = census_report.get("divergences", {})
+    if isinstance(divs, dict):
+        coerced = 0
+        for key in ("signal_divergences", "census_divergences", "consensus_aligned"):
+            items = divs.get(key)
+            if not isinstance(items, list):
+                continue
+            new_items = []
+            for item in items:
+                if isinstance(item, dict):
+                    new_items.append(item)
+                elif isinstance(item, str) and item.strip():
+                    new_items.append({"ticker": item.strip(), "divergence_score": 0})
+                    coerced += 1
+                # silently drop other shapes (None, numbers, nested lists)
+            divs[key] = new_items
+        if coerced:
+            logger.info("Normalized %d bare-string items in census divergences", coerced)
     return census_report
 
 
