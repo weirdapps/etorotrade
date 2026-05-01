@@ -119,14 +119,40 @@ CIO v15.0 (Legacy CIO Review — Conviction Integrity):
       the same as those far below
 """
 
+import json
 import logging
 import math
 import os
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-__version__ = "v33.0"
+__version__ = "v34.0"
+
+CIRCUIT_BREAKER_PATH = Path.home() / ".weirdapps-trading" / "portfolio" / "circuit_breaker.json"
+
+
+def load_circuit_breaker() -> Dict[str, Any]:
+    """Load portfolio circuit breaker state from etoro-portfolio.
+
+    Returns dict with level, position_size_multiplier, new_positions_allowed.
+    Returns NORMAL defaults if file missing or unreadable.
+    """
+    try:
+        if CIRCUIT_BREAKER_PATH.exists():
+            with open(CIRCUIT_BREAKER_PATH) as f:
+                state = json.load(f)
+            logger.info(
+                "Circuit breaker: %s (drawdown %.1f%%, new positions: %s)",
+                state.get("level", "UNKNOWN"),
+                state.get("drawdown_pct", 0),
+                state.get("new_positions_allowed", True),
+            )
+            return state
+    except Exception as e:
+        logger.warning("Failed to read circuit breaker: %s", e)
+    return {"level": "NORMAL", "position_size_multiplier": 1.0, "new_positions_allowed": True}
 
 
 # ---------------------------------------------------------------------------
@@ -3800,6 +3826,19 @@ def build_concordance(
     if debate_results is None:
         debate_results = {}
 
+    # CIO v34.0: Load circuit breaker state from etoro-portfolio.
+    # When WARNING/CRITICAL, restricts new positions and applies size multiplier.
+    cb_state = load_circuit_breaker()
+    cb_level = cb_state.get("level", "NORMAL")
+    cb_new_allowed = cb_state.get("new_positions_allowed", True)
+    cb_size_mult = cb_state.get("position_size_multiplier", 1.0)
+    if cb_level in ("WARNING", "CRITICAL"):
+        logger.warning(
+            "Circuit breaker %s: drawdown %.1f%%, new positions %s",
+            cb_level, cb_state.get("drawdown_pct", 0),
+            "blocked" if not cb_new_allowed else "allowed",
+        )
+
     # CIO v17 H4.b: Load rolling-percentile thresholds (if recent state exists).
     # When None or stale, determine_action falls back to legacy fixed thresholds.
     try:
@@ -4241,6 +4280,43 @@ def build_concordance(
                     else:
                         entry["tax_substitute"] = None
 
+    # CIO v34.0: Apply circuit breaker restrictions after all modifiers.
+    # When drawdown exceeds thresholds, block or downgrade new positions.
+    if cb_level in ("WARNING", "CRITICAL"):
+        cb_blocked = 0
+        for entry in concordance:
+            action = entry.get("action", "HOLD")
+            is_opp = entry.get("is_opportunity", False)
+            if action in ("BUY", "ADD") and not cb_new_allowed:
+                entry["action"] = "HOLD" if not is_opp else "WATCH"
+                entry["circuit_breaker_blocked"] = True
+                entry["circuit_breaker_level"] = cb_level
+                entry["circuit_breaker_original_action"] = action
+                cb_blocked += 1
+        if cb_blocked:
+            logger.warning(
+                "Circuit breaker %s: blocked %d BUY/ADD actions → HOLD/WATCH",
+                cb_level, cb_blocked,
+            )
+    elif cb_level == "CAUTION" and cb_size_mult < 1.0:
+        for entry in concordance:
+            pct = entry.get("position_size_pct", 0)
+            if pct > 0 and entry.get("action") in ("BUY", "ADD"):
+                entry["position_size_pct"] = round(pct * cb_size_mult, 2)
+                entry["circuit_breaker_size_reduction"] = round(1 - cb_size_mult, 2)
+
+    # CIO v34.0: Flag positions held >90 days for review.
+    # Statement data shows 3-6 month holds are net losers ($-2,418 on 186 trades).
+    for entry in concordance:
+        days = entry.get("days_held", 0)
+        if days >= 90 and entry.get("action") in ("HOLD", "ADD"):
+            entry["holding_review_flag"] = True
+            entry["holding_review_days"] = days
+            entry["holding_review_reason"] = (
+                f"Position held {days} days — empirical data shows 3-6 month "
+                f"holds underperform. Review thesis or set exit timeline."
+            )
+
     # Sort by action priority, then conviction desc, then tiebreak desc
     concordance.sort(
         key=lambda x: (ACTION_ORDER.get(x["action"], 9), -x["conviction"], -x["tiebreak"])
@@ -4379,6 +4455,15 @@ def build_agent_memory(
                 f"- {ticker}: recommended BUY (conv={prev_conv}). Since then: {direction} {abs(ret_pct):.1f}%. [{accuracy}]"
             )
 
+    # CIO v34.0: Enrich with realized P&L from etoro-portfolio statement data.
+    # Only inject into agents that already have performance records — don't
+    # create records for agents with no prior assessments to review.
+    _pnl_summary = _load_realized_pnl_summary()
+    if _pnl_summary:
+        for agent in agent_records:
+            if agent_records[agent]:
+                agent_records[agent].insert(0, _pnl_summary)
+
     # Format output strings, limit to top 10 most informative entries per agent
     result: Dict[str, str] = {}
     for agent, records in agent_records.items():
@@ -4394,6 +4479,72 @@ def build_agent_memory(
         result[agent] = "\n".join(records[:10])
 
     return result
+
+
+def _load_realized_pnl_summary() -> Optional[str]:
+    """Load realized P&L summary from etoro-portfolio for agent context.
+
+    Returns a formatted string with portfolio-level performance stats,
+    or None if the portfolio database is unavailable.
+    """
+    db_path = Path.home() / ".weirdapps-trading" / "portfolio" / "portfolio.db"
+    if not db_path.exists():
+        return None
+    try:
+        import sqlite3
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+
+        # Check if statement data exists
+        tables = [r[0] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()]
+        if "statement_closed" not in tables:
+            conn.close()
+            return None
+
+        # Recent closed positions (last 90 days)
+        recent = conn.execute("""
+            SELECT ticker, profit_usd, return_pct, holding_days, close_date
+            FROM statement_closed
+            WHERE close_date >= date('now', '-90 days')
+            AND ticker IS NOT NULL AND profit_usd IS NOT NULL
+            ORDER BY close_date DESC LIMIT 10
+        """).fetchall()
+
+        if not recent:
+            conn.close()
+            return None
+
+        # Portfolio-level stats
+        stats = conn.execute("""
+            SELECT COUNT(*) as total,
+                   SUM(CASE WHEN profit_usd > 0 THEN 1 ELSE 0 END) as wins,
+                   SUM(profit_usd) as total_pnl,
+                   AVG(holding_days) as avg_hold
+            FROM statement_closed
+            WHERE close_date >= date('now', '-90 days')
+            AND ticker IS NOT NULL
+        """).fetchone()
+        conn.close()
+
+        if not stats or stats["total"] == 0:
+            return None
+
+        win_rate = stats["wins"] / stats["total"] * 100
+        lines = [
+            f"[REALIZED P&L — last 90 days: {stats['total']} closed, "
+            f"{win_rate:.0f}% win rate, ${stats['total_pnl']:+,.0f} net]"
+        ]
+        for r in recent[:5]:
+            ret = f"{r['return_pct']:+.1f}%" if r["return_pct"] else "?%"
+            lines.append(
+                f"  {r['ticker']}: ${r['profit_usd']:+,.0f} ({ret}, {r['holding_days']}d)"
+            )
+        return "\n".join(lines)
+    except Exception as e:
+        logger.debug("Failed to load realized P&L: %s", e)
+        return None
 
 
 def compute_changes(
