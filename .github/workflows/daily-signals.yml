@@ -55,6 +55,18 @@ jobs:
           python trade.py -o p -t n
           echo "Portfolio download complete"
 
+      - name: Capture portfolio snapshot for P&L tracking
+        run: |
+          SNAPSHOT_DIR="yahoofinance/snapshots"
+          mkdir -p "$SNAPSHOT_DIR"
+          DATE=$(date -u +'%Y-%m-%d')
+          if [ -f yahoofinance/input/portfolio.csv ]; then
+            cp yahoofinance/input/portfolio.csv "$SNAPSHOT_DIR/positions_${DATE}.csv"
+            echo "Snapshot saved: $SNAPSHOT_DIR/positions_${DATE}.csv"
+          else
+            echo "WARNING: No input portfolio.csv to snapshot"
+          fi
+
       - name: Run portfolio signals (trade p)
         run: |
           echo "Running portfolio analysis..."
@@ -127,6 +139,9 @@ jobs:
 
           # Add output files
           git add yahoofinance/output/*.csv || true
+
+          # Add portfolio snapshot for P&L tracking
+          git add yahoofinance/snapshots/*.csv || true
 
           # Only commit if there are changes
           if git diff --staged --quiet; then
