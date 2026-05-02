@@ -120,7 +120,7 @@ def categorize_waterfall(
     """
     out: Dict[str, Dict[str, Any]] = {}
     for key, val in (waterfall or {}).items():
-        if key.startswith("_"):
+        if key.startswith("_") or key.startswith("~"):
             continue
         cat = MODIFIER_CATEGORY.get(key, "Other")
         bucket = out.setdefault(cat, {"total": 0, "modifiers": {}})

@@ -977,6 +977,33 @@ def generate_report_html(
     # CIO v36: Per-action sizing + bull/bear narrative helpers
     _cur_pos_map = (synth.get("portfolio_constraints", {}) or {}).get("current_stock_exposures", {}) or {}
 
+    def _key_metrics_line(en, c):
+        """Compact key metrics row for action cards."""
+        _pet = en.get("pet", 0) or 0
+        _pef = en.get("pef", 0) or 0
+        pe_str = ""
+        if _pet > 0 and _pef > 0:
+            arrow = "&#9650;" if _pef < _pet else "&#9660;"
+            acol = c["bull"] if _pef < _pet else c["bear"]
+            pe_str = f'PE: {_pet:.0f}&#8594;{_pef:.0f} <span style="color:{acol};font-weight:700;">{arrow}</span>'
+        else:
+            pe_str = "PE: —"
+        _bp = en.get("buy_pct", 0) or 0
+        _am = en.get("am", 0) or 0
+        try:
+            _am = float(_am)
+        except (ValueError, TypeError):
+            _am = 0
+        _ex = en.get("exret", 0) or 0
+        _rev = en.get("revenue_growth_class", "") or "—"
+        _eps = en.get("eps_revisions", "") or "—"
+        if isinstance(_eps, dict):
+            _eps = _eps.get("classification", "—")
+        return (f'<div style="font-size:11px;color:{c["text_body"]};margin-top:6px;'
+                f'padding:4px 10px;background:#f8fafc;border:1px solid {c["border"]};border-radius:4px;">'
+                f'{pe_str} | %B: {_bp:.0f}% (AM {_am:+.0f}) | EXRET: {_ex:.0f}%'
+                f' | Rev: {_rev} | EPS: {_eps}</div>')
+
     def _suggested_size(en):
         """Return concrete size string per action type."""
         act = en.get("action", "HOLD")
@@ -1215,7 +1242,7 @@ def generate_report_html(
                     return int(v)
                 except (TypeError, ValueError):
                     return default
-            wf_clean = [(k, _wf_int(v)) for k, v in wf.items() if not k.startswith("_")]
+            wf_clean = [(k, _wf_int(v)) for k, v in wf.items() if not k.startswith("_") and not k.startswith("~")]
             wf_parts = []
             sorted_wf = sorted(wf_clean, key=lambda x: abs(x[1]), reverse=True)[:4]
             for k, v in sorted_wf:
@@ -1259,7 +1286,8 @@ def generate_report_html(
                  f'<div style="font-size:12px;color:{_C["text_dark"]};margin-top:8px;'
                  f'padding:6px 10px;background:{_C["bg_alt"]};border-left:3px solid {action_color(act)};">'
                  f'&#9654; Trade: {size_str}</div>'
-                 f'{sl_html}'
+                 + _key_metrics_line(en, _C)
+                 + f'{sl_html}'
                  # Bull case
                  f'<div style="font-size:11px;color:{_C["text_body"]};margin-top:8px;line-height:1.5;">'
                  f'<span style="color:{_C["bull"]};font-weight:700;">Bull case:</span> {e(bull_str)}</div>'
@@ -1584,7 +1612,12 @@ def generate_report_html(
     h.append(grid_hdr("#1e293b", "#93c5fd", "FUND") + grid_hdr("#1e293b", "#c4b5fd", "TECH"))
     h.append(grid_hdr("#1e293b", "#fcd34d", "MACRO") + grid_hdr("#1e293b", "#6ee7b7", "CENS"))
     h.append(grid_hdr("#1e293b", "#fca5a5", "NEWS") + grid_hdr("#1e293b", "#d6d3d1", "RISK"))
-    h.append(grid_hdr(_C["text_dark"], "#fbbf24", "EXR") + grid_hdr(_C["text_dark"], "#fff", "ACT"))
+    # CIO v35.0: Key fundamental parameters — the decision drivers
+    h.append(grid_hdr(_C["text_dark"], "#fbbf24", "EXR"))
+    h.append(grid_hdr("#1e293b", "#93c5fd", "PE&#9654;"))
+    h.append(grid_hdr("#1e293b", "#93c5fd", "AM"))
+    h.append(grid_hdr("#1e293b", "#93c5fd", "EPS&#9654;"))
+    h.append(grid_hdr(_C["text_dark"], "#fff", "ACT"))
     h.append(grid_hdr(_C["text_dark"], "#fff", "CONV") + grid_hdr(_C["text_dark"], "#9ca3af", "TIMING"))
     h.append('</tr>')
 
@@ -1643,6 +1676,38 @@ def generate_report_html(
         conv_html = conv_display(conv, delta)
         if decay_days > 0:
             conv_html += f'<span style="font-size:10px;color:#94a3b8;margin-left:3px;">↓{decay_factor:.1f}x ({decay_days}d)</span>'
+        # CIO v35.0: Key fundamental parameter cells
+        pef = entry.get("pef", 0) or 0
+        pet = entry.get("pet", 0) or 0
+        if pef > 0 and pet > 0:
+            pe_improving = pef < pet
+            pe_arrow = "&#9650;" if pe_improving else "&#9660;"
+            pe_col = _C["bull"] if pe_improving else _C["bear"]
+            pe_cell = f'<span style="color:{pe_col};font-weight:700;">{pe_arrow}</span>'
+        else:
+            pe_cell = '<span style="color:#94a3b8;">—</span>'
+
+        am_val = entry.get("am", 0)
+        if am_val is None:
+            am_val = 0
+        try:
+            am_val = float(am_val)
+        except (ValueError, TypeError):
+            am_val = 0
+        am_col = _C["bull"] if am_val > 0 else _C["bear"] if am_val < 0 else _C["text_muted"]
+        am_cell = f'<span style="color:{am_col};font-weight:600;">{am_val:+.0f}</span>' if am_val != 0 else '—'
+
+        eps_rev = entry.get("eps_revisions", entry.get("earnings_surprise", ""))
+        if isinstance(eps_rev, dict):
+            eps_rev = eps_rev.get("classification", "")
+        eps_rev = str(eps_rev).upper() if eps_rev else ""
+        if "UP" in eps_rev or "BEAT" in eps_rev:
+            eps_cell = f'<span style="color:{_C["bull"]};font-weight:700;">&#9650;</span>'
+        elif "DOWN" in eps_rev or "MISS" in eps_rev:
+            eps_cell = f'<span style="color:{_C["bear"]};font-weight:700;">&#9660;</span>'
+        else:
+            eps_cell = '<span style="color:#94a3b8;">—</span>'
+
         return (f'<tr style="background:{rb};">'
                 f'<td {p}text-align:left;padding-left:8px;">{_tn_cell(tkr, _names)}{region_suffix}</td>'
                 f'<td {p}">{signal_badge(sig)}</td>'
@@ -1653,6 +1718,9 @@ def generate_report_html(
                 f'<td {p}color:{sentiment_color(ni)};{sv}">{ni_abbr}</td>'
                 f'<td {p}color:{risk_col};{sv}">{risk_label}</td>'
                 f'<td {p}{_MONO}font-weight:700;color:{exc};">{ex:.0f}%</td>'
+                f'<td {p}">{pe_cell}</td>'
+                f'<td {p}">{am_cell}</td>'
+                f'<td {p}">{eps_cell}</td>'
                 f'<td {p}">{badge(act, action_color(act), "#fff")}</td>'
                 f'<td {p}">{conv_html}</td>'
                 f'<td {p}color:{timing_col};{sv}">{timing_abbr}</td></tr>')
@@ -2959,7 +3027,7 @@ def generate_report_html(
         for entry in concordance:
             wf = entry.get("conviction_waterfall", {})
             for k, v in wf.items():
-                if k.startswith("_"):
+                if k.startswith("_") or k.startswith("~"):
                     continue
                 # CIO v17: coerce to int — round-tripped JSON sometimes
                 # turns numeric values into strings.
