@@ -2635,6 +2635,10 @@ def synthesize_stock(
     # F&G data found unreliable — removed from scoring entirely
 
     # CIO v20.0 D3: Earnings proximity guard
+    try:
+        earnings_days_away = int(earnings_days_away) if earnings_days_away is not None else None
+    except (ValueError, TypeError):
+        earnings_days_away = None
     if earnings_days_away is not None and signal == "B":
         if earnings_days_away <= 3:
             penalties += 15  # Earnings imminent critical
@@ -2881,7 +2885,10 @@ def synthesize_stock(
     # the move is already in the price (PEAD fade), so we only reward names
     # where the catalyst is fresh.
     eps_revisions = fund_data.get("eps_revisions") or {}
-    eps_class = eps_revisions.get("classification", "")
+    if isinstance(eps_revisions, str):
+        eps_class = eps_revisions
+    else:
+        eps_class = eps_revisions.get("classification", "")
     if eps_class == "REVISIONS_UP" and signal == "B":
         if pp_pct <= 20:
             fund_composite_pending.append(("eps_revisions_up", 8))  # v35.0: increased from 7
