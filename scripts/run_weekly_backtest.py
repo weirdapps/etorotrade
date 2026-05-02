@@ -561,6 +561,25 @@ def main():
     except Exception as e:
         print(f"\n  Phase 10 FAILED: {e}")
 
+    # Phase 11: Parameter effectiveness analysis (CIO v35.0)
+    # Correlates ALL archived parameters with forward returns
+    param_effectiveness = {}
+    try:
+        print("\n" + "=" * 60)
+        print("  PHASE 11: Parameter Effectiveness (CIO v35.0)")
+        print("=" * 60)
+        sys.path.insert(0, str(Path(__file__).parent.parent.parent / "etoro-portfolio" / "src"))
+        from etoro_portfolio.modifier_audit import run_modifier_audit
+        param_effectiveness = run_modifier_audit(horizon_days=30, min_observations=10)
+        keep = param_effectiveness.get("keep_count", 0)
+        cut = param_effectiveness.get("cut_count", 0)
+        inv = param_effectiveness.get("investigate_count", 0)
+        conv_r = param_effectiveness.get("conviction_correlation", 0)
+        print(f"  Modifiers: {keep} keep, {cut} cut, {inv} investigate")
+        print(f"  Conviction→returns correlation: r={conv_r:.4f}")
+    except Exception as e:
+        print(f"\n  Phase 11 FAILED: {e}")
+
     # Build consolidated report
     report = build_report(signal_summary, committee_result, scorecard, calibration)
     # CIO v17 wiring: surface H1 + H4.b + ops 4/5/6/7 state in the report.
@@ -597,6 +616,12 @@ def main():
     report["kill_thesis_audit"] = {
         "summary": (audit or {}).get("summary", {}),
         "status": (audit or {}).get("status", "ok"),
+    }
+    report["parameter_effectiveness"] = {
+        "keep_count": param_effectiveness.get("keep_count", 0),
+        "cut_count": param_effectiveness.get("cut_count", 0),
+        "investigate_count": param_effectiveness.get("investigate_count", 0),
+        "conviction_correlation": param_effectiveness.get("conviction_correlation"),
     }
 
     # Save report
