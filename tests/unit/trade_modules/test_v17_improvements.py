@@ -265,7 +265,7 @@ class TestCensusBand:
             quality_trap=False, sector="Technology",
             sector_rankings={}, bull_count=4,
         )
-        assert wf.get("census_alignment") == 5
+        assert wf.get("census_alignment") == 3  # CIO v35.0: reduced from 5 to 3
 
     def test_loose_band_partial_bonus(self):
         from trade_modules.committee_synthesis import compute_adjustments
@@ -294,7 +294,7 @@ class TestCensusBand:
             quality_trap=False, sector="Technology",
             sector_rankings={}, bull_count=4,
         )
-        assert wf.get("census_alignment") == 8
+        assert wf.get("census_alignment") == 5  # CIO v35.0: reduced from 8 to 5
 
 
 # ── H4.b — Rolling percentile thresholds ───────────────────────────────
