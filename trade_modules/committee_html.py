@@ -1001,7 +1001,10 @@ def generate_report_html(
             _eps = _eps.get("classification", "—")
         return (f'<div style="font-size:11px;color:{c["text_body"]};margin-top:6px;'
                 f'padding:4px 10px;background:#f8fafc;border:1px solid {c["border"]};border-radius:4px;">'
-                f'{pe_str} | %B: {_bp:.0f}% (AM {_am:+.0f}) | EXRET: {_ex:.0f}%'
+                f'{pe_str}'
+                f' | %B: {"—" if _bp == 0 and _ex == 0 else f"{_bp:.0f}%"}'
+                f' (AM {_am:+.0f})'
+                f' | EXRET: {"—" if _ex == 0 and _bp == 0 else f"{_ex:.0f}%"}'
                 f' | Rev: {_rev} | EPS: {_eps}</div>')
 
     def _suggested_size(en):
