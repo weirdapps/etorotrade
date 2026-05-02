@@ -60,7 +60,7 @@ def check_earnings_calendar(tickers, today=date(2026, 4, 21)):
                     elif isinstance(earnings_date, str):
                         try:
                             earnings_date = datetime.strptime(earnings_date, '%Y-%m-%d').date()
-                        except:
+                        except Exception:
                             continue
 
                     # Check if within 2 weeks
@@ -80,7 +80,7 @@ def check_earnings_calendar(tickers, today=date(2026, 4, 21)):
                         try:
                             info = ticker.info
                             consensus_eps = info.get('forwardEps')
-                        except:
+                        except Exception:
                             pass
 
                         earnings_calendar.append({

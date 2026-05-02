@@ -214,15 +214,14 @@ def apply_small_cap_cap(
         for p in pending:
             p["small_cap_cap_applied"] = False
             p["small_cap_cap_pct"] = cap_pct
-        return new_positions
-
-    scale = available / pending_total if pending_total else 0.0
-    for p in pending:
-        original = p.get("position_size", 0.0)
-        p["position_size"] = round(original * scale, 4)
-        p["small_cap_cap_applied"] = True
-        p["small_cap_cap_pct"] = cap_pct
-        p["small_cap_cap_scale"] = round(scale, 3)
+    else:
+        scale = available / pending_total if pending_total else 0.0
+        for p in pending:
+            original = p.get("position_size", 0.0)
+            p["position_size"] = round(original * scale, 4)
+            p["small_cap_cap_applied"] = True
+            p["small_cap_cap_pct"] = cap_pct
+            p["small_cap_cap_scale"] = round(scale, 3)
     return new_positions
 
 

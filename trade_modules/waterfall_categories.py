@@ -152,7 +152,7 @@ def render_category_summary(
     """
     cats = categorize_waterfall(waterfall)
     if not cats:
-        return "" if text_only else ""
+        return ""
 
     if text_only:
         return " · ".join(
