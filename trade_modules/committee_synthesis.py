@@ -3205,6 +3205,7 @@ def synthesize_stock(
         "pef": pef,   # CIO v11.0: stored for post-penalty floor reapplication
         "pet": pet,
         "price": sig_data.get("price", 0),  # CIO v17.0: for evaluate_recent() returns
+        "am": sig_data.get("am", 0),  # CIO v35.0: analyst momentum for grid display
         "entry_timing": entry_timing,  # CIO v20.0 D9
         "entry_note": entry_note,  # CIO v20.0 D9
         "position_size_pct": position_size_pct,  # CIO v20.0 D8
@@ -5218,6 +5219,73 @@ def enrich_with_position_sizes(
         entry["size_pct"] = round(
             result.get("position_size", 0) / portfolio_value * 100, 2
         ) if portfolio_value > 0 else 0
+
+
+def archive_committee_run(
+    date_str: str,
+    concordance: List[Dict[str, Any]],
+    synthesis: Dict[str, Any],
+    portfolio_signals: Dict[str, Dict],
+    reports: Dict[str, Dict],
+) -> Dict[str, str]:
+    """Archive all committee outputs for backtesting.
+
+    CIO v35.0: Date-stamps agent reports, synthesis, concordance, and
+    writes parameter history. Returns dict of archived file paths.
+    """
+    import shutil
+    from trade_modules.parameter_history import save_parameter_history
+
+    base = Path.home() / ".weirdapps-trading" / "committee"
+    archive_dir = base / "reports" / date_str
+    archive_dir.mkdir(parents=True, exist_ok=True)
+
+    archived = {}
+
+    # Archive agent reports
+    reports_dir = base / "reports"
+    for agent_name in ("fundamental", "technical", "macro", "census", "news",
+                       "risk", "opportunities", "opportunity"):
+        src = reports_dir / f"{agent_name}.json"
+        if src.exists():
+            dst = archive_dir / f"{agent_name}.json"
+            shutil.copy2(str(src), str(dst))
+            archived[agent_name] = str(dst)
+
+    # Archive synthesis
+    synth_path = base / f"synthesis_{date_str}.json"
+    with open(synth_path, "w") as f:
+        json.dump(synthesis, f, indent=2)
+    archived["synthesis"] = str(synth_path)
+
+    # Archive concordance to history
+    hist_dir = base / "history"
+    hist_dir.mkdir(exist_ok=True)
+    conc_hist = hist_dir / f"concordance-{date_str}.json"
+    with open(conc_hist, "w") as f:
+        json.dump({"date": date_str, "concordance": concordance}, f, indent=2)
+    archived["concordance_history"] = str(conc_hist)
+
+    # Write parameter history
+    param_count = save_parameter_history(
+        date=date_str,
+        concordance=concordance,
+        portfolio_signals=portfolio_signals,
+        fund_report=reports.get("fundamental", {}),
+        tech_report=reports.get("technical", {}),
+        macro_report=reports.get("macro", {}),
+        census_report=reports.get("census", {}),
+        news_report=reports.get("news", {}),
+        risk_report=reports.get("risk", {}),
+    )
+    archived["parameter_history_lines"] = str(param_count)
+
+    logger.info(
+        "Archived committee run %s: %d agent reports, %d parameter lines",
+        date_str, len([k for k in archived if k not in ("synthesis", "concordance_history", "parameter_history_lines")]),
+        param_count,
+    )
+    return archived
 
 
 def save_concordance(
