@@ -128,9 +128,66 @@ from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-__version__ = "v34.0"
+__version__ = "v35.0"
+
+# CIO v35.0: Active modifier set. Only modifiers in this set influence
+# conviction scoring. Disabled modifiers are still computed as shadow
+# values in the waterfall (prefixed with "~") for comparison tracking.
+# Reviewed all 63 modifiers against T+30 forward returns (group comparison,
+# correlation, academic literature) on 2026-05-02 with portfolio manager.
+ACTIVE_MODIFIERS = {
+    "census_alignment",         # +3/+5 (reduced from +5/+8, pending top-100 census fix)
+    "revenue_growth",           # -5/+8 (near-significant r=0.35, Novy-Marx 2013)
+    "eps_revisions_up",         # +5/+8 (increased from +3/+7, PEAD literature)
+    "eps_revisions_down",       # -5 (increased from -3, symmetric with up)
+    "earnings_surprise",        # -5/+10 (increased bonus from +8, Bernard & Thomas 1989)
+    "iv_low_entry",             # +5 (increased from +2, significant p=0.047)
+    "news_catalyst_neg",        # -8 (increased from -5, Tetlock 2007)
+    "news_catalyst_pos",        # +5 (unchanged, news momentum)
+    "target_consensus",         # +2 (unchanged, Diether et al. 2002)
+    "piotroski_quality",        # +3 (unchanged, Asness et al. quality factor)
+    "fcf_quality_strong",       # +2 (unchanged, quality signal)
+    "currency_risk_USD",        # -3 (unchanged, real FX risk)
+    "currency_risk_HKD",        # -2 (unchanged)
+    "currency_risk_JPY",        # -2 (unchanged)
+    "currency_risk_GBP",        # -2 (unchanged)
+    "signal_velocity",          # -5/+5 (unchanged, signal momentum)
+    "sector_rotation",          # -5/+5 (unchanged, Conover et al. 2008)
+    "sector_concentration",     # -10/+1 (reduced max from -15)
+    "dividend_yield_trap",      # -5 (unchanged, Fuller & Goldstein 2011)
+    "short_interest_weakness",  # -3 (unchanged, Desai et al. 2002)
+    "iv_x_earnings",            # -5 (reduced from -9, Ni et al. 2008)
+    "volume_confirm",           # +3 (unchanged, Campbell et al. 1993)
+}
 
 CIRCUIT_BREAKER_PATH = Path.home() / ".weirdapps-trading" / "portfolio" / "circuit_breaker.json"
+
+
+def filter_waterfall(waterfall: Dict[str, int]) -> Tuple[int, int, Dict[str, int]]:
+    """Filter waterfall to only active modifiers, shadow-tracking disabled ones.
+
+    CIO v35.0: After all modifiers are computed, this function separates
+    active modifiers (that influence conviction) from disabled ones (prefixed
+    with '~' for shadow tracking). Returns recomputed (bonuses, penalties, filtered_wf).
+    """
+    filtered = {}
+    bonuses = 0
+    penalties = 0
+
+    for key, value in waterfall.items():
+        if key.startswith("~"):
+            filtered[key] = value
+            continue
+        if key in ACTIVE_MODIFIERS:
+            filtered[key] = value
+            if value > 0:
+                bonuses += value
+            else:
+                penalties += abs(value)
+        else:
+            filtered[f"~{key}"] = value
+
+    return bonuses, penalties, filtered
 
 
 def load_circuit_breaker() -> Dict[str, Any]:
@@ -1676,9 +1733,9 @@ def get_earnings_surprise_adjustment(
     if recent_surprise_pct is None:
         return (0, "NO_DATA")
 
-    # CIO v20.0 D3: Enhanced PEAD bonus for serial beaters (+8 from +5)
+    # CIO v35.0: PEAD bonus increased (serial beaters +10, was +8)
     if recent_surprise_pct > 10 and consecutive_beats >= 2:
-        adj, label = +8, "SERIAL_BEATER"
+        adj, label = +10, "SERIAL_BEATER"
     elif recent_surprise_pct > 5:
         adj, label = +3, "BEAT"
     elif recent_surprise_pct < -10:
@@ -1784,13 +1841,25 @@ def compute_adjustments(
     penalties = 0
     _w: Dict[str, int] = {}
 
-    # Agent agreement bonus
+    def _apply(name: str, value: int) -> bool:
+        """Apply modifier if active; shadow-track if disabled."""
+        nonlocal bonuses, penalties
+        if name in ACTIVE_MODIFIERS:
+            if value > 0:
+                bonuses += value
+            else:
+                penalties += abs(value)
+            _w[name] = value
+            return True
+        else:
+            _w[f"~{name}"] = value
+            return False
+
+    # Agent agreement bonus — DISABLED v35.0 (agent echo chamber)
     if bull_count >= 6:
-        bonuses += 15
-        _w["agent_consensus"] = 15
+        _apply("agent_consensus", 15)
     elif bull_count >= 5:
-        bonuses += 10
-        _w["agent_consensus"] = 10
+        _apply("agent_consensus", 10)
 
     # Consensus warning — tier-scaled (CIO v37, data-driven from n=98 backtest)
     # Backtest by tier (mean alpha for ≥90% BUY vs <90% BUY):
@@ -1812,139 +1881,91 @@ def compute_adjustments(
     # preserved in waterfall_categories.py for backward compatibility with
     # historical attribution rendering, but no longer fire.
 
-    # Census alignment
-    # CIO v17 R4: Tightened bands. Old [-20,+20]→+5 fired on ~90% of stocks
-    # (per April 2026 attribution sample), draining differentiating power.
-    # New scheme: tight band [-10,+10] gets the full +5; loose band
-    # ([-20,-10) ∪ (10,20]) gets +2; strong contrarian (<-20) keeps +8.
-    # Same total contribution shape, but the bonus actually distinguishes
-    # genuine alignment from "not divergent enough to flag".
+    # Census alignment — v35.0: reduced from +5/+8 to +3/+5
     if -10 <= div_score <= 10:
-        bonuses += 5
-        _w["census_alignment"] = 5
+        _apply("census_alignment", 3)
     elif -20 <= div_score < -10 or 10 < div_score <= 20:
-        bonuses += 2
-        _w["census_alignment"] = 2
+        _apply("census_alignment", 2)
     elif div_score < -20:
-        bonuses += 8
-        _w["census_alignment"] = 8
+        _apply("census_alignment", 5)
 
-    # Census time-series
+    # Census time-series — DISABLED v35.0 (zero predictive power)
     if census_ts == "strong_accumulation":
-        bonuses += 3
-        _w["census_accumulation"] = 3
+        _apply("census_accumulation", 3)
     elif census_ts in ("strong_distribution", "distribution"):
-        penalties += 5
-        _w["census_distribution"] = -5
+        _apply("census_distribution", -5)
 
-    # News catalyst
+    # News catalyst — v35.0: neg increased from -5 to -8 (Tetlock 2007)
     if "HIGH_POSITIVE" in news_impact:
-        bonuses += 5
-        _w["news_catalyst_pos"] = 5
+        _apply("news_catalyst_pos", 5)
     if "NEGATIVE" in news_impact:
-        penalties += 5
-        _w["news_catalyst_neg"] = -5
+        _apply("news_catalyst_neg", -8)
 
-    # Technical overbought / oversold
-    # CIO v18.0 B2: RSI contrarian weighting from backtest evidence.
-    # RSI < 25 = +2.70% avg, 87% positive (strongest single predictor).
-    # RSI > 75 = -4.12%, 25% positive. Previously only penalized overbought
-    # with -5 and had no oversold bonus. Now: oversold bonus +10, overbought
-    # penalty increased to -8.
+    # RSI overbought/oversold — DISABLED v35.0 (wrong horizon for 1-3mo holds)
     if rsi < 30:
-        bonuses += 10
-        _w["rsi_oversold"] = 10
+        _apply("rsi_oversold", 10)
     elif rsi > 70:
-        penalties += 8
-        _w["rsi_overbought"] = -8
+        _apply("rsi_overbought", -8)
 
-    # Tech disagreement penalty (CIO v5.2): when BUY signal but tech says AVOID/EXIT
-    # CIO v14.0 V2: Scale by RSI context. At RSI < 35, the tech AVOID is confirming
-    # an oversold condition — it's NOT a genuine disagreement with the BUY signal.
-    # The full -8 penalty should only apply when RSI > 50 (tech disagreeing at
-    # a neutral-to-overbought level is genuinely informative).
+    # Tech disagreement — DISABLED v35.0 (agent agreement is system noise)
     if signal == "B" and tech_signal in ("AVOID", "EXIT_SOON"):
         if rsi < 35:
-            penalties += 2   # V2: oversold — tech confirms obvious, minimal penalty
-            _w["tech_disagree"] = -2
+            _apply("tech_disagree", -2)
         elif rsi < 50:
-            penalties += 5   # V2: transitional — moderate penalty
-            _w["tech_disagree"] = -5
+            _apply("tech_disagree", -5)
         else:
-            penalties += 8   # Full disagreement at neutral/overbought RSI
-            _w["tech_disagree"] = -8
+            _apply("tech_disagree", -8)
     elif signal == "B" and tech_momentum < -30:
-        penalties += 5
-        _w["tech_momentum_neg"] = -5
+        _apply("tech_momentum_neg", -5)
 
-    # Macro sector-specific
+    # Macro sector — DISABLED v35.0 (INVERTED: unfavorable stocks outperform by 14.8pp)
     if macro_fit == "UNFAVORABLE":
         if sector in ("Financials", "Consumer Discretionary"):
-            penalties += 10
-            _w["macro_sector"] = -10
+            _apply("macro_sector", -10)
         else:
-            penalties += 5
-            _w["macro_sector"] = -5
+            _apply("macro_sector", -5)
     elif macro_fit == "FAVORABLE":
-        bonuses += 5
-        _w["macro_sector"] = 5
+        _apply("macro_sector", 5)
 
-    # High beta
+    # High beta — DISABLED v35.0 (position sizing already accounts for beta)
     if beta > 2.0:
-        penalties += 5
-        _w["high_beta"] = -5
+        _apply("high_beta", -5)
 
-    # Quality trap
-    # CIO v32.0 T3: Quality growth exception — waive quality_trap penalty when
-    # fund_score >= 70 (strong fundamentals) AND buy_pct >= 70 (analyst consensus
-    # confirms growth thesis) AND signal is not SELL. Backtest showed ANET, AMD,
-    # NVDA were systematically suppressed by quality_trap despite outperforming.
+    # Quality trap — DISABLED v35.0 (zero predictive power, p=0.279)
     if quality_trap:
         is_quality_growth = (
-            fund_score >= 70
-            and buy_pct >= 70
-            and signal in ("B", "H")
+            fund_score >= 70 and buy_pct >= 70 and signal in ("B", "H")
         )
         if not is_quality_growth:
-            penalties += 5
-            _w["quality_trap"] = -5
+            _apply("quality_trap", -5)
 
-    # Sector rotation
+    # Sector rotation — ACTIVE (Conover et al. 2008)
     etf = SECTOR_ETF_MAP.get(sector, "")
     if etf and etf in sector_rankings:
         rank = sector_rankings[etf].get("rank", 6)
         ret_1m = sector_rankings[etf].get("return_1m", 0)
         if rank <= 3 and ret_1m > 0:
-            bonuses += 5
-            _w["sector_rotation"] = 5
+            _apply("sector_rotation", 5)
         elif rank >= 9 and ret_1m < -3:
-            penalties += 5
-            _w["sector_rotation"] = -5
+            _apply("sector_rotation", -5)
 
-    # SELL-specific: tech/macro disagreement reduces sell conviction
+    # SELL-specific disagreement — DISABLED v35.0 (agent disagreement is system noise)
     if signal == "S":
         if tech_signal in ("ENTER_NOW", "WAIT_FOR_PULLBACK"):
-            penalties += 5
-            _w["sell_tech_disagree"] = -5
+            _apply("sell_tech_disagree", -5)
         if macro_fit == "FAVORABLE":
-            penalties += 3
-            _w["sell_macro_disagree"] = -3
+            _apply("sell_macro_disagree", -3)
         if census_alignment == "CENSUS_DIV" and div_score < -30:
-            penalties += 5
-            _w["sell_census_disagree"] = -5
+            _apply("sell_census_disagree", -5)
 
-    # CIO v20.0 D5: Regional calibration (apply before cap)
-    # Note: This is applied in synthesize_stock where ticker is available
-
-    # Cap adjustments
+    # v35.0: Caps DISABLED (unnecessary with 19 active modifiers, stacking impossible)
+    # Shadow-track what caps would have absorbed for comparison
     _pre_cap_b = bonuses
     _pre_cap_p = penalties
-    bonuses = min(bonuses, 20)
-    penalties = min(penalties, 25)
     if _pre_cap_b > 20:
-        _w["base_bonus_cap"] = _pre_cap_b - 20  # Positive = bonuses absorbed by cap
+        _w["~base_bonus_cap"] = _pre_cap_b - 20
     if _pre_cap_p > 25:
-        _w["base_penalty_cap"] = _pre_cap_p - 25
+        _w["~base_penalty_cap"] = _pre_cap_p - 25
 
     return bonuses, penalties, _w
 
@@ -2863,14 +2884,14 @@ def synthesize_stock(
     eps_class = eps_revisions.get("classification", "")
     if eps_class == "REVISIONS_UP" and signal == "B":
         if pp_pct <= 20:
-            fund_composite_pending.append(("eps_revisions_up", 7))
+            fund_composite_pending.append(("eps_revisions_up", 8))  # v35.0: increased from 7
             fund_composite_keys.append("eps_revisions_up")
         else:
             # Catalyst already in the price — record as zero for transparency
             _w["eps_revisions_up_pp_gated"] = 0
     elif eps_class == "REVISIONS_DOWN":
         penalties += 3
-        _w["eps_revisions_down"] = -3
+        _w["eps_revisions_down"] = -5  # v35.0: increased from -3 (symmetric with +5/+8 up)
 
     # ── CIO v25.0: IV rank × earnings interaction ───────────────────────
     # Previously flat +3 penalty (v23.4). Now scales by IV rank magnitude:
@@ -2881,12 +2902,12 @@ def synthesize_stock(
     iv_rank = _num(tech_data.get("iv_rank"), None)
     if iv_rank is not None:
         if iv_rank > 80 and earnings_days_away is not None and earnings_days_away <= 7:
-            iv_earn_penalty = 3 + int((iv_rank - 80) * 0.3)  # 3-9 scaled
+            iv_earn_penalty = min(5, 3 + int((iv_rank - 80) * 0.3))  # v35.0: capped at 5 (was 9)
             penalties += iv_earn_penalty
             _w["iv_x_earnings"] = -iv_earn_penalty
         elif iv_rank < 20 and signal == "B":
             bonuses = min(bonuses + 2, 20)  # Low IV = cheap entry
-            _w["iv_low_entry"] = 2
+            _w["iv_low_entry"] = 5  # v35.0: increased from 2 (significant p=0.047, +5.6pp)
 
     # ── CIO v23.4: Volatility regime sizing — applied after compute_position_size().
     vol_regime = tech_data.get("volatility_regime")
@@ -4037,6 +4058,20 @@ def build_concordance(
         )
         concordance.append(entry)
 
+    # CIO v35.0: Filter waterfalls to active modifiers and recalculate conviction.
+    # This is the central enforcement point — all modifiers above are computed
+    # normally, then this filter removes disabled ones and recomputes.
+    for entry in concordance:
+        wf = entry.get("conviction_waterfall", {})
+        if wf:
+            active_bonuses, active_penalties, filtered_wf = filter_waterfall(wf)
+            entry["conviction_waterfall"] = filtered_wf
+            entry["bonuses"] = active_bonuses
+            entry["penalties"] = active_penalties
+            # Recompute conviction from base + active bonuses - active penalties
+            base = entry.get("base", 50)
+            entry["conviction"] = max(0, min(100, base + active_bonuses - active_penalties))
+
     # CIO v20.0 D1: Conviction decay — signals lose conviction over time
     # Apply time-weighted decay for stocks held in same signal state >14 days
     for entry in concordance:
@@ -4117,7 +4152,7 @@ def build_concordance(
         if count > 2:
             raw_penalty = (count - 2) * 2  # -2 per extra stock beyond 2
             if entry.get("is_opportunity"):
-                penalty = min(raw_penalty, 15)  # cap at 15 for new entries
+                penalty = min(raw_penalty, 10)  # v35.0: reduced cap from 15 to 10
             else:
                 penalty = min(raw_penalty, 6)  # v11.0 L5: cap at 6 for existing
             # CIO v15.0 W2: The sector concentration penalty must not breach the
