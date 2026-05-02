@@ -1032,7 +1032,7 @@ def generate_report_html(
             if target is None:
                 target = en.get("max_pct", 0)
             try: target = float(target)
-            except: target = 0.0
+            except Exception: target = 0.0
             return f"<b>Open new position ~{target:.2f}%</b>" if target > 0 else "<b>Cannot enter — sector capped</b>"
         if act == "TRIM":
             # Conviction-scaled trim: 25% (low conv 50-65), 33% (66-75), 50% (>75)
