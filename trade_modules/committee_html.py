@@ -772,6 +772,8 @@ def generate_report_html(
             "usd_rally": "USD RALLY",
         }
         for i, (sk, sd) in enumerate(_stress_items):
+            if not isinstance(sd, dict):
+                continue
             title = sd.get("name", _scenario_labels.get(sk, sk.replace("_", " ").upper()))
             if len(title) > 20:
                 title = title[:20]
@@ -885,6 +887,86 @@ def generate_report_html(
              f'<span style="color:{_C["warn"]};">&#9679; amber = caution</span> &middot; '
              f'<span style="color:{_C["hold"]};">&#9679; purple = neutral/hold</span>'
              f'</div></div></div>')
+
+    # ── S1b: PORTFOLIO PERFORMANCE (CIO v35.0) ──
+    # Read P&L data from etoro-portfolio if available
+    _perf_db = Path.home() / ".weirdapps-trading" / "portfolio" / "portfolio.db"
+    if _perf_db.exists():
+        try:
+            import sqlite3 as _sql3
+            _pconn = _sql3.connect(str(_perf_db))
+            _pconn.row_factory = _sql3.Row
+            _eq_count = _pconn.execute(
+                "SELECT COUNT(*) FROM equity_daily"
+            ).fetchone()[0] if _pconn.execute(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='equity_daily'"
+            ).fetchone()[0] else 0
+
+            if _eq_count > 30:
+                _eq_latest = _pconn.execute(
+                    "SELECT equity_usd, cumulative_return_pct, date FROM equity_daily ORDER BY date DESC LIMIT 1"
+                ).fetchone()
+                _eq_30d = _pconn.execute(
+                    "SELECT cumulative_return_pct FROM equity_daily WHERE date >= date('now', '-30 days') ORDER BY date LIMIT 1"
+                ).fetchone()
+
+                _cb_path = Path.home() / ".weirdapps-trading" / "portfolio" / "circuit_breaker.json"
+                _cb_level = "NORMAL"
+                _cb_dd = 0.0
+                if _cb_path.exists():
+                    import json as _json2
+                    with open(_cb_path) as _cbf:
+                        _cb = _json2.load(_cbf)
+                    _cb_level = _cb.get("level", "NORMAL")
+                    _cb_dd = _cb.get("drawdown_pct", 0)
+
+                _eq_val = _eq_latest["equity_usd"] if _eq_latest else 0
+                _cum_ret = _eq_latest["cumulative_return_pct"] if _eq_latest else 0
+                _ret_30d = (_cum_ret - _eq_30d["cumulative_return_pct"]) if _eq_30d else 0
+
+                _cb_color = _C["bull"] if _cb_level == "NORMAL" else _C["warn"] if _cb_level == "CAUTION" else _C["bear"]
+
+                h.append(f'<div style="padding:20px 0;border-bottom:1px solid {_C["border"]};">')
+                h.append(f'<div style="font-size:10px;font-weight:700;letter-spacing:1px;'
+                         f'text-transform:uppercase;color:{_C["text_muted"]};margin-bottom:10px;">'
+                         f'PORTFOLIO PERFORMANCE</div>')
+                h.append(f'<table style="width:100%;border-collapse:separate;border-spacing:8px 0;" cellpadding="0"><tr>')
+                # Equity value
+                h.append(f'<td style="width:25%;background:{_C["bg_alt"]};border:1px solid {_C["border"]};'
+                         f'border-radius:6px;padding:12px 16px;text-align:center;">'
+                         f'<div style="font-size:9px;font-weight:700;letter-spacing:0.8px;'
+                         f'text-transform:uppercase;color:{_C["text_muted"]};">Equity</div>'
+                         f'<div style="font-size:20px;font-weight:800;color:{_C["text_dark"]};">'
+                         f'${_eq_val:,.0f}</div></td>')
+                # Cumulative return
+                _ret_color = _C["bull"] if _cum_ret > 0 else _C["bear"]
+                h.append(f'<td style="width:25%;background:{_C["bg_alt"]};border:1px solid {_C["border"]};'
+                         f'border-radius:6px;padding:12px 16px;text-align:center;">'
+                         f'<div style="font-size:9px;font-weight:700;letter-spacing:0.8px;'
+                         f'text-transform:uppercase;color:{_C["text_muted"]};">TWR (Inception)</div>'
+                         f'<div style="font-size:20px;font-weight:800;color:{_ret_color};">'
+                         f'{_cum_ret:+.1f}%</div></td>')
+                # 30-day return
+                _r30_color = _C["bull"] if _ret_30d > 0 else _C["bear"]
+                h.append(f'<td style="width:25%;background:{_C["bg_alt"]};border:1px solid {_C["border"]};'
+                         f'border-radius:6px;padding:12px 16px;text-align:center;">'
+                         f'<div style="font-size:9px;font-weight:700;letter-spacing:0.8px;'
+                         f'text-transform:uppercase;color:{_C["text_muted"]};">30-Day Return</div>'
+                         f'<div style="font-size:20px;font-weight:800;color:{_r30_color};">'
+                         f'{_ret_30d:+.1f}%</div></td>')
+                # Circuit breaker
+                h.append(f'<td style="width:25%;background:{_C["bg_alt"]};border:1px solid {_C["border"]};'
+                         f'border-radius:6px;padding:12px 16px;text-align:center;">'
+                         f'<div style="font-size:9px;font-weight:700;letter-spacing:0.8px;'
+                         f'text-transform:uppercase;color:{_C["text_muted"]};">Circuit Breaker</div>'
+                         f'<div style="font-size:20px;font-weight:800;color:{_cb_color};">'
+                         f'{_cb_level}</div>'
+                         f'<div style="font-size:10px;color:{_C["text_muted"]};">'
+                         f'Drawdown: {_cb_dd:.1f}%</div></td>')
+                h.append('</tr></table></div>')
+            _pconn.close()
+        except Exception as _pe:
+            logger.debug("Portfolio performance section skipped: %s", _pe)
 
     # ── S2: ACTION ITEMS ──
     h.append(_section_open("Action Items",
@@ -1046,6 +1128,28 @@ def generate_report_html(
         ce = en.get("capital_efficiency", 0)
         pos_size_pct = en.get("position_size_pct", 0)
         kill = en.get("kill_thesis") or _stock_kill_thesis(act, tkr, sec, rsi, ex, beta, bp, mf, ts, fv)
+        # CIO v35.0: 90-day holding review flag
+        if en.get("holding_review_flag"):
+            _hr_days = en.get("holding_review_days", 0)
+            extra_tags_pre = (f'<div style="background:#fffbeb;border:1px solid #fde68a;'
+                              f'border-radius:4px;padding:6px 10px;margin-bottom:6px;'
+                              f'font-size:10px;color:#92400e;">'
+                              f'&#9888; <b>HOLDING REVIEW</b>: Position held {_hr_days} days '
+                              f'&mdash; empirical data shows 3-6 month holds underperform. '
+                              f'Review thesis or set exit timeline.</div>')
+        else:
+            extra_tags_pre = ""
+
+        # CIO v35.0: Circuit breaker blocked flag
+        if en.get("circuit_breaker_blocked"):
+            _cb_orig = en.get("circuit_breaker_original_action", "BUY")
+            _cb_lev = en.get("circuit_breaker_level", "WARNING")
+            extra_tags_pre += (f'<div style="background:#fef2f2;border:1px solid #fecaca;'
+                               f'border-radius:4px;padding:6px 10px;margin-bottom:6px;'
+                               f'font-size:10px;color:#991b1b;">'
+                               f'&#9888; <b>CIRCUIT BREAKER {_cb_lev}</b>: '
+                               f'{_cb_orig} blocked due to portfolio drawdown.</div>')
+
         # CIO v11.0: Surface velocity and earnings indicators when populated
         vel = en.get("signal_velocity", "NO_HISTORY")
         earn = en.get("earnings_surprise", "NO_DATA")
@@ -1141,7 +1245,8 @@ def generate_report_html(
         bull_str = _bull_case(en)
         bear_str = _bear_case(en)
 
-        inner = (f'<table style="width:100%;"><tr><td>'
+        inner = (f'{extra_tags_pre}'
+                 f'<table style="width:100%;"><tr><td>'
                  f'{badge(act, action_color(act), "#fff")} '
                  f'<span style="{_MONO}font-weight:800;font-size:14px;margin-left:8px;">{e(tkr)}</span> '
                  f'{name_html}'
@@ -1166,6 +1271,16 @@ def generate_report_html(
                  f'margin-top:6px;line-height:1.5;">'
                  f'<span style="color:{_C["warn"]};font-weight:700;font-style:normal;">Kill thesis:</span> {e(kill)}</div>'
                  f'{wf_html}')
+        # CIO v35.0: Shadow waterfall comparison
+        shadow_keys = [k for k in wf if k.startswith("~")]
+        if shadow_keys:
+            shadow_sum = sum(wf[k] for k in shadow_keys)
+            if shadow_sum != 0:
+                _shadow_dir = "penalties" if shadow_sum < 0 else "bonuses"
+                inner += (f'<div style="font-size:9px;color:{_C["text_muted"]};margin-top:4px;'
+                          f'font-style:italic;">'
+                          f'v35 shadow: {len(shadow_keys)} disabled modifiers would have added '
+                          f'{shadow_sum:+d} {_shadow_dir}</div>')
         h.append(_card(inner, card_border, action_bg(act)))
 
     # SELL
@@ -1819,6 +1934,8 @@ def generate_report_html(
             h.append('<table style="width:100%;border-collapse:separate;border-spacing:8px 0;'
                      'margin-bottom:12px;table-layout:fixed;" cellpadding="0" cellspacing="0"><tr>')
             for idx, (sk, sd) in enumerate(stress_items):
+                if not isinstance(sd, dict):
+                    continue
                 bg, brd, lc, vc = _sc_colors[idx % len(_sc_colors)]
                 title = sd.get("name", _scenario_labels.get(sk, sk.replace("_", " ").upper()))[:20]
                 ei = sd.get("estimated_impact", {})
@@ -2430,7 +2547,10 @@ def generate_report_html(
         tkr = ear.get("ticker", "")
         if tkr not in portfolio_tkrs:
             continue  # Drop non-portfolio earnings
-        days = ear.get("days_away", 999)
+        try:
+            days = int(ear.get("days_away", 999))
+        except (ValueError, TypeError):
+            days = 999
         weight = cur_pos_for_earn.get(tkr, 0.0)
         is_high_impact = weight >= 4.0 or days <= 7 or tkr in MARKET_MOVERS
         if is_high_impact:
@@ -2439,8 +2559,16 @@ def generate_report_html(
         h.append(f'<div style="{_LABEL}margin:16px 0 8px 0;">High-Impact Earnings (portfolio)</div>')
         h.append(_table_open([("Stock", "left"), ("Date", "center"), ("Days", "center"),
                               ("Weight", "center"), ("Risk", "center")]))
-        for i, ear in enumerate(sorted(earnings_items, key=lambda x: x.get("days_away", 999))):
-            days = ear.get("days_away", 0)
+        def _safe_days(x):
+            try:
+                return int(x.get("days_away", 999))
+            except (ValueError, TypeError):
+                return 999
+        for i, ear in enumerate(sorted(earnings_items, key=_safe_days)):
+            try:
+                days = int(ear.get("days_away", 0))
+            except (ValueError, TypeError):
+                days = 0
             rl = ear.get("risk_level", "LOW")
             rl_col = _C["bear"] if rl == "HIGH" else _C["warn"] if rl == "MEDIUM" else _C["text_muted"]
             rbg = _C["bear_bg"] if days <= 7 else _C["warn_bg"] if days <= 14 else _C["bg_white"]
@@ -2498,7 +2626,7 @@ def generate_report_html(
             bg = _C["bull_bg"] if i < 3 else _C["bg_page"] if i % 2 == 1 else _C["bg_white"]
             exr = str(opp.get("exret", "0")).replace("%", "")
             pef = opp.get("pe_forward", 0)
-            bp = opp.get("buy_pct", 0)
+            bp = opp.get("buy_pct") or 0
             why = opp.get("why_compelling", "")[:150]
             opp_sec = gics_sector(opp.get("sector", ""))
             h.append(_table_row([
