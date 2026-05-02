@@ -27,10 +27,13 @@ Usage:
 """
 
 import json
+import logging
 import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 REPORTS_DIR = Path(os.path.expanduser("~/.weirdapps-trading/committee/reports"))
 OUTPUT_DIR = Path(os.path.expanduser("~/.weirdapps-trading/committee"))
