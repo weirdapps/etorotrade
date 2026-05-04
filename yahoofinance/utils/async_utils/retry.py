@@ -106,7 +106,7 @@ async def retry_async_with_backoff(
             # Never retry these exceptions
             raise e
 
-        except retry_exceptions as e:
+        except retry_exceptions as e:  # NOSONAR — retry_exceptions is asserted to be tuple[type[BaseException], ...] above
             attempt += 1
             last_exception = e
 
