@@ -10,7 +10,9 @@ CIO Review Finding M4: No earnings proximity adjustment in signal engine.
 
 import logging
 import threading
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
+
+UTC = timezone.utc  # Python 3.10 compat (datetime.UTC is 3.11+)
 from typing import Any
 
 logger = logging.getLogger(__name__)
