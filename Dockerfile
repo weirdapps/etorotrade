@@ -12,15 +12,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create a non-root user for running the application
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
-# Install Poetry (pinned), then install pinned production deps directly into
-# system Python via virtualenvs.create=false. Poetry is removed afterwards to
-# keep the runtime image lean (no Poetry CLI needed at runtime).
+# Install Poetry (pinned), use it to EXPORT pinned/hashed production deps from
+# poetry.lock to a temporary requirements file, then `pip install --only-binary
+# :all: --require-hashes` for an arbitrary-code-free install (defends against
+# malicious setup.py in source distributions). Poetry is removed afterwards to
+# keep the runtime image lean.
 COPY --chmod=444 pyproject.toml poetry.lock ./
-RUN pip install --no-cache-dir poetry==2.4.0 && \
-    poetry config virtualenvs.create false && \
-    poetry install --only main --no-root --no-interaction --no-ansi && \
-    pip uninstall -y poetry && \
-    rm -f pyproject.toml poetry.lock
+RUN pip install --no-cache-dir poetry==2.4.0 poetry-plugin-export==1.10.0 && \
+    poetry export --only main -f requirements.txt -o /tmp/req.txt && \
+    pip install --no-cache-dir --only-binary :all: --require-hashes -r /tmp/req.txt && \
+    pip uninstall -y poetry poetry-plugin-export && \
+    rm -f /tmp/req.txt pyproject.toml poetry.lock
 
 # Copy only necessary application code with read-only permissions
 # Files are owned by root but readable by appuser

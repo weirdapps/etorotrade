@@ -30,12 +30,16 @@ jobs:
         uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # v1.4.1
         with:
           version: '2.4.0'
-          virtualenvs-create: false
+          plugins: 'poetry-plugin-export==1.10.0'
+
+      - name: Export production+dev requirements (hashed)
+        run: poetry export --extras dev -f requirements.txt -o /tmp/req.txt
 
       - name: Install dependencies (production + dev)
         continue-on-error: true
         run: |
-          poetry install --extras dev --no-root --no-interaction --no-ansi
+          python -m pip install --only-binary :all: --upgrade pip
+          pip install --only-binary :all: --require-hashes -r /tmp/req.txt
           pip install --only-binary :all: pytest==9.0.3 pytest-cov==7.1.0
 
       - name: Check for tests

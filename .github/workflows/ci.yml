@@ -40,11 +40,19 @@ jobs:
       uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # v1.4.1
       with:
         version: '2.4.0'
-        virtualenvs-create: false  # Install into system Python (faster CI, simpler PATH)
+        plugins: 'poetry-plugin-export==1.10.0'
+
+    # Export pinned, SHA256-hashed requirements from poetry.lock, then install
+    # via `pip --only-binary :all: --require-hashes` to satisfy SonarCloud's
+    # S8541 (only-binary protects against arbitrary setup-script execution)
+    # and S8544 (require-hashes pins to specific verified artifacts).
+    - name: Export production+dev requirements (hashed)
+      run: poetry export --extras dev -f requirements.txt -o /tmp/req.txt
 
     - name: Install dependencies (production + dev)
       run: |
-        poetry install --extras dev --no-root --no-interaction --no-ansi
+        python -m pip install --only-binary :all: --upgrade pip
+        pip install --only-binary :all: --require-hashes -r /tmp/req.txt
         pip install --only-binary :all: pytest-xdist==3.8.0 safety==3.7.0 bandit==1.9.4
 
     - name: Security check with bandit
@@ -129,10 +137,15 @@ jobs:
       uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # v1.4.1
       with:
         version: '2.4.0'
-        virtualenvs-create: false
+        plugins: 'poetry-plugin-export==1.10.0'
+
+    - name: Export production+dev requirements (hashed)
+      run: poetry export --extras dev -f requirements.txt -o /tmp/req.txt
 
     - name: Install dependencies (production + dev)
-      run: poetry install --extras dev --no-root --no-interaction --no-ansi
+      run: |
+        python -m pip install --only-binary :all: --upgrade pip
+        pip install --only-binary :all: --require-hashes -r /tmp/req.txt
 
     - name: Run integration tests
       continue-on-error: true  # Don't block CI on integration test failures (API rate limits, etc.)
@@ -156,13 +169,17 @@ jobs:
       uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # v1.4.1
       with:
         version: '2.4.0'
-        virtualenvs-create: false
+        plugins: 'poetry-plugin-export==1.10.0'
+
+    - name: Export production-only requirements (hashed)
+      run: poetry export --only main -f requirements.txt -o /tmp/req.txt
 
     # Install ONLY declared production deps (no extras) to detect undeclared
     # upstream transitive deps before they break a fresh prod install.
     - name: Install production deps only
       run: |
-        poetry install --only main --no-root --no-interaction --no-ansi
+        python -m pip install --only-binary :all: --upgrade pip
+        pip install --only-binary :all: --require-hashes -r /tmp/req.txt
         pip install --only-binary :all: pytest==9.0.3 pytest-rerunfailures==16.1
 
     # Override pytest.ini's addopts (--cov=yahoofinance) since pytest-cov
@@ -190,11 +207,15 @@ jobs:
       uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # v1.4.1
       with:
         version: '2.4.0'
-        virtualenvs-create: false
+        plugins: 'poetry-plugin-export==1.10.0'
+
+    - name: Export production+dev requirements (hashed)
+      run: poetry export --extras dev -f requirements.txt -o /tmp/req.txt
 
     - name: Install dependencies (production + dev)
       run: |
-        poetry install --extras dev --no-root --no-interaction --no-ansi
+        python -m pip install --only-binary :all: --upgrade pip
+        pip install --only-binary :all: --require-hashes -r /tmp/req.txt
         pip install --only-binary :all: radon==6.0.1 autoflake==2.3.3 detect-secrets==1.5.0
 
     - name: Check code complexity

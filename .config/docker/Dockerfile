@@ -11,13 +11,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create a non-root user to run the application
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
-# Install Poetry, install pinned production deps directly into system Python,
-# then strip Poetry to keep the runtime image lean.
+# Install Poetry, EXPORT pinned/hashed production deps to a temp requirements
+# file, then `pip install --only-binary :all: --require-hashes` (avoids running
+# arbitrary setup.py from source distributions). Poetry is removed afterwards.
 COPY pyproject.toml poetry.lock ./
-RUN pip install --no-cache-dir poetry==2.4.0 && \
-    poetry config virtualenvs.create false && \
-    poetry install --only main --no-root --no-interaction --no-ansi && \
-    pip uninstall -y poetry
+RUN pip install --no-cache-dir poetry==2.4.0 poetry-plugin-export==1.10.0 && \
+    poetry export --only main -f requirements.txt -o /tmp/req.txt && \
+    pip install --no-cache-dir --only-binary :all: --require-hashes -r /tmp/req.txt && \
+    pip uninstall -y poetry poetry-plugin-export && \
+    rm -f /tmp/req.txt
 
 # Copy only necessary files for production (security best practice)
 # Using explicit COPY commands instead of recursive copy to minimize security risk
