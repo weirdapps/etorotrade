@@ -27,6 +27,13 @@ from .batch import (
 from .enhanced import (
     process_batch_async as enhanced_process_batch_async,
 )
+from .semaphore import (  # noqa: F401 — re-exports for backward compat
+    AsyncRateLimiter,
+    PriorityAsyncRateLimiter,
+    async_rate_limited,
+    global_async_rate_limiter,
+    global_priority_rate_limiter,
+)
 
 logger = get_logger(__name__)
 
