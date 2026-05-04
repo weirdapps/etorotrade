@@ -21,6 +21,16 @@ from yahoofinance.core.errors import YFinanceError
 # Import everything from the new analysis submodules for backward compatibility
 # These are re-exports — listed in __all__ at the bottom to satisfy ruff F401
 from .analysis import (
+    _apply_color_coding,
+    _check_buy_criteria,
+    _check_confidence_criteria,
+    _check_sell_criteria,
+    _determine_market_cap_tier,
+    _filter_notrade_tickers,
+    _parse_market_cap,
+    _parse_percentage,
+    _process_color_based_on_criteria,
+    _safe_calc_exret,
     calculate_action,
     calculate_action_vectorized,
     calculate_exret,
@@ -151,6 +161,16 @@ class AnalysisEngine:
 # Re-exports from .analysis (declare here so ruff F401 doesn't strip them)
 __all__ = [
     "AnalysisEngine",
+    "_apply_color_coding",
+    "_check_buy_criteria",
+    "_check_confidence_criteria",
+    "_check_sell_criteria",
+    "_determine_market_cap_tier",
+    "_filter_notrade_tickers",
+    "_parse_market_cap",
+    "_parse_percentage",
+    "_process_color_based_on_criteria",
+    "_safe_calc_exret",
     "calculate_action",
     "calculate_action_vectorized",
     "calculate_exret",
