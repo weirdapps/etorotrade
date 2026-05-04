@@ -32,7 +32,7 @@ repos:
     hooks:
       - id: mypy
         args: [--ignore-missing-imports, --show-error-codes]
-        additional_dependencies: [types-requests]
+        additional_dependencies: [types-requests, types-tabulate, types-PyYAML]
 
   # Gitleaks - secret scanning
   - repo: https://github.com/gitleaks/gitleaks
