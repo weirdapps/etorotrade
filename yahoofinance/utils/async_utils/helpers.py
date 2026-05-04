@@ -18,7 +18,10 @@ from yahoofinance.core.errors import YFinanceError
 
 from ...core.config import RATE_LIMIT
 from ...core.logging import get_logger
-from ...utils.error_handling import (
+from ...utils.error_handling import (  # noqa: F401 — re-exports for backward compat
+    enrich_error_context,
+    safe_operation,
+    translate_error,
     with_retry,
 )
 from .batch import (
