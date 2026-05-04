@@ -7,7 +7,8 @@ This module provides data loading from files, CSV saving, and report orchestrati
 import asyncio
 import csv
 import os
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any
 
 import pandas as pd
 
@@ -32,25 +33,26 @@ logger = get_logger(__name__)
 # Policy: Favor original listings over ADRs, GOOG over GOOGL, BRK.B over BRK.A
 # Note: Bidirectional — if EITHER ticker exists in the data alongside its pair, the secondary is removed
 DUPLICATE_TICKERS = {
-    'GOOGL': 'GOOG',      # Alphabet Class A vs Class C (keep Class C)
-    'BRK.A': 'BRK.B',     # Berkshire Class A vs B (keep more liquid Class B)
+    "GOOGL": "GOOG",  # Alphabet Class A vs Class C (keep Class C)
+    "BRK.A": "BRK.B",  # Berkshire Class A vs B (keep more liquid Class B)
     # US ADRs → keep original exchange listing
-    'BABA': '9988.HK',    # Alibaba ADR → Hong Kong
-    'NVO': 'NOVO-B.CO',   # Novo Nordisk ADR → Copenhagen
-    'SAP': 'SAP.DE',      # SAP ADR → Frankfurt
-    'SONY': '6758.T',     # Sony ADR → Tokyo
-    'TCEHY': '0700.HK',   # Tencent ADR → Hong Kong
-    'JD': '9618.HK',      # JD.com ADR → Hong Kong
-    'SHEL': 'SHEL.L',     # Shell ADR → London
-    'BYDDY': '1211.HK',   # BYD ADR → Hong Kong
-    'SNY': 'SAN.PA',      # Sanofi ADR → Paris
-    'TM': '7203.T',       # Toyota ADR → Tokyo
-    'UL': 'ULVR.L',       # Unilever ADR → London
-    'RIO': 'RIO.L',       # Rio Tinto ADR → London
-    'BHP': 'BHP.AX',      # BHP ADR → Australia
+    "BABA": "9988.HK",  # Alibaba ADR → Hong Kong
+    "NVO": "NOVO-B.CO",  # Novo Nordisk ADR → Copenhagen
+    "SAP": "SAP.DE",  # SAP ADR → Frankfurt
+    "SONY": "6758.T",  # Sony ADR → Tokyo
+    "TCEHY": "0700.HK",  # Tencent ADR → Hong Kong
+    "JD": "9618.HK",  # JD.com ADR → Hong Kong
+    "SHEL": "SHEL.L",  # Shell ADR → London
+    "BYDDY": "1211.HK",  # BYD ADR → Hong Kong
+    "SNY": "SAN.PA",  # Sanofi ADR → Paris
+    "TM": "7203.T",  # Toyota ADR → Tokyo
+    "UL": "ULVR.L",  # Unilever ADR → London
+    "RIO": "RIO.L",  # Rio Tinto ADR → London
+    "BHP": "BHP.AX",  # BHP ADR → Australia
 }
 
-def deduplicate_securities(df: pd.DataFrame, ticker_col: Optional[str] = None) -> pd.DataFrame:
+
+def deduplicate_securities(df: pd.DataFrame, ticker_col: str | None = None) -> pd.DataFrame:
     """
     Remove duplicate securities from DataFrame.
 
@@ -71,7 +73,7 @@ def deduplicate_securities(df: pd.DataFrame, ticker_col: Optional[str] = None) -
     # Auto-detect ticker column if not specified
     if ticker_col is None:
         # Check common column names in order of preference
-        for col_name in ['ticker', 'TICKER', 'TKR', 'Symbol', 'symbol']:
+        for col_name in ["ticker", "TICKER", "TKR", "Symbol", "symbol"]:
             if col_name in df.columns:
                 ticker_col = col_name
                 break
@@ -97,7 +99,8 @@ def deduplicate_securities(df: pd.DataFrame, ticker_col: Optional[str] = None) -
 
     return df
 
-def load_tickers(source_type: str) -> List[str]:
+
+def load_tickers(source_type: str) -> list[str]:
     """
     Load tickers from file based on source type.
 
@@ -166,7 +169,8 @@ def load_tickers(source_type: str) -> List[str]:
     else:
         raise ValueError(f"Unknown source type: {source_type}")
 
-def _load_tickers_from_file(file_path: str, ticker_column: List[str]) -> List[str]:
+
+def _load_tickers_from_file(file_path: str, ticker_column: list[str]) -> list[str]:
     """
     Load tickers from CSV file with smart ordering.
 
@@ -203,12 +207,8 @@ def _load_tickers_from_file(file_path: str, ticker_column: List[str]) -> List[st
                     return []
 
                 # Sort by analyst_count descending (more analysts = higher priority)
-                if 'analyst_count' in df.columns:
-                    df = df.sort_values(
-                        by='analyst_count',
-                        ascending=False,
-                        na_position='last'
-                    )
+                if "analyst_count" in df.columns:
+                    df = df.sort_values(by="analyst_count", ascending=False, na_position="last")
                     logger.debug(f"Smart ordering: {len(df)} tickers sorted by analyst_count")
 
                 tickers = df[ticker_col].dropna().astype(str).str.strip().tolist()
@@ -222,7 +222,7 @@ def _load_tickers_from_file(file_path: str, ticker_column: List[str]) -> List[st
         tickers = []
         column_found = False
 
-        with open(file_path, "r", newline="") as f:
+        with open(file_path, newline="") as f:
             reader = csv.DictReader(f)
             headers = reader.fieldnames
 
@@ -249,10 +249,13 @@ def _load_tickers_from_file(file_path: str, ticker_column: List[str]) -> List[st
                     if "portfolio" in file_path.lower():
                         try:
                             from yahoofinance.utils.data.ticker_utils import normalize_ticker
+
                             original_ticker = ticker
                             ticker = normalize_ticker(ticker)
                             if ticker != original_ticker:
-                                logger.info(f"Fixed portfolio ticker: {original_ticker} -> {ticker}")
+                                logger.info(
+                                    f"Fixed portfolio ticker: {original_ticker} -> {ticker}"
+                                )
                         except ImportError:
                             logger.warning("Could not import _fix_yahoo_ticker_format function")
 
@@ -263,8 +266,9 @@ def _load_tickers_from_file(file_path: str, ticker_column: List[str]) -> List[st
         pass  # Silent error handling
         return []
 
+
 @with_retry
-def _get_manual_tickers() -> List[str]:
+def _get_manual_tickers() -> list[str]:
     """
     Get tickers from manual input.
 
@@ -283,7 +287,8 @@ def _get_manual_tickers() -> List[str]:
     tickers = [normalize_ticker(t.strip()) for t in ticker_input.split(",") if t.strip()]
     return tickers
 
-def filter_by_trade_action(results: List[Dict], trade_filter: str) -> List[Dict]:
+
+def filter_by_trade_action(results: list[dict], trade_filter: str) -> list[dict]:
     """
     Filter results by trade action with file-based filtering logic.
 
@@ -306,25 +311,27 @@ def filter_by_trade_action(results: List[Dict], trade_filter: str) -> List[Dict]
     sell_tickers = set()
 
     try:
-        from yahoofinance.core.config import FILE_PATHS
-        import pandas as pd
         import os
+
+        import pandas as pd
+
+        from yahoofinance.core.config import FILE_PATHS
 
         # Load portfolio tickers
         portfolio_path = os.path.join(FILE_PATHS["INPUT_DIR"], "portfolio.csv")
         if os.path.exists(portfolio_path):
             portfolio_df = pd.read_csv(portfolio_path)
-            if 'symbol' in portfolio_df.columns:
-                portfolio_tickers = set(portfolio_df['symbol'].astype(str).apply(normalize_ticker))
+            if "symbol" in portfolio_df.columns:
+                portfolio_tickers = set(portfolio_df["symbol"].astype(str).apply(normalize_ticker))
 
         # Load sell file tickers (acting as notrade)
         sell_path = os.path.join(FILE_PATHS["OUTPUT_DIR"], "sell.csv")
         if os.path.exists(sell_path):
             sell_df = pd.read_csv(sell_path)
-            if 'TICKER' in sell_df.columns:
-                sell_tickers = set(sell_df['TICKER'].astype(str).apply(normalize_ticker))
+            if "TICKER" in sell_df.columns:
+                sell_tickers = set(sell_df["TICKER"].astype(str).apply(normalize_ticker))
 
-    except (OSError, IOError, pd.errors.ParserError, pd.errors.EmptyDataError, KeyError, ValueError) as e:
+    except (OSError, pd.errors.ParserError, pd.errors.EmptyDataError, KeyError, ValueError) as e:
         logger.warning(f"Failed to load portfolio/sell files for filtering: {e}")
 
     filtered_results = []
@@ -332,11 +339,12 @@ def filter_by_trade_action(results: List[Dict], trade_filter: str) -> List[Dict]
 
     for ticker_data in results:
         try:
-            ticker = normalize_ticker(str(ticker_data.get('symbol', ticker_data.get('ticker', ''))))
+            ticker = normalize_ticker(str(ticker_data.get("symbol", ticker_data.get("ticker", ""))))
 
             # Calculate action for this ticker
-            from yahoofinance.utils.trade_criteria import calculate_action_for_row
             from yahoofinance.core.config import TRADING_CRITERIA
+            from yahoofinance.utils.trade_criteria import calculate_action_for_row
+
             action, _ = calculate_action_for_row(ticker_data, TRADING_CRITERIA, "short_percent")
 
             # Apply file-based filtering logic
@@ -357,19 +365,22 @@ def filter_by_trade_action(results: List[Dict], trade_filter: str) -> List[Dict]
             logger.warning(f"Error filtering ticker {ticker_data.get('symbol', 'unknown')}: {e}")
             # If action calculation fails, include in HOLD filter only if not excluded
             if trade_filter == "H":
-                ticker = normalize_ticker(str(ticker_data.get('symbol', ticker_data.get('ticker', ''))))
+                ticker = normalize_ticker(
+                    str(ticker_data.get("symbol", ticker_data.get("ticker", "")))
+                )
                 if ticker not in exclusion_tickers:
                     filtered_results.append(ticker_data)
 
     return filtered_results
 
+
 def save_to_csv(
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     filename: str,
-    output_dir: Optional[str] = None,
-    _format_dataframe_fn = None,
-    _add_position_size_fn = None,
-    _sort_market_data_fn = None
+    output_dir: str | None = None,
+    _format_dataframe_fn=None,
+    _add_position_size_fn=None,
+    _sort_market_data_fn=None,
 ) -> str:
     """
     Save data to CSV file.
@@ -409,8 +420,9 @@ def save_to_csv(
                 df = _sort_market_data_fn(df)
 
             # Apply column filtering to match display format
-            from yahoofinance.core.config import STANDARD_DISPLAY_COLUMNS, COLUMN_NAMES
-            bs_col = COLUMN_NAMES['ACTION']
+            from yahoofinance.core.config import COLUMN_NAMES, STANDARD_DISPLAY_COLUMNS
+
+            bs_col = COLUMN_NAMES["ACTION"]
             final_col_order = [col for col in STANDARD_DISPLAY_COLUMNS if col in df.columns]
 
             # If we have fewer than 5 essential columns, fall back to basic set
@@ -430,40 +442,40 @@ def save_to_csv(
 
         # Generate corresponding HTML file using the same beautiful format as portfolio.html
         try:
-            html_filename = filename.replace('.csv', '.html')
+            html_filename = filename.replace(".csv", ".html")
             html_path = f"{output_dir}/{html_filename}"
             html_generator = HTMLGenerator()
-            stocks_data = df.to_dict('records')
+            stocks_data = df.to_dict("records")
             base_filename = os.path.splitext(html_filename)[0]
 
             # Determine title based on filename
-            if 'portfolio' in filename.lower():
+            if "portfolio" in filename.lower():
                 title = "Portfolio Analysis"
-            elif 'buy' in filename.lower():
+            elif "buy" in filename.lower():
                 title = "Buy Opportunities"
-            elif 'sell' in filename.lower():
+            elif "sell" in filename.lower():
                 title = "Sell Candidates"
-            elif 'hold' in filename.lower():
+            elif "hold" in filename.lower():
                 title = "Hold Candidates"
-            elif 'market' in filename.lower():
+            elif "market" in filename.lower():
                 title = "Market Analysis"
             else:
                 title = "Analysis Results"
 
             # Rename BS column to ACTION for proper color coding
-            if 'BS' in df.columns:
-                df = df.rename(columns={'BS': 'ACTION'})
-                stocks_data = df.to_dict('records')
+            if "BS" in df.columns:
+                df = df.rename(columns={"BS": "ACTION"})
+                stocks_data = df.to_dict("records")
 
             # Use generate_stock_table for beautiful color-coded HTML like portfolio.html
             html_generator.generate_stock_table(
                 stocks_data=stocks_data,
                 title=title,
                 output_filename=base_filename,
-                include_columns=list(df.columns)
+                include_columns=list(df.columns),
             )
             logger.info(f"Generated HTML report: {html_path}")
-        except (OSError, IOError, ValueError, TypeError, YFinanceError) as e:
+        except (OSError, ValueError, TypeError, YFinanceError) as e:
             logger.warning(f"Failed to generate HTML file: {str(e)}")
 
         return output_path
@@ -471,12 +483,13 @@ def save_to_csv(
         logger.error(f"Error saving to CSV: {str(e)}")
         raise e
 
+
 def display_report(
-    tickers: List[str],
-    report_type: Optional[str],
-    provider: Optional[AsyncFinanceDataProvider],
+    tickers: list[str],
+    report_type: str | None,
+    provider: AsyncFinanceDataProvider | None,
     display_table_fn: Callable[..., Any],
-    process_tickers_fn: Optional[Callable[..., Any]] = None
+    process_tickers_fn: Callable[..., Any] | None = None,
 ) -> None:
     """
     Display report for tickers.
@@ -504,12 +517,13 @@ def display_report(
         # Handle sync provider
         _sync_display_report(tickers, report_type, provider, display_table_fn, process_tickers_fn)  # type: ignore[arg-type]
 
+
 def _sync_display_report(
-    tickers: List[str],
-    report_type: Optional[str],
+    tickers: list[str],
+    report_type: str | None,
     provider: FinanceDataProvider,
     display_table_fn: Callable[..., Any],
-    process_tickers_fn: Callable[..., Any]
+    process_tickers_fn: Callable[..., Any],
 ) -> None:
     """
     Display report for tickers using synchronous provider.
@@ -522,9 +536,7 @@ def _sync_display_report(
         process_tickers_fn: Function to process tickers with progress
     """
     # Process tickers with progress
-    results = process_tickers_fn(
-        tickers, lambda ticker: provider.get_ticker_info(ticker)
-    )
+    results = process_tickers_fn(tickers, lambda ticker: provider.get_ticker_info(ticker))
 
     # Display results
     if results:
@@ -546,31 +558,35 @@ def _sync_display_report(
                 filename = "market.csv"
             else:
                 # Unknown report type - log warning and skip saving to prevent accidental overwrites
-                logger.warning(f"Unknown report_type '{report_type}', skipping CSV save to prevent accidental overwrites")
+                logger.warning(
+                    f"Unknown report_type '{report_type}', skipping CSV save to prevent accidental overwrites"
+                )
                 return
 
             # Import formatting functions
             from yahoofinance.presentation.console_modules.table_renderer import (
-                format_dataframe,
                 add_position_size_column,
-                sort_market_data
+                format_dataframe,
+                sort_market_data,
             )
+
             save_to_csv(
                 results,
                 filename,
-                _format_dataframe_fn=format_dataframe,
+                _format_dataframe_fn=lambda df: format_dataframe(df, truncate_name=False),
                 _add_position_size_fn=add_position_size_column,
-                _sort_market_data_fn=sort_market_data
+                _sort_market_data_fn=sort_market_data,
             )
     else:
         pass
 
+
 async def _async_display_report(
-    tickers: List[str],
-    report_type: Optional[str],
+    tickers: list[str],
+    report_type: str | None,
     provider: AsyncFinanceDataProvider,
     display_table_fn: Callable[..., Any],
-    trade_filter: Optional[str] = None
+    trade_filter: str | None = None,
 ) -> None:
     """
     Display report for tickers using asynchronous provider.
@@ -615,11 +631,15 @@ async def _async_display_report(
         if trade_filter:
             results = filter_by_trade_action(results, trade_filter)
             if trade_filter == "B":
-                title = "Trade Analysis - BUY Opportunities (Market data excluding portfolio/notrade)"
+                title = (
+                    "Trade Analysis - BUY Opportunities (Market data excluding portfolio/notrade)"
+                )
             elif trade_filter == "S":
                 title = "Trade Analysis - SELL Opportunities (Portfolio data)"
             elif trade_filter == "H":
-                title = "Trade Analysis - HOLD Opportunities (Market data excluding portfolio/notrade)"
+                title = (
+                    "Trade Analysis - HOLD Opportunities (Market data excluding portfolio/notrade)"
+                )
             else:
                 title = f"{report_type_name} Analysis"
         else:
@@ -631,14 +651,15 @@ async def _async_display_report(
 
         # Display processing statistics after the table
         from yahoofinance.utils.async_utils.enhanced import display_processing_stats
+
         display_processing_stats()
 
         # Save to CSV with appropriate filename based on trade filter
         # Import formatting functions
         from yahoofinance.presentation.console_modules.table_renderer import (
-            format_dataframe,
             add_position_size_column,
-            sort_market_data
+            format_dataframe,
+            sort_market_data,
         )
 
         if trade_filter:
@@ -653,9 +674,9 @@ async def _async_display_report(
             save_to_csv(
                 results,
                 filename,
-                _format_dataframe_fn=format_dataframe,
+                _format_dataframe_fn=lambda df: format_dataframe(df, truncate_name=False),
                 _add_position_size_fn=add_position_size_column,
-                _sort_market_data_fn=sort_market_data
+                _sort_market_data_fn=sort_market_data,
             )
         elif report_type:
             if report_type == "P":
@@ -668,14 +689,16 @@ async def _async_display_report(
                 filename = "market.csv"
             else:
                 # Unknown report type - log warning and skip saving to avoid overwriting important files
-                logger.warning(f"Unknown report_type '{report_type}', skipping CSV save to prevent accidental overwrites")
+                logger.warning(
+                    f"Unknown report_type '{report_type}', skipping CSV save to prevent accidental overwrites"
+                )
                 return
             save_to_csv(
                 results,
                 filename,
-                _format_dataframe_fn=format_dataframe,
+                _format_dataframe_fn=lambda df: format_dataframe(df, truncate_name=False),
                 _add_position_size_fn=add_position_size_column,
-                _sort_market_data_fn=sort_market_data
+                _sort_market_data_fn=sort_market_data,
             )
     else:
         pass
