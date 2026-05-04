@@ -11,18 +11,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create a non-root user to run the application
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
-# Copy requirements file
-COPY requirements.txt .
-
-# Install Python dependencies
-RUN pip install --no-cache-dir --only-binary :all: -r requirements.txt
+# Install Poetry, install pinned production deps directly into system Python,
+# then strip Poetry to keep the runtime image lean.
+COPY pyproject.toml poetry.lock ./
+RUN pip install --no-cache-dir poetry==2.4.0 && \
+    poetry config virtualenvs.create false && \
+    poetry install --only main --no-root --no-interaction --no-ansi && \
+    pip uninstall -y poetry
 
 # Copy only necessary files for production (security best practice)
 # Using explicit COPY commands instead of recursive copy to minimize security risk
 COPY yahoofinance/ ./yahoofinance/
 COPY trade.py ./
-COPY setup.py ./
-COPY pyproject.toml ./
 
 # Copy essential input data files needed for application functionality
 COPY yahoofinance/input/ ./yahoofinance/input/
