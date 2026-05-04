@@ -210,10 +210,12 @@ def get_small_cap_cap(portfolio_value_eur: float | None) -> float:
     """
     if not portfolio_value_eur or portfolio_value_eur <= 0:
         return SMALL_CAP_ALLOCATION_TIERS[0][1]
+    # SMALL_CAP_ALLOCATION_TIERS includes a (float("inf"), …) terminator,
+    # so the loop always returns; no fallback needed.
     for ceiling, cap in SMALL_CAP_ALLOCATION_TIERS:
         if portfolio_value_eur < ceiling:
             return cap
-    return SMALL_CAP_ALLOCATION_TIERS[-1][1]
+    raise AssertionError("unreachable: SMALL_CAP_ALLOCATION_TIERS terminator missing")
 
 
 def apply_small_cap_cap(
