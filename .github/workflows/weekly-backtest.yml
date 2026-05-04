@@ -2,9 +2,9 @@ name: Weekly Backtest
 
 on:
   schedule:
-    # Run Sunday at 23:00 UTC (02:00 Athens Monday)
-    # Results ready for Monday morning briefing
-    - cron: '0 23 * * 0'
+    # Run Saturday at 23:00 UTC (02:00 Athens Sunday)
+    # Avoids Sunday daily-signals (~5h, starts 22:00 UTC) overlap on shared eToro creds
+    - cron: '0 23 * * 6'
   workflow_dispatch: # Allow manual triggering
 
 concurrency:
