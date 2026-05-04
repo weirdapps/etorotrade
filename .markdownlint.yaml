@@ -1,0 +1,19 @@
+# Markdownlint configuration - relaxed for technical docs
+default: true
+
+# Disable line length rule
+MD013: false
+
+# Allow inline HTML (common in GitHub markdown)
+MD033: false
+
+# Allow duplicate headers (common in changelogs)
+MD024:
+  siblings_only: true
+
+# Allow bare URLs
+MD034: false
+
+# Relax emphasis style
+MD049: false
+MD050: false

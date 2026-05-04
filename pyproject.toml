@@ -81,14 +81,26 @@ Source = "https://github.com/weirdapps/etorotrade"
 exclude = ["tests", "tests.*"]
 
 [tool.pytest.ini_options]
+minversion = "7.0"
 testpaths = ["tests"]
-python_files = "test_*.py"
-python_classes = "Test*"
-python_functions = "test_*"
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
 asyncio_mode = "auto"
+addopts = [
+    "--verbose",
+    "--strict-markers",
+    "--cov=.",
+    "--cov-report=term-missing",
+    "--cov-report=xml",  # For SonarCloud
+]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests requiring external API access",
+]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning",
 ]
 
 [tool.black]
@@ -125,3 +137,27 @@ warn_unused_ignores = false
 [[tool.mypy.overrides]]
 module = "tests.*"
 ignore_errors = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # unused imports OK in __init__.py
+"tests/**/*.py" = ["B", "E"]  # relax rules for tests

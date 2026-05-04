@@ -1,0 +1,27 @@
+# Gitleaks configuration for Python projects
+# Minimal config - uses default rules with project-specific exclusions
+
+title = "Gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allowlist for non-sensitive patterns"
+
+# Ignore .env.example and similar template files
+paths = [
+  '''\.env\.example$''',
+  '''\.env\.template$''',
+  '''config\.example\.''',
+  '''\.sample$''',
+]
+
+# Ignore test fixtures and mock data
+regexes = [
+  '''test_secret_key''',
+  '''mock_api_key''',
+  '''example\.com/api/.*''',
+  '''localhost:.*''',
+  '''127\.0\.0\.1:.*''',
+]
