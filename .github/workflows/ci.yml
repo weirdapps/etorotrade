@@ -253,20 +253,22 @@ jobs:
 
     - name: Verify requirements.lock matches requirements.txt
       run: |
-        uv pip compile requirements.txt -o /tmp/check.lock --generate-hashes --quiet
-        if ! diff -q requirements.lock /tmp/check.lock > /dev/null; then
+        cp requirements.lock /tmp/orig.lock
+        uv pip compile requirements.txt -o requirements.lock --python-version 3.10 --generate-hashes --quiet
+        if ! diff -q /tmp/orig.lock requirements.lock > /dev/null; then
           echo "::error::requirements.lock is out of sync with requirements.txt"
-          echo "Run: uv pip compile requirements.txt -o requirements.lock --generate-hashes"
-          diff requirements.lock /tmp/check.lock | head -40
+          echo "Run: uv pip compile requirements.txt -o requirements.lock --python-version 3.10 --generate-hashes"
+          diff /tmp/orig.lock requirements.lock | head -40
           exit 1
         fi
 
     - name: Verify requirements-dev.lock matches requirements-dev.txt
       run: |
-        uv pip compile requirements-dev.txt -o /tmp/check-dev.lock --generate-hashes --quiet
-        if ! diff -q requirements-dev.lock /tmp/check-dev.lock > /dev/null; then
+        cp requirements-dev.lock /tmp/orig-dev.lock
+        uv pip compile requirements-dev.txt -o requirements-dev.lock --python-version 3.10 --generate-hashes --quiet
+        if ! diff -q /tmp/orig-dev.lock requirements-dev.lock > /dev/null; then
           echo "::error::requirements-dev.lock is out of sync with requirements-dev.txt"
-          echo "Run: uv pip compile requirements-dev.txt -o requirements-dev.lock --generate-hashes"
-          diff requirements-dev.lock /tmp/check-dev.lock | head -40
+          echo "Run: uv pip compile requirements-dev.txt -o requirements-dev.lock --python-version 3.10 --generate-hashes"
+          diff /tmp/orig-dev.lock requirements-dev.lock | head -40
           exit 1
         fi
