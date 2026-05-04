@@ -63,7 +63,7 @@ jobs:
 
       - name: SonarCloud Scan
         if: steps.check-sonar.outputs.has_token == 'true'
-        uses: SonarSource/sonarcloud-github-action@v3
+        uses: SonarSource/sonarcloud-github-action@v5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
