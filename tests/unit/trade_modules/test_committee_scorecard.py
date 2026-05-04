@@ -817,6 +817,41 @@ class TestCustomKillTheses:
         # No conditions = no custom triggers, no heuristic triggers either
         assert len(result["active_theses"]) == 1
 
+    def test_legacy_string_conditions_are_skipped(self, tmp_path):
+        """Legacy free-text string conditions (pre-schema) must not crash."""
+        from trade_modules.committee_scorecard import (
+            check_kill_theses,
+            log_kill_theses,
+        )
+
+        log_file = tmp_path / "kill_theses.json"
+        theses = [
+            {
+                "ticker": "AAPL",
+                "kill_thesis": "Macro deterioration",
+                "conditions": ["VIX > 30", "EG < 5", "macro regime degrades"],
+            }
+        ]
+        log_kill_theses("2026-03-01", theses, log_path=log_file)
+
+        portfolio_csv = tmp_path / "portfolio.csv"
+        portfolio_csv.write_text(
+            "TKR,NAME,CAP,PRC,TGT,UP%,#T,%%B,#A,AM,A,EXR,B,52W,2H,PET,PEF,"
+            "P/S,PEG,DV,SI,EG,PP,ROE,DE,FCF,ERN,SZ,BS\n"
+            "AAPL,Apple,MEGA,150,180,20,15,60,20,2.0,A,12,1.1,75,50,25,22,"
+            "8,2.5,0.6,1.5,3.0,80,120,1.5,5.0,2026-04,3.0,B\n"
+        )
+
+        # Pre-fix this raised AttributeError: 'str' object has no attribute 'get'
+        result = check_kill_theses(
+            portfolio_signals_path=portfolio_csv,
+            log_path=log_file,
+        )
+        assert len(result["active_theses"]) == 1
+        # Legacy string conditions never produce custom triggers
+        triggers = result["active_theses"][0].get("triggers", [])
+        assert not any(t.startswith("custom:") for t in triggers)
+
 
 # ============================================================
 # Scorecard PriceService Integration

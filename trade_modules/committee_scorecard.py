@@ -1084,6 +1084,8 @@ def check_kill_theses(
 
             # CIO Legacy D2: Evaluate custom conditions
             for cond in thesis.get("conditions", []):
+                if not isinstance(cond, dict):
+                    continue
                 metric = cond.get("metric", "")
                 operator = cond.get("operator", "")
                 threshold = cond.get("threshold")
