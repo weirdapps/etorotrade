@@ -41,7 +41,7 @@ find . -name "test_*.py" -path "./test_*" -delete 2>/dev/null || true
 echo "✅ Cleanup completed!"
 echo ""
 echo "Kept important files:"
-echo "  - Configuration files (*.toml, *.ini, poetry.lock)"
+echo "  - Configuration files (*.toml, *.ini, requirements-*-lock.txt, poetry.lock)"
 echo "  - Source code and documentation"
 echo "  - Static assets and input data"
 echo "  - Example output files for reference"

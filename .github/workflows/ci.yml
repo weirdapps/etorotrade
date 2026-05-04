@@ -32,27 +32,17 @@ jobs:
       uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-py${{ matrix.python-version }}-${{ hashFiles('poetry.lock') }}
+        key: ${{ runner.os }}-pip-py${{ matrix.python-version }}-${{ hashFiles('requirements-dev-lock.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-py${{ matrix.python-version }}-
 
-    - name: Install Poetry
-      uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # v1.4.1
-      with:
-        version: '2.4.0'
-        plugins: 'poetry-plugin-export==1.10.0'
-
-    # Export pinned, SHA256-hashed requirements from poetry.lock, then install
-    # via `pip --only-binary :all: --require-hashes` to satisfy SonarCloud's
-    # S8541 (only-binary protects against arbitrary setup-script execution)
-    # and S8544 (require-hashes pins to specific verified artifacts).
-    - name: Export production+dev requirements (hashed)
-      run: poetry export --extras dev -f requirements.txt -o /tmp/req.txt
-
+    # Install from a CHECKED-IN, pinned + SHA256-hashed lockfile so SonarCloud's
+    # static analysis can verify the contents (S8544) and pip's `--only-binary
+    # :all:` blocks setup-script execution from sdists (S8541).
     - name: Install dependencies (production + dev)
       run: |
         python -m pip install --only-binary :all: --upgrade pip
-        pip install --only-binary :all: --require-hashes -r /tmp/req.txt
+        pip install --only-binary :all: --require-hashes -r requirements-dev-lock.txt
 
     - name: Security check with bandit
       continue-on-error: true
@@ -132,19 +122,10 @@ jobs:
       with:
         python-version: 3.11
 
-    - name: Install Poetry
-      uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # v1.4.1
-      with:
-        version: '2.4.0'
-        plugins: 'poetry-plugin-export==1.10.0'
-
-    - name: Export production+dev requirements (hashed)
-      run: poetry export --extras dev -f requirements.txt -o /tmp/req.txt
-
     - name: Install dependencies (production + dev)
       run: |
         python -m pip install --only-binary :all: --upgrade pip
-        pip install --only-binary :all: --require-hashes -r /tmp/req.txt
+        pip install --only-binary :all: --require-hashes -r requirements-dev-lock.txt
 
     - name: Run integration tests
       continue-on-error: true  # Don't block CI on integration test failures (API rate limits, etc.)
@@ -164,23 +145,14 @@ jobs:
       with:
         python-version: 3.11
 
-    - name: Install Poetry
-      uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # v1.4.1
-      with:
-        version: '2.4.0'
-        plugins: 'poetry-plugin-export==1.10.0'
-
-    # Export production deps + the minimal `smoketest` extra (pytest +
+    # Install production deps + the minimal `smoketest` extra (pytest +
     # pytest-rerunfailures only). Keeping these out of `dev` preserves the
     # "production-only" intent of this job: undeclared upstream transitives
     # surface immediately, and the install path stays hashed end-to-end.
-    - name: Export production+smoketest requirements (hashed)
-      run: poetry export --extras smoketest -f requirements.txt -o /tmp/req.txt
-
     - name: Install production deps + smoketest
       run: |
         python -m pip install --only-binary :all: --upgrade pip
-        pip install --only-binary :all: --require-hashes -r /tmp/req.txt
+        pip install --only-binary :all: --require-hashes -r requirements-smoketest-lock.txt
 
     # Override pytest.ini's addopts (--cov=yahoofinance) since pytest-cov
     # isn't installed in this minimal job and the smoke test doesn't need coverage.
@@ -203,19 +175,10 @@ jobs:
       with:
         python-version: 3.11
 
-    - name: Install Poetry
-      uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # v1.4.1
-      with:
-        version: '2.4.0'
-        plugins: 'poetry-plugin-export==1.10.0'
-
-    - name: Export production+dev requirements (hashed)
-      run: poetry export --extras dev -f requirements.txt -o /tmp/req.txt
-
     - name: Install dependencies (production + dev, fully hashed)
       run: |
         python -m pip install --only-binary :all: --upgrade pip
-        pip install --only-binary :all: --require-hashes -r /tmp/req.txt
+        pip install --only-binary :all: --require-hashes -r requirements-dev-lock.txt
 
     - name: Check code complexity
       continue-on-error: true
@@ -294,9 +257,8 @@ jobs:
       uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # v1.4.1
       with:
         version: '2.4.0'
+        plugins: 'poetry-plugin-export==1.10.0'
 
-    # Poetry validates that poetry.lock matches pyproject.toml — content hash
-    # comparison against [project] dependencies. Fails the job if drift is detected.
     - name: Verify poetry.lock matches pyproject.toml
       run: |
         if ! poetry check --lock --no-interaction; then
@@ -304,3 +266,26 @@ jobs:
           echo "Run locally: poetry lock"
           exit 1
         fi
+
+    - name: Verify committed requirements-*-lock.txt match poetry.lock
+      run: |
+        # Re-export each requirements file to /tmp and diff against the
+        # committed copy. Drift means a developer ran `poetry lock` without
+        # running `scripts/dev/relock.sh` to regenerate the committed exports.
+        set -e
+        check_drift() {
+          local committed=$1
+          local fresh="/tmp/$1"
+          shift
+          poetry export "$@" -f requirements.txt -o "$fresh"
+          if ! diff -q "$fresh" "$committed" > /dev/null; then
+            echo "::error::$committed is out of sync with poetry.lock"
+            echo "Run locally: scripts/dev/relock.sh"
+            diff "$fresh" "$committed" | head -30
+            exit 1
+          fi
+        }
+        check_drift requirements-lock.txt --only main
+        check_drift requirements-dev-lock.txt --extras dev
+        check_drift requirements-smoketest-lock.txt --extras smoketest
+        echo "All committed requirements files in sync with poetry.lock."
