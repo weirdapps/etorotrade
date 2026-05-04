@@ -4509,9 +4509,9 @@ def build_concordance(
         from yahoofinance.utils.log_safety import safe_for_log
 
         logger.warning(
-            "Circuit breaker %s: drawdown %.1f%%, new positions %s",
+            "Circuit breaker %s: drawdown %s, new positions %s",
             safe_for_log(cb_level),
-            cb_state.get("drawdown_pct", 0),
+            safe_for_log(cb_state.get("drawdown_pct", 0)),
             "blocked" if not cb_new_allowed else "allowed",
         )
 

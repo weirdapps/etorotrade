@@ -41,7 +41,6 @@ jobs:
     # :all:` blocks setup-script execution from sdists (S8541).
     - name: Install dependencies (production + dev)
       run: |
-        python -m pip install --only-binary :all: --upgrade pip
         pip install --only-binary :all: --require-hashes -r requirements-dev-lock.txt
 
     - name: Security check with bandit
@@ -124,7 +123,6 @@ jobs:
 
     - name: Install dependencies (production + dev)
       run: |
-        python -m pip install --only-binary :all: --upgrade pip
         pip install --only-binary :all: --require-hashes -r requirements-dev-lock.txt
 
     - name: Run integration tests
@@ -151,7 +149,6 @@ jobs:
     # surface immediately, and the install path stays hashed end-to-end.
     - name: Install production deps + smoketest
       run: |
-        python -m pip install --only-binary :all: --upgrade pip
         pip install --only-binary :all: --require-hashes -r requirements-smoketest-lock.txt
 
     # Override pytest.ini's addopts (--cov=yahoofinance) since pytest-cov
@@ -177,7 +174,6 @@ jobs:
 
     - name: Install dependencies (production + dev, fully hashed)
       run: |
-        python -m pip install --only-binary :all: --upgrade pip
         pip install --only-binary :all: --require-hashes -r requirements-dev-lock.txt
 
     - name: Check code complexity
