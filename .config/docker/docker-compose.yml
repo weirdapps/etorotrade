@@ -23,7 +23,6 @@ services:
     volumes:
       - ../../tests:/app/tests:ro  # Read-only mount for tests
       - ../../yahoofinance:/app/yahoofinance:ro  # Read-only mount for source code
-      - ../../pyproject.toml:/app/pyproject.toml:ro
-      - ../../poetry.lock:/app/poetry.lock:ro
+      - ../../requirements-dev-lock.txt:/app/requirements-dev-lock.txt:ro
       - ../../run_tests.sh:/app/run_tests.sh:ro
     command: ./run_tests.sh --all

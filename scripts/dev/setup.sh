@@ -4,14 +4,6 @@ set -e
 
 echo "Setting up eToro Trade Analysis development environment..."
 
-# Verify Poetry is available
-if ! command -v poetry > /dev/null 2>&1; then
-    echo "ERROR: Poetry is not installed. Install it first:"
-    echo "  curl -sSL https://install.python-poetry.org | python3 -"
-    echo "  (or: pipx install poetry==2.4.0)"
-    exit 1
-fi
-
 # Create venv if missing
 if [ ! -d "venv" ]; then
     echo "Creating venv/ ..."
@@ -20,22 +12,16 @@ fi
 # shellcheck disable=SC1091
 source venv/bin/activate
 
-# Export pinned, SHA256-hashed deps from poetry.lock, then install via pip with
-# --only-binary :all: --require-hashes. This matches CI behaviour and avoids
-# the SonarCloud S8541 "Poetry can run setup scripts" finding by going through
-# pip's safer install path.
-echo "Exporting pinned hashed requirements..."
-poetry export --extras dev -f requirements.txt -o /tmp/etorotrade-req.txt
-
+# Install from the CHECKED-IN, pinned + SHA256-hashed lockfile (same path CI
+# uses). pip's `--only-binary :all: --require-hashes` blocks setup-script
+# execution from sdists and verifies every artifact's SHA256.
 echo "Installing dependencies (only-binary, hashed)..."
-pip install --upgrade pip
-pip install --only-binary :all: --require-hashes -r /tmp/etorotrade-req.txt
-rm -f /tmp/etorotrade-req.txt
+pip install --only-binary :all: --upgrade pip
+pip install --only-binary :all: --require-hashes -r requirements-dev-lock.txt
 
 # Setup pre-commit hooks if config exists
 if [ -f ".config/ci/.pre-commit-config.yaml" ]; then
     echo "Installing pre-commit hooks..."
-    pip install pre-commit
     pre-commit install --config .config/ci/.pre-commit-config.yaml
 fi
 

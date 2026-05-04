@@ -39,9 +39,8 @@ That's it! You'll see color-coded recommendations (🟢 BUY, 🔴 SELL, ⚪ HOLD
 ### For All Investors
 
 ```bash
-# 1. Install dependencies (Poetry generates a hashed lockfile, pip installs only-binary)
-poetry export --only main -f requirements.txt -o /tmp/req.txt
-pip install --only-binary :all: --require-hashes -r /tmp/req.txt
+# 1. Install pinned, SHA256-hashed deps from the committed lockfile
+pip install --only-binary :all: --require-hashes -r requirements-lock.txt
 
 # 2. Analyze specific stocks
 python trade.py -o i -t AAPL,MSFT,GOOGL
@@ -117,15 +116,15 @@ Position sizes are calculated using a risk-adjusted framework:
 git clone https://github.com/weirdapps/etorotrade
 cd etorotrade
 
-# Install Poetry (see https://python-poetry.org/docs/#installation)
-# Then create a venv and install pinned, hashed deps via the export-then-pip
-# pattern — gives binary-only artifacts and SHA256 verification (matches CI).
+# Create venv + install pinned, SHA256-hashed deps from the committed lockfile.
+# Matches CI exactly. No Poetry needed at install time.
 python3 -m venv venv && source venv/bin/activate
-poetry export --extras dev -f requirements.txt -o /tmp/req.txt
-pip install --only-binary :all: --require-hashes -r /tmp/req.txt
+pip install --only-binary :all: --require-hashes -r requirements-dev-lock.txt
 ```
 
 Or run `scripts/dev/setup.sh` which performs the same steps + installs pre-commit hooks.
+
+**Updating dependencies**: edit `pyproject.toml`, then run `scripts/dev/relock.sh`. This regenerates `poetry.lock` and the three checked-in `requirements-*-lock.txt` files via Poetry. Commit all five together. Poetry is only needed when *changing* deps — installing them uses pip directly.
 
 ## Usage
 
