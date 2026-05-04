@@ -78,7 +78,7 @@ def _prior_to_conviction(p: float) -> int:
     """
     if p <= 0:
         return 0
-    if p >= 1:
+    if p >= 1:  # NOSONAR S2583 — defensive bound; p can be 1.0 from sigmoid overflow
         return 100
     z = _logit(p)
     return int(round(50 + z / _logit(0.95) * 50))
