@@ -53,7 +53,6 @@ jobs:
       run: |
         python -m pip install --only-binary :all: --upgrade pip
         pip install --only-binary :all: --require-hashes -r /tmp/req.txt
-        pip install --only-binary :all: pytest-xdist==3.8.0 safety==3.7.0 bandit==1.9.4
 
     - name: Security check with bandit
       continue-on-error: true
@@ -171,16 +170,17 @@ jobs:
         version: '2.4.0'
         plugins: 'poetry-plugin-export==1.10.0'
 
-    - name: Export production-only requirements (hashed)
-      run: poetry export --only main -f requirements.txt -o /tmp/req.txt
+    # Export production deps + the minimal `smoketest` extra (pytest +
+    # pytest-rerunfailures only). Keeping these out of `dev` preserves the
+    # "production-only" intent of this job: undeclared upstream transitives
+    # surface immediately, and the install path stays hashed end-to-end.
+    - name: Export production+smoketest requirements (hashed)
+      run: poetry export --extras smoketest -f requirements.txt -o /tmp/req.txt
 
-    # Install ONLY declared production deps (no extras) to detect undeclared
-    # upstream transitive deps before they break a fresh prod install.
-    - name: Install production deps only
+    - name: Install production deps + smoketest
       run: |
         python -m pip install --only-binary :all: --upgrade pip
         pip install --only-binary :all: --require-hashes -r /tmp/req.txt
-        pip install --only-binary :all: pytest==9.0.3 pytest-rerunfailures==16.1
 
     # Override pytest.ini's addopts (--cov=yahoofinance) since pytest-cov
     # isn't installed in this minimal job and the smoke test doesn't need coverage.
@@ -212,11 +212,10 @@ jobs:
     - name: Export production+dev requirements (hashed)
       run: poetry export --extras dev -f requirements.txt -o /tmp/req.txt
 
-    - name: Install dependencies (production + dev)
+    - name: Install dependencies (production + dev, fully hashed)
       run: |
         python -m pip install --only-binary :all: --upgrade pip
         pip install --only-binary :all: --require-hashes -r /tmp/req.txt
-        pip install --only-binary :all: radon==6.0.1 autoflake==2.3.3 detect-secrets==1.5.0
 
     - name: Check code complexity
       continue-on-error: true
