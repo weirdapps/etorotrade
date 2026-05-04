@@ -6105,7 +6105,7 @@ def enrich_with_position_sizes(
             position_usd = position_usd * mult
 
         # CIO v36 / M9: apply portfolio-level vol-target scaling
-        if vol_scale and vol_scale != 1.0:
+        if vol_scale and not math.isclose(vol_scale, 1.0):
             position_usd = position_usd * vol_scale
             entry["vol_scale"] = vol_scale
 

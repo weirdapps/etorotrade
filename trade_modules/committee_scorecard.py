@@ -1711,7 +1711,7 @@ def attribute_performance_to_modifiers(
         return {"sufficient_data": False}
 
     attribution = {"sufficient_data": True, "modifiers": {}}
-    cal.get("baseline", {})
+
 
     for mod_name, mod_data in cal.get("modifiers", {}).items():
         delta = mod_data.get("alpha_delta", 0)

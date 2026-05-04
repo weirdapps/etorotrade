@@ -976,7 +976,7 @@ def generate_report_html(
     h.append('<div class="container" style="max-width:880px;margin:0 auto;padding:0 48px;">')
 
     # ── HEADER ── (Swiss: clean monochrome, no badge)
-    _C["border_heavy"]
+
     mode_label = "Daily Digest" if daily else "Weekly Deep Dive"
     h.append(
         f'<div style="padding:48px 0 32px 0;border-bottom:2px solid {_C["border_heavy"]};">'
@@ -3032,7 +3032,7 @@ def generate_report_html(
         )
 
     # ── S9: FUNDAMENTAL DEEP DIVE ──
-    fund.get("quality_traps", [])
+
     if fund_stocks and not daily:
         h.append(
             _section_open(
