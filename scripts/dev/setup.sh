@@ -15,17 +15,17 @@ source venv/bin/activate
 
 # Install dependencies
 echo "Installing dependencies..."
-pip install --upgrade pip
-pip install -r requirements.txt
+pip install --only-binary :all: --upgrade pip
+pip install --only-binary :all: -r requirements.txt
 
 # Install dev dependencies
 echo "Installing development dependencies..."
-pip install pytest-cov pytest-xdist hypothesis mutmut autoflake radon
+pip install --only-binary :all: pytest-cov pytest-xdist hypothesis mutmut autoflake radon
 
 # Setup pre-commit hooks if config exists
 if [ -f ".config/ci/.pre-commit-config.yaml" ]; then
     echo "Installing pre-commit hooks..."
-    pip install pre-commit
+    pip install --only-binary :all: pre-commit
     pre-commit install --config .config/ci/.pre-commit-config.yaml
 fi
 
