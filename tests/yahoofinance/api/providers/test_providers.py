@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch
 
 from yahoofinance.api import get_provider
 
+
 class TestFinanceProviders:
     """Tests for the provider base classes and factory function."""
 

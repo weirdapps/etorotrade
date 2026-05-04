@@ -6,12 +6,14 @@ Tests cover:
 - Drawdown decision framework (Task #3)
 """
 
+from unittest.mock import patch
+
 import numpy as np
 import pandas as pd
 import pytest
-from unittest.mock import patch
 
 from trade_modules.portfolio_risk import PortfolioRiskAnalyzer
+
 
 class TestPortfolioVaR:
     """Tests for Portfolio VaR calculation (Task #12)."""
@@ -32,17 +34,23 @@ class TestPortfolioVaR:
         # Setup price data for volatility calculation
         dates = pd.date_range("2025-01-01", periods=60, freq="D")
         # AAPL with 20% annualized vol (~1.26% daily)
-        aapl_prices = pd.Series([100 + i * 0.5 + np.random.normal(0, 1.26) for i in range(60)], index=dates)
+        aapl_prices = pd.Series(
+            [100 + i * 0.5 + np.random.normal(0, 1.26) for i in range(60)], index=dates
+        )
         # MSFT with 25% annualized vol (~1.57% daily)
-        msft_prices = pd.Series([200 + i * 0.7 + np.random.normal(0, 1.57) for i in range(60)], index=dates)
+        msft_prices = pd.Series(
+            [200 + i * 0.7 + np.random.normal(0, 1.57) for i in range(60)], index=dates
+        )
 
         mock_prices.side_effect = [aapl_prices, msft_prices]
 
         analyzer = PortfolioRiskAnalyzer()
-        portfolio_df = pd.DataFrame({
-            "TKR": ["AAPL", "MSFT"],
-            "SZ": ["50%", "50%"],  # Equal weights
-        })
+        portfolio_df = pd.DataFrame(
+            {
+                "TKR": ["AAPL", "MSFT"],
+                "SZ": ["50%", "50%"],  # Equal weights
+            }
+        )
 
         result = analyzer.calculate_portfolio_var(portfolio_df)
 
@@ -73,10 +81,12 @@ class TestPortfolioVaR:
         mock_prices.side_effect = [prices_a, prices_b]
 
         analyzer = PortfolioRiskAnalyzer()
-        portfolio_df = pd.DataFrame({
-            "TKR": ["A", "B"],
-            # No SZ column - should use equal weights
-        })
+        portfolio_df = pd.DataFrame(
+            {
+                "TKR": ["A", "B"],
+                # No SZ column - should use equal weights
+            }
+        )
 
         result = analyzer.calculate_portfolio_var(portfolio_df)
 
@@ -99,14 +109,18 @@ class TestPortfolioVaR:
         dates = pd.date_range("2025-01-01", periods=60, freq="D")
         # Very high volatility stocks (50% annualized ~3.15% daily)
         risky_prices = pd.Series([100 + np.random.normal(0, 3.15) for _ in range(60)], index=dates)
-        volatile_prices = pd.Series([100 + np.random.normal(0, 3.15) for _ in range(60)], index=dates)
+        volatile_prices = pd.Series(
+            [100 + np.random.normal(0, 3.15) for _ in range(60)], index=dates
+        )
 
         mock_prices.side_effect = [risky_prices, volatile_prices]
 
         analyzer = PortfolioRiskAnalyzer()
-        portfolio_df = pd.DataFrame({
-            "TKR": ["RISKY", "VOLATILE"],
-        })
+        portfolio_df = pd.DataFrame(
+            {
+                "TKR": ["RISKY", "VOLATILE"],
+            }
+        )
 
         result = analyzer.calculate_portfolio_var(portfolio_df)
 
@@ -126,9 +140,11 @@ class TestPortfolioVaR:
     def test_calculate_var_single_stock(self):
         """Test VaR with single stock (need at least 2 for correlation)."""
         analyzer = PortfolioRiskAnalyzer()
-        portfolio_df = pd.DataFrame({
-            "TKR": ["AAPL"],
-        })
+        portfolio_df = pd.DataFrame(
+            {
+                "TKR": ["AAPL"],
+            }
+        )
 
         result = analyzer.calculate_portfolio_var(portfolio_df)
 
@@ -141,9 +157,11 @@ class TestPortfolioVaR:
         mock_corr.return_value = pd.DataFrame()  # Empty
 
         analyzer = PortfolioRiskAnalyzer()
-        portfolio_df = pd.DataFrame({
-            "TKR": ["AAPL", "MSFT"],
-        })
+        portfolio_df = pd.DataFrame(
+            {
+                "TKR": ["AAPL", "MSFT"],
+            }
+        )
 
         result = analyzer.calculate_portfolio_var(portfolio_df)
 
@@ -192,15 +210,18 @@ class TestPortfolioVaR:
         mock_prices.side_effect = [prices_a, prices_b]
 
         analyzer = PortfolioRiskAnalyzer()
-        portfolio_df = pd.DataFrame({
-            "TKR": ["A", "B"],
-            "SZ": ["80%", "20%"],  # Concentrated in A
-        })
+        portfolio_df = pd.DataFrame(
+            {
+                "TKR": ["A", "B"],
+                "SZ": ["80%", "20%"],  # Concentrated in A
+            }
+        )
 
         result = analyzer.calculate_portfolio_var(portfolio_df)
 
         assert result["var_95_pct"] is not None
         assert result["portfolio_vol"] is not None
+
 
 class TestExpectedShortfall:
     """Tests for Expected Shortfall / CVaR (CIO v3 F7)."""
@@ -216,8 +237,12 @@ class TestExpectedShortfall:
 
         np.random.seed(42)  # Reproducible results
         dates = pd.date_range("2025-01-01", periods=90, freq="D")
-        prices_a = pd.Series([100 + i * 0.1 + np.random.normal(0, 1.5) for i in range(90)], index=dates)
-        prices_b = pd.Series([200 + i * 0.2 + np.random.normal(0, 1.5) for i in range(90)], index=dates)
+        prices_a = pd.Series(
+            [100 + i * 0.1 + np.random.normal(0, 1.5) for i in range(90)], index=dates
+        )
+        prices_b = pd.Series(
+            [200 + i * 0.2 + np.random.normal(0, 1.5) for i in range(90)], index=dates
+        )
         mock_prices.side_effect = [prices_a, prices_b]
 
         analyzer = PortfolioRiskAnalyzer()
@@ -253,8 +278,12 @@ class TestExpectedShortfall:
         )
 
         dates = pd.date_range("2025-01-01", periods=90, freq="D")
-        prices_x = pd.Series([100 + i * 0.05 + np.random.normal(0, 2.0) for i in range(90)], index=dates)
-        prices_y = pd.Series([150 + i * 0.08 + np.random.normal(0, 2.0) for i in range(90)], index=dates)
+        prices_x = pd.Series(
+            [100 + i * 0.05 + np.random.normal(0, 2.0) for i in range(90)], index=dates
+        )
+        prices_y = pd.Series(
+            [150 + i * 0.08 + np.random.normal(0, 2.0) for i in range(90)], index=dates
+        )
         mock_prices.side_effect = [prices_x, prices_y]
 
         analyzer = PortfolioRiskAnalyzer()
@@ -266,6 +295,7 @@ class TestExpectedShortfall:
             assert result["cvar_95_pct"] > 0
         if result["cvar_99_pct"] is not None:
             assert result["cvar_99_pct"] > 0
+
 
 class TestVaRCorrelationWindow:
     """Tests for VaR correlation window (CIO v3 F6)."""
@@ -282,7 +312,7 @@ class TestVaRCorrelationWindow:
         # Return empty for 252, valid for 60 — verifies fallback
         mock_corr.side_effect = [
             pd.DataFrame(),  # 252-day returns empty
-            valid_corr,      # 60-day returns valid
+            valid_corr,  # 60-day returns valid
         ]
         mock_eff_conc.return_value = {"effective_positions": 2}
 
@@ -302,19 +332,22 @@ class TestVaRCorrelationWindow:
         # Should still produce VaR
         assert result["var_95_pct"] is not None
 
+
 class TestDrawdownActions:
     """Tests for Drawdown Decision Framework (Task #3)."""
 
     def test_get_drawdown_actions_critical(self):
         """Test CRITICAL drawdown action."""
         analyzer = PortfolioRiskAnalyzer()
-        alerts = [{
-            "ticker": "SNAP",
-            "severity": "CRITICAL",
-            "drawdown_pct": 60.0,
-            "tier": "MID",
-            "expected_vol": 25.0,
-        }]
+        alerts = [
+            {
+                "ticker": "SNAP",
+                "severity": "CRITICAL",
+                "drawdown_pct": 60.0,
+                "tier": "MID",
+                "expected_vol": 25.0,
+            }
+        ]
 
         actions = analyzer.get_drawdown_actions(alerts)
 
@@ -328,13 +361,15 @@ class TestDrawdownActions:
     def test_get_drawdown_actions_warning(self):
         """Test WARNING drawdown action."""
         analyzer = PortfolioRiskAnalyzer()
-        alerts = [{
-            "ticker": "UBER",
-            "severity": "WARNING",
-            "drawdown_pct": 40.0,
-            "tier": "LARGE",
-            "expected_vol": 20.0,
-        }]
+        alerts = [
+            {
+                "ticker": "UBER",
+                "severity": "WARNING",
+                "drawdown_pct": 40.0,
+                "tier": "LARGE",
+                "expected_vol": 20.0,
+            }
+        ]
 
         actions = analyzer.get_drawdown_actions(alerts)
 
@@ -348,13 +383,15 @@ class TestDrawdownActions:
     def test_get_drawdown_actions_watch(self):
         """Test WATCH drawdown action."""
         analyzer = PortfolioRiskAnalyzer()
-        alerts = [{
-            "ticker": "AAPL",
-            "severity": "WATCH",
-            "drawdown_pct": 22.0,
-            "tier": "MEGA",
-            "expected_vol": 15.0,
-        }]
+        alerts = [
+            {
+                "ticker": "AAPL",
+                "severity": "WATCH",
+                "drawdown_pct": 22.0,
+                "tier": "MEGA",
+                "expected_vol": 15.0,
+            }
+        ]
 
         actions = analyzer.get_drawdown_actions(alerts)
 
@@ -409,19 +446,22 @@ class TestDrawdownActions:
     def test_get_drawdown_actions_unknown_severity(self):
         """Test with unknown severity level."""
         analyzer = PortfolioRiskAnalyzer()
-        alerts = [{
-            "ticker": "UNKNOWN",
-            "severity": "UNKNOWN_LEVEL",
-            "drawdown_pct": 50.0,
-            "tier": "MID",
-            "expected_vol": 25.0,
-        }]
+        alerts = [
+            {
+                "ticker": "UNKNOWN",
+                "severity": "UNKNOWN_LEVEL",
+                "drawdown_pct": 50.0,
+                "tier": "MID",
+                "expected_vol": 25.0,
+            }
+        ]
 
         actions = analyzer.get_drawdown_actions(alerts)
 
         assert len(actions) == 1
         assert actions[0]["action"] == "UNKNOWN"
         assert actions[0]["recommendation"] == "Review manually."
+
 
 class TestRiskSummaryIntegration:
     """Integration tests for VaR and drawdown actions in risk summary."""
@@ -439,10 +479,12 @@ class TestRiskSummaryIntegration:
         mock_drawdowns.return_value = []
 
         analyzer = PortfolioRiskAnalyzer()
-        portfolio_df = pd.DataFrame({
-            "ticker": ["AAPL", "MSFT"],
-            "beta": [1.2, 1.1],
-        })
+        portfolio_df = pd.DataFrame(
+            {
+                "ticker": ["AAPL", "MSFT"],
+                "beta": [1.2, 1.1],
+            }
+        )
 
         summary = analyzer.get_risk_summary(portfolio_df)
 
@@ -458,26 +500,31 @@ class TestRiskSummaryIntegration:
             "var_99_pct": None,
             "portfolio_vol": None,
         }
-        mock_drawdowns.return_value = [{
-            "ticker": "SNAP",
-            "severity": "CRITICAL",
-            "drawdown_pct": 60.0,
-            "tier": "MID",
-            "expected_vol": 25.0,
-        }]
+        mock_drawdowns.return_value = [
+            {
+                "ticker": "SNAP",
+                "severity": "CRITICAL",
+                "drawdown_pct": 60.0,
+                "tier": "MID",
+                "expected_vol": 25.0,
+            }
+        ]
 
         analyzer = PortfolioRiskAnalyzer()
-        portfolio_df = pd.DataFrame({
-            "TKR": ["SNAP"],
-            "52W": [40],
-            "CAP": ["20B"],
-        })
+        portfolio_df = pd.DataFrame(
+            {
+                "TKR": ["SNAP"],
+                "52W": [40],
+                "CAP": ["20B"],
+            }
+        )
 
         summary = analyzer.get_risk_summary(portfolio_df)
 
         assert "drawdown_actions" in summary
         assert len(summary["drawdown_actions"]) == 1
         assert summary["drawdown_actions"][0]["action"] == "FORCE_SELL_REVIEW"
+
 
 class TestFormatRiskReportExtended:
     """Tests for risk report formatting with VaR and actions."""

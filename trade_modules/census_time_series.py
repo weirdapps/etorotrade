@@ -16,25 +16,117 @@ import logging
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 CENSUS_ARCHIVE_DIR = Path.home() / "SourceCode" / "etoro_census" / "archive" / "data"
 
 # Filename pattern: etoro-data-YYYY-MM-DD-HH-MM.json
-_FILENAME_RE = re.compile(
-    r"^etoro-data-(\d{4}-\d{2}-\d{2})-(\d{2}-\d{2})\.json$"
-)
+_FILENAME_RE = re.compile(r"^etoro-data-(\d{4}-\d{2}-\d{2})-(\d{2}-\d{2})\.json$")
 
 # Classification thresholds (percentage-point or count-based)
-_STRONG_PP_THRESHOLD = 10.0     # holder-pct delta in pp
-_STRONG_COUNT_PCT = 20.0        # holder-count change in %
+_STRONG_PP_THRESHOLD = 10.0  # holder-pct delta in pp
+_STRONG_COUNT_PCT = 20.0  # holder-count change in %
 _MODERATE_PP_THRESHOLD = 3.0
 _MODERATE_COUNT_PCT = 5.0
 
+# CIO v36 / M14: z-score-based classification thresholds (sigma multiples)
+# Replaces absolute pp thresholds — 3pp matters when ticker is steady (z≈6)
+# but is noise when ticker is volatile (z≈0.6). Z-score adapts to each
+# ticker's normal churn.
+_ZSCORE_STRONG = 3.0  # |z| ≥ 3 → strong move (1-in-370 chance)
+_ZSCORE_MODERATE = 2.0  # |z| ≥ 2 → moderate move (1-in-22 chance)
+# Default fallback volatility when history is insufficient (mimics legacy)
+_DEFAULT_VOL_PP = 3.0
 
-def _parse_filename(name: str) -> Optional[Tuple[str, str]]:
+
+def _classify_trend_zscore(
+    delta_pp: float,
+    holder_volatility_pp: float,
+) -> str:
+    """Classify holder trend by z-score = delta_pp / σ_pp.
+
+    More robust than absolute pp threshold: a 3pp move is huge for a
+    steady ticker but noise for a volatile one. Z-score normalizes by
+    each ticker's own historical volatility.
+
+    When holder_volatility_pp is 0 (insufficient history), falls back to
+    legacy absolute thresholds.
+    """
+    if not holder_volatility_pp or holder_volatility_pp <= 0:
+        # Fallback to legacy classifier when no history
+        return _classify_trend(delta_pp, 0.0)
+    z = delta_pp / holder_volatility_pp
+    if z >= _ZSCORE_STRONG:
+        return "strong_accumulation"
+    if z >= _ZSCORE_MODERATE:
+        return "accumulation"
+    if z <= -_ZSCORE_STRONG:
+        return "strong_distribution"
+    if z <= -_ZSCORE_MODERATE:
+        return "distribution"
+    return "stable"
+
+
+def _holder_volatility(
+    ticker: str,
+    snapshots: list[dict[str, Any]],
+    lookback_days: int = 90,
+) -> float:
+    """Return σ of holder-pct daily changes for a ticker over lookback_days.
+
+    Computed as standard deviation of day-to-day pp changes in the ticker's
+    holder share. Returns 0.0 when the ticker has fewer than 5 snapshots.
+    """
+    points: list[float] = []
+    for snap in snapshots[-lookback_days:]:
+        ic = snap.get("investor_count", 0)
+        if not ic:
+            continue
+        held = snap.get("holdings", {}).get(ticker)
+        if held is None:
+            continue
+        points.append(held / ic * 100)
+    if len(points) < 5:
+        return 0.0
+    # std of day-to-day pp changes
+    diffs = [points[i] - points[i - 1] for i in range(1, len(points))]
+    mean = sum(diffs) / len(diffs)
+    var = sum((d - mean) ** 2 for d in diffs) / len(diffs)
+    import math as _math
+
+    return _math.sqrt(var) if var > 0 else 0.0
+
+
+def _ema_holder_pct(
+    ticker: str,
+    snapshots: list[dict[str, Any]],
+    span: int = 7,
+) -> float:
+    """EMA over recent snapshots' holder-pct for ticker. Returns 0.0 if no data."""
+    pcts: list[float] = []
+    for snap in snapshots[-span:]:
+        ic = snap.get("investor_count", 0)
+        if not ic:
+            continue
+        held = snap.get("holdings", {}).get(ticker)
+        if held is None:
+            continue
+        pcts.append(held / ic * 100)
+    if not pcts:
+        return 0.0
+    if len(pcts) == 1:
+        return pcts[0]
+    # Standard EMA: alpha = 2/(span+1)
+    alpha = 2.0 / (span + 1)
+    ema = pcts[0]
+    for p in pcts[1:]:
+        ema = alpha * p + (1 - alpha) * ema
+    return ema
+
+
+def _parse_filename(name: str) -> tuple[str, str] | None:
     """Extract (date, time) from a census filename, or None."""
     m = _FILENAME_RE.match(name)
     if m:
@@ -43,14 +135,14 @@ def _parse_filename(name: str) -> Optional[Tuple[str, str]]:
 
 
 def _select_latest_per_day(
-    files: List[Path],
-) -> List[Tuple[str, Path]]:
+    files: list[Path],
+) -> list[tuple[str, Path]]:
     """
     Given census file paths, keep only the latest file for each calendar day.
 
     Returns a list of (date_str, path) sorted ascending by date.
     """
-    by_date: Dict[str, Tuple[str, Path]] = {}
+    by_date: dict[str, tuple[str, Path]] = {}
     for fpath in files:
         parsed = _parse_filename(fpath.name)
         if parsed is None:
@@ -70,7 +162,7 @@ def _extract_snapshot(
     fpath: Path,
     date_str: str,
     investor_tier: int,
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """
     Load a single census JSON and extract holdings for the requested
     investor tier.
@@ -78,14 +170,14 @@ def _extract_snapshot(
     Returns a snapshot dict or None on failure.
     """
     try:
-        with open(fpath, "r", encoding="utf-8") as f:
+        with open(fpath, encoding="utf-8") as f:
             data = json.load(f)
     except (json.JSONDecodeError, OSError) as exc:
         logger.warning("Skipping corrupt/unreadable census file %s: %s", fpath.name, exc)
         return None
 
     # Build instrumentId -> ticker mapping
-    instrument_map: Dict[int, str] = {}
+    instrument_map: dict[int, str] = {}
     for detail in data.get("instruments", {}).get("details", []):
         iid = detail.get("instrumentId")
         symbol = detail.get("symbolFull")
@@ -100,14 +192,12 @@ def _extract_snapshot(
             break
 
     if analysis is None:
-        logger.warning(
-            "No analysis with investorCount=%d in %s", investor_tier, fpath.name
-        )
+        logger.warning("No analysis with investorCount=%d in %s", investor_tier, fpath.name)
         return None
 
     # Extract holdings — prefer the 'symbol' field already on each holding,
     # fall back to the instrument map.
-    holdings: Dict[str, int] = {}
+    holdings: dict[str, int] = {}
     for h in analysis.get("topHoldings", []):
         ticker = h.get("symbol") or instrument_map.get(h.get("instrumentId"))
         count = h.get("holdersCount")
@@ -126,10 +216,10 @@ def _extract_snapshot(
 
 
 def load_census_snapshots(
-    archive_dir: Optional[Path] = None,
+    archive_dir: Path | None = None,
     days_back: int = 30,
     investor_tier: int = 100,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Load census snapshots from the archive directory.
 
@@ -170,7 +260,7 @@ def load_census_snapshots(
     # Filter to requested window
     daily = [(d, p) for d, p in daily if d >= cutoff]
 
-    snapshots: List[Dict[str, Any]] = []
+    snapshots: list[dict[str, Any]] = []
     for date_str, fpath in daily:
         snap = _extract_snapshot(fpath, date_str, investor_tier)
         if snap is not None:
@@ -205,8 +295,8 @@ def _classify_trend(
 
 
 def compute_holder_trends(
-    snapshots: List[Dict[str, Any]],
-) -> Dict[str, Dict[str, Any]]:
+    snapshots: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
     """
     Compute holder-count trends for every ticker across snapshots.
 
@@ -231,7 +321,7 @@ def compute_holder_trends(
     # Find the snapshot closest to 7 days ago
     latest_date = datetime.strptime(latest["date"], "%Y-%m-%d")
     seven_days_ago = latest_date - timedelta(days=7)
-    snap_7d: Optional[Dict[str, Any]] = None
+    snap_7d: dict[str, Any] | None = None
     for snap in reversed(snapshots):
         snap_date = datetime.strptime(snap["date"], "%Y-%m-%d")
         if snap_date <= seven_days_ago:
@@ -239,12 +329,12 @@ def compute_holder_trends(
             break
 
     # Collect all tickers that appear in at least 2 snapshots
-    ticker_counts: Dict[str, int] = {}
+    ticker_counts: dict[str, int] = {}
     for snap in snapshots:
         for ticker in snap["holdings"]:
             ticker_counts[ticker] = ticker_counts.get(ticker, 0) + 1
 
-    trends: Dict[str, Dict[str, Any]] = {}
+    trends: dict[str, dict[str, Any]] = {}
     for ticker, count in ticker_counts.items():
         if count < 2:
             continue
@@ -270,7 +360,7 @@ def compute_holder_trends(
             pct_change_30d = 0.0
 
         # 7-day delta
-        delta_7d: Optional[int] = None
+        delta_7d: int | None = None
         if snap_7d is not None:
             past_7d = snap_7d["holdings"].get(ticker)
             if past_7d is not None:
@@ -299,8 +389,8 @@ def compute_holder_trends(
 
 
 def compute_fear_greed_trend(
-    snapshots: List[Dict[str, Any]],
-) -> Dict[str, Any]:
+    snapshots: list[dict[str, Any]],
+) -> dict[str, Any]:
     """
     Track Fear and Greed index movement across snapshots.
 
@@ -327,8 +417,8 @@ def compute_fear_greed_trend(
     seven_days_ago = latest_date - timedelta(days=7)
     thirty_days_ago = latest_date - timedelta(days=30)
 
-    fg_7d: Optional[Any] = None
-    fg_30d: Optional[Any] = None
+    fg_7d: Any | None = None
+    fg_30d: Any | None = None
 
     for snap in reversed(snapshots):
         snap_date = datetime.strptime(snap["date"], "%Y-%m-%d")
@@ -367,10 +457,10 @@ def compute_fear_greed_trend(
 
 
 def get_census_context(
-    archive_dir: Optional[Path] = None,
+    archive_dir: Path | None = None,
     days_back: int = 30,
     investor_tier: int = 100,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     High-level function combining snapshot loading, trend computation,
     and summary generation for committee consumption.
@@ -413,15 +503,9 @@ def get_census_context(
     )
 
     top_accumulating = [
-        {"ticker": t, **d}
-        for t, d in sorted_tickers[:10]
-        if d["pct_change_30d"] > 0
+        {"ticker": t, **d} for t, d in sorted_tickers[:10] if d["pct_change_30d"] > 0
     ]
-    top_distributing = [
-        {"ticker": t, **d}
-        for t, d in sorted_tickers
-        if d["pct_change_30d"] < 0
-    ]
+    top_distributing = [{"ticker": t, **d} for t, d in sorted_tickers if d["pct_change_30d"] < 0]
     # Take the 10 most negative
     top_distributing = sorted(
         top_distributing,
@@ -456,15 +540,11 @@ def get_census_context(
 
     dist_part = ""
     if top_distributing:
-        names = ", ".join(
-            f"{d['ticker']} ({d['pct_change_30d']}%)"
-            for d in top_distributing[:3]
-        )
+        names = ", ".join(f"{d['ticker']} ({d['pct_change_30d']}%)" for d in top_distributing[:3])
         dist_part = f" Top distribution: {names}."
 
     summary = (
-        f"Census: {len(snapshots)} snapshots over {n_days} days. "
-        f"{fg_part}{acc_part}{dist_part}"
+        f"Census: {len(snapshots)} snapshots over {n_days} days. " f"{fg_part}{acc_part}{dist_part}"
     )
 
     return {

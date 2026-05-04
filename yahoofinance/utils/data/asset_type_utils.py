@@ -7,8 +7,8 @@ market cap descending.
 """
 
 import logging
+
 import pandas as pd
-from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -19,27 +19,28 @@ ASSET_TYPE_PRIORITY = {
     "etf": 3,
     "crypto": 4,
     "commodity": 5,
-    "other": 6
+    "other": 6,
 }
 
 # Bitcoin proxy stocks - companies whose value is primarily tied to Bitcoin holdings
 # These require hybrid momentum + equity scoring since analyst metrics may not apply well
 BITCOIN_PROXY_TICKERS = {
-    'MSTR',   # MicroStrategy - largest corporate Bitcoin holder
-    'COIN',   # Coinbase - crypto exchange, revenue tied to crypto prices
-    'CLSK',   # CleanSpark - Bitcoin miner
-    'MARA',   # Marathon Digital - Bitcoin miner
-    'RIOT',   # Riot Platforms - Bitcoin miner
-    'HUT',    # Hut 8 Mining - Bitcoin miner
-    'BTBT',   # Bit Digital - Bitcoin miner
-    'CIFR',   # Cipher Mining - Bitcoin miner
-    'IREN',   # Iris Energy - Bitcoin miner
-    'BTDR',   # Bitdeer Technologies - Bitcoin miner
+    "MSTR",  # MicroStrategy - largest corporate Bitcoin holder
+    "COIN",  # Coinbase - crypto exchange, revenue tied to crypto prices
+    "CLSK",  # CleanSpark - Bitcoin miner
+    "MARA",  # Marathon Digital - Bitcoin miner
+    "RIOT",  # Riot Platforms - Bitcoin miner
+    "HUT",  # Hut 8 Mining - Bitcoin miner
+    "BTBT",  # Bit Digital - Bitcoin miner
+    "CIFR",  # Cipher Mining - Bitcoin miner
+    "IREN",  # Iris Energy - Bitcoin miner
+    "BTDR",  # Bitdeer Technologies - Bitcoin miner
 }
 
 
-def classify_asset_type(ticker: str, market_cap: Optional[float] = None,
-                        company_name: Optional[str] = None) -> str:
+def classify_asset_type(
+    ticker: str, market_cap: float | None = None, company_name: str | None = None
+) -> str:
     """
     Classify an asset by its type based on ticker symbol and other attributes.
 
@@ -77,7 +78,7 @@ def classify_asset_type(ticker: str, market_cap: Optional[float] = None,
     return "stock"
 
 
-def _is_bitcoin_proxy(ticker: str, company_name: Optional[str] = None) -> bool:
+def _is_bitcoin_proxy(ticker: str, company_name: str | None = None) -> bool:
     """
     Check if ticker represents a Bitcoin proxy stock.
 
@@ -91,7 +92,7 @@ def _is_bitcoin_proxy(ticker: str, company_name: Optional[str] = None) -> bool:
     # Check company name for Bitcoin-related keywords
     if company_name:
         company_upper = company_name.upper()
-        bitcoin_keywords = ['BITCOIN', 'CRYPTO MINING', 'BTC MINING', 'DIGITAL MINING']
+        bitcoin_keywords = ["BITCOIN", "CRYPTO MINING", "BTC MINING", "DIGITAL MINING"]
         for keyword in bitcoin_keywords:
             if keyword in company_upper:
                 return True
@@ -99,7 +100,7 @@ def _is_bitcoin_proxy(ticker: str, company_name: Optional[str] = None) -> bool:
     return False
 
 
-def is_bitcoin_proxy(ticker: str, company_name: Optional[str] = None) -> bool:
+def is_bitcoin_proxy(ticker: str, company_name: str | None = None) -> bool:
     """
     Public API to check if a ticker is a Bitcoin proxy.
 
@@ -115,7 +116,7 @@ def is_bitcoin_proxy(ticker: str, company_name: Optional[str] = None) -> bool:
     return _is_bitcoin_proxy(ticker.upper().strip(), company_name)
 
 
-def _is_crypto_asset(ticker: str, company_name: Optional[str] = None) -> bool:
+def _is_crypto_asset(ticker: str, company_name: str | None = None) -> bool:
     """Check if ticker represents a cryptocurrency.
 
     Args:
@@ -126,15 +127,40 @@ def _is_crypto_asset(ticker: str, company_name: Optional[str] = None) -> bool:
         True if the ticker is a cryptocurrency
     """
     # Crypto tickers typically end with -USD
-    if ticker.endswith('-USD'):
+    if ticker.endswith("-USD"):
         return True
 
     # Known crypto tickers without -USD suffix
     known_crypto = {
-        'BTC', 'ETH', 'XRP', 'LTC', 'BCH', 'ADA', 'DOT', 'LINK',
-        'XLM', 'DOGE', 'SOL', 'HBAR', 'MATIC', 'AVAX', 'ATOM',
-        'ALGO', 'VET', 'FIL', 'THETA', 'TRX', 'EOS', 'XMR',
-        'DASH', 'ZEC', 'NEO', 'QTUM', 'ONT', 'IOTA', 'XTZ'
+        "BTC",
+        "ETH",
+        "XRP",
+        "LTC",
+        "BCH",
+        "ADA",
+        "DOT",
+        "LINK",
+        "XLM",
+        "DOGE",
+        "SOL",
+        "HBAR",
+        "MATIC",
+        "AVAX",
+        "ATOM",
+        "ALGO",
+        "VET",
+        "FIL",
+        "THETA",
+        "TRX",
+        "EOS",
+        "XMR",
+        "DASH",
+        "ZEC",
+        "NEO",
+        "QTUM",
+        "ONT",
+        "IOTA",
+        "XTZ",
     }
 
     if ticker in known_crypto:
@@ -143,10 +169,27 @@ def _is_crypto_asset(ticker: str, company_name: Optional[str] = None) -> bool:
         if company_name:
             company_upper = company_name.upper()
             non_crypto_indicators = [
-                'ENERGY', 'OIL', 'GAS', 'PETROLEUM', 'MINING', 'MINERALS',
-                'INC', 'CORP', 'LTD', 'LIMITED', 'PLC', 'LLC', 'CO.',
-                'BANK', 'FINANCIAL', 'INSURANCE', 'MANUFACTURING',
-                'RESOURCES', 'EXPLORATION', 'PRODUCTION', 'SERVICES',
+                "ENERGY",
+                "OIL",
+                "GAS",
+                "PETROLEUM",
+                "MINING",
+                "MINERALS",
+                "INC",
+                "CORP",
+                "LTD",
+                "LIMITED",
+                "PLC",
+                "LLC",
+                "CO.",
+                "BANK",
+                "FINANCIAL",
+                "INSURANCE",
+                "MANUFACTURING",
+                "RESOURCES",
+                "EXPLORATION",
+                "PRODUCTION",
+                "SERVICES",
             ]
             if any(indicator in company_upper for indicator in non_crypto_indicators):
                 return False
@@ -155,29 +198,29 @@ def _is_crypto_asset(ticker: str, company_name: Optional[str] = None) -> bool:
     return False
 
 
-def _is_etf_asset(ticker: str, company_name: Optional[str] = None) -> bool:
+def _is_etf_asset(ticker: str, company_name: str | None = None) -> bool:
     """Check if ticker represents an ETF."""
     # Known NON-ETF tickers (fund management companies, financial services, etc.)
     # These are stocks of companies that manage funds or have "TRUST" in name
     known_non_etfs = {
-        'JUP.L',   # Jupiter Fund Management
-        'BLK',     # BlackRock
-        'TROW',    # T. Rowe Price
-        'BEN',     # Franklin Resources
-        'IVZ',     # Invesco
-        'SEIC',    # SEI Investments
-        'AMG',     # Affiliated Managers Group
-        'JHG',     # Janus Henderson
-        'VCTR',    # Victory Capital
-        'APAM',    # Artisan Partners
-        'VRTS',    # Virtus Investment Partners
+        "JUP.L",  # Jupiter Fund Management
+        "BLK",  # BlackRock
+        "TROW",  # T. Rowe Price
+        "BEN",  # Franklin Resources
+        "IVZ",  # Invesco
+        "SEIC",  # SEI Investments
+        "AMG",  # Affiliated Managers Group
+        "JHG",  # Janus Henderson
+        "VCTR",  # Victory Capital
+        "APAM",  # Artisan Partners
+        "VRTS",  # Virtus Investment Partners
         # Financial services with "TRUST" in name (not ETFs)
-        'NTRS',    # Northern Trust Corp
-        'BNY',     # Bank of New York Mellon
-        'STB.L',   # Secure Trust Bank
-        'TFC',     # Truist Financial
-        'FITB',    # Fifth Third Bancorp
-        'CFG',     # Citizens Financial Group
+        "NTRS",  # Northern Trust Corp
+        "BNY",  # Bank of New York Mellon
+        "STB.L",  # Secure Trust Bank
+        "TFC",  # Truist Financial
+        "FITB",  # Fifth Third Bancorp
+        "CFG",  # Citizens Financial Group
     }
 
     if ticker in known_non_etfs:
@@ -188,11 +231,22 @@ def _is_etf_asset(ticker: str, company_name: Optional[str] = None) -> bool:
         company_upper = company_name.upper()
         # These patterns indicate a company, not an ETF
         management_indicators = [
-            'MANAGEMENT', 'MANAGERS', 'ASSET MANAGEMENT', 'FUND MANAGEMENT',
-            'INVESTMENT MANAGEMENT', 'CAPITAL MANAGEMENT', 'WEALTH MANAGEMENT',
+            "MANAGEMENT",
+            "MANAGERS",
+            "ASSET MANAGEMENT",
+            "FUND MANAGEMENT",
+            "INVESTMENT MANAGEMENT",
+            "CAPITAL MANAGEMENT",
+            "WEALTH MANAGEMENT",
             # Financial services companies with "TRUST" in name
-            'BANK', 'BANCORP', 'FINANCIAL SERVICES', 'TRUST CORP', 'TRUST BANK',
-            'FINANCIAL GROUP', 'TRUST COMPANY', 'BANKING',
+            "BANK",
+            "BANCORP",
+            "FINANCIAL SERVICES",
+            "TRUST CORP",
+            "TRUST BANK",
+            "FINANCIAL GROUP",
+            "TRUST COMPANY",
+            "BANKING",
         ]
         for indicator in management_indicators:
             if indicator in company_upper:
@@ -200,60 +254,156 @@ def _is_etf_asset(ticker: str, company_name: Optional[str] = None) -> bool:
 
     # Common ETF patterns - only match actual ETF names
     # Note: "TRUST" alone is no longer sufficient - must be combined with ETF indicators
-    etf_patterns = ['ETF', 'INDEX']
+    etf_patterns = ["ETF", "INDEX"]
 
     # Check company name for ETF indicators using whole word matching
     if company_name:
         company_upper = company_name.upper()
         # Split company name into words and check each word
-        company_words = company_upper.replace(',', ' ').replace('.', ' ').split()
+        company_words = company_upper.replace(",", " ").replace(".", " ").split()
         for pattern in etf_patterns:
             if pattern in company_words:
                 return True
 
         # "TRUST" only counts as ETF if combined with investment-related terms
-        if 'TRUST' in company_words:
-            etf_trust_patterns = ['INVESTMENT TRUST', 'UNIT TRUST', 'EXCHANGE TRADED']
+        if "TRUST" in company_words:
+            etf_trust_patterns = ["INVESTMENT TRUST", "UNIT TRUST", "EXCHANGE TRADED"]
             if any(p in company_upper for p in etf_trust_patterns):
                 return True
 
         # Check for specific ETF naming patterns
-        if 'ISHARES' in company_upper or 'VANGUARD' in company_upper or 'SPDR' in company_upper:
+        if "ISHARES" in company_upper or "VANGUARD" in company_upper or "SPDR" in company_upper:
             # These are ETF brand names
-            if 'ETF' in company_upper or 'INDEX' in company_upper or 'FUND' in company_upper:
+            if "ETF" in company_upper or "INDEX" in company_upper or "FUND" in company_upper:
                 return True
 
     # Known major ETF tickers
     known_etfs = {
-        'SPY', 'QQQ', 'IWM', 'VTI', 'VOO', 'VEA', 'VWO', 'BND',
-        'AGG', 'LQD', 'HYG', 'EMB', 'TLT', 'IEF', 'SHY', 'TIP',
-        'GLD', 'SLV', 'USO', 'UNG', 'PDBC', 'DJP', 'IAU', 'SGOL',
-        'XLE', 'XLF', 'XLK', 'XLV', 'XLI', 'XLB', 'XLRE', 'XLY',
-        'XLP', 'XLU', 'VGT', 'VHT', 'VFH', 'VNQ', 'VDE', 'VAW',
-        'VIS', 'VCR', 'VDC', 'VPU', 'ARKK', 'ARKQ', 'ARKW', 'ARKG',
-        'ARKF', 'ICLN', 'CLEAN', 'PBW', 'QCLN', 'SMOG', 'FAN',
-        'EWJ', 'EWZ', 'EWW', 'EWG', 'EWU', 'EWC', 'EWA', 'EWS',
-        'EWT', 'EWY', 'EWP', 'EWI', 'EWQ', 'EWL', 'EWK', 'EWD',
-        'EWN', 'EWO', 'EWH', 'EPP', 'EZA', 'ECH', 'EPHE', 'EPU',
-        'ERUS', 'RSX', 'EEM', 'VWO', 'IEMG', 'SCHE', 'EDC', 'EWX',
-        'FXI', 'ASHR', 'MCHI', 'KWEB', 'CXSE', 'GXC', 'TAO',  # China ETFs
-        'LYXGRE.DE'  # Lyxor Green Bond (EUR) ETF
+        "SPY",
+        "QQQ",
+        "IWM",
+        "VTI",
+        "VOO",
+        "VEA",
+        "VWO",
+        "BND",
+        "AGG",
+        "LQD",
+        "HYG",
+        "EMB",
+        "TLT",
+        "IEF",
+        "SHY",
+        "TIP",
+        "GLD",
+        "SLV",
+        "USO",
+        "UNG",
+        "PDBC",
+        "DJP",
+        "IAU",
+        "SGOL",
+        "XLE",
+        "XLF",
+        "XLK",
+        "XLV",
+        "XLI",
+        "XLB",
+        "XLRE",
+        "XLY",
+        "XLP",
+        "XLU",
+        "VGT",
+        "VHT",
+        "VFH",
+        "VNQ",
+        "VDE",
+        "VAW",
+        "VIS",
+        "VCR",
+        "VDC",
+        "VPU",
+        "ARKK",
+        "ARKQ",
+        "ARKW",
+        "ARKG",
+        "ARKF",
+        "ICLN",
+        "CLEAN",
+        "PBW",
+        "QCLN",
+        "SMOG",
+        "FAN",
+        "EWJ",
+        "EWZ",
+        "EWW",
+        "EWG",
+        "EWU",
+        "EWC",
+        "EWA",
+        "EWS",
+        "EWT",
+        "EWY",
+        "EWP",
+        "EWI",
+        "EWQ",
+        "EWL",
+        "EWK",
+        "EWD",
+        "EWN",
+        "EWO",
+        "EWH",
+        "EPP",
+        "EZA",
+        "ECH",
+        "EPHE",
+        "EPU",
+        "ERUS",
+        "RSX",
+        "EEM",
+        "IEMG",
+        "SCHE",
+        "EDC",
+        "EWX",
+        "FXI",
+        "ASHR",
+        "MCHI",
+        "KWEB",
+        "CXSE",
+        "GXC",
+        "TAO",  # China ETFs
+        "LYXGRE.DE",  # Lyxor Green Bond (EUR) ETF
     }
 
     return ticker in known_etfs
 
 
-def _is_commodity_asset(ticker: str, company_name: Optional[str] = None) -> bool:
+def _is_commodity_asset(ticker: str, company_name: str | None = None) -> bool:
     """Check if ticker represents a commodity futures contract or fund."""
     # Handle VIX patterns (volatility index)
-    if ticker.startswith(('VIX', '^VIX')):
+    if ticker.startswith(("VIX", "^VIX")):
         return True
 
     # Known commodity futures tickers (these have =F suffix typically)
     known_commodities = {
-        'GC=F', 'SI=F', 'CL=F', 'NG=F', 'HG=F', 'PA=F', 'PL=F',
-        'GOLD', 'SILVER', 'COPPER', 'PLATINUM', 'PALLADIUM',
-        'WHEAT', 'CORN', 'SOYBEAN', 'SUGAR', 'COFFEE', 'COTTON'
+        "GC=F",
+        "SI=F",
+        "CL=F",
+        "NG=F",
+        "HG=F",
+        "PA=F",
+        "PL=F",
+        "GOLD",
+        "SILVER",
+        "COPPER",
+        "PLATINUM",
+        "PALLADIUM",
+        "WHEAT",
+        "CORN",
+        "SOYBEAN",
+        "SUGAR",
+        "COFFEE",
+        "COTTON",
     }
 
     if ticker in known_commodities:
@@ -263,14 +413,43 @@ def _is_commodity_asset(ticker: str, company_name: Optional[str] = None) -> bool
     # These should be treated as regular stocks
     known_non_commodities = {
         # Oil & Gas companies
-        'XOM', 'CVX', 'COP', 'EOG', 'SLB', 'OXY', 'PSX', 'VLO', 'MPC', 'HES',
-        'IMO', 'CNQ', 'SU', 'CVE', 'TRP', 'ENB', 'BP', 'SHEL', 'TTE',
+        "XOM",
+        "CVX",
+        "COP",
+        "EOG",
+        "SLB",
+        "OXY",
+        "PSX",
+        "VLO",
+        "MPC",
+        "HES",
+        "IMO",
+        "CNQ",
+        "SU",
+        "CVE",
+        "TRP",
+        "ENB",
+        "BP",
+        "SHEL",
+        "TTE",
         # European oil/gas
-        'BP.L', 'SHEL.L', 'TTE.PA', 'ENI.MI', 'REP.MC', 'EQNR.OL',
+        "BP.L",
+        "SHEL.L",
+        "TTE.PA",
+        "ENI.MI",
+        "REP.MC",
+        "EQNR.OL",
         # Utilities with "gas" in name
-        'IG.MI',  # Italgas
+        "IG.MI",  # Italgas
         # Mining companies (not commodities themselves)
-        'ANTO.L', 'RIO', 'BHP', 'VALE', 'FCX', 'NEM', 'GOLD', 'AEM',
+        "ANTO.L",
+        "RIO",
+        "BHP",
+        "VALE",
+        "FCX",
+        "NEM",
+        "GOLD",
+        "AEM",
     }
 
     if ticker in known_non_commodities:
@@ -283,10 +462,26 @@ def _is_commodity_asset(ticker: str, company_name: Optional[str] = None) -> bool
 
         # Exclusion patterns: these are companies, not commodity instruments
         exclusion_patterns = [
-            'INC', 'CORP', 'LTD', 'LIMITED', 'PLC', 'LLC', 'CO.',
-            'COMPANY', 'HOLDINGS', 'GROUP', 'PARTNERS', 'RESOURCES',
-            'ENERGY', 'PETROLEUM', 'EXPLORATION', 'PRODUCTION',
-            'MINING', 'MINERALS', 'UTILITIES', 'SERVICES',
+            "INC",
+            "CORP",
+            "LTD",
+            "LIMITED",
+            "PLC",
+            "LLC",
+            "CO.",
+            "COMPANY",
+            "HOLDINGS",
+            "GROUP",
+            "PARTNERS",
+            "RESOURCES",
+            "ENERGY",
+            "PETROLEUM",
+            "EXPLORATION",
+            "PRODUCTION",
+            "MINING",
+            "MINERALS",
+            "UTILITIES",
+            "SERVICES",
         ]
 
         # If company name contains company indicators, it's not a commodity
@@ -296,9 +491,17 @@ def _is_commodity_asset(ticker: str, company_name: Optional[str] = None) -> bool
 
         # Only match specific commodity FUND patterns
         commodity_fund_patterns = [
-            'COMMODITY FUND', 'COMMODITY ETF', 'GOLD FUND', 'GOLD ETF',
-            'SILVER FUND', 'SILVER ETF', 'OIL FUND', 'OIL ETF',
-            'NATURAL GAS FUND', 'COPPER FUND', 'PLATINUM FUND',
+            "COMMODITY FUND",
+            "COMMODITY ETF",
+            "GOLD FUND",
+            "GOLD ETF",
+            "SILVER FUND",
+            "SILVER ETF",
+            "OIL FUND",
+            "OIL ETF",
+            "NATURAL GAS FUND",
+            "COPPER FUND",
+            "PLATINUM FUND",
         ]
         for pattern in commodity_fund_patterns:
             if pattern in company_upper:
@@ -319,8 +522,15 @@ def get_market_cap_usd(row: pd.Series) -> float:
     """
     # Try different column names for market cap
     market_cap_columns = [
-        'market_cap', 'market_cap_usd', 'marketCap', 'market_capitalization',
-        'CAP', 'cap', 'market_cap_formatted', 'mktCap', 'market_value'
+        "market_cap",
+        "market_cap_usd",
+        "marketCap",
+        "market_capitalization",
+        "CAP",
+        "cap",
+        "market_cap_formatted",
+        "mktCap",
+        "market_value",
     ]
 
     for col in market_cap_columns:
@@ -351,17 +561,17 @@ def _parse_market_cap_string(value: str) -> float:
         Market cap in USD as float, 0 if parsing fails
     """
     try:
-        if not value or value == '--' or value == 'N/A':
+        if not value or value == "--" or value == "N/A":
             return 0.0
 
-        value_clean = str(value).strip().upper().replace('$', '').replace(',', '')
+        value_clean = str(value).strip().upper().replace("$", "").replace(",", "")
 
         # Handle different suffixes
         multipliers = {
-            'T': 1_000_000_000_000,  # Trillion
-            'B': 1_000_000_000,      # Billion
-            'M': 1_000_000,          # Million
-            'K': 1_000               # Thousand
+            "T": 1_000_000_000_000,  # Trillion
+            "B": 1_000_000_000,  # Billion
+            "M": 1_000_000,  # Million
+            "K": 1_000,  # Thousand
         }
 
         for suffix, multiplier in multipliers.items():
@@ -399,20 +609,20 @@ def add_asset_type_classification(df: pd.DataFrame) -> pd.DataFrame:
 
     # Determine ticker column name
     ticker_col = None
-    for col in ['TKR', 'TICKER', 'ticker', 'symbol', 'Symbol', 'SYMBOL']:
+    for col in ["TKR", "TICKER", "ticker", "symbol", "Symbol", "SYMBOL"]:
         if col in result_df.columns:
             ticker_col = col
             break
 
     if not ticker_col:
         logger.warning("No ticker column found for asset classification")
-        result_df['asset_type'] = 'other'
-        result_df['asset_priority'] = ASSET_TYPE_PRIORITY['other']
+        result_df["asset_type"] = "other"
+        result_df["asset_priority"] = ASSET_TYPE_PRIORITY["other"]
         return result_df
 
     # Determine company name column
     company_col = None
-    for col in ['NAME', 'COMPANY', 'company_name', 'name', 'Name', 'company', 'longName']:
+    for col in ["NAME", "COMPANY", "company_name", "name", "Name", "company", "longName"]:
         if col in result_df.columns:
             company_col = col
             break
@@ -426,11 +636,11 @@ def add_asset_type_classification(df: pd.DataFrame) -> pd.DataFrame:
         asset_type = classify_asset_type(ticker, market_cap, company_name)
         return asset_type
 
-    result_df['asset_type'] = result_df.apply(classify_row, axis=1)
-    result_df['asset_priority'] = result_df['asset_type'].map(ASSET_TYPE_PRIORITY)
+    result_df["asset_type"] = result_df.apply(classify_row, axis=1)
+    result_df["asset_priority"] = result_df["asset_type"].map(ASSET_TYPE_PRIORITY)
 
     # Extract market cap in USD for sorting
-    result_df['market_cap_usd_sort'] = result_df.apply(get_market_cap_usd, axis=1)
+    result_df["market_cap_usd_sort"] = result_df.apply(get_market_cap_usd, axis=1)
 
     logger.debug(f"Classified {len(result_df)} assets by type")
     return result_df
@@ -451,25 +661,28 @@ def universal_sort_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     try:
         # Add asset type classification if not already present
-        if 'asset_type' not in df.columns:
+        if "asset_type" not in df.columns:
             sorted_df = add_asset_type_classification(df)
         else:
             sorted_df = df.copy()
             # Ensure we have the USD market cap for sorting
-            if 'market_cap_usd_sort' not in sorted_df.columns:
-                sorted_df['market_cap_usd_sort'] = sorted_df.apply(get_market_cap_usd, axis=1)
+            if "market_cap_usd_sort" not in sorted_df.columns:
+                sorted_df["market_cap_usd_sort"] = sorted_df.apply(get_market_cap_usd, axis=1)
 
         # Sort by asset priority (ascending) then market cap (descending)
-        sorted_df = sorted_df.sort_values([
-            'asset_priority',      # 1=stocks, 2=ETFs, 3=crypto, 4=commodities, 5=other
-            'market_cap_usd_sort'  # Descending market cap within each asset type
-        ], ascending=[True, False])
+        sorted_df = sorted_df.sort_values(
+            [
+                "asset_priority",  # 1=stocks, 2=ETFs, 3=crypto, 4=commodities, 5=other
+                "market_cap_usd_sort",  # Descending market cap within each asset type
+            ],
+            ascending=[True, False],
+        )
 
         # Reset index
         sorted_df = sorted_df.reset_index(drop=True)
 
         # Clean up temporary columns for final output
-        columns_to_drop = ['asset_priority', 'market_cap_usd_sort']
+        columns_to_drop = ["asset_priority", "market_cap_usd_sort"]
         for col in columns_to_drop:
             if col in sorted_df.columns:
                 sorted_df = sorted_df.drop(col, axis=1)
@@ -482,7 +695,7 @@ def universal_sort_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         return df
 
 
-def get_asset_type_summary(df: pd.DataFrame) -> Dict[str, int]:
+def get_asset_type_summary(df: pd.DataFrame) -> dict[str, int]:
     """
     Get summary counts by asset type.
 
@@ -492,11 +705,11 @@ def get_asset_type_summary(df: pd.DataFrame) -> Dict[str, int]:
     Returns:
         Dictionary with asset type counts
     """
-    if df.empty or 'asset_type' not in df.columns:
+    if df.empty or "asset_type" not in df.columns:
         return {}
 
     try:
-        summary = df['asset_type'].value_counts().to_dict()
+        summary = df["asset_type"].value_counts().to_dict()
 
         # Ensure all asset types are represented
         for asset_type in ASSET_TYPE_PRIORITY.keys():
@@ -510,7 +723,7 @@ def get_asset_type_summary(df: pd.DataFrame) -> Dict[str, int]:
         return {}
 
 
-def format_asset_type_summary(summary: Dict[str, int]) -> str:
+def format_asset_type_summary(summary: dict[str, int]) -> str:
     """
     Format asset type summary for display.
 

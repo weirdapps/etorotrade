@@ -16,19 +16,15 @@ the trigger date, and classifies. Output is consumed by the next
 
 import json
 import logging
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_KILL_THESES_PATH = (
-    Path.home() / ".weirdapps-trading" / "committee" / "kill_thesis_log.json"
-)
-DEFAULT_AUDIT_PATH = (
-    Path.home() / ".weirdapps-trading" / "committee" / "kill_thesis_audit.json"
-)
+DEFAULT_KILL_THESES_PATH = Path.home() / ".weirdapps-trading" / "committee" / "kill_thesis_log.json"
+DEFAULT_AUDIT_PATH = Path.home() / ".weirdapps-trading" / "committee" / "kill_thesis_audit.json"
 
 # A trigger is TRUE positive if the position dropped >= TRUE_DROP_PCT in
 # the next 30 calendar days. FALSE positive if it ROSE >= FALSE_RISE_PCT.
@@ -42,14 +38,14 @@ class AuditedThesis:
     thesis: str
     trigger_date: str
     days_since_trigger: int
-    price_at_trigger: Optional[float] = None
-    price_now: Optional[float] = None
-    return_since_trigger: Optional[float] = None
+    price_at_trigger: float | None = None
+    price_now: float | None = None
+    return_since_trigger: float | None = None
     classification: str = "UNVERIFIED"
     reason: str = ""
 
 
-def _try_get_price(ticker: str, date_str: str, prices: Dict[str, Any]) -> Optional[float]:
+def _try_get_price(ticker: str, date_str: str, prices: dict[str, Any]) -> float | None:
     """Look up a price from a {ticker:{date:price}} dict, with day fallback."""
     series = prices.get(ticker, {})
     if not series:
@@ -59,10 +55,14 @@ def _try_get_price(ticker: str, date_str: str, prices: Dict[str, Any]) -> Option
     # Try same week
     for offset in range(1, 5):
         try:
-            d = (datetime.strptime(date_str, "%Y-%m-%d") + timedelta(days=offset)).strftime("%Y-%m-%d")
+            d = (datetime.strptime(date_str, "%Y-%m-%d") + timedelta(days=offset)).strftime(
+                "%Y-%m-%d"
+            )
             if d in series:
                 return series[d]
-            d = (datetime.strptime(date_str, "%Y-%m-%d") - timedelta(days=offset)).strftime("%Y-%m-%d")
+            d = (datetime.strptime(date_str, "%Y-%m-%d") - timedelta(days=offset)).strftime(
+                "%Y-%m-%d"
+            )
             if d in series:
                 return series[d]
         except ValueError:
@@ -71,10 +71,10 @@ def _try_get_price(ticker: str, date_str: str, prices: Dict[str, Any]) -> Option
 
 
 def audit_triggered_theses(
-    kill_theses_path: Optional[Path] = None,
-    output_path: Optional[Path] = None,
+    kill_theses_path: Path | None = None,
+    output_path: Path | None = None,
     use_price_cache: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Audit every triggered kill thesis.
 
@@ -106,8 +106,7 @@ def audit_triggered_theses(
     if isinstance(data, dict) and "triggered_theses" in data:
         triggered = data.get("triggered_theses", [])
     elif isinstance(data, list):
-        triggered = [t for t in data if isinstance(t, dict)
-                     and t.get("status") == "triggered"]
+        triggered = [t for t in data if isinstance(t, dict) and t.get("status") == "triggered"]
     else:
         triggered = []
     if not triggered:
@@ -117,22 +116,20 @@ def audit_triggered_theses(
     today = datetime.now().date()
     today_str = today.strftime("%Y-%m-%d")
 
-    prices: Dict[str, Dict[str, float]] = {}
+    prices: dict[str, dict[str, float]] = {}
     if use_price_cache:
         try:
             from trade_modules.price_cache import load_prices
+
             unique = list({t.get("ticker", "") for t in triggered if t.get("ticker")})
             cache = load_prices(unique)
             for tkr, df in cache.items():
                 if df is not None and not df.empty:
-                    prices[tkr] = {
-                        d.strftime("%Y-%m-%d"): float(p)
-                        for d, p in df["Close"].items()
-                    }
+                    prices[tkr] = {d.strftime("%Y-%m-%d"): float(p) for d, p in df["Close"].items()}
         except Exception as exc:
             logger.debug("price cache unavailable, continuing without prices: %s", exc)
 
-    audits: List[AuditedThesis] = []
+    audits: list[AuditedThesis] = []
     for t in triggered:
         if not isinstance(t, dict):
             continue
@@ -143,10 +140,7 @@ def audit_triggered_theses(
         # Trigger date may be the committee_date when the thesis was logged
         # or a separate trigger_detected_date. Fall back to today on missing.
         trigger_date_str = (
-            t.get("trigger_date")
-            or t.get("triggered_at")
-            or t.get("committee_date")
-            or today_str
+            t.get("trigger_date") or t.get("triggered_at") or t.get("committee_date") or today_str
         )
         try:
             trigger_dt = datetime.strptime(trigger_date_str, "%Y-%m-%d").date()
@@ -181,17 +175,19 @@ def audit_triggered_theses(
             classification = "INCONCLUSIVE"
             reason = f"position moved {ret_pct}% — within noise band"
 
-        audits.append(AuditedThesis(
-            ticker=ticker,
-            thesis=thesis_text[:200],
-            trigger_date=trigger_date_str,
-            days_since_trigger=days_since,
-            price_at_trigger=price_trigger,
-            price_now=price_now,
-            return_since_trigger=ret_pct,
-            classification=classification,
-            reason=reason,
-        ))
+        audits.append(
+            AuditedThesis(
+                ticker=ticker,
+                thesis=thesis_text[:200],
+                trigger_date=trigger_date_str,
+                days_since_trigger=days_since,
+                price_at_trigger=price_trigger,
+                price_now=price_now,
+                return_since_trigger=ret_pct,
+                classification=classification,
+                reason=reason,
+            )
+        )
 
     # Group by classification.
     true_pos = [a for a in audits if a.classification == "TRUE_POSITIVE"]
@@ -204,11 +200,12 @@ def audit_triggered_theses(
     def _signature(thesis: str) -> str:
         return " ".join(thesis.lower().split()[:5]) or "(empty)"
 
-    by_pattern: Dict[str, Dict[str, int]] = {}
+    by_pattern: dict[str, dict[str, int]] = {}
     for a in audits:
         sig = _signature(a.thesis)
-        b = by_pattern.setdefault(sig, {"count": 0, "true": 0, "false": 0,
-                                         "inconclusive": 0, "unverified": 0})
+        b = by_pattern.setdefault(
+            sig, {"count": 0, "true": 0, "false": 0, "inconclusive": 0, "unverified": 0}
+        )
         b["count"] += 1
         if a.classification == "TRUE_POSITIVE":
             b["true"] += 1
@@ -235,9 +232,7 @@ def audit_triggered_theses(
                 round(len(true_pos) / max(len(true_pos) + len(false_pos), 1), 3)
             ),
         },
-        "by_pattern": dict(sorted(
-            by_pattern.items(), key=lambda x: -x[1]["count"]
-        )[:20]),
+        "by_pattern": dict(sorted(by_pattern.items(), key=lambda x: -x[1]["count"])[:20]),
     }
 
     out_path.parent.mkdir(parents=True, exist_ok=True)

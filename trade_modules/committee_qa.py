@@ -11,11 +11,9 @@ Three-stage design:
   Stage 2 (post-HTML): Scan generated HTML for rendering gaps (N/A, dashes, empty)
 """
 
-import json
 import logging
 import re
-from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -24,17 +22,17 @@ logger = logging.getLogger(__name__)
 # Gap severity
 # ---------------------------------------------------------------------------
 CRITICAL = "CRITICAL"  # Data completely missing, section broken
-WARNING = "WARNING"    # Data partially missing, degrades quality
-INFO = "INFO"          # Minor gap, cosmetic
+WARNING = "WARNING"  # Data partially missing, degrades quality
+INFO = "INFO"  # Minor gap, cosmetic
 
 
 def normalize_agent_reports(
-    macro: Dict[str, Any],
-    census: Dict[str, Any],
-    news: Dict[str, Any],
-    risk: Dict[str, Any],
-    opps: Dict[str, Any],
-) -> List[str]:
+    macro: dict[str, Any],
+    census: dict[str, Any],
+    news: dict[str, Any],
+    risk: dict[str, Any],
+    opps: dict[str, Any],
+) -> list[str]:
     """
     Stage 0: Fix known agent output format mismatches in-place.
 
@@ -148,8 +146,10 @@ def normalize_agent_reports(
     # ── Risk: consensus_warnings may be a dict instead of list ──
     cw = risk.get("consensus_warnings")
     if isinstance(cw, dict):
-        risk["consensus_warnings"] = [{"ticker": k, **v} if isinstance(v, dict) else {"ticker": k, "warning": v}
-                                       for k, v in cw.items()]
+        risk["consensus_warnings"] = [
+            {"ticker": k, **v} if isinstance(v, dict) else {"ticker": k, "warning": v}
+            for k, v in cw.items()
+        ]
         fixes.append("risk: consensus_warnings dict → list")
 
     # ── Risk: top_warnings → consensus_warnings alias ──
@@ -167,36 +167,53 @@ def normalize_agent_reports(
             if tkr in existing_tickers:
                 continue
             if isinstance(data, dict):
-                existing.append({"ticker": tkr, "severity": data.get("severity", "MODERATE"),
-                                 "reason": str(data.get("warning", data.get("reason", "")))[:200]})
+                existing.append(
+                    {
+                        "ticker": tkr,
+                        "severity": data.get("severity", "MODERATE"),
+                        "reason": str(data.get("warning", data.get("reason", "")))[:200],
+                    }
+                )
             elif isinstance(data, str):
                 existing.append({"ticker": tkr, "severity": "MODERATE", "reason": data[:200]})
             elif isinstance(data, list):
-                existing.append({"ticker": tkr, "severity": "MODERATE",
-                                 "reason": "; ".join(str(w) for w in data)[:200]})
+                existing.append(
+                    {
+                        "ticker": tkr,
+                        "severity": "MODERATE",
+                        "reason": "; ".join(str(w) for w in data)[:200],
+                    }
+                )
             added += 1
         if added:
-            fixes.append(f"risk: ingested {added} risk_warnings_by_stock entries into consensus_warnings")
+            fixes.append(
+                f"risk: ingested {added} risk_warnings_by_stock entries into consensus_warnings"
+            )
 
     # ── News: synthesise breaking_news from key_themes/sector_news ──
     if not news.get("breaking_news"):
         items = []
         for theme in news.get("key_themes", []):
             if isinstance(theme, str) and theme.strip():
-                items.append({
-                    "headline": theme.strip(),
-                    "impact": "NEUTRAL",
-                    "affected_tickers": [],
-                })
+                items.append(
+                    {
+                        "headline": theme.strip(),
+                        "impact": "NEUTRAL",
+                        "affected_tickers": [],
+                    }
+                )
             elif isinstance(theme, dict):
                 hl = theme.get("theme", theme.get("title", theme.get("headline", "")))
                 if hl:
-                    items.append({
-                        "headline": hl,
-                        "impact": theme.get("sentiment", theme.get("impact", "NEUTRAL")),
-                        "affected_tickers": theme.get("affected_tickers",
-                                                      theme.get("tickers", [])),
-                    })
+                    items.append(
+                        {
+                            "headline": hl,
+                            "impact": theme.get("sentiment", theme.get("impact", "NEUTRAL")),
+                            "affected_tickers": theme.get(
+                                "affected_tickers", theme.get("tickers", [])
+                            ),
+                        }
+                    )
         if items:
             news["breaking_news"] = items
             fixes.append(f"news: synthesised breaking_news from key_themes ({len(items)} items)")
@@ -229,17 +246,23 @@ def normalize_agent_reports(
         if not ind.get("eur_usd"):
             fx = macro.get("fx_impact", {})
             for src_text in [str(fx), str(ri.get("usd_context", ""))]:
-                m = re.search(r'EUR/USD\s*(?:at\s+)?(\d+\.\d+)', src_text)
+                m = re.search(r"EUR/USD\s*(?:at\s+)?(\d+\.\d+)", src_text)
                 if m:
                     ind["eur_usd"] = float(m.group(1))
                     fixes.append(f"macro: extracted eur_usd={ind['eur_usd']} from context")
                     break
         if not ind.get("us_10y_yield"):
             for src_text in [str(ri.get("yield_curve_context", "")), str(ri)]:
-                m = re.search(r'10[- ]?year\s+(?:Treasury\s+)?(?:near|at|~)?\s*(\d+\.?\d*)\s*%', src_text, re.IGNORECASE)
+                m = re.search(
+                    r"10[- ]?year\s+(?:Treasury\s+)?(?:near|at|~)?\s*(\d+\.?\d*)\s*%",
+                    src_text,
+                    re.IGNORECASE,
+                )
                 if m:
                     ind["us_10y_yield"] = float(m.group(1))
-                    fixes.append(f"macro: extracted us_10y_yield={ind['us_10y_yield']} from context")
+                    fixes.append(
+                        f"macro: extracted us_10y_yield={ind['us_10y_yield']} from context"
+                    )
                     break
         macro["indicators"] = ind
         macro["macro_indicators"] = ind
@@ -253,16 +276,22 @@ def normalize_agent_reports(
             for tr in tail[:3]:
                 if isinstance(tr, dict):
                     imp = str(tr.get("impact", "MEDIUM")).upper()
-                    scenarios.append({
-                        "name": tr.get("risk", tr.get("name", "Unknown")),
-                        "portfolio_impact_pct": impact_map.get(imp, -10),
-                        "probability": tr.get("probability", "MEDIUM"),
-                    })
+                    scenarios.append(
+                        {
+                            "name": tr.get("risk", tr.get("name", "Unknown")),
+                            "portfolio_impact_pct": impact_map.get(imp, -10),
+                            "probability": tr.get("probability", "MEDIUM"),
+                        }
+                    )
                 elif isinstance(tr, str):
-                    scenarios.append({"name": tr, "portfolio_impact_pct": -10, "probability": "MEDIUM"})
+                    scenarios.append(
+                        {"name": tr, "portfolio_impact_pct": -10, "probability": "MEDIUM"}
+                    )
             if scenarios:
                 risk["stress_scenarios"] = scenarios
-                fixes.append(f"risk: derived stress_scenarios from tail_risks ({len(scenarios)} scenarios)")
+                fixes.append(
+                    f"risk: derived stress_scenarios from tail_risks ({len(scenarios)} scenarios)"
+                )
 
     # ── Macro: derive portfolio_implications from sector_rankings (v34.0) ──
     # When agent provides sector_rankings with outlook but no portfolio_implications,
@@ -270,25 +299,37 @@ def normalize_agent_reports(
     if not macro.get("portfolio_implications") and macro.get("sector_rankings"):
         sr = macro["sector_rankings"]
         if isinstance(sr, dict):
-            pi: Dict[str, Any] = {}
+            pi: dict[str, Any] = {}
             outlook_to_fit = {
-                "OVERWEIGHT": "FAVORABLE", "FAVORABLE": "FAVORABLE",
-                "UNDERWEIGHT": "UNFAVORABLE", "UNFAVORABLE": "UNFAVORABLE",
-                "EQUAL": "NEUTRAL", "NEUTRAL": "NEUTRAL",
+                "OVERWEIGHT": "FAVORABLE",
+                "FAVORABLE": "FAVORABLE",
+                "UNDERWEIGHT": "UNFAVORABLE",
+                "UNFAVORABLE": "UNFAVORABLE",
+                "EQUAL": "NEUTRAL",
+                "NEUTRAL": "NEUTRAL",
             }
-            for sector_name, data in sr.items():
+            for _sector_name, data in sr.items():
                 if isinstance(data, dict):
                     outlook = data.get("recommendation", data.get("outlook", "NEUTRAL"))
                     fit = outlook_to_fit.get(str(outlook).upper(), "NEUTRAL")
                     data["fit"] = fit
-            rank_order = {"OVERWEIGHT": 0, "FAVORABLE": 0,
-                          "EQUAL": 1, "NEUTRAL": 1,
-                          "UNDERWEIGHT": 2, "UNFAVORABLE": 2}
-            sorted_sectors = sorted(sr.items(),
+            rank_order = {
+                "OVERWEIGHT": 0,
+                "FAVORABLE": 0,
+                "EQUAL": 1,
+                "NEUTRAL": 1,
+                "UNDERWEIGHT": 2,
+                "UNFAVORABLE": 2,
+            }
+            sorted_sectors = sorted(
+                sr.items(),
                 key=lambda x: rank_order.get(
-                    str(x[1].get("recommendation", x[1].get("outlook", "NEUTRAL"))).upper(), 1)
-                if isinstance(x[1], dict) else 1)
-            for i, (sname, sdata) in enumerate(sorted_sectors, 1):
+                    str(x[1].get("recommendation", x[1].get("outlook", "NEUTRAL"))).upper(), 1
+                )
+                if isinstance(x[1], dict)
+                else 1,
+            )
+            for i, (_sname, sdata) in enumerate(sorted_sectors, 1):
                 if isinstance(sdata, dict) and "rank" not in sdata:
                     sdata["rank"] = i
             fixes.append("macro: enriched sector_rankings with fit from outlook")
@@ -324,7 +365,7 @@ def normalize_agent_reports(
     if not news.get("portfolio_news") and news.get("stock_news"):
         sn = news["stock_news"]
         if isinstance(sn, dict):
-            pn: Dict[str, Any] = {}
+            pn: dict[str, Any] = {}
             for tkr, data in sn.items():
                 if not isinstance(data, dict):
                     continue
@@ -338,11 +379,13 @@ def normalize_agent_reports(
                     impact = "LOW_POSITIVE" if magnitude == "HIGH" else "NEUTRAL"
                 else:
                     impact = "NEUTRAL"
-                pn[tkr] = [{
-                    "impact": impact,
-                    "headline": "; ".join(data.get("recent_headlines", [])[:2])[:200],
-                    "catalyst": data.get("catalyst_type", ""),
-                }]
+                pn[tkr] = [
+                    {
+                        "impact": impact,
+                        "headline": "; ".join(data.get("recent_headlines", [])[:2])[:200],
+                        "catalyst": data.get("catalyst_type", ""),
+                    }
+                ]
             news["portfolio_news"] = pn
             fixes.append(f"news: derived portfolio_news from stock_news ({len(pn)} tickers)")
 
@@ -383,15 +426,15 @@ def normalize_agent_reports(
 
 
 def validate_pre_html(
-    synthesis: Dict[str, Any],
-    fund: Dict[str, Any],
-    tech: Dict[str, Any],
-    macro: Dict[str, Any],
-    census: Dict[str, Any],
-    news: Dict[str, Any],
-    opps: Dict[str, Any],
-    risk: Dict[str, Any],
-) -> List[Dict[str, str]]:
+    synthesis: dict[str, Any],
+    fund: dict[str, Any],
+    tech: dict[str, Any],
+    macro: dict[str, Any],
+    census: dict[str, Any],
+    news: dict[str, Any],
+    opps: dict[str, Any],
+    risk: dict[str, Any],
+) -> list[dict[str, str]]:
     """
     Pass 1: Validate data completeness before HTML generation.
 
@@ -407,14 +450,23 @@ def validate_pre_html(
 
     # ── Executive Summary ──
     if not concordance:
-        gap(CRITICAL, "Executive Summary", "concordance", "No concordance data — report will be empty")
+        gap(
+            CRITICAL,
+            "Executive Summary",
+            "concordance",
+            "No concordance data — report will be empty",
+        )
     regime = synthesis.get("regime", "")
     if not regime:
         gap(WARNING, "Executive Summary", "regime", "No regime classification")
     p_beta = synthesis.get("portfolio_beta", 0)
     if not p_beta or abs(p_beta - 1.0) < 1e-9:
-        gap(WARNING, "Executive Summary", "portfolio_beta",
-            f"Portfolio beta is {p_beta} — may be default, not computed")
+        gap(
+            WARNING,
+            "Executive Summary",
+            "portfolio_beta",
+            f"Portfolio beta is {p_beta} — may be default, not computed",
+        )
 
     # ── Macro Indicators ──
     for key, label in [("vix", "VIX"), ("us_10y_yield", "10Y Yield"), ("eur_usd", "EUR/USD")]:
@@ -431,13 +483,22 @@ def validate_pre_html(
     else:
         no_score = [t for t, d in fund_stocks.items() if not d.get("fundamental_score")]
         if no_score:
-            gap(WARNING, "Fundamental", "fundamental_score",
-                f"{len(no_score)} stocks missing fundamental_score: {', '.join(no_score[:5])}")
-        no_km = [t for t, d in fund_stocks.items()
-                 if not d.get("key_metrics") and not d.get("piotroski")]
+            gap(
+                WARNING,
+                "Fundamental",
+                "fundamental_score",
+                f"{len(no_score)} stocks missing fundamental_score: {', '.join(no_score[:5])}",
+            )
+        no_km = [
+            t for t, d in fund_stocks.items() if not d.get("key_metrics") and not d.get("piotroski")
+        ]
         if no_km:
-            gap(WARNING, "Fundamental", "key_metrics",
-                f"{len(no_km)} stocks missing key_metrics: {', '.join(no_km[:5])}")
+            gap(
+                WARNING,
+                "Fundamental",
+                "key_metrics",
+                f"{len(no_km)} stocks missing key_metrics: {', '.join(no_km[:5])}",
+            )
 
     # ── Technical ──
     tech_stocks = tech.get("stocks", {})
@@ -446,37 +507,55 @@ def validate_pre_html(
     else:
         no_rsi = [t for t, d in tech_stocks.items() if d.get("rsi") is None]
         if no_rsi:
-            gap(WARNING, "Technical", "rsi",
-                f"{len(no_rsi)} stocks missing RSI: {', '.join(no_rsi[:5])}")
-        no_trend = [t for t, d in tech_stocks.items()
-                    if not d.get("trend") and not d.get("adx_trend")]
+            gap(
+                WARNING,
+                "Technical",
+                "rsi",
+                f"{len(no_rsi)} stocks missing RSI: {', '.join(no_rsi[:5])}",
+            )
+        no_trend = [
+            t for t, d in tech_stocks.items() if not d.get("trend") and not d.get("adx_trend")
+        ]
         if no_trend:
-            gap(INFO, "Technical", "trend",
-                f"{len(no_trend)} stocks missing trend data")
+            gap(INFO, "Technical", "trend", f"{len(no_trend)} stocks missing trend data")
         # v35.0: Verify normalizer produced timing_signal and momentum_score
-        no_timing = [t for t, d in tech_stocks.items()
-                     if isinstance(d, dict) and not d.get("timing_signal")]
+        no_timing = [
+            t for t, d in tech_stocks.items() if isinstance(d, dict) and not d.get("timing_signal")
+        ]
         if no_timing and len(no_timing) == len(tech_stocks):
-            gap(CRITICAL, "Technical", "timing_signal",
+            gap(
+                CRITICAL,
+                "Technical",
+                "timing_signal",
                 "No stocks have timing_signal — normalizer did not run or "
-                "agent used an unrecognized field name (check for timing/technical_signal/entry_timing)")
-        no_mom = [t for t, d in tech_stocks.items()
-                  if isinstance(d, dict) and not d.get("momentum_score")]
+                "agent used an unrecognized field name (check for timing/technical_signal/entry_timing)",
+            )
+        no_mom = [
+            t for t, d in tech_stocks.items() if isinstance(d, dict) and not d.get("momentum_score")
+        ]
         if no_mom and len(no_mom) == len(tech_stocks):
-            gap(CRITICAL, "Technical", "momentum_score",
+            gap(
+                CRITICAL,
+                "Technical",
+                "momentum_score",
                 "No stocks have momentum_score — normalizer did not run or "
-                "agent used an unrecognized field name (check for momentum/momentum_pct)")
-        no_macd = [t for t, d in tech_stocks.items()
-                   if isinstance(d, dict) and not d.get("macd_signal")]
+                "agent used an unrecognized field name (check for momentum/momentum_pct)",
+            )
+        no_macd = [
+            t for t, d in tech_stocks.items() if isinstance(d, dict) and not d.get("macd_signal")
+        ]
         if no_macd and len(no_macd) == len(tech_stocks):
-            gap(WARNING, "Technical", "macd_signal",
-                "No stocks have macd_signal — check for macd field name variant")
+            gap(
+                WARNING,
+                "Technical",
+                "macd_signal",
+                "No stocks have macd_signal — check for macd field name variant",
+            )
 
     # ── News ──
     breaking = synthesis.get("breaking_news", [])
     if not breaking:
-        gap(WARNING, "News", "breaking_news",
-            "No breaking news items — news section will be empty")
+        gap(WARNING, "News", "breaking_news", "No breaking news items — news section will be empty")
     ec = synthesis.get("earnings_calendar", {})
     ec_list = ec if isinstance(ec, list) else ec.get("next_2_weeks", [])
     if not ec_list:
@@ -495,11 +574,18 @@ def validate_pre_html(
     if not opp_list:
         gap(INFO, "Opportunities", "top_opportunities", "No new opportunities found")
     else:
-        no_why = [o.get("ticker", "?") for o in opp_list
-                  if not o.get("why_compelling") and not o.get("rationale")]
+        no_why = [
+            o.get("ticker", "?")
+            for o in opp_list
+            if not o.get("why_compelling") and not o.get("rationale")
+        ]
         if no_why:
-            gap(WARNING, "Opportunities", "why_compelling",
-                f"{len(no_why)} opportunities missing rationale: {', '.join(no_why[:5])}")
+            gap(
+                WARNING,
+                "Opportunities",
+                "why_compelling",
+                f"{len(no_why)} opportunities missing rationale: {', '.join(no_why[:5])}",
+            )
 
     # ── Risk ──
     pr = risk.get("portfolio_risk", {})
@@ -508,28 +594,41 @@ def validate_pre_html(
     if not risk.get("correlation_clusters") and not risk.get("crisis_correlation_clusters"):
         gap(INFO, "Risk", "correlation_clusters", "No correlation cluster data")
     if not risk.get("stress_scenarios") and not risk.get("tail_risks"):
-        gap(WARNING, "Risk", "stress_scenarios",
-            "No stress scenarios or tail risks — stress test section will be empty")
+        gap(
+            WARNING,
+            "Risk",
+            "stress_scenarios",
+            "No stress scenarios or tail risks — stress test section will be empty",
+        )
 
     # ── Concordance quality ──
     no_waterfall = [e["ticker"] for e in concordance if not e.get("conviction_waterfall")]
     if no_waterfall and len(no_waterfall) > len(concordance) * 0.5:
-        gap(WARNING, "Concordance", "conviction_waterfall",
-            f"{len(no_waterfall)}/{len(concordance)} entries missing conviction waterfall")
+        gap(
+            WARNING,
+            "Concordance",
+            "conviction_waterfall",
+            f"{len(no_waterfall)}/{len(concordance)} entries missing conviction waterfall",
+        )
 
     no_action = [e["ticker"] for e in concordance if not e.get("action")]
     if no_action:
-        gap(CRITICAL, "Concordance", "action",
-            f"{len(no_action)} entries missing action assignment")
+        gap(
+            CRITICAL, "Concordance", "action", f"{len(no_action)} entries missing action assignment"
+        )
 
     # ── Cross-validation: agent data provided vs synthesis consumed (v33.0) ──
     pn = news.get("portfolio_news", {})
     if isinstance(pn, dict) and len(pn) >= 5:
         news_used = sum(1 for e in concordance if e.get("news_impact", "NEUTRAL") != "NEUTRAL")
         if news_used == 0:
-            gap(CRITICAL, "News", "news_impact_flow",
+            gap(
+                CRITICAL,
+                "News",
+                "news_impact_flow",
                 f"News agent provided data for {len(pn)} tickers but "
-                f"0 concordance entries have non-NEUTRAL news_impact")
+                f"0 concordance entries have non-NEUTRAL news_impact",
+            )
 
     rw_provided = set()
     for w in risk.get("consensus_warnings", []):
@@ -540,9 +639,13 @@ def validate_pre_html(
     if len(rw_provided) >= 3:
         rw_used = sum(1 for e in concordance if e.get("risk_warning"))
         if rw_used == 0:
-            gap(CRITICAL, "Risk", "risk_warning_flow",
+            gap(
+                CRITICAL,
+                "Risk",
+                "risk_warning_flow",
                 f"Risk agent provided warnings for {len(rw_provided)} tickers "
-                f"but 0 concordance entries have risk_warning=True")
+                f"but 0 concordance entries have risk_warning=True",
+            )
 
     return gaps
 
@@ -555,26 +658,26 @@ def validate_pre_html(
 # Each entry: (dotted_path, description, is_critical)
 # "critical" means the report is broken without it; "warning" means degraded.
 _SYNTH_REQUIRED = [
-    ("regime",          "Market regime classification",   True),
-    ("risk_score",      "Portfolio risk score",           True),
-    ("indicators.vix",  "VIX index value",               True),
-    ("concordance",     "Concordance matrix",             True),
+    ("regime", "Market regime classification", True),
+    ("risk_score", "Portfolio risk score", True),
+    ("indicators.vix", "VIX index value", True),
+    ("concordance", "Concordance matrix", True),
 ]
 _SYNTH_IMPORTANT = [
     ("indicators.us_10y_yield", "10-Year Treasury yield"),
-    ("indicators.eur_usd",      "EUR/USD exchange rate"),
-    ("indicators.dxy",          "Dollar index"),
-    ("portfolio_beta",          "Portfolio beta"),
-    ("sector_rankings",         "Sector rankings"),
-    ("breaking_news",           "Breaking news items"),
-    ("stress_scenarios",        "Stress scenarios"),
-    ("macro_score",             "Macro score"),
-    ("var_95",                  "Value at Risk (95%)"),
-    ("macro_label",             "Macro regime label"),
+    ("indicators.eur_usd", "EUR/USD exchange rate"),
+    ("indicators.dxy", "Dollar index"),
+    ("portfolio_beta", "Portfolio beta"),
+    ("sector_rankings", "Sector rankings"),
+    ("breaking_news", "Breaking news items"),
+    ("stress_scenarios", "Stress scenarios"),
+    ("macro_score", "Macro score"),
+    ("var_95", "Value at Risk (95%)"),
+    ("macro_label", "Macro regime label"),
 ]
 
 
-def _get_nested(d: Dict, path: str):
+def _get_nested(d: dict, path: str):
     """Resolve dotted path like 'indicators.vix' on a dict."""
     for key in path.split("."):
         if not isinstance(d, dict):
@@ -584,8 +687,8 @@ def _get_nested(d: Dict, path: str):
 
 
 def validate_synthesis_completeness(
-    synthesis: Dict[str, Any],
-) -> List[Dict[str, str]]:
+    synthesis: dict[str, Any],
+) -> list[dict[str, str]]:
     """
     Stage 1b: Validate that synthesis output has non-zero values for
     critical display fields.
@@ -608,8 +711,7 @@ def validate_synthesis_completeness(
         val = _get_nested(synthesis, path)
         if val is None or val == 0 or val == "" or val == []:
             sev = CRITICAL if is_crit else WARNING
-            gap(sev, "Synthesis", path,
-                f"{label} is missing/zero in synthesis output")
+            gap(sev, "Synthesis", path, f"{label} is missing/zero in synthesis output")
             if is_crit:
                 failed_critical += 1
 
@@ -617,72 +719,107 @@ def validate_synthesis_completeness(
     for path, label in _SYNTH_IMPORTANT:
         val = _get_nested(synthesis, path)
         if val is None or val == 0 or val == "" or val == [] or val == {}:
-            gap(WARNING, "Synthesis", path,
-                f"{label} is missing/zero in synthesis output")
+            gap(WARNING, "Synthesis", path, f"{label} is missing/zero in synthesis output")
             failed_important += 1
 
     # If many fields are zeroed simultaneously, it's a systemic extraction failure
     if failed_important >= 4:
-        gap(CRITICAL, "Synthesis", "systemic",
+        gap(
+            CRITICAL,
+            "Synthesis",
+            "systemic",
             f"{failed_critical} critical + {failed_important} important fields "
-            f"missing — likely agent→synthesis field name mismatch")
+            f"missing — likely agent→synthesis field name mismatch",
+        )
 
     # Concordance quality: check for uniformity (all same action = likely broken)
     concordance = synthesis.get("concordance", [])
     if len(concordance) >= 5:
         actions = {e.get("action") for e in concordance}
         if len(actions) == 1:
-            gap(CRITICAL, "Synthesis", "concordance_uniform",
+            gap(
+                CRITICAL,
+                "Synthesis",
+                "concordance_uniform",
                 f"All {len(concordance)} stocks have action={actions.pop()} "
-                f"— scoring is likely broken")
+                f"— scoring is likely broken",
+            )
 
         tech_signals = {e.get("tech_signal") for e in concordance}
         if tech_signals == {"HOLD"} or tech_signals == {"NEUTRAL"}:
-            gap(WARNING, "Synthesis", "tech_uniform",
-                f"All stocks have same tech signal — tech normalizer may have failed")
+            gap(
+                WARNING,
+                "Synthesis",
+                "tech_uniform",
+                "All stocks have same tech signal — tech normalizer may have failed",
+            )
 
         macro_fits = {e.get("macro_fit") for e in concordance}
         if macro_fits == {"NEUTRAL"}:
-            gap(WARNING, "Synthesis", "macro_uniform",
-                f"All stocks have macro_fit=NEUTRAL — macro normalizer may have failed")
+            gap(
+                WARNING,
+                "Synthesis",
+                "macro_uniform",
+                "All stocks have macro_fit=NEUTRAL — macro normalizer may have failed",
+            )
 
         # v33.0: Check for broken signal channels
         news_impacts = {e.get("news_impact") for e in concordance}
         if news_impacts == {"NEUTRAL"} and len(concordance) >= 10:
-            gap(CRITICAL, "Synthesis", "news_impact_uniform",
+            gap(
+                CRITICAL,
+                "Synthesis",
+                "news_impact_uniform",
                 f"All {len(concordance)} stocks have news_impact=NEUTRAL "
-                f"— news impact extraction likely broken")
+                f"— news impact extraction likely broken",
+            )
 
         risk_flags = {e.get("risk_warning") for e in concordance}
         if risk_flags == {False} and len(concordance) >= 15:
-            gap(WARNING, "Synthesis", "risk_warning_uniform",
+            gap(
+                WARNING,
+                "Synthesis",
+                "risk_warning_uniform",
                 f"All {len(concordance)} stocks have risk_warning=False "
-                f"— risk warning extraction may have failed")
+                f"— risk warning extraction may have failed",
+            )
 
         census_aligns = {e.get("census") for e in concordance}
         if census_aligns <= {"NEUTRAL", "MISSING", None, ""} and len(concordance) >= 10:
-            gap(CRITICAL, "Synthesis", "census_uniform",
+            gap(
+                CRITICAL,
+                "Synthesis",
+                "census_uniform",
                 f"All {len(concordance)} stocks have census=NEUTRAL/MISSING "
-                f"— census alignment data not flowing to concordance")
+                f"— census alignment data not flowing to concordance",
+            )
 
         # v35.0: Check entry_timing uniformity (TIMING column in grid)
         entry_timings = {e.get("entry_timing") for e in concordance}
         if entry_timings <= {"HOLD", None, ""} and len(concordance) >= 10:
-            gap(CRITICAL, "Synthesis", "entry_timing_uniform",
+            gap(
+                CRITICAL,
+                "Synthesis",
+                "entry_timing_uniform",
                 f"All {len(concordance)} stocks have entry_timing=HOLD "
-                f"— tech timing→timing_signal normalizer likely failed")
+                f"— tech timing→timing_signal normalizer likely failed",
+            )
 
         # v35.0: Check tech_momentum all zero (momentum column)
         momentums = [e.get("tech_momentum", 0) for e in concordance]
         if all(m == 0 for m in momentums) and len(concordance) >= 10:
-            gap(CRITICAL, "Synthesis", "tech_momentum_zero",
+            gap(
+                CRITICAL,
+                "Synthesis",
+                "tech_momentum_zero",
                 f"All {len(concordance)} stocks have tech_momentum=0 "
-                f"— momentum→momentum_score normalizer likely failed")
+                f"— momentum→momentum_score normalizer likely failed",
+            )
 
     return gaps
 
 
-def validate_post_html(html: str) -> List[Dict[str, str]]:
+def validate_post_html(html: str) -> list[dict[str, str]]:
     """
     Pass 2: Scan generated HTML for rendering gaps.
 
@@ -694,68 +831,90 @@ def validate_post_html(html: str) -> List[Dict[str, str]]:
         gaps.append({"severity": severity, "section": section, "field": field, "message": msg})
 
     # Count N/A cells (excluding legitimate ones like non-equity PE)
-    na_cells = len(re.findall(r'>N/A</span>', html))
+    na_cells = len(re.findall(r">N/A</span>", html))
     if na_cells > 20:
-        gap(WARNING, "HTML", "N/A cells",
-            f"{na_cells} N/A cells found — may indicate missing data flows")
+        gap(
+            WARNING,
+            "HTML",
+            "N/A cells",
+            f"{na_cells} N/A cells found — may indicate missing data flows",
+        )
 
     # Count empty cells
     empty_cells = len(re.findall(r'color:#64748b;">\s*</span></td>', html))
     if empty_cells > 5:
-        gap(WARNING, "HTML", "empty cells",
-            f"{empty_cells} empty cells found")
+        gap(WARNING, "HTML", "empty cells", f"{empty_cells} empty cells found")
 
     # Check for "?" trend values
-    q_marks = len(re.findall(r'>\?</span>', html))
+    q_marks = len(re.findall(r">\?</span>", html))
     if q_marks > 3:
-        gap(WARNING, "HTML", "question marks",
-            f"{q_marks} '?' values found — trend or signal data not mapped")
+        gap(
+            WARNING,
+            "HTML",
+            "question marks",
+            f"{q_marks} '?' values found — trend or signal data not mapped",
+        )
 
     # Check for 0% EXRET that might be wrong
-    zero_exret = len(re.findall(r'>0%</td>', html))
+    zero_exret = len(re.findall(r">0%</td>", html))
     if zero_exret > 5:
-        gap(INFO, "HTML", "zero EXRET",
-            f"{zero_exret} cells show 0% — may be missing expected return data")
+        gap(
+            INFO,
+            "HTML",
+            "zero EXRET",
+            f"{zero_exret} cells show 0% — may be missing expected return data",
+        )
 
     # Check key sections exist
-    for section in ["Executive Summary", "Macro &amp; Market Context",
-                    "News &amp; Events", "Technical Analysis",
-                    "Fundamental Deep Dive", "Sentiment &amp; Census"]:
+    for section in [
+        "Executive Summary",
+        "Macro &amp; Market Context",
+        "News &amp; Events",
+        "Technical Analysis",
+        "Fundamental Deep Dive",
+        "Sentiment &amp; Census",
+    ]:
         if section not in html:
             gap(CRITICAL, "HTML", section, f"Section '{section}' not found in HTML")
 
     # Check section has content (not just header)
-    for section_name, min_size in [("News &amp; Events", 500),
-                                    ("Fundamental Deep Dive", 1000),
-                                    ("Technical Analysis", 800),
-                                    ("Macro &amp; Market Context", 400),
-                                    ("Sentiment &amp; Census", 350)]:
+    for section_name, min_size in [
+        ("News &amp; Events", 500),
+        ("Fundamental Deep Dive", 1000),
+        ("Technical Analysis", 800),
+        ("Macro &amp; Market Context", 400),
+        ("Sentiment &amp; Census", 350),
+    ]:
         idx = html.find(section_name)
         if idx >= 0:
             # Find the section content between this header and the next section
-            next_section = html.find('<h2', idx + len(section_name))
+            next_section = html.find("<h2", idx + len(section_name))
             if next_section < 0:
                 next_section = len(html)
             section_html = html[idx:next_section]
             if len(section_html) < min_size:
-                gap(WARNING, "HTML", section_name,
-                    f"Section '{section_name}' seems too short ({len(section_html)} chars)")
+                gap(
+                    WARNING,
+                    "HTML",
+                    section_name,
+                    f"Section '{section_name}' seems too short ({len(section_html)} chars)",
+                )
 
     return gaps
 
 
 def run_qa(
-    synthesis: Dict[str, Any],
-    fund: Dict[str, Any],
-    tech: Dict[str, Any],
-    macro: Dict[str, Any],
-    census: Dict[str, Any],
-    news: Dict[str, Any],
-    opps: Dict[str, Any],
-    risk: Dict[str, Any],
+    synthesis: dict[str, Any],
+    fund: dict[str, Any],
+    tech: dict[str, Any],
+    macro: dict[str, Any],
+    census: dict[str, Any],
+    news: dict[str, Any],
+    opps: dict[str, Any],
+    risk: dict[str, Any],
     html: str = "",
     normalize: bool = True,
-) -> Tuple[bool, List[Dict[str, str]]]:
+) -> tuple[bool, list[dict[str, str]]]:
     """
     Full QA pass. Returns (passed, gaps).
 
@@ -772,7 +931,9 @@ def run_qa(
     if normalize:
         fixes = normalize_agent_reports(macro, census, news, risk, opps)
         for fix_msg in fixes:
-            gaps.append({"severity": INFO, "section": "Normalize", "field": "auto-fix", "message": fix_msg})
+            gaps.append(
+                {"severity": INFO, "section": "Normalize", "field": "auto-fix", "message": fix_msg}
+            )
 
     # Stage 1a: Pre-HTML validation (agent report completeness)
     gaps.extend(validate_pre_html(synthesis, fund, tech, macro, census, news, opps, risk))
@@ -788,14 +949,19 @@ def run_qa(
     warnings = [g for g in gaps if g["severity"] == WARNING]
     infos = [g for g in gaps if g["severity"] == INFO]
 
-    logger.info("QA result: %d critical, %d warning, %d info (%d auto-fixed)",
-                len(criticals), len(warnings), len(infos), len(fixes) if normalize else 0)
+    logger.info(
+        "QA result: %d critical, %d warning, %d info (%d auto-fixed)",
+        len(criticals),
+        len(warnings),
+        len(infos),
+        len(fixes) if normalize else 0,
+    )
 
     passed = len(criticals) == 0
     return passed, gaps
 
 
-def format_qa_report(gaps: List[Dict[str, str]]) -> str:
+def format_qa_report(gaps: list[dict[str, str]]) -> str:
     """Format QA gaps as a human-readable summary."""
     if not gaps:
         return "QA PASSED: No data gaps detected."
@@ -824,5 +990,8 @@ def format_qa_report(gaps: List[Dict[str, str]]) -> str:
             lines.append(f"  [{g['section']}] {g['field']}: {g['message']}")
 
     status = "FAILED" if criticals else "PASSED with warnings" if warnings else "PASSED"
-    lines.insert(0, f"QA {status}: {len(auto_fixes)} auto-fixed, {len(criticals)} critical, {len(warnings)} warnings, {len(infos)} info")
+    lines.insert(
+        0,
+        f"QA {status}: {len(auto_fixes)} auto-fixed, {len(criticals)} critical, {len(warnings)} warnings, {len(infos)} info",
+    )
     return "\n".join(lines)

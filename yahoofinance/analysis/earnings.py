@@ -11,7 +11,7 @@ across both APIs through private helper methods like _calculate_trend_metrics.
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import pandas as pd
 
@@ -22,6 +22,7 @@ from ..core.logging import get_logger
 from .base_analysis import BaseAnalysisService
 
 logger = get_logger(__name__)
+
 
 # The EarningsCalendar class below provides backward compatibility with the v1 API
 class EarningsCalendar:
@@ -101,7 +102,7 @@ class EarningsCalendar:
         except ValueError:
             return False
 
-    def _format_market_cap(self, market_cap: Optional[float]) -> str:
+    def _format_market_cap(self, market_cap: float | None) -> str:
         """
         Format market cap in billions (B) or trillions (T).
 
@@ -135,7 +136,7 @@ class EarningsCalendar:
         else:
             return f"${billions:.2f}B"  # < 10B: 2 decimals
 
-    def _format_eps(self, eps: Optional[float]) -> str:
+    def _format_eps(self, eps: float | None) -> str:
         """
         Format EPS value with 2 decimal places.
 
@@ -166,8 +167,8 @@ class EarningsCalendar:
         return timestamp.strftime("%Y-%m-%d")
 
     def _process_earnings_row(
-        self, ticker: str, date: pd.Timestamp, row: pd.Series, info: Dict[str, Any]
-    ) -> Dict[str, str]:
+        self, ticker: str, date: pd.Timestamp, row: pd.Series, info: dict[str, Any]
+    ) -> dict[str, str]:
         """
         Process a single earnings row.
 
@@ -199,8 +200,8 @@ class EarningsCalendar:
         }
 
     def get_earnings_calendar(
-        self, start_date: str, end_date: Optional[str] = None, tickers: Optional[List[str]] = None
-    ) -> Optional[pd.DataFrame]:
+        self, start_date: str, end_date: str | None = None, tickers: list[str] | None = None
+    ) -> pd.DataFrame | None:
         """
         Get earnings calendar for a date range.
 
@@ -291,6 +292,7 @@ class EarningsCalendar:
             logger.error(f"Error fetching earnings calendar: {str(e)}")
             return None
 
+
 def format_earnings_table(df: pd.DataFrame, start_date: str, end_date: str) -> None:
     """
     Format and print earnings calendar table.
@@ -321,16 +323,20 @@ def format_earnings_table(df: pd.DataFrame, start_date: str, end_date: str) -> N
 
         # Format all rows at once using vectorized string formatting
         formatted_rows = (
-            df["Symbol"].str.ljust(6) + " " +
-            df["Market Cap"].str.ljust(10) + " " +
-            df["Date"].str.ljust(12) + " " +
-            df["EPS Est"].str.ljust(8)
+            df["Symbol"].str.ljust(6)
+            + " "
+            + df["Market Cap"].str.ljust(10)
+            + " "
+            + df["Date"].str.ljust(12)
+            + " "
+            + df["EPS Est"].str.ljust(8)
         )
         print("\n".join(formatted_rows.values))
 
         # Print footer
         print("=" * 60)
         print(f"Total: {len(df)} companies reporting earnings")
+
 
 @dataclass
 class EarningsData:
@@ -349,19 +355,20 @@ class EarningsData:
         revenue_surprise: Latest revenue surprise (percentage)
     """
 
-    next_date: Optional[str] = None
-    previous_date: Optional[str] = None
-    earnings_history: List[Dict[str, Any]] = None
-    eps_estimate: Optional[float] = None
-    eps_actual: Optional[float] = None
-    eps_surprise: Optional[float] = None
-    revenue_estimate: Optional[float] = None
-    revenue_actual: Optional[float] = None
-    revenue_surprise: Optional[float] = None
+    next_date: str | None = None
+    previous_date: str | None = None
+    earnings_history: list[dict[str, Any]] = None
+    eps_estimate: float | None = None
+    eps_actual: float | None = None
+    eps_surprise: float | None = None
+    revenue_estimate: float | None = None
+    revenue_actual: float | None = None
+    revenue_surprise: float | None = None
 
     def __post_init__(self):
         if self.earnings_history is None:
             self.earnings_history = []
+
 
 class EarningsAnalyzer(BaseAnalysisService):
     """
@@ -435,7 +442,7 @@ class EarningsAnalyzer(BaseAnalysisService):
             logger.error(f"Error fetching earnings data for {ticker}: {str(e)}")
             return EarningsData()
 
-    def get_earnings_batch(self, tickers: List[str]) -> Dict[str, EarningsData]:
+    def get_earnings_batch(self, tickers: list[str]) -> dict[str, EarningsData]:
         """
         Get earnings data for multiple tickers.
 
@@ -462,7 +469,7 @@ class EarningsAnalyzer(BaseAnalysisService):
 
         return results
 
-    async def get_earnings_batch_async(self, tickers: List[str]) -> Dict[str, EarningsData]:
+    async def get_earnings_batch_async(self, tickers: list[str]) -> dict[str, EarningsData]:
         """
         Get earnings data for multiple tickers asynchronously.
 
@@ -487,8 +494,8 @@ class EarningsAnalyzer(BaseAnalysisService):
         results_list = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Process results
-        results: Dict[str, EarningsData] = {}
-        for ticker, result in zip(tickers, results_list):
+        results: dict[str, EarningsData] = {}
+        for ticker, result in zip(tickers, results_list, strict=False):
             if isinstance(result, Exception):
                 logger.error(f"Error fetching earnings data for {ticker}: {str(result)}")
                 results[ticker] = EarningsData()
@@ -499,8 +506,8 @@ class EarningsAnalyzer(BaseAnalysisService):
 
     def _process_earnings_data(
         self,
-        earnings_dates: Optional[Tuple[str, str]],
-        earnings_history: Optional[List[Dict[str, Any]]],
+        earnings_dates: tuple[str, str] | None,
+        earnings_history: list[dict[str, Any]] | None,
     ) -> EarningsData:
         """
         Process earnings data into EarningsData object.
@@ -543,7 +550,7 @@ class EarningsAnalyzer(BaseAnalysisService):
 
     def _calculate_trend_metrics(
         self, earnings_data: EarningsData, ticker: str, quarters: int = 4
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Calculate earnings trend metrics from earnings data.
         This is a helper method used by both sync and async trend calculation methods.
@@ -624,7 +631,7 @@ class EarningsAnalyzer(BaseAnalysisService):
             ),
         }
 
-    def calculate_earnings_trend(self, ticker: str, quarters: int = 4) -> Optional[Dict[str, Any]]:
+    def calculate_earnings_trend(self, ticker: str, quarters: int = 4) -> dict[str, Any] | None:
         """
         Calculate earnings trend over multiple quarters.
 
@@ -654,7 +661,7 @@ class EarningsAnalyzer(BaseAnalysisService):
 
     async def calculate_earnings_trend_async(
         self, ticker: str, quarters: int = 4
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Calculate earnings trend over multiple quarters asynchronously.
 

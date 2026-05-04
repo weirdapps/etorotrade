@@ -9,26 +9,26 @@ CIO Review Finding M4: No earnings proximity adjustment in signal engine.
 """
 
 import logging
-from datetime import date, datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
 import threading
+from datetime import UTC, date, datetime, timedelta
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # Proximity thresholds (calendar days)
-EARNINGS_IMMINENT_DAYS = 7    # Within 7 calendar days of earnings
-EARNINGS_RECENT_DAYS = 5      # Within 5 calendar days AFTER earnings
+EARNINGS_IMMINENT_DAYS = 7  # Within 7 calendar days of earnings
+EARNINGS_RECENT_DAYS = 5  # Within 5 calendar days AFTER earnings
 POST_EARNINGS_BOOST_DAYS = 14  # Signals within 14 days after earnings are freshest
 POST_EARNINGS_NORMAL_DAYS = 45  # 14-45 days: moderate accuracy
 # Beyond 45 days: estimates getting stale (CIO v3 F4)
 
 # Cache for earnings dates
-_earnings_cache: Dict[str, Tuple[Optional[datetime], datetime]] = {}
+_earnings_cache: dict[str, tuple[datetime | None, datetime]] = {}
 _earnings_cache_lock = threading.Lock()
 _EARNINGS_CACHE_TTL_HOURS = 12  # Earnings dates don't change often
 
 
-def _fetch_next_earnings(ticker: str) -> Optional[datetime]:
+def _fetch_next_earnings(ticker: str) -> datetime | None:
     """
     Fetch next earnings date for a ticker from yfinance.
 
@@ -40,6 +40,7 @@ def _fetch_next_earnings(ticker: str) -> Optional[datetime]:
     """
     try:
         import yfinance as yf
+
         stock = yf.Ticker(ticker)
         # Try calendar first
         try:
@@ -73,7 +74,7 @@ def _fetch_next_earnings(ticker: str) -> Optional[datetime]:
         return None
 
 
-def get_next_earnings(ticker: str) -> Optional[datetime]:
+def get_next_earnings(ticker: str) -> datetime | None:
     """
     Get next earnings date with caching.
 
@@ -97,7 +98,7 @@ def get_next_earnings(ticker: str) -> Optional[datetime]:
     return earnings_date
 
 
-def check_earnings_proximity(ticker: str) -> Dict[str, Any]:
+def check_earnings_proximity(ticker: str) -> dict[str, Any]:
     """
     Check if a stock is near its earnings date.
 
@@ -128,9 +129,8 @@ def check_earnings_proximity(ticker: str) -> Dict[str, Any]:
     if isinstance(earnings_date, date) and not isinstance(earnings_date, datetime):
         earnings_date = datetime(earnings_date.year, earnings_date.month, earnings_date.day)
     # Handle timezone-aware dates
-    if hasattr(earnings_date, 'tzinfo') and earnings_date.tzinfo is not None:
-        from datetime import timezone
-        now = now.replace(tzinfo=timezone.utc)
+    if hasattr(earnings_date, "tzinfo") and earnings_date.tzinfo is not None:
+        now = now.replace(tzinfo=UTC)
 
     delta = (earnings_date - now).days
 
@@ -178,7 +178,7 @@ def check_earnings_proximity(ticker: str) -> Dict[str, Any]:
     }
 
 
-def get_earnings_flags(tickers: List[str]) -> Dict[str, Dict[str, Any]]:
+def get_earnings_flags(tickers: list[str]) -> dict[str, dict[str, Any]]:
     """
     Get earnings proximity flags for multiple tickers.
 
@@ -194,7 +194,7 @@ def get_earnings_flags(tickers: List[str]) -> Dict[str, Dict[str, Any]]:
     return results
 
 
-def get_imminent_earnings(tickers: List[str]) -> List[Dict[str, Any]]:
+def get_imminent_earnings(tickers: list[str]) -> list[dict[str, Any]]:
     """
     Get list of tickers with imminent earnings (for briefing/committee).
 
@@ -208,11 +208,13 @@ def get_imminent_earnings(tickers: List[str]) -> List[Dict[str, Any]]:
     for ticker in tickers:
         info = check_earnings_proximity(ticker)
         if info["status"] == "imminent":
-            imminent.append({
-                "ticker": ticker,
-                "earnings_date": info["earnings_date"],
-                "days_until": info["days_until"],
-            })
+            imminent.append(
+                {
+                    "ticker": ticker,
+                    "earnings_date": info["earnings_date"],
+                    "days_until": info["days_until"],
+                }
+            )
 
     imminent.sort(key=lambda x: x["days_until"] if x["days_until"] is not None else 999)
     return imminent

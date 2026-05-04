@@ -13,7 +13,7 @@ Polygon.io Free Tier Limits:
 import asyncio
 import os
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import aiohttp
 import pandas as pd
@@ -23,6 +23,7 @@ from ...core.logging import get_logger
 from .base_provider import AsyncFinanceDataProvider
 
 logger = get_logger(__name__)
+
 
 class PolygonProvider(AsyncFinanceDataProvider):
     """
@@ -92,7 +93,9 @@ class PolygonProvider(AsyncFinanceDataProvider):
         self.minute_request_count += 1
         self.last_request_time = time.time()
 
-    async def _make_request(self, endpoint: str, params: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    async def _make_request(
+        self, endpoint: str, params: dict[str, str] | None = None
+    ) -> dict[str, Any]:
         """
         Make an API request to Polygon.io.
 
@@ -137,7 +140,7 @@ class PolygonProvider(AsyncFinanceDataProvider):
 
     async def get_ticker_info(
         self, ticker: str, skip_insider_metrics: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get comprehensive information for a ticker.
 
@@ -192,7 +195,7 @@ class PolygonProvider(AsyncFinanceDataProvider):
             logger.error(f"Polygon.io get_ticker_info failed for {ticker}: {e}")
             return {}
 
-    async def get_price_data(self, ticker: str) -> Dict[str, Any]:
+    async def get_price_data(self, ticker: str) -> dict[str, Any]:
         """
         Get current price data for a ticker.
 
@@ -241,25 +244,25 @@ class PolygonProvider(AsyncFinanceDataProvider):
         """Not implemented for Polygon fallback."""
         return pd.DataFrame()
 
-    async def get_earnings_dates(self, ticker: str) -> Tuple[Optional[str], Optional[str]]:
+    async def get_earnings_dates(self, ticker: str) -> tuple[str | None, str | None]:
         """Not implemented for Polygon fallback."""
         return None, None
 
-    async def get_analyst_ratings(self, ticker: str) -> Dict[str, Any]:
+    async def get_analyst_ratings(self, ticker: str) -> dict[str, Any]:
         """Not implemented for Polygon fallback."""
         return {}
 
-    async def get_insider_transactions(self, ticker: str) -> List[Dict[str, Any]]:
+    async def get_insider_transactions(self, ticker: str) -> list[dict[str, Any]]:
         """Not implemented for Polygon fallback."""
         return []
 
-    async def search_tickers(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+    async def search_tickers(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         """Not implemented for Polygon fallback."""
         return []
 
     async def batch_get_ticker_info(
-        self, tickers: List[str], skip_insider_metrics: bool = False
-    ) -> Dict[str, Dict[str, Any]]:
+        self, tickers: list[str], skip_insider_metrics: bool = False
+    ) -> dict[str, dict[str, Any]]:
         """
         Get ticker information for multiple tickers.
 
@@ -289,7 +292,7 @@ class PolygonProvider(AsyncFinanceDataProvider):
         """Polygon.io provider has no cache."""
         pass
 
-    def get_cache_info(self) -> Dict[str, Any]:
+    def get_cache_info(self) -> dict[str, Any]:
         """Return rate limit statistics."""
         return {
             "provider": "Polygon.io",

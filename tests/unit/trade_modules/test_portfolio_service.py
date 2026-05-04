@@ -4,10 +4,11 @@ Tests for trade_modules/portfolio_service.py
 This module tests the PortfolioService class for portfolio-specific filtering.
 """
 
-import pytest
-import pandas as pd
 import logging
 from unittest.mock import MagicMock
+
+import pandas as pd
+import pytest
 
 from trade_modules.portfolio_service import PortfolioService
 
@@ -27,39 +28,47 @@ def portfolio_service(logger):
 @pytest.fixture
 def sample_portfolio_df():
     """Create a sample portfolio DataFrame."""
-    return pd.DataFrame({
-        "TICKER": ["AAPL", "MSFT", "GOOGL"],
-        "quantity": [100, 50, 25],
-        "price": [175.0, 380.0, 140.0],
-        "BS": ["B", "S", "H"],
-    })
+    return pd.DataFrame(
+        {
+            "TICKER": ["AAPL", "MSFT", "GOOGL"],
+            "quantity": [100, 50, 25],
+            "price": [175.0, 380.0, 140.0],
+            "BS": ["B", "S", "H"],
+        }
+    )
 
 
 @pytest.fixture
 def sample_opportunities():
     """Create sample opportunities dict."""
-    buy_df = pd.DataFrame({
-        "ticker": ["AMZN", "TSLA", "META", "AAPL"],
-        "price": [180.0, 250.0, 350.0, 175.0],
-        "BS": ["B", "B", "B", "B"],
-        "upside": [12.0, 15.0, 10.0, 8.0],
-    })
+    buy_df = pd.DataFrame(
+        {
+            "ticker": ["AMZN", "TSLA", "META", "AAPL"],
+            "price": [180.0, 250.0, 350.0, 175.0],
+            "BS": ["B", "B", "B", "B"],
+            "upside": [12.0, 15.0, 10.0, 8.0],
+        }
+    )
     buy_df = buy_df.set_index("ticker")
 
-    sell_df = pd.DataFrame({
-        "ticker": ["NFLX", "MSFT", "INTC"],
-        "price": [400.0, 380.0, 30.0],
-        "BS": ["S", "S", "S"],
-        "upside": [-5.0, -3.0, -8.0],
-    })
+    sell_df = pd.DataFrame(
+        {
+            "ticker": ["NFLX", "MSFT", "INTC"],
+            "price": [400.0, 380.0, 30.0],
+            "BS": ["S", "S", "S"],
+            "upside": [-5.0, -3.0, -8.0],
+        }
+    )
     sell_df = sell_df.set_index("ticker")
 
-    hold_df = pd.DataFrame({
-        "ticker": ["AMD", "GOOGL", "NVDA"],
-        "price": [120.0, 140.0, 450.0],
-        "BS": ["H", "H", "H"],
-        "upside": [2.0, 1.0, 3.0],
-    })
+    hold_df = pd.DataFrame(
+        {
+            "ticker": ["AMD", "GOOGL", "NVDA"],
+            "price": [120.0, 140.0, 450.0],
+            "BS": ["H", "H", "H"],
+            "upside": [2.0, 1.0, 3.0],
+        }
+    )
     hold_df = hold_df.set_index("ticker")
 
     return {
@@ -119,62 +128,52 @@ class TestApplyPortfolioFilters:
         # hold_opportunities should be a valid DataFrame
         assert isinstance(hold_opportunities, pd.DataFrame)
 
-    def test_empty_portfolio_no_changes(
-        self, portfolio_service, sample_opportunities
-    ):
+    def test_empty_portfolio_no_changes(self, portfolio_service, sample_opportunities):
         """Test with empty portfolio - no changes to opportunities."""
         empty_portfolio = pd.DataFrame(columns=["TICKER", "quantity"])
 
-        result = portfolio_service.apply_portfolio_filters(
-            sample_opportunities, empty_portfolio
-        )
+        result = portfolio_service.apply_portfolio_filters(sample_opportunities, empty_portfolio)
 
         # Buy opportunities should remain unchanged
         assert len(result["buy_opportunities"]) == len(sample_opportunities["buy_opportunities"])
 
-    def test_different_ticker_column_names(
-        self, portfolio_service, sample_opportunities
-    ):
+    def test_different_ticker_column_names(self, portfolio_service, sample_opportunities):
         """Test with different ticker column names."""
         # Test with 'Ticker' column
-        portfolio_ticker = pd.DataFrame({
-            "Ticker": ["AAPL", "MSFT"],
-            "quantity": [100, 50],
-        })
-
-        result = portfolio_service.apply_portfolio_filters(
-            sample_opportunities, portfolio_ticker
+        portfolio_ticker = pd.DataFrame(
+            {
+                "Ticker": ["AAPL", "MSFT"],
+                "quantity": [100, 50],
+            }
         )
+
+        result = portfolio_service.apply_portfolio_filters(sample_opportunities, portfolio_ticker)
 
         assert "AAPL" not in result["buy_opportunities"].index
 
-    def test_ticker_lowercase_column(
-        self, portfolio_service, sample_opportunities
-    ):
+    def test_ticker_lowercase_column(self, portfolio_service, sample_opportunities):
         """Test with lowercase 'ticker' column."""
-        portfolio_lower = pd.DataFrame({
-            "ticker": ["AAPL", "MSFT"],
-            "quantity": [100, 50],
-        })
-
-        result = portfolio_service.apply_portfolio_filters(
-            sample_opportunities, portfolio_lower
+        portfolio_lower = pd.DataFrame(
+            {
+                "ticker": ["AAPL", "MSFT"],
+                "quantity": [100, 50],
+            }
         )
+
+        result = portfolio_service.apply_portfolio_filters(sample_opportunities, portfolio_lower)
 
         assert "AAPL" not in result["buy_opportunities"].index
 
-    def test_symbol_column(
-        self, portfolio_service, sample_opportunities
-    ):
+    def test_symbol_column(self, portfolio_service, sample_opportunities):
         """Test with 'symbol' column."""
-        portfolio_symbol = pd.DataFrame({
-            "symbol": ["AAPL", "MSFT"],
-            "quantity": [100, 50],
-        })
-
-        result = portfolio_service.apply_portfolio_filters(
-            sample_opportunities, portfolio_symbol
+        portfolio_symbol = pd.DataFrame(
+            {
+                "symbol": ["AAPL", "MSFT"],
+                "quantity": [100, 50],
+            }
         )
+
+        result = portfolio_service.apply_portfolio_filters(sample_opportunities, portfolio_symbol)
 
         assert "AAPL" not in result["buy_opportunities"].index
 
@@ -182,32 +181,30 @@ class TestApplyPortfolioFilters:
 class TestApplyPortfolioFiltersEdgeCases:
     """Edge case tests for apply_portfolio_filters."""
 
-    def test_handles_na_tickers_in_portfolio(
-        self, portfolio_service, sample_opportunities
-    ):
+    def test_handles_na_tickers_in_portfolio(self, portfolio_service, sample_opportunities):
         """Test handling NA values in portfolio tickers."""
-        portfolio_with_na = pd.DataFrame({
-            "TICKER": ["AAPL", None, "MSFT", ""],
-            "quantity": [100, 50, 25, 10],
-        })
+        portfolio_with_na = pd.DataFrame(
+            {
+                "TICKER": ["AAPL", None, "MSFT", ""],
+                "quantity": [100, 50, 25, 10],
+            }
+        )
 
         # Should not raise error
-        result = portfolio_service.apply_portfolio_filters(
-            sample_opportunities, portfolio_with_na
-        )
+        result = portfolio_service.apply_portfolio_filters(sample_opportunities, portfolio_with_na)
 
         assert "buy_opportunities" in result
         assert "sell_opportunities" in result
         assert "hold_opportunities" in result
 
-    def test_handles_missing_ticker_column(
-        self, portfolio_service, sample_opportunities
-    ):
+    def test_handles_missing_ticker_column(self, portfolio_service, sample_opportunities):
         """Test handling portfolio without ticker column."""
-        portfolio_no_ticker = pd.DataFrame({
-            "company": ["Apple", "Microsoft"],
-            "quantity": [100, 50],
-        })
+        portfolio_no_ticker = pd.DataFrame(
+            {
+                "company": ["Apple", "Microsoft"],
+                "quantity": [100, 50],
+            }
+        )
 
         # Should not raise error, return unchanged
         result = portfolio_service.apply_portfolio_filters(
@@ -217,9 +214,7 @@ class TestApplyPortfolioFiltersEdgeCases:
         # Should have same structure
         assert "buy_opportunities" in result
 
-    def test_handles_empty_opportunities(
-        self, portfolio_service, sample_portfolio_df
-    ):
+    def test_handles_empty_opportunities(self, portfolio_service, sample_portfolio_df):
         """Test handling empty opportunity DataFrames."""
         # Create empty DataFrames with proper structure
         buy_empty = pd.DataFrame(columns=["price", "BS"])
@@ -235,34 +230,30 @@ class TestApplyPortfolioFiltersEdgeCases:
             "hold_opportunities": hold_empty,
         }
 
-        result = portfolio_service.apply_portfolio_filters(
-            empty_opportunities, sample_portfolio_df
-        )
+        result = portfolio_service.apply_portfolio_filters(empty_opportunities, sample_portfolio_df)
 
         # Result should still have same keys
         assert "buy_opportunities" in result
         assert "sell_opportunities" in result
         assert "hold_opportunities" in result
 
-    def test_preserves_other_columns(
-        self, portfolio_service, sample_portfolio_df
-    ):
+    def test_preserves_other_columns(self, portfolio_service, sample_portfolio_df):
         """Test that filtering preserves all columns in opportunities."""
         opportunities = {
-            "buy_opportunities": pd.DataFrame({
-                "ticker": ["AMZN", "TSLA"],
-                "price": [180.0, 250.0],
-                "BS": ["B", "B"],
-                "upside": [12.0, 15.0],
-                "custom_col": ["a", "b"],
-            }).set_index("ticker"),
+            "buy_opportunities": pd.DataFrame(
+                {
+                    "ticker": ["AMZN", "TSLA"],
+                    "price": [180.0, 250.0],
+                    "BS": ["B", "B"],
+                    "upside": [12.0, 15.0],
+                    "custom_col": ["a", "b"],
+                }
+            ).set_index("ticker"),
             "sell_opportunities": pd.DataFrame(columns=["price", "BS"]),
             "hold_opportunities": pd.DataFrame(columns=["price", "BS"]),
         }
 
-        result = portfolio_service.apply_portfolio_filters(
-            opportunities, sample_portfolio_df
-        )
+        result = portfolio_service.apply_portfolio_filters(opportunities, sample_portfolio_df)
 
         # Custom column should be preserved
         if len(result["buy_opportunities"]) > 0:
@@ -293,30 +284,38 @@ class TestPortfolioServiceIntegration:
     def test_full_portfolio_filter_workflow(self, portfolio_service):
         """Test complete portfolio filtering workflow."""
         # Create portfolio
-        portfolio = pd.DataFrame({
-            "TICKER": ["AAPL", "MSFT", "GOOGL"],
-            "quantity": [100, 50, 25],
-            "BS": ["B", "S", "H"],
-        })
+        portfolio = pd.DataFrame(
+            {
+                "TICKER": ["AAPL", "MSFT", "GOOGL"],
+                "quantity": [100, 50, 25],
+                "BS": ["B", "S", "H"],
+            }
+        )
 
         # Create market opportunities
-        buy_df = pd.DataFrame({
-            "ticker": ["AAPL", "AMZN", "TSLA"],
-            "price": [175.0, 180.0, 250.0],
-            "BS": ["B", "B", "B"],
-        }).set_index("ticker")
+        buy_df = pd.DataFrame(
+            {
+                "ticker": ["AAPL", "AMZN", "TSLA"],
+                "price": [175.0, 180.0, 250.0],
+                "BS": ["B", "B", "B"],
+            }
+        ).set_index("ticker")
 
-        sell_df = pd.DataFrame({
-            "ticker": ["MSFT", "NFLX"],
-            "price": [380.0, 400.0],
-            "BS": ["S", "S"],
-        }).set_index("ticker")
+        sell_df = pd.DataFrame(
+            {
+                "ticker": ["MSFT", "NFLX"],
+                "price": [380.0, 400.0],
+                "BS": ["S", "S"],
+            }
+        ).set_index("ticker")
 
-        hold_df = pd.DataFrame({
-            "ticker": ["GOOGL", "AMD"],
-            "price": [140.0, 120.0],
-            "BS": ["H", "H"],
-        }).set_index("ticker")
+        hold_df = pd.DataFrame(
+            {
+                "ticker": ["GOOGL", "AMD"],
+                "price": [140.0, 120.0],
+                "BS": ["H", "H"],
+            }
+        ).set_index("ticker")
 
         opportunities = {
             "buy_opportunities": buy_df,
@@ -335,17 +334,21 @@ class TestPortfolioServiceIntegration:
     def test_equivalent_ticker_handling(self, portfolio_service):
         """Test that equivalent tickers are properly matched."""
         # Portfolio with GOOGL
-        portfolio = pd.DataFrame({
-            "TICKER": ["GOOGL"],
-            "quantity": [100],
-        })
+        portfolio = pd.DataFrame(
+            {
+                "TICKER": ["GOOGL"],
+                "quantity": [100],
+            }
+        )
 
         # Buy opportunities with GOOG (equivalent to GOOGL)
-        buy_df = pd.DataFrame({
-            "ticker": ["GOOG", "AMZN"],
-            "price": [140.0, 180.0],
-            "BS": ["B", "B"],
-        }).set_index("ticker")
+        buy_df = pd.DataFrame(
+            {
+                "ticker": ["GOOG", "AMZN"],
+                "price": [140.0, 180.0],
+                "BS": ["B", "B"],
+            }
+        ).set_index("ticker")
 
         opportunities = {
             "buy_opportunities": buy_df,
@@ -362,11 +365,13 @@ class TestPortfolioServiceIntegration:
 
     def test_logs_portfolio_sell_additions(self, portfolio_service, logger):
         """Test that service logs when portfolio SELL stocks are added."""
-        portfolio = pd.DataFrame({
-            "TICKER": ["AAPL", "MSFT"],
-            "quantity": [100, 50],
-            "BS": ["B", "S"],
-        })
+        portfolio = pd.DataFrame(
+            {
+                "TICKER": ["AAPL", "MSFT"],
+                "quantity": [100, 50],
+                "BS": ["B", "S"],
+            }
+        )
 
         opportunities = {
             "buy_opportunities": pd.DataFrame(columns=["price", "BS"]),

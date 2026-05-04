@@ -5,10 +5,10 @@ import pytest
 
 from trade_modules.concentration_analyzer import (
     ConcentrationWarning,
+    _infer_region_from_ticker,
     analyze_concentration,
     format_concentration_warnings,
     get_diversification_score,
-    _infer_region_from_ticker,
 )
 
 
@@ -46,12 +46,14 @@ class TestAnalyzeConcentration:
     """Tests for analyze_concentration function."""
 
     def _make_df(self, tickers, sectors, regions, signals):
-        return pd.DataFrame({
-            "ticker": tickers,
-            "sector": sectors,
-            "region": regions,
-            "BS": signals,
-        })
+        return pd.DataFrame(
+            {
+                "ticker": tickers,
+                "sector": sectors,
+                "region": regions,
+                "BS": signals,
+            }
+        )
 
     def test_empty_dataframe(self):
         df = pd.DataFrame()
@@ -121,11 +123,13 @@ class TestAnalyzeConcentration:
 
     def test_region_inferred_from_ticker(self):
         """When no region column, regions inferred from ticker suffixes."""
-        df = pd.DataFrame({
-            "ticker": ["AAPL", "MSFT", "GOOGL", "0700.HK"],
-            "sector": ["Tech", "Tech", "Tech", "Tech"],
-            "BS": ["B", "B", "B", "B"],
-        })
+        df = pd.DataFrame(
+            {
+                "ticker": ["AAPL", "MSFT", "GOOGL", "0700.HK"],
+                "sector": ["Tech", "Tech", "Tech", "Tech"],
+                "BS": ["B", "B", "B", "B"],
+            }
+        )
         warnings = analyze_concentration(
             df, max_sector_concentration=1.0, max_region_concentration=0.50
         )
@@ -192,28 +196,44 @@ class TestGetDiversificationScore:
         assert "Too few" in desc
 
     def test_perfectly_concentrated(self):
-        df = pd.DataFrame({
-            "BS": ["B", "B", "B"],
-            "sector": ["Tech", "Tech", "Tech"],
-        })
+        df = pd.DataFrame(
+            {
+                "BS": ["B", "B", "B"],
+                "sector": ["Tech", "Tech", "Tech"],
+            }
+        )
         score, desc = get_diversification_score(df)
         assert score == pytest.approx(0.0)
         assert "concentrated" in desc.lower()
 
     def test_well_diversified(self):
-        df = pd.DataFrame({
-            "BS": ["B"] * 10,
-            "sector": ["Tech", "Health", "Finance", "Energy", "Consumer",
-                       "Industrial", "Materials", "Utilities", "Real Estate", "Telecom"],
-        })
+        df = pd.DataFrame(
+            {
+                "BS": ["B"] * 10,
+                "sector": [
+                    "Tech",
+                    "Health",
+                    "Finance",
+                    "Energy",
+                    "Consumer",
+                    "Industrial",
+                    "Materials",
+                    "Utilities",
+                    "Real Estate",
+                    "Telecom",
+                ],
+            }
+        )
         score, desc = get_diversification_score(df)
         assert score >= 70
         assert "diversified" in desc.lower()
 
     def test_moderately_diversified(self):
-        df = pd.DataFrame({
-            "BS": ["B"] * 6,
-            "sector": ["Tech", "Tech", "Tech", "Health", "Finance", "Energy"],
-        })
+        df = pd.DataFrame(
+            {
+                "BS": ["B"] * 6,
+                "sector": ["Tech", "Tech", "Tech", "Health", "Finance", "Energy"],
+            }
+        )
         score, desc = get_diversification_score(df)
         assert 30 <= score < 70

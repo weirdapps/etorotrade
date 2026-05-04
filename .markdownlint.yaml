@@ -17,3 +17,11 @@ MD034: false
 # Relax emphasis style
 MD049: false
 MD050: false
+
+# Allow files without top-level h1 — slash commands and memory snippets
+# legitimately start with descriptive prose
+MD041: false
+
+# Allow bold/italic in place of headings — design specs use `**M1. Title**`
+# patterns for module labels that are list items, not document sections
+MD036: false

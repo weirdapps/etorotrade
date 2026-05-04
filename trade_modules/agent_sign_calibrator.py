@@ -23,7 +23,7 @@ import logging
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 _DATE_RE = re.compile(r"(\d{4}-\d{2}-\d{2})")
 
@@ -35,11 +35,16 @@ DEFAULT_CALIBRATOR_PATH = (
 
 # View → polarity. Positive polarity = bullish view; negative = bearish.
 # Used to know which side of P(α>0) the inversion crosses.
-AGENT_POLARITY: Dict[str, Dict[str, int]] = {
+AGENT_POLARITY: dict[str, dict[str, int]] = {
     "fundamental": {"BUY": +1, "HOLD": 0, "SELL": -1},
     "technical": {
-        "ENTER_NOW": +1, "WAIT_FOR_PULLBACK": 0, "WAIT": 0, "HOLD": 0,
-        "REDUCE": -1, "EXIT_SOON": -1, "AVOID": -1,
+        "ENTER_NOW": +1,
+        "WAIT_FOR_PULLBACK": 0,
+        "WAIT": 0,
+        "HOLD": 0,
+        "REDUCE": -1,
+        "EXIT_SOON": -1,
+        "AVOID": -1,
     },
     "macro": {"FAVORABLE": +1, "NEUTRAL": 0, "UNFAVORABLE": -1},
     "census": {"ALIGNED": +1, "NEUTRAL": 0, "DIVERGENT": -1, "CENSUS_DIV": -1},
@@ -51,12 +56,12 @@ AGENT_POLARITY: Dict[str, Dict[str, int]] = {
 def _load_concordance_history(
     history_dir: Path,
     days: int = 60,
-) -> List[Tuple[str, List[Dict[str, Any]]]]:
+) -> list[tuple[str, list[dict[str, Any]]]]:
     """Load (date, concordance) pairs from history/ within the lookback window."""
     if not history_dir.is_dir():
         return []
     cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
-    out: List[Tuple[str, List[Dict[str, Any]]]] = []
+    out: list[tuple[str, list[dict[str, Any]]]] = []
     for fpath in sorted(history_dir.glob("concordance-*.json")):
         # Extract YYYY-MM-DD from stem via regex (filename may be either
         # "concordance-YYYY-MM-DD.json" or "concordance-YYYY-MM-DD-suffix.json").
@@ -78,10 +83,7 @@ def _load_concordance_history(
             continue
         # Normalise legacy {ticker: row} dict format to list-of-rows.
         if isinstance(items, dict):
-            items = [
-                dict(v, ticker=k) if isinstance(v, dict) else None
-                for k, v in items.items()
-            ]
+            items = [dict(v, ticker=k) if isinstance(v, dict) else None for k, v in items.items()]
             items = [r for r in items if r is not None]
         # Filter out non-dict entries (defensive).
         items = [r for r in items if isinstance(r, dict)]
@@ -91,24 +93,24 @@ def _load_concordance_history(
 
 
 def _alpha_from_returns(
-    forward_returns: Dict[str, Dict[str, float]],
+    forward_returns: dict[str, dict[str, float]],
     ticker: str,
     date_str: str,
     horizon: str,
-) -> Optional[float]:
+) -> float | None:
     key = f"{ticker}:{date_str}"
     return (forward_returns.get(key, {}) or {}).get(f"{horizon}_alpha")
 
 
 def calibrate_agent_signs(
-    forward_returns: Dict[str, Dict[str, float]],
-    history_dir: Optional[Path] = None,
+    forward_returns: dict[str, dict[str, float]],
+    history_dir: Path | None = None,
     horizon: str = "T+30",
     lookback_days: int = 60,
     min_evidence: int = 10,
     flip_lower: float = 0.45,
     flip_upper: float = 0.55,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Compute per-agent, per-view P(α(horizon) > 0) and propose sign flips.
 
@@ -126,18 +128,20 @@ def calibrate_agent_signs(
         verdict ("OK" / "INVERTED" / "INSUFFICIENT_DATA"), and the
         recommended sign multiplier (+1 = unchanged, −1 = flip).
     """
-    history_dir = history_dir or (
-        Path.home() / ".weirdapps-trading" / "committee" / "history"
-    )
+    history_dir = history_dir or (Path.home() / ".weirdapps-trading" / "committee" / "history")
     history = _load_concordance_history(history_dir, lookback_days)
     if not history:
         return {"status": "no_history", "agents": {}}
 
     # Per-agent, per-view, alphas observed.
-    per_agent_view: Dict[str, Dict[str, List[float]]] = {
-        agent: {} for agent in AGENT_POLARITY
-    }
+    per_agent_view: dict[str, dict[str, list[float]]] = {agent: {} for agent in AGENT_POLARITY}
     # Map agent → field on the concordance row carrying that agent's view.
+    # CIO v36 N6: field names verified against actual concordance entries on
+    # 2026-05-04. All 5 fields (fund_view, tech_signal, macro_fit, census,
+    # news_impact) ARE present in current and recent historical concordance
+    # files. The "0 evidence" issue earlier was caused by forward_returns not
+    # being populated, NOT by a field-name mismatch. Wire forward_returns
+    # from the M11 calibrator/CommitteeBacktester into this function.
     AGENT_FIELD = {
         "fundamental": "fund_view",
         "technical": "tech_signal",
@@ -171,9 +175,9 @@ def calibrate_agent_signs(
                         view = "NEUTRAL"
                 per_agent_view[agent].setdefault(str(view), []).append(float(alpha))
 
-    agents_out: Dict[str, Any] = {}
+    agents_out: dict[str, Any] = {}
     for agent, view_alphas in per_agent_view.items():
-        view_stats: Dict[str, Any] = {}
+        view_stats: dict[str, Any] = {}
         flip_signal_count = 0  # bullish views with low P + bearish views with high P
         evidence_total = 0
         for view, alphas in view_alphas.items():
@@ -228,8 +232,8 @@ def calibrate_agent_signs(
 
 
 def persist_calibration(
-    calibration: Dict[str, Any],
-    path: Optional[Path] = None,
+    calibration: dict[str, Any],
+    path: Path | None = None,
     enabled: bool = False,
 ) -> Path:
     """
@@ -249,7 +253,7 @@ def persist_calibration(
     out_path = path or DEFAULT_CALIBRATOR_PATH
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    history: Dict[str, int] = {}
+    history: dict[str, int] = {}
     if out_path.exists():
         try:
             prev = json.load(open(out_path))
@@ -258,7 +262,7 @@ def persist_calibration(
         except (OSError, json.JSONDecodeError):
             history = {}
 
-    applied: Dict[str, int] = {}
+    applied: dict[str, int] = {}
     for agent, data in (calibration.get("agents") or {}).items():
         if data.get("verdict") == "INVERTED":
             history[agent] = history.get(agent, 0) + 1
@@ -280,7 +284,7 @@ def persist_calibration(
     return out_path
 
 
-def load_applied_signs(path: Optional[Path] = None) -> Dict[str, int]:
+def load_applied_signs(path: Path | None = None) -> dict[str, int]:
     """
     Return per-agent sign multipliers (+1 default, −1 if inverted+applied).
     Synthesis weights should multiply by these to apply auto-flips.

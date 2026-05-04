@@ -10,7 +10,6 @@ Coverage:
 """
 
 import json
-import math
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -18,32 +17,42 @@ import pandas as pd
 import pytest
 
 from trade_modules.bayesian_conviction import (
-    PRIOR_HITS, PRIOR_MISSES,
-    _conviction_to_prior, _logit, _prior_to_conviction, _sigmoid,
-    bayesian_posterior, compute_likelihoods, persist_likelihoods,
-    load_likelihoods, shadow_score_concordance,
+    _conviction_to_prior,
+    _prior_to_conviction,
+    bayesian_posterior,
+    compute_likelihoods,
+    load_likelihoods,
+    persist_likelihoods,
+    shadow_score_concordance,
 )
 from trade_modules.conviction_cells import (
-    cell_confidence_multiplier, compute_cells, persist_cells, load_cells,
-    _cap_tier, _consensus_band, _conv_band,
+    _cap_tier,
+    _consensus_band,
+    cell_confidence_multiplier,
+    compute_cells,
+    load_cells,
+    persist_cells,
 )
 from trade_modules.debate_scorecard import (
-    compute_debate_scorecard, persist_scorecard, load_scorecard,
+    compute_debate_scorecard,
+    load_scorecard,
+    persist_scorecard,
 )
 from trade_modules.kill_thesis_auditor import (
-    audit_triggered_theses, FALSE_RISE_PCT, TRUE_DROP_PCT,
+    audit_triggered_theses,
 )
 from trade_modules.post_mortem import (
-    DRAWDOWN_TRIGGER_PCT,
-    append_lessons, detect_post_mortems, load_recent_lessons,
+    append_lessons,
+    detect_post_mortems,
     summarise_for_committee,
 )
 from trade_modules.price_cache import (
-    DEFAULT_CACHE_DIR, _cache_path, cache_stats,
-    fetch_and_cache, freshness_status, load_prices, refresh_if_stale,
+    _cache_path,
+    cache_stats,
+    freshness_status,
+    load_prices,
     write_health_report,
 )
-
 
 # ── #1 Weekly Backtest brittleness — verified via unit tests on
 #     build_report's behavior with empty signal_summary ────────────────
@@ -55,6 +64,7 @@ class TestWeeklyBacktestSoftFail:
         # at module load. Instead, test the contract: headline must
         # always carry buy_count_t7 (int 0 not None) when no data.
         import sys
+
         sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
         from run_weekly_backtest import build_report  # type: ignore
 
@@ -73,6 +83,7 @@ class TestWeeklyBacktestSoftFail:
 
     def test_build_report_passes_through_when_signal_summary_present(self):
         import sys
+
         sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
         from run_weekly_backtest import build_report  # type: ignore
 
@@ -99,8 +110,7 @@ class TestPriceCache:
         # Build a tiny parquet with today's bar.
         df = pd.DataFrame(
             {"Close": [100.0, 101.0]},
-            index=pd.to_datetime([datetime.now() - timedelta(days=1),
-                                   datetime.now()]),
+            index=pd.to_datetime([datetime.now() - timedelta(days=1), datetime.now()]),
         )
         df.to_parquet(_cache_path("AAPL", tmp_path))
         assert freshness_status("AAPL", tmp_path) == "fresh"
@@ -116,8 +126,7 @@ class TestPriceCache:
     def test_load_prices_returns_dict(self, tmp_path):
         df = pd.DataFrame(
             {"Close": [100.0, 101.0]},
-            index=pd.to_datetime([datetime.now() - timedelta(days=1),
-                                   datetime.now()]),
+            index=pd.to_datetime([datetime.now() - timedelta(days=1), datetime.now()]),
         )
         df.to_parquet(_cache_path("AAPL", tmp_path))
         out = load_prices(["AAPL", "MISSING"], cache_dir=tmp_path)
@@ -127,12 +136,12 @@ class TestPriceCache:
 
     def test_cache_stats(self, tmp_path):
         # Add one fresh entry
-        df = pd.DataFrame({"Close": [100.0]},
-                          index=pd.to_datetime([datetime.now()]))
+        df = pd.DataFrame({"Close": [100.0]}, index=pd.to_datetime([datetime.now()]))
         df.to_parquet(_cache_path("AAPL", tmp_path))
         # Add one stale
-        df2 = pd.DataFrame({"Close": [100.0]},
-                           index=pd.to_datetime([datetime.now() - timedelta(days=4)]))
+        df2 = pd.DataFrame(
+            {"Close": [100.0]}, index=pd.to_datetime([datetime.now() - timedelta(days=4)])
+        )
         df2.to_parquet(_cache_path("MSFT", tmp_path))
         stats = cache_stats(tmp_path)
         assert stats["total"] == 2
@@ -172,14 +181,20 @@ class TestKillThesisAuditor:
         kt_path = tmp_path / "kt.json"
         # Trigger 14 days ago at price 100; current price 80 → -20% drop = TRUE
         rec_date = (datetime.now() - timedelta(days=14)).strftime("%Y-%m-%d")
-        kt_path.write_text(json.dumps({
-            "triggered_theses": [{
-                "ticker": "TEST",
-                "thesis": "Will fail if X",
-                "trigger_date": rec_date,
-                "committee_date": rec_date,
-            }],
-        }))
+        kt_path.write_text(
+            json.dumps(
+                {
+                    "triggered_theses": [
+                        {
+                            "ticker": "TEST",
+                            "thesis": "Will fail if X",
+                            "trigger_date": rec_date,
+                            "committee_date": rec_date,
+                        }
+                    ],
+                }
+            )
+        )
 
         # Patch price cache to return synthetic data
         from trade_modules import price_cache as pc
@@ -229,8 +244,13 @@ class TestConvictionCells:
                 "date": "2026-04-01",
                 "regime": "RISK_ON",
                 "concordance": [
-                    {"ticker": f"T{i}", "signal": "B", "conviction": 50 + i,
-                     "market_cap_str": "600B", "buy_pct": 80}
+                    {
+                        "ticker": f"T{i}",
+                        "signal": "B",
+                        "conviction": 50 + i,
+                        "market_cap_str": "600B",
+                        "buy_pct": 80,
+                    }
                     for i in range(10)
                 ],
             },
@@ -249,7 +269,9 @@ class TestConvictionCells:
         cells_data = {
             "cells": {
                 "B|MEGA|RISK_ON|HIGH": {
-                    "n": 20, "spearman": 0.45, "verdict": "EVIDENCE",
+                    "n": 20,
+                    "spearman": 0.45,
+                    "verdict": "EVIDENCE",
                 },
             },
         }
@@ -260,7 +282,9 @@ class TestConvictionCells:
         cells_data = {
             "cells": {
                 "B|MEGA|RISK_ON|HIGH": {
-                    "n": 20, "spearman": 0.05, "verdict": "EVIDENCE",
+                    "n": 20,
+                    "spearman": 0.05,
+                    "verdict": "EVIDENCE",
                 },
             },
         }
@@ -289,18 +313,27 @@ class TestDebateScorecard:
         assert "INSUFFICIENT_EVIDENCE" in sc["verdict"]
 
     def test_aggregates_strengthen_bull(self):
-        history = [{
-            "date": "2026-04-01",
-            "concordance": [
-                {"ticker": "T1", "signal": "B", "conviction": 65,
-                 "conviction_waterfall": {"debate_strengthen_bull": 5}},
-                {"ticker": "T2", "signal": "B", "conviction": 60,
-                 "conviction_waterfall": {"debate_strengthen_bull": 3}},
-                # control
-                {"ticker": "T3", "signal": "B", "conviction": 60,
-                 "conviction_waterfall": {}},
-            ],
-        }]
+        history = [
+            {
+                "date": "2026-04-01",
+                "concordance": [
+                    {
+                        "ticker": "T1",
+                        "signal": "B",
+                        "conviction": 65,
+                        "conviction_waterfall": {"debate_strengthen_bull": 5},
+                    },
+                    {
+                        "ticker": "T2",
+                        "signal": "B",
+                        "conviction": 60,
+                        "conviction_waterfall": {"debate_strengthen_bull": 3},
+                    },
+                    # control
+                    {"ticker": "T3", "signal": "B", "conviction": 60, "conviction_waterfall": {}},
+                ],
+            }
+        ]
         forward = {
             "T1:2026-04-01": {"T+30_alpha": 5.0},
             "T2:2026-04-01": {"T+30_alpha": 3.0},
@@ -332,16 +365,28 @@ class TestPostMortem:
     def test_detect_drawdown(self, tmp_path):
         # ADD recommendation 14 days ago that dropped 15%.
         rec_date = (datetime.now() - timedelta(days=14)).strftime("%Y-%m-%d")
-        (tmp_path / f"concordance-{rec_date}.json").write_text(json.dumps({
-            "concordance": [{
-                "ticker": "FAIL", "action": "ADD", "conviction": 70,
-                "signal": "B", "price": 100.0, "fund_view": "BUY",
-                "tech_signal": "ENTER_NOW", "macro_fit": "FAVORABLE",
-                "census": "ALIGNED", "news_impact": "NEUTRAL",
-                "kill_thesis": "Fails if X",
-                "conviction_waterfall": {"piotroski_quality": 3, "high_beta": -5},
-            }],
-        }))
+        (tmp_path / f"concordance-{rec_date}.json").write_text(
+            json.dumps(
+                {
+                    "concordance": [
+                        {
+                            "ticker": "FAIL",
+                            "action": "ADD",
+                            "conviction": 70,
+                            "signal": "B",
+                            "price": 100.0,
+                            "fund_view": "BUY",
+                            "tech_signal": "ENTER_NOW",
+                            "macro_fit": "FAVORABLE",
+                            "census": "ALIGNED",
+                            "news_impact": "NEUTRAL",
+                            "kill_thesis": "Fails if X",
+                            "conviction_waterfall": {"piotroski_quality": 3, "high_beta": -5},
+                        }
+                    ],
+                }
+            )
+        )
         # Provide price data showing -15% drop on day 7
         drop_date = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
         price_data = {"FAIL": {rec_date: 100.0, drop_date: 85.0}}
@@ -355,13 +400,23 @@ class TestPostMortem:
 
     def test_no_drawdown_no_post_mortem(self, tmp_path):
         rec_date = (datetime.now() - timedelta(days=14)).strftime("%Y-%m-%d")
-        (tmp_path / f"concordance-{rec_date}.json").write_text(json.dumps({
-            "concordance": [{
-                "ticker": "OK", "action": "ADD", "conviction": 70,
-                "signal": "B", "price": 100.0, "fund_view": "BUY",
-                "tech_signal": "ENTER_NOW",
-            }],
-        }))
+        (tmp_path / f"concordance-{rec_date}.json").write_text(
+            json.dumps(
+                {
+                    "concordance": [
+                        {
+                            "ticker": "OK",
+                            "action": "ADD",
+                            "conviction": 70,
+                            "signal": "B",
+                            "price": 100.0,
+                            "fund_view": "BUY",
+                            "tech_signal": "ENTER_NOW",
+                        }
+                    ],
+                }
+            )
+        )
         # Position rose 5% — no drawdown
         recent_date = datetime.now().strftime("%Y-%m-%d")
         price_data = {"OK": {rec_date: 100.0, recent_date: 105.0}}
@@ -370,10 +425,17 @@ class TestPostMortem:
 
     def test_append_lessons_dedup(self, tmp_path):
         from trade_modules.post_mortem import PostMortem
+
         pm = PostMortem(
-            ticker="X", recommendation_date="2026-04-01", action="ADD",
-            conviction=70, entry_price=100.0, drawdown_date="2026-04-08",
-            drawdown_pct=-15.0, days_to_drawdown=7, lesson="t",
+            ticker="X",
+            recommendation_date="2026-04-01",
+            action="ADD",
+            conviction=70,
+            entry_price=100.0,
+            drawdown_date="2026-04-08",
+            drawdown_pct=-15.0,
+            days_to_drawdown=7,
+            lesson="t",
         )
         path = tmp_path / "lessons.jsonl"
         # First write: 1 row
@@ -382,11 +444,17 @@ class TestPostMortem:
         assert append_lessons([pm], path=path) == 0
 
     def test_summarise_for_committee(self):
-        lessons = [{
-            "ticker": "X", "recommendation_date": "2026-04-01",
-            "conviction": 70, "drawdown_pct": -15.0, "days_to_drawdown": 7,
-            "lesson": "Failed because Y", "dissenting_agents": ["Risk (WARN)"],
-        }]
+        lessons = [
+            {
+                "ticker": "X",
+                "recommendation_date": "2026-04-01",
+                "conviction": 70,
+                "drawdown_pct": -15.0,
+                "days_to_drawdown": 7,
+                "lesson": "Failed because Y",
+                "dissenting_agents": ["Risk (WARN)"],
+            }
+        ]
         s = summarise_for_committee(lessons)
         assert "Post-Mortem Library" in s
         assert "X" in s
@@ -413,20 +481,37 @@ class TestBayesianConviction:
 
     def test_compute_likelihoods_with_clear_signal(self):
         # Fundamental BUY perfectly predicts positive alpha
-        history = [{
-            "date": "2026-04-01",
-            "concordance": [
-                {"ticker": "T1", "fund_view": "BUY", "tech_signal": "ENTER_NOW",
-                 "macro_fit": "FAVORABLE", "census": "ALIGNED",
-                 "news_impact": "POSITIVE"},
-                {"ticker": "T2", "fund_view": "BUY", "tech_signal": "ENTER_NOW",
-                 "macro_fit": "FAVORABLE", "census": "ALIGNED",
-                 "news_impact": "POSITIVE"},
-                {"ticker": "T3", "fund_view": "SELL", "tech_signal": "AVOID",
-                 "macro_fit": "UNFAVORABLE", "census": "DIVERGENT",
-                 "news_impact": "NEGATIVE"},
-            ],
-        }]
+        history = [
+            {
+                "date": "2026-04-01",
+                "concordance": [
+                    {
+                        "ticker": "T1",
+                        "fund_view": "BUY",
+                        "tech_signal": "ENTER_NOW",
+                        "macro_fit": "FAVORABLE",
+                        "census": "ALIGNED",
+                        "news_impact": "POSITIVE",
+                    },
+                    {
+                        "ticker": "T2",
+                        "fund_view": "BUY",
+                        "tech_signal": "ENTER_NOW",
+                        "macro_fit": "FAVORABLE",
+                        "census": "ALIGNED",
+                        "news_impact": "POSITIVE",
+                    },
+                    {
+                        "ticker": "T3",
+                        "fund_view": "SELL",
+                        "tech_signal": "AVOID",
+                        "macro_fit": "UNFAVORABLE",
+                        "census": "DIVERGENT",
+                        "news_impact": "NEGATIVE",
+                    },
+                ],
+            }
+        ]
         forward = {
             "T1:2026-04-01": {"T+30_alpha": 5.0},
             "T2:2026-04-01": {"T+30_alpha": 3.0},
@@ -469,8 +554,7 @@ class TestBayesianConviction:
 
     def test_shadow_score_concordance(self):
         concordance = [
-            {"ticker": "X", "conviction": 50, "fund_view": "BUY",
-             "signal": "B", "action": "ADD"},
+            {"ticker": "X", "conviction": 50, "fund_view": "BUY", "signal": "B", "action": "ADD"},
         ]
         likelihoods = {
             "agents": {"fundamental": {"BUY": {"p_alpha_pos": 0.85}}},

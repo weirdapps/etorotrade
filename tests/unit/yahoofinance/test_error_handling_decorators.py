@@ -6,19 +6,23 @@ This module tests error handling utilities.
 
 import pytest
 
+from yahoofinance.core.errors import (
+    APIError,
+    DataError,
+    ValidationError,
+    YFinanceError,
+)
+from yahoofinance.core.errors import (
+    ConnectionError as YFConnectionError,
+)
+from yahoofinance.core.errors import (
+    TimeoutError as YFTimeoutError,
+)
 from yahoofinance.utils.error_handling import (
     enrich_error_context,
     safe_operation,
     translate_error,
     with_retry,
-)
-from yahoofinance.core.errors import (
-    YFinanceError,
-    APIError,
-    DataError,
-    ValidationError,
-    ConnectionError as YFConnectionError,
-    TimeoutError as YFTimeoutError,
 )
 
 
@@ -86,6 +90,7 @@ class TestSafeOperation:
 
     def test_safe_operation_success(self):
         """Test safe_operation with successful function."""
+
         @safe_operation(default_value="default")
         def successful_func():
             return "success"
@@ -95,6 +100,7 @@ class TestSafeOperation:
 
     def test_safe_operation_with_yfinance_error(self):
         """Test safe_operation returns default on YFinanceError."""
+
         @safe_operation(default_value="default", log_errors=False)
         def failing_func():
             raise YFinanceError("Error")
@@ -104,6 +110,7 @@ class TestSafeOperation:
 
     def test_safe_operation_none_default(self):
         """Test safe_operation with None default on YFinanceError."""
+
         @safe_operation(default_value=None, log_errors=False)
         def failing_func():
             raise DataError("Data error")
@@ -113,6 +120,7 @@ class TestSafeOperation:
 
     def test_safe_operation_with_args(self):
         """Test safe_operation with function arguments."""
+
         @safe_operation(default_value=0)
         def add_numbers(a, b):
             return a + b
@@ -122,6 +130,7 @@ class TestSafeOperation:
 
     def test_safe_operation_reraise(self):
         """Test safe_operation with reraise=True."""
+
         @safe_operation(default_value="default", reraise=True, log_errors=False)
         def failing_func():
             raise APIError("API Error")
@@ -131,6 +140,7 @@ class TestSafeOperation:
 
     def test_safe_operation_non_yfinance_error_propagates(self):
         """Test that non-YFinanceError exceptions propagate."""
+
         @safe_operation(default_value="default", log_errors=False)
         def failing_func():
             raise ValueError("Not a YFinanceError")
@@ -234,6 +244,7 @@ class TestErrorHandlingIntegration:
 
     def test_safe_and_translate(self):
         """Test combining safe_operation with error translation."""
+
         @safe_operation(default_value=None, log_errors=False)
         def might_fail():
             error = ValueError("Error")
@@ -249,6 +260,7 @@ class TestUserFriendlyErrors:
     def test_handle_file_not_found_portfolio(self):
         """Test handling portfolio file not found."""
         from yahoofinance.utils.error_handling import handle_file_not_found
+
         result = handle_file_not_found("/path/to/portfolio.csv")
         assert "Portfolio file not found" in result
         assert "Export your eToro portfolio" in result
@@ -256,6 +268,7 @@ class TestUserFriendlyErrors:
     def test_handle_file_not_found_generic(self):
         """Test handling generic file not found."""
         from yahoofinance.utils.error_handling import handle_file_not_found
+
         result = handle_file_not_found("/path/to/other.txt")
         assert "File not found" in result
         assert "Check the file path" in result
@@ -263,6 +276,7 @@ class TestUserFriendlyErrors:
     def test_handle_csv_error(self):
         """Test handling CSV error."""
         from yahoofinance.utils.error_handling import handle_csv_error
+
         result = handle_csv_error("/path/to/data.csv", "Invalid delimiter")
         assert "Error reading CSV" in result
         assert "Invalid delimiter" in result
@@ -271,6 +285,7 @@ class TestUserFriendlyErrors:
     def test_handle_api_error(self):
         """Test handling API error."""
         from yahoofinance.utils.error_handling import handle_api_error
+
         result = handle_api_error("Yahoo Finance", "Rate limit exceeded")
         assert "API error" in result
         assert "Rate limit exceeded" in result
@@ -279,6 +294,7 @@ class TestUserFriendlyErrors:
     def test_format_user_error_file_not_found(self):
         """Test formatting FileNotFoundError."""
         from yahoofinance.utils.error_handling import format_user_error
+
         error = FileNotFoundError("portfolio.csv")
         result = format_user_error(error)
         assert "Portfolio file not found" in result
@@ -290,6 +306,7 @@ class TestUserFriendlyErrors:
 
         class FakeConnectionError(Exception):
             pass
+
         FakeConnectionError.__name__ = "ConnectionError"
         error = FakeConnectionError("Connection refused")
         result = format_user_error(error)
@@ -298,6 +315,7 @@ class TestUserFriendlyErrors:
     def test_format_user_error_yfinance_error(self):
         """Test formatting YFinanceError."""
         from yahoofinance.utils.error_handling import format_user_error
+
         error = YFinanceError("Custom error message")
         # NOSONAR: S2259 - format_user_error() never returns None (always returns str)
         maybe_result = format_user_error(error)  # NOSONAR
@@ -313,6 +331,7 @@ class TestUserFriendlyErrors:
     def test_format_user_error_unknown(self):
         """Test formatting unknown error."""
         from yahoofinance.utils.error_handling import format_user_error
+
         error = RuntimeError("Unknown error type")
         result = format_user_error(error)
         assert "Unexpected error" in result
@@ -358,6 +377,7 @@ class TestTranslateErrorAdditional:
     def test_translate_file_not_found(self):
         """Test translating FileNotFoundError."""
         from yahoofinance.core.errors import ResourceNotFoundError
+
         original = FileNotFoundError("config.yaml")
         translated = translate_error(original)
         assert isinstance(translated, ResourceNotFoundError)
@@ -366,6 +386,7 @@ class TestTranslateErrorAdditional:
     def test_translate_permission_error(self):
         """Test translating PermissionError."""
         from yahoofinance.core.errors import ResourceNotFoundError
+
         original = PermissionError("Access denied")
         translated = translate_error(original)
         assert isinstance(translated, ResourceNotFoundError)
@@ -374,6 +395,7 @@ class TestTranslateErrorAdditional:
     def test_translate_memory_error(self):
         """Test translating MemoryError."""
         from yahoofinance.core.errors import ResourceNotFoundError
+
         original = MemoryError("Out of memory")
         translated = translate_error(original)
         assert isinstance(translated, ResourceNotFoundError)
@@ -381,9 +403,11 @@ class TestTranslateErrorAdditional:
 
     def test_translate_with_default_message(self):
         """Test translating with default message."""
+
         class EmptyError(Exception):
             def __str__(self):
                 return ""
+
         original = EmptyError()
         translated = translate_error(original, default_message="Default error")
         assert "Default error" in str(translated)

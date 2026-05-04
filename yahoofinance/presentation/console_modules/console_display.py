@@ -4,7 +4,7 @@ Console display interface for finance data.
 This module provides a simple console-based display interface for financial data.
 """
 
-from typing import Any, Dict, List, Union
+from typing import Any
 
 import pandas as pd
 from tabulate import tabulate
@@ -42,7 +42,7 @@ class ConsoleDisplay:
         # Create formatter
         self.formatter = DisplayFormatter(compact_mode=compact_mode)
 
-    def format_table(self, data: List[Dict[str, Any]], title: str = None) -> str:
+    def format_table(self, data: list[dict[str, Any]], title: str = None) -> str:
         """
         Format tabular data for console display.
 
@@ -80,7 +80,7 @@ class ConsoleDisplay:
             return f"{title}\n\n{table}"
         return table
 
-    def display(self, data: Union[List[Dict[str, Any]], Dict[str, Any]], title: str = None) -> None:
+    def display(self, data: list[dict[str, Any]] | dict[str, Any], title: str = None) -> None:
         """
         Display data in the console.
 

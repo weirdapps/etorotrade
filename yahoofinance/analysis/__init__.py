@@ -32,7 +32,6 @@ from .metrics import PriceData, PriceTarget, PricingAnalyzer
 from .portfolio import PortfolioAnalyzer, PortfolioHolding, PortfolioSummary
 from .stock import AnalysisResults, StockAnalyzer
 
-
 __all__ = [
     # Analyst
     "AnalystData",

@@ -11,26 +11,17 @@ now re-exports it for backward compatibility.
 
 import asyncio
 import time
-from typing import Any, Callable, Coroutine, Dict, List, Optional, TypeVar
+from collections.abc import Callable, Coroutine
+from typing import Any, TypeVar
 
 from yahoofinance.core.errors import YFinanceError
-from ...utils.error_handling import (
-    enrich_error_context,
-    safe_operation,
-    translate_error,
-    with_retry,
-)
 
 from ...core.config import RATE_LIMIT
 from ...core.logging import get_logger
+from ...utils.error_handling import (
+    with_retry,
+)
 from .enhanced import (
-    AsyncRateLimiter,
-    PriorityAsyncRateLimiter,
-    async_rate_limited,
-    enhanced_async_rate_limited,
-    gather_with_concurrency,
-    global_async_rate_limiter,
-    global_priority_rate_limiter,
     process_batch_async as enhanced_process_batch_async,
 )
 
@@ -42,9 +33,10 @@ R = TypeVar("R")
 
 # Re-export enhanced implementations for backward compatibility
 
+
 async def gather_with_semaphore(
     semaphore: asyncio.Semaphore, *tasks: Coroutine[Any, Any, T], return_exceptions: bool = False
-) -> List[T]:
+) -> list[T]:
     """
     Run tasks with a semaphore.
 
@@ -68,16 +60,17 @@ async def gather_with_semaphore(
         *(task_with_semaphore(task) for task in tasks), return_exceptions=return_exceptions
     )
 
+
 @with_retry
 async def async_bulk_fetch(
-    items: List[Any],
+    items: list[Any],
     fetch_func: Callable[[Any], Coroutine[Any, Any, T]],
     max_concurrency: int = None,
     batch_size: int = None,
     batch_delay: float = None,
-    priority_items: List[Any] = None,
+    priority_items: list[Any] = None,
     timeout_per_batch: float = None,
-) -> Dict[Any, T]:
+) -> dict[Any, T]:
     """
     Fetch data for multiple items concurrently with rate limiting.
 
@@ -115,6 +108,7 @@ async def async_bulk_fetch(
         priority_items=priority_items,
         timeout_per_batch=timeout_per_batch,
     )
+
 
 async def async_retry(
     func: Callable[..., Coroutine[Any, Any, T]],
@@ -176,16 +170,17 @@ async def async_retry(
     assert last_exception is not None
     raise last_exception
 
+
 async def prioritized_batch_process(
-    items: List[T],
+    items: list[T],
     processor: Callable[[T], Coroutine[Any, Any, R]],
-    high_priority_items: Optional[List[T]] = None,
-    medium_priority_items: Optional[List[T]] = None,
+    high_priority_items: list[T] | None = None,
+    medium_priority_items: list[T] | None = None,
     batch_size: int = None,
     concurrency: int = None,
     delay_between_batches: float = None,
     show_progress: bool = True,
-) -> Dict[T, R]:
+) -> dict[T, R]:
     """
     Process items in batches with priority-based ordering.
 
@@ -242,15 +237,16 @@ async def prioritized_batch_process(
         show_progress=show_progress,
     )
 
+
 async def adaptive_fetch(
-    items: List[T],
+    items: list[T],
     fetch_func: Callable[[T], Coroutine[Any, Any, R]],
     initial_concurrency: int = 5,
     max_concurrency: int = 15,
     performance_monitor_interval: int = 10,
     batch_size: int = None,
-    priority_items: Optional[List[T]] = None,
-) -> Dict[T, R]:
+    priority_items: list[T] | None = None,
+) -> dict[T, R]:
     """
     Fetch data with adaptive concurrency based on performance.
 
@@ -273,7 +269,7 @@ async def adaptive_fetch(
         return {}
 
     batch_size = batch_size or RATE_LIMIT["BATCH_SIZE"]
-    results: Dict[T, R] = {}
+    results: dict[T, R] = {}
 
     # Performance tracking
     concurrency = initial_concurrency

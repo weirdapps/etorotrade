@@ -6,7 +6,6 @@ formatting, and range generation.
 """
 
 import datetime
-from typing import List, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -14,6 +13,7 @@ from ...core.logging import get_logger
 from ..error_handling import with_retry
 
 logger = get_logger(__name__)
+
 
 def validate_date_format(date_str: str, fmt: str = "%Y-%m-%d") -> bool:
     """
@@ -32,12 +32,13 @@ def validate_date_format(date_str: str, fmt: str = "%Y-%m-%d") -> bool:
     except ValueError:
         return False
 
+
 def get_date_range(
-    start_date: Optional[Union[str, datetime.date, pd.Timestamp]] = None,
-    end_date: Optional[Union[str, datetime.date, pd.Timestamp]] = None,
-    days: Optional[int] = None,
+    start_date: str | datetime.date | pd.Timestamp | None = None,
+    end_date: str | datetime.date | pd.Timestamp | None = None,
+    days: int | None = None,
     fmt: str = "%Y-%m-%d",
-) -> Tuple[datetime.date, datetime.date]:
+) -> tuple[datetime.date, datetime.date]:
     """
     Get a date range from start and end dates.
 
@@ -86,8 +87,9 @@ def get_date_range(
 
     return start_date, end_date  # type: ignore[return-value]
 
+
 @with_retry
-def format_date_for_api(date_obj: Union[datetime.date, pd.Timestamp]) -> str:
+def format_date_for_api(date_obj: datetime.date | pd.Timestamp) -> str:
     """
     Format a date object for API requests.
 
@@ -101,8 +103,9 @@ def format_date_for_api(date_obj: Union[datetime.date, pd.Timestamp]) -> str:
         date_obj = date_obj.date()
     return date_obj.strftime("%Y-%m-%d")
 
+
 def format_date_for_display(
-    date_obj: Union[datetime.date, pd.Timestamp, str], fmt: str = "%Y-%m-%d"
+    date_obj: datetime.date | pd.Timestamp | str, fmt: str = "%Y-%m-%d"
 ) -> str:
     """
     Format a date for display.
@@ -126,11 +129,12 @@ def format_date_for_display(
 
     return date_obj.strftime(fmt)
 
+
 def get_trading_days(
-    start_date: Union[datetime.date, pd.Timestamp, str],
-    end_date: Union[datetime.date, pd.Timestamp, str],
+    start_date: datetime.date | pd.Timestamp | str,
+    end_date: datetime.date | pd.Timestamp | str,
     include_holidays: bool = False,
-) -> List[datetime.date]:
+) -> list[datetime.date]:
     """
     Get a list of trading days between start and end dates.
 

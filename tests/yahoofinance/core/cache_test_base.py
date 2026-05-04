@@ -12,6 +12,7 @@ import unittest
 
 from yahoofinance.data.cache import CacheManager
 
+
 class BaseCacheTest(unittest.TestCase):
     """
     Base test class for cache-related tests.
@@ -78,7 +79,9 @@ class BaseCacheTest(unittest.TestCase):
         # Handle old CacheManager wrapper (backward compatibility layer)
         if hasattr(self.cache, "memory_cache") and self.cache.memory_cache:
             # Check if memory_cache is the unified cache
-            if hasattr(self.cache.memory_cache, "_memory_cache") and hasattr(self.cache.memory_cache, "_cache_lock"):
+            if hasattr(self.cache.memory_cache, "_memory_cache") and hasattr(
+                self.cache.memory_cache, "_cache_lock"
+            ):
                 # This is the unified CacheService wrapped
                 with self.cache.memory_cache._cache_lock:
                     if key in self.cache.memory_cache._memory_cache:
@@ -89,12 +92,12 @@ class BaseCacheTest(unittest.TestCase):
             else:
                 # Old-style cache with different structure
                 # Manipulate the cache entry to make it expired
-                if hasattr(self.cache.memory_cache, '_lock'):
+                if hasattr(self.cache.memory_cache, "_lock"):
                     with self.cache.memory_cache._lock:
                         # Check the actual attribute name - could be 'cache' or '_memory_cache'
-                        cache_dict = getattr(self.cache.memory_cache, 'cache', None)
+                        cache_dict = getattr(self.cache.memory_cache, "cache", None)
                         if cache_dict is None:
-                            cache_dict = getattr(self.cache.memory_cache, '_memory_cache', None)
+                            cache_dict = getattr(self.cache.memory_cache, "_memory_cache", None)
 
                         if cache_dict and key in cache_dict:
                             # Get current tuple - handle both 2-tuple and 3-tuple formats
@@ -113,16 +116,20 @@ class BaseCacheTest(unittest.TestCase):
                                 cache_dict[key] = (current_value, expired_time, expiry)
 
         # Also manually clear thread-local cache if it exists
-        if (hasattr(self.cache, "memory_cache") and
-            hasattr(self.cache.memory_cache, "_local") and
-            hasattr(self.cache.memory_cache._local, "recent_hits") and
-            key in self.cache.memory_cache._local.recent_hits):
+        if (
+            hasattr(self.cache, "memory_cache")
+            and hasattr(self.cache.memory_cache, "_local")
+            and hasattr(self.cache.memory_cache._local, "recent_hits")
+            and key in self.cache.memory_cache._local.recent_hits
+        ):
             del self.cache.memory_cache._local.recent_hits[key]
 
         # Also handle disk cache if enabled (check for old-style disk cache with index)
         if hasattr(self.cache, "disk_cache") and self.cache.disk_cache:
             # Check if disk cache has the old-style _get_file_path and index attributes
-            if hasattr(self.cache.disk_cache, "_get_file_path") and hasattr(self.cache.disk_cache, "index"):
+            if hasattr(self.cache.disk_cache, "_get_file_path") and hasattr(
+                self.cache.disk_cache, "index"
+            ):
                 # If disk cache is available, get the file path
                 cache_path = self.cache.disk_cache._get_file_path(key)
 

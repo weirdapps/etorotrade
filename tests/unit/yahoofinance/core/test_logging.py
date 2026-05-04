@@ -4,22 +4,24 @@ Tests for yahoofinance/core/logging.py
 This module tests logging configuration and utilities.
 """
 
-import pytest
 import logging
-import tempfile
 import os
+import tempfile
 from unittest.mock import MagicMock
 
+import pytest
+
 from yahoofinance.core.logging import (
+    CONSOLE_FORMAT,
+    DEBUG_FORMAT,
+    DEFAULT_FORMAT,
     YFinanceErrorFilter,
-    suppress_yfinance_noise,
-    setup_logging,
     configure_logging,
     get_logger,
-    DEFAULT_FORMAT,
-    DEBUG_FORMAT,
-    CONSOLE_FORMAT,
+    setup_logging,
+    suppress_yfinance_noise,
 )
+
 
 @pytest.fixture(autouse=True)
 def cleanup_handlers():
@@ -30,6 +32,7 @@ def cleanup_handlers():
     for handler in root.handlers[:]:
         root.removeHandler(handler)
         handler.close()
+
 
 class TestYFinanceErrorFilter:
     """Tests for YFinanceErrorFilter class."""
@@ -136,6 +139,7 @@ class TestYFinanceErrorFilter:
         result = filter_obj.filter(record)
         assert result is True
 
+
 class TestSuppressYfinanceNoise:
     """Tests for suppress_yfinance_noise function."""
 
@@ -144,9 +148,7 @@ class TestSuppressYfinanceNoise:
         suppress_yfinance_noise()
 
         yf_logger = logging.getLogger("yfinance")
-        filter_applied = any(
-            isinstance(f, YFinanceErrorFilter) for f in yf_logger.filters
-        )
+        filter_applied = any(isinstance(f, YFinanceErrorFilter) for f in yf_logger.filters)
         assert filter_applied
 
     def test_applies_filter_to_urllib3_logger(self):
@@ -154,9 +156,7 @@ class TestSuppressYfinanceNoise:
         suppress_yfinance_noise()
 
         urllib_logger = logging.getLogger("urllib3")
-        filter_applied = any(
-            isinstance(f, YFinanceErrorFilter) for f in urllib_logger.filters
-        )
+        filter_applied = any(isinstance(f, YFinanceErrorFilter) for f in urllib_logger.filters)
         assert filter_applied
 
     def test_idempotent_filter_application(self):
@@ -173,6 +173,7 @@ class TestSuppressYfinanceNoise:
 
         # Should only have one filter (might be 1 or same as initial if already applied)
         assert final_count <= initial_count + 1
+
 
 class TestSetupLogging:
     """Tests for setup_logging function."""
@@ -217,6 +218,7 @@ class TestSetupLogging:
         setup_logging(log_format=custom_format)
         # Should not raise
 
+
 class TestConfigureLogging:
     """Tests for configure_logging function."""
 
@@ -229,6 +231,7 @@ class TestConfigureLogging:
         """Test configure with separate console level."""
         configure_logging(level=logging.DEBUG, console_level=logging.INFO)
         # Should not raise
+
 
 class TestGetLogger:
     """Tests for get_logger function."""
@@ -249,6 +252,7 @@ class TestGetLogger:
         logger2 = get_logger("same.name")
         assert logger1 is logger2
 
+
 class TestLoggingConstants:
     """Tests for logging constants."""
 
@@ -268,6 +272,7 @@ class TestLoggingConstants:
         assert "%(message)s" in CONSOLE_FORMAT
         # Should not have timestamp for brevity
         assert "asctime" not in CONSOLE_FORMAT
+
 
 class TestLoggingIntegration:
     """Integration tests for logging."""
@@ -294,6 +299,7 @@ class TestLoggingIntegration:
 
         # Create a handler to capture logs
         captured_logs = []
+
         class CaptureHandler(logging.Handler):
             def emit(self, record):
                 captured_logs.append(record.getMessage())

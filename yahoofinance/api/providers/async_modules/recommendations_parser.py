@@ -6,11 +6,13 @@ ratings, and earnings-related data from Yahoo Finance.
 """
 
 import datetime
+from typing import Any
+
 import pandas as pd
-from typing import Any, Dict, Optional
-from yahoofinance.core.logging import get_logger
-from yahoofinance.core.errors import YFinanceError
+
 from yahoofinance.core.config import COLUMN_NAMES
+from yahoofinance.core.errors import YFinanceError
+from yahoofinance.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -28,7 +30,7 @@ POSITIVE_GRADES = [
 ]
 
 
-def parse_analyst_recommendations(ticker_info: Dict[str, Any], yticker) -> Dict[str, Any]:
+def parse_analyst_recommendations(ticker_info: dict[str, Any], yticker) -> dict[str, Any]:
     """
     Parse analyst recommendations from ticker data.
 
@@ -44,11 +46,7 @@ def parse_analyst_recommendations(ticker_info: Dict[str, Any], yticker) -> Dict[
     Returns:
         Dictionary with analyst_count, total_ratings, and buy_percentage
     """
-    result = {
-        "analyst_count": 0,
-        "total_ratings": 0,
-        "buy_percentage": None
-    }
+    result = {"analyst_count": 0, "total_ratings": 0, "buy_percentage": None}
 
     try:
         # First check if ticker_info has analyst data
@@ -158,7 +156,7 @@ def parse_analyst_recommendations(ticker_info: Dict[str, Any], yticker) -> Dict[
     return result
 
 
-def _map_recommendation_key_to_percentage(rec_key: str, ticker: str) -> Optional[float]:
+def _map_recommendation_key_to_percentage(rec_key: str, ticker: str) -> float | None:
     """Map recommendation key to buy percentage estimate."""
     mapping = {
         ("buy", "strongbuy"): 85.0,
@@ -179,7 +177,7 @@ def _map_recommendation_key_to_percentage(rec_key: str, ticker: str) -> Optional
     return None
 
 
-def calculate_analyst_momentum(yticker) -> Dict[str, Any]:
+def calculate_analyst_momentum(yticker) -> dict[str, Any]:
     """
     Calculate analyst momentum by comparing current vs 3-month-ago recommendations.
 
@@ -194,10 +192,7 @@ def calculate_analyst_momentum(yticker) -> Dict[str, Any]:
         - analyst_momentum: Change in buy% over 3 months (positive = upgrading)
         - analyst_count_trend: "increasing", "stable", or "decreasing"
     """
-    result: Dict[str, Any] = {
-        "analyst_momentum": None,
-        "analyst_count_trend": None
-    }
+    result: dict[str, Any] = {"analyst_momentum": None, "analyst_count_trend": None}
 
     try:
         recommendations_df = getattr(yticker, "recommendations", None)
@@ -216,11 +211,11 @@ def calculate_analyst_momentum(yticker) -> Dict[str, Any]:
         # Calculate buy percentages
         def calc_buy_pct(row):
             total = (
-                row.get("strongBuy", 0) +
-                row.get("buy", 0) +
-                row.get("hold", 0) +
-                row.get("sell", 0) +
-                row.get("strongSell", 0)
+                row.get("strongBuy", 0)
+                + row.get("buy", 0)
+                + row.get("hold", 0)
+                + row.get("sell", 0)
+                + row.get("strongSell", 0)
             )
             if total == 0:
                 return None
@@ -233,20 +228,24 @@ def calculate_analyst_momentum(yticker) -> Dict[str, Any]:
             result["analyst_momentum"] = round(current_pct - past_pct, 1)
 
         # Calculate count trend
-        current_count = sum([
-            latest.get("strongBuy", 0),
-            latest.get("buy", 0),
-            latest.get("hold", 0),
-            latest.get("sell", 0),
-            latest.get("strongSell", 0)
-        ])
-        past_count = sum([
-            past.get("strongBuy", 0),
-            past.get("buy", 0),
-            past.get("hold", 0),
-            past.get("sell", 0),
-            past.get("strongSell", 0)
-        ])
+        current_count = sum(
+            [
+                latest.get("strongBuy", 0),
+                latest.get("buy", 0),
+                latest.get("hold", 0),
+                latest.get("sell", 0),
+                latest.get("strongSell", 0),
+            ]
+        )
+        past_count = sum(
+            [
+                past.get("strongBuy", 0),
+                past.get("buy", 0),
+                past.get("hold", 0),
+                past.get("sell", 0),
+                past.get("strongSell", 0),
+            ]
+        )
 
         if past_count > 0:
             if current_count > past_count * 1.1:
@@ -267,7 +266,7 @@ def calculate_analyst_momentum(yticker) -> Dict[str, Any]:
     return result
 
 
-def get_last_earnings_date(yticker) -> Optional[str]:
+def get_last_earnings_date(yticker) -> str | None:
     """
     Get the last earnings date with optimized memory handling.
 
@@ -289,7 +288,9 @@ def get_last_earnings_date(yticker) -> Optional[str]:
             # Get the most recent quarter date
             latest_date = quarterly_income.columns[0]  # Most recent is first column
             result = latest_date.strftime("%Y-%m-%d")
-            logger.debug(f"Found last earnings date from quarterly_income_stmt for {yticker.ticker}: {result}")
+            logger.debug(
+                f"Found last earnings date from quarterly_income_stmt for {yticker.ticker}: {result}"
+            )
             return result
     except (KeyError, ValueError, TypeError, AttributeError, IndexError) as e:
         logger.debug(f"Error getting earnings from quarterly_income_stmt for {yticker.ticker}: {e}")
@@ -351,17 +352,17 @@ def get_last_earnings_date(yticker) -> Optional[str]:
                         try:
                             compare_today = today.tz_localize(date.tzinfo)
                         except (ValueError, TypeError):
-                            compare_today = today.tz_localize('UTC')
-                            compare_date = date.tz_convert('UTC')
+                            compare_today = today.tz_localize("UTC")
+                            compare_date = date.tz_convert("UTC")
                     elif date.tzinfo is None and today.tzinfo is not None:
                         try:
                             compare_date = date.tz_localize(today.tzinfo)
                         except (ValueError, TypeError):
-                            compare_today = today.tz_convert('UTC')
-                            compare_date = pd.Timestamp(date).tz_localize('UTC')
+                            compare_today = today.tz_convert("UTC")
+                            compare_date = pd.Timestamp(date).tz_localize("UTC")
                     elif date.tzinfo is not None and today.tzinfo is not None:
-                        compare_today = today.tz_convert('UTC')
-                        compare_date = date.tz_convert('UTC')
+                        compare_today = today.tz_convert("UTC")
+                        compare_date = date.tz_convert("UTC")
 
                     # Compare and keep the latest
                     if compare_date < compare_today:
@@ -386,7 +387,9 @@ def get_last_earnings_date(yticker) -> Optional[str]:
     return None
 
 
-def has_post_earnings_ratings(ticker: str, yticker, is_us: bool, positive_grades: list) -> Dict[str, Any]:
+def has_post_earnings_ratings(
+    ticker: str, yticker, is_us: bool, positive_grades: list
+) -> dict[str, Any]:
     """
     Check if there are ratings available since the last earnings date.
 
@@ -442,7 +445,11 @@ def has_post_earnings_ratings(ticker: str, yticker, is_us: bool, positive_grades
 
                 # Handle timezone compatibility
                 if "GradeDate" in df.columns:
-                    if any(date.tzinfo is not None for date in df["GradeDate"] if hasattr(date, "tzinfo")):
+                    if any(
+                        date.tzinfo is not None
+                        for date in df["GradeDate"]
+                        if hasattr(date, "tzinfo")
+                    ):
                         if earnings_date.tzinfo is None:
                             for date in df["GradeDate"]:
                                 if hasattr(date, "tzinfo") and date.tzinfo is not None:
@@ -477,9 +484,7 @@ def has_post_earnings_ratings(ticker: str, yticker, is_us: bool, positive_grades
                 del upgrades_downgrades
 
         except YFinanceError as e:
-            logger.warning(
-                f"Error getting post-earnings ratings for {ticker}: {e}", exc_info=False
-            )
+            logger.warning(f"Error getting post-earnings ratings for {ticker}: {e}", exc_info=False)
         return {"has_ratings": False}
     except YFinanceError as e:
         logger.warning(f"Error in has_post_earnings_ratings for {ticker}: {e}", exc_info=False)

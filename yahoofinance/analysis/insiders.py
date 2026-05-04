@@ -7,7 +7,7 @@ including buys, sells, and net activity.
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from yahoofinance.core.errors import YFinanceError
 
@@ -17,6 +17,7 @@ from ..core.logging import get_logger
 from ..utils.market import is_us_ticker
 
 logger = get_logger(__name__)
+
 
 @dataclass
 class InsiderTransaction:
@@ -34,12 +35,13 @@ class InsiderTransaction:
     """
 
     name: str
-    title: Optional[str] = None
-    date: Optional[str] = None
-    transaction_type: Optional[str] = None
-    shares: Optional[int] = None
-    value: Optional[float] = None
-    share_price: Optional[float] = None
+    title: str | None = None
+    date: str | None = None
+    transaction_type: str | None = None
+    shares: int | None = None
+    value: float | None = None
+    share_price: float | None = None
+
 
 @dataclass
 class InsiderSummary:
@@ -58,19 +60,20 @@ class InsiderSummary:
         average_sell_price: Average price per share for sells
     """
 
-    transactions: Optional[List[InsiderTransaction]] = None
+    transactions: list[InsiderTransaction] | None = None
     buy_count: int = 0
     sell_count: int = 0
     total_buy_value: float = 0.0
     total_sell_value: float = 0.0
     net_value: float = 0.0
     net_share_count: int = 0
-    average_buy_price: Optional[float] = None
-    average_sell_price: Optional[float] = None
+    average_buy_price: float | None = None
+    average_sell_price: float | None = None
 
     def __post_init__(self):
         if self.transactions is None:
             self.transactions = []
+
 
 class InsiderAnalyzer:
     """
@@ -84,9 +87,7 @@ class InsiderAnalyzer:
         is_async: Whether the provider is async or sync
     """
 
-    def __init__(
-        self, provider: Optional[Union[FinanceDataProvider, AsyncFinanceDataProvider]] = None
-    ):
+    def __init__(self, provider: FinanceDataProvider | AsyncFinanceDataProvider | None = None):
         """
         Initialize the InsiderAnalyzer.
 
@@ -177,8 +178,8 @@ class InsiderAnalyzer:
             return InsiderSummary()
 
     def get_transactions_batch(
-        self, tickers: List[str], days: int = 90
-    ) -> Dict[str, InsiderSummary]:
+        self, tickers: list[str], days: int = 90
+    ) -> dict[str, InsiderSummary]:
         """
         Get insider transactions for multiple tickers.
 
@@ -219,8 +220,8 @@ class InsiderAnalyzer:
         return results
 
     async def get_transactions_batch_async(
-        self, tickers: List[str], days: int = 90
-    ) -> Dict[str, InsiderSummary]:
+        self, tickers: list[str], days: int = 90
+    ) -> dict[str, InsiderSummary]:
         """
         Get insider transactions for multiple tickers asynchronously.
 
@@ -252,8 +253,8 @@ class InsiderAnalyzer:
         results_list = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Process results
-        results: Dict[str, InsiderSummary] = {}
-        for ticker, result in zip(us_tickers, results_list):
+        results: dict[str, InsiderSummary] = {}
+        for ticker, result in zip(us_tickers, results_list, strict=False):
             if isinstance(result, Exception):
                 logger.error(f"Error fetching insider transactions for {ticker}: {str(result)}")
                 results[ticker] = InsiderSummary()
@@ -267,7 +268,7 @@ class InsiderAnalyzer:
 
         return results
 
-    def _process_transactions_data(self, transactions_data: List[Dict[str, Any]]) -> InsiderSummary:
+    def _process_transactions_data(self, transactions_data: list[dict[str, Any]]) -> InsiderSummary:
         """
         Process insider transactions data into InsiderSummary object.
 
@@ -336,7 +337,7 @@ class InsiderAnalyzer:
             average_sell_price=average_sell_price,
         )
 
-    def _calculate_sentiment_metrics(self, summary: InsiderSummary, days: int) -> Dict[str, Any]:
+    def _calculate_sentiment_metrics(self, summary: InsiderSummary, days: int) -> dict[str, Any]:
         """
         Calculate sentiment metrics from an InsiderSummary.
 
@@ -375,7 +376,7 @@ class InsiderAnalyzer:
             "lookback_days": days,
         }
 
-    def analyze_insider_sentiment(self, ticker: str, days: int = 90) -> Dict[str, Any]:
+    def analyze_insider_sentiment(self, ticker: str, days: int = 90) -> dict[str, Any]:
         """
         Analyze insider sentiment based on recent transactions.
 
@@ -406,7 +407,7 @@ class InsiderAnalyzer:
             logger.error(f"Error analyzing insider sentiment for {ticker}: {str(e)}")
             return {"sentiment": "UNKNOWN", "confidence": "NONE", "error": str(e)}
 
-    async def analyze_insider_sentiment_async(self, ticker: str, days: int = 90) -> Dict[str, Any]:
+    async def analyze_insider_sentiment_async(self, ticker: str, days: int = 90) -> dict[str, Any]:
         """
         Analyze insider sentiment based on recent transactions asynchronously.
 

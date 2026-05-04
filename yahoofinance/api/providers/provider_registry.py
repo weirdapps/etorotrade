@@ -10,14 +10,13 @@ This module implements a registry pattern that tries providers in order:
 Usage statistics are tracked for monitoring provider reliability.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from ...core.logging import get_logger
 from .alpha_vantage_provider import AlphaVantageProvider
 from .async_yahoo_finance import AsyncYahooFinanceProvider
 from .async_yahooquery_provider import AsyncYahooQueryProvider
 from .polygon_provider import PolygonProvider
-
 
 logger = get_logger(__name__)
 
@@ -36,7 +35,7 @@ class ProviderRegistry:
 
     def __init__(self):
         """Initialize the provider registry with all available providers."""
-        self.providers: List[tuple] = [
+        self.providers: list[tuple] = [
             ("yfinance", AsyncYahooFinanceProvider()),
             ("yahooquery", AsyncYahooQueryProvider()),
             ("alpha_vantage", AlphaVantageProvider()),
@@ -44,9 +43,8 @@ class ProviderRegistry:
         ]
 
         # Statistics tracking
-        self.stats: Dict[str, Dict[str, int]] = {
-            name: {"success": 0, "failure": 0}
-            for name, _ in self.providers
+        self.stats: dict[str, dict[str, int]] = {
+            name: {"success": 0, "failure": 0} for name, _ in self.providers
         }
 
         logger.info(
@@ -56,7 +54,7 @@ class ProviderRegistry:
 
     async def get_stock_data(
         self, ticker: str, skip_insider_metrics: bool = False
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Get stock data for a ticker, trying providers in order.
 
@@ -94,12 +92,10 @@ class ProviderRegistry:
                 continue
 
         # All providers failed
-        logger.error(
-            f"All providers failed for {ticker}. Last error: {last_error}"
-        )
+        logger.error(f"All providers failed for {ticker}. Last error: {last_error}")
         return None
 
-    async def get_price_data(self, ticker: str) -> Optional[Dict[str, Any]]:
+    async def get_price_data(self, ticker: str) -> dict[str, Any] | None:
         """
         Get price data for a ticker, trying providers in order.
 
@@ -132,13 +128,11 @@ class ProviderRegistry:
                 continue
 
         # All providers failed
-        logger.error(
-            f"All providers failed for price data: {ticker}. Last error: {last_error}"
-        )
+        logger.error(f"All providers failed for price data: {ticker}. Last error: {last_error}")
         return None
 
     @staticmethod
-    def _is_valid_data(data: Dict[str, Any]) -> bool:
+    def _is_valid_data(data: dict[str, Any]) -> bool:
         """
         Check if data dict contains valid information.
 
@@ -157,13 +151,12 @@ class ProviderRegistry:
 
         # Check that we have at least some data beyond symbol/name
         non_empty_fields = sum(
-            1 for key, value in data.items()
-            if key not in ("symbol", "name") and value is not None
+            1 for key, value in data.items() if key not in ("symbol", "name") and value is not None
         )
 
         return non_empty_fields > 0
 
-    def get_stats(self) -> Dict[str, Dict[str, int]]:
+    def get_stats(self) -> dict[str, dict[str, int]]:
         """
         Get provider usage statistics.
 
@@ -214,7 +207,7 @@ class ProviderRegistry:
 
 
 # Global singleton instance
-_registry: Optional[ProviderRegistry] = None
+_registry: ProviderRegistry | None = None
 
 
 def get_provider_registry() -> ProviderRegistry:
@@ -230,7 +223,7 @@ def get_provider_registry() -> ProviderRegistry:
     return _registry
 
 
-async def get_stock_data(ticker: str, skip_insider_metrics: bool = False) -> Optional[Dict[str, Any]]:
+async def get_stock_data(ticker: str, skip_insider_metrics: bool = False) -> dict[str, Any] | None:
     """
     Convenience function to get stock data using the global registry.
 
@@ -245,7 +238,7 @@ async def get_stock_data(ticker: str, skip_insider_metrics: bool = False) -> Opt
     return await registry.get_stock_data(ticker, skip_insider_metrics)
 
 
-async def get_price_data(ticker: str) -> Optional[Dict[str, Any]]:
+async def get_price_data(ticker: str) -> dict[str, Any] | None:
     """
     Convenience function to get price data using the global registry.
 
@@ -259,7 +252,7 @@ async def get_price_data(ticker: str) -> Optional[Dict[str, Any]]:
     return await registry.get_price_data(ticker)
 
 
-def get_provider_stats() -> Dict[str, Dict[str, int]]:
+def get_provider_stats() -> dict[str, dict[str, int]]:
     """
     Get provider usage statistics from the global registry.
 

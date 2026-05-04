@@ -13,7 +13,7 @@ Alpha Vantage Free Tier Limits:
 import asyncio
 import os
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import aiohttp
 import pandas as pd
@@ -23,6 +23,7 @@ from ...core.logging import get_logger
 from .base_provider import AsyncFinanceDataProvider
 
 logger = get_logger(__name__)
+
 
 class AlphaVantageProvider(AsyncFinanceDataProvider):
     """
@@ -108,7 +109,7 @@ class AlphaVantageProvider(AsyncFinanceDataProvider):
         self.daily_request_count += 1
         self.last_request_time = time.time()
 
-    async def _make_request(self, params: Dict[str, str]) -> Dict[str, Any]:
+    async def _make_request(self, params: dict[str, str]) -> dict[str, Any]:
         """
         Make an API request to Alpha Vantage.
 
@@ -152,7 +153,7 @@ class AlphaVantageProvider(AsyncFinanceDataProvider):
 
     async def get_ticker_info(
         self, ticker: str, skip_insider_metrics: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get comprehensive information for a ticker.
 
@@ -169,10 +170,7 @@ class AlphaVantageProvider(AsyncFinanceDataProvider):
             return {}
 
         try:
-            data = await self._make_request({
-                "function": "OVERVIEW",
-                "symbol": ticker
-            })
+            data = await self._make_request({"function": "OVERVIEW", "symbol": ticker})
 
             if not data or "Symbol" not in data:
                 return {}
@@ -206,7 +204,7 @@ class AlphaVantageProvider(AsyncFinanceDataProvider):
             logger.error(f"Alpha Vantage get_ticker_info failed for {ticker}: {e}")
             return {}
 
-    async def get_price_data(self, ticker: str) -> Dict[str, Any]:
+    async def get_price_data(self, ticker: str) -> dict[str, Any]:
         """
         Get current price data for a ticker.
 
@@ -222,10 +220,7 @@ class AlphaVantageProvider(AsyncFinanceDataProvider):
             return {}
 
         try:
-            data = await self._make_request({
-                "function": "GLOBAL_QUOTE",
-                "symbol": ticker
-            })
+            data = await self._make_request({"function": "GLOBAL_QUOTE", "symbol": ticker})
 
             quote = data.get("Global Quote", {})
             if not quote:
@@ -237,7 +232,9 @@ class AlphaVantageProvider(AsyncFinanceDataProvider):
                 "current_price": current_price,
                 "previous_close": self._parse_number(quote.get("08. previous close")),
                 "change": self._parse_number(quote.get("09. change")),
-                "change_percent": self._parse_number(quote.get("10. change percent", "").rstrip("%")),
+                "change_percent": self._parse_number(
+                    quote.get("10. change percent", "").rstrip("%")
+                ),
                 "volume": self._parse_number(quote.get("06. volume")),
                 "target_price": None,  # Not available
                 "upside": None,  # Not available
@@ -248,7 +245,7 @@ class AlphaVantageProvider(AsyncFinanceDataProvider):
             return {}
 
     @staticmethod
-    def _parse_number(value: Optional[str]) -> Optional[float]:
+    def _parse_number(value: str | None) -> float | None:
         """Parse a string number to float, handling None and 'None' strings."""
         if not value or value == "None":
             return None
@@ -266,25 +263,25 @@ class AlphaVantageProvider(AsyncFinanceDataProvider):
         """Not implemented for Alpha Vantage fallback."""
         return pd.DataFrame()
 
-    async def get_earnings_dates(self, ticker: str) -> Tuple[Optional[str], Optional[str]]:
+    async def get_earnings_dates(self, ticker: str) -> tuple[str | None, str | None]:
         """Not implemented for Alpha Vantage fallback."""
         return None, None
 
-    async def get_analyst_ratings(self, ticker: str) -> Dict[str, Any]:
+    async def get_analyst_ratings(self, ticker: str) -> dict[str, Any]:
         """Not implemented for Alpha Vantage fallback."""
         return {}
 
-    async def get_insider_transactions(self, ticker: str) -> List[Dict[str, Any]]:
+    async def get_insider_transactions(self, ticker: str) -> list[dict[str, Any]]:
         """Not implemented for Alpha Vantage fallback."""
         return []
 
-    async def search_tickers(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+    async def search_tickers(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         """Not implemented for Alpha Vantage fallback."""
         return []
 
     async def batch_get_ticker_info(
-        self, tickers: List[str], skip_insider_metrics: bool = False
-    ) -> Dict[str, Dict[str, Any]]:
+        self, tickers: list[str], skip_insider_metrics: bool = False
+    ) -> dict[str, dict[str, Any]]:
         """
         Get ticker information for multiple tickers.
 
@@ -314,7 +311,7 @@ class AlphaVantageProvider(AsyncFinanceDataProvider):
         """Alpha Vantage provider has no cache."""
         pass
 
-    def get_cache_info(self) -> Dict[str, Any]:
+    def get_cache_info(self) -> dict[str, Any]:
         """Return rate limit statistics."""
         return {
             "provider": "AlphaVantage",

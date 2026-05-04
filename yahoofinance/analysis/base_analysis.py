@@ -7,11 +7,8 @@ AnalystRatingsService and EarningsAnalyzer should inherit from this base class
 to reduce code duplication.
 """
 
-from typing import Optional, Union
-
 from ..api import AsyncFinanceDataProvider, FinanceDataProvider, get_provider
 from ..core.logging import get_logger
-
 
 logger = get_logger(__name__)
 
@@ -28,9 +25,7 @@ class BaseAnalysisService:
         is_async: Whether the provider is async or sync
     """
 
-    def __init__(
-        self, provider: Optional[Union[FinanceDataProvider, AsyncFinanceDataProvider]] = None
-    ):
+    def __init__(self, provider: FinanceDataProvider | AsyncFinanceDataProvider | None = None):
         """
         Initialize the analysis service.
 

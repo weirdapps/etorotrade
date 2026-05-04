@@ -5,9 +5,7 @@ This module handles all user interaction, menu display, and input processing
 for the trade analysis application.
 """
 
-import asyncio
 import logging
-from typing import Optional, Tuple
 
 # Get logger for this module
 logger = logging.getLogger(__name__)

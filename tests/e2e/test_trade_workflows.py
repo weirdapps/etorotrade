@@ -12,7 +12,6 @@ import pytest
 
 from yahoofinance.presentation.console import MarketDisplay
 
-
 # Common test data constants
 TICKERS = {
     "AAPL": {

@@ -12,6 +12,7 @@ from functools import wraps
 
 from yahoofinance.utils.dependency_injection import Registry
 
+
 def test_registry_registration():
     """Test registry registration with both decorator and direct styles."""
     # Create a new registry
@@ -36,6 +37,7 @@ def test_registry_registration():
     assert direct_result == "Direct registration works!"
 
     print("✓ Registry registration tests passed")
+
 
 def test_registry_instances():
     """Test registry singleton instances."""
@@ -63,6 +65,7 @@ def test_registry_instances():
         pass  # Expected
 
     print("✓ Registry instance tests passed")
+
 
 def test_registry_reset():
     """Test registry reset functionality."""
@@ -94,6 +97,7 @@ def test_registry_reset():
 
     print("✓ Registry reset tests passed")
 
+
 def test_registry_utilities():
     """Test registry utility methods."""
     # Create a new registry
@@ -119,6 +123,7 @@ def test_registry_utilities():
 
     print("✓ Registry utility tests passed")
 
+
 def test_decorator_registration():
     """Test different decorator registration patterns."""
     # Create a new registry
@@ -141,6 +146,7 @@ def test_decorator_registration():
     assert registry.resolve("no_parens") == "No parentheses"
 
     print("✓ Decorator registration tests passed")
+
 
 def test_inject_decorator():
     """Test the inject decorator."""
@@ -178,6 +184,7 @@ def test_inject_decorator():
 
     print("✓ Inject decorator tests passed")
 
+
 def test_provides_decorator():
     """Test the provides decorator."""
     # Create a new registry
@@ -210,6 +217,7 @@ def test_provides_decorator():
 
     print("✓ Provides decorator tests passed")
 
+
 def test_lazy_import():
     """Test lazy importing."""
     # Try to import a standard library module
@@ -231,6 +239,7 @@ def test_lazy_import():
     assert os_module.path == real_os.path
 
     print("✓ Lazy import tests passed")
+
 
 def test_circular_dependencies():
     """Test handling of circular dependencies using lazy imports."""
@@ -263,6 +272,7 @@ def test_circular_dependencies():
 
     print("✓ Circular dependency tests passed")
 
+
 def main():
     """Run all tests for the Registry class and dependency injection system."""
     print("Testing Registry class and dependency injection system...")
@@ -278,6 +288,7 @@ def main():
     test_circular_dependencies()
 
     print("\nAll tests passed! ✓")
+
 
 if __name__ == "__main__":
     main()

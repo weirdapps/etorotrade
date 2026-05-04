@@ -9,14 +9,13 @@ P1 Improvement - Implemented from HEDGE_FUND_REVIEW.md recommendations.
 
 import logging
 import os
-from typing import Dict, Optional
-from datetime import datetime, timedelta
 import threading
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
 # Sector ETF mapping - maps yfinance sector names to SPDR sector ETFs
-SECTOR_ETF_MAP: Dict[str, str] = {
+SECTOR_ETF_MAP: dict[str, str] = {
     # Technology sector variants
     "Technology": "XLK",
     "Information Technology": "XLK",
@@ -43,7 +42,7 @@ SECTOR_ETF_MAP: Dict[str, str] = {
 }
 
 # Default PE values (fallback when ETF data unavailable)
-DEFAULT_SECTOR_PE: Dict[str, float] = {
+DEFAULT_SECTOR_PE: dict[str, float] = {
     "Technology": 28.0,
     "Healthcare": 22.0,
     "Financials": 12.0,
@@ -60,16 +59,17 @@ DEFAULT_SECTOR_PE: Dict[str, float] = {
 DEFAULT_MEDIAN_PE = 20.0
 
 # Cache for sector PE values
-_sector_pe_cache: Dict[str, float] = {}
-_cache_timestamp: Optional[datetime] = None
+_sector_pe_cache: dict[str, float] = {}
+_cache_timestamp: datetime | None = None
 _cache_lock = threading.Lock()
 _CACHE_TTL_HOURS = 4  # Refresh every 4 hours
 
 
-def _fetch_etf_pe(etf_symbol: str) -> Optional[float]:
+def _fetch_etf_pe(etf_symbol: str) -> float | None:
     """Fetch trailing PE for a sector ETF."""
     try:
         import yfinance as yf
+
         ticker = yf.Ticker(etf_symbol)
         info = ticker.info
         pe = info.get("trailingPE")
@@ -90,7 +90,7 @@ def _refresh_cache() -> None:
 
     # Get unique ETFs to avoid duplicate calls
     unique_etfs = set(SECTOR_ETF_MAP.values())
-    etf_pe_values: Dict[str, float] = {}
+    etf_pe_values: dict[str, float] = {}
 
     for etf in unique_etfs:
         pe = _fetch_etf_pe(etf)
@@ -151,7 +151,7 @@ def get_dynamic_sector_pe(sector: str) -> float:
     return DEFAULT_MEDIAN_PE
 
 
-def get_all_sector_pe() -> Dict[str, float]:
+def get_all_sector_pe() -> dict[str, float]:
     """
     Get all sector PE values (for display/debugging).
 

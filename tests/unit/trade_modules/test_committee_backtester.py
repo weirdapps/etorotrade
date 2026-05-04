@@ -15,6 +15,7 @@ from trade_modules.committee_backtester import CommitteeBacktester, evaluate_rec
 # Load History
 # ============================================================
 
+
 class TestLoadHistory:
     """Tests for loading historical concordance data."""
 
@@ -39,9 +40,7 @@ class TestLoadHistory:
                 {"ticker": "MSFT", "action": "HOLD", "conviction": 55},
             ],
         }
-        (tmp_path / "concordance-2026-03-01.json").write_text(
-            json.dumps(data)
-        )
+        (tmp_path / "concordance-2026-03-01.json").write_text(json.dumps(data))
         bt = CommitteeBacktester(log_dir=tmp_path)
         assert bt.load_history() == 1
         assert len(bt.history[0]["concordance"]) == 2
@@ -54,9 +53,7 @@ class TestLoadHistory:
                 {"ticker": "GOOG", "action": "ADD", "conviction": 65},
             ],
         }
-        (tmp_path / "synthesis-2026-03-05.json").write_text(
-            json.dumps(data)
-        )
+        (tmp_path / "synthesis-2026-03-05.json").write_text(json.dumps(data))
         bt = CommitteeBacktester(log_dir=tmp_path)
         assert bt.load_history() == 1
 
@@ -69,9 +66,7 @@ class TestLoadHistory:
                 "TSLA": {"action": "SELL", "conviction": 62},
             },
         }
-        (tmp_path / "committee-2026-03-10.json").write_text(
-            json.dumps(data)
-        )
+        (tmp_path / "committee-2026-03-10.json").write_text(json.dumps(data))
         bt = CommitteeBacktester(log_dir=tmp_path)
         assert bt.load_history() == 1
         tickers = [s["ticker"] for s in bt.history[0]["concordance"]]
@@ -85,9 +80,7 @@ class TestLoadHistory:
                 "date": date,
                 "concordance": [{"ticker": "AAPL", "conviction": 60}],
             }
-            (tmp_path / f"concordance-{date}.json").write_text(
-                json.dumps(data)
-            )
+            (tmp_path / f"concordance-{date}.json").write_text(json.dumps(data))
         bt = CommitteeBacktester(log_dir=tmp_path)
         bt.load_history()
         dates = [e["date"] for e in bt.history]
@@ -104,9 +97,11 @@ class TestLoadHistory:
         bt = CommitteeBacktester(log_dir=tmp_path)
         assert bt.load_history() == 1
 
+
 # ============================================================
 # Forward Returns
 # ============================================================
+
 
 class TestForwardReturns:
     """Tests for forward return computation."""
@@ -154,14 +149,14 @@ class TestForwardReturns:
         bt = CommitteeBacktester(log_dir=tmp_path)
         bt.load_history()
 
-        result = bt.compute_forward_returns(
-            price_fetcher=lambda t, d: 0.0
-        )
+        result = bt.compute_forward_returns(price_fetcher=lambda t, d: 0.0)
         assert result == {}
+
 
 # ============================================================
 # Performance Evaluation
 # ============================================================
+
 
 class TestEvaluatePerformance:
     """Tests for performance evaluation by action group."""
@@ -169,15 +164,17 @@ class TestEvaluatePerformance:
     def _setup_bt(self, tmp_path):
         """Create a backtester with pre-loaded data."""
         bt = CommitteeBacktester(log_dir=tmp_path)
-        bt.history = [{
-            "date": "2026-01-01",
-            "concordance": [
-                {"ticker": "A", "action": "BUY", "conviction": 70},
-                {"ticker": "B", "action": "BUY", "conviction": 65},
-                {"ticker": "C", "action": "SELL", "conviction": 60},
-                {"ticker": "D", "action": "HOLD", "conviction": 55},
-            ],
-        }]
+        bt.history = [
+            {
+                "date": "2026-01-01",
+                "concordance": [
+                    {"ticker": "A", "action": "BUY", "conviction": 70},
+                    {"ticker": "B", "action": "BUY", "conviction": 65},
+                    {"ticker": "C", "action": "SELL", "conviction": 60},
+                    {"ticker": "D", "action": "HOLD", "conviction": 55},
+                ],
+            }
+        ]
         bt.forward_returns = {
             "A:2026-01-01": {"T+30": 8.0},
             "B:2026-01-01": {"T+30": -3.0},
@@ -218,9 +215,11 @@ class TestEvaluatePerformance:
         result = bt.evaluate_performance()
         assert result["total_recommendations"] == 0
 
+
 # ============================================================
 # Parameter Sweep
 # ============================================================
+
 
 class TestParameterSweep:
     """Tests for parameter sweep functionality."""
@@ -233,15 +232,25 @@ class TestParameterSweep:
     def test_sweep_returns_one_result_per_value(self, tmp_path):
         """Each tested value should produce one result entry."""
         bt = CommitteeBacktester(log_dir=tmp_path)
-        bt.history = [{
-            "date": "2026-01-01",
-            "concordance": [
-                {"ticker": "A", "signal": "B", "conviction": 65,
-                 "bull_pct": 70, "fund_score": 70, "excess_exret": 5,
-                 "bear_weight": 2, "bull_weight": 5, "bonuses": 5,
-                 "penalties": 0},
-            ],
-        }]
+        bt.history = [
+            {
+                "date": "2026-01-01",
+                "concordance": [
+                    {
+                        "ticker": "A",
+                        "signal": "B",
+                        "conviction": 65,
+                        "bull_pct": 70,
+                        "fund_score": 70,
+                        "excess_exret": 5,
+                        "bear_weight": 2,
+                        "bull_weight": 5,
+                        "bonuses": 5,
+                        "penalties": 0,
+                    },
+                ],
+            }
+        ]
         bt.forward_returns = {"A:2026-01-01": {"T+30": 5.0}}
         values = [45, 50, 55, 60]
         result = bt.sweep_parameter("buy_floor", values)
@@ -250,15 +259,25 @@ class TestParameterSweep:
     def test_sweep_result_structure(self, tmp_path):
         """Each sweep result should have expected keys."""
         bt = CommitteeBacktester(log_dir=tmp_path)
-        bt.history = [{
-            "date": "2026-01-01",
-            "concordance": [
-                {"ticker": "A", "signal": "B", "conviction": 65,
-                 "bull_pct": 70, "fund_score": 70, "excess_exret": 5,
-                 "bear_weight": 2, "bull_weight": 5, "bonuses": 5,
-                 "penalties": 0},
-            ],
-        }]
+        bt.history = [
+            {
+                "date": "2026-01-01",
+                "concordance": [
+                    {
+                        "ticker": "A",
+                        "signal": "B",
+                        "conviction": 65,
+                        "bull_pct": 70,
+                        "fund_score": 70,
+                        "excess_exret": 5,
+                        "bear_weight": 2,
+                        "bull_weight": 5,
+                        "bonuses": 5,
+                        "penalties": 0,
+                    },
+                ],
+            }
+        ]
         bt.forward_returns = {"A:2026-01-01": {"T+30": 5.0}}
         result = bt.sweep_parameter("buy_floor", [55])
         assert "param" in result[0]
@@ -267,9 +286,11 @@ class TestParameterSweep:
         assert "buy_hit_rate" in result[0]
         assert "buy_avg_return" in result[0]
 
+
 # ============================================================
 # Calibration Report
 # ============================================================
+
 
 class TestCalibrationReport:
     """Tests for generate_calibration_report."""
@@ -294,9 +315,11 @@ class TestCalibrationReport:
         report = bt.generate_calibration_report()
         assert len(report["recommendations"]) >= 1
 
+
 # ============================================================
 # CIO v12.0 P1: evaluate_recent
 # ============================================================
+
 
 class TestEvaluateRecent:
     """CIO v12.0 P1: Evaluate most recent committee run against current prices."""
@@ -381,13 +404,15 @@ class TestEvaluateRecent:
         assert result["status"] == "complete"
         assert result["total_evaluated"] == 0
 
+
 # ============================================================
 # PriceService-based Forward Returns
 # ============================================================
 
-import pandas as pd
-import numpy as np
 from unittest.mock import MagicMock
+
+import numpy as np
+import pandas as pd
 
 
 class TestForwardReturnsWithPriceService:
@@ -432,9 +457,7 @@ class TestForwardReturnsWithPriceService:
             else None
         )
 
-        result = bt.compute_forward_returns(
-            price_service=mock_svc, horizons=(7,)
-        )
+        result = bt.compute_forward_returns(price_service=mock_svc, horizons=(7,))
         assert "AAPL:2026-01-02" in result
         assert result["AAPL:2026-01-02"]["T+7"] is not None
         assert result["AAPL:2026-01-02"]["T+7_alpha"] is not None
@@ -456,14 +479,14 @@ class TestForwardReturnsWithPriceService:
             }
             return prices.get(ticker, {}).get(date_str)
 
-        result = bt.compute_forward_returns(
-            price_fetcher=mock_fetcher, horizons=(7,)
-        )
+        result = bt.compute_forward_returns(price_fetcher=mock_fetcher, horizons=(7,))
         assert "AAPL:2026-01-01" in result
+
 
 # ============================================================
 # run_backtest with PriceService
 # ============================================================
+
 
 class TestRunBacktestWithService:
     def test_uses_price_service_when_available(self, tmp_path):
@@ -484,9 +507,11 @@ class TestRunBacktestWithService:
         assert result["status"] == "no_returns"
         assert result["history_entries"] == 2
 
+
 # ============================================================
 # Walk-Forward Calibration
 # ============================================================
+
 
 class TestWalkForwardCalibration:
     def test_report_includes_walk_forward(self, tmp_path):
@@ -495,19 +520,29 @@ class TestWalkForwardCalibration:
         # Create 6 dated history entries
         bt.history = []
         for i in range(6):
-            bt.history.append({
-                "date": f"2026-01-{10+i:02d}",
-                "concordance": [
-                    {"ticker": "AAPL", "signal": "B", "action": "BUY",
-                     "conviction": 65 + i, "bull_pct": 70, "fund_score": 70,
-                     "excess_exret": 5, "bear_weight": 2, "bull_weight": 5,
-                     "bonuses": 5, "penalties": 0},
-                ],
-            })
+            bt.history.append(
+                {
+                    "date": f"2026-01-{10+i:02d}",
+                    "concordance": [
+                        {
+                            "ticker": "AAPL",
+                            "signal": "B",
+                            "action": "BUY",
+                            "conviction": 65 + i,
+                            "bull_pct": 70,
+                            "fund_score": 70,
+                            "excess_exret": 5,
+                            "bear_weight": 2,
+                            "bull_weight": 5,
+                            "bonuses": 5,
+                            "penalties": 0,
+                        },
+                    ],
+                }
+            )
         # Populate returns for all entries
         bt.forward_returns = {
-            f"AAPL:2026-01-{10+i:02d}": {"T+7": 3.0 + i, "T+30": 5.0 + i}
-            for i in range(6)
+            f"AAPL:2026-01-{10+i:02d}": {"T+7": 3.0 + i, "T+30": 5.0 + i} for i in range(6)
         }
         report = bt.generate_calibration_report()
         assert "walk_forward" in report

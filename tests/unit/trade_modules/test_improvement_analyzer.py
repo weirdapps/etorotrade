@@ -1,17 +1,19 @@
 """Tests for the Improvement Analyzer module."""
 
-import pytest
-from pathlib import Path
 import tempfile
+from pathlib import Path
+
 import pandas as pd
+import pytest
 
 from trade_modules.improvement_analyzer import (
-    ImprovementAnalyzer,
-    MetricEffectiveness,
     DataQualityReport,
+    ImprovementAnalyzer,
     ImprovementSuggestion,
+    MetricEffectiveness,
     SuggestionsDocument,
 )
+
 
 class TestImprovementAnalyzer:
     """Tests for ImprovementAnalyzer class."""
@@ -39,7 +41,7 @@ class TestImprovementAnalyzer:
         }
         df = pd.DataFrame(data)
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
             df.to_csv(f.name, index=False)
             temp_path = Path(f.name)
         yield temp_path
@@ -121,7 +123,7 @@ class TestImprovementAnalyzer:
         analyzer = ImprovementAnalyzer(market_csv_path=temp_market_csv)
         doc = analyzer.generate_suggestions_document()
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
             output_path = Path(f.name)
 
         try:
@@ -132,6 +134,7 @@ class TestImprovementAnalyzer:
             assert "Executive Summary" in content
         finally:
             output_path.unlink()
+
 
 class TestMetricEffectiveness:
     """Tests for MetricEffectiveness dataclass."""
@@ -152,6 +155,7 @@ class TestMetricEffectiveness:
         assert abs(metric.ratio - 3.0) < 0.01
         assert metric.is_effective is True
 
+
 class TestDataQualityReport:
     """Tests for DataQualityReport dataclass."""
 
@@ -169,6 +173,7 @@ class TestDataQualityReport:
 
         assert report.total_stocks == 5000
         assert abs(report.inconclusive_rate - 50.0) < 0.01
+
 
 class TestImprovementSuggestion:
     """Tests for ImprovementSuggestion dataclass."""

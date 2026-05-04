@@ -12,16 +12,17 @@ while maintaining the same functionality.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from yahoofinance.core.errors import YFinanceError
-from ..utils.error_handling import with_retry
 
 from ..api import AsyncFinanceDataProvider, FinanceDataProvider, get_provider
 from ..core.errors import YFinanceError
 from ..core.logging import get_logger
+from ..utils.error_handling import with_retry
 
 logger = get_logger(__name__)
+
 
 @dataclass
 class PriceData:
@@ -41,16 +42,17 @@ class PriceData:
         from_low: Percentage above 52-week low
     """
 
-    price: Optional[float] = None
-    change: Optional[float] = None
-    change_percent: Optional[float] = None
-    volume: Optional[int] = None
-    average_volume: Optional[int] = None
-    volume_ratio: Optional[float] = None
-    high_52week: Optional[float] = None
-    low_52week: Optional[float] = None
-    from_high: Optional[float] = None
-    from_low: Optional[float] = None
+    price: float | None = None
+    change: float | None = None
+    change_percent: float | None = None
+    volume: int | None = None
+    average_volume: int | None = None
+    volume_ratio: float | None = None
+    high_52week: float | None = None
+    low_52week: float | None = None
+    from_high: float | None = None
+    from_low: float | None = None
+
 
 @dataclass
 class PriceTarget:
@@ -66,12 +68,13 @@ class PriceTarget:
         analyst_count: Number of analysts with price targets
     """
 
-    average: Optional[float] = None
-    median: Optional[float] = None
-    high: Optional[float] = None
-    low: Optional[float] = None
-    upside: Optional[float] = None
-    analyst_count: Optional[int] = None
+    average: float | None = None
+    median: float | None = None
+    high: float | None = None
+    low: float | None = None
+    upside: float | None = None
+    analyst_count: int | None = None
+
 
 class PricingAnalyzer:
     """
@@ -85,9 +88,7 @@ class PricingAnalyzer:
         is_async: Whether the provider is async or sync
     """
 
-    def __init__(
-        self, provider: Optional[Union[FinanceDataProvider, AsyncFinanceDataProvider]] = None
-    ):
+    def __init__(self, provider: FinanceDataProvider | AsyncFinanceDataProvider | None = None):
         """
         Initialize the PricingAnalyzer.
 
@@ -224,7 +225,7 @@ class PricingAnalyzer:
             logger.error(f"Error fetching price target for {ticker}: {str(e)}")
             return PriceTarget()
 
-    def _extract_all_metrics(self, ticker_info: Dict[str, Any]) -> Dict[str, Any]:
+    def _extract_all_metrics(self, ticker_info: dict[str, Any]) -> dict[str, Any]:
         """
         Extract comprehensive metrics from ticker info.
         This is a helper method used by both sync and async methods.
@@ -277,7 +278,7 @@ class PricingAnalyzer:
             "from_low": ticker_info.get("from_low"),
         }
 
-    def get_all_metrics(self, ticker: str) -> Dict[str, Any]:
+    def get_all_metrics(self, ticker: str) -> dict[str, Any]:
         """
         Get comprehensive financial metrics for a ticker.
 
@@ -307,7 +308,7 @@ class PricingAnalyzer:
             logger.error(f"Error fetching metrics for {ticker}: {str(e)}")
             return {}
 
-    async def get_all_metrics_async(self, ticker: str) -> Dict[str, Any]:
+    async def get_all_metrics_async(self, ticker: str) -> dict[str, Any]:
         """
         Get comprehensive financial metrics for a ticker asynchronously.
 
@@ -337,7 +338,7 @@ class PricingAnalyzer:
             logger.error(f"Error fetching metrics for {ticker}: {str(e)}")
             return {}
 
-    def get_metrics_batch(self, tickers: List[str]) -> Dict[str, Dict[str, Any]]:
+    def get_metrics_batch(self, tickers: list[str]) -> dict[str, dict[str, Any]]:
         """
         Get financial metrics for multiple tickers.
 
@@ -374,7 +375,7 @@ class PricingAnalyzer:
             logger.error(f"Error fetching metrics batch: {str(e)}")
             return {ticker: {} for ticker in tickers}
 
-    async def get_metrics_batch_async(self, tickers: List[str]) -> Dict[str, Dict[str, Any]]:
+    async def get_metrics_batch_async(self, tickers: list[str]) -> dict[str, dict[str, Any]]:
         """
         Get financial metrics for multiple tickers asynchronously.
 
@@ -411,7 +412,7 @@ class PricingAnalyzer:
             logger.error(f"Error fetching metrics batch asynchronously: {str(e)}")
             return {ticker: {} for ticker in tickers}
 
-    def _process_price_data(self, ticker_info: Dict[str, Any]) -> PriceData:
+    def _process_price_data(self, ticker_info: dict[str, Any]) -> PriceData:
         """
         Process price data from ticker info.
 
@@ -444,7 +445,7 @@ class PricingAnalyzer:
             from_low=ticker_info.get("from_low"),
         )
 
-    def _process_price_target(self, ticker_info: Dict[str, Any]) -> PriceTarget:
+    def _process_price_target(self, ticker_info: dict[str, Any]) -> PriceTarget:
         """
         Process price target data from ticker info.
 
@@ -469,7 +470,7 @@ class PricingAnalyzer:
     # Note: This is a legacy version of the method that was duplicate.
     # We've consolidated with the more comprehensive version defined above.
     # This method is maintained for backward compatibility, now acting as a subset of the comprehensive metrics.
-    def _extract_metrics(self, ticker_info: Dict[str, Any]) -> Dict[str, Any]:
+    def _extract_metrics(self, ticker_info: dict[str, Any]) -> dict[str, Any]:
         """
         Extract key metrics from ticker info.
 

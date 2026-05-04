@@ -5,23 +5,20 @@ This module provides progress tracking and error summaries for ticker processing
 """
 
 import time
-from typing import Any, Callable, Dict, List
+from collections.abc import Callable
+from typing import Any
 
 from tqdm import tqdm
 
 from yahoofinance.core.errors import YFinanceError
 from yahoofinance.core.logging import get_logger
 
-
 logger = get_logger(__name__)
 
 
 def process_tickers_with_progress(
-    tickers: List[str],
-    process_fn: Callable,
-    rate_limiter,
-    batch_size: int = 10
-) -> List[Dict[str, Any]]:
+    tickers: list[str], process_fn: Callable, rate_limiter, batch_size: int = 10
+) -> list[dict[str, Any]]:
     """
     Process a list of tickers with enhanced progress bar and rate limiting.
 
@@ -52,7 +49,6 @@ def process_tickers_with_progress(
         bar_format="{desc} {percentage:3.0f}% |{bar:30}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]",
         ncols=100,
     ) as pbar:
-
         # Update progress bar with detailed stats
         def update_progress_desc():
             elapsed = time.time() - start_time
@@ -105,7 +101,9 @@ def process_tickers_with_progress(
                     error_count += 1
                     rate_limiter.add_error(e, ticker)
                     # Collect error for summary instead of immediate logging
-                    error_collection.append({"ticker": ticker, "error": str(e), "context": "processing"})
+                    error_collection.append(
+                        {"ticker": ticker, "error": str(e), "context": "processing"}
+                    )
 
                 # Update progress and description with latest stats
                 pbar.update(1)
@@ -122,13 +120,14 @@ def process_tickers_with_progress(
 
     # Store stats in global variable for display after table
     import yahoofinance.utils.async_utils.enhanced as enhanced_utils
+
     enhanced_utils._last_processing_stats = {
-        'total_items': total_tickers,
-        'elapsed': elapsed,
-        'items_per_second': tickers_per_second,
-        'success_count': success_count,
-        'error_count': error_count,
-        'cache_hits': cache_hits
+        "total_items": total_tickers,
+        "elapsed": elapsed,
+        "items_per_second": tickers_per_second,
+        "success_count": success_count,
+        "error_count": error_count,
+        "cache_hits": cache_hits,
     }
 
     # Display filtered error summary if errors were collected
@@ -146,16 +145,19 @@ def display_console_error_summary(errors):
     # Filter out delisting and earnings-related error messages
     filtered_errors = []
     for error_info in errors:
-        error_msg = error_info.get('error', '').lower()
+        error_msg = error_info.get("error", "").lower()
         # Skip delisting, earnings, and other noisy messages
-        if any(pattern in error_msg for pattern in [
-            'possibly delisted',
-            'no earnings dates found',
-            'earnings date',
-            'delisted',
-            'no earnings',
-            'earnings data not available'
-        ]):
+        if any(
+            pattern in error_msg
+            for pattern in [
+                "possibly delisted",
+                "no earnings dates found",
+                "earnings date",
+                "delisted",
+                "no earnings",
+                "earnings data not available",
+            ]
+        ):
             continue
         filtered_errors.append(error_info)
 
@@ -176,15 +178,15 @@ def display_console_error_summary(errors):
     ticker_errors = {}
 
     for error_info in filtered_errors:
-        ticker = error_info.get('ticker', 'Unknown')
-        error_msg = error_info.get('error', 'Unknown error')
-        context = error_info.get('context', 'N/A')
+        ticker = error_info.get("ticker", "Unknown")
+        error_msg = error_info.get("error", "Unknown error")
+        context = error_info.get("context", "N/A")
 
         # Count errors by ticker
         ticker_errors[ticker] = ticker_errors.get(ticker, 0) + 1
 
         # Group by error type
-        error_type = error_msg.split(':')[0] if ':' in error_msg else error_msg
+        error_type = error_msg.split(":")[0] if ":" in error_msg else error_msg
         if error_type not in error_groups:
             error_groups[error_type] = []
         error_groups[error_type].append(f"{ticker} ({context})")

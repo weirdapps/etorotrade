@@ -4,61 +4,70 @@ Tests for trade_modules/trade_display.py
 This module tests the DisplayFormatter class for formatting trading data.
 """
 
-import pytest
 import pandas as pd
+import pytest
 
 from trade_modules.trade_display import (
-    DisplayFormatter,
+    COLOR_CYAN,
     COLOR_GREEN,
     COLOR_RED,
-    COLOR_YELLOW,
-    COLOR_CYAN,
     COLOR_RESET,
+    COLOR_YELLOW,
+    DisplayFormatter,
 )
+
 
 @pytest.fixture
 def formatter():
     """Create a DisplayFormatter instance with colors enabled."""
     return DisplayFormatter(use_colors=True)
 
+
 @pytest.fixture
 def formatter_no_colors():
     """Create a DisplayFormatter instance without colors."""
     return DisplayFormatter(use_colors=False)
 
+
 @pytest.fixture
 def sample_opportunities():
     """Create sample opportunities DataFrames."""
-    buy_df = pd.DataFrame({
-        "ticker": ["AAPL", "MSFT"],
-        "price": [175.0, 380.0],
-        "market_cap": [3e12, 2.5e12],
-        "pe_ratio": [28.5, 32.0],
-        "price_target": [200.0, 420.0],
-        "expected_return": [14.3, 10.5],
-        "confidence_score": [0.85, 0.75],
-    })
+    buy_df = pd.DataFrame(
+        {
+            "ticker": ["AAPL", "MSFT"],
+            "price": [175.0, 380.0],
+            "market_cap": [3e12, 2.5e12],
+            "pe_ratio": [28.5, 32.0],
+            "price_target": [200.0, 420.0],
+            "expected_return": [14.3, 10.5],
+            "confidence_score": [0.85, 0.75],
+        }
+    )
     buy_df = buy_df.set_index("ticker")
 
-    sell_df = pd.DataFrame({
-        "ticker": ["NFLX", "INTC"],
-        "price": [400.0, 30.0],
-        "market_cap": [180e9, 130e9],
-        "expected_return": [-5.0, -8.0],
-        "exret": [-5.0, -8.0],
-        "confidence_score": [0.8, 0.7],
-        "action": ["S", "S"],
-    })
+    sell_df = pd.DataFrame(
+        {
+            "ticker": ["NFLX", "INTC"],
+            "price": [400.0, 30.0],
+            "market_cap": [180e9, 130e9],
+            "expected_return": [-5.0, -8.0],
+            "exret": [-5.0, -8.0],
+            "confidence_score": [0.8, 0.7],
+            "action": ["S", "S"],
+        }
+    )
     sell_df = sell_df.set_index("ticker")
 
-    hold_df = pd.DataFrame({
-        "ticker": ["GOOGL", "AMD"],
-        "price": [140.0, 120.0],
-        "dividend_yield": [0.5, 0.0],
-        "pe_ratio": [22.0, 45.0],
-        "expected_return": [2.0, 3.0],
-        "confidence_score": [0.6, 0.55],
-    })
+    hold_df = pd.DataFrame(
+        {
+            "ticker": ["GOOGL", "AMD"],
+            "price": [140.0, 120.0],
+            "dividend_yield": [0.5, 0.0],
+            "pe_ratio": [22.0, 45.0],
+            "expected_return": [2.0, 3.0],
+            "confidence_score": [0.6, 0.55],
+        }
+    )
     hold_df = hold_df.set_index("ticker")
 
     return {
@@ -66,6 +75,7 @@ def sample_opportunities():
         "sell_opportunities": sell_df,
         "hold_opportunities": hold_df,
     }
+
 
 class TestDisplayFormatterInit:
     """Tests for DisplayFormatter initialization."""
@@ -84,6 +94,7 @@ class TestDisplayFormatterInit:
         """Test default color setting."""
         formatter = DisplayFormatter()
         assert formatter.use_colors is True
+
 
 class TestFormatSectionTitle:
     """Tests for _format_section_title method."""
@@ -119,6 +130,7 @@ class TestFormatSectionTitle:
         assert COLOR_GREEN not in title
         assert "=== Buy Opportunities ===" == title
 
+
 class TestGetDisplayColumns:
     """Tests for _get_display_columns method."""
 
@@ -150,23 +162,28 @@ class TestGetDisplayColumns:
         assert "ticker" in columns
         assert "price" in columns
 
+
 class TestFormatDisplayColumns:
     """Tests for _format_display_columns method."""
 
     def test_format_market_cap(self, formatter):
         """Test market cap formatting."""
-        df = pd.DataFrame({
-            "market_cap": [3e12, 500e9, 100e6],
-        })
+        df = pd.DataFrame(
+            {
+                "market_cap": [3e12, 500e9, 100e6],
+            }
+        )
         result = formatter._format_display_columns(df)
         assert "T" in result.iloc[0]["market_cap"]  # Trillion
         assert "B" in result.iloc[1]["market_cap"]  # Billion
 
     def test_format_price_large(self, formatter):
         """Test price formatting for large values."""
-        df = pd.DataFrame({
-            "price": [1500.0, 50.0, 5.0],
-        })
+        df = pd.DataFrame(
+            {
+                "price": [1500.0, 50.0, 5.0],
+            }
+        )
         result = formatter._format_display_columns(df)
         # Large price: no decimals
         assert result.iloc[0]["price"] == "$1,500"
@@ -177,20 +194,24 @@ class TestFormatDisplayColumns:
 
     def test_format_percentage_columns(self, formatter):
         """Test percentage column formatting."""
-        df = pd.DataFrame({
-            "expected_return": [14.3, 10.5],
-            "confidence_score": [0.85, 0.75],
-        })
+        df = pd.DataFrame(
+            {
+                "expected_return": [14.3, 10.5],
+                "confidence_score": [0.85, 0.75],
+            }
+        )
         result = formatter._format_display_columns(df)
         # Should have % in formatted values
         assert "%" in result.iloc[0]["expected_return"]
 
     def test_format_ratio_columns(self, formatter):
         """Test ratio column formatting."""
-        df = pd.DataFrame({
-            "pe_ratio": [28.5, 32.123],
-            "beta": [1.234, 0.9],
-        })
+        df = pd.DataFrame(
+            {
+                "pe_ratio": [28.5, 32.123],
+                "beta": [1.234, 0.9],
+            }
+        )
         result = formatter._format_display_columns(df)
         assert result.iloc[0]["pe_ratio"] == "28.50"
         assert result.iloc[0]["beta"] == "1.23"
@@ -203,9 +224,11 @@ class TestFormatDisplayColumns:
 
     def test_format_roe_column(self, formatter):
         """Test ROE column formatting."""
-        df = pd.DataFrame({
-            "ROE": [0.1983, 0.25, None],
-        })
+        df = pd.DataFrame(
+            {
+                "ROE": [0.1983, 0.25, None],
+            }
+        )
         result = formatter._format_display_columns(df)
         # Should convert 0.1983 to percentage representation
         assert "19.8" in result.iloc[0]["ROE"]
@@ -213,22 +236,27 @@ class TestFormatDisplayColumns:
 
     def test_format_de_column(self, formatter):
         """Test DE column formatting."""
-        df = pd.DataFrame({
-            "DE": [1.5, 0.75, None],
-        })
+        df = pd.DataFrame(
+            {
+                "DE": [1.5, 0.75, None],
+            }
+        )
         result = formatter._format_display_columns(df)
         assert result.iloc[0]["DE"] == "1.5"
         assert result.iloc[2]["DE"] == "N/A"
+
 
 class TestApplyColorCoding:
     """Tests for _apply_color_coding method."""
 
     def test_color_coding_disabled(self, formatter_no_colors):
         """Test that color coding is skipped when disabled."""
-        df = pd.DataFrame({
-            "ticker": ["AAPL"],
-            "price": [175.0],
-        })
+        df = pd.DataFrame(
+            {
+                "ticker": ["AAPL"],
+                "price": [175.0],
+            }
+        )
         result = formatter_no_colors._apply_color_coding(df, "buy_opportunities")
         # Should return unchanged when colors disabled
         assert result.equals(df)
@@ -238,6 +266,7 @@ class TestApplyColorCoding:
         df = pd.DataFrame()
         result = formatter._apply_color_coding(df, "buy_opportunities")
         assert result.empty
+
 
 class TestPrepareDisplayDataframe:
     """Tests for _prepare_display_dataframe method."""
@@ -250,15 +279,18 @@ class TestPrepareDisplayDataframe:
 
     def test_prepare_selects_appropriate_columns(self, formatter):
         """Test that appropriate columns are selected."""
-        df = pd.DataFrame({
-            "ticker": ["AAPL"],
-            "price": [175.0],
-            "market_cap": [3e12],
-            "extra_column": ["extra"],
-        })
+        df = pd.DataFrame(
+            {
+                "ticker": ["AAPL"],
+                "price": [175.0],
+                "market_cap": [3e12],
+                "extra_column": ["extra"],
+            }
+        )
         result = formatter._prepare_display_dataframe(df, "buy_opportunities")
         # Extra column should be filtered out
         assert "extra_column" not in result.columns
+
 
 class TestFormatTradingOpportunities:
     """Tests for format_trading_opportunities method."""
@@ -294,6 +326,7 @@ class TestFormatTradingOpportunities:
         result = formatter.format_trading_opportunities(invalid_opportunities, "table")
         assert "Error" in result
 
+
 class TestDisplayFormatterIntegration:
     """Integration tests for DisplayFormatter."""
 
@@ -308,11 +341,13 @@ class TestDisplayFormatterIntegration:
     def test_format_preserves_data(self, formatter_no_colors):
         """Test that formatting preserves essential data."""
         opportunities = {
-            "buy_opportunities": pd.DataFrame({
-                "ticker": ["AAPL"],
-                "price": [175.0],
-                "market_cap": [3e12],
-            }).set_index("ticker"),
+            "buy_opportunities": pd.DataFrame(
+                {
+                    "ticker": ["AAPL"],
+                    "price": [175.0],
+                    "market_cap": [3e12],
+                }
+            ).set_index("ticker"),
             "sell_opportunities": pd.DataFrame(),
             "hold_opportunities": pd.DataFrame(),
         }

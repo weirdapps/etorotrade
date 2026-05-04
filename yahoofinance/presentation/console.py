@@ -9,7 +9,6 @@ New code should import from yahoofinance.presentation.console_modules directly.
 """
 
 import asyncio
-from typing import Optional, Union
 
 from yahoofinance.api.providers.base_provider import AsyncFinanceDataProvider, FinanceDataProvider
 from yahoofinance.core.logging import get_logger
@@ -30,14 +29,15 @@ from .console_modules import (
 
 logger = get_logger(__name__)
 
+
 class MarketDisplay:
     """Console display for market data with rate limiting - Backward Compatibility Wrapper"""
 
     def __init__(
         self,
-        provider: Optional[Union[FinanceDataProvider, AsyncFinanceDataProvider]] = None,
-        formatter: Optional[DisplayFormatter] = None,
-        config: Optional[DisplayConfig] = None,
+        provider: FinanceDataProvider | AsyncFinanceDataProvider | None = None,
+        formatter: DisplayFormatter | None = None,
+        config: DisplayConfig | None = None,
     ):
         """
         Initialize MarketDisplay.
@@ -83,10 +83,11 @@ class MarketDisplay:
     def save_to_csv(self, data, filename, output_dir=None):
         """Delegate to save_to_csv function"""
         from .console_modules.table_renderer import (
-            format_dataframe,
             add_position_size_column,
+            format_dataframe,
             sort_market_data,
         )
+
         return save_to_csv(
             data,
             filename,
@@ -121,6 +122,7 @@ class MarketDisplay:
     def _sync_display_report(self, tickers, report_type=None):
         """Backward compatibility wrapper for _sync_display_report"""
         from .console_modules.data_manager import _sync_display_report
+
         return _sync_display_report(
             tickers,
             report_type,
@@ -132,6 +134,7 @@ class MarketDisplay:
     async def _async_display_report(self, tickers, report_type=None, trade_filter=None):
         """Backward compatibility wrapper for _async_display_report"""
         from .console_modules.data_manager import _async_display_report
+
         return await _async_display_report(
             tickers,
             report_type,
@@ -139,6 +142,7 @@ class MarketDisplay:
             self.display_stock_table,  # Use instance method instead of module function
             trade_filter,
         )
+
 
 # Re-export all for backward compatibility
 __all__ = [

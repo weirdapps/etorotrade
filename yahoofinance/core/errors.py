@@ -5,7 +5,7 @@ This module defines a comprehensive exception hierarchy for error handling,
 ensuring consistent error handling throughout the package.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class YFinanceError(Exception):
@@ -20,7 +20,7 @@ class YFinanceError(Exception):
         details: Additional error details
     """
 
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
         """
         Initialize a YFinanceError.
 
@@ -83,8 +83,8 @@ class RateLimitError(APIError):
     def __init__(
         self,
         message: str,
-        retry_after: Optional[float] = None,
-        details: Optional[Dict[str, Any]] = None,
+        retry_after: float | None = None,
+        details: dict[str, Any] | None = None,
     ):
         """
         Initialize a RateLimitError.

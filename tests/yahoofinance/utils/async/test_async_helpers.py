@@ -315,7 +315,7 @@ class TestProcessBatchAsync:
             return x * 10
 
         # Mock sleep to verify behavior
-        with patch("asyncio.sleep", AsyncMock()) as mock_sleep:
+        with patch("asyncio.sleep", AsyncMock()):
             results = await process_batch_async(
                 items, process, batch_size=3, delay_between_batches=0.5
             )

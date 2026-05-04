@@ -1,10 +1,11 @@
 """Tests for the Signal Validator module."""
 
-import pytest
+import json
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-import tempfile
-import json
+
+import pytest
 
 from trade_modules.signal_validator import (
     SignalValidator,
@@ -12,13 +13,14 @@ from trade_modules.signal_validator import (
     ValidationSummary,
 )
 
+
 class TestSignalValidator:
     """Tests for SignalValidator class."""
 
     @pytest.fixture
     def temp_signal_log(self):
         """Create temporary signal log for testing."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
             # Write test signals
             signals = [
                 {
@@ -179,7 +181,7 @@ class TestSignalValidator:
 
     def test_empty_log(self):
         """Test handling of empty log file."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
             temp_path = Path(f.name)
 
         try:
@@ -194,6 +196,7 @@ class TestSignalValidator:
         validator = SignalValidator(log_path=Path("/nonexistent/path.jsonl"))
         signals = validator.load_signals()
         assert signals == []
+
 
 class TestValidationResult:
     """Tests for ValidationResult dataclass."""
@@ -218,6 +221,7 @@ class TestValidationResult:
         assert result.ticker == "AAPL"
         assert result.signal == "B"
         assert result.hit_target is False
+
 
 class TestValidationSummary:
     """Tests for ValidationSummary dataclass."""

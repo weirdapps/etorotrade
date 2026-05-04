@@ -5,7 +5,8 @@ Target: Test DisplayFormatter utility functions for financial data formatting
 """
 
 import pytest
-from yahoofinance.presentation.formatter import DisplayFormatter, Color, DisplayConfig
+
+from yahoofinance.presentation.formatter import Color, DisplayConfig, DisplayFormatter
 
 
 class TestDisplayFormatter:

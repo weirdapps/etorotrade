@@ -19,9 +19,7 @@ from trade_modules.signal_scorecard import SignalScorecard
 # hard-coded to 2026-01-20, which silently expired on 2026-04-22.
 # Snap to previous Friday if the anchor lands on a weekend, since fixtures
 # build business-day ranges and tests look BASE_DATE up inside them.
-_anchor = (datetime.now() - timedelta(days=30)).replace(
-    hour=0, minute=0, second=0, microsecond=0
-)
+_anchor = (datetime.now() - timedelta(days=30)).replace(hour=0, minute=0, second=0, microsecond=0)
 if _anchor.weekday() == 5:  # Saturday
     BASE_DATE = _anchor - timedelta(days=1)
 elif _anchor.weekday() == 6:  # Sunday
@@ -34,12 +32,14 @@ BASE_DATE_LATE = BASE_DATE + timedelta(days=12)
 # Fixtures
 # ============================================================
 
+
 @pytest.fixture
 def tmp_dir(tmp_path):
     """Create temp directory structure."""
     output_dir = tmp_path / "output"
     output_dir.mkdir()
     return tmp_path
+
 
 @pytest.fixture
 def signal_log(tmp_dir):
@@ -50,51 +50,58 @@ def signal_log(tmp_dir):
     records = []
     # BUY signals - mega cap US
     for i, ticker in enumerate(["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA"]):
-        records.append({
-            "ticker": ticker,
-            "signal": "B",
-            "timestamp": (base_date + timedelta(hours=i)).isoformat(),
-            "price_at_signal": 150.0 + i * 10,
-            "upside": 20.0 + i,
-            "buy_percentage": 80.0 + i,
-            "exret": 15.0 + i,
-            "tier": "mega",
-            "region": "us",
-        })
+        records.append(
+            {
+                "ticker": ticker,
+                "signal": "B",
+                "timestamp": (base_date + timedelta(hours=i)).isoformat(),
+                "price_at_signal": 150.0 + i * 10,
+                "upside": 20.0 + i,
+                "buy_percentage": 80.0 + i,
+                "exret": 15.0 + i,
+                "tier": "mega",
+                "region": "us",
+            }
+        )
 
     # SELL signals - small cap US
     for i, ticker in enumerate(["BADCO", "FAILCO"]):
-        records.append({
-            "ticker": ticker,
-            "signal": "S",
-            "timestamp": (base_date + timedelta(hours=10 + i)).isoformat(),
-            "price_at_signal": 50.0 + i * 5,
-            "upside": -10.0,
-            "buy_percentage": 20.0,
-            "exret": -5.0,
-            "tier": "small",
-            "region": "us",
-        })
+        records.append(
+            {
+                "ticker": ticker,
+                "signal": "S",
+                "timestamp": (base_date + timedelta(hours=10 + i)).isoformat(),
+                "price_at_signal": 50.0 + i * 5,
+                "upside": -10.0,
+                "buy_percentage": 20.0,
+                "exret": -5.0,
+                "tier": "small",
+                "region": "us",
+            }
+        )
 
     # HOLD signals - EU large cap
     for i, ticker in enumerate(["SAP", "ASML"]):
-        records.append({
-            "ticker": ticker,
-            "signal": "H",
-            "timestamp": (base_date + timedelta(hours=20 + i)).isoformat(),
-            "price_at_signal": 200.0,
-            "upside": 5.0,
-            "buy_percentage": 55.0,
-            "exret": 3.0,
-            "tier": "large",
-            "region": "eu",
-        })
+        records.append(
+            {
+                "ticker": ticker,
+                "signal": "H",
+                "timestamp": (base_date + timedelta(hours=20 + i)).isoformat(),
+                "price_at_signal": 200.0,
+                "upside": 5.0,
+                "buy_percentage": 55.0,
+                "exret": 3.0,
+                "tier": "large",
+                "region": "eu",
+            }
+        )
 
-    with open(log_path, 'w') as f:
+    with open(log_path, "w") as f:
         for record in records:
             f.write(json.dumps(record) + "\n")
 
     return log_path
+
 
 def _make_price_data(tickers, base_date, num_days=150, gain=True):
     """Create synthetic price data DataFrame."""
@@ -113,16 +120,17 @@ def _make_price_data(tickers, base_date, num_days=150, gain=True):
     spy = pd.Series(
         [500.0 * (1 + 0.0005 * d) for d in range(num_days)],
         index=dates,
-        name='SPY',
+        name="SPY",
     )
     return df, spy
+
 
 # ============================================================
 # Tests
 # ============================================================
 
-class TestSignalScorecard:
 
+class TestSignalScorecard:
     def test_empty_signal_log(self, tmp_dir):
         """Scorecard with no signals returns empty structure."""
         empty_log = tmp_dir / "empty.jsonl"
@@ -134,12 +142,12 @@ class TestSignalScorecard:
         )
         result = sc.generate_scorecard(months_back=3)
 
-        assert result['overall'] == {}
-        assert result['by_tier'] == {}
-        assert result['by_region'] == {}
-        assert result['calibration_alerts'] == []
-        assert 'generated_at' in result
-        assert 'period' in result
+        assert result["overall"] == {}
+        assert result["by_tier"] == {}
+        assert result["by_region"] == {}
+        assert result["calibration_alerts"] == []
+        assert "generated_at" in result
+        assert "period" in result
 
     def test_scorecard_structure(self, signal_log, tmp_dir):
         """Scorecard has the expected top-level keys."""
@@ -155,15 +163,15 @@ class TestSignalScorecard:
             output_dir=tmp_dir / "output",
         )
 
-        with patch.object(sc.engine, 'fetch_price_history', return_value=(price_data, spy_data)):
+        with patch.object(sc.engine, "fetch_price_history", return_value=(price_data, spy_data)):
             result = sc.generate_scorecard(months_back=3)
 
-        assert 'generated_at' in result
-        assert 'period' in result
-        assert 'overall' in result
-        assert 'by_tier' in result
-        assert 'by_region' in result
-        assert 'calibration_alerts' in result
+        assert "generated_at" in result
+        assert "period" in result
+        assert "overall" in result
+        assert "by_tier" in result
+        assert "by_region" in result
+        assert "calibration_alerts" in result
 
     def test_buy_hit_rates(self, signal_log, tmp_dir):
         """BUY signals with rising prices should have high hit rates."""
@@ -175,13 +183,13 @@ class TestSignalScorecard:
             output_dir=tmp_dir / "output",
         )
 
-        with patch.object(sc.engine, 'fetch_price_history', return_value=(price_data, spy_data)):
+        with patch.object(sc.engine, "fetch_price_history", return_value=(price_data, spy_data)):
             result = sc.generate_scorecard(months_back=3)
 
-        buy_stats = result['overall'].get('buy', {})
-        if buy_stats.get('count', 0) > 0:
+        buy_stats = result["overall"].get("buy", {})
+        if buy_stats.get("count", 0) > 0:
             # With rising prices, BUY hit rate should be high
-            hr_1m = buy_stats.get('hit_rate_1m')
+            hr_1m = buy_stats.get("hit_rate_1m")
             if hr_1m is not None:
                 assert hr_1m > 50.0
 
@@ -192,18 +200,20 @@ class TestSignalScorecard:
         base_date = BASE_DATE_LATE
         records = []
         for i, ticker in enumerate(["DROPX", "DROPY", "DROPZ"]):
-            records.append({
-                "ticker": ticker,
-                "signal": "S",
-                "timestamp": (base_date + timedelta(hours=i)).isoformat(),
-                "price_at_signal": 100.0,
-                "upside": -10.0,
-                "buy_percentage": 20.0,
-                "exret": -5.0,
-                "tier": "small",
-                "region": "us",
-            })
-        with open(log_path, 'w') as f:
+            records.append(
+                {
+                    "ticker": ticker,
+                    "signal": "S",
+                    "timestamp": (base_date + timedelta(hours=i)).isoformat(),
+                    "price_at_signal": 100.0,
+                    "upside": -10.0,
+                    "buy_percentage": 20.0,
+                    "exret": -5.0,
+                    "tier": "small",
+                    "region": "us",
+                }
+            )
+        with open(log_path, "w") as f:
             for rec in records:
                 f.write(json.dumps(rec) + "\n")
 
@@ -212,16 +222,16 @@ class TestSignalScorecard:
         dates = pd.bdate_range(start=base_date - timedelta(days=5), periods=150)
         data = {t: [100.0 * (1 - 0.002 * d) for d in range(150)] for t in tickers}
         price_data = pd.DataFrame(data, index=dates)
-        spy_data = pd.Series([500.0] * 150, index=dates, name='SPY')
+        spy_data = pd.Series([500.0] * 150, index=dates, name="SPY")
 
         sc = SignalScorecard(signal_log_path=log_path, output_dir=tmp_dir / "output")
 
-        with patch.object(sc.engine, 'fetch_price_history', return_value=(price_data, spy_data)):
+        with patch.object(sc.engine, "fetch_price_history", return_value=(price_data, spy_data)):
             result = sc.generate_scorecard(months_back=3)
 
-        sell_stats = result['overall'].get('sell', {})
-        assert sell_stats.get('count', 0) > 0
-        hr_1m = sell_stats.get('hit_rate_1m')
+        sell_stats = result["overall"].get("sell", {})
+        assert sell_stats.get("count", 0) > 0
+        hr_1m = sell_stats.get("hit_rate_1m")
         assert hr_1m is not None
         assert hr_1m > 50.0
 
@@ -235,12 +245,12 @@ class TestSignalScorecard:
             output_dir=tmp_dir / "output",
         )
 
-        with patch.object(sc.engine, 'fetch_price_history', return_value=(price_data, spy_data)):
+        with patch.object(sc.engine, "fetch_price_history", return_value=(price_data, spy_data)):
             result = sc.generate_scorecard(months_back=3)
 
         # Should have mega tier (from BUY signals)
-        if result['by_tier']:
-            assert 'mega' in result['by_tier'] or 'small' in result['by_tier']
+        if result["by_tier"]:
+            assert "mega" in result["by_tier"] or "small" in result["by_tier"]
 
     def test_by_region_breakdown(self, signal_log, tmp_dir):
         """Region breakdown should contain expected regions."""
@@ -252,11 +262,11 @@ class TestSignalScorecard:
             output_dir=tmp_dir / "output",
         )
 
-        with patch.object(sc.engine, 'fetch_price_history', return_value=(price_data, spy_data)):
+        with patch.object(sc.engine, "fetch_price_history", return_value=(price_data, spy_data)):
             result = sc.generate_scorecard(months_back=3)
 
-        if result['by_region']:
-            assert 'us' in result['by_region'] or 'eu' in result['by_region']
+        if result["by_region"]:
+            assert "us" in result["by_region"] or "eu" in result["by_region"]
 
     def test_false_positive_rate(self, signal_log, tmp_dir):
         """False positive rate for BUY signals with declining prices should be high."""
@@ -268,12 +278,12 @@ class TestSignalScorecard:
             output_dir=tmp_dir / "output",
         )
 
-        with patch.object(sc.engine, 'fetch_price_history', return_value=(price_data, spy_data)):
+        with patch.object(sc.engine, "fetch_price_history", return_value=(price_data, spy_data)):
             result = sc.generate_scorecard(months_back=3)
 
-        buy_stats = result['overall'].get('buy', {})
-        if buy_stats.get('count', 0) > 0:
-            fp_1m = buy_stats.get('false_positive_rate_1m')
+        buy_stats = result["overall"].get("buy", {})
+        if buy_stats.get("count", 0) > 0:
+            fp_1m = buy_stats.get("false_positive_rate_1m")
             if fp_1m is not None:
                 # With declining prices, BUY false positive rate should be high
                 assert fp_1m > 50.0
@@ -289,16 +299,16 @@ class TestSignalScorecard:
             output_dir=output_dir,
         )
 
-        with patch.object(sc.engine, 'fetch_price_history', return_value=(price_data, spy_data)):
+        with patch.object(sc.engine, "fetch_price_history", return_value=(price_data, spy_data)):
             sc.generate_scorecard(months_back=3)
 
         json_path = output_dir / "signal_scorecard.json"
         assert json_path.exists()
 
-        with open(json_path, 'r') as f:
+        with open(json_path) as f:
             loaded = json.load(f)
-        assert 'overall' in loaded
-        assert 'by_tier' in loaded
+        assert "overall" in loaded
+        assert "by_tier" in loaded
 
     def test_print_scorecard(self, signal_log, tmp_dir, capsys):
         """print_scorecard should output without errors."""
@@ -310,7 +320,7 @@ class TestSignalScorecard:
             output_dir=tmp_dir / "output",
         )
 
-        with patch.object(sc.engine, 'fetch_price_history', return_value=(price_data, spy_data)):
+        with patch.object(sc.engine, "fetch_price_history", return_value=(price_data, spy_data)):
             result = sc.generate_scorecard(months_back=3)
 
         sc.print_scorecard(result)
@@ -327,19 +337,21 @@ class TestSignalScorecard:
         tickers = [f"TST{i:03d}" for i in range(15)]
         records = []
         for i, ticker in enumerate(tickers):
-            records.append({
-                "ticker": ticker,
-                "signal": "B",
-                "timestamp": (base_date + timedelta(hours=i)).isoformat(),
-                "price_at_signal": 100.0,
-                "upside": 15.0,
-                "buy_percentage": 70.0,
-                "exret": 10.0,
-                "tier": "mid",
-                "region": "eu",
-            })
+            records.append(
+                {
+                    "ticker": ticker,
+                    "signal": "B",
+                    "timestamp": (base_date + timedelta(hours=i)).isoformat(),
+                    "price_at_signal": 100.0,
+                    "upside": 15.0,
+                    "buy_percentage": 70.0,
+                    "exret": 10.0,
+                    "tier": "mid",
+                    "region": "eu",
+                }
+            )
 
-        with open(log_path, 'w') as f:
+        with open(log_path, "w") as f:
             for rec in records:
                 f.write(json.dumps(rec) + "\n")
 
@@ -347,63 +359,65 @@ class TestSignalScorecard:
         dates = pd.bdate_range(start=base_date - timedelta(days=5), periods=150)
         data = {t: [100.0 * (1 - 0.002 * d) for d in range(150)] for t in tickers}
         price_data = pd.DataFrame(data, index=dates)
-        spy_data = pd.Series([500.0] * 150, index=dates, name='SPY')
+        spy_data = pd.Series([500.0] * 150, index=dates, name="SPY")
 
         sc = SignalScorecard(
             signal_log_path=log_path,
             output_dir=tmp_dir / "output",
         )
 
-        with patch.object(sc.engine, 'fetch_price_history', return_value=(price_data, spy_data)):
+        with patch.object(sc.engine, "fetch_price_history", return_value=(price_data, spy_data)):
             result = sc.generate_scorecard(months_back=3)
 
         # Should generate an alert for EU MID with low hit rate
-        alerts = result.get('calibration_alerts', [])
-        eu_mid_alerts = [a for a in alerts if 'EU' in a and 'MID' in a]
+        alerts = result.get("calibration_alerts", [])
+        eu_mid_alerts = [a for a in alerts if "EU" in a and "MID" in a]
         assert len(eu_mid_alerts) > 0
 
     def test_empty_scorecard_helper(self, tmp_dir):
         """_empty_scorecard returns valid structure."""
         sc = SignalScorecard(output_dir=tmp_dir / "output")
         result = sc._empty_scorecard(3)
-        assert result['overall'] == {}
-        assert result['by_tier'] == {}
-        assert result['by_region'] == {}
-        assert result['calibration_alerts'] == []
+        assert result["overall"] == {}
+        assert result["by_tier"] == {}
+        assert result["by_region"] == {}
+        assert result["calibration_alerts"] == []
 
     def test_hit_rate_static_method(self):
         """Test _hit_rate for each signal type."""
         returns = pd.Series([5.0, -2.0, 3.0, -1.0, 8.0])
 
         # BUY: % > 0
-        assert SignalScorecard._hit_rate(returns, 'B') == pytest.approx(60.0)
+        assert SignalScorecard._hit_rate(returns, "B") == pytest.approx(60.0)
 
         # SELL: % < 0
-        assert SignalScorecard._hit_rate(returns, 'S') == pytest.approx(40.0)
+        assert SignalScorecard._hit_rate(returns, "S") == pytest.approx(40.0)
 
         # HOLD: % within +-5
         hold_returns = pd.Series([1.0, -2.0, 3.0, -4.0, 10.0])
-        assert SignalScorecard._hit_rate(hold_returns, 'H') == pytest.approx(80.0)
+        assert SignalScorecard._hit_rate(hold_returns, "H") == pytest.approx(80.0)
 
         # Empty
-        assert SignalScorecard._hit_rate(pd.Series(dtype=float), 'B') == pytest.approx(0.0)
+        assert SignalScorecard._hit_rate(pd.Series(dtype=float), "B") == pytest.approx(0.0)
 
     def test_false_positive_rate_static_method(self):
         """Test _false_positive_rate for each signal type."""
         returns = pd.Series([5.0, -2.0, 3.0, -1.0, 8.0])
 
         # BUY false positive: % that lost money
-        assert SignalScorecard._false_positive_rate(returns, 'B') == pytest.approx(40.0)
+        assert SignalScorecard._false_positive_rate(returns, "B") == pytest.approx(40.0)
 
         # SELL false positive: % that went up
-        assert SignalScorecard._false_positive_rate(returns, 'S') == pytest.approx(60.0)
+        assert SignalScorecard._false_positive_rate(returns, "S") == pytest.approx(60.0)
 
         # HOLD: 0
-        assert SignalScorecard._false_positive_rate(returns, 'H') == pytest.approx(0.0)
+        assert SignalScorecard._false_positive_rate(returns, "H") == pytest.approx(0.0)
+
 
 # ============================================================
 # Consensus Calibration Tests
 # ============================================================
+
 
 class TestConsensusCalibration:
     """Tests for _compute_consensus_calibration method."""
@@ -416,19 +430,21 @@ class TestConsensusCalibration:
         log_path = tmp_dir / "signal_log.jsonl"
         records = []
         for i, (ticker, bp) in enumerate(zip(tickers, buy_percentages)):
-            records.append({
-                "ticker": ticker,
-                "signal": "B",
-                "timestamp": (base_date + timedelta(hours=i)).isoformat(),
-                "price_at_signal": 100.0,
-                "upside": 15.0,
-                "buy_percentage": bp,
-                "exret": 10.0,
-                "tier": "mega",
-                "region": "us",
-            })
+            records.append(
+                {
+                    "ticker": ticker,
+                    "signal": "B",
+                    "timestamp": (base_date + timedelta(hours=i)).isoformat(),
+                    "price_at_signal": 100.0,
+                    "upside": 15.0,
+                    "buy_percentage": bp,
+                    "exret": 10.0,
+                    "tier": "mega",
+                    "region": "us",
+                }
+            )
 
-        with open(log_path, 'w') as f:
+        with open(log_path, "w") as f:
             for rec in records:
                 f.write(json.dumps(rec) + "\n")
         return log_path
@@ -450,21 +466,21 @@ class TestConsensusCalibration:
             output_dir=tmp_dir / "output",
         )
 
-        with patch.object(sc.engine, 'fetch_price_history', return_value=(price_data, spy_data)):
+        with patch.object(sc.engine, "fetch_price_history", return_value=(price_data, spy_data)):
             result = sc.generate_scorecard(months_back=3)
 
-        cal = result.get('consensus_calibration', {})
+        cal = result.get("consensus_calibration", {})
         assert isinstance(cal, dict)
 
         # Should have the two populated buckets
-        if '50-60%' in cal:
-            assert cal['50-60%']['count'] == 5
-            assert 'hit_rate' in cal['50-60%']
-            assert 'avg_return' in cal['50-60%']
-            assert 'outperformance_rate' in cal['50-60%']
+        if "50-60%" in cal:
+            assert cal["50-60%"]["count"] == 5
+            assert "hit_rate" in cal["50-60%"]
+            assert "avg_return" in cal["50-60%"]
+            assert "outperformance_rate" in cal["50-60%"]
 
-        if '80-90%' in cal:
-            assert cal['80-90%']['count'] == 5
+        if "80-90%" in cal:
+            assert cal["80-90%"]["count"] == 5
 
     def test_consensus_calibration_hit_rate_rising_prices(self, tmp_dir):
         """With rising prices, all buckets should have 100% hit rate."""
@@ -481,15 +497,15 @@ class TestConsensusCalibration:
             output_dir=tmp_dir / "output",
         )
 
-        with patch.object(sc.engine, 'fetch_price_history', return_value=(price_data, spy_data)):
+        with patch.object(sc.engine, "fetch_price_history", return_value=(price_data, spy_data)):
             result = sc.generate_scorecard(months_back=3)
 
-        cal = result.get('consensus_calibration', {})
+        cal = result.get("consensus_calibration", {})
         for bucket_label, stats in cal.items():
-            assert stats['hit_rate'] == pytest.approx(100.0), (
-                f"Expected 100% hit rate for {bucket_label} with rising prices"
-            )
-            assert stats['avg_return'] > 0
+            assert stats["hit_rate"] == pytest.approx(
+                100.0
+            ), f"Expected 100% hit rate for {bucket_label} with rising prices"
+            assert stats["avg_return"] > 0
 
     def test_consensus_calibration_hit_rate_falling_prices(self, tmp_dir):
         """With falling prices, BUY hit rates should be 0%."""
@@ -512,22 +528,22 @@ class TestConsensusCalibration:
                 prices.append(100.0 * (1 - 0.003 * (d - signal_idx)))
             data[ticker] = prices
         price_data = pd.DataFrame(data, index=dates)
-        spy_data = pd.Series([500.0] * num_days, index=dates, name='SPY')
+        spy_data = pd.Series([500.0] * num_days, index=dates, name="SPY")
 
         sc = SignalScorecard(
             signal_log_path=log_path,
             output_dir=tmp_dir / "output",
         )
 
-        with patch.object(sc.engine, 'fetch_price_history', return_value=(price_data, spy_data)):
+        with patch.object(sc.engine, "fetch_price_history", return_value=(price_data, spy_data)):
             result = sc.generate_scorecard(months_back=3)
 
-        cal = result.get('consensus_calibration', {})
+        cal = result.get("consensus_calibration", {})
         for bucket_label, stats in cal.items():
-            assert stats['hit_rate'] == pytest.approx(0.0), (
-                f"Expected 0% hit rate for {bucket_label} with falling prices"
-            )
-            assert stats['avg_return'] < 0
+            assert stats["hit_rate"] == pytest.approx(
+                0.0
+            ), f"Expected 0% hit rate for {bucket_label} with falling prices"
+            assert stats["avg_return"] < 0
 
     def test_consensus_calibration_empty_when_no_buy_percentage(self, tmp_dir):
         """Calibration returns empty dict when buy_percentage is missing."""
@@ -537,18 +553,20 @@ class TestConsensusCalibration:
         # Signal log WITHOUT buy_percentage field
         records = []
         for i, ticker in enumerate(["NOPC1", "NOPC2"]):
-            records.append({
-                "ticker": ticker,
-                "signal": "B",
-                "timestamp": (base_date + timedelta(hours=i)).isoformat(),
-                "price_at_signal": 100.0,
-                "upside": 15.0,
-                "exret": 10.0,
-                "tier": "mega",
-                "region": "us",
-            })
+            records.append(
+                {
+                    "ticker": ticker,
+                    "signal": "B",
+                    "timestamp": (base_date + timedelta(hours=i)).isoformat(),
+                    "price_at_signal": 100.0,
+                    "upside": 15.0,
+                    "exret": 10.0,
+                    "tier": "mega",
+                    "region": "us",
+                }
+            )
 
-        with open(log_path, 'w') as f:
+        with open(log_path, "w") as f:
             for rec in records:
                 f.write(json.dumps(rec) + "\n")
 
@@ -560,10 +578,10 @@ class TestConsensusCalibration:
             output_dir=tmp_dir / "output",
         )
 
-        with patch.object(sc.engine, 'fetch_price_history', return_value=(price_data, spy_data)):
+        with patch.object(sc.engine, "fetch_price_history", return_value=(price_data, spy_data)):
             result = sc.generate_scorecard(months_back=3)
 
-        cal = result.get('consensus_calibration', {})
+        cal = result.get("consensus_calibration", {})
         assert cal == {}
 
     def test_consensus_calibration_skips_sell_signals(self, tmp_dir):
@@ -574,19 +592,21 @@ class TestConsensusCalibration:
         records = []
         # Only SELL signals with buy_percentage
         for i, ticker in enumerate(["SELLX", "SELLY"]):
-            records.append({
-                "ticker": ticker,
-                "signal": "S",
-                "timestamp": (base_date + timedelta(hours=i)).isoformat(),
-                "price_at_signal": 100.0,
-                "upside": -10.0,
-                "buy_percentage": 20.0,
-                "exret": -5.0,
-                "tier": "small",
-                "region": "us",
-            })
+            records.append(
+                {
+                    "ticker": ticker,
+                    "signal": "S",
+                    "timestamp": (base_date + timedelta(hours=i)).isoformat(),
+                    "price_at_signal": 100.0,
+                    "upside": -10.0,
+                    "buy_percentage": 20.0,
+                    "exret": -5.0,
+                    "tier": "small",
+                    "region": "us",
+                }
+            )
 
-        with open(log_path, 'w') as f:
+        with open(log_path, "w") as f:
             for rec in records:
                 f.write(json.dumps(rec) + "\n")
 
@@ -598,11 +618,11 @@ class TestConsensusCalibration:
             output_dir=tmp_dir / "output",
         )
 
-        with patch.object(sc.engine, 'fetch_price_history', return_value=(price_data, spy_data)):
+        with patch.object(sc.engine, "fetch_price_history", return_value=(price_data, spy_data)):
             result = sc.generate_scorecard(months_back=3)
 
         # SELL signals have buy_percentage=20 which is below the 50% bucket floor
-        cal = result.get('consensus_calibration', {})
+        cal = result.get("consensus_calibration", {})
         assert cal == {}
 
     def test_consensus_calibration_below_50_excluded(self, tmp_dir):
@@ -620,10 +640,10 @@ class TestConsensusCalibration:
             output_dir=tmp_dir / "output",
         )
 
-        with patch.object(sc.engine, 'fetch_price_history', return_value=(price_data, spy_data)):
+        with patch.object(sc.engine, "fetch_price_history", return_value=(price_data, spy_data)):
             result = sc.generate_scorecard(months_back=3)
 
-        cal = result.get('consensus_calibration', {})
+        cal = result.get("consensus_calibration", {})
         assert cal == {}
 
     def test_consensus_calibration_90_plus_bucket(self, tmp_dir):
@@ -641,19 +661,19 @@ class TestConsensusCalibration:
             output_dir=tmp_dir / "output",
         )
 
-        with patch.object(sc.engine, 'fetch_price_history', return_value=(price_data, spy_data)):
+        with patch.object(sc.engine, "fetch_price_history", return_value=(price_data, spy_data)):
             result = sc.generate_scorecard(months_back=3)
 
-        cal = result.get('consensus_calibration', {})
-        assert '90%+' in cal
-        assert cal['90%+']['count'] == 3
+        cal = result.get("consensus_calibration", {})
+        assert "90%+" in cal
+        assert cal["90%+"]["count"] == 3
 
     def test_consensus_calibration_in_empty_scorecard(self, tmp_dir):
         """Empty scorecard includes consensus_calibration key."""
         sc = SignalScorecard(output_dir=tmp_dir / "output")
         result = sc._empty_scorecard(3)
-        assert 'consensus_calibration' in result
-        assert result['consensus_calibration'] == {}
+        assert "consensus_calibration" in result
+        assert result["consensus_calibration"] == {}
 
     def test_consensus_calibration_outperformance_rate(self, tmp_dir):
         """Outperformance rate measures % of signals that beat SPY."""
@@ -672,13 +692,13 @@ class TestConsensusCalibration:
             output_dir=tmp_dir / "output",
         )
 
-        with patch.object(sc.engine, 'fetch_price_history', return_value=(price_data, spy_data)):
+        with patch.object(sc.engine, "fetch_price_history", return_value=(price_data, spy_data)):
             result = sc.generate_scorecard(months_back=3)
 
-        cal = result.get('consensus_calibration', {})
-        if '70-80%' in cal:
+        cal = result.get("consensus_calibration", {})
+        if "70-80%" in cal:
             # With stocks growing faster than SPY, outperformance should be 100%
-            assert cal['70-80%']['outperformance_rate'] == pytest.approx(100.0)
+            assert cal["70-80%"]["outperformance_rate"] == pytest.approx(100.0)
 
     def test_consensus_calibration_included_in_full_scorecard(self, signal_log, tmp_dir):
         """consensus_calibration appears in full scorecard output."""
@@ -690,18 +710,18 @@ class TestConsensusCalibration:
             output_dir=tmp_dir / "output",
         )
 
-        with patch.object(sc.engine, 'fetch_price_history', return_value=(price_data, spy_data)):
+        with patch.object(sc.engine, "fetch_price_history", return_value=(price_data, spy_data)):
             result = sc.generate_scorecard(months_back=3)
 
-        assert 'consensus_calibration' in result
-        cal = result['consensus_calibration']
+        assert "consensus_calibration" in result
+        cal = result["consensus_calibration"]
         assert isinstance(cal, dict)
 
         # The fixture signal_log has buy_percentage 80-84 for 5 BUY signals
         # They should land in the 80-90% bucket
         if cal:
-            assert '80-90%' in cal
-            assert cal['80-90%']['count'] == 5
+            assert "80-90%" in cal
+            assert cal["80-90%"]["count"] == 5
 
     def test_consensus_calibration_rounding(self, tmp_dir):
         """Stats are properly rounded: hit_rate 1 decimal, avg_return 2 decimals."""
@@ -718,15 +738,15 @@ class TestConsensusCalibration:
             output_dir=tmp_dir / "output",
         )
 
-        with patch.object(sc.engine, 'fetch_price_history', return_value=(price_data, spy_data)):
+        with patch.object(sc.engine, "fetch_price_history", return_value=(price_data, spy_data)):
             result = sc.generate_scorecard(months_back=3)
 
-        cal = result.get('consensus_calibration', {})
-        if '60-70%' in cal:
-            stats = cal['60-70%']
+        cal = result.get("consensus_calibration", {})
+        if "60-70%" in cal:
+            stats = cal["60-70%"]
             # hit_rate is rounded to 1 decimal
-            hr_str = str(stats['hit_rate'])
-            assert len(hr_str.split('.')[-1]) <= 1
+            hr_str = str(stats["hit_rate"])
+            assert len(hr_str.split(".")[-1]) <= 1
             # avg_return is rounded to 2 decimals
-            ar_str = str(stats['avg_return'])
-            assert len(ar_str.split('.')[-1]) <= 2
+            ar_str = str(stats["avg_return"])
+            assert len(ar_str.split(".")[-1]) <= 2

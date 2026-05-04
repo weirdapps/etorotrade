@@ -8,8 +8,7 @@ This package contains modules for data management including:
 """
 
 from .cache import CacheManager, cached, get_cache_manager
-from .download import download_portfolio, download_etoro_portfolio
-
+from .download import download_etoro_portfolio, download_portfolio
 
 __all__ = [
     # Cache - Advanced V2 system

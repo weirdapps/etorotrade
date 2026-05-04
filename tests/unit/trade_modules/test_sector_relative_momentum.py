@@ -2,17 +2,19 @@
 Tests for Sector-Relative Momentum Provider
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 import pandas as pd
+import pytest
 
 from trade_modules.sector_relative_momentum import (
+    UNDERPERFORMANCE_THRESHOLD,
     calculate_relative_momentum,
     get_relative_momentum_flags,
-    is_underperforming_sector,
     invalidate_cache,
-    UNDERPERFORMANCE_THRESHOLD,
+    is_underperforming_sector,
 )
+
 
 class TestSectorRelativeMomentum:
     """Tests for sector-relative momentum calculations."""
@@ -23,7 +25,7 @@ class TestSectorRelativeMomentum:
 
     def test_calculate_relative_momentum_outperforming(self):
         """Test calculation for stock outperforming sector."""
-        with patch('trade_modules.sector_relative_momentum._fetch_return') as mock_fetch:
+        with patch("trade_modules.sector_relative_momentum._fetch_return") as mock_fetch:
             # Stock up 50%, sector up 20% -> relative momentum +30%
             mock_fetch.side_effect = [50.0, 20.0]
 
@@ -34,7 +36,7 @@ class TestSectorRelativeMomentum:
 
     def test_calculate_relative_momentum_underperforming(self):
         """Test calculation for stock underperforming sector."""
-        with patch('trade_modules.sector_relative_momentum._fetch_return') as mock_fetch:
+        with patch("trade_modules.sector_relative_momentum._fetch_return") as mock_fetch:
             # Stock up 5%, sector up 25% -> relative momentum -20%
             mock_fetch.side_effect = [5.0, 25.0]
 
@@ -54,7 +56,7 @@ class TestSectorRelativeMomentum:
 
     def test_calculate_relative_momentum_fetch_failure(self):
         """Test handles fetch failures gracefully."""
-        with patch('trade_modules.sector_relative_momentum._fetch_return') as mock_fetch:
+        with patch("trade_modules.sector_relative_momentum._fetch_return") as mock_fetch:
             mock_fetch.return_value = None
 
             result = calculate_relative_momentum("BADTICKER", "Technology")
@@ -63,11 +65,13 @@ class TestSectorRelativeMomentum:
 
     def test_get_relative_momentum_flags_batch(self):
         """Test batch processing of multiple tickers."""
-        with patch('trade_modules.sector_relative_momentum._fetch_return') as mock_fetch:
+        with patch("trade_modules.sector_relative_momentum._fetch_return") as mock_fetch:
             # NVDA outperforming (+30%), INTC underperforming (-20%)
             mock_fetch.side_effect = [
-                50.0, 20.0,  # NVDA vs XLK
-                5.0, 25.0,   # INTC vs XLK
+                50.0,
+                20.0,  # NVDA vs XLK
+                5.0,
+                25.0,  # INTC vs XLK
             ]
 
             tickers = [
@@ -89,7 +93,7 @@ class TestSectorRelativeMomentum:
 
     def test_get_relative_momentum_flags_uses_cache(self):
         """Test that batch processing uses cache."""
-        with patch('trade_modules.sector_relative_momentum._fetch_return') as mock_fetch:
+        with patch("trade_modules.sector_relative_momentum._fetch_return") as mock_fetch:
             mock_fetch.side_effect = [50.0, 20.0]  # Only one set of returns
 
             tickers = [("NVDA", "Technology")]
@@ -106,7 +110,7 @@ class TestSectorRelativeMomentum:
 
     def test_is_underperforming_sector_true(self):
         """Test underperformance detection."""
-        with patch('trade_modules.sector_relative_momentum._fetch_return') as mock_fetch:
+        with patch("trade_modules.sector_relative_momentum._fetch_return") as mock_fetch:
             # Stock down 10%, sector up 10% -> relative -20% (underperforming)
             mock_fetch.side_effect = [-10.0, 10.0]
 
@@ -116,7 +120,7 @@ class TestSectorRelativeMomentum:
 
     def test_is_underperforming_sector_false(self):
         """Test non-underperformance."""
-        with patch('trade_modules.sector_relative_momentum._fetch_return') as mock_fetch:
+        with patch("trade_modules.sector_relative_momentum._fetch_return") as mock_fetch:
             # Stock up 20%, sector up 15% -> relative +5% (outperforming)
             mock_fetch.side_effect = [20.0, 15.0]
 
@@ -126,7 +130,7 @@ class TestSectorRelativeMomentum:
 
     def test_is_underperforming_sector_borderline(self):
         """Test borderline underperformance."""
-        with patch('trade_modules.sector_relative_momentum._fetch_return') as mock_fetch:
+        with patch("trade_modules.sector_relative_momentum._fetch_return") as mock_fetch:
             # Stock up 5%, sector up 19% -> relative -14% (just below threshold)
             mock_fetch.side_effect = [5.0, 19.0]
 
@@ -138,11 +142,9 @@ class TestSectorRelativeMomentum:
         """Test _fetch_return with valid historical data."""
         from trade_modules.sector_relative_momentum import _fetch_return
 
-        mock_hist = pd.DataFrame({
-            'Close': [100.0, 110.0, 120.0, 130.0, 150.0]
-        })
+        mock_hist = pd.DataFrame({"Close": [100.0, 110.0, 120.0, 130.0, 150.0]})
 
-        with patch('yfinance.Ticker') as mock_ticker_class:
+        with patch("yfinance.Ticker") as mock_ticker_class:
             mock_ticker = MagicMock()
             mock_ticker.history.return_value = mock_hist
             mock_ticker_class.return_value = mock_ticker
@@ -156,7 +158,7 @@ class TestSectorRelativeMomentum:
         """Test _fetch_return handles empty history."""
         from trade_modules.sector_relative_momentum import _fetch_return
 
-        with patch('yfinance.Ticker') as mock_ticker_class:
+        with patch("yfinance.Ticker") as mock_ticker_class:
             mock_ticker = MagicMock()
             mock_ticker.history.return_value = pd.DataFrame()
             mock_ticker_class.return_value = mock_ticker
@@ -169,7 +171,7 @@ class TestSectorRelativeMomentum:
         """Test _fetch_return handles exceptions."""
         from trade_modules.sector_relative_momentum import _fetch_return
 
-        with patch('yfinance.Ticker') as mock_ticker_class:
+        with patch("yfinance.Ticker") as mock_ticker_class:
             mock_ticker_class.side_effect = Exception("API error")
 
             result = _fetch_return("BADTICKER", period_days=252)
@@ -183,7 +185,7 @@ class TestSectorRelativeMomentum:
     def test_cache_invalidation(self):
         """Test cache invalidation works."""
 
-        with patch('trade_modules.sector_relative_momentum._fetch_return') as mock_fetch:
+        with patch("trade_modules.sector_relative_momentum._fetch_return") as mock_fetch:
             mock_fetch.side_effect = [50.0, 20.0, 60.0, 20.0]
 
             # First call - populate cache
@@ -201,7 +203,7 @@ class TestSectorRelativeMomentum:
 
     def test_different_period_days(self):
         """Test calculation with different lookback periods."""
-        with patch('trade_modules.sector_relative_momentum._fetch_return') as mock_fetch:
+        with patch("trade_modules.sector_relative_momentum._fetch_return") as mock_fetch:
             mock_fetch.side_effect = [30.0, 15.0]
 
             result = calculate_relative_momentum("AAPL", "Technology", period_days=126)

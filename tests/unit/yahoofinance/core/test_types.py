@@ -5,6 +5,7 @@ Target: Test StockData dataclass and type conversions
 """
 
 import pytest
+
 from yahoofinance.core.types import StockData
 
 

@@ -46,6 +46,7 @@ def run_signal_backtest():
     summary = {}
     if results_path.exists():
         import pandas as pd
+
         results_df = pd.read_csv(results_path)
         if not results_df.empty:
             analyzer = ThresholdAnalyzer()
@@ -61,12 +62,24 @@ def run_signal_backtest():
                         summary[key] = {
                             "count": int(row["count"]),
                             "hit_rate": float(row["hit_rate"]),
-                            "hit_rate_ci_lo": float(row["hit_rate_ci_lo"]) if pd.notna(row.get("hit_rate_ci_lo")) else None,
-                            "hit_rate_ci_hi": float(row["hit_rate_ci_hi"]) if pd.notna(row.get("hit_rate_ci_hi")) else None,
-                            "alpha_hit_rate": float(row["alpha_hit_rate"]) if pd.notna(row.get("alpha_hit_rate")) else None,
-                            "mean_return": float(row["mean_return"]) if pd.notna(row.get("mean_return")) else None,
-                            "avg_alpha": float(row["avg_alpha"]) if pd.notna(row.get("avg_alpha")) else None,
-                            "proven_signal": bool(row["proven_signal"]) if pd.notna(row.get("proven_signal")) else None,
+                            "hit_rate_ci_lo": float(row["hit_rate_ci_lo"])
+                            if pd.notna(row.get("hit_rate_ci_lo"))
+                            else None,
+                            "hit_rate_ci_hi": float(row["hit_rate_ci_hi"])
+                            if pd.notna(row.get("hit_rate_ci_hi"))
+                            else None,
+                            "alpha_hit_rate": float(row["alpha_hit_rate"])
+                            if pd.notna(row.get("alpha_hit_rate"))
+                            else None,
+                            "mean_return": float(row["mean_return"])
+                            if pd.notna(row.get("mean_return"))
+                            else None,
+                            "avg_alpha": float(row["avg_alpha"])
+                            if pd.notna(row.get("avg_alpha"))
+                            else None,
+                            "proven_signal": bool(row["proven_signal"])
+                            if pd.notna(row.get("proven_signal"))
+                            else None,
                         }
 
     return summary
@@ -91,9 +104,11 @@ def run_committee_backtest():
             if actions:
                 print(f"\n  {label} Performance:")
                 for action, data in actions.items():
-                    print(f"    {action}: {data.get('count', 0)} recs, "
-                          f"{data.get('hit_rate', 0):.1f}% hit rate, "
-                          f"{data.get('avg_return', 0):.2f}% avg return")
+                    print(
+                        f"    {action}: {data.get('count', 0)} recs, "
+                        f"{data.get('hit_rate', 0):.1f}% hit rate, "
+                        f"{data.get('avg_return', 0):.2f}% avg return"
+                    )
 
     return result
 
@@ -105,9 +120,9 @@ def run_scorecard(ci_mode=False):
     print("=" * 60)
 
     from trade_modules.committee_scorecard import (
-        generate_committee_scorecard,
-        calibrate_modifiers,
         COMMITTEE_LOG_PATH,
+        calibrate_modifiers,
+        generate_committee_scorecard,
     )
 
     if not COMMITTEE_LOG_PATH.exists():
@@ -119,9 +134,11 @@ def run_scorecard(ci_mode=False):
     buy_recs = scorecard.get("buy_recommendations", {})
     sell_recs = scorecard.get("sell_recommendations", {})
     hold_recs = scorecard.get("hold_recommendations", {})
-    print(f"\nScorecard: {buy_recs.get('total', 0)} BUY, "
-          f"{sell_recs.get('total', 0)} SELL, "
-          f"{hold_recs.get('total', 0)} HOLD tracked")
+    print(
+        f"\nScorecard: {buy_recs.get('total', 0)} BUY, "
+        f"{sell_recs.get('total', 0)} SELL, "
+        f"{hold_recs.get('total', 0)} HOLD tracked"
+    )
     if buy_recs.get("hit_rate_30d") is not None:
         print(f"  BUY alpha hit rate (T+30): {buy_recs['hit_rate_30d']:.1f}% (vs SPY)")
     if sell_recs.get("validated_30d") is not None:
@@ -171,7 +188,9 @@ def refresh_rolling_thresholds():
         return {}
 
     thresholds = compute_rolling_thresholds(
-        bt.history, lookback_snapshots=8, min_per_signal=20,
+        bt.history,
+        lookback_snapshots=8,
+        min_per_signal=20,
     )
     persist_thresholds(thresholds)
 
@@ -179,12 +198,16 @@ def refresh_rolling_thresholds():
         block = thresholds.get(sig, {})
         source = block.get("source", "n/a")
         if source == "rolling":
-            print(f"  Signal {sig}: source=rolling n={block.get('n')} "
-                  f"add_pct={block.get('add_pct')} trim_pct={block.get('trim_pct')} "
-                  f"sell_pct={block.get('sell_pct')}")
+            print(
+                f"  Signal {sig}: source=rolling n={block.get('n')} "
+                f"add_pct={block.get('add_pct')} trim_pct={block.get('trim_pct')} "
+                f"sell_pct={block.get('sell_pct')}"
+            )
         else:
-            print(f"  Signal {sig}: source=legacy n={block.get('n', 0)} "
-                  "(insufficient evidence — keeping fixed cuts)")
+            print(
+                f"  Signal {sig}: source=legacy n={block.get('n', 0)} "
+                "(insufficient evidence — keeping fixed cuts)"
+            )
     return thresholds
 
 
@@ -197,8 +220,11 @@ def refresh_agent_sign_calibrator(shadow_mode: bool = True):
     we've seen consistent INVERTED verdicts across the lookback window.
     """
     print("\n" + "=" * 60)
-    print("  PHASE 5: Agent Sign Calibrator (CIO v17 H1, "
-          + ("SHADOW" if shadow_mode else "AUTO") + ")")
+    print(
+        "  PHASE 5: Agent Sign Calibrator (CIO v17 H1, "
+        + ("SHADOW" if shadow_mode else "AUTO")
+        + ")"
+    )
     print("=" * 60)
 
     from trade_modules.agent_sign_calibrator import (
@@ -206,8 +232,10 @@ def refresh_agent_sign_calibrator(shadow_mode: bool = True):
         persist_calibration,
     )
     from trade_modules.committee_backtester import CommitteeBacktester
+
     try:
         from trade_modules.price_service import PriceService
+
         svc = PriceService()
     except Exception:
         svc = None
@@ -223,8 +251,8 @@ def refresh_agent_sign_calibrator(shadow_mode: bool = True):
         bt.compute_forward_returns(price_service=svc, horizons=(7, 14, 30))
     else:
         from trade_modules.committee_backtester import yfinance_price_fetcher
-        bt.compute_forward_returns(price_fetcher=yfinance_price_fetcher,
-                                   horizons=(7, 14, 30))
+
+        bt.compute_forward_returns(price_fetcher=yfinance_price_fetcher, horizons=(7, 14, 30))
 
     calibration = calibrate_agent_signs(
         forward_returns=bt.forward_returns,
@@ -240,8 +268,10 @@ def refresh_agent_sign_calibrator(shadow_mode: bool = True):
             applied = data.get("applied", False)
             n = data.get("evidence_total", 0)
             tag = "APPLIED -1" if applied else "shadow"
-            print(f"  {agent:<12s} n={n:<4d} consecutive_inverted={consec} "
-                  f"verdict={verdict:<18s} ({tag})")
+            print(
+                f"  {agent:<12s} n={n:<4d} consecutive_inverted={consec} "
+                f"verdict={verdict:<18s} ({tag})"
+            )
     return calibration
 
 
@@ -258,10 +288,12 @@ def refresh_conviction_cells():
     print("=" * 60)
 
     from trade_modules.committee_backtester import (
-        CommitteeBacktester, yfinance_price_fetcher,
+        CommitteeBacktester,
+        yfinance_price_fetcher,
     )
     from trade_modules.conviction_cells import (
-        compute_cells, persist_cells,
+        compute_cells,
+        persist_cells,
     )
 
     bt = CommitteeBacktester()
@@ -273,18 +305,19 @@ def refresh_conviction_cells():
     # Use price cache when available; fall back to yfinance.
     try:
         from trade_modules.price_service import PriceService
-        bt.compute_forward_returns(price_service=PriceService(),
-                                   horizons=(7, 14, 30))
+
+        bt.compute_forward_returns(price_service=PriceService(), horizons=(7, 14, 30))
     except Exception:
-        bt.compute_forward_returns(price_fetcher=yfinance_price_fetcher,
-                                   horizons=(7, 14, 30))
+        bt.compute_forward_returns(price_fetcher=yfinance_price_fetcher, horizons=(7, 14, 30))
 
     cells = compute_cells(bt.history, bt.forward_returns, horizon="T+30")
     persist_cells(cells)
-    print(f"  total_observations={cells.get('total_observations')}, "
-          f"aggregate ρ={cells.get('aggregate_spearman')}, "
-          f"high_ic_cells={len(cells.get('high_ic_cells', []))}, "
-          f"low_ic_cells={len(cells.get('low_ic_cells', []))}")
+    print(
+        f"  total_observations={cells.get('total_observations')}, "
+        f"aggregate ρ={cells.get('aggregate_spearman')}, "
+        f"high_ic_cells={len(cells.get('high_ic_cells', []))}, "
+        f"low_ic_cells={len(cells.get('low_ic_cells', []))}"
+    )
     print(f"  → {cells.get('recommendation', '')}")
     return cells
 
@@ -296,10 +329,12 @@ def refresh_debate_scorecard():
     print("=" * 60)
 
     from trade_modules.committee_backtester import (
-        CommitteeBacktester, yfinance_price_fetcher,
+        CommitteeBacktester,
+        yfinance_price_fetcher,
     )
     from trade_modules.debate_scorecard import (
-        compute_debate_scorecard, persist_scorecard,
+        compute_debate_scorecard,
+        persist_scorecard,
     )
 
     bt = CommitteeBacktester()
@@ -309,16 +344,17 @@ def refresh_debate_scorecard():
         return {}
     try:
         from trade_modules.price_service import PriceService
-        bt.compute_forward_returns(price_service=PriceService(),
-                                   horizons=(7, 14, 30))
+
+        bt.compute_forward_returns(price_service=PriceService(), horizons=(7, 14, 30))
     except Exception:
-        bt.compute_forward_returns(price_fetcher=yfinance_price_fetcher,
-                                   horizons=(7, 14, 30))
+        bt.compute_forward_returns(price_fetcher=yfinance_price_fetcher, horizons=(7, 14, 30))
 
     sc = compute_debate_scorecard(bt.history, bt.forward_returns)
     persist_scorecard(sc)
-    print(f"  control_n={sc.get('control_n')}, "
-          f"signal_classes={list((sc.get('signals') or {}).keys())}")
+    print(
+        f"  control_n={sc.get('control_n')}, "
+        f"signal_classes={list((sc.get('signals') or {}).keys())}"
+    )
     print(f"  → {sc.get('verdict', '')}")
     return sc
 
@@ -329,11 +365,13 @@ def refresh_bayesian_likelihoods():
     print("  PHASE 8: Bayesian Conviction Likelihoods (CIO v17 op #7)")
     print("=" * 60)
 
-    from trade_modules.committee_backtester import (
-        CommitteeBacktester, yfinance_price_fetcher,
-    )
     from trade_modules.bayesian_conviction import (
-        compute_likelihoods, persist_likelihoods,
+        compute_likelihoods,
+        persist_likelihoods,
+    )
+    from trade_modules.committee_backtester import (
+        CommitteeBacktester,
+        yfinance_price_fetcher,
     )
 
     bt = CommitteeBacktester()
@@ -343,17 +381,18 @@ def refresh_bayesian_likelihoods():
         return {}
     try:
         from trade_modules.price_service import PriceService
-        bt.compute_forward_returns(price_service=PriceService(),
-                                   horizons=(7, 14, 30))
+
+        bt.compute_forward_returns(price_service=PriceService(), horizons=(7, 14, 30))
     except Exception:
-        bt.compute_forward_returns(price_fetcher=yfinance_price_fetcher,
-                                   horizons=(7, 14, 30))
+        bt.compute_forward_returns(price_fetcher=yfinance_price_fetcher, horizons=(7, 14, 30))
 
     lik = compute_likelihoods(bt.history, bt.forward_returns)
     persist_likelihoods(lik)
     n_views = sum(len(v) for v in (lik.get("agents") or {}).values())
-    print(f"  evidence_total={lik.get('evidence_total')}, "
-          f"agents={len(lik.get('agents') or {})}, view_buckets={n_views}")
+    print(
+        f"  evidence_total={lik.get('evidence_total')}, "
+        f"agents={len(lik.get('agents') or {})}, view_buckets={n_views}"
+    )
     return lik
 
 
@@ -364,15 +403,19 @@ def refresh_post_mortems():
     print("=" * 60)
 
     from trade_modules.post_mortem import (
-        detect_post_mortems, append_lessons,
+        append_lessons,
+        detect_post_mortems,
     )
+
     pms = detect_post_mortems()
     n = append_lessons(pms)
     if pms:
         print(f"  detected={len(pms)}, new_appended={n}")
         for pm in pms[:3]:
-            print(f"  * {pm.ticker} ({pm.recommendation_date}): "
-                  f"{pm.drawdown_pct}% in {pm.days_to_drawdown}d — {pm.lesson[:80]}")
+            print(
+                f"  * {pm.ticker} ({pm.recommendation_date}): "
+                f"{pm.drawdown_pct}% in {pm.days_to_drawdown}d — {pm.lesson[:80]}"
+            )
     else:
         print("  No new post-mortem-worthy positions found.")
     return n
@@ -392,10 +435,12 @@ def refresh_kill_thesis_audit():
         return audit
     summary = audit.get("summary", {})
     print(f"  total_audited={audit.get('total_audited')}")
-    print(f"  TRUE_POSITIVE={summary.get('true_positive_count')}, "
-          f"FALSE_POSITIVE={summary.get('false_positive_count')}, "
-          f"INCONCLUSIVE={summary.get('inconclusive_count')}, "
-          f"UNVERIFIED={summary.get('unverified_count')}")
+    print(
+        f"  TRUE_POSITIVE={summary.get('true_positive_count')}, "
+        f"FALSE_POSITIVE={summary.get('false_positive_count')}, "
+        f"INCONCLUSIVE={summary.get('inconclusive_count')}, "
+        f"UNVERIFIED={summary.get('unverified_count')}"
+    )
     print(f"  TRUE-positive rate: {summary.get('true_positive_rate')}")
     return audit
 
@@ -431,7 +476,9 @@ def build_report(signal_summary, committee_result, scorecard, calibration):
             "buy_alpha_hit_rate_30d": scorecard.get("buy_recommendations", {}).get("hit_rate_30d"),
             "buy_avg_alpha_7d": scorecard.get("buy_recommendations", {}).get("avg_alpha_7d"),
             "buy_avg_alpha_30d": scorecard.get("buy_recommendations", {}).get("avg_alpha_30d"),
-            "conviction_predictive": scorecard.get("conviction_calibration", {}).get("conviction_predictive"),
+            "conviction_predictive": scorecard.get("conviction_calibration", {}).get(
+                "conviction_predictive"
+            ),
         },
         "calibration": {
             "sufficient_data": calibration.get("sufficient_data", False),
@@ -570,6 +617,7 @@ def main():
         print("=" * 60)
         sys.path.insert(0, str(Path(__file__).parent.parent.parent / "etoro-portfolio" / "src"))
         from etoro_portfolio.modifier_audit import run_modifier_audit
+
         param_effectiveness = run_modifier_audit(horizon_days=30, min_observations=10)
         keep = param_effectiveness.get("keep_count", 0)
         cut = param_effectiveness.get("cut_count", 0)
@@ -595,7 +643,9 @@ def main():
                 "evidence_total": d.get("evidence_total"),
             }
             for a, d in (sign_cal.get("agents") or {}).items()
-        } if sign_cal else {},
+        }
+        if sign_cal
+        else {},
     }
     report["conviction_cells"] = {
         "total_observations": cells.get("total_observations") if cells else 0,

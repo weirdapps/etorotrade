@@ -4,20 +4,21 @@ Tests for trade_modules/analysis/criteria.py
 This module tests the criteria evaluation functions for buy/sell/hold signals.
 """
 
-import pytest
-import pandas as pd
-import numpy as np
-import tempfile
 import os
-from unittest.mock import patch, MagicMock
+import tempfile
+from unittest.mock import MagicMock, patch
+
+import numpy as np
+import pandas as pd
+import pytest
 
 from trade_modules.analysis.criteria import (
+    _apply_color_coding,
+    _check_buy_criteria,
     _check_confidence_criteria,
     _check_sell_criteria,
-    _check_buy_criteria,
-    _process_color_based_on_criteria,
-    _apply_color_coding,
     _filter_notrade_tickers,
+    _process_color_based_on_criteria,
     process_buy_opportunities,
 )
 
@@ -113,7 +114,7 @@ class TestCheckSellCriteria:
             pef=25.0,
             si=1.0,
             beta=1.5,
-            criteria=default_criteria
+            criteria=default_criteria,
         )
         assert result is True
 
@@ -125,7 +126,7 @@ class TestCheckSellCriteria:
             pef=25.0,
             si=1.0,
             beta=1.5,
-            criteria=default_criteria
+            criteria=default_criteria,
         )
         assert result is True
 
@@ -137,7 +138,7 @@ class TestCheckSellCriteria:
             pef=60.0,  # Above 50.0 threshold
             si=1.0,
             beta=1.5,
-            criteria=default_criteria
+            criteria=default_criteria,
         )
         assert result is True
 
@@ -149,7 +150,7 @@ class TestCheckSellCriteria:
             pef=25.0,
             si=3.0,  # Above 2.0 threshold
             beta=1.5,
-            criteria=default_criteria
+            criteria=default_criteria,
         )
         assert result is True
 
@@ -161,19 +162,14 @@ class TestCheckSellCriteria:
             pef=25.0,
             si=1.0,
             beta=4.0,  # Above 3.0 threshold
-            criteria=default_criteria
+            criteria=default_criteria,
         )
         assert result is True
 
     def test_no_sell_when_all_good(self, default_criteria):
         """Test no SELL when all metrics are good."""
         result = _check_sell_criteria(
-            upside=10.0,
-            buy_pct=80.0,
-            pef=25.0,
-            si=1.0,
-            beta=1.5,
-            criteria=default_criteria
+            upside=10.0, buy_pct=80.0, pef=25.0, si=1.0, beta=1.5, criteria=default_criteria
         )
         assert result is False
 
@@ -185,7 +181,7 @@ class TestCheckSellCriteria:
             pef=np.nan,
             si=np.nan,
             beta=np.nan,
-            criteria=default_criteria
+            criteria=default_criteria,
         )
         assert result is False  # NaN values should not trigger sell
 
@@ -197,7 +193,7 @@ class TestCheckSellCriteria:
             pef=60.0,  # High PEF
             si=1.0,
             beta=1.5,
-            criteria=default_criteria
+            criteria=default_criteria,
         )
         assert result is True
 
@@ -219,11 +215,7 @@ class TestCheckBuyCriteria:
     def test_buy_triggered_all_conditions_met(self, default_criteria):
         """Test BUY triggered when all conditions are met."""
         result = _check_buy_criteria(
-            upside=25.0,
-            buy_pct=90.0,
-            beta=1.0,
-            si=1.0,
-            criteria=default_criteria
+            upside=25.0, buy_pct=90.0, beta=1.0, si=1.0, criteria=default_criteria
         )
         assert result is True
 
@@ -234,7 +226,7 @@ class TestCheckBuyCriteria:
             buy_pct=90.0,
             beta=1.0,
             si=1.0,
-            criteria=default_criteria
+            criteria=default_criteria,
         )
         assert result is False
 
@@ -245,7 +237,7 @@ class TestCheckBuyCriteria:
             buy_pct=80.0,  # Below 85.0 threshold
             beta=1.0,
             si=1.0,
-            criteria=default_criteria
+            criteria=default_criteria,
         )
         assert result is False
 
@@ -256,7 +248,7 @@ class TestCheckBuyCriteria:
             buy_pct=90.0,
             beta=3.0,  # Above 2.5 threshold
             si=1.0,
-            criteria=default_criteria
+            criteria=default_criteria,
         )
         assert result is False
 
@@ -267,7 +259,7 @@ class TestCheckBuyCriteria:
             buy_pct=90.0,
             beta=0.1,  # Below 0.25 threshold
             si=1.0,
-            criteria=default_criteria
+            criteria=default_criteria,
         )
         assert result is False
 
@@ -278,7 +270,7 @@ class TestCheckBuyCriteria:
             buy_pct=90.0,
             beta=1.0,
             si=np.nan,  # Unknown SI should be acceptable
-            criteria=default_criteria
+            criteria=default_criteria,
         )
         assert result is True
 
@@ -289,7 +281,7 @@ class TestCheckBuyCriteria:
             buy_pct=85.0,  # Exactly at threshold
             beta=1.0,
             si=1.0,
-            criteria=default_criteria
+            criteria=default_criteria,
         )
         assert result is True
 
@@ -315,50 +307,66 @@ class TestProcessColorBasedOnCriteria:
 
     def test_no_color_when_confidence_not_met(self, default_criteria):
         """Test no color when confidence is not met."""
-        row = pd.Series({
-            "upside": 25.0,
-            "buy_percentage": 90.0,
-            "pe_forward": 20.0,
-            "short_percent": 1.0,
-            "beta": 1.0,
-        })
-        color = _process_color_based_on_criteria(row, confidence_met=False, trading_criteria=default_criteria)
+        row = pd.Series(
+            {
+                "upside": 25.0,
+                "buy_percentage": 90.0,
+                "pe_forward": 20.0,
+                "short_percent": 1.0,
+                "beta": 1.0,
+            }
+        )
+        color = _process_color_based_on_criteria(
+            row, confidence_met=False, trading_criteria=default_criteria
+        )
         assert color == ""
 
     def test_red_when_sell_criteria_met(self, default_criteria):
         """Test RED when SELL criteria is met."""
-        row = pd.Series({
-            "upside": 3.0,  # Low upside triggers SELL
-            "buy_percentage": 90.0,
-            "pe_forward": 20.0,
-            "short_percent": 1.0,
-            "beta": 1.0,
-        })
-        color = _process_color_based_on_criteria(row, confidence_met=True, trading_criteria=default_criteria)
+        row = pd.Series(
+            {
+                "upside": 3.0,  # Low upside triggers SELL
+                "buy_percentage": 90.0,
+                "pe_forward": 20.0,
+                "short_percent": 1.0,
+                "beta": 1.0,
+            }
+        )
+        color = _process_color_based_on_criteria(
+            row, confidence_met=True, trading_criteria=default_criteria
+        )
         assert color == "RED"
 
     def test_green_when_buy_criteria_met(self, default_criteria):
         """Test GREEN when BUY criteria is met."""
-        row = pd.Series({
-            "upside": 25.0,
-            "buy_percentage": 90.0,
-            "pe_forward": 20.0,
-            "short_percent": 1.0,
-            "beta": 1.0,
-        })
-        color = _process_color_based_on_criteria(row, confidence_met=True, trading_criteria=default_criteria)
+        row = pd.Series(
+            {
+                "upside": 25.0,
+                "buy_percentage": 90.0,
+                "pe_forward": 20.0,
+                "short_percent": 1.0,
+                "beta": 1.0,
+            }
+        )
+        color = _process_color_based_on_criteria(
+            row, confidence_met=True, trading_criteria=default_criteria
+        )
         assert color == "GREEN"
 
     def test_yellow_when_hold(self, default_criteria):
         """Test YELLOW when neither BUY nor SELL."""
-        row = pd.Series({
-            "upside": 15.0,  # Not high enough for BUY
-            "buy_percentage": 75.0,  # Not high enough for BUY, but not low enough for SELL
-            "pe_forward": 20.0,
-            "short_percent": 1.0,
-            "beta": 1.0,
-        })
-        color = _process_color_based_on_criteria(row, confidence_met=True, trading_criteria=default_criteria)
+        row = pd.Series(
+            {
+                "upside": 15.0,  # Not high enough for BUY
+                "buy_percentage": 75.0,  # Not high enough for BUY, but not low enough for SELL
+                "pe_forward": 20.0,
+                "short_percent": 1.0,
+                "beta": 1.0,
+            }
+        )
+        color = _process_color_based_on_criteria(
+            row, confidence_met=True, trading_criteria=default_criteria
+        )
         assert color == "YELLOW"
 
 
@@ -383,15 +391,17 @@ class TestApplyColorCoding:
 
     def test_apply_color_coding_to_dataframe(self, default_criteria):
         """Test applying color coding to a DataFrame."""
-        df = pd.DataFrame({
-            "upside": [25.0, 3.0, 15.0],
-            "buy_percentage": [90.0, 90.0, 75.0],
-            "pe_forward": [20.0, 20.0, 20.0],
-            "short_percent": [1.0, 1.0, 1.0],
-            "beta": [1.0, 1.0, 1.0],
-            "analyst_count": [10, 10, 10],
-            "price_targets": [8, 8, 8],
-        })
+        df = pd.DataFrame(
+            {
+                "upside": [25.0, 3.0, 15.0],
+                "buy_percentage": [90.0, 90.0, 75.0],
+                "pe_forward": [20.0, 20.0, 20.0],
+                "short_percent": [1.0, 1.0, 1.0],
+                "beta": [1.0, 1.0, 1.0],
+                "analyst_count": [10, 10, 10],
+                "price_targets": [8, 8, 8],
+            }
+        )
         result = _apply_color_coding(df, default_criteria)
         assert "_color" in result.columns
         assert len(result) == 3
@@ -419,9 +429,7 @@ class TestFilterNotradeTickers:
             notrade_df = pd.DataFrame({"ticker": ["AAPL", "TSLA"]})
             notrade_df.to_csv(notrade_path, index=False)
 
-            opportunities_df = pd.DataFrame({
-                "ticker": ["AAPL", "MSFT", "GOOGL", "TSLA"]
-            })
+            opportunities_df = pd.DataFrame({"ticker": ["AAPL", "MSFT", "GOOGL", "TSLA"]})
             result = _filter_notrade_tickers(opportunities_df, notrade_path)
             assert len(result) == 2
             assert "AAPL" not in result["ticker"].values
@@ -436,9 +444,7 @@ class TestFilterNotradeTickers:
             notrade_df = pd.DataFrame({"ticker": []})
             notrade_df.to_csv(notrade_path, index=False)
 
-            opportunities_df = pd.DataFrame({
-                "ticker": ["AAPL", "MSFT", "GOOGL"]
-            })
+            opportunities_df = pd.DataFrame({"ticker": ["AAPL", "MSFT", "GOOGL"]})
             result = _filter_notrade_tickers(opportunities_df, notrade_path)
             assert len(result) == 3
 
@@ -449,9 +455,7 @@ class TestFilterNotradeTickers:
             notrade_df = pd.DataFrame({"TICKER": ["AAPL"]})
             notrade_df.to_csv(notrade_path, index=False)
 
-            opportunities_df = pd.DataFrame({
-                "TICKER": ["AAPL", "MSFT"]
-            })
+            opportunities_df = pd.DataFrame({"TICKER": ["AAPL", "MSFT"]})
             result = _filter_notrade_tickers(opportunities_df, notrade_path)
             assert len(result) == 1
             assert "MSFT" in result["TICKER"].values
@@ -460,7 +464,7 @@ class TestFilterNotradeTickers:
 class TestProcessBuyOpportunities:
     """Tests for the process_buy_opportunities function."""
 
-    @patch('yahoofinance.analysis.market.filter_risk_first_buy_opportunities')
+    @patch("yahoofinance.analysis.market.filter_risk_first_buy_opportunities")
     def test_process_buy_opportunities_empty_market(self, mock_filter):
         """Test processing with empty market data."""
         mock_filter.return_value = pd.DataFrame()
@@ -470,42 +474,40 @@ class TestProcessBuyOpportunities:
             portfolio_tickers=[],
             output_dir="/mock/test/output",
             notrade_path="/nonexistent",
-            provider=MagicMock()
+            provider=MagicMock(),
         )
         assert result.empty
 
-    @patch('yahoofinance.analysis.market.filter_risk_first_buy_opportunities')
+    @patch("yahoofinance.analysis.market.filter_risk_first_buy_opportunities")
     def test_process_buy_opportunities_filters_portfolio(self, mock_filter):
         """Test that portfolio holdings are filtered out."""
-        mock_filter.return_value = pd.DataFrame({
-            "ticker": ["AAPL", "MSFT", "GOOGL"],
-            "upside": [20.0, 25.0, 30.0]
-        })
+        mock_filter.return_value = pd.DataFrame(
+            {"ticker": ["AAPL", "MSFT", "GOOGL"], "upside": [20.0, 25.0, 30.0]}
+        )
 
         result = process_buy_opportunities(
             market_df=pd.DataFrame({"ticker": ["AAPL", "MSFT", "GOOGL"]}),
             portfolio_tickers=["AAPL"],
             output_dir="/mock/test/output",
             notrade_path="/nonexistent",
-            provider=MagicMock()
+            provider=MagicMock(),
         )
         # AAPL should be filtered out
         if not result.empty and "ticker" in result.columns:
             assert "AAPL" not in result["ticker"].values
 
-    @patch('yahoofinance.analysis.market.filter_risk_first_buy_opportunities')
+    @patch("yahoofinance.analysis.market.filter_risk_first_buy_opportunities")
     def test_process_buy_opportunities_returns_dataframe(self, mock_filter):
         """Test that function returns a DataFrame."""
-        mock_filter.return_value = pd.DataFrame({
-            "ticker": ["MSFT", "GOOGL"],
-            "upside": [25.0, 30.0]
-        })
+        mock_filter.return_value = pd.DataFrame(
+            {"ticker": ["MSFT", "GOOGL"], "upside": [25.0, 30.0]}
+        )
 
         result = process_buy_opportunities(
             market_df=pd.DataFrame({"ticker": ["MSFT", "GOOGL"]}),
             portfolio_tickers=[],
             output_dir="/mock/test/output",
             notrade_path="/nonexistent",
-            provider=MagicMock()
+            provider=MagicMock(),
         )
         assert isinstance(result, pd.DataFrame)

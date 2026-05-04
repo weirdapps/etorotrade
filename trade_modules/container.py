@@ -13,24 +13,20 @@ Usage:
     engine = container.get_trading_engine()
 """
 
-from typing import Any, Dict, Optional, TYPE_CHECKING
 import logging
+from typing import TYPE_CHECKING, Any, Optional
 
 from .protocols import (
     FinanceDataProviderProtocol,
-    LoggerProtocol,
-    AnalysisServiceProtocol,
-    FilterServiceProtocol,
-    PortfolioServiceProtocol,
-    DataProcessingServiceProtocol,
 )
 
 if TYPE_CHECKING:
     from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
+
     from .analysis_service import AnalysisService
+    from .data_processing_service import DataProcessingService
     from .filter_service import FilterService
     from .portfolio_service import PortfolioService
-    from .data_processing_service import DataProcessingService
     from .trade_engine import TradingEngine
 
 
@@ -47,7 +43,7 @@ class Container:
     and cached for subsequent requests.
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         """
         Initialize the container.
 
@@ -55,11 +51,11 @@ class Container:
             config: Optional configuration dictionary
         """
         self._config = config or {}
-        self._instances: Dict[str, Any] = {}
+        self._instances: dict[str, Any] = {}
         self._logger = logging.getLogger(__name__)
 
     @property
-    def config(self) -> Dict[str, Any]:
+    def config(self) -> dict[str, Any]:
         """Get the configuration dictionary."""
         return self._config
 
@@ -75,7 +71,7 @@ class Container:
         """
         return logging.getLogger(name)
 
-    def get_provider(self, max_concurrency: Optional[int] = None) -> "AsyncHybridProvider":
+    def get_provider(self, max_concurrency: int | None = None) -> "AsyncHybridProvider":
         """
         Get the finance data provider instance.
 
@@ -109,8 +105,7 @@ class Container:
             from .analysis_service import AnalysisService
 
             self._instances["analysis_service"] = AnalysisService(
-                self._config,
-                self.get_logger("trade_modules.analysis_service")
+                self._config, self.get_logger("trade_modules.analysis_service")
             )
             self._logger.debug("Created AnalysisService")
 
@@ -151,8 +146,7 @@ class Container:
         return self._instances["portfolio_service"]
 
     def get_data_processing_service(
-        self,
-        provider: Optional[FinanceDataProviderProtocol] = None
+        self, provider: FinanceDataProviderProtocol | None = None
     ) -> "DataProcessingService":
         """
         Get the data processing service instance.
@@ -168,8 +162,7 @@ class Container:
 
             actual_provider = provider or self.get_provider()
             self._instances["data_processing_service"] = DataProcessingService(
-                actual_provider,
-                self.get_logger("trade_modules.data_processing_service")
+                actual_provider, self.get_logger("trade_modules.data_processing_service")
             )
             self._logger.debug("Created DataProcessingService")
 
@@ -177,8 +170,8 @@ class Container:
 
     def get_trading_engine(
         self,
-        provider: Optional[FinanceDataProviderProtocol] = None,
-        config: Optional[Dict[str, Any]] = None
+        provider: FinanceDataProviderProtocol | None = None,
+        config: dict[str, Any] | None = None,
     ) -> "TradingEngine":
         """
         Get the trading engine instance.
@@ -196,8 +189,7 @@ class Container:
             actual_provider = provider or self.get_provider()
             actual_config = config or self._config
             self._instances["trading_engine"] = TradingEngine(
-                provider=actual_provider,
-                config=actual_config
+                provider=actual_provider, config=actual_config
             )
             self._logger.debug("Created TradingEngine")
 
@@ -208,7 +200,7 @@ class Container:
         self._instances.clear()
         self._logger.debug("Cleared all container instances")
 
-    def reset(self, config: Optional[Dict[str, Any]] = None) -> None:
+    def reset(self, config: dict[str, Any] | None = None) -> None:
         """
         Reset the container with new configuration.
 
@@ -221,7 +213,7 @@ class Container:
         self._logger.debug("Reset container")
 
 
-def get_container(config: Optional[Dict[str, Any]] = None) -> Container:
+def get_container(config: dict[str, Any] | None = None) -> Container:
     """
     Get the singleton container instance.
 
@@ -237,7 +229,7 @@ def get_container(config: Optional[Dict[str, Any]] = None) -> Container:
     return _container
 
 
-def reset_container(config: Optional[Dict[str, Any]] = None) -> Container:
+def reset_container(config: dict[str, Any] | None = None) -> Container:
     """
     Reset and return the container instance.
 

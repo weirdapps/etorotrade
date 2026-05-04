@@ -7,15 +7,14 @@ that were extracted from the main trade.py file to improve code organization.
 
 import logging
 import os
+from typing import Any
+
 import pandas as pd
-from typing import Optional, Tuple, Dict, Any
 
 # Import ticker normalization utilities
 from yahoofinance.utils.data.ticker_utils import (
-    normalize_ticker,
-    process_ticker_input,
     get_ticker_for_display,
-    standardize_ticker_format,
+    process_ticker_input,
     validate_ticker_format,
 )
 
@@ -89,7 +88,7 @@ def check_required_files(market_path: str, portfolio_path: str) -> bool:
     return True
 
 
-def find_ticker_column(portfolio_df: pd.DataFrame) -> Optional[str]:
+def find_ticker_column(portfolio_df: pd.DataFrame) -> str | None:
     """
     Find the ticker column in a portfolio DataFrame.
 
@@ -181,7 +180,7 @@ def format_market_cap_value(value: Any) -> str:
         return "--"
 
 
-def get_column_mapping() -> Dict[str, str]:
+def get_column_mapping() -> dict[str, str]:
     """
     Get mapping from internal column names to display column names.
 

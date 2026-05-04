@@ -4,26 +4,19 @@ Display formatting module extracted from trade.py.
 Handles output formatting, color coding, and data presentation.
 """
 
-import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from tabulate import tabulate
 
 from yahoofinance.core.logging import get_logger
-from yahoofinance.core.errors import YFinanceError
 
-from .utils import (
-    safe_float_conversion,
-    safe_percentage_format,
-    format_market_cap_value,
-    normalize_ticker_for_display,
-)
 from .data_processor import (
-    format_numeric_columns,
-    format_percentage_columns,
     normalize_dataframe_tickers,
+)
+from .utils import (
+    format_market_cap_value,
+    safe_percentage_format,
 )
 
 logger = get_logger(__name__)
@@ -54,7 +47,7 @@ class DisplayFormatter:
         self.logger = logger
 
     def format_trading_opportunities(
-        self, opportunities: Dict[str, pd.DataFrame], output_format: str = "table"
+        self, opportunities: dict[str, pd.DataFrame], output_format: str = "table"
     ) -> str:
         """
         Format trading opportunities for display.
@@ -138,7 +131,7 @@ class DisplayFormatter:
 
         return display_df
 
-    def _get_display_columns(self, action_type: str) -> List[str]:
+    def _get_display_columns(self, action_type: str) -> list[str]:
         """Get appropriate columns for display based on action type."""
         base_columns = [
             "ticker",
@@ -184,6 +177,7 @@ class DisplayFormatter:
         price_columns = ["price", "price_target"]
         for col in price_columns:
             if col in df.columns:
+
                 def format_price_conditional(x):
                     if pd.notna(x) and x != 0:
                         # 0 decimals if >= $1000, 1 decimal if >= $10, 2 decimals if < $10
@@ -195,10 +189,12 @@ class DisplayFormatter:
                             return f"${x:.2f}"
                     else:
                         return "N/A"
+
                 df[col] = df[col].apply(format_price_conditional)
 
         # Format ROE as percentage value with 1 decimal (no % sign)
         if "ROE" in df.columns:
+
             def format_roe(x):
                 try:
                     if pd.notna(x) and x != "" and x != "--":
@@ -207,10 +203,12 @@ class DisplayFormatter:
                     return "N/A"
                 except:
                     return "N/A"
+
             df["ROE"] = df["ROE"].apply(format_roe)
 
         # Format DE with 1 decimal place
         if "DE" in df.columns:
+
             def format_de(x):
                 try:
                     if pd.notna(x) and x != "" and x != "--":
@@ -218,6 +216,7 @@ class DisplayFormatter:
                     return "N/A"
                 except:
                     return "N/A"
+
             df["DE"] = df["DE"].apply(format_de)
 
         # Format percentage columns
@@ -332,7 +331,7 @@ class DisplayFormatter:
             self.logger.error(f"Error creating HTML: {str(e)}")
             return f"<p>Error formatting HTML: {str(e)}</p>"
 
-    def format_summary_statistics(self, opportunities: Dict[str, pd.DataFrame]) -> str:
+    def format_summary_statistics(self, opportunities: dict[str, pd.DataFrame]) -> str:
         """Format summary statistics for opportunities."""
         try:
             summary_parts = []
@@ -386,9 +385,7 @@ class DisplayFormatter:
             self.logger.error(f"Error formatting summary statistics: {str(e)}")
             return f"Error formatting summary: {str(e)}"
 
-    def save_to_file(
-        self, content: str, file_path: Union[str, Path], format_type: str = "txt"
-    ) -> bool:
+    def save_to_file(self, content: str, file_path: str | Path, format_type: str = "txt") -> bool:
         """
         Save formatted content to file.
 
@@ -419,7 +416,7 @@ class DisplayFormatter:
             self.logger.info(f"Successfully saved output to {file_path}")
             return True
 
-        except (OSError, IOError, PermissionError, ValueError) as e:
+        except (OSError, PermissionError, ValueError) as e:
             self.logger.error(f"Error saving to file {file_path}: {str(e)}")
             return False
 
@@ -442,9 +439,9 @@ class MarketDataDisplay:
 
     def display_market_analysis(
         self,
-        opportunities: Dict[str, pd.DataFrame],
+        opportunities: dict[str, pd.DataFrame],
         show_summary: bool = True,
-        save_path: Optional[Path] = None,
+        save_path: Path | None = None,
     ) -> None:
         """
         Display complete market analysis results.

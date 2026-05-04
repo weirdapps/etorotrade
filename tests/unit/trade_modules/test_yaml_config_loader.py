@@ -4,9 +4,11 @@ ITERATION 12: YAML Config Loader Tests
 Target: Test YAML configuration loading functionality
 """
 
-import tempfile
 import os
+import tempfile
+
 from trade_modules.yaml_config_loader import YamlConfigLoader, get_yaml_config, reload_config
+
 
 class TestYamlConfigLoaderInitialization:
     """Test YamlConfigLoader initialization."""
@@ -28,6 +30,7 @@ class TestYamlConfigLoaderInitialization:
         loader = YamlConfigLoader()
         assert loader._config_cache is None
 
+
 class TestFindConfigFile:
     """Test config file finding logic."""
 
@@ -37,13 +40,14 @@ class TestFindConfigFile:
         # _find_config_file is called during init
         assert loader.config_path is not None
 
+
 class TestLoadConfig:
     """Test configuration loading."""
 
     def test_load_config_with_existing_file(self):
         """Load configuration from existing file."""
         # Create temp config file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             f.write("test_key: test_value\n")
             temp_path = f.name
 
@@ -51,13 +55,13 @@ class TestLoadConfig:
             loader = YamlConfigLoader(config_path=temp_path)
             config = loader.load_config()
             assert isinstance(config, dict)
-            assert config.get('test_key') == 'test_value'
+            assert config.get("test_key") == "test_value"
         finally:
             os.unlink(temp_path)
 
     def test_load_config_caches_result(self):
         """Config is cached after first load."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             f.write("cache_test: value\n")
             temp_path = f.name
 
@@ -79,7 +83,7 @@ class TestLoadConfig:
 
     def test_load_config_invalid_yaml_returns_empty(self):
         """Invalid YAML returns empty dict."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             f.write("invalid: yaml: content:\n  - broken")
             temp_path = f.name
 
@@ -91,12 +95,13 @@ class TestLoadConfig:
         finally:
             os.unlink(temp_path)
 
+
 class TestGetTierThresholds:
     """Test tier threshold retrieval."""
 
     def test_get_tier_thresholds(self):
         """Get tier thresholds from config."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             f.write("tier_thresholds:\n  mega: 500000000000\n")
             temp_path = f.name
 
@@ -104,13 +109,13 @@ class TestGetTierThresholds:
             loader = YamlConfigLoader(config_path=temp_path)
             thresholds = loader.get_tier_thresholds()
             assert isinstance(thresholds, dict)
-            assert 'mega' in thresholds
+            assert "mega" in thresholds
         finally:
             os.unlink(temp_path)
 
     def test_get_tier_thresholds_missing_returns_empty(self):
         """Missing tier_thresholds returns empty dict."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             f.write("other_key: value\n")
             temp_path = f.name
 
@@ -122,12 +127,13 @@ class TestGetTierThresholds:
         finally:
             os.unlink(temp_path)
 
+
 class TestGetUniversalThresholds:
     """Test universal threshold retrieval."""
 
     def test_get_universal_thresholds(self):
         """Get universal thresholds from config."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             f.write("universal_thresholds:\n  min_analysts: 4\n")
             temp_path = f.name
 
@@ -138,44 +144,47 @@ class TestGetUniversalThresholds:
         finally:
             os.unlink(temp_path)
 
+
 class TestGetTierCriteria:
     """Test tier criteria retrieval."""
 
     def test_get_tier_criteria(self):
         """Get criteria for specific tier."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             f.write("value:\n  buy:\n    min_upside: 15\n")
             temp_path = f.name
 
         try:
             loader = YamlConfigLoader(config_path=temp_path)
-            criteria = loader.get_tier_criteria('value')
+            criteria = loader.get_tier_criteria("value")
             assert isinstance(criteria, dict)
         finally:
             os.unlink(temp_path)
+
 
 class TestGetRegionTierCriteria:
     """Test region-tier criteria retrieval."""
 
     def test_get_region_tier_criteria(self):
         """Get criteria for specific region and tier."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             f.write("us_mega:\n  buy:\n    min_upside: 8\n")
             temp_path = f.name
 
         try:
             loader = YamlConfigLoader(config_path=temp_path)
-            criteria = loader.get_region_tier_criteria('us', 'mega')
+            criteria = loader.get_region_tier_criteria("us", "mega")
             assert isinstance(criteria, dict)
         finally:
             os.unlink(temp_path)
+
 
 class TestGetPositionSizingConfig:
     """Test position sizing config retrieval."""
 
     def test_get_position_sizing_config(self):
         """Get position sizing configuration."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             f.write("position_sizing:\n  max_position_pct: 5\n")
             temp_path = f.name
 
@@ -186,12 +195,13 @@ class TestGetPositionSizingConfig:
         finally:
             os.unlink(temp_path)
 
+
 class TestIsConfigAvailable:
     """Test config availability check."""
 
     def test_is_config_available_with_config(self):
         """Config is available when file loaded successfully."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             f.write("test: value\n")
             temp_path = f.name
 
@@ -205,6 +215,7 @@ class TestIsConfigAvailable:
         """Config not available when file missing."""
         loader = YamlConfigLoader(config_path="/nonexistent/config.yaml")
         assert loader.is_config_available() is False
+
 
 class TestGlobalFunctions:
     """Test global helper functions."""

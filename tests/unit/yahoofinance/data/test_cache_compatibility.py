@@ -4,21 +4,22 @@ Tests for yahoofinance/data/cache_compatibility.py
 This module tests the cache compatibility layer that redirects to unified CacheService.
 """
 
-import pytest
 from tempfile import TemporaryDirectory
 
+import pytest
+
 from yahoofinance.data.cache_compatibility import (
-    CacheManager,
-    LRUCache,
-    DiskCache,
     CacheKeyGenerator,
-    default_cache_manager,
+    CacheManager,
+    DiskCache,
+    LRUCache,
     cached,
-    get_cache,
     clear_cache,
-    get_cache_manager,
     configure_caching,
     create_cache_aware_wrapper,
+    default_cache_manager,
+    get_cache,
+    get_cache_manager,
     wrap_provider_with_cache,
 )
 
@@ -34,13 +35,13 @@ class TestCacheManager:
     def test_init_has_memory_cache_attr(self):
         """Test initialization has memory_cache attribute."""
         manager = CacheManager()
-        assert hasattr(manager, 'memory_cache')
+        assert hasattr(manager, "memory_cache")
         assert manager.memory_cache is manager.cache
 
     def test_init_has_disk_cache_attr(self):
         """Test initialization has disk_cache attribute."""
         manager = CacheManager()
-        assert hasattr(manager, 'disk_cache')
+        assert hasattr(manager, "disk_cache")
 
     def test_init_with_disk_cache_dir(self):
         """Test initialization with disk_cache_dir parameter."""
@@ -245,6 +246,7 @@ class TestCachedDecorator:
 
     def test_cached_with_ttl(self):
         """Test cached decorator with TTL."""
+
         @cached(ttl=300)
         def my_func(x):
             return x * 2

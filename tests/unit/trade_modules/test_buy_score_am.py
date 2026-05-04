@@ -5,21 +5,28 @@ import numpy as np
 from trade_modules.analysis.signals import calculate_buy_score
 
 DEFAULT_CONFIG = {
-    'weight_upside': 0.22,
-    'weight_consensus': 0.13,
-    'weight_momentum': 0.20,
-    'weight_valuation': 0.18,
-    'weight_fundamental': 0.17,
-    'weight_analyst_momentum': 0.10,
+    "weight_upside": 0.22,
+    "weight_consensus": 0.13,
+    "weight_momentum": 0.20,
+    "weight_valuation": 0.18,
+    "weight_fundamental": 0.17,
+    "weight_analyst_momentum": 0.10,
 }
 
 # Common baseline inputs for isolation tests
-BASELINE = dict(
-    upside=20, buy_pct=80,
-    pct_52w=85, price_200dma_pct=110,
-    pef=18, pet=20, roe=20, de=40,
-    fcf_yield=5, buy_scoring_config=DEFAULT_CONFIG,
-)
+BASELINE = {
+    "upside": 20,
+    "buy_pct": 80,
+    "pct_52w": 85,
+    "price_200dma_pct": 110,
+    "pef": 18,
+    "pet": 20,
+    "roe": 20,
+    "de": 40,
+    "fcf_yield": 5,
+    "buy_scoring_config": DEFAULT_CONFIG,
+}
+
 
 class TestBuyScoreAMComponent:
     """Test analyst momentum scoring in buy conviction score."""
@@ -60,23 +67,29 @@ class TestBuyScoreAMComponent:
 
     def test_weights_sum_to_one(self):
         total = (
-            DEFAULT_CONFIG['weight_upside'] +
-            DEFAULT_CONFIG['weight_consensus'] +
-            DEFAULT_CONFIG['weight_momentum'] +
-            DEFAULT_CONFIG['weight_valuation'] +
-            DEFAULT_CONFIG['weight_fundamental'] +
-            DEFAULT_CONFIG['weight_analyst_momentum']
+            DEFAULT_CONFIG["weight_upside"]
+            + DEFAULT_CONFIG["weight_consensus"]
+            + DEFAULT_CONFIG["weight_momentum"]
+            + DEFAULT_CONFIG["weight_valuation"]
+            + DEFAULT_CONFIG["weight_fundamental"]
+            + DEFAULT_CONFIG["weight_analyst_momentum"]
         )
         assert abs(total - 1.0) < 0.001
 
     def test_strong_am_improves_marginal_buy(self):
         # A stock with modest fundamentals but strong rising AM
-        modest = dict(
-            upside=10, buy_pct=70,
-            pct_52w=75, price_200dma_pct=105,
-            pef=25, pet=22, roe=12, de=80,
-            fcf_yield=2, buy_scoring_config=DEFAULT_CONFIG,
-        )
+        modest = {
+            "upside": 10,
+            "buy_pct": 70,
+            "pct_52w": 75,
+            "price_200dma_pct": 105,
+            "pef": 25,
+            "pet": 22,
+            "roe": 12,
+            "de": 80,
+            "fcf_yield": 2,
+            "buy_scoring_config": DEFAULT_CONFIG,
+        }
         score_rising = calculate_buy_score(**modest, analyst_momentum=15)
         score_declining = calculate_buy_score(**modest, analyst_momentum=-15)
         # The 10% AM weight should create meaningful differentiation

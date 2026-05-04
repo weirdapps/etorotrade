@@ -25,7 +25,7 @@ import logging
 import math
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -37,13 +37,13 @@ DEFAULT_COMMITTEE_LOG_DIR = Path.home() / ".weirdapps-trading" / "committee"
 # Information Coefficient (IC) is the standard practitioner metric.
 
 
-def _spearman_rho(xs: List[float], ys: List[float]) -> Optional[float]:
+def _spearman_rho(xs: list[float], ys: list[float]) -> float | None:
     """Spearman rank correlation. Returns None if input has <3 points."""
     n = len(xs)
     if n < 3 or len(ys) != n:
         return None
 
-    def _rank(values: List[float]) -> List[float]:
+    def _rank(values: list[float]) -> list[float]:
         # Average ranks for ties (standard Spearman convention).
         order = sorted(range(n), key=lambda i: values[i])
         ranks = [0.0] * n
@@ -68,7 +68,7 @@ def _spearman_rho(xs: List[float], ys: List[float]) -> Optional[float]:
     return round(cov / math.sqrt(vx * vy), 4)
 
 
-def _pearson_r(xs: List[float], ys: List[float]) -> Optional[float]:
+def _pearson_r(xs: list[float], ys: list[float]) -> float | None:
     """Pearson correlation. Returns None if input has <3 points."""
     n = len(xs)
     if n < 3 or len(ys) != n:
@@ -82,7 +82,7 @@ def _pearson_r(xs: List[float], ys: List[float]) -> Optional[float]:
     return round(cov / math.sqrt(vx * vy), 4)
 
 
-def _information_ratio(alphas: List[float], horizon_days: int) -> Optional[float]:
+def _information_ratio(alphas: list[float], horizon_days: int) -> float | None:
     """
     CIO v17 L3: Annualized information ratio = mean(α) / σ(α) × sqrt(periods/yr).
 
@@ -147,15 +147,15 @@ class CommitteeBacktester:
 
     def __init__(
         self,
-        log_dir: Optional[Path] = None,
+        log_dir: Path | None = None,
     ):
         self.log_dir = log_dir or DEFAULT_COMMITTEE_LOG_DIR
-        self.history: List[Dict[str, Any]] = []
-        self.forward_returns: Dict[str, Dict[str, float]] = {}
+        self.history: list[dict[str, Any]] = []
+        self.forward_returns: dict[str, dict[str, float]] = {}
 
     def load_history(
         self,
-        log_dir: Optional[Path] = None,
+        log_dir: Path | None = None,
         min_entries: int = 5,
     ) -> int:
         """
@@ -186,11 +186,10 @@ class CommitteeBacktester:
         for pattern in patterns:
             for fpath in directory.glob(f"**/{pattern}"):
                 # Skip undated concordance.json only if dated history exists
-                if (has_history and fpath.name == "concordance.json"
-                        and fpath.parent == directory):
+                if has_history and fpath.name == "concordance.json" and fpath.parent == directory:
                     continue
                 try:
-                    with open(fpath, "r", encoding="utf-8") as f:
+                    with open(fpath, encoding="utf-8") as f:
                         data = json.load(f)
                 except (json.JSONDecodeError, OSError) as exc:
                     logger.debug("Skipping %s: %s", fpath.name, exc)
@@ -226,15 +225,17 @@ class CommitteeBacktester:
                     ]
 
                 if concordance:
-                    entries.append({
-                        "date": date_str,
-                        "file": str(fpath),
-                        "concordance": concordance,
-                        "version": data.get("version", "unknown"),
-                    })
+                    entries.append(
+                        {
+                            "date": date_str,
+                            "file": str(fpath),
+                            "concordance": concordance,
+                            "version": data.get("version", "unknown"),
+                        }
+                    )
 
         # Deduplicate by date (keep the entry with most concordance data)
-        by_date: Dict[str, Dict] = {}
+        by_date: dict[str, dict] = {}
         for entry in entries:
             d = entry["date"]
             if d not in by_date or len(entry["concordance"]) > len(by_date[d]["concordance"]):
@@ -254,9 +255,9 @@ class CommitteeBacktester:
         self,
         price_fetcher=None,
         price_service=None,
-        horizons: Tuple[int, ...] = (7, 30, 90),
+        horizons: tuple[int, ...] = (7, 30, 90),
         benchmark: str = "SPY",
-    ) -> Dict[str, Dict[str, Optional[float]]]:
+    ) -> dict[str, dict[str, float | None]]:
         """
         Compute forward returns and alpha for historical recommendations.
 
@@ -282,13 +283,9 @@ class CommitteeBacktester:
             Dict of "ticker:date" -> {"T+7": float, "T+7_alpha": float, ...}
         """
         if price_service is not None:
-            return self._compute_returns_with_service(
-                price_service, horizons, benchmark
-            )
+            return self._compute_returns_with_service(price_service, horizons, benchmark)
         if price_fetcher is not None:
-            return self._compute_returns_with_fetcher(
-                price_fetcher, horizons, benchmark
-            )
+            return self._compute_returns_with_fetcher(price_fetcher, horizons, benchmark)
 
         logger.info(
             "No price_service or price_fetcher provided — forward returns "
@@ -299,9 +296,9 @@ class CommitteeBacktester:
     def _compute_returns_with_service(
         self,
         price_service,
-        horizons: Tuple[int, ...],
+        horizons: tuple[int, ...],
         benchmark: str,
-    ) -> Dict[str, Dict[str, Optional[float]]]:
+    ) -> dict[str, dict[str, float | None]]:
         """
         Compute forward returns using PriceService (trading-day offsets).
 
@@ -354,7 +351,7 @@ class CommitteeBacktester:
             return {}
 
         # Compute returns for each (ticker, date) pair
-        results: Dict[str, Dict[str, Optional[float]]] = {}
+        results: dict[str, dict[str, float | None]] = {}
 
         for entry in self.history:
             date_str = entry["date"]
@@ -379,18 +376,12 @@ class CommitteeBacktester:
                         alpha = price_service.trading_day_alpha(
                             prices, ticker, dt, h, region=region
                         )
-                        returns[f"T+{h}_alpha"] = (
-                            round(alpha, 2) if alpha is not None else None
-                        )
+                        returns[f"T+{h}_alpha"] = round(alpha, 2) if alpha is not None else None
                     else:
                         returns[f"T+{h}"] = None
                         returns[f"T+{h}_alpha"] = None
 
-                if any(
-                    v is not None
-                    for k, v in returns.items()
-                    if not k.endswith("_alpha")
-                ):
+                if any(v is not None for k, v in returns.items() if not k.endswith("_alpha")):
                     results[key] = returns
 
         self.forward_returns = results
@@ -403,9 +394,9 @@ class CommitteeBacktester:
     def _compute_returns_with_fetcher(
         self,
         price_fetcher,
-        horizons: Tuple[int, ...],
+        horizons: tuple[int, ...],
         benchmark: str,
-    ) -> Dict[str, Dict[str, Optional[float]]]:
+    ) -> dict[str, dict[str, float | None]]:
         """
         Compute forward returns using legacy price_fetcher (calendar-day offsets).
 
@@ -413,10 +404,10 @@ class CommitteeBacktester:
         Note: uses timedelta(days=h) which counts calendar days, not trading days.
         Prefer _compute_returns_with_service() for accurate results.
         """
-        results: Dict[str, Dict[str, Optional[float]]] = {}
+        results: dict[str, dict[str, float | None]] = {}
 
         # Cache benchmark prices per (date, horizon) to avoid redundant fetches
-        benchmark_cache: Dict[str, Optional[float]] = {}
+        benchmark_cache: dict[str, float | None] = {}
 
         for entry in self.history:
             date_str = entry["date"]
@@ -454,12 +445,14 @@ class CommitteeBacktester:
                         # Compute alpha vs benchmark
                         bm_target_key = f"{benchmark}:{target_date}"
                         if bm_target_key not in benchmark_cache:
-                            benchmark_cache[bm_target_key] = price_fetcher(
-                                benchmark, target_date
-                            )
+                            benchmark_cache[bm_target_key] = price_fetcher(benchmark, target_date)
                         bm_target_price = benchmark_cache[bm_target_key]
-                        if (bm_base_price and bm_base_price > 0
-                                and bm_target_price and bm_target_price > 0):
+                        if (
+                            bm_base_price
+                            and bm_base_price > 0
+                            and bm_target_price
+                            and bm_target_price > 0
+                        ):
                             bm_ret = (bm_target_price - bm_base_price) / bm_base_price * 100
                             returns[f"T+{h}_alpha"] = round(ret - bm_ret, 2)
                         else:
@@ -468,7 +461,7 @@ class CommitteeBacktester:
                         returns[f"T+{h}"] = None
                         returns[f"T+{h}_alpha"] = None
 
-                if any(v is not None for k, v in returns.items() if not k.endswith('_alpha')):
+                if any(v is not None for k, v in returns.items() if not k.endswith("_alpha")):
                     results[key] = returns
 
         self.forward_returns = results
@@ -479,8 +472,8 @@ class CommitteeBacktester:
         self,
         horizon: str = "T+30",
         net_of_costs: bool = False,
-        cost_kwargs: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        cost_kwargs: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Evaluate committee performance by action group.
 
@@ -509,11 +502,11 @@ class CommitteeBacktester:
             Performance summary dict with per-action stats AND a top-level
             "by_signal" block with conviction/α correlations per signal.
         """
-        action_returns: Dict[str, List[float]] = {}
-        action_alphas: Dict[str, List[float]] = {}
-        action_alphas_net: Dict[str, List[float]] = {}
-        action_convictions: Dict[str, List[float]] = {}
-        signal_pairs: Dict[str, List[Tuple[float, float]]] = {}
+        action_returns: dict[str, list[float]] = {}
+        action_alphas: dict[str, list[float]] = {}
+        action_alphas_net: dict[str, list[float]] = {}
+        action_convictions: dict[str, list[float]] = {}
+        signal_pairs: dict[str, list[tuple[float, float]]] = {}
 
         alpha_key = f"{horizon}_alpha"
         # Parse N from "T+N" so IR uses the correct period count.
@@ -560,7 +553,7 @@ class CommitteeBacktester:
                         except (TypeError, ValueError):
                             pass
 
-        summary: Dict[str, Any] = {}
+        summary: dict[str, Any] = {}
         for action, returns in action_returns.items():
             if not returns:
                 continue
@@ -634,20 +627,18 @@ class CommitteeBacktester:
                 "median_return": round(sorted_returns[len(sorted_returns) // 2], 2),
                 "best": round(sorted_returns[-1], 2),
                 "worst": round(sorted_returns[0], 2),
-                "positive_pct": round(
-                    sum(1 for r in returns if r > 0) / len(returns) * 100, 1
-                ),
+                "positive_pct": round(sum(1 for r in returns if r > 0) / len(returns) * 100, 1),
             }
 
         # CIO v17 H4: per-signal conviction → alpha rank correlation.
         # The signal class is the upstream B/H/S/I/OPP classifier — independent
         # of the action assignment. This block answers: "given that the upstream
         # classifier said BUY, does conviction *rank* the BUYs by alpha?"
-        by_signal: Dict[str, Any] = {}
+        by_signal: dict[str, Any] = {}
         for sig, pairs in signal_pairs.items():
             if len(pairs) < 5:
                 continue
-            convs, alphas = zip(*pairs)
+            convs, alphas = zip(*pairs, strict=False)
             by_signal[sig] = {
                 "count": len(pairs),
                 "avg_alpha": round(sum(alphas) / len(alphas), 2),
@@ -658,9 +649,7 @@ class CommitteeBacktester:
 
         return {
             "horizon": horizon,
-            "total_recommendations": sum(
-                s["count"] for s in summary.values()
-            ),
+            "total_recommendations": sum(s["count"] for s in summary.values()),
             "actions": summary,
             "by_signal": by_signal,
             "history_entries": len(self.history),
@@ -670,9 +659,9 @@ class CommitteeBacktester:
     def sweep_parameter(
         self,
         param_name: str,
-        values: List[Any],
+        values: list[Any],
         horizon: str = "T+30",
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Test different values for a conviction parameter.
 
@@ -729,13 +718,15 @@ class CommitteeBacktester:
                         if signal == "B":
                             # Override the floor
                             new_base = determine_base_conviction(
-                                bull_pct, signal, fund_score, excess_exret, bear_ratio,
+                                bull_pct,
+                                signal,
+                                fund_score,
+                                excess_exret,
+                                bear_ratio,
                             )
                             new_base = max(new_base, value)  # Apply test floor
                             new_conviction = (
-                                new_base
-                                + stock.get("bonuses", 0)
-                                - stock.get("penalties", 0)
+                                new_base + stock.get("bonuses", 0) - stock.get("penalties", 0)
                             )
                         else:
                             new_conviction = conviction
@@ -744,9 +735,7 @@ class CommitteeBacktester:
                             agent_base = int(30 + (bull_pct / 100) * 50)
                             new_base = min(agent_base, value)
                             new_conviction = (
-                                new_base
-                                + stock.get("bonuses", 0)
-                                - stock.get("penalties", 0)
+                                new_base + stock.get("bonuses", 0) - stock.get("penalties", 0)
                             )
                         else:
                             new_conviction = conviction
@@ -766,34 +755,33 @@ class CommitteeBacktester:
                         sell_returns.append(ret)
 
             buy_hit = (
-                sum(1 for r in buy_returns if r > 0) / len(buy_returns) * 100
-                if buy_returns else 0
+                sum(1 for r in buy_returns if r > 0) / len(buy_returns) * 100 if buy_returns else 0
             )
             sell_hit = (
                 sum(1 for r in sell_returns if r < 0) / len(sell_returns) * 100
-                if sell_returns else 0
+                if sell_returns
+                else 0
             )
-            buy_avg = (
-                sum(buy_returns) / len(buy_returns)
-                if buy_returns else 0
-            )
+            buy_avg = sum(buy_returns) / len(buy_returns) if buy_returns else 0
 
-            results.append({
-                "param": param_name,
-                "value": value,
-                "buy_count": len(buy_returns),
-                "buy_hit_rate": round(buy_hit, 1),
-                "buy_avg_return": round(buy_avg, 2),
-                "sell_count": len(sell_returns),
-                "sell_hit_rate": round(sell_hit, 1),
-            })
+            results.append(
+                {
+                    "param": param_name,
+                    "value": value,
+                    "buy_count": len(buy_returns),
+                    "buy_hit_rate": round(buy_hit, 1),
+                    "buy_avg_return": round(buy_avg, 2),
+                    "sell_count": len(sell_returns),
+                    "sell_hit_rate": round(sell_hit, 1),
+                }
+            )
 
         return results
 
     def generate_calibration_report(
         self,
         net_of_costs: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Generate calibration report with walk-forward validation.
 
@@ -859,13 +847,9 @@ class CommitteeBacktester:
         # Recommendations
         recommendations = []
         if perf_30d.get("actions", {}).get("BUY", {}).get("hit_rate", 0) < 50:
-            recommendations.append(
-                "BUY hit rate below 50% at T+30 — consider raising buy_floor"
-            )
+            recommendations.append("BUY hit rate below 50% at T+30 — consider raising buy_floor")
         if perf_30d.get("actions", {}).get("SELL", {}).get("hit_rate", 0) < 60:
-            recommendations.append(
-                "SELL hit rate below 60% at T+30 — review SELL criteria"
-            )
+            recommendations.append("SELL hit rate below 60% at T+30 — review SELL criteria")
 
         buy_data = perf_30d.get("actions", {}).get("BUY", {})
         if buy_data.get("avg_return", 0) < 0:
@@ -876,14 +860,9 @@ class CommitteeBacktester:
 
         # Check for walk-forward divergence
         if walk_forward.get("test_performance_30d"):
-            test_buy = walk_forward["test_performance_30d"].get(
-                "actions", {}
-            ).get("BUY", {})
+            test_buy = walk_forward["test_performance_30d"].get("actions", {}).get("BUY", {})
             full_buy = perf_30d.get("actions", {}).get("BUY", {})
-            if (
-                test_buy.get("hit_rate", 0) > 0
-                and full_buy.get("hit_rate", 0) > 0
-            ):
+            if test_buy.get("hit_rate", 0) > 0 and full_buy.get("hit_rate", 0) > 0:
                 divergence = full_buy["hit_rate"] - test_buy["hit_rate"]
                 if divergence > 15:
                     recommendations.append(
@@ -894,9 +873,7 @@ class CommitteeBacktester:
                     )
 
         if not recommendations:
-            recommendations.append(
-                "All metrics within acceptable ranges"
-            )
+            recommendations.append("All metrics within acceptable ranges")
 
         return {
             "generated_at": datetime.now().isoformat(),
@@ -914,7 +891,7 @@ class CommitteeBacktester:
 
     def backfill_from_synthesis(
         self,
-        synthesis_path: Optional[Path] = None,
+        synthesis_path: Path | None = None,
     ) -> int:
         """
         Backfill historical concordance from existing synthesis.json files.
@@ -934,7 +911,7 @@ class CommitteeBacktester:
         synth_files = list(directory.glob("**/synthesis*.json"))
         for fpath in synth_files:
             try:
-                with open(fpath, "r", encoding="utf-8") as f:
+                with open(fpath, encoding="utf-8") as f:
                     data = json.load(f)
             except (json.JSONDecodeError, OSError):
                 continue
@@ -974,7 +951,7 @@ class CommitteeBacktester:
         conc_path = directory / "concordance.json"
         if conc_path.exists():
             try:
-                with open(conc_path, "r", encoding="utf-8") as f:
+                with open(conc_path, encoding="utf-8") as f:
                     data = json.load(f)
                 if not isinstance(data, dict):
                     return count  # Bare list format — no date metadata to backfill
@@ -983,9 +960,7 @@ class CommitteeBacktester:
                 if date_str and stocks:
                     archive_path = history_dir / f"concordance-{date_str}.json"
                     if not archive_path.exists():
-                        concordance = [
-                            {"ticker": k, **v} for k, v in stocks.items()
-                        ]
+                        concordance = [{"ticker": k, **v} for k, v in stocks.items()]
                         archive_data = {
                             "date": date_str,
                             "version": "backfilled-concordance",
@@ -1001,11 +976,11 @@ class CommitteeBacktester:
 
 
 def run_backtest(
-    log_dir: Optional[Path] = None,
+    log_dir: Path | None = None,
     horizon: str = "T+30",
     fetch_prices: bool = True,
     use_price_service: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Convenience function to run a full backtest.
 
@@ -1039,6 +1014,7 @@ def run_backtest(
     if fetch_prices:
         if use_price_service:
             from trade_modules.price_service import PriceService
+
             svc = PriceService()
             bt.compute_forward_returns(price_service=svc)
         else:
@@ -1064,8 +1040,8 @@ def run_backtest(
 def yfinance_price_fetcher(
     ticker: str,
     date_str: str,
-    _cache: Optional[Dict] = None,
-) -> Optional[float]:
+    _cache: dict | None = None,
+) -> float | None:
     """
     Default price fetcher using yfinance (CIO v6.0 G1).
 
@@ -1104,8 +1080,7 @@ def yfinance_price_fetcher(
                 _cache[ticker] = {}
             else:
                 _cache[ticker] = {
-                    d.strftime("%Y-%m-%d"): float(p)
-                    for d, p in hist["Close"].items()
+                    d.strftime("%Y-%m-%d"): float(p) for d, p in hist["Close"].items()
                 }
         except Exception as exc:
             logger.debug("Failed to fetch history for %s: %s", ticker, exc)
@@ -1141,12 +1116,12 @@ def yfinance_price_fetcher(
 
 
 def hidden_alpha_holds(
-    log_dir: Optional[Path] = None,
+    log_dir: Path | None = None,
     horizon: str = "T+30",
     lookback_days: int = 60,
     min_alpha: float = 5.0,
     min_evaluations: int = 2,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     CIO v17 H5.1: Surface HOLD-signal stocks whose realized α at the
     target horizon has been consistently strong over the rolling window.
@@ -1173,13 +1148,12 @@ def hidden_alpha_holds(
     bt.load_history()
     if not bt.history:
         return []
-    bt.compute_forward_returns(price_fetcher=yfinance_price_fetcher,
-                               horizons=(7, 14, 30))
+    bt.compute_forward_returns(price_fetcher=yfinance_price_fetcher, horizons=(7, 14, 30))
 
     cutoff = (datetime.now() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
     alpha_key = f"{horizon}_alpha"
 
-    by_ticker: Dict[str, List[Dict[str, Any]]] = {}
+    by_ticker: dict[str, list[dict[str, Any]]] = {}
     for entry in bt.history:
         date_str = entry.get("date", "")
         if date_str < cutoff:
@@ -1194,14 +1168,16 @@ def hidden_alpha_holds(
             alpha = ret_data.get(alpha_key)
             if alpha is None:
                 continue
-            by_ticker.setdefault(tkr, []).append({
-                "date": date_str,
-                "alpha": alpha,
-                "action": stock.get("action"),
-                "conviction": stock.get("conviction"),
-            })
+            by_ticker.setdefault(tkr, []).append(
+                {
+                    "date": date_str,
+                    "alpha": alpha,
+                    "action": stock.get("action"),
+                    "conviction": stock.get("conviction"),
+                }
+            )
 
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for tkr, observations in by_ticker.items():
         if len(observations) < min_evaluations:
             continue
@@ -1209,23 +1185,25 @@ def hidden_alpha_holds(
         if mean_alpha < min_alpha:
             continue
         latest = max(observations, key=lambda o: o["date"])
-        out.append({
-            "ticker": tkr,
-            "n_evaluations": len(observations),
-            "mean_alpha": round(mean_alpha, 2),
-            "last_action": latest.get("action"),
-            "last_conviction": latest.get("conviction"),
-            "last_date": latest.get("date"),
-        })
+        out.append(
+            {
+                "ticker": tkr,
+                "n_evaluations": len(observations),
+                "mean_alpha": round(mean_alpha, 2),
+                "last_action": latest.get("action"),
+                "last_conviction": latest.get("conviction"),
+                "last_date": latest.get("date"),
+            }
+        )
 
     out.sort(key=lambda r: -r["mean_alpha"])
     return out
 
 
 def evaluate_recent(
-    current_prices: Dict[str, float],
-    log_dir: Optional[Path] = None,
-) -> Dict[str, Any]:
+    current_prices: dict[str, float],
+    log_dir: Path | None = None,
+) -> dict[str, Any]:
     """
     Evaluate the most recent committee run against current market prices.
 
@@ -1251,7 +1229,7 @@ def evaluate_recent(
         return {"status": "no_history"}
 
     try:
-        with open(conc_path, "r", encoding="utf-8") as f:
+        with open(conc_path, encoding="utf-8") as f:
             prev = json.load(f)
     except (json.JSONDecodeError, OSError):
         return {"status": "no_history"}
@@ -1273,7 +1251,7 @@ def evaluate_recent(
         return {"status": "no_history"}
 
     # Compute returns
-    action_returns: Dict[str, List[Dict]] = {}
+    action_returns: dict[str, list[dict]] = {}
     for entry in entries:
         ticker = entry.get("ticker", "")
         if not ticker:
@@ -1287,13 +1265,15 @@ def evaluate_recent(
         action = entry.get("action", "HOLD")
         conviction = entry.get("conviction", 50)
 
-        action_returns.setdefault(action, []).append({
-            "ticker": ticker,
-            "conviction": conviction,
-            "prev_price": prev_price,
-            "curr_price": curr_price,
-            "return_pct": ret_pct,
-        })
+        action_returns.setdefault(action, []).append(
+            {
+                "ticker": ticker,
+                "conviction": conviction,
+                "prev_price": prev_price,
+                "curr_price": curr_price,
+                "return_pct": ret_pct,
+            }
+        )
 
     # Compute per-action stats
     summary = {}

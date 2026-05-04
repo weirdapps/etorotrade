@@ -9,7 +9,7 @@ wrapper, corrupt-file handling, per-day deduplication, and edge cases.
 import json
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import pytest
 
@@ -23,7 +23,6 @@ from trade_modules.census_time_series import (
     get_census_context,
     load_census_snapshots,
 )
-
 
 # ============================================================
 # Helpers
@@ -47,10 +46,10 @@ def _make_census_file(
     directory: Path,
     date: str,
     time: str,
-    holdings_data: Dict[str, int],
+    holdings_data: dict[str, int],
     fg_index: int = 50,
     investor_count: int = 100,
-    extra_instruments: Optional[List[Dict[str, Any]]] = None,
+    extra_instruments: list[dict[str, Any]] | None = None,
 ) -> Path:
     """Create a minimal census JSON file matching the real structure."""
     instruments = [
@@ -71,11 +70,13 @@ def _make_census_file(
     top_holdings = []
     for ticker, count in holdings_data.items():
         iid = ticker_to_id.get(ticker, hash(ticker) % 90000 + 10000)
-        top_holdings.append({
-            "instrumentId": iid,
-            "symbol": ticker,
-            "holdersCount": count,
-        })
+        top_holdings.append(
+            {
+                "instrumentId": iid,
+                "symbol": ticker,
+                "holdersCount": count,
+            }
+        )
 
     data = {
         "instruments": {"details": instruments},
@@ -96,29 +97,45 @@ def _make_census_file(
 
 def _make_standard_snapshots(
     directory: Path,
-) -> List[Path]:
+) -> list[Path]:
     """Create a set of 4 census files spanning ~12 days for reuse."""
     files = []
-    files.append(_make_census_file(
-        directory, DATE_12D_AGO, "02-30",
-        {"AAPL": 40, "GOOG": 35, "NVDA": 30, "TSLA": 25, "META": 20},
-        fg_index=45,
-    ))
-    files.append(_make_census_file(
-        directory, DATE_8D_AGO, "02-30",
-        {"AAPL": 42, "GOOG": 34, "NVDA": 33, "TSLA": 23, "META": 21},
-        fg_index=50,
-    ))
-    files.append(_make_census_file(
-        directory, DATE_4D_AGO, "02-30",
-        {"AAPL": 43, "GOOG": 33, "NVDA": 37, "TSLA": 20, "META": 22},
-        fg_index=55,
-    ))
-    files.append(_make_census_file(
-        directory, DATE_TODAY, "02-30",
-        {"AAPL": 44, "GOOG": 32, "NVDA": 42, "TSLA": 18, "META": 22},
-        fg_index=60,
-    ))
+    files.append(
+        _make_census_file(
+            directory,
+            DATE_12D_AGO,
+            "02-30",
+            {"AAPL": 40, "GOOG": 35, "NVDA": 30, "TSLA": 25, "META": 20},
+            fg_index=45,
+        )
+    )
+    files.append(
+        _make_census_file(
+            directory,
+            DATE_8D_AGO,
+            "02-30",
+            {"AAPL": 42, "GOOG": 34, "NVDA": 33, "TSLA": 23, "META": 21},
+            fg_index=50,
+        )
+    )
+    files.append(
+        _make_census_file(
+            directory,
+            DATE_4D_AGO,
+            "02-30",
+            {"AAPL": 43, "GOOG": 33, "NVDA": 37, "TSLA": 20, "META": 22},
+            fg_index=55,
+        )
+    )
+    files.append(
+        _make_census_file(
+            directory,
+            DATE_TODAY,
+            "02-30",
+            {"AAPL": 44, "GOOG": 32, "NVDA": 42, "TSLA": 18, "META": 22},
+            fg_index=60,
+        )
+    )
     return files
 
 
@@ -198,9 +215,7 @@ class TestLoadCensusSnapshots:
             assert snap["date"] >= cutoff_date
 
     def test_missing_dir_returns_empty(self, tmp_path: Path) -> None:
-        snaps = load_census_snapshots(
-            archive_dir=tmp_path / "nonexistent", days_back=30
-        )
+        snaps = load_census_snapshots(archive_dir=tmp_path / "nonexistent", days_back=30)
         assert snaps == []
 
     def test_empty_dir_returns_empty(self, tmp_path: Path) -> None:
@@ -210,14 +225,20 @@ class TestLoadCensusSnapshots:
     def test_corrupt_file_skipped(self, tmp_path: Path) -> None:
         """Corrupt JSON files are skipped, valid ones still load."""
         _make_census_file(
-            tmp_path, DATE_16D_AGO, "02-30",
-            {"AAPL": 40}, fg_index=50,
+            tmp_path,
+            DATE_16D_AGO,
+            "02-30",
+            {"AAPL": 40},
+            fg_index=50,
         )
         corrupt = tmp_path / f"etoro-data-{DATE_14D_AGO}-02-30.json"
         corrupt.write_text("{bad json!!", encoding="utf-8")
         _make_census_file(
-            tmp_path, DATE_12D_AGO, "02-30",
-            {"AAPL": 42}, fg_index=52,
+            tmp_path,
+            DATE_12D_AGO,
+            "02-30",
+            {"AAPL": 42},
+            fg_index=52,
         )
 
         snaps = load_census_snapshots(archive_dir=tmp_path, days_back=30)
@@ -238,9 +259,11 @@ class TestLoadCensusSnapshots:
     def test_investor_tier_selection(self, tmp_path: Path) -> None:
         """Only the matching investor tier analysis is extracted."""
         data = {
-            "instruments": {"details": [
-                {"instrumentId": 1001, "symbolFull": "AAPL"},
-            ]},
+            "instruments": {
+                "details": [
+                    {"instrumentId": 1001, "symbolFull": "AAPL"},
+                ]
+            },
             "analyses": [
                 {
                     "investorCount": 100,
@@ -266,20 +289,24 @@ class TestLoadCensusSnapshots:
     def test_missing_tier_skips_file(self, tmp_path: Path) -> None:
         """If the requested tier is missing in a file, that file is skipped."""
         _make_census_file(
-            tmp_path, DATE_10D_AGO, "02-30",
-            {"AAPL": 40}, fg_index=50, investor_count=100,
+            tmp_path,
+            DATE_10D_AGO,
+            "02-30",
+            {"AAPL": 40},
+            fg_index=50,
+            investor_count=100,
         )
-        snaps = load_census_snapshots(
-            archive_dir=tmp_path, days_back=30, investor_tier=500
-        )
+        snaps = load_census_snapshots(archive_dir=tmp_path, days_back=30, investor_tier=500)
         assert snaps == []
 
     def test_instrument_map_fallback(self, tmp_path: Path) -> None:
         """Holdings without 'symbol' fall back to instruments.details mapping."""
         data = {
-            "instruments": {"details": [
-                {"instrumentId": 1001, "symbolFull": "AAPL"},
-            ]},
+            "instruments": {
+                "details": [
+                    {"instrumentId": 1001, "symbolFull": "AAPL"},
+                ]
+            },
             "analyses": [
                 {
                     "investorCount": 100,
@@ -346,8 +373,14 @@ class TestComputeHolderTrends:
         assert trends["NVDA"]["delta_7d"] == 9
 
     def test_single_snapshot_returns_empty(self) -> None:
-        snaps = [{"date": DATE_10D_AGO, "holdings": {"AAPL": 40},
-                  "fear_greed": 50, "investor_count": 100}]
+        snaps = [
+            {
+                "date": DATE_10D_AGO,
+                "holdings": {"AAPL": 40},
+                "fear_greed": 50,
+                "investor_count": 100,
+            }
+        ]
         trends = compute_holder_trends(snaps)
         assert trends == {}
 
@@ -357,10 +390,18 @@ class TestComputeHolderTrends:
     def test_ticker_only_in_earliest_excluded(self) -> None:
         """A ticker present in earliest but not latest is excluded."""
         snaps = [
-            {"date": DATE_20D_AGO, "holdings": {"AAPL": 40, "DOGE": 5},
-             "fear_greed": 50, "investor_count": 100},
-            {"date": DATE_10D_AGO, "holdings": {"AAPL": 42},
-             "fear_greed": 55, "investor_count": 100},
+            {
+                "date": DATE_20D_AGO,
+                "holdings": {"AAPL": 40, "DOGE": 5},
+                "fear_greed": 50,
+                "investor_count": 100,
+            },
+            {
+                "date": DATE_10D_AGO,
+                "holdings": {"AAPL": 42},
+                "fear_greed": 55,
+                "investor_count": 100,
+            },
         ]
         trends = compute_holder_trends(snaps)
         assert "DOGE" not in trends
@@ -369,10 +410,18 @@ class TestComputeHolderTrends:
     def test_ticker_appearing_only_once_excluded(self) -> None:
         """Ticker in only 1 snapshot is excluded from trends."""
         snaps = [
-            {"date": DATE_20D_AGO, "holdings": {"AAPL": 40},
-             "fear_greed": 50, "investor_count": 100},
-            {"date": DATE_10D_AGO, "holdings": {"AAPL": 42, "NEW": 5},
-             "fear_greed": 55, "investor_count": 100},
+            {
+                "date": DATE_20D_AGO,
+                "holdings": {"AAPL": 40},
+                "fear_greed": 50,
+                "investor_count": 100,
+            },
+            {
+                "date": DATE_10D_AGO,
+                "holdings": {"AAPL": 42, "NEW": 5},
+                "fear_greed": 55,
+                "investor_count": 100,
+            },
         ]
         trends = compute_holder_trends(snaps)
         assert "NEW" not in trends
@@ -554,8 +603,11 @@ class TestGetCensusContext:
     def test_context_with_single_snapshot(self, tmp_path: Path) -> None:
         """Single snapshot loads but trends are empty."""
         _make_census_file(
-            tmp_path, DATE_10D_AGO, "02-30",
-            {"AAPL": 40}, fg_index=55,
+            tmp_path,
+            DATE_10D_AGO,
+            "02-30",
+            {"AAPL": 40},
+            fg_index=55,
         )
         ctx = get_census_context(archive_dir=tmp_path, days_back=30)
         assert ctx["data_available"] is True
@@ -565,6 +617,4 @@ class TestGetCensusContext:
 
     def test_census_archive_dir_constant(self) -> None:
         """Verify the default constant points to the expected path."""
-        assert str(CENSUS_ARCHIVE_DIR).endswith(
-            "SourceCode/etoro_census/archive/data"
-        )
+        assert str(CENSUS_ARCHIVE_DIR).endswith("SourceCode/etoro_census/archive/data")

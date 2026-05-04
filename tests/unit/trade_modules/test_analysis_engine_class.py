@@ -4,19 +4,20 @@ Tests for the AnalysisEngine class in trade_modules/analysis_engine.py
 This module tests the main AnalysisEngine class functionality.
 """
 
-import pytest
-import pandas as pd
-import numpy as np
 from unittest.mock import patch
+
+import numpy as np
+import pandas as pd
+import pytest
 
 from trade_modules.analysis_engine import (
     AnalysisEngine,
-    calculate_exret,
-    _safe_calc_exret,
-    _parse_percentage,
-    _parse_market_cap,
     _determine_market_cap_tier,
+    _parse_market_cap,
+    _parse_percentage,
+    _safe_calc_exret,
     calculate_action_vectorized,
+    calculate_exret,
 )
 
 # signals.py performs a live yfinance lookup for each ticker's next earnings
@@ -24,9 +25,14 @@ from trade_modules.analysis_engine import (
 # become time-bombs that fail every earnings season. Mock to a deterministic
 # "clear" response.
 _CLEAR_EARNINGS = {
-    "earnings_date": None, "days_until": None, "status": "clear",
-    "should_hold": False, "conviction_boost": False, "conviction_adjustment": 0,
+    "earnings_date": None,
+    "days_until": None,
+    "status": "clear",
+    "should_hold": False,
+    "conviction_boost": False,
+    "conviction_adjustment": 0,
 }
+
 
 @pytest.fixture(autouse=True)
 def _mock_earnings_proximity():
@@ -35,6 +41,7 @@ def _mock_earnings_proximity():
         return_value=_CLEAR_EARNINGS,
     ):
         yield
+
 
 class TestAnalysisEngineInitialization:
     """Tests for AnalysisEngine initialization."""
@@ -50,6 +57,7 @@ class TestAnalysisEngineInitialization:
         custom_criteria = {"min_upside": 15.0, "min_buy_percentage": 70.0}
         engine = AnalysisEngine(trading_criteria=custom_criteria)
         assert engine.trading_criteria == custom_criteria
+
 
 class TestAnalysisEnginePortfolioAnalysis:
     """Tests for AnalysisEngine portfolio analysis."""
@@ -68,14 +76,16 @@ class TestAnalysisEnginePortfolioAnalysis:
 
     def test_analyze_portfolio_with_data(self, engine):
         """Test analyzing portfolio with data."""
-        df = pd.DataFrame({
-            "ticker": ["AAPL", "MSFT", "GOOGL"],
-            "upside": [15.0, 25.0, 10.0],
-            "buy_percentage": [85.0, 90.0, 75.0],
-            "market_cap": [3e12, 2.8e12, 1.8e12],
-            "analyst_count": [30, 40, 35],
-            "price_targets": [28, 38, 33],
-        })
+        df = pd.DataFrame(
+            {
+                "ticker": ["AAPL", "MSFT", "GOOGL"],
+                "upside": [15.0, 25.0, 10.0],
+                "buy_percentage": [85.0, 90.0, 75.0],
+                "market_cap": [3e12, 2.8e12, 1.8e12],
+                "analyst_count": [30, 40, 35],
+                "price_targets": [28, 38, 33],
+            }
+        )
         result = engine.analyze_portfolio(df)
         assert isinstance(result, dict)
 
@@ -87,16 +97,19 @@ class TestAnalysisEnginePortfolioAnalysis:
 
     def test_analyze_market_with_data(self, engine):
         """Test analyzing market with data."""
-        df = pd.DataFrame({
-            "ticker": ["NVDA", "AMD", "INTC"],
-            "upside": [35.0, 20.0, 5.0],
-            "buy_percentage": [92.0, 80.0, 55.0],
-            "market_cap": [1.5e12, 200e9, 180e9],
-            "analyst_count": [40, 35, 30],
-            "price_targets": [38, 33, 28],
-        })
+        df = pd.DataFrame(
+            {
+                "ticker": ["NVDA", "AMD", "INTC"],
+                "upside": [35.0, 20.0, 5.0],
+                "buy_percentage": [92.0, 80.0, 55.0],
+                "market_cap": [1.5e12, 200e9, 180e9],
+                "analyst_count": [40, 35, 30],
+                "price_targets": [38, 33, 28],
+            }
+        )
         result = engine.analyze_market(df)
         assert isinstance(result, dict)
+
 
 class TestAnalysisEngineSummary:
     """Tests for AnalysisEngine summary methods."""
@@ -118,15 +131,18 @@ class TestAnalysisEngineSummary:
         result = engine.generate_market_summary(df)
         assert isinstance(result, dict)
 
+
 class TestCalculateExret:
     """Tests for the calculate_exret function."""
 
     def test_calculate_exret_basic(self):
         """Test basic EXRET calculation."""
-        df = pd.DataFrame({
-            "upside": [20.0, 15.0, 10.0],
-            "buy_percentage": [80.0, 90.0, 50.0],
-        })
+        df = pd.DataFrame(
+            {
+                "upside": [20.0, 15.0, 10.0],
+                "buy_percentage": [80.0, 90.0, 50.0],
+            }
+        )
         result = calculate_exret(df)
         assert "EXRET" in result.columns
         # EXRET = upside * buy_percentage / 100
@@ -136,10 +152,12 @@ class TestCalculateExret:
 
     def test_calculate_exret_with_nan(self):
         """Test EXRET calculation with NaN values."""
-        df = pd.DataFrame({
-            "upside": [20.0, np.nan, 10.0],
-            "buy_percentage": [80.0, 90.0, np.nan],
-        })
+        df = pd.DataFrame(
+            {
+                "upside": [20.0, np.nan, 10.0],
+                "buy_percentage": [80.0, 90.0, np.nan],
+            }
+        )
         result = calculate_exret(df)
         assert "EXRET" in result.columns
 
@@ -151,12 +169,15 @@ class TestCalculateExret:
 
     def test_calculate_exret_string_percentages(self):
         """Test EXRET calculation with string percentage values."""
-        df = pd.DataFrame({
-            "upside": ["20%", "15%"],
-            "buy_percentage": ["80%", "90%"],
-        })
+        df = pd.DataFrame(
+            {
+                "upside": ["20%", "15%"],
+                "buy_percentage": ["80%", "90%"],
+            }
+        )
         result = calculate_exret(df)
         assert "EXRET" in result.columns
+
 
 class TestSafeCalcExret:
     """Tests for the _safe_calc_exret function."""
@@ -178,6 +199,7 @@ class TestSafeCalcExret:
         row = pd.Series({"other": 123})
         result = _safe_calc_exret(row)
         assert result == pytest.approx(0.0)
+
 
 class TestParsePercentage:
     """Tests for the _parse_percentage function."""
@@ -204,6 +226,7 @@ class TestParsePercentage:
     def test_parse_percentage_nan(self):
         """Test parsing NaN values."""
         assert _parse_percentage(np.nan) == pytest.approx(0.0)
+
 
 class TestParseMarketCap:
     """Tests for the _parse_market_cap function."""
@@ -233,6 +256,7 @@ class TestParseMarketCap:
         assert _parse_market_cap("--") == pytest.approx(0.0)
         assert _parse_market_cap(None) == pytest.approx(0.0)
 
+
 class TestDetermineMarketCapTier:
     """Tests for the _determine_market_cap_tier function."""
 
@@ -255,18 +279,22 @@ class TestDetermineMarketCapTier:
         """Test tier with NaN value."""
         assert _determine_market_cap_tier(np.nan) == "B"
 
+
 class TestCalculateActionVectorized:
     """Tests for the calculate_action_vectorized function."""
 
     def test_calculate_action_basic(self):
         """Test basic action calculation."""
-        df = pd.DataFrame({
-            "upside": [30.0, 5.0, 15.0],
-            "buy_percentage": [90.0, 50.0, 70.0],
-            "market_cap": [100e9, 100e9, 100e9],
-            "analyst_count": [20, 20, 20],
-            "total_ratings": [18, 18, 18],
-        }, index=["AAPL", "MSFT", "GOOGL"])
+        df = pd.DataFrame(
+            {
+                "upside": [30.0, 5.0, 15.0],
+                "buy_percentage": [90.0, 50.0, 70.0],
+                "market_cap": [100e9, 100e9, 100e9],
+                "analyst_count": [20, 20, 20],
+                "total_ratings": [18, 18, 18],
+            },
+            index=["AAPL", "MSFT", "GOOGL"],
+        )
         result, buy_scores = calculate_action_vectorized(df)
         # Returns a Series with action values
         assert isinstance(result, pd.Series)
@@ -282,26 +310,28 @@ class TestCalculateActionVectorized:
         assert isinstance(result, pd.Series)
         assert len(result) == 0
 
+
 class TestBackwardCompatibilityImports:
     """Test that backward compatibility imports work."""
 
     def test_can_import_from_analysis_engine(self):
         """Test that all functions can be imported from analysis_engine."""
         from trade_modules.analysis_engine import (
-            calculate_exret,
-            _safe_calc_exret,
-            _parse_percentage,
-            _parse_market_cap,
-            _determine_market_cap_tier,
-            calculate_action_vectorized,
-            calculate_action,
-            filter_buy_opportunities_wrapper,
-            filter_sell_candidates_wrapper,
-            filter_hold_candidates_wrapper,
+            _check_buy_criteria,
             _check_confidence_criteria,
             _check_sell_criteria,
-            _check_buy_criteria,
+            _determine_market_cap_tier,
+            _parse_market_cap,
+            _parse_percentage,
+            _safe_calc_exret,
+            calculate_action,
+            calculate_action_vectorized,
+            calculate_exret,
+            filter_buy_opportunities_wrapper,
+            filter_hold_candidates_wrapper,
+            filter_sell_candidates_wrapper,
         )
+
         # All imports should work
         assert calculate_exret is not None
         assert _safe_calc_exret is not None

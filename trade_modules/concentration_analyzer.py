@@ -9,7 +9,7 @@ P1 improvement from HEDGE_FUND_REVIEW.md recommendations.
 """
 
 import logging
-from typing import Dict, List, Tuple
+
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ class ConcentrationWarning:
         percentage: float,  # Concentration percentage
         count: int,  # Number of signals in this category
         total: int,  # Total signals
-        tickers: List[str],  # Affected tickers
+        tickers: list[str],  # Affected tickers
     ):
         self.warning_type = warning_type
         self.concentrated_value = concentrated_value
@@ -46,7 +46,7 @@ class ConcentrationWarning:
             f"are in {self.concentrated_value}"
         )
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "warning_type": self.warning_type,
             "concentrated_value": self.concentrated_value,
@@ -64,7 +64,7 @@ def analyze_concentration(
     max_sector_concentration: float = DEFAULT_MAX_SECTOR_CONCENTRATION,
     max_region_concentration: float = DEFAULT_MAX_REGION_CONCENTRATION,
     min_signals: int = DEFAULT_MIN_SIGNALS_FOR_WARNING,
-) -> List[ConcentrationWarning]:
+) -> list[ConcentrationWarning]:
     """
     Analyze a DataFrame of signals for sector/region concentration.
 
@@ -79,7 +79,7 @@ def analyze_concentration(
     Returns:
         List of ConcentrationWarning objects
     """
-    warnings: List[ConcentrationWarning] = []
+    warnings: list[ConcentrationWarning] = []
 
     if df.empty or signal_column not in df.columns:
         return warnings
@@ -113,9 +113,9 @@ def analyze_concentration(
 
 def _analyze_sector_concentration(
     df: pd.DataFrame, total: int, max_concentration: float
-) -> List[ConcentrationWarning]:
+) -> list[ConcentrationWarning]:
     """Analyze sector concentration."""
-    warnings: List[ConcentrationWarning] = []
+    warnings: list[ConcentrationWarning] = []
 
     # Find sector column
     sector_col = None
@@ -148,11 +148,7 @@ def _analyze_sector_concentration(
         percentage = count / total
         if percentage > max_concentration:
             # Get tickers in this sector
-            tickers = (
-                df[df[sector_col] == sector][ticker_col].tolist()
-                if ticker_col
-                else []
-            )
+            tickers = df[df[sector_col] == sector][ticker_col].tolist() if ticker_col else []
             warning = ConcentrationWarning(
                 warning_type="sector",
                 concentrated_value=str(sector),
@@ -169,9 +165,9 @@ def _analyze_sector_concentration(
 
 def _analyze_region_concentration(
     df: pd.DataFrame, total: int, max_concentration: float
-) -> List[ConcentrationWarning]:
+) -> list[ConcentrationWarning]:
     """Analyze region concentration."""
-    warnings: List[ConcentrationWarning] = []
+    warnings: list[ConcentrationWarning] = []
 
     # Find region column or infer from ticker
     region_col = None
@@ -217,11 +213,7 @@ def _analyze_region_concentration(
         percentage = count / total
         if percentage > max_concentration:
             # Get tickers in this region
-            tickers = (
-                df[df[region_col] == region][ticker_col].tolist()
-                if ticker_col
-                else []
-            )
+            tickers = df[df[region_col] == region][ticker_col].tolist() if ticker_col else []
             warning = ConcentrationWarning(
                 warning_type="region",
                 concentrated_value=str(region).upper(),
@@ -271,7 +263,7 @@ def _infer_region_from_ticker(ticker: str) -> str:
     return "US"
 
 
-def format_concentration_warnings(warnings: List[ConcentrationWarning]) -> str:
+def format_concentration_warnings(warnings: list[ConcentrationWarning]) -> str:
     """Format concentration warnings for display."""
     if not warnings:
         return ""
@@ -293,7 +285,7 @@ def format_concentration_warnings(warnings: List[ConcentrationWarning]) -> str:
 
 def get_diversification_score(
     df: pd.DataFrame, signal_column: str = "BS", target_signal: str = "B"
-) -> Tuple[float, str]:
+) -> tuple[float, str]:
     """
     Calculate a diversification score for signals.
 
@@ -331,7 +323,9 @@ def get_diversification_score(
 
     # HHI ranges from 1/n (perfectly diverse) to 1 (perfectly concentrated)
     # Convert to 0-100 score where 100 is most diverse
-    avg_hhi = (sector_hhi + region_hhi) / 2 if sector_hhi and region_hhi else max(sector_hhi, region_hhi)
+    avg_hhi = (
+        (sector_hhi + region_hhi) / 2 if sector_hhi and region_hhi else max(sector_hhi, region_hhi)
+    )
 
     # Score: 100 * (1 - HHI) gives 0 for perfect concentration, ~100 for diversity
     score = 100 * (1 - avg_hhi)

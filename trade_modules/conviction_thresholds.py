@@ -19,9 +19,10 @@ exists (≥3 snapshots), the legacy fixed thresholds are used.
 
 import json
 import logging
+from collections.abc import Iterable
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -31,22 +32,22 @@ DEFAULT_THRESHOLDS_PATH = (
 
 # Legacy fixed defaults — used when no rolling state is available.
 LEGACY_THRESHOLDS = {
-    "B": {"add_pct": 55, "trim_pct": 0},   # BUY signal: ADD ≥55, never trim
+    "B": {"add_pct": 55, "trim_pct": 0},  # BUY signal: ADD ≥55, never trim
     "H": {"add_pct": 70, "trim_pct": 35},  # HOLD signal: ADD ≥70, TRIM <35
-    "S": {"sell_pct": 60},                 # SELL signal: SELL ≥60, else TRIM
+    "S": {"sell_pct": 60},  # SELL signal: SELL ≥60, else TRIM
     "I": {"add_pct": 70, "trim_pct": 35},  # INCONCLUSIVE: same as HOLD
 }
 
 # Target percentiles per signal class (the "what fraction is ADD/TRIM").
 TARGET_PERCENTILES = {
-    "B": {"add_p": 50, "trim_p": 5},    # BUY: top half = ADD, bottom 5% = HOLD floor
-    "H": {"add_p": 75, "trim_p": 25},   # HOLD: top quartile = ADD, bottom quartile = TRIM
-    "S": {"sell_p": 50},                # SELL: top half by magnitude = SELL
+    "B": {"add_p": 50, "trim_p": 5},  # BUY: top half = ADD, bottom 5% = HOLD floor
+    "H": {"add_p": 75, "trim_p": 25},  # HOLD: top quartile = ADD, bottom quartile = TRIM
+    "S": {"sell_p": 50},  # SELL: top half by magnitude = SELL
     "I": {"add_p": 75, "trim_p": 25},
 }
 
 
-def _percentile(values: List[float], p: float) -> Optional[float]:
+def _percentile(values: list[float], p: float) -> float | None:
     """Compute the p-th percentile (0-100) of a list of floats."""
     if not values:
         return None
@@ -64,10 +65,10 @@ def _percentile(values: List[float], p: float) -> Optional[float]:
 
 
 def compute_rolling_thresholds(
-    history: Iterable[Dict[str, Any]],
+    history: Iterable[dict[str, Any]],
     lookback_snapshots: int = 8,
     min_per_signal: int = 20,
-) -> Dict[str, Dict[str, float]]:
+) -> dict[str, dict[str, float]]:
     """
     Compute per-signal-class action thresholds from the most recent
     `lookback_snapshots` concordance archives.
@@ -88,7 +89,7 @@ def compute_rolling_thresholds(
     items.sort(key=lambda e: e.get("date", ""))
     items = items[-lookback_snapshots:]
 
-    convictions: Dict[str, List[float]] = {}
+    convictions: dict[str, list[float]] = {}
     for entry in items:
         for stock in entry.get("concordance", []):
             sig = stock.get("signal", "?")
@@ -98,7 +99,7 @@ def compute_rolling_thresholds(
                 continue
             convictions.setdefault(sig, []).append(conv)
 
-    out: Dict[str, Dict[str, float]] = {}
+    out: dict[str, dict[str, float]] = {}
     for sig in ("B", "H", "S", "I"):
         legacy = LEGACY_THRESHOLDS.get(sig, {})
         targets = TARGET_PERCENTILES.get(sig, {})
@@ -110,7 +111,7 @@ def compute_rolling_thresholds(
             out[sig] = {**legacy, "n": n, "source": "legacy"}
             continue
 
-        sig_out: Dict[str, float] = {"n": n, "source": "rolling"}
+        sig_out: dict[str, float] = {"n": n, "source": "rolling"}
         if "add_p" in targets:
             sig_out["add_pct"] = round(
                 _percentile(sample, targets["add_p"]) or legacy.get("add_pct", 55), 1
@@ -137,8 +138,8 @@ def compute_rolling_thresholds(
 
 
 def persist_thresholds(
-    thresholds: Dict[str, Any],
-    path: Optional[Path] = None,
+    thresholds: dict[str, Any],
+    path: Path | None = None,
 ) -> Path:
     """Persist computed thresholds for the next committee run to consume."""
     out_path = path or DEFAULT_THRESHOLDS_PATH
@@ -153,9 +154,9 @@ def persist_thresholds(
 
 
 def load_thresholds(
-    path: Optional[Path] = None,
+    path: Path | None = None,
     max_age_days: int = 14,
-) -> Optional[Dict[str, Dict[str, float]]]:
+) -> dict[str, dict[str, float]] | None:
     """
     Load the most recent rolling thresholds.
 
@@ -185,8 +186,8 @@ def load_thresholds(
 
 def get_action_thresholds(
     signal: str,
-    rolling: Optional[Dict[str, Dict[str, float]]] = None,
-) -> Dict[str, float]:
+    rolling: dict[str, dict[str, float]] | None = None,
+) -> dict[str, float]:
     """
     Resolve the action thresholds to use for a given signal class.
 

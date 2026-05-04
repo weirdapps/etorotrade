@@ -7,8 +7,9 @@ color coding, and filtering notrade tickers.
 
 import logging
 import os
+from typing import Any
+
 import pandas as pd
-from typing import Dict, Any, Tuple, List
 
 # Import ticker utilities
 from yahoofinance.utils.data.ticker_utils import are_equivalent_tickers
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 def _check_confidence_criteria(
     row: pd.Series, min_analysts: int = 5, min_targets: int = 5
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """
     Check if a row meets confidence criteria for reliable analysis.
 
@@ -58,7 +59,7 @@ def _check_confidence_criteria(
 
 
 def _check_sell_criteria(
-    upside: float, buy_pct: float, pef: float, si: float, beta: float, criteria: Dict[str, Any]
+    upside: float, buy_pct: float, pef: float, si: float, beta: float, criteria: dict[str, Any]
 ) -> bool:
     """
     Check if a security meets SELL criteria based on trading rules.
@@ -116,7 +117,7 @@ def _check_sell_criteria(
 
 
 def _check_buy_criteria(
-    upside: float, buy_pct: float, beta: float, si: float, criteria: Dict[str, Any]
+    upside: float, buy_pct: float, beta: float, si: float, criteria: dict[str, Any]
 ) -> bool:
     """
     Check if a security meets BUY criteria based on trading rules.
@@ -177,7 +178,7 @@ def _check_buy_criteria(
 
 
 def _process_color_based_on_criteria(
-    row: pd.Series, confidence_met: bool, trading_criteria: Dict[str, Any]
+    row: pd.Series, confidence_met: bool, trading_criteria: dict[str, Any]
 ) -> str:
     """
     Apply color coding based on trading criteria evaluation.
@@ -217,7 +218,7 @@ def _process_color_based_on_criteria(
         return ""
 
 
-def _apply_color_coding(display_df: pd.DataFrame, trading_criteria: Dict[str, Any]) -> pd.DataFrame:
+def _apply_color_coding(display_df: pd.DataFrame, trading_criteria: dict[str, Any]) -> pd.DataFrame:
     """
     Apply color coding to the display DataFrame based on trading criteria.
 
@@ -320,9 +321,7 @@ def _filter_notrade_tickers(opportunities_df: pd.DataFrame, notrade_path: str) -
             filtered_count = initial_count - len(filtered_df)
 
             if filtered_count > 0:
-                logger.info(
-                    f"Filtered out {filtered_count} no-trade tickers via equivalence check"
-                )
+                logger.info(f"Filtered out {filtered_count} no-trade tickers via equivalence check")
 
             return filtered_df
         else:
@@ -336,7 +335,7 @@ def _filter_notrade_tickers(opportunities_df: pd.DataFrame, notrade_path: str) -
 
 def process_buy_opportunities(
     market_df: pd.DataFrame,
-    portfolio_tickers: List[str],
+    portfolio_tickers: list[str],
     output_dir: str,
     notrade_path: str,
     provider,

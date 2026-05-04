@@ -8,7 +8,6 @@ performance tracking, allocation analysis, and risk assessment.
 import csv
 import os
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -22,6 +21,7 @@ from .stock import AnalysisResults, StockAnalyzer
 GAIN_LOSS_PCT = "Gain/Loss %"
 
 logger = get_logger(__name__)
+
 
 @dataclass
 class PortfolioHolding:
@@ -43,12 +43,12 @@ class PortfolioHolding:
     ticker: str
     shares: float
     cost_basis: float
-    purchase_date: Optional[str] = None
-    current_price: Optional[float] = None
-    current_value: Optional[float] = None
-    gain_loss: Optional[float] = None
-    gain_loss_pct: Optional[float] = None
-    analysis: Optional[AnalysisResults] = None
+    purchase_date: str | None = None
+    current_price: float | None = None
+    current_value: float | None = None
+    gain_loss: float | None = None
+    gain_loss_pct: float | None = None
+    analysis: AnalysisResults | None = None
 
     def update_metrics(self):
         """Update calculated metrics based on current price."""
@@ -58,6 +58,7 @@ class PortfolioHolding:
             self.gain_loss_pct = (
                 (self.current_price / self.cost_basis - 1) * 100 if self.cost_basis > 0 else 0
             )
+
 
 @dataclass
 class PortfolioSummary:
@@ -90,11 +91,12 @@ class PortfolioSummary:
     hold_count: int = 0
     sell_count: int = 0
     neutral_count: int = 0
-    holdings_by_sector: Dict[str, float] = field(default_factory=dict)
-    top_performers: List[Tuple[str, float]] = field(default_factory=list)
-    worst_performers: List[Tuple[str, float]] = field(default_factory=list)
-    buy_candidates: List[str] = field(default_factory=list)
-    sell_candidates: List[str] = field(default_factory=list)
+    holdings_by_sector: dict[str, float] = field(default_factory=dict)
+    top_performers: list[tuple[str, float]] = field(default_factory=list)
+    worst_performers: list[tuple[str, float]] = field(default_factory=list)
+    buy_candidates: list[str] = field(default_factory=list)
+    sell_candidates: list[str] = field(default_factory=list)
+
 
 class PortfolioAnalyzer:
     """
@@ -112,8 +114,8 @@ class PortfolioAnalyzer:
 
     def __init__(
         self,
-        provider: Optional[Union[FinanceDataProvider, AsyncFinanceDataProvider]] = None,
-        stock_analyzer: Optional[StockAnalyzer] = None,
+        provider: FinanceDataProvider | AsyncFinanceDataProvider | None = None,
+        stock_analyzer: StockAnalyzer | None = None,
     ):
         """
         Initialize the PortfolioAnalyzer.
@@ -126,7 +128,7 @@ class PortfolioAnalyzer:
         self.stock_analyzer = (
             stock_analyzer if stock_analyzer is not None else StockAnalyzer(provider=self.provider)
         )
-        self.holdings: Dict[str, PortfolioHolding] = {}
+        self.holdings: dict[str, PortfolioHolding] = {}
         self.summary = PortfolioSummary()
 
         # Check if the provider is async
@@ -136,7 +138,7 @@ class PortfolioAnalyzer:
             and hasattr(self.provider.batch_get_ticker_info, "__await__")
         )
 
-    def load_portfolio_from_csv(self, file_path: str) -> Dict[str, PortfolioHolding]:
+    def load_portfolio_from_csv(self, file_path: str) -> dict[str, PortfolioHolding]:
         """
         Load portfolio holdings from a CSV file.
 
@@ -160,7 +162,7 @@ class PortfolioAnalyzer:
 
         holdings = {}
         try:
-            with open(file_path, "r", newline="") as f:
+            with open(file_path, newline="") as f:
                 reader = csv.DictReader(f)
 
                 # Verify required columns
@@ -187,7 +189,7 @@ class PortfolioAnalyzer:
                     except ValueError as e:
                         logger.warning(f"Error parsing row for {ticker}: {str(e)}")
                         continue
-        except (OSError, IOError) as e:
+        except OSError as e:
             raise ValidationError(f"Error reading portfolio file: {str(e)}")
 
         self.holdings = holdings
@@ -443,7 +445,7 @@ class PortfolioAnalyzer:
 
         return pd.DataFrame(sectors, columns=["Sector", "Allocation %"])
 
-    def export_recommendations(self, output_dir: str) -> Dict[str, str]:
+    def export_recommendations(self, output_dir: str) -> dict[str, str]:
         """
         Export buy/sell/hold recommendations to separate CSV files.
 

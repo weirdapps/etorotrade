@@ -324,7 +324,7 @@ class TestMainFunction:
 
     def test_main_function_error_handling(self):
         """Test main function handles errors gracefully."""
-        mock_logger = MagicMock()
+        MagicMock()
 
         # Test that function doesn't crash with None logger
         try:

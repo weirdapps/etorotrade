@@ -21,20 +21,20 @@ from the GitHub Actions cron at 02:00 UTC after the signal pipeline.
 
 import json
 import logging
+from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
 
 import pandas as pd
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_CACHE_DIR = Path.home() / ".weirdapps-trading" / "price_cache"
-STALE_TRADING_DAYS = 2     # warning threshold
-VERY_STALE_DAYS = 7        # force refresh threshold
+STALE_TRADING_DAYS = 2  # warning threshold
+VERY_STALE_DAYS = 7  # force refresh threshold
 
 
-def _cache_path(ticker: str, cache_dir: Optional[Path] = None) -> Path:
+def _cache_path(ticker: str, cache_dir: Path | None = None) -> Path:
     """Resolve the parquet path for a ticker."""
     cd = cache_dir or DEFAULT_CACHE_DIR
     cd.mkdir(parents=True, exist_ok=True)
@@ -43,7 +43,7 @@ def _cache_path(ticker: str, cache_dir: Optional[Path] = None) -> Path:
     return cd / f"{safe}_1y.parquet"
 
 
-def _last_bar_date(df: pd.DataFrame) -> Optional[datetime]:
+def _last_bar_date(df: pd.DataFrame) -> datetime | None:
     if df is None or df.empty:
         return None
     last = df.index[-1]
@@ -55,7 +55,7 @@ def _last_bar_date(df: pd.DataFrame) -> Optional[datetime]:
         return None
 
 
-def freshness_status(ticker: str, cache_dir: Optional[Path] = None) -> str:
+def freshness_status(ticker: str, cache_dir: Path | None = None) -> str:
     """Return one of: missing, fresh, stale, very_stale."""
     p = _cache_path(ticker, cache_dir)
     if not p.exists():
@@ -77,9 +77,9 @@ def freshness_status(ticker: str, cache_dir: Optional[Path] = None) -> str:
 
 def load_prices(
     tickers: Iterable[str],
-    cache_dir: Optional[Path] = None,
+    cache_dir: Path | None = None,
     allow_stale: bool = True,
-) -> Dict[str, pd.DataFrame]:
+) -> dict[str, pd.DataFrame]:
     """
     Load 1y daily OHLCV per ticker from cache.
 
@@ -90,7 +90,7 @@ def load_prices(
     Returns {ticker: DataFrame[Open,High,Low,Close,Volume]}. Missing
     tickers are simply absent from the dict.
     """
-    out: Dict[str, pd.DataFrame] = {}
+    out: dict[str, pd.DataFrame] = {}
     for t in tickers:
         status = freshness_status(t, cache_dir)
         if status == "missing":
@@ -109,9 +109,9 @@ def load_prices(
 
 def fetch_and_cache(
     tickers: Iterable[str],
-    cache_dir: Optional[Path] = None,
+    cache_dir: Path | None = None,
     period: str = "1y",
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Fetch fresh prices from yfinance and persist to parquet.
 
@@ -121,9 +121,9 @@ def fetch_and_cache(
         import yfinance as yf
     except ImportError:
         logger.error("yfinance not installed — cannot refresh cache")
-        return {t: "fail" for t in tickers}
+        return dict.fromkeys(tickers, "fail")
 
-    results: Dict[str, str] = {}
+    results: dict[str, str] = {}
     for t in tickers:
         try:
             df = yf.Ticker(t).history(period=period, auto_adjust=True)
@@ -143,16 +143,16 @@ def fetch_and_cache(
 
 def refresh_if_stale(
     tickers: Iterable[str],
-    cache_dir: Optional[Path] = None,
+    cache_dir: Path | None = None,
     force: bool = False,
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Refresh cache entries for tickers whose status is `missing`,
     `very_stale`, or — when `force=True` — also `stale`.
 
     Returns the same {ticker: status} dict as fetch_and_cache.
     """
-    needs_refresh: List[str] = []
+    needs_refresh: list[str] = []
     for t in tickers:
         st = freshness_status(t, cache_dir)
         if st in ("missing", "very_stale"):
@@ -165,7 +165,7 @@ def refresh_if_stale(
     return fetch_and_cache(needs_refresh, cache_dir)
 
 
-def cache_stats(cache_dir: Optional[Path] = None) -> Dict[str, int]:
+def cache_stats(cache_dir: Path | None = None) -> dict[str, int]:
     """Health snapshot of the entire cache."""
     cd = cache_dir or DEFAULT_CACHE_DIR
     if not cd.is_dir():
@@ -181,8 +181,8 @@ def cache_stats(cache_dir: Optional[Path] = None) -> Dict[str, int]:
 
 
 def write_health_report(
-    cache_dir: Optional[Path] = None,
-    output_path: Optional[Path] = None,
+    cache_dir: Path | None = None,
+    output_path: Path | None = None,
 ) -> Path:
     """Persist a JSON snapshot for downstream observability."""
     cd = cache_dir or DEFAULT_CACHE_DIR

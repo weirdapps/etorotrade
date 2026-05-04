@@ -13,6 +13,7 @@ import pytest
 
 from .cache_test_base import BaseCacheTest
 
+
 @pytest.mark.unit
 class TestCache(BaseCacheTest):
     """Test cases for the Cache class."""
@@ -33,7 +34,9 @@ class TestCache(BaseCacheTest):
         # Test non-existent key
         self.assertIsNone(self.cache.get("nonexistent_key"))
 
-    @pytest.mark.skip(reason="Cache expiration test incompatible with singleton CacheService - disk cache fallback")
+    @pytest.mark.skip(
+        reason="Cache expiration test incompatible with singleton CacheService - disk cache fallback"
+    )
     def test_cache_expiration(self):
         """Test that expired cache entries are not returned.
 
@@ -106,6 +109,7 @@ class TestCache(BaseCacheTest):
         result2 = get_cached_data("AAPL")
         self.assertEqual(result2, {"price": 150.0})
         self.assertEqual(mock_client.get_ticker_info.call_count, 1, "Should not call API twice")
+
 
 if __name__ == "__main__":
     unittest.main()

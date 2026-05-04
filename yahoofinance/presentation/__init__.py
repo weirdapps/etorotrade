@@ -13,7 +13,6 @@ from .formatter import Color, DisplayConfig, DisplayFormatter
 from .html import FormatUtils, HTMLGenerator
 from .html_templates import TemplateEngine, Templates
 
-
 __all__ = [
     # Formatter
     "DisplayFormatter",

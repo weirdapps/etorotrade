@@ -9,6 +9,7 @@ from yahoofinance.utils.market.filter_utils import (
     filter_by_sector,
 )
 
+
 class TestFilterByMarketCap:
     """Tests for filter_by_market_cap function."""
 
@@ -69,6 +70,7 @@ class TestFilterByMarketCap:
         """Test empty list returns empty."""
         result = filter_by_market_cap([], min_cap=1e9)
         assert result == []
+
 
 class TestFilterBySector:
     """Tests for filter_by_sector function."""
@@ -145,7 +147,9 @@ class TestFilterBySector:
             {"ticker": "JPM", "sector": "Financial Services"},
         ]
         # Include Technology but somehow exclude wouldn't affect since we're including
-        result = filter_by_sector(stocks, sectors=["Technology"], exclude_sectors=["Consumer Cyclical"])
+        result = filter_by_sector(
+            stocks, sectors=["Technology"], exclude_sectors=["Consumer Cyclical"]
+        )
         # Since exclude doesn't have "Technology", both tech stocks should be included
         assert len(result) == 2
 
@@ -153,6 +157,7 @@ class TestFilterBySector:
         """Test empty list returns empty."""
         result = filter_by_sector([], sectors="Technology")
         assert result == []
+
 
 class TestFilterIntegration:
     """Integration tests for filter functions."""

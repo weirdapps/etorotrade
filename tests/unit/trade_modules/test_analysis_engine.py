@@ -290,7 +290,7 @@ class TestFilterFunctions:
         with patch("yahoofinance.analysis.market.filter_buy_opportunities") as mock_filter:
             mock_filter.return_value = df[df["BS"] == "B"]
 
-            result = filter_buy_opportunities_wrapper(df)
+            filter_buy_opportunities_wrapper(df)
 
             # Should call the underlying filter function
             mock_filter.assert_called_once_with(df)
@@ -302,7 +302,7 @@ class TestFilterFunctions:
         with patch("yahoofinance.analysis.market.filter_sell_candidates") as mock_filter:
             mock_filter.return_value = df[df["BS"] == "S"]
 
-            result = filter_sell_candidates_wrapper(df)
+            filter_sell_candidates_wrapper(df)
 
             mock_filter.assert_called_once_with(df)
 
@@ -313,7 +313,7 @@ class TestFilterFunctions:
         with patch("yahoofinance.analysis.market.filter_hold_candidates") as mock_filter:
             mock_filter.return_value = df[df["BS"] == "H"]
 
-            result = filter_hold_candidates_wrapper(df)
+            filter_hold_candidates_wrapper(df)
 
             mock_filter.assert_called_once_with(df)
 

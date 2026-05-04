@@ -22,7 +22,7 @@ import logging
 import threading
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 class MarketRegime(Enum):
     """Multi-factor market regime classification."""
+
     RISK_ON = "risk_on"
     NEUTRAL = "neutral"
     RISK_OFF = "risk_off"
@@ -55,16 +56,16 @@ REGIME_POSITION_MULTIPLIERS = {
 
 # Feature weights for composite score
 FEATURE_WEIGHTS = {
-    "vix_score": 0.30,       # VIX level percentile (inverted)
+    "vix_score": 0.30,  # VIX level percentile (inverted)
     "term_structure": 0.15,  # VIX/VIX3M ratio
-    "spy_momentum": 0.25,   # SPY returns (20d and 60d blend)
-    "spy_drawdown": 0.15,   # Distance from 52-week high
-    "vix_trend": 0.15,      # VIX directional change
+    "spy_momentum": 0.25,  # SPY returns (20d and 60d blend)
+    "spy_drawdown": 0.15,  # Distance from 52-week high
+    "vix_trend": 0.15,  # VIX directional change
 }
 
 # Cache
-_regime_cache: Optional[Dict[str, Any]] = None
-_regime_cache_timestamp: Optional[datetime] = None
+_regime_cache: dict[str, Any] | None = None
+_regime_cache_timestamp: datetime | None = None
 _regime_lock = threading.Lock()
 _REGIME_CACHE_TTL_MINUTES = 30
 
@@ -83,9 +84,9 @@ class RegimeDetector:
             lookback_days: Trading days for percentile calculations.
         """
         self.lookback_days = lookback_days
-        self._market_data: Optional[Dict[str, Any]] = None
+        self._market_data: dict[str, Any] | None = None
 
-    def fetch_market_data(self) -> Dict[str, Any]:
+    def fetch_market_data(self) -> dict[str, Any]:
         """
         Fetch all required market data for regime detection.
 
@@ -93,7 +94,7 @@ class RegimeDetector:
         """
         import yfinance as yf
 
-        data: Dict[str, Any] = {}
+        data: dict[str, Any] = {}
         period = f"{self.lookback_days + 30}d"  # Extra buffer
 
         # VIX
@@ -103,7 +104,9 @@ class RegimeDetector:
             if not vix_hist.empty:
                 data["vix_current"] = float(vix_hist["Close"].iloc[-1])
                 data["vix_history"] = vix_hist["Close"].values.astype(float)
-                data["vix_5d_ago"] = float(vix_hist["Close"].iloc[-6]) if len(vix_hist) >= 6 else data["vix_current"]
+                data["vix_5d_ago"] = (
+                    float(vix_hist["Close"].iloc[-6]) if len(vix_hist) >= 6 else data["vix_current"]
+                )
             else:
                 logger.warning("VIX data empty")
                 return {}
@@ -141,8 +144,9 @@ class RegimeDetector:
         return data
 
     def compute_features(
-        self, data: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, float]:
+        self,
+        data: dict[str, Any] | None = None,
+    ) -> dict[str, float]:
         """
         Compute regime features from market data.
 
@@ -153,7 +157,7 @@ class RegimeDetector:
         if not data:
             return {}
 
-        features: Dict[str, float] = {}
+        features: dict[str, float] = {}
 
         # 1. VIX Level Score (inverted: low VIX = high score)
         vix = data["vix_current"]
@@ -161,10 +165,16 @@ class RegimeDetector:
 
         # Percentile rank (inverted: low VIX percentile = high risk-on score)
         if len(vix_history) >= 20:
-            vix_percentile = float(np.percentile(
-                np.searchsorted(np.sort(vix_history), vix_history),
-                np.searchsorted(np.sort(vix_history), vix) / len(vix_history) * 100,
-            )) if len(vix_history) > 1 else 50.0
+            vix_percentile = (
+                float(
+                    np.percentile(
+                        np.searchsorted(np.sort(vix_history), vix_history),
+                        np.searchsorted(np.sort(vix_history), vix) / len(vix_history) * 100,
+                    )
+                )
+                if len(vix_history) > 1
+                else 50.0
+            )
             # Simpler: what % of historical readings are below current
             vix_percentile = float(np.sum(vix_history < vix) / len(vix_history) * 100)
         else:
@@ -190,9 +200,7 @@ class RegimeDetector:
             vix_abs_score = 5.0
 
         # Blend percentile and absolute (50/50)
-        features["vix_score"] = round(
-            0.5 * features["vix_score"] + 0.5 * vix_abs_score, 1
-        )
+        features["vix_score"] = round(0.5 * features["vix_score"] + 0.5 * vix_abs_score, 1)
 
         # 2. VIX Term Structure
         # VIX/VIX3M < 1.0 = contango (normal, risk-on)
@@ -209,16 +217,12 @@ class RegimeDetector:
         # 3. SPY Momentum (blended 20d and 60d returns)
         spy_history = data.get("spy_history", np.array([]))
         if len(spy_history) >= 21:
-            spy_20d_return = float(
-                (spy_history[-1] - spy_history[-21]) / spy_history[-21] * 100
-            )
+            spy_20d_return = float((spy_history[-1] - spy_history[-21]) / spy_history[-21] * 100)
         else:
             spy_20d_return = 0.0
 
         if len(spy_history) >= 61:
-            spy_60d_return = float(
-                (spy_history[-1] - spy_history[-61]) / spy_history[-61] * 100
-            )
+            spy_60d_return = float((spy_history[-1] - spy_history[-61]) / spy_history[-61] * 100)
         else:
             spy_60d_return = 0.0
 
@@ -254,9 +258,9 @@ class RegimeDetector:
 
     def classify(
         self,
-        features: Optional[Dict[str, float]] = None,
-        data: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        features: dict[str, float] | None = None,
+        data: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Classify current market regime from features.
 
@@ -338,9 +342,7 @@ def _is_cache_valid() -> bool:
     """Check if regime cache is still valid."""
     if _regime_cache_timestamp is None:
         return False
-    return datetime.now() - _regime_cache_timestamp < timedelta(
-        minutes=_REGIME_CACHE_TTL_MINUTES
-    )
+    return datetime.now() - _regime_cache_timestamp < timedelta(minutes=_REGIME_CACHE_TTL_MINUTES)
 
 
 def get_current_regime() -> str:
@@ -374,7 +376,9 @@ def get_current_regime() -> str:
 
         logger.info(
             "Regime: %s (score=%.1f, VIX=%.1f)",
-            result["regime"], result["score"], result.get("vix", 0),
+            result["regime"],
+            result["score"],
+            result.get("vix", 0),
         )
 
         return result["regime"]
@@ -384,7 +388,7 @@ def get_current_regime() -> str:
         return MarketRegime.NEUTRAL.value
 
 
-def get_regime_detail() -> Dict[str, Any]:
+def get_regime_detail() -> dict[str, Any]:
     """
     Get detailed regime analysis with feature breakdown.
 

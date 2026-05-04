@@ -6,8 +6,9 @@ allowing for cleaner, more testable code by decoupling component creation from u
 """
 
 import importlib
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
+from typing import Any, TypeVar
 
 from ..core.errors import ValidationError
 from ..core.logging import get_logger
@@ -17,6 +18,7 @@ logger = get_logger(__name__)
 
 # Type variables for generic types
 T = TypeVar("T")  # Component type
+
 
 class Registry:
     """
@@ -32,12 +34,12 @@ class Registry:
 
     def __init__(self):
         """Initialize the registry."""
-        self._registry: Dict[str, Callable[..., Any]] = {}
-        self._instances: Dict[str, Any] = {}
+        self._registry: dict[str, Callable[..., Any]] = {}
+        self._instances: dict[str, Any] = {}
 
     def register(
-        self, key: str, factory: Optional[Callable[..., T]] = None
-    ) -> Union[Callable[..., T], Callable[[Callable[..., T]], Callable[..., T]]]:
+        self, key: str, factory: Callable[..., T] | None = None
+    ) -> Callable[..., T] | Callable[[Callable[..., T]], Callable[..., T]]:
         """
         Register a factory function for a component.
 
@@ -146,7 +148,7 @@ class Registry:
         # Key not found
         raise ValidationError(f"No component registered for key '{key}'")
 
-    def resolve_all(self, **kwargs) -> Dict[str, Any]:
+    def resolve_all(self, **kwargs) -> dict[str, Any]:
         """
         Resolve all registered components.
 
@@ -231,7 +233,7 @@ class Registry:
         self._instances.clear()
         logger.debug("Reset registry (cleared all registrations and instances)")
 
-    def get_keys(self) -> List[str]:
+    def get_keys(self) -> list[str]:
         """
         Get all registered keys.
 
@@ -264,8 +266,10 @@ class Registry:
         """
         return key in self._registry or key in self._instances
 
+
 # Create a global registry instance
 registry = Registry()
+
 
 def inject(component_key: str, **resolve_kwargs):
     """
@@ -332,6 +336,7 @@ def inject(component_key: str, **resolve_kwargs):
 
     return decorator
 
+
 def provides(component_key: str):
     """
     Decorator to register a function's return value as a component.
@@ -369,7 +374,8 @@ def provides(component_key: str):
 
     return decorator
 
-def lazy_import(module_path: str, class_name: Optional[str] = None) -> Any:
+
+def lazy_import(module_path: str, class_name: str | None = None) -> Any:
     """
     Lazily import a module or class.
 

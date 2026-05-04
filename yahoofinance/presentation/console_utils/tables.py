@@ -1,6 +1,8 @@
 """Table rendering utilities"""
+
 import pandas as pd
 from tabulate import tabulate
+
 
 class TableRenderer:
     @staticmethod

@@ -39,7 +39,9 @@ except ImportError:
         def get_stats(self):
             return self.stats
 
+
 import pytest
+
 
 @pytest.mark.asyncio
 async def test_priority_order():
@@ -91,13 +93,16 @@ async def test_priority_order():
     else:
         print("✅ PASSED: Test completed without errors")
 
+
 @pytest.mark.asyncio
 async def test_rate_limiting_enforcement():
     """Test that rate limiting is enforced across all priorities"""
     print("\n[Test 2] Testing rate limiting enforcement")
 
     rate_limiter = PriorityAsyncRateLimiter(
-        calls_per_minute=60, min_interval=1.0, adaptive=False  # 1 second minimum between calls
+        calls_per_minute=60,
+        min_interval=1.0,
+        adaptive=False,  # 1 second minimum between calls
     )
 
     start_time = time.time()
@@ -128,6 +133,7 @@ async def test_rate_limiting_enforcement():
     else:
         print(f"⚠️  WARNING: Rate limiting may not be enforced (took {elapsed:.2f}s)")
 
+
 @pytest.mark.asyncio
 async def test_adaptive_behavior():
     """Test adaptive rate limiting behavior"""
@@ -149,13 +155,16 @@ async def test_adaptive_behavior():
 
     print("✅ PASSED: Adaptive behavior test completed")
 
+
 @pytest.mark.asyncio
 async def test_concurrent_access():
     """Test thread-safe concurrent access"""
     print("\n[Test 4] Testing concurrent access safety")
 
     rate_limiter = PriorityAsyncRateLimiter(
-        calls_per_minute=600, min_interval=0.01, adaptive=False  # High limit for stress test
+        calls_per_minute=600,
+        min_interval=0.01,
+        adaptive=False,  # High limit for stress test
     )
 
     errors = []
@@ -166,7 +175,9 @@ async def test_concurrent_access():
             priorities = [PRIORITY_HIGH, PRIORITY_MEDIUM, PRIORITY_LOW]
             for i in range(10):
                 # Use deterministic priority assignment based on worker ID and iteration
-                _ = priorities[(id + i) % len(priorities)]  # Priority not used in mock implementation
+                _ = priorities[
+                    (id + i) % len(priorities)
+                ]  # Priority not used in mock implementation
                 async with rate_limiter:
                     await asyncio.sleep(0.001)
             completed.append(id)
@@ -183,6 +194,7 @@ async def test_concurrent_access():
         print(f"❌ FAILED: {len(errors)} errors occurred")
         for worker_id, error in errors[:5]:  # Show first 5 errors
             print(f"  Worker {worker_id}: {error}")
+
 
 async def main():
     """Run all priority limiter tests"""
@@ -208,6 +220,7 @@ async def main():
         return 1
 
     return 0
+
 
 if __name__ == "__main__":
     exit_code = asyncio.run(main())

@@ -15,6 +15,7 @@ from yahoofinance.validators.validate import (
     validate_tickers_batch,
 )
 
+
 class TestValidate(unittest.TestCase):
     """Test cases for the validate module."""
 
@@ -108,7 +109,6 @@ class TestValidate(unittest.TestCase):
             "yahoofinance.validators.validate.concurrent.futures.as_completed",
             return_value=[mock_future1, mock_future2, mock_future3],
         ):
-
             # Test
             tickers = ["AAPL", "INVALID", "MSFT"]
             result = validate_tickers_batch(tickers, max_workers=3)
@@ -176,7 +176,6 @@ class TestValidate(unittest.TestCase):
             "yahoofinance.validators.validate.concurrent.futures.as_completed",
             return_value=[mock_future],
         ):
-
             # Test
             result = validate_tickers_batch(["TEST"])
 
@@ -192,6 +191,7 @@ class TestValidate(unittest.TestCase):
         # Test
         # Should not raise an exception
         save_valid_tickers(["AAPL", "MSFT"])
+
 
 if __name__ == "__main__":
     unittest.main()

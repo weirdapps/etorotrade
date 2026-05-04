@@ -9,7 +9,8 @@ Protocols are structural subtyping (duck typing with static type checking).
 They define interfaces without requiring inheritance.
 """
 
-from typing import Any, Dict, List, Optional, Protocol, Tuple, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
+
 import pandas as pd
 
 
@@ -25,11 +26,11 @@ class FinanceDataProviderProtocol(Protocol):
 
     async def get_ticker_info(
         self, ticker: str, skip_insider_metrics: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get comprehensive information for a ticker."""
         ...
 
-    async def get_price_data(self, ticker: str) -> Dict[str, Any]:
+    async def get_price_data(self, ticker: str) -> dict[str, Any]:
         """Get current price data for a ticker."""
         ...
 
@@ -40,12 +41,12 @@ class FinanceDataProviderProtocol(Protocol):
         ...
 
     async def batch_get_ticker_info(
-        self, tickers: List[str], skip_insider_metrics: bool = False
-    ) -> Dict[str, Dict[str, Any]]:
+        self, tickers: list[str], skip_insider_metrics: bool = False
+    ) -> dict[str, dict[str, Any]]:
         """Get ticker information for multiple tickers in a batch."""
         ...
 
-    async def get_analyst_ratings(self, ticker: str) -> Dict[str, Any]:
+    async def get_analyst_ratings(self, ticker: str) -> dict[str, Any]:
         """Get analyst ratings for a ticker."""
         ...
 
@@ -84,7 +85,7 @@ class ConfigProtocol(Protocol):
 class TradingCriteriaProtocol(Protocol):
     """Protocol for trading criteria configuration."""
 
-    UNIVERSAL_THRESHOLDS: Dict[str, Any]
+    UNIVERSAL_THRESHOLDS: dict[str, Any]
 
     def get_tier_from_market_cap(self, market_cap: float) -> str:
         """Determine the market cap tier for a given value."""
@@ -94,13 +95,13 @@ class TradingCriteriaProtocol(Protocol):
         """Determine the region for a ticker based on suffix."""
         ...
 
-    def get_tier_thresholds(self, tier: str, action_type: str) -> Dict[str, Any]:
+    def get_tier_thresholds(self, tier: str, action_type: str) -> dict[str, Any]:
         """Get thresholds for a specific tier and action type."""
         ...
 
     def get_sector_adjusted_thresholds(
-        self, ticker: str, action_type: str, thresholds: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, ticker: str, action_type: str, thresholds: dict[str, Any]
+    ) -> dict[str, Any]:
         """Apply sector-specific adjustments to thresholds."""
         ...
 
@@ -150,8 +151,8 @@ class PortfolioServiceProtocol(Protocol):
         ...
 
     def apply_portfolio_filters(
-        self, results: Dict[str, pd.DataFrame], portfolio_df: pd.DataFrame
-    ) -> Dict[str, pd.DataFrame]:
+        self, results: dict[str, pd.DataFrame], portfolio_df: pd.DataFrame
+    ) -> dict[str, pd.DataFrame]:
         """Apply portfolio filters to results dictionary."""
         ...
 
@@ -160,14 +161,12 @@ class PortfolioServiceProtocol(Protocol):
 class DataProcessingServiceProtocol(Protocol):
     """Protocol for data processing service."""
 
-    async def process_ticker_batch(
-        self, tickers: List[str], batch_size: int = 50
-    ) -> pd.DataFrame:
+    async def process_ticker_batch(self, tickers: list[str], batch_size: int = 50) -> pd.DataFrame:
         """Process a batch of tickers for market data."""
         ...
 
 
 # Type aliases for common types
-TickerInfo = Dict[str, Any]
+TickerInfo = dict[str, Any]
 MarketData = pd.DataFrame
 TradingSignal = str  # "B", "S", "H", "I"

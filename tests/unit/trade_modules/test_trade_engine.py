@@ -198,7 +198,7 @@ class TestTradingEngine:
             if hasattr(trading_engine, method_name):
                 method = getattr(trading_engine, method_name)
                 try:
-                    result = method(invalid_data)
+                    method(invalid_data)
                     # Should handle invalid data gracefully
                 except (ValueError, KeyError, TradingEngineError):
                     # Expected errors for invalid data
@@ -266,7 +266,6 @@ class TestPositionSizer:
         portfolio_value = 100000.0
 
         # Test maximum constraint
-        large_allocation = 0.20  # 20%, larger than max
         market_data = {"price": 150.0, "beta": 2.5}  # High risk
         try:
             position_size = position_sizer.calculate_position_size(

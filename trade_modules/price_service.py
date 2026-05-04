@@ -12,21 +12,18 @@ modules. Features:
 
 import logging
 import time
-from datetime import date, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
-import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
 
 # Regional benchmarks: region -> benchmark ETF ticker
-REGION_BENCHMARKS: Dict[str, str] = {
+REGION_BENCHMARKS: dict[str, str] = {
     "us": "SPY",
-    "eu": "EXS1.DE",   # iShares Core DAX (STOXX proxy)
-    "uk": "ISF.L",     # iShares Core FTSE 100
-    "hk": "2800.HK",   # Tracker Fund of Hong Kong
+    "eu": "EXS1.DE",  # iShares Core DAX (STOXX proxy)
+    "uk": "ISF.L",  # iShares Core FTSE 100
+    "hk": "2800.HK",  # Tracker Fund of Hong Kong
     "default": "SPY",
 }
 
@@ -34,8 +31,8 @@ DEFAULT_CACHE_DIR = Path.home() / ".weirdapps-trading" / "price_cache"
 
 
 def _apply_data_fetch_substitutions(
-    tickers: List[str],
-) -> Tuple[List[str], Dict[str, str]]:
+    tickers: list[str],
+) -> tuple[list[str], dict[str, str]]:
     """Translate held-side tickers to yfinance-friendly substitutes.
 
     Some portfolio holdings (e.g. LYXGRE.DE on Xetra) are not indexed by
@@ -50,13 +47,14 @@ def _apply_data_fetch_substitutions(
     """
     try:
         from trade_modules.config_manager import get_config
+
         subs = get_config().data_fetch_substitutions
     except Exception:
         return list(tickers), {}
     if not subs:
         return list(tickers), {}
-    fetch_tickers: List[str] = []
-    reverse: Dict[str, str] = {}
+    fetch_tickers: list[str] = []
+    reverse: dict[str, str] = {}
     for t in tickers:
         sub = subs.get(t.upper()) if t else None
         if sub:
@@ -80,16 +78,16 @@ class PriceService:
 
     def __init__(
         self,
-        cache_dir: Optional[Path] = DEFAULT_CACHE_DIR,
+        cache_dir: Path | None = DEFAULT_CACHE_DIR,
         default_benchmark: str = "SPY",
     ):
         self.cache_dir = cache_dir
         self.default_benchmark = default_benchmark
-        self._price_cache: Optional[pd.DataFrame] = None
+        self._price_cache: pd.DataFrame | None = None
 
     def get_prices(
         self,
-        tickers: List[str],
+        tickers: list[str],
         start_date: str,
         end_date: str,
         include_benchmark: bool = True,
@@ -153,7 +151,7 @@ class PriceService:
         self._price_cache = prices
         return prices
 
-    def get_benchmark(self, region: Optional[str] = None) -> str:
+    def get_benchmark(self, region: str | None = None) -> str:
         """Return the appropriate benchmark ticker for a region."""
         if region is None:
             return self.default_benchmark
@@ -165,7 +163,7 @@ class PriceService:
         ticker: str,
         signal_date: str,
         horizon: int,
-    ) -> Optional[float]:
+    ) -> float | None:
         """
         Compute return at T+horizon TRADING DAYS from signal_date.
 
@@ -206,8 +204,8 @@ class PriceService:
         ticker: str,
         signal_date: str,
         horizon: int,
-        region: Optional[str] = None,
-    ) -> Optional[float]:
+        region: str | None = None,
+    ) -> float | None:
         """
         Compute alpha (stock return minus benchmark return) at T+horizon.
 
@@ -241,7 +239,7 @@ class PriceService:
 
     def _download_prices(
         self,
-        tickers: List[str],
+        tickers: list[str],
         start_date: str,
         end_date: str,
         batch_size: int = 500,
@@ -283,13 +281,20 @@ class PriceService:
                         wait = 2 ** (attempt + 1)
                         logger.info(
                             "Batch %d-%d attempt %d failed, retrying in %ds: %s",
-                            i, i + len(batch), attempt + 1, wait, e,
+                            i,
+                            i + len(batch),
+                            attempt + 1,
+                            wait,
+                            e,
                         )
                         time.sleep(wait)
                     else:
                         logger.warning(
                             "Failed to fetch batch %d-%d after %d attempts: %s",
-                            i, i + len(batch), max_retries, e,
+                            i,
+                            i + len(batch),
+                            max_retries,
+                            e,
                         )
 
         if not frames:
@@ -303,7 +308,7 @@ class PriceService:
             result = result.rename(columns=reverse_map)
         return result
 
-    def _load_cache(self) -> Optional[pd.DataFrame]:
+    def _load_cache(self) -> pd.DataFrame | None:
         """Load cached prices from parquet."""
         if self.cache_dir is None:
             return None

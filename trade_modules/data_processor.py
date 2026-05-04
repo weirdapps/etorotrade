@@ -6,16 +6,15 @@ for the trade analysis application.
 """
 
 import logging
-import pandas as pd
+from typing import Any
+
 import numpy as np
-from typing import Dict, Any, Optional, List, Tuple
+import pandas as pd
 
 # Import ticker normalization utilities
 from yahoofinance.utils.data.ticker_utils import (
-    normalize_ticker,
-    process_ticker_input,
     get_ticker_for_display,
-    normalize_ticker_list,
+    process_ticker_input,
 )
 
 # Get logger for this module
@@ -125,7 +124,7 @@ def _clean_company_name(name: str) -> str:
 
 
 def format_numeric_columns(
-    display_df: pd.DataFrame, columns: List[str], format_str: str
+    display_df: pd.DataFrame, columns: list[str], format_str: str
 ) -> pd.DataFrame:
     """
     Format numeric columns in a DataFrame.
@@ -171,7 +170,7 @@ def _safe_numeric_format(value: Any, format_str: str) -> str:
         return "--"
 
 
-def format_percentage_columns(display_df: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
+def format_percentage_columns(display_df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
     """
     Format percentage columns in a DataFrame.
 
@@ -284,7 +283,7 @@ def add_market_cap_column(working_df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _parse_market_cap_string(cap_str: Any) -> Optional[float]:
+def _parse_market_cap_string(cap_str: Any) -> float | None:
     """
     Parse market cap string (e.g., '3.67B') to numeric value.
 
@@ -325,12 +324,18 @@ def calculate_expected_return(df: pd.DataFrame) -> pd.DataFrame:
 
     try:
         # EXRET = upside * (buy_percentage / 100)
-        upside_col = result_df.get("upside") if "upside" in result_df.columns else pd.Series(0, index=result_df.index)
-        buy_pct_col = result_df.get("buy_percentage") if "buy_percentage" in result_df.columns else pd.Series(0, index=result_df.index)
-        upside_numeric = pd.to_numeric(upside_col, errors="coerce").fillna(0)
-        buy_pct_numeric = pd.to_numeric(buy_pct_col, errors="coerce").fillna(
-            0
+        upside_col = (
+            result_df.get("upside")
+            if "upside" in result_df.columns
+            else pd.Series(0, index=result_df.index)
         )
+        buy_pct_col = (
+            result_df.get("buy_percentage")
+            if "buy_percentage" in result_df.columns
+            else pd.Series(0, index=result_df.index)
+        )
+        upside_numeric = pd.to_numeric(upside_col, errors="coerce").fillna(0)
+        buy_pct_numeric = pd.to_numeric(buy_pct_col, errors="coerce").fillna(0)
 
         result_df["EXRET"] = upside_numeric * (buy_pct_numeric / 100.0)
 
@@ -342,7 +347,7 @@ def calculate_expected_return(df: pd.DataFrame) -> pd.DataFrame:
     return result_df
 
 
-def normalize_dataframe_columns(df: pd.DataFrame, column_mapping: Dict[str, str]) -> pd.DataFrame:
+def normalize_dataframe_columns(df: pd.DataFrame, column_mapping: dict[str, str]) -> pd.DataFrame:
     """
     Normalize DataFrame column names using a mapping.
 
@@ -369,8 +374,8 @@ def normalize_dataframe_columns(df: pd.DataFrame, column_mapping: Dict[str, str]
 
 
 def validate_required_columns(
-    df: pd.DataFrame, required_columns: List[str]
-) -> Tuple[bool, List[str]]:
+    df: pd.DataFrame, required_columns: list[str]
+) -> tuple[bool, list[str]]:
     """
     Validate that a DataFrame has required columns.
 
@@ -455,7 +460,7 @@ def normalize_dataframe_tickers(df: pd.DataFrame, ticker_column: str = "ticker")
     return result_df
 
 
-def apply_data_filters(df: pd.DataFrame, filters: Dict[str, Any]) -> pd.DataFrame:
+def apply_data_filters(df: pd.DataFrame, filters: dict[str, Any]) -> pd.DataFrame:
     """
     Apply filters to a DataFrame based on criteria.
 
@@ -501,7 +506,7 @@ class DataProcessor:
     def __init__(self):
         self.logger = logging.getLogger(f"{__name__}.DataProcessor")
 
-    def process_ticker_data(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
+    def process_ticker_data(self, raw_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process raw ticker data into standardized format with ticker normalization.
 

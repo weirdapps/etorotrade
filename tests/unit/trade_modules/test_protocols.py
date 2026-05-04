@@ -4,21 +4,23 @@ Tests for trade_modules/protocols.py
 This module tests the Protocol definitions for trade modules.
 """
 
-import pytest
-from typing import Any, Dict
-import pandas as pd
 import logging
+from typing import Any
+
+import pandas as pd
+import pytest
 
 from trade_modules.protocols import (
+    AnalysisServiceProtocol,
+    ConfigProtocol,
+    DataProcessingServiceProtocol,
+    FilterServiceProtocol,
     FinanceDataProviderProtocol,
     LoggerProtocol,
-    ConfigProtocol,
-    TradingCriteriaProtocol,
-    AnalysisServiceProtocol,
-    FilterServiceProtocol,
     PortfolioServiceProtocol,
-    DataProcessingServiceProtocol,
+    TradingCriteriaProtocol,
 )
+
 
 class TestLoggerProtocol:
     """Tests for LoggerProtocol."""
@@ -52,6 +54,7 @@ class TestLoggerProtocol:
         assert hasattr(logger, "error")
         assert callable(logger.error)
 
+
 class TestConfigProtocol:
     """Tests for ConfigProtocol."""
 
@@ -62,12 +65,14 @@ class TestConfigProtocol:
 
     def test_custom_config_class(self):
         """Test custom config class can implement protocol."""
+
         class CustomConfig:
             def get(self, key: str, default: Any = None) -> Any:
                 return default
 
         config = CustomConfig()
         assert isinstance(config, ConfigProtocol)
+
 
 class TestFinanceDataProviderProtocol:
     """Tests for FinanceDataProviderProtocol."""
@@ -80,6 +85,7 @@ class TestFinanceDataProviderProtocol:
 
     def test_mock_provider_not_matching(self):
         """Test that object without methods doesn't match."""
+
         class NotAProvider:
             pass
 
@@ -89,14 +95,17 @@ class TestFinanceDataProviderProtocol:
 
     def test_partial_provider_not_matching(self):
         """Test that partial implementation doesn't match."""
+
         class PartialProvider:
-            async def get_ticker_info(self, ticker: str) -> Dict[str, Any]:
+            async def get_ticker_info(self, ticker: str) -> dict[str, Any]:
                 return {}
+
             # Missing other required methods
 
         obj = PartialProvider()
         # Should not match because it lacks all required methods
         assert not isinstance(obj, FinanceDataProviderProtocol)
+
 
 class TestTradingCriteriaProtocol:
     """Tests for TradingCriteriaProtocol."""
@@ -107,11 +116,13 @@ class TestTradingCriteriaProtocol:
 
     def test_mock_criteria_not_matching(self):
         """Test that object without attributes doesn't match."""
+
         class NotCriteria:
             pass
 
         obj = NotCriteria()
         assert not isinstance(obj, TradingCriteriaProtocol)
+
 
 class TestAnalysisServiceProtocol:
     """Tests for AnalysisServiceProtocol."""
@@ -122,6 +133,7 @@ class TestAnalysisServiceProtocol:
 
     def test_implementation_check(self):
         """Test that proper implementation matches protocol."""
+
         class MockAnalysisService:
             def calculate_trading_signals(self, df: pd.DataFrame) -> pd.DataFrame:
                 return df
@@ -132,6 +144,7 @@ class TestAnalysisServiceProtocol:
         service = MockAnalysisService()
         assert isinstance(service, AnalysisServiceProtocol)
 
+
 class TestFilterServiceProtocol:
     """Tests for FilterServiceProtocol."""
 
@@ -141,6 +154,7 @@ class TestFilterServiceProtocol:
 
     def test_implementation_check(self):
         """Test that proper implementation matches protocol."""
+
         class MockFilterService:
             def filter_buy_opportunities(self, df: pd.DataFrame) -> pd.DataFrame:
                 return df
@@ -157,6 +171,7 @@ class TestFilterServiceProtocol:
         service = MockFilterService()
         assert isinstance(service, FilterServiceProtocol)
 
+
 class TestPortfolioServiceProtocol:
     """Tests for PortfolioServiceProtocol."""
 
@@ -166,6 +181,7 @@ class TestPortfolioServiceProtocol:
 
     def test_implementation_check(self):
         """Test that proper implementation matches protocol."""
+
         class MockPortfolioService:
             def apply_portfolio_filter(
                 self, market_df: pd.DataFrame, portfolio_df: pd.DataFrame
@@ -173,12 +189,13 @@ class TestPortfolioServiceProtocol:
                 return market_df
 
             def apply_portfolio_filters(
-                self, results: Dict[str, pd.DataFrame], portfolio_df: pd.DataFrame
-            ) -> Dict[str, pd.DataFrame]:
+                self, results: dict[str, pd.DataFrame], portfolio_df: pd.DataFrame
+            ) -> dict[str, pd.DataFrame]:
                 return results
 
         service = MockPortfolioService()
         assert isinstance(service, PortfolioServiceProtocol)
+
 
 class TestDataProcessingServiceProtocol:
     """Tests for DataProcessingServiceProtocol."""
@@ -186,6 +203,7 @@ class TestDataProcessingServiceProtocol:
     def test_protocol_is_runtime_checkable(self):
         """Test that protocol is runtime checkable."""
         assert getattr(DataProcessingServiceProtocol, "_is_runtime_protocol", False)
+
 
 class TestProtocolIntegration:
     """Integration tests for protocols."""

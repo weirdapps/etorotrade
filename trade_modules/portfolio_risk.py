@@ -11,8 +11,7 @@ without correlation context is incomplete risk management.
 """
 
 import logging
-from functools import lru_cache
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -54,11 +53,9 @@ class PortfolioRiskAnalyzer:
         self.max_sector_concentration = max_sector_concentration
         self.correlation_threshold = correlation_threshold
         self.lookback_days = lookback_days
-        self._price_cache: Dict[str, pd.Series] = {}
+        self._price_cache: dict[str, pd.Series] = {}
 
-    def _get_historical_prices(
-        self, ticker: str, period_days: int
-    ) -> Optional[pd.Series]:
+    def _get_historical_prices(self, ticker: str, period_days: int) -> pd.Series | None:
         """
         Get historical closing prices for a ticker.
 
@@ -93,7 +90,7 @@ class PortfolioRiskAnalyzer:
             return None
 
     def calculate_correlation_matrix(
-        self, tickers: List[str], period: Optional[int] = None
+        self, tickers: list[str], period: int | None = None
     ) -> pd.DataFrame:
         """
         Calculate pairwise correlations using historical returns.
@@ -109,7 +106,7 @@ class PortfolioRiskAnalyzer:
             return pd.DataFrame()
 
         period = period or self.lookback_days
-        returns_data: Dict[str, pd.Series] = {}
+        returns_data: dict[str, pd.Series] = {}
 
         for ticker in tickers:
             prices = self._get_historical_prices(ticker, period)
@@ -142,7 +139,7 @@ class PortfolioRiskAnalyzer:
 
     def get_sector_concentration(
         self, portfolio_df: pd.DataFrame, sector_col: str = "sector"
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Calculate sector weights as percentage of portfolio.
 
@@ -163,7 +160,7 @@ class PortfolioRiskAnalyzer:
                     sector_col = col
                     break
             else:
-                logger.debug(f"No sector column found in DataFrame")
+                logger.debug("No sector column found in DataFrame")
                 return {}
 
         # Filter out None/NaN sectors
@@ -199,7 +196,7 @@ class PortfolioRiskAnalyzer:
 
     def flag_concentration_risks(
         self, portfolio_df: pd.DataFrame, sector_col: str = "sector"
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Return warnings for concentrated positions.
 
@@ -213,9 +210,7 @@ class PortfolioRiskAnalyzer:
         warnings = []
         sector_weights = self.get_sector_concentration(portfolio_df, sector_col)
 
-        for sector, weight in sorted(
-            sector_weights.items(), key=lambda x: x[1], reverse=True
-        ):
+        for sector, weight in sorted(sector_weights.items(), key=lambda x: x[1], reverse=True):
             if weight > self.max_sector_concentration:
                 warnings.append(
                     f"CONCENTRATION WARNING: {sector} at {weight*100:.1f}% "
@@ -226,7 +221,7 @@ class PortfolioRiskAnalyzer:
 
     def calculate_portfolio_beta(
         self, portfolio_df: pd.DataFrame, benchmark: str = "SPY"
-    ) -> Optional[float]:
+    ) -> float | None:
         """
         Calculate weighted average portfolio beta.
 
@@ -284,8 +279,8 @@ class PortfolioRiskAnalyzer:
     def identify_high_correlation_pairs(
         self,
         correlation_matrix: pd.DataFrame,
-        threshold: Optional[float] = None,
-    ) -> List[Tuple[str, str, float]]:
+        threshold: float | None = None,
+    ) -> list[tuple[str, str, float]]:
         """
         Find stock pairs with correlation above threshold.
 
@@ -297,7 +292,7 @@ class PortfolioRiskAnalyzer:
             List of (ticker1, ticker2, correlation) tuples, sorted by correlation desc
         """
         threshold = threshold or self.correlation_threshold
-        pairs: List[Tuple[str, str, float]] = []
+        pairs: list[tuple[str, str, float]] = []
 
         if correlation_matrix.empty:
             return pairs
@@ -321,14 +316,14 @@ class PortfolioRiskAnalyzer:
         "SMALL": 0.30,
         "MICRO": 0.35,
         # V/G/B tier system mapping
-        "V": 0.175,   # Value (~MEGA/LARGE blend)
-        "G": 0.25,    # Growth (~MID)
-        "B": 0.325,   # Bets (~SMALL/MICRO blend)
+        "V": 0.175,  # Value (~MEGA/LARGE blend)
+        "G": 0.25,  # Growth (~MID)
+        "B": 0.325,  # Bets (~SMALL/MICRO blend)
     }
 
     def calculate_effective_concentration(
-        self, tickers: List[str], period: int = 60
-    ) -> Dict[str, Any]:
+        self, tickers: list[str], period: int = 60
+    ) -> dict[str, Any]:
         """
         Calculate effective number of independent positions using correlations.
 
@@ -341,7 +336,7 @@ class PortfolioRiskAnalyzer:
         Returns:
             Dict with effective_positions, diversification_ratio, correlated_clusters
         """
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "effective_positions": len(tickers),
             "diversification_ratio": 1.0,
             "correlated_clusters": [],
@@ -375,7 +370,7 @@ class PortfolioRiskAnalyzer:
         correlation_matrix: pd.DataFrame,
         min_cluster_size: int = 3,
         threshold: float = 0.75,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Find groups of 3+ stocks with mutual correlation above threshold.
 
@@ -391,11 +386,11 @@ class PortfolioRiskAnalyzer:
             return []
 
         tickers = correlation_matrix.columns.tolist()
-        clusters: List[Dict[str, Any]] = []
+        clusters: list[dict[str, Any]] = []
         used_tickers: set = set()
 
         # For each ticker, find all tickers correlated above threshold
-        neighbor_map: Dict[str, set] = {}
+        neighbor_map: dict[str, set] = {}
         for ticker in tickers:
             neighbors = set()
             for other in tickers:
@@ -434,20 +429,22 @@ class PortfolioRiskAnalyzer:
                 corr_sum = 0.0
                 pair_count = 0
                 for i, t1 in enumerate(cluster_tickers):
-                    for t2 in cluster_tickers[i + 1:]:
+                    for t2 in cluster_tickers[i + 1 :]:
                         corr_sum += abs(correlation_matrix.loc[t1, t2])
                         pair_count += 1
 
                 avg_corr = corr_sum / pair_count if pair_count > 0 else 0.0
 
-                clusters.append({
-                    "tickers": cluster_tickers,
-                    "avg_correlation": round(avg_corr, 2),
-                    "combined_weight_warning": (
-                        f"{len(cluster_tickers)} stocks acting as ~1 position "
-                        f"(avg correlation {avg_corr:.0%})"
-                    ),
-                })
+                clusters.append(
+                    {
+                        "tickers": cluster_tickers,
+                        "avg_correlation": round(avg_corr, 2),
+                        "combined_weight_warning": (
+                            f"{len(cluster_tickers)} stocks acting as ~1 position "
+                            f"(avg correlation {avg_corr:.0%})"
+                        ),
+                    }
+                )
                 used_tickers.update(cluster_tickers)
 
         return clusters
@@ -456,8 +453,8 @@ class PortfolioRiskAnalyzer:
         self,
         portfolio_df: pd.DataFrame,
         tier_col: str = "tier",
-        previous_drawdowns: Optional[Dict[str, float]] = None,
-    ) -> List[Dict[str, Any]]:
+        previous_drawdowns: dict[str, float] | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Check for stocks with drawdowns exceeding tier-expected volatility.
 
@@ -478,7 +475,7 @@ class PortfolioRiskAnalyzer:
             List of dicts with ticker, drawdown_pct, tier, expected_vol, severity,
             and optionally recovery_pct, previous_drawdown_pct
         """
-        alerts: List[Dict[str, Any]] = []
+        alerts: list[dict[str, Any]] = []
 
         if portfolio_df.empty:
             return alerts
@@ -581,7 +578,7 @@ class PortfolioRiskAnalyzer:
 
         return alerts
 
-    def _resolve_tier(self, row: pd.Series, cap_col: Optional[str]) -> str:
+    def _resolve_tier(self, row: pd.Series, cap_col: str | None) -> str:
         """Resolve the tier for a row based on available columns."""
         if cap_col and cap_col in ("tier", "TIER"):
             tier_val = row.get(cap_col)
@@ -594,6 +591,7 @@ class PortfolioRiskAnalyzer:
             try:
                 if isinstance(cap_val, str):
                     from .analysis.tiers import _parse_market_cap
+
                     cap_num = _parse_market_cap(cap_val)
                 else:
                     cap_num = float(cap_val)
@@ -619,7 +617,7 @@ class PortfolioRiskAnalyzer:
         horizon_days: int = 1,
         confidence_95: bool = True,
         confidence_99: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Calculate Portfolio Value at Risk (VaR) using parametric method.
 
@@ -635,7 +633,7 @@ class PortfolioRiskAnalyzer:
         Returns:
             Dict with var_95, var_99, var_95_pct, var_99_pct, portfolio_vol, effective_positions
         """
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "var_95": None,
             "var_99": None,
             "var_95_pct": None,
@@ -675,7 +673,7 @@ class PortfolioRiskAnalyzer:
             return result
 
         # Calculate individual stock volatilities from recent returns (60-day)
-        returns_data: Dict[str, pd.Series] = {}
+        returns_data: dict[str, pd.Series] = {}
         for ticker in corr_matrix.columns:
             prices = self._get_historical_prices(ticker, period_days=90)
             if prices is not None and len(prices) > 20:
@@ -713,7 +711,7 @@ class PortfolioRiskAnalyzer:
                         if pd.notna(size_val):
                             if isinstance(size_val, str):
                                 # Parse percentage like "2.5%"
-                                size_val = float(size_val.strip('%')) / 100.0
+                                size_val = float(size_val.strip("%")) / 100.0
                             weights_dict[ticker] = float(size_val)
                     except (ValueError, TypeError):
                         pass
@@ -721,7 +719,7 @@ class PortfolioRiskAnalyzer:
         if not weights_dict:
             # Equal weights fallback
             n = len(corr_matrix)
-            weights_dict = {ticker: 1.0 / n for ticker in corr_matrix.columns}
+            weights_dict = dict.fromkeys(corr_matrix.columns, 1.0 / n)
 
         # Normalize weights to sum to 1
         total_weight = sum(weights_dict.values())
@@ -797,9 +795,7 @@ class PortfolioRiskAnalyzer:
 
         return result
 
-    def get_drawdown_actions(
-        self, drawdown_alerts: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+    def get_drawdown_actions(self, drawdown_alerts: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Generate actionable recommendations based on drawdown alerts.
 
@@ -814,14 +810,14 @@ class PortfolioRiskAnalyzer:
         Returns:
             List of action dicts with ticker, severity, action, and recommendation
         """
-        actions: List[Dict[str, Any]] = []
+        actions: list[dict[str, Any]] = []
 
         for alert in drawdown_alerts:
             ticker = alert.get("ticker")
             severity = alert.get("severity")
             drawdown_pct = alert.get("drawdown_pct")
 
-            action_dict: Dict[str, Any] = {
+            action_dict: dict[str, Any] = {
                 "ticker": ticker,
                 "severity": severity,
                 "drawdown_pct": drawdown_pct,
@@ -830,26 +826,26 @@ class PortfolioRiskAnalyzer:
             if severity == "CRITICAL":
                 action_dict["action"] = "FORCE_SELL_REVIEW"
                 action_dict["recommendation"] = (
-                    f"Immediate review required. Consider tightening sell thresholds "
-                    f"by 20% (multiply by 0.8) for this position. Drawdown exceeds "
-                    f"2x expected volatility."
+                    "Immediate review required. Consider tightening sell thresholds "
+                    "by 20% (multiply by 0.8) for this position. Drawdown exceeds "
+                    "2x expected volatility."
                 )
                 action_dict["threshold_adjustment"] = 0.8
 
             elif severity == "WARNING":
                 action_dict["action"] = "REVIEW"
                 action_dict["recommendation"] = (
-                    f"Position under stress. Review fundamentals and analyst changes. "
-                    f"Drawdown exceeds 1.5x expected volatility. Watch closely for "
-                    f"deterioration to CRITICAL."
+                    "Position under stress. Review fundamentals and analyst changes. "
+                    "Drawdown exceeds 1.5x expected volatility. Watch closely for "
+                    "deterioration to CRITICAL."
                 )
                 action_dict["threshold_adjustment"] = None
 
             elif severity == "WATCH":
                 action_dict["action"] = "MONITOR"
                 action_dict["recommendation"] = (
-                    f"Normal volatility range exceeded. Monitor for trend continuation. "
-                    f"No immediate action required."
+                    "Normal volatility range exceeded. Monitor for trend continuation. "
+                    "No immediate action required."
                 )
                 action_dict["threshold_adjustment"] = None
 
@@ -865,7 +861,7 @@ class PortfolioRiskAnalyzer:
 
     def get_risk_summary(
         self, portfolio_df: pd.DataFrame, ticker_col: str = "ticker"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get comprehensive risk summary for a portfolio.
 
@@ -876,7 +872,7 @@ class PortfolioRiskAnalyzer:
         Returns:
             Dictionary with risk metrics and warnings
         """
-        summary: Dict[str, Any] = {
+        summary: dict[str, Any] = {
             "portfolio_beta": None,
             "sector_concentration": {},
             "concentration_warnings": [],
@@ -914,17 +910,17 @@ class PortfolioRiskAnalyzer:
                 corr_matrix = self.calculate_correlation_matrix(tickers[:50])  # Limit
                 if not corr_matrix.empty:
                     summary["correlation_matrix_available"] = True
-                    summary["high_correlation_pairs"] = (
-                        self.identify_high_correlation_pairs(corr_matrix)
+                    summary["high_correlation_pairs"] = self.identify_high_correlation_pairs(
+                        corr_matrix
                     )
 
             # Effective concentration
             if len(tickers) >= 2:
-                summary["effective_concentration"] = (
-                    self.calculate_effective_concentration(tickers[:50])
+                summary["effective_concentration"] = self.calculate_effective_concentration(
+                    tickers[:50]
                 )
-                summary["correlation_clusters"] = (
-                    summary["effective_concentration"].get("correlated_clusters", [])
+                summary["correlation_clusters"] = summary["effective_concentration"].get(
+                    "correlated_clusters", []
                 )
 
         # Drawdown alerts
@@ -935,13 +931,11 @@ class PortfolioRiskAnalyzer:
 
         # Drawdown actions
         if summary["drawdown_alerts"]:
-            summary["drawdown_actions"] = self.get_drawdown_actions(
-                summary["drawdown_alerts"]
-            )
+            summary["drawdown_actions"] = self.get_drawdown_actions(summary["drawdown_alerts"])
 
         return summary
 
-    def format_risk_report(self, summary: Dict[str, Any]) -> List[str]:
+    def format_risk_report(self, summary: dict[str, Any]) -> list[str]:
         """
         Format risk summary as human-readable report lines.
 
@@ -951,14 +945,12 @@ class PortfolioRiskAnalyzer:
         Returns:
             List of formatted report lines
         """
-        lines: List[str] = []
+        lines: list[str] = []
 
         # Portfolio beta
         if summary.get("portfolio_beta") is not None:
             beta = summary["portfolio_beta"]
-            risk_level = (
-                "LOW" if beta < 0.8 else "MODERATE" if beta < 1.2 else "HIGH"
-            )
+            risk_level = "LOW" if beta < 0.8 else "MODERATE" if beta < 1.2 else "HIGH"
             lines.append(f"Portfolio Beta: {beta:.2f} ({risk_level} volatility)")
 
         # Portfolio VaR
@@ -986,9 +978,7 @@ class PortfolioRiskAnalyzer:
 
             # Alert if VaR exceeds threshold
             if var_data.get("var_alert"):
-                lines.append(
-                    f"  WARNING: VaR exceeds 12% threshold - portfolio at elevated risk"
-                )
+                lines.append("  WARNING: VaR exceeds 12% threshold - portfolio at elevated risk")
 
         # Concentration warnings
         for warning in summary.get("concentration_warnings", []):
@@ -1040,10 +1030,7 @@ class PortfolioRiskAnalyzer:
         if actions:
             lines.append(f"Drawdown Actions ({len(actions)} recommendations):")
             for action in actions:
-                lines.append(
-                    f"  {action['ticker']} ({action['severity']}): "
-                    f"{action['action']}"
-                )
+                lines.append(f"  {action['ticker']} ({action['severity']}): " f"{action['action']}")
                 lines.append(f"    → {action['recommendation']}")
                 if action.get("threshold_adjustment"):
                     lines.append(
@@ -1057,7 +1044,7 @@ class PortfolioRiskAnalyzer:
 # Convenience functions for easy access
 
 
-def analyze_portfolio_risk(portfolio_df: pd.DataFrame) -> Dict[str, Any]:
+def analyze_portfolio_risk(portfolio_df: pd.DataFrame) -> dict[str, Any]:
     """
     Convenience function to analyze portfolio risk.
 
@@ -1073,7 +1060,7 @@ def analyze_portfolio_risk(portfolio_df: pd.DataFrame) -> Dict[str, Any]:
 
 def get_concentration_warnings(
     portfolio_df: pd.DataFrame, max_concentration: float = 0.25
-) -> List[str]:
+) -> list[str]:
     """
     Get sector concentration warnings for a portfolio.
 
@@ -1089,8 +1076,8 @@ def get_concentration_warnings(
 
 
 def get_high_correlation_stocks(
-    tickers: List[str], threshold: float = 0.70
-) -> List[Tuple[str, str, float]]:
+    tickers: list[str], threshold: float = 0.70
+) -> list[tuple[str, str, float]]:
     """
     Find highly correlated stock pairs.
 

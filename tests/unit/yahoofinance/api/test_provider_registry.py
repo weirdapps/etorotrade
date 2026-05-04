@@ -6,6 +6,7 @@ Target: Increase coverage for yahoofinance/api/provider_registry.py
 
 import pytest
 
+
 class TestProviderTypes:
     """Test PROVIDER_TYPES configuration."""
 
@@ -29,6 +30,7 @@ class TestProviderTypes:
 
         assert "hybrid" in PROVIDER_TYPES
         assert "async" in PROVIDER_TYPES["hybrid"]
+
 
 class TestGetProvider:
     """Test get_provider function."""
@@ -75,7 +77,7 @@ class TestGetProvider:
 
     def test_get_provider_caching(self):
         """Provider caching works."""
-        from yahoofinance.api.provider_registry import get_provider, clear_provider_cache
+        from yahoofinance.api.provider_registry import clear_provider_cache, get_provider
 
         clear_provider_cache()
 
@@ -94,6 +96,7 @@ class TestGetProvider:
         # Different instances when not caching
         assert provider1 is not provider2
 
+
 class TestGetAllProviders:
     """Test get_all_providers function."""
 
@@ -106,6 +109,7 @@ class TestGetAllProviders:
         assert isinstance(providers, dict)
         assert len(providers) > 0
 
+
 class TestGetDefaultProvider:
     """Test get_default_provider function."""
 
@@ -117,13 +121,16 @@ class TestGetDefaultProvider:
 
         assert provider is not None
 
+
 class TestClearProviderCache:
     """Test clear_provider_cache function."""
 
     def test_clear_provider_cache(self):
         """Clear provider cache works."""
         from yahoofinance.api.provider_registry import (
-            get_provider, clear_provider_cache, _provider_cache
+            _provider_cache,
+            clear_provider_cache,
+            get_provider,
         )
 
         # Create a provider
@@ -136,12 +143,13 @@ class TestClearProviderCache:
 
     def test_clear_provider_cache_empty(self):
         """Clear empty cache doesn't raise."""
-        from yahoofinance.api.provider_registry import clear_provider_cache, _provider_cache
+        from yahoofinance.api.provider_registry import _provider_cache, clear_provider_cache
 
         _provider_cache.clear()
 
         # Should not raise
         clear_provider_cache()
+
 
 class TestInitializeRegistry:
     """Test initialize_registry function."""
@@ -152,6 +160,7 @@ class TestInitializeRegistry:
 
         # Should not raise
         initialize_registry()
+
 
 class TestConstants:
     """Test module constants."""
@@ -174,6 +183,7 @@ class TestConstants:
 
         assert DEFAULT_ENHANCED is False
 
+
 class TestModuleStructure:
     """Test module structure."""
 
@@ -181,15 +191,16 @@ class TestModuleStructure:
         """Module has logger."""
         from yahoofinance.api import provider_registry
 
-        assert hasattr(provider_registry, 'logger')
+        assert hasattr(provider_registry, "logger")
         assert provider_registry.logger is not None
 
     def test_provider_cache_exists(self):
         """Module has provider cache."""
         from yahoofinance.api import provider_registry
 
-        assert hasattr(provider_registry, '_provider_cache')
+        assert hasattr(provider_registry, "_provider_cache")
         assert isinstance(provider_registry._provider_cache, dict)
+
 
 class TestEdgeCases:
     """Test edge cases."""
@@ -199,30 +210,19 @@ class TestEdgeCases:
         from yahoofinance.api.provider_registry import get_provider
 
         provider = get_provider(
-            provider_type="hybrid",
-            async_mode=True,
-            use_cache=False,
-            max_retries=3
+            provider_type="hybrid", async_mode=True, use_cache=False, max_retries=3
         )
 
         assert provider is not None
 
     def test_cache_key_with_cacheable_kwargs(self):
         """Cache key considers cacheable kwargs."""
-        from yahoofinance.api.provider_registry import get_provider, clear_provider_cache
+        from yahoofinance.api.provider_registry import clear_provider_cache, get_provider
 
         clear_provider_cache()
 
-        provider1 = get_provider(
-            provider_type="hybrid",
-            use_cache=True,
-            max_retries=3
-        )
-        provider2 = get_provider(
-            provider_type="hybrid",
-            use_cache=True,
-            max_retries=5
-        )
+        provider1 = get_provider(provider_type="hybrid", use_cache=True, max_retries=3)
+        provider2 = get_provider(provider_type="hybrid", use_cache=True, max_retries=5)
 
         # Different kwargs should create different cache keys
         # but both should work

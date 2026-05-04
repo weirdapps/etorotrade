@@ -21,8 +21,21 @@ from trade_modules.conviction_sizer import (
     get_sector_rotation_adjustment,
 )
 
+
 class TestContinuousConviction:
-    """Test Task #4: Continuous conviction function."""
+    """Test Task #4: Continuous conviction function (legacy, pre-M2 clamp).
+
+    These tests document the unclamped curve so the regression suite covers
+    it for when CONVICTION_CLAMP_TO_UNITY is flipped off (i.e. once per-cell
+    ρ > 0.05 evidence accumulates per M11). The autouse fixture below
+    disables the clamp for this class only.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _disable_clamp(self, monkeypatch):
+        from trade_modules import conviction_sizer
+
+        monkeypatch.setattr(conviction_sizer, "CONVICTION_CLAMP_TO_UNITY", False)
 
     def test_conviction_at_zero(self):
         """Conviction score of 0 should give 0.35 multiplier."""
@@ -61,6 +74,7 @@ class TestContinuousConviction:
         result = get_conviction_multiplier(-10)
         assert result == pytest.approx(0.35)
 
+
 class TestClusterAdjustment:
     """Test Task #6: Correlation cluster sizing."""
 
@@ -80,6 +94,7 @@ class TestClusterAdjustment:
         adjustment = base + (1-base)*0.5*0.3 = dampened value > raw 1/sqrt(N).
         """
         import math
+
         clusters = [
             {"tickers": ["AAPL", "MSFT", "GOOGL"]},
         ]
@@ -92,6 +107,7 @@ class TestClusterAdjustment:
     def test_in_cluster_of_four(self):
         """Ticker in cluster of 4 should have dampened adjustment."""
         import math
+
         clusters = [
             {"tickers": ["JPM", "BAC", "WFC", "C"]},
         ]
@@ -104,6 +120,7 @@ class TestClusterAdjustment:
     def test_in_cluster_of_nine(self):
         """Ticker in cluster of 9 should have dampened adjustment."""
         import math
+
         clusters = [
             {"tickers": ["A", "B", "C", "D", "E", "F", "G", "H", "I"]},
         ]
@@ -117,6 +134,7 @@ class TestClusterAdjustment:
         """Empty clusters list should return 1.0."""
         result = get_cluster_size_adjustment("AAPL", [])
         assert result == pytest.approx(1.0)
+
 
 class TestSectorRotation:
     """Test Task #1: Sector rotation integration."""
@@ -177,6 +195,7 @@ class TestSectorRotation:
         assert result["adjustment_points"] == 0
         assert result["sector_rotation_blocked"] is False
 
+
 class TestFreshnessMultiplier:
     """Test Task #13: Data freshness integration."""
 
@@ -204,6 +223,7 @@ class TestFreshnessMultiplier:
         """Unknown staleness should default to 1.0."""
         result = get_freshness_multiplier("unknown")
         assert result == pytest.approx(1.0)
+
 
 class TestMarketImpact:
     """Test Task #2: Market impact modeling."""
@@ -261,8 +281,20 @@ class TestMarketImpact:
             )
             assert result["spread_bps"] == expected_spread
 
+
 class TestIntegratedSizing:
-    """Test integrated calculate_conviction_size with all new features."""
+    """Test integrated calculate_conviction_size with all new features.
+
+    These tests assert size relationships under the legacy unclamped
+    conviction curve. Disable the M2 clamp for this class so the
+    conviction multiplier varies with score.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _disable_clamp(self, monkeypatch):
+        from trade_modules import conviction_sizer
+
+        monkeypatch.setattr(conviction_sizer, "CONVICTION_CLAMP_TO_UNITY", False)
 
     def test_basic_size_no_adjustments(self):
         """Basic size with no adjustments should match existing behavior."""
@@ -369,6 +401,7 @@ class TestIntegratedSizing:
         assert result["position_size"] == pytest.approx(3529.5, abs=1)
         assert result["adjusted_conviction"] == 80
         assert result["is_blocked"] is False
+
 
 class TestPortfolioVarScaling:
     """Tests for portfolio VaR-based position scaling (CIO v3 F10)."""

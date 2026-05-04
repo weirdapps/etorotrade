@@ -10,7 +10,6 @@ from unittest.mock import Mock
 
 import pytest
 
-
 # Constants for company names
 APPLE_NAME = "Apple Inc."
 MICROSOFT_NAME = "Microsoft Corporation"

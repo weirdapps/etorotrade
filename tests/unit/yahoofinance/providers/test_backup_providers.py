@@ -19,6 +19,7 @@ from yahoofinance.api.providers.polygon_provider import PolygonProvider
 from yahoofinance.api.providers.provider_registry import ProviderRegistry, get_stock_data
 from yahoofinance.core.errors import RateLimitError
 
+
 class TestAlphaVantageProvider:
     """Tests for Alpha Vantage provider."""
 
@@ -64,7 +65,7 @@ class TestAlphaVantageProvider:
                 assert provider.minute_request_count == i + 1
 
             # 6th request should require waiting
-            start_time = time.time()
+            time.time()
             # Mock sleep to avoid actual waiting in tests
             with patch("asyncio.sleep") as mock_sleep:
                 await provider._rate_limit()
@@ -137,6 +138,7 @@ class TestAlphaVantageProvider:
         provider = AlphaVantageProvider()
         result = await provider.get_earnings_dates("AAPL")
         assert result == (None, None)
+
 
 class TestPolygonProvider:
     """Tests for Polygon.io provider."""
@@ -226,6 +228,7 @@ class TestPolygonProvider:
         result = await provider.get_earnings_dates("AAPL")
         assert result == (None, None)
 
+
 class TestProviderRegistry:
     """Tests for provider registry."""
 
@@ -256,11 +259,7 @@ class TestProviderRegistry:
             mock = AsyncMock()
             if i == 2:  # Third provider (alpha_vantage)
                 # Return valid data (needs more than just symbol/name)
-                mock.return_value = {
-                    "symbol": "AAPL",
-                    "name": "Apple Inc.",
-                    "current_price": 150.0
-                }
+                mock.return_value = {"symbol": "AAPL", "name": "Apple Inc.", "current_price": 150.0}
             else:
                 mock.return_value = {}
             provider.get_ticker_info = mock
@@ -305,11 +304,7 @@ class TestProviderRegistry:
         # Mock first provider to succeed (needs valid data)
         first_provider = registry.providers[0][1]
         first_provider.get_ticker_info = AsyncMock(
-            return_value={
-                "symbol": "AAPL",
-                "name": "Apple Inc.",
-                "current_price": 150.0
-            }
+            return_value={"symbol": "AAPL", "name": "Apple Inc.", "current_price": 150.0}
         )
 
         # Mock others to fail
@@ -390,7 +385,9 @@ class TestProviderRegistry:
     @pytest.mark.asyncio
     async def test_convenience_function_get_stock_data(self):
         """Test convenience function uses global registry."""
-        with patch("yahoofinance.api.providers.provider_registry.get_provider_registry") as mock_get:
+        with patch(
+            "yahoofinance.api.providers.provider_registry.get_provider_registry"
+        ) as mock_get:
             mock_registry = MagicMock()
             mock_registry.get_stock_data = AsyncMock(return_value={"symbol": "AAPL"})
             mock_get.return_value = mock_registry
@@ -399,6 +396,7 @@ class TestProviderRegistry:
 
             assert result["symbol"] == "AAPL"
             mock_registry.get_stock_data.assert_called_once_with("AAPL", False)
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

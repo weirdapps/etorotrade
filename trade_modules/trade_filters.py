@@ -4,28 +4,19 @@ Data filtering and selection module extracted from trade.py.
 Contains logic for filtering market data, applying trading criteria, and data selection.
 """
 
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Union, Callable
+from collections.abc import Callable
+from typing import Any
 
 import pandas as pd
-import numpy as np
 
 from yahoofinance.core.logging import get_logger
-from yahoofinance.core.errors import ValidationError, YFinanceError
-from .errors import TradingFilterError
-
-from .utils import (
-    clean_ticker_symbol,
-    safe_float_conversion,
-    validate_dataframe,
-    normalize_ticker_for_display,
-)
 from yahoofinance.utils.data.ticker_utils import (
-    normalize_ticker,
-    process_ticker_input,
-    get_ticker_for_display,
     are_equivalent_tickers,
+    get_ticker_for_display,
+    process_ticker_input,
 )
+
+from .errors import TradingFilterError
 
 logger = get_logger(__name__)
 
@@ -33,7 +24,7 @@ logger = get_logger(__name__)
 class TradingCriteriaFilter:
     """Applies trading criteria filters to market data."""
 
-    def __init__(self, criteria_config: Optional[Dict] = None):
+    def __init__(self, criteria_config: dict | None = None):
         """
         Initialize trading criteria filter.
 
@@ -43,7 +34,7 @@ class TradingCriteriaFilter:
         self.criteria = criteria_config or self._get_default_criteria()
         self.logger = logger
 
-    def _get_default_criteria(self) -> Dict:
+    def _get_default_criteria(self) -> dict:
         """Get default trading criteria."""
         return {
             "min_market_cap": 1e9,  # $1B minimum market cap
@@ -241,7 +232,7 @@ class TradingCriteriaFilter:
 class PortfolioFilter:
     """Filter data based on portfolio holdings and constraints."""
 
-    def __init__(self, portfolio_df: Optional[pd.DataFrame] = None):
+    def __init__(self, portfolio_df: pd.DataFrame | None = None):
         """
         Initialize portfolio filter.
 
@@ -252,7 +243,7 @@ class PortfolioFilter:
         self.portfolio_tickers = self._extract_portfolio_tickers()
         self.logger = logger
 
-    def _extract_portfolio_tickers(self) -> Set[str]:
+    def _extract_portfolio_tickers(self) -> set[str]:
         """Extract and normalize ticker symbols from portfolio DataFrame."""
         tickers = set()
 
@@ -359,7 +350,7 @@ class PortfolioFilter:
             self.logger.error(f"Error filtering existing holdings: {str(e)}")
             return df
 
-    def get_portfolio_metrics(self) -> Dict[str, Any]:
+    def get_portfolio_metrics(self) -> dict[str, Any]:
         """Get portfolio metrics and statistics."""
         if self.portfolio_df is None or self.portfolio_df.empty:
             return {}
@@ -402,7 +393,7 @@ class DataQualityFilter:
         self.logger = logger
 
     def filter_by_data_quality(
-        self, df: pd.DataFrame, required_columns: Optional[List[str]] = None
+        self, df: pd.DataFrame, required_columns: list[str] | None = None
     ) -> pd.DataFrame:
         """
         Filter DataFrame based on data quality criteria.
@@ -446,7 +437,7 @@ class DataQualityFilter:
             return df
 
     def _filter_by_required_columns(
-        self, df: pd.DataFrame, required_columns: List[str]
+        self, df: pd.DataFrame, required_columns: list[str]
     ) -> pd.DataFrame:
         """Filter rows that have data in all required columns."""
         for col in required_columns:
@@ -567,12 +558,12 @@ class CustomFilter:
 # TradingFilterError is now imported from .errors module for consolidated error hierarchy
 
 
-def create_criteria_filter(criteria_config: Optional[Dict] = None) -> TradingCriteriaFilter:
+def create_criteria_filter(criteria_config: dict | None = None) -> TradingCriteriaFilter:
     """Factory function to create a trading criteria filter."""
     return TradingCriteriaFilter(criteria_config)
 
 
-def create_portfolio_filter(portfolio_df: Optional[pd.DataFrame] = None) -> PortfolioFilter:
+def create_portfolio_filter(portfolio_df: pd.DataFrame | None = None) -> PortfolioFilter:
     """Factory function to create a portfolio filter."""
     return PortfolioFilter(portfolio_df)
 

@@ -7,14 +7,16 @@ This module helps reduce code duplication across test files by providing:
 - Helper functions for setting up test cases
 """
 
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from typing import Any
 from unittest.mock import AsyncMock
 
 from yahoofinance.core.errors import RateLimitError, YFinanceError
 
 # Pagination Test Fixtures
 
-def create_paginated_data(num_pages: int = 3, items_per_page: int = 3) -> List[Dict[str, Any]]:
+
+def create_paginated_data(num_pages: int = 3, items_per_page: int = 3) -> list[dict[str, Any]]:
     """
     Create mock paginated data for testing.
 
@@ -39,7 +41,8 @@ def create_paginated_data(num_pages: int = 3, items_per_page: int = 3) -> List[D
 
     return pages
 
-def create_mock_fetcher(pages: List[Dict[str, Any]]) -> Callable[[Optional[str]], Dict[str, Any]]:
+
+def create_mock_fetcher(pages: list[dict[str, Any]]) -> Callable[[str | None], dict[str, Any]]:
     """
         Create a mock page fetcher function for pagination tests.
 
@@ -66,8 +69,9 @@ def create_mock_fetcher(pages: List[Dict[str, Any]]) -> Callable[[Optional[str]]
 
     return mock_fetcher
 
+
 def create_bulk_fetch_mocks() -> (
-    Tuple[List[int], Callable[[Any], Dict[str, Any]], Callable[[Dict[str, Any]], int]]
+    tuple[list[int], Callable[[Any], dict[str, Any]], Callable[[dict[str, Any]], int]]
 ):
     """
         Create mock objects for bulk fetch tests.
@@ -90,7 +94,9 @@ def create_bulk_fetch_mocks() -> (
 
     return items, mock_fetcher, mock_extractor
 
+
 # Async Test Fixtures
+
 
 async def create_flaky_function(fail_count: int = 2) -> Callable[[], AsyncMock]:
     """
@@ -114,6 +120,7 @@ async def create_flaky_function(fail_count: int = 2) -> Callable[[], AsyncMock]:
         return "success"
 
     return flaky_function
+
 
 def create_async_processor_mock(error_item: int = 3) -> AsyncMock:
     """

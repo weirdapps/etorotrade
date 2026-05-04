@@ -4,17 +4,20 @@ Tests for trade_modules/data_processing_service.py
 This module tests the DataProcessingService class for batch ticker processing.
 """
 
-import pytest
-import pandas as pd
 import logging
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pandas as pd
+import pytest
 
 from trade_modules.data_processing_service import DataProcessingService
+
 
 @pytest.fixture
 def logger():
     """Create a mock logger."""
     return MagicMock(spec=logging.Logger)
+
 
 @pytest.fixture
 def mock_provider():
@@ -23,10 +26,12 @@ def mock_provider():
     provider.get_ticker_info = AsyncMock()
     return provider
 
+
 @pytest.fixture
 def data_service(mock_provider, logger):
     """Create a DataProcessingService instance."""
     return DataProcessingService(mock_provider, logger)
+
 
 class TestDataProcessingServiceInit:
     """Tests for DataProcessingService initialization."""
@@ -36,6 +41,7 @@ class TestDataProcessingServiceInit:
         service = DataProcessingService(mock_provider, logger)
         assert service.provider is mock_provider
         assert service.logger is logger
+
 
 class TestProcessSingleTicker:
     """Tests for _process_single_ticker method."""
@@ -124,7 +130,9 @@ class TestProcessSingleTicker:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_process_single_ticker_handles_connection_error(self, data_service, mock_provider):
+    async def test_process_single_ticker_handles_connection_error(
+        self, data_service, mock_provider
+    ):
         """Test handling of ConnectionError during processing."""
         mock_provider.get_ticker_info.side_effect = ConnectionError("connection failed")
 
@@ -142,7 +150,9 @@ class TestProcessSingleTicker:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_process_single_ticker_handles_generic_exception(self, data_service, mock_provider):
+    async def test_process_single_ticker_handles_generic_exception(
+        self, data_service, mock_provider
+    ):
         """Test handling of generic exception during processing."""
         mock_provider.get_ticker_info.side_effect = RuntimeError("unexpected error")
 
@@ -151,7 +161,9 @@ class TestProcessSingleTicker:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_process_single_ticker_uses_current_price_fallback(self, data_service, mock_provider):
+    async def test_process_single_ticker_uses_current_price_fallback(
+        self, data_service, mock_provider
+    ):
         """Test that current_price is used as fallback for price."""
         mock_provider.get_ticker_info.return_value = {
             "current_price": 175.0,  # No 'price' key, has 'current_price'
@@ -161,6 +173,7 @@ class TestProcessSingleTicker:
 
         assert result is not None
         assert result["price"] == pytest.approx(175.0)
+
 
 class TestProcessTickerBatch:
     """Tests for process_ticker_batch method."""
@@ -179,7 +192,10 @@ class TestProcessTickerBatch:
                 results[item] = await processor(item)
             return results
 
-        with patch('yahoofinance.utils.async_utils.enhanced.process_batch_async', side_effect=mock_process_batch):
+        with patch(
+            "yahoofinance.utils.async_utils.enhanced.process_batch_async",
+            side_effect=mock_process_batch,
+        ):
             result = await data_service.process_ticker_batch(["AAPL", "MSFT"])
 
             assert isinstance(result, pd.DataFrame)
@@ -190,10 +206,14 @@ class TestProcessTickerBatch:
     @pytest.mark.asyncio
     async def test_process_ticker_batch_empty_list(self, data_service):
         """Test batch processing with empty list."""
+
         async def mock_process_batch(items, processor, **kwargs):
             return {}
 
-        with patch('yahoofinance.utils.async_utils.enhanced.process_batch_async', side_effect=mock_process_batch):
+        with patch(
+            "yahoofinance.utils.async_utils.enhanced.process_batch_async",
+            side_effect=mock_process_batch,
+        ):
             result = await data_service.process_ticker_batch([])
 
             assert isinstance(result, pd.DataFrame)
@@ -202,6 +222,7 @@ class TestProcessTickerBatch:
     @pytest.mark.asyncio
     async def test_process_ticker_batch_filters_none_results(self, data_service, mock_provider):
         """Test that None results are filtered out."""
+
         # Set up mock to return data for some tickers, None for others
         async def mock_get_info(ticker):
             if ticker.upper() == "INVALID":
@@ -216,7 +237,10 @@ class TestProcessTickerBatch:
                 results[item] = await processor(item)
             return results
 
-        with patch('yahoofinance.utils.async_utils.enhanced.process_batch_async', side_effect=mock_process_batch):
+        with patch(
+            "yahoofinance.utils.async_utils.enhanced.process_batch_async",
+            side_effect=mock_process_batch,
+        ):
             result = await data_service.process_ticker_batch(["AAPL", "INVALID", "MSFT"])
 
             # INVALID should be filtered out (returns None)
@@ -237,10 +261,14 @@ class TestProcessTickerBatch:
                 results[item] = await processor(item)
             return results
 
-        with patch('yahoofinance.utils.async_utils.enhanced.process_batch_async', side_effect=mock_process_batch):
-            result = await data_service.process_ticker_batch(["AAPL"], batch_size=10)
+        with patch(
+            "yahoofinance.utils.async_utils.enhanced.process_batch_async",
+            side_effect=mock_process_batch,
+        ):
+            await data_service.process_ticker_batch(["AAPL"], batch_size=10)
 
             assert captured_kwargs["batch_size"] == 10
+
 
 class TestBackwardCompatibility:
     """Tests for backward compatibility method."""
@@ -248,7 +276,7 @@ class TestBackwardCompatibility:
     @pytest.mark.asyncio
     async def test_process_batch_alias(self, data_service):
         """Test that _process_batch is an alias for process_ticker_batch."""
-        with patch.object(data_service, 'process_ticker_batch') as mock_method:
+        with patch.object(data_service, "process_ticker_batch") as mock_method:
             mock_method.return_value = pd.DataFrame()
 
             await data_service._process_batch(["AAPL", "MSFT"])
@@ -258,15 +286,14 @@ class TestBackwardCompatibility:
     @pytest.mark.asyncio
     async def test_process_batch_ignores_extra_args(self, data_service):
         """Test that _process_batch ignores extra arguments."""
-        with patch.object(data_service, 'process_ticker_batch') as mock_method:
+        with patch.object(data_service, "process_ticker_batch") as mock_method:
             mock_method.return_value = pd.DataFrame()
 
             # Should not raise error with extra args
-            await data_service._process_batch(
-                ["AAPL"], "extra_arg", extra_kwarg="value"
-            )
+            await data_service._process_batch(["AAPL"], "extra_arg", extra_kwarg="value")
 
             mock_method.assert_called_once()
+
 
 class TestDataProcessingServiceIntegration:
     """Integration tests for DataProcessingService."""
@@ -274,6 +301,7 @@ class TestDataProcessingServiceIntegration:
     @pytest.mark.asyncio
     async def test_process_multiple_tickers_integration(self, data_service, mock_provider):
         """Test processing multiple tickers end-to-end."""
+
         # Set up provider to return different data for each ticker
         async def mock_get_info(ticker):
             # Handle normalized tickers (GOOGL -> GOOG)
@@ -293,7 +321,10 @@ class TestDataProcessingServiceIntegration:
                 results[item] = result
             return results
 
-        with patch('yahoofinance.utils.async_utils.enhanced.process_batch_async', side_effect=mock_process_batch):
+        with patch(
+            "yahoofinance.utils.async_utils.enhanced.process_batch_async",
+            side_effect=mock_process_batch,
+        ):
             result = await data_service.process_ticker_batch(["AAPL", "MSFT", "GOOGL"])
 
             assert len(result) == 3

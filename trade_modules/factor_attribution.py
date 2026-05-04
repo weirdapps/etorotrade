@@ -22,7 +22,7 @@ import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import pandas as pd
 
@@ -173,10 +173,10 @@ def _is_hit(action: str, stock_return: float, spy_return: float) -> bool:
 
 
 def _fetch_prices(
-    tickers: List[str],
+    tickers: list[str],
     start_date: str,
     end_date: str,
-) -> Dict[str, Dict[str, float]]:
+) -> dict[str, dict[str, float]]:
     """
     Fetch historical close prices for multiple tickers.
 
@@ -211,10 +211,7 @@ def _fetch_prices(
                 if tkr not in close.columns:
                     continue
                 col_data = close[tkr]
-            prices[tkr] = {
-                d.strftime("%Y-%m-%d"): float(v)
-                for d, v in col_data.dropna().items()
-            }
+            prices[tkr] = {d.strftime("%Y-%m-%d"): float(v) for d, v in col_data.dropna().items()}
     except Exception as exc:
         logger.error("yfinance download failed: %s", exc)
 
@@ -222,10 +219,10 @@ def _fetch_prices(
 
 
 def _nearest_price(
-    price_series: Dict[str, float],
+    price_series: dict[str, float],
     target_date: str,
     max_gap_days: int = 5,
-) -> Optional[float]:
+) -> float | None:
     """Find the closest available price on or after target_date (skipping weekends/holidays)."""
     from datetime import datetime as dt
 
@@ -238,10 +235,10 @@ def _nearest_price(
 
 
 def _fetch_prices_as_df(
-    tickers: List[str],
+    tickers: list[str],
     start_date: str,
     end_date: str,
-) -> Tuple[pd.DataFrame, Dict[str, Dict[str, float]]]:
+) -> tuple[pd.DataFrame, dict[str, dict[str, float]]]:
     """
     Fetch prices using PriceService, returning both DataFrame and dict form.
 
@@ -251,14 +248,14 @@ def _fetch_prices_as_df(
     """
     try:
         from trade_modules.price_service import PriceService
+
         svc = PriceService()
         df = svc.get_prices(tickers, start_date, end_date)
         # Convert to dict form for _nearest_price compatibility
         prices_dict = {}
         for col in df.columns:
             prices_dict[col] = {
-                d.strftime("%Y-%m-%d"): float(v)
-                for d, v in df[col].dropna().items()
+                d.strftime("%Y-%m-%d"): float(v) for d, v in df[col].dropna().items()
             }
         return df, prices_dict
     except Exception as exc:
@@ -269,10 +266,10 @@ def _fetch_prices_as_df(
 
 
 def compute_factor_attribution(
-    action_log_path: Optional[Path] = None,
-    horizons: Optional[List[int]] = None,
-    output_path: Optional[Path] = None,
-) -> Dict[str, Any]:
+    action_log_path: Path | None = None,
+    horizons: list[int] | None = None,
+    output_path: Path | None = None,
+) -> dict[str, Any]:
     """
     Main entry point: compute factor attribution from action log.
 
@@ -304,29 +301,37 @@ def compute_factor_attribution(
         return {"error": "no_action_log"}
 
     # Filter to entries with price
-    priced = [e for e in entries if e.get("price_at_recommendation") and e["price_at_recommendation"] > 0]
+    priced = [
+        e for e in entries if e.get("price_at_recommendation") and e["price_at_recommendation"] > 0
+    ]
     logger.info(
         "Factor attribution: %d total entries, %d with price, from %s",
-        len(entries), len(priced), used_path,
+        len(entries),
+        len(priced),
+        used_path,
     )
 
     if not priced:
         return {"error": "no_entries_with_price", "total_entries": len(entries)}
 
     # Collect unique tickers and date range
-    tickers = sorted(set(e["ticker"] for e in priced if e.get("ticker")))
-    dates = sorted(set(e["committee_date"] for e in priced if e.get("committee_date")))
+    tickers = sorted({e["ticker"] for e in priced if e.get("ticker")})
+    dates = sorted({e["committee_date"] for e in priced if e.get("committee_date")})
     earliest = dates[0]
     max_horizon = max(horizons)
 
     # Date range for price download: from earliest committee date to today + buffer
     from datetime import date as dt_date
+
     today = dt_date.today()
     end_date = (today + timedelta(days=5)).strftime("%Y-%m-%d")
 
     logger.info(
         "Fetching prices for %d tickers, %s to %s (max horizon T+%d)",
-        len(tickers), earliest, end_date, max_horizon,
+        len(tickers),
+        earliest,
+        end_date,
+        max_horizon,
     )
 
     # Also fetch SPY for alpha computation
@@ -380,7 +385,9 @@ def compute_factor_attribution(
                             spy_return = (spy_fwd - spy_base) / spy_base * 100
             else:
                 # Fallback: calendar-day offset with dict lookup
-                target = (datetime.strptime(rec_date, "%Y-%m-%d") + timedelta(days=h)).strftime("%Y-%m-%d")
+                target = (datetime.strptime(rec_date, "%Y-%m-%d") + timedelta(days=h)).strftime(
+                    "%Y-%m-%d"
+                )
                 if target > today.strftime("%Y-%m-%d"):
                     continue
                 future_price = _nearest_price(tkr_prices, target)
@@ -405,10 +412,12 @@ def compute_factor_attribution(
                 "hit": hit,
             }
 
-        enriched.append({
-            **entry,
-            "horizon_returns": horizon_returns,
-        })
+        enriched.append(
+            {
+                **entry,
+                "horizon_returns": horizon_returns,
+            }
+        )
 
     logger.info("Enriched %d entries with return data", len(enriched))
 
@@ -421,7 +430,11 @@ def compute_factor_attribution(
     for factor_name, factor_def in BASE_FACTORS.items():
         test_fn = factor_def["test"]
         results[factor_name] = _attribute_factor(
-            factor_name, factor_def, enriched, horizons, test_fn,
+            factor_name,
+            factor_def,
+            enriched,
+            horizons,
+            test_fn,
         )
 
     # B) Conviction modifier factors (from waterfall)
@@ -437,12 +450,19 @@ def compute_factor_attribution(
             "description": f"Conviction modifier: {mod_name.replace('_', ' ')}",
             "category": "modifier",
         }
-        test_fn = lambda e, _m=mod_name: (
-            isinstance(e.get("conviction_waterfall"), dict)
-            and e["conviction_waterfall"].get(_m, 0) != 0
-        )
+
+        def test_fn(e, _m=mod_name):
+            return (
+                isinstance(e.get("conviction_waterfall"), dict)
+                and e["conviction_waterfall"].get(_m, 0) != 0
+            )
+
         results[f"wf_{mod_name}"] = _attribute_factor(
-            f"wf_{mod_name}", factor_def, enriched, horizons, test_fn,
+            f"wf_{mod_name}",
+            factor_def,
+            enriched,
+            horizons,
+            test_fn,
         )
 
     # -----------------------------------------------------------------------
@@ -486,11 +506,11 @@ def compute_factor_attribution(
 
 def _attribute_factor(
     name: str,
-    definition: Dict[str, Any],
-    entries: List[Dict],
-    horizons: List[int],
+    definition: dict[str, Any],
+    entries: list[dict],
+    horizons: list[int],
     test_fn,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Compute attribution for a single factor across all entries and horizons."""
     fired_entries = [e for e in entries if test_fn(e)]
     total_fired = len(fired_entries)
@@ -545,10 +565,10 @@ def _attribute_factor(
 
 
 def generate_attribution_summary(
-    attribution: Dict[str, Any],
+    attribution: dict[str, Any],
     top_n: int = 15,
     primary_horizon_days: int = PRIMARY_HORIZON_DAYS,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Generate a ranked summary of factors for the HTML report.
 
@@ -632,29 +652,30 @@ def generate_attribution_summary(
 
         # Headline signal uses the primary horizon when available.
         signal = primary_signal or (
-            "PREDICTIVE" if best_hit_rate >= 60 else
-            "WEAK" if best_hit_rate >= 45 else "CONTRARIAN"
+            "PREDICTIVE" if best_hit_rate >= 60 else "WEAK" if best_hit_rate >= 45 else "CONTRARIAN"
         )
 
-        summaries.append({
-            "name": name,
-            "description": data.get("description", name),
-            "category": data.get("category", "unknown"),
-            "fires": fires,
-            "fires_pct": data.get("fires_pct", 0),
-            "best_hit_rate": best_hit_rate,
-            "best_horizon": best_horizon,
-            "best_action": best_action,
-            "primary_horizon": primary_key if primary_hit_rate is not None else None,
-            "primary_evaluated": primary_evaluated,
-            "primary_hit_rate": primary_hit_rate,
-            "primary_avg_alpha": primary_avg_alpha,
-            "primary_avg_return": primary_avg_return,
-            "primary_signal": primary_signal,
-            "total_evaluated": total_evaluated,
-            "signal": signal,
-            "by_action": data.get("by_action", {}),
-        })
+        summaries.append(
+            {
+                "name": name,
+                "description": data.get("description", name),
+                "category": data.get("category", "unknown"),
+                "fires": fires,
+                "fires_pct": data.get("fires_pct", 0),
+                "best_hit_rate": best_hit_rate,
+                "best_horizon": best_horizon,
+                "best_action": best_action,
+                "primary_horizon": primary_key if primary_hit_rate is not None else None,
+                "primary_evaluated": primary_evaluated,
+                "primary_hit_rate": primary_hit_rate,
+                "primary_avg_alpha": primary_avg_alpha,
+                "primary_avg_return": primary_avg_return,
+                "primary_signal": primary_signal,
+                "total_evaluated": total_evaluated,
+                "signal": signal,
+                "by_action": data.get("by_action", {}),
+            }
+        )
 
     # Sort by primary horizon hit-rate when available; otherwise legacy best.
     def _sort_key(s):
@@ -666,8 +687,8 @@ def generate_attribution_summary(
 
 
 def backfill_from_concordance(
-    concordance_path: Optional[Path] = None,
-    action_log_path: Optional[Path] = None,
+    concordance_path: Path | None = None,
+    action_log_path: Path | None = None,
 ) -> int:
     """
     Backfill action log entries with signal params from concordance data.
@@ -703,8 +724,15 @@ def backfill_from_concordance(
 
     # Fields to backfill from concordance
     signal_fields = [
-        "buy_pct", "exret", "beta", "rsi", "fund_score",
-        "tech_momentum", "macro_fit", "census", "news_impact",
+        "buy_pct",
+        "exret",
+        "beta",
+        "rsi",
+        "fund_score",
+        "tech_momentum",
+        "macro_fit",
+        "census",
+        "news_impact",
         "conviction_waterfall",
     ]
 

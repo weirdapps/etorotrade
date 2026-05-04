@@ -5,35 +5,37 @@ Verifies that vectorized pandas operations in analyst.py module
 provide correct results and improved performance.
 """
 
-import pytest
-import pandas as pd
-import numpy as np
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
+import numpy as np
+import pandas as pd
+import pytest
+
 from yahoofinance.analysis.analyst import CompatAnalystData
+
 
 @pytest.fixture
 def mock_client():
     """Create mock client for testing."""
     return MagicMock()
 
+
 @pytest.fixture
 def sample_ratings_df():
     """Create sample ratings DataFrame."""
-    return pd.DataFrame({
-        "GradeDate": pd.to_datetime([
-            "2024-01-15",
-            "2024-01-10",
-            "2024-01-05",
-            "2023-12-20",
-            "2023-12-15"
-        ]),
-        "Firm": ["Bank of America", "JPMorgan", "Goldman Sachs", "Morgan Stanley", "Citi"],
-        "FromGrade": ["Hold", "Buy", "Sell", "Hold", "Buy"],
-        "ToGrade": ["Buy", "Strong Buy", "Hold", "Buy", "Outperform"],
-        "Action": ["upgrade", "upgrade", "upgrade", "upgrade", "maintain"]
-    })
+    return pd.DataFrame(
+        {
+            "GradeDate": pd.to_datetime(
+                ["2024-01-15", "2024-01-10", "2024-01-05", "2023-12-20", "2023-12-15"]
+            ),
+            "Firm": ["Bank of America", "JPMorgan", "Goldman Sachs", "Morgan Stanley", "Citi"],
+            "FromGrade": ["Hold", "Buy", "Sell", "Hold", "Buy"],
+            "ToGrade": ["Buy", "Strong Buy", "Hold", "Buy", "Outperform"],
+            "Action": ["upgrade", "upgrade", "upgrade", "upgrade", "maintain"],
+        }
+    )
+
 
 class TestGetRatingsSummary:
     """Test vectorized rating summary calculations."""
@@ -43,7 +45,7 @@ class TestGetRatingsSummary:
         analyzer = CompatAnalystData(mock_client)
 
         # Mock the fetch_ratings_data to return our sample
-        with patch.object(analyzer, 'fetch_ratings_data', return_value=sample_ratings_df):
+        with patch.object(analyzer, "fetch_ratings_data", return_value=sample_ratings_df):
             result = analyzer.get_ratings_summary("AAPL")
 
         # Should calculate percentage correctly
@@ -56,7 +58,7 @@ class TestGetRatingsSummary:
         """Verify recommendation bucketing uses vectorized .isin() operations."""
         analyzer = CompatAnalystData(mock_client)
 
-        with patch.object(analyzer, 'fetch_ratings_data', return_value=sample_ratings_df):
+        with patch.object(analyzer, "fetch_ratings_data", return_value=sample_ratings_df):
             result = analyzer.get_ratings_summary("AAPL")
 
         # Should have recommendation counts
@@ -77,7 +79,7 @@ class TestGetRatingsSummary:
         """Empty ratings DataFrame returns None values."""
         analyzer = CompatAnalystData(mock_client)
 
-        with patch.object(analyzer, 'fetch_ratings_data', return_value=None):
+        with patch.object(analyzer, "fetch_ratings_data", return_value=None):
             result = analyzer.get_ratings_summary("INVALID")
 
         assert result["positive_percentage"] is None
@@ -88,20 +90,25 @@ class TestGetRatingsSummary:
         """Vectorized operations perform well on large datasets."""
         # Create large ratings dataset
         n_rows = 10000
-        large_ratings = pd.DataFrame({
-            "GradeDate": pd.date_range(start="2020-01-01", periods=n_rows),
-            "Firm": [f"Firm{i}" for i in range(n_rows)],
-            "FromGrade": np.random.choice(["Buy", "Hold", "Sell"], n_rows),
-            "ToGrade": np.random.choice(["Buy", "Strong Buy", "Hold", "Sell", "Outperform"], n_rows),
-            "Action": ["upgrade"] * n_rows
-        })
+        large_ratings = pd.DataFrame(
+            {
+                "GradeDate": pd.date_range(start="2020-01-01", periods=n_rows),
+                "Firm": [f"Firm{i}" for i in range(n_rows)],
+                "FromGrade": np.random.choice(["Buy", "Hold", "Sell"], n_rows),
+                "ToGrade": np.random.choice(
+                    ["Buy", "Strong Buy", "Hold", "Sell", "Outperform"], n_rows
+                ),
+                "Action": ["upgrade"] * n_rows,
+            }
+        )
 
         analyzer = CompatAnalystData(mock_client)
 
         import time
+
         start = time.perf_counter()
 
-        with patch.object(analyzer, 'fetch_ratings_data', return_value=large_ratings):
+        with patch.object(analyzer, "fetch_ratings_data", return_value=large_ratings):
             result = analyzer.get_ratings_summary("TEST")
 
         elapsed = time.perf_counter() - start
@@ -110,6 +117,7 @@ class TestGetRatingsSummary:
         assert elapsed < 0.05, f"Vectorized operation took {elapsed*1000:.2f}ms (expected <50ms)"
         assert result["total_ratings"] == n_rows
 
+
 class TestGetRecentChanges:
     """Test vectorized recent changes retrieval."""
 
@@ -117,7 +125,7 @@ class TestGetRecentChanges:
         """Verify date filtering uses vectorized operations."""
         analyzer = CompatAnalystData(mock_client)
 
-        with patch.object(analyzer, 'fetch_ratings_data', return_value=sample_ratings_df):
+        with patch.object(analyzer, "fetch_ratings_data", return_value=sample_ratings_df):
             # Get changes from last 20 days
             result = analyzer.get_recent_changes("AAPL", days=20)
 
@@ -129,7 +137,7 @@ class TestGetRecentChanges:
         """Verify uses .to_dict('records') instead of iterrows()."""
         analyzer = CompatAnalystData(mock_client)
 
-        with patch.object(analyzer, 'fetch_ratings_data', return_value=sample_ratings_df):
+        with patch.object(analyzer, "fetch_ratings_data", return_value=sample_ratings_df):
             result = analyzer.get_recent_changes("AAPL", days=365)
 
         # Should return list of dicts
@@ -145,17 +153,19 @@ class TestGetRecentChanges:
     def test_date_formatting_vectorized(self, mock_client):
         """Verify date formatting uses vectorized .dt.strftime()."""
         # Create test data with datetime objects
-        test_ratings = pd.DataFrame({
-            "GradeDate": pd.to_datetime(["2024-01-15", "2024-01-14", "2024-01-13"]),
-            "Firm": ["Firm A", "Firm B", "Firm C"],
-            "FromGrade": ["Hold", "Buy", "Sell"],
-            "ToGrade": ["Buy", "Hold", "Buy"],
-            "Action": ["upgrade", "downgrade", "upgrade"]
-        })
+        test_ratings = pd.DataFrame(
+            {
+                "GradeDate": pd.to_datetime(["2024-01-15", "2024-01-14", "2024-01-13"]),
+                "Firm": ["Firm A", "Firm B", "Firm C"],
+                "FromGrade": ["Hold", "Buy", "Sell"],
+                "ToGrade": ["Buy", "Hold", "Buy"],
+                "Action": ["upgrade", "downgrade", "upgrade"],
+            }
+        )
 
         analyzer = CompatAnalystData(mock_client)
 
-        with patch.object(analyzer, 'fetch_ratings_data', return_value=test_ratings):
+        with patch.object(analyzer, "fetch_ratings_data", return_value=test_ratings):
             result = analyzer.get_recent_changes("AAPL", days=30)
 
         # All dates should be strings in YYYY-MM-DD format
@@ -169,7 +179,7 @@ class TestGetRecentChanges:
         """Empty results handled correctly."""
         analyzer = CompatAnalystData(mock_client)
 
-        with patch.object(analyzer, 'fetch_ratings_data', return_value=pd.DataFrame()):
+        with patch.object(analyzer, "fetch_ratings_data", return_value=pd.DataFrame()):
             result = analyzer.get_recent_changes("INVALID", days=30)
 
         assert result == []
@@ -178,20 +188,23 @@ class TestGetRecentChanges:
         """Vectorized operations efficient on large datasets."""
         # Create large dataset
         n_rows = 5000
-        large_ratings = pd.DataFrame({
-            "GradeDate": pd.date_range(start="2020-01-01", periods=n_rows),
-            "Firm": [f"Firm{i}" for i in range(n_rows)],
-            "FromGrade": np.random.choice(["Buy", "Hold", "Sell"], n_rows),
-            "ToGrade": np.random.choice(["Buy", "Strong Buy", "Hold"], n_rows),
-            "Action": ["upgrade"] * n_rows
-        })
+        large_ratings = pd.DataFrame(
+            {
+                "GradeDate": pd.date_range(start="2020-01-01", periods=n_rows),
+                "Firm": [f"Firm{i}" for i in range(n_rows)],
+                "FromGrade": np.random.choice(["Buy", "Hold", "Sell"], n_rows),
+                "ToGrade": np.random.choice(["Buy", "Strong Buy", "Hold"], n_rows),
+                "Action": ["upgrade"] * n_rows,
+            }
+        )
 
         analyzer = CompatAnalystData(mock_client)
 
         import time
+
         start = time.perf_counter()
 
-        with patch.object(analyzer, 'fetch_ratings_data', return_value=large_ratings):
+        with patch.object(analyzer, "fetch_ratings_data", return_value=large_ratings):
             result = analyzer.get_recent_changes("TEST", days=365)
 
         elapsed = time.perf_counter() - start
@@ -199,6 +212,7 @@ class TestGetRecentChanges:
         # Should complete quickly (< 300ms for 5000 rows, relaxed for CI environments)
         assert elapsed < 0.3, f"Vectorized operation took {elapsed*1000:.2f}ms (expected <300ms)"
         assert len(result) > 0
+
 
 class TestVectorizationCorrectness:
     """Verify vectorized operations produce correct results."""
@@ -218,23 +232,23 @@ class TestVectorizationCorrectness:
 
     def test_to_dict_records_vs_iterrows_equivalence(self):
         """Verify .to_dict('records') produces same results as iterrows()."""
-        df = pd.DataFrame({
-            "date": ["2024-01-01", "2024-01-02", "2024-01-03"],
-            "firm": ["Firm A", "Firm B", "Firm C"],
-            "grade": ["Buy", "Hold", "Sell"]
-        })
+        df = pd.DataFrame(
+            {
+                "date": ["2024-01-01", "2024-01-02", "2024-01-03"],
+                "firm": ["Firm A", "Firm B", "Firm C"],
+                "grade": ["Buy", "Hold", "Sell"],
+            }
+        )
 
         # Vectorized approach
-        vectorized_result = df.to_dict('records')
+        vectorized_result = df.to_dict("records")
 
         # iterrows approach (old way)
         iterrows_result = []
         for _, row in df.iterrows():
-            iterrows_result.append({
-                "date": row["date"],
-                "firm": row["firm"],
-                "grade": row["grade"]
-            })
+            iterrows_result.append(
+                {"date": row["date"], "firm": row["firm"], "grade": row["grade"]}
+            )
 
         # Should produce identical results
         assert len(vectorized_result) == len(iterrows_result)

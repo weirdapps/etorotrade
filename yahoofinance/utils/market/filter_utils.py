@@ -5,13 +5,14 @@ This module provides functions for filtering market data based on
 various criteria such as market cap, sector, and performance.
 """
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from ..trade_criteria import evaluate_trade_criteria
 
+
 def filter_by_market_cap(
-    stocks: List[Dict[str, Any]], min_cap: Optional[float] = None, max_cap: Optional[float] = None
-) -> List[Dict[str, Any]]:
+    stocks: list[dict[str, Any]], min_cap: float | None = None, max_cap: float | None = None
+) -> list[dict[str, Any]]:
     """
     Filter stocks based on market capitalization.
 
@@ -47,11 +48,12 @@ def filter_by_market_cap(
 
     return filtered
 
+
 def filter_by_sector(
-    stocks: List[Dict[str, Any]],
-    sectors: Optional[Union[str, List[str]]] = None,
-    exclude_sectors: Optional[Union[str, List[str]]] = None,
-) -> List[Dict[str, Any]]:
+    stocks: list[dict[str, Any]],
+    sectors: str | list[str] | None = None,
+    exclude_sectors: str | list[str] | None = None,
+) -> list[dict[str, Any]]:
     """
     Filter stocks based on sector.
 
@@ -97,13 +99,14 @@ def filter_by_sector(
 
     return filtered
 
+
 def filter_by_performance(
-    stocks: List[Dict[str, Any]],
-    min_upside: Optional[float] = None,
-    min_buy_percentage: Optional[float] = None,
-    max_pe: Optional[float] = None,
-    max_peg: Optional[float] = None,
-) -> List[Dict[str, Any]]:
+    stocks: list[dict[str, Any]],
+    min_upside: float | None = None,
+    min_buy_percentage: float | None = None,
+    max_pe: float | None = None,
+    max_peg: float | None = None,
+) -> list[dict[str, Any]]:
     """
     Filter stocks based on performance metrics.
 
@@ -151,14 +154,15 @@ def filter_by_performance(
 
     return filtered
 
+
 def filter_tickers_by_criteria(
-    tickers_data: List[Dict[str, Any]],
-    action_filter: Optional[str] = None,
-    min_upside: Optional[float] = None,
-    min_buy_percentage: Optional[float] = None,
-    max_pe: Optional[float] = None,
-    min_market_cap: Optional[float] = None,
-) -> List[Dict[str, Any]]:
+    tickers_data: list[dict[str, Any]],
+    action_filter: str | None = None,
+    min_upside: float | None = None,
+    min_buy_percentage: float | None = None,
+    max_pe: float | None = None,
+    min_market_cap: float | None = None,
+) -> list[dict[str, Any]]:
     """
     Filter tickers based on specified trading criteria and additional filters.
 

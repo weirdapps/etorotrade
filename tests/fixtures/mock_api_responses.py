@@ -205,7 +205,7 @@ def patch_file_operations():
 
     def decorator(func):
         def wrapper(*args, **kwargs):
-            with patch("builtins.open") as mock_open:
+            with patch("builtins.open"):
                 with patch("pandas.read_csv") as mock_read_csv:
                     mock_read_csv.return_value = MockYahooFinanceResponses.create_mock_dataframe()
                     return func(*args, **kwargs)

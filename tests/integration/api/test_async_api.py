@@ -6,7 +6,6 @@ import pytest_asyncio
 
 from yahoofinance.api import get_provider
 
-
 # Skip these tests by default as they require a running event loop
 pytestmark = [pytest.mark.asyncio, pytest.mark.integration, pytest.mark.network]
 

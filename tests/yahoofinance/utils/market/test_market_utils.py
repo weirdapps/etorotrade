@@ -3,6 +3,7 @@ import unittest
 from yahoofinance.core.errors import YFinanceError
 from yahoofinance.utils.market.ticker_utils import is_us_ticker, normalize_hk_ticker
 
+
 class TestMarketUtils(unittest.TestCase):
     """Test market utility functions for ticker validation and normalization."""
 
@@ -128,6 +129,7 @@ class TestMarketUtils(unittest.TestCase):
             # Should raise AttributeError when we try to call .endswith() on None
             with self.assertRaises(AttributeError):
                 normalize_hk_ticker(None)  # type: ignore[arg-type]
+
 
 if __name__ == "__main__":
     unittest.main()

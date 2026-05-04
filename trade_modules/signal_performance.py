@@ -11,17 +11,19 @@ This addresses the critical gap identified in the hedge fund review:
 
 import json
 import logging
+import threading
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, asdict
-import threading
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # Default paths
 DEFAULT_SIGNAL_LOG = Path(__file__).parent.parent / "yahoofinance" / "output" / "signal_log.jsonl"
-DEFAULT_PERFORMANCE_LOG = Path(__file__).parent.parent / "yahoofinance" / "output" / "signal_performance.jsonl"
+DEFAULT_PERFORMANCE_LOG = (
+    Path(__file__).parent.parent / "yahoofinance" / "output" / "signal_performance.jsonl"
+)
 
 # Lock for thread-safe file operations
 _file_lock = threading.Lock()
@@ -30,45 +32,47 @@ _file_lock = threading.Lock()
 @dataclass
 class SignalPerformance:
     """Performance data for a single signal."""
+
     ticker: str
     signal: str
     signal_date: str
-    signal_price: Optional[float]
-    spy_at_signal: Optional[float]
+    signal_price: float | None
+    spy_at_signal: float | None
 
     # T+7 performance
-    price_t7: Optional[float] = None
-    return_t7: Optional[float] = None
-    spy_return_t7: Optional[float] = None
-    alpha_t7: Optional[float] = None
+    price_t7: float | None = None
+    return_t7: float | None = None
+    spy_return_t7: float | None = None
+    alpha_t7: float | None = None
 
     # T+30 performance
-    price_t30: Optional[float] = None
-    return_t30: Optional[float] = None
-    spy_return_t30: Optional[float] = None
-    alpha_t30: Optional[float] = None
+    price_t30: float | None = None
+    return_t30: float | None = None
+    spy_return_t30: float | None = None
+    alpha_t30: float | None = None
 
     # T+90 performance
-    price_t90: Optional[float] = None
-    return_t90: Optional[float] = None
-    spy_return_t90: Optional[float] = None
-    alpha_t90: Optional[float] = None
+    price_t90: float | None = None
+    return_t90: float | None = None
+    spy_return_t90: float | None = None
+    alpha_t90: float | None = None
 
     # Metadata
-    tier: Optional[str] = None
-    region: Optional[str] = None
-    upside_at_signal: Optional[float] = None
-    buy_pct_at_signal: Optional[float] = None
-    exret_at_signal: Optional[float] = None
+    tier: str | None = None
+    region: str | None = None
+    upside_at_signal: float | None = None
+    buy_pct_at_signal: float | None = None
+    exret_at_signal: float | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
-def get_current_price(ticker: str) -> Optional[float]:
+def get_current_price(ticker: str) -> float | None:
     """Get current price for a ticker using yfinance."""
     try:
         import yfinance as yf
+
         stock = yf.Ticker(ticker)
         price = stock.fast_info.get("lastPrice") or stock.fast_info.get("regularMarketPrice")
         return float(price) if price else None
@@ -78,9 +82,8 @@ def get_current_price(ticker: str) -> Optional[float]:
 
 
 def load_signals_needing_followup(
-    signal_log_path: Path = DEFAULT_SIGNAL_LOG,
-    days_threshold: int = 7
-) -> List[Dict]:
+    signal_log_path: Path = DEFAULT_SIGNAL_LOG, days_threshold: int = 7
+) -> list[dict]:
     """
     Load signals that need performance follow-up.
 
@@ -100,7 +103,7 @@ def load_signals_needing_followup(
 
     try:
         with _file_lock:
-            with open(signal_log_path, "r") as f:
+            with open(signal_log_path) as f:
                 for line in f:
                     if not line.strip():
                         continue
@@ -121,9 +124,8 @@ def load_signals_needing_followup(
 
 
 def capture_performance(
-    signal: Dict,
-    performance_log_path: Path = DEFAULT_PERFORMANCE_LOG
-) -> Optional[SignalPerformance]:
+    signal: dict, performance_log_path: Path = DEFAULT_PERFORMANCE_LOG
+) -> SignalPerformance | None:
     """
     Capture performance data for a signal.
 
@@ -212,9 +214,7 @@ def capture_performance(
     return perf
 
 
-def calculate_signal_stats(
-    performance_log_path: Path = DEFAULT_PERFORMANCE_LOG
-) -> Dict[str, Any]:
+def calculate_signal_stats(performance_log_path: Path = DEFAULT_PERFORMANCE_LOG) -> dict[str, Any]:
     """
     Calculate summary statistics for signal performance.
 
@@ -222,9 +222,24 @@ def calculate_signal_stats(
         Dictionary with performance statistics by signal type
     """
     stats = {
-        "buy_signals": {"count": 0, "hit_rate_t30": None, "avg_return_t30": None, "avg_alpha_t30": None},
-        "sell_signals": {"count": 0, "hit_rate_t30": None, "avg_return_t30": None, "avg_alpha_t30": None},
-        "hold_signals": {"count": 0, "hit_rate_t30": None, "avg_return_t30": None, "avg_alpha_t30": None},
+        "buy_signals": {
+            "count": 0,
+            "hit_rate_t30": None,
+            "avg_return_t30": None,
+            "avg_alpha_t30": None,
+        },
+        "sell_signals": {
+            "count": 0,
+            "hit_rate_t30": None,
+            "avg_return_t30": None,
+            "avg_alpha_t30": None,
+        },
+        "hold_signals": {
+            "count": 0,
+            "hit_rate_t30": None,
+            "avg_return_t30": None,
+            "avg_alpha_t30": None,
+        },
     }
 
     if not performance_log_path.exists():
@@ -236,7 +251,7 @@ def calculate_signal_stats(
     sell_alphas = []
 
     try:
-        with open(performance_log_path, "r") as f:
+        with open(performance_log_path) as f:
             for line in f:
                 if not line.strip():
                     continue
@@ -260,7 +275,7 @@ def calculate_signal_stats(
                         elif signal == "H":
                             stats["hold_signals"]["count"] += 1
 
-                except (json.JSONDecodeError, KeyError) as e:
+                except (json.JSONDecodeError, KeyError):
                     continue
     except Exception as e:
         logger.error(f"Error reading performance log: {e}")
@@ -268,14 +283,18 @@ def calculate_signal_stats(
 
     # Calculate stats for BUY signals
     if buy_returns:
-        stats["buy_signals"]["hit_rate_t30"] = sum(1 for r in buy_returns if r > 0) / len(buy_returns) * 100
+        stats["buy_signals"]["hit_rate_t30"] = (
+            sum(1 for r in buy_returns if r > 0) / len(buy_returns) * 100
+        )
         stats["buy_signals"]["avg_return_t30"] = sum(buy_returns) / len(buy_returns)
         if buy_alphas:
             stats["buy_signals"]["avg_alpha_t30"] = sum(buy_alphas) / len(buy_alphas)
 
     # Calculate stats for SELL signals (hit = negative return)
     if sell_returns:
-        stats["sell_signals"]["hit_rate_t30"] = sum(1 for r in sell_returns if r < 0) / len(sell_returns) * 100
+        stats["sell_signals"]["hit_rate_t30"] = (
+            sum(1 for r in sell_returns if r < 0) / len(sell_returns) * 100
+        )
         stats["sell_signals"]["avg_return_t30"] = sum(sell_returns) / len(sell_returns)
         if sell_alphas:
             stats["sell_signals"]["avg_alpha_t30"] = sum(sell_alphas) / len(sell_alphas)
@@ -306,16 +325,16 @@ def run_performance_capture():
 
     # Print summary stats
     stats = calculate_signal_stats()
-    logger.info(f"Performance Summary:")
+    logger.info("Performance Summary:")
     logger.info(f"  BUY signals: {stats['buy_signals']['count']} tracked")
-    if stats['buy_signals']['hit_rate_t30']:
+    if stats["buy_signals"]["hit_rate_t30"]:
         logger.info(f"    Hit rate (T+30): {stats['buy_signals']['hit_rate_t30']:.1f}%")
         logger.info(f"    Avg return (T+30): {stats['buy_signals']['avg_return_t30']:.2f}%")
-        if stats['buy_signals']['avg_alpha_t30']:
+        if stats["buy_signals"]["avg_alpha_t30"]:
             logger.info(f"    Avg alpha (T+30): {stats['buy_signals']['avg_alpha_t30']:.2f}%")
 
     logger.info(f"  SELL signals: {stats['sell_signals']['count']} tracked")
-    if stats['sell_signals']['hit_rate_t30']:
+    if stats["sell_signals"]["hit_rate_t30"]:
         logger.info(f"    Hit rate (T+30): {stats['sell_signals']['hit_rate_t30']:.1f}%")
         logger.info(f"    Avg return (T+30): {stats['sell_signals']['avg_return_t30']:.2f}%")
 

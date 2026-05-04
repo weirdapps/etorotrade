@@ -6,28 +6,30 @@ Target: Test ticker mapping compatibility functions
 
 from yahoofinance.utils import ticker_mappings
 
+
 class TestTickerMappingsConstants:
     """Test that mapping constants are accessible."""
 
     def test_dual_listed_mappings_exists(self):
         """DUAL_LISTED_MAPPINGS constant exists."""
-        assert hasattr(ticker_mappings, 'DUAL_LISTED_MAPPINGS')
+        assert hasattr(ticker_mappings, "DUAL_LISTED_MAPPINGS")
         assert isinstance(ticker_mappings.DUAL_LISTED_MAPPINGS, dict)
 
     def test_reverse_mappings_exists(self):
         """REVERSE_MAPPINGS constant exists."""
-        assert hasattr(ticker_mappings, 'REVERSE_MAPPINGS')
+        assert hasattr(ticker_mappings, "REVERSE_MAPPINGS")
         assert isinstance(ticker_mappings.REVERSE_MAPPINGS, dict)
 
     def test_dual_listed_tickers_exists(self):
         """DUAL_LISTED_TICKERS constant exists."""
-        assert hasattr(ticker_mappings, 'DUAL_LISTED_TICKERS')
+        assert hasattr(ticker_mappings, "DUAL_LISTED_TICKERS")
         assert isinstance(ticker_mappings.DUAL_LISTED_TICKERS, set)
 
     def test_ticker_geography_exists(self):
         """TICKER_GEOGRAPHY constant exists."""
-        assert hasattr(ticker_mappings, 'TICKER_GEOGRAPHY')
+        assert hasattr(ticker_mappings, "TICKER_GEOGRAPHY")
         assert isinstance(ticker_mappings.TICKER_GEOGRAPHY, dict)
+
 
 class TestGetNormalizedTicker:
     """Test get_normalized_ticker function."""
@@ -41,6 +43,7 @@ class TestGetNormalizedTicker:
         result = ticker_mappings.get_normalized_ticker("AAPL")
         assert isinstance(result, str)
 
+
 class TestGetUsTicker:
     """Test get_us_ticker function."""
 
@@ -52,6 +55,7 @@ class TestGetUsTicker:
         """get_us_ticker returns a string."""
         result = ticker_mappings.get_us_ticker("AAPL")
         assert isinstance(result, str)
+
 
 class TestIsDualListed:
     """Test is_dual_listed function."""
@@ -65,6 +69,7 @@ class TestIsDualListed:
         result = ticker_mappings.is_dual_listed("AAPL")
         assert isinstance(result, bool)
 
+
 class TestGetDisplayTicker:
     """Test get_display_ticker function."""
 
@@ -76,6 +81,7 @@ class TestGetDisplayTicker:
         """get_display_ticker returns a string."""
         result = ticker_mappings.get_display_ticker("AAPL")
         assert isinstance(result, str)
+
 
 class TestGetDataFetchTicker:
     """Test get_data_fetch_ticker function."""
@@ -89,6 +95,7 @@ class TestGetDataFetchTicker:
         result = ticker_mappings.get_data_fetch_ticker("AAPL")
         assert isinstance(result, str)
 
+
 class TestGetTickerGeography:
     """Test get_ticker_geography function."""
 
@@ -100,6 +107,7 @@ class TestGetTickerGeography:
         """get_ticker_geography returns a string."""
         result = ticker_mappings.get_ticker_geography("AAPL")
         assert isinstance(result, str)
+
 
 class TestAreEquivalentTickers:
     """Test are_equivalent_tickers function."""
@@ -118,6 +126,7 @@ class TestAreEquivalentTickers:
         result = ticker_mappings.are_equivalent_tickers("AAPL", "AAPL")
         assert result is True
 
+
 class TestGetAllEquivalentTickers:
     """Test get_all_equivalent_tickers function."""
 
@@ -129,4 +138,4 @@ class TestGetAllEquivalentTickers:
         """get_all_equivalent_tickers returns a collection."""
         result = ticker_mappings.get_all_equivalent_tickers("AAPL")
         # Should return a set or list
-        assert hasattr(result, '__iter__')
+        assert hasattr(result, "__iter__")

@@ -13,13 +13,14 @@ Example:
     us_mega_criteria = config.get_tier_criteria("US", "MEGA")
     ```
 """
+
 from .schema import (
-    TradingConfig,
-    Region,
     AssetTier,
     BuyCriteria,
+    Region,
     SellCriteria,
     TierCriteria,
+    TradingConfig,
     get_config,
     reload_config,
 )

@@ -31,9 +31,9 @@ import logging
 import os
 import re
 import threading
-from datetime import datetime, date
+from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ _model_lock = threading.Lock()
 _model_load_attempted = False
 
 # Memory cache: {ticker: {score, headline_count, timestamp}}
-_sentiment_cache: Dict[str, Dict[str, Any]] = {}
+_sentiment_cache: dict[str, dict[str, Any]] = {}
 _cache_loaded = False
 _cache_lock = threading.Lock()
 
@@ -93,8 +93,8 @@ def _load_model() -> bool:
         _model_load_attempted = True
 
         try:
-            from transformers import AutoModelForSequenceClassification, AutoTokenizer
             import torch
+            from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
             model_name = "ProsusAI/finbert"
             logger.info("Loading finBERT model...")
@@ -132,7 +132,7 @@ def _load_cache() -> None:
             return
 
         try:
-            with open(SENTIMENT_CACHE_PATH, "r") as f:
+            with open(SENTIMENT_CACHE_PATH) as f:
                 data = json.load(f)
 
             # Only use cache from today (within TTL)
@@ -141,7 +141,8 @@ def _load_cache() -> None:
                 _sentiment_cache = data.get("tickers", {})
                 logger.info(
                     "Loaded sentiment cache: %d tickers from %s",
-                    len(_sentiment_cache), cache_date,
+                    len(_sentiment_cache),
+                    cache_date,
                 )
             else:
                 logger.debug("Sentiment cache expired (date: %s)", cache_date)
@@ -173,14 +174,14 @@ def _save_cache() -> None:
 def _normalize_headline(text: str) -> str:
     """Normalize headline for deduplication comparison."""
     text = text.lower().strip()
-    text = re.sub(r'[^\w\s]', '', text)
-    text = re.sub(r'\s+', ' ', text)
+    text = re.sub(r"[^\w\s]", "", text)
+    text = re.sub(r"\s+", " ", text)
     return text
 
 
 def _deduplicate_headlines(
-    tagged_headlines: List[Tuple[str, str]],
-) -> List[Tuple[str, str]]:
+    tagged_headlines: list[tuple[str, str]],
+) -> list[tuple[str, str]]:
     """
     Remove near-duplicate headlines across sources.
 
@@ -190,8 +191,8 @@ def _deduplicate_headlines(
     if not tagged_headlines:
         return []
 
-    seen_normalized: List[set] = []
-    unique: List[Tuple[str, str]] = []
+    seen_normalized: list[set] = []
+    unique: list[tuple[str, str]] = []
 
     for headline, source in tagged_headlines:
         norm = _normalize_headline(headline)
@@ -215,7 +216,7 @@ def _deduplicate_headlines(
     return unique
 
 
-def _parse_google_news_rss(content: bytes) -> List[Tuple[str, str]]:
+def _parse_google_news_rss(content: bytes) -> list[tuple[str, str]]:
     """Parse Google News RSS XML into (title, source_label) tuples."""
     import xml.etree.ElementTree as ET
 
@@ -241,7 +242,7 @@ def _parse_google_news_rss(content: bytes) -> List[Tuple[str, str]]:
     return headlines
 
 
-def _fetch_premium_news(ticker: str) -> List[Tuple[str, str]]:
+def _fetch_premium_news(ticker: str) -> list[tuple[str, str]]:
     """
     Fetch headlines from premium financial sources via Google News RSS.
 
@@ -255,12 +256,10 @@ def _fetch_premium_news(ticker: str) -> List[Tuple[str, str]]:
         # Build OR query for all premium domains
         site_filter = " OR ".join(f"site:{d}" for d in _PREMIUM_DOMAINS)
         query = f"{ticker}+stock+({site_filter})"
-        url = (
-            f"https://news.google.com/rss/search?"
-            f"q={query}&hl=en-US&gl=US&ceid=US:en"
-        )
+        url = f"https://news.google.com/rss/search?" f"q={query}&hl=en-US&gl=US&ceid=US:en"
         r = requests.get(
-            url, timeout=_REQUEST_TIMEOUT,
+            url,
+            timeout=_REQUEST_TIMEOUT,
             headers={"User-Agent": "Mozilla/5.0"},
         )
         if r.status_code != 200:
@@ -274,7 +273,7 @@ def _fetch_premium_news(ticker: str) -> List[Tuple[str, str]]:
         return []
 
 
-def _fetch_google_news(ticker: str) -> List[Tuple[str, str]]:
+def _fetch_google_news(ticker: str) -> list[tuple[str, str]]:
     """
     Fetch headlines from Google News RSS (broad, all sources).
 
@@ -285,12 +284,10 @@ def _fetch_google_news(ticker: str) -> List[Tuple[str, str]]:
         import requests
 
         query = f"{ticker}+stock"
-        url = (
-            f"https://news.google.com/rss/search?"
-            f"q={query}&hl=en-US&gl=US&ceid=US:en"
-        )
+        url = f"https://news.google.com/rss/search?" f"q={query}&hl=en-US&gl=US&ceid=US:en"
         r = requests.get(
-            url, timeout=_REQUEST_TIMEOUT,
+            url,
+            timeout=_REQUEST_TIMEOUT,
             headers={"User-Agent": "Mozilla/5.0"},
         )
         if r.status_code != 200:
@@ -304,7 +301,7 @@ def _fetch_google_news(ticker: str) -> List[Tuple[str, str]]:
         return []
 
 
-def _fetch_finviz_news(ticker: str) -> List[Tuple[str, str]]:
+def _fetch_finviz_news(ticker: str) -> list[tuple[str, str]]:
     """
     Fetch headlines from Finviz stock page.
 
@@ -317,7 +314,8 @@ def _fetch_finviz_news(ticker: str) -> List[Tuple[str, str]]:
 
         url = f"https://finviz.com/quote.ashx?t={ticker}&p=d"
         r = requests.get(
-            url, timeout=_REQUEST_TIMEOUT,
+            url,
+            timeout=_REQUEST_TIMEOUT,
             headers={"User-Agent": "Mozilla/5.0"},
         )
         if r.status_code != 200:
@@ -344,7 +342,7 @@ def _fetch_finviz_news(ticker: str) -> List[Tuple[str, str]]:
         return []
 
 
-def _fetch_seekingalpha_news(ticker: str) -> List[Tuple[str, str]]:
+def _fetch_seekingalpha_news(ticker: str) -> list[tuple[str, str]]:
     """
     Fetch headlines from Seeking Alpha RSS feed.
 
@@ -352,12 +350,14 @@ def _fetch_seekingalpha_news(ticker: str) -> List[Tuple[str, str]]:
     including in-depth analysis pieces and news.
     """
     try:
-        import requests
         import xml.etree.ElementTree as ET
+
+        import requests
 
         url = f"https://seekingalpha.com/api/sa/combined/{ticker}.xml"
         r = requests.get(
-            url, timeout=_REQUEST_TIMEOUT,
+            url,
+            timeout=_REQUEST_TIMEOUT,
             headers={"User-Agent": "Mozilla/5.0"},
         )
         if r.status_code != 200:
@@ -391,7 +391,7 @@ def _fetch_seekingalpha_news(ticker: str) -> List[Tuple[str, str]]:
         return []
 
 
-def _fetch_newsapi_news(ticker: str) -> List[Tuple[str, str]]:
+def _fetch_newsapi_news(ticker: str) -> list[tuple[str, str]]:
     """
     Fetch headlines from NewsAPI.org.
 
@@ -401,6 +401,7 @@ def _fetch_newsapi_news(ticker: str) -> List[Tuple[str, str]]:
     try:
         import requests
         from dotenv import load_dotenv
+
         load_dotenv()
 
         api_key = os.environ.get("NEWS_API_KEY", "")
@@ -434,7 +435,7 @@ def _fetch_newsapi_news(ticker: str) -> List[Tuple[str, str]]:
         return []
 
 
-def _fetch_cnbc_rss(ticker: str) -> List[Tuple[str, str]]:
+def _fetch_cnbc_rss(ticker: str) -> list[tuple[str, str]]:
     """
     Fetch headlines from CNBC RSS feed (top finance/investing).
 
@@ -442,8 +443,9 @@ def _fetch_cnbc_rss(ticker: str) -> List[Tuple[str, str]]:
     but provides broad market context.
     """
     try:
-        import requests
         import xml.etree.ElementTree as ET
+
+        import requests
 
         # CNBC finance RSS
         url = "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664"
@@ -470,7 +472,7 @@ def _fetch_cnbc_rss(ticker: str) -> List[Tuple[str, str]]:
         return []
 
 
-def _fetch_yfinance_news(ticker: str) -> List[Tuple[str, str]]:
+def _fetch_yfinance_news(ticker: str) -> list[tuple[str, str]]:
     """
     Fetch headlines from Yahoo Finance via yfinance.
 
@@ -490,11 +492,7 @@ def _fetch_yfinance_news(ticker: str) -> List[Tuple[str, str]]:
         for item in news[:10]:
             # yfinance >=1.2.0 nests title under 'content'
             content = item.get("content", {})
-            title = (
-                content.get("title", "")
-                if isinstance(content, dict)
-                else item.get("title", "")
-            )
+            title = content.get("title", "") if isinstance(content, dict) else item.get("title", "")
             if title and len(title) > 10:
                 headlines.append((title, "yfinance"))
 
@@ -519,7 +517,7 @@ _NEWS_SOURCES = [
 ]
 
 
-def _fetch_news(ticker: str) -> List[str]:
+def _fetch_news(ticker: str) -> list[str]:
     """
     Fetch and deduplicate news headlines from multiple sources.
 
@@ -528,8 +526,8 @@ def _fetch_news(ticker: str) -> List[str]:
 
     Returns list of headline strings.
     """
-    all_tagged: List[Tuple[str, str]] = []
-    sources_hit: List[str] = []
+    all_tagged: list[tuple[str, str]] = []
+    sources_hit: list[str] = []
 
     for fetcher, source_name in _NEWS_SOURCES:
         try:
@@ -549,14 +547,17 @@ def _fetch_news(ticker: str) -> List[str]:
     if sources_hit:
         logger.debug(
             "News for %s: %d raw -> %d unique from [%s]",
-            ticker, len(all_tagged), len(unique), ", ".join(sources_hit),
+            ticker,
+            len(all_tagged),
+            len(unique),
+            ", ".join(sources_hit),
         )
 
     # Return just the headline text, capped
     return [headline for headline, _source in unique[:MAX_HEADLINES]]
 
 
-def _fetch_news_detailed(ticker: str) -> Tuple[List[str], Dict[str, int]]:
+def _fetch_news_detailed(ticker: str) -> tuple[list[str], dict[str, int]]:
     """
     Like _fetch_news but also returns source breakdown.
 
@@ -564,9 +565,9 @@ def _fetch_news_detailed(ticker: str) -> Tuple[List[str], Dict[str, int]]:
         (headlines, source_counts) where source_counts maps
         source name to number of unique headlines contributed.
     """
-    all_tagged: List[Tuple[str, str]] = []
+    all_tagged: list[tuple[str, str]] = []
 
-    for fetcher, source_name in _NEWS_SOURCES:
+    for fetcher, _source_name in _NEWS_SOURCES:
         try:
             results = fetcher(ticker)
             if results:
@@ -581,7 +582,7 @@ def _fetch_news_detailed(ticker: str) -> Tuple[List[str], Dict[str, int]]:
     capped = unique[:MAX_HEADLINES]
 
     # Count contributions per source
-    source_counts: Dict[str, int] = {}
+    source_counts: dict[str, int] = {}
     for _headline, source in capped:
         source_counts[source] = source_counts.get(source, 0) + 1
 
@@ -593,7 +594,7 @@ def _fetch_news_detailed(ticker: str) -> Tuple[List[str], Dict[str, int]]:
 # ==============================
 
 
-def _score_headlines(headlines: List[str]) -> List[Tuple[float, str]]:
+def _score_headlines(headlines: list[str]) -> list[tuple[float, str]]:
     """
     Score headlines using finBERT.
 
@@ -612,7 +613,7 @@ def _score_headlines(headlines: List[str]) -> List[Tuple[float, str]]:
 
         # Process in batches
         for i in range(0, len(headlines), BATCH_SIZE):
-            batch = headlines[i:i + BATCH_SIZE]
+            batch = headlines[i : i + BATCH_SIZE]
 
             inputs = _tokenizer(
                 batch,
@@ -650,9 +651,9 @@ def _score_headlines(headlines: List[str]) -> List[Tuple[float, str]]:
 
 
 def _aggregate_sentiment(
-    scores: List[Tuple[float, str]],
-    source_counts: Optional[Dict[str, int]] = None,
-) -> Dict[str, Any]:
+    scores: list[tuple[float, str]],
+    source_counts: dict[str, int] | None = None,
+) -> dict[str, Any]:
     """
     Aggregate per-headline scores into a single ticker sentiment.
 
@@ -667,7 +668,7 @@ def _aggregate_sentiment(
 
     # Confidence-weighted mean: weight by |score| to emphasize strong signals
     weights = [abs(s) + 0.1 for s in raw_scores]  # +0.1 floor
-    weighted_sum = sum(s * w for s, w in zip(raw_scores, weights))
+    weighted_sum = sum(s * w for s, w in zip(raw_scores, weights, strict=False))
     total_weight = sum(weights)
 
     aggregate_score = round(weighted_sum / total_weight, 4) if total_weight > 0 else 0.0
@@ -700,7 +701,7 @@ def _aggregate_sentiment(
 # ==============================
 
 
-def get_ticker_sentiment(ticker: str) -> Optional[float]:
+def get_ticker_sentiment(ticker: str) -> float | None:
     """
     Get sentiment score for a ticker.
 
@@ -749,7 +750,7 @@ def get_ticker_sentiment(ticker: str) -> Optional[float]:
     return result.get("score")
 
 
-def get_ticker_sentiment_detail(ticker: str) -> Dict[str, Any]:
+def get_ticker_sentiment_detail(ticker: str) -> dict[str, Any]:
     """
     Get detailed sentiment breakdown for a ticker.
 
@@ -767,7 +768,7 @@ def get_ticker_sentiment_detail(ticker: str) -> Dict[str, Any]:
     return _sentiment_cache.get(ticker, {"score": None, "label": "unavailable"})
 
 
-def pre_warm(tickers: List[str]) -> Dict[str, Any]:
+def pre_warm(tickers: list[str]) -> dict[str, Any]:
     """
     Pre-compute sentiment for a batch of tickers.
 
@@ -812,23 +813,22 @@ def pre_warm(tickers: List[str]) -> Dict[str, Any]:
 
     logger.info(
         "Sentiment pre-warm: %d computed, %d cached, %.1fs elapsed",
-        computed, skipped, elapsed,
+        computed,
+        skipped,
+        elapsed,
     )
 
     return summary
 
 
-def get_sentiment_summary() -> Dict[str, Any]:
+def get_sentiment_summary() -> dict[str, Any]:
     """Get summary statistics of cached sentiment data."""
     _load_cache()
 
     if not _sentiment_cache:
         return {"total": 0}
 
-    scores = [
-        v["score"] for v in _sentiment_cache.values()
-        if v.get("score") is not None
-    ]
+    scores = [v["score"] for v in _sentiment_cache.values() if v.get("score") is not None]
 
     if not scores:
         return {"total": len(_sentiment_cache), "with_score": 0}
@@ -836,7 +836,7 @@ def get_sentiment_summary() -> Dict[str, Any]:
     import numpy as np
 
     # Source diversity stats
-    all_sources: Dict[str, int] = {}
+    all_sources: dict[str, int] = {}
     for v in _sentiment_cache.values():
         for src, count in v.get("sources", {}).items():
             all_sources[src] = all_sources.get(src, 0) + count

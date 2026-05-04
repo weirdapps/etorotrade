@@ -34,7 +34,7 @@ us_mega:
     max_forward_pe: 60
     min_trailing_pe: 0.5
     max_trailing_pe: 90
-    max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
+    max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
     max_short_interest: 2
     min_analysts: 8  # Reduced from 12 - MEGA caps are well-covered even with fewer analysts
     min_analysts_earnings: 5  # Lower threshold for Type E ratings (post-earnings, more relevant)
@@ -77,7 +77,7 @@ us_large:
     max_forward_pe: 55
     min_trailing_pe: 0.5
     max_trailing_pe: 85
-    max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
+    max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
     max_short_interest: 3.5  # Increased from 2.25 - research shows SI only predictive for distressed stocks
     min_analysts: 8  # Reduced from 10 - quality coverage exists with 8+ analysts
     min_analysts_earnings: 5  # Lowered from 6 - adds TMO ($204B, 100% buy, 22% upside)
@@ -119,7 +119,7 @@ us_mid:
     max_forward_pe: 50
     min_trailing_pe: 0.5
     max_trailing_pe: 80
-    max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
+    max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
     max_short_interest: 2.5
     min_analysts: 8
     min_price_targets: 5
@@ -159,7 +159,7 @@ us_small:
     max_forward_pe: 45
     min_trailing_pe: 0.5
     max_trailing_pe: 75
-    max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
+    max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
     max_short_interest: 2.75
     min_analysts: 6
     min_price_targets: 4
@@ -199,7 +199,7 @@ us_micro:
     max_forward_pe: 40
     min_trailing_pe: 0.5
     max_trailing_pe: 70
-    max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
+    max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
     max_short_interest: 3
     min_analysts: 6
     min_price_targets: 4
@@ -238,7 +238,7 @@ eu_mega:
     max_forward_pe: 60
     min_trailing_pe: 0.5
     max_trailing_pe: 90
-    max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
+    max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
     max_short_interest: 2
     min_analysts: 6  # Reduced from 10 - EU has fewer analysts but quality coverage
     min_analysts_earnings: 4  # Lower threshold for Type E ratings (post-earnings, more relevant)
@@ -280,7 +280,7 @@ eu_large:
     max_forward_pe: 55
     min_trailing_pe: 0.5
     max_trailing_pe: 85
-    max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
+    max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
     max_short_interest: 3.5  # Increased from 2.25 - research shows SI only predictive for distressed stocks
     min_analysts: 6  # Reduced from 8 - EU has fewer analysts but quality coverage
     min_analysts_earnings: 4  # Lower threshold for Type E ratings (post-earnings, more relevant)
@@ -322,7 +322,7 @@ eu_mid:
     max_forward_pe: 50
     min_trailing_pe: 0.5
     max_trailing_pe: 80
-    max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
+    max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
     max_short_interest: 2.5
     min_analysts: 8
     min_price_targets: 5
@@ -363,7 +363,7 @@ eu_small:
     max_forward_pe: 45
     min_trailing_pe: 0.5
     max_trailing_pe: 75
-    max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
+    max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
     max_short_interest: 2.75
     min_analysts: 6
     min_price_targets: 4
@@ -403,7 +403,7 @@ eu_micro:
     max_forward_pe: 40
     min_trailing_pe: 0.5
     max_trailing_pe: 70
-    max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
+    max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
     max_short_interest: 3
     min_analysts: 6
     min_price_targets: 4
@@ -442,7 +442,7 @@ hk_mega:
     max_forward_pe: 60
     min_trailing_pe: 0.5
     max_trailing_pe: 90
-    max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
+    max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
     max_short_interest: 2
     min_analysts: 15
     min_price_targets: 8
@@ -483,7 +483,7 @@ hk_large:
     max_forward_pe: 55
     min_trailing_pe: 0.5
     max_trailing_pe: 85
-    max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
+    max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
     max_short_interest: 2.25
     min_analysts: 12
     min_price_targets: 6
@@ -524,7 +524,7 @@ hk_mid:
     max_forward_pe: 50
     min_trailing_pe: 0.5
     max_trailing_pe: 80
-    max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
+    max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
     max_short_interest: 2.5
     min_analysts: 10
     min_price_targets: 5
@@ -565,7 +565,7 @@ hk_small:
     max_forward_pe: 45
     min_trailing_pe: 0.5
     max_trailing_pe: 75
-    max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
+    max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
     max_short_interest: 2.75
     min_analysts: 8
     min_price_targets: 4
@@ -605,7 +605,7 @@ hk_micro:
     max_forward_pe: 40
     min_trailing_pe: 0.5
     max_trailing_pe: 70
-    max_peg: 999.0  # Effectively disabled - PEG has no predictive value (ratio 0.94x)
+    max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
     max_short_interest: 3
     min_analysts: 8
     min_price_targets: 4
@@ -653,7 +653,11 @@ regional_adjustments:
     adjustments: none
 
 position_sizing:
-  base_position_size: 2500
+  # CIO v36 / M3: Use base_position_pct (% of NAV) so sizing scales with
+  # the book. base_position_size kept as fallback for tools that haven't
+  # adopted the dynamic formula yet.
+  base_position_pct: 0.005        # 0.5% of NAV — base building block
+  base_position_size: 2500        # Legacy fallback when pct not provided
   # Risk management limits
   max_position_pct: 5.0           # Max 5% of portfolio in single position (reduced from ~8.89%)
   max_position_usd: 22500         # Max USD in single position (reduced from 40000)

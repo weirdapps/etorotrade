@@ -31,7 +31,7 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -125,16 +125,16 @@ def run_full_analysis() -> None:
     print("  4. Re-run this analysis after market data update")
 
 
-def run_scheduled_validation(min_days: int = 30, output_file: Optional[str] = None) -> Dict[str, Any]:
+def run_scheduled_validation(min_days: int = 30, output_file: str | None = None) -> dict[str, Any]:
     """
     Run scheduled validation suitable for cron jobs.
 
     Returns a summary dict and optionally writes to file.
     """
-    from trade_modules.signal_validator import SignalValidator
     from trade_modules.signal_tracker import get_signal_summary
+    from trade_modules.signal_validator import SignalValidator
 
-    results: Dict[str, Any] = {
+    results: dict[str, Any] = {
         "timestamp": datetime.now().isoformat(),
         "status": "success",
         "errors": [],
@@ -162,7 +162,9 @@ def run_scheduled_validation(min_days: int = 30, output_file: Optional[str] = No
 
         date_range = signal_stats.get("date_range", {})
         if date_range:
-            output_lines.append(f"Date range: {date_range.get('first', 'N/A')} to {date_range.get('last', 'N/A')}")
+            output_lines.append(
+                f"Date range: {date_range.get('first', 'N/A')} to {date_range.get('last', 'N/A')}"
+            )
         output_lines.append("")
 
         results["summary"]["signal_stats"] = signal_stats
@@ -199,7 +201,9 @@ def run_scheduled_validation(min_days: int = 30, output_file: Optional[str] = No
                 }
         else:
             output_lines.append("No signals available for validation.")
-            output_lines.append("Signals need at least 30 days to mature for meaningful validation.")
+            output_lines.append(
+                "Signals need at least 30 days to mature for meaningful validation."
+            )
 
     except Exception as e:
         results["status"] = "error"
@@ -219,7 +223,7 @@ def run_scheduled_validation(min_days: int = 30, output_file: Optional[str] = No
     return results
 
 
-def run_json_export(min_days: int = 30, output_file: Optional[str] = None) -> None:
+def run_json_export(min_days: int = 30, output_file: str | None = None) -> None:
     """
     Export validation summary as JSON for programmatic consumption.
     """
@@ -256,44 +260,29 @@ Examples:
 Cron Setup:
   # Daily validation at 6 AM
   0 6 * * * cd /path/to/etorotrade && /usr/bin/python3 scripts/analyze_framework.py --scheduled --output logs/validation_$(date +\\%Y\\%m\\%d).txt
-        """
+        """,
     )
+    parser.add_argument("--validate", action="store_true", help="Run signal validation only")
     parser.add_argument(
-        "--validate",
-        action="store_true",
-        help="Run signal validation only"
+        "--suggestions", action="store_true", help="Generate improvement suggestions only"
     )
-    parser.add_argument(
-        "--suggestions",
-        action="store_true",
-        help="Generate improvement suggestions only"
-    )
-    parser.add_argument(
-        "--full",
-        action="store_true",
-        help="Run complete analysis (default)"
-    )
+    parser.add_argument("--full", action="store_true", help="Run complete analysis (default)")
     parser.add_argument(
         "--scheduled",
         action="store_true",
-        help="Run in scheduled mode (for cron jobs), outputs clean report"
+        help="Run in scheduled mode (for cron jobs), outputs clean report",
     )
     parser.add_argument(
-        "--json",
-        action="store_true",
-        help="Output summary as JSON for programmatic consumption"
+        "--json", action="store_true", help="Output summary as JSON for programmatic consumption"
     )
     parser.add_argument(
-        "--output",
-        type=str,
-        default=None,
-        help="Write output to file instead of stdout"
+        "--output", type=str, default=None, help="Write output to file instead of stdout"
     )
     parser.add_argument(
         "--min-days",
         type=int,
         default=30,
-        help="Minimum days for signal maturity in validation (default: 30)"
+        help="Minimum days for signal maturity in validation (default: 30)",
     )
 
     args = parser.parse_args()

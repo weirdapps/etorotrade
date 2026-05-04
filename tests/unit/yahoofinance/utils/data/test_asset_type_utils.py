@@ -5,18 +5,20 @@ Target: Test asset type classification and universal sorting utilities
 """
 
 import pandas as pd
+
 from yahoofinance.utils.data.asset_type_utils import (
-    classify_asset_type,
+    ASSET_TYPE_PRIORITY,
+    _is_commodity_asset,
     _is_crypto_asset,
     _is_etf_asset,
-    _is_commodity_asset,
-    universal_sort_dataframe,
-    get_asset_type_summary,
-    format_asset_type_summary,
     add_asset_type_classification,
+    classify_asset_type,
+    format_asset_type_summary,
+    get_asset_type_summary,
     get_market_cap_usd,
-    ASSET_TYPE_PRIORITY,
+    universal_sort_dataframe,
 )
+
 
 class TestAssetTypePriorityConstants:
     """Test asset type priority constants."""
@@ -30,6 +32,7 @@ class TestAssetTypePriorityConstants:
         """Asset types have correct priority order."""
         assert ASSET_TYPE_PRIORITY["stock"] < ASSET_TYPE_PRIORITY["etf"]
         assert ASSET_TYPE_PRIORITY["etf"] < ASSET_TYPE_PRIORITY["crypto"]
+
 
 class TestIsCryptoAsset:
     """Test cryptocurrency detection."""
@@ -52,6 +55,7 @@ class TestIsCryptoAsset:
         assert _is_crypto_asset("MSFT") is False
         assert _is_crypto_asset("SPY") is False
 
+
 class TestIsETFAsset:
     """Test ETF detection."""
 
@@ -71,6 +75,7 @@ class TestIsETFAsset:
         assert _is_etf_asset("AAPL") is False
         assert _is_etf_asset("AAPL", "Apple Inc.") is False
 
+
 class TestIsCommodityAsset:
     """Test commodity detection."""
 
@@ -88,6 +93,7 @@ class TestIsCommodityAsset:
     def test_is_commodity_asset_not_commodity(self):
         """Non-commodity tickers return False."""
         assert _is_commodity_asset("AAPL") is False
+
 
 class TestClassifyAssetType:
     """Test asset type classification."""
@@ -129,14 +135,13 @@ class TestClassifyAssetType:
         result = classify_asset_type(None)
         assert result == "other"
 
+
 class TestAddAssetTypeClassification:
     """Test adding asset type to dataframe."""
 
     def test_add_asset_type_classification(self):
         """Add asset_type column to dataframe."""
-        df = pd.DataFrame({
-            "ticker": ["AAPL", "SPY", "BTC-USD"]
-        })
+        df = pd.DataFrame({"ticker": ["AAPL", "SPY", "BTC-USD"]})
 
         result = add_asset_type_classification(df)
 
@@ -149,6 +154,7 @@ class TestAddAssetTypeClassification:
         result = add_asset_type_classification(df)
 
         assert isinstance(result, pd.DataFrame)
+
 
 class TestGetMarketCapUSD:
     """Test market cap retrieval from row."""
@@ -168,16 +174,19 @@ class TestGetMarketCapUSD:
         # Should return default value or handle gracefully
         assert isinstance(result, (int, float)) or result is None
 
+
 class TestUniversalSortDataframe:
     """Test universal dataframe sorting."""
 
     def test_universal_sort_dataframe_basic(self):
         """Sort dataframe by asset type and market cap."""
-        df = pd.DataFrame({
-            "ticker": ["AAPL", "SPY", "BTC-USD"],
-            "asset_type": ["stock", "etf", "crypto"],
-            "market_cap": [3000000000000, 500000000000, 1000000000000]
-        })
+        df = pd.DataFrame(
+            {
+                "ticker": ["AAPL", "SPY", "BTC-USD"],
+                "asset_type": ["stock", "etf", "crypto"],
+                "market_cap": [3000000000000, 500000000000, 1000000000000],
+            }
+        )
 
         result = universal_sort_dataframe(df)
 
@@ -195,9 +204,7 @@ class TestUniversalSortDataframe:
 
     def test_universal_sort_dataframe_missing_columns(self):
         """Handle dataframe with missing columns."""
-        df = pd.DataFrame({
-            "ticker": ["AAPL", "MSFT"]
-        })
+        df = pd.DataFrame({"ticker": ["AAPL", "MSFT"]})
 
         result = universal_sort_dataframe(df)
 
@@ -205,15 +212,18 @@ class TestUniversalSortDataframe:
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 2
 
+
 class TestGetAssetTypeSummary:
     """Test asset type summary generation."""
 
     def test_get_asset_type_summary_basic(self):
         """Generate summary from dataframe."""
-        df = pd.DataFrame({
-            "ticker": ["AAPL", "MSFT", "SPY", "BTC-USD"],
-            "asset_type": ["stock", "stock", "etf", "crypto"]
-        })
+        df = pd.DataFrame(
+            {
+                "ticker": ["AAPL", "MSFT", "SPY", "BTC-USD"],
+                "asset_type": ["stock", "stock", "etf", "crypto"],
+            }
+        )
 
         summary = get_asset_type_summary(df)
 
@@ -231,25 +241,20 @@ class TestGetAssetTypeSummary:
 
     def test_get_asset_type_summary_missing_column(self):
         """Handle dataframe without asset_type column."""
-        df = pd.DataFrame({
-            "ticker": ["AAPL", "MSFT"]
-        })
+        df = pd.DataFrame({"ticker": ["AAPL", "MSFT"]})
 
         summary = get_asset_type_summary(df)
 
         # Should handle gracefully
         assert isinstance(summary, dict)
 
+
 class TestFormatAssetTypeSummary:
     """Test asset type summary formatting."""
 
     def test_format_asset_type_summary_basic(self):
         """Format summary dictionary to string."""
-        summary = {
-            "stock": 5,
-            "etf": 2,
-            "crypto": 1
-        }
+        summary = {"stock": 5, "etf": 2, "crypto": 1}
 
         result = format_asset_type_summary(summary)
 
@@ -270,6 +275,7 @@ class TestFormatAssetTypeSummary:
 
         assert isinstance(result, str)
         assert "10" in result
+
 
 class TestAssetTypeEdgeCases:
     """Test edge cases in asset type classification."""
@@ -315,22 +321,26 @@ class TestAssetTypeEdgeCases:
         assert _is_crypto_asset("LINK") is True  # Chainlink crypto
         assert _is_crypto_asset("LINK", "LINK REIT LIMITED") is False  # REIT company
 
+
 class TestSortingPriority:
     """Test sorting priority logic."""
 
     def test_sort_priority_stock_before_etf(self):
         """Stocks sorted before ETFs."""
-        df = pd.DataFrame({
-            "ticker": ["SPY", "AAPL"],
-            "asset_type": ["etf", "stock"],
-            "market_cap": [500000000000, 3000000000000]
-        })
+        df = pd.DataFrame(
+            {
+                "ticker": ["SPY", "AAPL"],
+                "asset_type": ["etf", "stock"],
+                "market_cap": [500000000000, 3000000000000],
+            }
+        )
 
         result = universal_sort_dataframe(df)
 
         # Verify sorting occurred without errors
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 2
+
 
 class TestAssetTypeIntegration:
     """Test integrated asset type workflows."""
@@ -343,12 +353,13 @@ class TestAssetTypeIntegration:
         types = [classify_asset_type(t) for t in tickers]
 
         # Create dataframe
-        df = pd.DataFrame({
-            "ticker": tickers,
-            "asset_type": types,
-            "market_cap": [3000000000000, 500000000000,
-                          1000000000000, 2500000000000]
-        })
+        df = pd.DataFrame(
+            {
+                "ticker": tickers,
+                "asset_type": types,
+                "market_cap": [3000000000000, 500000000000, 1000000000000, 2500000000000],
+            }
+        )
 
         # Sort
         result = universal_sort_dataframe(df)
