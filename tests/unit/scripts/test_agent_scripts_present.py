@@ -21,6 +21,14 @@ import pytest
 
 AGENTS_DIR = Path(__file__).parent.parent.parent.parent / "scripts" / "agents"
 
+# Scripts that are gitignored (contain personal/portfolio-specific logic) — skip
+# their presence assertion in CI where they're absent.
+_GITIGNORED_SCRIPTS = (
+    "fundamental_analysis.py",
+    "opportunity_scanner.py",
+    "technical_analysis.py",
+)
+
 EXPECTED_SCRIPTS = (
     "fundamental_analysis.py",
     "technical_analysis.py",
@@ -44,6 +52,8 @@ class TestAgentScriptsCatalog:
     @pytest.mark.parametrize("script_name", EXPECTED_SCRIPTS)
     def test_each_expected_script_present(self, script_name):
         path = AGENTS_DIR / script_name
+        if script_name in _GITIGNORED_SCRIPTS and not path.exists():
+            pytest.skip(f"{script_name} is gitignored (personal); not in CI checkout")
         assert path.exists(), f"Missing agent script: {path}"
         assert path.stat().st_size > 100, f"Empty agent script: {path}"
 
