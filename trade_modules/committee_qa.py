@@ -420,7 +420,13 @@ def normalize_agent_reports(
                 break
 
     if fixes:
-        logger.info("Normalized %d agent report format issues: %s", len(fixes), "; ".join(fixes))
+        from yahoofinance.utils.log_safety import safe_for_log
+
+        logger.info(
+            "Normalized %d agent report format issues: %s",
+            len(fixes),
+            safe_for_log("; ".join(fixes), max_len=500),
+        )
 
     return fixes
 

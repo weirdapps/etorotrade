@@ -4506,9 +4506,11 @@ def build_concordance(
     cb_new_allowed = cb_state.get("new_positions_allowed", True)
     cb_size_mult = cb_state.get("position_size_multiplier", 1.0)
     if cb_level in ("WARNING", "CRITICAL"):
+        from yahoofinance.utils.log_safety import safe_for_log
+
         logger.warning(
             "Circuit breaker %s: drawdown %.1f%%, new positions %s",
-            cb_level,
+            safe_for_log(cb_level),
             cb_state.get("drawdown_pct", 0),
             "blocked" if not cb_new_allowed else "allowed",
         )
@@ -5037,9 +5039,11 @@ def build_concordance(
                 entry["circuit_breaker_original_action"] = action
                 cb_blocked += 1
         if cb_blocked:
+            from yahoofinance.utils.log_safety import safe_for_log
+
             logger.warning(
                 "Circuit breaker %s: blocked %d BUY/ADD actions → HOLD/WATCH",
-                cb_level,
+                safe_for_log(cb_level),
                 cb_blocked,
             )
     elif cb_level == "CAUTION" and cb_size_mult < 1.0:
