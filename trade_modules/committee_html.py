@@ -701,6 +701,7 @@ def generate_report_html(
       S18: Regime Transition
     """
     daily = mode == "daily"
+    _pv = synth.get("portfolio_value", 0) or 0
     today = date_str or datetime.now().strftime("%Y-%m-%d")
     try:
         today_long = datetime.strptime(today, "%Y-%m-%d").strftime("%B %d, %Y")
@@ -1032,6 +1033,58 @@ def generate_report_html(
         )
     )
     h.append("</tr></table>")
+
+    # Portfolio value row (from eToro account API)
+    acct = synth.get("account_summary", {})
+    pv = synth.get("portfolio_value", 0)
+    if pv > 0 or acct.get("available_usd"):
+        avail = acct.get("available_usd", 0)
+        invested = acct.get("invested_usd", 0)
+        pnl = acct.get("unrealized_pnl")
+        pnl_pct = acct.get("profit_pct")
+        h.append(
+            f'<table cellpadding="0" cellspacing="0" style="width:100%;'
+            f'border-collapse:collapse;border:1px solid {_C["border"]};'
+            f'margin-bottom:20px;"><tr>'
+        )
+        h.append(
+            _kpi_card(
+                "Total Equity",
+                f"${pv:,.0f}" if pv else "N/A",
+                "live from eToro API",
+            )
+        )
+        h.append(
+            _kpi_card(
+                "Invested",
+                f"${invested:,.0f}" if invested else "N/A",
+                f"cost basis, {acct.get('ticker_count', '?')} stocks",
+            )
+        )
+        h.append(
+            _kpi_card(
+                "Available",
+                f"${avail:,.0f}" if avail else "N/A",
+                "deployable cash"
+                + (
+                    f" (+${acct.get('pending_orders_usd', 0):,.0f} in orders)"
+                    if acct.get("pending_orders_usd")
+                    else ""
+                ),
+            )
+        )
+        if pnl is not None and pnl_pct is not None:
+            pnl_color = _C["bull"] if pnl >= 0 else _C["bear"]
+            h.append(
+                _kpi_card(
+                    "Unrealized P&L",
+                    f"${pnl:+,.0f}",
+                    f"{pnl_pct:+.1f}% net of fees",
+                    value_color=pnl_color,
+                )
+            )
+        h.append("</tr></table>")
+
     # Narrative
     h.append(
         f'<div style="border-left:4px solid {_C["border_heavy"]};'
@@ -1090,11 +1143,16 @@ def generate_report_html(
                 if mech
                 else ""
             )
+            usd_imp = ""
+            if _pv > 0 and isinstance(imp, (int, float)):
+                usd_val = abs(float(imp)) / 100 * _pv
+                usd_imp = f'<div style="font-size:10px;color:{_C["text_muted"]};margin-top:1px;">${usd_val:,.0f}</div>'
             h.append(
                 f'<td style="width:33%;padding:8px 12px;text-align:center;{brd}">'
                 f'<div style="font-size:9px;font-weight:600;letter-spacing:1.5px;'
                 f'text-transform:uppercase;color:{_C["text_muted"]};">{title}</div>'
                 f'<div style="font-size:16px;font-weight:600;color:{vc};margin-top:2px;">{imp_str}%</div>'
+                f'{usd_imp}'
                 f'{mech_html}</td>'
             )
         if _stress_items:
@@ -1358,8 +1416,13 @@ def generate_report_html(
             f' | Rev: {_rev} | EPS: {_eps}</div>'
         )
 
+    def _dollar(pct: float) -> str:
+        if _pv > 0 and pct > 0:
+            return f" (~${pct / 100 * _pv:,.0f})"
+        return ""
+
     def _suggested_size(en):
-        """Return concrete size string per action type."""
+        """Return concrete size string per action type, with dollar amounts."""
         act = en.get("action", "HOLD")
         tkr = en.get("ticker", "")
         cur = _cur_pos_map.get(tkr, 0.0)
@@ -1373,8 +1436,11 @@ def generate_report_html(
                 target = 0.0
             new_total = cur + target
             if target <= 0:
-                return f"<b>No room to add</b> (current {cur:.2f}%, capped)"
-            return f"<b>Add ~{target:.2f}%</b> (current {cur:.2f}% &rarr; new {new_total:.2f}%)"
+                return f"<b>No room to add</b> (current {cur:.2f}%{_dollar(cur)}, capped)"
+            return (
+                f"<b>Add ~{target:.2f}%{_dollar(target)}</b> "
+                f"(current {cur:.2f}%{_dollar(cur)} &rarr; new {new_total:.2f}%{_dollar(new_total)})"
+            )
         if act == "BUY":
             target = en.get("constrained_pct")
             if target is None:
@@ -1384,26 +1450,33 @@ def generate_report_html(
             except Exception:
                 target = 0.0
             return (
-                f"<b>Open new position ~{target:.2f}%</b>"
+                f"<b>Open new position ~{target:.2f}%{_dollar(target)}</b>"
                 if target > 0
-                else "<b>Cannot enter — sector capped</b>"
+                else "<b>Cannot enter &mdash; sector capped</b>"
             )
         if act == "TRIM":
-            # Conviction-scaled trim: 25% (low conv 50-65), 33% (66-75), 50% (>75)
             conv = en.get("conviction", 50)
             trim_pct = 0.25 if conv < 66 else (0.33 if conv < 76 else 0.50)
             new_pos = cur * (1 - trim_pct)
+            trim_val = cur * trim_pct
             if cur > 0:
-                return f"<b>Trim {int(trim_pct*100)}%</b> of position ({cur:.2f}% &rarr; {new_pos:.2f}%)"
+                return (
+                    f"<b>Trim {int(trim_pct*100)}%</b> of position{_dollar(trim_val)} "
+                    f"({cur:.2f}%{_dollar(cur)} &rarr; {new_pos:.2f}%{_dollar(new_pos)})"
+                )
             return f"<b>Trim {int(trim_pct*100)}% of position</b>"
         if act == "SELL":
-            return f"<b>Exit fully</b> (current {cur:.2f}%)" if cur > 0 else "<b>Exit position</b>"
+            return (
+                f"<b>Exit fully</b> (current {cur:.2f}%{_dollar(cur)})"
+                if cur > 0
+                else "<b>Exit position</b>"
+            )
         if act == "HOLD":
             tier = en.get("hold_tier", "")
             return (
-                f"<b>Maintain</b> {cur:.2f}% &middot; {tier}"
+                f"<b>Maintain</b> {cur:.2f}%{_dollar(cur)} &middot; {tier}"
                 if tier
-                else f"<b>Maintain</b> {cur:.2f}%"
+                else f"<b>Maintain</b> {cur:.2f}%{_dollar(cur)}"
             )
         return ""
 
@@ -1551,9 +1624,13 @@ def generate_report_html(
         beta = en.get("beta", 1.0)
         bp = en.get("buy_pct", 50)
         fv = en.get("fund_view", "?")
-        en.get("max_pct", pos_limits.get(tkr, {}).get("max_pct", 5.0))
+        _max_pct = en.get("max_pct", pos_limits.get(tkr, {}).get("max_pct", 5.0))
         ce = en.get("capital_efficiency", 0)
-        en.get("position_size_pct", 0)
+        _size_pct = en.get("position_size_pct", 0)
+        _size_usd = en.get("position_size_usd", 0)
+        _plim = pos_limits.get(tkr, {})
+        _max_usd = _plim.get("max_usd", 0)
+        _cur_usd = _plim.get("current_usd", 0)
         kill = en.get("kill_thesis") or _stock_kill_thesis(
             act, tkr, sec, rsi, ex, beta, bp, mf, ts, fv
         )
