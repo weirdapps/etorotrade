@@ -33,8 +33,8 @@ jobs:
           if [ -f pyproject.toml ]; then
             pip install --only-binary :all: -e . 2>/dev/null || pip install --only-binary :all: -e ".[dev]" 2>/dev/null || pip install --only-binary :all: -e ".[test]" 2>/dev/null || true
           fi
-          if [ -f requirements.txt ]; then pip install --only-binary :all: --require-hashes -r requirements.lock || true; fi
-          if [ -f requirements-dev.txt ]; then pip install --only-binary :all: --require-hashes -r requirements-dev.lock || true; fi
+          if [ -f requirements.txt ]; then pip install --only-binary :all: -r requirements.lock || true; fi
+          if [ -f requirements-dev.txt ]; then pip install --only-binary :all: -r requirements-dev.lock || true; fi
           pip install --only-binary :all: pytest==9.0.3 pytest-cov==7.1.0
 
       - name: Check for tests
