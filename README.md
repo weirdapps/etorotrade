@@ -39,11 +39,12 @@ That's it! You'll see color-coded recommendations (🟢 BUY, 🔴 SELL, ⚪ HOLD
 ### For All Investors
 
 ```bash
-# 1. Install dependencies (Poetry creates the venv + pins via poetry.lock)
-poetry install --only main
+# 1. Install dependencies (Poetry generates a hashed lockfile, pip installs only-binary)
+poetry export --only main -f requirements.txt -o /tmp/req.txt
+pip install --only-binary :all: --require-hashes -r /tmp/req.txt
 
 # 2. Analyze specific stocks
-poetry run python trade.py -o i -t AAPL,MSFT,GOOGL
+python trade.py -o i -t AAPL,MSFT,GOOGL
 
 # 3. Screen market opportunities
 python trade.py -o m
@@ -116,12 +117,15 @@ Position sizes are calculated using a risk-adjusted framework:
 git clone https://github.com/weirdapps/etorotrade
 cd etorotrade
 
-# Install Poetry if you don't have it (https://python-poetry.org/docs/#installation)
-# Then install dependencies — Poetry will create and manage a venv automatically.
-poetry install                # production + dev (tests, lint, type-check)
-# Or production-only:
-# poetry install --only main
+# Install Poetry (see https://python-poetry.org/docs/#installation)
+# Then create a venv and install pinned, hashed deps via the export-then-pip
+# pattern — gives binary-only artifacts and SHA256 verification (matches CI).
+python3 -m venv venv && source venv/bin/activate
+poetry export --extras dev -f requirements.txt -o /tmp/req.txt
+pip install --only-binary :all: --require-hashes -r /tmp/req.txt
 ```
+
+Or run `scripts/dev/setup.sh` which performs the same steps + installs pre-commit hooks.
 
 ## Usage
 
