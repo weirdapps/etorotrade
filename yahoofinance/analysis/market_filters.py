@@ -7,7 +7,7 @@ using the centralized TradeConfig configuration.
 
 import pandas as pd
 
-from trade_modules.analysis_engine import calculate_action_vectorized
+from trade_modules.analysis.signals import calculate_action_vectorized
 from yahoofinance.core.logging import get_logger
 
 logger = get_logger(__name__)
